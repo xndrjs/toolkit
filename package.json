@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "changeset": "changeset",
-    "build:packages": "pnpm -r --filter './packages/*' run build --if-present",
+    "build:packages": "pnpm -r --filter './packages/*' run --if-present build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
