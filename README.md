@@ -28,13 +28,15 @@ This is a **repository secret** that holds an npm automation token so CI can run
 
 1. Sign in at [npmjs.com](https://www.npmjs.com) with an account that is allowed to publish under your scope (e.g. member of the `@xndrjs` org, or owner of the user scope).
 2. Open **Access Tokens**:
-   - **Granular token** (recommended): create a token with **Packages and scopes** → permission to **Read and write** for the relevant packages (or the whole scope / org, depending on how npm presents it).
-   - **Classic token**: type **Automation** (or **Publish**) so it can publish from CI without 2FA prompts.
+   - **Classic token**: choose type **Automation** (not **Publish**). **Automation** is meant for CI and can publish **without** a one-time password. A **Publish** token or a personal token often triggers **`EOTP` / “This operation requires a one-time password”** in GitHub Actions because npm still expects interactive 2FA.
+   - **Granular token**: only if npm shows an option suitable for **CI / automation** (read **and** write on organization and the packages or scope you publish). If publish still fails with **EOTP**, switch to a classic **Automation** token for `NPM_TOKEN`.
 3. Copy the token once npm shows it (you will not see it again).
 4. In GitHub: open the repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
 5. Name: **`NPM_TOKEN`**, value: paste the token → save.
 
-The workflows pass this to npm as `NPM_TOKEN` / `NODE_AUTH_TOKEN` (see `.github/workflows/release-*.yml`). If publish fails with **403** or **404**, the token usually lacks publish rights for that scope or the package name is not created yet under your org.
+The workflows pass this to npm as `NPM_TOKEN` / `NODE_AUTH_TOKEN` (see `.github/workflows/release-*.yml`). If publish fails with **403** or **404**, the token usually lacks publish rights for that scope or the package name is not created yet under your org. If it fails with **EOTP**, replace `NPM_TOKEN` with a classic **Automation** token (see above).
+
+npm may print warnings like **Unknown cli config "--git-checks"** or **Unknown user config "always-auth"**; those come from the Actions runner / npm defaults and are unrelated to **EOTP** — fixing the token type is what resolves the publish failure.
 
 #### `GITHUB_TOKEN` (usually nothing to paste)
 
