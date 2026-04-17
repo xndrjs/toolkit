@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/branded",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Zod-first branded types for domain modeling.",
   "private": false,
   "license": "MIT",
