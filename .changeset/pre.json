@@ -1,0 +1,11 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@config/eslint": "1.0.0",
+    "@config/typescript": "1.0.0",
+    "@config/vitest": "1.0.0",
+    "@xndrjs/branded": "0.1.0"
+  },
+  "changesets": []
+}
