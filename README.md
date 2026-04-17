@@ -89,7 +89,7 @@ npm install @xndrjs/branded@alpha
 2. On push to `alpha`, the **Release alpha** workflow (`.github/workflows/release-alpha.yml`):
    - checks `pre.json` is in `pre` mode with tag `alpha`;
    - runs tests and builds packages under `packages/*`;
-   - if there are changesets to apply, runs `pnpm changeset version`, publishes with `pnpm changeset publish --tag alpha`, then commits the version bump (and changelog) with a message that includes `[skip ci]` to avoid CI loops.
+   - if there are changesets to apply, runs `pnpm changeset version`, publishes with `pnpm changeset publish` (npm dist-tag `alpha` comes from `.changeset/pre.json`, not from `--tag` on the CLI), then commits the version bump (and changelog) with a message that includes `[skip ci]` to avoid CI loops.
 
 If there are no new changesets, the workflow exits without publishing.
 

@@ -70,9 +70,10 @@ jobs:
         if: steps.bump.outputs.skip_publish != 'true'
         run: pnpm run build:packages
 
-      - name: Publish to npm (tag alpha)
+      # In pre mode, dist-tag is taken from `.changeset/pre.json` (`tag`); `--tag` on CLI is not allowed.
+      - name: Publish to npm (tag from pre.json)
         if: steps.bump.outputs.skip_publish != 'true'
-        run: pnpm changeset publish --tag alpha
+        run: pnpm changeset publish
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
