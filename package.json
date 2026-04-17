@@ -1,0 +1,48 @@
+{
+  "name": "@xndrjs/toolkit",
+  "private": true,
+  "scripts": {
+    "changeset": "changeset",
+    "build:packages": "pnpm -r --filter './packages/*' run build --if-present",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage",
+    "prepare": "husky",
+    "deps:renovate": "npx -p renovate renovate-config-validator renovate.json"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.0",
+    "@config/eslint": "workspace:^",
+    "@config/vitest": "workspace:^",
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^25.5.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "inquirer": "^9.3.8",
+    "lint-staged": "^16.4.0",
+    "node-plop": "^0.32.3",
+    "plop": "^4.0.5",
+    "prettier": "^3.4.2",
+    "ts-morph": "^25",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.0"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,ts,tsx}": [
+      "eslint --fix"
+    ],
+    "*.{js,cjs,mjs,ts,tsx,json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=25 <26"
+  }
+}

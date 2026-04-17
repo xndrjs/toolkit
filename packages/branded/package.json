@@ -1,0 +1,34 @@
+{
+  "name": "@xndrjs/branded",
+  "version": "0.1.0",
+  "description": "Zod-first branded types for domain modeling.",
+  "private": false,
+  "license": "MIT",
+  "type": "module",
+  "types": "./dist/api.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/api.d.ts",
+      "import": "./dist/api.js",
+      "default": "./dist/api.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
+    "prepublishOnly": "pnpm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

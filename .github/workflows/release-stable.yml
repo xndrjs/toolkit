@@ -1,0 +1,66 @@
+# Stable releases to npm (dist-tag `latest`) via Changesets.
+# With open changesets, the action opens/updates the "Version Packages" PR.
+# After that PR is merged (version bump only), the next run performs publish.
+
+name: Release stable
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: release-stable-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Changesets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: No prerelease mode on main
+        run: |
+          if [ -f .changeset/pre.json ]; then
+            echo "::error::Found .changeset/pre.json on main. Remove it with \`pnpm changeset pre exit\` on the alpha branch before merging, or do not merge prerelease config to main."
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build publishable packages
+        run: pnpm run build:packages
+
+      - name: Changesets (PR or publish)
+        uses: changesets/action@v1
+        with:
+          version: pnpm changeset version
+          publish: pnpm run build:packages && pnpm changeset publish
+          createGithubReleases: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

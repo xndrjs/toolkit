@@ -1,0 +1,91 @@
+# Publish prereleases to npm with dist-tag `alpha` (semver e.g. 0.1.1-alpha.0).
+# Requires branch `alpha` with `.changeset/pre.json` from `pnpm changeset pre enter alpha`.
+
+name: Release alpha
+
+on:
+  push:
+    branches:
+      - alpha
+  workflow_dispatch:
+
+concurrency:
+  group: release-alpha-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Version and publish (alpha)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prerelease config present
+        run: |
+          test -f .changeset/pre.json
+          node -e "
+            const p = require('./.changeset/pre.json');
+            if (p.mode !== 'pre' || p.tag !== 'alpha') {
+              console.error('Expected pre mode with tag alpha in .changeset/pre.json');
+              process.exit(1);
+            }
+          "
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Apply changesets (prerelease)
+        id: bump
+        run: |
+          set -euo pipefail
+          pnpm changeset version 2>&1 | tee version_log.txt
+          if grep -q "No unreleased changesets found" version_log.txt; then
+            echo "skip_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build publishable packages
+        if: steps.bump.outputs.skip_publish != 'true'
+        run: pnpm run build:packages
+
+      - name: Publish to npm (tag alpha)
+        if: steps.bump.outputs.skip_publish != 'true'
+        run: pnpm changeset publish --tag alpha
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Commit version bump
+        if: steps.bump.outputs.skip_publish != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No file changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: version packages (alpha) [skip ci]"
+          git push
