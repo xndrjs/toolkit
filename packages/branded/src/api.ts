@@ -5,10 +5,6 @@ import { defineBrandedPrimitive } from "./branded-primitive";
 import { defineBrandedRefinement } from "./branded-refinement";
 import { defineBrandedShape } from "./branded-shape";
 
-export * from "./types";
-
-export * from "./errors";
-
 /**
  * Namespaced kit API.
  */

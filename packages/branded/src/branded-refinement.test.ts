@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { branded, BrandedType, Branded, BrandedRefinementError } from "./api";
+import { branded } from "./api";
 import { __brand } from "./private-constants";
+import { Branded, BrandedType } from "./types";
+import { BrandedRefinementError } from "./errors";
 
 const UserSchema = z.object({
   id: z.string(),

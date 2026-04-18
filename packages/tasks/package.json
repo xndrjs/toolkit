@@ -1,13 +1,13 @@
 {
-  "name": "@xndrjs/branded",
-  "version": "0.1.0-alpha.1",
-  "description": "Zod-first branded types for domain modeling.",
+  "name": "@xndrjs/tasks",
+  "version": "0.1.0-alpha.0",
+  "description": "Lazy async tasks utilities.",
   "private": false,
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xndrjs/toolkit.git",
-    "directory": "packages/branded"
+    "directory": "packages/tasks"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -32,8 +32,5 @@
   "devDependencies": {
     "tsup": "^8.5.1",
     "vitest": "^4.1.0"
-  },
-  "dependencies": {
-    "zod": "^4.3.6"
   }
 }

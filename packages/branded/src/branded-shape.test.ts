@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { __brand } from "./private-constants";
-import { branded, BrandedType, BrandedValidationError } from "./api";
+import { branded } from "./api";
+import { BrandedType } from "./types";
+import { BrandedValidationError } from "./errors";
 
 // --- Example domain ---
 

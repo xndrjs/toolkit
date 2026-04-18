@@ -138,6 +138,7 @@ This writes `artifacts/*.tgz` (folder is gitignored). Useful to inspect what wou
 
 ## Packages
 
-| Package           | Description                                  |
-| ----------------- | -------------------------------------------- |
-| `@xndrjs/branded` | Zod-first branded types (`packages/branded`) |
+| Package           | Description                                    |
+| ----------------- | ---------------------------------------------- |
+| `@xndrjs/branded` | Zod-first branded types (`packages/branded`)   |
+| `@xndrjs/tasks`   | Lazy async tasks with retry (`packages/tasks`) |

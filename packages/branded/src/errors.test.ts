@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { BrandedError, BrandedRefinementError, BrandedValidationError } from "./api";
+import { BrandedError, BrandedRefinementError, BrandedValidationError } from "./errors";
 
 describe("branded errors", () => {
   it("BrandedError stores code, message, and cause", () => {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { branded, BrandedValidationError } from "./api";
+import { branded } from "./api";
+import { BrandedValidationError } from "./errors";
 
 describe("branded primitive", () => {
   const EmailSchema = z
