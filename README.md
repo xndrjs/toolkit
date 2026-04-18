@@ -144,3 +144,4 @@ This writes `artifacts/*.tgz` (folder is gitignored). Useful to inspect what wou
 | `@xndrjs/tasks`         | Lazy async tasks with retry (`packages/tasks`)                 |
 | `@xndrjs/orchestration` | Orchestration ports (`packages/orchestration`)                 |
 | `@xndrjs/react-adapter` | React hooks for orchestration ports (`packages/react-adapter`) |
+| `@xndrjs/data-layer`    | Data layer utilities (`packages/data-layer`)                   |
