@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { __brand } from "./private-constants";
 import { BrandedValidationError } from "./errors";
-import { BrandedShape, BrandState, Mutable, UpdateInput } from "./types";
+import { BrandedShape, BrandState, Mutable, PatchDelta } from "./types";
 
 export function defineBrandedShape<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,22 +36,22 @@ export function defineBrandedShape<
     return copy;
   }
 
-  function update(
+  function patch(
     entity: BrandedShape<Type, Props>,
-    patchOrUpdater: UpdateInput<Props>
+    delta: PatchDelta<Props>
   ): BrandedShape<Type, Props> {
     const draft = { ...entity } as Mutable<BrandedShape<Type, Props>>;
 
-    if (typeof patchOrUpdater === "function") {
-      patchOrUpdater(draft as unknown as Mutable<Props>);
+    if (typeof delta === "function") {
+      delta(draft as unknown as Mutable<Props>);
     } else {
-      Object.assign(draft, patchOrUpdater);
+      Object.assign(draft, delta);
     }
 
     const validatedResult = schema.safeParse(payloadForSchemaParse(draft));
     if (!validatedResult.success) {
       throw new BrandedValidationError(
-        `Invalid input for shape "${type}" during update`,
+        `Invalid input for shape "${type}" during patch`,
         validatedResult.error
       );
     }
@@ -85,6 +85,6 @@ export function defineBrandedShape<
       schema,
       type,
     },
-    update,
+    patch,
   ] as const;
 }

@@ -14,7 +14,7 @@ type Email = BrandedType<typeof EmailPrimitive>;
 
 // Address entity / composite VO
 
-const [AddressShape, _updateAddress] = branded.shape(
+const [AddressShape, _patchAddress] = branded.shape(
   "Address",
   z.object({
     city: z.string(),
@@ -24,7 +24,7 @@ const [AddressShape, _updateAddress] = branded.shape(
 
 // User aggregate
 
-const [UserShape, updateUser] = branded.shape(
+const [UserShape, patchUser] = branded.shape(
   "User",
   z.object({
     email: branded.field(EmailPrimitive),
@@ -34,13 +34,13 @@ const [UserShape, updateUser] = branded.shape(
 
 type User = BrandedType<typeof UserShape>;
 
-function updateEmail(user: User, email: Email) {
-  return updateUser(user, { email });
+function patchEmail(user: User, email: Email) {
+  return patchUser(user, { email });
 }
 
 const UserSDK = {
   ...UserShape,
-  updateEmail,
+  patchEmail,
 };
 
 const Auth = {
@@ -93,24 +93,24 @@ describe("branded-kit example domain", () => {
     ).toBe(true);
   });
 
-  it("updateUser patches email and re-validates", () => {
+  it("patchUser patches email and re-validates", () => {
     const user = Auth.User.create({
       email: Auth.Email.create("a@b.c"),
       address: Auth.Address.create({ street: "Old", city: "F" }),
     });
-    const next = updateEmail(user, Auth.Email.create("new@b.c"));
+    const next = patchEmail(user, Auth.Email.create("new@b.c"));
     expect(next.email).toBe("new@b.c");
     expect(next.address).toEqual(user.address);
     expect(next.type).toBe("User");
     expect(Auth.User.is(next)).toBe(true);
   });
 
-  it("updateUser rejects invalid patch via Zod", () => {
+  it("patchUser rejects invalid delta via Zod", () => {
     const user = Auth.User.create({
       email: Auth.Email.create("ok@b.c"),
       address: Auth.Address.create({ street: "S", city: "F" }),
     });
-    expect(() => updateUser(user, { email: "" as unknown as Email })).toThrow(
+    expect(() => patchUser(user, { email: "" as unknown as Email })).toThrow(
       BrandedValidationError
     );
   });
@@ -153,13 +153,13 @@ describe("branded-kit example domain", () => {
     expect(Auth.User.is(user)).toBe(true);
   });
 
-  it("updates User address from raw nested value", () => {
+  it("patches User address from raw nested value", () => {
     const user = Auth.User.create({
       email: "email@test.com",
       address: { street: "old street", city: "F" },
     });
 
-    const next = updateUser(user, {
+    const next = patchUser(user, {
       address: { street: "new street", city: "F" },
     });
 
@@ -167,10 +167,10 @@ describe("branded-kit example domain", () => {
     expect(Auth.Address.is(next.address)).toBe(true);
   });
 
-  it("update ignores tampered type and __brand before re-validation", () => {
-    const [WidgetShape, updateWidget] = branded.shape("Widget", z.object({ name: z.string() }));
+  it("patch ignores tampered type and __brand before re-validation", () => {
+    const [WidgetShape, patchWidget] = branded.shape("Widget", z.object({ name: z.string() }));
     const w = WidgetShape.create({ name: "a" });
-    const next = updateWidget(w, (draft) => {
+    const next = patchWidget(w, (draft) => {
       draft.name = "b";
       (draft as { type?: string }).type = "Malicious";
       Reflect.set(draft, __brand, { Fake: true });

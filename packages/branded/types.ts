@@ -1,7 +1,8 @@
 import { __brand } from "./private-constants";
 
 export type Mutable<T> = { -readonly [K in keyof T]: T[K] };
-export type UpdateInput<T> = Partial<T> | ((draft: Mutable<T>) => void);
+/** Partial props or a mutating callback for branded shape `patch`. */
+export type PatchDelta<T> = Partial<T> | ((draft: Mutable<T>) => void);
 export type BrandState = Readonly<Record<string, boolean>>;
 
 /**

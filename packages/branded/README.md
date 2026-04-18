@@ -29,9 +29,9 @@ API: `branded.primitive(typeName, zodSchema)` → `{ create, is, schema, type }`
 
 ### Shape (entity / value object)
 
-A **readonly object** with a **runtime `type` discriminant** and an internal brand map. **`create`** validates and **freezes** the instance; **`is`** checks discriminant + brand, not just Zod shape (so plain parsed JSON does not “count” as domain). **`update`** removes `type` and `__brand` from the working copy before Zod runs, then reapplies the correct discriminant and shape brand so a patch cannot “stick” forged metadata.
+A **readonly object** with a **runtime `type` discriminant** and an internal brand map. **`create`** validates and **freezes** the instance; **`is`** checks discriminant + brand, not just Zod shape (so plain parsed JSON does not “count” as domain). **`patch`** removes `type` and `__brand` from the working copy before Zod runs, then reapplies validated props, the discriminant, and the entity’s existing `__brand` so a delta cannot “stick” forged metadata.
 
-API: `branded.shape(typeName, z.object({ ... }))` → **tuple** `[kit, update]` where `kit` has `create`, `is`, `schema`, `type`, and `update` re-validates after a patch.
+API: `branded.shape(typeName, z.object({ ... }))` → **tuple** `[kit, patch]` where `kit` has `create`, `is`, `schema`, `type`, and **`patch`** re-validates after applying a **`PatchDelta`** (partial props or draft callback).
 
 ### Field
 
@@ -51,6 +51,7 @@ Invalid refinement uses **`from`** → throws **`BrandedRefinementError`**; **`t
 - **`Branded<Brand, T>`** — nominal brand `Brand` over base type `T` (same argument order as `primitive` / `shape`: name first).
 - **`BrandOf<T>`** — extracts the brand literal from a `Branded<Brand, …>` type (used to default generics in `refinement`).
 - **`BrandedPrimitive<Brand, T>`** / **`BrandedShape<Brand, Props>`** — aliases for primitives and shapes.
+- **`PatchDelta<T>`** — partial `T` or `(draft: Mutable<T>) => void`; argument type for shape **`patch`**.
 
 ## Examples
 
@@ -95,7 +96,7 @@ const [AddressShape] = branded.shape(
   })
 );
 
-const [UserShape, updateUser] = branded.shape(
+const [UserShape, patchUser] = branded.shape(
   "User",
   z.object({
     email: branded.field(Email),
@@ -114,7 +115,7 @@ const user = UserShape.create({
 user.type; // "User"
 Object.isFrozen(user); // true — entity-style immutability
 
-const next = updateUser(user, { email: Email.create("other@example.com") });
+const next = patchUser(user, { email: Email.create("other@example.com") });
 ```
 
 ### Refinement: optional → guaranteed (`tryFrom` / `from`)
@@ -154,7 +155,7 @@ const maybe = VerifiedUserRefinement.tryFrom(user); // null if not refined
 
 | Class                    | When                                                      |
 | ------------------------ | --------------------------------------------------------- |
-| `BrandedValidationError` | `create` / `update` / field parsing fails Zod validation  |
+| `BrandedValidationError` | `create` / `patch` / field parsing fails Zod validation   |
 | `BrandedRefinementError` | `refinement.from` called when the type predicate is false |
 | `BrandedError`           | Base class with `code` for both cases above               |
 
@@ -164,7 +165,7 @@ Validation errors expose **`issues`** and **`zodError`**, plus **`flatten()`** (
 
 1. **Validate at the boundary** — `create` is the gate; you don’t get a branded value without a successful parse.
 2. **Nominal typing** — at the type level, primitives and shapes are not interchangeable; primitives stay plain values at runtime, shapes carry `type` + `__brand`.
-3. **Immutable aggregates** — shapes are **`Object.freeze`d** after creation/update; updates go through **`update`** and re-validation.
+3. **Immutable aggregates** — shapes are **`Object.freeze`d** after `create` / `patch`; changes go through **`patch`** and re-validation.
 4. **Explicit domain discriminants** — every shape carries **`type: '<Name>'`**, useful for unions and logging.
 5. **Composition without duplication** — **`field`** reuses child schemas so nested raw input stays ergonomic.
 6. **Refinements as proof steps** — **`from` / `tryFrom`** make “verified” states explicit instead of scattered `if` + casts.
