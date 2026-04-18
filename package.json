@@ -1,6 +1,10 @@
 {
   "name": "@xndrjs/toolkit",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git"
+  },
   "scripts": {
     "changeset": "changeset",
     "build:packages": "pnpm -r --filter './packages/*' run --if-present build",

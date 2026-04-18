@@ -1,9 +1,14 @@
 {
   "name": "@xndrjs/branded",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "Zod-first branded types for domain modeling.",
   "private": false,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/branded"
+  },
   "type": "module",
   "types": "./dist/api.d.ts",
   "exports": {

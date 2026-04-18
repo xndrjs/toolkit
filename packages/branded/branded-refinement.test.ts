@@ -10,7 +10,7 @@ const UserSchema = z.object({
   additionalData: z.string().optional(),
 });
 
-const [UserShape] = branded.shape("User", UserSchema);
+const [UserShape, updateUser] = branded.shape("User", UserSchema);
 
 type User = BrandedType<typeof UserShape>;
 
@@ -80,6 +80,22 @@ describe("branded refinement", () => {
     const verified = VerifiedUserRefinement.from(user);
     expect(verified.type).toBe("User");
     expect(VerifiedUserRefinement.is(verified)).toBe(true);
+  });
+
+  it("shape update preserves refinement brands from the entity", () => {
+    const user = UserShape.create({
+      id: "u-6",
+      isVerified: true,
+      additionalData: "before",
+    });
+    const verified = VerifiedUserRefinement.from(user);
+    const next = updateUser(verified, { additionalData: "after" });
+    expect(next.additionalData).toBe("after");
+    expect(next[__brand]).toEqual({
+      User: true,
+      VerifiedUser: true,
+    });
+    expect(VerifiedUserRefinement.is(next)).toBe(true);
   });
 
   it("from() does not mutate the source value and returns a frozen clone", () => {

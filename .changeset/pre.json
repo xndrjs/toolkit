@@ -7,5 +7,8 @@
     "@config/vitest": "1.0.0",
     "@xndrjs/branded": "0.1.0"
   },
-  "changesets": ["small-birds-smile"]
+  "changesets": [
+    "silly-buttons-pay",
+    "small-birds-smile"
+  ]
 }

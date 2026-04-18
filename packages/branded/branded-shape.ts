@@ -60,7 +60,7 @@ export function defineBrandedShape<
     return Object.freeze({
       ...validated,
       type,
-      [__brand]: shapeBrandState,
+      [__brand]: entity[__brand],
     }) as BrandedShape<Type, Props>;
   }
 

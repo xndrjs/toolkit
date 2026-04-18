@@ -48,6 +48,12 @@ const config = defineConfig(
   },
   // Disable any formatting rules that could conflict with Prettier
   prettierConfig,
+  {
+    files: ["**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  }
 );
 
 export default config;
