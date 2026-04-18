@@ -72,4 +72,46 @@ describe("task", () => {
     await expect(t).resolves.toBe(3);
     expect(attempts).toEqual([0, 1]);
   });
+
+  it("retry respects options.maxAttempts", async () => {
+    const err = new Error("fail");
+    const effect = vi.fn(async () => {
+      throw err;
+    });
+
+    const t = task(effect).retry(() => true, { maxAttempts: 2 });
+    await expect(t).rejects.toBe(err);
+    expect(effect).toHaveBeenCalledTimes(2);
+  });
+
+  it("retry uses default maxAttempts of 3 when options omitted", async () => {
+    const err = new Error("fail");
+    const effect = vi.fn(async () => {
+      throw err;
+    });
+
+    const t = task(effect).retry(() => true);
+    await expect(t).rejects.toBe(err);
+    expect(effect).toHaveBeenCalledTimes(3);
+  });
+
+  it("retry does not call shouldRetry when maxAttempts is 1 and the effect fails", async () => {
+    const err = new Error("x");
+    const effect = vi.fn(async () => {
+      throw err;
+    });
+    const shouldRetry = vi.fn(() => true);
+
+    const t = task(effect).retry(shouldRetry, { maxAttempts: 1 });
+    await expect(t).rejects.toBe(err);
+    expect(effect).toHaveBeenCalledTimes(1);
+    expect(shouldRetry).not.toHaveBeenCalled();
+  });
+
+  it("retry throws when maxAttempts is invalid", () => {
+    const t = task(async () => 1);
+    expect(() => t.retry(() => true, { maxAttempts: 0 })).toThrow(TypeError);
+    expect(() => t.retry(() => true, { maxAttempts: -1 })).toThrow(TypeError);
+    expect(() => t.retry(() => true, { maxAttempts: 1.5 })).toThrow(TypeError);
+  });
 });
