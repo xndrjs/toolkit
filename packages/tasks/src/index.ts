@@ -1,2 +1,2 @@
-export type { RetryOptions, RetryPredicate, Task } from "./task";
-export { DEFAULT_MAX_ATTEMPTS, task } from "./task";
+export type { RetryOptions, RetryPredicate, Task } from "./types";
+export { task } from "./task";
