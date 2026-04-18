@@ -1,5 +1,6 @@
 export interface AsyncDataInteractionPort<Data, Err = Error> {
-  setLoading: (isLoading: boolean) => void;
+  startLoading: () => void;
+  endLoading: () => void;
   displayData: (data: Data) => void;
   displayError: (error: Err) => void;
 }
