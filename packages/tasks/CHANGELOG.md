@@ -1,5 +1,11 @@
 # @xndrjs/tasks
 
+## 0.1.0-alpha.2
+
+### Minor Changes
+
+- 2630f02: Added sleep utility
+
 ## 0.1.0-alpha.1
 
 ### Minor Changes

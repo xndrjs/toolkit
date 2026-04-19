@@ -11,5 +11,5 @@
     "@xndrjs/react-adapter": "0.1.0-alpha.0",
     "@xndrjs/tasks": "0.1.0-alpha.0"
   },
-  "changesets": ["fancy-maps-scream", "silly-buttons-pay", "small-birds-smile"]
+  "changesets": ["fancy-maps-scream", "silly-buttons-pay", "small-birds-smile", "thin-months-help"]
 }
