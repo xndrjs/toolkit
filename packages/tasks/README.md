@@ -16,15 +16,29 @@ npm install @xndrjs/tasks
 ## Example
 
 ```ts
-import { task } from "@xndrjs/tasks";
+import { sleep, task } from "@xndrjs/tasks";
 
-const t = task(() => fetch("/api/users").then((r) => r.json())).retry(() => true, {
-  maxAttempts: 5,
-});
+const usersTask = task(async () => fetch("/api/users"))
+  .retry(
+    async (error, attempt) => {
+      if (!shouldRetry(error)) return false;
 
-await t;
+      // `attempt` starts at 0 after the first failure.
+      // Wait: 200ms, 400ms, 800ms, 1600ms...
+      const delayMs = 200 * 2 ** attempt;
+      await sleep(delayMs);
+
+      return true; // retry after sleep
+    },
+    {
+      maxAttempts: 5,
+    }
+  )
+  .then((response) => response.json());
+
+const users = await usersTask;
 ```
 
 ## API
 
-Exported symbols: **`task`**, **`Task`**, **`RetryPredicate`**, **`RetryOptions`** (`maxAttempts?: number`).
+Exported symbols: **`task`**, **`sleep`**, **`Task`**, **`RetryPredicate`**, **`RetryOptions`** (`maxAttempts?: number`).
