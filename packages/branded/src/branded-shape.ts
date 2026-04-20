@@ -3,29 +3,29 @@ import { __brand } from "./private-constants";
 import { BrandedValidationError } from "./errors";
 import {
   BrandedMethodDefinitions,
-  BrandedMethodSurface,
-  BrandedShape,
+  BrandedShapeEntity,
+  BrandedShapeKit,
+  BrandedShapeTuple,
+  BrandedZodObjectSchema,
   BrandState,
   Mutable,
   PatchDelta,
 } from "./types";
 
 export function defineBrandedShape<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Schema extends z.ZodObject<any>,
+  Schema extends BrandedZodObjectSchema,
   Type extends string,
   Methods extends BrandedMethodDefinitions = Record<never, never>,
 >(
   type: Type,
   schema: Schema,
   options?: {
-    methods?: Methods &
-      ThisType<BrandedShape<Type, z.output<Schema>> & BrandedMethodSurface<Methods>>;
+    methods?: Methods & ThisType<BrandedShapeEntity<Type, Schema, Methods>>;
   }
-) {
+): BrandedShapeTuple<Type, Schema, Methods> {
   type InputProps = z.input<Schema>;
   type OutputProps = z.output<Schema>;
-  type Entity = BrandedShape<Type, OutputProps> & BrandedMethodSurface<Methods>;
+  type Entity = BrandedShapeEntity<Type, Schema, Methods>;
   const shapeBrandState = Object.freeze({ [type]: true });
   const methods = options?.methods ?? ({} as Methods);
   const prototype = Object.create(null) as Record<string, unknown>;
@@ -124,13 +124,12 @@ export function defineBrandedShape<
     );
   }
 
-  return [
-    {
-      create,
-      is,
-      schema,
-      type,
-    },
-    patch,
-  ] as const;
+  const kit: BrandedShapeKit<Type, Schema, Methods> = {
+    create,
+    is,
+    schema,
+    type,
+  };
+
+  return [kit, patch];
 }

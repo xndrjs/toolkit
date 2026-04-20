@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { __anemicOutput, __brand } from "./private-constants";
 
 export type Mutable<T> = { -readonly [K in keyof T]: T[K] };
@@ -65,6 +66,53 @@ export type BrandedShape<Type extends string, Props> = Branded<
   Type,
   Readonly<Props & { type: Type }>
 >;
+
+/**
+ * Zod object schema accepted by **`branded.shape`**. Intentionally open (`any` property map) to align
+ * with Zod’s typings for arbitrary object shapes.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type BrandedZodObjectSchema = z.ZodObject<any>;
+
+/**
+ * Entity instance type for a shape kit: branded row + instance method surface.
+ */
+export type BrandedShapeEntity<
+  Type extends string,
+  Schema extends BrandedZodObjectSchema,
+  Methods extends BrandedMethodDefinitions,
+> = BrandedShape<Type, z.output<Schema>> & BrandedMethodSurface<Methods>;
+
+/**
+ * Kit object (first element of {@link BrandedShapeTuple}). Spelled with public {@link BrandedShape} so
+ * dependents’ `.d.ts` emit can reference stable types instead of fragile inferred `__brand` paths.
+ */
+export interface BrandedShapeKit<
+  Type extends string,
+  Schema extends BrandedZodObjectSchema,
+  Methods extends BrandedMethodDefinitions = Record<never, never>,
+> {
+  create: (input: z.input<Schema>) => BrandedShapeEntity<Type, Schema, Methods>;
+  is: (value: unknown) => value is BrandedShapeEntity<Type, Schema, Methods>;
+  schema: Schema;
+  type: Type;
+}
+
+export type BrandedShapePatchFn<
+  Type extends string,
+  Schema extends BrandedZodObjectSchema,
+  Methods extends BrandedMethodDefinitions = Record<never, never>,
+> = <T extends BrandedShapeEntity<Type, Schema, Methods>>(
+  entity: T,
+  delta: PatchDelta<z.input<Schema>>
+) => T;
+
+/** `[kit, patch]` return type of **`branded.shape`**. */
+export type BrandedShapeTuple<
+  Type extends string,
+  Schema extends BrandedZodObjectSchema,
+  Methods extends BrandedMethodDefinitions = Record<never, never>,
+> = readonly [BrandedShapeKit<Type, Schema, Methods>, BrandedShapePatchFn<Type, Schema, Methods>];
 
 /** Return type of a kit’s `create` or `from` method (handles generic call signatures). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- conditional inference only
