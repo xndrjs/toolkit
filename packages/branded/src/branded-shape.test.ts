@@ -26,69 +26,81 @@ const [AddressShape, _patchAddress] = branded.shape(
 
 // User aggregate
 
-const [UserShape, patchUser] = branded.shape(
+const [User, patchUser] = branded.shape(
   "User",
   z.object({
     email: branded.field(EmailPrimitive),
     address: branded.field(AddressShape),
-  })
+  }),
+  {
+    methods: {
+      isCorporate() {
+        return this.email.endsWith("@company.com");
+      },
+      patchEmail(email: Email) {
+        return patchUser(this, { email });
+      },
+    },
+  }
 );
 
-type User = BrandedType<typeof UserShape>;
-
-function patchEmail(user: User, email: Email) {
-  return patchUser(user, { email });
-}
-
-const UserSDK = {
-  ...UserShape,
-  patchEmail,
-};
-
-const Auth = {
-  Email: EmailPrimitive,
-  User: UserSDK,
-  Address: AddressShape,
-};
+type UserEntity = BrandedType<typeof User>;
 
 // --- Tests ---
 
 describe("branded-kit example domain", () => {
   it("creates Email, Address, and User with runtime discriminant + brand", () => {
-    const email = Auth.Email.create("ciao");
-    const address = Auth.Address.create({ street: "Via Roma 1", city: "Firenze" });
-    const user = Auth.User.create({ email, address });
+    const email = EmailPrimitive.create("ciao");
+    const address = AddressShape.create({ street: "Via Roma 1", city: "Firenze" });
+    const user = User.create({ email, address });
 
     expect(email).toBe("ciao");
-    expect(Auth.Email.is(email)).toBe(true);
+    expect(EmailPrimitive.is(email)).toBe(true);
 
     expect(address.type).toBe("Address");
     expect(address.street).toBe("Via Roma 1");
     expect(address[__brand]).toEqual({ Address: true });
-    expect(Auth.Address.is(address)).toBe(true);
+    expect(AddressShape.is(address)).toBe(true);
 
     expect(user.type).toBe("User");
     expect(user.email).toBe(email);
     expect(user.address).toEqual(address);
+    expect(user.isCorporate()).toBe(false);
     expect(user[__brand]).toEqual({ User: true });
     expect(Object.isFrozen(user)).toBe(true);
     expect(Object.isFrozen(user[__brand])).toBe(true);
-    expect(Auth.User.is(user)).toBe(true);
+    expect(User.is(user)).toBe(true);
   });
 
-  it("UserShape.is rejects plain objects without brand or wrong type", () => {
+  it("keeps methods on prototype, so they are not copied by spread/json", () => {
+    const user = User.create({
+      email: "alice@company.com",
+      address: { street: "Via Roma 1", city: "Firenze" },
+    });
+
+    expect(user.isCorporate()).toBe(true);
+    expect(Object.keys(user)).not.toContain("isCorporate");
+
+    const spread = { ...user } as Record<string, unknown>;
+    expect("isCorporate" in spread).toBe(false);
+
+    const serialized = JSON.stringify(user);
+    expect(serialized).not.toContain("isCorporate");
+  });
+
+  it("User.is rejects plain objects without brand or wrong type", () => {
     expect(
-      Auth.User.is({
+      User.is({
         type: "User",
-        email: Auth.Email.create("x"),
-        address: Auth.Address.create({ street: "s", city: "F" }),
+        email: EmailPrimitive.create("x"),
+        address: AddressShape.create({ street: "s", city: "F" }),
       })
     ).toBe(false);
 
     expect(
-      Auth.User.is({
-        email: Auth.Email.create("x"),
-        address: Auth.Address.create({ street: "s", city: "F" }),
+      User.is({
+        email: EmailPrimitive.create("x"),
+        address: AddressShape.create({ street: "s", city: "F" }),
         type: "User",
         [__brand]: { User: true },
       })
@@ -96,34 +108,35 @@ describe("branded-kit example domain", () => {
   });
 
   it("patchUser patches email and re-validates", () => {
-    const user = Auth.User.create({
-      email: Auth.Email.create("a@b.c"),
-      address: Auth.Address.create({ street: "Old", city: "F" }),
+    const user = User.create({
+      email: EmailPrimitive.create("a@b.c"),
+      address: AddressShape.create({ street: "Old", city: "F" }),
     });
-    const next = patchEmail(user, Auth.Email.create("new@b.c"));
+    const next = user.patchEmail(EmailPrimitive.create("new@b.c"));
     expect(next.email).toBe("new@b.c");
     expect(next.address).toEqual(user.address);
     expect(next.type).toBe("User");
-    expect(Auth.User.is(next)).toBe(true);
+    expect(next.isCorporate()).toBe(false);
+    expect(User.is(next)).toBe(true);
   });
 
   it("patchUser rejects invalid delta via Zod", () => {
-    const user = Auth.User.create({
-      email: Auth.Email.create("ok@b.c"),
-      address: Auth.Address.create({ street: "S", city: "F" }),
+    const user = User.create({
+      email: EmailPrimitive.create("ok@b.c"),
+      address: AddressShape.create({ street: "S", city: "F" }),
     });
-    expect(() => patchUser(user, { email: "" as unknown as Email })).toThrow(
+    expect(() => patchUser(user as UserEntity, { email: "" as unknown as Email })).toThrow(
       BrandedValidationError
     );
   });
 
   it("shape validation errors expose zod issues", () => {
     try {
-      Auth.User.create({
+      User.create({
         email: "",
         address: { street: "Via", city: "F" },
       });
-      throw new Error("Expected Auth.User.create to throw");
+      throw new Error("Expected User.create to throw");
     } catch (error) {
       expect(error).toBeInstanceOf(BrandedValidationError);
       const validationError = error as BrandedValidationError;
@@ -133,30 +146,30 @@ describe("branded-kit example domain", () => {
   });
 
   it("JSON round-trip drops symbol brand; is() is false until re-hydrated", () => {
-    const user = Auth.User.create({
-      email: Auth.Email.create("x"),
-      address: Auth.Address.create({ street: "y", city: "F" }),
+    const user = User.create({
+      email: EmailPrimitive.create("x"),
+      address: AddressShape.create({ street: "y", city: "F" }),
     });
     const parsed = JSON.parse(JSON.stringify(user)) as unknown;
-    expect(Auth.User.is(parsed)).toBe(false);
+    expect(User.is(parsed)).toBe(false);
   });
 
   it("creates User directly from raw nested values", () => {
-    const user = Auth.User.create({
+    const user = User.create({
       email: "email@test.com",
       address: { street: "via roma 1", city: "F" },
     });
 
     expect(user.type).toBe("User");
     expect(user.email).toBe("email@test.com");
-    expect(Auth.Email.is(user.email)).toBe(true);
+    expect(EmailPrimitive.is(user.email)).toBe(true);
     expect(user.address.street).toBe("via roma 1");
-    expect(Auth.Address.is(user.address)).toBe(true);
-    expect(Auth.User.is(user)).toBe(true);
+    expect(AddressShape.is(user.address)).toBe(true);
+    expect(User.is(user)).toBe(true);
   });
 
   it("patches User address from raw nested value", () => {
-    const user = Auth.User.create({
+    const user = User.create({
       email: "email@test.com",
       address: { street: "old street", city: "F" },
     });
@@ -166,7 +179,7 @@ describe("branded-kit example domain", () => {
     });
 
     expect(next.address.street).toBe("new street");
-    expect(Auth.Address.is(next.address)).toBe(true);
+    expect(AddressShape.is(next.address)).toBe(true);
   });
 
   it("patch ignores tampered type and __brand before re-validation", () => {

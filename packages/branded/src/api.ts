@@ -1,9 +1,10 @@
 // Do not export constants. It has private __brand const.
 
 import { defineBrandedField } from "./branded-field";
+import { defineBrandedRefine } from "./branded-refinement";
 import { defineBrandedPrimitive } from "./branded-primitive";
-import { defineBrandedRefinement } from "./branded-refinement";
 import { defineBrandedShape } from "./branded-shape";
+import { toAnemicOutput } from "./anemic";
 
 /**
  * Namespaced kit API.
@@ -12,5 +13,9 @@ export const branded = {
   primitive: defineBrandedPrimitive,
   shape: defineBrandedShape,
   field: defineBrandedField,
-  refinement: defineBrandedRefinement,
+  refine: defineBrandedRefine,
 } as const;
+
+export const anemic = {
+  from: toAnemicOutput,
+};

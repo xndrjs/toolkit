@@ -3,42 +3,83 @@ import { z } from "zod";
 
 import { branded } from "./api";
 import { __brand } from "./private-constants";
-import { Branded, BrandedType } from "./types";
+import { BrandedType } from "./types";
 import { BrandedRefinementError } from "./errors";
 
 const UserSchema = z.object({
   id: z.string(),
   isVerified: z.boolean(),
   additionalData: z.string().optional(),
+  avatarSrc: z.string().optional(),
 });
 
-const [UserShape, patchUser] = branded.shape("User", UserSchema);
-
-type User = BrandedType<typeof UserShape>;
-
-type VerifiedUser = Branded<"VerifiedUser", User & { isVerified: true; additionalData: string }>;
-
-const VerifiedUserRefinement = branded.refinement<typeof UserShape, VerifiedUser>("VerifiedUser", {
-  is: (user): user is VerifiedUser =>
-    user.isVerified === true && typeof user.additionalData === "string",
+const [User, patchUser] = branded.shape("User", UserSchema, {
+  methods: {
+    canAccessAdminArea() {
+      return this.isVerified === true;
+    },
+    hasAdditionalData() {
+      return typeof this.additionalData === "string" && this.additionalData.length > 0;
+    },
+    profileWordCount() {
+      const d = this.additionalData;
+      if (typeof d !== "string") return 0;
+      return d.trim().split(/\s+/).filter(Boolean).length;
+    },
+    hasAvatar() {
+      return typeof this.avatarSrc === "string" && this.avatarSrc.length > 0;
+    },
+  },
 });
 
-type VerifiedUserFromKit = BrandedType<typeof VerifiedUserRefinement>;
+type UserEntity = BrandedType<typeof User>;
+
+/** Narrowed row for verification (type guard target in `when`). */
+type VerifiedUserData = UserEntity & { isVerified: true; additionalData: string };
+
+const VerifiedUserRefinement = branded
+  .refine(User)
+  .when(
+    (user): user is VerifiedUserData =>
+      user.isVerified === true && typeof user.additionalData === "string"
+  )
+  .as("VerifiedUser");
+
+/** Domain type after refinement: derived from the kit. */
+type VerifiedUser = BrandedType<typeof VerifiedUserRefinement>;
+
+/** Narrowed row for profile enrichment. Second refinement: distinct from {@link VerifiedUserData}. */
+type ProfileEnrichedData = UserEntity & { additionalData: string; avatarSrc: string };
+
+const ProfileEnrichedRefinement = branded
+  .refine(User)
+  .when(
+    (user): user is ProfileEnrichedData =>
+      typeof user.additionalData === "string" &&
+      user.additionalData.length >= 5 &&
+      typeof user.avatarSrc === "string" &&
+      user.avatarSrc.length > 0
+  )
+  .as("ProfileEnriched");
+
+/** Profile-enriched user when refining from a plain {@link UserEntity}. */
+type ProfileEnrichedUser = BrandedType<typeof ProfileEnrichedRefinement>;
 
 describe("branded refinement", () => {
-  it("BrandedType of refinement kit is the value returned by from()", () => {
-    const user = UserShape.create({
+  it("refinement kit from() return matches VerifiedUser alias", () => {
+    const user = User.create({
       id: "u-0",
       isVerified: true,
       additionalData: "x",
     });
-    const verified: VerifiedUserFromKit = VerifiedUserRefinement.from(user);
+    const verified: VerifiedUser = VerifiedUserRefinement.from(user);
     expect(verified.additionalData).toBe("x");
+    expect(verified.hasAdditionalData()).toBe(true);
     expect(VerifiedUserRefinement.is(verified)).toBe(true);
   });
 
   it("brands a valid base shape into a refined branded guarantee", () => {
-    const user = UserShape.create({
+    const user = User.create({
       id: "u-1",
       isVerified: true,
       additionalData: "present",
@@ -46,6 +87,8 @@ describe("branded refinement", () => {
 
     const verified = VerifiedUserRefinement.from(user);
     expect(verified.isVerified).toBe(true);
+    expect(verified.canAccessAdminArea()).toBe(true);
+    expect(verified.hasAdditionalData()).toBe(true);
     expect(verified.additionalData).toBe("present");
     expect(verified.type).toBe("User");
     expect(verified[__brand]).toEqual({
@@ -55,7 +98,7 @@ describe("branded refinement", () => {
   });
 
   it("rejects invalid refinement input via from()", () => {
-    const user = UserShape.create({
+    const user = User.create({
       id: "u-2",
       isVerified: false,
     });
@@ -64,7 +107,7 @@ describe("branded refinement", () => {
   });
 
   it("tryFrom returns null for non-refined values", () => {
-    const user = UserShape.create({
+    const user = User.create({
       id: "u-3",
       isVerified: true,
     });
@@ -73,7 +116,7 @@ describe("branded refinement", () => {
   });
 
   it("assert narrows and keeps runtime discriminant", () => {
-    const user = UserShape.create({
+    const user = User.create({
       id: "u-4",
       isVerified: true,
       additionalData: "ok",
@@ -85,7 +128,7 @@ describe("branded refinement", () => {
   });
 
   it("shape patch preserves refinement brands from the entity", () => {
-    const user = UserShape.create({
+    const user = User.create({
       id: "u-6",
       isVerified: true,
       additionalData: "before",
@@ -93,6 +136,8 @@ describe("branded refinement", () => {
     const verified = VerifiedUserRefinement.from(user);
     const next = patchUser(verified, { additionalData: "after" });
     expect(next.additionalData).toBe("after");
+    expect(next.canAccessAdminArea()).toBe(true);
+    expect(next.hasAdditionalData()).toBe(true);
     expect(next[__brand]).toEqual({
       User: true,
       VerifiedUser: true,
@@ -101,7 +146,7 @@ describe("branded refinement", () => {
   });
 
   it("from() does not mutate the source value and returns a frozen clone", () => {
-    const user = UserShape.create({
+    const user = User.create({
       id: "u-5",
       isVerified: true,
       additionalData: "ok",
@@ -116,5 +161,115 @@ describe("branded refinement", () => {
     expect(user[__brand]).toBe(beforeBrand);
     expect(user[__brand]).toEqual({ User: true });
     expect(verified[__brand]).toEqual({ User: true, VerifiedUser: true });
+  });
+
+  it("keeps shape methods on prototype, so they are not copied by spread/json", () => {
+    const user = User.create({
+      id: "u-7",
+      isVerified: true,
+      additionalData: "visible",
+    });
+    const verified = VerifiedUserRefinement.from(user);
+
+    expect(verified.hasAdditionalData()).toBe(true);
+    expect(Object.keys(verified)).not.toContain("hasAdditionalData");
+
+    const spread = { ...verified } as Record<string, unknown>;
+    expect("hasAdditionalData" in spread).toBe(false);
+
+    const serialized = JSON.stringify(verified);
+    expect(serialized).not.toContain("hasAdditionalData");
+  });
+});
+
+describe("multiple refinements on the same shape", () => {
+  it("ProfileEnriched from base user matches ProfileEnrichedUser", () => {
+    const user = User.create({
+      id: "u-mr-0",
+      isVerified: true,
+      additionalData: "hello world profile",
+      avatarSrc: "https://cdn.example/avatar.png",
+    });
+    const enriched: ProfileEnrichedUser = ProfileEnrichedRefinement.from(user);
+    expect(enriched.profileWordCount()).toBe(3);
+    expect(ProfileEnrichedRefinement.is(enriched)).toBe(true);
+  });
+
+  it("stacks brands; shape prototype methods remain available on chained refinements", () => {
+    const user = User.create({
+      id: "u-mr-1",
+      isVerified: true,
+      additionalData: "hello world profile",
+      avatarSrc: "https://cdn.example/avatar.png",
+    });
+
+    const verified = VerifiedUserRefinement.from(user);
+    const enriched = ProfileEnrichedRefinement.from(verified);
+
+    expect(enriched[__brand]).toEqual({
+      User: true,
+      VerifiedUser: true,
+      ProfileEnriched: true,
+    });
+
+    expect(enriched.canAccessAdminArea()).toBe(true);
+    expect(enriched.hasAdditionalData()).toBe(true);
+    expect(enriched.hasAvatar()).toBe(true);
+    expect(enriched.profileWordCount()).toBe(3);
+    expect(enriched.avatarSrc).toBe("https://cdn.example/avatar.png");
+
+    expect(VerifiedUserRefinement.is(enriched)).toBe(true);
+    expect(ProfileEnrichedRefinement.is(enriched)).toBe(true);
+  });
+
+  it("rejects the second refinement when additionalData is too short even if VerifiedUser passed", () => {
+    const user = User.create({
+      id: "u-mr-2",
+      isVerified: true,
+      additionalData: "hi",
+      avatarSrc: "https://cdn.example/avatar.png",
+    });
+
+    const verified = VerifiedUserRefinement.from(user);
+    expect(verified.additionalData).toBe("hi");
+
+    expect(() => ProfileEnrichedRefinement.from(verified)).toThrow(BrandedRefinementError);
+  });
+
+  it("rejects the second refinement when avatarSrc is missing even if VerifiedUser passed", () => {
+    const user = User.create({
+      id: "u-mr-2b",
+      isVerified: true,
+      additionalData: "long enough profile text",
+    });
+
+    const verified = VerifiedUserRefinement.from(user);
+    expect(() => ProfileEnrichedRefinement.from(verified)).toThrow(BrandedRefinementError);
+  });
+
+  it("shape patch preserves all stacked refinement brands", () => {
+    const user = User.create({
+      id: "u-mr-3",
+      isVerified: true,
+      additionalData: "long enough text here",
+      avatarSrc: "https://cdn.example/face.jpg",
+    });
+    const enriched = ProfileEnrichedRefinement.from(VerifiedUserRefinement.from(user));
+
+    const next = patchUser(enriched, {
+      additionalData: "updated long enough text",
+    });
+
+    expect(next.additionalData).toBe("updated long enough text");
+    expect(next.avatarSrc).toBe("https://cdn.example/face.jpg");
+    expect(next[__brand]).toEqual({
+      User: true,
+      VerifiedUser: true,
+      ProfileEnriched: true,
+    });
+    expect(VerifiedUserRefinement.is(next)).toBe(true);
+    expect(ProfileEnrichedRefinement.is(next)).toBe(true);
+    expect(next.profileWordCount()).toBeGreaterThan(0);
+    expect(next.hasAvatar()).toBe(true);
   });
 });

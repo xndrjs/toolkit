@@ -1,17 +1,77 @@
 import { z } from "zod";
 import { __brand } from "./private-constants";
 import { BrandedValidationError } from "./errors";
-import { BrandedShape, BrandState, Mutable, PatchDelta } from "./types";
+import {
+  BrandedMethodDefinitions,
+  BrandedMethodSurface,
+  BrandedShape,
+  BrandState,
+  Mutable,
+  PatchDelta,
+} from "./types";
 
 export function defineBrandedShape<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Schema extends z.ZodObject<any>,
   Type extends string,
->(type: Type, schema: Schema) {
-  type Props = z.input<Schema>;
+  Methods extends BrandedMethodDefinitions = Record<never, never>,
+>(
+  type: Type,
+  schema: Schema,
+  options?: {
+    methods?: Methods &
+      ThisType<BrandedShape<Type, z.output<Schema>> & BrandedMethodSurface<Methods>>;
+  }
+) {
+  type InputProps = z.input<Schema>;
+  type OutputProps = z.output<Schema>;
+  type Entity = BrandedShape<Type, OutputProps> & BrandedMethodSurface<Methods>;
   const shapeBrandState = Object.freeze({ [type]: true });
+  const methods = options?.methods ?? ({} as Methods);
+  const prototype = Object.create(null) as Record<string, unknown>;
 
-  function create(input: Props): BrandedShape<Type, Props> {
+  for (const key of Object.keys(methods) as (keyof Methods)[]) {
+    const method = methods[key];
+    if (typeof method !== "function") {
+      throw new TypeError(
+        `Invalid method "${String(key)}" for shape "${type}": expected a function`
+      );
+    }
+    Object.defineProperty(prototype, key, {
+      enumerable: false,
+      configurable: false,
+      writable: false,
+      value: function methodInvoker(this: Entity, ...args: unknown[]) {
+        return Reflect.apply(method, this, args);
+      },
+    });
+  }
+
+  function createEntity(
+    parsed: OutputProps,
+    brandState: BrandState,
+    entityPrototype: object | null = prototype
+  ): Entity {
+    const entity = Object.assign(Object.create(entityPrototype), parsed) as Record<
+      string | symbol,
+      unknown
+    >;
+    Object.defineProperty(entity, "type", {
+      value: type,
+      enumerable: true,
+      configurable: false,
+      writable: false,
+    });
+    Object.defineProperty(entity, __brand, {
+      value: brandState,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    });
+    return Object.freeze(entity) as Entity;
+  }
+
+  function create(input: InputProps): Entity {
     const parsedResult = schema.safeParse(input);
     if (!parsedResult.success) {
       throw new BrandedValidationError(
@@ -19,31 +79,21 @@ export function defineBrandedShape<
         parsedResult.error
       );
     }
-    const parsed = parsedResult.data;
-    return Object.freeze({
-      ...parsed,
-      type,
-      [__brand]: shapeBrandState,
-    }) as BrandedShape<Type, Props>;
+    return createEntity(parsedResult.data, shapeBrandState);
   }
 
-  function payloadForSchemaParse(
-    draft: Mutable<BrandedShape<Type, Props>>
-  ): Record<string, unknown> {
+  function payloadForSchemaParse(draft: Mutable<Entity>): Record<string, unknown> {
     const copy = { ...draft } as Record<string | typeof __brand, unknown>;
     delete copy.type;
     Reflect.deleteProperty(copy, __brand);
     return copy;
   }
 
-  function patch(
-    entity: BrandedShape<Type, Props>,
-    delta: PatchDelta<Props>
-  ): BrandedShape<Type, Props> {
-    const draft = { ...entity } as Mutable<BrandedShape<Type, Props>>;
+  function patch<T extends Entity>(entity: T, delta: PatchDelta<InputProps>): T {
+    const draft = { ...entity } as Mutable<Entity>;
 
     if (typeof delta === "function") {
-      delta(draft as unknown as Mutable<Props>);
+      delta(draft as unknown as Mutable<InputProps>);
     } else {
       Object.assign(draft, delta);
     }
@@ -57,14 +107,10 @@ export function defineBrandedShape<
     }
     const validated = validatedResult.data;
 
-    return Object.freeze({
-      ...validated,
-      type,
-      [__brand]: entity[__brand],
-    }) as BrandedShape<Type, Props>;
+    return createEntity(validated, entity[__brand], Object.getPrototypeOf(entity)) as T;
   }
 
-  function is(value: unknown): value is BrandedShape<Type, Props> {
+  function is(value: unknown): value is Entity {
     const brandState = (value as Partial<Record<typeof __brand, unknown>>)[__brand];
     return (
       typeof value === "object" &&

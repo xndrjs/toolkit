@@ -41,15 +41,17 @@ API: `branded.field(childKit)` inside `z.object({ ... })`.
 
 ### Refinement
 
-Adds a **second brand** (and optional TypeScript narrowing) on top of an existing shape when a **type predicate** holds — e.g. `User` → `VerifiedUser` with stricter fields.  
-API: `branded.refinement(brandName, { is })` → `{ brand, is, from, tryFrom }`.  
-Invalid refinement uses **`from`** → throws **`BrandedRefinementError`**; **`tryFrom`** returns `null`.
+Adds a **second brand** and **TypeScript narrowing** on top of an existing shape when a **type predicate** holds — e.g. `User` → `VerifiedUser` with stricter fields. Refinements **do not define instance methods**; behavior stays on the **base shape** (`branded.shape(…, { methods })`).  
+API: `branded.refine(baseKit).when((user): user is NarrowData => …).as(brandName)` — narrow type comes from the **`when`** type guard only; do not hand-write `Branded<Brand, …>` for the row (the kit applies the brand on **`kit.from`**). → `{ brand, is, from, tryFrom }`.  
+Invalid refinement: **`kit.from`** throws **`BrandedRefinementError`**; **`tryFrom`** returns `null`.
 
 ### Types
 
 - **`BrandedType<typeof kit>`** — value type from **`kit.create`** (primitive/shape) or **`kit.from`** (refinement).
 - **`Branded<Brand, T>`** — nominal brand `Brand` over base type `T` (same argument order as `primitive` / `shape`: name first).
-- **`BrandOf<T>`** — extracts the brand literal from a `Branded<Brand, …>` type (used to default generics in `refinement`).
+- **`BrandOf<T>`** — extracts the brand literal from a `Branded<Brand, …>` type.
+- **`RefinementInstance<TBase, Brand, NewType>`** — refinement value type (`TBase` + refinement brand + narrowed data); matches **`from`** / **`tryFrom`**. Instance methods are only those from the shape prototype.
+- **`BrandedMethodDefinitions`** / **`BrandedMethodSurface<M>`** — method bags for **shape** `methods` only.
 - **`BrandedPrimitive<Brand, T>`** / **`BrandedShape<Brand, Props>`** — aliases for primitives and shapes.
 - **`PatchDelta<T>`** — partial `T` or `(draft: Mutable<T>) => void`; argument type for shape **`patch`**.
 
@@ -121,7 +123,7 @@ const next = patchUser(user, { email: Email.create("other@example.com") });
 ### Refinement: optional → guaranteed (`tryFrom` / `from`)
 
 ```ts
-import { branded, Branded, BrandedType } from "@xndrjs/branded";
+import { branded, BrandedType } from "@xndrjs/branded";
 
 const UserSchema = z.object({
   id: z.string(),
@@ -129,35 +131,44 @@ const UserSchema = z.object({
   additionalData: z.string().optional(),
 });
 
-const [UserShape] = branded.shape("User", UserSchema);
-type User = BrandedType<typeof UserShape>;
-
-type VerifiedUser = Branded<"VerifiedUser", User & { isVerified: true; additionalData: string }>;
-
-const VerifiedUserRefinement = branded.refinement<typeof UserShape, VerifiedUser>("VerifiedUser", {
-  is: (user): user is VerifiedUser =>
-    user.isVerified === true && typeof user.additionalData === "string",
+const [User] = branded.shape("User", UserSchema, {
+  methods: {
+    hasAdditionalData() {
+      return typeof this.additionalData === "string" && this.additionalData.length > 0;
+    },
+  },
 });
+type UserEntity = BrandedType<typeof User>;
 
-type VerifiedUserFromKit = BrandedType<typeof VerifiedUserRefinement>; // equivalent to VerifiedUser
+type VerifiedUserData = UserEntity & { isVerified: true; additionalData: string };
 
-const user = UserShape.create({
+const VerifiedUserRefinement = branded
+  .refine(User)
+  .when(
+    (user): user is VerifiedUserData =>
+      user.isVerified === true && typeof user.additionalData === "string"
+  )
+  .as("VerifiedUser");
+
+type VerifiedUser = BrandedType<typeof VerifiedUserRefinement>;
+
+const user = User.create({
   id: "u-1",
   isVerified: true,
   additionalData: "present",
 });
 
-const verified = VerifiedUserRefinement.from(user); // throws BrandedRefinementError if predicate fails
+const verified: VerifiedUser = VerifiedUserRefinement.from(user); // throws BrandedRefinementError if predicate fails
 const maybe = VerifiedUserRefinement.tryFrom(user); // null if not refined
 ```
 
 ## Errors
 
-| Class                    | When                                                      |
-| ------------------------ | --------------------------------------------------------- |
-| `BrandedValidationError` | `create` / `patch` / field parsing fails Zod validation   |
-| `BrandedRefinementError` | `refinement.from` called when the type predicate is false |
-| `BrandedError`           | Base class with `code` for both cases above               |
+| Class                    | When                                                            |
+| ------------------------ | --------------------------------------------------------------- |
+| `BrandedValidationError` | `create` / `patch` / field parsing fails Zod validation         |
+| `BrandedRefinementError` | `kit.from` on a refinement kit when the type predicate is false |
+| `BrandedError`           | Base class with `code` for both cases above                     |
 
 Validation errors expose **`issues`** and **`zodError`**, plus **`flatten()`** (`z.flattenError`) and **`treeify()`** (`z.treeifyError`) for Zod 4–aligned field and tree-shaped reporting (avoids deprecated `ZodError#flatten` / `#format`).
 
@@ -175,7 +186,7 @@ Validation errors expose **`issues`** and **`zodError`**, plus **`flatten()`** (
 ## Caveats
 
 - **Primitives vs objects**: runtime `__brand` exists on **shapes** and **refinement results** (objects), not on **primitive** scalars.
-- **Serialization**: `JSON.stringify` / `parse` drops the internal brand on objects; **`UserShape.is(parsedJson)`** is **`false`** until you construct again with **`create`** (by design).
+- **Serialization**: `JSON.stringify` / `parse` drops the internal brand on objects; **`User.is(parsedJson)`** is **`false`** until you construct again with **`create`** (by design).
 - **Library scope**: this is a small kit around Zod + nominal branding — not a full entity framework or ORM layer.
 
 ## License
