@@ -1,5 +1,11 @@
 # @xndrjs/branded
 
+## 0.1.0-alpha.6
+
+### Minor Changes
+
+- bded0a6: Introduced explicit types for kit and patch method;
+
 ## 0.1.0-alpha.5
 
 ### Minor Changes
