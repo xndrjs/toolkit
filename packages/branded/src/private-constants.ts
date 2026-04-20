@@ -1,4 +1,4 @@
-// Runtime symbols; re-exported for typing / advanced use via `@xndrjs/branded/internal`.
+// Runtime symbols; re-exported from the package entry for typing / declaration emit (see index.ts).
 
 /**
  * Hidden nominal marker. `unique symbol` prevents manual brand construction.
