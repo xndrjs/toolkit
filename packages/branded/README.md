@@ -10,7 +10,7 @@ Most “branded types” tutorials stop at `type Email = string & { __brand: 'Em
 
 - **Enforce good habits by default** — validation, immutability for aggregates, runtime discriminants for shapes, typed refinements — **without** asking you to hand-roll `parse`, `assert`, `brand`, and error types on every new type.
 - **Stay close to Zod** — you already express invariants in schemas; the kit wires `safeParse`, throws **`BrandedValidationError`** with **`issues`**, and exposes the same **`schema`** for composition.
-- **Keep the public surface tiny** — one entrypoint (`branded.*` helpers + shared types/errors). No parallel validation DSL.
+- **Keep the public surface small** — main usage is `branded.*` + shared types/errors; an optional **`@xndrjs/branded/internal`** subpath exists only for advanced typing / tests (see below).
 
 ## Installation
 
@@ -19,6 +19,43 @@ npm install @xndrjs/branded zod
 ```
 
 `zod` is a **peer-style** dependency: you bring the version your app uses; the package imports it directly.
+
+## `@xndrjs/branded/internal` (advanced)
+
+Subpath **`@xndrjs/branded/internal`** exports **`__brand`** and **`__anemicOutput`** (the same runtime `unique symbol` keys used by public types such as `Branded` and `AnemicOutput`).
+
+**Why it exists:** dependent projects with **`declaration: true`** sometimes need these symbols to be **exported and nameable** so TypeScript can emit `.d.ts` for your own exports (e.g. avoids **TS4023** when re-exporting kits whose types mention `Branded`).
+
+**When to use it:** only in **tests, tooling, or framework code** that must assert on brand metadata or work around declaration emit. **Do not** use it in normal application/domain code — it bypasses the intended API surface and lets you forge or poke at internal keys.
+
+### ESLint: forbid this import in app source
+
+Use **`no-restricted-imports`** and allow the subpath only where you need it (e.g. `*.test.ts`).
+
+**Flat config (`eslint.config.js`)** — example: restrict for all TS under `src/`, except tests:
+
+```js
+{
+  files: ["src/**/*.ts"],
+  ignores: ["**/*.test.ts", "**/*.spec.ts", "**/__tests__/**"],
+  rules: {
+    "no-restricted-imports": [
+      "error",
+      {
+        patterns: [
+          {
+            group: ["@xndrjs/branded/internal", "@xndrjs/branded/internal/*"],
+            message:
+              "Do not import @xndrjs/branded/internal in application code; use only in tests or tooling.",
+          },
+        ],
+      },
+    ],
+  },
+},
+```
+
+**Legacy `.eslintrc.cjs`** — same idea with `overrides` for test globs setting `no-restricted-imports` to `off` if you prefer a global ban with exceptions.
 
 ## Concepts
 

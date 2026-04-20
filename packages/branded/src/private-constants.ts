@@ -1,4 +1,4 @@
-// Do not export this file. It has private runtime/type symbols.
+// Runtime symbols; re-exported for typing / advanced use via `@xndrjs/branded/internal`.
 
 /**
  * Hidden nominal marker. `unique symbol` prevents manual brand construction.

@@ -1,5 +1,3 @@
-// Do not export constants. It has private __brand const.
-
 import { defineBrandedField } from "./branded-field";
 import { defineBrandedRefine } from "./branded-refinement";
 import { defineBrandedPrimitive } from "./branded-primitive";
