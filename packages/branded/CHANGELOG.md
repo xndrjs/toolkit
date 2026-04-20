@@ -1,5 +1,11 @@
 # @xndrjs/branded
 
+## 0.1.0-alpha.4
+
+### Minor Changes
+
+- 07ff4e5: new internal entry point for exporting \_\_brand
+
 ## 0.1.0-alpha.3
 
 ### Minor Changes
