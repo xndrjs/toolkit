@@ -1,5 +1,11 @@
 # @xndrjs/branded
 
+## 0.1.0-alpha.3
+
+### Minor Changes
+
+- c9caf0c: Added instance methods; New refinement builder; Added anemic helper + types;
+
 ## 0.1.0-alpha.2
 
 ### Minor Changes
