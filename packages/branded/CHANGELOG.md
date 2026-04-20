@@ -1,5 +1,11 @@
 # @xndrjs/branded
 
+## 0.1.0-alpha.5
+
+### Minor Changes
+
+- 4c0893b: Added symbols to main entry point
+
 ## 0.1.0-alpha.4
 
 ### Minor Changes
