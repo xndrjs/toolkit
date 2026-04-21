@@ -13,7 +13,7 @@ export type BrandState = Readonly<Record<string, boolean>>;
  * @typeParam T - Base type being branded.
  */
 export type Branded<B extends string, T> = T & {
-  readonly [__brand]: BrandState & Readonly<Record<B, true>>;
+  readonly [__brand]: Readonly<Record<B, true>>;
 };
 
 /**

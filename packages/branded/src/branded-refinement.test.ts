@@ -288,7 +288,7 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
     stage: z.number().int().min(0).max(3),
   });
 
-  const [BaseShape] = branded.shape("Doc", DocSchema);
+  const [BaseShape] = branded.shape("Doc", DocSchema, { methods: {} });
   type DocEntity = BrandedType<typeof BaseShape>;
 
   type ScoreTenPlus = DocEntity & { score: number };

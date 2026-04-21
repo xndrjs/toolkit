@@ -19,15 +19,15 @@ export function defineBrandedShape<
 >(
   type: Type,
   schema: Schema,
-  options?: {
-    methods?: Methods & ThisType<BrandedShapeEntity<Type, Schema, Methods>>;
+  options: {
+    methods: Methods & ThisType<BrandedShapeEntity<Type, Schema, Methods>>;
   }
 ): BrandedShapeTuple<Type, Schema, Methods> {
   type InputProps = z.input<Schema>;
   type OutputProps = z.output<Schema>;
   type Entity = BrandedShapeEntity<Type, Schema, Methods>;
   const shapeBrandState = Object.freeze({ [type]: true });
-  const methods = options?.methods ?? ({} as Methods);
+  const { methods } = options;
   const prototype = Object.create(null) as Record<string, unknown>;
 
   for (const key of Object.keys(methods) as (keyof Methods)[]) {

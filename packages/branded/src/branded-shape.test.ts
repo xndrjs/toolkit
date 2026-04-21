@@ -21,7 +21,8 @@ const [AddressShape, _patchAddress] = branded.shape(
   z.object({
     city: z.string(),
     street: z.string(),
-  })
+  }),
+  { methods: {} }
 );
 
 // User aggregate
@@ -183,7 +184,9 @@ describe("branded-kit example domain", () => {
   });
 
   it("patch ignores tampered type and __brand before re-validation", () => {
-    const [WidgetShape, patchWidget] = branded.shape("Widget", z.object({ name: z.string() }));
+    const [WidgetShape, patchWidget] = branded.shape("Widget", z.object({ name: z.string() }), {
+      methods: {},
+    });
     const w = WidgetShape.create({ name: "a" });
     const next = patchWidget(w, (draft) => {
       draft.name = "b";

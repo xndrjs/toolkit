@@ -69,7 +69,7 @@ API: `branded.primitive(typeName, zodSchema)` → `{ create, is, schema, type }`
 
 A **readonly object** with a **runtime `type` discriminant** and an internal brand map. **`create`** validates and **freezes** the instance; **`is`** checks discriminant + brand, not just Zod shape (so plain parsed JSON does not “count” as domain). **`patch`** removes `type` and `__brand` from the working copy before Zod runs, then reapplies validated props, the discriminant, and the entity’s existing `__brand` so a delta cannot “stick” forged metadata.
 
-API: `branded.shape(typeName, z.object({ ... }))` → **tuple** `[kit, patch]` where `kit` has `create`, `is`, `schema`, `type`, and **`patch`** re-validates after applying a **`PatchDelta`** (partial props or draft callback).
+API: `branded.shape(typeName, z.object({ ... }), { methods: { … } })` → **tuple** `[kit, patch]` where `kit` has `create`, `is`, `schema`, `type`, and **`patch`** re-validates after applying a **`PatchDelta`** (partial props or draft callback). The **`methods`** object is **required** (use `{ methods: {} }` when the entity has no instance methods).
 
 ### Field
 
@@ -138,7 +138,8 @@ const [AddressShape] = branded.shape(
   z.object({
     city: z.string(),
     street: z.string(),
-  })
+  }),
+  { methods: {} }
 );
 
 const [UserShape, patchUser] = branded.shape(
@@ -146,7 +147,8 @@ const [UserShape, patchUser] = branded.shape(
   z.object({
     email: branded.field(Email),
     address: branded.field(AddressShape),
-  })
+  }),
+  { methods: {} }
 );
 
 type User = BrandedType<typeof UserShape>;
