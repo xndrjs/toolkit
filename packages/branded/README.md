@@ -125,7 +125,12 @@ try {
 ### Nested shapes and `field` (one-shot create from raw input)
 
 ```ts
-const Email = branded.primitive("Email", z.string().min(1));
+const EmailSchema = z
+  .string()
+  .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
+  .transform((v) => v.toLowerCase());
+
+const Email = branded.primitive("Email", EmailSchema);
 type Email = BrandedType<typeof Email>;
 
 const [AddressShape] = branded.shape(
@@ -171,9 +176,7 @@ const UserSchema = z.object({
 
 const [User] = branded.shape("User", UserSchema, {
   methods: {
-    hasAdditionalData() {
-      return typeof this.additionalData === "string" && this.additionalData.length > 0;
-    },
+    // optional methods
   },
 });
 type UserEntity = BrandedType<typeof User>;
@@ -184,6 +187,7 @@ const VerifiedUserRefinement = branded
   .refine(User)
   .when(
     (user): user is VerifiedUserData =>
+      // validate properties with simple checks, or use a dedicated Zod schema + safeParse
       user.isVerified === true && typeof user.additionalData === "string"
   )
   .as("VerifiedUser");

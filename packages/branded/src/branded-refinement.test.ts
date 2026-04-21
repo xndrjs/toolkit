@@ -273,3 +273,102 @@ describe("multiple refinements on the same shape", () => {
     expect(next.hasAvatar()).toBe(true);
   });
 });
+
+/**
+ * BaseShape
+ * → RefinedShape1 (same base)
+ * → RefinedShape2 (same base, sibling of 1)
+ * → RefinedShape3 on RefinedShape2
+ * → RefinedShape4 on RefinedShape3
+ */
+describe("nested refinement chain (sibling refinements + stack on one branch)", () => {
+  const DocSchema = z.object({
+    id: z.string(),
+    score: z.number(),
+    stage: z.number().int().min(0).max(3),
+  });
+
+  const [BaseShape] = branded.shape("Doc", DocSchema);
+  type DocEntity = BrandedType<typeof BaseShape>;
+
+  type ScoreTenPlus = DocEntity & { score: number };
+  const RefinedShape1 = branded
+    .refine(BaseShape)
+    .when((d): d is ScoreTenPlus => d.score >= 10)
+    .as("ScoreTenPlus");
+
+  type MatureStage = DocEntity & { stage: number };
+  const RefinedShape2 = branded
+    .refine(BaseShape)
+    .when((d): d is MatureStage => d.stage >= 2)
+    .as("MatureStage");
+
+  type MatureDoc = BrandedType<typeof RefinedShape2>;
+  type MatureAndScored = MatureDoc & { score: number };
+  const RefinedShape3 = branded
+    .refine(RefinedShape2)
+    .when((d): d is MatureAndScored => d.score >= 20)
+    .as("MatureScored");
+
+  type MatureScoredDoc = BrandedType<typeof RefinedShape3>;
+  const RefinedShape4 = branded
+    .refine(RefinedShape3)
+    .when((d): d is MatureScoredDoc => d.score >= 30)
+    .as("VeryMature");
+
+  type VeryMatureDoc = BrandedType<typeof RefinedShape4>;
+
+  it("applies sibling refinements independently; each gate rejects the other sibling’s inputs", () => {
+    const highScoreEarly = BaseShape.create({ id: "d-0a", score: 15, stage: 0 });
+    const r1 = RefinedShape1.from(highScoreEarly);
+    expect(() => RefinedShape2.from(highScoreEarly)).toThrow(BrandedRefinementError);
+
+    const lowScoreLate = BaseShape.create({ id: "d-0b", score: 5, stage: 3 });
+    const r2 = RefinedShape2.from(lowScoreLate);
+    expect(() => RefinedShape1.from(lowScoreLate)).toThrow(BrandedRefinementError);
+
+    expect(r1[__brand]).toEqual({ Doc: true, ScoreTenPlus: true });
+    expect(r2[__brand]).toEqual({ Doc: true, MatureStage: true });
+    expect(RefinedShape1.is(r2)).toBe(false);
+    expect(RefinedShape2.is(r1)).toBe(false);
+  });
+
+  it("when both sibling predicates hold on the same base, each refinement kit can still from() it", () => {
+    const base = BaseShape.create({ id: "d-0c", score: 15, stage: 2 });
+    expect(RefinedShape1.from(base)[__brand]).toEqual({ Doc: true, ScoreTenPlus: true });
+    expect(RefinedShape2.from(base)[__brand]).toEqual({ Doc: true, MatureStage: true });
+  });
+
+  it("chains R2 → R3 → R4 and accumulates brands along the nested branch", () => {
+    const base = BaseShape.create({ id: "d-1", score: 35, stage: 2 });
+    const r2 = RefinedShape2.from(base);
+    const r3 = RefinedShape3.from(r2);
+    const r4: VeryMatureDoc = RefinedShape4.from(r3);
+
+    expect(r4.id).toBe("d-1");
+    expect(r4.score).toBe(35);
+    expect(r4.stage).toBe(2);
+    expect(r4[__brand]).toEqual({
+      Doc: true,
+      MatureStage: true,
+      MatureScored: true,
+      VeryMature: true,
+    });
+    expect(RefinedShape2.is(r4)).toBe(true);
+    expect(RefinedShape3.is(r4)).toBe(true);
+    expect(RefinedShape4.is(r4)).toBe(true);
+  });
+
+  it("rejects R3 when the base only satisfies MatureStage but not the R3 score gate", () => {
+    const base = BaseShape.create({ id: "d-2", score: 12, stage: 3 });
+    const r2 = RefinedShape2.from(base);
+    expect(() => RefinedShape3.from(r2)).toThrow(BrandedRefinementError);
+  });
+
+  it("rejects R4 when R3 passes but score is below the R4 gate", () => {
+    const base = BaseShape.create({ id: "d-3", score: 25, stage: 2 });
+    const r2 = RefinedShape2.from(base);
+    const r3 = RefinedShape3.from(r2);
+    expect(() => RefinedShape4.from(r3)).toThrow(BrandedRefinementError);
+  });
+});
