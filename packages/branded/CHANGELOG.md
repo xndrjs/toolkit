@@ -1,5 +1,11 @@
 # @xndrjs/branded
 
+## 0.1.0-alpha.7
+
+### Minor Changes
+
+- 9c3a6ed: Simplified types; added combine refinements builder;
+
 ## 0.1.0-alpha.6
 
 ### Minor Changes
