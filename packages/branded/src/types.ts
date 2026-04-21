@@ -161,3 +161,33 @@ export type Anemic<T> = T extends readonly (infer U)[]
 export type AnemicOutput<T> = Anemic<T> & {
   readonly [__anemicOutput]: true;
 };
+
+/**
+ * Structural minimum for a refinement kit returned by {@link import("./branded-refinement").defineBrandedRefine}.
+ * Used to chain refinements without re-stating `when` predicates.
+ */
+export interface BrandedRefinementKitLink<TInput, TOutput> {
+  readonly brand: string;
+  from: (value: TInput) => TOutput;
+  tryFrom: (value: TInput) => TOutput | null;
+  // Wider than the kit’s type guard so sibling kits on the same base stay composable.
+  is: (value: TInput) => boolean;
+}
+
+export interface CombinedRefinementKit<Brand extends string, TInput, TOutput> {
+  readonly brand: Brand;
+  from: (value: TInput) => TOutput;
+  tryFrom: (value: TInput) => TOutput | null;
+  is: (value: TInput) => boolean;
+}
+
+/**
+ * Fluent chain from **`branded.combine`**: `.with` adds the next refinement;
+ * `.as` finishes with the composite kit name (requires at least two refinements total).
+ */
+export interface BrandedRefinementCombineBuilder<TInput, TCurrent> {
+  with<O2>(
+    kit: BrandedRefinementKitLink<TCurrent, O2>
+  ): BrandedRefinementCombineBuilder<TInput, O2>;
+  as<Brand extends string>(brand: Brand): CombinedRefinementKit<Brand, TInput, TCurrent>;
+}

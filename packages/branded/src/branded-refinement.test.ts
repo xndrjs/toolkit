@@ -371,4 +371,102 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
     const r3 = RefinedShape3.from(r2);
     expect(() => RefinedShape4.from(r3)).toThrow(BrandedRefinementError);
   });
+
+  it("branded.combine matches manual R2 → R3 → R4 chain", () => {
+    const AllMature = branded
+      .combine(RefinedShape2)
+      .with(RefinedShape3)
+      .with(RefinedShape4)
+      .as("AllMature");
+    const base = BaseShape.create({ id: "d-c", score: 40, stage: 3 });
+    const manual = RefinedShape4.from(RefinedShape3.from(RefinedShape2.from(base)));
+    const via = AllMature.from(base);
+    expect(via[__brand]).toEqual(manual[__brand]);
+    expect(AllMature.is(base)).toBe(true);
+    expect(AllMature.tryFrom(base)).not.toBeNull();
+  });
+});
+
+describe("branded.combine", () => {
+  const VerifiedAndProfile = branded
+    .combine(VerifiedUserRefinement)
+    .with(ProfileEnrichedRefinement)
+    .as("VerifiedAndProfile");
+
+  type VerifiedAndProfileUser = BrandedType<typeof VerifiedAndProfile>;
+
+  it("chains from() like manual ProfileEnriched.from(VerifiedUser.from(…))", () => {
+    const user = User.create({
+      id: "u-combo-0",
+      isVerified: true,
+      additionalData: "hello world profile",
+      avatarSrc: "https://cdn.example/avatar.png",
+    });
+    const combined: VerifiedAndProfileUser = VerifiedAndProfile.from(user);
+    const manual = ProfileEnrichedRefinement.from(VerifiedUserRefinement.from(user));
+
+    expect(combined[__brand]).toEqual(manual[__brand]);
+    expect(combined[__brand]).toEqual({
+      User: true,
+      VerifiedUser: true,
+      ProfileEnriched: true,
+    });
+    expect(combined.profileWordCount()).toBe(3);
+  });
+
+  it("exposes the composite brand name on the kit", () => {
+    expect(VerifiedAndProfile.brand).toBe("VerifiedAndProfile");
+  });
+
+  it("tryFrom returns null when an intermediate refinement fails", () => {
+    const user = User.create({
+      id: "u-combo-1",
+      isVerified: true,
+      additionalData: "hi",
+      avatarSrc: "https://cdn.example/avatar.png",
+    });
+    expect(VerifiedUserRefinement.tryFrom(user)).not.toBeNull();
+    expect(VerifiedAndProfile.tryFrom(user)).toBeNull();
+  });
+
+  it("is mirrors tryFrom success", () => {
+    const ok = User.create({
+      id: "u-combo-2",
+      isVerified: true,
+      additionalData: "long enough profile text",
+      avatarSrc: "https://cdn.example/x.png",
+    });
+    const bad = User.create({
+      id: "u-combo-3",
+      isVerified: true,
+      additionalData: "long enough profile text",
+    });
+    expect(VerifiedAndProfile.is(ok)).toBe(true);
+    expect(VerifiedAndProfile.is(bad)).toBe(false);
+  });
+
+  it("from() throws BrandedRefinementError from the failing inner kit", () => {
+    const user = User.create({
+      id: "u-combo-4",
+      isVerified: true,
+      additionalData: "tiny",
+      avatarSrc: "https://cdn.example/a.png",
+    });
+    expect(() => VerifiedAndProfile.from(user)).toThrow(BrandedRefinementError);
+    try {
+      VerifiedAndProfile.from(user);
+    } catch (e) {
+      expect(e).toMatchObject({ brand: "ProfileEnriched" });
+    }
+  });
+
+  it("rejects duplicate input refinement brands", () => {
+    expect(() =>
+      branded.combine(VerifiedUserRefinement).with(VerifiedUserRefinement).as("Dup")
+    ).toThrow(TypeError);
+  });
+
+  it("requires at least two refinements before as()", () => {
+    expect(() => branded.combine(VerifiedUserRefinement).as("OnlyOne")).toThrow(TypeError);
+  });
 });
