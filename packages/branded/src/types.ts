@@ -64,7 +64,7 @@ export type BrandedPrimitive<Type extends string, T> = Branded<Type, T>;
  */
 export type BrandedShape<Type extends string, Props> = Branded<
   Type,
-  Readonly<Props & { type: Type }>
+  Readonly<{ [K in keyof (Props & { type: Type })]: (Props & { type: Type })[K] }>
 >;
 
 /**
@@ -81,7 +81,9 @@ export type BrandedShapeEntity<
   Type extends string,
   Schema extends BrandedZodObjectSchema,
   Methods extends BrandedMethodDefinitions,
-> = BrandedShape<Type, z.output<Schema>> & BrandedMethodSurface<Methods>;
+> = [keyof Methods] extends [never]
+  ? BrandedShape<Type, z.output<Schema>>
+  : BrandedShape<Type, z.output<Schema>> & BrandedMethodSurface<Methods>;
 
 /**
  * Kit object (first element of {@link BrandedShapeTuple}). Spelled with public {@link BrandedShape} so
