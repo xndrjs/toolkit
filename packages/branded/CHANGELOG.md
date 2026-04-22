@@ -1,5 +1,11 @@
 # @xndrjs/branded
 
+## 0.1.0-alpha.8
+
+### Minor Changes
+
+- 74d3804: removed runtime brands meta
+
 ## Unreleased
 
 ### Breaking Changes

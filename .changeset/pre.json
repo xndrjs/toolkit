@@ -12,6 +12,7 @@
     "@xndrjs/tasks": "0.1.0-alpha.0"
   },
   "changesets": [
+    "curly-bags-cry",
     "eager-maps-stop",
     "fancy-maps-scream",
     "gold-emus-draw",
