@@ -63,7 +63,7 @@ export function defineBrandedShape<
     return createEntity(parsedResult.data);
   }
 
-  function patch<T extends Entity>(entity: T, delta: PatchDelta<InputProps>): T {
+  function patch<T extends Entity>(entity: T, delta: PatchDelta<InputProps>): Entity {
     const draft = { ...entity } as Mutable<Entity>;
 
     if (typeof delta === "function") {
@@ -81,7 +81,7 @@ export function defineBrandedShape<
     }
     const validated = validatedResult.data;
 
-    return createEntity(validated, Object.getPrototypeOf(entity)) as T;
+    return createEntity(validated, Object.getPrototypeOf(entity));
   }
 
   function is(value: unknown): value is Entity {

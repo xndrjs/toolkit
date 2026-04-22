@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { branded } from "./api";
-import { BrandedType } from "./types";
+import type { BrandedType } from "./types";
 import { BrandedRefinementError } from "./errors";
 
 const UserSchema = z.object({
@@ -29,7 +29,10 @@ const [User, patchUser] = branded.shape("User", UserSchema, {
     hasAvatar() {
       return typeof this.avatarSrc === "string" && this.avatarSrc.length > 0;
     },
-    /** Valid `User` row patch that can break `VerifiedUser` refinement when applied to a refined instance. */
+    /**
+     * Breaks `VerifiedUser` when applied to a refined instance; delegates to `patchUser` (base entity).
+     * Refinements must be re-established via `tryFrom` / `from`.
+     */
     patchRevokeVerification() {
       return patchUser(this, { isVerified: false });
     },
@@ -143,7 +146,7 @@ describe("branded refinement", () => {
     expect(VerifiedUserRefinement.is(next)).toBe(true);
   });
 
-  it("patch return type stays the refined instance type when the receiver is refined (TS); runtime data may break the refinement predicate", () => {
+  it("free patch returns base shape type; semantic methods may use `as T` when the delta preserves refinements", () => {
     const user = User.create({
       id: "u-patch-refined-return-type",
       isVerified: true,
@@ -154,14 +157,13 @@ describe("branded refinement", () => {
     const viaMethod = verified.patchRevokeVerification();
     const viaPatch = patchUser(verified, { isVerified: false });
 
-    // Instance method and `patchUser` agree: after this delta, TS widens `isVerified` to `boolean`, so
-    // the value is no longer typed as `VerifiedUser`; runtime refinements follow `when`, not a brand map.
     const _fromMethod: UserEntity = viaMethod;
     const _fromPatch: UserEntity = viaPatch;
 
-    // @ts-expect-error not a verified user!
-    const _fromMethodWrong: VerifiedUser = viaMethod;
-    const _fromPatchWrong: VerifiedUser = viaPatch;
+    // @ts-expect-error patch strips refinement from the type; use tryFrom/from to narrow again
+    const _methodWrong: VerifiedUser = viaMethod;
+    // @ts-expect-error patch strips refinement from the type; use tryFrom/from to narrow again
+    const _patchWrong: VerifiedUser = viaPatch;
 
     expect(viaMethod.isVerified).toBe(false);
     expect(viaPatch.isVerified).toBe(false);

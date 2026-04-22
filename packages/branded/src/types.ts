@@ -115,6 +115,11 @@ export interface BrandedShapeKit<
   type: Type;
 }
 
+/**
+ * Always returns the **base** shape entity type so refinements are not preserved in the type system
+ * after a patch (re-apply with `refinement.tryFrom` / `from` when needed). Callers may still pass a
+ * refined instance as `entity`; only the return type is widened to the shape kit’s entity.
+ */
 export type BrandedShapePatchFn<
   Type extends string,
   Schema extends BrandedZodObjectSchema,
@@ -122,7 +127,7 @@ export type BrandedShapePatchFn<
 > = <T extends BrandedShapeEntity<Type, Schema, Methods>>(
   entity: T,
   delta: PatchDelta<z.input<Schema>>
-) => T;
+) => BrandedShapeEntity<Type, Schema, Methods>;
 
 /** `[kit, patch]` return type of **`branded.shape`**. */
 export type BrandedShapeTuple<

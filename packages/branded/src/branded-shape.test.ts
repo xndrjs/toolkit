@@ -27,24 +27,23 @@ const [AddressShape, _patchAddress] = branded.shape(
 
 // User aggregate
 
-const [User, patchUser] = branded.shape(
-  "User",
-  z.object({
-    type: z.literal("User").default("User"),
-    email: branded.field(EmailPrimitive),
-    address: branded.field(AddressShape),
-  }),
-  {
-    methods: {
-      isCorporate() {
-        return this.email.endsWith("@company.com");
-      },
-      patchEmail(email: Email) {
-        return patchUser(this, { email });
-      },
+const UserShapeSchema = z.object({
+  type: z.literal("User").default("User"),
+  email: branded.field(EmailPrimitive),
+  address: branded.field(AddressShape),
+});
+
+const [User, patchUser] = branded.shape("User", UserShapeSchema, {
+  methods: {
+    isCorporate() {
+      return this.email.endsWith("@company.com");
     },
-  }
-);
+    /** Semantic patch: preserves receiver refinement type when delta is refinement-safe (`as T` via polymorphic surface). */
+    patchEmail(email: Email) {
+      return patchUser(this, { email });
+    },
+  },
+});
 
 type UserEntity = BrandedType<typeof User>;
 
