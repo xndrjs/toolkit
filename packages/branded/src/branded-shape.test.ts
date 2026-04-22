@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { __brand } from "./private-constants";
 import { branded } from "./api";
 import { BrandedType } from "./types";
 import { BrandedValidationError } from "./errors";
@@ -19,6 +18,7 @@ type Email = BrandedType<typeof EmailPrimitive>;
 const [AddressShape, _patchAddress] = branded.shape(
   "Address",
   z.object({
+    type: z.literal("Address").default("Address"),
     city: z.string(),
     street: z.string(),
   }),
@@ -30,6 +30,7 @@ const [AddressShape, _patchAddress] = branded.shape(
 const [User, patchUser] = branded.shape(
   "User",
   z.object({
+    type: z.literal("User").default("User"),
     email: branded.field(EmailPrimitive),
     address: branded.field(AddressShape),
   }),
@@ -50,7 +51,7 @@ type UserEntity = BrandedType<typeof User>;
 // --- Tests ---
 
 describe("branded-kit example domain", () => {
-  it("creates Email, Address, and User with runtime discriminant + brand", () => {
+  it("creates Email, Address, and User with schema discriminant + shape prototype", () => {
     const email = EmailPrimitive.create("ciao");
     const address = AddressShape.create({ street: "Via Roma 1", city: "Firenze" });
     const user = User.create({ email, address });
@@ -60,16 +61,13 @@ describe("branded-kit example domain", () => {
 
     expect(address.type).toBe("Address");
     expect(address.street).toBe("Via Roma 1");
-    expect(address[__brand]).toEqual({ Address: true });
     expect(AddressShape.is(address)).toBe(true);
 
     expect(user.type).toBe("User");
     expect(user.email).toBe(email);
     expect(user.address).toEqual(address);
     expect(user.isCorporate()).toBe(false);
-    expect(user[__brand]).toEqual({ User: true });
     expect(Object.isFrozen(user)).toBe(true);
-    expect(Object.isFrozen(user[__brand])).toBe(true);
     expect(User.is(user)).toBe(true);
   });
 
@@ -89,7 +87,7 @@ describe("branded-kit example domain", () => {
     expect(serialized).not.toContain("isCorporate");
   });
 
-  it("User.is rejects plain objects without brand or wrong type", () => {
+  it("User.is rejects plain objects (wrong prototype) or wrong type even when Zod-shaped", () => {
     expect(
       User.is({
         type: "User",
@@ -98,14 +96,7 @@ describe("branded-kit example domain", () => {
       })
     ).toBe(false);
 
-    expect(
-      User.is({
-        email: EmailPrimitive.create("x"),
-        address: AddressShape.create({ street: "s", city: "F" }),
-        type: "User",
-        [__brand]: { User: true },
-      })
-    ).toBe(true);
+    expect(User.is(User.create({ email: "x", address: { street: "s", city: "F" } }))).toBe(true);
   });
 
   it("patchUser patches email and re-validates", () => {
@@ -146,7 +137,7 @@ describe("branded-kit example domain", () => {
     }
   });
 
-  it("JSON round-trip drops symbol brand; is() is false until re-hydrated", () => {
+  it("JSON round-trip loses shape prototype; is() is false until re-created via create()", () => {
     const user = User.create({
       email: EmailPrimitive.create("x"),
       address: AddressShape.create({ street: "y", city: "F" }),
@@ -183,18 +174,26 @@ describe("branded-kit example domain", () => {
     expect(AddressShape.is(next.address)).toBe(true);
   });
 
-  it("patch ignores tampered type and __brand before re-validation", () => {
-    const [WidgetShape, patchWidget] = branded.shape("Widget", z.object({ name: z.string() }), {
-      methods: {},
-    });
+  it("patch rejects draft when schema discriminant no longer matches", () => {
+    const [WidgetShape, patchWidget] = branded.shape(
+      "Widget",
+      z.object({
+        type: z.literal("Widget").default("Widget"),
+        name: z.string(),
+      }),
+      {
+        methods: {},
+      }
+    );
     const w = WidgetShape.create({ name: "a" });
-    const next = patchWidget(w, (draft) => {
-      draft.name = "b";
-      (draft as { type?: string }).type = "Malicious";
-      Reflect.set(draft, __brand, { Fake: true });
-    });
+    expect(() =>
+      patchWidget(w, (draft) => {
+        draft.name = "b";
+        (draft as { type?: string }).type = "Malicious";
+      })
+    ).toThrow(BrandedValidationError);
+    const next = patchWidget(w, { name: "b" });
     expect(next.type).toBe("Widget");
-    expect(next[__brand]).toEqual({ Widget: true });
     expect(next.name).toBe("b");
   });
 });

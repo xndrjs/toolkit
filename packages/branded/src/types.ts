@@ -4,8 +4,10 @@ import { __anemicOutput, __brand } from "./private-constants";
 export type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 /** Partial props or a mutating callback for branded shape `patch`. */
 export type PatchDelta<T> = Partial<T> | ((draft: Mutable<T>) => void);
-export type BrandState = Readonly<Record<string, boolean>>;
 
+/**
+ * Type-only nominal marker via {@link __brand}; **not** present on runtime objects (shapes / refinements).
+ */
 interface Brand<B extends string> {
   readonly [__brand]: Readonly<Record<B, true>>;
 }
@@ -71,14 +73,13 @@ export type RefinementInstance<TBase, Brand extends string, NewType> = TBase &
 export type BrandedPrimitive<Type extends string, T> = Branded<Type, T>;
 
 /**
- * Composite domain type (object/entity): readonly props + runtime discriminant + brand.
- * @typeParam Type - Shape / discriminant name.
- * @typeParam Props - Object properties (without `type`; it is added at runtime).
+ * Composite domain type (object/entity): Zod output row + type-level brand.
+ * Add a discriminant (e.g. `type: z.literal("User")`) to the schema when you need one.
+ * Runtime identity for **`kit.is`** is prototype identity + Zod `safeParse` on own enumerable props.
+ * @typeParam Type - Shape name (nominal brand key; first arg to **`branded.shape`**).
+ * @typeParam Props - Typically **`z.output<Schema>`** for that shape.
  */
-export type BrandedShape<Type extends string, Props> = Branded<
-  Type,
-  Readonly<{ [K in keyof (Props & { type: Type })]: (Props & { type: Type })[K] }>
->;
+export type BrandedShape<Type extends string, Props> = Branded<Type, Readonly<Props>>;
 
 /**
  * Zod object schema accepted by **`branded.shape`**. Intentionally open (`any` property map) to align

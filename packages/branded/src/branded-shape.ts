@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { __brand } from "./private-constants";
 import { BrandedValidationError } from "./errors";
 import {
   BrandedMethodDefinitions,
@@ -7,7 +6,6 @@ import {
   BrandedShapeKit,
   BrandedShapeTuple,
   BrandedZodObjectSchema,
-  BrandState,
   Mutable,
   PatchDelta,
 } from "./types";
@@ -26,7 +24,6 @@ export function defineBrandedShape<
   type InputProps = z.input<Schema>;
   type OutputProps = z.output<Schema>;
   type Entity = BrandedShapeEntity<Type, Schema, Methods>;
-  const shapeBrandState = Object.freeze({ [type]: true });
   const { methods } = options;
   const prototype = Object.create(null) as Record<string, unknown>;
 
@@ -47,27 +44,11 @@ export function defineBrandedShape<
     });
   }
 
-  function createEntity(
-    parsed: OutputProps,
-    brandState: BrandState,
-    entityPrototype: object | null = prototype
-  ): Entity {
+  function createEntity(parsed: OutputProps, entityPrototype: object | null = prototype): Entity {
     const entity = Object.assign(Object.create(entityPrototype), parsed) as Record<
       string | symbol,
       unknown
     >;
-    Object.defineProperty(entity, "type", {
-      value: type,
-      enumerable: true,
-      configurable: false,
-      writable: false,
-    });
-    Object.defineProperty(entity, __brand, {
-      value: brandState,
-      enumerable: false,
-      configurable: false,
-      writable: false,
-    });
     return Object.freeze(entity) as Entity;
   }
 
@@ -79,14 +60,7 @@ export function defineBrandedShape<
         parsedResult.error
       );
     }
-    return createEntity(parsedResult.data, shapeBrandState);
-  }
-
-  function payloadForSchemaParse(draft: Mutable<Entity>): Record<string, unknown> {
-    const copy = { ...draft } as Record<string | typeof __brand, unknown>;
-    delete copy.type;
-    Reflect.deleteProperty(copy, __brand);
-    return copy;
+    return createEntity(parsedResult.data);
   }
 
   function patch<T extends Entity>(entity: T, delta: PatchDelta<InputProps>): T {
@@ -98,7 +72,7 @@ export function defineBrandedShape<
       Object.assign(draft, delta);
     }
 
-    const validatedResult = schema.safeParse(payloadForSchemaParse(draft));
+    const validatedResult = schema.safeParse(draft);
     if (!validatedResult.success) {
       throw new BrandedValidationError(
         `Invalid input for shape "${type}" during patch`,
@@ -107,21 +81,18 @@ export function defineBrandedShape<
     }
     const validated = validatedResult.data;
 
-    return createEntity(validated, entity[__brand], Object.getPrototypeOf(entity)) as T;
+    return createEntity(validated, Object.getPrototypeOf(entity)) as T;
   }
 
   function is(value: unknown): value is Entity {
-    const brandState = (value as Partial<Record<typeof __brand, unknown>>)[__brand];
-    return (
-      typeof value === "object" &&
-      value !== null &&
-      "type" in value &&
-      (value as { type?: unknown }).type === type &&
-      __brand in value &&
-      typeof brandState === "object" &&
-      brandState !== null &&
-      (brandState as BrandState)[type] === true
-    );
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    if (Object.getPrototypeOf(value) !== prototype) {
+      return false;
+    }
+    const payload = { ...(value as Record<string, unknown>) };
+    return schema.safeParse(payload).success;
   }
 
   const kit: BrandedShapeKit<Type, Schema, Methods> = {

@@ -26,7 +26,7 @@ The package root exports **`__brand`** and **`__anemicOutput`**: the same runtim
 
 **Why:** dependent projects with **`declaration: true`** need these symbols to be **exported and nameable** so TypeScript can emit `.d.ts` for your own exports (e.g. avoids **TS4023** when re-exporting kits whose types mention `Branded`).
 
-**When to import them:** only in **tests, tooling, or framework code** that must assert on brand metadata. Avoid using them in normal application/domain code.
+**When to import them:** rarely — e.g. **tests** checking anemic output has no symbol keys, or **declaration emit** helpers. Avoid using them in normal application/domain code.
 
 ### ESLint: forbid these names in app source
 
@@ -62,12 +62,12 @@ Use **`no-restricted-imports`** with **`paths`** + **`importNames`** so normal c
 
 ### Primitive
 
-A **single runtime value** (string, number, …) validated and treated as a distinct type (e.g. `Email`). **Nominal distinction is type-level only**: at runtime the value is a plain primitive; there is no `__brand` field (unlike shapes / refined objects).  
+A **single runtime value** (string, number, …) validated and treated as a distinct type (e.g. `Email`). **Nominal distinction is type-level only**: at runtime the value is a plain primitive.  
 API: `branded.primitive(typeName, zodSchema)` → `{ create, is, schema, type }`.
 
 ### Shape (entity / value object)
 
-A **readonly object** with a **runtime `type` discriminant** and an internal brand map. **`create`** validates and **freezes** the instance; **`is`** checks discriminant + brand, not just Zod shape (so plain parsed JSON does not “count” as domain). **`patch`** removes `type` and `__brand` from the working copy before Zod runs, then reapplies validated props, the discriminant, and the entity’s existing `__brand` so a delta cannot “stick” forged metadata.
+A **readonly object** defined by your **Zod object schema** (add a discriminant such as `type: z.literal("User").default("User")` if you want one) plus a **type-level** nominal brand (`Branded` / exported `__brand` for `.d.ts` only — **no** hidden fields on instances). **`create`** validates and **freezes** the instance. **`is`** checks **shape method prototype identity** + **Zod** `safeParse` on own enumerable props (plain JSON / structural clones do not “count” as domain). **`patch`** re-parses a spread of the entity through the schema, then reapplies the **same method prototype** as the input.
 
 API: `branded.shape(typeName, z.object({ ... }), { methods: { … } })` → **tuple** `[kit, patch]` where `kit` has `create`, `is`, `schema`, `type`, and **`patch`** re-validates after applying a **`PatchDelta`** (partial props or draft callback). The **`methods`** object is **required** (use `{ methods: {} }` when the entity has no instance methods).
 
@@ -79,8 +79,8 @@ API: `branded.field(childKit)` inside `z.object({ ... })`.
 
 ### Refinement
 
-Adds a **second brand** and **TypeScript narrowing** on top of an existing shape when a **type predicate** holds — e.g. `User` → `VerifiedUser` with stricter fields. Refinements **do not define instance methods**; behavior stays on the **base shape** (`branded.shape(…, { methods })`).  
-API: `branded.refine(baseKit).when((user): user is NarrowData => …).as(brandName)` — narrow type comes from the **`when`** type guard only; do not hand-write `Branded<Brand, …>` for the row (the kit applies the brand on **`kit.from`**). → `{ brand, is, from, tryFrom }`.  
+Adds a **type-level brand** and **TypeScript narrowing** on top of an existing shape when a **type predicate** (`when`) holds — e.g. `User` → `VerifiedUser` with stricter fields. Refinements **do not define instance methods**; behavior stays on the **base shape** (`branded.shape(…, { methods })`).  
+API: `branded.refine(baseKit).when((user): user is NarrowData => …).as(brandName)` — narrow type comes from the **`when`** type guard only; **`kit.from`** returns a frozen clone with the same prototype (no runtime brand metadata). → `{ brand, is, from, tryFrom }`.  
 Invalid refinement: **`kit.from`** throws **`BrandedRefinementError`**; **`tryFrom`** returns `null`.
 
 ### Types
@@ -136,6 +136,7 @@ type Email = BrandedType<typeof Email>;
 const [AddressShape] = branded.shape(
   "Address",
   z.object({
+    type: z.literal("Address").default("Address"),
     city: z.string(),
     street: z.string(),
   }),
@@ -145,6 +146,7 @@ const [AddressShape] = branded.shape(
 const [UserShape, patchUser] = branded.shape(
   "User",
   z.object({
+    type: z.literal("User").default("User"),
     email: branded.field(Email),
     address: branded.field(AddressShape),
   }),
@@ -159,7 +161,7 @@ const user = UserShape.create({
   address: { street: "Via Roma 1", city: "Florence" },
 });
 
-user.type; // "User"
+user.type; // "User" — from your schema, not injected by the kit
 Object.isFrozen(user); // true — entity-style immutability
 
 const next = patchUser(user, { email: Email.create("other@example.com") });
@@ -171,6 +173,7 @@ const next = patchUser(user, { email: Email.create("other@example.com") });
 import { branded, BrandedType } from "@xndrjs/branded";
 
 const UserSchema = z.object({
+  type: z.literal("User").default("User"),
   id: z.string(),
   isVerified: z.boolean(),
   additionalData: z.string().optional(),
@@ -219,18 +222,18 @@ Validation errors expose **`issues`** and **`zodError`**, plus **`flatten()`** (
 ## Best practices this kit nudges you toward
 
 1. **Validate at the boundary** — `create` is the gate; you don’t get a branded value without a successful parse.
-2. **Nominal typing** — at the type level, primitives and shapes are not interchangeable; primitives stay plain values at runtime, shapes carry `type` + `__brand`.
+2. **Nominal typing** — at the type level, primitives and shapes are not interchangeable; primitives stay plain values at runtime; shapes use a **compile-time** brand and whatever fields you put in Zod (optional discriminant); runtime recognition uses **prototype + Zod**, not a `__brand` property on instances.
 3. **Immutable aggregates** — shapes are **`Object.freeze`d** after `create` / `patch`; changes go through **`patch`** and re-validation.
-4. **Explicit domain discriminants** — every shape carries **`type: '<Name>'`**, useful for unions and logging.
+4. **Explicit domain discriminants** — add **`type: z.literal('…')`** (often with **`.default(…)`**) to the schema when you want a discriminant for unions or logging.
 5. **Composition without duplication** — **`field`** reuses child schemas so nested raw input stays ergonomic.
 6. **Refinements as proof steps** — **`from` / `tryFrom`** make “verified” states explicit instead of scattered `if` + casts.
 7. **Structured failures** — Zod errors are wrapped once, with a stable **`BrandedValidationError`** type.
-8. **Honest runtime checks** — **`is`** for shapes encodes brand + discriminant, so re-hydrated JSON isn’t mistaken for domain until you **`create`** again.
+8. **Honest runtime checks** — **`is`** for shapes encodes **prototype + discriminant + Zod**, so re-hydrated JSON isn’t mistaken for domain until you **`create`** again.
 
 ## Caveats
 
-- **Primitives vs objects**: runtime `__brand` exists on **shapes** and **refinement results** (objects), not on **primitive** scalars.
-- **Serialization**: `JSON.stringify` / `parse` drops the internal brand on objects; **`User.is(parsedJson)`** is **`false`** until you construct again with **`create`** (by design).
+- **Primitives vs objects**: neither primitives nor shape instances carry a runtime **`__brand`** field; the symbol exists for **TypeScript** nominal typing / `.d.ts` emit only.
+- **Serialization**: `JSON.stringify` / `parse` yields plain objects (wrong prototype); **`User.is(parsedJson)`** is **`false`** until you construct again with **`create`** (by design).
 - **Library scope**: this is a small kit around Zod + nominal branding — not a full entity framework or ORM layer.
 
 ## License

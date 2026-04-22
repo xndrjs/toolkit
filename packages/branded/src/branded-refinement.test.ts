@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { branded } from "./api";
-import { __brand } from "./private-constants";
 import { BrandedType } from "./types";
 import { BrandedRefinementError } from "./errors";
 
 const UserSchema = z.object({
+  type: z.literal("User").default("User"),
   id: z.string(),
   isVerified: z.boolean(),
   additionalData: z.string().optional(),
@@ -95,10 +95,7 @@ describe("branded refinement", () => {
     expect(verified.hasAdditionalData()).toBe(true);
     expect(verified.additionalData).toBe("present");
     expect(verified.type).toBe("User");
-    expect(verified[__brand]).toEqual({
-      User: true,
-      VerifiedUser: true,
-    });
+    expect(User.is(verified)).toBe(true);
   });
 
   it("rejects invalid refinement input via from()", () => {
@@ -142,10 +139,7 @@ describe("branded refinement", () => {
     expect(next.additionalData).toBe("after");
     expect(next.canAccessAdminArea()).toBe(true);
     expect(next.hasAdditionalData()).toBe(true);
-    expect(next[__brand]).toEqual({
-      User: true,
-      VerifiedUser: true,
-    });
+    expect(User.is(next)).toBe(true);
     expect(VerifiedUserRefinement.is(next)).toBe(true);
   });
 
@@ -161,16 +155,20 @@ describe("branded refinement", () => {
     const viaPatch = patchUser(verified, { isVerified: false });
 
     // Instance method and `patchUser` agree: after this delta, TS widens `isVerified` to `boolean`, so
-    // the value is no longer typed as `VerifiedUser` (nominal brands on `__brand` may still be stale).
+    // the value is no longer typed as `VerifiedUser`; runtime refinements follow `when`, not a brand map.
     const _fromMethod: UserEntity = viaMethod;
     const _fromPatch: UserEntity = viaPatch;
+
+    // @ts-expect-error not a verified user!
+    const _fromMethodWrong: VerifiedUser = viaMethod;
+    const _fromPatchWrong: VerifiedUser = viaPatch;
 
     expect(viaMethod.isVerified).toBe(false);
     expect(viaPatch.isVerified).toBe(false);
     expect(VerifiedUserRefinement.is(viaMethod)).toBe(false);
     expect(VerifiedUserRefinement.is(viaPatch)).toBe(false);
-    expect(viaMethod[__brand]).toEqual({ User: true, VerifiedUser: true });
-    expect(viaPatch[__brand]).toEqual({ User: true, VerifiedUser: true });
+    expect(User.is(viaMethod)).toBe(true);
+    expect(User.is(viaPatch)).toBe(true);
   });
 
   it("from() does not mutate the source value and returns a frozen clone", () => {
@@ -180,15 +178,13 @@ describe("branded refinement", () => {
       additionalData: "ok",
     });
 
-    const beforeBrand = user[__brand];
     const verified = VerifiedUserRefinement.from(user);
 
     expect(verified).not.toBe(user);
     expect(Object.isFrozen(verified)).toBe(true);
-    expect(Object.isFrozen(verified[__brand])).toBe(true);
-    expect(user[__brand]).toBe(beforeBrand);
-    expect(user[__brand]).toEqual({ User: true });
-    expect(verified[__brand]).toEqual({ User: true, VerifiedUser: true });
+    expect(user.isVerified).toBe(true);
+    expect(User.is(user)).toBe(true);
+    expect(User.is(verified)).toBe(true);
   });
 
   it("keeps shape methods on prototype, so they are not copied by spread/json", () => {
@@ -223,7 +219,7 @@ describe("multiple refinements on the same shape", () => {
     expect(ProfileEnrichedRefinement.is(enriched)).toBe(true);
   });
 
-  it("stacks brands; shape prototype methods remain available on chained refinements", () => {
+  it("stacks refinements; shape prototype methods remain available on chained refinements", () => {
     const user = User.create({
       id: "u-mr-1",
       isVerified: true,
@@ -234,11 +230,7 @@ describe("multiple refinements on the same shape", () => {
     const verified = VerifiedUserRefinement.from(user);
     const enriched = ProfileEnrichedRefinement.from(verified);
 
-    expect(enriched[__brand]).toEqual({
-      User: true,
-      VerifiedUser: true,
-      ProfileEnriched: true,
-    });
+    expect(User.is(enriched)).toBe(true);
 
     expect(enriched.canAccessAdminArea()).toBe(true);
     expect(enriched.hasAdditionalData()).toBe(true);
@@ -275,7 +267,7 @@ describe("multiple refinements on the same shape", () => {
     expect(() => ProfileEnrichedRefinement.from(verified)).toThrow(BrandedRefinementError);
   });
 
-  it("shape patch preserves all stacked refinement brands", () => {
+  it("shape patch keeps shape prototype; stacked refinements still satisfy `when`", () => {
     const user = User.create({
       id: "u-mr-3",
       isVerified: true,
@@ -290,11 +282,7 @@ describe("multiple refinements on the same shape", () => {
 
     expect(next.additionalData).toBe("updated long enough text");
     expect(next.avatarSrc).toBe("https://cdn.example/face.jpg");
-    expect(next[__brand]).toEqual({
-      User: true,
-      VerifiedUser: true,
-      ProfileEnriched: true,
-    });
+    expect(User.is(next)).toBe(true);
     expect(VerifiedUserRefinement.is(next)).toBe(true);
     expect(ProfileEnrichedRefinement.is(next)).toBe(true);
     expect(next.profileWordCount()).toBeGreaterThan(0);
@@ -311,6 +299,7 @@ describe("multiple refinements on the same shape", () => {
  */
 describe("nested refinement chain (sibling refinements + stack on one branch)", () => {
   const DocSchema = z.object({
+    type: z.literal("Doc").default("Doc"),
     id: z.string(),
     score: z.number(),
     stage: z.number().int().min(0).max(3),
@@ -353,7 +342,12 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
   type EliteDoc = BrandedType<typeof EliteDocShape>;
 
   it("applies sibling refinements independently; each gate rejects the other sibling’s inputs", () => {
-    const highScoreEarly = DocShape.create({ id: "d-0a", score: 15, stage: 0 } satisfies DocProps);
+    const highScoreEarly = DocShape.create({
+      id: "d-0a",
+      score: 15,
+      stage: 0,
+      type: "Doc",
+    } satisfies DocProps);
     const r1: ScoreTenPlusDoc = ScoreTenPlusShape.from(highScoreEarly);
     expect(() => AdvancedStageShape.from(highScoreEarly)).toThrow(BrandedRefinementError);
 
@@ -361,16 +355,16 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
     const r2 = AdvancedStageShape.from(lowScoreLate);
     expect(() => ScoreTenPlusShape.from(lowScoreLate)).toThrow(BrandedRefinementError);
 
-    expect(r1[__brand]).toEqual({ Doc: true, ScoreTenPlus: true });
-    expect(r2[__brand]).toEqual({ Doc: true, AdvancedStage: true });
+    expect(DocShape.is(r1)).toBe(true);
+    expect(DocShape.is(r2)).toBe(true);
     expect(ScoreTenPlusShape.is(r2)).toBe(false);
     expect(AdvancedStageShape.is(r1)).toBe(false);
   });
 
   it("when both sibling predicates hold on the same base, each refinement kit can still from() it", () => {
     const base = DocShape.create({ id: "d-0c", score: 15, stage: 2 });
-    expect(ScoreTenPlusShape.from(base)[__brand]).toEqual({ Doc: true, ScoreTenPlus: true });
-    expect(AdvancedStageShape.from(base)[__brand]).toEqual({ Doc: true, AdvancedStage: true });
+    expect(DocShape.is(ScoreTenPlusShape.from(base))).toBe(true);
+    expect(DocShape.is(AdvancedStageShape.from(base))).toBe(true);
   });
 
   it("chains AdvancedStageShape → AdvancedScoredShape → EliteDocShape and accumulates brands along the nested branch", () => {
@@ -382,12 +376,7 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
     expect(r4.id).toBe("d-1");
     expect(r4.score).toBe(35);
     expect(r4.stage).toBe(2);
-    expect(r4[__brand]).toEqual({
-      Doc: true,
-      AdvancedStage: true,
-      AdvancedScored: true,
-      EliteDoc: true,
-    });
+    expect(DocShape.is(r4)).toBe(true);
     expect(AdvancedStageShape.is(r4)).toBe(true);
     expect(AdvancedScoredShape.is(r4)).toBe(true);
     expect(EliteDocShape.is(r4)).toBe(true);
@@ -415,7 +404,7 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
     const base = DocShape.create({ id: "d-c", score: 40, stage: 3 });
     const manual = EliteDocShape.from(AdvancedScoredShape.from(AdvancedStageShape.from(base)));
     const via = AdvancedPipelineKit.from(base);
-    expect(via[__brand]).toEqual(manual[__brand]);
+    expect(via).toEqual(manual);
     expect(AdvancedPipelineKit.is(base)).toBe(true);
     expect(AdvancedPipelineKit.tryFrom(base)).not.toBeNull();
   });
@@ -439,12 +428,7 @@ describe("branded.combine", () => {
     const combined: VerifiedAndProfileUser = VerifiedAndProfile.from(user);
     const manual = ProfileEnrichedRefinement.from(VerifiedUserRefinement.from(user));
 
-    expect(combined[__brand]).toEqual(manual[__brand]);
-    expect(combined[__brand]).toEqual({
-      User: true,
-      VerifiedUser: true,
-      ProfileEnriched: true,
-    });
+    expect(combined).toEqual(manual);
     expect(combined.profileWordCount()).toBe(3);
   });
 

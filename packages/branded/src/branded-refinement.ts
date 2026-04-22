@@ -1,6 +1,5 @@
-import { __brand } from "./private-constants";
 import { BrandedRefinementError } from "./errors";
-import { BrandState, BrandedType, RefinementInstance, RefinementResult } from "./types";
+import { BrandedType, RefinementInstance, RefinementResult } from "./types";
 
 type KitLike = { create: (input: never) => unknown } | { from: (value: never) => unknown };
 
@@ -10,33 +9,16 @@ function asObject(value: unknown): Record<PropertyKey, unknown> | null {
     : null;
 }
 
-function withBrand<Brand extends string, NewType>(
-  value: NewType,
-  brand: Brand
+/** Frozen clone with the same prototype so shape `is` / methods still recognize the instance. */
+function freezeRefinedClone<Brand extends string, NewType>(
+  value: NewType
 ): RefinementResult<Brand, NewType> {
   const obj = asObject(value);
   if (!obj) {
     return value as RefinementResult<Brand, NewType>;
   }
-
-  const currentBrandState = obj[__brand];
-  const prevState =
-    typeof currentBrandState === "object" && currentBrandState !== null
-      ? (currentBrandState as BrandState)
-      : {};
-
   const currentPrototype = Object.getPrototypeOf(obj) as object | null;
-  const clone = Object.assign(Object.create(currentPrototype), obj) as Record<PropertyKey, unknown>;
-  Object.defineProperty(clone, __brand, {
-    enumerable: false,
-    configurable: false,
-    writable: false,
-    value: Object.freeze({
-      ...prevState,
-      [brand]: true,
-    }),
-  });
-
+  const clone = Object.assign(Object.create(currentPrototype), obj);
   return Object.freeze(clone) as RefinementResult<Brand, NewType>;
 }
 
@@ -55,14 +37,22 @@ function defineRefinementForKit<
     if (!config.is(value)) {
       throw new BrandedRefinementError(brand);
     }
-    return withBrand(value as unknown as NewType, brand) as RefinementInstance<T, Brand, NewType>;
+    return freezeRefinedClone<Brand, NewType>(value as unknown as NewType) as RefinementInstance<
+      T,
+      Brand,
+      NewType
+    >;
   }
 
   function tryFrom<T extends BaseType>(value: T): RefinementInstance<T, Brand, NewType> | null {
     if (!config.is(value)) {
       return null;
     }
-    return withBrand(value as unknown as NewType, brand) as RefinementInstance<T, Brand, NewType>;
+    return freezeRefinedClone<Brand, NewType>(value as unknown as NewType) as RefinementInstance<
+      T,
+      Brand,
+      NewType
+    >;
   }
 
   return {

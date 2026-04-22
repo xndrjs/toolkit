@@ -1,5 +1,12 @@
 # @xndrjs/branded
 
+## Unreleased
+
+### Breaking Changes
+
+- **Runtime `__brand` removed** from shape instances and refinement `from` results. Nominal brands stay **type-level** (via `Branded` / exported `__brand` for declaration emit). **`kit.is`** for shapes now requires **method-prototype identity** + **Zod** `safeParse` on the row (plain JSON / structural clones no longer pass). Removed **`BrandState`** type export.
+- **Automatic `type` discriminant removed** from **`branded.shape`**: add `type` (or any discriminant) to the Zod schema yourself, e.g. `z.literal("User").default("User")` for ergonomics.
+
 ## 0.1.0-alpha.7
 
 ### Minor Changes
