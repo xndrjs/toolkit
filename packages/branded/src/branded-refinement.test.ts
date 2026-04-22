@@ -29,6 +29,10 @@ const [User, patchUser] = branded.shape("User", UserSchema, {
     hasAvatar() {
       return typeof this.avatarSrc === "string" && this.avatarSrc.length > 0;
     },
+    /** Valid `User` row patch that can break `VerifiedUser` refinement when applied to a refined instance. */
+    patchRevokeVerification() {
+      return patchUser(this, { isVerified: false });
+    },
   },
 });
 
@@ -143,6 +147,30 @@ describe("branded refinement", () => {
       VerifiedUser: true,
     });
     expect(VerifiedUserRefinement.is(next)).toBe(true);
+  });
+
+  it("patch return type stays the refined instance type when the receiver is refined (TS); runtime data may break the refinement predicate", () => {
+    const user = User.create({
+      id: "u-patch-refined-return-type",
+      isVerified: true,
+      additionalData: "ok",
+    });
+    const verified = VerifiedUserRefinement.from(user);
+
+    const viaMethod = verified.patchRevokeVerification();
+    const viaPatch = patchUser(verified, { isVerified: false });
+
+    // Instance method and `patchUser` agree: after this delta, TS widens `isVerified` to `boolean`, so
+    // the value is no longer typed as `VerifiedUser` (nominal brands on `__brand` may still be stale).
+    const _fromMethod: UserEntity = viaMethod;
+    const _fromPatch: UserEntity = viaPatch;
+
+    expect(viaMethod.isVerified).toBe(false);
+    expect(viaPatch.isVerified).toBe(false);
+    expect(VerifiedUserRefinement.is(viaMethod)).toBe(false);
+    expect(VerifiedUserRefinement.is(viaPatch)).toBe(false);
+    expect(viaMethod[__brand]).toEqual({ User: true, VerifiedUser: true });
+    expect(viaPatch[__brand]).toEqual({ User: true, VerifiedUser: true });
   });
 
   it("from() does not mutate the source value and returns a frozen clone", () => {

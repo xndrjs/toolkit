@@ -31,10 +31,21 @@ export type RefinementResult<Brand extends string, NewType> = Branded<Brand, New
 export type BrandedMethodDefinitions = Record<string, (...args: never[]) => unknown>;
 
 /**
- * Callable surface of shape instance methods (strips explicit `this` from signatures).
+ * Callable surface of shape instance methods.
+ * `RowHost` is the shape **row** (no methods), e.g. {@link BrandedShape}.
+ *
+ * When a method returns `Ret` with `Ret extends RowHost` (typical: delegates to
+ * {@link BrandedShapePatchFn}), the call signature uses `T extends RowHost & BrandedMethodSurface<M, RowHost>`
+ * so the receiver keeps **methods** on the type (and refinements still extend that). Matching `this`
+ * as `any` is only for inferring `Args` / `Ret` without a recursive `this` pattern.
  */
-export type BrandedMethodSurface<M extends BrandedMethodDefinitions> = {
-  [K in keyof M]: OmitThisParameter<M[K]>;
+export type BrandedMethodSurface<M extends BrandedMethodDefinitions, RowHost> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- only to infer Args/Ret; avoids recursive `this`
+  [K in keyof M]: M[K] extends (this: any, ...args: infer Args) => infer Ret
+    ? Ret extends RowHost
+      ? <T extends RowHost & BrandedMethodSurface<M, RowHost>>(...args: Args) => T
+      : (...args: Args) => Ret
+    : OmitThisParameter<M[K]>;
 };
 
 /**
@@ -85,7 +96,8 @@ export type BrandedShapeEntity<
   Methods extends BrandedMethodDefinitions,
 > = [keyof Methods] extends [never]
   ? BrandedShape<Type, z.output<Schema>>
-  : BrandedShape<Type, z.output<Schema>> & BrandedMethodSurface<Methods>;
+  : BrandedShape<Type, z.output<Schema>> &
+      BrandedMethodSurface<Methods, BrandedShape<Type, z.output<Schema>>>;
 
 /**
  * Kit object (first element of {@link BrandedShapeTuple}). Spelled with public {@link BrandedShape} so
