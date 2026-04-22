@@ -63,11 +63,7 @@ function defineRefinementForKit<
   } as const;
 }
 
-/**
- * Start a refinement on a primitive or shape kit: `.when` (type predicate) then `.as` (brand name).
- * Narrowed data type is inferred from the `when` callback’s type guard.
- */
-export function defineBrandedRefine<Kit extends KitLike>(_kit: Kit) {
+function defineRefineWhenBuilder<Kit extends KitLike>(_kit: Kit) {
   return {
     when: <NewType extends BrandedType<Kit>>(
       is: (value: BrandedType<Kit>) => value is NewType
@@ -76,4 +72,14 @@ export function defineBrandedRefine<Kit extends KitLike>(_kit: Kit) {
         defineRefinementForKit<Kit, NewType, Brand>(brand, { is }),
     }),
   } as const;
+}
+
+/**
+ * Start a refinement on a primitive or shape kit: `.when` (type predicate) then `.as` (brand name).
+ * Narrowed data type is inferred from the `when` callback’s type guard.
+ *
+ * To chain existing refinement kits without re-stating `when`, use **`branded.refineChain`**.
+ */
+export function defineBrandedRefine<Kit extends KitLike>(_kit: Kit) {
+  return defineRefineWhenBuilder(_kit);
 }

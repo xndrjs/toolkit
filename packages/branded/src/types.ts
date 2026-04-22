@@ -196,20 +196,20 @@ export interface BrandedRefinementKitLink<TInput, TOutput> {
   is: (value: TInput) => boolean;
 }
 
-export interface CombinedRefinementKit<Brand extends string, TInput, TOutput> {
-  readonly brand: Brand;
+/** Kit produced by **`branded.refineChain(firstRefinement).with(…).build()`** (no synthetic `brand`; step kits keep their own). */
+export interface CombinedRefinementKit<TInput, TOutput> {
   from: (value: TInput) => TOutput;
   tryFrom: (value: TInput) => TOutput | null;
   is: (value: TInput) => boolean;
 }
 
 /**
- * Fluent chain from **`branded.combine`**: `.with` adds the next refinement;
- * `.as` finishes with the composite kit name (requires at least two refinements total).
+ * Fluent chain from **`branded.refineChain(firstKit)`**: `.with` adds the next refinement;
+ * `.build()` finishes the composite kit (requires at least two refinements total).
  */
 export interface BrandedRefinementCombineBuilder<TInput, TCurrent> {
   with<O2>(
     kit: BrandedRefinementKitLink<TCurrent, O2>
   ): BrandedRefinementCombineBuilder<TInput, O2>;
-  as<Brand extends string>(brand: Brand): CombinedRefinementKit<Brand, TInput, TCurrent>;
+  build(): CombinedRefinementKit<TInput, TCurrent>;
 }

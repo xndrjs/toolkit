@@ -397,12 +397,12 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
     expect(() => EliteDocShape.from(r3)).toThrow(BrandedRefinementError);
   });
 
-  it("branded.combine matches manual AdvancedStage → AdvancedScored → EliteDoc chain", () => {
+  it("branded.refineChain matches manual AdvancedStage → AdvancedScored → EliteDoc chain", () => {
     const AdvancedPipelineKit = branded
-      .combine(AdvancedStageShape)
+      .refineChain(AdvancedStageShape)
       .with(AdvancedScoredShape)
       .with(EliteDocShape)
-      .as("AdvancedPipeline");
+      .build();
     const base = DocShape.create({ id: "d-c", score: 40, stage: 3 });
     const manual = EliteDocShape.from(AdvancedScoredShape.from(AdvancedStageShape.from(base)));
     const via = AdvancedPipelineKit.from(base);
@@ -412,11 +412,11 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
   });
 });
 
-describe("branded.combine", () => {
+describe("branded.refineChain", () => {
   const VerifiedAndProfile = branded
-    .combine(VerifiedUserRefinement)
+    .refineChain(VerifiedUserRefinement)
     .with(ProfileEnrichedRefinement)
-    .as("VerifiedAndProfile");
+    .build();
 
   type VerifiedAndProfileUser = BrandedType<typeof VerifiedAndProfile>;
 
@@ -432,10 +432,6 @@ describe("branded.combine", () => {
 
     expect(combined).toEqual(manual);
     expect(combined.profileWordCount()).toBe(3);
-  });
-
-  it("exposes the composite brand name on the kit", () => {
-    expect(VerifiedAndProfile.brand).toBe("VerifiedAndProfile");
   });
 
   it("tryFrom returns null when an intermediate refinement fails", () => {
@@ -482,11 +478,11 @@ describe("branded.combine", () => {
 
   it("rejects duplicate input refinement brands", () => {
     expect(() =>
-      branded.combine(VerifiedUserRefinement).with(VerifiedUserRefinement).as("Dup")
+      branded.refineChain(VerifiedUserRefinement).with(VerifiedUserRefinement).build()
     ).toThrow(TypeError);
   });
 
-  it("requires at least two refinements before as()", () => {
-    expect(() => branded.combine(VerifiedUserRefinement).as("OnlyOne")).toThrow(TypeError);
+  it("requires at least two refinements before build()", () => {
+    expect(() => branded.refineChain(VerifiedUserRefinement).build()).toThrow(TypeError);
   });
 });
