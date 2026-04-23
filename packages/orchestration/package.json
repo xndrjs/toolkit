@@ -26,9 +26,15 @@
     "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
     "prepublishOnly": "pnpm run build",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@xndrjs/branded": "workspace:^"
   },
   "devDependencies": {
-    "tsup": "^8.5.1"
+    "tsup": "^8.5.1",
+    "vitest": "^4.1.0",
+    "zod": "^4.3.6"
   }
 }
