@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { __anemicOutput, __brand } from "./private-constants";
+import { __anemicOutput, __brand, __shapeMarker } from "./private-constants";
 
 export type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 /** Partial props or a mutating callback for branded shape `patch`. */
@@ -88,6 +88,11 @@ export type BrandedShape<Type extends string, Props> = Branded<Type, Readonly<Pr
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type BrandedZodObjectSchema = z.ZodObject<any>;
 
+/** Type-level counterpart of runtime {@link __shapeMarker} on shape prototypes. */
+export interface ShapeMarked {
+  readonly [__shapeMarker]: true;
+}
+
 /**
  * Entity instance type for a shape kit: branded row + instance method surface.
  */
@@ -95,10 +100,11 @@ export type BrandedShapeEntity<
   Type extends string,
   Schema extends BrandedZodObjectSchema,
   Methods extends BrandedMethodDefinitions,
-> = [keyof Methods] extends [never]
+> = ([keyof Methods] extends [never]
   ? BrandedShape<Type, z.output<Schema>>
   : BrandedShape<Type, z.output<Schema>> &
-      BrandedMethodSurface<Methods, BrandedShape<Type, z.output<Schema>>>;
+      BrandedMethodSurface<Methods, BrandedShape<Type, z.output<Schema>>>) &
+  ShapeMarked;
 
 /**
  * Kit object (first element of {@link BrandedShapeTuple}). Spelled with public {@link BrandedShape} so
@@ -162,18 +168,21 @@ type AnyFunction = (...args: never[]) => unknown;
 
 /**
  * "Anemic" view of a domain value:
- * - removes symbol keys (e.g. runtime brand metadata)
- * - removes function properties
- * - recursively maps arrays and nested objects
+ * - only **shape** values (see {@link ShapeMarked} / runtime {@link __shapeMarker}) are expanded:
+ *   symbol keys and methods are dropped; properties are mapped with `Anemic` recursively
+ * - arrays are mapped element-wise
+ * - all other objects (plain records, `Date`, host objects, …) pass through unchanged
  */
 export type Anemic<T> = T extends readonly (infer U)[]
   ? Anemic<U>[]
   : T extends object
-    ? {
-        [K in keyof T as K extends symbol ? never : T[K] extends AnyFunction ? never : K]: Anemic<
-          T[K]
-        >;
-      }
+    ? T extends ShapeMarked
+      ? {
+          [K in keyof T as K extends symbol ? never : T[K] extends AnyFunction ? never : K]: Anemic<
+            T[K]
+          >;
+        }
+      : T
     : T;
 
 /**

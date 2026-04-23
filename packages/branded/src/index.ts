@@ -8,4 +8,4 @@ export * from "./errors";
  * Exported so dependent projects with `declaration: true` can name these in emitted `.d.ts` (e.g. avoids TS4023).
  * Prefer not importing them in application code; use ESLint `no-restricted-imports` if you want to enforce that.
  */
-export { __anemicOutput, __brand } from "./private-constants";
+export { __anemicOutput, __brand, __shapeMarker } from "./private-constants";

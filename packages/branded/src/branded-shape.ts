@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { BrandedValidationError } from "./errors";
+import { __shapeMarker } from "./private-constants";
 import {
   BrandedMethodDefinitions,
   BrandedShapeEntity,
@@ -9,6 +10,11 @@ import {
   Mutable,
   PatchDelta,
 } from "./types";
+
+/** Deep-clones enumerable own props so nested mutations in `patch` never alias the frozen entity. */
+function cloneRowForPatch<Row extends Record<string, unknown>>(row: Row): Row {
+  return structuredClone(row);
+}
 
 export function defineBrandedShape<
   Schema extends BrandedZodObjectSchema,
@@ -44,6 +50,13 @@ export function defineBrandedShape<
     });
   }
 
+  Object.defineProperty(prototype, __shapeMarker, {
+    enumerable: false,
+    configurable: false,
+    writable: false,
+    value: true,
+  });
+
   function createEntity(parsed: OutputProps, entityPrototype: object | null = prototype): Entity {
     const entity = Object.assign(Object.create(entityPrototype), parsed) as Record<
       string | symbol,
@@ -64,7 +77,9 @@ export function defineBrandedShape<
   }
 
   function patch<T extends Entity>(entity: T, delta: PatchDelta<InputProps>): Entity {
-    const draft = structuredClone(entity) as Mutable<Entity>;
+    const draft = cloneRowForPatch({
+      ...(entity as unknown as Record<string, unknown>),
+    }) as Mutable<Entity>;
 
     if (typeof delta === "function") {
       delta(draft as unknown as Mutable<InputProps>);

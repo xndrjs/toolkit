@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { anemic, branded } from "./api";
 import { toAnemic } from "./anemic";
-import { __brand } from "./private-constants";
+import { __brand, __shapeMarker } from "./private-constants";
 import { AnemicOutput, BrandedType } from "./types";
 
 const Email = branded.primitive("Email", z.string().email());
@@ -44,6 +44,16 @@ const VerifiedUserRefinement = branded
   .as("VerifiedUser");
 
 describe("toAnemic", () => {
+  it("marks shape instances with __shapeMarker on the prototype chain", () => {
+    const user = User.create({
+      email: "dev@company.com",
+      verifiedAt: null,
+      address: { city: "Florence", street: "Via Roma 1" },
+    });
+    expect(Reflect.has(user, __shapeMarker)).toBe(true);
+    expect(Reflect.has(user.address, __shapeMarker)).toBe(true);
+  });
+
   it("drops brand symbols and prototype methods from shape values", () => {
     const user = User.create({
       email: "dev@company.com",
@@ -81,7 +91,7 @@ describe("toAnemic", () => {
     expect(Reflect.has(anemic as object, __brand)).toBe(false);
   });
 
-  it("recursively converts nested objects and arrays containing shape/refinement values", () => {
+  it("does not walk plain containers: keeps references and leaves nested shapes untouched", () => {
     const userA = User.create({
       email: "a@company.com",
       verifiedAt: new Date("2026-04-20T00:00:00.000Z"),
@@ -108,37 +118,30 @@ describe("toAnemic", () => {
     };
 
     const anemic = toAnemic(complex);
-    expect(anemic).toMatchObject({
-      owner: {
-        type: "User",
-        email: "a@company.com",
-        address: { type: "Address", city: "Florence", street: "Via Roma 1" },
-      },
-      metadata: {
-        reviewers: [
-          { type: "User", email: "a@company.com" },
-          { type: "User", email: "b@company.com" },
-        ],
-      },
-      groups: [
-        {
-          title: "alpha",
-          members: [
-            { type: "User", email: "a@company.com" },
-            { type: "User", email: "a@company.com" },
-          ],
-        },
-      ],
+    expect(anemic).toBe(complex);
+    expect(anemic.owner).toBe(verifiedA);
+    expect(anemic.metadata.reviewers[0]).toBe(verifiedA);
+    expect(anemic.metadata.reviewers[1]).toBe(userB);
+  });
+
+  it("maps arrays element-wise: shapes become plain, other values keep identity", () => {
+    const user = User.create({
+      email: "u@company.com",
+      verifiedAt: null,
+      address: { city: "F", street: "S" },
     });
+    const blob = new Blob(["x"]);
+    const row = [user, blob, 1] as const;
 
-    expect(anemic.owner.verifiedAt).toBeInstanceOf(Date);
-    expect(anemic.metadata.reviewers[0]?.verifiedAt).toBeInstanceOf(Date);
-    expect(anemic.metadata.reviewers[1]?.verifiedAt).toBeNull();
-
-    expect(Reflect.has(anemic.owner as object, __brand)).toBe(false);
-    expect(Reflect.has(anemic.metadata.reviewers[0] as object, __brand)).toBe(false);
-    expect("isVerified" in (anemic.owner as object)).toBe(false);
-    expect("hasVerificationTimestamp" in (anemic.owner as object)).toBe(false);
+    const out = toAnemic(row);
+    expect(out[0]).toEqual({
+      type: "User",
+      email: "u@company.com",
+      verifiedAt: null,
+      address: { type: "Address", city: "F", street: "S" },
+    });
+    expect(out[1]).toBe(blob);
+    expect(out[2]).toBe(1);
   });
 
   it("provides a nominal anemic output type for use-case return contracts", () => {

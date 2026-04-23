@@ -1,29 +1,21 @@
+import { __shapeMarker } from "./private-constants";
 import { Anemic, AnemicOutput } from "./types";
 
-function isDate(value: unknown): value is Date {
-  return value instanceof Date;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+function isShapeMarked(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && Reflect.has(value, __shapeMarker);
 }
 
 /**
- * Converts a branded domain value into a plain "anemic" structure:
- * - only own enumerable string keys are copied
- * - prototype methods are discarded
- * - symbol metadata (e.g. runtime brands) is discarded
+ * Converts **shape** values into plain "anemic" structures (drops methods / symbol keys on the row).
+ * Plain objects, host objects, and other non-shape values pass through by reference.
+ * Arrays are mapped element-wise.
  */
 export function toAnemic<T>(value: T): Anemic<T> {
   if (Array.isArray(value)) {
     return value.map((entry) => toAnemic(entry)) as Anemic<T>;
   }
 
-  if (isDate(value)) {
-    return value as Anemic<T>;
-  }
-
-  if (isObject(value)) {
+  if (isShapeMarked(value)) {
     const plain: Record<string, unknown> = {};
     for (const key of Object.keys(value)) {
       plain[key] = toAnemic(value[key]);
