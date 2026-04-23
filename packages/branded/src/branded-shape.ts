@@ -64,7 +64,7 @@ export function defineBrandedShape<
   }
 
   function patch<T extends Entity>(entity: T, delta: PatchDelta<InputProps>): Entity {
-    const draft = { ...entity } as Mutable<Entity>;
+    const draft = structuredClone(entity) as Mutable<Entity>;
 
     if (typeof delta === "function") {
       delta(draft as unknown as Mutable<InputProps>);

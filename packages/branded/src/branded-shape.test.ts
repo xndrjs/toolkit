@@ -173,6 +173,39 @@ describe("branded-kit example domain", () => {
     expect(AddressShape.is(next.address)).toBe(true);
   });
 
+  it("patch callback mutating nested fields does not mutate the original entity", () => {
+    const user = User.create({
+      email: "email@test.com",
+      address: { street: "Via Roma", city: "Firenze" },
+    });
+    const addressBefore = user.address;
+    expect(addressBefore.city).toBe("Firenze");
+
+    const next = patchUser(user, (draft) => {
+      draft.address.city = "Milano";
+    });
+
+    expect(next.address.city).toBe("Milano");
+    expect(user.address.city).toBe("Firenze");
+    expect(user.address).toBe(addressBefore);
+  });
+
+  it("patch object delta does not mutate nested objects on the original entity", () => {
+    const user = User.create({
+      email: "email@test.com",
+      address: { street: "Old", city: "F" },
+    });
+    const streetBefore = user.address.street;
+
+    const next = patchUser(user, {
+      address: { street: "New", city: "F" },
+    });
+
+    expect(next.address.street).toBe("New");
+    expect(user.address.street).toBe(streetBefore);
+    expect(user.address.street).toBe("Old");
+  });
+
   it("patch rejects draft when schema discriminant no longer matches", () => {
     const [WidgetShape, patchWidget] = branded.shape(
       "Widget",
