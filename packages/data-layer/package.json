@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/data-layer",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0",
   "description": "Data layer utilities: batch loaders, registry, mapping helpers.",
   "private": false,
   "license": "MIT",
