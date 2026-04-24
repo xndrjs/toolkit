@@ -1,5 +1,11 @@
 # @xndrjs/branded
 
+## 0.1.0-alpha.9
+
+### Minor Changes
+
+- 51e49dd: createUseCase in orchestration for automatic mapping to anemic; refinement creation from raw input in branded;
+
 ## 0.1.0-alpha.8
 
 ### Minor Changes
