@@ -103,9 +103,9 @@ You can also run the workflow manually from the **Actions** tab (**Run workflow*
 2. Land your work (including `.changeset/` files when a release is needed).
 3. On every push to `main`, the **Release stable** workflow (`.github/workflows/release-stable.yml`):
    - if there are open changesets, the [**changesets action**](https://github.com/changesets/action) opens or updates the **“Version Packages”** pull request;
-   - after **merging** that PR (which updates versions and changelogs), the next push runs `pnpm changeset publish` to the registry (default tag **`latest`**).
+   - after **merging** that PR (which updates versions and changelogs), the next push runs **`pnpm run changeset:publish`** (builds all `packages/*` then `pnpm changeset publish`) to the registry (default tag **`latest`**).
 
-For packages that need a build before publish (e.g. `dist/`), the publish script in the workflow includes `pnpm run build:packages`.
+The root script **`changeset:publish`** wraps build + publish in one command so GitHub Actions does not split `&&` into separate process arguments (which broke `tsup` in CI).
 
 ### Graduating from alpha to stable
 
