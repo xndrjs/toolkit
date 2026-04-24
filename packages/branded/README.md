@@ -89,7 +89,7 @@ Invalid refinement: **`kit.from`** throws **`BrandedRefinementError`**; **`tryFr
 - **`Branded<Brand, T>`** — nominal brand `Brand` over base type `T` (same argument order as `primitive` / `shape`: name first).
 - **`BrandOf<T>`** — extracts the brand literal from a `Branded<Brand, …>` type.
 - **`RefinementInstance<TBase, Brand, NewType>`** — refinement value type (`TBase` + refinement brand + narrowed data); matches **`from`** / **`tryFrom`**. Instance methods are only those from the shape prototype.
-- **`BrandedMethodDefinitions`** / **`BrandedMethodSurface<M, RowHost>`** — method bags for **shape** `methods` only; patch-delegating methods are surfaced as `<T extends …>(…) => T` so refinements on `this` are preserved.
+- **`BrandedMethodDefinitions`** / **`BrandedMethodSurface<M, ShapeBaseData>`** — method bags for **shape** `methods` only; patch-delegating methods are surfaced as `<T extends …>(…) => T` so refinements on `this` are preserved.
 - **`BrandedPrimitive<Brand, T>`** / **`BrandedShape<Brand, Props>`** — aliases for primitives and shapes.
 - **`PatchDelta<T>`** — partial `T` or `(draft: Mutable<T>) => void`; argument type for shape **`patch`**.
 
