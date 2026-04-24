@@ -131,6 +131,19 @@ describe("branded refinement", () => {
     expect(VerifiedUserRefinement.is(verified)).toBe(true);
   });
 
+  it("create(raw) builds base shape then applies the refinement", () => {
+    const verified = VerifiedUserRefinement.create({
+      id: "u-create-raw",
+      isVerified: true,
+      additionalData: "from raw",
+    });
+
+    expect(verified.type).toBe("User");
+    expect(verified.id).toBe("u-create-raw");
+    expect(verified.isVerified).toBe(true);
+    expect(VerifiedUserRefinement.is(verified)).toBe(true);
+  });
+
   it("shape patch preserves refinement brands from the entity", () => {
     const user = User.create({
       id: "u-6",
@@ -432,6 +445,20 @@ describe("branded.refineChain", () => {
 
     expect(combined).toEqual(manual);
     expect(combined.profileWordCount()).toBe(3);
+  });
+
+  it("create(raw) builds base shape and runs the whole refinement chain", () => {
+    const combined: VerifiedAndProfileUser = VerifiedAndProfile.create({
+      id: "u-combo-create",
+      isVerified: true,
+      additionalData: "hello world profile",
+      avatarSrc: "https://cdn.example/avatar.png",
+    });
+
+    expect(combined.type).toBe("User");
+    expect(combined.id).toBe("u-combo-create");
+    expect(combined.profileWordCount()).toBe(3);
+    expect(VerifiedAndProfile.is(combined)).toBe(true);
   });
 
   it("tryFrom returns null when an intermediate refinement fails", () => {

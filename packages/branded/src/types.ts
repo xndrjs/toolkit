@@ -202,8 +202,9 @@ export type AnemicOutput<T> = Anemic<T> & {
  * Structural minimum for a refinement kit returned by {@link import("./branded-refinement").defineBrandedRefine}.
  * Used to chain refinements without re-stating `when` predicates.
  */
-export interface BrandedRefinementKitLink<TInput, TOutput> {
+export interface BrandedRefinementKitLink<TInput, TOutput, TRawInput = TInput> {
   readonly brand: string;
+  create: (input: TRawInput) => TOutput;
   from: (value: TInput) => TOutput;
   tryFrom: (value: TInput) => TOutput | null;
   // Wider than the kit’s type guard so sibling kits on the same base stay composable.
@@ -211,7 +212,8 @@ export interface BrandedRefinementKitLink<TInput, TOutput> {
 }
 
 /** Kit produced by **`branded.refineChain(firstRefinement).with(…).build()`** (no synthetic `brand`; step kits keep their own). */
-export interface CombinedRefinementKit<TInput, TOutput> {
+export interface CombinedRefinementKit<TInput, TOutput, TRawInput = TInput> {
+  create: (input: TRawInput) => TOutput;
   from: (value: TInput) => TOutput;
   tryFrom: (value: TInput) => TOutput | null;
   is: (value: TInput) => boolean;
@@ -221,9 +223,9 @@ export interface CombinedRefinementKit<TInput, TOutput> {
  * Fluent chain from **`branded.refineChain(firstKit)`**: `.with` adds the next refinement;
  * `.build()` finishes the composite kit (requires at least two refinements total).
  */
-export interface BrandedRefinementCombineBuilder<TInput, TCurrent> {
+export interface BrandedRefinementCombineBuilder<TInput, TCurrent, TRawInput = TInput> {
   with<O2>(
     kit: BrandedRefinementKitLink<TCurrent, O2>
-  ): BrandedRefinementCombineBuilder<TInput, O2>;
-  build(): CombinedRefinementKit<TInput, TCurrent>;
+  ): BrandedRefinementCombineBuilder<TInput, O2, TRawInput>;
+  build(): CombinedRefinementKit<TInput, TCurrent, TRawInput>;
 }

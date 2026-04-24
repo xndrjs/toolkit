@@ -1,7 +1,8 @@
 import { BrandedRefinementError } from "./errors";
 import { BrandedType, RefinementInstance, RefinementResult } from "./types";
 
-type KitLike = { create: (input: never) => unknown } | { from: (value: never) => unknown };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic callable compatibility across kit input types
+interface KitLike { create: (input: any) => unknown }
 
 function asObject(value: unknown): Record<PropertyKey, unknown> | null {
   return typeof value === "object" && value !== null
@@ -26,8 +27,9 @@ function defineRefinementForKit<
   Kit extends KitLike,
   NewType extends BrandedType<Kit>,
   Brand extends string,
->(brand: Brand, config: { is: (value: BrandedType<Kit>) => value is NewType }) {
+>(kit: Kit, brand: Brand, config: { is: (value: BrandedType<Kit>) => value is NewType }) {
   type BaseType = BrandedType<Kit>;
+  type RawInput = Kit extends { create: (input: infer Input) => unknown } ? Input : never;
 
   function is<T extends BaseType>(value: T): value is RefinementInstance<T, Brand, NewType> {
     return config.is(value);
@@ -55,8 +57,14 @@ function defineRefinementForKit<
     >;
   }
 
+  function create(input: RawInput): RefinementInstance<BaseType, Brand, NewType> {
+    const base = kit.create(input) as BaseType;
+    return from(base);
+  }
+
   return {
     brand,
+    create,
     is,
     from,
     tryFrom,
@@ -69,7 +77,7 @@ function defineRefineWhenBuilder<Kit extends KitLike>(_kit: Kit) {
       is: (value: BrandedType<Kit>) => value is NewType
     ) => ({
       as: <Brand extends string>(brand: Brand) =>
-        defineRefinementForKit<Kit, NewType, Brand>(brand, { is }),
+        defineRefinementForKit<Kit, NewType, Brand>(_kit, brand, { is }),
     }),
   } as const;
 }
