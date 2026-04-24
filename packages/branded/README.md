@@ -178,6 +178,10 @@ Runtime value stays a plain primitive; nominal distinction is type-level.
 
 `branded.shape(name, z.object(...), { methods })` returns `[kit, patch]`.
 
+### Error shape
+
+`branded.errorShape(name)` and `branded.errorShape(name, (base) => base.extend({ ... }))` build on `baseErrorSchema`, append `type: z.literal(name).default(name)`, and return **only** the kit (no `patch`).
+
 `kit`:
 
 - `create(raw)` validates and freezes
@@ -213,7 +217,26 @@ Runtime value stays a plain primitive; nominal distinction is type-level.
 - `tryFrom(baseValue)`
 - `is(value)`
 
-## Errors
+## Error Shape: `baseErrorSchema` + `branded.errorShape`
+
+**`baseErrorSchema`** is exported for composition inside the factory callback. There is no separate “base error” shape kit — define errors only via **`branded.errorShape`**.
+
+```ts
+import { baseErrorSchema, branded } from "@xndrjs/branded";
+
+const UserNotFound = branded.errorShape("UserNotFound");
+
+const err = UserNotFound.create({ code: "USER_NOT_FOUND", message: "Unknown user" });
+// err.type === "UserNotFound" (defaulted)
+
+const UserNotFoundRich = branded.errorShape("UserNotFound", (base) =>
+  base.extend({ metadata: z.object({ id: z.string() }) })
+);
+```
+
+Error shapes are **create-only** (no `patch`). You can refine errors as any other shape, if you need to.
+
+## Library Errors (Exceptions)
 
 | Error class              | Typical trigger                                              |
 | ------------------------ | ------------------------------------------------------------ |

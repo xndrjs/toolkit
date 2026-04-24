@@ -1,4 +1,5 @@
 export * from "./api";
+export { baseErrorSchema } from "./error-shape";
 export * from "./anemic";
 export * from "./types";
 export * from "./errors";
