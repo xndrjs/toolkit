@@ -6,7 +6,7 @@ const { defineConfig } = require("vitest/config");
 function defineBaseVitestConfig(overrides = {}) {
   const test = overrides.test || {};
   const resolve = overrides.resolve || {};
-  const rest = { ...overrides, test: undefined, resolve: undefined };
+  const { test: _ignoredTest, resolve: _ignoredResolve, ...rest } = overrides;
 
   return defineConfig({
     test: {
