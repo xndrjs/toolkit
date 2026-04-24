@@ -1,8 +1,9 @@
 # @xndrjs/orchestration
 
-**Ports** (interfaces) for orchestrating application flows—presentation boundaries, use-case inputs—without coupling the domain to React, HTTP, or concrete UI frameworks.
+Lightweight building blocks for application orchestration:
 
-Types are dependency-light and suitable for layering: application use cases depend on ports; adapters (e.g. `@xndrjs/react-adapter`) implement them.
+- orchestration ports (UI/application boundaries)
+- `createUseCase` to apply output boundaries consistently
 
 ## Installation
 
@@ -10,7 +11,38 @@ Types are dependency-light and suitable for layering: application use cases depe
 npm install @xndrjs/orchestration
 ```
 
-## Ports
+## Quick start
+
+```ts
+import { createUseCase } from "@xndrjs/orchestration";
+
+const makeGetUser = createUseCase((deps: { repo: UserRepo }) => async (id: string) => {
+  return deps.repo.getById(id); // may contain branded domain values
+});
+
+const getUser = makeGetUser({ repo });
+const user = await getUser("u-1"); // anemic output by default
+```
+
+`createUseCase` enforces a clean output boundary by converting results to anemic data.
+
+## API
+
+### `createUseCase`
+
+```ts
+createUseCase(
+  (deps) =>
+    (...args) =>
+      result
+);
+```
+
+- first function receives runtime dependencies
+- second function is the use-case executor
+- returned executor is async and returns anemic output
+
+### Ports
 
 ### `AsyncDataInteractionPort<Data, Err>`
 
@@ -33,3 +65,12 @@ interface InvoiceScreenPort {
 ```
 
 New ports can be added under `src/ports/` and re-exported from the package entry.
+
+## Caveats
+
+- `createUseCase` is an output-boundary helper, not a DI container.
+- Error mapping policy stays your responsibility (throw domain errors, map in adapters, etc.).
+
+## License
+
+MIT

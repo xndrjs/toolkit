@@ -36,3 +36,12 @@ const users = registry.getOrCreate("users", () => new DataLoader<string, User>(b
 ```
 
 Import **`DataLoader`** from **`"dataloader"`** in application code.
+
+## Caveats
+
+- `mapBatchToIds` keeps the last duplicate key from batch results; ensure this matches your domain expectation.
+- Registry lifecycle is up to the caller (request-scoped registry is usually the safest default).
+
+## License
+
+MIT
