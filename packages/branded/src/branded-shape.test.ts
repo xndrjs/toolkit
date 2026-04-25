@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
 import { branded } from "./api";
@@ -353,5 +353,46 @@ describe("branded-kit example domain", () => {
         },
       }))
     ).toThrow(TypeError);
+  });
+
+  it("base method reused in extended shape returns extended type", () => {
+    const [AccountShape, patchAccount] = branded.shape("Account", {
+      schema: z.object({
+        type: z.literal("Account").default("Account"),
+        username: z.string().min(1),
+      }),
+      methods: {
+        renameUsername(nextUsername: string) {
+          return patchAccount(this, { username: nextUsername });
+        },
+      },
+    });
+    type Account = BrandedType<typeof AccountShape>;
+
+    const [AccountDetailShape] = AccountShape.extend(
+      "AccountDetail",
+      (baseSchema, baseMethods) => ({
+        schema: baseSchema.extend({
+          avatarSrc: z.string().min(1).optional(),
+        }),
+        methods: {
+          renameUsername: baseMethods.renameUsername,
+        },
+      })
+    );
+
+    const detail = AccountDetailShape.create({
+      username: "alpha",
+      avatarSrc: "https://cdn.local/avatar.png",
+    });
+    const renamed = detail.renameUsername("beta");
+    type AccountDetail = BrandedType<typeof AccountDetailShape>;
+
+    expectTypeOf(renamed).toEqualTypeOf<Account>();
+    expectTypeOf(renamed).not.toEqualTypeOf<AccountDetail>();
+
+    expect(AccountDetailShape.is(renamed)).toBe(true);
+    expect("avatarSrc" in renamed).toBe(false);
+    expect(renamed.username).toBe("beta");
   });
 });
