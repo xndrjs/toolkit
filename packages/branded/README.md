@@ -52,21 +52,18 @@ import { z } from "zod";
 import { branded, BrandedType } from "@xndrjs/branded";
 import { EmailPrimitive } from "./email.primitive";
 
-const [UserShape, patchUser] = branded.shape(
-  "User",
-  z.object({
+const [UserShape, patchUser] = branded.shape("User", {
+  schema: z.object({
     type: z.literal("User").default("User"),
     email: branded.field(EmailPrimitive),
     isVerified: z.boolean(),
   }),
-  {
-    methods: {
-      markVerified() {
-        return patchUser(this, { isVerified: true });
-      },
+  methods: {
+    markVerified() {
+      return patchUser(this, { isVerified: true });
     },
-  }
-);
+  },
+});
 
 export { UserShape };
 export type UserEntity = BrandedType<typeof UserShape>;
@@ -176,10 +173,10 @@ Runtime value stays a plain primitive; nominal distinction is type-level.
 
 ### Shape
 
-`branded.shape(name, z.object(...), { methods })` returns `[kit, patch]`.
+`branded.shape(name, { schema, methods })` returns `[kit, patch]`.
 
-`kit.extend(name, (baseSchema) => baseSchema.extend({ ... }), { methods? })` returns a new `[kit, patch]`
-that preserves all base methods and optionally adds new methods.
+`kit.extend(name, (baseSchema, baseMethods) => ({ schema, methods? }))` returns a new `[kit, patch]`.
+`methods` can be an object (explicit methods only) or a factory `(baseMethods) => ({ ... })` for explicit composition.
 
 `kit` has `create`, `is`, `extend`, `schema`, `type`; `patch(entity, delta)` applies delta + re-validates.
 

@@ -7,33 +7,27 @@ import { __brand, __shapeMarker } from "./private-constants";
 import { AnemicOutput, BrandedType } from "./types";
 
 const Email = branded.primitive("Email", z.string().email());
-const [Address] = branded.shape(
-  "Address",
-  z.object({
+const [Address] = branded.shape("Address", {
+  schema: z.object({
     type: z.literal("Address").default("Address"),
     city: z.string(),
     street: z.string(),
   }),
-  {
-    methods: {},
-  }
-);
-const [User] = branded.shape(
-  "User",
-  z.object({
+  methods: {},
+});
+const [User] = branded.shape("User", {
+  schema: z.object({
     type: z.literal("User").default("User"),
     email: branded.field(Email),
     verifiedAt: z.date().nullable(),
     address: branded.field(Address),
   }),
-  {
-    methods: {
-      isVerified() {
-        return this.verifiedAt !== null;
-      },
+  methods: {
+    isVerified() {
+      return this.verifiedAt !== null;
     },
-  }
-);
+  },
+});
 
 type UserEntity = BrandedType<typeof User>;
 type VerifiedUserData = UserEntity & { verifiedAt: Date };

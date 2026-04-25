@@ -5,21 +5,18 @@ import { branded, __brand } from "@xndrjs/branded";
 
 import { createUseCase } from "./create-use-case";
 
-const [Widget] = branded.shape(
-  "Widget",
-  z.object({
+const [Widget] = branded.shape("Widget", {
+  schema: z.object({
     type: z.literal("Widget").default("Widget"),
     id: z.string(),
     label: z.string(),
   }),
-  {
-    methods: {
-      displayName() {
-        return `${this.id}: ${this.label}`;
-      },
+  methods: {
+    displayName() {
+      return `${this.id}: ${this.label}`;
     },
-  }
-);
+  },
+});
 
 describe("createUseCase", () => {
   it("injects deps and returns synchronous plain results", async () => {

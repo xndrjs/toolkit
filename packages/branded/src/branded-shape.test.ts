@@ -15,15 +15,14 @@ type Email = BrandedType<typeof EmailPrimitive>;
 
 // Address entity / composite VO
 
-const [AddressShape, _patchAddress] = branded.shape(
-  "Address",
-  z.object({
+const [AddressShape, _patchAddress] = branded.shape("Address", {
+  schema: z.object({
     type: z.literal("Address").default("Address"),
     city: z.string(),
     street: z.string(),
   }),
-  { methods: {} }
-);
+  methods: {},
+});
 
 // User aggregate
 
@@ -33,7 +32,8 @@ const UserShapeSchema = z.object({
   address: branded.field(AddressShape),
 });
 
-const [User, patchUser] = branded.shape("User", UserShapeSchema, {
+const [User, patchUser] = branded.shape("User", {
+  schema: UserShapeSchema,
   methods: {
     isCorporate() {
       return this.email.endsWith("@company.com");
@@ -207,16 +207,13 @@ describe("branded-kit example domain", () => {
   });
 
   it("patch rejects draft when schema discriminant no longer matches", () => {
-    const [WidgetShape, patchWidget] = branded.shape(
-      "Widget",
-      z.object({
+    const [WidgetShape, patchWidget] = branded.shape("Widget", {
+      schema: z.object({
         type: z.literal("Widget").default("Widget"),
         name: z.string(),
       }),
-      {
-        methods: {},
-      }
-    );
+      methods: {},
+    });
     const w = WidgetShape.create({ name: "a" });
     expect(() =>
       patchWidget(w, (draft) => {
@@ -230,22 +227,27 @@ describe("branded-kit example domain", () => {
   });
 
   it("extends shape with explicit methods only (no inherited methods)", () => {
-    const [UserDetailShape, patchUserDetail] = User.extend(
-      "UserDetail",
-      (base) =>
-        base.extend({
+    const [UserDetailShape, patchUserDetail] = User.extend("UserDetail", (baseSchema) => ({
+      schema: baseSchema.extend({
+        avatarSrc: z.string().min(1),
+      }),
+      methods: {},
+    }));
+    const [UserDetailShapeWithMethods, patchUserDetailWithMethods] = User.extend(
+      "UserDetailWithMethods",
+      (baseSchema) => ({
+        schema: baseSchema.extend({
           avatarSrc: z.string().min(1),
         }),
-      {
         methods: {
           hasAvatar() {
             return this.avatarSrc.length > 0;
           },
         },
-      }
+      })
     );
 
-    const detail = UserDetailShape.create({
+    const detail = UserDetailShapeWithMethods.create({
       email: "a@company.com",
       address: { street: "Via", city: "Firenze" },
       avatarSrc: "https://cdn.local/avatar.png",
@@ -255,30 +257,28 @@ describe("branded-kit example domain", () => {
     expect(detail.avatarSrc).toBe("https://cdn.local/avatar.png");
     expect(detail.hasAvatar()).toBe(true);
     expect("isCorporate" in detail).toBe(false);
-    expect(UserDetailShape.is(detail)).toBe(true);
+    expect(UserDetailShapeWithMethods.is(detail)).toBe(true);
     expect(User.is(detail)).toBe(false);
 
-    const next = patchUserDetail(detail, { avatarSrc: "https://cdn.local/next.png" });
+    const next = patchUserDetailWithMethods(detail, { avatarSrc: "https://cdn.local/next.png" });
     expect(next.avatarSrc).toBe("https://cdn.local/next.png");
     expect(next.hasAvatar()).toBe(true);
+    expect(UserDetailShape.is(detail)).toBe(false);
+    expect(typeof patchUserDetail).toBe("function");
   });
 
   it("extends shape with explicit composition from base methods", () => {
-    const [UserDetailShape] = User.extend(
-      "UserDetail",
-      (base) =>
-        base.extend({
-          avatarSrc: z.string(),
-        }),
-      {
-        methods: (baseMethods) => ({
-          isCorporate: baseMethods.isCorporate,
-          hasAvatar(this: { avatarSrc: string }) {
-            return this.avatarSrc.length > 0;
-          },
-        }),
-      }
-    );
+    const [UserDetailShape] = User.extend("UserDetail", (baseSchema) => ({
+      schema: baseSchema.extend({
+        avatarSrc: z.string(),
+      }),
+      methods: (baseMethods) => ({
+        isCorporate: baseMethods.isCorporate,
+        hasAvatar(this: { avatarSrc: string }) {
+          return this.avatarSrc.length > 0;
+        },
+      }),
+    }));
     const detail = UserDetailShape.create({
       email: "a@company.com",
       address: { street: "Via", city: "Firenze" },
@@ -289,14 +289,12 @@ describe("branded-kit example domain", () => {
   });
 
   it("projects an extended shape instance to a base shape instance", () => {
-    const [UserDetailShape] = User.extend(
-      "UserDetail",
-      (base) =>
-        base.extend({
-          avatarSrc: z.string().min(1),
-        }),
-      { methods: {} }
-    );
+    const [UserDetailShape] = User.extend("UserDetail", (baseSchema) => ({
+      schema: baseSchema.extend({
+        avatarSrc: z.string().min(1),
+      }),
+      methods: {},
+    }));
     const detail = UserDetailShape.create({
       email: "a@company.com",
       address: { street: "Via", city: "Firenze" },
@@ -310,14 +308,12 @@ describe("branded-kit example domain", () => {
   });
 
   it("project throws when target shape input is incompatible", () => {
-    const [AddressDetailShape] = AddressShape.extend(
-      "AddressDetail",
-      (base) =>
-        base.extend({
-          county: z.string().min(1),
-        }),
-      { methods: {} }
-    );
+    const [AddressDetailShape] = AddressShape.extend("AddressDetail", (baseSchema) => ({
+      schema: baseSchema.extend({
+        county: z.string().min(1),
+      }),
+      methods: {},
+    }));
     const detail = AddressDetailShape.create({
       street: "Via",
       city: "Firenze",
@@ -333,36 +329,29 @@ describe("branded-kit example domain", () => {
 
   it("rejects reserved project method on shape and extension", () => {
     expect(() =>
-      branded.shape(
-        "Illegal",
-        z.object({
+      branded.shape("Illegal", {
+        schema: z.object({
           id: z.string(),
         }),
-        {
-          methods: {
-            project() {
-              return this;
-            },
+        methods: {
+          project() {
+            return this;
           },
-        }
-      )
+        },
+      })
     ).toThrow(TypeError);
 
     expect(() =>
-      User.extend(
-        "IllegalChild",
-        (base) =>
-          base.extend({
-            extra: z.string(),
-          }),
-        {
-          methods: {
-            project() {
-              return this;
-            },
+      User.extend("IllegalChild", (baseSchema) => ({
+        schema: baseSchema.extend({
+          extra: z.string(),
+        }),
+        methods: {
+          project() {
+            return this;
           },
-        }
-      )
+        },
+      }))
     ).toThrow(TypeError);
   });
 });

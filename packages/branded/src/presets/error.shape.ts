@@ -15,6 +15,7 @@ export const baseErrorSchema = z.object({
  * Default preset shape for generic errors.
  * Extend from this shape with `ErrorShape.extend(...)` to model specific errors.
  */
-export const [ErrorShape] = defineBrandedShape("Error", baseErrorSchema, {
+export const [ErrorShape] = defineBrandedShape("Error", {
+  schema: baseErrorSchema,
   methods: {},
 });

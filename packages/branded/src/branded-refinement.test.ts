@@ -13,7 +13,8 @@ const UserSchema = z.object({
   avatarSrc: z.string().optional(),
 });
 
-const [User, patchUser] = branded.shape("User", UserSchema, {
+const [User, patchUser] = branded.shape("User", {
+  schema: UserSchema,
   methods: {
     canAccessAdminArea() {
       return this.isVerified === true;
@@ -322,7 +323,8 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
 
   type DocProps = z.infer<typeof DocSchema>;
 
-  const [DocShape] = branded.shape("Doc", DocSchema, {
+  const [DocShape] = branded.shape("Doc", {
+    schema: DocSchema,
     methods: {
       isDoc: () => true,
     },

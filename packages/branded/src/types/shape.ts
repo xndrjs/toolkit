@@ -94,9 +94,12 @@ export interface BrandedShapeKit<
     NewMethods extends BrandedMethodDefinitions = Record<never, never>,
   >(
     type: NewType,
-    extendSchema: (baseSchema: Schema) => NewSchema,
-    options?: {
-      methods:
+    extendConfig: (
+      baseSchema: Schema,
+      baseMethods: Methods
+    ) => {
+      schema: NewSchema;
+      methods?:
         | (NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, NewMethods>>)
         | ((baseMethods: Methods) => NewMethods);
     }

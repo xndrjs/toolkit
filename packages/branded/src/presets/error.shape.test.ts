@@ -22,11 +22,11 @@ describe("error presets", () => {
   });
 
   it("supports extension from ErrorShape", () => {
-    const [UserNotFoundShape] = ErrorShape.extend("UserNotFound", (base) =>
-      base.extend({
+    const [UserNotFoundShape] = ErrorShape.extend("UserNotFound", (baseSchema) => ({
+      schema: baseSchema.extend({
         metadata: z.object({ id: z.string() }),
-      })
-    );
+      }),
+    }));
     const e = UserNotFoundShape.create({
       code: "USER_NOT_FOUND",
       message: "Unknown user",

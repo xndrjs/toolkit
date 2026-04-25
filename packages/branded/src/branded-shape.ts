@@ -22,15 +22,15 @@ export function defineBrandedShape<
   Methods extends BrandedMethodDefinitions = Record<never, never>,
 >(
   type: Type,
-  schema: Schema,
-  options: {
+  config: {
+    schema: Schema;
     methods: Methods & ThisType<BrandedShapeEntity<Type, Schema, Methods>>;
   }
 ): BrandedShapeTuple<Type, Schema, Methods> {
   type InputProps = z.input<Schema>;
   type OutputProps = z.output<Schema>;
   type Entity = BrandedShapeEntity<Type, Schema, Methods>;
-  const { methods } = options;
+  const { schema, methods } = config;
   const prototype = Object.create(null) as Record<string, unknown>;
 
   for (const key of Object.keys(methods) as (keyof Methods)[]) {
@@ -133,15 +133,18 @@ export function defineBrandedShape<
     NewMethods extends BrandedMethodDefinitions = Record<never, never>,
   >(
     nextType: NewType,
-    extendSchema: (baseSchema: Schema) => NewSchema,
-    extendOptions?: {
-      methods:
+    extendConfig: (
+      baseSchema: Schema,
+      baseMethods: Methods
+    ) => {
+      schema: NewSchema;
+      methods?:
         | (NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, NewMethods>>)
         | ((baseMethods: Methods) => NewMethods);
     }
   ): BrandedShapeTuple<NewType, NewSchema, NewMethods> {
-    const nextSchema = extendSchema(schema);
-    const methodsOption = extendOptions?.methods;
+    const nextConfig = extendConfig(schema, methods);
+    const methodsOption = nextConfig.methods;
     const additionalMethods =
       typeof methodsOption === "function"
         ? methodsOption(methods)
@@ -154,7 +157,8 @@ export function defineBrandedShape<
         `Cannot extend shape "${type}" into "${nextType}": method(s) already defined: ${methodNameCollisions.join(", ")}`
       );
     }
-    return defineBrandedShape<NewSchema, NewType, NewMethods>(nextType, nextSchema, {
+    return defineBrandedShape<NewSchema, NewType, NewMethods>(nextType, {
+      schema: nextConfig.schema,
       methods: additionalMethods as NewMethods &
         ThisType<BrandedShapeEntity<NewType, NewSchema, NewMethods>>,
     });
