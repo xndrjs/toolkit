@@ -178,21 +178,10 @@ Runtime value stays a plain primitive; nominal distinction is type-level.
 
 `branded.shape(name, z.object(...), { methods })` returns `[kit, patch]`.
 
-### Error shape
+`kit.extend(name, (baseSchema) => baseSchema.extend({ ... }), { methods? })` returns a new `[kit, patch]`
+that preserves all base methods and optionally adds new methods.
 
-`branded.errorShape(name)` and `branded.errorShape(name, (base) => base.extend({ ... }))` build on `baseErrorSchema`, append `type: z.literal(name).default(name)`, and return **only** the kit (no `patch`).
-
-`kit`:
-
-- `create(raw)` validates and freezes
-- `is(value)` checks prototype identity + schema parse
-- `schema`, `type`
-
-`patch(entity, delta)`:
-
-- applies partial or callback delta
-- re-validates through schema
-- returns new frozen entity preserving shape prototype
+`kit` has `create`, `is`, `extend`, `schema`, `type`; `patch(entity, delta)` applies delta + re-validates.
 
 ### Field
 
@@ -217,24 +206,23 @@ Runtime value stays a plain primitive; nominal distinction is type-level.
 - `tryFrom(baseValue)`
 - `is(value)`
 
-## Error Shape: `baseErrorSchema` + `branded.errorShape`
+## Error Preset: `baseErrorSchema`
 
-**`baseErrorSchema`** is exported for composition inside the factory callback. There is no separate “base error” shape kit — define errors only via **`branded.errorShape`**.
+`presets` is exported from the API with reusable shape presets for common cases.
 
 ```ts
-import { baseErrorSchema, branded } from "@xndrjs/branded";
+import { presets } from "@xndrjs/branded";
 
-const UserNotFound = branded.errorShape("UserNotFound");
-
-const err = UserNotFound.create({ code: "USER_NOT_FOUND", message: "Unknown user" });
-// err.type === "UserNotFound" (defaulted)
-
-const UserNotFoundRich = branded.errorShape("UserNotFound", (base) =>
+const [UserNotFoundShape] = presets.ErrorShape.extend("UserNotFound", (base) =>
   base.extend({ metadata: z.object({ id: z.string() }) })
 );
-```
 
-Error shapes are **create-only** (no `patch`). You can refine errors as any other shape, if you need to.
+const err = UserNotFoundShape.create({
+  code: "USER_NOT_FOUND",
+  message: "Unknown user",
+  metadata: { id: "u-1" },
+});
+```
 
 ## Library Errors (Exceptions)
 

@@ -110,9 +110,41 @@ export function defineBrandedShape<
     return schema.safeParse(payload).success;
   }
 
+  function extend<
+    NewType extends string,
+    NewSchema extends BrandedZodObjectSchema,
+    NewMethods extends BrandedMethodDefinitions = Record<never, never>,
+  >(
+    nextType: NewType,
+    extendSchema: (baseSchema: Schema) => NewSchema,
+    extendOptions?: {
+      methods: NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, Methods & NewMethods>>;
+    }
+  ): BrandedShapeTuple<NewType, NewSchema, Methods & NewMethods> {
+    const nextSchema = extendSchema(schema);
+    const additionalMethods = (extendOptions?.methods ?? {}) as NewMethods;
+    const methodNameCollisions = (Object.keys(additionalMethods) as string[]).filter((key) =>
+      Object.hasOwn(methods, key)
+    );
+    if (methodNameCollisions.length > 0) {
+      throw new TypeError(
+        `Cannot extend shape "${type}" into "${nextType}": method(s) already defined: ${methodNameCollisions.join(", ")}`
+      );
+    }
+    const mergedMethods = {
+      ...(methods as Record<string, unknown>),
+      ...(additionalMethods as Record<string, unknown>),
+    } as Methods & NewMethods;
+    return defineBrandedShape<NewSchema, NewType, Methods & NewMethods>(nextType, nextSchema, {
+      methods: mergedMethods as (Methods & NewMethods) &
+        ThisType<BrandedShapeEntity<NewType, NewSchema, Methods & NewMethods>>,
+    });
+  }
+
   const kit: BrandedShapeKit<Type, Schema, Methods> = {
     create,
     is,
+    extend,
     schema,
     type,
   };

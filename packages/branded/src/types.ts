@@ -122,6 +122,17 @@ export interface BrandedShapeKit<
 > {
   create: (input: z.input<Schema>) => BrandedShapeEntity<Type, Schema, Methods>;
   is: (value: unknown) => value is BrandedShapeEntity<Type, Schema, Methods>;
+  extend: <
+    NewType extends string,
+    NewSchema extends BrandedZodObjectSchema,
+    NewMethods extends BrandedMethodDefinitions = Record<never, never>,
+  >(
+    type: NewType,
+    extendSchema: (baseSchema: Schema) => NewSchema,
+    options?: {
+      methods: NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, Methods & NewMethods>>;
+    }
+  ) => BrandedShapeTuple<NewType, NewSchema, Methods & NewMethods>;
   schema: Schema;
   type: Type;
 }

@@ -228,4 +228,58 @@ describe("branded-kit example domain", () => {
     expect(next.type).toBe("Widget");
     expect(next.name).toBe("b");
   });
+
+  it("extends shape with inherited methods and additional methods", () => {
+    const [UserDetailShape, patchUserDetail] = User.extend(
+      "UserDetail",
+      (base) =>
+        base.extend({
+          avatarSrc: z.string().min(1),
+        }),
+      {
+        methods: {
+          hasAvatar() {
+            return this.avatarSrc.length > 0;
+          },
+        },
+      }
+    );
+
+    const detail = UserDetailShape.create({
+      email: "a@company.com",
+      address: { street: "Via", city: "Firenze" },
+      avatarSrc: "https://cdn.local/avatar.png",
+    });
+
+    expect(detail.type).toBe("User");
+    expect(detail.avatarSrc).toBe("https://cdn.local/avatar.png");
+    expect(detail.isCorporate()).toBe(true);
+    expect(detail.hasAvatar()).toBe(true);
+    expect(UserDetailShape.is(detail)).toBe(true);
+    expect(User.is(detail)).toBe(false);
+
+    const next = patchUserDetail(detail, { avatarSrc: "https://cdn.local/next.png" });
+    expect(next.avatarSrc).toBe("https://cdn.local/next.png");
+    expect(next.isCorporate()).toBe(true);
+    expect(next.hasAvatar()).toBe(true);
+  });
+
+  it("extend rejects method name collisions with base shape methods", () => {
+    expect(() =>
+      User.extend(
+        "UserDetail",
+        (base) =>
+          base.extend({
+            avatarSrc: z.string(),
+          }),
+        {
+          methods: {
+            isCorporate() {
+              return false;
+            },
+          },
+        }
+      )
+    ).toThrow(TypeError);
+  });
 });
