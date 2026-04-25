@@ -282,4 +282,82 @@ describe("branded-kit example domain", () => {
       )
     ).toThrow(TypeError);
   });
+
+  it("projects an extended shape instance to a base shape instance", () => {
+    const [UserDetailShape] = User.extend(
+      "UserDetail",
+      (base) =>
+        base.extend({
+          avatarSrc: z.string().min(1),
+        }),
+      { methods: {} }
+    );
+    const detail = UserDetailShape.create({
+      email: "a@company.com",
+      address: { street: "Via", city: "Firenze" },
+      avatarSrc: "https://cdn.local/avatar.png",
+    });
+    const projected = detail.project(User);
+    expect(projected.type).toBe("User");
+    expect(projected.isCorporate()).toBe(true);
+    expect(User.is(projected)).toBe(true);
+    expect(UserDetailShape.is(projected)).toBe(false);
+  });
+
+  it("project throws when target shape input is incompatible", () => {
+    const [AddressDetailShape] = AddressShape.extend(
+      "AddressDetail",
+      (base) =>
+        base.extend({
+          county: z.string().min(1),
+        }),
+      { methods: {} }
+    );
+    const detail = AddressDetailShape.create({
+      street: "Via",
+      city: "Firenze",
+      county: "FI",
+    });
+    // @ts-expect-error -- compile-time incompatibility: AddressDetail cannot project to User input
+    const _invalidProjectionTarget: Parameters<typeof detail.project>[0] = User;
+    expect(_invalidProjectionTarget).toBeDefined();
+    expect(() => (detail.project as (target: unknown) => unknown)(User)).toThrow(
+      BrandedValidationError
+    );
+  });
+
+  it("rejects reserved project method on shape and extension", () => {
+    expect(() =>
+      branded.shape(
+        "Illegal",
+        z.object({
+          id: z.string(),
+        }),
+        {
+          methods: {
+            project() {
+              return this;
+            },
+          },
+        }
+      )
+    ).toThrow(TypeError);
+
+    expect(() =>
+      User.extend(
+        "IllegalChild",
+        (base) =>
+          base.extend({
+            extra: z.string(),
+          }),
+        {
+          methods: {
+            project() {
+              return this;
+            },
+          },
+        }
+      )
+    ).toThrow(TypeError);
+  });
 });

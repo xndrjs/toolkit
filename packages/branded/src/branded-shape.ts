@@ -35,6 +35,11 @@ export function defineBrandedShape<
 
   for (const key of Object.keys(methods) as (keyof Methods)[]) {
     const method = methods[key];
+    if (key === "project") {
+      throw new TypeError(
+        `Invalid method "${String(key)}" for shape "${type}": "${String(key)}" is reserved`
+      );
+    }
     if (typeof method !== "function") {
       throw new TypeError(
         `Invalid method "${String(key)}" for shape "${type}": expected a function`
@@ -55,6 +60,18 @@ export function defineBrandedShape<
     configurable: false,
     writable: false,
     value: true,
+  });
+
+  Object.defineProperty(prototype, "project", {
+    enumerable: false,
+    configurable: false,
+    writable: false,
+    value: function projectInvoker(
+      this: Entity,
+      target: BrandedShapeKit<string, BrandedZodObjectSchema, BrandedMethodDefinitions>
+    ) {
+      return target.create({ ...(this as unknown as Record<string, unknown>) });
+    },
   });
 
   function createEntity(parsed: OutputProps, entityPrototype: object | null = prototype): Entity {
@@ -123,8 +140,8 @@ export function defineBrandedShape<
   ): BrandedShapeTuple<NewType, NewSchema, Methods & NewMethods> {
     const nextSchema = extendSchema(schema);
     const additionalMethods = (extendOptions?.methods ?? {}) as NewMethods;
-    const methodNameCollisions = (Object.keys(additionalMethods) as string[]).filter((key) =>
-      Object.hasOwn(methods, key)
+    const methodNameCollisions = (Object.keys(additionalMethods) as string[]).filter(
+      (key) => key === "project" || Object.hasOwn(methods, key)
     );
     if (methodNameCollisions.length > 0) {
       throw new TypeError(
