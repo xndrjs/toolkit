@@ -229,7 +229,7 @@ describe("branded-kit example domain", () => {
     expect(next.name).toBe("b");
   });
 
-  it("extends shape with inherited methods and additional methods", () => {
+  it("extends shape with explicit methods only (no inherited methods)", () => {
     const [UserDetailShape, patchUserDetail] = User.extend(
       "UserDetail",
       (base) =>
@@ -253,34 +253,39 @@ describe("branded-kit example domain", () => {
 
     expect(detail.type).toBe("User");
     expect(detail.avatarSrc).toBe("https://cdn.local/avatar.png");
-    expect(detail.isCorporate()).toBe(true);
     expect(detail.hasAvatar()).toBe(true);
+    expect("isCorporate" in detail).toBe(false);
     expect(UserDetailShape.is(detail)).toBe(true);
     expect(User.is(detail)).toBe(false);
 
     const next = patchUserDetail(detail, { avatarSrc: "https://cdn.local/next.png" });
     expect(next.avatarSrc).toBe("https://cdn.local/next.png");
-    expect(next.isCorporate()).toBe(true);
     expect(next.hasAvatar()).toBe(true);
   });
 
-  it("extend rejects method name collisions with base shape methods", () => {
-    expect(() =>
-      User.extend(
-        "UserDetail",
-        (base) =>
-          base.extend({
-            avatarSrc: z.string(),
-          }),
-        {
-          methods: {
-            isCorporate() {
-              return false;
-            },
+  it("extends shape with explicit composition from base methods", () => {
+    const [UserDetailShape] = User.extend(
+      "UserDetail",
+      (base) =>
+        base.extend({
+          avatarSrc: z.string(),
+        }),
+      {
+        methods: (baseMethods) => ({
+          isCorporate: baseMethods.isCorporate,
+          hasAvatar(this: { avatarSrc: string }) {
+            return this.avatarSrc.length > 0;
           },
-        }
-      )
-    ).toThrow(TypeError);
+        }),
+      }
+    );
+    const detail = UserDetailShape.create({
+      email: "a@company.com",
+      address: { street: "Via", city: "Firenze" },
+      avatarSrc: "x",
+    });
+    expect(detail.isCorporate()).toBe(true);
+    expect(detail.hasAvatar()).toBe(true);
   });
 
   it("projects an extended shape instance to a base shape instance", () => {

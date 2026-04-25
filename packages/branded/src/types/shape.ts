@@ -96,9 +96,11 @@ export interface BrandedShapeKit<
     type: NewType,
     extendSchema: (baseSchema: Schema) => NewSchema,
     options?: {
-      methods: NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, Methods & NewMethods>>;
+      methods:
+        | (NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, NewMethods>>)
+        | ((baseMethods: Methods) => NewMethods);
     }
-  ) => BrandedShapeTuple<NewType, NewSchema, Methods & NewMethods>;
+  ) => BrandedShapeTuple<NewType, NewSchema, NewMethods>;
   schema: Schema;
   type: Type;
 }

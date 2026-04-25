@@ -135,26 +135,28 @@ export function defineBrandedShape<
     nextType: NewType,
     extendSchema: (baseSchema: Schema) => NewSchema,
     extendOptions?: {
-      methods: NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, Methods & NewMethods>>;
+      methods:
+        | (NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, NewMethods>>)
+        | ((baseMethods: Methods) => NewMethods);
     }
-  ): BrandedShapeTuple<NewType, NewSchema, Methods & NewMethods> {
+  ): BrandedShapeTuple<NewType, NewSchema, NewMethods> {
     const nextSchema = extendSchema(schema);
-    const additionalMethods = (extendOptions?.methods ?? {}) as NewMethods;
+    const methodsOption = extendOptions?.methods;
+    const additionalMethods =
+      typeof methodsOption === "function"
+        ? methodsOption(methods)
+        : ((methodsOption ?? {}) as NewMethods);
     const methodNameCollisions = (Object.keys(additionalMethods) as string[]).filter(
-      (key) => key === "project" || Object.hasOwn(methods, key)
+      (key) => key === "project"
     );
     if (methodNameCollisions.length > 0) {
       throw new TypeError(
         `Cannot extend shape "${type}" into "${nextType}": method(s) already defined: ${methodNameCollisions.join(", ")}`
       );
     }
-    const mergedMethods = {
-      ...(methods as Record<string, unknown>),
-      ...(additionalMethods as Record<string, unknown>),
-    } as Methods & NewMethods;
-    return defineBrandedShape<NewSchema, NewType, Methods & NewMethods>(nextType, nextSchema, {
-      methods: mergedMethods as (Methods & NewMethods) &
-        ThisType<BrandedShapeEntity<NewType, NewSchema, Methods & NewMethods>>,
+    return defineBrandedShape<NewSchema, NewType, NewMethods>(nextType, nextSchema, {
+      methods: additionalMethods as NewMethods &
+        ThisType<BrandedShapeEntity<NewType, NewSchema, NewMethods>>,
     });
   }
 
