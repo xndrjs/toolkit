@@ -7,9 +7,13 @@ Lightweight building blocks for application orchestration:
 
 ## Installation
 
+This package depends on **`@xndrjs/branded`** and declares **`zod` ^4** as a peer dependency (same range as `branded`). Install both so dependency managers resolve a single Zod instance.
+
 ```bash
-npm install @xndrjs/orchestration
+npm install @xndrjs/orchestration zod@^4
 ```
+
+**Runtime:** Node.js **18+** (`engines` in `package.json`).
 
 ## Quick start
 

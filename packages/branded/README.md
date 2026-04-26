@@ -15,9 +15,13 @@ The goal is **simplicity with guardrails**.
 
 ## Installation
 
+`zod` is a **peer dependency** (Zod **4.x**). Install it alongside this package so your app uses a single Zod instance.
+
 ```bash
-npm install @xndrjs/branded zod
+npm install @xndrjs/branded zod@^4
 ```
+
+**Runtime:** Node.js **18+** (see `engines` in `package.json`). The monorepo that builds this library may use a stricter Node version; consumers are not required to match it.
 
 ## Quick examples
 

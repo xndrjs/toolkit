@@ -21,6 +21,9 @@
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup",
     "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
@@ -29,11 +32,12 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run"
   },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
   "devDependencies": {
     "tsup": "^8.5.1",
-    "vitest": "^4.1.0"
-  },
-  "dependencies": {
+    "vitest": "^4.1.0",
     "zod": "^4.3.6"
   }
 }
