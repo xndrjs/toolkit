@@ -22,7 +22,7 @@ describe("error presets", () => {
   });
 
   it("supports extension from ErrorShape", () => {
-    const [UserNotFoundShape] = ErrorShape.extend("UserNotFound", (baseSchema) => ({
+    const UserNotFoundShape = ErrorShape.extend("UserNotFound", (baseSchema) => ({
       schema: baseSchema.extend({
         metadata: z.object({ id: z.string() }),
       }),

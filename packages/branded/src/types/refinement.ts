@@ -7,7 +7,7 @@ export type RefinementResult<Brand extends string, NewType> = Branded<Brand, New
  * `NewType` must be the **narrowed data** (e.g. `UserEntity & { … }`), not `Branded<Brand, …>` —
  * {@link RefinementResult} already applies `Branded<Brand, NewType>` once.
  *
- * Instance methods come only from the underlying shape prototype, not from refinements.
+ * Capabilities stay on the **shape kit** (`UserKit.method(entity, …)`); refined values are data + brands only.
  *
  * Matches `from` / `tryFrom` when called with `TBase` (e.g. `UserEntity`). For stacked refinements,
  * `TBase` is the already-refined input type.

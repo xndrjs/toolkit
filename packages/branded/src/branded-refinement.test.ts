@@ -13,32 +13,32 @@ const UserSchema = z.object({
   avatarSrc: z.string().optional(),
 });
 
-const [User, patchUser] = branded.shape("User", {
-  schema: UserSchema,
-  methods: {
-    canAccessAdminArea() {
-      return this.isVerified === true;
-    },
-    hasAdditionalData() {
-      return typeof this.additionalData === "string" && this.additionalData.length > 0;
-    },
-    profileWordCount() {
-      const d = this.additionalData;
-      if (typeof d !== "string") return 0;
-      return d.trim().split(/\s+/).filter(Boolean).length;
-    },
-    hasAvatar() {
-      return typeof this.avatarSrc === "string" && this.avatarSrc.length > 0;
-    },
-    /**
-     * Breaks `VerifiedUser` when applied to a refined instance; delegates to `patchUser` (base entity).
-     * Refinements must be re-established via `tryFrom` / `from`.
-     */
-    patchRevokeVerification() {
-      return patchUser(this, { isVerified: false });
-    },
+const User = branded.capabilities(branded.shape("User", UserSchema), (patch) => ({
+  canAccessAdminArea(user) {
+    return user.isVerified === true;
   },
-});
+  hasAdditionalData(user) {
+    return typeof user.additionalData === "string" && user.additionalData.length > 0;
+  },
+  profileWordCount(user) {
+    const d = user.additionalData;
+    if (typeof d !== "string") return 0;
+    return d.trim().split(/\s+/).filter(Boolean).length;
+  },
+  hasAvatar(user) {
+    return typeof user.avatarSrc === "string" && user.avatarSrc.length > 0;
+  },
+  /**
+   * Breaks `VerifiedUser` when applied to a refined instance; delegates to `patch` (base entity).
+   * Refinements must be re-established via `tryFrom` / `from`.
+   */
+  patchRevokeVerification(user) {
+    return patch(user, { isVerified: false });
+  },
+  patchAdditionalData(user, additionalData: string) {
+    return patch(user, { additionalData });
+  },
+}));
 
 type UserEntity = BrandedType<typeof User>;
 
@@ -82,7 +82,7 @@ describe("branded refinement", () => {
     });
     const verified: VerifiedUser = VerifiedUserRefinement.from(user);
     expect(verified.additionalData).toBe("x");
-    expect(verified.hasAdditionalData()).toBe(true);
+    expect(User.hasAdditionalData(verified)).toBe(true);
     expect(VerifiedUserRefinement.is(verified)).toBe(true);
   });
 
@@ -95,8 +95,8 @@ describe("branded refinement", () => {
 
     const verified = VerifiedUserRefinement.from(user);
     expect(verified.isVerified).toBe(true);
-    expect(verified.canAccessAdminArea()).toBe(true);
-    expect(verified.hasAdditionalData()).toBe(true);
+    expect(User.canAccessAdminArea(verified)).toBe(true);
+    expect(User.hasAdditionalData(verified)).toBe(true);
     expect(verified.additionalData).toBe("present");
     expect(verified.type).toBe("User");
     expect(User.is(verified)).toBe(true);
@@ -152,15 +152,15 @@ describe("branded refinement", () => {
       additionalData: "before",
     });
     const verified = VerifiedUserRefinement.from(user);
-    const next = patchUser(verified, { additionalData: "after" });
+    const next = User.patchAdditionalData(verified, "after");
     expect(next.additionalData).toBe("after");
-    expect(next.canAccessAdminArea()).toBe(true);
-    expect(next.hasAdditionalData()).toBe(true);
+    expect(User.canAccessAdminArea(next)).toBe(true);
+    expect(User.hasAdditionalData(next)).toBe(true);
     expect(User.is(next)).toBe(true);
     expect(VerifiedUserRefinement.is(next)).toBe(true);
   });
 
-  it("free patch returns base shape type; semantic methods may use `as T` when the delta preserves refinements", () => {
+  it("semantic patch helper returns base shape type; refinement is dropped until re-narrowed", () => {
     const user = User.create({
       id: "u-patch-refined-return-type",
       isVerified: true,
@@ -168,23 +168,16 @@ describe("branded refinement", () => {
     });
     const verified = VerifiedUserRefinement.from(user);
 
-    const viaMethod = verified.patchRevokeVerification();
-    const viaPatch = patchUser(verified, { isVerified: false });
+    const viaMethod = User.patchRevokeVerification(verified);
 
     const _fromMethod: UserEntity = viaMethod;
-    const _fromPatch: UserEntity = viaPatch;
 
     // @ts-expect-error patch strips refinement from the type; use tryFrom/from to narrow again
     const _methodWrong: VerifiedUser = viaMethod;
-    // @ts-expect-error patch strips refinement from the type; use tryFrom/from to narrow again
-    const _patchWrong: VerifiedUser = viaPatch;
 
     expect(viaMethod.isVerified).toBe(false);
-    expect(viaPatch.isVerified).toBe(false);
     expect(VerifiedUserRefinement.is(viaMethod)).toBe(false);
-    expect(VerifiedUserRefinement.is(viaPatch)).toBe(false);
     expect(User.is(viaMethod)).toBe(true);
-    expect(User.is(viaPatch)).toBe(true);
   });
 
   it("from() does not mutate the source value and returns a frozen clone", () => {
@@ -203,7 +196,7 @@ describe("branded refinement", () => {
     expect(User.is(verified)).toBe(true);
   });
 
-  it("keeps shape methods on prototype, so they are not copied by spread/json", () => {
+  it("keeps shape capabilities on the kit, so refined entities stay data-only for spread/json", () => {
     const user = User.create({
       id: "u-7",
       isVerified: true,
@@ -211,7 +204,7 @@ describe("branded refinement", () => {
     });
     const verified = VerifiedUserRefinement.from(user);
 
-    expect(verified.hasAdditionalData()).toBe(true);
+    expect(User.hasAdditionalData(verified)).toBe(true);
     expect(Object.keys(verified)).not.toContain("hasAdditionalData");
 
     const spread = { ...verified } as Record<string, unknown>;
@@ -231,11 +224,11 @@ describe("multiple refinements on the same shape", () => {
       avatarSrc: "https://cdn.example/avatar.png",
     });
     const enriched: ProfileEnrichedUser = ProfileEnrichedRefinement.from(user);
-    expect(enriched.profileWordCount()).toBe(3);
+    expect(User.profileWordCount(enriched)).toBe(3);
     expect(ProfileEnrichedRefinement.is(enriched)).toBe(true);
   });
 
-  it("stacks refinements; shape prototype methods remain available on chained refinements", () => {
+  it("stacks refinements; base kit capabilities accept chained refinement instances", () => {
     const user = User.create({
       id: "u-mr-1",
       isVerified: true,
@@ -248,10 +241,10 @@ describe("multiple refinements on the same shape", () => {
 
     expect(User.is(enriched)).toBe(true);
 
-    expect(enriched.canAccessAdminArea()).toBe(true);
-    expect(enriched.hasAdditionalData()).toBe(true);
-    expect(enriched.hasAvatar()).toBe(true);
-    expect(enriched.profileWordCount()).toBe(3);
+    expect(User.canAccessAdminArea(enriched)).toBe(true);
+    expect(User.hasAdditionalData(enriched)).toBe(true);
+    expect(User.hasAvatar(enriched)).toBe(true);
+    expect(User.profileWordCount(enriched)).toBe(3);
     expect(enriched.avatarSrc).toBe("https://cdn.example/avatar.png");
 
     expect(VerifiedUserRefinement.is(enriched)).toBe(true);
@@ -292,17 +285,15 @@ describe("multiple refinements on the same shape", () => {
     });
     const enriched = ProfileEnrichedRefinement.from(VerifiedUserRefinement.from(user));
 
-    const next = patchUser(enriched, {
-      additionalData: "updated long enough text",
-    });
+    const next = User.patchAdditionalData(enriched, "updated long enough text");
 
     expect(next.additionalData).toBe("updated long enough text");
     expect(next.avatarSrc).toBe("https://cdn.example/face.jpg");
     expect(User.is(next)).toBe(true);
     expect(VerifiedUserRefinement.is(next)).toBe(true);
     expect(ProfileEnrichedRefinement.is(next)).toBe(true);
-    expect(next.profileWordCount()).toBeGreaterThan(0);
-    expect(next.hasAvatar()).toBe(true);
+    expect(User.profileWordCount(next)).toBeGreaterThan(0);
+    expect(User.hasAvatar(next)).toBe(true);
   });
 });
 
@@ -323,12 +314,11 @@ describe("nested refinement chain (sibling refinements + stack on one branch)", 
 
   type DocProps = z.infer<typeof DocSchema>;
 
-  const [DocShape] = branded.shape("Doc", {
-    schema: DocSchema,
-    methods: {
-      isDoc: () => true,
+  const DocShape = branded.capabilities(branded.shape("Doc", DocSchema), () => ({
+    isDoc(_doc) {
+      return true;
     },
-  });
+  }));
   type Doc = BrandedType<typeof DocShape>;
 
   type ScoreTenPlusProps = Doc & { score: number };
@@ -446,7 +436,7 @@ describe("branded.refineChain", () => {
     const manual = ProfileEnrichedRefinement.from(VerifiedUserRefinement.from(user));
 
     expect(combined).toEqual(manual);
-    expect(combined.profileWordCount()).toBe(3);
+    expect(User.profileWordCount(combined)).toBe(3);
   });
 
   it("create(raw) builds base shape and runs the whole refinement chain", () => {
@@ -459,7 +449,7 @@ describe("branded.refineChain", () => {
 
     expect(combined.type).toBe("User");
     expect(combined.id).toBe("u-combo-create");
-    expect(combined.profileWordCount()).toBe(3);
+    expect(User.profileWordCount(combined)).toBe(3);
     expect(VerifiedAndProfile.is(combined)).toBe(true);
   });
 

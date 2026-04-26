@@ -8,7 +8,7 @@ Zod-first domain modeling with a tiny surface: define schema once, get validated
 
 - Zod remains the source of truth for runtime invariants.
 - `create` is the validation gate: no branded value without successful parsing.
-- Shapes are immutable after creation/patch and keep behavior on prototype methods.
+- Shapes are immutable after creation/patch; **capabilities** (former “methods”) live on the **kit** as functions that take the entity as the first argument — no implicit `this`.
 - Refinements make "proof steps" explicit (`from`, `tryFrom`, `create`) instead of ad-hoc casts.
 
 The goal is **simplicity with guardrails**.
@@ -44,11 +44,13 @@ const ok: Email = EmailPrimitive.create("DEV@COMPANY.COM");
 // ok === "dev@company.com" at runtime, but with nominal typing in TS
 ```
 
-### 2) Shape: tuple kit + private `patch`, rich model with quasi-anemic payloads
+### 2) Shape: tuple kit + private `patch`, data instances + kit capabilities
 
 `branded.shape` returns **`[kit, patch]`**. Destructuring lets you **keep `patchUser` inside the module** and export only **`UserShape`**: orchestration code cannot bypass your domain transitions by importing a free `patch` function.
 
-Behavior lives on the **prototype** (non-enumerable), so **`JSON.stringify(user)` stays data-only** — a rich model for your code, practically anemic on the wire. Instances are **frozen**; updates go through **`patch`** (ideally only via semantic methods), which re-validates against the schema.
+Instances are **frozen rows** plus a tiny shape marker on the prototype; **`methods`** become **kit functions** `UserShape.markVerified(user, …)` so there is **no** `this` / receiver semantics. **`JSON.stringify(user)` stays data-only**. Updates go through **`patch`** (often from those kit functions), which re-validates against the schema.
+
+Reserved kit keys (you cannot use these as method names): `create`, `is`, `extend`, `schema`, `type`, `project`.
 
 ```ts
 // user-shape.ts — export the kit only; `patchUser` never leaves this file
@@ -63,8 +65,8 @@ const [UserShape, patchUser] = branded.shape("User", {
     isVerified: z.boolean(),
   }),
   methods: {
-    markVerified() {
-      return patchUser(this, { isVerified: true });
+    markVerified(user) {
+      return patchUser(user, { isVerified: true });
     },
   },
 });
@@ -72,9 +74,9 @@ const [UserShape, patchUser] = branded.shape("User", {
 export { UserShape };
 export type UserEntity = BrandedType<typeof UserShape>;
 
-// Elsewhere — no direct access to patchUser; use the semantic surface
+// Elsewhere — no direct access to patchUser; use the semantic surface on the kit
 const user = UserShape.create({ email: "dev@company.com", isVerified: false });
-const next = user.markVerified();
+const next = UserShape.markVerified(user);
 
 Object.isFrozen(next); // true
 next.isVerified; // true
@@ -112,7 +114,7 @@ const adminReady = AdminReadyUserKit.create({
 ## Best practices encouraged by the kit
 
 1. Validate at boundaries with `create`.
-2. Keep entity behavior in shape methods, not free functions spread around.
+2. Keep domain transitions in **kit** methods (`UserKit.op(user, …)`), not ad-hoc free functions.
 3. Use `patch` for controlled, re-validated updates.
 4. Add explicit discriminants (`type: z.literal("...")`) to shapes.
 5. Use refinements as explicit proof transitions in use-cases.
@@ -180,9 +182,9 @@ Runtime value stays a plain primitive; nominal distinction is type-level.
 `branded.shape(name, { schema, methods })` returns `[kit, patch]`.
 
 `kit.extend(name, (baseSchema, baseMethods) => ({ schema, methods? }))` returns a new `[kit, patch]`.
-`methods` can be an object (explicit methods only) or a factory `(baseMethods) => ({ ... })` for explicit composition.
+`methods` can be an object or a factory `(baseMethods) => ({ ... })` for composition. Each method **`(entity, ...args)`** receives the shape row as **`entity`** (structural `ShapeRow<schema>` so extended shapes stay compatible).
 
-`kit` has `create`, `is`, `extend`, `schema`, `type`; `patch(entity, delta)` applies delta + re-validates.
+`kit` has `create`, `is`, `extend`, `schema`, `type`, **`project(entity, targetKit)`**, plus your **`methods`** as properties; `patch(entity, delta)` applies delta + re-validates.
 
 ### Field
 

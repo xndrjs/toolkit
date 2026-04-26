@@ -34,6 +34,7 @@
 
 ### Breaking Changes
 
+- **Shape `methods` are kit capabilities, not instance methods**: define **`(user, ...args) => …`** with the entity as the **first** argument; call **`UserKit.markVerified(user)`** instead of **`user.markVerified()`**. **`project`** is **`UserKit.project(entity, TargetKit)`**. Reserved method names: `create`, `is`, `extend`, `schema`, `type`, `project`. **`patch(entity, …)`** accepts any **`ShapeRow<schema>`** (structural row + shape marker), not only the nominal entity type.
 - **`branded.combine` removed**: chain refinements with **`branded.refineChain(firstRefinementKit).with(…).build()`** (no final `.as("…")` on the chain; combined kit has no synthetic `brand`). **`branded.refine`** stays **`.when` / `.as`** only (also when stacking on another refinement kit).
 - **Runtime `__brand` removed** from shape instances and refinement `from` results. Nominal brands stay **type-level** (via `Branded` / exported `__brand` for declaration emit). **`kit.is`** for shapes now requires **method-prototype identity** + **Zod** `safeParse` on the row (plain JSON / structural clones no longer pass). Removed **`BrandState`** type export.
 - **Automatic `type` discriminant removed** from **`branded.shape`**: add `type` (or any discriminant) to the Zod schema yourself, e.g. `z.literal("User").default("User")` for ergonomics.

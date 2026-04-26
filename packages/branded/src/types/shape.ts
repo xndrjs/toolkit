@@ -4,14 +4,29 @@ import { __shapeMarker } from "../private-constants";
 import { Branded, PatchDelta } from "./common";
 
 /**
- * Method bag for shape `methods` options (refinements do not add instance methods).
+ * Structural row accepted as the first argument to shape **kit methods** (capabilities).
+ * Uses schema output so extended shapes can pass instances whose row is a superset of the base.
  */
-export type BrandedMethodDefinitions = Record<string, (...args: never[]) => unknown>;
+export type ShapeRow<Schema extends BrandedZodObjectSchema> = Readonly<z.output<Schema>> &
+  ShapeMarked;
 
 /**
- * Composite domain type (object/entity): Zod output row + type-level brand.
- * Add a discriminant (e.g. `type: z.literal("User")`) to the schema when you need one.
- * Runtime identity for **`kit.is`** is prototype identity + Zod `safeParse` on own enumerable props.
+ * Method bag for **`branded.capabilities`**: each function takes the entity as **`entity` (first arg)**,
+ * then any additional arguments. Capabilities live on the **kit**, not on the instance prototype.
+ *
+ * Rest args and return use **`any`** so user methods keep precise parameter/return types under
+ * inference (strict `unknown` rest breaks assignability to concrete args).
+ */
+/* eslint-disable @typescript-eslint/no-explicit-any -- intentional for kit method bag inference */
+export type BrandedShapeMethods<Schema extends BrandedZodObjectSchema> = Record<
+  string,
+  (entity: ShapeRow<Schema>, ...args: any[]) => any
+>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * Composite domain type (object/entity): Zod output row + type-level brand + shape marker.
+ * No instance methods — use **`UserKit.someMethod(user, …)`**.
  * @typeParam Type - Shape name (nominal brand key; first arg to **`branded.shape`**).
  * @typeParam Props - Typically **`z.output<Schema>`** for that shape.
  */
@@ -30,101 +45,54 @@ export interface ShapeMarked {
 }
 
 /**
- * Callable surface of shape instance methods.
- * `ShapeBaseData` is the shape base entity data (row + shape marker), without methods.
- *
- * When a method returns `Ret` with `Ret extends ShapeBaseData` (typical: delegates to
- * {@link BrandedShapePatchFn}), the call signature uses
- * `T extends ShapeBaseData & BrandedMethodSurface<M, ShapeBaseData>`
- * so the receiver keeps **methods** on the type (and refinements still extend that). Matching `this`
- * as `any` is only for inferring `Args` / `Ret` without a recursive `this` pattern.
- */
-export type BrandedMethodSurface<M extends BrandedMethodDefinitions, ShapeBaseData> = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- only to infer Args/Ret; avoids recursive `this`
-  [K in keyof M]: M[K] extends (this: any, ...args: infer Args) => infer Ret
-    ? Ret extends ShapeBaseData
-      ? <T extends ShapeBaseData & BrandedMethodSurface<M, ShapeBaseData>>(...args: Args) => T
-      : (...args: Args) => Ret
-    : OmitThisParameter<M[K]>;
-};
-
-type ShapeBaseData<Type extends string, Schema extends BrandedZodObjectSchema> = BrandedShape<
-  Type,
-  z.output<Schema>
-> &
-  ShapeMarked & {
-    project: ShapeProjectFn<Schema>;
-  };
-
-export type ShapeProjectFn<FromSchema extends BrandedZodObjectSchema> = <
-  TargetType extends string,
-  TargetSchema extends BrandedZodObjectSchema,
-  TargetMethods extends BrandedMethodDefinitions = Record<never, never>,
->(
-  target: z.output<FromSchema> extends z.input<TargetSchema>
-    ? BrandedShapeKit<TargetType, TargetSchema, TargetMethods>
-    : never
-) => ReturnType<BrandedShapeKit<TargetType, TargetSchema, TargetMethods>["create"]>;
-
-/**
- * Entity instance type for a shape kit: branded row + instance method surface.
+ * Frozen entity instance: branded row + shape marker. Capabilities are on {@link BrandedShapeKit}.
  */
 export type BrandedShapeEntity<
   Type extends string,
   Schema extends BrandedZodObjectSchema,
-  Methods extends BrandedMethodDefinitions,
-> = [keyof Methods] extends [never]
-  ? ShapeBaseData<Type, Schema>
-  : ShapeBaseData<Type, Schema> & BrandedMethodSurface<Methods, ShapeBaseData<Type, Schema>>;
-
-/**
- * Kit object (first element of {@link BrandedShapeTuple}). Spelled with public {@link BrandedShape} so
- * dependents’ `.d.ts` emit can reference stable types instead of fragile inferred `__brand` paths.
- */
-export interface BrandedShapeKit<
-  Type extends string,
-  Schema extends BrandedZodObjectSchema,
-  Methods extends BrandedMethodDefinitions = Record<never, never>,
-> {
-  create: (input: z.input<Schema>) => BrandedShapeEntity<Type, Schema, Methods>;
-  is: (value: unknown) => value is BrandedShapeEntity<Type, Schema, Methods>;
-  extend: <
-    NewType extends string,
-    NewSchema extends BrandedZodObjectSchema,
-    NewMethods extends BrandedMethodDefinitions = Record<never, never>,
-  >(
-    type: NewType,
-    extendConfig: (
-      baseSchema: Schema,
-      baseMethods: Methods
-    ) => {
-      schema: NewSchema;
-      methods?:
-        | (NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, NewMethods>>)
-        | ((baseMethods: Methods) => NewMethods);
-    }
-  ) => BrandedShapeTuple<NewType, NewSchema, NewMethods>;
-  schema: Schema;
-  type: Type;
-}
+> = BrandedShape<Type, z.output<Schema>> & ShapeMarked;
 
 /**
  * Always returns the **base** shape entity type so refinements are not preserved in the type system
  * after a patch (re-apply with `refinement.tryFrom` / `from` when needed). Callers may still pass a
  * refined instance as `entity`; only the return type is widened to the shape kit’s entity.
  */
-export type BrandedShapePatchFn<
-  Type extends string,
-  Schema extends BrandedZodObjectSchema,
-  Methods extends BrandedMethodDefinitions = Record<never, never>,
-> = <T extends BrandedShapeEntity<Type, Schema, Methods>>(
+export type BrandedShapePatchFn<Type extends string, Schema extends BrandedZodObjectSchema> = <
+  T extends ShapeRow<Schema>,
+>(
   entity: T,
   delta: PatchDelta<z.input<Schema>>
-) => BrandedShapeEntity<Type, Schema, Methods>;
+) => BrandedShapeEntity<Type, Schema>;
 
-/** `[kit, patch]` return type of **`branded.shape`**. */
-export type BrandedShapeTuple<
+/** Core kit fields (exported for declaration emit when presets re-export shape kits). */
+export interface BrandedShapeKitCore<Type extends string, Schema extends BrandedZodObjectSchema> {
+  create: (input: z.input<Schema>) => BrandedShapeEntity<Type, Schema>;
+  is: (value: unknown) => value is BrandedShapeEntity<Type, Schema>;
+  extend: <NewType extends string, NewSchema extends BrandedZodObjectSchema>(
+    type: NewType,
+    extendConfig: (baseSchema: Schema) => { schema: NewSchema }
+  ) => BrandedShapeKit<NewType, NewSchema, Record<never, never>>;
+  schema: Schema;
+  type: Type;
+  project: ShapeProjectFn<Schema>;
+}
+
+/**
+ * Kit from **`branded.shape`** (core only) or **`branded.capabilities`** (core + domain methods).
+ */
+export type BrandedShapeKit<
   Type extends string,
   Schema extends BrandedZodObjectSchema,
-  Methods extends BrandedMethodDefinitions = Record<never, never>,
-> = readonly [BrandedShapeKit<Type, Schema, Methods>, BrandedShapePatchFn<Type, Schema, Methods>];
+  Methods extends BrandedShapeMethods<Schema>,
+> = BrandedShapeKitCore<Type, Schema> & Methods;
+
+export type ShapeProjectFn<Schema extends BrandedZodObjectSchema> = <
+  TargetType extends string,
+  TargetSchema extends BrandedZodObjectSchema,
+  TargetMethods extends BrandedShapeMethods<TargetSchema> = Record<never, never>,
+>(
+  entity: ShapeRow<Schema>,
+  target: z.output<Schema> extends z.input<TargetSchema>
+    ? BrandedShapeKit<TargetType, TargetSchema, TargetMethods>
+    : never
+) => ReturnType<BrandedShapeKit<TargetType, TargetSchema, TargetMethods>["create"]>;

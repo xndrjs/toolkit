@@ -1,14 +1,15 @@
 import { z } from "zod";
 import { BrandedValidationError } from "./errors";
-import { __shapeMarker } from "./private-constants";
+import { __shapeMarker, __shapePatch } from "./private-constants";
 import {
-  BrandedMethodDefinitions,
   BrandedShapeEntity,
   BrandedShapeKit,
-  BrandedShapeTuple,
+  BrandedShapeMethods,
+  BrandedShapePatchFn,
   BrandedZodObjectSchema,
   Mutable,
   PatchDelta,
+  ShapeRow,
 } from "./types";
 
 /** Deep-clones enumerable own props so nested mutations in `patch` never alias the frozen entity. */
@@ -16,62 +17,69 @@ function cloneRowForPatch<Row extends Record<string, unknown>>(row: Row): Row {
   return structuredClone(row);
 }
 
-export function defineBrandedShape<
-  Schema extends BrandedZodObjectSchema,
+function attachShapePatch(kit: object, patch: unknown): void {
+  Object.defineProperty(kit, __shapePatch, {
+    value: patch,
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+}
+
+function getBrandedShapePatch<
   Type extends string,
-  Methods extends BrandedMethodDefinitions = Record<never, never>,
->(
-  type: Type,
-  config: {
-    schema: Schema;
-    methods: Methods & ThisType<BrandedShapeEntity<Type, Schema, Methods>>;
+  Schema extends BrandedZodObjectSchema,
+  Methods extends BrandedShapeMethods<Schema>,
+>(kit: BrandedShapeKit<Type, Schema, Methods>): BrandedShapePatchFn<Type, Schema> {
+  const patch = Reflect.get(kit as object, __shapePatch);
+  if (typeof patch !== "function") {
+    throw new TypeError(
+      `Shape kit "${String(kit.type)}" has no internal patch (not a branded.shape / branded.capabilities kit)`
+    );
   }
-): BrandedShapeTuple<Type, Schema, Methods> {
+  return patch as BrandedShapePatchFn<Type, Schema>;
+}
+
+const RESERVED_KIT_KEYS = new Set(["create", "is", "extend", "schema", "type", "project"]);
+
+function validateMethodKeys<Type extends string, Schema extends BrandedZodObjectSchema>(
+  type: Type,
+  methods: BrandedShapeMethods<Schema>,
+  label: string
+): void {
+  for (const key of Object.keys(methods) as string[]) {
+    if (RESERVED_KIT_KEYS.has(key)) {
+      throw new TypeError(
+        `Invalid method "${key}" for shape "${type}" ${label}: name is reserved for the shape kit`
+      );
+    }
+    if (typeof methods[key as keyof typeof methods] !== "function") {
+      throw new TypeError(
+        `Invalid method "${key}" for shape "${type}" ${label}: expected a function`
+      );
+    }
+  }
+}
+
+/**
+ * Schema-only shape kit. **`patch`** is stored internally under **`__shapePatch`** (non-enumerable).
+ * Add capabilities with **`branded.capabilities(kit, (patch) => ({ … }))`**.
+ */
+export function defineBrandedShape<Type extends string, Schema extends BrandedZodObjectSchema>(
+  type: Type,
+  schema: Schema
+): BrandedShapeKit<Type, Schema, Record<never, never>> {
   type InputProps = z.input<Schema>;
   type OutputProps = z.output<Schema>;
-  type Entity = BrandedShapeEntity<Type, Schema, Methods>;
-  const { schema, methods } = config;
-  const prototype = Object.create(null) as Record<string, unknown>;
+  type Entity = BrandedShapeEntity<Type, Schema>;
 
-  for (const key of Object.keys(methods) as (keyof Methods)[]) {
-    const method = methods[key];
-    if (key === "project") {
-      throw new TypeError(
-        `Invalid method "${String(key)}" for shape "${type}": "${String(key)}" is reserved`
-      );
-    }
-    if (typeof method !== "function") {
-      throw new TypeError(
-        `Invalid method "${String(key)}" for shape "${type}": expected a function`
-      );
-    }
-    Object.defineProperty(prototype, key, {
-      enumerable: false,
-      configurable: false,
-      writable: false,
-      value: function methodInvoker(this: Entity, ...args: unknown[]) {
-        return Reflect.apply(method, this, args);
-      },
-    });
-  }
+  const prototype = Object.create(null) as Record<string, unknown>;
 
   Object.defineProperty(prototype, __shapeMarker, {
     enumerable: false,
     configurable: false,
     writable: false,
     value: true,
-  });
-
-  Object.defineProperty(prototype, "project", {
-    enumerable: false,
-    configurable: false,
-    writable: false,
-    value: function projectInvoker(
-      this: Entity,
-      target: BrandedShapeKit<string, BrandedZodObjectSchema, BrandedMethodDefinitions>
-    ) {
-      return target.create({ ...(this as unknown as Record<string, unknown>) });
-    },
   });
 
   function createEntity(parsed: OutputProps, entityPrototype: object | null = prototype): Entity {
@@ -93,7 +101,7 @@ export function defineBrandedShape<
     return createEntity(parsedResult.data);
   }
 
-  function patch<T extends Entity>(entity: T, delta: PatchDelta<InputProps>): Entity {
+  function patch<T extends ShapeRow<Schema>>(entity: T, delta: PatchDelta<InputProps>): Entity {
     const draft = cloneRowForPatch({
       ...(entity as unknown as Record<string, unknown>),
     }) as Mutable<Entity>;
@@ -127,50 +135,70 @@ export function defineBrandedShape<
     return schema.safeParse(payload).success;
   }
 
-  function extend<
-    NewType extends string,
-    NewSchema extends BrandedZodObjectSchema,
-    NewMethods extends BrandedMethodDefinitions = Record<never, never>,
+  function project<
+    TargetType extends string,
+    TargetSchema extends BrandedZodObjectSchema,
+    TargetMethods extends BrandedShapeMethods<TargetSchema>,
   >(
-    nextType: NewType,
-    extendConfig: (
-      baseSchema: Schema,
-      baseMethods: Methods
-    ) => {
-      schema: NewSchema;
-      methods?:
-        | (NewMethods & ThisType<BrandedShapeEntity<NewType, NewSchema, NewMethods>>)
-        | ((baseMethods: Methods) => NewMethods);
-    }
-  ): BrandedShapeTuple<NewType, NewSchema, NewMethods> {
-    const nextConfig = extendConfig(schema, methods);
-    const methodsOption = nextConfig.methods;
-    const additionalMethods =
-      typeof methodsOption === "function"
-        ? methodsOption(methods)
-        : ((methodsOption ?? {}) as NewMethods);
-    const methodNameCollisions = (Object.keys(additionalMethods) as string[]).filter(
-      (key) => key === "project"
-    );
-    if (methodNameCollisions.length > 0) {
-      throw new TypeError(
-        `Cannot extend shape "${type}" into "${nextType}": method(s) already defined: ${methodNameCollisions.join(", ")}`
-      );
-    }
-    return defineBrandedShape<NewSchema, NewType, NewMethods>(nextType, {
-      schema: nextConfig.schema,
-      methods: additionalMethods as NewMethods &
-        ThisType<BrandedShapeEntity<NewType, NewSchema, NewMethods>>,
-    });
+    entity: ShapeRow<Schema>,
+    target: BrandedShapeKit<TargetType, TargetSchema, TargetMethods>
+  ): ReturnType<BrandedShapeKit<TargetType, TargetSchema, TargetMethods>["create"]> {
+    return target.create({
+      ...(entity as unknown as Record<string, unknown>),
+    } as z.input<TargetSchema>) as ReturnType<
+      BrandedShapeKit<TargetType, TargetSchema, TargetMethods>["create"]
+    >;
   }
 
-  const kit: BrandedShapeKit<Type, Schema, Methods> = {
+  function extend<NewType extends string, NewSchema extends BrandedZodObjectSchema>(
+    nextType: NewType,
+    extendConfig: (baseSchema: Schema) => { schema: NewSchema }
+  ): BrandedShapeKit<NewType, NewSchema, Record<never, never>> {
+    const nextSchema = extendConfig(schema).schema;
+    return defineBrandedShape(nextType, nextSchema);
+  }
+
+  const kitCore = {
     create,
     is,
     extend,
     schema,
     type,
+    project,
   };
 
-  return [kit, patch];
+  const kit = kitCore as BrandedShapeKit<Type, Schema, Record<never, never>>;
+  attachShapePatch(kit, patch);
+  return kit;
+}
+
+/**
+ * Attach capability methods. **`patch`** is the same function stored on **`shape`** under **`__shapePatch`**.
+ * First argument of each method should be **`ShapeRow<typeof schema>`** (or implicit) so it matches the kit contract.
+ */
+export function defineBrandedShapeCapabilities<
+  Type extends string,
+  Schema extends BrandedZodObjectSchema,
+  const M extends BrandedShapeMethods<Schema>,
+>(
+  shape: BrandedShapeKit<Type, Schema, Record<never, never>>,
+  factory: (patch: BrandedShapePatchFn<Type, Schema>) => M
+): BrandedShapeKit<Type, Schema, M> {
+  const patch = getBrandedShapePatch(shape);
+  const methods = factory(patch);
+  validateMethodKeys(shape.type, methods, "during capabilities");
+
+  const boundMethods = {} as M;
+  for (const key of Object.keys(methods) as (keyof M)[]) {
+    const method = methods[key] as (entity: ShapeRow<Schema>, ...args: unknown[]) => unknown;
+    (boundMethods as Record<string, typeof method>)[key as string] = (
+      entity: ShapeRow<Schema>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors BrandedShapeMethods rest
+      ...args: any[]
+    ) => Reflect.apply(method, null, [entity, ...args]);
+  }
+
+  const kit = { ...shape, ...boundMethods } as BrandedShapeKit<Type, Schema, M>;
+  attachShapePatch(kit, patch);
+  return kit;
 }

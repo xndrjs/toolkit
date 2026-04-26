@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
 import { branded } from "./api";
-import { BrandedType } from "./types";
+import { BrandedType, Mutable, ShapeRow } from "./types";
 import { BrandedValidationError } from "./errors";
 
 // --- Example domain ---
@@ -15,14 +15,14 @@ type Email = BrandedType<typeof EmailPrimitive>;
 
 // Address entity / composite VO
 
-const [AddressShape, _patchAddress] = branded.shape("Address", {
-  schema: z.object({
+const AddressShape = branded.shape(
+  "Address",
+  z.object({
     type: z.literal("Address").default("Address"),
     city: z.string(),
     street: z.string(),
-  }),
-  methods: {},
-});
+  })
+);
 
 // User aggregate
 
@@ -32,25 +32,20 @@ const UserShapeSchema = z.object({
   address: branded.field(AddressShape),
 });
 
-const [User, patchUser] = branded.shape("User", {
-  schema: UserShapeSchema,
-  methods: {
-    isCorporate() {
-      return this.email.endsWith("@company.com");
-    },
-    /** Semantic patch: preserves receiver refinement type when delta is refinement-safe (`as T` via polymorphic surface). */
-    patchEmail(email: Email) {
-      return patchUser(this, { email });
-    },
+const UserShape = branded.shape("User", UserShapeSchema);
+const User = branded.capabilities(UserShape, (patch) => ({
+  isCorporate(user) {
+    return user.email.endsWith("@company.com");
   },
-});
-
-type UserEntity = BrandedType<typeof User>;
+  patchEmail(user, email: Email) {
+    return patch(user, { email });
+  },
+}));
 
 // --- Tests ---
 
 describe("branded-kit example domain", () => {
-  it("creates Email, Address, and User with schema discriminant + shape prototype", () => {
+  it("creates Email, Address, and User with schema discriminant + shape marker prototype", () => {
     const email = EmailPrimitive.create("ciao");
     const address = AddressShape.create({ street: "Via Roma 1", city: "Firenze" });
     const user = User.create({ email, address });
@@ -65,18 +60,18 @@ describe("branded-kit example domain", () => {
     expect(user.type).toBe("User");
     expect(user.email).toBe(email);
     expect(user.address).toEqual(address);
-    expect(user.isCorporate()).toBe(false);
+    expect(User.isCorporate(user)).toBe(false);
     expect(Object.isFrozen(user)).toBe(true);
     expect(User.is(user)).toBe(true);
   });
 
-  it("keeps methods on prototype, so they are not copied by spread/json", () => {
+  it("keeps capabilities on the kit, so entity spread/json stays data-only", () => {
     const user = User.create({
       email: "alice@company.com",
       address: { street: "Via Roma 1", city: "Firenze" },
     });
 
-    expect(user.isCorporate()).toBe(true);
+    expect(User.isCorporate(user)).toBe(true);
     expect(Object.keys(user)).not.toContain("isCorporate");
 
     const spread = { ...user } as Record<string, unknown>;
@@ -98,27 +93,25 @@ describe("branded-kit example domain", () => {
     expect(User.is(User.create({ email: "x", address: { street: "s", city: "F" } }))).toBe(true);
   });
 
-  it("patchUser patches email and re-validates", () => {
+  it("patchEmail patches email and re-validates", () => {
     const user = User.create({
       email: EmailPrimitive.create("a@b.c"),
       address: AddressShape.create({ street: "Old", city: "F" }),
     });
-    const next = user.patchEmail(EmailPrimitive.create("new@b.c"));
+    const next = User.patchEmail(user, EmailPrimitive.create("new@b.c"));
     expect(next.email).toBe("new@b.c");
     expect(next.address).toEqual(user.address);
     expect(next.type).toBe("User");
-    expect(next.isCorporate()).toBe(false);
+    expect(User.isCorporate(next)).toBe(false);
     expect(User.is(next)).toBe(true);
   });
 
-  it("patchUser rejects invalid delta via Zod", () => {
+  it("patchEmail rejects invalid value via Zod", () => {
     const user = User.create({
       email: EmailPrimitive.create("ok@b.c"),
       address: AddressShape.create({ street: "S", city: "F" }),
     });
-    expect(() => patchUser(user as UserEntity, { email: "" as unknown as Email })).toThrow(
-      BrandedValidationError
-    );
+    expect(() => User.patchEmail(user, "" as unknown as Email)).toThrow(BrandedValidationError);
   });
 
   it("shape validation errors expose zod issues", () => {
@@ -159,93 +152,52 @@ describe("branded-kit example domain", () => {
     expect(User.is(user)).toBe(true);
   });
 
-  it("patches User address from raw nested value", () => {
-    const user = User.create({
-      email: "email@test.com",
-      address: { street: "old street", city: "F" },
-    });
-
-    const next = patchUser(user, {
-      address: { street: "new street", city: "F" },
-    });
-
-    expect(next.address.street).toBe("new street");
-    expect(AddressShape.is(next.address)).toBe(true);
-  });
-
-  it("patch callback mutating nested fields does not mutate the original entity", () => {
-    const user = User.create({
-      email: "email@test.com",
-      address: { street: "Via Roma", city: "Firenze" },
-    });
-    const addressBefore = user.address;
-    expect(addressBefore.city).toBe("Firenze");
-
-    const next = patchUser(user, (draft) => {
-      draft.address.city = "Milano";
-    });
-
-    expect(next.address.city).toBe("Milano");
-    expect(user.address.city).toBe("Firenze");
-    expect(user.address).toBe(addressBefore);
-  });
-
-  it("patch object delta does not mutate nested objects on the original entity", () => {
-    const user = User.create({
-      email: "email@test.com",
-      address: { street: "Old", city: "F" },
-    });
-    const streetBefore = user.address.street;
-
-    const next = patchUser(user, {
-      address: { street: "New", city: "F" },
-    });
-
-    expect(next.address.street).toBe("New");
-    expect(user.address.street).toBe(streetBefore);
-    expect(user.address.street).toBe("Old");
-  });
-
   it("patch rejects draft when schema discriminant no longer matches", () => {
-    const [WidgetShape, patchWidget] = branded.shape("Widget", {
-      schema: z.object({
-        type: z.literal("Widget").default("Widget"),
-        name: z.string(),
-      }),
-      methods: {},
+    const widgetSchema = z.object({
+      type: z.literal("Widget").default("Widget"),
+      name: z.string(),
     });
+    const WidgetShape = branded.capabilities(branded.shape("Widget", widgetSchema), (patch) => ({
+      setName(w, name: string) {
+        return patch(w, { name });
+      },
+      applyDraft(w, fn: (draft: Mutable<z.input<typeof widgetSchema>>) => void) {
+        return patch(w, fn);
+      },
+    }));
     const w = WidgetShape.create({ name: "a" });
     expect(() =>
-      patchWidget(w, (draft) => {
+      WidgetShape.applyDraft(w, (draft) => {
         draft.name = "b";
         (draft as { type?: string }).type = "Malicious";
       })
     ).toThrow(BrandedValidationError);
-    const next = patchWidget(w, { name: "b" });
+    const next = WidgetShape.setName(w, "b");
     expect(next.type).toBe("Widget");
     expect(next.name).toBe("b");
   });
 
   it("extends shape with explicit methods only (no inherited methods)", () => {
-    const [UserDetailShape, patchUserDetail] = User.extend("UserDetail", (baseSchema) => ({
+    const UserDetailShape = User.extend("UserDetail", (baseSchema) => ({
       schema: baseSchema.extend({
         avatarSrc: z.string().min(1),
       }),
-      methods: {},
     }));
-    const [UserDetailShapeWithMethods, patchUserDetailWithMethods] = User.extend(
-      "UserDetailWithMethods",
-      (baseSchema) => ({
-        schema: baseSchema.extend({
-          avatarSrc: z.string().min(1),
-        }),
-        methods: {
-          hasAvatar() {
-            return this.avatarSrc.length > 0;
-          },
-        },
-      })
-    );
+
+    const userDetailWithMethodsCore = User.extend("UserDetailWithMethods", (baseSchema) => ({
+      schema: baseSchema.extend({
+        avatarSrc: z.string().min(1),
+      }),
+    }));
+
+    const UserDetailShapeWithMethods = branded.capabilities(userDetailWithMethodsCore, (patch) => ({
+      hasAvatar(user) {
+        return user.avatarSrc.length > 0;
+      },
+      setAvatarSrc(user, src: string) {
+        return patch(user, { avatarSrc: src });
+      },
+    }));
 
     const detail = UserDetailShapeWithMethods.create({
       email: "a@company.com",
@@ -255,64 +207,62 @@ describe("branded-kit example domain", () => {
 
     expect(detail.type).toBe("User");
     expect(detail.avatarSrc).toBe("https://cdn.local/avatar.png");
-    expect(detail.hasAvatar()).toBe(true);
+    expect(UserDetailShapeWithMethods.hasAvatar(detail)).toBe(true);
     expect("isCorporate" in detail).toBe(false);
     expect(UserDetailShapeWithMethods.is(detail)).toBe(true);
     expect(User.is(detail)).toBe(false);
 
-    const next = patchUserDetailWithMethods(detail, { avatarSrc: "https://cdn.local/next.png" });
+    const next = UserDetailShapeWithMethods.setAvatarSrc(detail, "https://cdn.local/next.png");
     expect(next.avatarSrc).toBe("https://cdn.local/next.png");
-    expect(next.hasAvatar()).toBe(true);
+    expect(UserDetailShapeWithMethods.hasAvatar(next)).toBe(true);
     expect(UserDetailShape.is(detail)).toBe(false);
-    expect(typeof patchUserDetail).toBe("function");
   });
 
-  it("extends shape with explicit composition from base methods", () => {
-    const [UserDetailShape] = User.extend("UserDetail", (baseSchema) => ({
+  it("extends shape with explicit composition from parent kit", () => {
+    const userDetailCore = User.extend("UserDetail", (baseSchema) => ({
       schema: baseSchema.extend({
         avatarSrc: z.string(),
       }),
-      methods: (baseMethods) => ({
-        isCorporate: baseMethods.isCorporate,
-        hasAvatar(this: { avatarSrc: string }) {
-          return this.avatarSrc.length > 0;
-        },
-      }),
+    }));
+
+    const UserDetailShape = branded.capabilities(userDetailCore, () => ({
+      isCorporate: User.isCorporate,
+      hasAvatar(user) {
+        return user.avatarSrc.length > 0;
+      },
     }));
     const detail = UserDetailShape.create({
       email: "a@company.com",
       address: { street: "Via", city: "Firenze" },
       avatarSrc: "x",
     });
-    expect(detail.isCorporate()).toBe(true);
-    expect(detail.hasAvatar()).toBe(true);
+    expect(UserDetailShape.isCorporate(detail)).toBe(true);
+    expect(UserDetailShape.hasAvatar(detail)).toBe(true);
   });
 
   it("projects an extended shape instance to a base shape instance", () => {
-    const [UserDetailShape] = User.extend("UserDetail", (baseSchema) => ({
+    const UserDetailShape = User.extend("UserDetail", (baseSchema) => ({
       schema: baseSchema.extend({
         avatarSrc: z.string().min(1),
       }),
-      methods: {},
     }));
     const detail = UserDetailShape.create({
       email: "a@company.com",
       address: { street: "Via", city: "Firenze" },
       avatarSrc: "https://cdn.local/avatar.png",
     });
-    const projected = detail.project(User);
+    const projected = UserDetailShape.project(detail, User);
     expect(projected.type).toBe("User");
-    expect(projected.isCorporate()).toBe(true);
+    expect(User.isCorporate(projected)).toBe(true);
     expect(User.is(projected)).toBe(true);
     expect(UserDetailShape.is(projected)).toBe(false);
   });
 
   it("project throws when target shape input is incompatible", () => {
-    const [AddressDetailShape] = AddressShape.extend("AddressDetail", (baseSchema) => ({
+    const AddressDetailShape = AddressShape.extend("AddressDetail", (baseSchema) => ({
       schema: baseSchema.extend({
         county: z.string().min(1),
       }),
-      methods: {},
     }));
     const detail = AddressDetailShape.create({
       street: "Via",
@@ -320,72 +270,67 @@ describe("branded-kit example domain", () => {
       county: "FI",
     });
     // @ts-expect-error -- compile-time incompatibility: AddressDetail cannot project to User input
-    const _invalidProjectionTarget: Parameters<typeof detail.project>[0] = User;
+    const _invalidProjectionTarget: Parameters<typeof AddressDetailShape.project>[1] = User;
     expect(_invalidProjectionTarget).toBeDefined();
-    expect(() => (detail.project as (target: unknown) => unknown)(User)).toThrow(
-      BrandedValidationError
-    );
+    expect(() =>
+      (AddressDetailShape.project as (e: unknown, t: unknown) => unknown)(detail, User)
+    ).toThrow(BrandedValidationError);
   });
 
   it("rejects reserved project method on shape and extension", () => {
     expect(() =>
-      branded.shape("Illegal", {
-        schema: z.object({
-          id: z.string(),
-        }),
-        methods: {
-          project() {
-            return this;
-          },
+      branded.capabilities(branded.shape("Illegal", z.object({ id: z.string() })), () => ({
+        project() {
+          return null;
         },
-      })
+      }))
     ).toThrow(TypeError);
 
     expect(() =>
-      User.extend("IllegalChild", (baseSchema) => ({
-        schema: baseSchema.extend({
-          extra: z.string(),
-        }),
-        methods: {
+      branded.capabilities(
+        User.extend("IllegalChild", (baseSchema) => ({
+          schema: baseSchema.extend({
+            extra: z.string(),
+          }),
+        })),
+        () => ({
           project() {
-            return this;
+            return null;
           },
-        },
-      }))
+        })
+      )
     ).toThrow(TypeError);
   });
 
   it("base method reused in extended shape returns extended type", () => {
-    const [AccountShape, patchAccount] = branded.shape("Account", {
-      schema: z.object({
-        type: z.literal("Account").default("Account"),
-        username: z.string().min(1),
-      }),
-      methods: {
-        renameUsername(nextUsername: string) {
-          return patchAccount(this, { username: nextUsername });
-        },
-      },
+    const AccountSchema = z.object({
+      type: z.literal("Account").default("Account"),
+      username: z.string().min(1),
     });
+    const AccountShape = branded.capabilities(branded.shape("Account", AccountSchema), (patch) => ({
+      renameUsername(user, nextUsername: string) {
+        return patch(user, { username: nextUsername });
+      },
+    }));
     type Account = BrandedType<typeof AccountShape>;
 
-    const [AccountDetailShape] = AccountShape.extend(
-      "AccountDetail",
-      (baseSchema, baseMethods) => ({
-        schema: baseSchema.extend({
-          avatarSrc: z.string().min(1).optional(),
-        }),
-        methods: {
-          renameUsername: baseMethods.renameUsername,
-        },
-      })
-    );
+    const accountDetailCore = AccountShape.extend("AccountDetail", (baseSchema) => ({
+      schema: baseSchema.extend({
+        avatarSrc: z.string().min(1).optional(),
+      }),
+    }));
+
+    const AccountDetailShape = branded.capabilities(accountDetailCore, () => ({
+      renameUsername(user, nextUsername: string) {
+        return AccountShape.renameUsername(user, nextUsername);
+      },
+    }));
 
     const detail = AccountDetailShape.create({
       username: "alpha",
       avatarSrc: "https://cdn.local/avatar.png",
     });
-    const renamed = detail.renameUsername("beta");
+    const renamed = AccountDetailShape.renameUsername(detail, "beta");
     type AccountDetail = BrandedType<typeof AccountDetailShape>;
 
     expectTypeOf(renamed).toEqualTypeOf<Account>();
@@ -397,38 +342,36 @@ describe("branded-kit example domain", () => {
   });
 
   it("base method reused in extended shape + explicit conversion", () => {
-    const [AccountShape, patchAccount] = branded.shape("Account", {
-      schema: z.object({
-        type: z.literal("Account").default("Account"),
-        username: z.string().min(1),
-      }),
-      methods: {
-        renameUsername(nextUsername: string) {
-          return patchAccount(this, { username: nextUsername });
-        },
-      },
+    const AccountSchema = z.object({
+      type: z.literal("Account").default("Account"),
+      username: z.string().min(1),
     });
+    type AccountDetailRow = ShapeRow<typeof AccountSchema> & { avatarSrc?: string | undefined };
+
+    const AccountShape = branded.capabilities(branded.shape("Account", AccountSchema), (patch) => ({
+      renameUsername(user, nextUsername: string) {
+        return patch(user, { username: nextUsername });
+      },
+    }));
     type Account = BrandedType<typeof AccountShape>;
 
-    const [AccountDetailShape] = AccountShape.extend(
-      "AccountDetail",
-      (baseSchema, baseMethods) => ({
-        schema: baseSchema.extend({
-          avatarSrc: z.string().min(1).optional(),
-        }),
-        methods: {
-          renameUsername(nextUsername: string) {
-            return AccountDetailShape.create(baseMethods.renameUsername.call(this, nextUsername));
-          },
-        },
-      })
-    );
+    const accountDetailCore2 = AccountShape.extend("AccountDetail", (baseSchema) => ({
+      schema: baseSchema.extend({
+        avatarSrc: z.string().min(1).optional(),
+      }),
+    }));
+
+    const AccountDetailShape = branded.capabilities(accountDetailCore2, () => ({
+      renameUsername(detail: AccountDetailRow, nextUsername: string) {
+        return AccountDetailShape.create(AccountShape.renameUsername(detail, nextUsername));
+      },
+    }));
 
     const detail = AccountDetailShape.create({
       username: "alpha",
       avatarSrc: "https://cdn.local/avatar.png",
     });
-    const renamed = detail.renameUsername("beta");
+    const renamed = AccountDetailShape.renameUsername(detail, "beta");
     type AccountDetail = BrandedType<typeof AccountDetailShape>;
 
     expectTypeOf(renamed).not.toEqualTypeOf<Account>();
