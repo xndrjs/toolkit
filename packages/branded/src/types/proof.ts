@@ -21,10 +21,12 @@ export type BrandedProofBuilder<Brand extends string, Schema extends z.ZodType> 
 
 /**
  * Kit da **`branded.proof(brand, schema)`** (dopo un eventuale **`refineType`**) o **`refineType`**:
- * garanzia nominale Zod su valori compatibili con **`z.input` / `z.output`** — non legato a una shape.
+ * garanzia nominale Zod su valori compatibili con **`z.input<Schema>`**.
  *
- * **`parse`** / **`safeParse`** preservano il tipo di ingresso **`T`** (es. entità shape) e lo intersecano
- * con **`Branded<Brand, Out>`** per oggetti; i primitivi restano **`Out`** con brand.
+ * **`parse`** / **`safeParse`** usano sempre un **`T extends z.input<Schema>`** (entità shape, valore già
+ * ristretto da proof precedenti, ecc.) e restituiscono **`T & Branded<Brand, Out>`** — nessuna overload
+ * “larga” che droppi **`T`**, così le catene (**`pipe`**, più **`parse`**) accumulano patch e nominal brand
+ * nel tipo. **`Out`** è **`z.output<Schema>`** eventualmente ristretto da **`refineType`**.
  */
 export interface BrandedProofKit<
   Brand extends string,
@@ -33,18 +35,10 @@ export interface BrandedProofKit<
 > {
   readonly brand: Brand;
   schema: Schema;
-  parse: {
-    <const T extends z.input<Schema>>(input: T): T & Branded<Brand, Out>;
-    (input: z.input<Schema>): Branded<Brand, Out>;
-  };
-  safeParse: {
-    <const T extends z.input<Schema>>(
-      input: T
-    ): { success: true; data: T & Branded<Brand, Out> } | { success: false; error: z.ZodError };
-    (
-      input: z.input<Schema>
-    ): { success: true; data: Branded<Brand, Out> } | { success: false; error: z.ZodError };
-  };
+  parse: <const T extends z.input<Schema>>(input: T) => T & Branded<Brand, Out>;
+  safeParse: <const T extends z.input<Schema>>(
+    input: T
+  ) => { success: true; data: T & Branded<Brand, Out> } | { success: false; error: z.ZodError };
   is: (value: unknown) => value is Branded<Brand, Out>;
 }
 
@@ -58,16 +52,10 @@ export interface BrandedProofKit<
 export interface CombinedProofKit<I = unknown, O = unknown> {
   readonly brands: readonly string[];
   readonly schemas: readonly z.ZodType[];
-  parse: {
-    <const T extends I>(input: T): O;
-    (input: I): O;
-  };
-  safeParse: {
-    <const T extends I>(
-      input: T
-    ): { success: true; data: O } | { success: false; error: z.ZodError };
-    (input: I): { success: true; data: O } | { success: false; error: z.ZodError };
-  };
+  parse: <const T extends I>(input: T) => O;
+  safeParse: <const T extends I>(
+    input: T
+  ) => { success: true; data: O } | { success: false; error: z.ZodError };
   is: (value: unknown) => boolean;
 }
 
