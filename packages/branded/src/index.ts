@@ -1,6 +1,4 @@
 export * from "./api";
-export { defineBrandedProof } from "./branded-proof";
-export { defineBrandedShape, defineBrandedShapeCapabilities } from "./branded-shape";
 export * from "./presets";
 export * from "./types";
 export * from "./errors";

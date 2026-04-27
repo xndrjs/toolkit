@@ -16,3 +16,5 @@ export const branded = {
 } as const;
 
 export const presets = Presets;
+
+export { pipe, type Unary } from "./pipe";
