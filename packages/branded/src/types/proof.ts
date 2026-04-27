@@ -3,11 +3,11 @@ import { z } from "zod";
 import { Branded } from "./common";
 
 /**
- * Kit restituito da **`branded.proof(brand, schema)`** con **`refineType`** opzionale.
+ * Kit returned by **`branded.proof(brand, schema)`** with optional **`refineType`**.
  *
- * **`refineType<Patch>(guard)`** restringe l'**`Out`** del proof a **`z.output<Schema> & Patch`**
- * (es. **`Patch = { isVerified: true }`**) oltre alla validazione Zod; il guard deve essere coerente
- * con **`Patch`**. Il valore di ritorno è un **`BrandedProofKit`** senza ulteriore **`refineType`**.
+ * **`refineType<Patch>(guard)`** narrows the proof’s **`Out`** to **`z.output<Schema> & Patch`**
+ * (e.g. **`Patch = { isVerified: true }`**) in addition to Zod validation; the guard must be
+ * consistent with **`Patch`**. The return value is a **`BrandedProofKit`** without a further **`refineType`**.
  */
 export type BrandedProofBuilder<Brand extends string, Schema extends z.ZodType> = BrandedProofKit<
   Brand,
@@ -20,13 +20,13 @@ export type BrandedProofBuilder<Brand extends string, Schema extends z.ZodType> 
 };
 
 /**
- * Kit da **`branded.proof(brand, schema)`** (dopo un eventuale **`refineType`**) o **`refineType`**:
- * garanzia nominale Zod su valori compatibili con **`z.input<Schema>`**.
+ * Kit from **`branded.proof(brand, schema)`** (after an optional **`refineType`**) or **`refineType`**:
+ * Zod-backed nominal guarantee for values assignable to **`z.input<Schema>`**.
  *
- * **`parse`** / **`safeParse`** usano sempre un **`T extends z.input<Schema>`** (entità shape, valore già
- * ristretto da proof precedenti, ecc.) e restituiscono **`T & Branded<Brand, Out>`** — nessuna overload
- * “larga” che droppi **`T`**, così le catene (**`pipe`**, più **`parse`**) accumulano patch e nominal brand
- * nel tipo. **`Out`** è **`z.output<Schema>`** eventualmente ristretto da **`refineType`**.
+ * **`parse`** / **`safeParse`** always take **`T extends z.input<Schema>`** (shape entity, value already
+ * narrowed by prior proofs, etc.) and return **`T & Branded<Brand, Out>`** — no “wide” overload that
+ * drops **`T`**, so chains (**`pipe`**, repeated **`parse`**) accumulate patches and nominal brands in
+ * the type. **`Out`** is **`z.output<Schema>`**, optionally narrowed by **`refineType`**.
  */
 export interface BrandedProofKit<
   Brand extends string,
@@ -43,11 +43,11 @@ export interface BrandedProofKit<
 }
 
 /**
- * Kit prodotto da **`branded.proofChain(firstProof).with(…).build()`**: applica ogni proof in sequenza
- * (**`parse`** / **`safeParse`** / **`is`**). Non espone **`create`** da input grezzo (usare shape + **`parse`**).
+ * Kit produced by **`branded.proofChain(firstProof).with(…).build()`**: runs each proof in sequence
+ * (**`parse`** / **`safeParse`** / **`is`**). Does not expose **`create`** from raw input (use a shape + **`parse`**).
  *
- * **`I`** è l'input del primo schema; **`O`** è approssimato come **`unknown`** — per un output tipizzato
- * usare l'ultimo proof o un'asserzione locale.
+ * **`I`** is the first schema’s input; **`O`** is approximated as **`unknown`** — for a typed output,
+ * use the last proof or a local assertion.
  */
 export interface CombinedProofKit<I = unknown, O = unknown> {
   readonly brands: readonly string[];
@@ -60,7 +60,7 @@ export interface CombinedProofKit<I = unknown, O = unknown> {
 }
 
 /**
- * Qualsiasi proof restituito da **`branded.proof`** (builder o kit dopo **`refineType`**), accettabile in **`proofChain`**.
+ * Any proof returned by **`branded.proof`** (builder or kit after **`refineType`**), suitable for **`proofChain`**.
  */
 export type BrandedProofChainable<
   Brand extends string = string,
@@ -68,7 +68,7 @@ export type BrandedProofChainable<
 > = BrandedProofBuilder<Brand, Schema> | BrandedProofKit<Brand, Schema, unknown>;
 
 /**
- * Builder fluente da **`branded.proofChain(firstProof)`**: richiede almeno **due** proof totali prima di **`build()`**.
+ * Fluent builder from **`branded.proofChain(firstProof)`**: requires at least **two** proofs in total before **`build()`**.
  */
 export interface BrandedProofCombineBuilder<I0> {
   with(next: BrandedProofChainable): BrandedProofCombineBuilder<I0>;

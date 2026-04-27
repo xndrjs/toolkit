@@ -106,11 +106,11 @@ function buildProofKit<Brand extends string, Schema extends z.ZodType, Patch = u
 }
 
 /**
- * Zod-first **proof**: garanzia nominale su valori compatibili con **`z.input<Schema>`**.
+ * Zod-first **proof**: nominal guarantee for values assignable to **`z.input<Schema>`**.
  *
- * **`branded.proof(brand, schema)`** restituisce un kit con **`refineType`** opzionale:
- * **`refineType<Patch>((data) => ...)`** applica un guard oltre Zod e imposta **`Out`** a
- * **`z.output<Schema> & Patch`**. Senza **`refineType`**, **`Out`** è **`z.output<Schema>`**.
+ * **`branded.proof(brand, schema)`** returns a kit with optional **`refineType`**:
+ * **`refineType<Patch>((data) => ...)`** applies a guard beyond Zod and sets **`Out`** to
+ * **`z.output<Schema> & Patch`**. Without **`refineType`**, **`Out`** is **`z.output<Schema>`**.
  */
 export function defineBrandedProof<Brand extends string, Schema extends z.ZodType>(
   brand: Brand,
