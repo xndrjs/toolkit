@@ -53,9 +53,9 @@ export type BrandedShapeEntity<
 > = BrandedShape<Type, z.output<Schema>> & ShapeMarked;
 
 /**
- * Always returns the **base** shape entity type so refinements are not preserved in the type system
- * after a patch (re-apply with `refinement.tryFrom` / `from` when needed). Callers may still pass a
- * refined instance as `entity`; only the return type is widened to the shape kit’s entity.
+ * Always returns the **base** shape entity type so extra nominal narrowing (e.g. from proofs) is not
+ * preserved in the type system after a patch (re-apply **`proof.parse`** when needed). Callers may still pass
+ * a proof-marked instance as `entity`; only the return type is widened to the shape kit’s entity.
  */
 export type BrandedShapePatchFn<Type extends string, Schema extends BrandedZodObjectSchema> = <
   T extends ShapeRow<Schema>,

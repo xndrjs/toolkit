@@ -1,13 +1,10 @@
 # @xndrjs/orchestration
 
-Lightweight building blocks for application orchestration:
-
-- orchestration ports (UI/application boundaries)
-- `createUseCase` to apply output boundaries consistently
+Lightweight building blocks for application orchestration: **ports** for UI and application boundaries.
 
 ## Installation
 
-This package depends on **`@xndrjs/branded`** and declares **`zod` ^4** as a peer dependency (same range as `branded`). Install both so dependency managers resolve a single Zod instance.
+The package declares **`zod` ^4** as a peer dependency (aligned with `@xndrjs/branded` if you use both). Install `zod` alongside this package so dependency managers resolve a single instance.
 
 ```bash
 npm install @xndrjs/orchestration zod@^4
@@ -15,38 +12,7 @@ npm install @xndrjs/orchestration zod@^4
 
 **Runtime:** Node.js **18+** (`engines` in `package.json`).
 
-## Quick start
-
-```ts
-import { createUseCase } from "@xndrjs/orchestration";
-
-const makeGetUser = createUseCase((deps: { repo: UserRepo }) => async (id: string) => {
-  return deps.repo.getById(id); // may contain branded domain values
-});
-
-const getUser = makeGetUser({ repo });
-const user = await getUser("u-1"); // anemic output by default
-```
-
-`createUseCase` enforces a clean output boundary by converting results to anemic data.
-
-## API
-
-### `createUseCase`
-
-```ts
-createUseCase(
-  (deps) =>
-    (...args) =>
-      result
-);
-```
-
-- first function receives runtime dependencies
-- second function is the use-case executor
-- returned executor is async and returns anemic output
-
-### Ports
+## Ports
 
 ### `AsyncDataInteractionPort<Data, Err>`
 
@@ -72,8 +38,7 @@ New ports can be added under `src/ports/` and re-exported from the package entry
 
 ## Caveats
 
-- `createUseCase` is an output-boundary helper, not a DI container.
-- Error mapping policy stays your responsibility (throw domain errors, map in adapters, etc.).
+- This package does not provide a DI container or use-case wrapper; keep orchestration and error mapping in your app layer.
 
 ## License
 

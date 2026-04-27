@@ -1,6 +1,6 @@
 # @xndrjs/branded
 
-Zod-first domain modeling with a tiny surface: define schema once, get validated values, nominal safety, immutable entities, and explicit refinement steps.
+Zod-first domain modeling with a tiny surface: define schema once, get validated values, nominal safety, immutable entities, and explicit proof steps.
 
 ## Philosophy
 
@@ -9,7 +9,7 @@ Zod-first domain modeling with a tiny surface: define schema once, get validated
 - Zod remains the source of truth for runtime invariants.
 - `create` is the validation gate: no branded value without successful parsing.
 - Shapes are immutable after creation/patch; **capabilities** (former “methods”) live on the **kit** as functions that take the entity as the first argument — no implicit `this`.
-- Refinements make "proof steps" explicit (`from`, `tryFrom`, `create`) instead of ad-hoc casts.
+- **Proofs** (`branded.proof`) make extra guarantees explicit (`parse` / `safeParse` / `refineType`) instead of ad-hoc casts.
 
 The goal is **simplicity with guardrails**.
 
@@ -44,71 +44,56 @@ const ok: Email = EmailPrimitive.create("DEV@COMPANY.COM");
 // ok === "dev@company.com" at runtime, but with nominal typing in TS
 ```
 
-### 2) Shape: tuple kit + private `patch`, data instances + kit capabilities
+### 2) Shape: schema-only kit + `capabilities`, frozen instances
 
-`branded.shape` returns **`[kit, patch]`**. Destructuring lets you **keep `patchUser` inside the module** and export only **`UserShape`**: orchestration code cannot bypass your domain transitions by importing a free `patch` function.
+`branded.shape(name, schema)` returns a **schema-only** kit. **`patch`** is kept **non-enumerable** on the kit (see `__shapePatch` in advanced section); orchestration code cannot import a loose `patch` unless you expose it.
 
-Instances are **frozen rows** plus a tiny shape marker on the prototype; **`methods`** become **kit functions** `UserShape.markVerified(user, …)` so there is **no** `this` / receiver semantics. **`JSON.stringify(user)` stays data-only**. Updates go through **`patch`** (often from those kit functions), which re-validates against the schema.
+Add behavior with **`branded.capabilities(shape, (patch) => ({ … }))`**. Capability functions are **kit methods** `User.markVerified(user, …)` — no `this`. Instances stay **frozen** rows with a shape marker on the prototype; **`JSON.stringify(user)`** is data-only.
 
-Reserved kit keys (you cannot use these as method names): `create`, `is`, `extend`, `schema`, `type`, `project`.
+Reserved capability keys (you cannot use these as method names): `create`, `is`, `extend`, `schema`, `type`, `project`.
 
 ```ts
-// user-shape.ts — export the kit only; `patchUser` never leaves this file
+// user.ts — export the capability kit; `patch` stays inside the factory closure
 import { z } from "zod";
 import { branded, BrandedType } from "@xndrjs/branded";
-import { EmailPrimitive } from "./email.primitive";
 
-const [UserShape, patchUser] = branded.shape("User", {
-  schema: z.object({
+const UserShape = branded.shape(
+  "User",
+  z.object({
     type: z.literal("User").default("User"),
-    email: branded.field(EmailPrimitive),
+    email: z.string().email(),
     isVerified: z.boolean(),
-  }),
-  methods: {
-    markVerified(user) {
-      return patchUser(user, { isVerified: true });
-    },
+  })
+);
+
+const User = branded.capabilities(UserShape, (patch) => ({
+  markVerified(user) {
+    return patch(user, { isVerified: true });
   },
-});
+}));
 
-export { UserShape };
-export type UserEntity = BrandedType<typeof UserShape>;
+export { User };
+export type UserEntity = BrandedType<typeof User>;
 
-// Elsewhere — no direct access to patchUser; use the semantic surface on the kit
-const user = UserShape.create({ email: "dev@company.com", isVerified: false });
-const next = UserShape.markVerified(user);
+const user = User.create({ email: "dev@company.com", isVerified: false });
+const next = User.markVerified(user);
 
 Object.isFrozen(next); // true
 next.isVerified; // true
 ```
 
-### 3) Refinement: i.e. from optional state to guaranteed state
+### 3) Proof: nominal guarantee + optional `refineType`
+
+Use **`branded.proof`** to attach a **brand** and optional **type refinement** on top of Zod validation. **`parse` / `safeParse`** accept the same inputs as the schema; for **shape entities**, the original prototype is preserved.
 
 ```ts
-type VerifiedUserData = BrandedType<typeof UserShape> & { isVerified: true };
+const VerifiedUserFact = branded
+  .proof("VerifiedUser", UserShape.schema)
+  .refineType<{ isVerified: true }>((u) => u.isVerified === true);
 
-const VerifiedUserRefinement = branded
-  .refine(UserShape)
-  .when((u): u is VerifiedUserData => u.isVerified === true)
-  .as("VerifiedUser");
-
-const verified = VerifiedUserRefinement.create({ email: "dev@company.com", isVerified: true });
-// create(raw) = UserShape.create(raw) + refinement check
-```
-
-### 4) Refinement chain: one create for multi-step proof
-
-```ts
-const AdminReadyUserKit = branded
-  .refineChain(VerifiedUserRefinement)
-  .with(SomeOtherRefinement)
-  .build();
-
-const adminReady = AdminReadyUserKit.create({
-  email: "dev@company.com",
-  isVerified: true,
-  // other raw fields...
-});
+const user = User.create({ email: "dev@company.com", isVerified: true });
+const proven = VerifiedUserFact.parse(user);
+VerifiedUserFact.is(proven); // true
 ```
 
 ## Best practices encouraged by the kit
@@ -117,14 +102,14 @@ const adminReady = AdminReadyUserKit.create({
 2. Keep domain transitions in **kit** methods (`UserKit.op(user, …)`), not ad-hoc free functions.
 3. Use `patch` for controlled, re-validated updates.
 4. Add explicit discriminants (`type: z.literal("...")`) to shapes.
-5. Use refinements as explicit proof transitions in use-cases.
-6. Prefer `create(raw)` when entering from external input, `from(existing)` when refining an in-memory domain value.
+5. Use proofs as explicit guarantee steps at use-case boundaries when you need a stronger type than the base shape.
+6. Prefer shape **`create(raw)`** at boundaries; use **`proof.parse(entity)`** when asserting an in-memory value satisfies extra constraints.
 
 ## Positioning: why this model
 
 `@xndrjs/branded` sits between two common extremes.
 
-### A) Fully anemic + mutable objects
+### A) Plain mutable records (DTO-style)
 
 **Pros**
 
@@ -157,9 +142,9 @@ const adminReady = AdminReadyUserKit.create({
 ### What `@xndrjs/branded` optimizes for
 
 - **Static + runtime guarantees together**: nominal typing (`Branded`) plus Zod-backed validation.
-- **Low-friction layer flow**: plain-data-friendly shapes and anemic conversion help move data between domain, orchestration (application layer), and infrastructure without mapper explosion.
-- **Controlled mutability model**: entities are frozen; updates go through `patch` + validation.
-- **Explicit state progression**: refinements model proof steps without forcing heavy class hierarchies.
+- **Low-friction layer flow**: shape instances are already plain, JSON-friendly objects; move them across domain, orchestration, and infrastructure without stripping methods or extra DTO layers.
+- **Controlled mutability model**: entities are frozen; updates go through `patch` + validation (typically inside capability functions).
+- **Explicit state progression**: proofs model extra guarantees without forcing heavy class hierarchies.
 - **DDD power with less ceremony**: keep strong boundaries and invariants while avoiding much of the boilerplate typical of DTO/mapper-heavy setups.
 
 In short, the package aims to improve scalability and maintainability as the codebase grows, while keeping developer experience fast and pragmatic.
@@ -179,35 +164,21 @@ Runtime value stays a plain primitive; nominal distinction is type-level.
 
 ### Shape
 
-`branded.shape(name, { schema, methods })` returns `[kit, patch]`.
+`branded.shape(name, schema)` returns a kit with `create`, `is`, `extend`, `schema`, `type`, **`project(entity, targetKit)`**. **`patch`** is internal (non-enumerable); use **`branded.capabilities`** to close over it.
 
-`kit.extend(name, (baseSchema, baseMethods) => ({ schema, methods? }))` returns a new `[kit, patch]`.
-`methods` can be an object or a factory `(baseMethods) => ({ ... })` for composition. Each method **`(entity, ...args)`** receives the shape row as **`entity`** (structural `ShapeRow<schema>` so extended shapes stay compatible).
+`kit.extend(nextName, (baseSchema) => ({ schema: nextSchema }))` returns a new schema-only kit.
 
-`kit` has `create`, `is`, `extend`, `schema`, `type`, **`project(entity, targetKit)`**, plus your **`methods`** as properties; `patch(entity, delta)` applies delta + re-validates.
+### Capabilities
+
+`branded.capabilities(shape, (patch) => methods)` merges **`methods`** onto the kit. Each method **`(entity, ...args)`** takes the shape row as **`entity`** (`ShapeRow<schema>`).
 
 ### Field
 
 `branded.field(childKit)` embeds branded primitive/shape schemas in parent shapes so raw nested input can be created in one shot.
 
-### Refinement
+### Proof
 
-`branded.refine(baseKit).when(typeGuard).as(brandName)` creates a refinement kit with:
-
-- `brand`
-- `create(raw)` (build from raw then refine)
-- `from(baseValue)` (refine existing value or throw)
-- `tryFrom(baseValue)` (refine existing value or `null`)
-- `is(value)`
-
-### Refinement chain
-
-`branded.refineChain(r1).with(r2).with(r3).build()` returns a combined kit with:
-
-- `create(raw)`
-- `from(baseValue)`
-- `tryFrom(baseValue)`
-- `is(value)`
+`branded.proof(brand, schema)` returns a builder with optional **`refineType<Patch>(guard)`** (narrows output to **`z.output<Schema> & Patch`**). The resulting kit exposes **`brand`**, **`parse`**, **`safeParse`**, **`is`**, **`schema`**.
 
 ## Error Preset: `baseErrorSchema`
 
@@ -232,14 +203,13 @@ const err = UserNotFoundShape.create({
 | Error class              | Typical trigger                                              |
 | ------------------------ | ------------------------------------------------------------ |
 | `BrandedValidationError` | Invalid input on `create` / `patch` / nested `field` parsing |
-| `BrandedRefinementError` | Refinement predicate failed in `from` / `create`             |
 | `BrandedError`           | Base error type with stable `code`                           |
 
 `BrandedValidationError` exposes `issues`, `zodError`, `flatten()`, and `treeify()`.
 
-## Advanced: `__brand` and `__anemicOutput`
+## Advanced: `__brand`, `__shapeMarker`, `__shapePatch`
 
-The root export includes `__brand` and `__anemicOutput` mainly for declaration emit/tooling edge-cases (for example avoiding TS4023 in some `declaration: true` setups).
+The root export includes these **symbols** mainly for declaration emit and rare interop (for example avoiding TS4023 in some `declaration: true` setups, or reaching `patch` only when you cannot use `branded.capabilities`).
 
 Most application/domain code should never import them directly.
 
@@ -254,7 +224,7 @@ If useful, enforce this via ESLint:
         paths: [
           {
             name: "@xndrjs/branded",
-            importNames: ["__brand", "__anemicOutput"],
+            importNames: ["__brand", "__shapeMarker", "__shapePatch"],
           },
         ],
       },
