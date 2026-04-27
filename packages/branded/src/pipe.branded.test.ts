@@ -25,16 +25,10 @@ describe("pipe with shape kits and proofs", () => {
     },
   }));
 
-  const UserDetailCore = UserKit.extend("UserDetail", (baseSchema) => ({
+  const UserDetailShape = UserKit.extend("UserDetail", (baseSchema) => ({
     schema: baseSchema.extend({
       avatarSrc: z.string().url(),
     }),
-  }));
-
-  const UserDetailKit = branded.capabilities(UserDetailCore, (patch) => ({
-    rename(user, displayName: string) {
-      return patch(user, { displayName });
-    },
   }));
 
   const VerifiedUserFact = branded
@@ -43,7 +37,7 @@ describe("pipe with shape kits and proofs", () => {
 
   it("chains kit operations: promote → project → rename → proof.parse", () => {
     const out = pipe(
-      UserDetailKit.create({
+      UserDetailShape.create({
         id: "u-1",
         email: "alex@example.com",
         displayName: "Alex",
@@ -51,7 +45,7 @@ describe("pipe with shape kits and proofs", () => {
         address: { street: "Via Roma 1", city: "Firenze" },
         avatarSrc: "https://cdn.example/avatar.png",
       }),
-      (d) => UserDetailKit.project(d, UserKit),
+      (d) => UserDetailShape.project(d, UserKit),
       (u) => UserKit.rename(u, "Alex Renamed"),
       (u) => VerifiedUserFact.parse(u)
     );

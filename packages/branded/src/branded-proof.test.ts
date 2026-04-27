@@ -6,12 +6,13 @@ import type { Branded, BrandedType } from "./types";
 import { BrandedValidationError } from "./errors";
 
 describe("branded.proof", () => {
-  const RowSchema = z.object({
-    id: z.string(),
-    count: z.number().int().nonnegative(),
-  });
-
-  const NonNegativeRow = branded.proof("NonNegativeRow", RowSchema);
+  const NonNegativeRow = branded.proof(
+    "NonNegativeRow",
+    z.object({
+      id: z.string(),
+      count: z.number().int().nonnegative(),
+    })
+  );
   type ProvenRow = BrandedType<typeof NonNegativeRow>;
 
   it("parse validates and returns a nominally branded value", () => {
@@ -33,11 +34,9 @@ describe("branded.proof", () => {
       })
     );
     const item = ItemShape.create({ id: "x", count: 3 });
-    const proven = NonNegativeRow.parse({
-      id: item.id,
-      count: item.count,
-    });
+    const proven = NonNegativeRow.parse(item);
     expect(proven.id).toBe("x");
+    expect(proven.type).toBe("Item"); // preserves shape data and typing
     expect(proven.count).toBe(3);
     expect(NonNegativeRow.is(proven)).toBe(true);
   });
