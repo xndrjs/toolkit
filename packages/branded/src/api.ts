@@ -1,21 +1,20 @@
-import { openRefinementCombineChain } from "./combine-refinements";
 import { defineBrandedField } from "./branded-field";
-import { defineBrandedRefine } from "./branded-refinement";
+import { defineBrandedProof } from "./branded-proof";
 import { defineBrandedPrimitive } from "./branded-primitive";
-import { defineBrandedShape } from "./branded-shape";
-import { toAnemicOutput } from "./anemic";
+import { defineBrandedCapabilities, defineBrandedShape } from "./branded-shape";
+import * as Presets from "./presets";
 
 /**
  * Namespaced kit API.
  */
 export const branded = {
   primitive: defineBrandedPrimitive,
+  proof: defineBrandedProof,
   shape: defineBrandedShape,
+  capabilities: defineBrandedCapabilities,
   field: defineBrandedField,
-  refine: defineBrandedRefine,
-  refineChain: openRefinementCombineChain,
 } as const;
 
-export const anemic = {
-  from: toAnemicOutput,
-};
+export const presets = Presets;
+
+export { pipe, type Unary } from "./pipe";

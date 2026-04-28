@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/tasks",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lazy async tasks utilities.",
   "private": false,
   "license": "MIT",
@@ -21,6 +21,9 @@
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup",
     "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",

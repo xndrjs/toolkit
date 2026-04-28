@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { BrandedError, BrandedRefinementError, BrandedValidationError } from "./errors";
+import { BrandedError, BrandedValidationError } from "./errors";
 
 describe("branded errors", () => {
   it("BrandedError stores code, message, and cause", () => {
@@ -39,15 +39,5 @@ describe("branded errors", () => {
     expect(tree).toBeDefined();
     expect("errors" in tree && Array.isArray(tree.errors)).toBe(true);
     expect(tree.errors.length).toBeGreaterThan(0);
-  });
-
-  it("BrandedRefinementError exposes brand and stable code", () => {
-    const error = new BrandedRefinementError("VerifiedUser");
-
-    expect(error).toBeInstanceOf(BrandedError);
-    expect(error.name).toBe("BrandedRefinementError");
-    expect(error.code).toBe("BRANDED_REFINEMENT_ERROR");
-    expect(error.brand).toBe("VerifiedUser");
-    expect(error.message).toContain("VerifiedUser");
   });
 });

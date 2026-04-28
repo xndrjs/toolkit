@@ -31,13 +31,3 @@ export class BrandedValidationError extends BrandedError {
     return z.treeifyError(this.zodError);
   }
 }
-
-export class BrandedRefinementError extends BrandedError {
-  readonly brand: string;
-
-  constructor(brand: string) {
-    super("BRANDED_REFINEMENT_ERROR", `Refinement failed for brand "${brand}"`);
-    this.name = "BrandedRefinementError";
-    this.brand = brand;
-  }
-}

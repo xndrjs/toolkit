@@ -7,11 +7,13 @@
 export const __brand: unique symbol = Symbol("__brand");
 
 /**
- * Hidden anemic-output marker. `unique symbol` prevents manual output proof construction.
- */
-export const __anemicOutput: unique symbol = Symbol("__anemicOutput");
-
-/**
- * Runtime marker on shape prototypes (non-enumerable). {@link toAnemic} only walks values that inherit it.
+ * Runtime marker on shape prototypes (non-enumerable). Used by shape **`is`** / validation.
  */
 export const __shapeMarker: unique symbol = Symbol("__shapeMarker");
+
+/**
+ * Non-enumerable patch function on shape kits. Not part of the public surface; use only if you must
+ * reach **`patch`** outside a fluent capabilities bundle
+ * (**`branded.capabilities<Req>().methods((patch) => …)`**).
+ */
+export const __shapePatch: unique symbol = Symbol("__shapePatch");
