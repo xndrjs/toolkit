@@ -18,8 +18,8 @@ type KitFnReturn<F> = F extends (...args: any) => infer R ? R : never;
  * type PositiveInt = BrandedType<typeof PositiveIntProof>;
  */
 export type BrandedType<
-  Kit extends { create: (...args: never) => unknown } | { parse: (...args: never) => unknown },
-> = Kit extends { parse: (...args: never) => unknown }
+  Kit extends { create: (...args: never) => unknown } | { test: (...args: never) => unknown },
+> = Kit extends { test: (...args: never) => unknown }
   ? Kit extends { create: (...args: never) => unknown }
     ? KitFnReturn<Kit["create"]>
     : Kit extends BrandedProofKit<infer B, z.ZodType, infer Out>

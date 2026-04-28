@@ -25,15 +25,15 @@ describe("branded.proof", () => {
     .refineType<{ isVerified: true }>((row) => row.isVerified);
   type VerifiedRow = BrandedType<typeof VerifiedProof>;
 
-  it("parse validates and returns a nominally branded value", () => {
+  it("test validates and returns a nominally branded value", () => {
     const plain = { id: "a", count: 0, isVerified: true };
-    const proven = NonNegativeProof.parse(plain);
+    const proven = NonNegativeProof.test(plain);
     expect(proven).toEqual(plain);
     expect(NonNegativeProof.is(proven)).toBe(true);
     expect(NonNegativeProof.brand).toBe("NonNegative");
     expectTypeOf(proven).toExtend<NonNegativeRow>();
 
-    const verified = VerifiedProof.parse(plain);
+    const verified = VerifiedProof.test(plain);
     expect(verified).toEqual(plain);
     expect(VerifiedProof.is(verified)).toBe(true);
     expect(VerifiedProof.brand).toBe("Verified");
@@ -41,7 +41,7 @@ describe("branded.proof", () => {
     expectTypeOf(verified.isVerified).toEqualTypeOf(true);
   });
 
-  it("parse accepts the same structural data from a shape create()", () => {
+  it("test accepts the same structural data from a shape create()", () => {
     const ItemShape = branded.shape(
       "Item",
       z.object({
@@ -51,7 +51,7 @@ describe("branded.proof", () => {
       })
     );
     const item = ItemShape.create({ id: "x", count: 3 });
-    const proven = NonNegativeProof.parse(item);
+    const proven = NonNegativeProof.test(item);
     expect(proven.id).toBe("x");
     expect(proven.type).toBe("Item"); // preserves shape data and typing
     expect(proven.count).toBe(3);
@@ -73,8 +73,8 @@ describe("branded.proof", () => {
     }
   });
 
-  it("parse throws BrandedValidationError on schema failure", () => {
-    expect(() => NonNegativeProof.parse({ id: "d", count: -2 })).toThrow(BrandedValidationError);
+  it("test throws BrandedValidationError on schema failure", () => {
+    expect(() => NonNegativeProof.test({ id: "d", count: -2 })).toThrow(BrandedValidationError);
   });
 
   it("is rejects values that fail the schema", () => {
@@ -84,10 +84,10 @@ describe("branded.proof", () => {
 
   it("works on a primitive schema", () => {
     const PositiveInt = branded.proof("PositiveInt", z.number().int().positive());
-    const n = PositiveInt.parse(7);
+    const n = PositiveInt.test(7);
     expect(n).toBe(7);
     expect(PositiveInt.is(n)).toBe(true);
-    expect(() => PositiveInt.parse(0)).toThrow(BrandedValidationError);
+    expect(() => PositiveInt.test(0)).toThrow(BrandedValidationError);
   });
 
   it("applies the same proof to a base shape and an extended shape; preserves prototype and intersects types", () => {
@@ -122,8 +122,8 @@ describe("branded.proof", () => {
       department: "Platform",
     });
 
-    const provenBase = VerifiedUserFact.parse(base);
-    const provenExtended = VerifiedUserFact.parse(extended);
+    const provenBase = VerifiedUserFact.test(base);
+    const provenExtended = VerifiedUserFact.test(extended);
 
     expect(VerifiedUserFact.is(provenBase)).toBe(true);
     expect(VerifiedUserFact.is(provenExtended)).toBe(true);
@@ -132,7 +132,7 @@ describe("branded.proof", () => {
     expect(provenExtended.department).toBe("Platform");
 
     expect(() =>
-      VerifiedUserFact.parse(UserBaseShape.create({ id: "u-x", isVerified: false }))
+      VerifiedUserFact.test(UserBaseShape.create({ id: "u-x", isVerified: false }))
     ).toThrow(BrandedValidationError);
 
     expectTypeOf(provenBase).toExtend<BaseEntity>();
@@ -148,6 +148,6 @@ describe("branded.proof", () => {
     const Row = z.object({ n: z.number() });
     const refined = branded.proof("R", Row).refineType<{ n: 1 }>((r) => r.n === 1);
     expect("refineType" in refined).toBe(false);
-    expect(refined.parse({ n: 1 })).toEqual({ n: 1 });
+    expect(refined.test({ n: 1 })).toEqual({ n: 1 });
   });
 });

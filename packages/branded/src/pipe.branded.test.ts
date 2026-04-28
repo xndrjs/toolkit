@@ -38,7 +38,7 @@ describe("pipe with shape kits and proofs", () => {
     .proof("VerifiedUser", z.object({ isVerified: z.boolean() }))
     .refineType<{ isVerified: true }>((row) => row.isVerified === true);
 
-  it("chains kit operations: promote → project → rename → proof.parse", () => {
+  it("chains kit operations: promote → project → rename → proof.test", () => {
     const out = pipe(
       UserDetailShape.create({
         id: "u-1",
@@ -50,7 +50,7 @@ describe("pipe with shape kits and proofs", () => {
       }),
       (d) => UserDetailShape.project(d, UserKit),
       (u) => UserKit.rename(u, "Alex Renamed"),
-      VerifiedUserFact.parse
+      VerifiedUserFact.test
     );
 
     expect(out.displayName).toBe("Alex Renamed");
@@ -61,7 +61,7 @@ describe("pipe with shape kits and proofs", () => {
   });
 });
 
-describe("pipe with stacked proof.parse", () => {
+describe("pipe with stacked proof.test", () => {
   const ItemSchema = z.object({
     type: z.literal("Item").default("Item"),
     id: z.string(),
@@ -93,7 +93,7 @@ describe("pipe with stacked proof.parse", () => {
       active: true,
     });
 
-    const out = pipe(item, Stocked.parse, ProTier.parse, Active.parse);
+    const out = pipe(item, Stocked.test, ProTier.test, Active.test);
 
     expect(out.id).toBe("it-1");
     expect(out.count).toBe(12);
@@ -114,7 +114,7 @@ describe("pipe with stacked proof.parse", () => {
       active: true,
     });
 
-    expect(() => pipe(emptyStock, Stocked.parse, ProTier.parse, Active.parse)).toThrow(
+    expect(() => pipe(emptyStock, Stocked.test, ProTier.test, Active.test)).toThrow(
       BrandedValidationError
     );
   });

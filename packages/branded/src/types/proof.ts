@@ -23,9 +23,9 @@ export type BrandedProofBuilder<Brand extends string, Schema extends z.ZodType> 
  * Kit from **`branded.proof(brand, schema)`** (after an optional **`refineType`**) or **`refineType`**:
  * Zod-backed nominal guarantee for values assignable to **`z.input<Schema>`**.
  *
- * **`parse`** / **`safeParse`** always take **`T extends z.input<Schema>`** (shape entity, value already
+ * **`test`** / **`safeParse`** always take **`T extends z.input<Schema>`** (shape entity, value already
  * narrowed by prior proofs, etc.) and return **`T & Branded<Brand, Out>`** — no “wide” overload that
- * drops **`T`**, so chains (**`pipe`**, repeated **`parse`**) accumulate patches and nominal brands in
+ * drops **`T`**, so chains (**`pipe`**, repeated **`test`**) accumulate patches and nominal brands in
  * the type. **`Out`** is **`z.output<Schema>`**, optionally narrowed by **`refineType`**.
  */
 export interface BrandedProofKit<
@@ -35,7 +35,7 @@ export interface BrandedProofKit<
 > {
   readonly brand: Brand;
   schema: Schema;
-  parse: <const T extends z.input<Schema>>(input: T) => T & Branded<Brand, Out>;
+  test: <const T extends z.input<Schema>>(input: T) => T & Branded<Brand, Out>;
   safeParse: <const T extends z.input<Schema>>(
     input: T
   ) => { success: true; data: T & Branded<Brand, Out> } | { success: false; error: z.ZodError };
@@ -44,7 +44,7 @@ export interface BrandedProofKit<
 
 /**
  * Kit produced by **`branded.proofChain(firstProof).with(…).build()`**: runs each proof in sequence
- * (**`parse`** / **`safeParse`** / **`is`**). Does not expose **`create`** from raw input (use a shape + **`parse`**).
+ * (**`test`** / **`safeParse`** / **`is`**). Does not expose **`create`** from raw input (use a shape + **`test`**).
  *
  * **`I`** is the first schema’s input; **`O`** is approximated as **`unknown`** — for a typed output,
  * use the last proof or a local assertion.
@@ -52,7 +52,7 @@ export interface BrandedProofKit<
 export interface CombinedProofKit<I = unknown, O = unknown> {
   readonly brands: readonly string[];
   readonly schemas: readonly z.ZodType[];
-  parse: <const T extends I>(input: T) => O;
+  test: <const T extends I>(input: T) => O;
   safeParse: <const T extends I>(
     input: T
   ) => { success: true; data: O } | { success: false; error: z.ZodError };

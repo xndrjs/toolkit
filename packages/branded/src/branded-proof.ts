@@ -48,9 +48,9 @@ function buildProofKit<Brand extends string, Schema extends z.ZodType, Patch = u
     }
   }
 
-  function parseImpl<const T extends Input>(input: T): T & ProofValue;
-  function parseImpl(input: Input): ProofValue;
-  function parseImpl<const T extends Input>(input: T): (T & ProofValue) | ProofValue {
+  function testImpl<const T extends Input>(input: T): T & ProofValue;
+  function testImpl(input: Input): ProofValue;
+  function testImpl<const T extends Input>(input: T): (T & ProofValue) | ProofValue {
     const parsed = schema.safeParse(input);
     if (!parsed.success) {
       throw new BrandedValidationError(`Invalid value for proof "${brand}"`, parsed.error);
@@ -99,7 +99,7 @@ function buildProofKit<Brand extends string, Schema extends z.ZodType, Patch = u
   return {
     brand,
     schema,
-    parse: parseImpl,
+    test: testImpl,
     safeParse: safeParseImpl,
     is,
   };

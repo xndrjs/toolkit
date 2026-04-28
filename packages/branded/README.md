@@ -96,7 +96,7 @@ const VerifiedUserFact = branded
   .refineType<{ isVerified: true }>((u) => u.isVerified === true);
 
 const user = User.create({ email: "dev@company.com", isVerified: true });
-const proven = VerifiedUserFact.parse(user);
+const proven = VerifiedUserFact.test(user);
 VerifiedUserFact.is(proven); // true
 ```
 
@@ -107,7 +107,7 @@ VerifiedUserFact.is(proven); // true
 3. Use `patch` for controlled, re-validated updates.
 4. Add explicit discriminants (`type: z.literal("...")`) to shapes.
 5. Use proofs as explicit guarantee steps at use-case boundaries when you need a stronger type than the base shape.
-6. Prefer shape **`create(raw)`** at boundaries; use **`proof.parse(entity)`** when asserting an in-memory value satisfies extra constraints.
+6. Prefer shape **`create(raw)`** at boundaries; use **`proof.test(entity)`** when asserting an in-memory value satisfies extra constraints.
 
 ## Positioning: why this model
 
@@ -183,6 +183,21 @@ Runtime value stays a plain primitive; nominal distinction is type-level.
 ### Proof
 
 `branded.proof(brand, schema)` returns a builder with optional **`refineType<Patch>(guard)`** (narrows output to **`z.output<Schema> & Patch`**). The resulting kit exposes **`brand`**, **`parse`**, **`safeParse`**, **`is`**, **`schema`**.
+
+### `proof.test` vs `shape.create`
+
+These two operations are intentionally different:
+
+- **`proof.test(value)`** validates and enriches the current **carrier**:
+  - for object inputs, it preserves the input prototype (so shape marker/prototype identity remains),
+  - it merges parsed output onto the input payload,
+  - it keeps accumulated nominal guarantees in the type.
+- **`shape.create(raw)`** is a canonical shape-entry operation:
+  - it validates raw input against the shape schema,
+  - it creates a fresh entity for that shape,
+  - it does **not** preserve extra nominal guarantees from a previous proof in its return type.
+
+In short: use **`proof.test`** to add guarantees to an in-memory value; use **`shape.create`** to re-enter the canonical shape boundary from raw data.
 
 ## Error Preset: `baseErrorSchema`
 

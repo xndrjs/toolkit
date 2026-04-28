@@ -54,7 +54,7 @@ export type BrandedShapeEntity<
 
 /**
  * Always returns the **base** shape entity type so extra nominal narrowing (e.g. from proofs) is not
- * preserved in the type system after a patch (re-apply **`proof.parse`** when needed). Callers may still pass
+ * preserved in the type system after a patch (re-apply **`proof.test`** when needed). Callers may still pass
  * a proof-marked instance as `entity`; only the return type is widened to the shape kit’s entity.
  */
 export type BrandedShapePatchFn<Type extends string, Schema extends BrandedZodObjectSchema> = <
