@@ -1,0 +1,15 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@config/eslint": "1.0.0",
+    "@config/typescript": "1.0.0",
+    "@config/vitest": "1.0.0",
+    "@xndrjs/branded": "0.2.0",
+    "@xndrjs/data-layer": "0.1.1",
+    "@xndrjs/orchestration": "0.2.0",
+    "@xndrjs/react-adapter": "0.1.1",
+    "@xndrjs/tasks": "0.1.1"
+  },
+  "changesets": []
+}
