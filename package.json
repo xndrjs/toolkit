@@ -7,6 +7,7 @@
   },
   "scripts": {
     "changeset": "changeset",
+    "changeset:publish": "pnpm run build:packages && pnpm changeset publish",
     "build:packages": "pnpm -r --filter './packages/*' run --if-present build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

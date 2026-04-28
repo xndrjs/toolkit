@@ -1,16 +1,17 @@
 # @xndrjs/branded
 
-**Zod-first branded types** for domain modeling: you keep a **single source of truth** (your Zod schemas), and the library turns them into **nominal**, **validated** domain values with almost no ceremony.
+Zod-first domain modeling with a tiny surface: define schema once, get validated values, nominal safety, immutable entities, and explicit refinement steps.
 
 ## Philosophy
 
-Most “branded types” tutorials stop at `type Email = string & { __brand: 'Email' }`. That buys you a compile-time label, but not **runtime safety**, **consistent parsing**, or **clear boundaries** between raw input and domain values.
+`@xndrjs/branded` is built for teams that want domain code to stay boring and safe:
 
-`@xndrjs/branded` is built around a different trade-off:
+- Zod remains the source of truth for runtime invariants.
+- `create` is the validation gate: no branded value without successful parsing.
+- Shapes are immutable after creation/patch and keep behavior on prototype methods.
+- Refinements make "proof steps" explicit (`from`, `tryFrom`, `create`) instead of ad-hoc casts.
 
-- **Enforce good habits by default** — validation, immutability for aggregates, runtime discriminants for shapes, typed refinements — **without** asking you to hand-roll `parse`, `assert`, `brand`, and error types on every new type.
-- **Stay close to Zod** — you already express invariants in schemas; the kit wires `safeParse`, throws **`BrandedValidationError`** with **`issues`**, and exposes the same **`schema`** for composition.
-- **Keep the public surface small** — main usage is `branded.*` + shared types/errors; **`__brand`** and **`__anemicOutput`** are also exported from the root entry for declaration emit and rare tooling needs (see below).
+The goal is **simplicity with guardrails**.
 
 ## Installation
 
@@ -18,26 +19,220 @@ Most “branded types” tutorials stop at `type Email = string & { __brand: 'Em
 npm install @xndrjs/branded zod
 ```
 
-`zod` is a **peer-style** dependency: you bring the version your app uses; the package imports it directly.
+## Quick examples
 
-## `__brand` / `__anemicOutput` (advanced)
+### 1) Primitive: validated + nominal
 
-The package root exports **`__brand`** and **`__anemicOutput`**: the same runtime `unique symbol` keys used by public types such as `Branded` and `AnemicOutput`.
+```ts
+import { z } from "zod";
+import { branded, BrandedType } from "@xndrjs/branded";
 
-**Why:** dependent projects with **`declaration: true`** need these symbols to be **exported and nameable** so TypeScript can emit `.d.ts` for your own exports (e.g. avoids **TS4023** when re-exporting kits whose types mention `Branded`).
+const EmailPrimitive = branded.primitive(
+  "Email",
+  z
+    .string()
+    .email()
+    .transform((v) => v.toLowerCase())
+);
+type Email = BrandedType<typeof EmailPrimitive>;
 
-**When to import them:** rarely — e.g. **tests** checking anemic output has no symbol keys, or **declaration emit** helpers. Avoid using them in normal application/domain code.
+const ok: Email = EmailPrimitive.create("DEV@COMPANY.COM");
+// ok === "dev@company.com" at runtime, but with nominal typing in TS
+```
 
-### ESLint: forbid these names in app source
+### 2) Shape: tuple kit + private `patch`, rich model with quasi-anemic payloads
 
-Use **`no-restricted-imports`** with **`paths`** + **`importNames`** so normal code still imports `branded`, types, and errors from `@xndrjs/branded`, but not the symbol exports.
+`branded.shape` returns **`[kit, patch]`**. Destructuring lets you **keep `patchUser` inside the module** and export only **`UserShape`**: orchestration code cannot bypass your domain transitions by importing a free `patch` function.
 
-**Flat config (`eslint.config.js`)** — example: restrict for all TS under `src/`, except tests:
+Behavior lives on the **prototype** (non-enumerable), so **`JSON.stringify(user)` stays data-only** — a rich model for your code, practically anemic on the wire. Instances are **frozen**; updates go through **`patch`** (ideally only via semantic methods), which re-validates against the schema.
+
+```ts
+// user-shape.ts — export the kit only; `patchUser` never leaves this file
+import { z } from "zod";
+import { branded, BrandedType } from "@xndrjs/branded";
+import { EmailPrimitive } from "./email.primitive";
+
+const [UserShape, patchUser] = branded.shape(
+  "User",
+  z.object({
+    type: z.literal("User").default("User"),
+    email: branded.field(EmailPrimitive),
+    isVerified: z.boolean(),
+  }),
+  {
+    methods: {
+      markVerified() {
+        return patchUser(this, { isVerified: true });
+      },
+    },
+  }
+);
+
+export { UserShape };
+export type UserEntity = BrandedType<typeof UserShape>;
+
+// Elsewhere — no direct access to patchUser; use the semantic surface
+const user = UserShape.create({ email: "dev@company.com", isVerified: false });
+const next = user.markVerified();
+
+Object.isFrozen(next); // true
+next.isVerified; // true
+```
+
+### 3) Refinement: i.e. from optional state to guaranteed state
+
+```ts
+type VerifiedUserData = BrandedType<typeof UserShape> & { isVerified: true };
+
+const VerifiedUserRefinement = branded
+  .refine(UserShape)
+  .when((u): u is VerifiedUserData => u.isVerified === true)
+  .as("VerifiedUser");
+
+const verified = VerifiedUserRefinement.create({ email: "dev@company.com", isVerified: true });
+// create(raw) = UserShape.create(raw) + refinement check
+```
+
+### 4) Refinement chain: one create for multi-step proof
+
+```ts
+const AdminReadyUserKit = branded
+  .refineChain(VerifiedUserRefinement)
+  .with(SomeOtherRefinement)
+  .build();
+
+const adminReady = AdminReadyUserKit.create({
+  email: "dev@company.com",
+  isVerified: true,
+  // other raw fields...
+});
+```
+
+## Best practices encouraged by the kit
+
+1. Validate at boundaries with `create`.
+2. Keep entity behavior in shape methods, not free functions spread around.
+3. Use `patch` for controlled, re-validated updates.
+4. Add explicit discriminants (`type: z.literal("...")`) to shapes.
+5. Use refinements as explicit proof transitions in use-cases.
+6. Prefer `create(raw)` when entering from external input, `from(existing)` when refining an in-memory domain value.
+
+## Positioning: why this model
+
+`@xndrjs/branded` sits between two common extremes.
+
+### A) Fully anemic + mutable objects
+
+**Pros**
+
+- Very low initial friction.
+- Easy JSON serialization and transport across domain, orchestration, and infrastructure.
+- Minimal abstraction overhead for small projects.
+
+**Cons**
+
+- Invariants are scattered (often duplicated across UI, orchestration, and infrastructure).
+- Mutability makes state transitions harder to reason about and easier to break accidentally.
+- Type-level guarantees are weak: invalid intermediate states can leak between layers.
+- Long-term maintenance cost grows quickly as the model evolves.
+
+### B) Rich class-based domain model
+
+**Pros**
+
+- Behavior is close to data; invariants can be strongly encapsulated.
+- Great for complex domain logic and explicit ubiquitous language.
+- Potentially excellent consistency inside the domain boundary.
+
+**Cons**
+
+- High mapping pressure at boundaries (DTOs, mappers, hydration/dehydration pipelines).
+- Boilerplate grows with model size and number of integration points.
+- Class instances can create friction with modern FE patterns and ecosystems that rely on plain objects, serialization, and referential integrity assumptions.
+- Tooling interoperability (validation, transport, caching) is often less direct than schema-first approaches.
+
+### What `@xndrjs/branded` optimizes for
+
+- **Static + runtime guarantees together**: nominal typing (`Branded`) plus Zod-backed validation.
+- **Low-friction layer flow**: plain-data-friendly shapes and anemic conversion help move data between domain, orchestration (application layer), and infrastructure without mapper explosion.
+- **Controlled mutability model**: entities are frozen; updates go through `patch` + validation.
+- **Explicit state progression**: refinements model proof steps without forcing heavy class hierarchies.
+- **DDD power with less ceremony**: keep strong boundaries and invariants while avoiding much of the boilerplate typical of DTO/mapper-heavy setups.
+
+In short, the package aims to improve scalability and maintainability as the codebase grows, while keeping developer experience fast and pragmatic.
+
+## Core building blocks
+
+### Primitive
+
+`branded.primitive(name, schema)` creates a kit with:
+
+- `create(raw)`
+- `is(value)`
+- `schema`
+- `type`
+
+Runtime value stays a plain primitive; nominal distinction is type-level.
+
+### Shape
+
+`branded.shape(name, z.object(...), { methods })` returns `[kit, patch]`.
+
+`kit`:
+
+- `create(raw)` validates and freezes
+- `is(value)` checks prototype identity + schema parse
+- `schema`, `type`
+
+`patch(entity, delta)`:
+
+- applies partial or callback delta
+- re-validates through schema
+- returns new frozen entity preserving shape prototype
+
+### Field
+
+`branded.field(childKit)` embeds branded primitive/shape schemas in parent shapes so raw nested input can be created in one shot.
+
+### Refinement
+
+`branded.refine(baseKit).when(typeGuard).as(brandName)` creates a refinement kit with:
+
+- `brand`
+- `create(raw)` (build from raw then refine)
+- `from(baseValue)` (refine existing value or throw)
+- `tryFrom(baseValue)` (refine existing value or `null`)
+- `is(value)`
+
+### Refinement chain
+
+`branded.refineChain(r1).with(r2).with(r3).build()` returns a combined kit with:
+
+- `create(raw)`
+- `from(baseValue)`
+- `tryFrom(baseValue)`
+- `is(value)`
+
+## Errors
+
+| Error class              | Typical trigger                                              |
+| ------------------------ | ------------------------------------------------------------ |
+| `BrandedValidationError` | Invalid input on `create` / `patch` / nested `field` parsing |
+| `BrandedRefinementError` | Refinement predicate failed in `from` / `create`             |
+| `BrandedError`           | Base error type with stable `code`                           |
+
+`BrandedValidationError` exposes `issues`, `zodError`, `flatten()`, and `treeify()`.
+
+## Advanced: `__brand` and `__anemicOutput`
+
+The root export includes `__brand` and `__anemicOutput` mainly for declaration emit/tooling edge-cases (for example avoiding TS4023 in some `declaration: true` setups).
+
+Most application/domain code should never import them directly.
+
+If useful, enforce this via ESLint:
 
 ```js
 {
-  files: ["src/**/*.ts"],
-  ignores: ["**/*.test.ts", "**/*.spec.ts", "**/__tests__/**"],
   rules: {
     "no-restricted-imports": [
       "error",
@@ -46,195 +241,19 @@ Use **`no-restricted-imports`** with **`paths`** + **`importNames`** so normal c
           {
             name: "@xndrjs/branded",
             importNames: ["__brand", "__anemicOutput"],
-            message:
-              "Do not import __brand / __anemicOutput in application code; use only in tests or tooling.",
           },
         ],
       },
     ],
   },
-},
-```
-
-**Legacy `.eslintrc.cjs`** — same idea with `overrides` for test globs setting `no-restricted-imports` to `off` if you prefer a global ban with exceptions.
-
-## Concepts
-
-### Primitive
-
-A **single runtime value** (string, number, …) validated and treated as a distinct type (e.g. `Email`). **Nominal distinction is type-level only**: at runtime the value is a plain primitive.  
-API: `branded.primitive(typeName, zodSchema)` → `{ create, is, schema, type }`.
-
-### Shape (entity / value object)
-
-A **readonly object** defined by your **Zod object schema** (add a discriminant such as `type: z.literal("User").default("User")` if you want one) plus a **type-level** nominal brand (`Branded` / exported `__brand` for `.d.ts` only — **no** hidden fields on instances). **`create`** validates and **freezes** the instance. **`is`** checks **shape method prototype identity** + **Zod** `safeParse` on own enumerable props (plain JSON / structural clones do not “count” as domain). **`patch`** re-parses a spread of the entity through the schema, then reapplies the **same method prototype** as the input.
-
-API: `branded.shape(typeName, z.object({ ... }), { methods: { … } })` → **tuple** `[kit, patch]` where `kit` has `create`, `is`, `schema`, `type`, and **`patch`** re-validates after applying a **`PatchDelta`** (partial props or draft callback). The **`methods`** object is **required** (use `{ methods: {} }` when the entity has no instance methods).
-
-### Field
-
-Embeds another branded **primitive** or **shape kit** into a parent Zod object so you can **`create` the parent from raw nested input** in one go: the child’s schema runs inside the parent’s `object` schema.
-
-API: `branded.field(childKit)` inside `z.object({ ... })`.
-
-### Refinement
-
-Adds a **type-level brand** and **TypeScript narrowing** on top of an existing shape when a **type predicate** (`when`) holds — e.g. `User` → `VerifiedUser` with stricter fields. Refinements **do not define instance methods**; behavior stays on the **base shape** (`branded.shape(…, { methods })`).  
-API: `branded.refine(baseKit).when((user): user is NarrowData => …).as(brandName)` — narrow type comes from the **`when`** type guard only; **`kit.from`** returns a frozen clone with the same prototype (no runtime brand metadata). → `{ brand, is, from, tryFrom }`.  
-Invalid refinement: **`kit.from`** throws **`BrandedRefinementError`**; **`tryFrom`** returns `null`.
-
-### Types
-
-- **`BrandedType<typeof kit>`** — value type from **`kit.create`** (primitive/shape) or **`kit.from`** (refinement).
-- **`Branded<Brand, T>`** — nominal brand `Brand` over base type `T` (same argument order as `primitive` / `shape`: name first).
-- **`BrandOf<T>`** — extracts the brand literal from a `Branded<Brand, …>` type.
-- **`RefinementInstance<TBase, Brand, NewType>`** — refinement value type (`TBase` + refinement brand + narrowed data); matches **`from`** / **`tryFrom`**. Instance methods are only those from the shape prototype.
-- **`BrandedMethodDefinitions`** / **`BrandedMethodSurface<M, ShapeBaseData>`** — method bags for **shape** `methods` only; patch-delegating methods are surfaced as `<T extends …>(…) => T` so refinements on `this` are preserved.
-- **`BrandedPrimitive<Brand, T>`** / **`BrandedShape<Brand, Props>`** — aliases for primitives and shapes.
-- **`PatchDelta<T>`** — partial `T` or `(draft: Mutable<T>) => void`; argument type for shape **`patch`**.
-
-## Examples
-
-### Email primitive
-
-```ts
-import { z } from "zod";
-import { branded, BrandedType, BrandedValidationError } from "@xndrjs/branded";
-
-const EmailSchema = z
-  .string()
-  .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
-  .transform((v) => v.toLowerCase());
-
-const Email = branded.primitive("Email", EmailSchema);
-type Email = BrandedType<typeof Email>;
-
-const email = Email.create("USER@EXAMPLE.COM"); // validated + normalized
-Email.is(email); // true — still checks schema, not just typeof string
-
-// BrandedValidationError with .issues / .zodError on failure
-try {
-  Email.create("not-an-email");
-} catch (e) {
-  if (e instanceof BrandedValidationError) {
-    console.log(e.issues);
-  }
 }
 ```
 
-### Nested shapes and `field` (one-shot create from raw input)
-
-```ts
-const EmailSchema = z
-  .string()
-  .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
-  .transform((v) => v.toLowerCase());
-
-const Email = branded.primitive("Email", EmailSchema);
-type Email = BrandedType<typeof Email>;
-
-const [AddressShape] = branded.shape(
-  "Address",
-  z.object({
-    type: z.literal("Address").default("Address"),
-    city: z.string(),
-    street: z.string(),
-  }),
-  { methods: {} }
-);
-
-const [UserShape, patchUser] = branded.shape(
-  "User",
-  z.object({
-    type: z.literal("User").default("User"),
-    email: branded.field(Email),
-    address: branded.field(AddressShape),
-  }),
-  { methods: {} }
-);
-
-type User = BrandedType<typeof UserShape>;
-
-// Raw nested input: children validated and branded by Zod + kits
-const user = UserShape.create({
-  email: "hello@example.com",
-  address: { street: "Via Roma 1", city: "Florence" },
-});
-
-user.type; // "User" — from your schema, not injected by the kit
-Object.isFrozen(user); // true — entity-style immutability
-
-const next = patchUser(user, { email: Email.create("other@example.com") });
-```
-
-### Refinement: optional → guaranteed (`tryFrom` / `from`)
-
-```ts
-import { branded, BrandedType } from "@xndrjs/branded";
-
-const UserSchema = z.object({
-  type: z.literal("User").default("User"),
-  id: z.string(),
-  isVerified: z.boolean(),
-  additionalData: z.string().optional(),
-});
-
-const [User] = branded.shape("User", UserSchema, {
-  methods: {
-    // optional methods
-  },
-});
-type UserEntity = BrandedType<typeof User>;
-
-type VerifiedUserData = UserEntity & { isVerified: true; additionalData: string };
-
-const VerifiedUserRefinement = branded
-  .refine(User)
-  .when(
-    (user): user is VerifiedUserData =>
-      // validate properties with simple checks, or use a dedicated Zod schema + safeParse
-      user.isVerified === true && typeof user.additionalData === "string"
-  )
-  .as("VerifiedUser");
-
-type VerifiedUser = BrandedType<typeof VerifiedUserRefinement>;
-
-const user = User.create({
-  id: "u-1",
-  isVerified: true,
-  additionalData: "present",
-});
-
-const verified: VerifiedUser = VerifiedUserRefinement.from(user); // throws BrandedRefinementError if predicate fails
-const maybe = VerifiedUserRefinement.tryFrom(user); // null if not refined
-```
-
-## Errors
-
-| Class                    | When                                                            |
-| ------------------------ | --------------------------------------------------------------- |
-| `BrandedValidationError` | `create` / `patch` / field parsing fails Zod validation         |
-| `BrandedRefinementError` | `kit.from` on a refinement kit when the type predicate is false |
-| `BrandedError`           | Base class with `code` for both cases above                     |
-
-Validation errors expose **`issues`** and **`zodError`**, plus **`flatten()`** (`z.flattenError`) and **`treeify()`** (`z.treeifyError`) for Zod 4–aligned field and tree-shaped reporting (avoids deprecated `ZodError#flatten` / `#format`).
-
-## Best practices this kit nudges you toward
-
-1. **Validate at the boundary** — `create` is the gate; you don’t get a branded value without a successful parse.
-2. **Nominal typing** — at the type level, primitives and shapes are not interchangeable; primitives stay plain values at runtime; shapes use a **compile-time** brand and whatever fields you put in Zod (optional discriminant); runtime recognition uses **prototype + Zod**, not a `__brand` property on instances.
-3. **Immutable aggregates** — shapes are **`Object.freeze`d** after `create` / `patch`; changes go through **`patch`** and re-validation.
-4. **Explicit domain discriminants** — add **`type: z.literal('…')`** (often with **`.default(…)`**) to the schema when you want a discriminant for unions or logging.
-5. **Composition without duplication** — **`field`** reuses child schemas so nested raw input stays ergonomic.
-6. **Refinements as proof steps** — **`from` / `tryFrom`** make “verified” states explicit instead of scattered `if` + casts.
-7. **Structured failures** — Zod errors are wrapped once, with a stable **`BrandedValidationError`** type.
-8. **Honest runtime checks** — **`is`** for shapes encodes **prototype + discriminant + Zod**, so re-hydrated JSON isn’t mistaken for domain until you **`create`** again.
-
 ## Caveats
 
-- **Primitives vs objects**: neither primitives nor shape instances carry a runtime **`__brand`** field; the symbol exists for **TypeScript** nominal typing / `.d.ts` emit only.
-- **Serialization**: `JSON.stringify` / `parse` yields plain objects (wrong prototype); **`User.is(parsedJson)`** is **`false`** until you construct again with **`create`** (by design).
-- **Library scope**: this is a small kit around Zod + nominal branding — not a full entity framework or ORM layer.
+- No runtime `__brand` field is injected into primitives/shapes.
+- JSON round-trip strips shape prototype; use `create` to re-enter the domain.
+- This package is intentionally small: domain modeling helpers, not ORM/entity framework.
 
 ## License
 

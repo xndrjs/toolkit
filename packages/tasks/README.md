@@ -1,6 +1,6 @@
 # @xndrjs/tasks
 
-Lazy asynchronous **tasks**: effects run only when awaited or chained like a `Promise`, with optional **retry** and predictable composability for infrastructure code.
+Lazy asynchronous **tasks**: effects run only when awaited or chained like a `Promise`, with optional **retry** and predictable composability, mostly for infrastructure code.
 
 ## Installation
 
@@ -42,3 +42,12 @@ const users = await usersTask;
 ## API
 
 Exported symbols: **`task`**, **`sleep`**, **`Task`**, **`RetryPredicate`**, **`RetryOptions`** (`maxAttempts?: number`).
+
+## Caveats
+
+- Tasks are lazy and re-executed on each await/then; memoize externally if you need one-shot behavior.
+- `retry` does not classify errors for you: domain-specific retry rules should live in `shouldRetry`.
+
+## License
+
+MIT

@@ -34,3 +34,12 @@ function Panel() {
 ```
 
 Generic second type parameter narrows **`displayError`** when you use a custom error model: **`useAsyncData<Data, AppError>(initial)`**.
+
+## Caveats
+
+- Hook APIs are intentionally thin adapters; orchestration rules should remain in use-cases, not in components.
+- `port` identity follows hook lifecycle, so keep standard React memoization/effect dependency practices.
+
+## License
+
+MIT
