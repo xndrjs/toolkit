@@ -61,7 +61,7 @@ const UserShape = branded.shape(
   "User",
   z.object({
     type: z.literal("User").default("User"),
-    email: z.string().email(),
+    email: z.email(),
     isVerified: z.boolean(),
   })
 );

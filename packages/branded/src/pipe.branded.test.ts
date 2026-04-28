@@ -9,7 +9,7 @@ describe("pipe with shape kits and proofs", () => {
   const UserSchema = z.object({
     type: z.literal("User").default("User"),
     id: z.string(),
-    email: z.string().email(),
+    email: z.email(),
     displayName: z.string(),
     isVerified: z.boolean(),
     address: z.object({
@@ -28,12 +28,12 @@ describe("pipe with shape kits and proofs", () => {
 
   const UserDetailShape = UserKit.extend("UserDetail", (baseSchema) => ({
     schema: baseSchema.extend({
-      avatarSrc: z.string().url(),
+      avatarSrc: z.url(),
     }),
   }));
 
   const VerifiedUserFact = branded
-    .proof("VerifiedUser", UserSchema)
+    .proof("VerifiedUser", z.object({ isVerified: z.boolean() }))
     .refineType<{ isVerified: true }>((row) => row.isVerified === true);
 
   it("chains kit operations: promote → project → rename → proof.parse", () => {
@@ -48,7 +48,7 @@ describe("pipe with shape kits and proofs", () => {
       }),
       (d) => UserDetailShape.project(d, UserKit),
       (u) => UserKit.rename(u, "Alex Renamed"),
-      (u) => VerifiedUserFact.parse(u)
+      VerifiedUserFact.parse
     );
 
     expect(out.displayName).toBe("Alex Renamed");
