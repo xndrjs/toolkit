@@ -1,5 +1,13 @@
 # @xndrjs/react-adapter
 
+## 0.1.2-alpha.0
+
+### Patch Changes
+
+- f9555b0: new branded model: proofs replaced refinements and don't depend on shapes; remove instance methods, added external capabilities "kits"; added pipe function;
+- Updated dependencies [f9555b0]
+  - @xndrjs/orchestration@0.3.0-alpha.0
+
 ## 0.1.0
 
 ### Minor Changes
