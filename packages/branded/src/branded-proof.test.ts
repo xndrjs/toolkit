@@ -6,22 +6,39 @@ import type { Branded, BrandedType } from "./types";
 import { BrandedValidationError } from "./errors";
 
 describe("branded.proof", () => {
-  const NonNegativeRow = branded.proof(
-    "NonNegativeRow",
+  const NonNegativeProof = branded.proof(
+    "NonNegative",
     z.object({
       id: z.string(),
       count: z.number().int().nonnegative(),
     })
   );
-  type ProvenRow = BrandedType<typeof NonNegativeRow>;
+  type NonNegativeRow = BrandedType<typeof NonNegativeProof>;
+
+  const VerifiedProof = branded
+    .proof(
+      "Verified",
+      z.object({
+        isVerified: z.boolean().refine((v) => v === true),
+      })
+    )
+    .refineType<{ isVerified: true }>((row) => row.isVerified);
+  type VerifiedRow = BrandedType<typeof VerifiedProof>;
 
   it("parse validates and returns a nominally branded value", () => {
-    const plain = { id: "a", count: 0 };
-    const proven = NonNegativeRow.parse(plain);
+    const plain = { id: "a", count: 0, isVerified: true };
+    const proven = NonNegativeProof.parse(plain);
     expect(proven).toEqual(plain);
-    expect(NonNegativeRow.is(proven)).toBe(true);
-    expect(NonNegativeRow.brand).toBe("NonNegativeRow");
-    expectTypeOf(proven).toEqualTypeOf<ProvenRow>();
+    expect(NonNegativeProof.is(proven)).toBe(true);
+    expect(NonNegativeProof.brand).toBe("NonNegative");
+    expectTypeOf(proven).toExtend<NonNegativeRow>();
+
+    const verified = VerifiedProof.parse(plain);
+    expect(verified).toEqual(plain);
+    expect(VerifiedProof.is(verified)).toBe(true);
+    expect(VerifiedProof.brand).toBe("Verified");
+    expectTypeOf(verified).toExtend<VerifiedRow>();
+    expectTypeOf(verified.isVerified).toEqualTypeOf(true);
   });
 
   it("parse accepts the same structural data from a shape create()", () => {
@@ -34,22 +51,22 @@ describe("branded.proof", () => {
       })
     );
     const item = ItemShape.create({ id: "x", count: 3 });
-    const proven = NonNegativeRow.parse(item);
+    const proven = NonNegativeProof.parse(item);
     expect(proven.id).toBe("x");
     expect(proven.type).toBe("Item"); // preserves shape data and typing
     expect(proven.count).toBe(3);
-    expect(NonNegativeRow.is(proven)).toBe(true);
+    expect(NonNegativeProof.is(proven)).toBe(true);
   });
 
   it("safeParse mirrors Zod outcome with branded data on success", () => {
-    const ok = NonNegativeRow.safeParse({ id: "b", count: 1 });
+    const ok = NonNegativeProof.safeParse({ id: "b", count: 1 });
     expect(ok.success).toBe(true);
     if (ok.success) {
-      expectTypeOf(ok.data).toExtend<ProvenRow>();
+      expectTypeOf(ok.data).toExtend<NonNegativeRow>();
       expect(ok.data.count).toBe(1);
     }
 
-    const bad = NonNegativeRow.safeParse({ id: "c", count: -1 });
+    const bad = NonNegativeProof.safeParse({ id: "c", count: -1 });
     expect(bad.success).toBe(false);
     if (!bad.success) {
       expect(bad.error.issues.length).toBeGreaterThan(0);
@@ -57,12 +74,12 @@ describe("branded.proof", () => {
   });
 
   it("parse throws BrandedValidationError on schema failure", () => {
-    expect(() => NonNegativeRow.parse({ id: "d", count: -2 })).toThrow(BrandedValidationError);
+    expect(() => NonNegativeProof.parse({ id: "d", count: -2 })).toThrow(BrandedValidationError);
   });
 
   it("is rejects values that fail the schema", () => {
-    expect(NonNegativeRow.is({ id: "e", count: "nope" })).toBe(false);
-    expect(NonNegativeRow.is(null)).toBe(false);
+    expect(NonNegativeProof.is({ id: "e", count: "nope" })).toBe(false);
+    expect(NonNegativeProof.is(null)).toBe(false);
   });
 
   it("works on a primitive schema", () => {
