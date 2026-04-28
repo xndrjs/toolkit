@@ -20,11 +20,13 @@ describe("pipe with shape kits and proofs", () => {
   });
 
   const UserShape = branded.shape("User", UserSchema);
-  const UserKit = branded.capabilities(UserShape, (patch) => ({
+  const UserCapabilities = branded.capabilities<z.output<typeof UserSchema>>().methods((patch) => ({
     rename(user, displayName: string) {
       return patch(user, { displayName });
     },
   }));
+
+  const UserKit = UserCapabilities.attach(UserShape);
 
   const UserDetailShape = UserKit.extend("UserDetail", (baseSchema) => ({
     schema: baseSchema.extend({

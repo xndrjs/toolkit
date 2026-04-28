@@ -96,3 +96,40 @@ export type ShapeProjectFn<Schema extends BrandedZodObjectSchema> = <
     ? BrandedShapeKit<TargetType, TargetSchema, TargetMethods>
     : never
 ) => ReturnType<BrandedShapeKit<TargetType, TargetSchema, TargetMethods>["create"]>;
+
+/**
+ * Generic patch surface exposed to reusable capabilities.
+ * `Req` is the minimal structural contract required by a capability.
+ */
+export type BrandedCapabilityPatchFn<Req extends object> = <T extends Req>(
+  entity: T,
+  delta: PatchDelta<Req>
+) => T;
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- capability methods keep user signatures */
+export type BrandedCapabilityMethods<Req extends object> = Record<
+  string,
+  <T extends Req>(entity: T, ...args: any[]) => any
+>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/** Reusable capability bundle that can be attached to compatible shapes. */
+export interface BrandedCapability<
+  Req extends object,
+  Methods extends BrandedCapabilityMethods<Req>,
+> {
+  attach<
+    Type extends string,
+    Schema extends BrandedZodObjectSchema,
+    BaseMethods extends BrandedShapeMethods<Schema> = Record<never, never>,
+  >(
+    shape: z.output<Schema> extends Req ? BrandedShapeKit<Type, Schema, BaseMethods> : never
+  ): BrandedShapeKit<Type, Schema, BaseMethods & Methods>;
+}
+
+/** Fluent builder for reusable capability bundles. */
+export interface BrandedCapabilitiesBuilder<Req extends object> {
+  methods<const M extends BrandedCapabilityMethods<Req>>(
+    factory: (patch: BrandedCapabilityPatchFn<Req>) => M
+  ): BrandedCapability<Req, M>;
+}

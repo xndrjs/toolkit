@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
 import { branded } from "./api";
-import { BrandedType, Mutable, ShapeRow } from "./types";
+import { BrandedType, Mutable } from "./types";
 import { BrandedValidationError } from "./errors";
 
 // --- Example domain ---
@@ -33,14 +33,19 @@ const UserShapeSchema = z.object({
 });
 
 const UserShape = branded.shape("User", UserShapeSchema);
-const User = branded.capabilities(UserShape, (patch) => ({
-  isCorporate(user) {
-    return user.email.endsWith("@company.com");
-  },
-  patchEmail(user, email: Email) {
-    return patch(user, { email });
-  },
-}));
+
+const UserCapabilities = branded
+  .capabilities<z.infer<typeof UserShapeSchema>>()
+  .methods((patch) => ({
+    isCorporate(user) {
+      return user.email.endsWith("@company.com");
+    },
+    patchEmail(user, email: Email) {
+      return patch(user, { email });
+    },
+  }));
+
+const User = UserCapabilities.attach(UserShape);
 
 // --- Tests ---
 
@@ -157,22 +162,26 @@ describe("branded-kit example domain", () => {
       type: z.literal("Widget").default("Widget"),
       name: z.string(),
     });
-    const WidgetShape = branded.capabilities(branded.shape("Widget", widgetSchema), (patch) => ({
-      setName(w, name: string) {
-        return patch(w, { name });
-      },
-      applyDraft(w, fn: (draft: Mutable<z.input<typeof widgetSchema>>) => void) {
-        return patch(w, fn);
-      },
-    }));
-    const w = WidgetShape.create({ name: "a" });
+    const WidgetShape = branded.shape("Widget", widgetSchema);
+    const WidgetKit = branded
+      .capabilities<z.output<typeof widgetSchema>>()
+      .methods((patch) => ({
+        setName(w, name: string) {
+          return patch(w, { name });
+        },
+        applyDraft(w, fn: (draft: Mutable<z.input<typeof widgetSchema>>) => void) {
+          return patch(w, fn);
+        },
+      }))
+      .attach(WidgetShape);
+    const w = WidgetKit.create({ name: "a" });
     expect(() =>
-      WidgetShape.applyDraft(w, (draft) => {
+      WidgetKit.applyDraft(w, (draft) => {
         draft.name = "b";
         (draft as { type?: string }).type = "Malicious";
       })
     ).toThrow(BrandedValidationError);
-    const next = WidgetShape.setName(w, "b");
+    const next = WidgetKit.setName(w, "b");
     expect(next.type).toBe("Widget");
     expect(next.name).toBe("b");
   });
@@ -184,22 +193,25 @@ describe("branded-kit example domain", () => {
       }),
     }));
 
-    const userDetailWithMethodsCore = User.extend("UserDetailWithMethods", (baseSchema) => ({
+    const UserDetailWithMethodsShape = User.extend("UserDetailWithMethods", (baseSchema) => ({
       schema: baseSchema.extend({
         avatarSrc: z.string().min(1),
       }),
     }));
 
-    const UserDetailShapeWithMethods = branded.capabilities(userDetailWithMethodsCore, (patch) => ({
-      hasAvatar(user) {
-        return user.avatarSrc.length > 0;
-      },
-      setAvatarSrc(user, src: string) {
-        return patch(user, { avatarSrc: src });
-      },
-    }));
+    const UserDetailShapeWithMethodsKit = branded
+      .capabilities<z.output<typeof UserDetailWithMethodsShape.schema>>()
+      .methods((patch) => ({
+        hasAvatar(user) {
+          return user.avatarSrc.length > 0;
+        },
+        setAvatarSrc(user, src: string) {
+          return patch(user, { avatarSrc: src });
+        },
+      }))
+      .attach(UserDetailWithMethodsShape);
 
-    const detail = UserDetailShapeWithMethods.create({
+    const detail = UserDetailShapeWithMethodsKit.create({
       email: "a@company.com",
       address: { street: "Via", city: "Firenze" },
       avatarSrc: "https://cdn.local/avatar.png",
@@ -207,37 +219,40 @@ describe("branded-kit example domain", () => {
 
     expect(detail.type).toBe("User");
     expect(detail.avatarSrc).toBe("https://cdn.local/avatar.png");
-    expect(UserDetailShapeWithMethods.hasAvatar(detail)).toBe(true);
+    expect(UserDetailShapeWithMethodsKit.hasAvatar(detail)).toBe(true);
     expect("isCorporate" in detail).toBe(false);
-    expect(UserDetailShapeWithMethods.is(detail)).toBe(true);
+    expect(UserDetailShapeWithMethodsKit.is(detail)).toBe(true);
     expect(User.is(detail)).toBe(false);
 
-    const next = UserDetailShapeWithMethods.setAvatarSrc(detail, "https://cdn.local/next.png");
+    const next = UserDetailShapeWithMethodsKit.setAvatarSrc(detail, "https://cdn.local/next.png");
     expect(next.avatarSrc).toBe("https://cdn.local/next.png");
-    expect(UserDetailShapeWithMethods.hasAvatar(next)).toBe(true);
+    expect(UserDetailShapeWithMethodsKit.hasAvatar(next)).toBe(true);
     expect(UserDetailShape.is(detail)).toBe(false);
   });
 
   it("extends shape with explicit composition from parent kit", () => {
-    const userDetailCore = User.extend("UserDetail", (baseSchema) => ({
+    const UserDetailShape = User.extend("UserDetail", (baseSchema) => ({
       schema: baseSchema.extend({
         avatarSrc: z.string(),
       }),
     }));
 
-    const UserDetailShape = branded.capabilities(userDetailCore, () => ({
-      isCorporate: User.isCorporate,
-      hasAvatar(user) {
-        return user.avatarSrc.length > 0;
-      },
-    }));
-    const detail = UserDetailShape.create({
+    const UserDetailKit = branded
+      .capabilities<z.output<typeof UserDetailShape.schema>>()
+      .methods(() => ({
+        isCorporate: User.isCorporate,
+        hasAvatar(user) {
+          return user.avatarSrc.length > 0;
+        },
+      }))
+      .attach(UserDetailShape);
+    const detail = UserDetailKit.create({
       email: "a@company.com",
       address: { street: "Via", city: "Firenze" },
       avatarSrc: "x",
     });
-    expect(UserDetailShape.isCorporate(detail)).toBe(true);
-    expect(UserDetailShape.hasAvatar(detail)).toBe(true);
+    expect(UserDetailKit.isCorporate(detail)).toBe(true);
+    expect(UserDetailKit.hasAvatar(detail)).toBe(true);
   });
 
   it("projects an extended shape instance to a base shape instance", () => {
@@ -279,26 +294,30 @@ describe("branded-kit example domain", () => {
 
   it("rejects reserved project method on shape and extension", () => {
     expect(() =>
-      branded.capabilities(branded.shape("Illegal", z.object({ id: z.string() })), () => ({
-        project() {
-          return null;
-        },
-      }))
-    ).toThrow(TypeError);
-
-    expect(() =>
-      branded.capabilities(
-        User.extend("IllegalChild", (baseSchema) => ({
-          schema: baseSchema.extend({
-            extra: z.string(),
-          }),
-        })),
-        () => ({
+      branded
+        .capabilities<z.output<z.ZodObject<{ id: z.ZodString }>>>()
+        .methods(() => ({
           project() {
             return null;
           },
-        })
-      )
+        }))
+        .attach(branded.shape("Illegal", z.object({ id: z.string() })))
+    ).toThrow(TypeError);
+
+    const IllegalChildShape = User.extend("IllegalChild", (baseSchema) => ({
+      schema: baseSchema.extend({
+        extra: z.string(),
+      }),
+    }));
+    expect(() =>
+      branded
+        .capabilities<z.output<typeof IllegalChildShape.schema>>()
+        .methods(() => ({
+          project() {
+            return null;
+          },
+        }))
+        .attach(IllegalChildShape)
     ).toThrow(TypeError);
   });
 
@@ -307,37 +326,39 @@ describe("branded-kit example domain", () => {
       type: z.literal("Account").default("Account"),
       username: z.string().min(1),
     });
-    const AccountShape = branded.capabilities(branded.shape("Account", AccountSchema), (patch) => ({
-      renameUsername(user, nextUsername: string) {
-        return patch(user, { username: nextUsername });
-      },
-    }));
-    type Account = BrandedType<typeof AccountShape>;
 
-    const accountDetailCore = AccountShape.extend("AccountDetail", (baseSchema) => ({
+    const AccountCapabilities = branded
+      .capabilities<z.output<typeof AccountSchema>>()
+      .methods((patch) => ({
+        renameUsername(user, nextUsername: string) {
+          return patch(user, { username: nextUsername });
+        },
+      }));
+
+    const AccountShape = branded.shape("Account", AccountSchema);
+    const AccountKit = AccountCapabilities.attach(AccountShape);
+    type Account = BrandedType<typeof AccountKit>;
+
+    const AccountDetailShape = AccountKit.extend("AccountDetail", (baseSchema) => ({
       schema: baseSchema.extend({
         avatarSrc: z.string().min(1).optional(),
       }),
     }));
 
-    const AccountDetailShape = branded.capabilities(accountDetailCore, () => ({
-      renameUsername(user, nextUsername: string) {
-        return AccountShape.renameUsername(user, nextUsername);
-      },
-    }));
+    const AccountDetailKit = AccountCapabilities.attach(AccountDetailShape);
 
-    const detail = AccountDetailShape.create({
+    const detail = AccountDetailKit.create({
       username: "alpha",
       avatarSrc: "https://cdn.local/avatar.png",
     });
-    const renamed = AccountDetailShape.renameUsername(detail, "beta");
-    type AccountDetail = BrandedType<typeof AccountDetailShape>;
+    const renamed = AccountDetailKit.renameUsername(detail, "beta");
+    type AccountDetail = BrandedType<typeof AccountDetailKit>;
 
-    expectTypeOf(renamed).toEqualTypeOf<Account>();
-    expectTypeOf(renamed).not.toEqualTypeOf<AccountDetail>();
+    expectTypeOf(renamed).not.toEqualTypeOf<Account>();
+    expectTypeOf(renamed).toEqualTypeOf<AccountDetail>();
 
-    expect(AccountDetailShape.is(renamed)).toBe(true);
-    expect("avatarSrc" in renamed).toBe(false);
+    expect(AccountDetailKit.is(renamed)).toBe(true);
+    expect("avatarSrc" in renamed).toBe(true);
     expect(renamed.username).toBe("beta");
   });
 
@@ -346,39 +367,98 @@ describe("branded-kit example domain", () => {
       type: z.literal("Account").default("Account"),
       username: z.string().min(1),
     });
-    type AccountDetailRow = ShapeRow<typeof AccountSchema> & { avatarSrc?: string | undefined };
+    const AccountShape = branded.shape("Account", AccountSchema);
 
-    const AccountShape = branded.capabilities(branded.shape("Account", AccountSchema), (patch) => ({
-      renameUsername(user, nextUsername: string) {
-        return patch(user, { username: nextUsername });
-      },
-    }));
-    type Account = BrandedType<typeof AccountShape>;
+    const AccountCapabilities = branded
+      .capabilities<z.output<typeof AccountSchema>>()
+      .methods((patch) => ({
+        renameUsername(user, nextUsername: string) {
+          return patch(user, { username: nextUsername });
+        },
+      }));
 
-    const accountDetailCore2 = AccountShape.extend("AccountDetail", (baseSchema) => ({
+    const AccountKit = AccountCapabilities.attach(AccountShape);
+
+    const AccountDetailShape = AccountKit.extend("AccountDetail", (baseSchema) => ({
       schema: baseSchema.extend({
         avatarSrc: z.string().min(1).optional(),
       }),
     }));
 
-    const AccountDetailShape = branded.capabilities(accountDetailCore2, () => ({
-      renameUsername(detail: AccountDetailRow, nextUsername: string) {
-        return AccountDetailShape.create(AccountShape.renameUsername(detail, nextUsername));
-      },
-    }));
+    const AccountDetailKit = AccountCapabilities.attach(AccountDetailShape);
 
-    const detail = AccountDetailShape.create({
+    const detail = AccountDetailKit.create({
       username: "alpha",
       avatarSrc: "https://cdn.local/avatar.png",
     });
-    const renamed = AccountDetailShape.renameUsername(detail, "beta");
-    type AccountDetail = BrandedType<typeof AccountDetailShape>;
+    const renamed = AccountDetailKit.renameUsername(detail, "beta");
+    type AccountDetail = BrandedType<typeof AccountDetailKit>;
 
-    expectTypeOf(renamed).not.toEqualTypeOf<Account>();
     expectTypeOf(renamed).toEqualTypeOf<AccountDetail>();
 
-    expect(AccountDetailShape.is(renamed)).toBe(true);
-    expect("avatarSrc" in renamed).toBe(false);
+    expect(AccountDetailKit.is(renamed)).toBe(true);
+    expect("avatarSrc" in renamed).toBe(true);
     expect(renamed.username).toBe("beta");
+  });
+
+  it("reusable capability can be attached to base and extended shapes", () => {
+    const RenameCapability = branded.capabilities<{ displayName: string }>().methods((patch) => ({
+      rename(entity, displayName: string) {
+        return patch(entity, { displayName });
+      },
+    }));
+
+    const ProfileShape = branded.shape(
+      "Profile",
+      z.object({
+        type: z.literal("Profile").default("Profile"),
+        displayName: z.string().min(1),
+      })
+    );
+    const UserRenamingKit = RenameCapability.attach(ProfileShape);
+    const UserDetailShape = ProfileShape.extend("ProfileDetail", (baseSchema) => ({
+      schema: baseSchema.extend({
+        avatarSrc: z.string().min(1),
+      }),
+    }));
+    const UserDetailRenamingKit = RenameCapability.attach(UserDetailShape);
+
+    const user = UserRenamingKit.create({
+      displayName: "Initial User Name",
+    });
+    const detail = UserDetailRenamingKit.create({
+      displayName: "Initial Detail Name",
+      avatarSrc: "https://cdn.local/avatar.png",
+    });
+
+    const renamedUser = UserRenamingKit.rename(user, "User Name");
+    const renamedDetail = UserDetailRenamingKit.rename(detail, "Detail Name");
+
+    expect(renamedUser.displayName).toBe("User Name");
+    expect(UserRenamingKit.is(renamedUser)).toBe(true);
+
+    expect(renamedDetail.displayName).toBe("Detail Name");
+    expect(renamedDetail.avatarSrc).toBe("https://cdn.local/avatar.png");
+    expect(UserDetailRenamingKit.is(renamedDetail)).toBe(true);
+  });
+
+  it("reusable capability enforces structural compatibility at attach time", () => {
+    const RenameCapability = branded.capabilities<{ displayName: string }>().methods((patch) => ({
+      rename<T extends { displayName: string }>(entity: T, displayName: string) {
+        return patch(entity, { displayName });
+      },
+    }));
+
+    const AnonymousShape = branded.shape(
+      "Anonymous",
+      z.object({
+        type: z.literal("Anonymous").default("Anonymous"),
+        nickname: z.string(),
+      })
+    );
+
+    // @ts-expect-error -- schema row lacks `displayName`
+    const _invalidAttach = RenameCapability.attach(AnonymousShape);
+    expect(_invalidAttach).toBeDefined();
   });
 });

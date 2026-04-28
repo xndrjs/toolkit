@@ -48,7 +48,7 @@ const ok: Email = EmailPrimitive.create("DEV@COMPANY.COM");
 
 `branded.shape(name, schema)` returns a **schema-only** kit. **`patch`** is kept **non-enumerable** on the kit (see `__shapePatch` in advanced section); orchestration code cannot import a loose `patch` unless you expose it.
 
-Add behavior with **`branded.capabilities(shape, (patch) => ({ … }))`**. Capability functions are **kit methods** `User.markVerified(user, …)` — no `this`. Instances stay **frozen** rows with a shape marker on the prototype; **`JSON.stringify(user)`** is data-only.
+Add behavior with the fluent builder **`branded.capabilities<Req>().methods((patch) => ({ … }))`**, then attach it to a shape via **`.attach(shape)`**. Capability functions are **kit methods** `User.markVerified(user, …)` — no `this`. Instances stay **frozen** rows with a shape marker on the prototype; **`JSON.stringify(user)`** is data-only.
 
 Reserved capability keys (you cannot use these as method names): `create`, `is`, `extend`, `schema`, `type`, `project`.
 
@@ -66,11 +66,15 @@ const UserShape = branded.shape(
   })
 );
 
-const User = branded.capabilities(UserShape, (patch) => ({
-  markVerified(user) {
-    return patch(user, { isVerified: true });
-  },
-}));
+const UserCapability = branded
+  .capabilities<{ email: string; isVerified: boolean }>()
+  .methods((patch) => ({
+    markVerified(user) {
+      return patch(user, { isVerified: true });
+    },
+  }));
+
+const User = UserCapability.attach(UserShape);
 
 export { User };
 export type UserEntity = BrandedType<typeof User>;
@@ -170,7 +174,7 @@ Runtime value stays a plain primitive; nominal distinction is type-level.
 
 ### Capabilities
 
-`branded.capabilities(shape, (patch) => methods)` merges **`methods`** onto the kit. Each method **`(entity, ...args)`** takes the shape row as **`entity`** (`ShapeRow<schema>`).
+`branded.capabilities<Req>().methods((patch) => methods).attach(shape)` creates reusable capability bundles and attaches them to compatible shapes. Each method **`(entity, ...args)`** takes the shape row as **`entity`** (`ShapeRow<schema>`), and `patch` is validated by the attached shape schema.
 
 ### Field
 

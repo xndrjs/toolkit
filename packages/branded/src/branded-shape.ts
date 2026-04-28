@@ -2,6 +2,10 @@ import { z } from "zod";
 import { BrandedValidationError } from "./errors";
 import { __shapeMarker, __shapePatch } from "./private-constants";
 import {
+  BrandedCapabilitiesBuilder,
+  BrandedCapability,
+  BrandedCapabilityMethods,
+  BrandedCapabilityPatchFn,
   BrandedShapeEntity,
   BrandedShapeKit,
   BrandedShapeMethods,
@@ -63,7 +67,8 @@ function validateMethodKeys<Type extends string, Schema extends BrandedZodObject
 
 /**
  * Schema-only shape kit. **`patch`** is stored internally under **`__shapePatch`** (non-enumerable).
- * Add capabilities with **`branded.capabilities(kit, (patch) => ({ … }))`**.
+ * Add capabilities via a reusable bundle created with
+ * **`branded.capabilities<Req>().methods((patch) => ({ … }))`** and attached to this shape.
  */
 export function defineBrandedShape<Type extends string, Schema extends BrandedZodObjectSchema>(
   type: Type,
@@ -201,4 +206,47 @@ export function defineBrandedShapeCapabilities<
   const kit = { ...shape, ...boundMethods } as BrandedShapeKit<Type, Schema, M>;
   attachShapePatch(kit, patch);
   return kit;
+}
+
+/**
+ * Define a reusable capability bundle once, then attach it to any compatible shape.
+ * Compatibility is structural: the target shape row must extend `Req`.
+ */
+export function defineBrandedCapability<
+  Req extends object,
+  const M extends BrandedCapabilityMethods<Req>,
+>(factory: (patch: BrandedCapabilityPatchFn<Req>) => M): BrandedCapability<Req, M> {
+  return {
+    attach<
+      Type extends string,
+      Schema extends BrandedZodObjectSchema,
+      BaseMethods extends BrandedShapeMethods<Schema> = Record<never, never>,
+    >(
+      shape: z.output<Schema> extends Req ? BrandedShapeKit<Type, Schema, BaseMethods> : never
+    ): BrandedShapeKit<Type, Schema, BaseMethods & M> {
+      const shapePatch = getBrandedShapePatch(shape);
+      const capabilityPatch: BrandedCapabilityPatchFn<Req> = <T extends Req>(
+        entity: T,
+        delta: PatchDelta<Req>
+      ): T => shapePatch(entity as ShapeRow<Schema>, delta as PatchDelta<z.input<Schema>>) as T;
+
+      const methods = factory(capabilityPatch);
+      validateMethodKeys(shape.type, methods as BrandedShapeMethods<Schema>, "during capability");
+
+      const kit = { ...shape, ...methods } as BrandedShapeKit<Type, Schema, BaseMethods & M>;
+      attachShapePatch(kit, shapePatch);
+      return kit;
+    },
+  };
+}
+
+/** Fluent API entrypoint: `branded.capabilities<Req>().methods(factory)` */
+export function defineBrandedCapabilities<Req extends object>(): BrandedCapabilitiesBuilder<Req> {
+  return {
+    methods<const M extends BrandedCapabilityMethods<Req>>(
+      factory: (patch: BrandedCapabilityPatchFn<Req>) => M
+    ): BrandedCapability<Req, M> {
+      return defineBrandedCapability(factory);
+    },
+  };
 }

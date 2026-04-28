@@ -81,14 +81,12 @@ describe("branded.proof", () => {
     });
 
     const UserBaseShape = branded.shape("User", UserBaseSchema);
-    const UserBaseKit = branded.capabilities(UserBaseShape, () => ({}));
 
-    const UserExtendedCore = UserBaseKit.extend("UserExtended", (baseSchema) => ({
+    const UserExtendedShape = UserBaseShape.extend("UserExtended", (baseSchema) => ({
       schema: baseSchema.extend({
         department: z.string(),
       }),
     }));
-    const UserExtendedKit = branded.capabilities(UserExtendedCore, () => ({}));
 
     const VerifiedUserFact = branded
       .proof("VerifiedUserFact", UserBaseSchema)
@@ -97,11 +95,11 @@ describe("branded.proof", () => {
     type ProofRow = z.output<typeof UserBaseSchema> & { isVerified: true };
     type ProofMarked = Branded<typeof VerifiedUserFact.brand, ProofRow>;
     type ProvenUser = BrandedType<typeof VerifiedUserFact>;
-    type BaseEntity = BrandedType<typeof UserBaseKit>;
-    type ExtendedEntity = BrandedType<typeof UserExtendedKit>;
+    type BaseEntity = BrandedType<typeof UserBaseShape>;
+    type ExtendedEntity = BrandedType<typeof UserExtendedShape>;
 
-    const base = UserBaseKit.create({ id: "u-1", isVerified: true });
-    const extended = UserExtendedKit.create({
+    const base = UserBaseShape.create({ id: "u-1", isVerified: true });
+    const extended = UserExtendedShape.create({
       id: "u-2",
       isVerified: true,
       department: "Platform",
@@ -117,7 +115,7 @@ describe("branded.proof", () => {
     expect(provenExtended.department).toBe("Platform");
 
     expect(() =>
-      VerifiedUserFact.parse(UserBaseKit.create({ id: "u-x", isVerified: false }))
+      VerifiedUserFact.parse(UserBaseShape.create({ id: "u-x", isVerified: false }))
     ).toThrow(BrandedValidationError);
 
     expectTypeOf(provenBase).toExtend<BaseEntity>();
