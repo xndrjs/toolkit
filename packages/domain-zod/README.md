@@ -2,6 +2,8 @@
 
 Zod **4.x** adapter for [@xndrjs/domain](../domain). Use **`domainZod.fromZod(schema)`** for a `Validator<input, output>`, or **`domainZod.primitive` / `domainZod.shape`** for kits that carry `zodSchema` (e.g. with **`domainZod.field(kit)`** on parent objects).
 
+Prefer this package over the deprecated [`@xndrjs/branded`](../branded) for Zod-first domain modeling. **Further validation adapters** for `@xndrjs/domain` are **on the roadmap** (several likely in the near term).
+
 This package **re-exports `@xndrjs/domain`** (`domainCore` + types), so you can import from one place when you use Zod.
 
 ## Install

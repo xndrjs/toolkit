@@ -6,6 +6,8 @@ import * as Presets from "./presets";
 
 /**
  * Namespaced kit API.
+ *
+ * @deprecated Use `@xndrjs/domain` and `@xndrjs/domain-zod` instead. `@xndrjs/branded` is deprecated.
  */
 export const branded = {
   primitive: defineBrandedPrimitive,

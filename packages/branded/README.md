@@ -1,6 +1,10 @@
 # @xndrjs/branded
 
+> **Deprecated.** This package is frozen; new work should use **[`@xndrjs/domain`](../domain)** (validator-agnostic core) and **[`@xndrjs/domain-zod`](../domain-zod)** (Zod 4 adapter + re-exports). Additional validation adapters are **on the roadmap** (some are expected very soon).
+
 Zod-first domain modeling with a tiny surface: define schema once, get validated values, nominal safety, immutable entities, and explicit proof steps.
+
+The remainder of this document describes the legacy API for existing references.
 
 ## Philosophy
 

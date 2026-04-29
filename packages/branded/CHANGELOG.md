@@ -38,6 +38,10 @@
 
 ## Unreleased
 
+### Deprecated
+
+- **`@xndrjs/branded` is deprecated.** Use **`@xndrjs/domain`** and **`@xndrjs/domain-zod`** instead. Additional adapters for the domain core are planned (some expected very soon). The package remains in the repo for reference; new features target the domain stack.
+
 ### Breaking Changes
 
 - **Shape `methods` are kit capabilities, not instance methods**: define **`(user, ...args) => …`** with the entity as the **first** argument; call **`UserKit.markVerified(user)`** instead of **`user.markVerified()`**. **`project`** is **`UserKit.project(entity, TargetKit)`**. Reserved method names: `create`, `is`, `extend`, `schema`, `type`, `project`. **`patch(entity, …)`** accepts any **`ShapeRow<schema>`** (structural row + shape marker), not only the nominal entity type.
