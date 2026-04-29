@@ -53,6 +53,22 @@ import { z } from "zod";
 const Verified = proof("Verified", fromZod(z.object({ ok: z.literal(true) })));
 ```
 
+### Capabilities
+
+```ts
+import { capabilities, fromZod, shape } from "@xndrjs/domain-zod";
+import { z } from "zod";
+
+const UserShape = shape("User", fromZod(z.object({ id: z.string(), isVerified: z.boolean() })));
+const User = capabilities<{ isVerified: boolean }>()
+  .methods((patch) => ({
+    verify(u) {
+      return patch(u, { isVerified: true });
+    },
+  }))
+  .attach(UserShape);
+```
+
 ## Validation errors
 
 Zod failures become `DomainValidationError` with `failure.engine === "zod"`, `failure.issues` normalized for the domain core, and `failure.raw` holding the original `ZodError` when useful for tooling.

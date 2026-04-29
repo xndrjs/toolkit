@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { DomainValidationError, fromZod, primitive, proof, shape } from "./index";
+import { capabilities, DomainValidationError, fromZod, primitive, proof, shape } from "./index";
 
 describe("@xndrjs/domain-zod integration", () => {
   it("primitive + fromZod", () => {
@@ -71,6 +71,33 @@ describe("@xndrjs/domain-zod integration", () => {
     const row = Verified.assert({ isVerified: true });
     expect(row.isVerified).toBe(true);
     expect(() => Verified.assert({ isVerified: false })).toThrow(DomainValidationError);
+  });
+
+  it("capabilities + fromZod: kit methods and patch re-validation", () => {
+    const UserShape = shape(
+      "User",
+      fromZod(
+        z.object({
+          type: z.literal("User").default("User"),
+          email: z.string().min(1),
+          isVerified: z.boolean(),
+        })
+      )
+    );
+
+    const User = capabilities<{ email: string; isVerified: boolean }>()
+      .methods((patch) => ({
+        markVerified(user) {
+          return patch(user, { isVerified: true });
+        },
+      }))
+      .attach(UserShape);
+
+    const user = User.create({ email: "a@b.co", isVerified: false });
+    const next = User.markVerified(user);
+    expect(next.isVerified).toBe(true);
+    expect(User.is(next)).toBe(true);
+    expect(Object.keys(next as object)).not.toContain("markVerified");
   });
 
   it("shape create surfaces DomainValidationError with zod failure in error.raw", () => {

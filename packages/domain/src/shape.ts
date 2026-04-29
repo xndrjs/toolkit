@@ -29,7 +29,8 @@ function clonePropsForPatch<Props extends Record<string, unknown>>(row: Props): 
   return structuredClone(row);
 }
 
-function attachPatchImpl(kit: object, patch: unknown): void {
+/** @internal — also used when merging capability methods onto a shape kit. */
+export function attachPatchImpl(kit: object, patch: unknown): void {
   Object.defineProperty(kit, __patchImpl, {
     value: patch,
     enumerable: false,
@@ -39,13 +40,14 @@ function attachPatchImpl(kit: object, patch: unknown): void {
 }
 
 /**
- * Read internal patch from a shape kit (for `capabilities.attach` only).
+ * Read internal patch from a shape kit (schema-only or with capability methods).
+ * `Methods` is not constrained to `Record<string, Fn>` so kits with concrete method keys type-check.
  */
 export function getShapePatchImpl<
   Type extends string,
   Input extends object,
   Props extends object,
-  Methods extends Record<string, (instance: Readonly<Props>, ...args: unknown[]) => unknown>,
+  Methods extends object = object,
 >(kit: ShapeKit<Type, Input, Props, Methods>): ShapePatchImpl<Type, Props, Input> {
   const patch = Reflect.get(kit as object, __patchImpl);
   if (typeof patch !== "function") {
@@ -74,7 +76,7 @@ export type ShapeKit<
   Type extends string,
   Input extends object,
   Props extends object,
-  Methods extends Record<string, (instance: Readonly<Props>, ...args: unknown[]) => unknown>,
+  Methods extends object = Record<never, never>,
 > = ShapeKitCore<Type, Input, Props> & Methods;
 
 /**

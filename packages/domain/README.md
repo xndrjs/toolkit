@@ -1,8 +1,8 @@
 # @xndrjs/domain
 
-Validator-agnostic semantic modeling: **shapes** (trusted boundaries), **primitives**, **proofs** (semantic guarantees), and **capabilities** (externalized behavior).
+Validator-agnostic semantic modeling: **shapes** (trusted boundaries), **primitives**, **proofs** (semantic guarantees), and **capabilities** (behavior on the kit, not on instances).
 
-This package is under active development. Runtime implementations for `shape`, `primitive`, `proof`, and `capabilities` will land in upcoming milestones; types and `pipe` are available now.
+Use a pluggable `Validator` (e.g. via [@xndrjs/domain-zod](../domain-zod) `fromZod`) at boundaries.
 
 ## License
 

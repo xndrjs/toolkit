@@ -1,5 +1,5 @@
 import type { PatchDelta } from "./branded";
-import type { ShapeKit } from "./shape";
+import { attachPatchImpl, getShapePatchImpl, type ShapeKit, type ShapeProps } from "./shape";
 
 export type CapabilityPatchFn<Req extends object> = <T extends Req>(
   instance: T,
@@ -12,6 +12,27 @@ export type CapabilityMethods<Req extends object> = Record<
   <T extends Req>(instance: T, ...args: any[]) => any
 >;
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+const RESERVED_KIT_KEYS = new Set(["create", "is", "safeCreate", "type", "validator", "project"]);
+
+function validateCapabilityMethodKeys<Type extends string, Props extends object>(
+  type: Type,
+  methods: Record<string, (instance: Readonly<Props>, ...args: unknown[]) => unknown>,
+  label: string
+): void {
+  for (const key of Object.keys(methods) as string[]) {
+    if (RESERVED_KIT_KEYS.has(key)) {
+      throw new TypeError(
+        `Invalid method "${key}" for shape "${type}" ${label}: name is reserved for the shape kit`
+      );
+    }
+    if (typeof methods[key as keyof typeof methods] !== "function") {
+      throw new TypeError(
+        `Invalid method "${key}" for shape "${type}" ${label}: expected a function`
+      );
+    }
+  }
+}
 
 export interface CapabilityBundle<Req extends object, M extends CapabilityMethods<Req>> {
   attach<
@@ -35,9 +56,60 @@ export interface CapabilitiesBuilder<Req extends object> {
   ): CapabilityBundle<Req, M>;
 }
 
+function defineCapability<Req extends object, const M extends CapabilityMethods<Req>>(
+  factory: (patch: CapabilityPatchFn<Req>) => M
+): CapabilityBundle<Req, M> {
+  return {
+    attach<
+      Type extends string,
+      Input extends object,
+      Props extends object,
+      /* eslint-disable @typescript-eslint/no-explicit-any -- matches ShapeKit method bag */
+      BaseMethods extends Record<string, (instance: Readonly<Props>, ...args: any[]) => any> =
+        Record<never, never>,
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+    >(
+      shapeKit: Props extends Req ? ShapeKit<Type, Input, Props, BaseMethods> : never
+    ): ShapeKit<Type, Input, Props, BaseMethods & M> {
+      const shapePatch = getShapePatchImpl(shapeKit as ShapeKit<Type, Input, Props, BaseMethods>);
+      const capabilityPatch: CapabilityPatchFn<Req> = <T extends Req>(
+        instance: T,
+        delta: PatchDelta<Req>
+      ): T =>
+        shapePatch(instance as ShapeProps<Type, Props>, delta as unknown as PatchDelta<Input>) as T;
+
+      const methods = factory(capabilityPatch);
+      validateCapabilityMethodKeys(
+        shapeKit.type,
+        methods as Record<string, (instance: Readonly<Props>, ...args: unknown[]) => unknown>,
+        "during capability attach"
+      );
+
+      const boundMethods = {} as M;
+      for (const key of Object.keys(methods) as (keyof M)[]) {
+        const method = methods[key] as (instance: Readonly<Props>, ...args: unknown[]) => unknown;
+        (boundMethods as Record<string, typeof method>)[key as string] = (
+          instance: Readonly<Props>,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors capability method bag
+          ...args: any[]
+        ) => Reflect.apply(method, null, [instance, ...args]);
+      }
+
+      const kit = { ...shapeKit, ...boundMethods } as ShapeKit<Type, Input, Props, BaseMethods & M>;
+      attachPatchImpl(kit, shapePatch);
+      return kit;
+    },
+  };
+}
+
 /**
- * Builds reusable capability bundles. Runtime implementation follows in the next milestone.
+ * Reusable capability bundle: **`capabilities<Req>().methods((patch) => ({ … })).attach(shape)`**.
+ * Methods live on the kit; instances stay data-only. **`patch`** is validated by the shape’s input schema.
  */
 export function capabilities<Req extends object>(): CapabilitiesBuilder<Req> {
-  throw new Error("@xndrjs/domain: `capabilities` is not implemented yet");
+  return {
+    methods<const M extends CapabilityMethods<Req>>(factory: (patch: CapabilityPatchFn<Req>) => M) {
+      return defineCapability(factory);
+    },
+  };
 }

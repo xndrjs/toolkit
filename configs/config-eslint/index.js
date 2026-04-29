@@ -43,7 +43,6 @@ const config = defineConfig(
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      
     },
   },
   // Disable any formatting rules that could conflict with Prettier
