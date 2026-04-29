@@ -21,16 +21,15 @@ function itemValidator(): Validator<{ id: string; count?: number }, { id: string
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const o = input as Record<string, unknown>;
-      if (typeof o.id !== "string" || o.id.length === 0) {
+      const { id, count } = input;
+      if (typeof id !== "string" || id.length === 0) {
         return fail("Invalid id");
       }
-      const count = o.count;
       const n = count === undefined ? 0 : count;
       if (typeof n !== "number" || !Number.isInteger(n) || n < 0) {
         return fail("Invalid count");
       }
-      return { success: true, data: { id: o.id, count: n } };
+      return { success: true, data: { id: id, count: n } };
     },
   };
 }
@@ -50,14 +49,14 @@ function strictBoxValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const o = input as Record<string, unknown>;
-      if (typeof o.id !== "string" || o.id.length === 0) {
+      const { id, count } = input as Record<string, unknown>;
+      if (typeof id !== "string" || id.length === 0) {
         return fail("Invalid id");
       }
-      if (typeof o.count !== "number" || !Number.isInteger(o.count) || o.count < 1) {
+      if (typeof count !== "number" || !Number.isInteger(count) || count < 1) {
         return fail("count must be >= 1");
       }
-      return { success: true, data: { id: o.id, count: o.count } };
+      return { success: true, data: { id, count } };
     },
   };
 }
