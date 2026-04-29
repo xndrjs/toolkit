@@ -26,7 +26,8 @@ function zodErrorToFailure(zodError: z.ZodError): ValidationFailure {
 }
 
 /**
- * Wraps a Zod schema as a {@link Validator} for `@xndrjs/domain`.
+ * Wraps a Zod **4.x** schema as a `Validator<Input, Output>` for `@xndrjs/domain`.
+ * Failures map to `ValidationFailure` with `engine: "zod"` and per-issue `meta` set to the raw Zod issue.
  */
 export function fromZod<Schema extends z.ZodTypeAny>(
   schema: Schema

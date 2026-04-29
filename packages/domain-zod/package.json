@@ -1,7 +1,7 @@
 {
   "name": "@xndrjs/domain-zod",
   "version": "0.1.0",
-  "description": "Zod adapter for @xndrjs/domain (fromZod validator).",
+  "description": "Zod 4 adapter for @xndrjs/domain: fromZod() + re-export of the full domain API.",
   "private": false,
   "license": "MIT",
   "repository": {
