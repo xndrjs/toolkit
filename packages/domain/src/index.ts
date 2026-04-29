@@ -1,5 +1,5 @@
 export { primitive, type PrimitiveKit } from "./primitive";
-export { proof, type ProofKit, type ProofValue } from "./proof";
+export { proof, type ProofFactory, type ProofKit, type ProofValue } from "./proof";
 export {
   getShapePatchImpl,
   shape,
