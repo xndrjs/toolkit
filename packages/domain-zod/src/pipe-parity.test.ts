@@ -82,11 +82,9 @@ describe("stacked proofs (branded pipe.branded.test)", () => {
     .proof("ProTier", domainZod.fromZod(ItemSchema))
     .refineType<{ tier: "pro" }>((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
 
-  const Active = domainCore
-    .proof("Active", domainZod.fromZod(ItemSchema))
-    .refineType<{
-      active: true;
-    }>((row): row is typeof row & { active: true } => row.active === true);
+  const Active = domainCore.proof("Active", domainZod.fromZod(ItemSchema)).refineType<{
+    active: true;
+  }>((row): row is typeof row & { active: true } => row.active === true);
 
   it("applies each proof in order; value satisfies all narrowed checks", () => {
     const item = ItemShape.create({

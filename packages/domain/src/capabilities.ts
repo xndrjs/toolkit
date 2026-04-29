@@ -35,19 +35,13 @@ function validateCapabilityMethodKeys<Type extends string, Props extends object>
 }
 
 export interface CapabilityBundle<Req extends object, M extends CapabilityMethods<Req>> {
-  attach<
-    Type extends string,
-    Input extends object,
-    Props extends object,
-    /* eslint-disable @typescript-eslint/no-explicit-any -- method bag inference matches shape kit */
-    BaseMethods extends Record<string, (instance: Readonly<Props>, ...args: any[]) => any> = Record<
-      never,
-      never
-    >,
-    /* eslint-enable @typescript-eslint/no-explicit-any */
-  >(
-    shapeKit: Props extends Req ? ShapeKit<Type, Input, Props, BaseMethods> : never
-  ): ShapeKit<Type, Input, Props, BaseMethods & M>;
+  /**
+   * Attach only to a **schema-only** shape kit (`Record<never, never>` methods). Inference must not widen
+   * this to `Record<string, Fn>` or plain `ShapeKit` stops being assignable (and `ZodShapeKit` fails attach).
+   */
+  attach<Type extends string, Input extends object, Props extends object>(
+    shapeKit: Props extends Req ? ShapeKit<Type, Input, Props, Record<never, never>> : never
+  ): ShapeKit<Type, Input, Props, M>;
 }
 
 export interface CapabilitiesBuilder<Req extends object> {
@@ -60,18 +54,12 @@ function defineCapability<Req extends object, const M extends CapabilityMethods<
   factory: (patch: CapabilityPatchFn<Req>) => M
 ): CapabilityBundle<Req, M> {
   return {
-    attach<
-      Type extends string,
-      Input extends object,
-      Props extends object,
-      /* eslint-disable @typescript-eslint/no-explicit-any -- matches ShapeKit method bag */
-      BaseMethods extends Record<string, (instance: Readonly<Props>, ...args: any[]) => any> =
-        Record<never, never>,
-      /* eslint-enable @typescript-eslint/no-explicit-any */
-    >(
-      shapeKit: Props extends Req ? ShapeKit<Type, Input, Props, BaseMethods> : never
-    ): ShapeKit<Type, Input, Props, BaseMethods & M> {
-      const shapePatch = getShapePatchImpl(shapeKit as ShapeKit<Type, Input, Props, BaseMethods>);
+    attach<Type extends string, Input extends object, Props extends object>(
+      shapeKit: Props extends Req ? ShapeKit<Type, Input, Props, Record<never, never>> : never
+    ): ShapeKit<Type, Input, Props, M> {
+      const shapePatch = getShapePatchImpl(
+        shapeKit as ShapeKit<Type, Input, Props, Record<never, never>>
+      );
       const capabilityPatch: CapabilityPatchFn<Req> = <T extends Req>(
         instance: T,
         delta: PatchDelta<Req>
@@ -95,7 +83,7 @@ function defineCapability<Req extends object, const M extends CapabilityMethods<
         ) => Reflect.apply(method, null, [instance, ...args]);
       }
 
-      const kit = { ...shapeKit, ...boundMethods } as ShapeKit<Type, Input, Props, BaseMethods & M>;
+      const kit = { ...shapeKit, ...boundMethods } as ShapeKit<Type, Input, Props, M>;
       attachPatchImpl(kit, shapePatch);
       return kit;
     },

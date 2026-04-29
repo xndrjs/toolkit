@@ -49,7 +49,7 @@ function strictBoxValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { id, count } = input as Record<string, unknown>;
+      const { id, count } = input;
       if (typeof id !== "string" || id.length === 0) {
         return fail("Invalid id");
       }
@@ -160,7 +160,7 @@ describe("shape", () => {
 
   it("entity spread stays data-only (no kit keys)", () => {
     const x = Item.create({ id: "json", count: 0 });
-    const spread = { ...x } as Record<string, unknown>;
+    const spread = { ...x };
     expect("create" in spread).toBe(false);
     expect("validator" in spread).toBe(false);
     expect(JSON.stringify(x)).toContain("json");

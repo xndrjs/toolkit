@@ -79,7 +79,7 @@ describe("branded-kit example domain", () => {
     expect(User.isCorporate(user)).toBe(true);
     expect(Object.keys(user)).not.toContain("isCorporate");
 
-    const spread = { ...user } as Record<string, unknown>;
+    const spread = { ...user };
     expect("isCorporate" in spread).toBe(false);
 
     const serialized = JSON.stringify(user);

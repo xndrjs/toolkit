@@ -26,15 +26,15 @@ function profileValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const o = input as Record<string, unknown>;
-      if (typeof o.displayName !== "string" || o.displayName.length === 0) {
+      const { displayName, type: typeIn } = input;
+      if (typeof displayName !== "string" || displayName.length === 0) {
         return fail("Invalid displayName");
       }
-      const type = typeof o.type === "string" ? o.type : "Profile";
+      const type = typeof typeIn === "string" ? typeIn : "Profile";
       if (type !== "Profile") {
         return fail("Invalid type");
       }
-      return { success: true, data: { type: "Profile", displayName: o.displayName } };
+      return { success: true, data: { type: "Profile", displayName } };
     },
   };
 }
@@ -49,15 +49,67 @@ function widgetValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const o = input as Record<string, unknown>;
-      if (typeof o.name !== "string") {
+      const { name, type: typeIn } = input;
+      if (typeof name !== "string") {
         return fail("Invalid name");
       }
-      const type = typeof o.type === "string" ? o.type : "Widget";
+      const type = typeof typeIn === "string" ? typeIn : "Widget";
       if (type !== "Widget") {
         return fail("Invalid type");
       }
-      return { success: true, data: { type: "Widget", name: o.name } };
+      return { success: true, data: { type: "Widget", name } };
+    },
+  };
+}
+
+function anonymousValidator(): Validator<
+  { nickname: string; type?: string },
+  { type: string; nickname: string }
+> {
+  return {
+    engine: "test",
+    validate(input) {
+      if (typeof input !== "object" || input === null) {
+        return fail("Expected object");
+      }
+      const { nickname, type: typeIn } = input;
+      if (typeof nickname !== "string") {
+        return fail("Invalid nickname");
+      }
+      const type = typeof typeIn === "string" ? typeIn : "Anonymous";
+      if (type !== "Anonymous") {
+        return fail("Invalid type");
+      }
+      return { success: true, data: { type: "Anonymous", nickname } };
+    },
+  };
+}
+
+function profileDetailValidator(): Validator<
+  { displayName: string; avatarSrc: string; type?: string },
+  { type: string; displayName: string; avatarSrc: string }
+> {
+  return {
+    engine: "test",
+    validate(input) {
+      if (typeof input !== "object" || input === null) {
+        return fail("Expected object");
+      }
+      const { displayName, avatarSrc, type: typeIn } = input;
+      if (typeof displayName !== "string" || displayName.length === 0) {
+        return fail("Invalid displayName");
+      }
+      if (typeof avatarSrc !== "string" || avatarSrc.length === 0) {
+        return fail("Invalid avatarSrc");
+      }
+      const type = typeof typeIn === "string" ? typeIn : "ProfileDetail";
+      if (type !== "ProfileDetail") {
+        return fail("Invalid type");
+      }
+      return {
+        success: true,
+        data: { type: "ProfileDetail", displayName, avatarSrc },
+      };
     },
   };
 }
@@ -142,5 +194,51 @@ describe("capabilities", () => {
     const KitB = Rename.attach(ProfileShape);
     const p = KitA.create({ displayName: "A" });
     expect(KitB.rename(p, "B").displayName).toBe("B");
+  });
+
+  it("reusable capability can attach to base and detail shapes", () => {
+    const RenameCapability = capabilities<{ displayName: string }>().methods((patch) => ({
+      rename(entity, displayName: string) {
+        return patch(entity, { displayName });
+      },
+    }));
+
+    const BaseProfileShape = shape("Profile", profileValidator());
+    const DetailProfileShape = shape("ProfileDetail", profileDetailValidator());
+
+    const UserRenamingKit = RenameCapability.attach(BaseProfileShape);
+    const UserDetailRenamingKit = RenameCapability.attach(DetailProfileShape);
+
+    const user = UserRenamingKit.create({
+      displayName: "Initial User Name",
+    });
+    const detail = UserDetailRenamingKit.create({
+      displayName: "Initial Detail Name",
+      avatarSrc: "https://cdn.local/avatar.png",
+    });
+
+    const renamedUser = UserRenamingKit.rename(user, "User Name");
+    const renamedDetail = UserDetailRenamingKit.rename(detail, "Detail Name");
+
+    expect(renamedUser.displayName).toBe("User Name");
+    expect(UserRenamingKit.is(renamedUser)).toBe(true);
+
+    expect(renamedDetail.displayName).toBe("Detail Name");
+    expect(renamedDetail.avatarSrc).toBe("https://cdn.local/avatar.png");
+    expect(UserDetailRenamingKit.is(renamedDetail)).toBe(true);
+  });
+
+  it("attach enforces structural compatibility at type level", () => {
+    const RenameCapability = capabilities<{ displayName: string }>().methods((patch) => ({
+      rename<T extends { displayName: string }>(entity: T, displayName: string) {
+        return patch(entity, { displayName });
+      },
+    }));
+
+    const AnonymousShape = shape("Anonymous", anonymousValidator());
+
+    // @ts-expect-error -- instance row lacks `displayName`
+    const _invalidAttach = RenameCapability.attach(AnonymousShape);
+    expect(_invalidAttach).toBeDefined();
   });
 });

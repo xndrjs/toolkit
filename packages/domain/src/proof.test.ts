@@ -26,14 +26,14 @@ function nonNegativeRowValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const o = input as Record<string, unknown>;
-      if (typeof o.id !== "string") {
+      const { id, count } = input;
+      if (typeof id !== "string") {
         return fail("Invalid id");
       }
-      if (typeof o.count !== "number" || !Number.isInteger(o.count) || o.count < 0) {
+      if (typeof count !== "number" || !Number.isInteger(count) || count < 0) {
         return fail("count must be non-negative int");
       }
-      return { success: true, data: { id: o.id, count: o.count } };
+      return { success: true, data: { id, count } };
     },
   };
 }
@@ -45,11 +45,11 @@ function verifiedSliceValidator(): Validator<{ isVerified: boolean }, { isVerifi
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const o = input as Record<string, unknown>;
-      if (typeof o.isVerified !== "boolean") {
+      const { isVerified } = input;
+      if (typeof isVerified !== "boolean") {
         return fail("Invalid isVerified");
       }
-      return { success: true, data: { isVerified: o.isVerified } };
+      return { success: true, data: { isVerified } };
     },
   };
 }
@@ -76,18 +76,18 @@ function itemShapeValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const o = input as Record<string, unknown>;
-      if (typeof o.id !== "string" || typeof o.count !== "number") {
+      const { id, count, type: typeIn } = input;
+      if (typeof id !== "string" || typeof count !== "number") {
         return fail("Invalid row");
       }
-      if (!Number.isInteger(o.count) || o.count < 0) {
+      if (!Number.isInteger(count) || count < 0) {
         return fail("Invalid count");
       }
-      const type = typeof o.type === "string" ? o.type : "Item";
+      const type = typeof typeIn === "string" ? typeIn : "Item";
       if (type !== "Item") {
         return fail("Invalid type");
       }
-      return { success: true, data: { type: "Item", id: o.id, count: o.count } };
+      return { success: true, data: { type: "Item", id, count } };
     },
   };
 }
@@ -102,15 +102,15 @@ function userBaseShapeValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const o = input as Record<string, unknown>;
-      if (typeof o.id !== "string" || typeof o.isVerified !== "boolean") {
+      const { id, isVerified, type: typeIn } = input;
+      if (typeof id !== "string" || typeof isVerified !== "boolean") {
         return fail("Invalid user");
       }
-      const type = typeof o.type === "string" ? o.type : "User";
+      const type = typeof typeIn === "string" ? typeIn : "User";
       if (type !== "User") {
         return fail("Invalid type");
       }
-      return { success: true, data: { type: "User", id: o.id, isVerified: o.isVerified } };
+      return { success: true, data: { type: "User", id, isVerified } };
     },
   };
 }
@@ -125,15 +125,15 @@ function userExtendedShapeValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const o = input as Record<string, unknown>;
+      const { id, isVerified, department, type: typeIn } = input;
       if (
-        typeof o.id !== "string" ||
-        typeof o.isVerified !== "boolean" ||
-        typeof o.department !== "string"
+        typeof id !== "string" ||
+        typeof isVerified !== "boolean" ||
+        typeof department !== "string"
       ) {
         return fail("Invalid user extended");
       }
-      const type = typeof o.type === "string" ? o.type : "User";
+      const type = typeof typeIn === "string" ? typeIn : "User";
       if (type !== "User") {
         return fail("Invalid type");
       }
@@ -141,9 +141,9 @@ function userExtendedShapeValidator(): Validator<
         success: true,
         data: {
           type: "User",
-          id: o.id,
-          isVerified: o.isVerified,
-          department: o.department,
+          id,
+          isVerified,
+          department,
         },
       };
     },
