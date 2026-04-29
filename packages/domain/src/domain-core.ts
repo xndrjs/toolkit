@@ -4,7 +4,7 @@ import { proof } from "./proof";
 import { shape } from "./shape";
 
 /**
- * Primary runtime entry points. Other helpers (`pipe`, `DomainValidationError`, `getShapePatchImpl`, internal symbols) are root exports.
+ * Primary runtime entry points. `pipe` and `DomainValidationError` are also root exports.
  */
 export const domainCore = {
   capabilities,

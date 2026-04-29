@@ -14,7 +14,7 @@ pnpm add @xndrjs/domain-zod zod@^4
 
 ## Usage
 
-Import **`domainZod`**, **`domainCore`**, and (when needed) **`DomainValidationError`** / **`pipe`** from this package; import `z` from `"zod"`. Core factories live on **`domainCore`**; `pipe`, errors, and patch helpers come from the root re-export of `@xndrjs/domain`.
+Import **`domainZod`**, **`domainCore`**, and (when needed) **`DomainValidationError`** / **`pipe`** from this package; import `z` from `"zod"`. Core factories live on **`domainCore`**; `pipe` and `DomainValidationError` come from the root re-export of `@xndrjs/domain`.
 
 ### Primitive (Zod-backed kit)
 

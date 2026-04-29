@@ -2,16 +2,14 @@ export { domainCore } from "./domain-core";
 
 export { DomainValidationError } from "./errors";
 export { pipe, type Unary } from "./pipe";
-export {
-  getShapePatchImpl,
-  type ShapeInstance,
-  type ShapeKit,
-  type ShapeKitCore,
-  type ShapeMarked,
-  type ShapePatchImpl,
-  type ShapeProps,
+export type {
+  ShapeInstance,
+  ShapeKit,
+  ShapeKitCore,
+  ShapeMarked,
+  ShapePatchImpl,
+  ShapeProps,
 } from "./shape";
-export { __brand, __patchImpl, __shapeMarker } from "./private-constants";
 
 export type { PrimitiveKit } from "./primitive";
 export type { ProofFactory, ProofKit, ProofValue } from "./proof";
