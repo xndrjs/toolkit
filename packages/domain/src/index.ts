@@ -1,11 +1,14 @@
 export { primitive, type PrimitiveKit } from "./primitive";
 export { proof, type ProofKit, type ProofValue } from "./proof";
 export {
+  getShapePatchImpl,
   shape,
   type ShapeInstance,
   type ShapeKit,
   type ShapeKitCore,
+  type ShapeMarked,
   type ShapePatchImpl,
+  type ShapeProps,
 } from "./shape";
 export {
   capabilities,
@@ -22,4 +25,4 @@ export type { ValidationFailure, ValidationIssue, ValidationResult, Validator } 
 
 export { DomainValidationError } from "./errors";
 
-export { __brand } from "./private-constants";
+export { __brand, __patchImpl, __shapeMarker } from "./private-constants";
