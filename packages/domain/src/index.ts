@@ -20,4 +20,6 @@ export { pipe, type Unary } from "./pipe";
 export type { Brand, BrandMap, Branded, BrandOf, Mutable, PatchDelta } from "./branded";
 export type { ValidationFailure, ValidationIssue, ValidationResult, Validator } from "./validation";
 
+export { DomainValidationError } from "./errors";
+
 export { __brand } from "./private-constants";
