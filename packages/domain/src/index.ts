@@ -1,8 +1,9 @@
-export { primitive, type PrimitiveKit } from "./primitive";
-export { proof, type ProofFactory, type ProofKit, type ProofValue } from "./proof";
+export { domainCore } from "./domain-core";
+
+export { DomainValidationError } from "./errors";
+export { pipe, type Unary } from "./pipe";
 export {
   getShapePatchImpl,
-  shape,
   type ShapeInstance,
   type ShapeKit,
   type ShapeKitCore,
@@ -10,19 +11,16 @@ export {
   type ShapePatchImpl,
   type ShapeProps,
 } from "./shape";
-export {
-  capabilities,
-  type CapabilitiesBuilder,
-  type CapabilityBundle,
-  type CapabilityMethods,
-  type CapabilityPatchFn,
-} from "./capabilities";
+export { __brand, __patchImpl, __shapeMarker } from "./private-constants";
 
-export { pipe, type Unary } from "./pipe";
+export type { PrimitiveKit } from "./primitive";
+export type { ProofFactory, ProofKit, ProofValue } from "./proof";
+export type {
+  CapabilitiesBuilder,
+  CapabilityBundle,
+  CapabilityMethods,
+  CapabilityPatchFn,
+} from "./capabilities";
 
 export type { Brand, BrandMap, Branded, BrandOf, Mutable, PatchDelta } from "./branded";
 export type { ValidationFailure, ValidationIssue, ValidationResult, Validator } from "./validation";
-
-export { DomainValidationError } from "./errors";
-
-export { __brand, __patchImpl, __shapeMarker } from "./private-constants";
