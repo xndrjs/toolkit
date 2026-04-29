@@ -1,0 +1,39 @@
+{
+  "name": "@xndrjs/domain",
+  "version": "0.1.0",
+  "description": "Validator-agnostic semantic runtime modeling: shapes, primitives, proofs, capabilities.",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/domain"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
+    "prepublishOnly": "pnpm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "vitest": "^4.1.0"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "@xndrjs/domain-zod",
+  "version": "0.1.0",
+  "description": "Zod adapter for @xndrjs/domain (fromZod validator).",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/domain-zod"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
+    "prepublishOnly": "pnpm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "dependencies": {
+    "@xndrjs/domain": "workspace:^"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "vitest": "^4.1.0",
+    "zod": "^4.3.6"
+  }
+}

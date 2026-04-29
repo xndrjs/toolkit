@@ -110,6 +110,31 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0(@types/node@25.5.0)(jsdom@26.1.0)(vite@8.0.1(@types/node@25.5.0)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3))
 
+  packages/domain:
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@25.5.0)(jsdom@26.1.0)(vite@8.0.1(@types/node@25.5.0)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/domain-zod:
+    dependencies:
+      '@xndrjs/domain':
+        specifier: workspace:^
+        version: link:../domain
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@25.5.0)(jsdom@26.1.0)(vite@8.0.1(@types/node@25.5.0)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3))
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+
   packages/orchestration:
     devDependencies:
       tsup:
