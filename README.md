@@ -9,6 +9,28 @@ A collection of npm-publishable packages using a **pnpm** workspace. Each librar
 - Node **25** (see `engines` in `package.json`)
 - [pnpm](https://pnpm.io) **9.15** (matches `packageManager`)
 
+## Domain stack quickstart
+
+Use these docs in order:
+
+1. **Core-only (`@xndrjs/domain`)**: define primitives, shapes, proofs, capabilities with your own `Validator`.
+2. **Zod adapter (`@xndrjs/domain-zod`)**: use `zodToValidator` and `zodFromKit` to keep `domain` as source of truth and compose nested kits in schemas.
+3. **Valibot adapter (`@xndrjs/domain-valibot`)**: use `valibotToValidator` and `valibotFromKit` with the same `domain` core model.
+
+Quick links:
+
+- Core docs and recipes: [`packages/domain/README.md`](packages/domain/README.md)
+- Zod docs and recipes: [`packages/domain-zod/README.md`](packages/domain-zod/README.md)
+- Valibot docs and recipes: [`packages/domain-valibot/README.md`](packages/domain-valibot/README.md)
+
+### Recommended cross-engine pattern
+
+Model kits once in `domain`, then choose an adapter per boundary:
+
+- keep semantic model and capabilities in shared `domain` modules;
+- adapt external payload validation with `zodToValidator` or `valibotToValidator`;
+- compose nested domain kits in adapter schemas using `zodFromKit` / `valibotFromKit`.
+
 ## Useful commands
 
 | Command               | Description                                                      |

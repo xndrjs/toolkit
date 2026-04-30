@@ -18,6 +18,8 @@ pnpm add @xndrjs/domain-zod zod@^4
 
 Import **`domain`**, **`zodToValidator`**, and **`zodFromKit`** from this package; import `z` from `"zod"`. Modeling factories live on **`domain`**; `compose`, `pipe`, and `DomainValidationError` come from the root re-export of `@xndrjs/domain`.
 
+## Quickstart (step 2 in the stack)
+
 ### Primitive
 
 ```ts
@@ -77,6 +79,29 @@ import { z } from "zod";
 const Verified = domain.proof("Verified", zodToValidator(z.object({ ok: z.literal(true) })));
 ```
 
+### Proof + refineType + pipe
+
+```ts
+import { domain, pipe, zodToValidator } from "@xndrjs/domain-zod";
+import { z } from "zod";
+
+const ItemSchema = z.object({
+  id: z.string(),
+  tier: z.enum(["free", "pro"]),
+  count: z.number().int().nonnegative(),
+});
+
+const ProTier = domain
+  .proof("ProTier", zodToValidator(ItemSchema))
+  .refineType<{ tier: "pro" }>((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
+
+const Stocked = domain
+  .proof("Stocked", zodToValidator(ItemSchema))
+  .refineType<{ count: number }>((row): row is typeof row & { count: number } => row.count > 0);
+
+const out = pipe({ id: "i-1", tier: "pro", count: 4 }, Stocked.assert, ProTier.assert);
+```
+
 ### Capabilities
 
 ```ts
@@ -96,6 +121,31 @@ const User = domain
   }))
   .attach(UserShape);
 ```
+
+## Recipes
+
+### Nested sub-shape composition from kit
+
+- Define child kits once with `domain.shape(...)`.
+- Reference them in parent schemas via `zodFromKit(childKit)`.
+- Keep all shape semantics in `domain`, not inside ad-hoc schema fragments.
+
+### Capabilities + patch re-validation
+
+- Attach capability bundles with `domain.capabilities().methods(...).attach(shape)`.
+- Use the provided `patch` closure for every transition, so updates are always revalidated by the shape validator.
+
+### Cross-engine composition pattern
+
+- Keep core model modules adapter-agnostic.
+- Use `zodToValidator` only at IO boundaries that already use Zod.
+- If another boundary needs a different engine, keep the same kits and swap adapter package.
+
+## Pitfalls and design decisions
+
+- Avoid treating adapter schema APIs as domain extension APIs; extension belongs to adapter schema composition, not to core kit internals.
+- `is` checks are prototype/marker based; data after JSON roundtrip must be recreated with `create`.
+- Prefer explicit proof steps (`proof.assert`/`pipe`) over unchecked casts.
 
 ## Validation errors
 
