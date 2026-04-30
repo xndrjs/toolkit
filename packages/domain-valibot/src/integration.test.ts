@@ -4,7 +4,7 @@ import * as v from "valibot";
 import { domain, DomainValidationError, valibotToValidator } from "./index";
 
 describe("@xndrjs/domain-valibot integration", () => {
-  it("primitive + fromValibot", () => {
+  it("primitive + valibotToValidator", () => {
     const Email = domain.primitive(
       "Email",
       valibotToValidator(
@@ -19,7 +19,7 @@ describe("@xndrjs/domain-valibot integration", () => {
     expect(() => Email.create("not-email")).toThrow(DomainValidationError);
   });
 
-  it("shape + fromValibot: frozen instance and is()", () => {
+  it("shape + valibotToValidator: frozen instance and is()", () => {
     const Item = domain.shape(
       "Item",
       valibotToValidator(
@@ -37,7 +37,7 @@ describe("@xndrjs/domain-valibot integration", () => {
     expect(Item.is(item)).toBe(true);
   });
 
-  it("capabilities + fromValibot: kit methods and patch re-validation", () => {
+  it("capabilities + valibotToValidator: kit methods and patch re-validation", () => {
     const UserShape = domain.shape(
       "User",
       valibotToValidator(

@@ -5,7 +5,7 @@ import { domain, pipe, zodToValidator } from "./index";
 
 /**
  * Mirrors branded `Shape.extend` / `Kit.extend` using **Zod** `baseSchema.extend({ ... })`:
- * two domain shapes, same `fromZod` pattern, no library `.extend()` API.
+ * two domain shapes, same `zodToValidator` pattern, no library `.extend()` API.
  */
 describe("Zod schema.extend → base + detail shapes", () => {
   const ProfileSchema = z.object({

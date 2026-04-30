@@ -15,7 +15,7 @@ export const domain = {
 };
 
 /**
- * Validators composition namespace.
+ * Validator composition helpers namespace.
  */
 export const compose = {
   array: arrayOf,

@@ -1,7 +1,7 @@
 {
   "name": "@xndrjs/domain",
   "version": "0.1.0",
-  "description": "Validator-agnostic semantic runtime modeling: shapes, primitives, proofs, capabilities.",
+  "description": "Validator-agnostic, function-first runtime modeling with domain and compose APIs.",
   "private": false,
   "license": "MIT",
   "repository": {

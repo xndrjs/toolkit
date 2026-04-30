@@ -5,7 +5,7 @@ import { domain, DomainValidationError, zodFromKit, zodToValidator } from "./ind
 
 /**
  * Mirrors the “example domain” section of branded-shape.test.ts (nested User + Address + Email),
- * with `domainZod.field(kit)` reusing each kit’s `zodSchema` (no duplicated address/email Zod).
+ * with `zodFromKit(kit)` reusing each kit's `zodSchema` (no duplicated address/email Zod).
  */
 describe("aggregate domain parity (branded-kit example)", () => {
   const EmailPrimitive = domain.primitive("Email", zodToValidator(z.string().min(1)));

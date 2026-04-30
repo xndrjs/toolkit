@@ -3,8 +3,8 @@ import { z } from "zod";
 
 import { domain, zodFromKit, zodToValidator } from "./index";
 
-describe("domainZod.field", () => {
-  it("embeds primitive from core+fromZod: raw or pre-created input", () => {
+describe("zodFromKit", () => {
+  it("embeds primitive from core+zodToValidator: raw or pre-created input", () => {
     const Email = domain.primitive("Email", zodToValidator(z.email()));
     const Row = z.object({
       email: zodFromKit(Email),
@@ -19,7 +19,7 @@ describe("domainZod.field", () => {
     expect(Email.is(fromBranded.email)).toBe(true);
   });
 
-  it("embeds shape from core+fromZod: output passes child is()", () => {
+  it("embeds shape from core+zodToValidator: output passes child is()", () => {
     const InnerSchema = z.object({ type: z.literal("Inner").default("Inner"), n: z.number() });
     const Inner = domain.shape("Inner", zodToValidator(InnerSchema));
     const Row = z.object({
