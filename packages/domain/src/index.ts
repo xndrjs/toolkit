@@ -1,4 +1,4 @@
-export { domainCore } from "./domain-core";
+export { domainCore, compose } from "./domain-core";
 
 export { DomainValidationError } from "./errors";
 export { pipe, type Unary } from "./pipe";
