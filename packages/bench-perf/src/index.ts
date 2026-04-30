@@ -1,7 +1,7 @@
 import type { BenchmarkMode } from "./adapters";
 import { coreAdapter, rawAdapter, valibotAdapter, zodAdapter } from "./adapters";
 import { runCli, type RunnerDefinition } from "./runner";
-import { runnerSmokeScenario } from "./scenarios";
+import { migrationBatchScenario, runnerSmokeScenario } from "./scenarios";
 
 export type { BenchmarkMode } from "./adapters";
 export {
@@ -29,7 +29,7 @@ export {
   type SeededRng,
   type SummaryMetric,
 } from "./runner";
-export { runnerSmokeScenario } from "./scenarios";
+export { migrationBatchScenario, runnerSmokeScenario } from "./scenarios";
 
 export interface BenchEntrypointOptions {
   scenario: string;
@@ -43,7 +43,7 @@ export interface BenchEntrypointOptions {
 
 const runnerDefinition: RunnerDefinition = {
   adapters: [zodAdapter, valibotAdapter, coreAdapter, rawAdapter],
-  scenarios: [runnerSmokeScenario],
+  scenarios: [runnerSmokeScenario, migrationBatchScenario],
 };
 
 export function runBench(options: BenchEntrypointOptions) {
