@@ -36,6 +36,8 @@ export interface RunnerCliArgs {
   readonly repeats: number;
   readonly seed: number;
   readonly output?: string;
+  readonly outputDir?: string;
+  readonly matrix: boolean;
   readonly help: boolean;
   readonly listScenarios: boolean;
 }

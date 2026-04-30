@@ -1,9 +1,15 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { join } from "node:path";
 
 import type { BenchmarkEngine, BenchmarkMode } from "../adapters";
-import type { RunnerCliArgs, RunnerDefinition, RunnerJsonOutput } from "./types";
+import type { RunnerCliArgs, RunnerDefinition } from "./types";
 import { executeBenchmark } from "./execute";
+import {
+  defaultResultDir,
+  renderComparisonMarkdown,
+  sortByEngine,
+  writeJsonOutput,
+  writeMarkdownReport,
+} from "./report";
 
 const HELP_TEXT = `Usage:
   pnpm --filter @xndrjs/bench-perf bench -- --scenario <name> --engine <engine> [options]
@@ -17,6 +23,8 @@ Options:
   --repeats <number>      Measured runs (default: 5)
   --seed <number>         Deterministic seed (default: 42)
   --output <path>         Save JSON output to path
+  --output-dir <path>     Save JSON + markdown outputs into directory
+  --matrix                Run all engines and write comparative report
   --list-scenarios        Print available scenarios
   --help                  Show this help
 `;
@@ -65,6 +73,7 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerCliArgs {
 
   const scenarioValue = map.get("scenario");
   const outputValue = map.get("output");
+  const outputDirValue = map.get("output-dir");
   const parsedEngine = ensureEnum(
     map.get("engine") as string | undefined,
     ["zod", "valibot", "core", "raw"],
@@ -74,12 +83,14 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerCliArgs {
     ...(typeof scenarioValue === "string" ? { scenario: scenarioValue } : {}),
     ...(parsedEngine ? { engine: parsedEngine } : {}),
     ...(typeof outputValue === "string" ? { output: outputValue } : {}),
+    ...(typeof outputDirValue === "string" ? { outputDir: outputDirValue } : {}),
     inputSize: parseIntegerFlag(map.get("input-size") as string | undefined, 1000, "--input-size"),
     warmup: parseIntegerFlag(map.get("warmup") as string | undefined, 500, "--warmup"),
     repeats: parseIntegerFlag(map.get("repeats") as string | undefined, 5, "--repeats"),
     seed: parseIntegerFlag(map.get("seed") as string | undefined, 42, "--seed"),
     mode: (ensureEnum(map.get("mode") as string | undefined, ["valid", "invalid"], "mode") ??
       "valid") as BenchmarkMode,
+    matrix: map.has("matrix"),
     help: map.has("help"),
     listScenarios: map.has("list-scenarios"),
   };
@@ -97,13 +108,11 @@ function printScenarioList(definition: RunnerDefinition): void {
   }
 }
 
-function assertRunnable(
-  args: RunnerCliArgs
-): asserts args is RunnerCliArgs & { scenario: string; engine: BenchmarkEngine } {
+function assertRunnable(args: RunnerCliArgs): asserts args is RunnerCliArgs & { scenario: string } {
   if (!args.scenario) {
     throw new Error(`Missing required "--scenario".`);
   }
-  if (!args.engine) {
+  if (!args.matrix && !args.engine) {
     throw new Error(`Missing required "--engine".`);
   }
   if (args.inputSize <= 0) {
@@ -115,14 +124,6 @@ function assertRunnable(
   if (args.repeats <= 0) {
     throw new Error(`"--repeats" must be > 0.`);
   }
-}
-
-async function maybeWriteOutput(path: string | undefined, output: RunnerJsonOutput): Promise<void> {
-  if (!path) {
-    return;
-  }
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(output, null, 2)}\n`, "utf8");
 }
 
 export async function runCli(
@@ -141,10 +142,52 @@ export async function runCli(
     }
 
     assertRunnable(args);
+    const outputDir =
+      args.outputDir ??
+      (args.matrix
+        ? defaultResultDir({
+            scenario: args.scenario,
+            mode: args.mode,
+            inputSize: args.inputSize,
+          })
+        : undefined);
+
+    if (args.matrix) {
+      const scenario = definition.scenarios.find((entry) => entry.name === args.scenario);
+      if (!scenario) {
+        throw new Error(`Unknown scenario "${args.scenario}".`);
+      }
+      const outputs = scenario.supportedEngines.map((engine) =>
+        executeBenchmark({
+          definition,
+          scenarioName: args.scenario,
+          engine,
+          mode: args.mode,
+          inputSize: args.inputSize,
+          warmupRuns: args.warmup,
+          repeats: args.repeats,
+          seed: args.seed,
+        })
+      );
+      const sorted = sortByEngine(outputs);
+      console.log(JSON.stringify(sorted, null, 2));
+
+      if (outputDir) {
+        for (const output of sorted) {
+          await writeJsonOutput(join(outputDir, `${output.meta.engine}.json`), output);
+        }
+        await writeMarkdownReport(
+          join(outputDir, "comparison.md"),
+          renderComparisonMarkdown(sorted)
+        );
+      }
+      return 0;
+    }
+
     const result = executeBenchmark({
       definition,
       scenarioName: args.scenario,
-      engine: args.engine,
+      engine: args.engine as BenchmarkEngine,
       mode: args.mode,
       inputSize: args.inputSize,
       warmupRuns: args.warmup,
@@ -152,7 +195,15 @@ export async function runCli(
       seed: args.seed,
     });
     console.log(JSON.stringify(result, null, 2));
-    await maybeWriteOutput(args.output, result);
+    if (args.output) {
+      await writeJsonOutput(args.output, result);
+    } else if (outputDir) {
+      await writeJsonOutput(join(outputDir, `${result.meta.engine}.json`), result);
+      await writeMarkdownReport(
+        join(outputDir, "comparison.md"),
+        renderComparisonMarkdown([result])
+      );
+    }
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
