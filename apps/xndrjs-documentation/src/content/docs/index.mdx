@@ -1,40 +1,53 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: xndrjs
+description: A TypeScript toolkit for explicit domain boundaries, validated data, and pragmatic application architecture.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/houston.webp
+  tagline: Build Domain-Driven TypeScript applications where untrusted data crosses explicit boundaries, behavior is named, and guarantees are visible in code.
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Learn the concepts
+      link: /getting-started/introduction/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
+    - text: Build the first model
+      link: /getting-started/first-model/
+      icon: open-book
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid } from "@astrojs/starlight/components";
 
-## Next steps
+## What xndrjs optimizes for
+
+`xndrjs` is a small set of TypeScript libraries for applications that want architectural discipline without framework ceremony.
+
+The core idea is simple: unknown data becomes useful only after it crosses an explicit trust boundary. Once that happens, your code can move validated, immutable, semantically named values through UI, orchestration, persistence, and transport with much less ambiguity.
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
-	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
-	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
-	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
-	</Card>
+  <Card title="Trust boundaries" icon="document">
+    Use `create`, `safeCreate`, and `assert` to make validation and semantic guarantees visible at
+    the exact point where data enters the system.
+  </Card>
+  <Card title="Domain semantics" icon="pencil">
+    Model meaningful values with primitives, trusted objects with shapes, state transitions with
+    capabilities, and stronger workflow guarantees with proofs.
+  </Card>
+  <Card title="Adapter-first validation" icon="setting">
+    Keep using Zod, Valibot, AJV, JSON Schema, or OpenAPI at the boundary while your domain code
+    depends on one stable validator contract.
+  </Card>
+  <Card title="Application flow" icon="open-book">
+    Combine domain models with orchestration ports, React adapters, batch-loading utilities, and
+    retryable tasks without mixing responsibilities.
+  </Card>
+  <Card title="Fast adoption" icon="add-document">
+    Start with a single primitive or shape, then add capabilities, proofs, and adapter
+    interoperability only when the model needs them.
+  </Card>
 </CardGrid>
+
+## Recommended path
+
+1. Read the [mental model](/getting-started/mental-model/) to understand how xndrjs thinks about trust.
+2. Build the [first model](/getting-started/first-model/) to see primitive, shape, capability, and proof working together.
+3. Pick an adapter with [Choose an adapter](/getting-started/choosing-adapter/).
+4. Use the [Domain overview](/domain/overview/) as the conceptual map for deeper modeling work.
