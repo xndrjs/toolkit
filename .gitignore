@@ -4,3 +4,5 @@ artifacts
 
 # llm analysis files
 analysis
+
+.astro
