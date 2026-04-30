@@ -140,4 +140,4 @@ Use `xndrjs` when you want:
 - explicit trust boundaries instead of scattered validation
 - adapters that let your schema engine remain an implementation detail
 
-Next: [Mental model](/getting-started/mental-model/).
+Next: [Mental model](/v0/getting-started/mental-model/).

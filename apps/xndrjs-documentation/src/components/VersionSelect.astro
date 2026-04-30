@@ -1,0 +1,66 @@
+---
+import Select from "@astrojs/starlight/components/Select.astro";
+import { docVersions } from "../starlight-versions";
+
+const pathname = Astro.url.pathname;
+
+const knownPrefixes: string[] = docVersions.map((v) => v.slugPrefix);
+
+function rewritePath(path: string, newPrefix: (typeof docVersions)[number]["slugPrefix"]): string {
+  const normalized = path.replace(/\/$/, "") || "/";
+  const parts = normalized.split("/").filter(Boolean);
+  let rest: string[] = [];
+  const head = parts[0];
+  if (head && knownPrefixes.includes(head)) {
+    rest = parts.slice(1);
+  }
+  const tail = rest.length ? `${rest.join("/")}/` : "";
+  return `/${newPrefix}/${tail}`;
+}
+
+const options = docVersions.map((v) => {
+  const atRoot = pathname === "/" || pathname.replace(/\/$/, "") === "";
+  const parts = pathname.split("/").filter(Boolean);
+  const selected =
+    parts[0] === v.slugPrefix || (atRoot && v.slugPrefix === docVersions[0].slugPrefix);
+
+  return {
+    label: v.label,
+    value: rewritePath(pathname, v.slugPrefix),
+    selected,
+  };
+});
+---
+
+<starlight-version-select>
+  <Select
+    icon="document"
+    label="Documentation version"
+    width="9.5em"
+    options={options}
+  />
+</starlight-version-select>
+
+<script>
+  class StarlightVersionSelect extends HTMLElement {
+    constructor() {
+      super();
+      const select = this.querySelector("select");
+      if (!select) return;
+      select.addEventListener("change", (e) => {
+        if (e.currentTarget instanceof HTMLSelectElement) {
+          window.location.pathname = e.currentTarget.value;
+        }
+      });
+      window.addEventListener("pageshow", (event) => {
+        if (!event.persisted) return;
+        const markupSelectedIndex =
+          select.querySelector<HTMLOptionElement>("option[selected]")?.index;
+        if (markupSelectedIndex !== select.selectedIndex) {
+          select.selectedIndex = markupSelectedIndex ?? 0;
+        }
+      });
+    }
+  }
+  customElements.define("starlight-version-select", StarlightVersionSelect);
+</script>

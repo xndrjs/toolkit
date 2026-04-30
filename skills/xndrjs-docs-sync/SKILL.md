@@ -1,6 +1,6 @@
 # xndrjs docs sync
 
-Use this skill when updating package APIs or docs in `apps/xndrjs-docs` to keep code and documentation aligned.
+Use this skill when updating package APIs or docs in `apps/xndrjs-documentation` to keep code and documentation aligned.
 
 ## Scope
 
@@ -37,8 +37,8 @@ Always derive docs from:
 1. API diff check
    - if exported signatures changed, update the matching docs pages.
 2. Navigation check
-   - keep docs under `src/content/docs/{getting-started,domain,adapters,benchmarks}`.
-   - ensure `order` is set and sidebar groups still resolve.
+   - keep versioned docs under `src/content/docs/v0/{getting-started,domain,adapters,...}` (add new doc trees like `v1/` when a stable line ships).
+   - keep the splash page at `src/content/docs/index.mdx` and update `astro.config.mjs` sidebar slugs to match (`v0/...`).
 3. Naming check
    - user-facing name must be `xndrjs` everywhere.
    - only allowed `xndr` usage: etymology sentence explaining abbreviation from "Alexander".

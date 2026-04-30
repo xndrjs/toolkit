@@ -66,7 +66,7 @@ pnpm add @xndrjs/data-layer dataloader
 pnpm add @xndrjs/tasks
 ```
 
-See [Ports, data, tasks](/application/toolkit/) for their role in the broader toolkit.
+See [Ports, data, tasks](/v0/application/toolkit/) for their role in the broader toolkit.
 
 ## Runtime and TypeScript
 
