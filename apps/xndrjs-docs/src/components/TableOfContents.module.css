@@ -1,13 +1,13 @@
 .tableOfContents {
-  font-size: 1rem;
-  border-left: 2px solid rgba(255, 255, 255, 0.15);
-  padding-left: 1rem;
-  padding-right: 1rem;
+  border-left: 1px solid var(--xndr-border-subtle);
+  font-size: 0.86rem;
   position: sticky;
   top: 80px;
   max-height: calc(100vh - 100px);
   overflow-y: auto;
   overflow-x: hidden;
+  padding-left: 1rem;
+  padding-right: 0.5rem;
 }
 
 .list {
@@ -17,7 +17,7 @@
 }
 
 .item {
-  margin: 0.5rem 0;
+  margin: 0.35rem 0;
 }
 
 .item--depth-3 {
@@ -29,25 +29,26 @@
 }
 
 .link {
-  font-size: 1rem;
-  line-height: 1.6;
-  transition: color 0.2s ease;
-  color: rgba(255, 255, 255, 0.7);
-  text-decoration: none;
+  color: var(--xndr-text-muted);
   display: block;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  transition: color 0.2s ease;
+  text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .link:hover {
-  color: var(--xndr-primary-text);
+  color: var(--xndr-text-primary);
+  text-decoration: none;
 }
 
 .link.active {
-  font-size: 1rem;
+  color: var(--xndr-cyan);
+  font-size: 0.86rem;
   font-weight: 600;
-  color: var(--xndr-primary-text);
 }
 
 @media (max-width: 996px) {
@@ -55,4 +56,3 @@
     display: none;
   }
 }
-

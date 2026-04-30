@@ -1,7 +1,8 @@
 .hamburger {
   display: none;
-  background: none;
-  border: none;
+  background: rgba(69, 214, 255, 0.06);
+  border: 1px solid var(--xndr-border-subtle);
+  border-radius: 8px;
   cursor: pointer;
   padding: 0.5rem;
   flex-direction: column;
@@ -16,7 +17,7 @@
 .hamburgerLine {
   width: 24px;
   height: 2px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--xndr-text-primary);
   display: block;
 }
 
@@ -26,4 +27,3 @@
     margin-left: auto;
   }
 }
-

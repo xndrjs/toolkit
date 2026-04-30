@@ -65,10 +65,10 @@ const cleanTitle = (title: string, slug: string): string => {
   .page-navigation {
     display: flex;
     justify-content: space-between;
-    gap: 2rem;
+    gap: 1rem;
     margin-top: 3rem;
     padding-top: 2rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--xndr-border-subtle);
   }
 
   .page-navigation--both .page-navigation__link {
@@ -89,16 +89,16 @@ const cleanTitle = (title: string, slug: string): string => {
     flex-direction: column;
     padding: 1rem 1.5rem;
     border-radius: 8px;
-    background: rgba(40, 40, 40, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(16, 23, 34, 0.82);
+    border: 1px solid var(--xndr-border-subtle);
     text-decoration: none !important;
     transition: all 0.2s ease;
     color: inherit;
   }
 
   .page-navigation__link:hover {
-    background: rgba(50, 50, 50, 0.6);
-    border-color: var(--xndr-primary-text);
+    background: rgba(18, 28, 42, 0.96);
+    border-color: rgba(69, 214, 255, 0.34);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     text-decoration: none !important;
@@ -115,23 +115,23 @@ const cleanTitle = (title: string, slug: string): string => {
 
   .page-navigation__label {
     font-size: 0.875rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--xndr-text-muted);
     margin-bottom: 0.5rem;
     font-weight: 500;
   }
 
   .page-navigation__title {
     font-size: 1rem;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--xndr-text-primary);
     font-weight: 600;
   }
 
   .page-navigation__link:hover .page-navigation__title {
-    color: var(--xndr-primary-text);
+    color: var(--xndr-cyan);
   }
 
   .page-navigation__link:hover .page-navigation__label {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--xndr-text-secondary);
   }
 
   @media (max-width: 768px) {
@@ -151,4 +151,3 @@ const cleanTitle = (title: string, slug: string): string => {
     }
   }
 </style>
-

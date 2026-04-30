@@ -1,13 +1,21 @@
 .heroBanner {
-  padding: 4rem 2rem;
+  padding: 4.5rem 2rem 4rem;
   text-align: center;
   position: relative;
   overflow: hidden;
-  background: #3E101C;
-  height: 50vh;
+  background:
+    linear-gradient(rgba(69, 214, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(69, 214, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(8, 10, 15, 0.96));
+  background-size:
+    42px 42px,
+    42px 42px,
+    auto;
+  min-height: 440px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-bottom: 1px solid var(--xndr-border-subtle);
 }
 
 .heroBackground {
@@ -20,8 +28,8 @@
   background-repeat: no-repeat;
   background-size: 90%;
   background-position: center;
-  opacity: 0.08;
-  filter: brightness(0) invert(1);
+  opacity: 0.05;
+  filter: brightness(0) invert(1) drop-shadow(0 0 36px rgba(69, 214, 255, 0.18));
   z-index: 0;
 }
 
@@ -49,28 +57,30 @@
 }
 
 .heroTitle {
-  font-size: 4.5rem;
+  font-size: 4.25rem;
   font-weight: 800;
   color: #ffffff;
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   animation: fadeInUp 0.8s ease-out 0.2s both;
-  font-family: 'Lexend Exa', sans-serif;
+  font-family: "Space Grotesk", sans-serif;
+  line-height: 1;
 }
 
 .heroTagline {
-  font-size: 2rem;
+  font-size: 1.35rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  margin: 0;
-  letter-spacing: 0.01em;
+  color: var(--xndr-text-secondary);
+  margin: 0.65rem 0 0;
+  letter-spacing: 0;
   animation: fadeInUp 0.8s ease-out 0.4s both;
+  max-width: 680px;
 }
 
 @media screen and (max-width: 996px) {
   .heroBanner {
     padding: 3rem 1.5rem;
-    min-height: 300px;
+    min-height: 360px;
   }
 
   .heroTitle {
@@ -78,14 +88,14 @@
   }
 
   .heroTagline {
-    font-size: 1.5rem;
+    font-size: 1.15rem;
   }
 }
 
 @media screen and (max-width: 768px) {
   .heroBanner {
     padding: 3rem 1rem;
-    min-height: 350px;
+    min-height: 330px;
   }
 
   .heroTitle {
@@ -93,7 +103,6 @@
   }
 
   .heroTagline {
-    font-size: 1.2rem;
+    font-size: 1rem;
   }
 }
-

@@ -21,20 +21,24 @@ const contentHtml = content ? marked(content) : null;
 <style>
   .see-also {
     margin-top: 2rem;
+    background: rgba(16, 23, 34, 0.72);
+    border: 1px solid var(--xndr-border-subtle);
+    border-radius: 8px;
+    padding: 1.2rem 1.35rem;
   }
 
   .see-also__title {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--xndr-text-primary);
     margin-bottom: 1rem;
-    font-family: 'Lexend Exa', sans-serif;
+    font-family: "Space Grotesk", sans-serif;
   }
 
   .see-also__content {
-    font-size: 1.125rem;
-    line-height: 1.7;
-    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: var(--xndr-text-secondary);
   }
 
   .see-also__content :global(ul),
@@ -48,7 +52,7 @@ const contentHtml = content ? marked(content) : null;
   }
 
   .see-also__content :global(a) {
-    color: var(--xndr-primary-text);
+    color: var(--xndr-cyan);
     text-decoration: none;
     transition: color 0.2s ease;
   }
@@ -69,4 +73,3 @@ const contentHtml = content ? marked(content) : null;
     margin-bottom: 0;
   }
 </style>
-
