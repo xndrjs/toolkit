@@ -5,8 +5,8 @@ export default function HomepageHeader() {
     <header className={styles.heroBanner}>
       <div className={styles.heroBackground}></div>
       <div className={styles.heroContainer}>
-        <h1 className={styles.heroTitle}>xndr</h1>
-        <p className={styles.heroTagline}>Framework-agnostic state management</p>
+        <h1 className={styles.heroTitle}>xndrjs</h1>
+        <p className={styles.heroTagline}>Domain modeling with validator-agnostic adapters</p>
       </div>
     </header>
   );

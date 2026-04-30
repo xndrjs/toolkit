@@ -1,71 +1,79 @@
 ---
 title: Introduction
-description: Introduction to xndr framework-agnostic state management
+description: Introduction to `xndrjs` domain modeling toolkit
 order: 1
 ---
 
 # Introduction
 
-`xndr` is a collection of libraries that let you write framework-agnostic state management. This means you will be able to write your business logics once, and share it between different frameworks (React, Solid, Svelte - more incoming) or between client-side and server-side (i.e. in Next.js).
+`xndrjs` is a TypeScript toolkit for building domain-driven applications with explicit boundaries, composable semantics, and predictable data flow.
 
-## Why xndr?
+It is inspired by Clean Architecture and domain-driven design principles, but deliberately avoids rigid or overly academic implementations. Instead, it focuses on pragmatic, ergonomic solutions that keep the entry barrier low while remaining fully extensible as system complexity grows.
 
-The name `xndr` (pronounced "xander") comes from **Alexander** the Great, who famously cut the Gordian knot: a symbol of cutting through complexity with a radical solution.
+## Not Another Framwork
 
-Just as Alexander cut through the knot, `xndr` helps you make a clean cut between UI-specific state (i.e. `isOpen` for a modal) and domain entity state management (which should be framework-agnostic and reusable), wherever needed. This separation ensures that your business logic remains independent of any frontend framework, making it truly reusable across different projects and teams.
+`xndrjs` is not a framework.
+
+It is a set of architectural libraries designed to:
+
+- enforce best practices through constraints, not conventions
+- make correct patterns easier to follow than incorrect ones
+- provide clear separation between domain, orchestration, and infrastructure
+
+The toolkit is especially tailored for modern fullstack TypeScript environments, where:
+
+- frontend codebases often lag behind backend systems in architectural discipline
+- increasing convergence (Next.js, server actions, edge runtimes, etc.) requires stronger consistency across layers
+- shared types and contracts demand clearer semantic boundaries
+
+`xndrjs` helps bridge this gap by bringing backend-grade architectural rigor to fullstack TypeScript projects, without sacrificing developer experience.
+
+Its goal is simple:
+
+> make robust architecture the path of least resistance
+
+## Why `xndrjs`?
+
+The word `xndr` (pronounced "xander") comes from **Alexander** the Great, who famously cut the Gordian knot: a symbol of cutting through complexity with a radical solution.
+
+`xndrjs` applies the same spirit to software architecture: cut clean boundaries between layers (domain, orchestration, infrastructure), and keep responsibilities explicit inside each layer.
+
+In domain modeling, this means separating:
+
+- **representations** (data shape and structure)
+- **capabilities** (allowed operations and behavior)
+- **proofs** (semantic guarantees over validated data)
+
+The goal is not abstraction for its own sake. The goal is practical design that stays easy to use under delivery pressure.
 
 ## Core Philosophy
 
-`xndr`'s mission is to let you
+`xndrjs` is built around a simple idea: good architecture should also be ergonomic.
 
-- Write business logic **once** using framework-agnostic patterns
-- Reuse the same code with React, Solid, Svelte (support for more frameworks incoming)
-- Build complex state management with proven patterns (CQRS, FSM, Memento)
-- Maintain clear separation between business logic and UI layer
+It stems from a very practical need:
+
+> reduce accidental complexity without sacrificing semantic clarity
+
+And it's designed to make code:
+
+- more readable
+- more predictable
+- safer
+- easier to evolve
+
+---
 
 ## Packages
 
-### Core Library
-
-- **@xndrjs/core** - StatePort pattern, reactive values, lifecycle management
-
-### Patterns
-
-- **@xndrjs/cqrs** - Command Query Responsibility Segregation (CommandBus, QueryBus, EventBus)
-- **@xndrjs/fsm** - Finite State Machine implementation
-- **@xndrjs/memento** - Undo/Redo pattern implementation
-
-### Framework Adapters
-
-- **@xndrjs/adapter-react** - React integration
-- **@xndrjs/adapter-solid** - Solid.js integration
-- **@xndrjs/adapter-svelte** - Svelte integration
-
-### Developer Tools
-
-- **@xndrjs/devtools-react** - DevTools for debugging and monitoring reactive applications
-
-## Key Concepts
-
-### StatePort Pattern
-
-The `StatePort` interface provides a framework-agnostic way to work with reactive state. It defines three methods:
-
-- `get()` - get the current value
-- `set(value)` - set a new value
-- `subscribe(callback)` - subscribe to value changes
-
-This simple interface allows your business logic to work with the reactivity systems of many different frameworks through adapters.
-
-### Framework Agnosticism
-
-`xndr` packages are written in pure TypeScript with no framework dependencies. Your business logics can be:
-
-- tested in isolation (no framework mocking needed)
-- reused across multiple frameworks in the same project
-- shared between different teams using different frameworks
-- migrated from one framework to another without rewriting business logic
+- **`@xndrjs/domain`**: core modeling primitives and validation contract
+- **`@xndrjs/domain-zod`**: adapter for Zod 4, plus interoperability helpers
+- **`@xndrjs/domain-ajv`**: adapter for JSON Schema and OpenAPI components via AJV
+- **`@xndrjs/domain-valibot`**: adapter for Valibot schemas
+- **`@xndrjs/bench-perf`**: monorepo benchmark suite to compare validation engines on shared scenarios
 
 ## Getting Started
 
-Ready to start? Check out the [Installation Guide](./installation.md) to install `xndr` packages, or dive into [Core Concepts](./concepts.md) to understand the fundamental patterns.
+Continue with:
+
+- [Installation](./installation.md)
+- [Concepts](./concepts.md)

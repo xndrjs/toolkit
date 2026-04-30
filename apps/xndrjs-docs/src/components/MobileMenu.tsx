@@ -82,8 +82,8 @@ export default function MobileMenu({ isOpen, onClose, sidebarData }: MobileMenuP
       >
         <div className={styles.mobileMenuHeader}>
           <a href="/" className={styles.mobileMenuBrand} onClick={onClose}>
-            <img src="/img/logo-squared.svg" alt="xndr" className={styles.mobileMenuLogo} />
-            <span className={styles.mobileMenuTitle}>xndr</span>
+            <img src="/img/logo-squared.svg" alt="xndrjs" className={styles.mobileMenuLogo} />
+            <span className={styles.mobileMenuTitle}>xndrjs</span>
           </a>
           <button className={styles.mobileMenuClose} onClick={onClose} aria-label="Close menu">
             ×

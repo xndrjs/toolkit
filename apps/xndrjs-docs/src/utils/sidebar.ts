@@ -48,40 +48,12 @@ export async function getSidebarData(): Promise<SidebarItem[]> {
     });
   }
 
-  // Core
-  if (categories["core"]) {
+  // Domain
+  if (categories["domain"]) {
     sidebar.push({
-      title: "Core",
-      slug: "core",
-      children: categories["core"],
-    });
-  }
-
-  // Patterns
-  const patterns: SidebarItem[] = [];
-  if (categories["patterns"]) {
-    // Group patterns by subcategory
-    const patternSubcats: Record<string, SidebarItem[]> = {};
-    for (const item of categories["patterns"]) {
-      const subcat = item.slug.split("/")[1];
-      if (!patternSubcats[subcat]) {
-        patternSubcats[subcat] = [];
-      }
-      patternSubcats[subcat].push(item);
-    }
-
-    for (const [subcat, items] of Object.entries(patternSubcats)) {
-      patterns.push({
-        title: subcat.toUpperCase(),
-        slug: `patterns/${subcat}`,
-        children: items,
-      });
-    }
-
-    sidebar.push({
-      title: "Patterns",
-      slug: "patterns",
-      children: patterns,
+      title: "Domain",
+      slug: "domain",
+      children: categories["domain"],
     });
   }
 
@@ -112,30 +84,12 @@ export async function getSidebarData(): Promise<SidebarItem[]> {
     });
   }
 
-  // DevTools
-  if (categories["devtools"]) {
-    const devtoolsSubcats: Record<string, SidebarItem[]> = {};
-    for (const item of categories["devtools"]) {
-      const subcat = item.slug.split("/")[1];
-      if (!devtoolsSubcats[subcat]) {
-        devtoolsSubcats[subcat] = [];
-      }
-      devtoolsSubcats[subcat].push(item);
-    }
-
-    const devtools: SidebarItem[] = [];
-    for (const [subcat, items] of Object.entries(devtoolsSubcats)) {
-      devtools.push({
-        title: subcat.charAt(0).toUpperCase() + subcat.slice(1),
-        slug: `devtools/${subcat}`,
-        children: items,
-      });
-    }
-
+  // Benchmarks
+  if (categories["benchmarks"]) {
     sidebar.push({
-      title: "DevTools",
-      slug: "devtools",
-      children: devtools,
+      title: "Benchmarks",
+      slug: "benchmarks",
+      children: categories["benchmarks"],
     });
   }
 

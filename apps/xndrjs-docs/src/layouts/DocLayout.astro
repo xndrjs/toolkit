@@ -15,7 +15,7 @@ const currentPath = Astro.url.pathname;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 ---
 
-<BaseLayout title={`${title} | xndr`} description={description}>
+<BaseLayout title={`${title} | xndrjs`} description={description}>
   <div class="doc-container">
     <Sidebar client:load items={sidebarData} currentPath={currentPath} />
     <div class="doc-content">

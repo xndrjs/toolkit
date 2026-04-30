@@ -5,48 +5,48 @@ import FeatureCard from '../components/FeatureCard';
 ---
 
 <BaseLayout
-  title="xndr"
-  description="Framework-agnostic state management libraries. Build reusable business logic with React, Solid, Svelte, and any framework."
+  title="xndrjs"
+  description="Domain modeling toolkit with validator-agnostic adapters for Zod, AJV, and Valibot."
 >
   <HomepageHeader client:load />
   <main class="main">
     <section class="featuresSection">
       <div class="featuresHeader">
-        <h2 class="featuresTitle">Why xndr?</h2>
+        <h2 class="featuresTitle">Why xndrjs?</h2>
         <p class="featuresSubtitle">
-          A framework-agnostic approach to state management
+          One domain contract, multiple validation engines
         </p>
       </div>
       <div class="featuresGrid">
         <FeatureCard
           client:load
-          title="Framework Agnostic"
-          description="Write your business logic once and reuse it across different frameworks"
+          title="Validator Agnostic"
+          description="Keep the same domain API while choosing Zod, AJV, or Valibot"
         />
         <FeatureCard
           client:load
-          title="Clean Architecture"
-          description="Clear separation between business logic and UI layer with proven patterns"
+          title="Domain-First"
+          description="Model primitives, entities, and proofs with explicit runtime boundaries"
         />
         <FeatureCard
           client:load
-          title="Composable Patterns"
-          description="Build complex state management with CQRS, FSM, and Memento patterns"
+          title="Adapter Interop"
+          description="Convert schemas to domain validators and reuse kits across adapter layers"
         />
         <FeatureCard
           client:load
-          title="Type-Safe"
-          description="Advanced TypeScript usage for maximum type safety"
+          title="Consistent Errors"
+          description="Standardized validation failures across all engines and workflows"
         />
         <FeatureCard
           client:load
-          title="Easy to Test"
-          description="Test your business logic in isolation without framework mocking"
+          title="Composable Utilities"
+          description="Build validators with compose helpers and typed pipelines with pipe"
         />
         <FeatureCard
           client:load
-          title="Flexible"
-          description="Share logics between client-side and server-side"
+          title="Benchmark Ready"
+          description="Compare engines on shared scenarios with reproducible benchmark runs"
         />
       </div>
     </section>

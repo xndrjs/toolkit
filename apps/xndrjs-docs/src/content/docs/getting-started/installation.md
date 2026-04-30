@@ -1,78 +1,73 @@
 ---
-title: getting-started → Installation
+title: Installation
+description: Install xndrjs domain packages and validation adapters
+order: 2
 seeAlso: |
-  After installation, check out the [Core Concepts](./concepts.md) guide to understand how to use `xndr` in your application.
+  After installation, read [Concepts](./concepts.md) and then move to the [Domain overview](/docs/domain/overview).
 ---
 
 # Installation
 
-Install `xndr` packages using your preferred package manager.
+Install only the packages you need for your validation stack.
 
-## Package Manager
-
-### npm
+## Base package
 
 ```bash
-npm install @xndrjs/core
-npm install @xndrjs/adapter-react  # For React
-npm install @xndrjs/adapter-solid  # For Solid
-npm install @xndrjs/adapter-svelte # For Svelte
+pnpm add @xndrjs/domain
 ```
 
-### pnpm
+## Adapter packages
+
+Choose one adapter according to the engine you use.
+
+### Zod 4
 
 ```bash
-pnpm add @xndrjs/core
-pnpm add @xndrjs/adapter-react  # For React
-pnpm add @xndrjs/adapter-solid  # For Solid
-pnpm add @xndrjs/adapter-svelte # For Svelte
+pnpm add @xndrjs/domain-zod zod
 ```
 
-### yarn
+### AJV (JSON Schema / OpenAPI)
 
 ```bash
-yarn add @xndrjs/core
-yarn add @xndrjs/adapter-react  # For React
-yarn add @xndrjs/adapter-solid  # For Solid
-yarn add @xndrjs/adapter-svelte # For Svelte
+pnpm add @xndrjs/domain-ajv ajv ajv-formats
 ```
 
-## Installing Pattern Packages
-
-If you need CQRS, FSM, or Memento patterns:
+### Valibot
 
 ```bash
-# CQRS Pattern
-pnpm add @xndrjs/cqrs
-
-# Finite State Machine
-pnpm add @xndrjs/fsm
-
-# Memento Pattern (Undo/Redo)
-pnpm add @xndrjs/memento
+pnpm add @xndrjs/domain-valibot valibot
 ```
 
-## Installing DevTools
+## Minimal setup examples
 
-For React applications, install the DevTools package:
+### domain + zod
 
 ```bash
-pnpm add @xndrjs/devtools-react
+pnpm add @xndrjs/domain-zod zod
+```
+
+### domain + ajv
+
+```bash
+pnpm add @xndrjs/domain-ajv ajv ajv-formats
+```
+
+### domain + valibot
+
+```bash
+pnpm add @xndrjs/domain-valibot valibot
 ```
 
 ## TypeScript
 
-All `xndr` packages are written in TypeScript and include type definitions. No additional type packages are needed.
+All `xndrjs` packages are TypeScript-first and include type definitions.
 
 ## Peer Dependencies
 
-### @xndrjs/core
+- `@xndrjs/domain-zod` -> `zod@^4`
+- `@xndrjs/domain-valibot` -> `valibot` (matching the adapter major)
+- `@xndrjs/domain-ajv` -> `ajv` runtime expected by your app
 
-- `fast-deep-equal` ^3.1.3
-- `immer` ^10.0.0
+## Benchmarks package
 
-### Framework Adapters
-
-- **@xndrjs/adapter-react**: Requires `react` >= 18.0.0
-- **@xndrjs/adapter-solid**: Requires `solid-js` >= 1.8.0
-- **@xndrjs/adapter-svelte**: Requires `svelte` >= 5.0.0
+`@xndrjs/bench-perf` is a **private monorepo package** used for internal comparisons.
