@@ -1,0 +1,310 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Sidebar from '../components/Sidebar';
+import TableOfContents from '../components/TableOfContents';
+import { getSidebarData } from '../utils/sidebar';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = `Documentation for ${title}` } = Astro.props;
+const sidebarData = await getSidebarData();
+const currentPath = Astro.url.pathname;
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+---
+
+<BaseLayout title={`${title} | xndr`} description={description}>
+  <div class="doc-container">
+    <Sidebar client:load items={sidebarData} currentPath={currentPath} />
+    <div class="doc-content">
+      <article class="doc-article">
+        <slot />
+      </article>
+    </div>
+    <div class="doc-toc">
+      <TableOfContents client:load />
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .doc-container {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    width: 100%;
+    min-height: calc(100vh - 200px);
+    gap: 2rem;
+  }
+
+  .doc-content {
+    flex: 1;
+    padding: 2rem 3rem;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .doc-toc {
+    padding: 2rem 0;
+  }
+
+  .doc-article {
+    font-size: 1.125rem;
+    line-height: 1.7;
+  }
+
+  .doc-article :global(p) {
+    font-size: 1.125rem;
+    line-height: 1.7;
+    margin-bottom: 1rem;
+  }
+
+  .doc-article :global(ul),
+  .doc-article :global(ol) {
+    margin: 1rem 0;
+    padding-left: 2rem;
+  }
+
+  .doc-article :global(li) {
+    margin: 0.5rem 0;
+  }
+
+  .doc-article :global(h1) {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--xndr-primary-text);
+    margin-bottom: 1.5rem;
+    font-family: 'Lexend Exa', sans-serif;
+  }
+
+  .doc-article :global(h2) {
+    font-weight: 600;
+    color: var(--xndr-text-primary);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+    padding-bottom: 0.5rem;
+    margin-top: 2.5rem;
+    margin-bottom: 1.5rem;
+    font-family: 'Lexend Exa', sans-serif;
+  }
+
+  .doc-article :global(h3) {
+    font-weight: 600;
+    color: var(--xndr-text-primary);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-family: 'Lexend Exa', sans-serif;
+  }
+
+  .doc-article :global(a) {
+    color: var(--xndr-primary-text);
+    transition: color 0.2s ease, opacity 0.2s ease;
+    text-decoration: none;
+  }
+
+  .doc-article :global(a:hover) {
+    color: var(--xndr-primary-text);
+    opacity: 0.8;
+    text-decoration: underline;
+  }
+
+  .doc-article :global(pre) {
+    background: rgba(40, 40, 40, 0.6);
+    border: 1px solid rgba(107, 31, 46, 0.2);
+    border-radius: 8px;
+    padding: 1.5rem;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+
+  .doc-article :global(.prism-code) {
+    border-radius: 8px;
+    border: 1px solid rgba(107, 31, 46, 0.2);
+    background: rgba(40, 40, 40, 0.6);
+  }
+
+  .doc-article :global(.theme-code-block) {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(107, 31, 46, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    background: rgba(40, 40, 40, 0.6);
+    transition: border-color 0.3s ease;
+  }
+
+  .doc-article :global(.theme-code-block:hover) {
+    border-color: var(--xndr-primary-text);
+  }
+
+  .doc-article :global(code) {
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+    font-size: 87.5%;
+    border-radius: 4px;
+    padding: 2px 6px;
+    background: rgba(40, 40, 40, 0.6);
+    border: 1px solid rgba(107, 31, 46, 0.2);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .doc-article :global(code:hover) {
+    background: rgba(50, 50, 50, 0.7);
+    border-color: var(--xndr-primary-text);
+  }
+
+  .doc-article :global(pre code) {
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+
+  .doc-article :global(pre code:hover) {
+    background: transparent;
+    border: none;
+  }
+
+  @media (max-width: 996px) {
+    .doc-container {
+      grid-template-columns: 1fr;
+    }
+
+    .doc-content {
+      padding: 1.5rem 1rem;
+    }
+
+    .doc-toc {
+      display: none;
+    }
+  }
+</style>
+
+<style is:global>
+  .sidebar {
+    width: 280px;
+    background: #242526;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 2rem 0;
+    position: sticky;
+    top: 60px;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+
+  .sidebar-nav {
+    padding: 0 1rem;
+  }
+
+  .sidebar-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .sidebar-item {
+    margin: 0.5rem 0;
+  }
+
+  .sidebar-category {
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    text-align: left;
+    transition: color 0.2s ease;
+    font-family: inherit;
+  }
+
+  .sidebar-category:hover {
+    color: var(--xndr-primary-text);
+  }
+
+  .sidebar-category.active {
+    color: var(--xndr-primary-text);
+  }
+
+  .sidebar-category-icon {
+    font-size: 0.75rem;
+    display: inline-block;
+    transition: transform 0.2s ease;
+    color: rgba(255, 255, 255, 0.5);
+    flex-shrink: 0;
+    width: 0.75rem;
+    text-align: center;
+  }
+
+  .sidebar-category.expanded .sidebar-category-icon {
+    transform: rotate(90deg);
+  }
+
+  .sidebar-category-label {
+    flex: 1;
+  }
+
+  .sidebar-link {
+    display: block;
+    padding: 0.5rem 0;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.125rem;
+    line-height: 1.6;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    text-decoration: none;
+    opacity: 0.8;
+  }
+
+  .sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--xndr-primary-text);
+  }
+
+  .sidebar-link.active {
+    color: var(--xndr-primary-text);
+    font-weight: 600;
+    opacity: 1;
+    position: relative;
+  }
+
+  .sidebar-link.active::before {
+    content: '';
+    position: absolute;
+    left: -1rem;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--xndr-primary-text);
+  }
+
+  .sidebar-sublist {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0 0;
+  }
+
+  @media (max-width: 996px) {
+    .sidebar {
+      display: none;
+    }
+
+    .sidebar-mobile {
+      display: block;
+      position: fixed;
+      top: 60px;
+      left: -100%;
+      width: 280px;
+      z-index: 999;
+      transition: left 0.3s ease;
+    }
+
+    .sidebar-mobile.open {
+      left: 0;
+    }
+  }
+</style>
+

@@ -1,0 +1,79 @@
+---
+interface Props {
+  headings: Array<{ depth: number; slug: string; text: string }>;
+}
+
+const { headings } = Astro.props;
+---
+
+{headings.length > 0 && (
+  <nav class="table-of-contents" aria-label="Table of contents">
+    <ul class="table-of-contents__list">
+      {headings.map((heading) => (
+        <li class={`table-of-contents__item table-of-contents__item--depth-${heading.depth}`}>
+          <a href={`#${heading.slug}`} class="table-of-contents__link">
+            {heading.text}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}
+
+<style>
+  .table-of-contents {
+    font-size: 1rem;
+    border-left: 2px solid rgba(255, 255, 255, 0.15);
+    padding-left: 1rem;
+    margin-left: 2rem;
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+  }
+
+  .table-of-contents__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .table-of-contents__item {
+    margin: 0.5rem 0;
+  }
+
+  .table-of-contents__item--depth-3 {
+    padding-left: 1rem;
+  }
+
+  .table-of-contents__item--depth-4 {
+    padding-left: 2rem;
+  }
+
+  .table-of-contents__link {
+    font-size: 1rem;
+    line-height: 1.6;
+    transition: color 0.2s ease;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    display: block;
+  }
+
+  .table-of-contents__link:hover {
+    color: var(--xndr-primary-text);
+  }
+
+  .table-of-contents__link--active {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--xndr-primary-text);
+    border-left-color: rgba(255, 255, 255, 0.15);
+  }
+
+  @media (max-width: 996px) {
+    .table-of-contents {
+      display: none;
+    }
+  }
+</style>
+

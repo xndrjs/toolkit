@@ -1,0 +1,117 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import HomepageHeader from '../components/HomepageHeader';
+import FeatureCard from '../components/FeatureCard';
+---
+
+<BaseLayout
+  title="xndr"
+  description="Framework-agnostic state management libraries. Build reusable business logic with React, Solid, Svelte, and any framework."
+>
+  <HomepageHeader client:load />
+  <main class="main">
+    <section class="featuresSection">
+      <div class="featuresHeader">
+        <h2 class="featuresTitle">Why xndr?</h2>
+        <p class="featuresSubtitle">
+          A framework-agnostic approach to state management
+        </p>
+      </div>
+      <div class="featuresGrid">
+        <FeatureCard
+          client:load
+          title="Framework Agnostic"
+          description="Write your business logic once and reuse it across different frameworks"
+        />
+        <FeatureCard
+          client:load
+          title="Clean Architecture"
+          description="Clear separation between business logic and UI layer with proven patterns"
+        />
+        <FeatureCard
+          client:load
+          title="Composable Patterns"
+          description="Build complex state management with CQRS, FSM, and Memento patterns"
+        />
+        <FeatureCard
+          client:load
+          title="Type-Safe"
+          description="Advanced TypeScript usage for maximum type safety"
+        />
+        <FeatureCard
+          client:load
+          title="Easy to Test"
+          description="Test your business logic in isolation without framework mocking"
+        />
+        <FeatureCard
+          client:load
+          title="Flexible"
+          description="Share logics between client-side and server-side"
+        />
+      </div>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .main {
+    padding: 0;
+  }
+
+  .featuresSection {
+    padding: 3rem 0;
+    background: linear-gradient(135deg, rgba(107, 31, 46, 0.05) 0%, rgba(107, 31, 46, 0.02) 50%, rgba(0, 217, 255, 0.05) 100%);
+    border-radius: 24px;
+    margin: 3rem 0;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .featuresHeader {
+    padding: 1rem;
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .featuresTitle {
+    font-size: 3rem;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--xndr-primary-text);
+    font-family: 'Lexend Exa', sans-serif;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .featuresSubtitle {
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+  }
+
+  .featuresGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  @media screen and (max-width: 768px) {
+    .featuresSection {
+      background: transparent !important;
+      border-radius: 0;
+      margin: 1.5rem 0;
+      padding: 1.5rem 0;
+    }
+
+    .featuresGrid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      padding: 0 1rem;
+    }
+  }
+</style>
+

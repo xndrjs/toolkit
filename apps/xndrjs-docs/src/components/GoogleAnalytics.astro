@@ -1,0 +1,44 @@
+---
+// Google Analytics component
+// Uses GA4 (Google Analytics 4) measurement ID
+// Set GA_MEASUREMENT_ID environment variable or pass as prop
+
+interface Props {
+  measurementId?: string;
+}
+
+const { measurementId } = Astro.props;
+
+// Get measurement ID from prop, env var, or import.meta.env
+const gaId = measurementId || import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
+
+// Only render if measurement ID is provided
+---
+
+{gaId && (
+  <>
+    <script
+      async
+      src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+    ></script>
+    <script is:inline define:vars={{ gaId }}>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('js', new Date());
+      gtag('config', gaId, {
+        page_path: window.location.pathname,
+      });
+
+      // Track page views on navigation (for client-side navigation)
+      document.addEventListener('astro:page-load', () => {
+        gtag('config', gaId, {
+          page_path: window.location.pathname,
+          page_title: document.title,
+        });
+      });
+    </script>
+  </>
+)}
+

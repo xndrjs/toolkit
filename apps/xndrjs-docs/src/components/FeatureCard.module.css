@@ -1,0 +1,33 @@
+.featureCard {
+  background: #1e1e1e;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: border-color 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.featureCard:hover {
+  border-color: #6B1F2E;
+}
+
+.featureTitle {
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--xndr-primary-text);
+  font-family: 'Lexend Exa', sans-serif;
+}
+
+.featureDescription {
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media screen and (max-width: 768px) {
+  .featureCard {
+    padding: 1.5rem;
+  }
+}
+

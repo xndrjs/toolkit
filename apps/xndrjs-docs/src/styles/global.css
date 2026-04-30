@@ -1,0 +1,207 @@
+/**
+ * xndr Brand Colors and Theme
+ * 
+ * Brand Colors:
+ * - Dark Red (#6B1F2E): Primary color
+ * - Neutral grays for backgrounds
+ * - Minimalist brutal design
+ */
+
+/* Brand color variables */
+:root {
+  --xndr-primary: #6B1F2E;      /* Dark Red - Primary color */
+  --xndr-primary-dark: #5C1A28;
+  --xndr-primary-darker: #4D1522;
+  --xndr-primary-darkest: #3E101C;
+  --xndr-primary-light: #7A2E3C;
+  --xndr-primary-lighter: #893D4A;
+  --xndr-primary-lightest: #984C58;
+  --xndr-primary-text: #a82141;  /* Dark red for text */
+  
+  --xndr-cyan: #00D9FF;        /* Secondary color (for code) */
+  
+  --xndr-bg-primary: #0A0A0A;
+  --xndr-bg-secondary: #1A1A1A;
+  --xndr-bg-tertiary: #252525;
+  --xndr-bg-card: #1E1E1E;
+  
+  --xndr-text-primary: #FFFFFF;
+  --xndr-text-secondary: #E0E0E0;
+  --xndr-text-muted: #A0A0A0;
+  
+  --xndr-accent-lines: rgba(255, 255, 255, 0.1);
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 1.125rem;
+  line-height: 1.7;
+  background: #1e1e1e;
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings use Lexend Exa for geometric, solid look */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Lexend Exa', sans-serif;
+}
+
+h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--xndr-primary-text);
+  margin-bottom: 1.5rem;
+}
+
+h2 {
+  font-weight: 600;
+  color: var(--xndr-text-primary);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+  padding-bottom: 0.5rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1.5rem;
+}
+
+h3 {
+  font-weight: 600;
+  color: var(--xndr-text-primary);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+/* Links */
+a {
+  color: var(--xndr-primary-text);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--xndr-primary-text);
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* Code blocks */
+code {
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: rgba(40, 40, 40, 0.6);
+  border: 1px solid rgba(107, 31, 46, 0.2);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 87.5%;
+}
+
+code:hover {
+  background: rgba(50, 50, 50, 0.7);
+  border-color: var(--xndr-primary-text);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--xndr-bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(107, 31, 46, 0.5);
+  border-radius: 5px;
+  border: 2px solid var(--xndr-bg-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 31, 46, 0.8);
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(0, 217, 255, 0.3);
+  color: var(--xndr-text-primary);
+}
+
+::-moz-selection {
+  background: rgba(0, 217, 255, 0.3);
+  color: var(--xndr-text-primary);
+}
+
+/* Admonitions */
+.admonition {
+  border-radius: 8px;
+  border-left-width: 4px;
+  transition: box-shadow 0.3s ease;
+  margin: 1.5rem 0;
+  padding: 1rem 1.5rem;
+  background: rgba(40, 40, 40, 0.3);
+  border-left: 4px solid var(--xndr-primary);
+}
+
+.admonition:hover {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.admonition-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-family: 'Lexend Exa', sans-serif;
+}
+
+/* Buttons */
+.button--primary,
+a.button--primary {
+  background: var(--xndr-primary);
+  color: #000000;
+  border: none;
+  box-shadow: none;
+  transition: background-color 0.2s ease;
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.button--primary:hover,
+a.button--primary:hover {
+  background: #7A2E3C;
+  transform: none;
+  box-shadow: none;
+}
+
+.button--secondary,
+a.button--secondary {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.button--secondary:hover,
+a.button--secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--xndr-cyan);
+  color: var(--xndr-cyan);
+  transform: none;
+  box-shadow: none;
+}
+
