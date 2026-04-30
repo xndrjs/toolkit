@@ -66,9 +66,7 @@ describe("@xndrjs/domain-zod integration", () => {
   it("proof refineType + zodToValidator", () => {
     const Verified = domain
       .proof("Verified", zodToValidator(z.object({ isVerified: z.boolean() })))
-      .refineType<{
-        isVerified: true;
-      }>((row): row is typeof row & { isVerified: true } => row.isVerified === true);
+      .refineType((row): row is typeof row & { isVerified: true } => row.isVerified === true);
 
     const row = Verified.assert({ isVerified: true });
     expect(row.isVerified).toBe(true);

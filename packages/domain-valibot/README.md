@@ -33,11 +33,11 @@ const ItemSchema = v.object({
 
 const ProTier = domain
   .proof("ProTier", valibotToValidator(ItemSchema))
-  .refineType<{ tier: "pro" }>((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
+  .refineType((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
 
 const Stocked = domain
   .proof("Stocked", valibotToValidator(ItemSchema))
-  .refineType<{ count: number }>((row): row is typeof row & { count: number } => row.count > 0);
+  .refineType((row): row is typeof row & { count: number } => row.count > 0);
 
 const out = pipe({ id: "i-1", tier: "pro", count: 4 }, Stocked.assert, ProTier.assert);
 ```

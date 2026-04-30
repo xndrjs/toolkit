@@ -164,9 +164,9 @@ function userBaseProofValidator(): Validator<
 
 describe("proof", () => {
   const NonNegativeProof = proof("NonNegative", nonNegativeRowValidator());
-  const VerifiedProof = proof("Verified", verifiedSliceValidator()).refineType<{
-    isVerified: true;
-  }>((row): row is { isVerified: boolean } & { isVerified: true } => row.isVerified === true);
+  const VerifiedProof = proof("Verified", verifiedSliceValidator()).refineType(
+    (row): row is typeof row & { isVerified: true } => row.isVerified === true
+  );
 
   it("assert merges proof onto plain objects and brands nominally", () => {
     const plain = { id: "a", count: 0, isVerified: true as const };
@@ -215,8 +215,8 @@ describe("proof", () => {
   });
 
   it("refined kit has no refineType method", () => {
-    const refined = proof("R", nonNegativeRowValidator()).refineType<{ count: 0 }>(
-      (row): row is { id: string; count: number } & { count: 0 } => row.count === 0
+    const refined = proof("R", nonNegativeRowValidator()).refineType(
+      (row): row is typeof row & { count: 0 } => row.count === 0
     );
     expect("refineType" in refined).toBe(false);
     expect(refined.assert({ id: "z", count: 0 })).toMatchObject({ id: "z", count: 0 });
@@ -226,9 +226,9 @@ describe("proof", () => {
     const UserBaseShape = shape("User", userBaseShapeValidator());
     const UserExtendedShape = shape("UserExtended", userExtendedShapeValidator());
 
-    const VerifiedUserFact = proof("VerifiedUserFact", userBaseProofValidator()).refineType<{
-      isVerified: true;
-    }>((row): row is typeof row & { isVerified: true } => row.isVerified === true);
+    const VerifiedUserFact = proof("VerifiedUserFact", userBaseProofValidator()).refineType(
+      (row): row is typeof row & { isVerified: true } => row.isVerified
+    );
 
     type ProofMarked = Branded<
       typeof VerifiedUserFact.brand,

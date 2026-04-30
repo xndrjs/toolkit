@@ -170,9 +170,7 @@ const verifiedValidator: Validator<unknown, { isVerified: boolean }> = {
 
 const Verified = domain
   .proof("Verified", verifiedValidator)
-  .refineType<{
-    isVerified: true;
-  }>((row): row is typeof row & { isVerified: true } => row.isVerified === true);
+  .refineType((row): row is typeof row & { isVerified: true } => row.isVerified === true);
 
 const user = { isVerified: true };
 const proven = pipe(user, Verified.assert);

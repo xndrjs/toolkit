@@ -52,9 +52,7 @@ describe("pipe parity (valibot)", () => {
         })
       )
     )
-    .refineType<{
-      isVerified: true;
-    }>((row): row is typeof row & { isVerified: true } => row.isVerified === true);
+    .refineType((row): row is typeof row & { isVerified: true } => row.isVerified === true);
 
   it("chains: create detail -> project -> rename -> proof.assert", () => {
     const out = pipe(
@@ -102,11 +100,11 @@ describe("stacked proofs (valibot)", () => {
 
   const ProTier = domain
     .proof("ProTier", valibotToValidator(ItemSchema))
-    .refineType<{ tier: "pro" }>((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
+    .refineType((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
 
-  const Active = domain.proof("Active", valibotToValidator(ItemSchema)).refineType<{
-    active: true;
-  }>((row): row is typeof row & { active: true } => row.active === true);
+  const Active = domain
+    .proof("Active", valibotToValidator(ItemSchema))
+    .refineType((row): row is typeof row & { active: true } => row.active === true);
 
   it("applies each proof in order; value satisfies all narrowed checks", () => {
     const item = ItemShape.create({
