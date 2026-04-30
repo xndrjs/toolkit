@@ -1,0 +1,22 @@
+{
+  "name": "@xndrjs/oas-core-validator-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "codegen": "tsx scripts/codegen.ts && pnpm exec openapi-typescript src/generated/openapi.bundled.json -o src/generated/openapi.types.ts",
+    "validate": "tsx src/validate.ts",
+    "demo": "pnpm run codegen && pnpm run validate",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xndrjs/domain-ajv": "workspace:^",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
+    "openapi-typescript": "^7.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}

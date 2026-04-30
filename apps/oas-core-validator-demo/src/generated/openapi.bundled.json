@@ -1,0 +1,61 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OAS -> Core Validator Demo",
+    "version": "1.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Tier": {
+        "type": "string",
+        "enum": ["free", "pro"]
+      },
+      "User": {
+        "type": "object",
+        "required": ["id", "email", "tier", "isVerified"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/Tier"
+          },
+          "isVerified": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": []
+          }
+        },
+        "additionalProperties": false
+      },
+      "VerifiedUser": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/User"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "isVerified": {
+                "const": true
+              }
+            },
+            "required": ["isVerified"]
+          }
+        ]
+      }
+    }
+  }
+}

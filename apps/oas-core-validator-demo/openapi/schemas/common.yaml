@@ -1,0 +1,5 @@
+Tier:
+  type: string
+  enum:
+    - free
+    - pro

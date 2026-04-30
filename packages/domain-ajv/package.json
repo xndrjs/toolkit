@@ -1,0 +1,49 @@
+{
+  "name": "@xndrjs/domain-ajv",
+  "version": "0.1.0",
+  "description": "Ajv adapter for @xndrjs/domain with helpers for JSON Schema and OpenAPI components.",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/domain-ajv"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
+    "prepublishOnly": "pnpm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "dependencies": {
+    "@xndrjs/domain": "workspace:^"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "tsup": "^8.5.1",
+    "vitest": "^4.1.0"
+  }
+}

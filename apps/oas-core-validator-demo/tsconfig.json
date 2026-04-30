@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.repo.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["scripts/**/*.ts", "src/**/*.ts", "schemas/**/*.json", "openapi/**/*.yaml"]
+}

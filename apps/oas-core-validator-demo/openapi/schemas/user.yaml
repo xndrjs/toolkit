@@ -1,0 +1,35 @@
+User:
+  type: object
+  required:
+    - id
+    - email
+    - tier
+    - isVerified
+  properties:
+    id:
+      type: string
+      minLength: 1
+    email:
+      type: string
+      format: email
+    tier:
+      $ref: "./common.yaml#/Tier"
+    isVerified:
+      type: boolean
+    tags:
+      type: array
+      items:
+        type: string
+        minLength: 1
+      default: []
+  additionalProperties: false
+
+VerifiedUser:
+  allOf:
+    - $ref: "#/User"
+    - type: object
+      properties:
+        isVerified:
+          const: true
+      required:
+        - isVerified

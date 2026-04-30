@@ -1,0 +1,13 @@
+openapi: 3.1.0
+info:
+  title: OAS -> Core Validator Demo
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Tier:
+      $ref: "./schemas/common.yaml#/Tier"
+    User:
+      $ref: "./schemas/user.yaml#/User"
+    VerifiedUser:
+      $ref: "./schemas/user.yaml#/VerifiedUser"
