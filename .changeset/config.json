@@ -7,5 +7,12 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@config/eslint", "@config/vitest", "@config/typescript"]
+  "ignore": [
+    "@config/eslint",
+    "@config/vitest",
+    "@config/typescript",
+    "@xndrjs/bench-perf",
+    "@xndrjs/documentation",
+    "@xndrjs/oas-core-validator-demo"
+  ]
 }
