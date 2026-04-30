@@ -27,6 +27,7 @@ function zodErrorToFailure(zodError: z.ZodError): ValidationFailure {
 
 /**
  * Wraps a Zod **4.x** schema as a `Validator<Input, Output>` for `@xndrjs/domain`.
+ * `Input` is the accepted type for kit `create` / `safeCreate`; `validate` always receives `unknown`.
  * Failures map to `ValidationFailure` with `engine: "zod"` and per-issue `meta` set to the raw Zod issue.
  */
 export function fromZod<Schema extends z.ZodTypeAny>(
@@ -34,7 +35,7 @@ export function fromZod<Schema extends z.ZodTypeAny>(
 ): Validator<z.input<Schema>, z.output<Schema>> {
   return {
     engine: "zod",
-    validate(input: z.input<Schema>): ValidationResult<z.output<Schema>> {
+    validate(input: unknown): ValidationResult<z.output<Schema>> {
       const parsed = schema.safeParse(input);
       if (parsed.success) {
         return { success: true, data: parsed.data };

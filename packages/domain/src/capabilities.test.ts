@@ -26,7 +26,8 @@ function profileValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { displayName, type: typeIn } = input;
+      const row = input as Record<string, unknown>;
+      const { displayName, type: typeIn } = row;
       if (typeof displayName !== "string" || displayName.length === 0) {
         return fail("Invalid displayName");
       }
@@ -49,7 +50,8 @@ function widgetValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { name, type: typeIn } = input;
+      const row = input as Record<string, unknown>;
+      const { name, type: typeIn } = row;
       if (typeof name !== "string") {
         return fail("Invalid name");
       }
@@ -72,7 +74,8 @@ function anonymousValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { nickname, type: typeIn } = input;
+      const row = input as Record<string, unknown>;
+      const { nickname, type: typeIn } = row;
       if (typeof nickname !== "string") {
         return fail("Invalid nickname");
       }
@@ -95,7 +98,8 @@ function profileDetailValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { displayName, avatarSrc, type: typeIn } = input;
+      const row = input as Record<string, unknown>;
+      const { displayName, avatarSrc, type: typeIn } = row;
       if (typeof displayName !== "string" || displayName.length === 0) {
         return fail("Invalid displayName");
       }

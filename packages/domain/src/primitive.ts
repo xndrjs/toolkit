@@ -37,7 +37,7 @@ export function primitive<Type extends string, Input, Value>(
   }
 
   function is(value: unknown): value is Readonly<Branded<Type, Value>> {
-    return validator.validate(value as Input).success;
+    return validator.validate(value).success;
   }
 
   return {

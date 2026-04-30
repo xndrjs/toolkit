@@ -26,7 +26,8 @@ function nonNegativeRowValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { id, count } = input;
+      const row = input as Record<string, unknown>;
+      const { id, count } = row;
       if (typeof id !== "string") {
         return fail("Invalid id");
       }
@@ -45,7 +46,8 @@ function verifiedSliceValidator(): Validator<{ isVerified: boolean }, { isVerifi
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { isVerified } = input;
+      const row = input as Record<string, unknown>;
+      const { isVerified } = row;
       if (typeof isVerified !== "boolean") {
         return fail("Invalid isVerified");
       }
@@ -57,11 +59,11 @@ function verifiedSliceValidator(): Validator<{ isVerified: boolean }, { isVerifi
 function positiveIntValidator(): Validator<number, number> {
   return {
     engine: "test",
-    validate(n) {
-      if (typeof n !== "number" || !Number.isInteger(n) || n <= 0) {
+    validate(input) {
+      if (typeof input !== "number" || !Number.isInteger(input) || input <= 0) {
         return fail("Expected positive integer");
       }
-      return { success: true, data: n };
+      return { success: true, data: input };
     },
   };
 }
@@ -76,7 +78,8 @@ function itemShapeValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { id, count, type: typeIn } = input;
+      const row = input as Record<string, unknown>;
+      const { id, count, type: typeIn } = row;
       if (typeof id !== "string" || typeof count !== "number") {
         return fail("Invalid row");
       }
@@ -102,7 +105,8 @@ function userBaseShapeValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { id, isVerified, type: typeIn } = input;
+      const row = input as Record<string, unknown>;
+      const { id, isVerified, type: typeIn } = row;
       if (typeof id !== "string" || typeof isVerified !== "boolean") {
         return fail("Invalid user");
       }
@@ -125,7 +129,8 @@ function userExtendedShapeValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { id, isVerified, department, type: typeIn } = input;
+      const row = input as Record<string, unknown>;
+      const { id, isVerified, department, type: typeIn } = row;
       if (
         typeof id !== "string" ||
         typeof isVerified !== "boolean" ||

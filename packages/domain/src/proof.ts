@@ -90,7 +90,7 @@ function buildProofKit<
   }
 
   function testImpl(value: unknown): value is ProofValue<ProofBrand, Narrowed> {
-    const result = validator.validate(value as Input);
+    const result = validator.validate(value);
     if (!result.success) {
       return false;
     }

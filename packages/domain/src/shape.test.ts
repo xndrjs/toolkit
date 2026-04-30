@@ -21,7 +21,8 @@ function itemValidator(): Validator<{ id: string; count?: number }, { id: string
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { id, count } = input;
+      const row = input as Record<string, unknown>;
+      const { id, count } = row;
       if (typeof id !== "string" || id.length === 0) {
         return fail("Invalid id");
       }
@@ -49,7 +50,8 @@ function strictBoxValidator(): Validator<
       if (typeof input !== "object" || input === null) {
         return fail("Expected object");
       }
-      const { id, count } = input;
+      const row = input as Record<string, unknown>;
+      const { id, count } = row;
       if (typeof id !== "string" || id.length === 0) {
         return fail("Invalid id");
       }

@@ -140,7 +140,7 @@ export function shape<Type extends string, Input extends object, Props extends o
       Object.assign(draft, delta);
     }
 
-    const validated = validator.validate(draft as unknown as Input);
+    const validated = validator.validate(draft);
     if (!validated.success) {
       throw new DomainValidationError(
         `Invalid input for shape "${type}" during patch`,
@@ -159,7 +159,7 @@ export function shape<Type extends string, Input extends object, Props extends o
       return false;
     }
     const payload = { ...(value as Record<string, unknown>) };
-    return validator.validate(payload as Input).success;
+    return validator.validate(payload).success;
   }
 
   function project<
