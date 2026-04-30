@@ -19,7 +19,7 @@ Use it when validation is simple enough that introducing a schema engine would b
 import type { Validator } from "@xndrjs/domain";
 import { compose, domain } from "@xndrjs/domain";
 
-const nonEmptyString: Validator<unknown, string> = {
+const nonEmptyString: Validator<string> = {
   engine: "custom",
   validate(input) {
     if (typeof input !== "string" || input.length === 0) {
@@ -60,7 +60,7 @@ import { pipe } from "@xndrjs/domain";
 const result = pipe(
   " 42 ",
   (s) => s.trim(),
-  (s) => Number(s),
+  Number, // or (s) => Number(s)
   (n) => n * 2
 );
 // result === 84

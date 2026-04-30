@@ -17,7 +17,7 @@ function toBenchmarkFailure(failure: ValidationFailure): BenchmarkFailure {
   };
 }
 
-export const coreAdapter: BenchmarkAdapter<Validator<unknown, unknown>> = {
+export const coreAdapter: BenchmarkAdapter<Validator<unknown>> = {
   engine: "core",
   profile: {
     strictObjectKeys: false,

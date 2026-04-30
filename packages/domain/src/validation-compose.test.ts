@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { arrayOf, objectFromFields, optional } from "./validation-compose";
 import type { Validator } from "./validation";
 
-const nonEmptyString: Validator<unknown, string> = {
+const nonEmptyString: Validator<string> = {
   engine: "test",
-  validate(input: unknown) {
+  validate(input) {
     if (typeof input !== "string" || input.length === 0) {
       return {
         success: false,
@@ -19,9 +19,9 @@ const nonEmptyString: Validator<unknown, string> = {
   },
 };
 
-const nonNegativeInt: Validator<unknown, number> = {
+const nonNegativeInt: Validator<number> = {
   engine: "test",
-  validate(input: unknown) {
+  validate(input) {
     if (typeof input !== "number" || !Number.isInteger(input) || input < 0) {
       return {
         success: false,

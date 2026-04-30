@@ -25,7 +25,7 @@ not as instance methods:
 existingUser.rename("New Name");
 ```
 
-This keeps the value easy to serialize, test, pass through UI state, and move between layers. The behavior is still close to the domain concept because it lives on the `User` kit.
+This keeps the value easy to serialize, test, pass through UI state, and move between layers. The behavior is still inside the domain layer, because it lives on the `User` kit.
 
 ## Basic capability
 
@@ -43,6 +43,9 @@ const updated = User.rename(existingUser, "New Name");
 ```
 
 The `patch` function is only available inside the capability factory. That keeps updates close to named domain operations.
+
+It also prevents `patch` from being accidentally exported as a generic "do anything" method. In practice, shape transitions must be declared and named inside capabilities, not invented from random points in the application.
+This gives you behavior encapsulation: every allowed operation on a shape is explicit in one place, so the domain keeps a clear overview of how that shape is allowed to evolve.
 
 ## Validated transitions
 
@@ -63,6 +66,8 @@ const User = domain
 ```
 
 If a transition would violate the shape validator, it fails the same way `create` would fail.
+
+This is a major guarantee: every transition preserves data validity by default, without relying on developers to remember manual validation at each call site / at the end of each transition.
 
 ## Reusable bundles
 

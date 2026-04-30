@@ -87,3 +87,7 @@ AJV failures are normalized into domain issues:
 - `engine: "ajv"`
 - path derived from `instancePath`
 - required-property errors append the missing field to the issue path
+
+## See the example app
+
+You can also check the [example app folder](https://github.com/xndrjs/toolkit/tree/main/apps/oas-core-validator-demo) in `@xndrjs/toolkit`, which shows how an OpenAPI spec is converted to JSON Schema and then passed to the AJV adapter in just a few steps.

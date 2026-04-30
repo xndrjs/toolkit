@@ -189,7 +189,7 @@ function isMigrationRow(input: unknown): input is MigrationRow {
   return true;
 }
 
-function buildCoreSchema(): Validator<unknown, MigrationRow> {
+function buildCoreSchema(): Validator<MigrationRow> {
   return {
     engine: "core-custom",
     validate(input) {

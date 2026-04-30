@@ -81,7 +81,7 @@ This keeps domain errors structured without forcing every caller to know the ori
 ```ts
 import type { Validator } from "@xndrjs/domain";
 
-const nonEmptyString: Validator<unknown, string> = {
+const nonEmptyString: Validator<string> = {
   engine: "custom",
   validate(input) {
     if (typeof input === "string" && input.length > 0) {

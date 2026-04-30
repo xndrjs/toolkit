@@ -28,7 +28,7 @@ The core needs a `Validator<input, output>`. You can write one directly or use a
 import type { Validator } from "@xndrjs/domain";
 import { domain } from "@xndrjs/domain";
 
-const nonEmptyString: Validator<unknown, string> = {
+const nonEmptyString: Validator<string> = {
   engine: "custom",
   validate(input) {
     if (typeof input !== "string" || input.length === 0) {
@@ -58,7 +58,7 @@ Use `compose.object` + `compose.array` + `compose.optional` to build nested vali
 import type { Validator } from "@xndrjs/domain";
 import { compose, domain } from "@xndrjs/domain";
 
-const nonEmptyString: Validator<unknown, string> = {
+const nonEmptyString: Validator<string> = {
   engine: "custom",
   validate(input) {
     if (typeof input !== "string" || input.length === 0) {
@@ -94,7 +94,7 @@ Capabilities encapsulate transitions through the internal `patch` function, pres
 import type { Validator } from "@xndrjs/domain";
 import { compose, domain } from "@xndrjs/domain";
 
-const nonEmptyString: Validator<unknown, string> = {
+const nonEmptyString: Validator<string> = {
   engine: "custom",
   validate(input) {
     if (typeof input !== "string" || input.length === 0) {
@@ -109,7 +109,7 @@ const nonEmptyString: Validator<unknown, string> = {
     return { success: true, data: input };
   },
 };
-const booleanValidator: Validator<unknown, boolean> = {
+const booleanValidator: Validator<boolean> = {
   engine: "custom",
   validate(input) {
     if (typeof input !== "boolean") {
@@ -148,7 +148,7 @@ Chain proof assertions with `pipe` to get progressive guarantees.
 import type { Validator } from "@xndrjs/domain";
 import { domain, pipe } from "@xndrjs/domain";
 
-const verifiedValidator: Validator<unknown, { isVerified: boolean }> = {
+const verifiedValidator: Validator<{ isVerified: boolean }> = {
   engine: "custom",
   validate(input) {
     if (

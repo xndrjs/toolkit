@@ -34,6 +34,24 @@ const email = Email.create("ADA@EXAMPLE.COM");
 
 The runtime value is still a string. The type is no longer an interchangeable string.
 
+```ts
+const Username = domain.primitive("Username", zodToValidator(z.string().min(3)));
+
+function sendWelcomeEmail(to: BrandedType<typeof Email>) {
+  // ...
+}
+
+const username = Username.create("ada");
+const email = Email.create("ada@example.com");
+
+sendWelcomeEmail(email); // OK
+sendWelcomeEmail(username); // Type error: Username is not Email
+```
+
+Even if both values are strings at runtime, their brands prevent accidental mixups at compile time. This safety is static-only, so it adds no runtime overhead.
+
+You can think of primitives as lightweight value objects: they carry domain meaning, validation, and identity-by-value semantics, but avoid the class-heavy ceremony often associated with traditional Value Object implementations.
+
 ## Define a shape
 
 Shapes are trusted immutable object representations.
@@ -81,7 +99,46 @@ const renamed = User.rename(user, "Ada Lovelace");
 const verified = User.verify(renamed);
 ```
 
+The same capabilities set can be attached to multiple shapes, as long as those shapes expose the fields required by the methods.
+
+```ts
+const OrderShape = domain.shape(
+  "Order",
+  zodToValidator(
+    z.object({
+      id: z.string(),
+      status: z.enum(["draft", "confirmed"]),
+    })
+  )
+);
+
+const OrderDetailShape = domain.shape(
+  "OrderDetail",
+  zodToValidator(
+    z.object({
+      id: z.string(),
+      status: z.enum(["draft", "confirmed"]),
+      lines: z.array(z.object({ sku: z.string(), qty: z.number().int().positive() })),
+      shippingAddress: z.string().min(1),
+    })
+  )
+);
+
+const OrderCapabilities = domain
+  .capabilities<{ status: "draft" | "confirmed" }>()
+  .methods((patch) => ({
+    confirm(order) {
+      return patch(order, { status: "confirmed" });
+    },
+  }));
+
+const Order = OrderCapabilities.attach(OrderShape);
+const OrderDetail = OrderCapabilities.attach(OrderDetailShape);
+```
+
 Every capability transition goes through the shape validator again. You get a new frozen value, not a mutated object.
+
+In the example above, `OrderDetail.confirm(...)` re-validates with the `OrderDetail` validator, while `Order.confirm(...)` re-validates with the `Order` validator. That works because `patch` is injected by the attached kit (`attach(...)`): the same method logic is reused, but validation is resolved from the specific shape binding.
 
 ## Add a proof when meaning gets stronger
 
@@ -121,7 +178,7 @@ JSON preserves data, not shape identity.
 
 ```ts
 const payload = JSON.stringify(verified);
-const fromNetwork = JSON.parse(payload) as unknown;
+const fromNetwork = JSON.parse(payload); // unknown
 
 const trustedAgain = User.create(fromNetwork);
 ```
