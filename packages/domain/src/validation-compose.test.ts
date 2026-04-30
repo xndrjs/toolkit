@@ -93,4 +93,95 @@ describe("validation-compose", () => {
       );
     }
   });
+
+  it("objectFromFields ignores extra keys and only returns declared shape", () => {
+    const User = objectFromFields({
+      name: nonEmptyString,
+      age: optional(nonNegativeInt),
+    });
+
+    const parsed = User.validate({
+      name: "Ada",
+      age: 33,
+      role: "admin",
+      nested: { ignored: true },
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data).toEqual({
+        name: "Ada",
+        age: 33,
+      });
+      expect("role" in parsed.data).toBe(false);
+      expect("nested" in parsed.data).toBe(false);
+    }
+  });
+
+  it("supports nested object + arrayOf + optional combinations", () => {
+    const Member = objectFromFields({
+      name: nonEmptyString,
+      nickname: optional(nonEmptyString),
+    });
+    const Group = objectFromFields({
+      title: nonEmptyString,
+      members: arrayOf(Member),
+      note: optional(nonEmptyString),
+    });
+
+    const ok = Group.validate({
+      title: "core",
+      members: [{ name: "Ada" }, { name: "Linus", nickname: "torvalds" }],
+    });
+    expect(ok.success).toBe(true);
+
+    const fail = Group.validate({
+      title: "",
+      members: [{ name: "" }, { nickname: "" }],
+      note: "",
+    });
+    expect(fail.success).toBe(false);
+    if (!fail.success) {
+      expect(fail.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: ["title"] }),
+          expect.objectContaining({ path: ["members", 0, "name"] }),
+          expect.objectContaining({ path: ["members", 1, "name"] }),
+          expect.objectContaining({ path: ["members", 1, "nickname"] }),
+          expect.objectContaining({ path: ["note"] }),
+        ])
+      );
+    }
+  });
+
+  it("keeps stable aggregated error paths for deep array/object failures", () => {
+    const Payload = objectFromFields({
+      tags: arrayOf(nonEmptyString),
+      counts: arrayOf(nonNegativeInt),
+    });
+    const Event = objectFromFields({
+      id: nonEmptyString,
+      payload: Payload,
+    });
+
+    const fail = Event.validate({
+      id: "",
+      payload: {
+        tags: ["ok", "", ""],
+        counts: [1, -1, -2],
+      },
+    });
+
+    expect(fail.success).toBe(false);
+    if (!fail.success) {
+      const paths = fail.error.issues.map((issue) => issue.path.join("."));
+      expect(paths).toEqual([
+        "id",
+        "payload.tags.1",
+        "payload.tags.2",
+        "payload.counts.1",
+        "payload.counts.2",
+      ]);
+    }
+  });
 });
