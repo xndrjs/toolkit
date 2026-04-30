@@ -1,5 +1,11 @@
 # @xndrjs/tasks
 
+## 0.1.2-alpha.1
+
+### Patch Changes
+
+- fe38108: added new domain + adapters
+
 ## 0.1.2-alpha.0
 
 ### Patch Changes

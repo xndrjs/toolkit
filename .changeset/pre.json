@@ -10,7 +10,12 @@
     "@xndrjs/domain-zod": "0.1.0",
     "@xndrjs/orchestration": "0.3.0-alpha.0",
     "@xndrjs/react-adapter": "0.1.2-alpha.0",
-    "@xndrjs/tasks": "0.1.2-alpha.0"
+    "@xndrjs/tasks": "0.1.2-alpha.0",
+    "@xndrjs/documentation": "0.0.1",
+    "@config/eslint": "1.0.1",
+    "@config/typescript": "1.0.1",
+    "@config/vitest": "1.0.1",
+    "@xndrjs/bench-perf": "0.1.0"
   },
-  "changesets": []
+  "changesets": ["spotty-files-spend"]
 }

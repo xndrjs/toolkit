@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/domain-valibot",
-  "version": "0.1.0",
+  "version": "0.1.1-alpha.0",
   "description": "Valibot adapter for @xndrjs/domain with function-first APIs: valibotToValidator and valibotFromKit, plus full domain re-export.",
   "private": false,
   "license": "MIT",

@@ -1,5 +1,13 @@
 # @xndrjs/react-adapter
 
+## 0.1.2-alpha.1
+
+### Patch Changes
+
+- fe38108: added new domain + adapters
+- Updated dependencies [fe38108]
+  - @xndrjs/orchestration@0.3.0-alpha.1
+
 ## 0.1.2-alpha.0
 
 ### Patch Changes

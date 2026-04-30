@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/branded",
-  "version": "0.3.0-alpha.0",
+  "version": "0.3.0-alpha.1",
   "deprecated": "Use @xndrjs/domain (core) and @xndrjs/domain-zod (Zod). @xndrjs/branded is deprecated; further adapters are planned.",
   "description": "Zod-first branded types for domain modeling (deprecated; use @xndrjs/domain-zod).",
   "private": false,
