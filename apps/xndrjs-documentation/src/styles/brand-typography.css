@@ -1,0 +1,21 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap");
+
+:root {
+  --xndr-brand-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+/* Navbar wordmark */
+a.site-title span {
+  font-family: var(--xndr-brand-mono);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+/* Splash layout: main hero title only (doc pages use PageTitle, not .hero) */
+.hero h1#_top {
+  font-family: var(--xndr-brand-mono);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}

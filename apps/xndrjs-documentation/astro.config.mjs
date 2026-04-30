@@ -7,6 +7,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "xndrjs",
+      customCss: ["./src/styles/brand-typography.css"],
       social: [{ icon: "github", label: "GitHub", href: "https://github.com/xndrjs/toolkit" }],
       components: {
         Header: "./src/components/Header.astro",
