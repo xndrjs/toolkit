@@ -1,6 +1,11 @@
-# Libraries monorepo
+# xndrjs toolkit (monorepo)
 
-A collection of npm-publishable packages using a **pnpm** workspace. Each library lives under `packages/<name>`.
+This repo is a **pnpm workspace** for **xndrjs**: TypeScript libraries that help you model domains with explicit validation boundaries, optional schema adapters (Zod, Valibot, AJV), and small helpers for orchestration, data loading, and async work.
+
+- **`packages/<name>`** — libraries meant to be **published to npm** (scoped `@xndrjs/*`).
+- **`apps/<name>`** — **not published** as libraries; things like the **documentation site** (`xndrjs-documentation`) and **examples** (e.g. `oas-core-validator-demo`).
+
+Workspace-wide scripts (install, build, test, release) run from the **repository root**; each package documents its own API in its `README.md` or in the docs app.
 
 **Domain modeling:** prefer **`@xndrjs/domain`** (validator-agnostic) and **`@xndrjs/domain-zod`** (Zod 4). **`@xndrjs/branded`** is **deprecated** and kept for historical compatibility. More validation adapters are **on the roadmap** (several likely in the near term).
 
