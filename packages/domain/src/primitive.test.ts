@@ -5,7 +5,7 @@ import { DomainValidationError } from "./errors";
 import { primitive } from "./primitive";
 import type { Validator } from "./validation";
 
-function emailValidator(): Validator<string, string> {
+function emailValidator(): Validator<string> {
   return {
     engine: "test",
     validate(input) {
@@ -33,7 +33,7 @@ function emailValidator(): Validator<string, string> {
   };
 }
 
-function positiveIntegerValidator(): Validator<number, number> {
+function positiveIntegerValidator(): Validator<number> {
   return {
     engine: "test",
     validate(input) {

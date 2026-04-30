@@ -19,7 +19,7 @@ export type ValidationResult<T> =
  * `Input` documents what shape/primitive kit `create` / `safeCreate` accept (ergonomics only);
  * it is **not** trusted inside `validate`. Implementations must narrow from `unknown`.
  */
-export interface Validator<_Input, Output> {
+export interface Validator<_Input, Output = _Input> {
   readonly engine: string;
   validate(input: unknown): ValidationResult<Output>;
 }

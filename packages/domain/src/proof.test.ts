@@ -16,10 +16,7 @@ function fail(message: string, code = "invalid") {
   };
 }
 
-function nonNegativeRowValidator(): Validator<
-  { id: string; count: number },
-  { id: string; count: number }
-> {
+function nonNegativeRowValidator(): Validator<{ id: string; count: number }> {
   return {
     engine: "test",
     validate(input) {
@@ -39,7 +36,7 @@ function nonNegativeRowValidator(): Validator<
   };
 }
 
-function verifiedSliceValidator(): Validator<{ isVerified: boolean }, { isVerified: boolean }> {
+function verifiedSliceValidator(): Validator<{ isVerified: boolean }> {
   return {
     engine: "test",
     validate(input) {
@@ -56,7 +53,7 @@ function verifiedSliceValidator(): Validator<{ isVerified: boolean }, { isVerifi
   };
 }
 
-function positiveIntValidator(): Validator<number, number> {
+function positiveIntValidator(): Validator<number> {
   return {
     engine: "test",
     validate(input) {
