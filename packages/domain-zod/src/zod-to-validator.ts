@@ -30,7 +30,7 @@ function zodErrorToFailure(zodError: z.ZodError): ValidationFailure {
  * `Input` is the accepted type for kit `create` / `safeCreate`; `validate` always receives `unknown`.
  * Failures map to `ValidationFailure` with `engine: "zod"` and per-issue `meta` set to the raw Zod issue.
  */
-export function fromZod<Schema extends z.ZodTypeAny>(
+export function zodToValidator<Schema extends z.ZodTypeAny>(
   schema: Schema
 ): Validator<z.input<Schema>, z.output<Schema>> {
   return {

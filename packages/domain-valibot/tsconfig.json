@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.repo.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@xndrjs/domain": ["../domain/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

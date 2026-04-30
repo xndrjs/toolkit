@@ -1,31 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { domainCore, domainZod, DomainValidationError } from "./index";
+import { domain, DomainValidationError, zodFromKit, zodToValidator } from "./index";
 
 /**
  * Mirrors the “example domain” section of branded-shape.test.ts (nested User + Address + Email),
  * with `domainZod.field(kit)` reusing each kit’s `zodSchema` (no duplicated address/email Zod).
  */
 describe("aggregate domain parity (branded-kit example)", () => {
-  const EmailPrimitive = domainZod.primitive("Email", z.string().min(1));
+  const EmailPrimitive = domain.primitive("Email", zodToValidator(z.string().min(1)));
 
   const AddressSchema = z.object({
     type: z.literal("Address").default("Address"),
     city: z.string(),
     street: z.string(),
   });
-  const AddressShape = domainZod.shape("Address", AddressSchema);
+  const AddressShape = domain.shape("Address", zodToValidator(AddressSchema));
 
   const UserShapeSchema = z.object({
     type: z.literal("User").default("User"),
-    email: domainZod.field(EmailPrimitive),
-    address: domainZod.field(AddressShape),
+    email: zodFromKit(EmailPrimitive),
+    address: zodFromKit(AddressShape),
   });
 
-  const UserShape = domainCore.shape("User", domainZod.fromZod(UserShapeSchema));
+  const UserShape = domain.shape("User", zodToValidator(UserShapeSchema));
 
-  const User = domainCore
+  const User = domain
     .capabilities<z.output<typeof UserShapeSchema>>()
     .methods((patch) => ({
       isCorporate(user) {

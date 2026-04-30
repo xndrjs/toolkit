@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { fromZod } from "./from-zod";
+import { zodToValidator } from "./zod-to-validator";
 
-describe("fromZod", () => {
+describe("zodToValidator", () => {
   it("returns success with parsed output", () => {
-    const v = fromZod(z.string().email());
+    const v = zodToValidator(z.email());
     const r = v.validate("a@b.co");
     expect(r.success).toBe(true);
     if (r.success) {
@@ -14,7 +14,7 @@ describe("fromZod", () => {
   });
 
   it("returns failure with core ValidationIssue list", () => {
-    const v = fromZod(z.string().email());
+    const v = zodToValidator(z.email());
     const r = v.validate("not-an-email");
     expect(r.success).toBe(false);
     if (!r.success) {

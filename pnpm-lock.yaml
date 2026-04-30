@@ -119,6 +119,22 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0(@types/node@25.5.0)(jsdom@26.1.0)(vite@8.0.1(@types/node@25.5.0)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3))
 
+  packages/domain-valibot:
+    dependencies:
+      '@xndrjs/domain':
+        specifier: workspace:^
+        version: link:../domain
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      valibot:
+        specifier: ^1.3.1
+        version: 1.3.1(typescript@5.9.3)
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@25.5.0)(jsdom@26.1.0)(vite@8.0.1(@types/node@25.5.0)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3))
+
   packages/domain-zod:
     dependencies:
       '@xndrjs/domain':
@@ -2536,6 +2552,14 @@ packages:
   v8flags@4.0.1:
     resolution: {integrity: sha512-fcRLaS4H/hrZk9hYwbdRM35D0U8IYMfEClhXxCivOojl+yTRAZH3Zy2sSy6qVCiGbV9YAtPssP6jaChqC9vPCg==}
     engines: {node: '>= 10.13.0'}
+
+  valibot@1.3.1:
+    resolution: {integrity: sha512-sfdRir/QFM0JaF22hqTroPc5xy4DimuGQVKFrzF1YfGwaS1nJot3Y8VqMdLO2Lg27fMzat2yD3pY5PbAYO39Gg==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   vite@8.0.1:
     resolution: {integrity: sha512-wt+Z2qIhfFt85uiyRt5LPU4oVEJBXj8hZNWKeqFG4gRG/0RaRGJ7njQCwzFVjO+v4+Ipmf5CY7VdmZRAYYBPHw==}
@@ -4996,6 +5020,10 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   v8flags@4.0.1: {}
+
+  valibot@1.3.1(typescript@5.9.3):
+    optionalDependencies:
+      typescript: 5.9.3
 
   vite@8.0.1(@types/node@25.5.0)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:

@@ -1,13 +1,13 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
-import { domainCore, domainZod, DomainValidationError, pipe } from "./index";
+import { domain, DomainValidationError, pipe, zodToValidator } from "./index";
 
 describe("pipe parity (branded pipe.branded.test)", () => {
   const UserSchema = z.object({
     type: z.literal("User").default("User"),
     id: z.string(),
-    email: z.string().email(),
+    email: z.email(),
     displayName: z.string(),
     isVerified: z.boolean(),
     address: z.object({
@@ -17,8 +17,8 @@ describe("pipe parity (branded pipe.branded.test)", () => {
     }),
   });
 
-  const UserShape = domainCore.shape("User", domainZod.fromZod(UserSchema));
-  const UserKit = domainCore
+  const UserShape = domain.shape("User", zodToValidator(UserSchema));
+  const UserKit = domain
     .capabilities<z.output<typeof UserSchema>>()
     .methods((patch) => ({
       rename(user, displayName: string) {
@@ -31,10 +31,10 @@ describe("pipe parity (branded pipe.branded.test)", () => {
     avatarSrc: z.string().url(),
   });
 
-  const UserDetailShape = domainCore.shape("UserDetail", domainZod.fromZod(UserDetailSchema));
+  const UserDetailShape = domain.shape("UserDetail", zodToValidator(UserDetailSchema));
 
-  const VerifiedUserFact = domainCore
-    .proof("VerifiedUser", domainZod.fromZod(z.object({ isVerified: z.boolean() })))
+  const VerifiedUserFact = domain
+    .proof("VerifiedUser", zodToValidator(z.object({ isVerified: z.boolean() })))
     .refineType<{
       isVerified: true;
     }>((row): row is typeof row & { isVerified: true } => row.isVerified === true);
@@ -71,18 +71,15 @@ describe("stacked proofs (branded pipe.branded.test)", () => {
     active: z.boolean(),
   });
 
-  const ItemShape = domainCore.shape("Item", domainZod.fromZod(ItemSchema));
+  const ItemShape = domain.shape("Item", zodToValidator(ItemSchema));
 
-  const Stocked = domainCore.proof(
-    "Stocked",
-    domainZod.fromZod(ItemSchema.refine((v) => v.count > 0))
-  );
+  const Stocked = domain.proof("Stocked", zodToValidator(ItemSchema.refine((v) => v.count > 0)));
 
-  const ProTier = domainCore
-    .proof("ProTier", domainZod.fromZod(ItemSchema))
+  const ProTier = domain
+    .proof("ProTier", zodToValidator(ItemSchema))
     .refineType<{ tier: "pro" }>((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
 
-  const Active = domainCore.proof("Active", domainZod.fromZod(ItemSchema)).refineType<{
+  const Active = domain.proof("Active", zodToValidator(ItemSchema)).refineType<{
     active: true;
   }>((row): row is typeof row & { active: true } => row.active === true);
 

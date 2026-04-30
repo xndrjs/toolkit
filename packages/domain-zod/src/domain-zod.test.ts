@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { domainZod } from "./index";
+import { zodFromKit, zodToValidator } from "./index";
 
-describe("domainZod", () => {
-  it("groups Zod-first factories without shadowing core names", () => {
-    expect(domainZod.primitive).toBe(domainZod.primitiveFromZod);
-    expect(domainZod.shape).toBe(domainZod.shapeFromZod);
-    expect(domainZod.field).toBe(domainZod.brandedField);
-    expect(domainZod.fromZod).toBeDefined();
-    expect(typeof domainZod.fromZod).toBe("function");
+describe("domain-zod exports", () => {
+  it("exposes function-first adapter helpers", () => {
+    expect(zodFromKit).toBeDefined();
+    expect(typeof zodFromKit).toBe("function");
+    expect(zodToValidator).toBeDefined();
+    expect(typeof zodToValidator).toBe("function");
   });
 });

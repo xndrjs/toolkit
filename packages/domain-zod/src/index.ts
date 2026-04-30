@@ -1,10 +1,8 @@
 /**
- * Zod 4 adapter for `@xndrjs/domain`: use {@link domainZod} for `fromZod`, Zod-backed `primitive` / `shape`, and `field`.
- * Re-exports `@xndrjs/domain` ({@link domainCore} + types) so Zod-based apps can use one entry package.
- * Zod-specific value exports: {@link domainZod} only; types: {@link ZodPrimitiveKit}, {@link ZodShapeKit}.
+ * Zod 4 adapter for `@xndrjs/domain`: use `zodToValidator` and `zodFromKit`.
+ * Re-exports `@xndrjs/domain` (including `domain` namespace + types) for single-entry imports.
  */
-export { domainZod } from "./domain-zod";
-
-export type { ZodPrimitiveKit, ZodShapeKit } from "./zod-kit";
+export { zodFromKit } from "./zod-from-kit";
+export { zodToValidator } from "./zod-to-validator";
 
 export * from "@xndrjs/domain";

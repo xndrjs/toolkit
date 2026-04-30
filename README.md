@@ -140,12 +140,13 @@ This writes `artifacts/*.tgz` (folder is gitignored). Useful to inspect what wou
 
 ## Packages
 
-| Package                 | Description                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------- |
-| `@xndrjs/domain`        | Validator-agnostic shapes, primitives, proofs, capabilities (`packages/domain`) |
-| `@xndrjs/domain-zod`    | Zod 4 adapter; re-exports domain (`packages/domain-zod`)                        |
-| `@xndrjs/branded`       | **Deprecated** — use `domain` / `domain-zod` (`packages/branded`)               |
-| `@xndrjs/tasks`         | Lazy async tasks with retry (`packages/tasks`)                                  |
-| `@xndrjs/orchestration` | Orchestration ports (`packages/orchestration`)                                  |
-| `@xndrjs/react-adapter` | React hooks for orchestration ports (`packages/react-adapter`)                  |
-| `@xndrjs/data-layer`    | Data layer utilities (`packages/data-layer`)                                    |
+| Package                  | Description                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| `@xndrjs/domain`         | Validator-agnostic shapes, primitives, proofs, capabilities (`packages/domain`) |
+| `@xndrjs/domain-zod`     | Zod 4 adapter; re-exports domain (`packages/domain-zod`)                        |
+| `@xndrjs/domain-valibot` | Valibot adapter; re-exports domain (`packages/domain-valibot`)                  |
+| `@xndrjs/branded`        | **Deprecated** — use `domain` / `domain-zod` (`packages/branded`)               |
+| `@xndrjs/tasks`          | Lazy async tasks with retry (`packages/tasks`)                                  |
+| `@xndrjs/orchestration`  | Orchestration ports (`packages/orchestration`)                                  |
+| `@xndrjs/react-adapter`  | React hooks for orchestration ports (`packages/react-adapter`)                  |
+| `@xndrjs/data-layer`     | Data layer utilities (`packages/data-layer`)                                    |

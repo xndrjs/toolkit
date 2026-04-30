@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
-import { domainCore, domainZod, pipe } from "./index";
+import { domain, pipe, zodToValidator } from "./index";
 
 /**
  * Mirrors branded `Shape.extend` / `Kit.extend` using **Zod** `baseSchema.extend({ ... })`:
@@ -17,8 +17,8 @@ describe("Zod schema.extend → base + detail shapes", () => {
     avatarSrc: z.string().url(),
   });
 
-  const ProfileShape = domainZod.shape("Profile", ProfileSchema);
-  const ProfileDetailShape = domainZod.shape("ProfileDetail", ProfileDetailSchema);
+  const ProfileShape = domain.shape("Profile", zodToValidator(ProfileSchema));
+  const ProfileDetailShape = domain.shape("ProfileDetail", zodToValidator(ProfileDetailSchema));
 
   it("detail kit reuses base Zod via .extend(); zodSchema on both kits", () => {
     expect(ProfileShape.type).toBe("Profile");
@@ -50,13 +50,11 @@ describe("Zod schema.extend → base + detail shapes", () => {
   });
 
   it("reusable capability attaches to base and to detail shape (Zod-extended row)", () => {
-    const RenameCapability = domainCore
-      .capabilities<{ displayName: string }>()
-      .methods((patch) => ({
-        rename(entity, displayName: string) {
-          return patch(entity, { displayName });
-        },
-      }));
+    const RenameCapability = domain.capabilities<{ displayName: string }>().methods((patch) => ({
+      rename(entity, displayName: string) {
+        return patch(entity, { displayName });
+      },
+    }));
 
     const BaseKit = RenameCapability.attach(ProfileShape);
     const DetailKit = RenameCapability.attach(ProfileDetailShape);
@@ -79,13 +77,11 @@ describe("Zod schema.extend → base + detail shapes", () => {
   });
 
   it("pipe: detail create → project to base → capability on base kit", () => {
-    const RenameCapability = domainCore
-      .capabilities<{ displayName: string }>()
-      .methods((patch) => ({
-        rename(entity, displayName: string) {
-          return patch(entity, { displayName });
-        },
-      }));
+    const RenameCapability = domain.capabilities<{ displayName: string }>().methods((patch) => ({
+      rename(entity, displayName: string) {
+        return patch(entity, { displayName });
+      },
+    }));
     const BaseKit = RenameCapability.attach(ProfileShape);
 
     const out = pipe(
@@ -110,15 +106,13 @@ describe("Zod extend: attach enforces structural compatibility", () => {
       nickname: z.string(),
     });
 
-    const RenameCapability = domainCore
-      .capabilities<{ displayName: string }>()
-      .methods((patch) => ({
-        rename<T extends { displayName: string }>(entity: T, displayName: string) {
-          return patch(entity, { displayName });
-        },
-      }));
+    const RenameCapability = domain.capabilities<{ displayName: string }>().methods((patch) => ({
+      rename<T extends { displayName: string }>(entity: T, displayName: string) {
+        return patch(entity, { displayName });
+      },
+    }));
 
-    const AnonymousShape = domainZod.shape("Anonymous", AnonymousSchema);
+    const AnonymousShape = domain.shape("Anonymous", zodToValidator(AnonymousSchema));
 
     // @ts-expect-error -- row has `nickname`, not `displayName`
     const _invalidAttach = RenameCapability.attach(AnonymousShape);

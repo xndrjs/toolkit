@@ -1,10 +1,10 @@
 # @xndrjs/domain-zod
 
-Zod **4.x** adapter for [@xndrjs/domain](../domain). Use **`domainZod.fromZod(schema)`** for a `Validator<input, output>`, or **`domainZod.primitive` / `domainZod.shape`** for kits that carry `zodSchema` (e.g. with **`domainZod.field(kit)`** on parent objects).
+Zod **4.x** adapter for [@xndrjs/domain](../domain). Use **`zodToValidator(schema)`** for a `Validator<input, output>`, and **`zodFromKit(kit)`** to compose core kits as nested Zod fields.
 
 Prefer this package over the deprecated [`@xndrjs/branded`](../branded) for Zod-first domain modeling. **Further validation adapters** for `@xndrjs/domain` are **on the roadmap** (several likely in the near term).
 
-This package **re-exports `@xndrjs/domain`** (`domainCore` + types), so you can import from one place when you use Zod.
+This package **re-exports `@xndrjs/domain`** (`domain`, `compose` + types), so you can import from one place when you use Zod.
 
 ## Install
 
@@ -16,63 +16,78 @@ pnpm add @xndrjs/domain-zod zod@^4
 
 ## Usage
 
-Import **`domainZod`**, **`domainCore`**, and (when needed) **`DomainValidationError`** / **`pipe`** from this package; import `z` from `"zod"`. Core factories live on **`domainCore`**; `pipe` and `DomainValidationError` come from the root re-export of `@xndrjs/domain`.
+Import **`domain`**, **`zodToValidator`**, and **`zodFromKit`** from this package; import `z` from `"zod"`. Modeling factories live on **`domain`**; `compose`, `pipe`, and `DomainValidationError` come from the root re-export of `@xndrjs/domain`.
 
-### Primitive (Zod-backed kit)
+### Primitive
 
 ```ts
-import { domainZod } from "@xndrjs/domain-zod";
+import { domain, zodToValidator } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const Email = domainZod.primitive("Email", z.string().email());
+const Email = domain.primitive("Email", zodToValidator(z.email()));
 const email = Email.create("a@b.com");
-```
-
-### Core primitive + validator only
-
-```ts
-import { domainCore, domainZod } from "@xndrjs/domain-zod";
-import { z } from "zod";
-
-const Email = domainCore.primitive("Email", domainZod.fromZod(z.string().email()));
 ```
 
 ### Shape
 
 ```ts
-import { domainZod } from "@xndrjs/domain-zod";
+import { domain, zodToValidator } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const User = domainZod.shape(
+const User = domain.shape(
   "User",
-  z.object({
-    type: z.literal("User").default("User"),
-    id: z.string(),
-  })
+  zodToValidator(
+    z.object({
+      type: z.literal("User").default("User"),
+      id: z.string(),
+    })
+  )
 );
 const user = User.create({ id: "u-1" });
+```
+
+### Nested composition from existing kits
+
+```ts
+import { domain, zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
+import { z } from "zod";
+
+const Address = domain.shape(
+  "Address",
+  zodToValidator(z.object({ type: z.literal("Address").default("Address"), city: z.string() }))
+);
+
+const User = domain.shape(
+  "User",
+  zodToValidator(
+    z.object({
+      type: z.literal("User").default("User"),
+      address: zodFromKit(Address),
+    })
+  )
+);
 ```
 
 ### Proof
 
 ```ts
-import { domainCore, domainZod } from "@xndrjs/domain-zod";
+import { domain, zodToValidator } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const Verified = domainCore.proof("Verified", domainZod.fromZod(z.object({ ok: z.literal(true) })));
+const Verified = domain.proof("Verified", zodToValidator(z.object({ ok: z.literal(true) })));
 ```
 
 ### Capabilities
 
 ```ts
-import { domainCore, domainZod } from "@xndrjs/domain-zod";
+import { domain, zodToValidator } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const UserShape = domainCore.shape(
+const UserShape = domain.shape(
   "User",
-  domainZod.fromZod(z.object({ id: z.string(), isVerified: z.boolean() }))
+  zodToValidator(z.object({ id: z.string(), isVerified: z.boolean() }))
 );
-const User = domainCore
+const User = domain
   .capabilities<{ isVerified: boolean }>()
   .methods((patch) => ({
     verify(u) {
@@ -81,10 +96,6 @@ const User = domainCore
   }))
   .attach(UserShape);
 ```
-
-## Types
-
-`ZodPrimitiveKit` and `ZodShapeKit` are exported as **types** from this package. Other domain types (`Branded`, `ShapeKit`, `Validator`, …) are re-exported from `@xndrjs/domain`.
 
 ## Validation errors
 
