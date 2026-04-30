@@ -16,8 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky",
-    "deps:renovate": "npx -p renovate renovate-config-validator renovate.json"
+    "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.0",
