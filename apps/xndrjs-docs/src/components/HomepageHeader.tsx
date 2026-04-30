@@ -6,7 +6,7 @@ export default function HomepageHeader() {
       <div className={styles.heroBackground}></div>
       <div className={styles.heroContainer}>
         <h1 className={styles.heroTitle}>xndrjs</h1>
-        <p className={styles.heroTagline}>Domain modeling with validator-agnostic adapters</p>
+        <p className={styles.heroTagline}>Typed trust boundaries for plain immutable data</p>
       </div>
     </header>
   );

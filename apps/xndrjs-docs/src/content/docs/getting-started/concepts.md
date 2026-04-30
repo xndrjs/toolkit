@@ -1,8 +1,10 @@
 ---
 title: Concepts
 description: Core concepts for xndrjs domain and validator adapters
-order: 3
+order: 5
 seeAlso: |
+  - Start with the [Mental model](./mental-model.md)
+  - Build a complete [First model](./first-model.md)
   - Read the [Domain overview](/docs/domain/overview)
   - Explore [Validator contract](/docs/domain/validator-and-errors)
   - Compare [adapter APIs](/docs/adapters/zod/overview)
@@ -26,6 +28,9 @@ interface Validator<Input, Output = Input> {
 - Domain kits (`primitive`, `shape`, `proof`) consume this contract.
 - Adapter packages (`domain-zod`, `domain-ajv`, `domain-valibot`) create validators from external schema engines.
 - Your domain surface stays stable even if the underlying engine changes.
+
+The adapter is a boundary detail. Your model still speaks in domain concepts:
+`Email`, `User`, `VerifiedUser`, `User.verify(user)`.
 
 ## Validation result shape
 
@@ -65,3 +70,13 @@ Treat them as TypeScript nominal typing primitives from `@xndrjs/domain` interna
 - `domain-valibot`: bridges Valibot schemas and kit interoperability.
 
 These adapter docs explain API details and trade-offs.
+
+## The shortest useful path
+
+For most projects, start in this order:
+
+1. Pick the adapter that matches your existing schema engine.
+2. Define primitives for meaningful scalar values.
+3. Define shapes for trusted object representations.
+4. Add capabilities for allowed transitions.
+5. Add proofs only when a workflow needs stronger guarantees than the base shape.

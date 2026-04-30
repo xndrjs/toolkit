@@ -23,3 +23,12 @@ const result = pipe(
 ```
 
 Use it to keep normalization chains readable in domain factories and adapter-agnostic workflows.
+
+`pipe` is especially useful when you want to show a sequence of guarantees:
+
+```typescript
+const readyForBilling = pipe(user, VerifiedUser.assert, BillingProfileComplete.assert);
+```
+
+Each function receives the previous output. The resulting type accumulates what the
+pipeline established.

@@ -1,14 +1,16 @@
 ---
 title: Installation
 description: Install xndrjs domain packages and validation adapters
-order: 2
+order: 3
 seeAlso: |
-  After installation, read [Concepts](./concepts.md) and then move to the [Domain overview](/docs/domain/overview).
+  After installation, build your [First model](./first-model.md) and then move to the [Domain overview](/docs/domain/overview).
 ---
 
 # Installation
 
-Install only the packages you need for your validation stack.
+Install only the packages you need for your validation stack. If you use an adapter
+package, it already depends on `@xndrjs/domain` and re-exports its public APIs for
+convenience.
 
 ## Base package
 
@@ -38,12 +40,16 @@ pnpm add @xndrjs/domain-ajv ajv ajv-formats
 pnpm add @xndrjs/domain-valibot valibot
 ```
 
-## Minimal setup examples
+## Recommended setup examples
 
 ### domain + zod
 
 ```bash
 pnpm add @xndrjs/domain-zod zod
+```
+
+```typescript
+import { domain, zodToValidator } from "@xndrjs/domain-zod";
 ```
 
 ### domain + ajv
@@ -52,10 +58,18 @@ pnpm add @xndrjs/domain-zod zod
 pnpm add @xndrjs/domain-ajv ajv ajv-formats
 ```
 
+```typescript
+import { domain, jsonSchemaToValidator } from "@xndrjs/domain-ajv";
+```
+
 ### domain + valibot
 
 ```bash
 pnpm add @xndrjs/domain-valibot valibot
+```
+
+```typescript
+import { domain, valibotToValidator } from "@xndrjs/domain-valibot";
 ```
 
 ## TypeScript

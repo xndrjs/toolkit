@@ -10,7 +10,7 @@ order: 1
 
 It is inspired by Clean Architecture and domain-driven design principles, but deliberately avoids rigid or overly academic implementations. Instead, it focuses on pragmatic, ergonomic solutions that keep the entry barrier low while remaining fully extensible as system complexity grows.
 
-## Not Another Framwork
+## Not Another Framework
 
 `xndrjs` is not a framework.
 
@@ -75,5 +75,7 @@ And it's designed to make code:
 
 Continue with:
 
+- [Mental model](./mental-model.md)
 - [Installation](./installation.md)
+- [First model](./first-model.md)
 - [Concepts](./concepts.md)

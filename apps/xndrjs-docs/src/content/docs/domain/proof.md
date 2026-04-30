@@ -31,16 +31,29 @@ Flow:
 2. Optional `refineType` adds a **type guard** — extra meaning that the schema alone does not encode.
 3. `assert` / `test` materialize or check values against that combined contract.
 
+Use proofs when the base representation is valid but not strong enough for a specific
+workflow. For example, a `User` shape may be valid whether `isVerified` is `true` or
+`false`; a password reset flow may require a `VerifiedUser` proof.
+
 ## Factory and refinement
 
 `domain.proof(brand, validator)` returns a **factory** that also behaves as a proof kit. Call `refineType` to attach a guard:
 
 ```typescript
-import { domain } from "@xndrjs/domain";
+import { domain, zodToValidator } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 const VerifiedUser = domain
-  .proof("VerifiedUser", verifiedUserValidator)
+  .proof(
+    "VerifiedUser",
+    zodToValidator(
+      z.object({
+        id: z.string(),
+        email: z.email(),
+        isVerified: z.boolean(),
+      })
+    )
+  )
   .refineType((row): row is typeof row & { isVerified: true } => {
     return row.isVerified === true;
   });
@@ -58,9 +71,15 @@ VerifiedUser.assert(user); // proof value or throws
 VerifiedUser.test(user); // true or false
 ```
 
+`assert` is best at command boundaries where invalid state should stop the workflow.
+`test` is best inside branching logic.
+
 ## Objects and prototypes
 
 For plain objects, `proof` preserves the input prototype and merges parsed fields (then freezes). That keeps class instances or custom prototypes intact when asserting structured data.
+
+For shape instances, this means a proof can add meaning without stripping the existing
+shape identity.
 
 ## Errors
 

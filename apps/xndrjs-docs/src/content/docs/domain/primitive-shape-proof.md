@@ -27,9 +27,9 @@ Both share the same core properties:
 
 - they validate input at creation time
 - they produce immutable, readonly values
-- they attach a **brand** to the result
+- they attach a domain-level **brand** to the result type
 
-The brand is not just a type-level trick. It encodes a crucial semantic guarantee:
+The brand encodes a crucial semantic guarantee:
 
 ```
 this value has passed a specific validation boundary
@@ -56,15 +56,16 @@ As a result, primitives and shapes act as foundational building blocks for model
 Use for scalar-like values with nominal typing.
 
 ```typescript
-import { domain } from "@xndrjs/domain";
-import { zodToValidator } from "@xndrjs/domain-zod";
+import { domain, zodToValidator } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 const Email = domain.primitive("Email", zodToValidator(z.email()));
 const email = Email.create("alice@example.com");
 ```
 
-Runtime value remains a plain scalar; nominal distinction is type-level.
+Runtime value remains a plain scalar; nominal distinction is type-level. That is useful
+for values like `Email`, `UserId`, `CurrencyCode`, and `Slug`: they stay cheap and
+portable, but TypeScript can distinguish them from ordinary strings.
 
 ## `domain.shape`
 
@@ -79,8 +80,28 @@ const User = domain.shape(
 const user = User.create({ id: "u_1", name: "Alice" });
 ```
 
+Runtime shape instances are frozen objects with a shape marker on their prototype. This
+means `User.is(user)` can check that the value was materialized by this kit.
+
 `shape` kits also support:
 
 - `safeCreate(input)`
 - `is(value)`
 - `project(instance, targetKit)`
+
+## After JSON transport
+
+JSON preserves the data, not the shape identity.
+
+```typescript
+const payload = JSON.stringify(user);
+const fromJson = JSON.parse(payload) as unknown;
+
+User.is(fromJson); // false
+
+const trustedAgain = User.create(fromJson);
+User.is(trustedAgain); // true
+```
+
+This keeps the rule simple: data that crosses an external boundary should re-enter
+through `create` or `safeCreate`.

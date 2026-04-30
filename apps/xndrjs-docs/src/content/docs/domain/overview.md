@@ -20,6 +20,9 @@ It provides:
 - capability attachment (`domain.capabilities`)
 - typed function composition (`pipe`)
 
+Its job is not to be a schema engine. Its job is to turn validation into a stable domain
+boundary that the rest of your application can trust.
+
 ## Philosophy
 
 ### Semantics Over Structure
@@ -37,6 +40,14 @@ structure describes shape - semantics describes meaning
 
 These concepts are orthogonal and composable in our model.
 
+| Concept    | What it answers                                                |
+| ---------- | -------------------------------------------------------------- |
+| Validator  | "Does this unknown input match the expected structure?"        |
+| Primitive  | "Is this scalar value meaningful in my domain?"                |
+| Shape      | "Is this object now a trusted representation?"                 |
+| Proof      | "Has this value earned an additional guarantee?"               |
+| Capability | "What transitions are allowed, and how are they re-validated?" |
+
 ### Immutability by Default
 
 ```
@@ -49,9 +60,26 @@ All values are:
 - immutable
 - replaced, not mutated
 
-This removes an entire class of bugs related to implicit state changes. It also make it easier to work with modern FE frameworks, often based on referential equality to ensure the reactivity of the View.
+This removes an entire class of bugs related to implicit state changes. It also makes it easier to work with modern FE frameworks, often based on referential equality to update views predictably.
 
-But it's important to point out that this isn't about contaminating the Core of our architecture with infrastructural details (_...like writing business logics with the API of a "UI Library"_): it's just a model that works well with such infrastructural needs, causing no unnecessary friction (i.e. without requiring lots of mappers and DTOs).
+This is not about contaminating the core of your architecture with infrastructural details, such as writing business logic through a UI library API. It is a plain data model that works well with those infrastructural needs without requiring lots of mappers and DTOs.
+
+### Boundary First
+
+```text
+input is untrusted until a kit creates or proves it
+```
+
+`create`, `safeCreate`, and `assert` are the main trust-boundary operations. They make
+the important moment visible in code:
+
+```typescript
+const user = User.create(rawInput);
+const verified = VerifiedUser.assert(user);
+```
+
+After that point, your application can pass the value around as trusted data until it
+leaves the boundary again, for example through JSON transport or persistence.
 
 ---
 
@@ -62,6 +90,17 @@ But it's important to point out that this isn't about contaminating the Core of 
 - proofs establish semantic guarantees
 - capabilities evolve data
 - pipelines compose behavior
+
+## Choosing the right kit
+
+| Need                                                         | Use                   |
+| ------------------------------------------------------------ | --------------------- |
+| Validate an email, id, slug, currency, or other scalar value | `domain.primitive`    |
+| Materialize a trusted object from external input             | `domain.shape`        |
+| Express an operation such as rename, verify, cancel, approve | `domain.capabilities` |
+| Require a stronger guarantee for a specific workflow         | `domain.proof`        |
+| Build small validators without Zod, AJV, or Valibot          | `compose`             |
+| Chain transformations or proof assertions left-to-right      | `pipe`                |
 
 ---
 
