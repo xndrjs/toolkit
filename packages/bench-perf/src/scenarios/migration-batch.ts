@@ -217,7 +217,7 @@ function buildZodSchema(): z.ZodType<MigrationRow> {
   return z.object({
     id: z.number().int().positive(),
     accountId: z.string().startsWith("ACC-").min(8),
-    email: z.string().email(),
+    email: z.email(),
     status: z.enum(STATUSES),
     retries: z.number().int().min(0).max(3),
     profile: z.object({
