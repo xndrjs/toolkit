@@ -16,7 +16,7 @@ const HELP_TEXT = `Usage:
 
 Options:
   --scenario <name>       Scenario name
-  --engine <engine>       zod | valibot | core | raw
+  --engine <engine>       zod | valibot | ajv | core | raw
   --mode <mode>           valid | invalid (default: valid)
   --input-size <number>   Number of input records (default: 1000)
   --warmup <number>       Warmup iterations (default: 500)
@@ -76,7 +76,7 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerCliArgs {
   const outputDirValue = map.get("output-dir");
   const parsedEngine = ensureEnum(
     map.get("engine") as string | undefined,
-    ["zod", "valibot", "core", "raw"],
+    ["zod", "valibot", "ajv", "core", "raw"],
     "engine"
   ) as BenchmarkEngine | undefined;
   return {

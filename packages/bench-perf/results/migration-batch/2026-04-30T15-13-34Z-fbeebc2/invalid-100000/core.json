@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "scenario": "migration-batch",
+    "engine": "core",
+    "mode": "invalid",
+    "inputSize": 100000,
+    "warmup": 1000,
+    "repeats": 7,
+    "seed": 42,
+    "timestamp": "2026-04-30T15:13:41.259Z",
+    "runtime": {
+      "node": "v25.9.0",
+      "platform": "darwin",
+      "arch": "x64"
+    }
+  },
+  "totals": {
+    "operations": 700000,
+    "successCount": 692846,
+    "failureCount": 7154
+  },
+  "summary": {
+    "opsPerSec": {
+      "median": 3034570.37189938,
+      "p95": 3236822.80166856,
+      "p99": 3267842.3363237344,
+      "variance": 257452165846.73944
+    },
+    "msPerOp": {
+      "median": 0.00032953593999999613,
+      "p95": 0.000524648167000003,
+      "p99": 0.0005539529614000036,
+      "variance": 7.386583116517819e-9
+    },
+    "heapDeltaBytes": {
+      "median": 14067104,
+      "p95": 14067279.2,
+      "p99": 14067292.64,
+      "variance": 442912655147154.3
+    }
+  },
+  "repeats": [
+    {
+      "repeatIndex": 1,
+      "durationMs": 56.12791600000037,
+      "operations": 100000,
+      "successCount": 98978,
+      "failureCount": 1022,
+      "heapDeltaBytes": -20330504
+    },
+    {
+      "repeatIndex": 2,
+      "durationMs": 37.19657199999983,
+      "operations": 100000,
+      "successCount": 98978,
+      "failureCount": 1022,
+      "heapDeltaBytes": 14067104
+    },
+    {
+      "repeatIndex": 3,
+      "durationMs": 31.782867999999326,
+      "operations": 100000,
+      "successCount": 98978,
+      "failureCount": 1022,
+      "heapDeltaBytes": 14067296
+    },
+    {
+      "repeatIndex": 4,
+      "durationMs": 32.95359399999961,
+      "operations": 100000,
+      "successCount": 98978,
+      "failureCount": 1022,
+      "heapDeltaBytes": 14067048
+    },
+    {
+      "repeatIndex": 5,
+      "durationMs": 43.917585000000145,
+      "operations": 100000,
+      "successCount": 98978,
+      "failureCount": 1022,
+      "heapDeltaBytes": -41332528
+    },
+    {
+      "repeatIndex": 6,
+      "durationMs": 32.25033499999972,
+      "operations": 100000,
+      "successCount": 98978,
+      "failureCount": 1022,
+      "heapDeltaBytes": 14067176
+    },
+    {
+      "repeatIndex": 7,
+      "durationMs": 30.528784000000087,
+      "operations": 100000,
+      "successCount": 98978,
+      "failureCount": 1022,
+      "heapDeltaBytes": 14067240
+    }
+  ]
+}

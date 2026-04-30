@@ -26,7 +26,7 @@
   },
   "scripts": {
     "bench:dev": "tsx src/index.ts",
-    "bench:prepare": "pnpm --filter @xndrjs/domain --filter @xndrjs/domain-zod --filter @xndrjs/domain-valibot --filter @xndrjs/bench-perf run build",
+    "bench:prepare": "pnpm --filter @xndrjs/domain --filter @xndrjs/domain-zod --filter @xndrjs/domain-valibot --filter @xndrjs/domain-ajv --filter @xndrjs/bench-perf run build",
     "bench": "pnpm run bench:prepare && node dist/index.js",
     "bench:matrix": "pnpm run bench:prepare && node dist/index.js --matrix",
     "build": "tsup src/index.ts --dts --format esm",
@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@xndrjs/domain": "workspace:^",
+    "@xndrjs/domain-ajv": "workspace:^",
     "@xndrjs/domain-valibot": "workspace:^",
     "@xndrjs/domain-zod": "workspace:^",
     "valibot": "^1.1.0",

@@ -1,5 +1,5 @@
 import type { BenchmarkMode } from "./adapters";
-import { coreAdapter, rawAdapter, valibotAdapter, zodAdapter } from "./adapters";
+import { ajvAdapter, coreAdapter, rawAdapter, valibotAdapter, zodAdapter } from "./adapters";
 import { runCli, type RunnerDefinition } from "./runner";
 import {
   feMediumFormScenario,
@@ -19,7 +19,7 @@ export {
   type BenchmarkValidator,
   type RawSchema,
 } from "./adapters";
-export { coreAdapter, rawAdapter, valibotAdapter, zodAdapter } from "./adapters";
+export { ajvAdapter, coreAdapter, rawAdapter, valibotAdapter, zodAdapter } from "./adapters";
 export {
   executeBenchmark,
   parseRunnerArgs,
@@ -43,7 +43,7 @@ export {
 
 export interface BenchEntrypointOptions {
   scenario: string;
-  engine: "zod" | "valibot" | "core" | "raw";
+  engine: "zod" | "valibot" | "ajv" | "core" | "raw";
   mode: BenchmarkMode;
   inputSize: number;
   warmup: number;
@@ -52,7 +52,7 @@ export interface BenchEntrypointOptions {
 }
 
 const runnerDefinition: RunnerDefinition = {
-  adapters: [zodAdapter, valibotAdapter, coreAdapter, rawAdapter],
+  adapters: [zodAdapter, valibotAdapter, ajvAdapter, coreAdapter, rawAdapter],
   scenarios: [
     runnerSmokeScenario,
     migrationBatchScenario,

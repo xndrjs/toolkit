@@ -257,12 +257,55 @@ function buildValibotSchema(): v.GenericSchema {
   });
 }
 
+function buildAjvSchema(): object {
+  return {
+    type: "object",
+    additionalProperties: true,
+    required: ["id", "accountId", "email", "status", "retries", "profile", "metadata", "tags"],
+    properties: {
+      id: { type: "integer", minimum: 1 },
+      accountId: { type: "string", pattern: "^ACC-.{4,}$" },
+      email: { type: "string", format: "email" },
+      status: { enum: [...STATUSES] },
+      retries: { type: "integer", minimum: 0, maximum: 3 },
+      profile: {
+        type: "object",
+        additionalProperties: true,
+        required: ["firstName", "lastName", "age", "countryCode"],
+        properties: {
+          firstName: { type: "string", minLength: 2 },
+          lastName: { type: "string", minLength: 2 },
+          age: { type: "integer", minimum: 18, maximum: 70 },
+          countryCode: { type: "string", minLength: 2, maxLength: 2 },
+        },
+      },
+      metadata: {
+        type: "object",
+        additionalProperties: true,
+        required: ["source", "score", "migratedAt"],
+        properties: {
+          source: { enum: [...SOURCES] },
+          score: { type: "number", minimum: 0, maximum: 1 },
+          migratedAt: { type: "string", format: "date-time" },
+        },
+      },
+      tags: {
+        type: "array",
+        minItems: 1,
+        items: { type: "string", minLength: 2 },
+      },
+    },
+  };
+}
+
 function buildSchema(engine: BenchmarkEngine): BenchmarkCase["schema"] {
   switch (engine) {
     case "zod":
       return buildZodSchema();
     case "valibot":
       return buildValibotSchema();
+    case "ajv":
+      return buildAjvSchema();
     case "core":
       return buildCoreSchema();
     case "raw":
@@ -278,7 +321,7 @@ export const migrationBatchScenario: BenchmarkScenario = {
   name: "migration-batch",
   description:
     "Batch migration workload with deterministic 100k/500k datasets and controlled invalid ratio.",
-  supportedEngines: ["zod", "valibot", "core", "raw"],
+  supportedEngines: ["zod", "valibot", "ajv", "core", "raw"],
   createCase({ engine, mode, inputSize, context }) {
     assertSupportedInputSize(inputSize);
     return {

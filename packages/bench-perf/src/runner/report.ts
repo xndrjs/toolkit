@@ -94,8 +94,9 @@ export function sortByEngine(outputs: readonly RunnerJsonOutput[]): RunnerJsonOu
   const order: Record<BenchmarkEngine, number> = {
     zod: 0,
     valibot: 1,
-    core: 2,
-    raw: 3,
+    ajv: 2,
+    core: 3,
+    raw: 4,
   };
   return [...outputs].sort((a, b) => order[a.meta.engine] - order[b.meta.engine]);
 }

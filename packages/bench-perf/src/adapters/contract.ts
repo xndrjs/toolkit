@@ -1,4 +1,4 @@
-export type BenchmarkEngine = "zod" | "valibot" | "core" | "raw";
+export type BenchmarkEngine = "zod" | "valibot" | "ajv" | "core" | "raw";
 
 export type BenchmarkMode = "valid" | "invalid";
 

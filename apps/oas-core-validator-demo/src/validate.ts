@@ -6,13 +6,21 @@ import {
   domain,
   openApiComponentToValidator,
   pipe,
+  type OpenApiBundle,
 } from "@xndrjs/domain-ajv";
 import type { components } from "./generated/openapi.types.js";
-import type { OpenApiBundle } from "@xndrjs/domain-ajv";
 
-type UserDTO = components["schemas"]["User"];
-type TierDTO = components["schemas"]["Tier"];
-type VerifiedUserDTO = components["schemas"]["VerifiedUser"];
+type Schemas = components["schemas"];
+
+function openApiValidatorFor<K extends Extract<keyof Schemas, string>>(
+  bundle: OpenApiBundle,
+  name: K
+) {
+  return openApiComponentToValidator<Schemas[K]>(bundle, name);
+}
+
+type UserDTO = Schemas["User"];
+type TierDTO = Schemas["Tier"];
 
 async function getBundle() {
   const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -68,11 +76,11 @@ function printValidationError(error: unknown) {
 async function main() {
   const bundle = await getBundle();
 
-  const Tier = domain.primitive("Tier", openApiComponentToValidator<TierDTO>(bundle, "Tier"));
-  const User = domain.shape("User", openApiComponentToValidator<UserDTO>(bundle, "User"));
+  const Tier = domain.primitive("Tier", openApiValidatorFor(bundle, "Tier"));
+  const User = domain.shape("User", openApiValidatorFor(bundle, "User"));
   const VerifiedUserProof = domain.proof(
     "VerifiedUser",
-    openApiComponentToValidator<VerifiedUserDTO>(bundle, "VerifiedUser")
+    openApiValidatorFor(bundle, "VerifiedUser")
   );
 
   try {
@@ -90,8 +98,7 @@ async function main() {
   }
 
   try {
-    const user = User.create(validPayload);
-    const verifiedUser = pipe(user, VerifiedUserProof.assert);
+    const verifiedUser = pipe(User.create(validPayload), VerifiedUserProof.assert);
     console.log("Valid payload accepted:", verifiedUser);
   } catch (error) {
     printValidationError(error);
@@ -105,8 +112,7 @@ async function main() {
   }
 
   try {
-    const pendingUser = User.create(unverifiedPayload);
-    pipe(pendingUser, VerifiedUserProof.assert);
+    pipe(User.create(unverifiedPayload), VerifiedUserProof.assert);
     console.log("Unverified payload unexpectedly accepted by proof");
   } catch (error) {
     printValidationError(error);

@@ -4,6 +4,7 @@ Benchmark suite for comparing validation engines across realistic workloads:
 
 - `zod`
 - `valibot`
+- `ajv` (via `@xndrjs/domain-ajv`)
 - `core` (custom validator contract)
 - `raw` baseline (no intermediate validation guarantees)
 
@@ -62,7 +63,7 @@ pnpm --filter @xndrjs/bench-perf bench -- --scenario fe-medium-form --engine zod
 
 `bench` performs:
 
-1. `bench:prepare` (builds `@xndrjs/domain`, `@xndrjs/domain-zod`, `@xndrjs/domain-valibot`, `@xndrjs/bench-perf`);
+1. `bench:prepare` (builds `@xndrjs/domain`, `@xndrjs/domain-zod`, `@xndrjs/domain-valibot`, `@xndrjs/domain-ajv`, `@xndrjs/bench-perf`);
 2. benchmark execution from `dist/index.js`.
 
 ### Fast local iteration from source

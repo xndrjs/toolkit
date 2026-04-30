@@ -480,12 +480,120 @@ function buildValibotSchema(transformEnabled: boolean): v.GenericSchema {
   );
 }
 
+function buildAjvSchema(): object {
+  return {
+    type: "object",
+    additionalProperties: true,
+    required: [
+      "userId",
+      "profile",
+      "contact",
+      "addresses",
+      "emergencyContacts",
+      "preferences",
+      "security",
+      "metadata",
+    ],
+    properties: {
+      userId: { type: "string", pattern: "^usr_" },
+      profile: {
+        type: "object",
+        additionalProperties: true,
+        required: ["firstName", "lastName", "birthYear", "locale"],
+        properties: {
+          firstName: { type: "string", minLength: 2 },
+          lastName: { type: "string", minLength: 2 },
+          birthYear: { type: "integer", minimum: 1940, maximum: 2010 },
+          locale: { type: "string", minLength: 4 },
+        },
+      },
+      contact: {
+        type: "object",
+        additionalProperties: true,
+        required: ["email", "phone", "preferredChannel"],
+        properties: {
+          email: { type: "string", format: "email" },
+          phone: { type: "string", pattern: "^\\+" },
+          preferredChannel: { enum: [...CHANNELS] },
+        },
+      },
+      addresses: {
+        type: "array",
+        minItems: 2,
+        maxItems: 2,
+        items: {
+          type: "object",
+          additionalProperties: true,
+          required: ["line1", "city", "postalCode", "country"],
+          properties: {
+            line1: { type: "string", minLength: 5 },
+            city: { type: "string", minLength: 2 },
+            postalCode: { type: "string", minLength: 5 },
+            country: { enum: [...COUNTRIES] },
+          },
+        },
+      },
+      emergencyContacts: {
+        type: "array",
+        minItems: 2,
+        maxItems: 2,
+        items: {
+          type: "object",
+          additionalProperties: true,
+          required: ["name", "phone"],
+          properties: {
+            name: { type: "string", minLength: 5 },
+            phone: { type: "string", pattern: "^\\+" },
+          },
+        },
+      },
+      preferences: {
+        type: "object",
+        additionalProperties: true,
+        required: ["newsletter", "darkMode", "tags", "maxItemsPerPage", "timezoneOffsetMinutes"],
+        properties: {
+          newsletter: { type: "boolean" },
+          darkMode: { type: "boolean" },
+          tags: {
+            type: "array",
+            minItems: 2,
+            items: { type: "string", minLength: 2 },
+          },
+          maxItemsPerPage: { type: "integer", minimum: 10, maximum: 100 },
+          timezoneOffsetMinutes: { type: "number" },
+        },
+      },
+      security: {
+        type: "object",
+        additionalProperties: true,
+        required: ["mfaEnabled", "backupEmail"],
+        properties: {
+          mfaEnabled: { type: "boolean" },
+          backupEmail: { type: "string", format: "email" },
+        },
+      },
+      metadata: {
+        type: "object",
+        additionalProperties: true,
+        required: ["source", "campaign", "acceptedTermsAt"],
+        properties: {
+          source: { const: "web" },
+          campaign: { type: "string", minLength: 3 },
+          acceptedTermsAt: { type: "string", format: "date-time" },
+        },
+      },
+    },
+  };
+}
+
 function buildSchema(engine: BenchmarkEngine, transformEnabled: boolean): BenchmarkCase["schema"] {
   switch (engine) {
     case "zod":
       return buildZodSchema(transformEnabled);
     case "valibot":
       return buildValibotSchema(transformEnabled);
+    case "ajv":
+      return buildAjvSchema();
     case "core":
       return buildCoreSchema(transformEnabled);
     case "raw":
@@ -511,7 +619,9 @@ function createScenario(
   return {
     name,
     description,
-    supportedEngines: ["zod", "valibot", "core", "raw"],
+    supportedEngines: transformEnabled
+      ? ["zod", "valibot", "core", "raw"]
+      : ["zod", "valibot", "ajv", "core", "raw"],
     createCase({ engine, mode, inputSize, context }) {
       assertSupportedInputSize(inputSize);
       return {

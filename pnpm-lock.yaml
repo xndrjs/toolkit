@@ -116,6 +116,9 @@ importers:
       '@xndrjs/domain':
         specifier: workspace:^
         version: link:../domain
+      '@xndrjs/domain-ajv':
+        specifier: workspace:^
+        version: link:../domain-ajv
       '@xndrjs/domain-valibot':
         specifier: workspace:^
         version: link:../domain-valibot
