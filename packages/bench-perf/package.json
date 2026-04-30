@@ -1,0 +1,44 @@
+{
+  "name": "@xndrjs/bench-perf",
+  "version": "0.1.0",
+  "description": "Performance benchmark package for comparing validation engines.",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/bench-perf"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "bench:dev": "tsx src/index.ts",
+    "bench:prepare": "pnpm --filter @xndrjs/domain --filter @xndrjs/domain-zod --filter @xndrjs/domain-valibot --filter @xndrjs/bench-perf run build",
+    "bench": "pnpm run bench:prepare && node dist/index.js",
+    "build": "tsup src/index.ts --dts --format esm",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xndrjs/domain": "workspace:^",
+    "@xndrjs/domain-valibot": "workspace:^",
+    "@xndrjs/domain-zod": "workspace:^",
+    "valibot": "^1.1.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1"
+  }
+}
