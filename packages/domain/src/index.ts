@@ -36,6 +36,7 @@ export type {
 
 export type { PrimitiveKit } from "./primitive";
 export type { ProofFactory, ProofKit, ProofValue } from "./proof";
+export type { KitInstance } from "./kit-instance";
 export type {
   CapabilitiesBuilder,
   CapabilityBundle,

@@ -37,7 +37,7 @@ The runtime value is still a string. The type is no longer an interchangeable st
 ```ts
 const Username = domain.primitive("Username", zodToValidator(z.string().min(3)));
 
-function sendWelcomeEmail(to: BrandedType<typeof Email>) {
+function sendWelcomeEmail(to: KitInstance<typeof Email>) {
   // ...
 }
 
