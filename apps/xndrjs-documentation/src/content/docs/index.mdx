@@ -27,19 +27,19 @@ Instead of relying on patterns that create friction and boilerplate, `xndrjs` pr
 <br />
 
 <CardGrid stagger>
-  <Card title="Architecture, not conventions" icon="open-book">
+  <Card title="Architecture, not conventions" icon="seti:smarty">
     `xndrjs` is inspired by Clean Architecture and brings its core idea to fullstack TypeScript:
     separate your application into well-defined layers (domain, orchestration, infrastructure).
     Instead of relying on conventions or team discipline, it gives you primitives that make
     responsibilities explicit and predictable across the entire codebase.
   </Card>
-  <Card title="A pragmatic domain model" icon="pencil">
+  <Card title="A pragmatic domain model" icon="rocket">
     Traditional approaches force a trade-off: *"mutable anemic models that leak logic everywhere"* **OR** *"heavy object-oriented patterns with boilerplate, DTOs, and mappers"*.
 
     `xndrjs` takes a different path: a simple but expressive domain model that stays lightweight, while still scaling to complex systems when needed.
 
   </Card>
-  <Card title="Separation of responsibilities" icon="setting">
+  <Card title="Separation of responsibilities" icon="puzzle">
     `xndrjs` breaks domain modeling into four independent responsibilities:
 
       - validation → defining what data is allowed
@@ -50,7 +50,7 @@ Instead of relying on patterns that create friction and boilerplate, `xndrjs` pr
       These concepts are orthogonal and composable in a simple way, making the system easier to reason about.
 
   </Card>
-  <Card title="Correct by construction" icon="open-book">
+  <Card title="Correct by construction" icon="seti:lock">
     Instead of scattering validation across the codebase, `xndrjs` makes it part of how data is created.
 
     Once a value enters the system through a domain boundary, it is:
@@ -62,7 +62,7 @@ Instead of relying on patterns that create friction and boilerplate, `xndrjs` pr
     This removes entire classes of bugs and eliminates uncertainty about data correctness.
 
   </Card>
-  <Card title="Validation without lock-in" icon="add-document">
+  <Card title="Validation without lock-in" icon="external">
     `xndrjs` integrates with Zod, Valibot, AJV, OpenAPI, and other tools through adapters.
 
     Your domain code depends on a single validation contract, not on a specific library.
@@ -70,7 +70,7 @@ Instead of relying on patterns that create friction and boilerplate, `xndrjs` pr
 
   </Card>
 
-   <Card title="Clean Architecture, made practical" icon="add-document">
+  <Card title="Clean Architecture, made practical" icon="open-book">
     xndrjs is not just about domain modeling. It aims to make Clean Architecture approachable and sustainable in real-world TypeScript projects.
 
     The goal is simple:
