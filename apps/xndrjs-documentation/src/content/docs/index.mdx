@@ -3,7 +3,7 @@ title: xndrjs
 description: A TypeScript toolkit for explicit domain boundaries, validated data, and pragmatic application architecture.
 template: splash
 hero:
-  tagline: Build Domain-Driven TypeScript applications where untrusted data crosses explicit boundaries, behavior is named, and guarantees are visible in code. Documentation is versioned; the current line is v0 (preview).
+  tagline: Build fullstack TypeScript applications with clear boundaries, predictable structure, and minimal ceremony.
   actions:
     - text: Learn the concepts
       link: /v0/getting-started/introduction/
@@ -18,30 +18,69 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
 
 ## What xndrjs optimizes for
 
-`xndrjs` is a small set of TypeScript libraries for applications that want architectural discipline without framework ceremony.
+`xndrjs` is a small set of TypeScript libraries for applications that want architectural discipline without much ceremony.
 
-The core idea is simple: unknown data becomes useful only after it crosses an explicit trust boundary. Once that happens, your code can move validated, immutable, semantically named values through UI, orchestration, persistence, and transport with much less ambiguity.
+Inspired by Clean Architecture, it brings its core ideas to fullstack TypeScript projects with a strong focus on ergonomics.
+
+Instead of relying on patterns that create friction and boilerplate, `xndrjs` provides a minimal set of primitives that make boundaries, responsibilities, and best practices _the path of least resistance_.
+
+<br />
 
 <CardGrid stagger>
-  <Card title="Trust boundaries" icon="document">
-    Use `create`, `safeCreate`, and `assert` to make validation and semantic guarantees visible at
-    the exact point where data enters the system.
+  <Card title="Architecture, not conventions" icon="open-book">
+    `xndrjs` is inspired by Clean Architecture and brings its core idea to fullstack TypeScript:
+    separate your application into well-defined layers (domain, orchestration, infrastructure).
+    Instead of relying on conventions or team discipline, it gives you primitives that make
+    responsibilities explicit and predictable across the entire codebase.
   </Card>
-  <Card title="Domain semantics" icon="pencil">
-    Model meaningful values with primitives, trusted objects with shapes, state transitions with
-    capabilities, and stronger workflow guarantees with proofs.
+  <Card title="A pragmatic domain model" icon="pencil">
+    Traditional approaches force a trade-off: *"mutable anemic models that leak logic everywhere"* **OR** *"heavy object-oriented patterns with boilerplate, DTOs, and mappers"*.
+
+    `xndrjs` takes a different path: a simple but expressive domain model that stays lightweight, while still scaling to complex systems when needed.
+
   </Card>
-  <Card title="Adapter-first validation" icon="setting">
-    Keep using Zod, Valibot, AJV, JSON Schema, or OpenAPI at the boundary while your domain code
-    depends on one stable validator contract.
+  <Card title="Separation of responsibilities" icon="setting">
+    `xndrjs` breaks domain modeling into four independent responsibilities:
+
+      - validation → defining what data is allowed
+      - representation → modeling trusted values
+      - capabilities → evolving data through explicit operations
+      - guarantees → expressing stronger semantic constraints
+
+      These concepts are orthogonal and composable in a simple way, making the system easier to reason about.
+
   </Card>
-  <Card title="Application flow" icon="open-book">
-    Combine domain models with orchestration ports, React adapters, batch-loading utilities, and
-    retryable tasks without mixing responsibilities.
+  <Card title="Correct by construction" icon="open-book">
+    Instead of scattering validation across the codebase, `xndrjs` makes it part of how data is created.
+
+    Once a value enters the system through a domain boundary, it is:
+
+    - validated
+    - immutable
+    - safe to use
+
+    This removes entire classes of bugs and eliminates uncertainty about data correctness.
+
   </Card>
-  <Card title="Fast adoption" icon="add-document">
-    Start with a single primitive or shape, then add capabilities, proofs, and adapter
-    interoperability only when the model needs them.
+  <Card title="Validation without lock-in" icon="add-document">
+    `xndrjs` integrates with Zod, Valibot, AJV, OpenAPI, and other tools through adapters.
+
+    Your domain code depends on a single validation contract, not on a specific library.
+    This allows you to compare performance, switch engines, and evolve your stack without rewriting your domain logic.
+
+  </Card>
+
+   <Card title="Clean Architecture, made practical" icon="add-document">
+    xndrjs is not just about domain modeling. It aims to make Clean Architecture approachable and sustainable in real-world TypeScript projects.
+
+    The goal is simple:
+
+    - reduce friction
+    - avoid unnecessary boilerplate
+    - make the correct approach the easiest one
+
+    Because if something is widely considered “the right way”, it shouldn’t be ignored just because it feels too complex to implement.
+
   </Card>
 </CardGrid>
 
