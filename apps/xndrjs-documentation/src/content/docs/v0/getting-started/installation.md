@@ -63,7 +63,7 @@ These packages are optional and solve problems outside the domain modeling core:
 pnpm add @xndrjs/tasks
 ```
 
-See [Tasks](/v0/infrastructure/tasks/) for how `@xndrjs/tasks` fits alongside the rest of xndrjs.
+See [Tasks](/v0/infrastructure/tasks/) for how `@xndrjs/tasks` fits alongside the rest of `xndrjs`.
 
 ## Runtime and TypeScript
 

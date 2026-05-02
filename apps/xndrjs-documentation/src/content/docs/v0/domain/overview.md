@@ -5,7 +5,7 @@ description: Philosophy and package boundaries for @xndrjs/domain.
 
 # Domain overview
 
-`@xndrjs/domain` is the runtime modeling core of xndrjs.
+`@xndrjs/domain` is the runtime modeling core of `xndrjs`.
 
 It provides:
 
@@ -79,7 +79,7 @@ After a value leaves the process or becomes JSON, it should re-enter through a b
 | Express an operation such as rename, verify, cancel, approve | `domain.capabilities` |
 | Require a stronger guarantee for a specific workflow         | `domain.proof`        |
 | Build small validators without an adapter                    | `compose`             |
-| Chain transformations or assertions left-to-right            | `pipe`                |
+| Chain transformations or assertions                          | `pipe`                |
 
 ## Public entry point
 

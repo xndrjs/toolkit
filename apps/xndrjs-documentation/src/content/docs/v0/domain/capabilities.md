@@ -25,7 +25,7 @@ not as instance methods:
 existingUser.rename("New Name");
 ```
 
-This keeps the value easy to serialize, test, pass through UI state, and move between layers. The behavior is still inside the domain layer, because it lives on the `User` kit.
+This keeps the value easy to serialize, test, pass through UI state, and move between layers if no mapping is needed. The behavior is still inside the domain layer, because it lives on the `User` kit.
 
 ## Basic capability
 

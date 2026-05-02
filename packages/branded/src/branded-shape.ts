@@ -68,7 +68,7 @@ function validateMethodKeys<Type extends string, Schema extends BrandedZodObject
 /**
  * Schema-only shape kit. **`patch`** is stored internally under **`__shapePatch`** (non-enumerable).
  * Add capabilities via a reusable bundle created with
- * **`branded.capabilities<Req>().methods((patch) => ({ … }))`** and attached to this shape.
+ * **`branded.capabilities<Props>().methods((patch) => ({ … }))`** and attached to this shape.
  */
 export function defineBrandedShape<Type extends string, Schema extends BrandedZodObjectSchema>(
   type: Type,
@@ -240,12 +240,14 @@ export function defineBrandedCapability<
   };
 }
 
-/** Fluent API entrypoint: `branded.capabilities<Req>().methods(factory)` */
-export function defineBrandedCapabilities<Req extends object>(): BrandedCapabilitiesBuilder<Req> {
+/** Fluent API entrypoint: `branded.capabilities<Props>().methods(factory)` */
+export function defineBrandedCapabilities<
+  Props extends object,
+>(): BrandedCapabilitiesBuilder<Props> {
   return {
-    methods<const M extends BrandedCapabilityMethods<Req>>(
-      factory: (patch: BrandedCapabilityPatchFn<Req>) => M
-    ): BrandedCapability<Req, M> {
+    methods<const M extends BrandedCapabilityMethods<Props>>(
+      factory: (patch: BrandedCapabilityPatchFn<Props>) => M
+    ): BrandedCapability<Props, M> {
       return defineBrandedCapability(factory);
     },
   };

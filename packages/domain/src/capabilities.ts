@@ -91,12 +91,14 @@ function defineCapability<Req extends object, const M extends CapabilityMethods<
 }
 
 /**
- * Reusable capability bundle: **`capabilities<Req>().methods((patch) => ({ … })).attach(shape)`**.
+ * Reusable capability bundle: **`capabilities<Props>().methods((patch) => ({ … })).attach(shape)`**.
  * Methods live on the kit; instances stay data-only. **`patch`** is validated by the shape’s input schema.
  */
-export function capabilities<Req extends object>(): CapabilitiesBuilder<Req> {
+export function capabilities<Props extends object>(): CapabilitiesBuilder<Props> {
   return {
-    methods<const M extends CapabilityMethods<Req>>(factory: (patch: CapabilityPatchFn<Req>) => M) {
+    methods<const M extends CapabilityMethods<Props>>(
+      factory: (patch: CapabilityPatchFn<Props>) => M
+    ) {
       return defineCapability(factory);
     },
   };

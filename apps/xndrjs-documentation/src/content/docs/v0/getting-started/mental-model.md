@@ -34,7 +34,7 @@ const verified = User.verify(renamed);
 const proven = VerifiedUser.assert(verified);
 ```
 
-The same flow in one expression with `pipe` (unary steps left-to-right) so you can avoid multiple `const`s:
+The same flow in one expression with `pipe` (unary steps) so you can avoid multiple `const`s:
 
 ```ts
 import { pipe } from "@xndrjs/domain";
@@ -98,7 +98,7 @@ not on instances:
 user.rename("Ada");
 ```
 
-This keeps values easy to pass through UI state, orchestration functions, tests, storage, JSON, and queues. When a transition changes data, it goes through `patch`; `patch` validates again and returns a new frozen value.
+This keeps values easy to pass through UI state, orchestration functions, tests, storage, JSON, and queues. When a transition changes data, it goes through a `patch` function: `patch` validates again and returns a new frozen value.
 
 ## The rule of thumb
 

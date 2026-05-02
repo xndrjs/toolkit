@@ -1,7 +1,7 @@
 export type Unary<A, B> = (input: A) => B;
 
 /**
- * Fully typed pipe: composes unary transforms left-to-right.
+ * Fully typed pipe: composes unary transforms.
  */
 export function pipe<A>(value: A): A;
 export function pipe<A, B>(value: A, ab: Unary<A, B>): B;

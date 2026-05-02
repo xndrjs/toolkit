@@ -14,6 +14,6 @@ export const __shapeMarker: unique symbol = Symbol("__shapeMarker");
 /**
  * Non-enumerable patch function on shape kits. Not part of the public surface; use only if you must
  * reach **`patch`** outside a fluent capabilities bundle
- * (**`branded.capabilities<Req>().methods((patch) => …)`**).
+ * (**`branded.capabilities<Props>().methods((patch) => …)`**).
  */
 export const __shapePatch: unique symbol = Symbol("__shapePatch");

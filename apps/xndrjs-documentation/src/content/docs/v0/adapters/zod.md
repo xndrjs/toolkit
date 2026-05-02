@@ -29,6 +29,7 @@ const Email = domain.primitive(
 );
 
 const email = Email.create("ADA@EXAMPLE.COM");
+// ada@example.com
 ```
 
 Zod handles parsing and transformation. The domain primitive materializes the trusted value.

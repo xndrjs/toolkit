@@ -17,7 +17,7 @@ import { DomainValidationError, compose, domain, pipe } from "@xndrjs/domain";
 domain.primitive(type, validator);
 domain.shape(type, validator);
 domain.proof(brand, validator);
-domain.capabilities<Req>().methods(factory).attach(shapeKit);
+domain.capabilities<Props>().methods(factory).attach(shapeKit);
 ```
 
 ### compose

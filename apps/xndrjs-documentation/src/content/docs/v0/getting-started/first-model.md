@@ -23,26 +23,28 @@ Primitives are for scalar-like values that deserve a domain name.
 import { domain, zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const Email = domain.primitive(
+const EmailKit = domain.primitive(
   "Email",
   zodToValidator(z.email().transform((value) => value.toLowerCase()))
 );
 
-const email = Email.create("ADA@EXAMPLE.COM");
+const email = EmailKit.create("ADA@EXAMPLE.COM");
 // email is "ada@example.com" with the Email brand at type level
+
+type Email = KitInstance<typeof Email>;
 ```
 
 The runtime value is still a string. The type is no longer an interchangeable string.
 
 ```ts
-const Username = domain.primitive("Username", zodToValidator(z.string().min(3)));
+const UsernameKit = domain.primitive("Username", zodToValidator(z.string().min(3)));
 
-function sendWelcomeEmail(to: KitInstance<typeof Email>) {
+function sendWelcomeEmail(to: Email) {
   // ...
 }
 
-const username = Username.create("ada");
-const email = Email.create("ada@example.com");
+const username = UsernameKit.create("ada");
+const email = EmailKit.create("ada@example.com");
 
 sendWelcomeEmail(email); // OK
 sendWelcomeEmail(username); // Type error: Username is not Email
@@ -78,13 +80,17 @@ const user = UserShape.create({
 
 After `create`, `user` is validated and frozen. If input is invalid, `create` throws `DomainValidationError`; use `safeCreate` when you want a result union.
 
+Note how `email` is passed as a plain input value (`"ADA@EXAMPLE.COM"`), not as `EmailKit.create(...)`. Parent shapes that embed child kits are intended to accept **raw** nested payloads: the parent’s validator runs end-to-end and materializes branded or nested kit values for you. You do not need a nested ceremony of `create` calls at every level just to assemble one object.
+
 ## Add behavior with capabilities
 
 Capabilities keep behavior on the kit while instances stay data-only.
 
 ```ts
 const User = domain
+  // the contract on which the capability operates is passed as generics
   .capabilities<{ displayName: string; isVerified: boolean }>()
+  // note how patch is passed as a dependency here
   .methods((patch) => ({
     rename(user, displayName: string) {
       return patch(user, { displayName });
@@ -136,9 +142,13 @@ const Order = OrderCapabilities.attach(OrderShape);
 const OrderDetail = OrderCapabilities.attach(OrderDetailShape);
 ```
 
-Every capability transition goes through the shape validator again. You get a new frozen value, not a mutated object.
+Every capability transition goes through the shape validator again. You get a new frozen value, not a mutated object with the same reference.
 
 In the example above, `OrderDetail.confirm(...)` re-validates with the `OrderDetail` validator, while `Order.confirm(...)` re-validates with the `Order` validator. That works because `patch` is injected by the attached kit (`attach(...)`): the same method logic is reused, but validation is resolved from the specific shape binding.
+
+### Keeping the capability contract small
+
+The idea of explicitly defining the interface on which the `capabilities` operate lines up with the **Interface Segregation** idea: you _can_ type `capabilities` with the full props of a particular shape, and TypeScript will accept it when you attach that shape. The more maintainable approach is to keep the generic parameter **minimal**—only the fields the methods actually touch (reads, `patch` payloads, or other invariants the capability logic assumes). A narrower type states the real contract, makes reuse across richer shapes (like `OrderDetail` next to `Order`) obvious instead of accidental, and avoids coupling capability bundles to one row shape when they only need a slice of it.
 
 ## Add a proof when meaning gets stronger
 

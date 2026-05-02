@@ -3,9 +3,12 @@ title: Tasks
 description: The @xndrjs/tasks package — lazy async work, retry, and in-flight deduplication.
 ---
 
-`@xndrjs/tasks` is a small promise-like abstraction for lazy asynchronous work with explicit retry policies.
+`@xndrjs/tasks` is a small promise-like abstraction for lazy asynchronous work. It combines two optional layers you can turn on in the fluent builder:
 
-Unlike an eager Promise, a task does not run when it is created. It runs when awaited or consumed, can retry failed executions according to rules you define, and stays easy to compose with standard async code.
+- **Retry** (`.retry`): re-run the effect after failure according to rules you define.
+- **In-flight deduplication** (`.inflightDedup`): while an execution is already in progress, additional consumers that share the same **key** (and optional registry) **join** that run instead of starting another—until it settles (success or final failure after retries, if any).
+
+Unlike an eager Promise, a task does not run when it is created. It runs when awaited or consumed, and stays easy to compose with standard async code (`.then`, `await`, etc.).
 
 `@xndrjs/tasks` is primarily designed for **technical retry handling**, which makes it a natural fit for the infrastructure layer.
 
@@ -15,7 +18,7 @@ Tasks provide a small, focused abstraction to make this consistent and explicit.
 
 Nothing prevents using tasks for application-level retries when they have semantic meaning. However, their primary goal is to standardize technical retry handling and remove the need for repetitive boilerplate or “extra thought” at every call site.
 
-As with other xndrjs packages, the idea is to make best practices the **path of least resistance**:
+As with other `xndrjs` packages, the idea is to make best practices the **path of least resistance**:
 
 ```
 retry is easy to remember + retry is easy to configure
@@ -28,7 +31,9 @@ By turning retry into a first-class primitive, tasks help ensure that resilience
 
 ## Working with tasks
 
-Tasks are easy to understand, thanks to their intuitive fluent builder:
+The fluent builder is optional: use **`task(fn)`** alone, add **`.retry(...)`**, add **`.inflightDedup(key, registry?)`**, or chain **`.retry` then `.inflightDedup`** when you need both (retry runs **inside** the deduplicated work—see Composition below).
+
+Example with **retry** only:
 
 ```ts
 import { sleep, task } from "@xndrjs/tasks";
@@ -53,11 +58,13 @@ const usersTask = task(async () => fetch("/api/users"))
 const users = await usersTask; // now the task is actually run
 ```
 
-Tasks are lazy and re-execute on each `await`: every consumption starts the effect again.
+Tasks are **lazy** and **re-execute on each consumption** unless **in-flight dedup** applies: every `await` (or equivalent) starts the effect again for a plain `task` or `task().retry` chain.
 
-**Composition:** you may use **`task()`** alone, **`task().retry()`**, **`task().inflightDedup()`**, or **`task().retry().inflightDedup()`** (retry always **before** dedup when both appear). A second `.retry` or `.inflightDedup` is not allowed (the types prevent it).
+**Composition:** **`task()`**, **`task().retry()`**, **`task().inflightDedup()`**, or **`task().retry().inflightDedup()`** — when both appear, **retry always comes before** dedup. A second `.retry` or `.inflightDedup` on the same chain is not allowed (the types prevent it).
 
-Add **`.inflightDedup(key, registry?)`** when you want **concurrent** consumers to share **one** in-flight run—including the full **`.retry`** sequence when you used `.retry` first—until it settles. **`key` is always a `symbol`**. Omit **`registry`** for the package default store, or pass **`createInflightRegistry()`** from `@xndrjs/tasks` to keep coalescing scoped (tests, isolation).
+### In-flight dedup in practice
+
+Add **`.inflightDedup(key, registry?)`** when **overlapping** awaits should share **one** in-flight run (including the full **`.retry`** sequence if you chained `.retry` first) until that run settles. **`key` is always a `symbol`**. Omit **`registry`** for the package default store, or pass **`createInflightRegistry()`** from `@xndrjs/tasks` to scope coalescing (tests, isolation).
 
 **Keys:** use a **single module-level binding** such as `const loadUsers = Symbol("loadUsers")` so unrelated features never collide by accident. Use **`Symbol.for("MY_APP:loadUsers")`** only when you **intentionally** want the same runtime-wide slot for everyone who agrees on that string.
 

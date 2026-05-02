@@ -5,9 +5,9 @@ description: Model scalar values and trusted object representations.
 
 Primitives and shapes are the two main ways to materialize trusted values at a boundary.
 
-```text
-if a piece of data was created, then it is valid
-```
+Their common mantra is:
+
+> if a piece of data was created, then it is valid
 
 ## Primitives
 
@@ -49,7 +49,7 @@ const User = domain.shape(
 const user = User.create({ id: "u_1", name: "Alice" });
 ```
 
-Shape instances are frozen objects with a shape marker on their prototype. That means the kit can check identity:
+Shape instances are frozen. `User.is` treats the kit’s unique prototype as runtime identity: the value must come from that kit, then the payload is validated again.
 
 ```ts
 User.is(user); // true
