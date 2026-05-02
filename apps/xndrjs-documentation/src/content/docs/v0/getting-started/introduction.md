@@ -48,13 +48,6 @@ Without clear boundaries, the codebase becomes harder to navigate and reason abo
 
 `xndrjs` exists to make responsibility **explicit and predictable**.
 
-It provides a small set of primitives and layers that answer questions like:
-
-```txt
-if this exists, where should it live?
-if this happens, where should it be handled?
-```
-
 Instead of relying on conventions or discipline alone, it encourages a structure where:
 
 - domain modeling happens in one place
