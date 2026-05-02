@@ -34,7 +34,7 @@ compose.array(validator);
 pipe(value, fn1, fn2, fn3);
 ```
 
-### Errors and types
+### Types and Errors
 
 Common exported types include:
 
@@ -44,10 +44,9 @@ Common exported types include:
 - `ValidationIssue`
 - `PrimitiveKit`
 - `ShapeKit`
+- `KitInstance`
 - `ProofKit`
 - `ProofValue`
-- `Brand`
-- `Branded`
 
 `DomainValidationError` is thrown by creation and assertion APIs on validation failure.
 
@@ -88,6 +87,20 @@ import {
 
 ```ts
 import { sleep, task } from "@xndrjs/tasks";
+```
+
+```ts
+const job = task(async () => fetch("/api/users"))
+  .retry(
+    async (error, attempt) => {
+      await sleep(200 * 2 ** attempt);
+      return shouldRetry(error);
+    },
+    { maxAttempts: 5 }
+  )
+  .inflightDedup(symbolKey);
+
+await job; // lazy until consumed
 ```
 
 Use this package in the infrastructure layer to keep async effects explicit.
