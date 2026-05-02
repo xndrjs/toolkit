@@ -25,7 +25,7 @@ Instead, it is a **toolkit of architectural primitives**. It provides clear buil
 - keeping representations immutable
 - expressing allowed state transitions as functions
 - proving stronger semantic guarantees when a workflow needs them
-- connecting domain code to orchestration, UI, data loading, and async effects
+- connecting domain code to async effects
 - segregating domain logic from the View layer
 
 The main design goal is:
@@ -116,9 +116,6 @@ The toolkit is organized around a few responsibilities:
 - `@xndrjs/domain-zod`: Zod adapter plus domain re-exports.
 - `@xndrjs/domain-valibot`: Valibot adapter plus domain re-exports.
 - `@xndrjs/domain-ajv`: AJV adapter for JSON Schema and OpenAPI component schemas.
-- `@xndrjs/orchestration`: application ports for use-case and presentation boundaries.
-- `@xndrjs/react-adapter`: React hooks that implement orchestration ports.
-- `@xndrjs/data-layer`: DataLoader registry and batch result mapping utilities.
 - `@xndrjs/tasks`: lazy async task helpers with retry support.
 
 Start with the domain packages. They are the mental center of the toolkit.

@@ -85,13 +85,10 @@ import {
 - `openApiComponentToValidator(bundle, componentName)`: compiles an OpenAPI component schema.
 - `createAjvDomainAdapter(options?)`: creates an adapter with custom AJV options.
 
-## Application packages
+## @xndrjs/tasks
 
 ```ts
-import type { AsyncDataInteractionPort } from "@xndrjs/orchestration";
-import { useAsyncData } from "@xndrjs/react-adapter";
-import { createDataLoaderRegistry, mapBatchToIds } from "@xndrjs/data-layer";
 import { sleep, task } from "@xndrjs/tasks";
 ```
 
-Use these packages around the domain model to keep use cases, UI state, data loading, and async effects explicit.
+Use this package in the infrastructure layer to keep async effects explicit.

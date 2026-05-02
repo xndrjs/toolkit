@@ -29,27 +29,32 @@ export default defineConfig({
               ],
             },
             {
-              label: "Domain",
+              label: "Domain toolkit",
               items: [
-                { label: "Overview", slug: "v0/domain/overview" },
-                { label: "Validators and errors", slug: "v0/domain/validators-errors" },
-                { label: "Primitives and shapes", slug: "v0/domain/primitives-shapes" },
-                { label: "Capabilities", slug: "v0/domain/capabilities" },
-                { label: "Proofs", slug: "v0/domain/proofs" },
-                { label: "Compose and pipe", slug: "v0/domain/compose-pipe" },
+                {
+                  label: "Domain package",
+                  items: [
+                    { label: "Overview", slug: "v0/domain/overview" },
+                    { label: "Validators and errors", slug: "v0/domain/validators-errors" },
+                    { label: "Primitives and shapes", slug: "v0/domain/primitives-shapes" },
+                    { label: "Capabilities", slug: "v0/domain/capabilities" },
+                    { label: "Proofs", slug: "v0/domain/proofs" },
+                    { label: "Compose and pipe", slug: "v0/domain/compose-pipe" },
+                  ],
+                },
+                {
+                  label: "Validation adapters",
+                  items: [
+                    { label: "Zod", slug: "v0/adapters/zod" },
+                    { label: "Valibot", slug: "v0/adapters/valibot" },
+                    { label: "AJV", slug: "v0/adapters/ajv" },
+                  ],
+                },
               ],
             },
             {
-              label: "Adapters",
-              items: [
-                { label: "Zod", slug: "v0/adapters/zod" },
-                { label: "Valibot", slug: "v0/adapters/valibot" },
-                { label: "AJV", slug: "v0/adapters/ajv" },
-              ],
-            },
-            {
-              label: "Application toolkit",
-              items: [{ label: "Ports, data, tasks", slug: "v0/application/toolkit" }],
+              label: "Infrastructure toolkit",
+              items: [{ label: "Tasks", slug: "v0/infrastructure/tasks" }],
             },
             {
               label: "Reference",

@@ -55,18 +55,15 @@ pnpm add @xndrjs/domain-ajv ajv ajv-formats
 import { domain, jsonSchemaToValidator, openApiComponentToValidator } from "@xndrjs/domain-ajv";
 ```
 
-## Application packages
+## Infrastructure packages
 
 These packages are optional and solve problems outside the domain modeling core:
 
 ```bash
-pnpm add @xndrjs/orchestration
-pnpm add @xndrjs/react-adapter react
-pnpm add @xndrjs/data-layer dataloader
 pnpm add @xndrjs/tasks
 ```
 
-See [Ports, data, tasks](/v0/application/toolkit/) for their role in the broader toolkit.
+See [Tasks](/v0/infrastructure/tasks/) for how `@xndrjs/tasks` fits alongside the rest of xndrjs.
 
 ## Runtime and TypeScript
 

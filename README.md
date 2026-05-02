@@ -1,6 +1,6 @@
 # xndrjs toolkit (monorepo)
 
-This repo is a **pnpm workspace** for **xndrjs**: TypeScript libraries that help you model domains with explicit validation boundaries, optional schema adapters (Zod, Valibot, AJV), and small helpers for orchestration, data loading, and async work.
+This repo is a **pnpm workspace** for **xndrjs**: TypeScript libraries that help you model domains with explicit validation boundaries, optional schema adapters (Zod, Valibot, AJV), and small helpers for async work.
 
 - **`packages/<name>`** — libraries meant to be **published to npm** (scoped `@xndrjs/*`).
 - **`apps/<name>`** — **not published** as libraries; things like the **documentation site** (`xndrjs-documentation`) and **examples** (e.g. `oas-core-validator-demo`).
@@ -176,4 +176,3 @@ This writes `artifacts/*.tgz` (folder is gitignored). Useful to inspect what wou
 | `@xndrjs/tasks`          | Lazy async tasks with retry (`packages/tasks`)                                  |
 | `@xndrjs/orchestration`  | Orchestration ports (`packages/orchestration`)                                  |
 | `@xndrjs/react-adapter`  | React hooks for orchestration ports (`packages/react-adapter`)                  |
-| `@xndrjs/data-layer`     | Data layer utilities (`packages/data-layer`)                                    |

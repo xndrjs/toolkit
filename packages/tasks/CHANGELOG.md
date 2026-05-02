@@ -1,5 +1,17 @@
 # @xndrjs/tasks
 
+## 0.1.4-alpha.0
+
+### Breaking Changes
+
+- **Fluent API:** at most one `.retry()` and one `.inflightDedup()` per chain. `.retry` after `.inflightDedup` is removed from the type surface. New types: **`TaskAfterRetry`**, **`TaskFinal`**, **`TaskPromise`**.
+
+## 0.1.3-alpha.0
+
+### Breaking Changes
+
+- **`inflightDedup`** now requires a **`symbol`** key (strings are no longer accepted). Optional second argument **`registry`**: pass **`createInflightRegistry()`** to scope in-flight coalescing; omit to use the package default store.
+
 ## 0.1.2-alpha.1
 
 ### Patch Changes
