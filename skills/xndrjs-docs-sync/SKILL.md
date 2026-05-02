@@ -14,8 +14,6 @@ Current documentation scope:
 
 Out of scope for this phase:
 
-- `@xndrjs/orchestration`
-- `@xndrjs/react-adapter`
 - deprecated branded package documentation
 
 ## Source of truth

@@ -13,7 +13,7 @@ The toolkit does not replace your validation library or application framework. I
 
 ## The flow
 
-Most domain code follows this progression:
+Most code will follow this progression:
 
 ```text
 external input
@@ -21,8 +21,9 @@ external input
   -> primitive or shape
   -> capability transition
   -> proof when a workflow needs a stronger guarantee
-  -> UI, orchestration, storage, transport, or another boundary
 ```
+
+Now UI, orchestration, storage, transport, or another boundary can use safe domain data.
 
 In code:
 
@@ -31,6 +32,20 @@ const user = User.create(raw);
 const renamed = User.rename(user, "Ada Lovelace");
 const verified = User.verify(renamed);
 const proven = VerifiedUser.assert(verified);
+```
+
+The same flow in one expression with `pipe` (unary steps left-to-right) so you can avoid multiple `const`s:
+
+```ts
+import { pipe } from "@xndrjs/domain";
+
+const proven = pipe(
+  raw,
+  User.create,
+  (user) => User.rename(user, "Ada Lovelace"),
+  User.verify,
+  VerifiedUser.assert
+);
 ```
 
 Each operation has a distinct responsibility. That separation is the core of the toolkit.

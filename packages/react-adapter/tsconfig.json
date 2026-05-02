@@ -1,9 +1,0 @@
-{
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "../../tsconfig.repo.json",
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "lib": ["ES2022", "DOM"]
-  },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
-}

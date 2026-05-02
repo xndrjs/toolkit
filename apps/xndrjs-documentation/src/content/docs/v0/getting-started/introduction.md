@@ -25,8 +25,8 @@ Instead, it is a **toolkit of architectural primitives**. It provides clear buil
 - keeping representations immutable
 - expressing allowed state transitions as functions
 - proving stronger semantic guarantees when a workflow needs them
-- connecting domain code to async effects
 - segregating domain logic from the View layer
+- standardizing asynchronous work through explicit retry policies and inflight Promise deduplication
 
 The main design goal is:
 
@@ -84,7 +84,7 @@ Over time, this leads to uncertainty:
 
 By providing highly ergonomic primitives
 
-- validation becomes part of creation, not an extra step
+- validation becomes part of creation and transformation, not an extra step to remember
 - trusted values are clearly distinguished from untrusted ones
 - semantic guarantees are explicit and composable
 - unsafe paths are harder to express than safe ones
@@ -116,7 +116,7 @@ The toolkit is organized around a few responsibilities:
 - `@xndrjs/domain-zod`: Zod adapter plus domain re-exports.
 - `@xndrjs/domain-valibot`: Valibot adapter plus domain re-exports.
 - `@xndrjs/domain-ajv`: AJV adapter for JSON Schema and OpenAPI component schemas.
-- `@xndrjs/tasks`: lazy async task helpers with retry support.
+- `@xndrjs/tasks`: lazy async task helpers with retry support and inflight Promise deduplication.
 
 Start with the domain packages. They are the mental center of the toolkit.
 
