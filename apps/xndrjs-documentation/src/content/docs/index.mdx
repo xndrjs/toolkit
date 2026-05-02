@@ -16,13 +16,11 @@ hero:
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
 
-## What xndrjs optimizes for
+## What is `xndrjs`
 
 `xndrjs` is a small set of TypeScript libraries for applications that want architectural discipline without eccessive ceremony.
 
 Inspired by Clean Architecture, it brings its core ideas to fullstack TypeScript projects with a strong focus on ergonomics.
-
-Instead of relying on patterns that create friction and boilerplate, `xndrjs` provides a minimal set of primitives that make boundaries, responsibilities, and best practices _the path of least resistance_.
 
 <br />
 
@@ -30,8 +28,9 @@ Instead of relying on patterns that create friction and boilerplate, `xndrjs` pr
   <Card title="Architecture, not conventions" icon="seti:smarty">
     `xndrjs` is inspired by Clean Architecture and brings its core idea to fullstack TypeScript:
     separate your application into well-defined layers (domain, orchestration, infrastructure).
-    Instead of relying on conventions or team discipline, it gives you primitives that make
-    responsibilities explicit and predictable across the entire codebase.
+    
+    Instead of relying on fragile conventions and team discipline, it gives you primitives that make 
+    boundaries, responsibilities, and best practices **the path of least resistance**.
   </Card>
   <Card title="A pragmatic domain model" icon="rocket">
     Traditional approaches force a trade-off: *"mutable anemic models that leak logic everywhere"* **OR** *"heavy object-oriented patterns with boilerplate, DTOs, and mappers"*.
@@ -40,14 +39,16 @@ Instead of relying on patterns that create friction and boilerplate, `xndrjs` pr
 
   </Card>
   <Card title="Separation of responsibilities" icon="puzzle">
-    `xndrjs` breaks domain modeling into four independent responsibilities:
+    `xndrjs` breaks concepts into orthogonal pieces so they can be composed instead of entangled.
 
-      - validation → defining what data is allowed
-      - representation → modeling trusted values
-      - capabilities → evolving data through explicit operations
-      - guarantees → expressing stronger semantic constraints
+    For example, domain modeling is split into:
 
-      These concepts are orthogonal and composable in a simple way, making the system easier to reason about.
+    - validation → what data is allowed (`Validator`)
+    - representation → what data can be trusted (`shape`, `primitive`)
+    - behavior → how data evolves (`capabilities`)
+    - guarantees → what additional conditions hold (`proof`)
+
+    This separation keeps systems predictable and avoids hidden coupling as complexity grows.
 
   </Card>
   <Card title="Correct by construction" icon="seti:lock">
