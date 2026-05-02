@@ -8,7 +8,7 @@ description: Use Zod schemas as xndrjs domain validators.
 It provides:
 
 - `zodToValidator(schema)` to convert a Zod schema into a domain validator
-- `zodFromKit(...)` to embed domain kits inside Zod schemas
+- `zodFromKit(kit)` to embed domain kits inside Zod schemas
 - full re-export of `@xndrjs/domain` for single-entry imports
 
 ## Install
@@ -54,14 +54,7 @@ Failure mapping:
 
 ## zodFromKit
 
-`zodFromKit` converts a domain kit into a Zod field.
-
-```ts
-zodFromKit(kit);
-zodFromKit(schema, kit);
-```
-
-Use the one-argument form when the field should validate directly through the kit:
+`zodFromKit(kit)` turns a primitive or shape kit into a Zod field. Validation and transforms run **only** through the kit’s `validator` (typically from `zodToValidator` on the kit); the parent schema does not add a second parsing path for that field.
 
 ```ts
 const Invite = domain.shape(
@@ -73,12 +66,6 @@ const Invite = domain.shape(
     })
   )
 );
-```
-
-Use the two-argument form when the parent schema needs local parsing before materializing the kit:
-
-```ts
-const emailField = zodFromKit(z.string().trim().toLowerCase().pipe(z.email()), Email);
 ```
 
 ## Reusing shapes in parent schemas

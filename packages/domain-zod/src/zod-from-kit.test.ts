@@ -38,10 +38,13 @@ describe("zodFromKit", () => {
     expect(wrong.success).toBe(false);
   });
 
-  it("still allows explicit schema + kit when needed", () => {
-    const Email = domain.primitive("Email", zodToValidator(z.email()));
+  it("applies kit validator transforms when embedded (no parallel Zod chain)", () => {
+    const Email = domain.primitive(
+      "Email",
+      zodToValidator(z.email().transform((v) => v.toLowerCase()))
+    );
     const Row = z.object({
-      email: zodFromKit(z.email().toLowerCase(), Email),
+      email: zodFromKit(Email),
     });
     const row = Row.parse({ email: "A@B.CO" });
     expect(row.email).toBe("a@b.co");

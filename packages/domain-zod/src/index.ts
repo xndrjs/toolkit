@@ -1,5 +1,5 @@
 /**
- * Zod 4 adapter for `@xndrjs/domain`: use `zodToValidator` and `zodFromKit`.
+ * Zod 4 adapter for `@xndrjs/domain`: use `zodToValidator` and `zodFromKit(kit)`.
  * Re-exports `@xndrjs/domain` (including `domain` namespace + types) for single-entry imports.
  */
 export { zodFromKit } from "./zod-from-kit";

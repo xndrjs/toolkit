@@ -58,8 +58,7 @@ import { domain, zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
 ```
 
 - `zodToValidator(schema)`: wraps a Zod 4 schema as a domain validator.
-- `zodFromKit(kit)`: validates through a primitive or shape kit.
-- `zodFromKit(schema, kit)`: parses locally, then materializes through the kit.
+- `zodFromKit(kit)`: validates through a primitive or shape kit, then materializes with `create`.
 
 ## @xndrjs/domain-valibot
 
