@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/domain",
-  "version": "0.1.1-alpha.0",
+  "version": "0.2.0",
   "description": "Validator-agnostic, function-first runtime modeling with domain and compose APIs.",
   "private": false,
   "license": "MIT",

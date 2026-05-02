@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/domain-zod",
-  "version": "0.1.1-alpha.0",
+  "version": "0.2.0",
   "description": "Zod 4 adapter for @xndrjs/domain with function-first APIs: zodToValidator and zodFromKit, plus full domain re-export.",
   "private": false,
   "license": "MIT",
