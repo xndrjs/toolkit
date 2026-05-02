@@ -16,22 +16,42 @@ Adapters let your domain model depend on one contract while each boundary keeps 
 
 ## The adapter does not own the domain
 
-The same model can be written with different adapters:
+`domain.primitive` and `domain.shape` always take a `Validator`; **how** you build that `Validator` (Zod, JSON Schema + Ajv, Valibot, …) is a boundary concern only. The adapter supplies the helper; the kit is the same kind of object everywhere.
+
+Minimal example: **`Email`** comes from a **JSON Schema** fragment (as in an OpenAPI bundle), while **`UserProfile`** is defined with **Zod**. The contact field reuses the `Email` primitive inside the Zod object so you do not duplicate email rules.
 
 ```ts
-const Email = domain.primitive("Email", emailValidator);
-const User = domain.shape("User", userValidator);
+import { domain, jsonSchemaToValidator } from "@xndrjs/domain-ajv";
+import { zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
+import { z } from "zod";
+
+const Email = domain.primitive(
+  "Email",
+  jsonSchemaToValidator<string>({
+    type: "string",
+    format: "email",
+  })
+);
+
+const UserProfile = domain.shape(
+  "UserProfile",
+  zodToValidator(
+    z.object({
+      displayName: z.string().min(1),
+      contact: zodFromKit(Email),
+    })
+  )
+);
 ```
 
-The adapter decides how `emailValidator` and `userValidator` are built. The domain kit decides what those values mean after validation.
+`jsonSchemaToValidator` and `zodToValidator` are what differ between the two boundaries; after validation, `Email.create` / `UserProfile.create` and the rest of the `domain` APIs behave the same.
 
 ## Mixing adapters
 
 It is valid for different boundaries to use different engines:
 
-- frontend form schemas can use Zod
 - backend OpenAPI contracts can use AJV
-- edge or client bundles can use Valibot
+- client features (i.e. a document editor) can use Valibot or Zod
 
 The important part is that each boundary returns a `Validator<Input, Output>`. After that, your model uses the same `domain.primitive`, `domain.shape`, `domain.capabilities`, and `domain.proof` APIs.
 
