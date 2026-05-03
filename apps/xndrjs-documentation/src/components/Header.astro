@@ -21,6 +21,8 @@ const shouldRenderSearch =
   </div>
   <div class="sl-hidden md:sl-flex print:hidden right-group">
     <div class="sl-flex social-icons">
+      <a class="blog-nav-link" href="/latest/">Docs</a>
+      <a class="blog-nav-link" href="/blog/">Blog</a>
       <SocialIcons />
     </div>
     <ThemeSelect />
@@ -50,6 +52,19 @@ const shouldRenderSearch =
     .social-icons {
       gap: 1rem;
       align-items: center;
+    }
+
+    .blog-nav-link {
+      font-size: var(--sl-text-sm);
+      font-weight: 600;
+      color: var(--sl-color-white);
+      text-decoration: none;
+      padding: 0.35rem 0.5rem;
+      border-radius: 0.25rem;
+    }
+    .blog-nav-link:hover {
+      background: var(--sl-color-gray-6);
+      color: var(--sl-color-white);
     }
     .social-icons::after {
       content: "";

@@ -1,0 +1,180 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { docIdToPathname, getBlogPostsSorted } from "../utils/blog-posts";
+
+const posts = await getBlogPostsSorted();
+
+function formatDate(d: Date): string {
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+type BlogData = CollectionEntry<"docs">["data"] & {
+  description?: string;
+  date?: Date;
+  tags?: string[];
+};
+---
+
+{
+  posts.length === 0 ? (
+    <p>No posts yet.</p>
+  ) : (
+    <ul class="blog-index-grid">
+      {posts.map((entry) => {
+        const data = entry.data as BlogData;
+        const href = docIdToPathname(entry.id);
+        const desc =
+          typeof data.description === "string" && data.description.length > 0
+            ? data.description
+            : null;
+        const tags = Array.isArray(data.tags) ? data.tags : [];
+        return (
+          <li class="blog-card">
+            <a class="blog-card__link" href={href}>
+              <span class="blog-card__title">{data.title}</span>
+            </a>
+            {desc ? <p class="blog-card__description">{desc}</p> : null}
+            <div class="blog-card__meta">
+              {data.date instanceof Date ? (
+                <time class="blog-card__date" datetime={data.date.toISOString()}>
+                  {formatDate(data.date)}
+                </time>
+              ) : (
+                <span class="blog-card__date blog-card__date--muted">No date</span>
+              )}
+              {tags.length > 0 ? (
+                <ul class="blog-card__tags" aria-label="Tags">
+                  {tags.map((tag) => (
+                    <li>
+                      <span class="blog-card__tag">{tag}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  )
+}
+
+<style>
+  .blog-index-grid {
+    list-style: none;
+    padding: 0;
+    margin: 1.25rem 0 0;
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .blog-card {
+    margin: 0;
+    width: 100%;
+    padding: 1.1rem 1.25rem 1.15rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    min-height: 0;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .blog-card:hover {
+    border-color: var(--sl-color-gray-2);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  :global(:root[data-theme="dark"]) .blog-card:hover {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+  }
+
+  .blog-card__link {
+    text-decoration: none;
+    color: var(--sl-color-text-accent);
+    outline-offset: 2px;
+  }
+
+  .blog-card__link:hover .blog-card__title {
+    text-decoration: underline;
+  }
+
+  .blog-card__title {
+    font-size: var(--sl-text-lg);
+    font-weight: 600;
+    line-height: 1.35;
+    display: block;
+  }
+
+  .blog-card__description {
+    margin: 0;
+    font-size: var(--sl-text-sm);
+    line-height: 1.5;
+    color: var(--sl-color-gray-3);
+    flex: 1;
+  }
+
+  .blog-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-top: auto;
+    margin-bottom: 0;
+    padding-top: 0.35rem;
+    width: 100%;
+  }
+
+  .blog-card__date {
+    font-size: var(--sl-text-xs);
+    font-weight: 500;
+    color: var(--sl-color-gray-2);
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+
+  .blog-card__date--muted {
+    color: var(--sl-color-gray-4);
+    font-style: italic;
+  }
+
+  .blog-card__tags {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+
+  .blog-card__tags li {
+    margin: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .blog-card__tag {
+    display: inline-block;
+    font-size: var(--sl-text-xs);
+    font-weight: 500;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-text);
+    border: 1px solid var(--sl-color-gray-5);
+  }
+</style>

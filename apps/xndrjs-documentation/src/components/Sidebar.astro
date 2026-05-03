@@ -1,0 +1,135 @@
+---
+import type { StarlightRouteData } from "@astrojs/starlight/route-data";
+import SidebarPersister from "@astrojs/starlight/components/SidebarPersister.astro";
+import SidebarSublist from "@astrojs/starlight/components/SidebarSublist.astro";
+import MobileMenuFooter from "virtual:starlight/components/MobileMenuFooter";
+import {
+  blogEntryBaseId,
+  docIdToPathname,
+  getBlogPostsSorted,
+  isBlogAreaRoute,
+  isBlogIndexBase,
+} from "../utils/blog-posts";
+
+type SidebarEntry = StarlightRouteData["sidebar"][number];
+
+const route = Astro.locals.starlightRoute;
+const defaultSidebar = route.sidebar;
+
+let sidebar: SidebarEntry[];
+
+if (isBlogAreaRoute(route.id)) {
+  const posts = await getBlogPostsSorted();
+  const currentBase = blogEntryBaseId(route.id);
+
+  const postLinks: SidebarEntry[] = posts.map((entry) => {
+    const base = blogEntryBaseId(entry.id);
+    const title =
+      typeof entry.data.title === "string" && entry.data.title.length > 0
+        ? entry.data.title
+        : base;
+    return {
+      type: "link",
+      label: title,
+      href: docIdToPathname(entry.id),
+      isCurrent: currentBase === base,
+      badge: undefined,
+      attrs: {},
+    };
+  });
+
+  sidebar = [
+    {
+      type: "link",
+      label: "All posts",
+      href: docIdToPathname("blog/index"),
+      isCurrent: isBlogIndexBase(currentBase),
+      badge: undefined,
+      attrs: {},
+    },
+    {
+      type: "group",
+      label: "Recent posts",
+      collapsed: false,
+      badge: undefined,
+      entries: postLinks,
+    },
+  ];
+} else {
+  sidebar = defaultSidebar;
+}
+
+const isBlogSidebar = isBlogAreaRoute(route.id);
+---
+
+{
+  isBlogSidebar ? (
+    <div class="blog-sidebar">
+      <SidebarPersister>
+        <SidebarSublist sublist={sidebar} />
+      </SidebarPersister>
+    </div>
+  ) : (
+    <SidebarPersister>
+      <SidebarSublist sublist={sidebar} />
+    </SidebarPersister>
+  )
+}
+
+<div class="md:sl-hidden">
+  <MobileMenuFooter />
+</div>
+
+<style>
+  /* Blog-only: sidebar links read as text links, not filled “card” rows */
+  .blog-sidebar :global(a) {
+    display: inline;
+    border-radius: 0;
+    padding: 0.2em 0;
+    line-height: 1.45;
+    text-decoration: none;
+    color: var(--sl-color-gray-2);
+    background-color: transparent;
+  }
+
+  .blog-sidebar :global(summary) {
+    padding: 0.2em 0;
+  }
+
+  .blog-sidebar :global(a:hover),
+  .blog-sidebar :global(a:focus-visible) {
+    color: var(--sl-color-white);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+    background-color: transparent;
+  }
+
+  .blog-sidebar :global(a[aria-current="page"]) {
+    font-weight: 600;
+    color: var(--sl-color-text-accent);
+    background-color: transparent;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+
+  .blog-sidebar :global(a[aria-current="page"]:hover),
+  .blog-sidebar :global(a[aria-current="page"]:focus-visible) {
+    color: var(--sl-color-white);
+    background-color: transparent;
+  }
+
+  .blog-sidebar :global(ul.top-level > li + li) {
+    margin-top: 0.35rem;
+  }
+
+  .blog-sidebar :global(ul ul li) {
+    margin-inline-start: 0;
+    padding-inline-start: 0;
+    border-inline-start: none;
+  }
+
+  .blog-sidebar :global(ul ul) {
+    margin-top: 0.25rem;
+  }
+</style>

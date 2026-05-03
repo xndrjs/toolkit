@@ -1,10 +1,36 @@
 // @ts-check
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+
+import { latestDocPrefix } from "./doc-routing.mjs";
+
+/** Netlify / Cloudflare Pages–style redirects; `latestDocPrefix` comes from `doc-routing.mjs` only. */
+function latestDocsRedirectsIntegration() {
+  return {
+    name: "xndrjs-latest-docs-redirects",
+    hooks: {
+      "astro:build:done": async (/** @type {{ dir: URL }} */ opts) => {
+        const { dir } = opts;
+        const outDir = fileURLToPath(dir);
+        const rules = [
+          `/latest /${latestDocPrefix}/ 302`,
+          `/latest/* /${latestDocPrefix}/:splat 302`,
+          "",
+        ].join("\n");
+        await fs.writeFile(path.join(outDir, "_redirects"), rules, "utf8");
+      },
+    },
+  };
+}
 
 // https://astro.build/config
 export default defineConfig({
   integrations: [
+    latestDocsRedirectsIntegration(),
     starlight({
       title: "xndrjs",
       customCss: ["./src/styles/brand-typography.css"],
@@ -12,6 +38,7 @@ export default defineConfig({
       components: {
         Header: "./src/components/Header.astro",
         MobileMenuFooter: "./src/components/MobileMenuFooter.astro",
+        Sidebar: "./src/components/Sidebar.astro",
       },
       sidebar: [
         {
