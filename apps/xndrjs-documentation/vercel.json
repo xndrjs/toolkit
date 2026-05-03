@@ -1,0 +1,19 @@
+{
+  "redirects": [
+    {
+      "source": "/latest",
+      "destination": "/v0/",
+      "permanent": false
+    },
+    {
+      "source": "/latest/",
+      "destination": "/v0/",
+      "permanent": false
+    },
+    {
+      "source": "/latest/:path*",
+      "destination": "/v0/:path*",
+      "permanent": false
+    }
+  ]
+}
