@@ -34,15 +34,18 @@ const email = EmailKit.create("ADA@EXAMPLE.COM");
 type Email = KitInstance<typeof Email>;
 ```
 
-The runtime value is still a string. The type is no longer an interchangeable string.
+The runtime value is still a string, but its type can no longer be mistaken for "any string".
 
 ```ts
-const UsernameKit = domain.primitive("Username", zodToValidator(z.string().min(3)));
-
+// define a function using a branded value (Email)
 function sendWelcomeEmail(to: Email) {
   // ...
 }
 
+// let's say we have another branded primitive
+const UsernameKit = domain.primitive("Username", zodToValidator(z.string().min(3)));
+
+// create new values
 const username = UsernameKit.create("ada");
 const email = EmailKit.create("ada@example.com");
 
@@ -64,7 +67,7 @@ const UserShape = domain.shape(
   zodToValidator(
     z.object({
       id: z.string().min(1),
-      email: zodFromKit(Email),
+      email: zodFromKit(EmailKit), // compose existing kit
       displayName: z.string().min(1),
       isVerified: z.boolean().default(false),
     })
@@ -90,7 +93,9 @@ Capabilities keep behavior on the kit while instances stay data-only.
 const User = domain
   // the contract on which the capability operates is passed as generics
   .capabilities<{ displayName: string; isVerified: boolean }>()
-  // note how patch is passed as a dependency here
+  // patch is intentionally scoped here: it is not exported
+  // so callers cannot update the shape arbitrarily,
+  // they must use explicit semantic methods instead
   .methods((patch) => ({
     rename(user, displayName: string) {
       return patch(user, { displayName });
@@ -108,23 +113,23 @@ const verified = User.verify(renamed);
 The same capabilities set can be attached to multiple shapes, as long as those shapes expose the fields required by the methods.
 
 ```ts
-const OrderShape = domain.shape(
-  "Order",
-  zodToValidator(
-    z.object({
-      id: z.string(),
-      status: z.enum(["draft", "confirmed"]),
-    })
-  )
-);
+const OrderSchema = z.object({
+  id: z.string(),
+  status: z.enum(["draft", "confirmed"]),
+});
+
+const OrderShape = domain.shape("Order", zodToValidator(OrderSchema));
 
 const OrderDetailShape = domain.shape(
   "OrderDetail",
   zodToValidator(
-    z.object({
-      id: z.string(),
-      status: z.enum(["draft", "confirmed"]),
-      lines: z.array(z.object({ sku: z.string(), qty: z.number().int().positive() })),
+    OrderSchema.extend({
+      lines: z.array(
+        z.object({
+          sku: z.string(),
+          qty: z.number().int().positive(),
+        })
+      ),
       shippingAddress: z.string().min(1),
     })
   )

@@ -189,7 +189,7 @@ describe("capabilities", () => {
 
   it("reusable capability can attach to the same shape again with identical kit shape", () => {
     const Rename = capabilities<{ displayName: string }>().methods((patch) => ({
-      rename(entity: { displayName: string }, displayName: string) {
+      rename(entity, displayName: string) {
         return patch(entity, { displayName });
       },
     }));
