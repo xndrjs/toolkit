@@ -5,7 +5,7 @@ export { latestDocPrefix };
 /**
  * Documentation version roots. Add new entries when you introduce `v1/`, `v2/`, etc.
  * `slugPrefix` must match the folder name under `src/content/docs/`.
- * Keep `latestDocPrefix` in `doc-routing.mjs` aligned with the version you treat as default for `/latest/...` redirects.
+ * Keep `latestDocPrefix` in `doc-routing.mjs` aligned with the version you treat as default for `/latest/...` pages.
  */
 export const docVersions = [{ slugPrefix: "v0", label: "v0 (preview)" }] as const;
 
