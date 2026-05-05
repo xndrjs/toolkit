@@ -191,9 +191,7 @@ Once `user` exists:
 
 This establishes a **closed world assumption** inside the domain:
 
-```txt
-inside the domain, invalid users do not exist by accident
-```
+> inside the domain, invalid users do not exist by accident
 
 This is not magic. Someone can still use `as any`, mutate through unsafe escape hatches, or bypass the model entirely.
 
