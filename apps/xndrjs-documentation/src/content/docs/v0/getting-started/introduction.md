@@ -7,6 +7,12 @@ description: What xndrjs is, what it is not, and how its packages fit together.
 
 It is inspired by Clean Architecture and Domain-Driven Design, but it deliberately avoids turning those ideas into a heavy framework. The toolkit focuses on small, ergonomic libraries that make good architectural habits easier to apply under normal delivery pressure.
 
+## Why the name
+
+The name `xndrjs` comes from `xndr`, a compact abbreviation of "Alexander": a reference to Alexander the Great and the legend of the Gordian knot.
+
+Faced with an intricate knot, Alexander did not patiently untangle every loop. He cut through it. That image fits the project: `xndrjs` tries to give TypeScript systems a clean cut through complexity by separating layers clearly, making domain boundaries explicit, and choosing radical, original solutions wher more usual conventions tend to keep the knot in place.
+
 ## Not a framework
 
 `xndrjs` is not a framework.
