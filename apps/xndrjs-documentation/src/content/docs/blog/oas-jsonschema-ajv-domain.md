@@ -38,7 +38,7 @@ The [`oas-core-validator-demo`](https://github.com/xndrjs/toolkit/tree/main/apps
 
 ---
 
-## The Problem: Static Types Are Not Enough
+## The problem: static types are not enough
 
 Imagine receiving this payload from a backend:
 
@@ -80,7 +80,7 @@ AJV checks the runtime contract. `xndrjs` takes the validated result and turns i
 
 ---
 
-## 1. Start From OpenAPI
+## 1. Start from OpenAPI
 
 In the demo, we use a multi-file OpenAPI 3.1 spec:
 
@@ -148,7 +148,7 @@ This is already domain modeling: not in the sense of classes full of methods, bu
 
 ---
 
-## 2. Codegen: Download And Prepare The OAS
+## 2. Codegen: download and prepare the OAS
 
 In a real application, the OpenAPI spec often comes from a backend endpoint, or from an artifact generated in CI.
 
@@ -179,7 +179,7 @@ The second one is used by TypeScript for static type inference.
 
 ---
 
-## 3. Bundling: From Multi-File OAS To Compilable Schemas
+## 3. Bundling: from multi-file OAS to compilable schemas
 
 Real OpenAPI specs are rarely a single flat file. They usually contain `$ref`s, shared components, separate files, and schemas reused in several places.
 
@@ -219,7 +219,7 @@ With OpenAPI 3.1, the flow is much more direct.
 
 ---
 
-## 4. Generate TypeScript Types With openapi-typescript
+## 4. Generate TypeScript types with openapi-typescript
 
 Now that we have a bundle, we generate the types:
 
@@ -246,7 +246,7 @@ So when the contract changes, we regenerate the artifacts and the compiler tells
 
 ---
 
-## 5. Compile Schemas With AJV
+## 5. Compile schemas with AJV
 
 `@xndrjs/domain-ajv` provides the adapter between AJV and the `xndrjs` domain core.
 
@@ -305,7 +305,7 @@ We now have three different concepts without duplicating the contract:
 
 ---
 
-## 6. Use The Domain In The App
+## 6. Use the domain in the app
 
 At this point, the external payload enters the boundary as untrusted data.
 
@@ -370,7 +370,7 @@ The benefit is that the application does not need to reason directly about AJV's
 
 ---
 
-## 7. The Full Pipeline
+## 7. The full pipeline
 
 The final pipeline looks like this:
 
@@ -399,7 +399,7 @@ That is the important part: we are not trying to keep two manual representations
 
 ---
 
-## Why This Makes The Domain More Solid
+## Why this makes the domain more solid
 
 The result is not just "validate a payload".
 
