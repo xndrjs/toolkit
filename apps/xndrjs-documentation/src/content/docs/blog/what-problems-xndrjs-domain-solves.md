@@ -18,7 +18,7 @@ Below are some of the reasons why I decided to work on this project.
 
 ## 1. Static types are not enough at external boundaries
 
-When data comes from outside your process — REST responses, query strings, forms... — you are not looking at “a `UserDTO`.” You are literally looking into the `unknown`.
+When data comes from outside your process — REST responses, query strings, forms... — you are not looking at “a `UserDTO`”. You are literally looking into the `unknown`.
 
 You still want to map that payload into something your application understands. But what is the most common way to do this?
 
@@ -47,7 +47,7 @@ Nested structure does not force you to manually instantiate every sub-shape or p
 
 Compare the **call site** for the same aggregate in a stylized rich OOP model (nested value objects) versus `domain.shape` as in [Primitives and shapes](/v0/domain/primitives-shapes/).
 
-Rich OOP-style construction: every nested piece is its own type and constructor.
+Rich OOP-style construction: every nested piece is its own type and constructor. For instance:
 
 ```ts
 const user = new User(
@@ -57,7 +57,9 @@ const user = new User(
 );
 ```
 
-Same idea with `xndrjs`: you define validation once (here with Zod via `@xndrjs/domain-zod`, like the doc); the nested object stays a **plain** literal at the boundary.
+Same idea with `xndrjs`: you define validation once (here with Zod via `@xndrjs/domain-zod`).
+
+So the shapes and primitives for our example would be something like this:
 
 ```ts
 import { domain, zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
@@ -85,13 +87,29 @@ const User = domain.shape(
     })
   )
 );
+```
 
+Then, you create a user simply as a **plain** object at the boundary. No nested constructor gymnastics required.
+
+```ts
 const user = User.create({
   id: "u_1",
   email: "alice@example.com",
   address: { street: "1 Main St", city: "Paris" },
 });
 ```
+
+Now look back at the OOP version:
+
+```ts
+const user = new User(
+  UserId.from("u_1"),
+  Email.from("alice@example.com"),
+  new Address(Street.from("1 Main St"), City.from("Paris"))
+);
+```
+
+Did you notice the difference at the call site? `xndrjs` does not require you to import `UserId`, `Email`, `Address`, `Street`, and `City` every time you need to create a `User`. The composition is defined once, inside the domain, at the shape-definition level. Call sites can stay focused on the plain payload they received.
 
 ---
 
@@ -138,16 +156,44 @@ That helps newcomers answer a boring but critical question quickly: **“where d
 
 ---
 
-## 6. A well-defined domain pays down complexity elsewhere
+## 6. Preventing outside code from mutating the domain directly
 
-Investing in the domain layer can feel like an extra step, especially when shipping pressure is high. The return is subtle but structural: the rest of the application stops improvising at the **wrong abstraction level**.
+If every part of the system can mutate domain objects on its own, shortcuts become the default path. A component changes a field. A service patches a nested property. A utility “just fixes” a value before sending it somewhere else.
 
-Infrastructure stops guessing. Application workflows stop re-solving parsing. UI stops compensating for missing guarantees. You still integrate frameworks and libraries; you simply avoid letting accidental coupling rewrite your mental model every week.
+The problem is not only mutation itself. The deeper problem is that the domain stops saying which operations are actually available. The codebase loses a shared vocabulary for what can happen to a value, and call sites start carrying hidden responsibility for keeping objects valid. This is the common failure mode of **anemic domain models**: data is easy to pass around, but the allowed operations are no longer visible in the model.
+
+This responsibility **does not scale**.
+
+We cannot realistically expect every caller that mutates a domain object to remember to re-run validation, preserve invariants, and choose the same semantics as the rest of the application. Keeping that kind of alignment across scattered call sites is effectively impossible: sooner or later it creates bugs, duplicated rules, and a codebase that becomes harder and harder to maintain.
+
+This is why `xndrjs` values are treated as immutable: they are marked as `readonly` at type level and frozen at runtime. Changes go through explicit domain operations instead.
+
+Capabilities were born from that need. They expose named operations while keeping instances data-only. When a capability patches a value, the transition goes back through the attached shape validator, producing a new trusted value instead of mutating the old one in place.
+
+They are also designed to depend on an arbitrarily small contract. A capability should describe only the fields it really needs, not the full shape it happens to be attached to. That keeps responsibilities limited, makes capabilities easier to compose, and lets the same operation set apply to different shapes without redefining it for every single representation.
+
+At the same time, capabilities are not loose utilities that can be applied to any object with matching fields. The `attach` step binds a capability set to a particular shape. That makes availability explicit: you can see which operations belong to which representation, and each operation still reuses the validator of the shape it is attached to.
+
+That gives you a useful boundary:
+
+- outside code can read domain data and pass it around
+- domain operations decide how that data may change
+- every change has a named place in the model and a validation step behind it
+
+The plus is a combination of small things that reinforce each other: immutable values, explicit operations, small reusable capability contracts, clear attachment to concrete shapes, and validation after every sanctioned transition.
 
 ---
 
-## Closing
+## 7. A well-defined domain pays down complexity elsewhere
 
-`@xndrjs/domain` is not “types, but louder.” It is a toolkit for **trusted data**: where it enters, how it is built, how it moves, how it morphs, and where its promises are documented in code.
+Investing in the domain layer can feel like an extra step, especially when shipping pressure is high. The return is subtle but structural: the rest of the application stops working at the **wrong abstraction level**.
 
-If your pain points match the list above (boundary rot, constructor fatigue, mapper sprawl, multi-shape reasoning, scattered validation, or leaky abstractions) the concrete payoff is easier to justify than another abstraction for its own sake.
+Infrastructure stops guessing. Application workflows stop improvising parsing. UI stops compensating for missing guarantees. You still integrate frameworks and libraries; you simply avoid letting accidental coupling rewrite your mental model every week.
+
+---
+
+## Final words
+
+`@xndrjs/domain` is not “types, but louder”. It is a toolkit for **trusted data**: where it enters, how it is built, how it moves, how it morphs, and where its promises are documented in code.
+
+If your pain points match the list above (boundary rot, constructor fatigue, mapper sprawl, multi-shape reasoning, scattered validation, uncontrolled mutation, or leaky abstractions) the concrete payoff is easier to justify than another abstraction for its own sake.
