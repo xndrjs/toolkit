@@ -50,11 +50,13 @@ describe("Zod schema.extend → base + detail shapes", () => {
   });
 
   it("reusable capability attaches to base and to detail shape (Zod-extended row)", () => {
-    const RenameCapability = domain.capabilities<{ displayName: string }>().methods((patch) => ({
-      rename(entity, displayName: string) {
-        return patch(entity, { displayName });
-      },
-    }));
+    const RenameCapability = domain.capabilities
+      .forShape<{ displayName: string }>()
+      .methods((patch) => ({
+        rename(entity, displayName: string) {
+          return patch(entity, { displayName });
+        },
+      }));
 
     const BaseKit = RenameCapability.attach(ProfileShape);
     const DetailKit = RenameCapability.attach(ProfileDetailShape);
@@ -77,11 +79,13 @@ describe("Zod schema.extend → base + detail shapes", () => {
   });
 
   it("pipe: detail create → project to base → capability on base kit", () => {
-    const RenameCapability = domain.capabilities<{ displayName: string }>().methods((patch) => ({
-      rename(entity, displayName: string) {
-        return patch(entity, { displayName });
-      },
-    }));
+    const RenameCapability = domain.capabilities
+      .forShape<{ displayName: string }>()
+      .methods((patch) => ({
+        rename(entity, displayName: string) {
+          return patch(entity, { displayName });
+        },
+      }));
     const BaseKit = RenameCapability.attach(ProfileShape);
 
     const out = pipe(
@@ -106,11 +110,13 @@ describe("Zod extend: attach enforces structural compatibility", () => {
       nickname: z.string(),
     });
 
-    const RenameCapability = domain.capabilities<{ displayName: string }>().methods((patch) => ({
-      rename<T extends { displayName: string }>(entity: T, displayName: string) {
-        return patch(entity, { displayName });
-      },
-    }));
+    const RenameCapability = domain.capabilities
+      .forShape<{ displayName: string }>()
+      .methods((patch) => ({
+        rename<T extends { displayName: string }>(entity: T, displayName: string) {
+          return patch(entity, { displayName });
+        },
+      }));
 
     const AnonymousShape = domain.shape("Anonymous", zodToValidator(AnonymousSchema));
 

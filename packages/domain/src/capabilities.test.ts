@@ -121,7 +121,8 @@ function profileDetailValidator(): Validator<
 describe("capabilities", () => {
   const ProfileShape = shape("Profile", profileValidator());
 
-  const ProfileKit = capabilities<{ displayName: string }>()
+  const ProfileKit = capabilities
+    .forShape<{ displayName: string }>()
     .methods((patch) => ({
       rename(profile, displayName: string) {
         return patch(profile, { displayName });
@@ -152,7 +153,8 @@ describe("capabilities", () => {
 
   it("rejects reserved kit method names", () => {
     expect(() =>
-      capabilities<{ displayName: string }>()
+      capabilities
+        .forShape<{ displayName: string }>()
         .methods(() => ({
           project() {
             return null;
@@ -164,7 +166,8 @@ describe("capabilities", () => {
 
   it("patch with callback draft rejects invalid discriminant", () => {
     const WidgetShape = shape("Widget", widgetValidator());
-    const WidgetKit = capabilities<{ name: string }>()
+    const WidgetKit = capabilities
+      .forShape<{ name: string }>()
       .methods((patch) => ({
         applyDraft(w, fn: (draft: Mutable<{ type?: string; name: string }>) => void) {
           return patch(w, fn);
@@ -188,7 +191,7 @@ describe("capabilities", () => {
   });
 
   it("reusable capability can attach to the same shape again with identical kit shape", () => {
-    const Rename = capabilities<{ displayName: string }>().methods((patch) => ({
+    const Rename = capabilities.forShape<{ displayName: string }>().methods((patch) => ({
       rename(entity, displayName: string) {
         return patch(entity, { displayName });
       },
@@ -201,7 +204,7 @@ describe("capabilities", () => {
   });
 
   it("reusable capability can attach to base and detail shapes", () => {
-    const RenameCapability = capabilities<{ displayName: string }>().methods((patch) => ({
+    const RenameCapability = capabilities.forShape<{ displayName: string }>().methods((patch) => ({
       rename(entity, displayName: string) {
         return patch(entity, { displayName });
       },
@@ -233,7 +236,7 @@ describe("capabilities", () => {
   });
 
   it("attach enforces structural compatibility at type level", () => {
-    const RenameCapability = capabilities<{ displayName: string }>().methods((patch) => ({
+    const RenameCapability = capabilities.forShape<{ displayName: string }>().methods((patch) => ({
       rename<T extends { displayName: string }>(entity: T, displayName: string) {
         return patch(entity, { displayName });
       },

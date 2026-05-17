@@ -58,7 +58,7 @@ describe("primitive", () => {
   it("create returns validated output with nominal typing", () => {
     const email = Email.create("USER@EXAMPLE.COM");
     expect(email).toBe("user@example.com");
-    expectTypeOf(email).toEqualTypeOf<Readonly<Branded<"Email", string>>>();
+    expectTypeOf(email).toEqualTypeOf<Branded<"Email", string>>();
   });
 
   it("exposes type and validator metadata", () => {
@@ -101,6 +101,51 @@ describe("primitive", () => {
     expect(PositiveInteger.is(1.5)).toBe(false);
     expect(PositiveInteger.is("10")).toBe(false);
     expect(() => PositiveInteger.create(0)).toThrow(DomainValidationError);
+  });
+
+  it("rejects object-like validator outputs at compile time", () => {
+    function rowValidator(): Validator<{ id: string }, { id: string }> {
+      return {
+        engine: "test",
+        validate(input) {
+          if (typeof input !== "object" || input === null) {
+            return {
+              success: false,
+              error: {
+                engine: "test",
+                issues: [{ code: "invalid", path: [], message: "Expected object" }],
+              },
+            };
+          }
+          const row = input as { id?: unknown };
+          if (typeof row.id !== "string") {
+            return {
+              success: false,
+              error: {
+                engine: "test",
+                issues: [{ code: "invalid", path: [], message: "Invalid id" }],
+              },
+            };
+          }
+          return { success: true, data: { id: row.id } };
+        },
+      };
+    }
+
+    // @ts-expect-error -- primitive Value must be scalar, not object
+    const _invalid = primitive("Row", rowValidator());
+    expect(_invalid).toBeDefined();
+  });
+
+  it("throws at runtime when validator returns a non-scalar", () => {
+    const Broken = primitive("Broken", {
+      engine: "test",
+      validate() {
+        return { success: true, data: { bad: true } as unknown as number };
+      },
+    });
+
+    expect(() => Broken.create(0)).toThrow(TypeError);
   });
 
   it("preserves issues on DomainValidationError", () => {

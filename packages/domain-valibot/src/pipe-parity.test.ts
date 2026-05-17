@@ -18,8 +18,8 @@ describe("pipe parity (valibot)", () => {
   });
 
   const UserShape = domain.shape("User", valibotToValidator(UserSchema));
-  const UserKit = domain
-    .capabilities<v.InferOutput<typeof UserSchema>>()
+  const UserKit = domain.capabilities
+    .forShape<v.InferOutput<typeof UserSchema>>()
     .methods((patch) => ({
       rename(user, displayName: string) {
         return patch(user, { displayName });

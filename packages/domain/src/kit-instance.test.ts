@@ -59,7 +59,7 @@ describe("KitInstance", () => {
     const Email = primitive("Email", emailValidator());
     const Item = shape("Item", itemValidator());
 
-    expectTypeOf<KitInstance<typeof Email>>().toEqualTypeOf<Readonly<Branded<"Email", string>>>();
+    expectTypeOf<KitInstance<typeof Email>>().toEqualTypeOf<Branded<"Email", string>>();
     expectTypeOf<KitInstance<typeof Item>>().toEqualTypeOf<ReturnType<typeof Item.create>>();
   });
 

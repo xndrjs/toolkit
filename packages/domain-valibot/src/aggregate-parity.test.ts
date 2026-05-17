@@ -28,8 +28,8 @@ describe("aggregate domain parity (valibot)", () => {
 
   const UserShape = domain.shape("User", valibotToValidator(UserShapeSchema));
 
-  const User = domain
-    .capabilities<v.InferOutput<typeof UserShapeSchema>>()
+  const User = domain.capabilities
+    .forShape<v.InferOutput<typeof UserShapeSchema>>()
     .methods((patch) => ({
       isCorporate(user) {
         return user.email.endsWith("@company.com");

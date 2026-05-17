@@ -34,14 +34,18 @@ export type {
   ShapeProps,
 } from "./shape";
 
-export type { PrimitiveKit } from "./primitive";
+export type { PrimitiveKit, PrimitiveKitCore, Scalar, ScalarOutput } from "./primitive";
 export type { ProofFactory, ProofKit, ProofValue } from "./proof";
 export type { KitInstance } from "./kit-instance";
 export type {
-  CapabilitiesBuilder,
   CapabilityBundle,
   CapabilityMethods,
   CapabilityPatchFn,
+  PrimitiveCapabilityBundle,
+  PrimitiveCapabilityCreateFn,
+  PrimitiveCapabilityMethods,
+  PrimitiveCapabilitiesBuilder,
+  ShapeCapabilitiesBuilder,
 } from "./capabilities";
 
 export type { Brand, BrandMap, Branded, BrandOf, Mutable, PatchDelta } from "./branded";

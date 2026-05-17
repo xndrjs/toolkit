@@ -85,8 +85,8 @@ describe("@xndrjs/domain-zod integration", () => {
       )
     );
 
-    const User = domain
-      .capabilities<{ email: string; isVerified: boolean }>()
+    const User = domain.capabilities
+      .forShape<{ email: string; isVerified: boolean }>()
       .methods((patch) => ({
         markVerified(user) {
           return patch(user, { isVerified: true });

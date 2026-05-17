@@ -9,7 +9,7 @@ Validator-agnostic semantic modeling with function-first kits:
 
 The package exports:
 
-- `domain` (`primitive`, `shape`, `proof`, `capabilities`);
+- `domain` (`primitive`, `shape`, `proof`, `capabilities.forShape`, `capabilities.forPrimitive`);
 - `compose` (`object`, `array`, `optional`) for validator composition;
 - `pipe` for proof/capability assertion chains;
 - `DomainValidationError` and public types (`Validator`, `ShapeKit`, ...).
@@ -130,8 +130,8 @@ const UserShape = domain.shape(
   compose.object({ displayName: nonEmptyString, isVerified: booleanValidator })
 );
 
-const User = domain
-  .capabilities<{ displayName: string; isVerified: boolean }>()
+const User = domain.capabilities
+  .forShape<{ displayName: string; isVerified: boolean }>()
   .methods((patch) => ({
     verify(user) {
       return patch(user, { isVerified: true });

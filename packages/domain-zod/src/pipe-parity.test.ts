@@ -18,8 +18,8 @@ describe("pipe parity (branded pipe.branded.test)", () => {
   });
 
   const UserShape = domain.shape("User", zodToValidator(UserSchema));
-  const UserKit = domain
-    .capabilities<z.output<typeof UserSchema>>()
+  const UserKit = domain.capabilities
+    .forShape<z.output<typeof UserSchema>>()
     .methods((patch) => ({
       rename(user, displayName: string) {
         return patch(user, { displayName });

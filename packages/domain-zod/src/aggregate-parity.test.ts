@@ -25,8 +25,8 @@ describe("aggregate domain parity (branded-kit example)", () => {
 
   const UserShape = domain.shape("User", zodToValidator(UserShapeSchema));
 
-  const User = domain
-    .capabilities<z.output<typeof UserShapeSchema>>()
+  const User = domain.capabilities
+    .forShape<z.output<typeof UserShapeSchema>>()
     .methods((patch) => ({
       isCorporate(user) {
         return user.email.endsWith("@company.com");
