@@ -1,4 +1,4 @@
-import type { Branded, PrimitiveKit, ShapeInstance, ShapeKitCore } from "@xndrjs/domain";
+import type { Branded, PrimitiveKit, Scalar, ShapeInstance, ShapeKitCore } from "@xndrjs/domain";
 import { z } from "zod";
 
 /**
@@ -7,16 +7,16 @@ import { z } from "zod";
  * not in a parallel Zod chain.
  */
 
-export function zodFromKit<Type extends string, Input, Value>(
+export function zodFromKit<Type extends string, Input extends Scalar, Value extends Scalar>(
   kit: PrimitiveKit<Type, Input, Value>
-): z.ZodType<Readonly<Branded<Type, Value>>, Input | Readonly<Branded<Type, Value>>>;
+): z.ZodType<Branded<Type, Value>, Input | Branded<Type, Value>>;
 
 export function zodFromKit<Type extends string, Input extends object, Props extends object>(
   kit: ShapeKitCore<Type, Input, Props>
 ): z.ZodType<ShapeInstance<Type, Props>, Input | ShapeInstance<Type, Props>>;
 
 export function zodFromKit(
-  kit: PrimitiveKit<string, unknown, unknown> | ShapeKitCore<string, object, object>
+  kit: PrimitiveKit<string, Scalar, Scalar> | ShapeKitCore<string, object, object>
 ): z.ZodType<unknown, unknown> {
   return z
     .unknown()

@@ -1,0 +1,18 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@xndrjs/documentation": "0.0.1",
+    "@config/eslint": "1.0.1",
+    "@config/typescript": "1.0.1",
+    "@config/vitest": "1.0.1",
+    "@xndrjs/bench-perf": "0.1.0",
+    "@xndrjs/branded": "0.3.0-alpha.1",
+    "@xndrjs/domain": "0.2.0",
+    "@xndrjs/domain-ajv": "0.2.0",
+    "@xndrjs/domain-valibot": "0.2.0",
+    "@xndrjs/domain-zod": "0.2.0",
+    "@xndrjs/tasks": "0.2.0"
+  },
+  "changesets": []
+}
