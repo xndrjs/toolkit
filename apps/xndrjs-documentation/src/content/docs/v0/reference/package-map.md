@@ -5,14 +5,14 @@ description: The role, dependencies, and recommended use of each xndrjs package.
 
 Use this page when deciding which package belongs in which layer.
 
-| Package                  | Role                           | Install when                                                            |
-| ------------------------ | ------------------------------ | ----------------------------------------------------------------------- |
-| `@xndrjs/domain`         | Validator-agnostic domain core | You want primitives, shapes, proofs, capabilities, `compose`, or `pipe` |
-| `@xndrjs/domain-zod`     | Zod 4 adapter                  | Your boundary already uses Zod or needs Zod transforms                  |
-| `@xndrjs/domain-valibot` | Valibot adapter                | You prefer Valibot schemas or small function-first validators           |
-| `@xndrjs/domain-ajv`     | AJV adapter                    | Your contracts are JSON Schema or OpenAPI                               |
-| `@xndrjs/tasks`          | Lazy async tasks with retry    | You want composable async effects in infrastructure code                |
-| `@xndrjs/bench-perf`     | Private benchmark suite        | Internal monorepo performance comparisons                               |
+| Package                  | Role                           | Install when                                                                                        |
+| ------------------------ | ------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `@xndrjs/domain`         | Validator-agnostic domain core | You want primitives, shapes, proofs, `capabilities.forShape` / `forPrimitive`, `compose`, or `pipe` |
+| `@xndrjs/domain-zod`     | Zod 4 adapter                  | Your boundary already uses Zod or needs Zod transforms                                              |
+| `@xndrjs/domain-valibot` | Valibot adapter                | You prefer Valibot schemas or small function-first validators                                       |
+| `@xndrjs/domain-ajv`     | AJV adapter                    | Your contracts are JSON Schema or OpenAPI                                                           |
+| `@xndrjs/tasks`          | Lazy async tasks with retry    | You want composable async effects in infrastructure code                                            |
+| `@xndrjs/bench-perf`     | Private benchmark suite        | Internal monorepo performance comparisons                                                           |
 
 ## Recommended imports
 

@@ -72,14 +72,15 @@ After a value leaves the process or becomes JSON, it should re-enter through a b
 
 ## Choosing the right kit
 
-| Need                                                         | Use                   |
-| ------------------------------------------------------------ | --------------------- |
-| Validate an email, id, slug, or currency code                | `domain.primitive`    |
-| Materialize a trusted object from external input             | `domain.shape`        |
-| Express an operation such as rename, verify, cancel, approve | `domain.capabilities` |
-| Require a stronger guarantee for a specific workflow         | `domain.proof`        |
-| Build small validators without an adapter                    | `compose`             |
-| Chain transformations or assertions                          | `pipe`                |
+| Need                                                     | Use                                |
+| -------------------------------------------------------- | ---------------------------------- |
+| Validate an email, id, slug, or currency code            | `domain.primitive`                 |
+| Materialize a trusted object from external input         | `domain.shape`                     |
+| Express an operation on a shape (rename, verify, cancel) | `domain.capabilities.forShape`     |
+| Express an operation on a primitive (add, convert)       | `domain.capabilities.forPrimitive` |
+| Require a stronger guarantee for a specific workflow     | `domain.proof`                     |
+| Build small validators without an adapter                | `compose`                          |
+| Chain transformations or assertions                      | `pipe`                             |
 
 ## Public entry point
 

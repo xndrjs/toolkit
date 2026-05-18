@@ -172,7 +172,7 @@ Capabilities were born from that need. They expose named operations while keepin
 
 They are also designed to depend on an arbitrarily small contract. A capability should describe only the fields it really needs, not the full shape it happens to be attached to. That keeps responsibilities limited, makes capabilities easier to compose, and lets the same operation set apply to different shapes without redefining it for every single representation.
 
-At the same time, capabilities are not loose utilities that can be applied to any object with matching fields. The `attach` step binds a capability set to a particular shape. That makes availability explicit: you can see which operations belong to which representation, and each operation still reuses the validator of the shape it is attached to.
+At the same time, capabilities are not loose utilities that can be applied to any value with matching fields. The `attach` step binds a capability set to a particular shape or primitive kit. That makes availability explicit: you can see which operations belong to which representation, and each operation still reuses the validator of the kit it is attached to (`patch` on shapes, `create` on primitives).
 
 That gives you a useful boundary:
 

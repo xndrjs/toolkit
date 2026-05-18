@@ -14,10 +14,17 @@ import { DomainValidationError, compose, domain, pipe } from "@xndrjs/domain";
 ### domain
 
 ```ts
-domain.primitive(type, validator);
+domain.primitive(type, validator); // scalar Input/Output only
 domain.shape(type, validator);
 domain.proof(brand, validator);
-domain.capabilities<Props>().methods(factory).attach(shapeKit);
+domain.capabilities
+  .forShape<Contract>()
+  .methods((patch) => methods)
+  .attach(shapeKit);
+domain.capabilities
+  .forPrimitive<Contract>()
+  .methods((create) => methods)
+  .attach(primitiveKit);
 ```
 
 ### compose
@@ -42,8 +49,9 @@ Common exported types include:
 - `ValidationResult<T>`
 - `ValidationFailure`
 - `ValidationIssue`
-- `PrimitiveKit`
+- `PrimitiveKit`, `Scalar`
 - `ShapeKit`
+- `ShapeCapabilitiesBuilder`, `PrimitiveCapabilitiesBuilder`
 - `KitInstance`
 - `ProofKit`
 - `ProofValue`

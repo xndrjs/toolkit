@@ -260,8 +260,8 @@ In less formal terms:
 Example:
 
 ```ts
-const User = domain
-  .capabilities<{ displayName: string; isVerified: boolean }>()
+const User = domain.capabilities
+  .forShape<{ displayName: string; isVerified: boolean }>()
   .methods((patch) => ({
     rename(user, displayName: string) {
       return patch(user, { displayName });
@@ -430,7 +430,7 @@ The model is algebraic in the practical sense: small operations can be combined 
 A capability bundle can be defined on an arbitrarily small contract:
 
 ```ts
-const Rename = domain.capabilities<{ displayName: string }>().methods((patch) => ({
+const Rename = domain.capabilities.forShape<{ displayName: string }>().methods((patch) => ({
   rename(entity, displayName: string) {
     return patch(entity, { displayName });
   },

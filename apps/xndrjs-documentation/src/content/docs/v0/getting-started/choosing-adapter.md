@@ -53,7 +53,7 @@ It is valid for different boundaries to use different engines:
 - backend OpenAPI contracts can use AJV
 - client features (i.e. a document editor) can use Valibot or Zod
 
-The important part is that each boundary returns a `Validator<Input, Output>`. After that, your model uses the same `domain.primitive`, `domain.shape`, `domain.capabilities`, and `domain.proof` APIs.
+The important part is that each boundary returns a `Validator<Input, Output>`. After that, your model uses the same `domain.primitive`, `domain.shape`, `domain.capabilities.forShape` / `domain.capabilities.forPrimitive`, and `domain.proof` APIs.
 
 ## Practical recommendation
 

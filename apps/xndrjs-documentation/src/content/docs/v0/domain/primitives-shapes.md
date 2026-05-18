@@ -11,7 +11,9 @@ Their common mantra is:
 
 ## Primitives
 
-Use `domain.primitive` for scalar-like values with domain meaning.
+Use `domain.primitive` for **scalar** values with domain meaning: `string`, `number`, `boolean`, `bigint`, or `symbol`.
+
+The validator’s output type must be scalar as well. Object-shaped outputs belong on `domain.shape`, not on a primitive.
 
 ```ts
 import { domain, zodToValidator } from "@xndrjs/domain-zod";
@@ -22,6 +24,8 @@ const email = Email.create("alice@example.com");
 ```
 
 At runtime, the value remains a plain scalar. At type level, it carries a nominal brand. That helps TypeScript distinguish an `Email` from any other string.
+
+To attach behavior (for example `Money.add`), use [`capabilities.forPrimitive`](/v0/domain/capabilities/) — factories receive `create`, not `patch`.
 
 Good primitive candidates:
 

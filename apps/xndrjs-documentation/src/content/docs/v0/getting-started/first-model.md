@@ -90,9 +90,9 @@ Note how `email` is passed as a plain input value (`"ADA@EXAMPLE.COM"`), not as 
 Capabilities keep behavior on the kit while instances stay data-only.
 
 ```ts
-const User = domain
-  // the contract on which the capability operates is passed as generics
-  .capabilities<{ displayName: string; isVerified: boolean }>()
+const User = domain// the contract on which the capability operates is passed as generics
+.capabilities
+  .forShape<{ displayName: string; isVerified: boolean }>()
   // patch is intentionally scoped here: it is not exported
   // so callers cannot update the shape arbitrarily,
   // they must use explicit semantic methods instead
@@ -135,8 +135,8 @@ const OrderDetailShape = domain.shape(
   )
 );
 
-const OrderCapabilities = domain
-  .capabilities<{ status: "draft" | "confirmed" }>()
+const OrderCapabilities = domain.capabilities
+  .forShape<{ status: "draft" | "confirmed" }>()
   .methods((patch) => ({
     confirm(order) {
       return patch(order, { status: "confirmed" });
@@ -153,7 +153,9 @@ In the example above, `OrderDetail.confirm(...)` re-validates with the `OrderDet
 
 ### Keeping the capability contract small
 
-The idea of explicitly defining the interface on which the `capabilities` operate lines up with the **Interface Segregation** idea: you _can_ type `capabilities` with the full props of a particular shape, and TypeScript will accept it when you attach that shape. The more maintainable approach is to keep the generic parameter **minimal**—only the fields the methods actually touch (reads, `patch` payloads, or other invariants the capability logic assumes). A narrower type states the real contract, makes reuse across richer shapes (like `OrderDetail` next to `Order`) obvious instead of accidental, and avoids coupling capability bundles to one row shape when they only need a slice of it.
+The idea of explicitly defining the interface on which the capabilities operate lines up with the **Interface Segregation** idea: you _can_ type `capabilities.forShape` with the full props of a particular shape, and TypeScript will accept it when you attach that shape. The more maintainable approach is to keep the generic parameter **minimal**—only the fields the methods actually touch (reads, `patch` payloads, or other invariants the capability logic assumes). A narrower type states the real contract, makes reuse across richer shapes (like `OrderDetail` next to `Order`) obvious instead of accidental, and avoids coupling capability bundles to one row shape when they only need a slice of it.
+
+For scalar primitives, use `capabilities.forPrimitive` with `create` instead of `patch` — see [Capabilities](/v0/domain/capabilities/).
 
 ## Add a proof when meaning gets stronger
 

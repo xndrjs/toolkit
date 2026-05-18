@@ -52,13 +52,13 @@ Each operation has a distinct responsibility. That separation is the core of the
 
 ## The five domain responsibilities
 
-| Concept        | Responsibilities                                 | Example                                    |
-| -------------- | ------------------------------------------------ | ------------------------------------------ |
-| `Validator`    | Parse or validate unknown input                  | Zod, Valibot, AJV, or a custom validator   |
-| `primitive`    | Give semantic meaning to scalar-like values      | `Email`, `UserId`, `CurrencyCode`          |
-| `shape`        | Create a trusted immutable object representation | `User`, `Order`, `Profile`                 |
-| `capabilities` | Express allowed transitions                      | `User.rename(user)`, `Order.cancel(order)` |
-| `proof`        | Establish an extra semantic guarantee            | `VerifiedUser`, `PaidOrder`                |
+| Concept        | Responsibilities                                    | Example                                     |
+| -------------- | --------------------------------------------------- | ------------------------------------------- |
+| `Validator`    | Parse or validate unknown input                     | Zod, Valibot, AJV, or a custom validator    |
+| `primitive`    | Give semantic meaning to scalar values only         | `Email`, `UserId`, `Money` (cents)          |
+| `shape`        | Create a trusted immutable object representation    | `User`, `Order`, `Profile`                  |
+| `capabilities` | Express allowed transitions on shapes or primitives | `User.rename(user)`, `Money.add(money, 50)` |
+| `proof`        | Establish an extra semantic guarantee               | `VerifiedUser`, `PaidOrder`                 |
 
 A schema can prove structure. A shape establishes representation identity. A proof adds meaning. A capability evolves data through a named operation.
 
