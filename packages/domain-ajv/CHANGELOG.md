@@ -1,5 +1,13 @@
 # @xndrjs/domain-ajv
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [ed03f7f]
+- Updated dependencies [a3f9916]
+  - @xndrjs/domain@0.3.0
+
 ## 0.2.1-alpha.0
 
 ### Patch Changes
