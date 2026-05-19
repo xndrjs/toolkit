@@ -1,19 +1,34 @@
-import type { Branded, PatchDelta } from "./branded";
+import type { PatchDelta } from "./branded";
 import type { PrimitiveKit } from "./primitive";
 import type { Scalar } from "./scalar";
-import { attachPatchImpl, getShapePatchImpl, type ShapeKit, type ShapeProps } from "./shape";
+import { getShapePatchImpl, type ShapeKit, type ShapeProps } from "./shape";
+import type { ValidationResult } from "./validation";
 
 export type CapabilityPatchFn<Req extends object> = <T extends Req>(
   instance: T,
   delta: PatchDelta<Req>
 ) => T;
 
-/** Injected into primitive capability factories — materializes a new validated scalar. */
-export type PrimitiveCapabilityCreateFn<
-  Type extends string,
-  Input extends Scalar,
-  Value extends Scalar,
-> = (input: Input) => Branded<Type, Value>;
+/** Helpers passed to shape capability factories at {@link CapabilityBundle.attach}. */
+export interface ShapeCapabilityFactoryContext<Req extends object> {
+  patch: CapabilityPatchFn<Req>;
+  create: (input: Req) => Req;
+  safeCreate: (input: Req) => ValidationResult<Req>;
+  is: (value: unknown) => value is Req;
+}
+
+/** Helpers passed to primitive capability factories at {@link PrimitiveCapabilityBundle.attach}. */
+export interface PrimitiveCapabilityFactoryContext<Req extends Scalar> {
+  create: (input: Req) => Req;
+  safeCreate: (input: Req) => ValidationResult<Req>;
+  is: (value: unknown) => value is Req;
+}
+
+/** Capability kit returned by shape {@link CapabilityBundle.attach} — custom methods only. */
+export type ShapeCapabilityKit<M extends CapabilityMethods<object>> = M;
+
+/** Capability kit returned by primitive {@link PrimitiveCapabilityBundle.attach} — custom methods only. */
+export type PrimitiveCapabilityKit<M extends PrimitiveCapabilityMethods<Scalar>> = M;
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- method bags mirror inference-friendly branded API */
 export type CapabilityMethods<Req extends object> = Record<
@@ -27,29 +42,12 @@ export type PrimitiveCapabilityMethods<Req extends Scalar> = Record<
 >;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-const RESERVED_SHAPE_KIT_KEYS = new Set([
-  "create",
-  "is",
-  "safeCreate",
-  "type",
-  "validator",
-  "project",
-]);
-
-const RESERVED_PRIMITIVE_KIT_KEYS = new Set(["create", "is", "safeCreate", "type", "validator"]);
-
 function validateCapabilityMethodKeys(
   type: string,
   methods: Record<string, (instance: unknown, ...args: unknown[]) => unknown>,
-  label: string,
-  reserved: ReadonlySet<string>
+  label: string
 ): void {
   for (const key of Object.keys(methods) as string[]) {
-    if (reserved.has(key)) {
-      throw new TypeError(
-        `Invalid method "${key}" for kit "${type}" ${label}: name is reserved for the kit`
-      );
-    }
     if (typeof methods[key as keyof typeof methods] !== "function") {
       throw new TypeError(
         `Invalid method "${key}" for kit "${type}" ${label}: expected a function`
@@ -61,7 +59,7 @@ function validateCapabilityMethodKeys(
 export interface CapabilityBundle<Req extends object, M extends CapabilityMethods<Req>> {
   attach<Type extends string, Input extends object, Props extends object>(
     shapeKit: Props extends Req ? ShapeKit<Type, Input, Props, Record<never, never>> : never
-  ): ShapeKit<Type, Input, Props, M>;
+  ): ShapeCapabilityKit<M>;
 }
 
 export interface PrimitiveCapabilityBundle<
@@ -70,43 +68,48 @@ export interface PrimitiveCapabilityBundle<
 > {
   attach<Type extends string, Input extends Scalar, Value extends Scalar>(
     primitiveKit: Value extends Req ? PrimitiveKit<Type, Input, Value, Record<never, never>> : never
-  ): PrimitiveKit<Type, Input, Value, M>;
+  ): PrimitiveCapabilityKit<M>;
 }
 
 export interface ShapeCapabilitiesBuilder<Req extends object> {
   methods<const M extends CapabilityMethods<Req>>(
-    factory: (patch: CapabilityPatchFn<Req>) => M
+    factory: (ctx: ShapeCapabilityFactoryContext<Req>) => M
   ): CapabilityBundle<Req, M>;
 }
 
 export interface PrimitiveCapabilitiesBuilder<Req extends Scalar> {
   methods<const M extends PrimitiveCapabilityMethods<Req>>(
-    factory: (create: (input: Req) => Req) => M
+    factory: (ctx: PrimitiveCapabilityFactoryContext<Req>) => M
   ): PrimitiveCapabilityBundle<Req, M>;
 }
 
 function defineShapeCapability<Req extends object, const M extends CapabilityMethods<Req>>(
-  factory: (patch: CapabilityPatchFn<Req>) => M
+  factory: (ctx: ShapeCapabilityFactoryContext<Req>) => M
 ): CapabilityBundle<Req, M> {
   return {
     attach<Type extends string, Input extends object, Props extends object>(
       shapeKit: Props extends Req ? ShapeKit<Type, Input, Props, Record<never, never>> : never
-    ): ShapeKit<Type, Input, Props, M> {
-      const shapePatch = getShapePatchImpl(
-        shapeKit as ShapeKit<Type, Input, Props, Record<never, never>>
-      );
+    ): ShapeCapabilityKit<M> {
+      const kit = shapeKit as ShapeKit<Type, Input, Props, Record<never, never>>;
+      const shapePatch = getShapePatchImpl(kit);
       const capabilityPatch: CapabilityPatchFn<Req> = <T extends Req>(
         instance: T,
         delta: PatchDelta<Req>
       ): T =>
         shapePatch(instance as ShapeProps<Type, Props>, delta as unknown as PatchDelta<Input>) as T;
 
-      const methods = factory(capabilityPatch);
+      const ctx: ShapeCapabilityFactoryContext<Req> = {
+        patch: capabilityPatch,
+        create: (input) => kit.create(input as unknown as Input) as Req,
+        safeCreate: (input) => kit.safeCreate(input as unknown as Input) as ValidationResult<Req>,
+        is: (value): value is Req => kit.is(value),
+      };
+
+      const methods = factory(ctx);
       validateCapabilityMethodKeys(
-        shapeKit.type,
+        kit.type,
         methods as Record<string, (instance: unknown, ...args: unknown[]) => unknown>,
-        "during capability attach",
-        RESERVED_SHAPE_KIT_KEYS
+        "during capability attach"
       );
 
       const boundMethods = {} as M;
@@ -119,9 +122,7 @@ function defineShapeCapability<Req extends object, const M extends CapabilityMet
         ) => Reflect.apply(method, null, [instance, ...args]);
       }
 
-      const kit = { ...shapeKit, ...boundMethods } as ShapeKit<Type, Input, Props, M>;
-      attachPatchImpl(kit, shapePatch);
-      return kit;
+      return boundMethods as ShapeCapabilityKit<M>;
     },
   };
 }
@@ -129,23 +130,26 @@ function defineShapeCapability<Req extends object, const M extends CapabilityMet
 function definePrimitiveCapability<
   Req extends Scalar,
   const M extends PrimitiveCapabilityMethods<Req>,
->(factory: (create: (input: Req) => Req) => M): PrimitiveCapabilityBundle<Req, M> {
+>(factory: (ctx: PrimitiveCapabilityFactoryContext<Req>) => M): PrimitiveCapabilityBundle<Req, M> {
   return {
     attach<Type extends string, Input extends Scalar, Value extends Scalar>(
       primitiveKit: Value extends Req
         ? PrimitiveKit<Type, Input, Value, Record<never, never>>
         : never
-    ): PrimitiveKit<Type, Input, Value, M> {
+    ): PrimitiveCapabilityKit<M> {
       const kit = primitiveKit as unknown as PrimitiveKit<Type, Input, Value, Record<never, never>>;
-      const capabilityCreate = ((input: Req) =>
-        kit.create(input as unknown as Input)) as unknown as (input: Req) => Req;
 
-      const methods = factory(capabilityCreate);
+      const ctx: PrimitiveCapabilityFactoryContext<Req> = {
+        create: (input) => kit.create(input as unknown as Input) as unknown as Req,
+        safeCreate: (input) => kit.safeCreate(input as unknown as Input) as ValidationResult<Req>,
+        is: (value): value is Req => kit.is(value),
+      };
+
+      const methods = factory(ctx);
       validateCapabilityMethodKeys(
         kit.type,
         methods as Record<string, (instance: unknown, ...args: unknown[]) => unknown>,
-        "during capability attach",
-        RESERVED_PRIMITIVE_KIT_KEYS
+        "during capability attach"
       );
 
       const boundMethods = {} as M;
@@ -158,22 +162,27 @@ function definePrimitiveCapability<
         ) => Reflect.apply(method, null, [instance, ...args]);
       }
 
-      return { ...kit, ...boundMethods } as PrimitiveKit<Type, Input, Value, M>;
+      return boundMethods as PrimitiveCapabilityKit<M>;
     },
   };
 }
 
 /**
- * Capability builders for shapes (patch) and primitives (create).
+ * Capability builders for shapes and primitives.
  *
- * - **`capabilities.forShape<Contract>()`** — `methods((patch) => ({ … })).attach(shapeKit)`
- * - **`capabilities.forPrimitive<Contract>()`** — `methods((create) => ({ … })).attach(primitiveKit)`
+ * Schema kits (`shape`, `primitive`) expose `create`, `is`, `safeCreate`, and related helpers.
+ * Capability kits returned by {@link CapabilityBundle.attach} / {@link PrimitiveCapabilityBundle.attach}
+ * contain **only** custom methods from {@link ShapeCapabilitiesBuilder.methods} /
+ * {@link PrimitiveCapabilitiesBuilder.methods}; factories receive schema helpers via destructuring.
+ *
+ * - **`capabilities.forShape<Contract>()`** — `methods(({ patch, create, … }) => ({ … })).attach(shapeKit)`
+ * - **`capabilities.forPrimitive<Contract>()`** — `methods(({ create, … }) => ({ … })).attach(primitiveKit)`
  */
 export const capabilities = {
   forShape<Req extends object>(): ShapeCapabilitiesBuilder<Req> {
     return {
       methods<const M extends CapabilityMethods<Req>>(
-        factory: (patch: CapabilityPatchFn<Req>) => M
+        factory: (ctx: ShapeCapabilityFactoryContext<Req>) => M
       ) {
         return defineShapeCapability(factory);
       },
@@ -183,7 +192,7 @@ export const capabilities = {
   forPrimitive<Req extends Scalar>(): PrimitiveCapabilitiesBuilder<Req> {
     return {
       methods<const M extends PrimitiveCapabilityMethods<Req>>(
-        factory: (create: (input: Req) => Req) => M
+        factory: (ctx: PrimitiveCapabilityFactoryContext<Req>) => M
       ) {
         return definePrimitiveCapability(factory);
       },

@@ -42,10 +42,13 @@ export type {
   CapabilityMethods,
   CapabilityPatchFn,
   PrimitiveCapabilityBundle,
-  PrimitiveCapabilityCreateFn,
+  PrimitiveCapabilityFactoryContext,
+  PrimitiveCapabilityKit,
   PrimitiveCapabilityMethods,
   PrimitiveCapabilitiesBuilder,
   ShapeCapabilitiesBuilder,
+  ShapeCapabilityFactoryContext,
+  ShapeCapabilityKit,
 } from "./capabilities";
 
 export type { Brand, BrandMap, Branded, BrandOf, Mutable, PatchDelta } from "./branded";

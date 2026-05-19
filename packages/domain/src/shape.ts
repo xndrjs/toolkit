@@ -29,7 +29,7 @@ function clonePropsForPatch<Props extends Record<string, unknown>>(row: Props): 
   return structuredClone(row);
 }
 
-/** @internal — also used when merging capability methods onto a shape kit. */
+/** @internal — attaches patch to schema shape kits only. */
 export function attachPatchImpl(kit: object, patch: unknown): void {
   Object.defineProperty(kit, __patchImpl, {
     value: patch,
