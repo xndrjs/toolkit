@@ -20,7 +20,7 @@ describe("pipe parity (branded pipe.branded.test)", () => {
   const UserShape = domain.shape("User", zodToValidator(UserSchema));
   const UserKit = domain.capabilities
     .forShape<z.output<typeof UserSchema>>()
-    .methods((patch) => ({
+    .methods(({ patch }) => ({
       rename(user, displayName: string) {
         return patch(user, { displayName });
       },
@@ -47,14 +47,14 @@ describe("pipe parity (branded pipe.branded.test)", () => {
         address: { street: "Via Roma 1", city: "Firenze" },
         avatarSrc: "https://cdn.example/avatar.png",
       }),
-      (d) => UserDetailShape.project(d, UserKit),
+      (d) => UserDetailShape.project(d, UserShape),
       (u) => UserKit.rename(u, "Alex Renamed"),
       VerifiedUserFact.assert
     );
 
     expect(out.displayName).toBe("Alex Renamed");
     expect(out.isVerified).toBe(true);
-    expect(UserKit.is(out)).toBe(true);
+    expect(UserShape.is(out)).toBe(true);
     expect(VerifiedUserFact.test(out)).toBe(true);
     expectTypeOf(out.isVerified).toEqualTypeOf<true>();
   });

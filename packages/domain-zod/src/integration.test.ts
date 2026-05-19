@@ -87,17 +87,17 @@ describe("@xndrjs/domain-zod integration", () => {
 
     const User = domain.capabilities
       .forShape<{ email: string; isVerified: boolean }>()
-      .methods((patch) => ({
+      .methods(({ patch }) => ({
         markVerified(user) {
           return patch(user, { isVerified: true });
         },
       }))
       .attach(UserShape);
 
-    const user = User.create({ email: "a@b.co", isVerified: false });
+    const user = UserShape.create({ email: "a@b.co", isVerified: false });
     const next = User.markVerified(user);
     expect(next.isVerified).toBe(true);
-    expect(User.is(next)).toBe(true);
+    expect(UserShape.is(next)).toBe(true);
     expect(Object.keys(next as object)).not.toContain("markVerified");
   });
 

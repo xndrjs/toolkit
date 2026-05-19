@@ -52,7 +52,7 @@ describe("Zod schema.extend → base + detail shapes", () => {
   it("reusable capability attaches to base and to detail shape (Zod-extended row)", () => {
     const RenameCapability = domain.capabilities
       .forShape<{ displayName: string }>()
-      .methods((patch) => ({
+      .methods(({ patch }) => ({
         rename(entity, displayName: string) {
           return patch(entity, { displayName });
         },
@@ -61,8 +61,8 @@ describe("Zod schema.extend → base + detail shapes", () => {
     const BaseKit = RenameCapability.attach(ProfileShape);
     const DetailKit = RenameCapability.attach(ProfileDetailShape);
 
-    const user = BaseKit.create({ displayName: "U" });
-    const d = DetailKit.create({
+    const user = ProfileShape.create({ displayName: "U" });
+    const d = ProfileDetailShape.create({
       displayName: "D",
       avatarSrc: "https://cdn.example/a.png",
     });
@@ -71,17 +71,17 @@ describe("Zod schema.extend → base + detail shapes", () => {
     const rd = DetailKit.rename(d, "D2");
 
     expect(ru.displayName).toBe("U2");
-    expect(BaseKit.is(ru)).toBe(true);
+    expect(ProfileShape.is(ru)).toBe(true);
 
     expect(rd.displayName).toBe("D2");
     expect(rd.avatarSrc).toBe("https://cdn.example/a.png");
-    expect(DetailKit.is(rd)).toBe(true);
+    expect(ProfileDetailShape.is(rd)).toBe(true);
   });
 
   it("pipe: detail create → project to base → capability on base kit", () => {
     const RenameCapability = domain.capabilities
       .forShape<{ displayName: string }>()
-      .methods((patch) => ({
+      .methods(({ patch }) => ({
         rename(entity, displayName: string) {
           return patch(entity, { displayName });
         },
@@ -112,7 +112,7 @@ describe("Zod extend: attach enforces structural compatibility", () => {
 
     const RenameCapability = domain.capabilities
       .forShape<{ displayName: string }>()
-      .methods((patch) => ({
+      .methods(({ patch }) => ({
         rename<T extends { displayName: string }>(entity: T, displayName: string) {
           return patch(entity, { displayName });
         },

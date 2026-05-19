@@ -27,7 +27,7 @@ describe("aggregate domain parity (branded-kit example)", () => {
 
   const User = domain.capabilities
     .forShape<z.output<typeof UserShapeSchema>>()
-    .methods((patch) => ({
+    .methods(({ patch }) => ({
       isCorporate(user) {
         return user.email.endsWith("@company.com");
       },
@@ -40,7 +40,7 @@ describe("aggregate domain parity (branded-kit example)", () => {
   it("creates nested aggregate with discriminants and frozen user", () => {
     const email = EmailPrimitive.create("ciao");
     const address = AddressShape.create({ street: "Via Roma 1", city: "Firenze" });
-    const user = User.create({ email, address });
+    const user = UserShape.create({ email, address });
 
     expect(email).toBe("ciao");
     expect(EmailPrimitive.is(email)).toBe(true);
@@ -53,11 +53,11 @@ describe("aggregate domain parity (branded-kit example)", () => {
     expect(user.address).toEqual(address);
     expect(User.isCorporate(user)).toBe(false);
     expect(Object.isFrozen(user)).toBe(true);
-    expect(User.is(user)).toBe(true);
+    expect(UserShape.is(user)).toBe(true);
   });
 
   it("capabilities stay on kit; JSON is data-only", () => {
-    const user = User.create({
+    const user = UserShape.create({
       email: "alice@company.com",
       address: { street: "Via Roma 1", city: "Firenze" },
     });
@@ -67,20 +67,22 @@ describe("aggregate domain parity (branded-kit example)", () => {
     expect(JSON.stringify(user)).not.toContain("isCorporate");
   });
 
-  it("User.is rejects plain object with same shape", () => {
+  it("UserShape.is rejects plain object with same shape", () => {
     expect(
-      User.is({
+      UserShape.is({
         type: "User",
         email: EmailPrimitive.create("x"),
         address: AddressShape.create({ street: "s", city: "F" }),
       })
     ).toBe(false);
 
-    expect(User.is(User.create({ email: "x", address: { street: "s", city: "F" } }))).toBe(true);
+    expect(
+      UserShape.is(UserShape.create({ email: "x", address: { street: "s", city: "F" } }))
+    ).toBe(true);
   });
 
   it("patchEmail re-validates", () => {
-    const user = User.create({
+    const user = UserShape.create({
       email: EmailPrimitive.create("a@b.c"),
       address: AddressShape.create({ street: "Old", city: "F" }),
     });
@@ -89,11 +91,11 @@ describe("aggregate domain parity (branded-kit example)", () => {
     expect(next.address).toEqual(user.address);
     expect(next.type).toBe("User");
     expect(User.isCorporate(next)).toBe(false);
-    expect(User.is(next)).toBe(true);
+    expect(UserShape.is(next)).toBe(true);
   });
 
   it("patchEmail rejects invalid email for schema", () => {
-    const user = User.create({
+    const user = UserShape.create({
       email: EmailPrimitive.create("ok@b.c"),
       address: AddressShape.create({ street: "S", city: "F" }),
     });
@@ -104,7 +106,7 @@ describe("aggregate domain parity (branded-kit example)", () => {
 
   it("create throws with issues on invalid nested input", () => {
     try {
-      User.create({
+      UserShape.create({
         email: "",
         address: { street: "Via", city: "F" },
       });
@@ -116,16 +118,16 @@ describe("aggregate domain parity (branded-kit example)", () => {
   });
 
   it("JSON round-trip loses prototype", () => {
-    const user = User.create({
+    const user = UserShape.create({
       email: EmailPrimitive.create("x"),
       address: AddressShape.create({ street: "y", city: "F" }),
     });
     const parsed = JSON.parse(JSON.stringify(user)) as unknown;
-    expect(User.is(parsed)).toBe(false);
+    expect(UserShape.is(parsed)).toBe(false);
   });
 
   it("creates user from raw nested literals (coerced by zod)", () => {
-    const user = User.create({
+    const user = UserShape.create({
       email: "email@test.com",
       address: { street: "via roma 1", city: "F" },
     });
@@ -136,6 +138,6 @@ describe("aggregate domain parity (branded-kit example)", () => {
     expect(user.address.street).toBe("via roma 1");
     expect(user.address.type).toBe("Address");
     expect(AddressShape.is(user.address)).toBe(true);
-    expect(User.is(user)).toBe(true);
+    expect(UserShape.is(user)).toBe(true);
   });
 });
