@@ -13,5 +13,5 @@
     "@xndrjs/domain-zod": "0.2.0",
     "@xndrjs/tasks": "0.2.0"
   },
-  "changesets": ["fast-showers-tan"]
+  "changesets": ["capability-schema-kit-split", "fast-showers-tan"]
 }
