@@ -1,7 +1,7 @@
 ---
 title: "OAS, JSON Schema, AJV: a solid domain in a few steps with xndrjs"
 description: Start from an OpenAPI contract exposed by your backend and get TypeScript types, runtime validation, and domain primitives without rewriting contracts by hand.
-date: 2026-05-05
+date: 2026-04-05
 tags:
   - openapi
   - ajv
