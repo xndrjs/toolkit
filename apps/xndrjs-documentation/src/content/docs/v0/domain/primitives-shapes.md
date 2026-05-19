@@ -25,7 +25,7 @@ const email = Email.create("alice@example.com");
 
 At runtime, the value remains a plain scalar. At type level, it carries a nominal brand. That helps TypeScript distinguish an `Email` from any other string.
 
-To attach behavior (for example `Money.add`), use [`capabilities.forPrimitive`](/v0/domain/capabilities/) — factories receive `create`, not `patch`.
+To attach behavior (for example `Money.add`), use [`capabilities.forPrimitive`](/v0/domain/capabilities/) — the factory receives `create` in its context; public construction stays on the primitive kit (`MoneyPrimitive.create`).
 
 Good primitive candidates:
 

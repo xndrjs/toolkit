@@ -28,7 +28,7 @@ Now UI, orchestration, storage, transport, or another boundary can use safe doma
 In code:
 
 ```ts
-const user = User.create(raw);
+const user = UserShape.create(raw);
 const renamed = User.rename(user, "Ada Lovelace");
 const verified = User.verify(renamed);
 const proven = VerifiedUser.assert(verified);
@@ -41,7 +41,7 @@ import { pipe } from "@xndrjs/domain";
 
 const proven = pipe(
   raw,
-  User.create,
+  UserShape.create,
   (user) => User.rename(user, "Ada Lovelace"),
   User.verify,
   VerifiedUser.assert
@@ -80,7 +80,7 @@ That means your domain model can stay stable even if different boundaries use di
 - Valibot where bundle size or parser composition matters
 - a custom validator where the boundary is already normalized
 
-The adapter is the doorway into the domain model. The domain still speaks in `Email`, `User`, `VerifiedUser`, and `User.verify(user)`.
+The adapter is the doorway into the domain model. The domain still speaks in `Email`, `UserShape`, `VerifiedUser`, and `User.verify(user)`.
 
 ## Plain data, explicit behavior
 
@@ -102,7 +102,7 @@ This keeps values easy to pass through UI state, orchestration functions, tests,
 
 ## The rule of thumb
 
-1. If data came from outside, call `create` or `safeCreate`.
+1. If data came from outside, call `create` or `safeCreate` on the schema kit (`UserShape`, `Email`, …).
 2. If a scalar value needs a domain name, make it a `primitive` (i.e. `OrderId`, `EmailAddress`...).
 3. If an object is a trusted representation, make it a `shape` (i.e. `User`, `Order`...).
 4. If data needs to be changed, put the transition in a `capability` (i.e. `DocumentEditorCapabilities`, ...).

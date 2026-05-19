@@ -19,11 +19,11 @@ domain.shape(type, validator);
 domain.proof(brand, validator);
 domain.capabilities
   .forShape<Contract>()
-  .methods((patch) => methods)
-  .attach(shapeKit);
+  .methods(({ patch, create, safeCreate, is }) => methods)
+  .attach(shapeKit); // returns capability kit (custom methods only)
 domain.capabilities
   .forPrimitive<Contract>()
-  .methods((create) => methods)
+  .methods(({ create, safeCreate, is }) => methods)
   .attach(primitiveKit);
 ```
 
@@ -52,6 +52,8 @@ Common exported types include:
 - `PrimitiveKit`, `Scalar`
 - `ShapeKit`
 - `ShapeCapabilitiesBuilder`, `PrimitiveCapabilitiesBuilder`
+- `ShapeCapabilityFactoryContext`, `PrimitiveCapabilityFactoryContext`
+- `ShapeCapabilityKit`, `PrimitiveCapabilityKit`
 - `KitInstance`
 - `ProofKit`
 - `ProofValue`

@@ -90,13 +90,12 @@ Note how `email` is passed as a plain input value (`"ADA@EXAMPLE.COM"`), not as 
 Capabilities keep behavior on the kit while instances stay data-only.
 
 ```ts
-const User = domain// the contract on which the capability operates is passed as generics
-.capabilities
+// The contract on which the capability operates is passed as generics.
+const User = domain.capabilities
   .forShape<{ displayName: string; isVerified: boolean }>()
-  // patch is intentionally scoped here: it is not exported
-  // so callers cannot update the shape arbitrarily,
-  // they must use explicit semantic methods instead
-  .methods((patch) => ({
+  // patch is available only in the factory context — not on the capability kit —
+  // so callers cannot update the shape arbitrarily; they use named methods instead.
+  .methods(({ patch }) => ({
     rename(user, displayName: string) {
       return patch(user, { displayName });
     },
@@ -109,6 +108,8 @@ const User = domain// the contract on which the capability operates is passed as
 const renamed = User.rename(user, "Ada Lovelace");
 const verified = User.verify(renamed);
 ```
+
+`User` exposes only `rename` and `verify`. Construction and guards stay on `UserShape` (`UserShape.create`, `UserShape.is`, …).
 
 The same capabilities set can be attached to multiple shapes, as long as those shapes expose the fields required by the methods.
 
@@ -137,7 +138,7 @@ const OrderDetailShape = domain.shape(
 
 const OrderCapabilities = domain.capabilities
   .forShape<{ status: "draft" | "confirmed" }>()
-  .methods((patch) => ({
+  .methods(({ patch }) => ({
     confirm(order) {
       return patch(order, { status: "confirmed" });
     },
@@ -197,7 +198,7 @@ JSON preserves data, not shape identity.
 const payload = JSON.stringify(verified);
 const fromNetwork = JSON.parse(payload); // unknown
 
-const trustedAgain = User.create(fromNetwork);
+const trustedAgain = UserShape.create(fromNetwork);
 ```
 
 That is intentional. External data always re-enters through a boundary.

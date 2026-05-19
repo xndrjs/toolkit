@@ -28,6 +28,27 @@
 
   `@xndrjs/domain-zod` and `@xndrjs/domain-valibot` re-export the updated `domain` surface; update call sites that used `domain.capabilities<…>()` to `domain.capabilities.forShape<…>()` (or `forPrimitive` where applicable).
 
+- ### Breaking: capability `.attach()` no longer extends the schema kit
+
+  `attach()` returns a **capability kit** with **only** custom methods from `.methods()`. Use the **schema kit** for `create`, `safeCreate`, `is`, `validator`, `type`, and shape `project`.
+
+  Factories take a context object to destructure (`patch`, `create`, `safeCreate`, `is` for shapes; `create`, `safeCreate`, `is` for primitives) instead of a bare callback.
+
+  Migration:
+
+  | Before                   | After                         |
+  | ------------------------ | ----------------------------- |
+  | `User.create(input)`     | `UserShape.create(input)`     |
+  | `User.is(v)`             | `UserShape.is(v)`             |
+  | `User.safeCreate(input)` | `UserShape.safeCreate(input)` |
+  | `User.rename(u, name)`   | unchanged                     |
+  | `Money.create(n)`        | `MoneyPrimitive.create(n)`    |
+  | `Money.add(m, n)`        | unchanged                     |
+
+  New types: `ShapeCapabilityFactoryContext`, `PrimitiveCapabilityFactoryContext`, `ShapeCapabilityKit`, `PrimitiveCapabilityKit`.
+
+  `@xndrjs/domain-zod` and `@xndrjs/domain-valibot` re-export the updated surface; update capability call sites accordingly.
+
 ## 0.2.0
 
 ### Minor Changes

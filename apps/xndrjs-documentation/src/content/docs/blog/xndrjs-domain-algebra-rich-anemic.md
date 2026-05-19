@@ -156,7 +156,7 @@ Shapes and primitives define **sets of valid values**.
 
 That sentence sounds formal, but the practical idea is simple:
 
-> `User.create(raw)` is the door through which raw data becomes trusted domain data.
+> `UserShape.create(raw)` is the door through which raw data becomes trusted domain data.
 
 Before creation, we have input:
 
@@ -262,7 +262,7 @@ Example:
 ```ts
 const User = domain.capabilities
   .forShape<{ displayName: string; isVerified: boolean }>()
-  .methods((patch) => ({
+  .methods(({ patch }) => ({
     rename(user, displayName: string) {
       return patch(user, { displayName });
     },
@@ -430,7 +430,7 @@ The model is algebraic in the practical sense: small operations can be combined 
 A capability bundle can be defined on an arbitrarily small contract:
 
 ```ts
-const Rename = domain.capabilities.forShape<{ displayName: string }>().methods((patch) => ({
+const Rename = domain.capabilities.forShape<{ displayName: string }>().methods(({ patch }) => ({
   rename(entity, displayName: string) {
     return patch(entity, { displayName });
   },

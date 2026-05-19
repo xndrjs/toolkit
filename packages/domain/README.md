@@ -88,7 +88,7 @@ const User = domain.shape(
 
 ### Capabilities + patch re-validation
 
-Capabilities encapsulate transitions through the internal `patch` function, preserving shape validation.
+Capabilities attach **only** custom methods to a schema kit. Use `UserShape.create` / `UserShape.is` on the shape kit; use `User.verify` on the capability kit. The factory receives a context (`patch`, `create`, `safeCreate`, `is`) wired from the schema kit at `attach` time.
 
 ```ts
 import type { Validator } from "@xndrjs/domain";
@@ -132,12 +132,15 @@ const UserShape = domain.shape(
 
 const User = domain.capabilities
   .forShape<{ displayName: string; isVerified: boolean }>()
-  .methods((patch) => ({
+  .methods(({ patch }) => ({
     verify(user) {
       return patch(user, { isVerified: true });
     },
   }))
   .attach(UserShape);
+
+const user = UserShape.create({ displayName: "Ada", isVerified: false });
+const verified = User.verify(user);
 ```
 
 ### Proof + refineType + pipe
