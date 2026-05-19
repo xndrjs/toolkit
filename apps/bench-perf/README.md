@@ -10,7 +10,7 @@ Benchmark suite for comparing validation engines across realistic workloads:
 
 ## Scope and non-goals
 
-This package is for architecture-oriented performance decisions, not for micro-benchmarking isolated lines of code.
+This app is for architecture-oriented performance decisions, not for micro-benchmarking isolated lines of code.
 
 Goals:
 

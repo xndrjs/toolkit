@@ -10,7 +10,7 @@ Current documentation scope:
 - `@xndrjs/domain-zod`
 - `@xndrjs/domain-ajv`
 - `@xndrjs/domain-valibot`
-- `@xndrjs/bench-perf` (private workspace package)
+- `@xndrjs/bench-perf` (private app under `apps/bench-perf`)
 
 ## Source of truth
 
@@ -18,7 +18,7 @@ Always derive docs from:
 
 1. `packages/*/dist/index.d.ts` (public signatures and exported types)
 2. `packages/*/src/*.ts` for behavioral details and error semantics
-3. `packages/*/README.md` for CLI usage and benchmark methodology
+3. `apps/bench-perf/README.md` for benchmark CLI usage and methodology
 4. tests/examples for snippet realism:
    - `packages/domain/src/*.test.ts`
    - `packages/domain-zod/src/*.test.ts`
@@ -39,7 +39,7 @@ Always derive docs from:
 4. Scope check
    - do not reintroduce pages for out-of-scope packages in this phase.
 5. Bench check
-   - whenever benchmark commands are documented, mention `@xndrjs/bench-perf` is private and run from monorepo workspace.
+   - whenever benchmark commands are documented, mention `@xndrjs/bench-perf` lives under `apps/bench-perf`, is private, and runs from the monorepo workspace.
 
 ## Update workflow
 

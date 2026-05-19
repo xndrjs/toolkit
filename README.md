@@ -3,7 +3,7 @@
 This repo is a **pnpm workspace** for **xndrjs**: TypeScript libraries that help you model domains with explicit validation boundaries, optional schema adapters (Zod, Valibot, AJV), and small helpers for async work.
 
 - **`packages/<name>`** — libraries meant to be **published to npm** (scoped `@xndrjs/*`).
-- **`apps/<name>`** — **not published** as libraries; things like the **documentation site** (`xndrjs-documentation`) and **examples** (`oas-core-validator-demo`, `interop-demo`). They are in Changesets `ignore` and marked `"private": true` so they never ship on stable or alpha.
+- **`apps/<name>`** — **not published** as libraries; things like the **documentation site** (`xndrjs-documentation`), **examples** (`interop-demo`, `oas-core-validator-demo`), and **internal tooling** (`bench-perf`). They are in Changesets `ignore` and marked `"private": true` so they never ship on stable or alpha.
 
 Workspace-wide scripts (install, build, test, release) run from the **repository root**; each package documents its own API in its `README.md` or in the docs app.
 

@@ -1,13 +1,13 @@
 {
   "name": "@xndrjs/bench-perf",
   "version": "0.1.0",
-  "description": "Performance benchmark package for comparing validation engines.",
+  "description": "Internal benchmark CLI for comparing validation engines.",
   "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xndrjs/toolkit.git",
-    "directory": "packages/bench-perf"
+    "directory": "apps/bench-perf"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
