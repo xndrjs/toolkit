@@ -3,7 +3,7 @@
 This repo is a **pnpm workspace** for **xndrjs**: TypeScript libraries that help you model domains with explicit validation boundaries, optional schema adapters (Zod, Valibot, AJV), and small helpers for async work.
 
 - **`packages/<name>`** — libraries meant to be **published to npm** (scoped `@xndrjs/*`).
-- **`apps/<name>`** — **not published** as libraries; things like the **documentation site** (`xndrjs-documentation`) and **examples** (e.g. `oas-core-validator-demo`).
+- **`apps/<name>`** — **not published** as libraries; things like the **documentation site** (`xndrjs-documentation`) and **examples** (`oas-core-validator-demo`, `interop-demo`). They are in Changesets `ignore` and marked `"private": true` so they never ship on stable or alpha.
 
 Workspace-wide scripts (install, build, test, release) run from the **repository root**; each package documents its own API in its `README.md` or in the docs app.
 
@@ -47,7 +47,7 @@ Model kits once in `domain`, then choose an adapter per boundary:
 
 ## npm releases (stable and **alpha**)
 
-We use [**Changesets**](https://github.com/changesets/changesets) to version and publish. Public **scoped** packages use `access: public` (see `.changeset/config.json`).
+We use [**Changesets**](https://github.com/changesets/changesets) to version and publish. Public **scoped** packages use `access: public` (see `.changeset/config.json`). Apps and internal tooling are listed under `ignore` there and are not versioned or published on **stable** or **alpha** (see [`.changeset/README.md`](.changeset/README.md)).
 
 ### GitHub secrets and permissions
 

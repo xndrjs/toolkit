@@ -13,6 +13,7 @@
     "@config/typescript",
     "@xndrjs/bench-perf",
     "@xndrjs/documentation",
-    "@xndrjs/oas-core-validator-demo"
+    "@xndrjs/oas-core-validator-demo",
+    "@xndrjs/interop-demo"
   ]
 }
