@@ -12,10 +12,6 @@ Current documentation scope:
 - `@xndrjs/domain-valibot`
 - `@xndrjs/bench-perf` (private workspace package)
 
-Out of scope for this phase:
-
-- deprecated branded package documentation
-
 ## Source of truth
 
 Always derive docs from:

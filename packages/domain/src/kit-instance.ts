@@ -1,7 +1,7 @@
 /**
  * Value type produced by a domain kit:
  * - primitive / shape kits: return type of `create`
- * - proof kits: narrowed branded value asserted by `test`
+ * - proof kits: narrowed nominal value asserted by `test`
  */
 export type KitInstance<Kit> = Kit extends { create: infer Create }
   ? Create extends (...args: never[]) => infer Created

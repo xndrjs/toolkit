@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { domain, DomainValidationError, pipe, zodToValidator } from "./index";
 
-describe("pipe parity (branded pipe.branded.test)", () => {
+describe("pipe parity (legacy pipe fixture)", () => {
   const UserSchema = z.object({
     type: z.literal("User").default("User"),
     id: z.string(),
@@ -60,7 +60,7 @@ describe("pipe parity (branded pipe.branded.test)", () => {
   });
 });
 
-describe("stacked proofs (branded pipe.branded.test)", () => {
+describe("stacked proofs (legacy pipe fixture)", () => {
   const ItemSchema = z.object({
     type: z.literal("Item").default("Item"),
     id: z.string(),

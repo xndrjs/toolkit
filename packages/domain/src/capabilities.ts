@@ -30,7 +30,7 @@ export type ShapeCapabilityKit<M extends CapabilityMethods<object>> = M;
 /** Capability kit returned by primitive {@link PrimitiveCapabilityBundle.attach} — custom methods only. */
 export type PrimitiveCapabilityKit<M extends PrimitiveCapabilityMethods<Scalar>> = M;
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- method bags mirror inference-friendly branded API */
+/* eslint-disable @typescript-eslint/no-explicit-any -- method bags mirror inference-friendly capability API */
 export type CapabilityMethods<Req extends object> = Record<
   string,
   <T extends Req>(instance: T, ...args: any[]) => any

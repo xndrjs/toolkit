@@ -37,12 +37,12 @@ type Email = KitInstance<typeof Email>;
 The runtime value is still a string, but its type can no longer be mistaken for "any string".
 
 ```ts
-// define a function using a branded value (Email)
+// define a function using a nominal kit value (Email)
 function sendWelcomeEmail(to: Email) {
   // ...
 }
 
-// let's say we have another branded primitive
+// let's say we have another primitive kit
 const UsernameKit = domain.primitive("Username", zodToValidator(z.string().min(3)));
 
 // create new values
@@ -83,7 +83,7 @@ const user = UserShape.create({
 
 After `create`, `user` is validated and frozen. If input is invalid, `create` throws `DomainValidationError`; use `safeCreate` when you want a result union.
 
-Note how `email` is passed as a plain input value (`"ADA@EXAMPLE.COM"`), not as `EmailKit.create(...)`. Parent shapes that embed child kits are intended to accept **raw** nested payloads: the parent’s validator runs end-to-end and materializes branded or nested kit values for you. You do not need a nested ceremony of `create` calls at every level just to assemble one object.
+Note how `email` is passed as a plain input value (`"ADA@EXAMPLE.COM"`), not as `EmailKit.create(...)`. Parent shapes that embed child kits are intended to accept **raw** nested payloads: the parent’s validator runs end-to-end and materializes nominal or nested kit values for you. You do not need a nested ceremony of `create` calls at every level just to assemble one object.
 
 ## Add behavior with capabilities
 

@@ -63,7 +63,7 @@ describe("KitInstance", () => {
     expectTypeOf<KitInstance<typeof Item>>().toEqualTypeOf<ReturnType<typeof Item.create>>();
   });
 
-  it("infers proof branded value from test predicate", () => {
+  it("infers proof nominal value from test predicate", () => {
     const Verified = proof("Verified", itemValidator()).refineType(
       (row): row is { id: string; count: number } & { count: 1 } => row.count === 1
     );

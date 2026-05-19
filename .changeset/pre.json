@@ -7,7 +7,6 @@
     "@config/typescript": "1.0.1",
     "@config/vitest": "1.0.1",
     "@xndrjs/bench-perf": "0.1.0",
-    "@xndrjs/branded": "0.3.0-alpha.1",
     "@xndrjs/domain": "0.2.0",
     "@xndrjs/domain-ajv": "0.2.0",
     "@xndrjs/domain-valibot": "0.2.0",

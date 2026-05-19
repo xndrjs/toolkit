@@ -14,9 +14,9 @@ describe("zodFromKit", () => {
     expect(Email.is(fromRaw.email)).toBe(true);
 
     const existing = Email.create("c@d.co");
-    const fromBranded = Row.parse({ email: existing });
-    expect(fromBranded.email).toBe(existing);
-    expect(Email.is(fromBranded.email)).toBe(true);
+    const parsed = Row.parse({ email: existing });
+    expect(parsed.email).toBe(existing);
+    expect(Email.is(parsed.email)).toBe(true);
   });
 
   it("embeds shape from core+zodToValidator: output passes child is()", () => {

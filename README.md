@@ -7,7 +7,7 @@ This repo is a **pnpm workspace** for **xndrjs**: TypeScript libraries that help
 
 Workspace-wide scripts (install, build, test, release) run from the **repository root**; each package documents its own API in its `README.md` or in the docs app.
 
-**Domain modeling:** prefer **`@xndrjs/domain`** (validator-agnostic) and **`@xndrjs/domain-zod`** (Zod 4). **`@xndrjs/branded`** is **deprecated** and kept for historical compatibility. More validation adapters are **on the roadmap** (several likely in the near term).
+**Domain modeling:** use **`@xndrjs/domain`** (validator-agnostic) and schema adapters such as **`@xndrjs/domain-zod`** (Zod 4) and **`@xndrjs/domain-valibot`**. More validation adapters are **on the roadmap** (several likely in the near term).
 
 ## Requirements
 
@@ -90,7 +90,7 @@ If PR creation fails with permission errors, check the repo’s **Settings** →
 Alpha lines use **prerelease semver** (e.g. `0.1.1-alpha.0`, `0.1.1-alpha.1`), **not** snapshot versions like `0.0.0-alpha-<timestamp>`. Consumers install with:
 
 ```bash
-npm install @xndrjs/branded@alpha
+npm install @xndrjs/domain@alpha @xndrjs/domain-zod@alpha
 ```
 
 #### One-time setup for the `alpha` branch
@@ -156,10 +156,10 @@ After `pre exit`, if you want to **keep publishing alphas** from the `alpha` bra
 
 ### Local pack (tarball)
 
-In the `branded` package:
+In any publishable package under `packages/`:
 
 ```bash
-cd packages/branded
+cd packages/domain
 pnpm run pack
 ```
 
@@ -172,7 +172,6 @@ This writes `artifacts/*.tgz` (folder is gitignored). Useful to inspect what wou
 | `@xndrjs/domain`         | Validator-agnostic shapes, primitives, proofs, capabilities (`packages/domain`) |
 | `@xndrjs/domain-zod`     | Zod 4 adapter; re-exports domain (`packages/domain-zod`)                        |
 | `@xndrjs/domain-valibot` | Valibot adapter; re-exports domain (`packages/domain-valibot`)                  |
-| `@xndrjs/branded`        | **Deprecated** — use `domain` / `domain-zod` (`packages/branded`)               |
 | `@xndrjs/tasks`          | Lazy async tasks with retry (`packages/tasks`)                                  |
 | `@xndrjs/orchestration`  | Orchestration ports (`packages/orchestration`)                                  |
 | `@xndrjs/react-adapter`  | React hooks for orchestration ports (`packages/react-adapter`)                  |
