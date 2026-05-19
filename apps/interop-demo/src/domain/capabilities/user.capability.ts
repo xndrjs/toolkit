@@ -4,7 +4,7 @@ import { UserShape } from "../shapes/user.shape.js";
 
 export const User = domain.capabilities
   .forShape<{ displayName: string; isVerified: boolean }>()
-  .methods((patch) => ({
+  .methods(({ patch }) => ({
     rename(user, displayName: string) {
       return patch(user, { displayName });
     },

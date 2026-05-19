@@ -4,7 +4,7 @@ import { MoneyPrimitive } from "../primitives/money.primitive.js";
 
 export const Money = domain.capabilities
   .forPrimitive<number>()
-  .methods((create) => ({
+  .methods(({ create }) => ({
     add(balance, cents: number) {
       return create(balance + cents);
     },

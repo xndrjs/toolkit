@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   EmailPrimitive,
   Money,
+  MoneyPrimitive,
   ProfileShape,
   User,
   UserContactShape,
@@ -18,7 +19,7 @@ describe("workshop domain (mixed validators)", () => {
   });
 
   it("creates User from Valibot shape with nested Zod email kit", () => {
-    const user = User.create({
+    const user = UserShape.create({
       email: "bob@example.com",
       displayName: "Bob",
       isVerified: false,
@@ -33,7 +34,7 @@ describe("workshop domain (mixed validators)", () => {
   it("applies forShape capabilities on User", () => {
     const verified = User.verify(
       User.rename(
-        User.create({
+        UserShape.create({
           email: "bob@example.com",
           displayName: "Bob",
           isVerified: false,
@@ -48,7 +49,7 @@ describe("workshop domain (mixed validators)", () => {
 
   it("asserts VerifiedUser via core proof after Valibot-backed create", () => {
     const verified = User.verify(
-      User.create({
+      UserShape.create({
         email: "carol@example.com",
         displayName: "Carol",
         isVerified: false,
@@ -58,7 +59,7 @@ describe("workshop domain (mixed validators)", () => {
     expect(VerifiedUserProof.assert(verified)).toEqual(verified);
     expect(() =>
       VerifiedUserProof.assert(
-        User.create({
+        UserShape.create({
           email: "dave@example.com",
           displayName: "Dave",
           isVerified: false,
@@ -68,10 +69,10 @@ describe("workshop domain (mixed validators)", () => {
   });
 
   it("uses core Money primitive with forPrimitive capabilities", () => {
-    const wallet = Money.create(1000);
+    const wallet = MoneyPrimitive.create(1000);
     expect(Money.add(wallet, 250)).toBe(1250);
     expect(Money.subtract(wallet, 100)).toBe(900);
-    expect(() => Money.create(-1)).toThrow();
+    expect(() => MoneyPrimitive.create(-1)).toThrow();
   });
 
   it("builds Profile with Zod shape and shared Email kit", () => {
@@ -87,7 +88,7 @@ describe("workshop domain (mixed validators)", () => {
   });
 
   it("projects User to UserContact using core compose shape", () => {
-    const user = User.create({
+    const user = UserShape.create({
       email: "frank@example.com",
       displayName: "Frank",
       isVerified: true,
