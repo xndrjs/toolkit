@@ -1,3 +1,4 @@
+import { pipe } from "@xndrjs/domain";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -32,15 +33,14 @@ describe("workshop domain (mixed validators)", () => {
   });
 
   it("applies forShape capabilities on User", () => {
-    const verified = User.verify(
-      User.rename(
-        UserShape.create({
-          email: "bob@example.com",
-          displayName: "Bob",
-          isVerified: false,
-        }),
-        "Robert"
-      )
+    const verified = pipe(
+      UserShape.create({
+        email: "bob@example.com",
+        displayName: "Bob",
+        isVerified: false,
+      }),
+      (u) => User.rename(u, "Robert"),
+      User.verify
     );
 
     expect(verified.displayName).toBe("Robert");
@@ -48,30 +48,32 @@ describe("workshop domain (mixed validators)", () => {
   });
 
   it("asserts VerifiedUser via core proof after Valibot-backed create", () => {
-    const verified = User.verify(
+    const verified = pipe(
       UserShape.create({
         email: "carol@example.com",
         displayName: "Carol",
         isVerified: false,
-      })
+      }),
+      User.verify
     );
 
     expect(VerifiedUserProof.assert(verified)).toEqual(verified);
     expect(() =>
-      VerifiedUserProof.assert(
+      pipe(
         UserShape.create({
           email: "dave@example.com",
           displayName: "Dave",
           isVerified: false,
-        })
+        }),
+        VerifiedUserProof.assert
       )
     ).toThrow();
   });
 
   it("uses core Money primitive with forPrimitive capabilities", () => {
     const wallet = MoneyPrimitive.create(1000);
-    expect(Money.add(wallet, 250)).toBe(1250);
-    expect(Money.subtract(wallet, 100)).toBe(900);
+    expect(pipe(wallet, (w) => Money.add(w, 250))).toBe(1250);
+    expect(pipe(wallet, (w) => Money.subtract(w, 100))).toBe(900);
     expect(() => MoneyPrimitive.create(-1)).toThrow();
   });
 
@@ -88,13 +90,14 @@ describe("workshop domain (mixed validators)", () => {
   });
 
   it("projects User to UserContact using core compose shape", () => {
-    const user = UserShape.create({
-      email: "frank@example.com",
-      displayName: "Frank",
-      isVerified: true,
-    });
-
-    const contact = UserShape.project(user, UserContactShape);
+    const contact = pipe(
+      UserShape.create({
+        email: "frank@example.com",
+        displayName: "Frank",
+        isVerified: true,
+      }),
+      (u) => UserShape.project(u, UserContactShape)
+    );
 
     expect(contact).toEqual({
       email: "frank@example.com",
