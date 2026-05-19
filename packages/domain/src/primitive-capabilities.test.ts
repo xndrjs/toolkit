@@ -38,7 +38,7 @@ describe("capabilities.forPrimitive on domain.primitive", () => {
 
   const Money = domain.capabilities
     .forPrimitive<number>()
-    .methods((create) => ({
+    .methods(({ create }) => ({
       add(money, cents: number) {
         return create(money + cents);
       },
@@ -48,42 +48,44 @@ describe("capabilities.forPrimitive on domain.primitive", () => {
     }))
     .attach(MoneyPrimitive);
 
-  it("attach merges methods onto kit; instances stay plain numbers", () => {
-    const price = Money.create(1_050);
+  it("attach exposes custom methods only; instances stay plain numbers", () => {
+    const price = MoneyPrimitive.create(1_050);
     expect(price).toBe(1_050);
     expect(typeof price).toBe("number");
 
     const withTax = Money.add(price, 210);
     expect(withTax).toBe(1_260);
-    expect(Money.is(withTax)).toBe(true);
+    expect(MoneyPrimitive.is(withTax)).toBe(true);
     expect(Object.hasOwn(withTax as unknown as object, "add")).toBe(false);
+    expect(Money).not.toHaveProperty("create");
+    expect(Money).not.toHaveProperty("is");
   });
 
-  it("create in capabilities re-validates the next scalar", () => {
-    const wallet = Money.create(500);
+  it("create in factory context re-validates the next scalar", () => {
+    const wallet = MoneyPrimitive.create(500);
     expect(Money.add(wallet, 125)).toBe(625);
 
     const afterSpend = Money.subtract(wallet, 200);
     expect(afterSpend).toBe(300);
 
     expect(() => Money.subtract(wallet, 600)).toThrow(DomainValidationError);
-    expect(() => Money.create(10.5)).toThrow(DomainValidationError);
+    expect(() => MoneyPrimitive.create(10.5)).toThrow(DomainValidationError);
   });
 
   it("reusable primitive capability attaches to compatible primitives", () => {
-    const AddCents = capabilities.forPrimitive<number>().methods((create) => ({
+    const AddCents = capabilities.forPrimitive<number>().methods(({ create }) => ({
       add(money, cents: number) {
         return create(money + cents);
       },
     }));
 
     const MoneyKit = AddCents.attach(MoneyPrimitive);
-    const balance = MoneyKit.create(1_000);
+    const balance = MoneyPrimitive.create(1_000);
     expect(MoneyKit.add(balance, 50)).toBe(1_050);
   });
 
   it("attach enforces scalar contract at type level", () => {
-    const AddCents = capabilities.forPrimitive<number>().methods((create) => ({
+    const AddCents = capabilities.forPrimitive<number>().methods(({ create }) => ({
       add(money, cents: number) {
         return create(money + cents);
       },

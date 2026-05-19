@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Mutable } from "./branded";
 import { capabilities } from "./capabilities";
 import { DomainValidationError } from "./errors";
-import { getShapePatchImpl, shape } from "./shape";
+import { shape } from "./shape";
 import type { Validator } from "./validation";
 
 function fail(message: string, code = "invalid") {
@@ -123,66 +123,62 @@ describe("capabilities", () => {
 
   const ProfileKit = capabilities
     .forShape<{ displayName: string }>()
-    .methods((patch) => ({
+    .methods(({ patch }) => ({
       rename(profile, displayName: string) {
         return patch(profile, { displayName });
       },
     }))
     .attach(ProfileShape);
 
-  it("attach merges methods onto kit; instances stay data-only", () => {
-    const p = ProfileKit.create({ displayName: "Alice" });
+  it("attach exposes custom methods only; instances stay data-only", () => {
+    const p = ProfileShape.create({ displayName: "Alice" });
     const next = ProfileKit.rename(p, "Bob");
     expect(next.displayName).toBe("Bob");
-    expect(ProfileKit.is(next)).toBe(true);
+    expect(ProfileShape.is(next)).toBe(true);
     expect(Object.keys(next as object)).not.toContain("rename");
     expect(JSON.stringify(next)).not.toContain("rename");
+    expect(ProfileKit).not.toHaveProperty("create");
+    expect(ProfileKit).not.toHaveProperty("is");
   });
 
   it("patch re-validates; invalid delta throws", () => {
-    const p = ProfileKit.create({ displayName: "ok" });
+    const p = ProfileShape.create({ displayName: "ok" });
     expect(() => ProfileKit.rename(p, "")).toThrow(DomainValidationError);
   });
 
-  it("getShapePatchImpl works on capability kit", () => {
-    const patch = getShapePatchImpl(ProfileKit);
-    const p = ProfileKit.create({ displayName: "x" });
-    const q = patch(p, { displayName: "y" });
-    expect(q.displayName).toBe("y");
-  });
+  it("allows capability method names that match schema kit helpers", () => {
+    const WithCreate = capabilities
+      .forShape<{ displayName: string }>()
+      .methods(({ patch }) => ({
+        create(profile, displayName: string) {
+          return patch(profile, { displayName });
+        },
+      }))
+      .attach(ProfileShape);
 
-  it("rejects reserved kit method names", () => {
-    expect(() =>
-      capabilities
-        .forShape<{ displayName: string }>()
-        .methods(() => ({
-          project() {
-            return null;
-          },
-        }))
-        .attach(ProfileShape)
-    ).toThrow(TypeError);
+    const p = ProfileShape.create({ displayName: "Alice" });
+    expect(WithCreate.create(p, "Bob").displayName).toBe("Bob");
   });
 
   it("patch with callback draft rejects invalid discriminant", () => {
     const WidgetShape = shape("Widget", widgetValidator());
     const WidgetKit = capabilities
       .forShape<{ name: string }>()
-      .methods((patch) => ({
+      .methods(({ patch }) => ({
         applyDraft(w, fn: (draft: Mutable<{ type?: string; name: string }>) => void) {
           return patch(w, fn);
         },
       }))
       .attach(WidgetShape);
 
-    const w = WidgetKit.create({ name: "a" });
+    const w = WidgetShape.create({ name: "a" });
     expect(() =>
       WidgetKit.applyDraft(w, (draft) => {
         draft.name = "b";
         (draft as { type?: string }).type = "Evil";
       })
     ).toThrow(DomainValidationError);
-    const ok = WidgetKit.create({ name: "c" });
+    const ok = WidgetShape.create({ name: "c" });
     const next = WidgetKit.applyDraft(ok, (d) => {
       d.name = "d";
     });
@@ -191,7 +187,7 @@ describe("capabilities", () => {
   });
 
   it("reusable capability can attach to the same shape again with identical kit shape", () => {
-    const Rename = capabilities.forShape<{ displayName: string }>().methods((patch) => ({
+    const Rename = capabilities.forShape<{ displayName: string }>().methods(({ patch }) => ({
       rename(entity, displayName: string) {
         return patch(entity, { displayName });
       },
@@ -199,16 +195,19 @@ describe("capabilities", () => {
 
     const KitA = Rename.attach(ProfileShape);
     const KitB = Rename.attach(ProfileShape);
-    const p = KitA.create({ displayName: "A" });
+    const p = ProfileShape.create({ displayName: "A" });
     expect(KitB.rename(p, "B").displayName).toBe("B");
+    expect(ProfileShape.is(KitA.rename(p, "B"))).toBe(true);
   });
 
   it("reusable capability can attach to base and detail shapes", () => {
-    const RenameCapability = capabilities.forShape<{ displayName: string }>().methods((patch) => ({
-      rename(entity, displayName: string) {
-        return patch(entity, { displayName });
-      },
-    }));
+    const RenameCapability = capabilities
+      .forShape<{ displayName: string }>()
+      .methods(({ patch }) => ({
+        rename(entity, displayName: string) {
+          return patch(entity, { displayName });
+        },
+      }));
 
     const BaseProfileShape = shape("Profile", profileValidator());
     const DetailProfileShape = shape("ProfileDetail", profileDetailValidator());
@@ -216,10 +215,10 @@ describe("capabilities", () => {
     const UserRenamingKit = RenameCapability.attach(BaseProfileShape);
     const UserDetailRenamingKit = RenameCapability.attach(DetailProfileShape);
 
-    const user = UserRenamingKit.create({
+    const user = BaseProfileShape.create({
       displayName: "Initial User Name",
     });
-    const detail = UserDetailRenamingKit.create({
+    const detail = DetailProfileShape.create({
       displayName: "Initial Detail Name",
       avatarSrc: "https://cdn.local/avatar.png",
     });
@@ -228,19 +227,21 @@ describe("capabilities", () => {
     const renamedDetail = UserDetailRenamingKit.rename(detail, "Detail Name");
 
     expect(renamedUser.displayName).toBe("User Name");
-    expect(UserRenamingKit.is(renamedUser)).toBe(true);
+    expect(BaseProfileShape.is(renamedUser)).toBe(true);
 
     expect(renamedDetail.displayName).toBe("Detail Name");
     expect(renamedDetail.avatarSrc).toBe("https://cdn.local/avatar.png");
-    expect(UserDetailRenamingKit.is(renamedDetail)).toBe(true);
+    expect(DetailProfileShape.is(renamedDetail)).toBe(true);
   });
 
   it("attach enforces structural compatibility at type level", () => {
-    const RenameCapability = capabilities.forShape<{ displayName: string }>().methods((patch) => ({
-      rename<T extends { displayName: string }>(entity: T, displayName: string) {
-        return patch(entity, { displayName });
-      },
-    }));
+    const RenameCapability = capabilities
+      .forShape<{ displayName: string }>()
+      .methods(({ patch }) => ({
+        rename<T extends { displayName: string }>(entity: T, displayName: string) {
+          return patch(entity, { displayName });
+        },
+      }));
 
     const AnonymousShape = shape("Anonymous", anonymousValidator());
 
