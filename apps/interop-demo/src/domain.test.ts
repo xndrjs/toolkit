@@ -1,5 +1,5 @@
-import { pipe } from "@xndrjs/domain";
-import { describe, expect, it } from "vitest";
+import { KitInstance, pipe } from "@xndrjs/domain";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   EmailPrimitive,
@@ -87,6 +87,43 @@ describe("workshop domain (mixed validators)", () => {
     expect(profile.type).toBe("Profile");
     expect(profile.email).toBe("eve@example.com");
     expect(profile.nickname).toBe("anonymous");
+  });
+
+  it("UserInstance rejects plain objects at the type level", () => {
+    type UserInstance = KitInstance<typeof UserShape>;
+
+    const verified = UserShape.create({
+      email: "bob@example.com",
+      displayName: "Bob",
+      isVerified: false,
+    });
+
+    function acceptUser(u: UserInstance) {
+      return u;
+    }
+
+    acceptUser(verified);
+
+    acceptUser({
+      displayName: "",
+      isVerified: false,
+      type: "User",
+      // @ts-expect-error -- Email is not branded
+      email: "",
+    });
+
+    const plain = {
+      ...verified,
+      // this remove the Email brand, now it's just a string
+      email: "bobinvalidmail",
+    };
+    // @ts-expect-error -- plain object is not a UserShape kit instance
+    acceptUser(plain);
+
+    expectTypeOf(verified).toExtend<UserInstance>();
+    expectTypeOf(plain).not.toExtend<UserInstance>();
+    expect(UserShape.is(plain)).toBe(false);
+    expect(UserShape.is(verified)).toBe(true);
   });
 
   it("projects User to UserContact using core compose shape", () => {
