@@ -96,7 +96,7 @@ describe("object overrides", () => {
 
   it("respects locale.mode from config when localeMode option is omitted", () => {
     const cmaOnly = generateZodSchemas([blogPost], {
-      config: defineConfig({ locale: { mode: "cma" }, objects: config.objects! }),
+      config: { ...config, locale: { mode: "cma" } },
     });
 
     expect(cmaOnly).toContain("export const BlogPostSchema");

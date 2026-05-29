@@ -1,0 +1,4 @@
+[
+  { "code": "en-US", "default": true },
+  { "code": "it-IT", "default": false, "fallbackCode": "en-US" }
+]

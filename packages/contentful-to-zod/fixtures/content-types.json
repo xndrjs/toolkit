@@ -1,0 +1,39 @@
+[
+  {
+    "id": "blogPost",
+    "name": "Blog Post",
+    "displayField": "title",
+    "fields": [
+      {
+        "id": "title",
+        "name": "Title",
+        "type": "Symbol",
+        "required": true,
+        "localized": true,
+        "validations": [{ "size": { "max": 256 } }]
+      },
+      {
+        "id": "slug",
+        "name": "Slug",
+        "type": "Symbol",
+        "required": true,
+        "localized": false
+      },
+      {
+        "id": "author",
+        "name": "Author",
+        "type": "Link",
+        "linkType": "Entry",
+        "required": false,
+        "localized": false
+      },
+      {
+        "id": "excerpt",
+        "name": "Excerpt",
+        "type": "Text",
+        "required": false,
+        "localized": true
+      }
+    ]
+  }
+]
