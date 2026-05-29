@@ -1,0 +1,19 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@xndrjs/bench-perf": "0.1.0",
+    "@xndrjs/oas-core-validator-demo": "0.0.0",
+    "@xndrjs/documentation": "0.0.2",
+    "@config/eslint": "1.0.2",
+    "@config/typescript": "1.0.2",
+    "@config/vitest": "1.0.2",
+    "@xndrjs/contentful-to-zod": "0.0.0",
+    "@xndrjs/domain": "0.3.0",
+    "@xndrjs/domain-ajv": "0.2.1",
+    "@xndrjs/domain-valibot": "0.3.0",
+    "@xndrjs/domain-zod": "0.3.0",
+    "@xndrjs/tasks": "0.2.0"
+  },
+  "changesets": []
+}
