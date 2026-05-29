@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 /** Dynamically import a generated TypeScript module string (for helper runtime tests). */
-export async function importGeneratedModule<T extends Record<string, unknown>>(
+export async function importGeneratedModule<T = Record<string, unknown>>(
   source: string
 ): Promise<T> {
   // Keep temp files under the package so Node can resolve peer/dev deps (e.g. `zod`).

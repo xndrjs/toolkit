@@ -36,10 +36,13 @@ export {
   requireLocalesForMode,
   resolveDefaultLocale,
 } from "./emit/locale-primitives";
+export { emitContentTypeEntrySchema, emitEntrySysPrimitives } from "./emit/entry-to-source";
 export {
   emitFlattenHelper,
+  emitFlattenEntryHelper,
   emitLocaleHelpers,
   emitPickLocale,
+  flattenEntryFnName,
   flattenFieldsFnName,
 } from "./emit/helpers-to-source";
 export { zodToSource } from "./emit/zod-to-source";

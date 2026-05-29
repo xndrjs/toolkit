@@ -8,7 +8,7 @@ This package outputs **Zod schemas and optional locale helpers only** — no `do
 
 - **1:1 mapping** from the CMA content model to Zod (field type + `validations` + `required`).
 - **Two schema shapes** (configurable): **flat / CMA** (single value per field) and **delivery** (`localized: true` → `z.record(ContentfulLocaleCodeSchema, T)`).
-- **Default `locale.mode: "both"`** — each content type exports flat + delivery schemas (e.g. `BlogPostSchema` + `BlogPostDeliverySchema`) plus `flatten*` helpers when both are emitted.
+- **Default `locale.mode: "both"`** — each content type exports flat + delivery field schemas (e.g. `BlogPostFieldSchema` + `BlogPostDeliveryFieldsSchema`) plus entry wrappers and `flatten*` helpers when both are emitted.
 - **Locales from your space** — enum and constants are generated from a CMA `/locales` snapshot; `CONTENTFUL_DEFAULT_LOCALE` is only the default parameter for helpers (no runtime rule that the default locale must exist in every record).
 - **Self-contained output** — generated file depends only on `zod`; shared primitives (entry/asset links, location, …) are inlined once at the top.
 - **Optional Object overrides** — CMA declares `Object` without inner shape; supply Zod schemas via config for `{contentTypeId}.{fieldId}` keys.
@@ -82,11 +82,11 @@ export default defineConfig({
 });
 ```
 
-| `locale.mode`      | Generated exports                                                       |
-| ------------------ | ----------------------------------------------------------------------- |
-| `"cma"`            | Flat schemas only (`BlogPostSchema`, `BlogPostFields`)                  |
-| `"delivery"`       | Delivery schemas + `pickLocale` + locale enum/constants                 |
-| `"both"` (default) | Flat + delivery + `pickLocale` + `flatten{Type}Fields` per content type |
+| `locale.mode`      | Generated exports                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `"cma"`            | Flat field schemas only (`BlogPostFieldSchema`, `BlogPostFields`)                                            |
+| `"delivery"`       | Delivery field schemas + entry wrappers + `pickLocale` + locale enum/constants                               |
+| `"both"` (default) | Flat + delivery field schemas + entry wrappers + `pickLocale` + `flatten{Type}Fields` / `flatten{Type}Entry` |
 
 Rules:
 
@@ -111,22 +111,38 @@ export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 
 ```ts
 // flat / CMA — single value per field (nullable for pickLocale / flatten)
-export const BlogPostSchema = z.object({
+export const BlogPostFieldSchema = z.object({
   title: z.string().max(256).nullable(),
   slug: z.string().nullable(),
   author: ContentfulEntryLinkSchema.nullable().optional(),
 });
 
-export type BlogPostFields = z.infer<typeof BlogPostSchema>;
+export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
 
 // delivery — REST/Preview (all fields nullable; optional CMA fields also .optional())
-export const BlogPostDeliverySchema = z.object({
+export const BlogPostDeliveryFieldsSchema = z.object({
   title: z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable(),
   slug: z.string().nullable(),
   author: ContentfulEntryLinkSchema.nullable().optional(),
 });
 
-export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliverySchema>;
+export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliveryFieldsSchema>;
+
+// full entry — parse raw Delivery/Preview responses at the API boundary
+export const BlogPostEntrySchema = z.object({
+  sys: ContentfulEntrySysSchema.extend({
+    contentType: z.object({
+      sys: z.object({
+        type: z.literal("Link"),
+        linkType: z.literal("ContentType"),
+        id: z.literal("blogPost"),
+      }),
+    }),
+  }),
+  fields: BlogPostDeliveryFieldsSchema,
+});
+
+export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>;
 ```
 
 ## Generated helpers
@@ -134,10 +150,16 @@ export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliverySchema>;
 Helpers are pure functions in the same output file. They **do not validate** — parse after flattening:
 
 ```ts
-import { BlogPostSchema, flattenBlogPostFields, pickLocale } from "./generated/contentful.schemas";
+import {
+  BlogPostEntrySchema,
+  BlogPostFieldSchema,
+  flattenBlogPostEntry,
+  pickLocale,
+} from "./generated/contentful.schemas";
 
-const flat = flattenBlogPostFields(deliveryFields, "it-IT");
-const post = BlogPostSchema.parse(flat);
+const entry = BlogPostEntrySchema.parse(rawFromContentful);
+const flat = flattenBlogPostEntry(entry, "it-IT");
+const post = BlogPostFieldSchema.parse(flat);
 ```
 
 - **`pickLocale`** — read one locale from a localized delivery field (`Record<ContentfulLocaleCode, T> | null`); missing locale or `null` input → `null`. Default locale parameter is `CONTENTFUL_DEFAULT_LOCALE`.
@@ -168,8 +190,8 @@ Overrides are inlined at codegen time — the config is not imported at runtime.
 
 ## Mapping Delivery / REST data
 
-1. Parse or type raw `fields` as `*DeliveryFields` (or use `flatten*` when `mode` is `both`).
-2. Validate the flat shape with `*Schema.parse(...)`.
+1. Parse raw responses with `*EntrySchema` (or type `fields` as `*DeliveryFields` when you only have the fields object).
+2. Validate the flat shape with `*FieldSchema.parse(...)` after `flatten*` / `flatten*Entry`.
 
 Entry/asset link objects and CMA validations (size, range, regex, etc.) are reflected in the generated Zod chains.
 
@@ -179,9 +201,9 @@ Wire flat field schemas and the locale enum into `@xndrjs/domain-zod`:
 
 ```ts
 import { domain, zodToValidator } from "@xndrjs/domain-zod";
-import { BlogPostSchema, ContentfulLocaleCodeSchema } from "./generated/contentful.schemas";
+import { BlogPostFieldSchema, ContentfulLocaleCodeSchema } from "./generated/contentful.schemas";
 
-export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostSchema));
+export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostFieldSchema));
 
 export const SupportedLocale = domain.primitive(
   "SupportedLocale",

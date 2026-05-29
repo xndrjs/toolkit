@@ -16,11 +16,12 @@ import {
 import { emitLocalePrimitives, requireLocalesForMode } from "./locale-primitives";
 import { CONTENTFUL_PRIMITIVE_SCHEMA_NAMES, CONTENTFUL_PRIMITIVE_SCHEMAS } from "./primitives";
 import {
+  deliveryFieldsSchemaExportName,
   deliveryFieldsTypeName,
-  deliverySchemaExportName,
+  fieldsSchemaExportName,
   fieldsTypeName,
-  schemaExportName,
 } from "./schema-name";
+import { emitContentTypeEntrySchema, emitEntrySysPrimitives } from "./entry-to-source";
 import { emitLocaleHelpers } from "./helpers-to-source";
 import { zodToSource } from "./zod-to-source";
 
@@ -82,8 +83,8 @@ function emitContentTypeSchema(
   }
 
   const exportName = options.delivery
-    ? deliverySchemaExportName(contentType.id)
-    : schemaExportName(contentType.id);
+    ? deliveryFieldsSchemaExportName(contentType.id)
+    : fieldsSchemaExportName(contentType.id);
   const typeName = options.delivery
     ? deliveryFieldsTypeName(contentType.id)
     : fieldsTypeName(contentType.id);
@@ -137,7 +138,7 @@ export function generateZodSchemas(
   const includeCma = localeMode === "cma" || localeMode === "both";
 
   if (includeDelivery && locales) {
-    sections.push(emitLocalePrimitives(locales), "");
+    sections.push(emitLocalePrimitives(locales), "", emitEntrySysPrimitives(), "");
   }
 
   sections.push(emitSharedPrimitives());
@@ -157,7 +158,8 @@ export function generateZodSchemas(
         ...emitContentTypeSchema(contentType, {
           delivery: true,
           config,
-        })
+        }),
+        ...emitContentTypeEntrySchema(contentType)
       );
     }
   }

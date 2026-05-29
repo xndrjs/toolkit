@@ -11,10 +11,15 @@ describe("generateZodSchemas locale modes", () => {
     const output = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
 
     expect(output).toMatchSnapshot();
-    expect(output).toContain("export const BlogPostSchema");
-    expect(output).toContain("export const BlogPostDeliverySchema");
+    expect(output).toContain("export const BlogPostFieldSchema");
+    expect(output).toContain("export const BlogPostDeliveryFieldsSchema");
+    expect(output).toContain("export const BlogPostEntrySchema");
+    expect(output).toContain("export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>");
+    expect(output).toContain("export const ContentfulEntrySysSchema");
+    expect(output).toContain('id: z.literal("blogPost")');
     expect(output).toContain("export function pickLocale");
     expect(output).toContain("export function flattenBlogPostFields");
+    expect(output).toContain("export function flattenBlogPostEntry");
     expect(output).toContain(
       '"title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable()'
     );
@@ -25,8 +30,10 @@ describe("generateZodSchemas locale modes", () => {
     const output = generateZodSchemas(contentTypes, { localeMode: "cma" });
 
     expect(output).toMatchSnapshot();
-    expect(output).toContain("export const BlogPostSchema");
-    expect(output).not.toContain("BlogPostDeliverySchema");
+    expect(output).toContain("export const BlogPostFieldSchema");
+    expect(output).not.toContain("BlogPostDeliveryFieldsSchema");
+    expect(output).not.toContain("BlogPostEntrySchema");
+    expect(output).not.toContain("ContentfulEntrySysSchema");
     expect(output).not.toContain("ContentfulLocaleCodeSchema");
     expect(output).not.toContain("export function pickLocale");
     expect(output).not.toContain("export function flattenBlogPostFields");
@@ -36,11 +43,13 @@ describe("generateZodSchemas locale modes", () => {
     const output = generateZodSchemas(contentTypes, { locales, localeMode: "delivery" });
 
     expect(output).toMatchSnapshot();
-    expect(output).not.toContain("export const BlogPostSchema");
-    expect(output).toContain("export const BlogPostDeliverySchema");
-    expect(output).toContain("ContentfulLocaleCodeSchema");
+    expect(output).not.toContain("export const BlogPostFieldSchema");
+    expect(output).toContain("export const BlogPostDeliveryFieldsSchema");
+    expect(output).toContain("export const BlogPostEntrySchema");
+    expect(output).toContain("ContentfulEntrySysSchema");
     expect(output).toContain("export function pickLocale");
     expect(output).not.toContain("export function flattenBlogPostFields");
+    expect(output).not.toContain("export function flattenBlogPostEntry");
   });
 
   it("requires locales when delivery shape is included", () => {

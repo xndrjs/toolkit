@@ -99,8 +99,8 @@ describe("object overrides", () => {
       config: { ...config, locale: { mode: "cma" } },
     });
 
-    expect(cmaOnly).toContain("export const BlogPostSchema");
-    expect(cmaOnly).not.toContain("BlogPostDeliverySchema");
+    expect(cmaOnly).toContain("export const BlogPostFieldSchema");
+    expect(cmaOnly).not.toContain("BlogPostDeliveryFieldsSchema");
     expect(cmaOnly).not.toContain("export function pickLocale");
   });
 });

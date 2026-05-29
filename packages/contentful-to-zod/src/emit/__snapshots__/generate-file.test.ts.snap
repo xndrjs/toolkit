@@ -15,29 +15,72 @@ export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
 export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 
+export const ContentfulResourceLinkSchema = z.object({
+  sys: z.object({
+    type: z.literal("Link"),
+    linkType: z.string(),
+    id: z.string(),
+  }),
+});
+
+/** Loose Delivery/Preview entry metadata; extra Contentful fields pass through. */
+export const ContentfulEntrySysSchema = z.looseObject({
+  id: z.string(),
+  type: z.literal("Entry"),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  revision: z.number(),
+  contentType: z.object({
+    sys: z.object({
+      type: z.literal("Link"),
+      linkType: z.literal("ContentType"),
+      id: z.string(),
+    }),
+  }),
+  space: ContentfulResourceLinkSchema,
+  environment: ContentfulResourceLinkSchema,
+  locale: ContentfulLocaleCodeSchema.optional(),
+  publishedVersion: z.number().optional(),
+});
+
 export const ContentfulLocationSchema = z.object({ "lat": z.number(), "lon": z.number() });
 
 export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) });
 
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
-export const BlogPostSchema = z.object({
+export const BlogPostFieldSchema = z.object({
   "title": z.string().max(256).nullable(),
   "slug": z.string().nullable(),
   "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
   "excerpt": z.string().nullable().optional(),
 });
 
-export type BlogPostFields = z.infer<typeof BlogPostSchema>;
+export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
 
-export const BlogPostDeliverySchema = z.object({
+export const BlogPostDeliveryFieldsSchema = z.object({
   "title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable(),
   "slug": z.string().nullable(),
   "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
   "excerpt": z.record(ContentfulLocaleCodeSchema, z.string()).nullable().optional(),
 });
 
-export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliverySchema>;
+export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliveryFieldsSchema>;
+
+export const BlogPostEntrySchema = z.object({
+  sys: ContentfulEntrySysSchema.extend({
+    contentType: z.object({
+      sys: z.object({
+        type: z.literal("Link"),
+        linkType: z.literal("ContentType"),
+        id: z.literal("blogPost"),
+      }),
+    }),
+  }),
+  fields: BlogPostDeliveryFieldsSchema,
+});
+
+export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>;
 
 
 /** Read one locale from a localized delivery field; missing locale or null input → \`null\`. */
@@ -63,6 +106,14 @@ export function flattenBlogPostFields(
     "excerpt": pickLocale(fields.excerpt ?? null, _locale),
   };
 }
+
+/** Flatten \`BlogPostEntry\` to \`BlogPostFields\` for a single locale. */
+export function flattenBlogPostEntry(
+  entry: BlogPostEntry,
+  locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,
+): BlogPostFields {
+  return flattenBlogPostFields(entry.fields, locale);
+}
 "
 `;
 
@@ -80,14 +131,14 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
-export const BlogPostSchema = z.object({
+export const BlogPostFieldSchema = z.object({
   "title": z.string().max(256).nullable(),
   "slug": z.string().nullable(),
   "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
   "excerpt": z.string().nullable().optional(),
 });
 
-export type BlogPostFields = z.infer<typeof BlogPostSchema>;
+export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
 "
 `;
 
@@ -106,20 +157,63 @@ export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
 export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 
+export const ContentfulResourceLinkSchema = z.object({
+  sys: z.object({
+    type: z.literal("Link"),
+    linkType: z.string(),
+    id: z.string(),
+  }),
+});
+
+/** Loose Delivery/Preview entry metadata; extra Contentful fields pass through. */
+export const ContentfulEntrySysSchema = z.looseObject({
+  id: z.string(),
+  type: z.literal("Entry"),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  revision: z.number(),
+  contentType: z.object({
+    sys: z.object({
+      type: z.literal("Link"),
+      linkType: z.literal("ContentType"),
+      id: z.string(),
+    }),
+  }),
+  space: ContentfulResourceLinkSchema,
+  environment: ContentfulResourceLinkSchema,
+  locale: ContentfulLocaleCodeSchema.optional(),
+  publishedVersion: z.number().optional(),
+});
+
 export const ContentfulLocationSchema = z.object({ "lat": z.number(), "lon": z.number() });
 
 export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) });
 
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
-export const BlogPostDeliverySchema = z.object({
+export const BlogPostDeliveryFieldsSchema = z.object({
   "title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable(),
   "slug": z.string().nullable(),
   "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
   "excerpt": z.record(ContentfulLocaleCodeSchema, z.string()).nullable().optional(),
 });
 
-export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliverySchema>;
+export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliveryFieldsSchema>;
+
+export const BlogPostEntrySchema = z.object({
+  sys: ContentfulEntrySysSchema.extend({
+    contentType: z.object({
+      sys: z.object({
+        type: z.literal("Link"),
+        linkType: z.literal("ContentType"),
+        id: z.literal("blogPost"),
+      }),
+    }),
+  }),
+  fields: BlogPostDeliveryFieldsSchema,
+});
+
+export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>;
 
 
 /** Read one locale from a localized delivery field; missing locale or null input → \`null\`. */

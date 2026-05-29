@@ -7,12 +7,12 @@ export function contentTypeIdToPascalCase(id: string): string {
     .join("");
 }
 
-export function schemaExportName(contentTypeId: string): string {
-  return `${contentTypeIdToPascalCase(contentTypeId)}Schema`;
+export function fieldsSchemaExportName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}FieldSchema`;
 }
 
-export function deliverySchemaExportName(contentTypeId: string): string {
-  return `${contentTypeIdToPascalCase(contentTypeId)}DeliverySchema`;
+export function deliveryFieldsSchemaExportName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}DeliveryFieldsSchema`;
 }
 
 export function fieldsTypeName(contentTypeId: string): string {
@@ -21,4 +21,12 @@ export function fieldsTypeName(contentTypeId: string): string {
 
 export function deliveryFieldsTypeName(contentTypeId: string): string {
   return `${contentTypeIdToPascalCase(contentTypeId)}DeliveryFields`;
+}
+
+export function entrySchemaExportName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}EntrySchema`;
+}
+
+export function entryTypeName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}Entry`;
 }

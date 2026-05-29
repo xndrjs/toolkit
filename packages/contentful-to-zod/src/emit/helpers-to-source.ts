@@ -1,8 +1,17 @@
 import type { ContentType } from "../model/content-type";
-import { contentTypeIdToPascalCase, deliveryFieldsTypeName, fieldsTypeName } from "./schema-name";
+import {
+  contentTypeIdToPascalCase,
+  deliveryFieldsTypeName,
+  entryTypeName,
+  fieldsTypeName,
+} from "./schema-name";
 
 export function flattenFieldsFnName(contentTypeId: string): string {
   return `flatten${contentTypeIdToPascalCase(contentTypeId)}Fields`;
+}
+
+export function flattenEntryFnName(contentTypeId: string): string {
+  return `flatten${contentTypeIdToPascalCase(contentTypeId)}Entry`;
 }
 
 /** Emit shared `pickLocale` helper for delivery-shaped localized values. */
@@ -48,6 +57,24 @@ export function emitFlattenHelper(contentType: ContentType): string {
   ].join("\n");
 }
 
+/** Emit `flatten{ContentType}Entry` mapping a delivery entry to flat fields. */
+export function emitFlattenEntryHelper(contentType: ContentType): string {
+  const fnName = flattenEntryFnName(contentType.id);
+  const fieldsFnName = flattenFieldsFnName(contentType.id);
+  const entryType = entryTypeName(contentType.id);
+  const flatType = fieldsTypeName(contentType.id);
+
+  return [
+    `/** Flatten \`${entryType}\` to \`${flatType}\` for a single locale. */`,
+    `export function ${fnName}(`,
+    `  entry: ${entryType},`,
+    `  locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,`,
+    `): ${flatType} {`,
+    `  return ${fieldsFnName}(entry.fields, locale);`,
+    "}",
+  ].join("\n");
+}
+
 export function emitLocaleHelpers(
   contentTypes: ContentType[],
   localeMode: "cma" | "delivery" | "both"
@@ -63,7 +90,7 @@ export function emitLocaleHelpers(
 
   if (includeFlatten) {
     for (const contentType of contentTypes) {
-      sections.push("", emitFlattenHelper(contentType));
+      sections.push("", emitFlattenHelper(contentType), "", emitFlattenEntryHelper(contentType));
     }
   }
 
