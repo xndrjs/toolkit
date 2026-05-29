@@ -22,3 +22,17 @@ export type {
   RegExpValidation,
 } from "./model/content-type";
 export type { Locale } from "./model/locale";
+
+export {
+  generateZodSchemas,
+  type GenerateZodSchemasOptions,
+  type LocaleMode,
+} from "./emit/generate-file";
+export { fieldToZod, wrapForDelivery, validateObjectOverrides } from "./emit/field-to-zod";
+export {
+  buildLocaleCodeSchema,
+  emitLocalePrimitives,
+  requireLocalesForMode,
+  resolveDefaultLocale,
+} from "./emit/locale-primitives";
+export { zodToSource } from "./emit/zod-to-source";
