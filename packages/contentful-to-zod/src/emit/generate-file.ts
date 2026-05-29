@@ -23,6 +23,7 @@ import {
 } from "./schema-name";
 import { emitContentTypeEntrySchema, emitEntrySysPrimitives } from "./entry-to-source";
 import { emitLocaleHelpers } from "./helpers-to-source";
+import { emitFlatFieldHelper, emitTransportFieldHelper } from "./transport-primitives";
 import { zodToSource } from "./zod-to-source";
 
 export type { LocaleMode };
@@ -138,7 +139,22 @@ export function generateZodSchemas(
   const includeCma = localeMode === "cma" || localeMode === "both";
 
   if (includeDelivery && locales) {
-    sections.push(emitLocalePrimitives(locales), "", emitEntrySysPrimitives(), "");
+    sections.push(emitLocalePrimitives(locales), "");
+  }
+
+  const fieldHelpers: string[] = [];
+  if (includeCma) {
+    fieldHelpers.push(emitFlatFieldHelper());
+  }
+  if (includeDelivery && locales) {
+    fieldHelpers.push(emitTransportFieldHelper());
+  }
+  if (fieldHelpers.length > 0) {
+    sections.push(fieldHelpers.join("\n\n"), "");
+  }
+
+  if (includeDelivery && locales) {
+    sections.push(emitEntrySysPrimitives(), "");
   }
 
   sections.push(emitSharedPrimitives());

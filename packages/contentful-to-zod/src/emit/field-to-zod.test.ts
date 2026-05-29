@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
 
 import type { ContentField } from "../model/content-type";
 import { loadFixtureContentTypes } from "../test/fixtures";
 import { buildLocaleCodeSchema } from "./locale-primitives";
-import { fieldToZod, flatFieldSource, wrapForDelivery } from "./field-to-zod";
-import { zodToSource } from "./zod-to-source";
+import { fieldToZod, deliveryFieldSource, flatFieldSource, wrapForDelivery } from "./field-to-zod";
 
 const [blogPost] = loadFixtureContentTypes();
 const localeCodeSchema = buildLocaleCodeSchema([
@@ -26,56 +24,55 @@ describe("flatFieldSource", () => {
     const title = fieldById("title");
     const flat = fieldToZod(title, { contentTypeId: blogPost!.id });
 
-    expect(flatFieldSource(flat, title)).toBe("z.string().max(256).nullable()");
+    expect(flatFieldSource(flat, title)).toBe("flatField(z.string().max(256))");
 
     const excerpt = fieldById("excerpt");
     const excerptFlat = fieldToZod(excerpt, { contentTypeId: blogPost!.id });
-    expect(flatFieldSource(excerptFlat, excerpt)).toBe("z.string().nullable().optional()");
+    expect(flatFieldSource(excerptFlat, excerpt)).toBe("flatField(z.string())");
+  });
+});
+
+describe("deliveryFieldSource", () => {
+  it("wraps localized fields in transportField with a locale record", () => {
+    const title = fieldById("title");
+    const flat = fieldToZod(title, { contentTypeId: blogPost!.id });
+
+    expect(deliveryFieldSource(flat, title)).toBe(
+      "transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256)))"
+    );
+  });
+
+  it("wraps optional localized fields with transportField", () => {
+    const excerpt = fieldById("excerpt");
+    const flat = fieldToZod(excerpt, { contentTypeId: blogPost!.id });
+
+    expect(deliveryFieldSource(flat, excerpt)).toBe(
+      "transportField(z.record(ContentfulLocaleCodeSchema, z.string()))"
+    );
+  });
+
+  it("wraps non-localized fields with transportField", () => {
+    const slug = fieldById("slug");
+    const flat = fieldToZod(slug, { contentTypeId: blogPost!.id });
+
+    expect(deliveryFieldSource(flat, slug)).toBe("transportField(z.string())");
+  });
+
+  it("wraps optional non-localized fields with transportField", () => {
+    const author = fieldById("author");
+    const flat = fieldToZod(author, { contentTypeId: blogPost!.id });
+
+    expect(deliveryFieldSource(flat, author)).toContain("transportField(");
   });
 });
 
 describe("wrapForDelivery", () => {
-  it("wraps localized fields in a nullable locale record schema", () => {
+  it("parses absent, null, and present delivery values", () => {
     const title = fieldById("title");
     const flat = fieldToZod(title, { contentTypeId: blogPost!.id });
     const delivery = wrapForDelivery(flat, title, localeCodeSchema);
 
-    expect(zodToSource(delivery.schema)).toBe(
-      'z.record(z.enum(["en-US", "it-IT"]), z.string().max(256)).nullable()'
-    );
-  });
-
-  it("wraps optional localized fields as nullable optional locale records", () => {
-    const excerpt = fieldById("excerpt");
-    const flat = fieldToZod(excerpt, { contentTypeId: blogPost!.id });
-    const delivery = wrapForDelivery(flat, excerpt, localeCodeSchema);
-
-    expect(zodToSource(delivery.schema)).toBe(
-      'z.record(z.enum(["en-US", "it-IT"]), z.string()).nullable().optional()'
-    );
-  });
-
-  it("makes non-localized fields nullable", () => {
-    const slug = fieldById("slug");
-    const flat = fieldToZod(slug, { contentTypeId: blogPost!.id });
-    const delivery = wrapForDelivery(flat, slug, localeCodeSchema);
-
-    expect(zodToSource(delivery.schema)).toBe("z.string().nullable()");
-  });
-
-  it("makes optional non-localized fields nullable and optional", () => {
-    const author = fieldById("author");
-    const flat = fieldToZod(author, { contentTypeId: blogPost!.id });
-    const delivery = wrapForDelivery(flat, author, localeCodeSchema);
-
-    expect(zodToSource(delivery.schema)).toContain(".nullable().optional()");
-  });
-
-  it("parses null delivery values and localized records", () => {
-    const title = fieldById("title");
-    const flat = fieldToZod(title, { contentTypeId: blogPost!.id });
-    const delivery = wrapForDelivery(flat, title, localeCodeSchema);
-
+    expect(delivery.schema.parse(undefined)).toBeNull();
     expect(delivery.schema.parse(null)).toBeNull();
     expect(
       delivery.schema.parse({
@@ -91,6 +88,7 @@ describe("wrapForDelivery", () => {
     const slugFlat = fieldToZod(slug, { contentTypeId: blogPost!.id });
     const slugDelivery = wrapForDelivery(slugFlat, slug, localeCodeSchema);
 
+    expect(slugDelivery.schema.parse(undefined)).toBeNull();
     expect(slugDelivery.schema.parse(null)).toBeNull();
     expect(slugDelivery.schema.parse("my-post")).toBe("my-post");
   });

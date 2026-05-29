@@ -7,6 +7,7 @@ import {
   ContentfulEntryLinkSchema,
   ContentfulLocationSchema,
 } from "./primitives";
+import { wrapAbsentToNullField } from "./transport-primitives";
 import { zodToSource } from "./zod-to-source";
 
 type MappableFieldItem = ContentFieldItem & { items?: ContentFieldItem };
@@ -252,63 +253,43 @@ function unwrapOptionalSchema(schema: z.ZodType): { inner: z.ZodType; wasOptiona
   return { inner: schema, wasOptional: false };
 }
 
-function applyFieldNullability(
-  schema: z.ZodType,
-  field: ContentField,
-  wasOptional: boolean
-): z.ZodType {
-  let result: z.ZodType = schema.nullable();
-  if (wasOptional || !field.required) {
-    result = result.optional();
-  }
-  return result;
+function emitFlatFieldSource(baseSource: string): string {
+  return `flatField(${baseSource})`;
 }
 
-function emitNullableFieldSource(
-  baseSource: string,
-  field: ContentField,
-  wasOptional: boolean
-): string {
-  const nullableSource = `${baseSource}.nullable()`;
-  if (wasOptional || !field.required) {
-    return `${nullableSource}.optional()`;
-  }
-  return nullableSource;
-}
-
-/** Emit Zod source for a flat/CMA field (nullable so `pickLocale` / flatten types align). */
-export function flatFieldSource(flat: FieldZodResult, field: ContentField): string {
-  const { inner, wasOptional } = unwrapOptionalSchema(flat.schema);
+/** Emit Zod source for a flat/CMA field (`flatField` normalizes absent values to `null`). */
+export function flatFieldSource(flat: FieldZodResult, _field: ContentField): string {
+  const { inner } = unwrapOptionalSchema(flat.schema);
   const innerSource = zodToSource(inner, flat.sourceSuffix ?? "");
-  return emitNullableFieldSource(innerSource, field, wasOptional);
+  return emitFlatFieldSource(innerSource);
 }
 
-/** Wrap a flat field schema for delivery API shape (locale record + nullable fields). */
+/** Wrap a flat field schema for delivery API shape (locale record + transport nullability). */
 export function wrapForDelivery(
   result: FieldZodResult,
   field: ContentField,
   localeCodeSchema: z.ZodEnum<Readonly<Record<string, string>>>
 ): FieldZodResult {
-  const { inner, wasOptional } = unwrapOptionalSchema(result.schema);
+  const { inner } = unwrapOptionalSchema(result.schema);
 
   const base = field.localized ? z.record(localeCodeSchema as z.ZodType<string>, inner) : inner;
 
   return {
-    schema: applyFieldNullability(base, field, wasOptional),
+    schema: wrapAbsentToNullField(base),
     sourceSuffix: result.sourceSuffix,
   };
 }
 
-/** Emit Zod source for a delivery API field (nullable; localized → locale record). */
+/** Emit Zod source for a delivery API field (transport wrapper; localized → locale record). */
 export function deliveryFieldSource(flat: FieldZodResult, field: ContentField): string {
-  const { inner, wasOptional } = unwrapOptionalSchema(flat.schema);
+  const { inner } = unwrapOptionalSchema(flat.schema);
   const innerSource = zodToSource(inner, flat.sourceSuffix ?? "");
 
   const baseSource = field.localized
     ? `z.record(ContentfulLocaleCodeSchema, ${innerSource})`
     : innerSource;
 
-  return emitNullableFieldSource(baseSource, field, wasOptional);
+  return `transportField(${baseSource})`;
 }
 
 /** Validate config object overrides against content types (fail-fast). */

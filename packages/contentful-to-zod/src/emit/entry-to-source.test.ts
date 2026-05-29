@@ -14,12 +14,10 @@ interface GeneratedEntryHelpers {
       fields: { title: Record<string, string> | null; slug: string | null };
     };
   };
-  flattenBlogPostEntry: (
-    entry: {
-      fields: {
-        title: Record<"en-US" | "it-IT", string> | null;
-        slug: string | null;
-      };
+  flattenBlogPostEntryFields: (
+    fields: {
+      title: Record<"en-US" | "it-IT", string> | null;
+      slug: string | null;
     },
     locale?: "en-US" | "it-IT"
   ) => {
@@ -86,15 +84,13 @@ describe("generated entry schemas", () => {
     ).toThrow();
   });
 
-  it("flattenBlogPostEntry maps entry to flat fields", async () => {
-    const { flattenBlogPostEntry } = await loadEntryModule();
+  it("flattenBlogPostEntryFields maps delivery fields to flat shape", async () => {
+    const { flattenBlogPostEntryFields } = await loadEntryModule();
 
-    const flat = flattenBlogPostEntry(
+    const flat = flattenBlogPostEntryFields(
       {
-        fields: {
-          title: { "en-US": "Hello", "it-IT": "Ciao" },
-          slug: "hello",
-        },
+        title: { "en-US": "Hello", "it-IT": "Ciao" },
+        slug: "hello",
       },
       "it-IT"
     );

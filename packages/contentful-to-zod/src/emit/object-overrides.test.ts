@@ -85,13 +85,14 @@ describe("object overrides", () => {
     });
 
     expect(output).toContain(
-      '"metadata": z.object({ "seoTitle": z.string(), "noIndex": z.boolean().optional() }).nullable().optional()'
+      '"metadata": flatField(z.object({ "seoTitle": z.string(), "noIndex": z.boolean().optional() }))'
     );
     expect(output).toContain(
-      '"metadata": z.record(ContentfulLocaleCodeSchema, z.object({ "seoTitle": z.string(), "noIndex": z.boolean().optional() })).nullable().optional()'
+      '"metadata": transportField(z.record(ContentfulLocaleCodeSchema, z.object({ "seoTitle": z.string(), "noIndex": z.boolean().optional() })))'
     );
-    expect(output).toContain('"settings": z.object({ "featured": z.boolean() })');
-    expect(output).toContain("export function flattenBlogPostFields");
+    expect(output).toContain('"settings": flatField(z.object({ "featured": z.boolean() }))');
+    expect(output).toContain('"settings": transportField(z.object({ "featured": z.boolean() }))');
+    expect(output).toContain("export function flattenBlogPostEntryFields");
   });
 
   it("respects locale.mode from config when localeMode option is omitted", () => {

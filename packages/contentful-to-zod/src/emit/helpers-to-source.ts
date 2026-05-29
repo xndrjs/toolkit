@@ -1,18 +1,12 @@
 import type { ContentType } from "../model/content-type";
-import {
-  contentTypeIdToPascalCase,
-  deliveryFieldsTypeName,
-  entryTypeName,
-  fieldsTypeName,
-} from "./schema-name";
+import { contentTypeIdToPascalCase, deliveryFieldsTypeName, fieldsTypeName } from "./schema-name";
 
-export function flattenFieldsFnName(contentTypeId: string): string {
-  return `flatten${contentTypeIdToPascalCase(contentTypeId)}Fields`;
+export function flattenEntryFieldsFnName(contentTypeId: string): string {
+  return `flatten${contentTypeIdToPascalCase(contentTypeId)}EntryFields`;
 }
 
-export function flattenEntryFnName(contentTypeId: string): string {
-  return `flatten${contentTypeIdToPascalCase(contentTypeId)}Entry`;
-}
+/** @deprecated Renamed to `flattenEntryFieldsFnName`. */
+export const flattenFieldsFnName = flattenEntryFieldsFnName;
 
 /** Emit shared `pickLocale` helper for delivery-shaped localized values. */
 export function emitPickLocale(): string {
@@ -30,9 +24,9 @@ export function emitPickLocale(): string {
   ].join("\n");
 }
 
-/** Emit `flatten{ContentType}Fields` mapping delivery shape to flat/CMA fields. */
+/** Emit `flatten{ContentType}EntryFields` mapping delivery `fields` to flat/CMA fields. */
 export function emitFlattenHelper(contentType: ContentType): string {
-  const fnName = flattenFieldsFnName(contentType.id);
+  const fnName = flattenEntryFieldsFnName(contentType.id);
   const deliveryType = deliveryFieldsTypeName(contentType.id);
   const flatType = fieldsTypeName(contentType.id);
 
@@ -41,11 +35,11 @@ export function emitFlattenHelper(contentType: ContentType): string {
     if (field.localized) {
       return `    ${JSON.stringify(field.id)}: pickLocale(${accessor} ?? null, _locale),`;
     }
-    return `    ${JSON.stringify(field.id)}: ${accessor},`;
+    return `    ${JSON.stringify(field.id)}: ${accessor} ?? null,`;
   });
 
   return [
-    `/** Flatten \`${deliveryType}\` to \`${flatType}\` for a single locale. */`,
+    `/** Flatten validated \`${deliveryType}\` (from \`entry.fields\`) to \`${flatType}\` for a single locale. */`,
     `export function ${fnName}(`,
     `  fields: ${deliveryType},`,
     `  _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,`,
@@ -53,24 +47,6 @@ export function emitFlattenHelper(contentType: ContentType): string {
     "  return {",
     ...entries,
     "  };",
-    "}",
-  ].join("\n");
-}
-
-/** Emit `flatten{ContentType}Entry` mapping a delivery entry to flat fields. */
-export function emitFlattenEntryHelper(contentType: ContentType): string {
-  const fnName = flattenEntryFnName(contentType.id);
-  const fieldsFnName = flattenFieldsFnName(contentType.id);
-  const entryType = entryTypeName(contentType.id);
-  const flatType = fieldsTypeName(contentType.id);
-
-  return [
-    `/** Flatten \`${entryType}\` to \`${flatType}\` for a single locale. */`,
-    `export function ${fnName}(`,
-    `  entry: ${entryType},`,
-    `  locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,`,
-    `): ${flatType} {`,
-    `  return ${fieldsFnName}(entry.fields, locale);`,
     "}",
   ].join("\n");
 }
@@ -90,7 +66,7 @@ export function emitLocaleHelpers(
 
   if (includeFlatten) {
     for (const contentType of contentTypes) {
-      sections.push("", emitFlattenHelper(contentType), "", emitFlattenEntryHelper(contentType));
+      sections.push("", emitFlattenHelper(contentType));
     }
   }
 

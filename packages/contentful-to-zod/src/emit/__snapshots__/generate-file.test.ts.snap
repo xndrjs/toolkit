@@ -15,6 +15,22 @@ export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
 export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 
+/**
+ * Flat/CMA field wrapper: omitted keys and explicit null both normalize to \`null\`.
+ * Use after \`flatten*\` or when parsing a normalized flat shape.
+ */
+export function flatField<T extends z.ZodType>(schema: T) {
+  return schema.nullable().optional().transform((value) => value ?? null);
+}
+
+/**
+ * Delivery/Preview field wrapper: omitted keys and explicit null both normalize to \`null\`.
+ * CMA \`required\` does not apply at the transport boundary.
+ */
+export function transportField<T extends z.ZodType>(schema: T) {
+  return schema.nullable().optional().transform((value) => value ?? null);
+}
+
 export const ContentfulResourceLinkSchema = z.object({
   sys: z.object({
     type: z.literal("Link"),
@@ -50,19 +66,19 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
 export const BlogPostFieldSchema = z.object({
-  "title": z.string().max(256).nullable(),
-  "slug": z.string().nullable(),
-  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
-  "excerpt": z.string().nullable().optional(),
+  "title": flatField(z.string().max(256)),
+  "slug": flatField(z.string()),
+  "author": flatField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
+  "excerpt": flatField(z.string()),
 });
 
 export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
 
 export const BlogPostDeliveryFieldsSchema = z.object({
-  "title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable(),
-  "slug": z.string().nullable(),
-  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
-  "excerpt": z.record(ContentfulLocaleCodeSchema, z.string()).nullable().optional(),
+  "title": transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
+  "slug": transportField(z.string()),
+  "author": transportField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
+  "excerpt": transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
 });
 
 export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliveryFieldsSchema>;
@@ -94,25 +110,17 @@ export function pickLocale<T>(
   return value[locale] ?? null;
 }
 
-/** Flatten \`BlogPostDeliveryFields\` to \`BlogPostFields\` for a single locale. */
-export function flattenBlogPostFields(
+/** Flatten validated \`BlogPostDeliveryFields\` (from \`entry.fields\`) to \`BlogPostFields\` for a single locale. */
+export function flattenBlogPostEntryFields(
   fields: BlogPostDeliveryFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,
 ): BlogPostFields {
   return {
     "title": pickLocale(fields.title ?? null, _locale),
-    "slug": fields.slug,
-    "author": fields.author,
+    "slug": fields.slug ?? null,
+    "author": fields.author ?? null,
     "excerpt": pickLocale(fields.excerpt ?? null, _locale),
   };
-}
-
-/** Flatten \`BlogPostEntry\` to \`BlogPostFields\` for a single locale. */
-export function flattenBlogPostEntry(
-  entry: BlogPostEntry,
-  locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,
-): BlogPostFields {
-  return flattenBlogPostFields(entry.fields, locale);
 }
 "
 `;
@@ -125,6 +133,14 @@ exports[`generateZodSchemas locale modes > mode cma emits only flat schemas with
 
 import { z } from "zod";
 
+/**
+ * Flat/CMA field wrapper: omitted keys and explicit null both normalize to \`null\`.
+ * Use after \`flatten*\` or when parsing a normalized flat shape.
+ */
+export function flatField<T extends z.ZodType>(schema: T) {
+  return schema.nullable().optional().transform((value) => value ?? null);
+}
+
 export const ContentfulLocationSchema = z.object({ "lat": z.number(), "lon": z.number() });
 
 export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) });
@@ -132,10 +148,10 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
 export const BlogPostFieldSchema = z.object({
-  "title": z.string().max(256).nullable(),
-  "slug": z.string().nullable(),
-  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
-  "excerpt": z.string().nullable().optional(),
+  "title": flatField(z.string().max(256)),
+  "slug": flatField(z.string()),
+  "author": flatField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
+  "excerpt": flatField(z.string()),
 });
 
 export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
@@ -156,6 +172,14 @@ export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
 
 export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
+
+/**
+ * Delivery/Preview field wrapper: omitted keys and explicit null both normalize to \`null\`.
+ * CMA \`required\` does not apply at the transport boundary.
+ */
+export function transportField<T extends z.ZodType>(schema: T) {
+  return schema.nullable().optional().transform((value) => value ?? null);
+}
 
 export const ContentfulResourceLinkSchema = z.object({
   sys: z.object({
@@ -192,10 +216,10 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
 export const BlogPostDeliveryFieldsSchema = z.object({
-  "title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable(),
-  "slug": z.string().nullable(),
-  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
-  "excerpt": z.record(ContentfulLocaleCodeSchema, z.string()).nullable().optional(),
+  "title": transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
+  "slug": transportField(z.string()),
+  "author": transportField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
+  "excerpt": transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
 });
 
 export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliveryFieldsSchema>;

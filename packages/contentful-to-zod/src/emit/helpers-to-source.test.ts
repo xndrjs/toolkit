@@ -12,7 +12,7 @@ interface GeneratedHelpers {
     value: Record<"en-US" | "it-IT", T> | null,
     locale?: "en-US" | "it-IT"
   ) => T | null;
-  flattenBlogPostFields: (
+  flattenBlogPostEntryFields: (
     fields: {
       title: Record<"en-US" | "it-IT", string> | null;
       slug: string | null;
@@ -47,10 +47,10 @@ describe("generated locale helpers", () => {
     expect(pickLocale(null)).toBeNull();
   });
 
-  it("flattenBlogPostFields maps delivery fields to flat shape for a locale", async () => {
-    const { flattenBlogPostFields } = await loadHelpers();
+  it("flattenBlogPostEntryFields maps delivery fields to flat shape for a locale", async () => {
+    const { flattenBlogPostEntryFields } = await loadHelpers();
 
-    const flat = flattenBlogPostFields(
+    const flat = flattenBlogPostEntryFields(
       {
         title: { "en-US": "Hello", "it-IT": "Titolo" },
         slug: "my-post",
@@ -62,20 +62,95 @@ describe("generated locale helpers", () => {
     expect(flat).toEqual({
       title: "Titolo",
       slug: "my-post",
+      author: null,
       excerpt: "Riassunto",
     });
   });
 
-  it("flattenBlogPostFields falls back to CONTENTFUL_DEFAULT_LOCALE when locale is omitted", async () => {
-    const { flattenBlogPostFields, CONTENTFUL_DEFAULT_LOCALE } = await loadHelpers();
+  it("flattenBlogPostEntryFields falls back to CONTENTFUL_DEFAULT_LOCALE when locale is omitted", async () => {
+    const { flattenBlogPostEntryFields, CONTENTFUL_DEFAULT_LOCALE } = await loadHelpers();
 
     expect(CONTENTFUL_DEFAULT_LOCALE).toBe("en-US");
 
-    const flat = flattenBlogPostFields({
+    const flat = flattenBlogPostEntryFields({
       title: { "en-US": "Hello", "it-IT": "Ciao" },
       slug: "my-post",
     });
 
     expect(flat.title).toBe("Hello");
+  });
+
+  it("flattenBlogPostEntryFields coalesces absent non-localized fields to null", async () => {
+    const { flattenBlogPostEntryFields } = await loadHelpers();
+
+    // @ts-expect-error partial fields — flatten coalesces absent keys with ?? null at runtime
+    const flat = flattenBlogPostEntryFields({
+      title: { "en-US": "Hello", "it-IT": "Ciao" },
+    });
+
+    expect(flat.slug).toBeNull();
+    expect(flat.author).toBeNull();
+  });
+
+  it("BlogPostFieldSchema normalizes undefined flat values to null", async () => {
+    const source = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
+    const mod = await importGeneratedModule<{
+      BlogPostFieldSchema: { parse: (value: unknown) => Record<string, unknown> };
+    }>(source);
+
+    expect(
+      mod.BlogPostFieldSchema.parse({
+        title: null,
+        slug: undefined,
+        author: undefined,
+        excerpt: undefined,
+      })
+    ).toEqual({
+      title: null,
+      slug: null,
+      author: null,
+      excerpt: null,
+    });
+  });
+
+  it("BlogPostEntrySchema accepts omitted required transport fields", async () => {
+    const source = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
+    const mod = await importGeneratedModule<{
+      BlogPostEntrySchema: {
+        parse: (value: unknown) => {
+          fields: { title: unknown; slug: unknown };
+        };
+      };
+      BlogPostFieldSchema: { parse: (value: unknown) => unknown };
+      flattenBlogPostEntryFields: (fields: unknown, locale?: string) => unknown;
+    }>(source);
+
+    const entry = mod.BlogPostEntrySchema.parse({
+      sys: {
+        id: "entry-1",
+        type: "Entry",
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-01T00:00:00Z",
+        revision: 1,
+        contentType: {
+          sys: { type: "Link", linkType: "ContentType", id: "blogPost" },
+        },
+        space: { sys: { type: "Link", linkType: "Space", id: "space" } },
+        environment: { sys: { type: "Link", linkType: "Environment", id: "master" } },
+      },
+      fields: {
+        slug: "draft-without-title",
+      },
+    });
+
+    expect(entry.fields.title).toBeNull();
+
+    const flat = mod.flattenBlogPostEntryFields(entry.fields, "en-US");
+    expect(mod.BlogPostFieldSchema.parse(flat)).toEqual({
+      title: null,
+      slug: "draft-without-title",
+      author: null,
+      excerpt: null,
+    });
   });
 });

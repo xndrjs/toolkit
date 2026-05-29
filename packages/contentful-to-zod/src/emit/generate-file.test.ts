@@ -18,12 +18,11 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).toContain("export const ContentfulEntrySysSchema");
     expect(output).toContain('id: z.literal("blogPost")');
     expect(output).toContain("export function pickLocale");
-    expect(output).toContain("export function flattenBlogPostFields");
-    expect(output).toContain("export function flattenBlogPostEntry");
-    expect(output).toContain(
-      '"title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable()'
-    );
-    expect(output).toContain('"slug": z.string().nullable()');
+    expect(output).toContain("export function flattenBlogPostEntryFields");
+    expect(output).toContain("export function flatField");
+    expect(output).toContain("export function transportField");
+    expect(output).toContain('"title": flatField(z.string().max(256))');
+    expect(output).toContain('"slug": transportField(z.string())');
   });
 
   it("mode cma emits only flat schemas without locale primitives or helpers", () => {
@@ -36,7 +35,9 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).not.toContain("ContentfulEntrySysSchema");
     expect(output).not.toContain("ContentfulLocaleCodeSchema");
     expect(output).not.toContain("export function pickLocale");
-    expect(output).not.toContain("export function flattenBlogPostFields");
+    expect(output).not.toContain("export function flattenBlogPostEntryFields");
+    expect(output).toContain("export function flatField");
+    expect(output).not.toContain("export function transportField");
   });
 
   it("mode delivery emits delivery schemas and pickLocale without flatten helpers", () => {
@@ -48,8 +49,10 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).toContain("export const BlogPostEntrySchema");
     expect(output).toContain("ContentfulEntrySysSchema");
     expect(output).toContain("export function pickLocale");
-    expect(output).not.toContain("export function flattenBlogPostFields");
+    expect(output).not.toContain("export function flattenBlogPostEntryFields");
     expect(output).not.toContain("export function flattenBlogPostEntry");
+    expect(output).not.toContain("export function flatField");
+    expect(output).toContain("export function transportField");
   });
 
   it("requires locales when delivery shape is included", () => {

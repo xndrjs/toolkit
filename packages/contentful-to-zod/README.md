@@ -82,16 +82,17 @@ export default defineConfig({
 });
 ```
 
-| `locale.mode`      | Generated exports                                                                                            |
-| ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `"cma"`            | Flat field schemas only (`BlogPostFieldSchema`, `BlogPostFields`)                                            |
-| `"delivery"`       | Delivery field schemas + entry wrappers + `pickLocale` + locale enum/constants                               |
-| `"both"` (default) | Flat + delivery field schemas + entry wrappers + `pickLocale` + `flatten{Type}Fields` / `flatten{Type}Entry` |
+| `locale.mode`      | Generated exports                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `"cma"`            | Flat field schemas only (`BlogPostFieldSchema`, `BlogPostFields`)                          |
+| `"delivery"`       | Delivery field schemas + entry wrappers + `pickLocale` + locale enum/constants             |
+| `"both"` (default) | Flat + delivery field schemas + entry wrappers + `pickLocale` + `flatten{Type}EntryFields` |
 
 Rules:
 
-- **Flat and delivery** field schemas are **nullable** (Preview/draft and `pickLocale` can yield `null`; optional CMA fields also `.optional()`).
-- **`localized: true`** — flat uses `T`; delivery uses `z.record(ContentfulLocaleCodeSchema, T)` (same nullability rules on the outer field).
+- **Flat field schemas** (`*FieldSchema`) wrap every field in **`flatField()`** — same `undefined`/`null` normalization as delivery, for use after `flatten*EntryFields` (or direct parse of a flat shape).
+- **Delivery field schemas** (`*DeliveryFieldsSchema`, `*EntrySchema`) wrap every field in **`transportField()`**. CMA `required` does not apply at the transport boundary.
+- **`localized: true`** — flat uses `flatField(T)`; delivery uses `transportField(z.record(ContentfulLocaleCodeSchema, T))`.
 - **`disabled` / `omitted`** fields are still included (full blueprint).
 
 ### Generated locale primitives
@@ -105,25 +106,46 @@ export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
 
 export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
+
+/**
+ * Flat/CMA field wrapper: omitted keys and explicit null both normalize to `null`.
+ */
+export function flatField<T extends z.ZodType>(schema: T) {
+  return schema
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null);
+}
+
+/**
+ * Delivery/Preview field wrapper: omitted keys and explicit null both normalize to `null`.
+ * CMA `required` does not apply at the transport boundary.
+ */
+export function transportField<T extends z.ZodType>(schema: T) {
+  return schema
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null);
+}
 ```
 
 ### Flat vs delivery example
 
 ```ts
-// flat / CMA — single value per field (nullable for pickLocale / flatten)
+// flat / CMA — flatField normalizes absent values to null
 export const BlogPostFieldSchema = z.object({
-  title: z.string().max(256).nullable(),
-  slug: z.string().nullable(),
-  author: ContentfulEntryLinkSchema.nullable().optional(),
+  title: flatField(z.string().max(256)),
+  slug: flatField(z.string()),
+  author: flatField(ContentfulEntryLinkSchema),
 });
 
 export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
 
-// delivery — REST/Preview (all fields nullable; optional CMA fields also .optional())
+// delivery — REST/Preview (transportField per field)
 export const BlogPostDeliveryFieldsSchema = z.object({
-  title: z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable(),
-  slug: z.string().nullable(),
-  author: ContentfulEntryLinkSchema.nullable().optional(),
+  title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
+  slug: transportField(z.string()),
+  author: transportField(ContentfulEntryLinkSchema),
 });
 
 export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliveryFieldsSchema>;
@@ -153,17 +175,17 @@ Helpers are pure functions in the same output file. They **do not validate** —
 import {
   BlogPostEntrySchema,
   BlogPostFieldSchema,
-  flattenBlogPostEntry,
+  flattenBlogPostEntryFields,
   pickLocale,
 } from "./generated/contentful.schemas";
 
 const entry = BlogPostEntrySchema.parse(rawFromContentful);
-const flat = flattenBlogPostEntry(entry, "it-IT");
+const flat = flattenBlogPostEntryFields(entry.fields, "it-IT");
 const post = BlogPostFieldSchema.parse(flat);
 ```
 
 - **`pickLocale`** — read one locale from a localized delivery field (`Record<ContentfulLocaleCode, T> | null`); missing locale or `null` input → `null`. Default locale parameter is `CONTENTFUL_DEFAULT_LOCALE`.
-- **`flatten{ContentType}Fields`** — map `*DeliveryFields` → flat `*Fields` for one locale (one per content type when `mode` is `both`). Passes `null` through for absent localized values.
+- **`flatten{ContentType}EntryFields`** — map validated `entry.fields` (`*DeliveryFields`) → flat `*Fields` for one locale (one per content type when `mode` is `both`). Coalesces absent values to `null` (`?? null` on every field; localized fields via `pickLocale`).
 
 There is no runtime dependency on `@xndrjs/contentful-to-zod` in production — only the generated file and `zod`.
 
@@ -184,14 +206,14 @@ export default defineConfig({
 });
 ```
 
-Overrides apply to the **base field type** `T`. In delivery mode, localized fields wrap `z.record(ContentfulLocaleCodeSchema, T).nullable()` around that base (plus `.optional()` when applicable).
+Overrides apply to the **base field type** `T`. In delivery mode, localized fields wrap `transportField(z.record(ContentfulLocaleCodeSchema, T))` around that base.
 
 Overrides are inlined at codegen time — the config is not imported at runtime.
 
 ## Mapping Delivery / REST data
 
 1. Parse raw responses with `*EntrySchema` (or type `fields` as `*DeliveryFields` when you only have the fields object).
-2. Validate the flat shape with `*FieldSchema.parse(...)` after `flatten*` / `flatten*Entry`.
+2. Validate the flat shape with `*FieldSchema.parse(...)` after `flatten*EntryFields`.
 
 Entry/asset link objects and CMA validations (size, range, regex, etc.) are reflected in the generated Zod chains.
 
