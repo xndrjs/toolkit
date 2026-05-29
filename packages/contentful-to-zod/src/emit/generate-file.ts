@@ -12,6 +12,7 @@ import {
   fieldsTypeName,
   schemaExportName,
 } from "./schema-name";
+import { emitLocaleHelpers } from "./helpers-to-source";
 import { zodToSource } from "./zod-to-source";
 
 export type LocaleMode = "cma" | "delivery" | "both";
@@ -156,6 +157,11 @@ export function generateZodSchemas(
         })
       );
     }
+  }
+
+  const helpers = emitLocaleHelpers(selectedContentTypes, localeMode);
+  if (helpers) {
+    sections.push("", helpers);
   }
 
   return `${sections.join("\n").trimEnd()}\n`;
