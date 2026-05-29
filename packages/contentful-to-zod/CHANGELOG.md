@@ -1,5 +1,11 @@
 # @xndrjs/contentful-to-zod
 
+## 0.1.0-alpha.1
+
+### Minor Changes
+
+- 33bd02f: whole entry schema in zod schema generation
+
 ## 0.1.0-alpha.0
 
 ### Minor Changes
