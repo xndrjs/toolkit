@@ -1,0 +1,50 @@
+{
+  "name": "@xndrjs/contentful-to-zod",
+  "version": "0.0.0",
+  "description": "Generate Zod 4 schemas from Contentful content types (CMA) with optional Object field overrides.",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/contentful-to-zod"
+  },
+  "type": "module",
+  "bin": {
+    "contentful-to-zod": "./dist/cli.js"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
+    "prepublishOnly": "pnpm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "dependencies": {
+    "contentful-management": "^12.5.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "vitest": "^4.1.0",
+    "zod": "^4.3.6"
+  }
+}
