@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-import type { ContentfulToZodConfig } from "../config/define-config";
+import {
+  defineConfig,
+  resolveLocaleMode,
+  type ContentfulToZodConfig,
+  type LocaleMode,
+} from "../config/define-config";
 import type { ContentField, ContentType } from "../model/content-type";
 import type { Locale } from "../model/locale";
 import { fieldToZod, validateObjectOverrides, type FieldZodResult } from "./field-to-zod";
@@ -15,7 +20,7 @@ import {
 import { emitLocaleHelpers } from "./helpers-to-source";
 import { zodToSource } from "./zod-to-source";
 
-export type LocaleMode = "cma" | "delivery" | "both";
+export type { LocaleMode };
 
 export interface GenerateZodSchemasOptions {
   contentTypeIds?: string[] | undefined;
@@ -122,11 +127,12 @@ export function generateZodSchemas(
   contentTypes: ContentType[],
   options: GenerateZodSchemasOptions = {}
 ): string {
-  const localeMode = options.localeMode ?? "both";
+  const config = options.config ? defineConfig(options.config) : undefined;
+  const localeMode = resolveLocaleMode({ localeMode: options.localeMode, config });
   const locales = requireLocalesForMode(localeMode, options.locales);
   const selectedContentTypes = filterContentTypes(contentTypes, options.contentTypeIds);
 
-  validateObjectOverrides(selectedContentTypes, options.config);
+  validateObjectOverrides(selectedContentTypes, config);
 
   const sections: string[] = [emitFileHeader()];
 
@@ -144,7 +150,7 @@ export function generateZodSchemas(
       sections.push(
         ...emitContentTypeSchema(contentType, {
           delivery: false,
-          config: options.config,
+          config,
         })
       );
     }
@@ -153,7 +159,7 @@ export function generateZodSchemas(
       sections.push(
         ...emitContentTypeSchema(contentType, {
           delivery: true,
-          config: options.config,
+          config,
         })
       );
     }

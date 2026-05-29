@@ -10,6 +10,7 @@ interface ZodDef {
   innerType?: z.ZodType;
   entries?: Record<string, string>;
   values?: unknown[];
+  options?: z.ZodType[];
   format?: string;
   check?: string;
   checks?: unknown[];
@@ -132,13 +133,13 @@ function serializeEnumEntries(entries: Record<string, string>): string {
   return `z.enum([${serialized}])`;
 }
 
-function serializeUnionLiterals(values: unknown[]): string {
-  if (values.length === 0) {
-    throw new Error("Cannot serialize empty z.union");
+function serializeUnionMembers(members: z.ZodType[]): string {
+  if (members.length === 0) {
+    throw new Error("Cannot serialize z.union without members");
   }
 
-  const members = values.map((value) => `z.literal(${JSON.stringify(value)})`).join(", ");
-  return `z.union([${members}])`;
+  const serialized = members.map((member) => zodToSource(member)).join(", ");
+  return `z.union([${serialized}])`;
 }
 
 function serializeObjectShape(shape: Record<string, z.ZodType>, loose: boolean): string {
@@ -176,11 +177,11 @@ export function zodToSource(schema: z.ZodType, sourceSuffix = ""): string {
       }
       return `${serializeEnumEntries(def.entries)}${sourceSuffix}`;
     case "union": {
-      const values = def.values;
-      if (!values?.length) {
-        throw new Error("Cannot serialize z.union without values");
+      const members = def.options ?? (def.values as z.ZodType[] | undefined);
+      if (!members?.length) {
+        throw new Error("Cannot serialize z.union without members");
       }
-      return `${serializeUnionLiterals(values)}${sourceSuffix}`;
+      return `${serializeUnionMembers(members)}${sourceSuffix}`;
     }
     case "array":
       if (!def.element) {

@@ -1,4 +1,9 @@
-export { defineConfig, type ContentfulToZodConfig } from "./config/define-config";
+export {
+  defineConfig,
+  resolveLocaleMode,
+  type ContentfulToZodConfig,
+  type LocaleMode,
+} from "./config/define-config";
 
 export { DEFAULT_ENVIRONMENT_ID } from "./client/cma-params";
 export type {
@@ -23,11 +28,7 @@ export type {
 } from "./model/content-type";
 export type { Locale } from "./model/locale";
 
-export {
-  generateZodSchemas,
-  type GenerateZodSchemasOptions,
-  type LocaleMode,
-} from "./emit/generate-file";
+export { generateZodSchemas, type GenerateZodSchemasOptions } from "./emit/generate-file";
 export { fieldToZod, wrapForDelivery, validateObjectOverrides } from "./emit/field-to-zod";
 export {
   buildLocaleCodeSchema,
