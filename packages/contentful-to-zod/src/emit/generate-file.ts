@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 import {
   defineConfig,
   resolveLocaleMode,
@@ -8,7 +6,13 @@ import {
 } from "../config/define-config";
 import type { ContentField, ContentType } from "../model/content-type";
 import type { Locale } from "../model/locale";
-import { fieldToZod, validateObjectOverrides, type FieldZodResult } from "./field-to-zod";
+import {
+  deliveryFieldSource,
+  fieldToZod,
+  flatFieldSource,
+  validateObjectOverrides,
+  type FieldZodResult,
+} from "./field-to-zod";
 import { emitLocalePrimitives, requireLocalesForMode } from "./locale-primitives";
 import { CONTENTFUL_PRIMITIVE_SCHEMA_NAMES, CONTENTFUL_PRIMITIVE_SCHEMAS } from "./primitives";
 import {
@@ -50,18 +54,11 @@ function filterContentTypes(
 }
 
 function fieldSource(flat: FieldZodResult, field: ContentField, delivery: boolean): string {
-  if (!delivery || !field.localized) {
-    return zodToSource(flat.schema, flat.sourceSuffix ?? "");
+  if (!delivery) {
+    return flatFieldSource(flat, field);
   }
 
-  const inner =
-    flat.schema instanceof z.ZodOptional
-      ? (flat.schema as z.ZodOptional<z.ZodType>).unwrap()
-      : flat.schema;
-  const innerSource = zodToSource(inner, flat.sourceSuffix ?? "");
-  const wrapped = `z.record(ContentfulLocaleCodeSchema, ${innerSource})`;
-
-  return field.required ? wrapped : `${wrapped}.optional()`;
+  return deliveryFieldSource(flat, field);
 }
 
 function emitContentTypeSchema(

@@ -85,10 +85,10 @@ describe("object overrides", () => {
     });
 
     expect(output).toContain(
-      '"metadata": z.object({ "seoTitle": z.string(), "noIndex": z.boolean().optional() }).optional()'
+      '"metadata": z.object({ "seoTitle": z.string(), "noIndex": z.boolean().optional() }).nullable().optional()'
     );
     expect(output).toContain(
-      '"metadata": z.record(ContentfulLocaleCodeSchema, z.object({ "seoTitle": z.string(), "noIndex": z.boolean().optional() })).optional()'
+      '"metadata": z.record(ContentfulLocaleCodeSchema, z.object({ "seoTitle": z.string(), "noIndex": z.boolean().optional() })).nullable().optional()'
     );
     expect(output).toContain('"settings": z.object({ "featured": z.boolean() })');
     expect(output).toContain("export function flattenBlogPostFields");

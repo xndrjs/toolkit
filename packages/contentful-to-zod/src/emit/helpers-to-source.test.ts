@@ -9,22 +9,22 @@ const locales = loadFixtureLocales();
 
 interface GeneratedHelpers {
   pickLocale: <T>(
-    value: Partial<Record<"en-US" | "it-IT", T>> | T | undefined,
+    value: Record<"en-US" | "it-IT", T> | null,
     locale?: "en-US" | "it-IT"
-  ) => T | undefined;
+  ) => T | null;
   flattenBlogPostFields: (
     fields: {
-      title: Partial<Record<"en-US" | "it-IT", string>>;
-      slug: string;
+      title: Record<"en-US" | "it-IT", string> | null;
+      slug: string | null;
       author?: unknown;
-      excerpt?: Partial<Record<"en-US" | "it-IT", string>>;
+      excerpt?: Record<"en-US" | "it-IT", string> | null;
     },
-    locale?: "en-US" | "it-IT"
+    _locale?: "en-US" | "it-IT"
   ) => {
-    title: string | undefined;
-    slug: string;
+    title: string | null;
+    slug: string | null;
     author?: unknown;
-    excerpt?: string | undefined;
+    excerpt?: string | null;
   };
   CONTENTFUL_DEFAULT_LOCALE: "en-US";
 }
@@ -35,13 +35,16 @@ async function loadHelpers() {
 }
 
 describe("generated locale helpers", () => {
-  it("pickLocale reads sparse locale maps without requiring the default locale", async () => {
+  it("pickLocale reads locale maps and returns null for missing locale or null input", async () => {
     const { pickLocale } = await loadHelpers();
 
-    expect(pickLocale({ "it-IT": "Ciao" }, "it-IT")).toBe("Ciao");
-    expect(pickLocale({ "it-IT": "Ciao" }, "en-US")).toBeUndefined();
-    expect(pickLocale("already-flat")).toBe("already-flat");
-    expect(pickLocale(undefined)).toBeUndefined();
+    expect(pickLocale({ "it-IT": "Ciao", "en-US": "Hello" }, "it-IT")).toBe("Ciao");
+    expect(pickLocale({ "it-IT": "Ciao", "en-US": "Hello" }, "en-US")).toBe("Hello");
+    expect(pickLocale({ "it-IT": "Ciao", "en-US": "Hello" }, "en-US")).toBe("Hello");
+    expect(
+      pickLocale({ "it-IT": "Ciao" } as Record<"en-US" | "it-IT", string>, "en-US")
+    ).toBeNull();
+    expect(pickLocale(null)).toBeNull();
   });
 
   it("flattenBlogPostFields maps delivery fields to flat shape for a locale", async () => {
@@ -49,7 +52,7 @@ describe("generated locale helpers", () => {
 
     const flat = flattenBlogPostFields(
       {
-        title: { "it-IT": "Titolo" },
+        title: { "en-US": "Hello", "it-IT": "Titolo" },
         slug: "my-post",
         excerpt: { "en-US": "Summary", "it-IT": "Riassunto" },
       },

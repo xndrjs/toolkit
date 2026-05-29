@@ -15,8 +15,10 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).toContain("export const BlogPostDeliverySchema");
     expect(output).toContain("export function pickLocale");
     expect(output).toContain("export function flattenBlogPostFields");
-    expect(output).toContain('"title": z.record(ContentfulLocaleCodeSchema, z.string().max(256))');
-    expect(output).toContain('"slug": z.string()');
+    expect(output).toContain(
+      '"title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable()'
+    );
+    expect(output).toContain('"slug": z.string().nullable()');
   });
 
   it("mode cma emits only flat schemas without locale primitives or helpers", () => {

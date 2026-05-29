@@ -90,8 +90,8 @@ export default defineConfig({
 
 Rules:
 
-- **`localized: false`** — same field schema in flat and delivery.
-- **`localized: true`** — flat uses `T`; delivery uses `z.record(ContentfulLocaleCodeSchema, T)`.
+- **Flat and delivery** field schemas are **nullable** (Preview/draft and `pickLocale` can yield `null`; optional CMA fields also `.optional()`).
+- **`localized: true`** — flat uses `T`; delivery uses `z.record(ContentfulLocaleCodeSchema, T)` (same nullability rules on the outer field).
 - **`disabled` / `omitted`** fields are still included (full blueprint).
 
 ### Generated locale primitives
@@ -110,20 +110,20 @@ export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 ### Flat vs delivery example
 
 ```ts
-// flat / CMA — single value per field
+// flat / CMA — single value per field (nullable for pickLocale / flatten)
 export const BlogPostSchema = z.object({
-  title: z.string().max(256),
-  slug: z.string(),
-  author: ContentfulEntryLinkSchema,
+  title: z.string().max(256).nullable(),
+  slug: z.string().nullable(),
+  author: ContentfulEntryLinkSchema.nullable().optional(),
 });
 
 export type BlogPostFields = z.infer<typeof BlogPostSchema>;
 
-// delivery — REST/Preview
+// delivery — REST/Preview (all fields nullable; optional CMA fields also .optional())
 export const BlogPostDeliverySchema = z.object({
-  title: z.record(ContentfulLocaleCodeSchema, z.string().max(256)),
-  slug: z.string(),
-  author: ContentfulEntryLinkSchema,
+  title: z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable(),
+  slug: z.string().nullable(),
+  author: ContentfulEntryLinkSchema.nullable().optional(),
 });
 
 export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliverySchema>;
@@ -140,8 +140,8 @@ const flat = flattenBlogPostFields(deliveryFields, "it-IT");
 const post = BlogPostSchema.parse(flat);
 ```
 
-- **`pickLocale`** — unwrap one localized value; default locale parameter is `CONTENTFUL_DEFAULT_LOCALE`.
-- **`flatten{ContentType}Fields`** — map `*DeliveryFields` → flat `*Fields` for one locale (one per content type when `mode` is `both`).
+- **`pickLocale`** — read one locale from a localized delivery field (`Record<ContentfulLocaleCode, T> | null`); missing locale or `null` input → `null`. Default locale parameter is `CONTENTFUL_DEFAULT_LOCALE`.
+- **`flatten{ContentType}Fields`** — map `*DeliveryFields` → flat `*Fields` for one locale (one per content type when `mode` is `both`). Passes `null` through for absent localized values.
 
 There is no runtime dependency on `@xndrjs/contentful-to-zod` in production — only the generated file and `zod`.
 
@@ -162,7 +162,7 @@ export default defineConfig({
 });
 ```
 
-Overrides apply to the **base field type** `T`. In delivery mode, localized fields wrap `z.record(ContentfulLocaleCodeSchema, T)` around that base.
+Overrides apply to the **base field type** `T`. In delivery mode, localized fields wrap `z.record(ContentfulLocaleCodeSchema, T).nullable()` around that base (plus `.optional()` when applicable).
 
 Overrides are inlined at codegen time — the config is not imported at runtime.
 

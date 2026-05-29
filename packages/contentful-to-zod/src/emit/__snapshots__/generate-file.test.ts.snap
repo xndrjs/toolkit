@@ -22,55 +22,45 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
 export const BlogPostSchema = z.object({
-  "title": z.string().max(256),
-  "slug": z.string(),
-  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).optional(),
-  "excerpt": z.string().optional(),
+  "title": z.string().max(256).nullable(),
+  "slug": z.string().nullable(),
+  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
+  "excerpt": z.string().nullable().optional(),
 });
 
 export type BlogPostFields = z.infer<typeof BlogPostSchema>;
 
 export const BlogPostDeliverySchema = z.object({
-  "title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)),
-  "slug": z.string(),
-  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).optional(),
-  "excerpt": z.record(ContentfulLocaleCodeSchema, z.string()).optional(),
+  "title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable(),
+  "slug": z.string().nullable(),
+  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
+  "excerpt": z.record(ContentfulLocaleCodeSchema, z.string()).nullable().optional(),
 });
 
 export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliverySchema>;
 
 
-/** Unwrap a localized delivery value; falls back to \`CONTENTFUL_DEFAULT_LOCALE\`. */
+/** Read one locale from a localized delivery field; missing locale or null input → \`null\`. */
 export function pickLocale<T>(
-  value: Partial<Record<ContentfulLocaleCode, T>> | T | undefined,
+  value: Record<ContentfulLocaleCode, T> | null,
   locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,
-): T | undefined {
-  if (value === undefined) {
-    return undefined;
+): T | null {
+  if (value === null) {
+    return null;
   }
-  if (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    Object.keys(value).some((key) =>
-      (CONTENTFUL_LOCALE_CODES as readonly string[]).includes(key),
-    )
-  ) {
-    return (value as Partial<Record<ContentfulLocaleCode, T>>)[locale];
-  }
-  return value as T;
+  return value[locale] ?? null;
 }
 
 /** Flatten \`BlogPostDeliveryFields\` to \`BlogPostFields\` for a single locale. */
 export function flattenBlogPostFields(
   fields: BlogPostDeliveryFields,
-  locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,
+  _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,
 ): BlogPostFields {
   return {
-    "title": pickLocale(fields.title, locale),
+    "title": pickLocale(fields.title ?? null, _locale),
     "slug": fields.slug,
     "author": fields.author,
-    "excerpt": pickLocale(fields.excerpt, locale),
+    "excerpt": pickLocale(fields.excerpt ?? null, _locale),
   };
 }
 "
@@ -91,10 +81,10 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
 export const BlogPostSchema = z.object({
-  "title": z.string().max(256),
-  "slug": z.string(),
-  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).optional(),
-  "excerpt": z.string().optional(),
+  "title": z.string().max(256).nullable(),
+  "slug": z.string().nullable(),
+  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
+  "excerpt": z.string().nullable().optional(),
 });
 
 export type BlogPostFields = z.infer<typeof BlogPostSchema>;
@@ -123,34 +113,24 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
 export const BlogPostDeliverySchema = z.object({
-  "title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)),
-  "slug": z.string(),
-  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).optional(),
-  "excerpt": z.record(ContentfulLocaleCodeSchema, z.string()).optional(),
+  "title": z.record(ContentfulLocaleCodeSchema, z.string().max(256)).nullable(),
+  "slug": z.string().nullable(),
+  "author": z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) }).nullable().optional(),
+  "excerpt": z.record(ContentfulLocaleCodeSchema, z.string()).nullable().optional(),
 });
 
 export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliverySchema>;
 
 
-/** Unwrap a localized delivery value; falls back to \`CONTENTFUL_DEFAULT_LOCALE\`. */
+/** Read one locale from a localized delivery field; missing locale or null input → \`null\`. */
 export function pickLocale<T>(
-  value: Partial<Record<ContentfulLocaleCode, T>> | T | undefined,
+  value: Record<ContentfulLocaleCode, T> | null,
   locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,
-): T | undefined {
-  if (value === undefined) {
-    return undefined;
+): T | null {
+  if (value === null) {
+    return null;
   }
-  if (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    Object.keys(value).some((key) =>
-      (CONTENTFUL_LOCALE_CODES as readonly string[]).includes(key),
-    )
-  ) {
-    return (value as Partial<Record<ContentfulLocaleCode, T>>)[locale];
-  }
-  return value as T;
+  return value[locale] ?? null;
 }
 "
 `;

@@ -202,7 +202,12 @@ export function zodToSource(schema: z.ZodType, sourceSuffix = ""): string {
       if (!def.innerType) {
         throw new Error("Cannot serialize z.optional without inner type");
       }
-      return zodToSource(def.innerType, ".optional()");
+      return zodToSource(def.innerType, `.optional()${sourceSuffix}`);
+    case "nullable":
+      if (!def.innerType) {
+        throw new Error("Cannot serialize z.nullable without inner type");
+      }
+      return zodToSource(def.innerType, `.nullable()${sourceSuffix}`);
     default:
       throw new Error(`Unsupported Zod type for serialization: ${def.type}`);
   }
