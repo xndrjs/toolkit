@@ -1,5 +1,11 @@
 # @xndrjs/contentful-to-zod
 
+## 0.1.2
+
+### Patch Changes
+
+- omitted, disabled and deleted fields handling
+
 ## 0.1.1
 
 ### Patch Changes
