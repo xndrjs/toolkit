@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/contentful-to-zod",
-  "version": "0.1.1-alpha.0",
+  "version": "0.1.1",
   "description": "Generate Zod 4 schemas from Contentful content types (CMA) with optional Object field overrides.",
   "private": false,
   "license": "MIT",
