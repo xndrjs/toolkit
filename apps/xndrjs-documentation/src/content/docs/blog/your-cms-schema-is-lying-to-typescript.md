@@ -154,6 +154,6 @@ contentful-to-zod \
 
 Rebuild the package locally before codegen if you're hacking on the generator (`pnpm run build` in `packages/contentful-to-zod`).
 
-Full docs: [`packages/contentful-to-zod`](https://github.com/xndrjs/toolkit/tree/main/packages/contentful-to-zod) · [package map](/latest/v0/reference/package-map/).
+Full docs: [Contentful to Zod](/latest/v0/infrastructure/contentful-to-zod/) · [README in monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/contentful-to-zod) · [package map](/latest/v0/reference/package-map/).
 
 > **TypeScript narrows assumptions. Runtime validation narrows reality.**

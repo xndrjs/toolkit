@@ -114,3 +114,20 @@ await job; // lazy until consumed
 ```
 
 Use this package in the infrastructure layer to keep async effects explicit.
+
+## @xndrjs/contentful-to-zod
+
+```ts
+import {
+  defineConfig,
+  fetchContentTypes,
+  fetchLocales,
+  generateZodSchemas,
+} from "@xndrjs/contentful-to-zod";
+```
+
+- `generateZodSchemas(contentTypes, options)`: emit a self-contained Zod schemas file.
+- `fetchContentTypes(cma)` / `fetchLocales(cma)`: fetch from the Contentful Management API.
+- `defineConfig(...)`: typed config for CLI and programmatic codegen.
+
+Generated output includes `*EntrySchema`, `*FieldSchema`, `flatten*EntryFields`, and `pickLocale` (depending on `locale.mode`). See [Contentful to Zod](/latest/v0/infrastructure/contentful-to-zod/) for CLI, pipeline, and naming.

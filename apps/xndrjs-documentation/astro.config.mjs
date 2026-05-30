@@ -1,10 +1,12 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import mermaid from "astro-mermaid";
 
 // https://astro.build/config
 export default defineConfig({
   integrations: [
+    mermaid(),
     starlight({
       title: "xndrjs",
       customCss: ["./src/styles/brand-typography.css"],
@@ -56,7 +58,10 @@ export default defineConfig({
             },
             {
               label: "Infrastructure toolkit",
-              items: [{ label: "Tasks", slug: "v0/infrastructure/tasks" }],
+              items: [
+                { label: "Tasks", slug: "v0/infrastructure/tasks" },
+                { label: "Contentful to Zod", slug: "v0/infrastructure/contentful-to-zod" },
+              ],
             },
             {
               label: "Reference",
