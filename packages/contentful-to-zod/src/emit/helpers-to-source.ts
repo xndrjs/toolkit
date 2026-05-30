@@ -1,4 +1,6 @@
 import type { ContentType } from "../model/content-type";
+import type { ContentfulToZodConfig } from "../config/define-config";
+import { fieldsForCodegen } from "./filter-fields";
 import { contentTypeIdToPascalCase, deliveryFieldsTypeName, fieldsTypeName } from "./schema-name";
 
 export function flattenEntryFieldsFnName(contentTypeId: string): string {
@@ -25,12 +27,15 @@ export function emitPickLocale(): string {
 }
 
 /** Emit `flatten{ContentType}EntryFields` mapping delivery `fields` to flat/CMA fields. */
-export function emitFlattenHelper(contentType: ContentType): string {
+export function emitFlattenHelper(
+  contentType: ContentType,
+  config?: ContentfulToZodConfig | undefined
+): string {
   const fnName = flattenEntryFieldsFnName(contentType.id);
   const deliveryType = deliveryFieldsTypeName(contentType.id);
   const flatType = fieldsTypeName(contentType.id);
 
-  const entries = contentType.fields.map((field) => {
+  const entries = fieldsForCodegen(contentType.fields, config).map((field) => {
     const accessor = `fields.${field.id}`;
     if (field.localized) {
       return `    ${JSON.stringify(field.id)}: pickLocale(${accessor} ?? null, _locale),`;
@@ -53,7 +58,8 @@ export function emitFlattenHelper(contentType: ContentType): string {
 
 export function emitLocaleHelpers(
   contentTypes: ContentType[],
-  localeMode: "cma" | "delivery" | "both"
+  localeMode: "cma" | "delivery" | "both",
+  config?: ContentfulToZodConfig | undefined
 ): string {
   const includePickLocale = localeMode === "delivery" || localeMode === "both";
   const includeFlatten = localeMode === "both";
@@ -66,7 +72,7 @@ export function emitLocaleHelpers(
 
   if (includeFlatten) {
     for (const contentType of contentTypes) {
-      sections.push("", emitFlattenHelper(contentType));
+      sections.push("", emitFlattenHelper(contentType, config));
     }
   }
 

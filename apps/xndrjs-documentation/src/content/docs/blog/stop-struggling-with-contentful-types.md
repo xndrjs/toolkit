@@ -1,6 +1,6 @@
 ---
-title: "Stop hand-writing Contentful types: generate Zod schemas instead"
-description: Every Contentful team eventually hand-rolls types or GraphQL codegen. @xndrjs/contentful-to-zod turns your content model into executable Zod schemas—validation, transforms, locale flattening, and honest inferred types at runtime.
+title: "Stop struggling with Contentful types: generate Zod schemas"
+description: With @xndrjs/contentful-to-zod you can turn your content model into executable Zod schemas—validation, transforms, locale flattening, and honest inferred types at runtime.
 date: 2026-05-29
 tags:
   - contentful
@@ -50,21 +50,21 @@ That pain is real. Preview quirks and missing `required` fields are real — but
 
 ## So someone writes custom types
 
-Hand-rolled interfaces. Custom codegen. It works — for a while.
+Hand-rolled interfaces, or a custom codegen - it works, for a while.
 
 Then your mapper layer grows. Every content type needs the same boilerplate repeated in slightly different shapes:
 
 - **Localization** — the same field is a plain string in a single-locale response and a locale record in a multi-locale one (`title: "Hello"` vs `title: { "en-US": "Hello", "it-IT": "Ciao" }`). Your types and transforms must handle both, or you standardize on one fetch strategy and still write the glue by hand.
-- **Missing values** — Contentful often omits empty fields instead of sending `null`. Your code must coalesce `undefined`, missing keys, and explicit `null` into something consistent, field by field, entry by entry.
+- **Missing values** — Contentful often omits empty fields instead of sending `null`. Your code should coalesce `undefined`, missing keys, and explicit `null` into something consistent, field by field, entry by entry.
 - **`Object` fields** — CMA gives you a blob with no inner schema. Someone has to narrow `Record<string, unknown>` into a real shape, in one place or scattered across the app.
 
 None of this is unique to your product. It is repetitive infrastructure that only adds weight to the codebase — work your team would rather not own when there are higher-level problems to solve.
 
-### "But I use GraphQL codegen"
+### "But I'm happy with GraphQL codegen"
 
-If the GraphQL API is enough for your stack, graphql-codegen is a good fit.
+If the GraphQL API is enough for your stack, `graphql-codegen` is a good fit.
 
-But two things may still push you toward something else:
+But a couple things may still push you toward something else:
 
 - **GraphQL is not REST** - the Delivery SDK exposes capabilities GraphQL does not mirror one-to-one, for example multi-locale requests (i.e. `locale=*`). Many production setups use REST, a BFF over REST, or a mix. They still need a type layer, and often end up maintaining one by hand alongside codegen.
 - **Codegen gives you compile-time types, not runtime contracts** - generated types vanish after build; nothing validates the JSON when it lands.

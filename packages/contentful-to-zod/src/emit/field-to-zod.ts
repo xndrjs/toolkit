@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { ContentfulToZodConfig } from "../config/define-config";
 import type { ContentField, ContentFieldItem, ContentFieldValidation } from "../model/content-type";
+import { fieldsForCodegen } from "./filter-fields";
 import {
   ContentfulAssetLinkSchema,
   ContentfulEntryLinkSchema,
@@ -303,7 +304,7 @@ export function validateObjectOverrides(
 
   const fieldsByKey = new Map<string, ContentField>();
   for (const contentType of contentTypes) {
-    for (const field of contentType.fields) {
+    for (const field of fieldsForCodegen(contentType.fields, config)) {
       fieldsByKey.set(objectOverrideKey(contentType.id, field.id), field);
     }
   }

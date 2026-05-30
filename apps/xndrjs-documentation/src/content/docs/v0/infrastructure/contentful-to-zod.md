@@ -70,6 +70,18 @@ export default defineConfig({
 });
 ```
 
+Fields marked `disabled`, `omitted`, or `deleted` in the CMA blueprint are excluded from generated output unless you opt in:
+
+```ts
+export default defineConfig({
+  fields: {
+    includeOmitted: true,
+    includeDisabled: true,
+    includeDeleted: true,
+  },
+});
+```
+
 | `locale.mode`      | Generated exports                                                                          |
 | ------------------ | ------------------------------------------------------------------------------------------ |
 | `"cma"`            | Flat field schemas only (`BlogPostFieldSchema`, `BlogPostFields`)                          |
@@ -81,7 +93,7 @@ Rules:
 - **Flat field schemas** (`*FieldSchema`) wrap every field in **`flatField()`** — for use after `flatten*EntryFields` (or direct parse of a flat shape).
 - **Delivery field schemas** (`*DeliveryFieldsSchema`, `*EntrySchema`) wrap every field in **`transportField()`**. CMA `required` does **not** apply at the transport boundary.
 - **`localized: true`** — flat uses `flatField(T)`; delivery uses `transportField(z.record(ContentfulLocaleCodeSchema, T))`.
-- **`disabled` / `omitted`** fields are still included (full blueprint).
+- **`disabled` / `omitted` / `deleted`** fields are excluded by default. Opt in via `fields.includeDisabled`, `fields.includeOmitted`, `fields.includeDeleted` in config.
 
 ## Generated output
 

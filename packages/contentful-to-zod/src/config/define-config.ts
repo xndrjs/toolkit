@@ -8,6 +8,15 @@ export interface ContentfulToZodConfig {
     /** Default: `"both"`. */
     mode?: LocaleMode;
   };
+  /** Control which CMA blueprint fields are emitted (default: active fields only). */
+  fields?: {
+    /** Include fields marked `omitted: true` in the content model. Default: `false`. */
+    includeOmitted?: boolean;
+    /** Include fields marked `disabled: true` in the content model. Default: `false`. */
+    includeDisabled?: boolean;
+    /** Include fields marked `deleted: true` in the content model. Default: `false`. */
+    includeDeleted?: boolean;
+  };
   objects?: Record<string, z.ZodType>;
 }
 

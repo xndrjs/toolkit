@@ -13,6 +13,7 @@ import {
   validateObjectOverrides,
   type FieldZodResult,
 } from "./field-to-zod";
+import { fieldsForCodegen } from "./filter-fields";
 import { emitLocalePrimitives, requireLocalesForMode } from "./locale-primitives";
 import { CONTENTFUL_PRIMITIVE_SCHEMA_NAMES, CONTENTFUL_PRIMITIVE_SCHEMAS } from "./primitives";
 import {
@@ -72,7 +73,7 @@ function emitContentTypeSchema(
 ): string[] {
   const shapeEntries: string[] = [];
 
-  for (const field of contentType.fields) {
+  for (const field of fieldsForCodegen(contentType.fields, options.config)) {
     const flat = fieldToZod(field, {
       contentTypeId: contentType.id,
       config: options.config,
@@ -180,7 +181,7 @@ export function generateZodSchemas(
     }
   }
 
-  const helpers = emitLocaleHelpers(selectedContentTypes, localeMode);
+  const helpers = emitLocaleHelpers(selectedContentTypes, localeMode, config);
   if (helpers) {
     sections.push("", helpers);
   }
