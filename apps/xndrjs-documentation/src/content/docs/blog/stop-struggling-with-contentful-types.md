@@ -171,29 +171,41 @@ Inlined at codegen time — no runtime dependency on the config.
 ## Setup
 
 ```bash
-pnpm add @xndrjs/contentful-to-zod zod@^4
+pnpm add zod@^4
+pnpm add -D @xndrjs/contentful-to-zod @dotenvx/dotenvx
+```
+
+Put your Contentful credentials in `.env`:
+
+```dotenv
+CONTENTFUL_SPACE_ID=your_space_id
+CONTENTFUL_MANAGEMENT_TOKEN=your_management_token
+CONTENTFUL_ENVIRONMENT=master
+```
+
+Then add codegen scripts to `package.json` so your package manager resolves the local CLI:
+
+```json
+{
+  "scripts": {
+    "contentful:schema": "dotenvx run -- contentful-to-zod --out ./src/generated/contentful.schemas.ts --snapshot ./content-types.json --snapshot-locales ./locales.json"
+  }
+}
 ```
 
 Fetch from your space and generate:
 
 ```bash
-contentful-to-zod \
-  --space-id "$CONTENTFUL_SPACE_ID" \
-  --management-token "$CONTENTFUL_MANAGEMENT_TOKEN" \
-  --environment master \
+pnpm run contentful:schema
+```
+
+For a one-off run, you can also use `npx`:
+
+```bash
+npx @dotenvx/dotenvx run -- npx @xndrjs/contentful-to-zod \
   --out ./src/generated/contentful.schemas.ts \
   --snapshot ./content-types.json \
   --snapshot-locales ./locales.json
-```
-
-Or run offline from snapshots (useful in CI):
-
-```bash
-contentful-to-zod \
-  --from-snapshot \
-  --snapshot ./content-types.json \
-  --snapshot-locales ./locales.json \
-  --out ./src/generated/contentful.schemas.ts
 ```
 
 No runtime dependency on `@xndrjs/contentful-to-zod` in production — only the generated file and `zod`.

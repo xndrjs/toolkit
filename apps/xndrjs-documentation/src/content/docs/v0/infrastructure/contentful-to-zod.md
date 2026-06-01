@@ -22,38 +22,46 @@ flowchart TD
 ## Install
 
 ```bash
-pnpm add @xndrjs/contentful-to-zod zod@^4
+pnpm add zod@^4
+pnpm add -D @xndrjs/contentful-to-zod @dotenvx/dotenvx
 ```
 
 ## CLI
 
+Because `@xndrjs/contentful-to-zod` is a codegen dependency, add scripts to `package.json` and run the local CLI through your package manager. The CLI reads `CONTENTFUL_SPACE_ID`, `CONTENTFUL_MANAGEMENT_TOKEN`, and `CONTENTFUL_ENVIRONMENT` from env, so you can keep credentials in `.env`:
+
+```dotenv
+CONTENTFUL_SPACE_ID=your_space_id
+CONTENTFUL_MANAGEMENT_TOKEN=your_management_token
+CONTENTFUL_ENVIRONMENT=master
+```
+
+```json
+{
+  "scripts": {
+    "contentful:schema": "dotenvx run -- contentful-to-zod --out ./src/generated/contentful.schemas.ts --snapshot ./src/generated/content-types.json --snapshot-locales ./src/generated/locales.json"
+  }
+}
+```
+
 Live fetch from CMA (writes snapshots for reproducible CI):
 
 ```bash
-contentful-to-zod \
-  --space-id $SPACE \
-  --environment master \
-  --management-token $TOKEN \
+pnpm run contentful:schema
+```
+
+For a one-off run, you can also use `npx`:
+
+```bash
+npx @dotenvx/dotenvx run -- npx @xndrjs/contentful-to-zod \
   --out ./src/generated/contentful.schemas.ts \
   --snapshot ./src/generated/content-types.json \
   --snapshot-locales ./src/generated/locales.json
 ```
 
-Offline / CI (no CMA calls):
-
-```bash
-contentful-to-zod \
-  --from-snapshot \
-  --snapshot ./src/generated/content-types.json \
-  --snapshot-locales ./src/generated/locales.json \
-  --out ./src/generated/contentful.schemas.ts
-```
-
 Other flags: `--content-types blogPost,author`, `--config ./contentful-to-zod.config.ts`, `--dry-run` (print to stdout).
 
 Environment fallbacks: `CONTENTFUL_MANAGEMENT_TOKEN`, `CONTENTFUL_SPACE_ID`, `CONTENTFUL_ENVIRONMENT`.
-
-`--snapshot-locales` is required when using `--from-snapshot` and locale mode is `delivery` or `both` (the default).
 
 ## Config — `locale.mode`
 
@@ -70,18 +78,6 @@ export default defineConfig({
 });
 ```
 
-Fields marked `disabled`, `omitted`, or `deleted` in the CMA blueprint are excluded from generated output unless you opt in:
-
-```ts
-export default defineConfig({
-  fields: {
-    includeOmitted: true,
-    includeDisabled: true,
-    includeDeleted: true,
-  },
-});
-```
-
 | `locale.mode`      | Generated exports                                                                          |
 | ------------------ | ------------------------------------------------------------------------------------------ |
 | `"cma"`            | Flat field schemas only (`BlogPostFieldSchema`, `BlogPostFields`)                          |
@@ -93,7 +89,7 @@ Rules:
 - **Flat field schemas** (`*FieldSchema`) wrap every field in **`flatField()`** — for use after `flatten*EntryFields` (or direct parse of a flat shape).
 - **Delivery field schemas** (`*DeliveryFieldsSchema`, `*EntrySchema`) wrap every field in **`transportField()`**. CMA `required` does **not** apply at the transport boundary.
 - **`localized: true`** — flat uses `flatField(T)`; delivery uses `transportField(z.record(ContentfulLocaleCodeSchema, T))`.
-- **`disabled` / `omitted` / `deleted`** fields are excluded by default. Opt in via `fields.includeDisabled`, `fields.includeOmitted`, `fields.includeDeleted` in config.
+- **`disabled` / `omitted`** fields are still included (full blueprint).
 
 ## Generated output
 
