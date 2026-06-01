@@ -24,6 +24,14 @@ export function isBlogAreaRoute(docId: string): boolean {
   return isBlogIndexBase(base) || base.startsWith("blog/");
 }
 
+export function formatBlogDate(d: Date): string {
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function postTime(entry: CollectionEntry<"docs">): number | null {
   const d = entry.data.date;
   return d instanceof Date ? d.getTime() : null;

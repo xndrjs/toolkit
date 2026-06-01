@@ -2,6 +2,7 @@
 title: "Generating Zod schemas from Contentful: why your project needs this"
 description: How @xndrjs/contentful-to-zod turns your Contentful content model into precise Zod 4 schemas.
 date: 2026-05-29
+author: Fabio Fognani
 tags:
   - contentful
   - zod
