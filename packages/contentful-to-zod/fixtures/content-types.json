@@ -33,6 +33,13 @@
         "type": "Text",
         "required": false,
         "localized": true
+      },
+      {
+        "id": "metadata",
+        "name": "Metadata",
+        "type": "Object",
+        "required": false,
+        "localized": true
       }
     ]
   }

@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 
 import { defineConfig } from "../src/config/define-config";
 
@@ -13,5 +14,11 @@ export default defineConfig({
   contentTypeIds: ["blogPost"],
   locale: {
     mode: "both",
+  },
+  objects: {
+    "blogPost.metadata": z.object({
+      seoTitle: z.string(),
+      noIndex: z.boolean().optional(),
+    }),
   },
 });
