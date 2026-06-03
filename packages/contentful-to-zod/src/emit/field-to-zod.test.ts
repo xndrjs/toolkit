@@ -5,7 +5,7 @@ import { loadFixtureContentTypes } from "../test/fixtures";
 import { buildLocaleCodeSchema } from "./locale-primitives";
 import { fieldToZod, deliveryFieldSource, flatFieldSource, wrapForDelivery } from "./field-to-zod";
 
-const [blogPost] = loadFixtureContentTypes();
+const blogPost = loadFixtureContentTypes().find((ct) => ct.id === "blogPost")!;
 const localeCodeSchema = buildLocaleCodeSchema([
   { code: "en-US", default: true },
   { code: "it-IT", default: false },

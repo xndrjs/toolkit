@@ -213,6 +213,30 @@ Overrides are inlined at codegen time — the config is not imported at runtime.
 
 Entry/asset link objects and CMA validations (size, range, regex, etc.) are reflected in the generated Zod chains.
 
+## Resolved entry links (`linkContentType`)
+
+Contentful REST does not include the target content type on unresolved link stubs. The CMA field validation `linkContentType` is the source of truth — the codegen reads it from your content-type snapshot (no extra config).
+
+When `locale.mode` includes delivery, the generated file also exports `parseEntryAsLinkField` for fields that declare `linkContentType`:
+
+```ts
+import { BlogPostEntrySchema, parseEntryAsLinkField } from "./generated/contentful.schemas";
+
+const post = BlogPostEntrySchema.parse(rawPost);
+const authorLink = post.fields.author; // unresolved link stub
+
+const resolvedAuthor = await contentfulClient.getEntry(authorLink!.sys.id);
+const author = parseEntryAsLinkField("blogPost", "author", resolvedAuthor);
+// `author` is typed as AuthorEntry when linkContentType is ["author"]
+```
+
+- **Single target** → return type is that `*Entry` type.
+- **Multiple targets** → union of the allowed `*Entry` types; narrow with `entry.sys.contentType.sys.id`.
+- Wrong content type → `LinkFieldTargetError` with parent field id and allowed targets.
+- **`getAllowedEntryLinkContentTypes(parentCtype, fieldName)`** → readonly allow-list from CMA (same data as the parser uses; useful before fetch or for custom checks).
+
+Target content types must be present in the same snapshot used for codegen.
+
 ## xndrjs recipe (optional)
 
 Wire flat field schemas and the locale enum into `@xndrjs/domain-zod`:

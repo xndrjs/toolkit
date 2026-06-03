@@ -61,6 +61,14 @@ Same field, two completely different shapes. My codegen generated one shape and 
 
 The CMA declares `Object` fields without any inner schema. My codegen, just like graphql-codegen, initially rendered them as `Record<string, unknown>`. Technically correct, practically useless or brittle for anything downstream.
 
+### 4. Every Entry Link looked the same over REST
+
+This one stayed annoying for a long time.
+
+In the Contentful UI you can restrict a **Link to entry** field to specific content types (`linkContentType` in the CMA). Your model knows that `blogPost.author` points at an `author` entry. The REST and Delivery APIs **do not**: an unresolved link is always the same stub — `{ sys: { type: "Link", linkType: "Entry", id: "..." } }` with **no** target content type on the wire.
+
+My first codegen tried to paper over that with **branded types** on the link stub itself, as if `author` were already an `AuthorLink` before fetch. It "worked", but it was the wrong approach: I was inferring the target **before** the entry was resolved. A workaround, not a clean boundary — the real information only exists once you have the full entry (`sys.contentType.sys.id` after `include` or `getEntry`).
+
 ---
 
 ## The actual gap: types vs. runtime
@@ -71,6 +79,7 @@ The tools I had — both graphql-codegen and my custom tool — were good at one
 - Normalize omitted keys, `undefined`, and explicit `null` into something consistent
 - Flatten a multi-locale field into a single locale on read
 - Narrow `Object` fields to a real inner shape
+- After resolving a link, narrow the entry to the content types the CMA allows for that field
 
 That's not a flaw in those tools — it's just what they're for. But the boundary between Contentful and my app was mine to own, and types alone weren't enough there.
 
@@ -168,6 +177,46 @@ export default defineConfig({
 ```
 
 Inlined at codegen time — no runtime dependency on the config.
+
+---
+
+## Entry links: validate after resolve
+
+`@xndrjs/contentful-to-zod` reads `linkContentType` from your content-type snapshot — same source of truth as the CMA, no duplicate config. On the transport schemas, `author` stays a generic entry link (`ContentfulEntryLinkSchema`): that's what Contentful actually sends.
+
+Once you have the **resolved** entry, validation moves to the right boundary. The generated helper `parseEntryAsLinkField` ties parent content type + field name to the allowed targets and parses with the matching `*EntrySchema`:
+
+```ts
+import { BlogPostEntrySchema, parseEntryAsLinkField } from "./generated/contentful.schemas";
+
+const post = BlogPostEntrySchema.parse(rawPost);
+const authorLink = post.fields.author;
+
+const resolvedAuthor = await client.getEntry(authorLink!.sys.id);
+const author = parseEntryAsLinkField("blogPost", "author", resolvedAuthor);
+// `author` is `AuthorEntry` when the CMA allows only `author`
+```
+
+**Single allowed content type** — the return type is that entry type directly. No second ceremony.
+
+**Multiple allowed types** — the return type is a union of the corresponding `*Entry` types. A second discriminated union on `entry.sys.contentType.sys.id` (now narrowed to that union) picks the branch:
+
+```ts
+const linked = parseEntryAsLinkField("blogPost", "related", resolved);
+
+switch (linked.sys.contentType.sys.id) {
+  case "author":
+    // linked is AuthorEntry
+    break;
+  case "blogPost":
+    // linked is BlogPostEntry
+    break;
+}
+```
+
+Wrong content type for the field → `LinkFieldTargetError` with the parent field id and the allowed list from the model.
+
+Architecturally: **unresolved link** = transport shape only; **resolved entry** = `parseEntryAsLinkField` + optional `switch` for multi-type fields. Inference lives where the data actually carries the content type — not on the stub.
 
 ---
 

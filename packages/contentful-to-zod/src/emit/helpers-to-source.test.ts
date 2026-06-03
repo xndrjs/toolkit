@@ -64,6 +64,7 @@ describe("generated locale helpers", () => {
       slug: "my-post",
       author: null,
       excerpt: "Riassunto",
+      metadata: null,
     });
   });
 
@@ -110,6 +111,7 @@ describe("generated locale helpers", () => {
       slug: null,
       author: null,
       excerpt: null,
+      metadata: null,
     });
   });
 
@@ -151,6 +153,7 @@ describe("generated locale helpers", () => {
       slug: "draft-without-title",
       author: null,
       excerpt: null,
+      metadata: null,
     });
   });
 });
