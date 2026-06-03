@@ -11,7 +11,7 @@ export default defineConfig({
   snapshot: join(fixtureDir, "content-types.json"),
   snapshotLocales: join(fixtureDir, "locales.json"),
   out: join(fixtureDir, "contentful.schemas.ts"),
-  contentTypeIds: ["blogPost"],
+  contentTypeIds: ["blogPost", "author"],
   locale: {
     mode: "both",
   },

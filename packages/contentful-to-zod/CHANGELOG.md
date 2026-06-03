@@ -1,5 +1,11 @@
 # @xndrjs/contentful-to-zod
 
+## 0.2.1
+
+### Patch Changes
+
+- Narrow resolved entry links using CMA linkContentType: parseEntryAsLinkField validates and types fetched entries; getAllowedEntryLinkContentTypes exposes the allowed target content types per parent field.
+
 ## 0.2.0
 
 ### Minor Changes
