@@ -2,6 +2,7 @@
 title: "5 cases where TypeScript types are not enough to guarantee data correctness"
 description: External boundaries, structural typing, mutation, contextual guarantees, and semantic aliases—why structure is not trust, and what runtime validation and explicit boundaries add.
 date: 2026-05-20
+author: Fabio Fognani
 tags:
   - typescript
   - domain

@@ -2,6 +2,7 @@
 title: "Validation benchmarks: pick the right engine per boundary"
 description: What @xndrjs/bench-perf shows about Zod, Valibot, AJV, and core validators—and why adapter interoperability lets you use each where it shines.
 date: 2026-05-19
+author: Fabio Fognani
 tags:
   - benchmarks
   - performance

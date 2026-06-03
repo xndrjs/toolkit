@@ -15,45 +15,64 @@ flowchart TD
   codegen --> schemas[contentful.schemas.ts]
   API[Delivery or Preview JSON] --> entryParse["*EntrySchema.parse"]
   entryParse --> flatten["flatten*EntryFields"]
-  flatten --> flatParse["*FieldSchema.parse"]
+  flatten --> flatParse["*FieldsSchema.parse"]
   flatParse --> domain["domain-zod optional"]
 ```
 
 ## Install
 
 ```bash
-pnpm add @xndrjs/contentful-to-zod zod@^4
+pnpm add zod@^4
+pnpm add -D @xndrjs/contentful-to-zod @dotenvx/dotenvx
 ```
 
 ## CLI
 
+Because `@xndrjs/contentful-to-zod` is a codegen dependency, keep the codegen options in `contentful-to-zod.config.ts` and run the local CLI through your package manager:
+
+```ts
+import { defineConfig } from "@xndrjs/contentful-to-zod";
+
+export default defineConfig({
+  cma: {
+    spaceId: process.env.CONTENTFUL_BLOG_SPACE_ID,
+    managementToken: process.env.CONTENTFUL_BLOG_MANAGEMENT_TOKEN,
+    environment: process.env.CONTENTFUL_BLOG_ENVIRONMENT ?? "master",
+  },
+  out: "./src/generated/contentful.schemas.ts",
+  snapshot: "./src/generated/content-types.json",
+  snapshotLocales: "./src/generated/locales.json",
+});
+```
+
+```json
+{
+  "scripts": {
+    "contentful:schema": "dotenvx run -- contentful-to-zod --config ./contentful-to-zod.config.ts"
+  }
+}
+```
+
 Live fetch from CMA (writes snapshots for reproducible CI):
 
 ```bash
-contentful-to-zod \
-  --space-id $SPACE \
+pnpm run contentful:schema
+```
+
+For a one-off run, you can also use `npx`:
+
+```bash
+npx @xndrjs/contentful-to-zod \
+  --space-id "your_space_id" \
+  --management-token "your_management_token" \
   --environment master \
-  --management-token $TOKEN \
   --out ./src/generated/contentful.schemas.ts \
   --snapshot ./src/generated/content-types.json \
   --snapshot-locales ./src/generated/locales.json
 ```
 
-Offline / CI (no CMA calls):
-
-```bash
-contentful-to-zod \
-  --from-snapshot \
-  --snapshot ./src/generated/content-types.json \
-  --snapshot-locales ./src/generated/locales.json \
-  --out ./src/generated/contentful.schemas.ts
-```
-
 Other flags: `--content-types blogPost,author`, `--config ./contentful-to-zod.config.ts`, `--dry-run` (print to stdout).
-
-Environment fallbacks: `CONTENTFUL_MANAGEMENT_TOKEN`, `CONTENTFUL_SPACE_ID`, `CONTENTFUL_ENVIRONMENT`.
-
-`--snapshot-locales` is required when using `--from-snapshot` and locale mode is `delivery` or `both` (the default).
+If an option is set in both CLI args and config, the CLI arg wins and `contentful-to-zod` prints a warning.
 
 ## Config — `locale.mode`
 
@@ -70,27 +89,15 @@ export default defineConfig({
 });
 ```
 
-Fields marked `disabled`, `omitted`, or `deleted` in the CMA blueprint are excluded from generated output unless you opt in:
-
-```ts
-export default defineConfig({
-  fields: {
-    includeOmitted: true,
-    includeDisabled: true,
-    includeDeleted: true,
-  },
-});
-```
-
 | `locale.mode`      | Generated exports                                                                          |
 | ------------------ | ------------------------------------------------------------------------------------------ |
-| `"cma"`            | Flat field schemas only (`BlogPostFieldSchema`, `BlogPostFields`)                          |
+| `"cma"`            | Flat field schemas only (`BlogPostFieldsSchema`, `BlogPostFields`)                         |
 | `"delivery"`       | Delivery field schemas + entry wrappers + `pickLocale` + locale enum/constants             |
 | `"both"` (default) | Flat + delivery field schemas + entry wrappers + `pickLocale` + `flatten{Type}EntryFields` |
 
 Rules:
 
-- **Flat field schemas** (`*FieldSchema`) wrap every field in **`flatField()`** — for use after `flatten*EntryFields` (or direct parse of a flat shape).
+- **Flat field schemas** (`*FieldsSchema`) wrap every field in **`flatField()`** — for use after `flatten*EntryFields` (or direct parse of a flat shape).
 - **Delivery field schemas** (`*DeliveryFieldsSchema`, `*EntrySchema`) wrap every field in **`transportField()`**. CMA `required` does **not** apply at the transport boundary.
 - **`localized: true`** — flat uses `flatField(T)`; delivery uses `transportField(z.record(ContentfulLocaleCodeSchema, T))`.
 - **`disabled` / `omitted` / `deleted`** fields are excluded by default. Opt in via `fields.includeDisabled`, `fields.includeOmitted`, `fields.includeDeleted` in config.
@@ -101,7 +108,7 @@ For a content type `blogPost`, expect:
 
 | Export                                                    | Role                                                      |
 | --------------------------------------------------------- | --------------------------------------------------------- |
-| `BlogPostFieldSchema` / `BlogPostFields`                  | Flat / single-locale field shape                          |
+| `BlogPostFieldsSchema` / `BlogPostFields`                 | Flat / single-locale field shape                          |
 | `BlogPostDeliveryFieldsSchema` / `BlogPostDeliveryFields` | Delivery `fields` object                                  |
 | `BlogPostEntrySchema` / `BlogPostEntry`                   | Full entry wrapper for Delivery/Preview JSON              |
 | `flattenBlogPostEntryFields`                              | Map validated `entry.fields` → flat fields for one locale |
@@ -136,7 +143,7 @@ export const BlogPostDeliveryFieldsSchema = z.object({
   author: transportField(ContentfulEntryLinkSchema),
 });
 
-export const BlogPostFieldSchema = z.object({
+export const BlogPostFieldsSchema = z.object({
   title: flatField(z.string().max(256)),
   slug: flatField(z.string()),
   author: flatField(ContentfulEntryLinkSchema),
@@ -150,7 +157,7 @@ export const BlogPostEntrySchema = z.object({
 });
 ```
 
-`z.infer<typeof BlogPostFields>["title"]` is `string | null` — honest types for what can actually arrive.
+`BlogPostFields["title"]` is `string | null` — honest types for what can actually arrive.
 
 ## Runtime pipeline
 
@@ -159,13 +166,13 @@ Parse at the boundary, flatten fields, then validate the flat shape:
 ```ts
 import {
   BlogPostEntrySchema,
-  BlogPostFieldSchema,
+  BlogPostFieldsSchema,
   flattenBlogPostEntryFields,
 } from "./generated/contentful.schemas";
 
 const entry = BlogPostEntrySchema.parse(rawFromContentful);
 const flat = flattenBlogPostEntryFields(entry.fields, "it-IT");
-const post = BlogPostFieldSchema.parse(flat);
+const post = BlogPostFieldsSchema.parse(flat);
 ```
 
 `flatten*EntryFields` accepts **only** validated `entry.fields` — not the full entry. First parse with `*EntrySchema`, then flatten.
@@ -173,7 +180,7 @@ const post = BlogPostFieldSchema.parse(flat);
 Helpers **do not validate** — always `parse` after flattening. For pages that require a real title, tighten in your domain layer:
 
 ```ts
-const PublishedPost = BlogPostFieldSchema.extend({
+const PublishedPost = BlogPostFieldsSchema.extend({
   title: z.string().min(1),
 });
 const trusted = PublishedPost.parse(flat);
@@ -223,13 +230,13 @@ await writeFile("./src/generated/contentful.schemas.ts", source, "utf8");
 
 ## Wiring to domain-zod
 
-Transport schemas feed the domain; they do not replace it. See the [Zod adapter](/latest/v0/adapters/zod/) for `zodToValidator`:
+Transport schemas feed the domain; they do not replace it. See the [Zod adapter](/v0/adapters/zod/) for `zodToValidator`:
 
 ```ts
 import { domain, zodToValidator } from "@xndrjs/domain-zod";
-import { BlogPostFieldSchema, ContentfulLocaleCodeSchema } from "./generated/contentful.schemas";
+import { BlogPostFieldsSchema, ContentfulLocaleCodeSchema } from "./generated/contentful.schemas";
 
-export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostFieldSchema));
+export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostFieldsSchema));
 
 export const SupportedLocale = domain.primitive(
   "SupportedLocale",
@@ -257,5 +264,5 @@ Entry/asset link objects and CMA validations (size, range, regex, etc.) are refl
 ## See also
 
 - [Your CMS schema is lying to TypeScript](/latest/blog/your-cms-schema-is-lying-to-typescript/) — transport vs domain trust
-- [Package map](/latest/v0/reference/package-map/) — where this package fits in the toolkit
+- [Package map](/v0/reference/package-map/) — where this package fits in the toolkit
 - [README in the monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/contentful-to-zod) — CLI details when working on the generator itself

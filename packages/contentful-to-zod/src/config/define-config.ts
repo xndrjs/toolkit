@@ -4,6 +4,16 @@ export type LocaleMode = "cma" | "delivery" | "both";
 
 /** Override map for Contentful `Object` fields keyed as `{contentTypeId}.{fieldId}`. */
 export interface ContentfulToZodConfig {
+  cma?: {
+    spaceId?: string;
+    environment?: string;
+    managementToken?: string;
+  };
+  out?: string;
+  snapshot?: string;
+  snapshotLocales?: string;
+  fromSnapshot?: boolean;
+  contentTypeIds?: string[];
   locale?: {
     /** Default: `"both"`. */
     mode?: LocaleMode;

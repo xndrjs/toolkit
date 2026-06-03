@@ -8,7 +8,7 @@ export function contentTypeIdToPascalCase(id: string): string {
 }
 
 export function fieldsSchemaExportName(contentTypeId: string): string {
-  return `${contentTypeIdToPascalCase(contentTypeId)}FieldSchema`;
+  return `${contentTypeIdToPascalCase(contentTypeId)}FieldsSchema`;
 }
 
 export function deliveryFieldsSchemaExportName(contentTypeId: string): string {

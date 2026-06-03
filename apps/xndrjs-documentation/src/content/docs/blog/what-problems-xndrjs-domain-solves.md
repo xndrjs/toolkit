@@ -2,6 +2,7 @@
 title: "What problems does @xndrjs/domain actually solve?"
 description: A concrete tour of runtime trust at boundaries, ergonomic domain construction, layer-friendly data, shape transformations, and where invariants live, beyond “we like types.”
 date: 2026-05-11
+author: Fabio Fognani
 tags:
   - domain
   - typescript

@@ -2,6 +2,7 @@
 title: "xndrjs Domain Algebra - between Rich and Anemic Data Modeling"
 description: How the domain toolkit splits validation, representation, behavior, and guarantees without forcing a choice between rich classes and plain objects.
 date: 2026-05-03
+author: Fabio Fognani
 tags:
   - domain
   - architecture

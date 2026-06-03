@@ -16,6 +16,7 @@ export default defineConfig({
         Header: "./src/components/Header.astro",
         MobileMenuFooter: "./src/components/MobileMenuFooter.astro",
         Sidebar: "./src/components/Sidebar.astro",
+        PageTitle: "./src/components/PageTitle.astro",
       },
       sidebar: [
         {

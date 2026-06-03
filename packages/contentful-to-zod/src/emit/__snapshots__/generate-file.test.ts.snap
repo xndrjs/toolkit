@@ -65,14 +65,14 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
-export const BlogPostFieldSchema = z.object({
+export const BlogPostFieldsSchema = z.object({
   "title": flatField(z.string().max(256)),
   "slug": flatField(z.string()),
   "author": flatField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
   "excerpt": flatField(z.string()),
 });
 
-export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
+export type BlogPostFields = z.infer<typeof BlogPostFieldsSchema>;
 
 export const BlogPostDeliveryFieldsSchema = z.object({
   "title": transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
@@ -147,14 +147,14 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
-export const BlogPostFieldSchema = z.object({
+export const BlogPostFieldsSchema = z.object({
   "title": flatField(z.string().max(256)),
   "slug": flatField(z.string()),
   "author": flatField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
   "excerpt": flatField(z.string()),
 });
 
-export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
+export type BlogPostFields = z.infer<typeof BlogPostFieldsSchema>;
 "
 `;
 

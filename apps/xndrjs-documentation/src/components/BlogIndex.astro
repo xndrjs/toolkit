@@ -1,20 +1,17 @@
 ---
 import type { CollectionEntry } from "astro:content";
-import { docIdToPathname, getBlogPostsSorted } from "../utils/blog-posts";
+import {
+  docIdToPathname,
+  formatBlogDate,
+  getBlogPostsSorted,
+} from "../utils/blog-posts";
 
 const posts = await getBlogPostsSorted();
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 type BlogData = CollectionEntry<"docs">["data"] & {
   description?: string;
   date?: Date;
+  author?: string;
   tags?: string[];
 };
 ---
@@ -32,6 +29,10 @@ type BlogData = CollectionEntry<"docs">["data"] & {
             ? data.description
             : null;
         const tags = Array.isArray(data.tags) ? data.tags : [];
+        const author =
+          typeof data.author === "string" && data.author.length > 0
+            ? data.author
+            : null;
         return (
           <li class="blog-card">
             <a class="blog-card__link" href={href}>
@@ -39,13 +40,24 @@ type BlogData = CollectionEntry<"docs">["data"] & {
             </a>
             {desc ? <p class="blog-card__description">{desc}</p> : null}
             <div class="blog-card__meta">
-              {data.date instanceof Date ? (
-                <time class="blog-card__date" datetime={data.date.toISOString()}>
-                  {formatDate(data.date)}
-                </time>
-              ) : (
-                <span class="blog-card__date blog-card__date--muted">No date</span>
-              )}
+              <div class="blog-card__byline">
+                {author ? (
+                  <span class="blog-card__author">by {author}</span>
+                ) : null}
+                {author && data.date instanceof Date && "•"}
+                {data.date instanceof Date ? (
+                  <time
+                    class="blog-card__date"
+                    datetime={data.date.toISOString()}
+                  >
+                    {formatBlogDate(data.date)}
+                  </time>
+                ) : (
+                  <span class="blog-card__date blog-card__date--muted">
+                    No date
+                  </span>
+                )}
+              </div>
               {tags.length > 0 ? (
                 <ul class="blog-card__tags" aria-label="Tags">
                   {tags.map((tag) => (
@@ -119,6 +131,7 @@ type BlogData = CollectionEntry<"docs">["data"] & {
   .blog-card__description {
     margin: 0;
     font-size: var(--sl-text-sm);
+    text-align: justify;
     line-height: 1.5;
     color: var(--sl-color-gray-3);
     flex: 1;
@@ -127,13 +140,29 @@ type BlogData = CollectionEntry<"docs">["data"] & {
   .blog-card__meta {
     display: flex;
     flex-wrap: wrap;
+    width: 100%;
     justify-content: space-between;
     align-items: center;
     gap: 0.5rem 0.75rem;
     margin-top: auto;
     margin-bottom: 0;
     padding-top: 0.35rem;
+  }
+
+  .blog-card__byline {
+    display: flex;
     width: 100%;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.35rem;
+    min-width: 0;
+  }
+
+  .blog-card__author {
+    font-size: var(--sl-text-xs);
+    font-weight: 500;
+    color: var(--sl-color-gray-2);
+    line-height: 1.4;
   }
 
   .blog-card__date {
@@ -153,6 +182,7 @@ type BlogData = CollectionEntry<"docs">["data"] & {
     list-style: none;
     padding: 0;
     margin: 0;
+    margin-top: 0.5rem;
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
