@@ -16,5 +16,5 @@
     "@xndrjs/domain-zod": "0.3.0",
     "@xndrjs/tasks": "0.2.0"
   },
-  "changesets": []
+  "changesets": ["clean-adults-knock"]
 }
