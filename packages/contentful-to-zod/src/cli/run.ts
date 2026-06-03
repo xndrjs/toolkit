@@ -9,8 +9,9 @@ import {
   parseCliArgs,
   printCliHelp,
   requireLocalesSnapshot,
+  resolveCliOptions,
   validateCliOptions,
-  type CliOptions,
+  type ResolvedCliOptions,
 } from "./args";
 import { loadConfigFile } from "./load-config";
 import {
@@ -21,7 +22,10 @@ import {
   writeLocalesSnapshot,
 } from "./load-snapshots";
 
-async function loadFromSnapshots(options: CliOptions, config: ContentfulToZodConfig | undefined) {
+async function loadFromSnapshots(
+  options: ResolvedCliOptions,
+  config: ContentfulToZodConfig | undefined
+) {
   const contentTypes = await readContentTypesSnapshot(options.snapshot!);
   const localeMode = resolveLocaleMode({ config });
   requireLocalesSnapshot(localeMode, options.snapshotLocales);
@@ -33,7 +37,10 @@ async function loadFromSnapshots(options: CliOptions, config: ContentfulToZodCon
   return { contentTypes, locales, config };
 }
 
-async function fetchFromCma(options: CliOptions, config: ContentfulToZodConfig | undefined) {
+async function fetchFromCma(
+  options: ResolvedCliOptions,
+  config: ContentfulToZodConfig | undefined
+) {
   const cma = {
     spaceId: options.spaceId!,
     accessToken: options.managementToken!,
@@ -60,14 +67,15 @@ async function fetchFromCma(options: CliOptions, config: ContentfulToZodConfig |
 }
 
 export async function runCli(argv: string[]): Promise<number> {
-  const options = parseCliArgs(argv);
+  const cliOptions = parseCliArgs(argv);
 
-  if (options.help) {
+  if (cliOptions.help) {
     printCliHelp();
     return 0;
   }
 
-  const config = options.configPath ? await loadConfigFile(options.configPath) : undefined;
+  const config = cliOptions.configPath ? await loadConfigFile(cliOptions.configPath) : undefined;
+  const options = resolveCliOptions(cliOptions, config);
   validateCliOptions(options, config);
 
   const { contentTypes, locales } = options.fromSnapshot
