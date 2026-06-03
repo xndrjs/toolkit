@@ -11,6 +11,8 @@ export const collections = {
         date: z.coerce.date().optional(),
         /** Optional labels for blog index cards and filtering. */
         tags: z.array(z.string()).optional(),
+        /** Author name for blog posts; shown on the index and article header. */
+        author: z.string().optional(),
       }),
     }),
   }),

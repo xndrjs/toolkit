@@ -1,3 +1,1 @@
 # @xndrjs/interop-demo
-
-## null

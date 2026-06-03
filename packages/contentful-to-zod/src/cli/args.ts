@@ -6,7 +6,7 @@ import type { ContentfulToZodConfig } from "../config/define-config";
 
 export interface CliOptions {
   spaceId: string | undefined;
-  environmentId: string;
+  environmentId: string | undefined;
   managementToken: string | undefined;
   out: string | undefined;
   snapshot: string | undefined;
@@ -18,15 +18,8 @@ export interface CliOptions {
   help: boolean;
 }
 
-const ENV = {
-  managementToken: "CONTENTFUL_MANAGEMENT_TOKEN",
-  spaceId: "CONTENTFUL_SPACE_ID",
-  environment: "CONTENTFUL_ENVIRONMENT",
-} as const;
-
-function readEnv(name: string): string | undefined {
-  const value = process.env[name]?.trim();
-  return value || undefined;
+export interface ResolvedCliOptions extends CliOptions {
+  environmentId: string;
 }
 
 function parseContentTypes(value: string | undefined): string[] | undefined {
@@ -40,6 +33,29 @@ function parseContentTypes(value: string | undefined): string[] | undefined {
     .filter(Boolean);
 
   return ids.length ? ids : undefined;
+}
+
+function hasConfigValue(value: unknown): boolean {
+  return Array.isArray(value) ? value.length > 0 : value !== undefined;
+}
+
+function warnDuplicate(cliFlag: string, configPath: string): void {
+  console.warn(
+    `contentful-to-zod: ${cliFlag} overrides ${configPath} from contentful-to-zod config.`
+  );
+}
+
+function preferCli<T>(
+  cliValue: T | undefined,
+  configValue: T | undefined,
+  cliFlag: string,
+  configPath: string
+): T | undefined {
+  if (hasConfigValue(cliValue) && hasConfigValue(configValue)) {
+    warnDuplicate(cliFlag, configPath);
+  }
+
+  return hasConfigValue(cliValue) ? cliValue : configValue;
 }
 
 export function parseCliArgs(argv: string[]): CliOptions {
@@ -62,9 +78,9 @@ export function parseCliArgs(argv: string[]): CliOptions {
   });
 
   return {
-    spaceId: values["space-id"] ?? readEnv(ENV.spaceId),
-    environmentId: values.environment ?? readEnv(ENV.environment) ?? DEFAULT_ENVIRONMENT_ID,
-    managementToken: values["management-token"] ?? readEnv(ENV.managementToken),
+    spaceId: values["space-id"],
+    environmentId: values.environment,
+    managementToken: values["management-token"],
     out: values.out,
     snapshot: values.snapshot,
     snapshotLocales: values["snapshot-locales"],
@@ -81,13 +97,14 @@ export function printCliHelp(): void {
 
 Usage:
   contentful-to-zod --space-id <id> --management-token <token> --out <file.ts>
+  contentful-to-zod --config ./contentful-to-zod.config.ts
   contentful-to-zod --from-snapshot --snapshot <types.json> --snapshot-locales <locales.json> --out <file.ts>
 
 Options:
-  --space-id <id>              Contentful space ID (env: CONTENTFUL_SPACE_ID)
-  --environment <id>           Environment ID (default: master; env: CONTENTFUL_ENVIRONMENT)
-  --management-token <token>   CMA token (env: CONTENTFUL_MANAGEMENT_TOKEN)
-  --out <path>                 Output TypeScript file (required unless --dry-run)
+  --space-id <id>              Contentful space ID
+  --environment <id>           Environment ID (default: master)
+  --management-token <token>   CMA token
+  --out <path>                 Output TypeScript file (required unless --dry-run; can be set in config)
   --snapshot <path>            Content types snapshot JSON (read with --from-snapshot; write after fetch)
   --snapshot-locales <path>    Locales snapshot JSON (read/write; required for delivery/both when using snapshots)
   --from-snapshot              Load content types and locales from snapshot files instead of the API
@@ -96,6 +113,50 @@ Options:
   --dry-run                    Print generated source to stdout instead of writing --out
   -h, --help                   Show this help
 `);
+}
+
+export function resolveCliOptions(
+  options: CliOptions,
+  config: ContentfulToZodConfig | undefined
+): ResolvedCliOptions {
+  return {
+    ...options,
+    spaceId: preferCli(options.spaceId, config?.cma?.spaceId, "--space-id", "cma.spaceId"),
+    environmentId:
+      preferCli(
+        options.environmentId,
+        config?.cma?.environment,
+        "--environment",
+        "cma.environment"
+      ) ?? DEFAULT_ENVIRONMENT_ID,
+    managementToken: preferCli(
+      options.managementToken,
+      config?.cma?.managementToken,
+      "--management-token",
+      "cma.managementToken"
+    ),
+    out: preferCli(options.out, config?.out, "--out", "out"),
+    snapshot: preferCli(options.snapshot, config?.snapshot, "--snapshot", "snapshot"),
+    snapshotLocales: preferCli(
+      options.snapshotLocales,
+      config?.snapshotLocales,
+      "--snapshot-locales",
+      "snapshotLocales"
+    ),
+    fromSnapshot:
+      preferCli(
+        options.fromSnapshot || undefined,
+        config?.fromSnapshot,
+        "--from-snapshot",
+        "fromSnapshot"
+      ) ?? false,
+    contentTypeIds: preferCli(
+      options.contentTypeIds,
+      config?.contentTypeIds,
+      "--content-types",
+      "contentTypeIds"
+    ),
+  };
 }
 
 export function requireLocalesSnapshot(
@@ -114,7 +175,7 @@ export function requireLocalesSnapshot(
 }
 
 export function validateCliOptions(
-  options: CliOptions,
+  options: ResolvedCliOptions,
   config: ContentfulToZodConfig | undefined
 ): void {
   const localeMode = resolveLocaleMode({ config });
@@ -136,15 +197,11 @@ export function validateCliOptions(
   }
 
   if (!options.spaceId) {
-    throw new Error(
-      "--space-id is required (or set CONTENTFUL_SPACE_ID) when not using --from-snapshot."
-    );
+    throw new Error("--space-id is required when not set in config cma.spaceId.");
   }
 
   if (!options.managementToken) {
-    throw new Error(
-      "--management-token is required (or set CONTENTFUL_MANAGEMENT_TOKEN) when not using --from-snapshot."
-    );
+    throw new Error("--management-token is required when not set in config cma.managementToken.");
   }
 
   if (options.snapshotLocales && localeMode === "cma") {

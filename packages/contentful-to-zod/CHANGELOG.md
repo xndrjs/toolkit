@@ -1,5 +1,17 @@
 # @xndrjs/contentful-to-zod
 
+## 0.1.2
+
+### Patch Changes
+
+- omitted, disabled and deleted fields handling
+
+## 0.1.1
+
+### Patch Changes
+
+- c583fbf: fix: null normalization
+
 ## 0.1.1-alpha.0
 
 ### Patch Changes
