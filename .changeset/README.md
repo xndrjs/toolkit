@@ -14,3 +14,5 @@ Workspace packages listed in `ignore` in [`config.json`](./config.json) are excl
 - `@xndrjs/documentation`
 
 Those apps also set `"private": true` in `package.json` so an accidental `npm publish` is rejected by the registry.
+
+`privatePackages.version` and `privatePackages.tag` are both `false` in [`config.json`](./config.json), so `pnpm changeset version` does not bump versions or changelogs for any private workspace package (apps, shared configs, etc.). The `ignore` list still blocks publish and changeset selection for those names.

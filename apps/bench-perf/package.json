@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/bench-perf",
-  "version": "0.1.2",
+  "version": "0.1.1",
   "description": "Internal benchmark CLI for comparing validation engines.",
   "private": true,
   "license": "MIT",
