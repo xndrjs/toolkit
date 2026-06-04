@@ -273,4 +273,4 @@ The faster code is produced, the more important it becomes that developers can i
 
 In that sense, AI is increasing, not reducing, the need for standardization. **As code becomes cheaper to generate, consistency, boundaries, and shared vocabulary become more valuable than ever.**
 
-The future may belong to AI-assisted development. But the responsibility for preserving those concepts, keeping a system understandable, navigable, and ultimately capable of evolving, remains fundamentally human.
+And while the future may belong to AI-assisted development, the responsibility for creating, naming, and preserving those concepts remains fundamentally human.
