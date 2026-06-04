@@ -259,6 +259,18 @@ Their purpose is to ensure that the software remains aligned with concepts that 
 
 And there is another implication. The faster code gets written, the more projects need a structure that is not custom, but as uniform as possible. Let's say "standard", at least relative to the other projects in the same team or company. What used to take a year can now ship in a few weeks. If you cannot sense how an app is organized before you even open the codebase, the sheer volume (and the speed at which large chunks of it were written) will overwhelm you.
 
-The future may belong to AI-assisted development.
+There is a useful historical analogy here: the industrial revolution did not simply make craftsmen faster. It fundamentally changed the constraints under which products were built.
 
-But the responsibility for keeping a project comprehensible, and therefore capable of evolving, remains fundamentally human.
+A skilled craftsman could keep the entire product in mind. Parts could be unique. Processes could be adapted on the fly. Knowledge was often implicit and lived inside the heads of individuals.
+
+**Assembly lines** changed that. Once production accelerated dramatically, standardization became essential. Components needed clear interfaces. Processes needed to be repeatable. Workers needed shared conventions. The system could no longer depend on every individual carrying the whole product in their head.
+
+AI-assisted development may be pushing software in a similar direction.
+
+As code generation becomes dramatically faster, architectural originality becomes less valuable than architectural predictability. Teams need stronger boundaries, more consistent vocabulary, and more recognizable patterns — not because AI requires them, but because humans do.
+
+The faster code is produced, the more important it becomes that developers can immediately understand where they are, what a concept means, and which part of the system owns a particular responsibility.
+
+In that sense, AI is increasing, not reducing, the need for standardization. **As code becomes cheaper to generate, consistency, boundaries, and shared vocabulary become more valuable than ever.**
+
+The future may belong to AI-assisted development. But the responsibility for preserving those concepts, keeping a system understandable, navigable, and ultimately capable of evolving, remains fundamentally human.
