@@ -37,7 +37,7 @@ When I think about an e-commerce system, I don't keep hundreds of implementation
 
 Those concepts become anchors around which everything else is organized.
 
-Research on software comprehension consistently highlights the importance of mental models in understanding and maintaining software systems. Developers do not merely read code; they construct internal representations of how the system works.
+Research on software comprehension consistently highlights the importance of mental models in understanding and maintaining software systems. Developers do not merely write code; they construct internal representations of how the system works.
 
 When I build a feature myself, I am simultaneously building that mental model.
 
@@ -92,45 +92,46 @@ Every additional concept competes for space inside a human brain. And the codeba
 
 One of the most common patterns I encounter is the proliferation of structures that are technically valid but semantically unnecessary.
 
-Suppose you already have an `Article` entity and an `ArticleRepository` that loads it for the application layer. Showing an article card on a dashboard could stay inside that model:
+Suppose you already have an `Article` entity and an `ArticleRepository` that loads it for the application layer. Showing an article summary on a web page could stay inside that model:
 
 ```typescript
-async function getArticleCard(articleId: string) {
+async function getArticleSummary(articleId: string) {
   const article = await articleRepository.getById(articleId);
-  return article.toCard();
+  return article.toSummary();
 }
 ```
 
 The repository returns a domain object you already know. The use case reads a subset of its data — nothing new to learn.
 
-The AI-generated version often looks reasonable, and may even be faster. But it introduces a parallel path and LOTS of new code:
+The AI-generated version often looks reasonable, and may even be faster. But it may introduce a parallel path and LOTS of new code:
 
 ```typescript
-type ArticleCardRow = {
+type ArticleSummaryRow = {
   id: string;
   title: string;
   status: string;
 };
 
-function parseArticleCardRow(data: unknown): ArticleCardRow {
-  if (typeof data !== "object" || data === null) {
+function isRecord(data: unknown): data is Record<string, unknown> {
+  return typeof data === "object" && data !== null;
+}
+
+function parseArticleSummaryRow(entry: unknown): ArticleSummaryRow {
+  if (!isRecord(entry)) {
     throw new Error("Invalid entry payload");
   }
-
-  const entry = data as Record<string, unknown>;
-
-  if (typeof entry.sys !== "object" || entry.sys === null) {
+  if (!isRecord(entry.sys)) {
     throw new Error("Expected sys object");
   }
-  const sys = entry.sys as Record<string, unknown>;
+  const sys = entry.sys;
   if (typeof sys.id !== "string") {
     throw new Error("Expected sys.id to be a string");
   }
 
-  if (typeof entry.fields !== "object" || entry.fields === null) {
+  if (!isRecord(entry.fields)) {
     throw new Error("Expected fields object");
   }
-  const fields = entry.fields as Record<string, unknown>;
+  const fields = entry.fields;
   if (typeof fields.title !== "string") {
     throw new Error("Expected fields.title to be a string");
   }
@@ -145,7 +146,7 @@ function parseArticleCardRow(data: unknown): ArticleCardRow {
   };
 }
 
-async function getArticleCard(articleId: string): Promise<ArticleCardRow> {
+async function getArticleSummary(articleId: string): Promise<ArticleSummaryRow> {
   const params = new URLSearchParams({
     select: "sys.id,fields.title,fields.status",
     locale: "en-US",
@@ -156,19 +157,21 @@ async function getArticleCard(articleId: string): Promise<ArticleCardRow> {
   });
 
   const data: unknown = await response.json();
-  return parseArticleCardRow(data);
+  return parseArticleSummaryRow(data);
 }
 ```
 
 Did I just lose your attention?
 
-**Same screen**. **Same three fields**. Yet now you also own `ArticleCardRow`, a bespoke CMS fetch with hand-picked field selection, a hand-rolled parser for `sys`/`fields` with `typeof` checks — and all of it exists only because this handler needed a slice of data, while `Article` and `ArticleRepository` were already there.
+**Same screen**. **Same three fields**. Yet now you also own `ArticleSummaryRow`, an `isRecord` helper that looks reusable, a `parseArticleSummaryRow` function that walks `sys`/`fields` with `typeof` checks, and a bespoke CMS fetch with hand-picked field selection — all of it beside `Article` and `ArticleRepository`, which were already there.
 
-Worse, `ArticleCardRow` has started to drift from `Article`. The next change — a renamed status, a truncated title, a business rule about what "published" means — will either have to be reconciled back into `Article`, or, more likely, the LLM will patch the handler in place: duplicate the logic that already belongs in the entity, because that parallel type is now the path of least resistance.
+And then you notice the custom fetch has no retry logic, no DataLoader, none of the resilience or batching the repository may already have been giving you for free.
 
-So, eventually, the architecture stops reflecting the domain and starts reflecting implementation details.
+Worse, `ArticleSummaryRow` has started to drift from `Article`. The next change — a renamed status, a truncated title, a business rule about what "published" means — will either have to be reconciled back into `Article`, or, more likely, the LLM will patch the handler in place: duplicate the logic that already belongs in the entity, because that parallel type is now the path of least resistance.
 
-Navigating the codebase becomes increasingly difficult because the concepts themselves are **no longer meaningful**.
+So, eventually, the architecture stops reflecting **the domain** and starts reflecting **implementation details**.
+
+Navigating the codebase becomes increasingly difficult because the concepts themselves are **not meaningful**.
 
 The challenge is no longer:
 
@@ -244,9 +247,7 @@ Paradoxically, the easier code becomes to produce, the more important conceptual
 
 ## Conclusion
 
-AI does not reduce the value of Domain-Driven Design.
-
-It increases it.
+AI does not reduce the value of Domain-Driven Design. It increases it.
 
 When code generation becomes nearly free, the scarce resource is no longer implementation effort. The scarce resource becomes human understanding and memory.
 
@@ -256,6 +257,8 @@ They are mechanisms for cognitive compression.
 
 Their purpose is to ensure that the software remains aligned with concepts that humans can understand, remember, and reason about — even when an AI is generating most of the code.
 
-And there is another implication. The faster code gets written, the more projects need a structure that is not custom, but as uniform as possible. Let's say "standard", relative to the other projects in the same team or company. What used to take a year can now ship in a few weeks. If you cannot sense how an app is organized before you even open the codebase, the sheer volume — and the speed at which large chunks of it were written — will overwhelm you.
+And there is another implication. The faster code gets written, the more projects need a structure that is not custom, but as uniform as possible. Let's say "standard", at least relative to the other projects in the same team or company. What used to take a year can now ship in a few weeks. If you cannot sense how an app is organized before you even open the codebase, the sheer volume (and the speed at which large chunks of it were written) will overwhelm you.
 
-The future may belong to AI-assisted development. But the responsibility for keeping a project comprehensible, and therefore capable of evolving, remains fundamentally human.
+The future may belong to AI-assisted development.
+
+But the responsibility for keeping a project comprehensible, and therefore capable of evolving, remains fundamentally human.
