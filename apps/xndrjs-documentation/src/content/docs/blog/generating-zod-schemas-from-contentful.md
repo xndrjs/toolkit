@@ -73,13 +73,15 @@ My first codegen tried to paper over that with **branded types** on the link stu
 
 ## The actual gap: types vs. runtime
 
-The tools I had — both graphql-codegen and my custom tool — were good at one thing: **compile-time types**. They told the compiler what shape to expect. What they couldn't do:
+The tools I had — both graphql-codegen and my custom tool — were good at one thing: **compile-time types**. They told the compiler what shape to expect.
+
+What they couldn't do:
 
 - Validate what actually arrived at runtime
 - Normalize omitted keys, `undefined`, and explicit `null` into something consistent
 - Flatten a multi-locale field into a single locale on read
 - Narrow `Object` fields to a real inner shape
-- After resolving a link, narrow the entry to the content types the CMA allows for that field
+- **REST codegen only:** after resolving a link, narrow the entry to the content types the CMA allows for that field
 
 That's not a flaw in those tools — it's just what they're for. But the boundary between Contentful and my app was mine to own, and types alone weren't enough there.
 
@@ -217,6 +219,17 @@ switch (linked.sys.contentType.sys.id) {
 Wrong content type for the field → `LinkFieldTargetError` with the parent field id and the allowed list from the model.
 
 Architecturally: **unresolved link** = transport shape only; **resolved entry** = `parseEntryAsLinkField` + optional `switch` for multi-type fields. Inference lives where the data actually carries the content type — not on the stub.
+
+If you still need the **allowed target content types** before you fetch or resolve the link, use `getAllowedEntryLinkContentTypes`. It reads the same `linkContentType` rules from the snapshot, without pretending the Link reference carries that information:
+
+```ts
+import { getAllowedEntryLinkContentTypes } from "./generated/contentful.schemas";
+
+const allowed = getAllowedEntryLinkContentTypes("blogPost", "author");
+// readonly ["author"] — from CMA, not from the link JSON
+```
+
+Together, `getAllowedEntryLinkContentTypes` and `parseEntryAsLinkField` cover the usual REST/SDK link flow: know what you are allowed to resolve, fetch or include the entry, then parse and narrow on the resolved payload.
 
 ---
 
