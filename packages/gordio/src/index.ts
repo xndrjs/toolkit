@@ -1,8 +1,17 @@
 export { createEdgeKey } from "./graph/create-edge-key";
+export { createId, discoverArchitectureGraph } from "./discovery/index";
 export { ArchitectureGraphError } from "./graph/errors";
 export { mergeGraphFragments } from "./graph/merge";
 export { validateArchitectureGraph } from "./graph/validate";
 export { cleanArchitecturePreset } from "./presets/clean-architecture";
+export type {
+  DiscoveryContext,
+  DiscoveryOptions,
+  FileMatcher,
+  FileParser,
+  FileParserResult,
+  MatchedFile,
+} from "./discovery/index";
 export type {
   ArchitectureBox,
   ArchitectureEdge,
