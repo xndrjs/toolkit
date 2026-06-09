@@ -24,4 +24,15 @@ export default defineConfig([
       js: "#!/usr/bin/env node",
     },
   },
+  {
+    ...shared,
+    entry: {
+      viewer: "src/viewer/client/main.tsx",
+    },
+    outDir: "dist/viewer",
+    dts: false,
+    clean: false,
+    platform: "browser",
+    noExternal: ["@xyflow/react", "react", "react-dom"],
+  },
 ]);

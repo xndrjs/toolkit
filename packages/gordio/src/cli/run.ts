@@ -4,6 +4,7 @@ import path from "node:path";
 import { discoverArchitectureGraph } from "../discovery/discover";
 import type { ArchitectureGraph } from "../graph/types";
 import type { ArchitectureGraphDocument } from "../config/define-config";
+import { startViewerServer } from "../viewer/server";
 
 import { parseCliArgs, printCliHelp, validateCliOptions } from "./args";
 import { findConfigFile, loadConfigFile } from "./load-config";
@@ -55,6 +56,17 @@ export async function runCli(argv: string[], env: RunCliEnvironment = {}): Promi
 
   if (options.json) {
     stdout.write(json);
+  }
+
+  if (!options.json && !options.out) {
+    const server = await startViewerServer({
+      document,
+      ...(loaded.config.schema ? { schema: loaded.config.schema } : {}),
+      ...(options.host ? { host: options.host } : {}),
+      ...(options.port !== undefined ? { port: options.port } : {}),
+    });
+
+    stderr.write(`gordio dev: serving viewer at ${server.url}\n`);
   }
 
   return 0;
