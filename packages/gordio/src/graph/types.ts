@@ -6,6 +6,12 @@ export interface ArchitectureGraph {
   edges: ArchitectureEdge[];
 }
 
+export interface GraphFragment {
+  boxes?: ArchitectureBox[];
+  nodes?: ArchitectureNode[];
+  edges?: ArchitectureEdge[];
+}
+
 export interface ArchitectureBox {
   id: ArchitectureId;
   kind: string;
