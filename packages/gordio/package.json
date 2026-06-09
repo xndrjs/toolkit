@@ -10,6 +10,9 @@
     "directory": "packages/gordio"
   },
   "type": "module",
+  "bin": {
+    "gordio": "./dist/cli.js"
+  },
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
@@ -26,6 +29,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "gordio": "tsx src/cli.ts",
     "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
     "prepublishOnly": "pnpm run build",
     "lint": "eslint .",
@@ -36,5 +40,8 @@
   "devDependencies": {
     "tsup": "^8.5.1",
     "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "jiti": "^2.7.0"
   }
 }

@@ -1,12 +1,27 @@
-import { defineConfig } from "tsup";
+import { defineConfig, type Options } from "tsup";
 
-export default defineConfig({
-  entry: ["src/index.ts"],
+const shared: Options = {
   format: ["esm"],
   outDir: "dist",
-  dts: true,
   sourcemap: true,
-  clean: true,
   treeshake: true,
   splitting: false,
-});
+};
+
+export default defineConfig([
+  {
+    ...shared,
+    entry: ["src/index.ts"],
+    dts: true,
+    clean: true,
+  },
+  {
+    ...shared,
+    entry: ["src/cli.ts"],
+    dts: false,
+    clean: false,
+    banner: {
+      js: "#!/usr/bin/env node",
+    },
+  },
+]);
