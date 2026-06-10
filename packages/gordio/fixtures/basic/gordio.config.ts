@@ -41,12 +41,29 @@ export default defineConfig({
         const edges = JSON.parse(file.contents) as FixtureEdge[];
 
         return {
-          edges: edges.map((edge) => ({
-            sourceId: createEndpointId(edge, "source", context.createId),
-            targetId: createEndpointId(edge, "target", context.createId),
-            kind: edge.kind,
-            directed: true,
-          })),
+          edges: edges.map((edge) => {
+            const mapped: {
+              sourceId: string;
+              targetId: string;
+              kind: string;
+              directed: true;
+              metadata?: Record<string, unknown>;
+            } = {
+              sourceId: createEndpointId(edge, "source", context.createId),
+              targetId: createEndpointId(edge, "target", context.createId),
+              kind: edge.kind,
+              directed: true,
+            };
+
+            if (edge.sourceHandle !== undefined || edge.targetHandle !== undefined) {
+              mapped.metadata = {
+                ...(edge.sourceHandle !== undefined ? { sourceHandle: edge.sourceHandle } : {}),
+                ...(edge.targetHandle !== undefined ? { targetHandle: edge.targetHandle } : {}),
+              };
+            }
+
+            return mapped;
+          }),
         };
       },
     },
@@ -89,6 +106,8 @@ interface FixtureEdge {
   source: FixtureEndpoint;
   target: FixtureEndpoint;
   kind: string;
+  sourceHandle?: string;
+  targetHandle?: string;
 }
 
 type FixtureEndpoint =

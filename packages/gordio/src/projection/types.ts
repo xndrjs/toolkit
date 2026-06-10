@@ -65,6 +65,8 @@ export interface ReactFlowEdge {
   id: string;
   source: string;
   target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
   type: "architectureEdge";
   animated: boolean;
   data: ReactFlowEdgeData;

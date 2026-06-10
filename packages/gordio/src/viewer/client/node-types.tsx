@@ -51,10 +51,12 @@ function ArchitectureNode({ data }: NodeProps<Node<ViewerNodeData>>) {
 
   return (
     <article className={className}>
-      <Handle type="target" position={Position.Left} />
+      <Handle id="target-left" type="target" position={Position.Left} />
+      <Handle id="target-right" type="target" position={Position.Right} />
       <strong>{node?.title ?? "Untitled node"}</strong>
       <span>{node?.kind}</span>
-      <Handle type="source" position={Position.Right} />
+      <Handle id="source-left" type="source" position={Position.Left} />
+      <Handle id="source-right" type="source" position={Position.Right} />
     </article>
   );
 }

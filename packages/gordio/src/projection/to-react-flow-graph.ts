@@ -1,6 +1,7 @@
 import { createEdgeKey } from "../graph/create-edge-key";
 import type {
   ArchitectureBox,
+  ArchitectureEdge,
   ArchitectureId,
   ArchitectureNode,
   ArchitectureViewSchema,
@@ -57,6 +58,9 @@ export function toReactFlowGraph(options: ReactFlowProjectionOptions): ReactFlow
         data.kind = edge.kind;
       }
 
+      const sourceHandle = readEdgeHandle(edge.metadata, "sourceHandle");
+      const targetHandle = readEdgeHandle(edge.metadata, "targetHandle");
+
       return [
         {
           id,
@@ -65,6 +69,8 @@ export function toReactFlowGraph(options: ReactFlowProjectionOptions): ReactFlow
           type: "architectureEdge",
           animated: edge.directed === true,
           data,
+          ...(sourceHandle !== undefined ? { sourceHandle } : {}),
+          ...(targetHandle !== undefined ? { targetHandle } : {}),
         },
       ];
     }),
@@ -212,4 +218,12 @@ function getProjectedEndpoint(
 
 function createDefaultPosition() {
   return { x: 0, y: 0 };
+}
+
+function readEdgeHandle(
+  metadata: ArchitectureEdge["metadata"],
+  key: "sourceHandle" | "targetHandle"
+): string | undefined {
+  const value = metadata?.[key];
+  return typeof value === "string" ? value : undefined;
 }

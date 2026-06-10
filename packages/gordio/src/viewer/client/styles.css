@@ -160,3 +160,9 @@ body {
   font-size: 11px;
   margin-top: 2px;
 }
+
+.gordio-main .react-flow__handle {
+  background: transparent;
+  border: none;
+  opacity: 0;
+}

@@ -123,6 +123,363 @@
       "kind": "node",
       "prefix": "core",
       "package": "core-catalog",
+      "node": "publish-catalog-item"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "publish-product"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-left",
+    "targetHandle": "target-right"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "publish-catalog-item"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "calculate-price"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-left",
+    "targetHandle": "target-right"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "publish-catalog-item"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "cms-port"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "publish-catalog-item"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "product-repository"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "publish-catalog-item"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "search-index"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "place-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "submit-order"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-left",
+    "targetHandle": "target-right"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "place-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order-validation"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-left",
+    "targetHandle": "target-right"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "place-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order-pricing"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-left",
+    "targetHandle": "target-right"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "place-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order-repository"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "place-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "payment-gateway"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "place-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "customer-directory"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "cancel-order-use-case"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "cancel-order"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-left",
+    "targetHandle": "target-right"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "cancel-order-use-case"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order-repository"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "process-refund"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "refund-order"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-left",
+    "targetHandle": "target-right"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "process-refund"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "payment-gateway"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "process-refund"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order-repository"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "ship-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "fulfill-order"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-left",
+    "targetHandle": "target-right"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "ship-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "track-shipment"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-left",
+    "targetHandle": "target-right"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "ship-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "shipment-tracker"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "ship-order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order-repository"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "update-order-status"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order-repository"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
       "node": "cms-port"
     },
     "target": {

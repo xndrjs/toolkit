@@ -40,6 +40,8 @@ export function toViewerEdges(projection: ReactFlowGraph): Edge<ViewerEdgeData>[
     id: edge.id,
     source: edge.source,
     target: edge.target,
+    sourceHandle: edge.sourceHandle ?? "source-right",
+    targetHandle: edge.targetHandle ?? "target-left",
     animated: edge.animated,
     type: "default",
     data: edge.data as ViewerEdgeData,
