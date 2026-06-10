@@ -1,65 +1,61 @@
 [
   {
-    "sourcePrefix": "app",
-    "sourcePackage": "web",
-    "sourceNode": "composition-root",
-    "targetPrefix": "core",
-    "targetPackage": "core-orders",
-    "targetNode": "submit-order",
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "web",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "box",
+      "scope": "pkg",
+      "package": "core-catalog"
+    },
+    "kind": "opens"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "product"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "publish-product"
+    },
     "kind": "uses"
   },
   {
-    "sourcePrefix": "core",
-    "sourcePackage": "core-orders",
-    "sourceNode": "submit-order",
-    "targetPrefix": "core",
-    "targetPackage": "core-orders",
-    "targetNode": "order-repository",
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order-repository"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "infra",
+      "package": "orders-infra",
+      "node": "sql-order-repository"
+    },
     "kind": "uses"
   },
   {
-    "sourcePrefix": "infra",
-    "sourcePackage": "orders-infra",
-    "sourceNode": "sql-order-repository",
-    "targetPrefix": "core",
-    "targetPackage": "core-orders",
-    "targetNode": "order-repository",
-    "kind": "implements"
-  },
-  {
-    "sourcePrefix": "app",
-    "sourcePackage": "web",
-    "sourceNode": "composition-root",
-    "targetPrefix": "core",
-    "targetPackage": "core-catalog",
-    "targetNode": "publish-product",
-    "kind": "uses"
-  },
-  {
-    "sourcePrefix": "core",
-    "sourcePackage": "core-catalog",
-    "sourceNode": "publish-product",
-    "targetPrefix": "core",
-    "targetPackage": "core-catalog",
-    "targetNode": "product",
-    "kind": "uses"
-  },
-  {
-    "sourcePrefix": "core",
-    "sourcePackage": "core-catalog",
-    "sourceNode": "publish-catalog-item",
-    "targetPrefix": "core",
-    "targetPackage": "core-catalog",
-    "targetNode": "product-repository",
-    "kind": "uses"
-  },
-  {
-    "sourcePrefix": "core",
-    "sourcePackage": "core-catalog",
-    "sourceNode": "calculate-price",
-    "targetPrefix": "core",
-    "targetPackage": "core-catalog",
-    "targetNode": "pricing-rule",
-    "kind": "uses"
+    "source": {
+      "kind": "node",
+      "prefix": "infra",
+      "package": "orders-infra",
+      "node": "sql-order-repository"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "infra",
+      "package": "orders-infra",
+      "node": "orders-loader"
+    },
+    "kind": "loads"
   }
 ]

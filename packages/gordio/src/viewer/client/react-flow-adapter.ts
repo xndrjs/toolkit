@@ -1,7 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { ReactFlowGraph } from "../../projection/types";
-import { getBoxWidth, getNodeWidth } from "./layout-metrics";
+import { getBoxHeight, getBoxWidth, getNodeWidth } from "./layout-metrics";
 import type { ViewerEdgeData, ViewerNodeData } from "./types";
 
 export function toViewerNodes(projection: ReactFlowGraph): Node<ViewerNodeData>[] {
@@ -15,12 +15,8 @@ export function toViewerNodes(projection: ReactFlowGraph): Node<ViewerNodeData>[
       style:
         node.data.entity === "box"
           ? {
-              width: getBoxWidth(node.id, projection),
-              height: Math.max(
-                180,
-                projection.nodes.filter((candidate) => candidate.parentId === node.id).length * 54 +
-                  86
-              ),
+              width: node.data.width ?? getBoxWidth(node.id, projection),
+              height: node.data.height ?? getBoxHeight(node.id, projection),
             }
           : { width: getNodeWidth(node.data.node?.title ?? "") },
     };

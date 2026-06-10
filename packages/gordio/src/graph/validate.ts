@@ -29,12 +29,12 @@ export function validateArchitectureGraph(graph: ArchitectureGraph): Architectur
     }
     edgeKeys.add(key);
 
-    if (!nodeIds.has(edge.sourceId)) {
-      issues.push(`Edge "${key}" references missing source node "${edge.sourceId}"`);
+    if (!nodeIds.has(edge.sourceId) && !boxIds.has(edge.sourceId)) {
+      issues.push(`Edge "${key}" references missing source endpoint "${edge.sourceId}"`);
     }
 
-    if (!nodeIds.has(edge.targetId)) {
-      issues.push(`Edge "${key}" references missing target node "${edge.targetId}"`);
+    if (!nodeIds.has(edge.targetId) && !boxIds.has(edge.targetId)) {
+      issues.push(`Edge "${key}" references missing target endpoint "${edge.targetId}"`);
     }
   }
 

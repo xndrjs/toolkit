@@ -111,15 +111,17 @@ describe("startViewerServer", () => {
       });
       expect(nodeById.get("pkg:catalog")).toMatchObject({
         type: "architectureBox",
-        position: { x: 424, y: 80 },
+        data: { width: 1120 },
+        position: { x: 448, y: 80 },
       });
       expect(nodeById.get("pkg:orders")).toMatchObject({
         type: "architectureBox",
-        position: { x: 424, y: 340 },
+        data: { width: 1120 },
+        position: { x: 448, y: 340 },
       });
       expect(nodeById.get("pkg:orders-infra")).toMatchObject({
         type: "architectureBox",
-        position: { x: 1564, y: 80 },
+        position: { x: 1648, y: 80 },
       });
       expect(nodeById.get("core:catalog:product")).toMatchObject({
         parentId: "pkg:catalog",
@@ -127,23 +129,23 @@ describe("startViewerServer", () => {
       });
       expect(nodeById.get("core:catalog:publish-product")).toMatchObject({
         parentId: "pkg:catalog",
-        position: { x: 284, y: 56 },
+        position: { x: 304, y: 56 },
       });
       expect(nodeById.get("core:catalog:publish-catalog-item")).toMatchObject({
         parentId: "pkg:catalog",
-        position: { x: 544, y: 56 },
+        position: { x: 584, y: 56 },
       });
       expect(nodeById.get("core:catalog:product-repository")).toMatchObject({
         parentId: "pkg:catalog",
-        position: { x: 804, y: 56 },
+        position: { x: 864, y: 56 },
       });
       expect(nodeById.get("core:orders:submit-order")).toMatchObject({
         parentId: "pkg:orders",
-        position: { x: 24, y: 56 },
+        position: { x: 304, y: 56 },
       });
       expect(nodeById.get("core:orders:order-repository")).toMatchObject({
         parentId: "pkg:orders",
-        position: { x: 284, y: 56 },
+        position: { x: 864, y: 56 },
       });
       expect(projection.edges).toEqual([]);
     } finally {

@@ -37,15 +37,8 @@ export function toReactFlowGraph(options: ReactFlowProjectionOptions): ReactFlow
   return {
     nodes: [...boxNodes, ...childNodes],
     edges: graph.edges.flatMap((edge): ReactFlowEdge[] => {
-      const sourceNode = nodeById.get(edge.sourceId);
-      const targetNode = nodeById.get(edge.targetId);
-
-      if (!sourceNode || !targetNode) {
-        return [];
-      }
-
-      const source = getProjectedEndpoint(sourceNode, collapsedBoxIds, boxById);
-      const target = getProjectedEndpoint(targetNode, collapsedBoxIds, boxById);
+      const source = getProjectedEndpoint(edge.sourceId, nodeById, collapsedBoxIds, boxById);
+      const target = getProjectedEndpoint(edge.targetId, nodeById, collapsedBoxIds, boxById);
 
       if (!source || !target || source === target) {
         return [];
@@ -141,6 +134,12 @@ function createBoxNode(
     data.boxKind = boxKind;
   }
 
+  const size = viewState.boxSizes?.[box.id];
+  if (size !== undefined) {
+    data.width = size.width;
+    data.height = size.height;
+  }
+
   return {
     id: box.id,
     type: "architectureBox",
@@ -189,10 +188,17 @@ function createChildNode(
 }
 
 function getProjectedEndpoint(
-  node: ArchitectureNode,
+  endpointId: ArchitectureId,
+  nodeById: Map<ArchitectureId, ArchitectureNode>,
   collapsedBoxIds: Set<ArchitectureId>,
   boxById: Map<ArchitectureId, ArchitectureBox>
 ): ArchitectureId | undefined {
+  const node = nodeById.get(endpointId);
+
+  if (!node) {
+    return boxById.get(endpointId)?.id;
+  }
+
   if (!collapsedBoxIds.has(node.boxId)) {
     return node.id;
   }

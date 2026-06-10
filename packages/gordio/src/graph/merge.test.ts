@@ -243,7 +243,7 @@ describe("validateArchitectureGraph", () => {
         ],
       })
     ).toThrow(
-      /Node "core:orders:SubmitOrder" references missing box "pkg:missing"[\s\S]*references missing target node "core:orders:MissingPort"/
+      /Node "core:orders:SubmitOrder" references missing box "pkg:missing"[\s\S]*references missing target endpoint "core:orders:MissingPort"/
     );
   });
 

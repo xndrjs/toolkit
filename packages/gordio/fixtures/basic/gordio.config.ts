@@ -41,8 +41,8 @@ export default defineConfig({
 
         return {
           edges: edges.map((edge) => ({
-            sourceId: context.createId(edge.sourcePrefix, edge.sourcePackage, edge.sourceNode),
-            targetId: context.createId(edge.targetPrefix, edge.targetPackage, edge.targetNode),
+            sourceId: createEndpointId(edge, "source", context.createId),
+            targetId: createEndpointId(edge, "target", context.createId),
             kind: edge.kind,
             directed: true,
           })),
@@ -51,6 +51,20 @@ export default defineConfig({
     },
   ],
 });
+
+function createEndpointId(
+  edge: FixtureEdge,
+  side: "source" | "target",
+  createId: (...parts: string[]) => string
+): string {
+  const endpoint = edge[side];
+
+  if (endpoint.kind === "box") {
+    return createId(endpoint.scope, endpoint.package);
+  }
+
+  return createId(endpoint.prefix, endpoint.package, endpoint.node);
+}
 
 interface FixtureManifest {
   name: string;
@@ -71,11 +85,20 @@ interface FixtureNode {
 }
 
 interface FixtureEdge {
-  sourcePrefix: string;
-  sourcePackage: string;
-  sourceNode: string;
-  targetPrefix: string;
-  targetPackage: string;
-  targetNode: string;
+  source: FixtureEndpoint;
+  target: FixtureEndpoint;
   kind: string;
 }
+
+type FixtureEndpoint =
+  | {
+      kind: "node";
+      prefix: string;
+      package: string;
+      node: string;
+    }
+  | {
+      kind: "box";
+      scope: "app" | "pkg";
+      package: string;
+    };

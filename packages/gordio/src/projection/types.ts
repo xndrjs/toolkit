@@ -20,6 +20,7 @@ export interface ReactFlowProjectionOptions {
 export interface ArchitectureViewState {
   collapsedBoxIds?: readonly ArchitectureId[];
   boxPositions?: Record<ArchitectureId, ReactFlowPosition>;
+  boxSizes?: Record<ArchitectureId, ReactFlowSize>;
   nodePositions?: Record<ArchitectureId, ReactFlowPosition>;
 }
 
@@ -47,6 +48,8 @@ export interface ReactFlowNodeData {
   slot?: SlotDefinition;
   collapsed?: boolean;
   renderAs?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface ReactFlowEdge {
@@ -70,4 +73,9 @@ export interface ReactFlowEdgeData {
 export interface ReactFlowPosition {
   x: number;
   y: number;
+}
+
+export interface ReactFlowSize {
+  width: number;
+  height: number;
 }

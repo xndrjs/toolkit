@@ -11,6 +11,11 @@
         "id": "sql-order-repository",
         "kind": "repository",
         "title": "SqlOrderRepository"
+      },
+      {
+        "id": "orders-loader",
+        "kind": "loader",
+        "title": "OrdersLoader"
       }
     ]
   }

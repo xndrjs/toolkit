@@ -13,13 +13,16 @@ import { cleanArchitecturePreset } from "../presets/clean-architecture";
 
 const BOX_TOP_OFFSET = 80;
 const BOX_LEFT_OFFSET = 64;
-const BOX_ROW_GAP = 260;
+const BOX_VERTICAL_GAP = 80;
 const LANE_GAP = 80;
-const SLOT_COLUMN_WIDTH = 260;
+const SLOT_COLUMN_GAP = 48;
 const NODE_LEFT_OFFSET = 24;
 const NODE_TOP_OFFSET = 56;
-const NODE_ROW_GAP = 48;
+const NODE_ROW_HEIGHT = 42;
+const NODE_ROW_GAP = 16;
+const BOX_BOTTOM_PADDING = 32;
 const BOX_MIN_WIDTH = 280;
+const BOX_MIN_HEIGHT = 180;
 const NODE_MIN_WIDTH = 232;
 const NODE_HORIZONTAL_PADDING = 36;
 const TEXT_CHARACTER_WIDTH = 8;
@@ -126,7 +129,7 @@ function createDeterministicViewState(
   const boxesById = new Map(graph.boxes.map((box) => [box.id, box]));
   const boxKindsById = new Map(schema.boxKinds.map((boxKind) => [boxKind.id, boxKind]));
   const nodeKindsById = new Map(schema.nodeKinds.map((nodeKind) => [nodeKind.id, nodeKind]));
-  const activeSlotColumnsByBoxId = createActiveSlotColumnsByBoxId(
+  const slotLayoutsByBoxKindId = createSlotLayoutsByBoxKindId(
     graph,
     boxesById,
     boxKindsById,
@@ -137,10 +140,12 @@ function createDeterministicViewState(
     boxesById,
     boxKindsById,
     nodeKindsById,
-    activeSlotColumnsByBoxId
+    slotLayoutsByBoxKindId
   );
+  const boxHeightsById = createBoxHeightsById(graph, boxesById, boxKindsById, nodeKindsById);
   const boxesByLane = new Map<string, ArchitectureId[]>();
   const boxPositions: NonNullable<ArchitectureViewState["boxPositions"]> = {};
+  const boxSizes: NonNullable<ArchitectureViewState["boxSizes"]> = {};
   const nodePositions: NonNullable<ArchitectureViewState["nodePositions"]> = {};
 
   for (const box of graph.boxes) {
@@ -150,6 +155,7 @@ function createDeterministicViewState(
   }
 
   const laneOffsetsById = createLaneOffsetsById(schema, boxesByLane, boxWidthsById);
+  const laneWidthsById = createLaneWidthsById(schema, boxesByLane, boxWidthsById);
 
   const sortedBoxes = [...graph.boxes].sort((left, right) => {
     const leftLane = lanesById.get(left.laneId)?.order ?? Number.MAX_SAFE_INTEGER;
@@ -164,17 +170,38 @@ function createDeterministicViewState(
 
   for (const box of sortedBoxes) {
     const laneBoxes = boxesByLane.get(box.laneId) ?? [];
-    const laneIndex = laneBoxes.sort().indexOf(box.id);
+    const sortedLaneBoxes = laneBoxes
+      .map((boxId) => boxesById.get(boxId))
+      .filter(
+        (candidate): candidate is ArchitectureGraph["boxes"][number] => candidate !== undefined
+      )
+      .sort(
+        (left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id)
+      );
+    const previousBoxes = sortedLaneBoxes.slice(
+      0,
+      sortedLaneBoxes.findIndex((candidate) => candidate.id === box.id)
+    );
+    const previousHeight = previousBoxes.reduce(
+      (height, previousBox) => height + (boxHeightsById.get(previousBox.id) ?? BOX_MIN_HEIGHT),
+      0
+    );
+    const previousGaps = Math.max(previousBoxes.length, 0) * BOX_VERTICAL_GAP;
 
     boxPositions[box.id] = {
       x: laneOffsetsById.get(box.laneId) ?? BOX_LEFT_OFFSET,
-      y: BOX_TOP_OFFSET + Math.max(laneIndex, 0) * BOX_ROW_GAP,
+      y: BOX_TOP_OFFSET + previousHeight + previousGaps,
+    };
+    boxSizes[box.id] = {
+      width: laneWidthsById.get(box.laneId) ?? boxWidthsById.get(box.id) ?? BOX_MIN_WIDTH,
+      height: boxHeightsById.get(box.id) ?? BOX_MIN_HEIGHT,
     };
   }
 
   for (const node of graph.nodes) {
     const slotId = getNodeSlotId(node, boxesById, boxKindsById, nodeKindsById);
-    const slotColumn = activeSlotColumnsByBoxId.get(node.boxId)?.get(slotId) ?? 0;
+    const box = boxesById.get(node.boxId);
+    const slotX = box ? slotLayoutsByBoxKindId.get(box.kind)?.get(slotId)?.x : undefined;
     const siblings = graph.nodes
       .filter(
         (candidate) =>
@@ -187,12 +214,12 @@ function createDeterministicViewState(
     const siblingIndex = siblings.findIndex((candidate) => candidate.id === node.id);
 
     nodePositions[node.id] = {
-      x: NODE_LEFT_OFFSET + slotColumn * SLOT_COLUMN_WIDTH,
-      y: NODE_TOP_OFFSET + Math.max(siblingIndex, 0) * NODE_ROW_GAP,
+      x: slotX ?? NODE_LEFT_OFFSET,
+      y: NODE_TOP_OFFSET + Math.max(siblingIndex, 0) * (NODE_ROW_HEIGHT + NODE_ROW_GAP),
     };
   }
 
-  return { boxPositions, nodePositions };
+  return { boxPositions, boxSizes, nodePositions };
 }
 
 function createLaneOffsetsById(
@@ -217,27 +244,72 @@ function createLaneOffsetsById(
   return offsetsById;
 }
 
+function createLaneWidthsById(
+  schema: ArchitectureViewSchema,
+  boxesByLane: Map<string, ArchitectureId[]>,
+  boxWidthsById: Map<ArchitectureId, number>
+): Map<string, number> {
+  return new Map(
+    schema.lanes.map((lane) => {
+      const boxIds = boxesByLane.get(lane.id) ?? [];
+      const laneWidth = Math.max(
+        BOX_MIN_WIDTH,
+        ...boxIds.map((boxId) => boxWidthsById.get(boxId) ?? BOX_MIN_WIDTH)
+      );
+
+      return [lane.id, laneWidth];
+    })
+  );
+}
+
 function createBoxWidthsById(
   graph: ArchitectureGraph,
   boxesById: Map<ArchitectureId, ArchitectureGraph["boxes"][number]>,
   boxKindsById: Map<string, ArchitectureViewSchema["boxKinds"][number]>,
   nodeKindsById: Map<string, ArchitectureViewSchema["nodeKinds"][number]>,
-  activeSlotColumnsByBoxId: Map<ArchitectureId, Map<string, number>>
+  slotLayoutsByBoxKindId: Map<string, Map<string, SlotLayout>>
 ): Map<ArchitectureId, number> {
   return new Map(
     graph.boxes.map((box) => {
       const childNodes = graph.nodes.filter((node) => node.boxId === box.id);
-      const slotColumns = activeSlotColumnsByBoxId.get(box.id);
+      const slotLayouts = slotLayoutsByBoxKindId.get(box.kind);
       const maxChildRight = Math.max(
         0,
         ...childNodes.map((node) => {
           const slotId = getNodeSlotId(node, boxesById, boxKindsById, nodeKindsById);
-          const slotColumn = slotColumns?.get(slotId) ?? 0;
-          return NODE_LEFT_OFFSET + slotColumn * SLOT_COLUMN_WIDTH + getNodeWidth(node.title);
+          const slotLayout = slotLayouts?.get(slotId);
+          return (slotLayout?.x ?? NODE_LEFT_OFFSET) + getNodeWidth(node.title);
         })
       );
+      const maxSlotRight = Math.max(
+        0,
+        ...[...(slotLayouts?.values() ?? [])].map((slotLayout) => slotLayout.x + slotLayout.width)
+      );
 
-      return [box.id, Math.max(BOX_MIN_WIDTH, maxChildRight + NODE_LEFT_OFFSET)];
+      return [box.id, Math.max(BOX_MIN_WIDTH, maxChildRight, maxSlotRight) + NODE_LEFT_OFFSET];
+    })
+  );
+}
+
+function createBoxHeightsById(
+  graph: ArchitectureGraph,
+  boxesById: Map<ArchitectureId, ArchitectureGraph["boxes"][number]>,
+  boxKindsById: Map<string, ArchitectureViewSchema["boxKinds"][number]>,
+  nodeKindsById: Map<string, ArchitectureViewSchema["nodeKinds"][number]>
+): Map<ArchitectureId, number> {
+  return new Map(
+    graph.boxes.map((box) => {
+      const maxSlotNodeCount = Math.max(
+        0,
+        ...countNodesBySlot(graph, box.id, boxesById, boxKindsById, nodeKindsById).values()
+      );
+      const contentHeight =
+        NODE_TOP_OFFSET +
+        maxSlotNodeCount * NODE_ROW_HEIGHT +
+        Math.max(maxSlotNodeCount - 1, 0) * NODE_ROW_GAP +
+        BOX_BOTTOM_PADDING;
+
+      return [box.id, Math.max(BOX_MIN_HEIGHT, contentHeight)];
     })
   );
 }
@@ -246,35 +318,77 @@ function getNodeWidth(title: string): number {
   return Math.max(NODE_MIN_WIDTH, title.length * TEXT_CHARACTER_WIDTH + NODE_HORIZONTAL_PADDING);
 }
 
-function createActiveSlotColumnsByBoxId(
+interface SlotLayout {
+  x: number;
+  width: number;
+}
+
+function createSlotLayoutsByBoxKindId(
   graph: ArchitectureGraph,
   boxesById: Map<ArchitectureId, ArchitectureGraph["boxes"][number]>,
   boxKindsById: Map<string, ArchitectureViewSchema["boxKinds"][number]>,
   nodeKindsById: Map<string, ArchitectureViewSchema["nodeKinds"][number]>
-): Map<ArchitectureId, Map<string, number>> {
-  const slotIdsByBoxId = new Map<ArchitectureId, Set<string>>();
+): Map<string, Map<string, SlotLayout>> {
+  const nodesBySlotByBoxKindId = new Map<string, Map<string, ArchitectureGraph["nodes"]>>();
 
   for (const node of graph.nodes) {
+    const box = boxesById.get(node.boxId);
+    if (!box) {
+      continue;
+    }
+
     const slotId = getNodeSlotId(node, boxesById, boxKindsById, nodeKindsById);
-    const slotIds = slotIdsByBoxId.get(node.boxId) ?? new Set<string>();
-    slotIds.add(slotId);
-    slotIdsByBoxId.set(node.boxId, slotIds);
+    const nodesBySlot =
+      nodesBySlotByBoxKindId.get(box.kind) ?? new Map<string, ArchitectureGraph["nodes"]>();
+    const slotNodes = nodesBySlot.get(slotId) ?? [];
+    slotNodes.push(node);
+    nodesBySlot.set(slotId, slotNodes);
+    nodesBySlotByBoxKindId.set(box.kind, nodesBySlot);
   }
 
   return new Map(
-    [...slotIdsByBoxId.entries()].map(([boxId, slotIds]) => [
-      boxId,
-      new Map(
-        [...slotIds]
-          .sort(
-            (left, right) =>
-              getSlotOrder(boxId, left, boxesById, boxKindsById) -
-                getSlotOrder(boxId, right, boxesById, boxKindsById) || left.localeCompare(right)
-          )
-          .map((slotId, index) => [slotId, index])
-      ),
-    ])
+    [...boxKindsById.values()].map((boxKind) => {
+      let nextX = NODE_LEFT_OFFSET;
+      const slotLayouts = new Map<string, SlotLayout>();
+      const nodesBySlot =
+        nodesBySlotByBoxKindId.get(boxKind.id) ?? new Map<string, ArchitectureGraph["nodes"]>();
+
+      for (const slot of [...boxKind.slots].sort(
+        (left, right) => left.order - right.order || left.id.localeCompare(right.id)
+      )) {
+        const slotNodes = nodesBySlot.get(slot.id) ?? [];
+        const width = Math.max(
+          NODE_MIN_WIDTH,
+          ...slotNodes.map((node) => getNodeWidth(node.title))
+        );
+        slotLayouts.set(slot.id, { x: nextX, width });
+        nextX += width + SLOT_COLUMN_GAP;
+      }
+
+      return [boxKind.id, slotLayouts];
+    })
   );
+}
+
+function countNodesBySlot(
+  graph: ArchitectureGraph,
+  boxId: ArchitectureId,
+  boxesById: Map<ArchitectureId, ArchitectureGraph["boxes"][number]>,
+  boxKindsById: Map<string, ArchitectureViewSchema["boxKinds"][number]>,
+  nodeKindsById: Map<string, ArchitectureViewSchema["nodeKinds"][number]>
+): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const node of graph.nodes) {
+    if (node.boxId !== boxId) {
+      continue;
+    }
+
+    const slotId = getNodeSlotId(node, boxesById, boxKindsById, nodeKindsById);
+    counts.set(slotId, (counts.get(slotId) ?? 0) + 1);
+  }
+
+  return counts;
 }
 
 function getNodeSlotId(
@@ -290,18 +404,6 @@ function getNodeSlotId(
   const slot = boxKind?.slots.find((candidate) => candidate.id === slotId);
 
   return slot?.id ?? slotId ?? "default";
-}
-
-function getSlotOrder(
-  boxId: ArchitectureId,
-  slotId: string,
-  boxesById: Map<ArchitectureId, ArchitectureGraph["boxes"][number]>,
-  boxKindsById: Map<string, ArchitectureViewSchema["boxKinds"][number]>
-): number {
-  const box = boxesById.get(boxId);
-  const boxKind = box ? boxKindsById.get(box.kind) : undefined;
-
-  return boxKind?.slots.find((slot) => slot.id === slotId)?.order ?? Number.MAX_SAFE_INTEGER;
 }
 
 function respond(
