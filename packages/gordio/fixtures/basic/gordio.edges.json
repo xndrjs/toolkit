@@ -32,13 +32,163 @@
     "source": {
       "kind": "node",
       "prefix": "core",
+      "package": "core-billing",
+      "node": "billing-account"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-billing",
+      "node": "charge-customer"
+    },
+    "kind": "uses"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "submit-order"
+    },
+    "kind": "uses"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "cancel-order"
+    },
+    "kind": "uses"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "order"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "fulfill-order"
+    },
+    "kind": "uses"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "payment"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "refund-order"
+    },
+    "kind": "uses"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "shipment"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "track-shipment"
+    },
+    "kind": "uses"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "cms-port"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "infra",
+      "package": "contentful",
+      "node": "contentful-cms-repository"
+    },
+    "kind": "uses"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "infra",
+      "package": "contentful",
+      "node": "contentful-cms-repository"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "infra",
+      "package": "contentful",
+      "node": "contentful-loader"
+    },
+    "kind": "loads"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "product-repository"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "infra",
+      "package": "postgres",
+      "node": "sql-product-repository"
+    },
+    "kind": "uses"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "search-index"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "infra",
+      "package": "elasticsearch",
+      "node": "elasticsearch-search-adapter"
+    },
+    "kind": "uses"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
       "package": "core-orders",
       "node": "order-repository"
     },
     "target": {
       "kind": "node",
       "prefix": "infra",
-      "package": "orders-infra",
+      "package": "postgres",
       "node": "sql-order-repository"
     },
     "kind": "uses"
@@ -47,15 +197,30 @@
     "source": {
       "kind": "node",
       "prefix": "infra",
-      "package": "orders-infra",
+      "package": "postgres",
       "node": "sql-order-repository"
     },
     "target": {
       "kind": "node",
       "prefix": "infra",
-      "package": "orders-infra",
-      "node": "orders-loader"
+      "package": "postgres",
+      "node": "postgres-loader"
     },
     "kind": "loads"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "payment-gateway"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "infra",
+      "package": "stripe",
+      "node": "stripe-payment-adapter"
+    },
+    "kind": "uses"
   }
 ]

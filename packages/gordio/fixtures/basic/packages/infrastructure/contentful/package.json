@@ -1,0 +1,22 @@
+{
+  "name": "@fixture/infrastructure-contentful",
+  "private": true,
+  "gordio": {
+    "title": "Contentful",
+    "laneId": "infrastructure",
+    "boxKind": "infrastructure-package",
+    "nodeIdPrefix": "infra",
+    "nodes": [
+      {
+        "id": "contentful-cms-repository",
+        "kind": "repository",
+        "title": "ContentfulCmsRepository"
+      },
+      {
+        "id": "contentful-loader",
+        "kind": "loader",
+        "title": "ContentfulLoader"
+      }
+    ]
+  }
+}

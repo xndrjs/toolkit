@@ -5,12 +5,13 @@ export default defineConfig({
   matchers: [
     {
       id: "fixture-manifest",
-      include: ["apps/*/package.json", "packages/*/package.json"],
+      include: ["apps/*/package.json", "packages/**/package.json"],
       parse(file, context) {
         const manifest = JSON.parse(file.contents) as FixtureManifest;
         const graph = manifest.gordio;
         const scope = file.relativePath.startsWith("apps/") ? "app" : "pkg";
-        const packageName = file.relativePath.split("/")[1] ?? manifest.name;
+        const pathSegments = file.relativePath.split("/");
+        const packageName = pathSegments.at(-2) ?? manifest.name;
         const boxId = context.createId(scope, packageName);
 
         return {

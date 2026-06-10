@@ -1,0 +1,17 @@
+{
+  "name": "@fixture/infrastructure-elasticsearch",
+  "private": true,
+  "gordio": {
+    "title": "Elasticsearch",
+    "laneId": "infrastructure",
+    "boxKind": "infrastructure-package",
+    "nodeIdPrefix": "infra",
+    "nodes": [
+      {
+        "id": "elasticsearch-search-adapter",
+        "kind": "adapter",
+        "title": "ElasticSearchAdapter"
+      }
+    ]
+  }
+}

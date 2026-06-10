@@ -1,8 +1,8 @@
 {
-  "name": "@fixture/orders-infra",
+  "name": "@fixture/infrastructure-postgres",
   "private": true,
   "gordio": {
-    "title": "Orders Infrastructure",
+    "title": "PostgreSQL",
     "laneId": "infrastructure",
     "boxKind": "infrastructure-package",
     "nodeIdPrefix": "infra",
@@ -13,9 +13,14 @@
         "title": "SqlOrderRepository"
       },
       {
-        "id": "orders-loader",
+        "id": "sql-product-repository",
+        "kind": "repository",
+        "title": "SqlProductRepository"
+      },
+      {
+        "id": "postgres-loader",
         "kind": "loader",
-        "title": "OrdersLoader"
+        "title": "PostgresLoader"
       }
     ]
   }

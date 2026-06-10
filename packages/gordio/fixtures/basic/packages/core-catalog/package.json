@@ -33,6 +33,11 @@
         "title": "PublishCatalogItem"
       },
       {
+        "id": "cms-port",
+        "kind": "port",
+        "title": "CmsPort"
+      },
+      {
         "id": "product-repository",
         "kind": "port",
         "title": "ProductRepository"

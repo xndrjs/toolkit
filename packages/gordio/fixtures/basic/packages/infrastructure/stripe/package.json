@@ -1,0 +1,17 @@
+{
+  "name": "@fixture/infrastructure-stripe",
+  "private": true,
+  "gordio": {
+    "title": "Stripe",
+    "laneId": "infrastructure",
+    "boxKind": "infrastructure-package",
+    "nodeIdPrefix": "infra",
+    "nodes": [
+      {
+        "id": "stripe-payment-adapter",
+        "kind": "adapter",
+        "title": "StripePaymentAdapter"
+      }
+    ]
+  }
+}

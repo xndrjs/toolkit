@@ -8,14 +8,124 @@
     "nodeIdPrefix": "core",
     "nodes": [
       {
+        "id": "order",
+        "kind": "model",
+        "title": "Order"
+      },
+      {
+        "id": "order-line",
+        "kind": "model",
+        "title": "OrderLine"
+      },
+      {
+        "id": "customer",
+        "kind": "model",
+        "title": "Customer"
+      },
+      {
+        "id": "payment",
+        "kind": "model",
+        "title": "Payment"
+      },
+      {
+        "id": "shipment",
+        "kind": "model",
+        "title": "Shipment"
+      },
+      {
+        "id": "address",
+        "kind": "model",
+        "title": "Address"
+      },
+      {
+        "id": "product-snapshot",
+        "kind": "model",
+        "title": "ProductSnapshot"
+      },
+      {
+        "id": "invoice-ref",
+        "kind": "model",
+        "title": "InvoiceRef"
+      },
+      {
         "id": "submit-order",
         "kind": "capability",
         "title": "SubmitOrder"
       },
       {
+        "id": "cancel-order",
+        "kind": "capability",
+        "title": "CancelOrder"
+      },
+      {
+        "id": "fulfill-order",
+        "kind": "capability",
+        "title": "FulfillOrder"
+      },
+      {
+        "id": "refund-order",
+        "kind": "capability",
+        "title": "RefundOrder"
+      },
+      {
+        "id": "track-shipment",
+        "kind": "capability",
+        "title": "TrackShipment"
+      },
+      {
+        "id": "order-pricing",
+        "kind": "service",
+        "title": "OrderPricingService"
+      },
+      {
+        "id": "order-validation",
+        "kind": "service",
+        "title": "OrderValidationService"
+      },
+      {
+        "id": "place-order",
+        "kind": "use-case",
+        "title": "PlaceOrder"
+      },
+      {
+        "id": "cancel-order-use-case",
+        "kind": "use-case",
+        "title": "CancelOrderUseCase"
+      },
+      {
+        "id": "process-refund",
+        "kind": "use-case",
+        "title": "ProcessRefund"
+      },
+      {
+        "id": "ship-order",
+        "kind": "use-case",
+        "title": "ShipOrder"
+      },
+      {
+        "id": "update-order-status",
+        "kind": "use-case",
+        "title": "UpdateOrderStatus"
+      },
+      {
         "id": "order-repository",
         "kind": "port",
         "title": "OrderRepository"
+      },
+      {
+        "id": "payment-gateway",
+        "kind": "port",
+        "title": "PaymentGateway"
+      },
+      {
+        "id": "shipment-tracker",
+        "kind": "port",
+        "title": "ShipmentTracker"
+      },
+      {
+        "id": "customer-directory",
+        "kind": "port",
+        "title": "CustomerDirectory"
       }
     ]
   }

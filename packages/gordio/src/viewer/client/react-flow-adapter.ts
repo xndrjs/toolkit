@@ -39,7 +39,7 @@ export function toViewerEdges(projection: ReactFlowGraph): Edge<ViewerEdgeData>[
     source: edge.source,
     target: edge.target,
     animated: edge.animated,
-    type: "smoothstep",
+    type: "default",
     data: edge.data as ViewerEdgeData,
     style: {
       stroke: edge.data.kind === "implements" ? "#9a6bdb" : "#5a7ccf",

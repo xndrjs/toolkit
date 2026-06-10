@@ -125,27 +125,27 @@ describe("startViewerServer", () => {
       });
       expect(nodeById.get("core:catalog:product")).toMatchObject({
         parentId: "pkg:catalog",
-        position: { x: 24, y: 56 },
+        position: { x: 24, y: 76 },
       });
       expect(nodeById.get("core:catalog:publish-product")).toMatchObject({
         parentId: "pkg:catalog",
-        position: { x: 304, y: 56 },
+        position: { x: 304, y: 76 },
       });
       expect(nodeById.get("core:catalog:publish-catalog-item")).toMatchObject({
         parentId: "pkg:catalog",
-        position: { x: 584, y: 56 },
+        position: { x: 584, y: 76 },
       });
       expect(nodeById.get("core:catalog:product-repository")).toMatchObject({
         parentId: "pkg:catalog",
-        position: { x: 864, y: 56 },
+        position: { x: 864, y: 76 },
       });
       expect(nodeById.get("core:orders:submit-order")).toMatchObject({
         parentId: "pkg:orders",
-        position: { x: 304, y: 56 },
+        position: { x: 304, y: 76 },
       });
       expect(nodeById.get("core:orders:order-repository")).toMatchObject({
         parentId: "pkg:orders",
-        position: { x: 864, y: 56 },
+        position: { x: 864, y: 76 },
       });
       expect(projection.edges).toEqual([]);
     } finally {

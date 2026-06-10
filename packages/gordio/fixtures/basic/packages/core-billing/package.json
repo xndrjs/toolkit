@@ -1,0 +1,27 @@
+{
+  "name": "@fixture/core-billing",
+  "private": true,
+  "gordio": {
+    "title": "Billing Core",
+    "laneId": "core",
+    "boxKind": "core-package",
+    "nodeIdPrefix": "core",
+    "nodes": [
+      {
+        "id": "invoice",
+        "kind": "model",
+        "title": "Invoice"
+      },
+      {
+        "id": "billing-account",
+        "kind": "model",
+        "title": "BillingAccount"
+      },
+      {
+        "id": "charge-customer",
+        "kind": "capability",
+        "title": "ChargeCustomer"
+      }
+    ]
+  }
+}
