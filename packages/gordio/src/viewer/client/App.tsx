@@ -1,4 +1,10 @@
-import { Background, Controls, ReactFlow, ReactFlowProvider } from "@xyflow/react";
+import {
+  Background,
+  Controls,
+  ReactFlow,
+  ReactFlowProvider,
+  type NodeMouseHandler,
+} from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { toReactFlowGraph } from "../../projection/to-react-flow-graph";
@@ -7,7 +13,7 @@ import { applyArchitecturePolicies } from "../../view/policies/index";
 import { loadViewerPayload } from "./load-viewer-payload";
 import { nodeTypes } from "./node-types";
 import { toViewerEdges, toViewerNodes } from "./react-flow-adapter";
-import type { ViewerPayload, ViewerStatus } from "./types";
+import type { ViewerNodeData, ViewerPayload, ViewerStatus } from "./types";
 import { ViewerFrame } from "./ViewerFrame";
 import { ViewerInteractionProvider } from "./viewer-interaction-context";
 
@@ -51,6 +57,19 @@ export function App() {
 function ReadyViewer({ payload }: { payload: ViewerPayload }) {
   const { graphDocument, schema } = payload;
   const [viewState, setViewState] = useState<ArchitectureViewState>(payload.viewState);
+  const applyPolicy = useCallback(
+    (event: Parameters<typeof applyArchitecturePolicies>[0]["event"]) => {
+      setViewState((current) =>
+        applyArchitecturePolicies({
+          graph: graphDocument.graph,
+          schema,
+          viewState: current,
+          event,
+        })
+      );
+    },
+    [graphDocument.graph, schema]
+  );
   const projection = useMemo(
     () =>
       toReactFlowGraph({
@@ -60,21 +79,47 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
       }),
     [graphDocument.graph, schema, viewState]
   );
-  const nodes = useMemo(() => toViewerNodes(projection), [projection]);
-  const edges = useMemo(() => toViewerEdges(projection), [projection]);
+  const nodes = useMemo(() => toViewerNodes(projection, viewState), [projection, viewState]);
+  const edges = useMemo(() => toViewerEdges(projection, viewState), [projection, viewState]);
   const toggleBoxCollapse = useCallback(
     (boxId: string) => {
-      setViewState((current) =>
-        applyArchitecturePolicies({
-          graph: graphDocument.graph,
-          schema,
-          viewState: current,
-          event: { type: "toggle-box-collapse", boxId },
-        })
-      );
+      applyPolicy({ type: "toggle-box-collapse", boxId });
     },
-    [graphDocument.graph, schema]
+    [applyPolicy]
   );
+  const handleNodeClick = useCallback<NodeMouseHandler>(
+    (_, node) => {
+      if (node.type !== "architectureNode") {
+        return;
+      }
+
+      const data = node.data as ViewerNodeData;
+      if (!data.node) {
+        return;
+      }
+
+      if (data.node.kind === "composition-root") {
+        setViewState((current) =>
+          applyArchitecturePolicies({
+            graph: graphDocument.graph,
+            schema,
+            viewState: current,
+            event:
+              current.selectedId === node.id
+                ? { type: "clear-selection" }
+                : { type: "select-composition-root", nodeId: node.id },
+          })
+        );
+        return;
+      }
+
+      applyPolicy({ type: "select-node", nodeId: node.id });
+    },
+    [applyPolicy, graphDocument.graph, schema]
+  );
+  const handlePaneClick = useCallback(() => {
+    applyPolicy({ type: "clear-selection" });
+  }, [applyPolicy]);
   const summary = [
     `${graphDocument.graph.boxes.length} boxes`,
     `${graphDocument.graph.nodes.length} nodes`,
@@ -90,6 +135,8 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
             nodeTypes={nodeTypes}
             nodes={nodes}
             edges={edges}
+            onNodeClick={handleNodeClick}
+            onPaneClick={handlePaneClick}
             proOptions={{ hideAttribution: true }}
           >
             <Background />

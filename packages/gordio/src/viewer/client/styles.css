@@ -166,3 +166,35 @@ body {
   border: none;
   opacity: 0;
 }
+
+.gordio-main .react-flow__edge path {
+  stroke-dasharray: none;
+}
+
+.gordio-box-node.gordio-visual-muted,
+.gordio-child-node.gordio-visual-muted {
+  opacity: 0.28;
+}
+
+.gordio-box-node.gordio-visual-highlighted {
+  border-color: #5a7ccf;
+  box-shadow:
+    0 0 0 2px rgba(90, 124, 207, 0.28),
+    0 12px 28px rgba(27, 39, 65, 0.12);
+}
+
+.gordio-child-node.gordio-visual-highlighted {
+  background: #dfeaff;
+  border-color: #5a7ccf;
+  box-shadow: 0 0 0 2px rgba(90, 124, 207, 0.22);
+}
+
+.gordio-child-node.signature.gordio-visual-highlighted {
+  background: #fff0cc;
+  border-color: #d9a441;
+  box-shadow: 0 0 0 2px rgba(217, 164, 65, 0.24);
+}
+
+.gordio-child-node {
+  cursor: pointer;
+}

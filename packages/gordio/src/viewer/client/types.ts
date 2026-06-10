@@ -5,6 +5,7 @@ import type {
   ReactFlowEdgeData,
   ReactFlowGraph,
   ReactFlowNodeData,
+  VisualState,
 } from "../../projection/types";
 
 export interface ViewerPayload {
@@ -14,7 +15,9 @@ export interface ViewerPayload {
   projection: ReactFlowGraph;
 }
 
-export type ViewerNodeData = ReactFlowNodeData & Record<string, unknown>;
+export type ViewerNodeData = ReactFlowNodeData & {
+  visualState?: VisualState;
+} & Record<string, unknown>;
 export type ViewerEdgeData = ReactFlowEdgeData & Record<string, unknown>;
 
 export type ViewerStatus =

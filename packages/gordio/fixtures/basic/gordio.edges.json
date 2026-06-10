@@ -11,7 +11,41 @@
       "scope": "pkg",
       "package": "core-catalog"
     },
-    "kind": "opens"
+    "kind": "opens",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "web",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "box",
+      "scope": "pkg",
+      "package": "core-orders"
+    },
+    "kind": "opens",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "web",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "box",
+      "scope": "pkg",
+      "package": "core-billing"
+    },
+    "kind": "opens",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
   },
   {
     "source": {

@@ -1,16 +1,32 @@
 import type { Edge, Node } from "@xyflow/react";
 
-import type { ReactFlowGraph } from "../../projection/types";
+import type { ArchitectureViewState, ReactFlowGraph } from "../../projection/types";
+import { resolveVisualState } from "../../view/state";
 import { getBoxHeight, getBoxWidth, getCollapsedBoxHeight, getNodeWidth } from "./layout-metrics";
 import type { ViewerEdgeData, ViewerNodeData } from "./types";
+import {
+  edgeOpacity,
+  edgeStrokeColor,
+  edgeStrokeDasharray,
+  edgeStrokeWidth,
+  visualStateClass,
+} from "./visual-styles";
 
-export function toViewerNodes(projection: ReactFlowGraph): Node<ViewerNodeData>[] {
+export function toViewerNodes(
+  projection: ReactFlowGraph,
+  viewState: ArchitectureViewState
+): Node<ViewerNodeData>[] {
   return projection.nodes.map((node) => {
+    const visualKind = node.data.entity === "box" ? "boxes" : "nodes";
+    const visualState = resolveVisualState(viewState, visualKind, node.id);
     const flowNode: Node<ViewerNodeData> = {
       id: node.id,
       type: node.type,
       position: node.position,
-      data: node.data as ViewerNodeData,
+      data: {
+        ...(node.data as ViewerNodeData),
+        visualState,
+      },
       draggable: false,
       style:
         node.data.entity === "box"
@@ -22,6 +38,11 @@ export function toViewerNodes(projection: ReactFlowGraph): Node<ViewerNodeData>[
             }
           : { width: getNodeWidth(node.data.node?.title ?? "") },
     };
+    const className = visualStateClass(visualState);
+
+    if (className !== undefined) {
+      flowNode.className = className;
+    }
 
     if (node.parentId !== undefined) {
       flowNode.parentId = node.parentId;
@@ -35,20 +56,28 @@ export function toViewerNodes(projection: ReactFlowGraph): Node<ViewerNodeData>[
   });
 }
 
-export function toViewerEdges(projection: ReactFlowGraph): Edge<ViewerEdgeData>[] {
-  return projection.edges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    sourceHandle: edge.sourceHandle ?? "source-right",
-    targetHandle: edge.targetHandle ?? "target-left",
-    animated: edge.animated,
-    type: "default",
-    data: edge.data as ViewerEdgeData,
-    style: {
-      stroke: edge.data.kind === "implements" ? "#9a6bdb" : "#5a7ccf",
-      strokeWidth: 2,
-      opacity: edge.data.rerouted ? 0.55 : 0.9,
-    },
-  }));
+export function toViewerEdges(
+  projection: ReactFlowGraph,
+  viewState: ArchitectureViewState
+): Edge<ViewerEdgeData>[] {
+  return projection.edges.map((edge) => {
+    const visualState = resolveVisualState(viewState, "edges", edge.id);
+
+    return {
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle ?? "source-right",
+      targetHandle: edge.targetHandle ?? "target-left",
+      animated: false,
+      type: "default",
+      data: edge.data as ViewerEdgeData,
+      style: {
+        stroke: edgeStrokeColor(visualState, edge.data.kind),
+        strokeWidth: edgeStrokeWidth(visualState),
+        strokeDasharray: edgeStrokeDasharray(),
+        opacity: edgeOpacity(visualState, edge.data.rerouted),
+      },
+    };
+  });
 }

@@ -1,6 +1,7 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 
 import type { ViewerNodeData } from "./types";
+import { visualStateClass } from "./visual-styles";
 import { useViewerInteraction } from "./viewer-interaction-context";
 
 export const nodeTypes = {
@@ -13,10 +14,15 @@ function ArchitectureBoxNode({ data }: NodeProps<Node<ViewerNodeData>>) {
   const { toggleBoxCollapse } = useViewerInteraction();
   const collapsible = data.boxKind?.collapsible === true;
   const collapsed = data.collapsed === true;
+  const visualClass = visualStateClass(data.visualState ?? "normal");
 
   return (
-    <section className={`gordio-box-node${collapsed ? " collapsed" : ""}`}>
-      <Handle type="target" position={Position.Left} />
+    <section
+      className={["gordio-box-node", collapsed ? "collapsed" : "", visualClass ?? ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <Handle id="target-left" type="target" position={Position.Left} />
       <header className="gordio-box-header">
         <div className="gordio-box-heading">
           <div className="gordio-box-title">{box?.title ?? "Untitled box"}</div>
@@ -39,15 +45,20 @@ function ArchitectureBoxNode({ data }: NodeProps<Node<ViewerNodeData>>) {
           </button>
         ) : null}
       </header>
-      <Handle type="source" position={Position.Right} />
+      <Handle id="source-right" type="source" position={Position.Right} />
     </section>
   );
 }
 
 function ArchitectureNode({ data }: NodeProps<Node<ViewerNodeData>>) {
   const node = data.node;
-  const className =
-    data.renderAs === "signature" ? "gordio-child-node signature" : "gordio-child-node";
+  const visualClass = visualStateClass(data.visualState ?? "normal");
+  const className = [
+    data.renderAs === "signature" ? "gordio-child-node signature" : "gordio-child-node",
+    visualClass ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <article className={className}>

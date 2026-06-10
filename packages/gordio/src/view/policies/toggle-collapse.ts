@@ -35,6 +35,7 @@ export const clearSelectionPolicy: ArchitecturePolicy = ({ graph, event }) => {
 
   return {
     selectedId: null,
+    collapsedBoxes: Object.fromEntries(graph.boxes.map((box) => [box.id, false])),
     boxes: Object.fromEntries(graph.boxes.map((box) => [box.id, "normal" as const])),
     nodes: Object.fromEntries(graph.nodes.map((node) => [node.id, "normal" as const])),
     edges: Object.fromEntries(graph.edges.map((edge) => [createEdgeKey(edge), "normal" as const])),

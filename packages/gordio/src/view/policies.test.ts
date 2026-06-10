@@ -215,6 +215,27 @@ describe("clearSelectionPolicy", () => {
     expect(resolveVisualState(cleared, "nodes", "core:orders:submit-order")).toBe("normal");
     expect(resolveVisualState(cleared, "boxes", "pkg:orders-infra")).toBe("normal");
   });
+
+  it("expands all boxes after clearing a composition root selection", () => {
+    const selected = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: createArchitectureViewState(graph, cleanArchitecturePreset),
+      event: { type: "select-composition-root", nodeId: "app:web:composition-root" },
+    });
+    const cleared = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: selected,
+      event: { type: "clear-selection" },
+    });
+
+    expect(cleared.collapsedBoxes).toEqual({
+      "app:web": false,
+      "pkg:orders": false,
+      "pkg:orders-infra": false,
+    });
+  });
 });
 
 describe("computeReachability", () => {
