@@ -1,0 +1,47 @@
+{
+  "name": "@fixture/core-catalog",
+  "private": true,
+  "gordio": {
+    "title": "Catalog Core",
+    "laneId": "core",
+    "boxKind": "core-package",
+    "nodeIdPrefix": "core",
+    "nodes": [
+      {
+        "id": "product",
+        "kind": "model",
+        "title": "Product"
+      },
+      {
+        "id": "pricing-rule",
+        "kind": "model",
+        "title": "PricingRule"
+      },
+      {
+        "id": "publish-product",
+        "kind": "capability",
+        "title": "PublishProduct"
+      },
+      {
+        "id": "calculate-price",
+        "kind": "service",
+        "title": "CalculatePrice"
+      },
+      {
+        "id": "publish-catalog-item",
+        "kind": "use-case",
+        "title": "PublishCatalogItem"
+      },
+      {
+        "id": "product-repository",
+        "kind": "port",
+        "title": "ProductRepository"
+      },
+      {
+        "id": "search-index",
+        "kind": "port",
+        "title": "SearchIndex"
+      }
+    ]
+  }
+}

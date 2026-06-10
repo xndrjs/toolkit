@@ -1,0 +1,17 @@
+{
+  "name": "@fixture/web",
+  "private": true,
+  "gordio": {
+    "title": "Web App",
+    "laneId": "apps",
+    "boxKind": "app",
+    "nodeIdPrefix": "app",
+    "nodes": [
+      {
+        "id": "composition-root",
+        "kind": "composition-root",
+        "title": "WebCompositionRoot"
+      }
+    ]
+  }
+}

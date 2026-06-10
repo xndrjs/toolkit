@@ -1,0 +1,22 @@
+{
+  "name": "@fixture/core-orders",
+  "private": true,
+  "gordio": {
+    "title": "Orders Core",
+    "laneId": "core",
+    "boxKind": "core-package",
+    "nodeIdPrefix": "core",
+    "nodes": [
+      {
+        "id": "submit-order",
+        "kind": "capability",
+        "title": "SubmitOrder"
+      },
+      {
+        "id": "order-repository",
+        "kind": "port",
+        "title": "OrderRepository"
+      }
+    ]
+  }
+}

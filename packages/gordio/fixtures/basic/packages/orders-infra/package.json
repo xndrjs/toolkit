@@ -1,0 +1,17 @@
+{
+  "name": "@fixture/orders-infra",
+  "private": true,
+  "gordio": {
+    "title": "Orders Infrastructure",
+    "laneId": "infrastructure",
+    "boxKind": "infrastructure-package",
+    "nodeIdPrefix": "infra",
+    "nodes": [
+      {
+        "id": "sql-order-repository",
+        "kind": "repository",
+        "title": "SqlOrderRepository"
+      }
+    ]
+  }
+}
