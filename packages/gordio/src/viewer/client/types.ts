@@ -1,8 +1,16 @@
 import type { ArchitectureGraphDocument } from "../../config/define-config";
-import type { ReactFlowEdgeData, ReactFlowGraph, ReactFlowNodeData } from "../../projection/types";
+import type { ArchitectureViewSchema } from "../../graph/types";
+import type {
+  ArchitectureViewState,
+  ReactFlowEdgeData,
+  ReactFlowGraph,
+  ReactFlowNodeData,
+} from "../../projection/types";
 
 export interface ViewerPayload {
   graphDocument: ArchitectureGraphDocument;
+  schema: ArchitectureViewSchema;
+  viewState: ArchitectureViewState;
   projection: ReactFlowGraph;
 }
 

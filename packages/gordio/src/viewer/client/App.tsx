@@ -1,11 +1,15 @@
 import { Background, Controls, ReactFlow, ReactFlowProvider } from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { toReactFlowGraph } from "../../projection/to-react-flow-graph";
+import type { ArchitectureViewState } from "../../projection/types";
+import { applyArchitecturePolicies } from "../../view/policies/index";
 import { loadViewerPayload } from "./load-viewer-payload";
 import { nodeTypes } from "./node-types";
 import { toViewerEdges, toViewerNodes } from "./react-flow-adapter";
 import type { ViewerPayload, ViewerStatus } from "./types";
 import { ViewerFrame } from "./ViewerFrame";
+import { ViewerInteractionProvider } from "./viewer-interaction-context";
 
 export function App() {
   const [status, setStatus] = useState<ViewerStatus>({ state: "loading" });
@@ -45,9 +49,32 @@ export function App() {
 }
 
 function ReadyViewer({ payload }: { payload: ViewerPayload }) {
-  const { graphDocument, projection } = payload;
+  const { graphDocument, schema } = payload;
+  const [viewState, setViewState] = useState<ArchitectureViewState>(payload.viewState);
+  const projection = useMemo(
+    () =>
+      toReactFlowGraph({
+        graph: graphDocument.graph,
+        schema,
+        viewState,
+      }),
+    [graphDocument.graph, schema, viewState]
+  );
   const nodes = useMemo(() => toViewerNodes(projection), [projection]);
   const edges = useMemo(() => toViewerEdges(projection), [projection]);
+  const toggleBoxCollapse = useCallback(
+    (boxId: string) => {
+      setViewState((current) =>
+        applyArchitecturePolicies({
+          graph: graphDocument.graph,
+          schema,
+          viewState: current,
+          event: { type: "toggle-box-collapse", boxId },
+        })
+      );
+    },
+    [graphDocument.graph, schema]
+  );
   const summary = [
     `${graphDocument.graph.boxes.length} boxes`,
     `${graphDocument.graph.nodes.length} nodes`,
@@ -56,18 +83,20 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
 
   return (
     <ViewerFrame summary={summary}>
-      <ReactFlowProvider>
-        <ReactFlow
-          fitView
-          nodeTypes={nodeTypes}
-          nodes={nodes}
-          edges={edges}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background />
-          <Controls />
-        </ReactFlow>
-      </ReactFlowProvider>
+      <ViewerInteractionProvider toggleBoxCollapse={toggleBoxCollapse}>
+        <ReactFlowProvider>
+          <ReactFlow
+            fitView
+            nodeTypes={nodeTypes}
+            nodes={nodes}
+            edges={edges}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background />
+            <Controls />
+          </ReactFlow>
+        </ReactFlowProvider>
+      </ViewerInteractionProvider>
     </ViewerFrame>
   );
 }

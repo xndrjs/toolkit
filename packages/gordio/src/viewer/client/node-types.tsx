@@ -1,6 +1,7 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 
 import type { ViewerNodeData } from "./types";
+import { useViewerInteraction } from "./viewer-interaction-context";
 
 export const nodeTypes = {
   architectureBox: ArchitectureBoxNode,
@@ -9,12 +10,35 @@ export const nodeTypes = {
 
 function ArchitectureBoxNode({ data }: NodeProps<Node<ViewerNodeData>>) {
   const box = data.box;
+  const { toggleBoxCollapse } = useViewerInteraction();
+  const collapsible = data.boxKind?.collapsible === true;
+  const collapsed = data.collapsed === true;
 
   return (
-    <section className="gordio-box-node">
+    <section className={`gordio-box-node${collapsed ? " collapsed" : ""}`}>
       <Handle type="target" position={Position.Left} />
-      <div className="gordio-box-title">{box?.title ?? "Untitled box"}</div>
-      <div className="gordio-box-meta">{box?.packageName}</div>
+      <header className="gordio-box-header">
+        <div className="gordio-box-heading">
+          <div className="gordio-box-title">{box?.title ?? "Untitled box"}</div>
+          {box?.packageName ? <div className="gordio-box-meta">{box.packageName}</div> : null}
+        </div>
+        {collapsible ? (
+          <button
+            type="button"
+            className="gordio-box-collapse-toggle"
+            aria-label={collapsed ? "Expand box" : "Collapse box"}
+            aria-expanded={!collapsed}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (box?.id) {
+                toggleBoxCollapse(box.id);
+              }
+            }}
+          >
+            {collapsed ? "+" : "−"}
+          </button>
+        ) : null}
+      </header>
       <Handle type="source" position={Position.Right} />
     </section>
   );

@@ -6,10 +6,13 @@ import type {
   ArchitectureNode,
   ArchitectureViewSchema,
   BoxKindDefinition,
+  EdgeKey,
   LaneDefinition,
   NodeKindDefinition,
   SlotDefinition,
 } from "../graph/types";
+
+export type VisualState = "normal" | "highlighted" | "muted";
 
 export interface ReactFlowProjectionOptions {
   graph: ArchitectureGraph;
@@ -18,7 +21,13 @@ export interface ReactFlowProjectionOptions {
 }
 
 export interface ArchitectureViewState {
-  collapsedBoxIds?: readonly ArchitectureId[];
+  selectedId?: ArchitectureId;
+  collapsedBoxes?: Record<ArchitectureId, boolean>;
+  visual?: {
+    boxes: Record<ArchitectureId, VisualState>;
+    nodes: Record<ArchitectureId, VisualState>;
+    edges: Record<EdgeKey, VisualState>;
+  };
   boxPositions?: Record<ArchitectureId, ReactFlowPosition>;
   boxSizes?: Record<ArchitectureId, ReactFlowSize>;
   nodePositions?: Record<ArchitectureId, ReactFlowPosition>;

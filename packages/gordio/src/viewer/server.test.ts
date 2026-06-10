@@ -88,19 +88,41 @@ describe("startViewerServer", () => {
     const server = await startViewerServer({ document: graphDocument, assetRoot, port: 0 });
 
     try {
-      const [htmlResponse, scriptResponse, styleResponse, graphResponse, projectionResponse] =
-        await Promise.all([
-          fetch(server.url),
-          fetch(new URL("/assets/viewer.js", server.url)),
-          fetch(new URL("/assets/viewer.css", server.url)),
-          fetch(new URL("/graph.json", server.url)),
-          fetch(new URL("/projection.json", server.url)),
-        ]);
+      const [
+        htmlResponse,
+        scriptResponse,
+        styleResponse,
+        graphResponse,
+        schemaResponse,
+        viewStateResponse,
+        projectionResponse,
+      ] = await Promise.all([
+        fetch(server.url),
+        fetch(new URL("/assets/viewer.js", server.url)),
+        fetch(new URL("/assets/viewer.css", server.url)),
+        fetch(new URL("/graph.json", server.url)),
+        fetch(new URL("/schema.json", server.url)),
+        fetch(new URL("/view-state.json", server.url)),
+        fetch(new URL("/projection.json", server.url)),
+      ]);
 
       await expect(htmlResponse.text()).resolves.toContain("/assets/viewer.js");
       await expect(scriptResponse.text()).resolves.toContain("viewer script");
       await expect(styleResponse.text()).resolves.toContain("viewer style");
       await expect(graphResponse.json()).resolves.toEqual(graphDocument);
+
+      const schema = await schemaResponse.json();
+      const viewState = await viewStateResponse.json();
+      expect(schema.lanes).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: "apps" })])
+      );
+      expect(viewState).toEqual(
+        expect.objectContaining({
+          boxPositions: expect.any(Object),
+          boxSizes: expect.any(Object),
+          nodePositions: expect.any(Object),
+        })
+      );
 
       const projection = await projectionResponse.json();
       const nodeById = new Map(projection.nodes.map((node: { id: string }) => [node.id, node]));

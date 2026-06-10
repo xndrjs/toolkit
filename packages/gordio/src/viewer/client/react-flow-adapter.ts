@@ -1,7 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { ReactFlowGraph } from "../../projection/types";
-import { getBoxHeight, getBoxWidth, getNodeWidth } from "./layout-metrics";
+import { getBoxHeight, getBoxWidth, getCollapsedBoxHeight, getNodeWidth } from "./layout-metrics";
 import type { ViewerEdgeData, ViewerNodeData } from "./types";
 
 export function toViewerNodes(projection: ReactFlowGraph): Node<ViewerNodeData>[] {
@@ -16,7 +16,9 @@ export function toViewerNodes(projection: ReactFlowGraph): Node<ViewerNodeData>[
         node.data.entity === "box"
           ? {
               width: node.data.width ?? getBoxWidth(node.id, projection),
-              height: node.data.height ?? getBoxHeight(node.id, projection),
+              height: node.data.collapsed
+                ? getCollapsedBoxHeight({ hasPackageName: Boolean(node.data.box?.packageName) })
+                : (node.data.height ?? getBoxHeight(node.id, projection)),
             }
           : { width: getNodeWidth(node.data.node?.title ?? "") },
     };

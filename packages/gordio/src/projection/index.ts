@@ -8,4 +8,5 @@ export type {
   ReactFlowNodeData,
   ReactFlowPosition,
   ReactFlowProjectionOptions,
+  VisualState,
 } from "./types";

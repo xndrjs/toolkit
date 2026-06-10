@@ -50,6 +50,8 @@ export async function startViewerServer(options: ViewerServerOptions): Promise<V
   };
   const projection = toReactFlowGraph(projectionOptions);
   const graphJson = serializeJson(options.document);
+  const schemaJson = serializeJson(schema);
+  const viewStateJson = serializeJson(viewState);
   const projectionJson = serializeJson(projection);
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 4317;
@@ -83,6 +85,16 @@ export async function startViewerServer(options: ViewerServerOptions): Promise<V
 
     if (url.pathname === "/graph.json") {
       respond(response, 200, "application/json; charset=utf-8", graphJson);
+      return;
+    }
+
+    if (url.pathname === "/schema.json") {
+      respond(response, 200, "application/json; charset=utf-8", schemaJson);
+      return;
+    }
+
+    if (url.pathname === "/view-state.json") {
+      respond(response, 200, "application/json; charset=utf-8", viewStateJson);
       return;
     }
 

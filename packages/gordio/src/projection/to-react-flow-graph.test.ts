@@ -129,7 +129,7 @@ describe("toReactFlowGraph", () => {
     const projection = toReactFlowGraph({
       graph,
       schema: cleanArchitecturePreset,
-      viewState: { collapsedBoxIds: ["pkg:orders"] },
+      viewState: { collapsedBoxes: { "pkg:orders": true } },
     });
 
     expect(projection.nodes.some((node) => node.id === "core:orders:submit-order")).toBe(false);

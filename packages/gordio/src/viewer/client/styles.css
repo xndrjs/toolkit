@@ -73,8 +73,29 @@ body {
   border: 1px solid #bac4d6;
   border-radius: 14px;
   box-shadow: 0 12px 28px rgba(27, 39, 65, 0.08);
+  box-sizing: border-box;
   height: 100%;
   padding: 14px;
+}
+
+.gordio-box-node.collapsed {
+  padding-bottom: 14px;
+}
+
+.gordio-box-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.gordio-box-node.collapsed .gordio-box-header {
+  margin-bottom: 0;
+}
+
+.gordio-box-heading {
+  min-width: 0;
 }
 
 .gordio-box-title {
@@ -85,8 +106,36 @@ body {
 .gordio-box-meta {
   color: #6f7788;
   font-size: 12px;
-  margin-bottom: 28px;
   text-transform: uppercase;
+}
+
+.gordio-box-collapse-toggle {
+  align-items: center;
+  background: #eef2f8;
+  border: 1px solid #c5d0e3;
+  border-radius: 8px;
+  color: #3d4a63;
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 18px;
+  font-weight: 600;
+  height: 28px;
+  justify-content: center;
+  line-height: 1;
+  margin-left: auto;
+  padding: 0;
+  width: 28px;
+}
+
+.gordio-box-collapse-toggle:hover {
+  background: #e2e9f4;
+  border-color: #a8b8d4;
+}
+
+.gordio-box-collapse-toggle:focus-visible {
+  outline: 2px solid #5a7ccf;
+  outline-offset: 2px;
 }
 
 .gordio-child-node {

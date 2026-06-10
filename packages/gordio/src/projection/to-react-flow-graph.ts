@@ -100,13 +100,17 @@ function collectCollapsedBoxIds(
   const collapsedBoxIds = new Set<ArchitectureId>();
 
   for (const box of boxes) {
+    const explicit = viewState.collapsedBoxes?.[box.id];
+    if (explicit !== undefined) {
+      if (explicit) {
+        collapsedBoxIds.add(box.id);
+      }
+      continue;
+    }
+
     if (boxKindsById.get(box.kind)?.defaultCollapsed === true) {
       collapsedBoxIds.add(box.id);
     }
-  }
-
-  for (const boxId of viewState.collapsedBoxIds ?? []) {
-    collapsedBoxIds.add(boxId);
   }
 
   return collapsedBoxIds;

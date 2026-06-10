@@ -2,6 +2,11 @@ import type { ReactFlowGraph } from "../../projection/types";
 
 const BOX_MIN_WIDTH = 280;
 const BOX_MIN_HEIGHT = 180;
+const BOX_PADDING_Y = 14;
+const BOX_TITLE_LINE_HEIGHT = 20;
+const BOX_TITLE_MARGIN_BOTTOM = 4;
+const BOX_META_LINE_HEIGHT = 12;
+const BOX_TOGGLE_SIZE = 28;
 const BOX_BOTTOM_PADDING = 32;
 const NODE_ROW_HEIGHT = 42;
 const NODE_MIN_WIDTH = 232;
@@ -17,6 +22,15 @@ export function getBoxWidth(boxId: string, projection: ReactFlowGraph): number {
   );
 
   return Math.max(BOX_MIN_WIDTH, maxChildRight + NODE_LEFT_OFFSET);
+}
+
+export function getCollapsedBoxHeight(options?: { hasPackageName?: boolean }): number {
+  const headingHeight = options?.hasPackageName
+    ? BOX_TITLE_LINE_HEIGHT + BOX_TITLE_MARGIN_BOTTOM + BOX_META_LINE_HEIGHT
+    : BOX_TITLE_LINE_HEIGHT;
+  const headerHeight = Math.max(headingHeight, BOX_TOGGLE_SIZE);
+
+  return BOX_PADDING_Y * 2 + headerHeight;
 }
 
 export function getBoxHeight(boxId: string, projection: ReactFlowGraph): number {
