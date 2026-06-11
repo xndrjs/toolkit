@@ -43,6 +43,11 @@ export function deriveBoxVisualStates(
       continue;
     }
 
+    if (box.kind === "app" && childStates.some((state) => state === "highlighted")) {
+      boxStates[box.id] = "normal";
+      continue;
+    }
+
     boxStates[box.id] = "muted";
   }
 

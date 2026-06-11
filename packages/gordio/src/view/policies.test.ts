@@ -322,9 +322,67 @@ describe("compositionReachabilityPolicy", () => {
     expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[1]!))).toBe("normal");
     expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[2]!))).toBe("normal");
     expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[3]!))).toBe("normal");
-    expect(resolveVisualState(viewState, "boxes", "app:web")).toBe("muted");
+    expect(resolveVisualState(viewState, "boxes", "app:web")).toBe("normal");
     expect(resolveVisualState(viewState, "boxes", "pkg:orders")).toBe("normal");
     expect(resolveVisualState(viewState, "boxes", "pkg:orders-infra")).toBe("normal");
+  });
+
+  it("highlights the selected composition root, keeps its app box normal, and mutes other apps", () => {
+    const multiAppGraph: ArchitectureGraph = {
+      ...graph,
+      boxes: [
+        graph.boxes[0]!,
+        { id: "app:mobile", kind: "app", title: "Mobile", laneId: "apps" },
+        { id: "app:admin", kind: "app", title: "Admin", laneId: "apps" },
+        graph.boxes[1]!,
+        graph.boxes[2]!,
+      ],
+      nodes: [
+        graph.nodes[0]!,
+        {
+          id: "app:web:worker-composition-root",
+          kind: "composition-root",
+          title: "WebWorker",
+          boxId: "app:web",
+        },
+        {
+          id: "app:mobile:composition-root",
+          kind: "composition-root",
+          title: "MobileApp",
+          boxId: "app:mobile",
+        },
+        {
+          id: "app:admin:composition-root",
+          kind: "composition-root",
+          title: "AdminApp",
+          boxId: "app:admin",
+        },
+        ...graph.nodes.slice(1),
+      ],
+      edges: [
+        ...graph.edges,
+        {
+          sourceId: "app:mobile:composition-root",
+          targetId: "core:orders:place-order",
+          kind: "uses",
+          directed: true,
+        },
+      ],
+    };
+    const viewState = applyArchitecturePolicies({
+      graph: multiAppGraph,
+      schema: cleanArchitecturePreset,
+      viewState: createArchitectureViewState(multiAppGraph, cleanArchitecturePreset),
+      event: { type: "select-composition-root", nodeId: "app:web:composition-root" },
+    });
+
+    expect(resolveVisualState(viewState, "nodes", "app:web:composition-root")).toBe("highlighted");
+    expect(resolveVisualState(viewState, "nodes", "app:web:worker-composition-root")).toBe("muted");
+    expect(resolveVisualState(viewState, "nodes", "app:mobile:composition-root")).toBe("muted");
+    expect(resolveVisualState(viewState, "nodes", "app:admin:composition-root")).toBe("muted");
+    expect(resolveVisualState(viewState, "boxes", "app:web")).toBe("normal");
+    expect(resolveVisualState(viewState, "boxes", "app:mobile")).toBe("muted");
+    expect(resolveVisualState(viewState, "boxes", "app:admin")).toBe("muted");
   });
 });
 

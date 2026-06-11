@@ -1,9 +1,9 @@
-import type { ArchitectureGraph, ArchitectureId } from "../../graph/types";
+import type { ArchitectureGraph, ArchitectureId, ArchitectureViewSchema } from "../../graph/types";
 import { cleanArchitectureLayeredReachability } from "../../presets/clean-architecture-layered-reachability";
 import { getBoxesForNodes } from "../graph-helpers";
 import { computeLayeredReachability } from "../layered-reachability";
 import { createMutedDecoration } from "../state";
-import type { ArchitecturePolicy } from "../types";
+import type { ArchitecturePolicy, DecorationPatch } from "../types";
 
 export const compositionReachabilityPolicy: ArchitecturePolicy = ({ graph, schema, event }) => {
   if (event.type !== "select-composition-root") {
@@ -22,7 +22,6 @@ export const compositionReachabilityPolicy: ArchitecturePolicy = ({ graph, schem
     cleanArchitectureLayeredReachability
   );
   const patch = createMutedDecoration(graph);
-  const normalNodeIds = new Set<ArchitectureId>();
 
   patch.selectedId = event.nodeId;
   patch.collapsedBoxes = createCollapsePatch(graph, schema, openedBoxIds, activeNodeIds);
@@ -31,12 +30,41 @@ export const compositionReachabilityPolicy: ArchitecturePolicy = ({ graph, schem
   for (const node of graph.nodes) {
     if (activeNodeIds.has(node.id) && node.id !== event.nodeId) {
       patch.nodes![node.id] = "normal";
-      normalNodeIds.add(node.id);
     }
   }
 
+  applyCompositionAppScope(graph, schema, event.nodeId, patch);
+
   return patch;
 };
+
+function applyCompositionAppScope(
+  graph: ArchitectureGraph,
+  schema: ArchitectureViewSchema,
+  selectedRootId: ArchitectureId,
+  patch: DecorationPatch
+): void {
+  const selectedRoot = graph.nodes.find((node) => node.id === selectedRootId);
+  if (!selectedRoot) {
+    return;
+  }
+
+  const appBoxKindIds = new Set(
+    schema.boxKinds.filter((boxKind) => boxKind.id === "app").map((boxKind) => boxKind.id)
+  );
+  const boxesById = new Map(graph.boxes.map((box) => [box.id, box]));
+
+  for (const node of graph.nodes) {
+    if (node.kind === "composition-root" && node.id !== selectedRootId) {
+      patch.nodes![node.id] = "muted";
+    }
+
+    const box = boxesById.get(node.boxId);
+    if (box && appBoxKindIds.has(box.kind) && node.boxId !== selectedRoot.boxId) {
+      patch.nodes![node.id] = "muted";
+    }
+  }
+}
 
 function createCollapsePatch(
   graph: ArchitectureGraph,

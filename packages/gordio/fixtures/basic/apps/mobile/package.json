@@ -1,0 +1,17 @@
+{
+  "name": "@fixture/mobile",
+  "private": true,
+  "gordio": {
+    "title": "Mobile App",
+    "laneId": "apps",
+    "boxKind": "app",
+    "nodeIdPrefix": "app",
+    "nodes": [
+      {
+        "id": "composition-root",
+        "kind": "composition-root",
+        "title": "MobileCompositionRoot"
+      }
+    ]
+  }
+}

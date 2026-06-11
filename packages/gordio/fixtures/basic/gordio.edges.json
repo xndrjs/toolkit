@@ -152,6 +152,88 @@
   {
     "source": {
       "kind": "node",
+      "prefix": "app",
+      "package": "mobile",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "box",
+      "scope": "pkg",
+      "package": "core-catalog"
+    },
+    "kind": "opens",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "mobile",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "box",
+      "scope": "pkg",
+      "package": "core-orders"
+    },
+    "kind": "opens",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "mobile",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "place-order"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "mobile",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "publish-catalog-item"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "admin",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "box",
+      "scope": "pkg",
+      "package": "core-billing"
+    },
+    "kind": "opens",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
       "prefix": "core",
       "package": "core-catalog",
       "node": "product"

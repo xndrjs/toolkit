@@ -11,6 +11,11 @@
         "id": "composition-root",
         "kind": "composition-root",
         "title": "WebCompositionRoot"
+      },
+      {
+        "id": "worker-composition-root",
+        "kind": "composition-root",
+        "title": "WebWorkerCompositionRoot"
       }
     ]
   }

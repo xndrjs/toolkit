@@ -1,0 +1,17 @@
+{
+  "name": "@fixture/admin",
+  "private": true,
+  "gordio": {
+    "title": "Admin App",
+    "laneId": "apps",
+    "boxKind": "app",
+    "nodeIdPrefix": "app",
+    "nodes": [
+      {
+        "id": "composition-root",
+        "kind": "composition-root",
+        "title": "AdminCompositionRoot"
+      }
+    ]
+  }
+}
