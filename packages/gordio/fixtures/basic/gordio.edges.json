@@ -50,6 +50,108 @@
   {
     "source": {
       "kind": "node",
+      "prefix": "app",
+      "package": "web",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-catalog",
+      "node": "publish-catalog-item"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "web",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "place-order"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "web",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "cancel-order-use-case"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "web",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "process-refund"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "web",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "ship-order"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
+      "prefix": "app",
+      "package": "web",
+      "node": "composition-root"
+    },
+    "target": {
+      "kind": "node",
+      "prefix": "core",
+      "package": "core-orders",
+      "node": "update-order-status"
+    },
+    "kind": "uses",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
+  },
+  {
+    "source": {
+      "kind": "node",
       "prefix": "core",
       "package": "core-catalog",
       "node": "product"

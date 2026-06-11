@@ -13,7 +13,7 @@ import { cleanArchitecturePreset } from "../presets/clean-architecture";
 
 const BOX_TOP_OFFSET = 80;
 const BOX_LEFT_OFFSET = 64;
-const BOX_VERTICAL_GAP = 80;
+const BOX_VERTICAL_GAP = 40;
 const LANE_GAP = 80;
 const SLOT_COLUMN_GAP = 48;
 const NODE_LEFT_OFFSET = 24;

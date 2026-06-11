@@ -30,17 +30,23 @@ export function getDirectNeighbours(
 
 export function getBoxesForNodes(
   graph: ArchitectureGraph,
-  nodeIds: Iterable<ArchitectureId>
+  endpointIds: Iterable<ArchitectureId>
 ): Set<ArchitectureId> {
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const boxIds = new Set<ArchitectureId>();
+  const boxIds = new Set(graph.boxes.map((box) => box.id));
+  const reachableBoxIds = new Set<ArchitectureId>();
 
-  for (const nodeId of nodeIds) {
-    const boxId = nodeById.get(nodeId)?.boxId;
+  for (const endpointId of endpointIds) {
+    if (boxIds.has(endpointId)) {
+      reachableBoxIds.add(endpointId);
+      continue;
+    }
+
+    const boxId = nodeById.get(endpointId)?.boxId;
     if (boxId !== undefined) {
-      boxIds.add(boxId);
+      reachableBoxIds.add(boxId);
     }
   }
 
-  return boxIds;
+  return reachableBoxIds;
 }

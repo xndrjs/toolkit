@@ -98,22 +98,21 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
         return;
       }
 
-      if (data.node.kind === "composition-root") {
-        setViewState((current) =>
-          applyArchitecturePolicies({
-            graph: graphDocument.graph,
-            schema,
-            viewState: current,
-            event:
-              current.selectedId === node.id
-                ? { type: "clear-selection" }
-                : { type: "select-composition-root", nodeId: node.id },
-          })
-        );
+      if (data.node.kind !== "composition-root") {
         return;
       }
 
-      applyPolicy({ type: "select-node", nodeId: node.id });
+      setViewState((current) =>
+        applyArchitecturePolicies({
+          graph: graphDocument.graph,
+          schema,
+          viewState: current,
+          event:
+            current.selectedId === data.node!.id
+              ? { type: "clear-selection" }
+              : { type: "select-composition-root", nodeId: data.node!.id },
+        })
+      );
     },
     [applyPolicy, graphDocument.graph, schema]
   );
@@ -132,6 +131,7 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
         <ReactFlowProvider>
           <ReactFlow
             fitView
+            zoomOnDoubleClick={false}
             nodeTypes={nodeTypes}
             nodes={nodes}
             edges={edges}

@@ -1,8 +1,9 @@
 import type { ArchitectureGraph, ArchitectureId } from "../../graph/types";
+import { cleanArchitectureLayeredReachability } from "../../presets/clean-architecture-layered-reachability";
 import { getBoxesForNodes } from "../graph-helpers";
-import { computeReachability } from "../reachability";
+import { computeLayeredReachability } from "../layered-reachability";
 import { createMutedDecoration } from "../state";
-import type { ArchitecturePolicy, DecorationPatch } from "../types";
+import type { ArchitecturePolicy } from "../types";
 
 export const compositionReachabilityPolicy: ArchitecturePolicy = ({ graph, schema, event }) => {
   if (event.type !== "select-composition-root") {
@@ -14,28 +15,24 @@ export const compositionReachabilityPolicy: ArchitecturePolicy = ({ graph, schem
     return { selectedId: null, ...createMutedDecoration(graph) };
   }
 
-  const mode = event.mode ?? "downstream";
-  const { reachableNodeIds, pathEdgeKeys } = computeReachability(graph, event.nodeId, mode);
-  const reachableBoxIds = getBoxesForNodes(graph, reachableNodeIds);
+  const { activeNodeIds, openedBoxIds } = computeLayeredReachability(
+    graph,
+    schema,
+    event.nodeId,
+    cleanArchitectureLayeredReachability
+  );
   const patch = createMutedDecoration(graph);
+  const normalNodeIds = new Set<ArchitectureId>();
 
   patch.selectedId = event.nodeId;
-  patch.collapsedBoxes = createCollapsePatch(graph, schema, reachableBoxIds);
-
+  patch.collapsedBoxes = createCollapsePatch(graph, schema, openedBoxIds, activeNodeIds);
   patch.nodes![event.nodeId] = "highlighted";
 
   for (const node of graph.nodes) {
-    if (reachableNodeIds.has(node.id) && node.id !== event.nodeId) {
+    if (activeNodeIds.has(node.id) && node.id !== event.nodeId) {
       patch.nodes![node.id] = "normal";
+      normalNodeIds.add(node.id);
     }
-  }
-
-  for (const edgeKey of pathEdgeKeys) {
-    patch.edges![edgeKey] = "highlighted";
-  }
-
-  for (const boxId of reachableBoxIds) {
-    patch.boxes![boxId] = "normal";
   }
 
   return patch;
@@ -44,11 +41,13 @@ export const compositionReachabilityPolicy: ArchitecturePolicy = ({ graph, schem
 function createCollapsePatch(
   graph: ArchitectureGraph,
   schema: { boxKinds: { id: string }[] },
-  reachableBoxIds: Set<ArchitectureId>
+  openedBoxIds: Set<ArchitectureId>,
+  activeNodeIds: Set<ArchitectureId>
 ): Record<ArchitectureId, boolean> {
   const appBoxKindIds = new Set(
     schema.boxKinds.filter((boxKind) => boxKind.id === "app").map((boxKind) => boxKind.id)
   );
+  const boxesWithActiveChildren = getBoxesForNodes(graph, activeNodeIds);
   const collapsedBoxes: Record<ArchitectureId, boolean> = {};
 
   for (const box of graph.boxes) {
@@ -57,7 +56,8 @@ function createCollapsePatch(
       continue;
     }
 
-    collapsedBoxes[box.id] = !reachableBoxIds.has(box.id);
+    const shouldExpand = openedBoxIds.has(box.id) || boxesWithActiveChildren.has(box.id);
+    collapsedBoxes[box.id] = !shouldExpand;
   }
 
   return collapsedBoxes;

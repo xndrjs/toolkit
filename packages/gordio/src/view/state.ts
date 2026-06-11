@@ -1,4 +1,3 @@
-import { createEdgeKey } from "../graph/create-edge-key";
 import type {
   ArchitectureGraph,
   ArchitectureId,
@@ -71,8 +70,6 @@ export function mergeDecorationPatch(
 
 export function createMutedDecoration(graph: ArchitectureGraph): DecorationPatch {
   return {
-    boxes: Object.fromEntries(graph.boxes.map((box) => [box.id, "muted" as const])),
     nodes: Object.fromEntries(graph.nodes.map((node) => [node.id, "muted" as const])),
-    edges: Object.fromEntries(graph.edges.map((edge) => [createEdgeKey(edge), "muted" as const])),
   };
 }

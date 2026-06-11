@@ -10,6 +10,12 @@ import type {
   NodeKindDefinition,
   SlotDefinition,
 } from "../graph/types";
+import {
+  isFrontierSlot,
+  pickBoxBoundaryHandle,
+  resolveEndpointBoxId,
+  resolveNodeSlotId,
+} from "./box-frontier";
 import type {
   ArchitectureViewState,
   ReactFlowEdge,
@@ -38,10 +44,26 @@ export function toReactFlowGraph(options: ReactFlowProjectionOptions): ReactFlow
   return {
     nodes: [...boxNodes, ...childNodes],
     edges: graph.edges.flatMap((edge): ReactFlowEdge[] => {
-      const source = getProjectedEndpoint(edge.sourceId, nodeById, collapsedBoxIds, boxById);
-      const target = getProjectedEndpoint(edge.targetId, nodeById, collapsedBoxIds, boxById);
+      const source = projectVisualEndpoint({
+        endpointId: edge.sourceId,
+        otherEndpointId: edge.targetId,
+        side: "source",
+        nodeById,
+        boxById,
+        collapsedBoxIds,
+        schemaIndex,
+      });
+      const target = projectVisualEndpoint({
+        endpointId: edge.targetId,
+        otherEndpointId: edge.sourceId,
+        side: "target",
+        nodeById,
+        boxById,
+        collapsedBoxIds,
+        schemaIndex,
+      });
 
-      if (!source || !target || source === target) {
+      if (!source || !target || source.id === target.id) {
         return [];
       }
 
@@ -51,21 +73,21 @@ export function toReactFlowGraph(options: ReactFlowProjectionOptions): ReactFlow
         directed: edge.directed === true,
         sourceId: edge.sourceId,
         targetId: edge.targetId,
-        rerouted: source !== edge.sourceId || target !== edge.targetId,
+        rerouted: source.rerouted || target.rerouted,
       };
 
       if (edge.kind !== undefined) {
         data.kind = edge.kind;
       }
 
-      const sourceHandle = readEdgeHandle(edge.metadata, "sourceHandle");
-      const targetHandle = readEdgeHandle(edge.metadata, "targetHandle");
+      const sourceHandle = source.handle ?? readEdgeHandle(edge.metadata, "sourceHandle");
+      const targetHandle = target.handle ?? readEdgeHandle(edge.metadata, "targetHandle");
 
       return [
         {
           id,
-          source,
-          target,
+          source: source.id,
+          target: target.id,
           type: "architectureEdge",
           animated: edge.directed === true,
           data,
@@ -197,23 +219,58 @@ function createChildNode(
   };
 }
 
-function getProjectedEndpoint(
-  endpointId: ArchitectureId,
-  nodeById: Map<ArchitectureId, ArchitectureNode>,
-  collapsedBoxIds: Set<ArchitectureId>,
-  boxById: Map<ArchitectureId, ArchitectureBox>
-): ArchitectureId | undefined {
+interface ProjectedEndpoint {
+  id: ArchitectureId;
+  handle?: string;
+  rerouted: boolean;
+}
+
+interface ProjectVisualEndpointInput {
+  endpointId: ArchitectureId;
+  otherEndpointId: ArchitectureId;
+  side: "source" | "target";
+  nodeById: Map<ArchitectureId, ArchitectureNode>;
+  boxById: Map<ArchitectureId, ArchitectureBox>;
+  collapsedBoxIds: Set<ArchitectureId>;
+  schemaIndex: SchemaIndex;
+}
+
+function projectVisualEndpoint(input: ProjectVisualEndpointInput): ProjectedEndpoint | undefined {
+  const { endpointId, otherEndpointId, side, nodeById, boxById, collapsedBoxIds, schemaIndex } =
+    input;
   const node = nodeById.get(endpointId);
 
   if (!node) {
-    return boxById.get(endpointId)?.id;
+    const box = boxById.get(endpointId);
+    return box ? { id: box.id, rerouted: false } : undefined;
   }
 
-  if (!collapsedBoxIds.has(node.boxId)) {
-    return node.id;
+  const box = boxById.get(node.boxId);
+  if (!box) {
+    return { id: node.id, rerouted: false };
   }
 
-  return boxById.get(node.boxId)?.id;
+  const boxKind = schemaIndex.boxKindsById.get(box.kind);
+  const otherBoxId = resolveEndpointBoxId(otherEndpointId, nodeById, boxById);
+
+  if (collapsedBoxIds.has(node.boxId)) {
+    return {
+      id: box.id,
+      handle: pickBoxBoundaryHandle(box, otherBoxId, side, schemaIndex.lanesById, boxById),
+      rerouted: true,
+    };
+  }
+
+  const slotId = resolveNodeSlotId(node, schemaIndex.nodeKindsById);
+  if (!boxKind || isFrontierSlot(boxKind, slotId) || otherBoxId === node.boxId) {
+    return { id: node.id, rerouted: false };
+  }
+
+  return {
+    id: box.id,
+    handle: pickBoxBoundaryHandle(box, otherBoxId, side, schemaIndex.lanesById, boxById),
+    rerouted: true,
+  };
 }
 
 function createDefaultPosition() {

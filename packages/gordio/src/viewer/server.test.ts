@@ -139,7 +139,7 @@ describe("startViewerServer", () => {
       expect(nodeById.get("pkg:orders")).toMatchObject({
         type: "architectureBox",
         data: { width: 1120 },
-        position: { x: 448, y: 340 },
+        position: { x: 448, y: 300 },
       });
       expect(nodeById.get("pkg:orders-infra")).toMatchObject({
         type: "architectureBox",

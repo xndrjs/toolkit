@@ -1,5 +1,6 @@
 import type { ArchitectureViewState } from "../../projection/types";
 import { mergeDecorationPatch } from "../state";
+import { finalizeVisualDecoration } from "../visual-decoration";
 import type {
   ApplyArchitecturePoliciesInput,
   ArchitectureInteraction,
@@ -14,7 +15,6 @@ export { directNeighbourPolicy } from "./direct-neighbours";
 export { clearSelectionPolicy, toggleBoxCollapsePolicy } from "./toggle-collapse";
 
 const defaultPolicies: ArchitecturePolicy[] = [
-  directNeighbourPolicy,
   compositionReachabilityPolicy,
   toggleBoxCollapsePolicy,
   clearSelectionPolicy,
@@ -42,8 +42,10 @@ export function applyArchitecturePolicies(
   const policies = input.policies ?? defaultPolicies;
   const activePolicies = resolvePoliciesForEvent(input.event, policies);
 
-  return activePolicies.reduce(
+  const nextState = activePolicies.reduce(
     (viewState, policy) => mergeDecorationPatch(viewState, policy({ ...input, viewState })),
     input.viewState
   );
+
+  return finalizeVisualDecoration(input.graph, nextState);
 }

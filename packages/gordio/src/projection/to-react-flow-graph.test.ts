@@ -111,6 +111,17 @@ describe("toReactFlowGraph", () => {
         slot: { id: "ports" },
       },
     });
+    expect(projection.edges[0]).toMatchObject({
+      id: createEdgeKey(appToCoreEdge),
+      source: "app:web:composition-root",
+      target: "pkg:orders",
+      targetHandle: "target-left",
+      data: {
+        sourceId: "app:web:composition-root",
+        targetId: "core:orders:submit-order",
+        rerouted: true,
+      },
+    });
     expect(projection.edges[1]).toMatchObject({
       id: createEdgeKey(coreUsesPortEdge),
       source: "core:orders:submit-order",
@@ -120,6 +131,14 @@ describe("toReactFlowGraph", () => {
         kind: "uses",
         sourceId: "core:orders:submit-order",
         targetId: "core:orders:order-repository",
+        rerouted: false,
+      },
+    });
+    expect(projection.edges[2]).toMatchObject({
+      id: createEdgeKey(infraImplementsPortEdge),
+      source: "infra:orders:sql-order-repository",
+      target: "core:orders:order-repository",
+      data: {
         rerouted: false,
       },
     });
