@@ -79,6 +79,7 @@ export interface ReactFlowEdgeData {
   sourceId: ArchitectureId;
   targetId: ArchitectureId;
   rerouted: boolean;
+  architectureEdgeKeys?: EdgeKey[];
 }
 
 export interface ReactFlowPosition {

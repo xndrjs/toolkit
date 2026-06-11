@@ -1,6 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 
-import type { ArchitectureViewState, ReactFlowGraph } from "../../projection/types";
+import type { ArchitectureViewState, ReactFlowGraph, VisualState } from "../../projection/types";
 import { resolveVisualState } from "../../view/state";
 import { getBoxHeight, getBoxWidth, getCollapsedBoxHeight, getNodeWidth } from "./layout-metrics";
 import type { ViewerEdgeData, ViewerNodeData } from "./types";
@@ -56,28 +56,65 @@ export function toViewerNodes(
   });
 }
 
+const VISUAL_STATE_RANK: Record<VisualState, number> = {
+  muted: 0,
+  normal: 1,
+  highlighted: 2,
+};
+
+function resolveProjectedEdgeVisualState(
+  viewState: ArchitectureViewState,
+  edge: ReactFlowGraph["edges"][number]
+): VisualState {
+  const architectureEdgeKeys = edge.data.architectureEdgeKeys ?? [edge.id];
+  let visualState: VisualState = "muted";
+
+  for (const edgeKey of architectureEdgeKeys) {
+    const candidate = resolveVisualState(viewState, "edges", edgeKey);
+    if (VISUAL_STATE_RANK[candidate] > VISUAL_STATE_RANK[visualState]) {
+      visualState = candidate;
+    }
+  }
+
+  return visualState;
+}
+
+function edgeZIndex(visualState: VisualState): number {
+  switch (visualState) {
+    case "highlighted":
+      return 3;
+    case "muted":
+      return 2;
+    default:
+      return 1;
+  }
+}
+
 export function toViewerEdges(
   projection: ReactFlowGraph,
   viewState: ArchitectureViewState
 ): Edge<ViewerEdgeData>[] {
-  return projection.edges.map((edge) => {
-    const visualState = resolveVisualState(viewState, "edges", edge.id);
+  return projection.edges
+    .map((edge) => {
+      const visualState = resolveProjectedEdgeVisualState(viewState, edge);
 
-    return {
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      sourceHandle: edge.sourceHandle ?? "source-right",
-      targetHandle: edge.targetHandle ?? "target-left",
-      animated: false,
-      type: "default",
-      data: edge.data as ViewerEdgeData,
-      style: {
-        stroke: edgeStrokeColor(visualState, edge.data.kind),
-        strokeWidth: edgeStrokeWidth(visualState),
-        strokeDasharray: edgeStrokeDasharray(),
-        opacity: edgeOpacity(visualState, edge.data.rerouted),
-      },
-    };
-  });
+      return {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle ?? "source-right",
+        targetHandle: edge.targetHandle ?? "target-left",
+        animated: false,
+        type: "default",
+        zIndex: edgeZIndex(visualState),
+        data: edge.data as ViewerEdgeData,
+        style: {
+          stroke: edgeStrokeColor(visualState, edge.data.kind),
+          strokeWidth: edgeStrokeWidth(visualState),
+          strokeDasharray: edgeStrokeDasharray(),
+          opacity: edgeOpacity(visualState, edge.data.rerouted),
+        },
+      };
+    })
+    .sort((left, right) => (left.zIndex ?? 0) - (right.zIndex ?? 0));
 }

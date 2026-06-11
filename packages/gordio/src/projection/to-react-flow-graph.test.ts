@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createEdgeKey } from "../graph/create-edge-key";
 import type { ArchitectureGraph } from "../graph/types";
 import { cleanArchitecturePreset } from "../presets/clean-architecture";
+import { createProjectedEdgeVisualKey } from "./dedupe-projected-edges";
 import { toReactFlowGraph } from "./to-react-flow-graph";
 
 const graph: ArchitectureGraph = {
@@ -112,7 +113,14 @@ describe("toReactFlowGraph", () => {
       },
     });
     expect(projection.edges[0]).toMatchObject({
-      id: createEdgeKey(appToCoreEdge),
+      id: createProjectedEdgeVisualKey({
+        source: "app:web:composition-root",
+        target: "pkg:orders",
+        targetHandle: "target-left",
+        type: "architectureEdge",
+        animated: true,
+        data: {} as never,
+      }),
       source: "app:web:composition-root",
       target: "pkg:orders",
       targetHandle: "target-left",
@@ -120,10 +128,17 @@ describe("toReactFlowGraph", () => {
         sourceId: "app:web:composition-root",
         targetId: "core:orders:submit-order",
         rerouted: true,
+        architectureEdgeKeys: [createEdgeKey(appToCoreEdge)],
       },
     });
     expect(projection.edges[1]).toMatchObject({
-      id: createEdgeKey(coreUsesPortEdge),
+      id: createProjectedEdgeVisualKey({
+        source: "core:orders:submit-order",
+        target: "core:orders:order-repository",
+        type: "architectureEdge",
+        animated: true,
+        data: {} as never,
+      }),
       source: "core:orders:submit-order",
       target: "core:orders:order-repository",
       data: {
@@ -132,14 +147,22 @@ describe("toReactFlowGraph", () => {
         sourceId: "core:orders:submit-order",
         targetId: "core:orders:order-repository",
         rerouted: false,
+        architectureEdgeKeys: [createEdgeKey(coreUsesPortEdge)],
       },
     });
     expect(projection.edges[2]).toMatchObject({
-      id: createEdgeKey(infraImplementsPortEdge),
+      id: createProjectedEdgeVisualKey({
+        source: "infra:orders:sql-order-repository",
+        target: "core:orders:order-repository",
+        type: "architectureEdge",
+        animated: true,
+        data: {} as never,
+      }),
       source: "infra:orders:sql-order-repository",
       target: "core:orders:order-repository",
       data: {
         rerouted: false,
+        architectureEdgeKeys: [createEdgeKey(infraImplementsPortEdge)],
       },
     });
   });
@@ -158,13 +181,11 @@ describe("toReactFlowGraph", () => {
     });
     expect(projection.edges).toEqual([
       expect.objectContaining({
-        id: createEdgeKey(appToCoreEdge),
         source: "app:web:composition-root",
         target: "pkg:orders",
         data: expect.objectContaining({ rerouted: true }),
       }),
       expect.objectContaining({
-        id: createEdgeKey(infraImplementsPortEdge),
         source: "infra:orders:sql-order-repository",
         target: "pkg:orders",
         data: expect.objectContaining({ rerouted: true }),

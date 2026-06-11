@@ -47,5 +47,5 @@ export function applyArchitecturePolicies(
     input.viewState
   );
 
-  return finalizeVisualDecoration(input.graph, nextState);
+  return finalizeVisualDecoration(input.graph, input.schema, nextState);
 }

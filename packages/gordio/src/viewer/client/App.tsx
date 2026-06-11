@@ -15,7 +15,6 @@ import { nodeTypes } from "./node-types";
 import { toViewerEdges, toViewerNodes } from "./react-flow-adapter";
 import type { ViewerNodeData, ViewerPayload, ViewerStatus } from "./types";
 import { ViewerFrame } from "./ViewerFrame";
-import { ViewerInteractionProvider } from "./viewer-interaction-context";
 
 export function App() {
   const [status, setStatus] = useState<ViewerStatus>({ state: "loading" });
@@ -81,12 +80,6 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
   );
   const nodes = useMemo(() => toViewerNodes(projection, viewState), [projection, viewState]);
   const edges = useMemo(() => toViewerEdges(projection, viewState), [projection, viewState]);
-  const toggleBoxCollapse = useCallback(
-    (boxId: string) => {
-      applyPolicy({ type: "toggle-box-collapse", boxId });
-    },
-    [applyPolicy]
-  );
   const handleNodeClick = useCallback<NodeMouseHandler>(
     (_, node) => {
       if (node.type !== "architectureNode") {
@@ -114,7 +107,7 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
         })
       );
     },
-    [applyPolicy, graphDocument.graph, schema]
+    [graphDocument.graph, schema]
   );
   const handlePaneClick = useCallback(() => {
     applyPolicy({ type: "clear-selection" });
@@ -127,23 +120,21 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
 
   return (
     <ViewerFrame summary={summary}>
-      <ViewerInteractionProvider toggleBoxCollapse={toggleBoxCollapse}>
-        <ReactFlowProvider>
-          <ReactFlow
-            fitView
-            zoomOnDoubleClick={false}
-            nodeTypes={nodeTypes}
-            nodes={nodes}
-            edges={edges}
-            onNodeClick={handleNodeClick}
-            onPaneClick={handlePaneClick}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background />
-            <Controls />
-          </ReactFlow>
-        </ReactFlowProvider>
-      </ViewerInteractionProvider>
+      <ReactFlowProvider>
+        <ReactFlow
+          fitView
+          zoomOnDoubleClick={false}
+          nodeTypes={nodeTypes}
+          nodes={nodes}
+          edges={edges}
+          onNodeClick={handleNodeClick}
+          onPaneClick={handlePaneClick}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background />
+          <Controls />
+        </ReactFlow>
+      </ReactFlowProvider>
     </ViewerFrame>
   );
 }

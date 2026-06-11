@@ -6,16 +6,9 @@ import type {
   ArchitectureNode,
   ArchitectureViewSchema,
   BoxKindDefinition,
-  LaneDefinition,
-  NodeKindDefinition,
-  SlotDefinition,
 } from "../graph/types";
-import {
-  isFrontierSlot,
-  pickBoxBoundaryHandle,
-  resolveEndpointBoxId,
-  resolveNodeSlotId,
-} from "./box-frontier";
+import { dedupeProjectedEdges } from "./dedupe-projected-edges";
+import { createSchemaIndex, projectVisualEndpoint, type SchemaIndex } from "./visual-endpoint";
 import type {
   ArchitectureViewState,
   ReactFlowEdge,
@@ -41,82 +34,63 @@ export function toReactFlowGraph(options: ReactFlowProjectionOptions): ReactFlow
     .filter((node) => !collapsedBoxIds.has(node.boxId))
     .map((node) => createChildNode(node, schemaIndex, viewState, boxById));
 
+  const projectedEdges = graph.edges.flatMap((edge): ReactFlowEdge[] => {
+    const source = projectVisualEndpoint({
+      endpointId: edge.sourceId,
+      otherEndpointId: edge.targetId,
+      side: "source",
+      nodeById,
+      boxById,
+      collapsedBoxIds,
+      schemaIndex,
+    });
+    const target = projectVisualEndpoint({
+      endpointId: edge.targetId,
+      otherEndpointId: edge.sourceId,
+      side: "target",
+      nodeById,
+      boxById,
+      collapsedBoxIds,
+      schemaIndex,
+    });
+
+    if (!source || !target || source.id === target.id) {
+      return [];
+    }
+
+    const id = createEdgeKey(edge);
+    const data: ReactFlowEdgeData = {
+      edge,
+      directed: edge.directed === true,
+      sourceId: edge.sourceId,
+      targetId: edge.targetId,
+      rerouted: source.rerouted || target.rerouted,
+    };
+
+    if (edge.kind !== undefined) {
+      data.kind = edge.kind;
+    }
+
+    const sourceHandle = source.handle ?? readEdgeHandle(edge.metadata, "sourceHandle");
+    const targetHandle = target.handle ?? readEdgeHandle(edge.metadata, "targetHandle");
+
+    return [
+      {
+        id,
+        source: source.id,
+        target: target.id,
+        type: "architectureEdge",
+        animated: edge.directed === true,
+        data,
+        ...(sourceHandle !== undefined ? { sourceHandle } : {}),
+        ...(targetHandle !== undefined ? { targetHandle } : {}),
+      },
+    ];
+  });
+
   return {
     nodes: [...boxNodes, ...childNodes],
-    edges: graph.edges.flatMap((edge): ReactFlowEdge[] => {
-      const source = projectVisualEndpoint({
-        endpointId: edge.sourceId,
-        otherEndpointId: edge.targetId,
-        side: "source",
-        nodeById,
-        boxById,
-        collapsedBoxIds,
-        schemaIndex,
-      });
-      const target = projectVisualEndpoint({
-        endpointId: edge.targetId,
-        otherEndpointId: edge.sourceId,
-        side: "target",
-        nodeById,
-        boxById,
-        collapsedBoxIds,
-        schemaIndex,
-      });
-
-      if (!source || !target || source.id === target.id) {
-        return [];
-      }
-
-      const id = createEdgeKey(edge);
-      const data: ReactFlowEdgeData = {
-        edge,
-        directed: edge.directed === true,
-        sourceId: edge.sourceId,
-        targetId: edge.targetId,
-        rerouted: source.rerouted || target.rerouted,
-      };
-
-      if (edge.kind !== undefined) {
-        data.kind = edge.kind;
-      }
-
-      const sourceHandle = source.handle ?? readEdgeHandle(edge.metadata, "sourceHandle");
-      const targetHandle = target.handle ?? readEdgeHandle(edge.metadata, "targetHandle");
-
-      return [
-        {
-          id,
-          source: source.id,
-          target: target.id,
-          type: "architectureEdge",
-          animated: edge.directed === true,
-          data,
-          ...(sourceHandle !== undefined ? { sourceHandle } : {}),
-          ...(targetHandle !== undefined ? { targetHandle } : {}),
-        },
-      ];
-    }),
-  };
-}
-
-interface SchemaIndex {
-  lanesById: Map<string, LaneDefinition>;
-  boxKindsById: Map<string, BoxKindDefinition>;
-  nodeKindsById: Map<string, NodeKindDefinition>;
-  slotsByBoxKindId: Map<string, Map<string, SlotDefinition>>;
-}
-
-function createSchemaIndex(schema: ArchitectureViewSchema): SchemaIndex {
-  return {
-    lanesById: new Map(schema.lanes.map((lane) => [lane.id, lane])),
-    boxKindsById: new Map(schema.boxKinds.map((boxKind) => [boxKind.id, boxKind])),
-    nodeKindsById: new Map(schema.nodeKinds.map((nodeKind) => [nodeKind.id, nodeKind])),
-    slotsByBoxKindId: new Map(
-      schema.boxKinds.map((boxKind) => [
-        boxKind.id,
-        new Map(boxKind.slots.map((slot) => [slot.id, slot])),
-      ])
-    ),
+    edges: dedupeProjectedEdges(projectedEdges),
   };
 }
 
@@ -216,60 +190,6 @@ function createChildNode(
     parentId: node.boxId,
     extent: "parent",
     data,
-  };
-}
-
-interface ProjectedEndpoint {
-  id: ArchitectureId;
-  handle?: string;
-  rerouted: boolean;
-}
-
-interface ProjectVisualEndpointInput {
-  endpointId: ArchitectureId;
-  otherEndpointId: ArchitectureId;
-  side: "source" | "target";
-  nodeById: Map<ArchitectureId, ArchitectureNode>;
-  boxById: Map<ArchitectureId, ArchitectureBox>;
-  collapsedBoxIds: Set<ArchitectureId>;
-  schemaIndex: SchemaIndex;
-}
-
-function projectVisualEndpoint(input: ProjectVisualEndpointInput): ProjectedEndpoint | undefined {
-  const { endpointId, otherEndpointId, side, nodeById, boxById, collapsedBoxIds, schemaIndex } =
-    input;
-  const node = nodeById.get(endpointId);
-
-  if (!node) {
-    const box = boxById.get(endpointId);
-    return box ? { id: box.id, rerouted: false } : undefined;
-  }
-
-  const box = boxById.get(node.boxId);
-  if (!box) {
-    return { id: node.id, rerouted: false };
-  }
-
-  const boxKind = schemaIndex.boxKindsById.get(box.kind);
-  const otherBoxId = resolveEndpointBoxId(otherEndpointId, nodeById, boxById);
-
-  if (collapsedBoxIds.has(node.boxId)) {
-    return {
-      id: box.id,
-      handle: pickBoxBoundaryHandle(box, otherBoxId, side, schemaIndex.lanesById, boxById),
-      rerouted: true,
-    };
-  }
-
-  const slotId = resolveNodeSlotId(node, schemaIndex.nodeKindsById);
-  if (!boxKind || isFrontierSlot(boxKind, slotId) || otherBoxId === node.boxId) {
-    return { id: node.id, rerouted: false };
-  }
-
-  return {
-    id: box.id,
-    handle: pickBoxBoundaryHandle(box, otherBoxId, side, schemaIndex.lanesById, boxById),
-    rerouted: true,
   };
 }
 

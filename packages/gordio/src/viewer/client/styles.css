@@ -109,35 +109,6 @@ body {
   text-transform: uppercase;
 }
 
-.gordio-box-collapse-toggle {
-  align-items: center;
-  background: #eef2f8;
-  border: 1px solid #c5d0e3;
-  border-radius: 8px;
-  color: #3d4a63;
-  cursor: pointer;
-  display: inline-flex;
-  flex-shrink: 0;
-  font-size: 18px;
-  font-weight: 600;
-  height: 28px;
-  justify-content: center;
-  line-height: 1;
-  margin-left: auto;
-  padding: 0;
-  width: 28px;
-}
-
-.gordio-box-collapse-toggle:hover {
-  background: #e2e9f4;
-  border-color: #a8b8d4;
-}
-
-.gordio-box-collapse-toggle:focus-visible {
-  outline: 2px solid #5a7ccf;
-  outline-offset: 2px;
-}
-
 .gordio-child-node {
   background: #eef4ff;
   border: 1px solid #b8cef5;
