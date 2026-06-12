@@ -10,11 +10,15 @@ import { compositionReachabilityPolicy } from "./composition-reachability";
 import { directNeighbourPolicy } from "./direct-neighbours";
 import { clearSelectionPolicy, toggleBoxCollapsePolicy } from "./toggle-collapse";
 
-export { compositionReachabilityPolicy } from "./composition-reachability";
+export {
+  buildCompositionReachabilityPatch,
+  compositionReachabilityPolicy,
+} from "./composition-reachability";
 export { directNeighbourPolicy } from "./direct-neighbours";
 export { clearSelectionPolicy, toggleBoxCollapsePolicy } from "./toggle-collapse";
 
 const defaultPolicies: ArchitecturePolicy[] = [
+  directNeighbourPolicy,
   compositionReachabilityPolicy,
   toggleBoxCollapsePolicy,
   clearSelectionPolicy,

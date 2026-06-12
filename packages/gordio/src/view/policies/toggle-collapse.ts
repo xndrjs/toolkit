@@ -34,6 +34,7 @@ export const clearSelectionPolicy: ArchitecturePolicy = ({ graph, event }) => {
 
   return {
     selectedId: null,
+    compositionRootId: null,
     collapsedBoxes: Object.fromEntries(graph.boxes.map((box) => [box.id, false])),
     nodes: Object.fromEntries(graph.nodes.map((node) => [node.id, "normal" as const])),
   };

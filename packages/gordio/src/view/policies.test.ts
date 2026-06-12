@@ -110,7 +110,7 @@ describe("createArchitectureViewState", () => {
 });
 
 describe("directNeighbourPolicy", () => {
-  it("highlights the selected node, direct neighbours, and incident edges", () => {
+  it("highlights the selected node and normal direct neighbours when no composition is active", () => {
     const viewState = applyArchitecturePolicies({
       graph,
       schema: cleanArchitecturePreset,
@@ -122,31 +122,160 @@ describe("directNeighbourPolicy", () => {
     expect(viewState.selectedId).toBe("core:orders:submit-order");
     expect(resolveVisualState(viewState, "nodes", "core:orders:submit-order")).toBe("highlighted");
     expect(resolveVisualState(viewState, "nodes", "core:orders:place-order")).toBe("highlighted");
-    expect(resolveVisualState(viewState, "nodes", "core:orders:order-repository")).toBe("muted");
-    expect(resolveVisualState(viewState, "nodes", "app:web:composition-root")).toBe("muted");
+    expect(resolveVisualState(viewState, "nodes", "core:orders:order-repository")).toBe("normal");
+    expect(resolveVisualState(viewState, "nodes", "app:web:composition-root")).toBe("normal");
     expect(resolveVisualState(viewState, "nodes", "infra:orders:sql-order-repository")).toBe(
-      "muted"
+      "normal"
     );
     expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[1]!))).toBe(
       "highlighted"
     );
-    expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[2]!))).toBe("muted");
-    expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[0]!))).toBe("muted");
-    expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[3]!))).toBe("muted");
+    expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[2]!))).toBe("normal");
+    expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[0]!))).toBe("normal");
+    expect(resolveVisualState(viewState, "edges", createEdgeKey(graph.edges[3]!))).toBe("normal");
   });
 
-  it("mutes boxes whose children are only highlighted or muted", () => {
+  it("keeps muted nodes muted and only highlights normal neighbours within composition context", () => {
+    const composed = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: createArchitectureViewState(graph, cleanArchitecturePreset),
+      event: { type: "select-composition-root", nodeId: "app:web:composition-root" },
+    });
     const viewState = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: composed,
+      event: { type: "select-node", nodeId: "core:orders:submit-order" },
+      policies: directNeighbourPolicies,
+    });
+
+    expect(viewState.selectedId).toBe("core:orders:submit-order");
+    expect(resolveVisualState(viewState, "nodes", "core:orders:submit-order")).toBe("highlighted");
+    expect(resolveVisualState(viewState, "nodes", "core:orders:place-order")).toBe("highlighted");
+    expect(resolveVisualState(viewState, "nodes", "core:orders:order-repository")).toBe("normal");
+    expect(resolveVisualState(viewState, "nodes", "app:web:composition-root")).toBe("highlighted");
+    expect(resolveVisualState(viewState, "boxes", "pkg:orders")).toBe("normal");
+  });
+
+  it("highlights normal direct neighbours within composition context", () => {
+    const composed = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: createArchitectureViewState(graph, cleanArchitecturePreset),
+      event: { type: "select-composition-root", nodeId: "app:web:composition-root" },
+    });
+    const viewState = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: composed,
+      event: { type: "select-node", nodeId: "core:orders:order-repository" },
+      policies: directNeighbourPolicies,
+    });
+
+    expect(resolveVisualState(viewState, "nodes", "core:orders:order-repository")).toBe(
+      "highlighted"
+    );
+    expect(resolveVisualState(viewState, "nodes", "core:orders:place-order")).toBe("highlighted");
+    expect(resolveVisualState(viewState, "nodes", "core:orders:submit-order")).toBe("normal");
+    expect(resolveVisualState(viewState, "nodes", "infra:orders:sql-order-repository")).toBe(
+      "highlighted"
+    );
+    expect(resolveVisualState(viewState, "nodes", "app:web:composition-root")).toBe("highlighted");
+  });
+
+  it("ignores clicks on muted nodes", () => {
+    const multiAppGraph: ArchitectureGraph = {
+      ...graph,
+      boxes: [
+        graph.boxes[0]!,
+        { id: "app:mobile", kind: "app", title: "Mobile", laneId: "apps" },
+        graph.boxes[1]!,
+        graph.boxes[2]!,
+      ],
+      nodes: [
+        graph.nodes[0]!,
+        {
+          id: "app:mobile:composition-root",
+          kind: "composition-root",
+          title: "MobileApp",
+          boxId: "app:mobile",
+        },
+        ...graph.nodes.slice(1),
+      ],
+    };
+    const composed = applyArchitecturePolicies({
+      graph: multiAppGraph,
+      schema: cleanArchitecturePreset,
+      viewState: createArchitectureViewState(multiAppGraph, cleanArchitecturePreset),
+      event: { type: "select-composition-root", nodeId: "app:web:composition-root" },
+    });
+    const viewState = applyArchitecturePolicies({
+      graph: multiAppGraph,
+      schema: cleanArchitecturePreset,
+      viewState: composed,
+      event: { type: "select-node", nodeId: "app:mobile:composition-root" },
+      policies: directNeighbourPolicies,
+    });
+
+    expect(viewState.selectedId).toBe("app:web:composition-root");
+    expect(resolveVisualState(viewState, "nodes", "app:mobile:composition-root")).toBe("muted");
+    expect(resolveVisualState(viewState, "nodes", "app:web:composition-root")).toBe("highlighted");
+  });
+
+  it("restores composition reachability when re-clicking the selected node", () => {
+    const composed = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: createArchitectureViewState(graph, cleanArchitecturePreset),
+      event: { type: "select-composition-root", nodeId: "app:web:composition-root" },
+    });
+    const highlighted = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: composed,
+      event: { type: "select-node", nodeId: "core:orders:submit-order" },
+      policies: directNeighbourPolicies,
+    });
+    const restored = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: highlighted,
+      event: { type: "select-node", nodeId: "core:orders:submit-order" },
+      policies: directNeighbourPolicies,
+    });
+
+    expect(resolveVisualState(highlighted, "nodes", "app:web:composition-root")).toBe(
+      "highlighted"
+    );
+    expect(highlighted.compositionRootId).toBe("app:web:composition-root");
+    expect(restored.compositionRootId).toBe("app:web:composition-root");
+    expect(restored.selectedId).toBe("app:web:composition-root");
+    expect(resolveVisualState(restored, "nodes", "app:web:composition-root")).toBe("highlighted");
+    expect(resolveVisualState(restored, "nodes", "core:orders:submit-order")).toBe("normal");
+    expect(resolveVisualState(restored, "nodes", "core:orders:place-order")).toBe("normal");
+  });
+
+  it("clears node selection when re-clicking without an active composition root", () => {
+    const highlighted = applyArchitecturePolicies({
       graph,
       schema: cleanArchitecturePreset,
       viewState: createArchitectureViewState(graph, cleanArchitecturePreset),
       event: { type: "select-node", nodeId: "core:orders:submit-order" },
       policies: directNeighbourPolicies,
     });
+    const restored = applyArchitecturePolicies({
+      graph,
+      schema: cleanArchitecturePreset,
+      viewState: highlighted,
+      event: { type: "select-node", nodeId: "core:orders:submit-order" },
+      policies: directNeighbourPolicies,
+    });
 
-    expect(resolveVisualState(viewState, "boxes", "app:web")).toBe("muted");
-    expect(resolveVisualState(viewState, "boxes", "pkg:orders")).toBe("muted");
-    expect(resolveVisualState(viewState, "boxes", "pkg:orders-infra")).toBe("muted");
+    expect(restored.selectedId).toBeUndefined();
+    expect(restored.compositionRootId).toBeUndefined();
+    expect(resolveVisualState(restored, "nodes", "core:orders:submit-order")).toBe("normal");
+    expect(resolveVisualState(restored, "nodes", "core:orders:place-order")).toBe("normal");
   });
 
   it("treats edges as undirected when exploring direct neighbours", () => {

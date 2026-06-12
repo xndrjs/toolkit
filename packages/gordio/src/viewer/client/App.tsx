@@ -91,23 +91,24 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
         return;
       }
 
-      if (data.node.kind !== "composition-root") {
+      if (data.node.kind === "composition-root") {
+        setViewState((current) =>
+          applyArchitecturePolicies({
+            graph: graphDocument.graph,
+            schema,
+            viewState: current,
+            event:
+              current.selectedId === data.node!.id
+                ? { type: "clear-selection" }
+                : { type: "select-composition-root", nodeId: data.node!.id },
+          })
+        );
         return;
       }
 
-      setViewState((current) =>
-        applyArchitecturePolicies({
-          graph: graphDocument.graph,
-          schema,
-          viewState: current,
-          event:
-            current.selectedId === data.node!.id
-              ? { type: "clear-selection" }
-              : { type: "select-composition-root", nodeId: data.node!.id },
-        })
-      );
+      applyPolicy({ type: "select-node", nodeId: data.node.id });
     },
-    [graphDocument.graph, schema]
+    [applyPolicy, graphDocument.graph, schema]
   );
   const handlePaneClick = useCallback(() => {
     applyPolicy({ type: "clear-selection" });

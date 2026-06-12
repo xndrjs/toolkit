@@ -65,6 +65,12 @@ export function mergeDecorationPatch(
     next.selectedId = patch.selectedId;
   }
 
+  if (patch.compositionRootId === null) {
+    delete next.compositionRootId;
+  } else if (patch.compositionRootId !== undefined) {
+    next.compositionRootId = patch.compositionRootId;
+  }
+
   return next;
 }
 

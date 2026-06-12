@@ -22,6 +22,7 @@ export interface ReactFlowProjectionOptions {
 
 export interface ArchitectureViewState {
   selectedId?: ArchitectureId;
+  compositionRootId?: ArchitectureId;
   collapsedBoxes?: Record<ArchitectureId, boolean>;
   visual?: {
     boxes: Record<ArchitectureId, VisualState>;

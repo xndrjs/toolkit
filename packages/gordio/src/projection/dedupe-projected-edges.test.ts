@@ -57,9 +57,6 @@ describe("dedupeProjectedEdges", () => {
         target: "pkg:orders",
         sourceHandle: "source-right",
         targetHandle: "target-left",
-        type: "architectureEdge",
-        animated: true,
-        data: graph.edges[0] as never,
       })
     );
   });

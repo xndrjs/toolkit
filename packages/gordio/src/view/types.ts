@@ -16,6 +16,7 @@ export type ArchitectureInteraction =
 
 export interface DecorationPatch {
   selectedId?: ArchitectureId | null;
+  compositionRootId?: ArchitectureId | null;
   collapsedBoxes?: Record<ArchitectureId, boolean>;
   boxes?: Record<ArchitectureId, VisualState>;
   nodes?: Record<ArchitectureId, VisualState>;

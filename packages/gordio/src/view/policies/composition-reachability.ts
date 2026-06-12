@@ -12,31 +12,42 @@ export const compositionReachabilityPolicy: ArchitecturePolicy = ({ graph, schem
 
   const compositionRoot = graph.nodes.find((node) => node.id === event.nodeId);
   if (!compositionRoot || compositionRoot.kind !== "composition-root") {
-    return { selectedId: null, ...createMutedDecoration(graph) };
+    return { selectedId: null, compositionRootId: null, ...createMutedDecoration(graph) };
   }
 
+  return {
+    ...buildCompositionReachabilityPatch(graph, schema, event.nodeId),
+    selectedId: event.nodeId,
+    compositionRootId: event.nodeId,
+  };
+};
+
+export function buildCompositionReachabilityPatch(
+  graph: ArchitectureGraph,
+  schema: ArchitectureViewSchema,
+  compositionRootId: ArchitectureId
+): DecorationPatch {
   const { activeNodeIds, openedBoxIds } = computeLayeredReachability(
     graph,
     schema,
-    event.nodeId,
+    compositionRootId,
     cleanArchitectureLayeredReachability
   );
   const patch = createMutedDecoration(graph);
 
-  patch.selectedId = event.nodeId;
   patch.collapsedBoxes = createCollapsePatch(graph, schema, openedBoxIds, activeNodeIds);
-  patch.nodes![event.nodeId] = "highlighted";
+  patch.nodes![compositionRootId] = "highlighted";
 
   for (const node of graph.nodes) {
-    if (activeNodeIds.has(node.id) && node.id !== event.nodeId) {
+    if (activeNodeIds.has(node.id) && node.id !== compositionRootId) {
       patch.nodes![node.id] = "normal";
     }
   }
 
-  applyCompositionAppScope(graph, schema, event.nodeId, patch);
+  applyCompositionAppScope(graph, schema, compositionRootId, patch);
 
   return patch;
-};
+}
 
 function applyCompositionAppScope(
   graph: ArchitectureGraph,
