@@ -45,14 +45,14 @@ export default defineConfig({
             const mapped: {
               sourceId: string;
               targetId: string;
-              kind: string;
               directed: true;
+              kind?: string;
               metadata?: Record<string, unknown>;
             } = {
               sourceId: createEndpointId(edge, "source", context.createId),
               targetId: createEndpointId(edge, "target", context.createId),
-              kind: edge.kind,
               directed: true,
+              ...(edge.kind !== undefined ? { kind: edge.kind } : {}),
             };
 
             if (edge.sourceHandle !== undefined || edge.targetHandle !== undefined) {
@@ -105,7 +105,7 @@ interface FixtureNode {
 interface FixtureEdge {
   source: FixtureEndpoint;
   target: FixtureEndpoint;
-  kind: string;
+  kind?: string;
   sourceHandle?: string;
   targetHandle?: string;
 }

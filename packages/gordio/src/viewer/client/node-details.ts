@@ -7,7 +7,6 @@ import type {
 
 export interface NodeConnectionDetail {
   direction: "outgoing" | "incoming";
-  label: string;
   peerId: ArchitectureId;
   peerTitle: string;
   peerKind?: string;
@@ -66,7 +65,6 @@ function buildNodeConnections(
     if (edge.sourceId === node.id) {
       connections.push({
         direction: "outgoing",
-        label: formatEdgeLabel(edge.kind),
         peerId: edge.targetId,
         ...resolveEndpointDetails(graph, edge.targetId),
       });
@@ -76,7 +74,6 @@ function buildNodeConnections(
     if (edge.targetId === node.id) {
       connections.push({
         direction: "incoming",
-        label: formatEdgeLabel(edge.kind),
         peerId: edge.sourceId,
         ...resolveEndpointDetails(graph, edge.sourceId),
       });
@@ -111,9 +108,7 @@ function resolveEndpointDetails(
 
 function compareConnections(left: NodeConnectionDetail, right: NodeConnectionDetail): number {
   return (
-    left.direction.localeCompare(right.direction) ||
-    left.label.localeCompare(right.label) ||
-    left.peerTitle.localeCompare(right.peerTitle)
+    left.direction.localeCompare(right.direction) || left.peerTitle.localeCompare(right.peerTitle)
   );
 }
 
@@ -122,8 +117,4 @@ export function formatKindLabel(kind: string): string {
     .split("-")
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
-}
-
-function formatEdgeLabel(kind: string | undefined): string {
-  return kind ?? "relates to";
 }

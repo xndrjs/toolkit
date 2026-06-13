@@ -84,8 +84,7 @@ function ConnectionGroup({
       <h4>{direction === "outgoing" ? "Outgoing" : "Incoming"}</h4>
       <ul className="gordio-details-connection-list">
         {connections.map((connection) => (
-          <li key={`${direction}:${connection.label}:${connection.peerId}`}>
-            <span className="gordio-details-edge-label">{connection.label}</span>
+          <li key={`${direction}:${connection.peerId}`}>
             <span className="gordio-details-edge-peer">{connection.peerTitle}</span>
             {connection.peerKind ? (
               <span className="gordio-details-edge-kind">

@@ -55,7 +55,7 @@ describe("buildNodeDetails", () => {
     expect(buildNodeDetails(graph, cleanArchitecturePreset, undefined)).toBeNull();
   });
 
-  it("builds node metadata and labeled connections for the selected node", () => {
+  it("builds node metadata and connections for the selected node", () => {
     const details = buildNodeDetails(graph, cleanArchitecturePreset, "core:orders:place-order");
 
     expect(details).toMatchObject({
@@ -66,7 +66,6 @@ describe("buildNodeDetails", () => {
       connections: [
         {
           direction: "outgoing",
-          label: "uses",
           peerTitle: "OrderRepository",
           peerKind: "port",
         },
@@ -84,17 +83,15 @@ describe("buildNodeDetails", () => {
     expect(details?.connections).toEqual([
       {
         direction: "incoming",
-        label: "implements",
-        peerId: "infra:orders:sql-order-repository",
-        peerTitle: "SqlOrderRepository",
-        peerKind: "repository",
-      },
-      {
-        direction: "incoming",
-        label: "uses",
         peerId: "core:orders:place-order",
         peerTitle: "PlaceOrder",
         peerKind: "use-case",
+      },
+      {
+        direction: "incoming",
+        peerId: "infra:orders:sql-order-repository",
+        peerTitle: "SqlOrderRepository",
+        peerKind: "repository",
       },
     ]);
   });

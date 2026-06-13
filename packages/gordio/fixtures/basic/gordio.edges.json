@@ -60,7 +60,6 @@
       "package": "core-catalog",
       "node": "publish-catalog-item"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -77,7 +76,6 @@
       "package": "core-orders",
       "node": "place-order"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -94,7 +92,6 @@
       "package": "core-orders",
       "node": "cancel-order-use-case"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -111,7 +108,6 @@
       "package": "core-orders",
       "node": "process-refund"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -128,7 +124,6 @@
       "package": "core-orders",
       "node": "ship-order"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -145,7 +140,6 @@
       "package": "core-orders",
       "node": "update-order-status"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -194,7 +188,6 @@
       "package": "core-orders",
       "node": "place-order"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -211,7 +204,6 @@
       "package": "core-catalog",
       "node": "publish-catalog-item"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -243,8 +235,7 @@
       "prefix": "core",
       "package": "core-catalog",
       "node": "publish-product"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -258,8 +249,7 @@
       "prefix": "core",
       "package": "core-billing",
       "node": "charge-customer"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -273,8 +263,7 @@
       "prefix": "core",
       "package": "core-orders",
       "node": "submit-order"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -288,8 +277,7 @@
       "prefix": "core",
       "package": "core-orders",
       "node": "cancel-order"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -303,8 +291,7 @@
       "prefix": "core",
       "package": "core-orders",
       "node": "fulfill-order"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -318,8 +305,7 @@
       "prefix": "core",
       "package": "core-orders",
       "node": "refund-order"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -333,8 +319,7 @@
       "prefix": "core",
       "package": "core-orders",
       "node": "track-shipment"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -349,7 +334,6 @@
       "package": "core-catalog",
       "node": "publish-product"
     },
-    "kind": "uses",
     "sourceHandle": "source-left",
     "targetHandle": "target-right"
   },
@@ -366,7 +350,6 @@
       "package": "core-catalog",
       "node": "calculate-price"
     },
-    "kind": "uses",
     "sourceHandle": "source-left",
     "targetHandle": "target-right"
   },
@@ -383,7 +366,6 @@
       "package": "core-catalog",
       "node": "cms-port"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -400,7 +382,6 @@
       "package": "core-catalog",
       "node": "product-repository"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -417,7 +398,6 @@
       "package": "core-catalog",
       "node": "search-index"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -434,7 +414,6 @@
       "package": "core-orders",
       "node": "submit-order"
     },
-    "kind": "uses",
     "sourceHandle": "source-left",
     "targetHandle": "target-right"
   },
@@ -451,7 +430,6 @@
       "package": "core-orders",
       "node": "order-validation"
     },
-    "kind": "uses",
     "sourceHandle": "source-left",
     "targetHandle": "target-right"
   },
@@ -468,7 +446,6 @@
       "package": "core-orders",
       "node": "order-pricing"
     },
-    "kind": "uses",
     "sourceHandle": "source-left",
     "targetHandle": "target-right"
   },
@@ -485,7 +462,6 @@
       "package": "core-orders",
       "node": "order-repository"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -502,7 +478,6 @@
       "package": "core-orders",
       "node": "payment-gateway"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -519,7 +494,6 @@
       "package": "core-orders",
       "node": "customer-directory"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -536,7 +510,6 @@
       "package": "core-orders",
       "node": "cancel-order"
     },
-    "kind": "uses",
     "sourceHandle": "source-left",
     "targetHandle": "target-right"
   },
@@ -553,7 +526,6 @@
       "package": "core-orders",
       "node": "order-repository"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -570,7 +542,6 @@
       "package": "core-orders",
       "node": "refund-order"
     },
-    "kind": "uses",
     "sourceHandle": "source-left",
     "targetHandle": "target-right"
   },
@@ -587,7 +558,6 @@
       "package": "core-orders",
       "node": "payment-gateway"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -604,7 +574,6 @@
       "package": "core-orders",
       "node": "order-repository"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -621,7 +590,6 @@
       "package": "core-orders",
       "node": "fulfill-order"
     },
-    "kind": "uses",
     "sourceHandle": "source-left",
     "targetHandle": "target-right"
   },
@@ -638,7 +606,6 @@
       "package": "core-orders",
       "node": "track-shipment"
     },
-    "kind": "uses",
     "sourceHandle": "source-left",
     "targetHandle": "target-right"
   },
@@ -655,7 +622,6 @@
       "package": "core-orders",
       "node": "shipment-tracker"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -672,7 +638,6 @@
       "package": "core-orders",
       "node": "order-repository"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -689,7 +654,6 @@
       "package": "core-orders",
       "node": "order-repository"
     },
-    "kind": "uses",
     "sourceHandle": "source-right",
     "targetHandle": "target-left"
   },
@@ -705,8 +669,7 @@
       "prefix": "infra",
       "package": "contentful",
       "node": "contentful-cms-repository"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -735,8 +698,7 @@
       "prefix": "infra",
       "package": "postgres",
       "node": "sql-product-repository"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -751,7 +713,9 @@
       "package": "elasticsearch",
       "node": "elasticsearch-search-adapter"
     },
-    "kind": "uses"
+    "kind": "implements",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
   },
   {
     "source": {
@@ -765,8 +729,7 @@
       "prefix": "infra",
       "package": "postgres",
       "node": "sql-order-repository"
-    },
-    "kind": "uses"
+    }
   },
   {
     "source": {
@@ -796,6 +759,8 @@
       "package": "stripe",
       "node": "stripe-payment-adapter"
     },
-    "kind": "uses"
+    "kind": "implements",
+    "sourceHandle": "source-right",
+    "targetHandle": "target-left"
   }
 ]
