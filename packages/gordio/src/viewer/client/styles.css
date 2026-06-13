@@ -44,6 +44,179 @@ body {
   padding: 24px;
 }
 
+.gordio-workspace {
+  display: flex;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+}
+
+.gordio-canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+.gordio-canvas .react-flow {
+  height: 100%;
+}
+
+.gordio-details-drawer {
+  background: #ffffff;
+  border: 1px solid #d9deea;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(27, 39, 65, 0.08);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  max-height: 100%;
+  overflow: auto;
+  width: 320px;
+}
+
+.gordio-details-header {
+  align-items: flex-start;
+  border-bottom: 1px solid #e7ebf3;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 18px 18px 16px;
+}
+
+.gordio-details-eyebrow {
+  color: #5a7ccf;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.gordio-details-title {
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.gordio-details-close {
+  background: #f3f6fb;
+  border: 1px solid #d9deea;
+  border-radius: 8px;
+  color: #5b6475;
+  cursor: pointer;
+  font-size: 20px;
+  height: 32px;
+  line-height: 1;
+  width: 32px;
+}
+
+.gordio-details-close:hover {
+  background: #e8eef8;
+}
+
+.gordio-details-section {
+  padding: 16px 18px;
+}
+
+.gordio-details-section + .gordio-details-section {
+  border-top: 1px solid #eef1f6;
+}
+
+.gordio-details-section h3 {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+}
+
+.gordio-details-meta {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.gordio-details-meta div {
+  display: grid;
+  gap: 2px;
+}
+
+.gordio-details-meta dt {
+  color: #6f7788;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.gordio-details-meta dd {
+  margin: 0;
+}
+
+.gordio-details-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.gordio-details-empty {
+  color: #6f7788;
+  font-size: 14px;
+  margin: 0;
+}
+
+.gordio-details-connection-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gordio-details-connection-group + .gordio-details-connection-group {
+  margin-top: 16px;
+}
+
+.gordio-details-connection-group h4 {
+  color: #6f7788;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.gordio-details-connection-list li {
+  background: #f7f9fc;
+  border: 1px solid #e7ebf3;
+  border-radius: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  padding: 10px 12px;
+}
+
+.gordio-details-edge-label {
+  color: #9aa3b5;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.gordio-details-edge-label::after {
+  content: "·";
+  color: #c5ccd8;
+  margin-left: 8px;
+}
+
+.gordio-details-edge-peer {
+  color: #1f2430;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gordio-details-edge-kind {
+  color: #6f7788;
+  font-size: 12px;
+}
+
 .gordio-main .react-flow {
   background:
     linear-gradient(#edf0f7 1px, transparent 1px),

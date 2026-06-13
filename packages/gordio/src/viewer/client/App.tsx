@@ -10,7 +10,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toReactFlowGraph } from "../../projection/to-react-flow-graph";
 import type { ArchitectureViewState } from "../../projection/types";
 import { applyArchitecturePolicies } from "../../view/policies/index";
+import { buildNodeDetails } from "./node-details";
 import { loadViewerPayload } from "./load-viewer-payload";
+import { NodeDetailsDrawer } from "./NodeDetailsDrawer";
 import { nodeTypes } from "./node-types";
 import { toViewerEdges, toViewerNodes } from "./react-flow-adapter";
 import type { ViewerNodeData, ViewerPayload, ViewerStatus } from "./types";
@@ -80,6 +82,34 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
   );
   const nodes = useMemo(() => toViewerNodes(projection, viewState), [projection, viewState]);
   const edges = useMemo(() => toViewerEdges(projection, viewState), [projection, viewState]);
+  const nodeDetails = useMemo(
+    () => buildNodeDetails(graphDocument.graph, schema, viewState.selectedId),
+    [graphDocument.graph, schema, viewState.selectedId]
+  );
+  const handleCloseDetails = useCallback(() => {
+    setViewState((current) => {
+      const selectedNode = graphDocument.graph.nodes.find((node) => node.id === current.selectedId);
+      if (
+        selectedNode &&
+        selectedNode.kind !== "composition-root" &&
+        current.selectedId === selectedNode.id
+      ) {
+        return applyArchitecturePolicies({
+          graph: graphDocument.graph,
+          schema,
+          viewState: current,
+          event: { type: "select-node", nodeId: selectedNode.id },
+        });
+      }
+
+      return applyArchitecturePolicies({
+        graph: graphDocument.graph,
+        schema,
+        viewState: current,
+        event: { type: "clear-selection" },
+      });
+    });
+  }, [graphDocument.graph, schema]);
   const handleNodeClick = useCallback<NodeMouseHandler>(
     (_, node) => {
       if (node.type !== "architectureNode") {
@@ -121,21 +151,28 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
 
   return (
     <ViewerFrame summary={summary}>
-      <ReactFlowProvider>
-        <ReactFlow
-          fitView
-          zoomOnDoubleClick={false}
-          nodeTypes={nodeTypes}
-          nodes={nodes}
-          edges={edges}
-          onNodeClick={handleNodeClick}
-          onPaneClick={handlePaneClick}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background />
-          <Controls />
-        </ReactFlow>
-      </ReactFlowProvider>
+      <div className={`gordio-workspace${nodeDetails ? " has-details" : ""}`}>
+        <div className="gordio-canvas">
+          <ReactFlowProvider>
+            <ReactFlow
+              fitView
+              zoomOnDoubleClick={false}
+              nodeTypes={nodeTypes}
+              nodes={nodes}
+              edges={edges}
+              onNodeClick={handleNodeClick}
+              onPaneClick={handlePaneClick}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background />
+              <Controls />
+            </ReactFlow>
+          </ReactFlowProvider>
+        </div>
+        {nodeDetails ? (
+          <NodeDetailsDrawer details={nodeDetails} onClose={handleCloseDetails} />
+        ) : null}
+      </div>
     </ViewerFrame>
   );
 }
