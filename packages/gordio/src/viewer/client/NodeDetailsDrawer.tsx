@@ -1,11 +1,16 @@
+import type { ArchitectureId } from "../../graph/types";
 import { formatKindLabel, type NodeDetails } from "./node-details";
 
 export function NodeDetailsDrawer({
   details,
+  selectedId,
   onClose,
+  onPeerClick,
 }: {
   details: NodeDetails;
+  selectedId?: ArchitectureId;
   onClose: () => void;
+  onPeerClick: (peerId: ArchitectureId) => void;
 }) {
   const outgoing = details.connections.filter((connection) => connection.direction === "outgoing");
   const incoming = details.connections.filter((connection) => connection.direction === "incoming");
@@ -60,10 +65,20 @@ export function NodeDetailsDrawer({
         ) : (
           <>
             {outgoing.length > 0 ? (
-              <ConnectionGroup direction="outgoing" connections={outgoing} />
+              <ConnectionGroup
+                direction="outgoing"
+                connections={outgoing}
+                selectedId={selectedId}
+                onPeerClick={onPeerClick}
+              />
             ) : null}
             {incoming.length > 0 ? (
-              <ConnectionGroup direction="incoming" connections={incoming} />
+              <ConnectionGroup
+                direction="incoming"
+                connections={incoming}
+                selectedId={selectedId}
+                onPeerClick={onPeerClick}
+              />
             ) : null}
           </>
         )}
@@ -75,24 +90,54 @@ export function NodeDetailsDrawer({
 function ConnectionGroup({
   direction,
   connections,
+  selectedId,
+  onPeerClick,
 }: {
   direction: "outgoing" | "incoming";
   connections: NodeDetails["connections"];
+  selectedId?: ArchitectureId;
+  onPeerClick: (peerId: ArchitectureId) => void;
 }) {
   return (
     <div className="gordio-details-connection-group">
       <h4>{direction === "outgoing" ? "Outgoing" : "Incoming"}</h4>
       <ul className="gordio-details-connection-list">
-        {connections.map((connection) => (
-          <li key={`${direction}:${connection.peerId}`}>
-            <span className="gordio-details-edge-peer">{connection.peerTitle}</span>
-            {connection.peerKind ? (
-              <span className="gordio-details-edge-kind">
-                {formatKindLabel(connection.peerKind)}
-              </span>
-            ) : null}
-          </li>
-        ))}
+        {connections.map((connection) => {
+          const className = [
+            connection.selectable ? "is-selectable" : "",
+            connection.selectable && selectedId === connection.peerId ? "is-selected" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          const content = (
+            <>
+              <span className="gordio-details-edge-peer">{connection.peerTitle}</span>
+              {connection.peerKind ? (
+                <span className="gordio-details-edge-kind">
+                  {formatKindLabel(connection.peerKind)}
+                </span>
+              ) : null}
+            </>
+          );
+
+          return (
+            <li key={`${direction}:${connection.peerId}`} className={className || undefined}>
+              {connection.selectable ? (
+                <button
+                  type="button"
+                  className="gordio-details-connection-button"
+                  aria-pressed={selectedId === connection.peerId}
+                  onClick={() => onPeerClick(connection.peerId)}
+                >
+                  {content}
+                </button>
+              ) : (
+                content
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

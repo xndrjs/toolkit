@@ -190,7 +190,40 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   align-items: baseline;
+  padding: 0;
+}
+
+.gordio-details-connection-list li:not(.is-selectable) {
   padding: 10px 12px;
+}
+
+.gordio-details-connection-list li.is-selectable {
+  cursor: pointer;
+}
+
+.gordio-details-connection-list li.is-selected {
+  border-color: #b8ccf5;
+  background: #eef3fd;
+}
+
+.gordio-details-connection-button {
+  align-items: baseline;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  font: inherit;
+  gap: 8px;
+  padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.gordio-details-connection-list li.is-selectable:not(.is-selected):hover {
+  border-color: #cdd9ef;
+  background: #f0f4fb;
 }
 
 .gordio-details-edge-peer {

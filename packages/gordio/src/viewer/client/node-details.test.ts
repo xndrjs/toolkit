@@ -68,6 +68,7 @@ describe("buildNodeDetails", () => {
           direction: "outgoing",
           peerTitle: "OrderRepository",
           peerKind: "port",
+          selectable: true,
         },
       ],
     });
@@ -86,12 +87,14 @@ describe("buildNodeDetails", () => {
         peerId: "core:orders:place-order",
         peerTitle: "PlaceOrder",
         peerKind: "use-case",
+        selectable: true,
       },
       {
         direction: "incoming",
         peerId: "infra:orders:sql-order-repository",
         peerTitle: "SqlOrderRepository",
         peerKind: "repository",
+        selectable: true,
       },
     ]);
   });

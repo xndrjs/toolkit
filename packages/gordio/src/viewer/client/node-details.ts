@@ -10,6 +10,7 @@ export interface NodeConnectionDetail {
   peerId: ArchitectureId;
   peerTitle: string;
   peerKind?: string;
+  selectable: boolean;
 }
 
 export interface NodeDetails {
@@ -86,12 +87,13 @@ function buildNodeConnections(
 function resolveEndpointDetails(
   graph: ArchitectureGraph,
   endpointId: ArchitectureId
-): Pick<NodeConnectionDetail, "peerTitle" | "peerKind"> {
+): Pick<NodeConnectionDetail, "peerTitle" | "peerKind" | "selectable"> {
   const peerNode = graph.nodes.find((candidate) => candidate.id === endpointId);
   if (peerNode) {
     return {
       peerTitle: peerNode.title,
       peerKind: peerNode.kind,
+      selectable: true,
     };
   }
 
@@ -100,10 +102,11 @@ function resolveEndpointDetails(
     return {
       peerTitle: peerBox.title,
       peerKind: peerBox.kind,
+      selectable: false,
     };
   }
 
-  return { peerTitle: endpointId };
+  return { peerTitle: endpointId, selectable: false };
 }
 
 function compareConnections(left: NodeConnectionDetail, right: NodeConnectionDetail): number {

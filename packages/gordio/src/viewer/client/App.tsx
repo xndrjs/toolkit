@@ -110,6 +110,32 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
       });
     });
   }, [graphDocument.graph, schema]);
+  const handleSelectArchitectureNode = useCallback(
+    (nodeId: string) => {
+      const node = graphDocument.graph.nodes.find((candidate) => candidate.id === nodeId);
+      if (!node) {
+        return;
+      }
+
+      if (node.kind === "composition-root") {
+        setViewState((current) =>
+          applyArchitecturePolicies({
+            graph: graphDocument.graph,
+            schema,
+            viewState: current,
+            event:
+              current.selectedId === node.id
+                ? { type: "clear-selection" }
+                : { type: "select-composition-root", nodeId: node.id },
+          })
+        );
+        return;
+      }
+
+      applyPolicy({ type: "select-node", nodeId: node.id });
+    },
+    [applyPolicy, graphDocument.graph, schema]
+  );
   const handleNodeClick = useCallback<NodeMouseHandler>(
     (_, node) => {
       if (node.type !== "architectureNode") {
@@ -121,24 +147,9 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
         return;
       }
 
-      if (data.node.kind === "composition-root") {
-        setViewState((current) =>
-          applyArchitecturePolicies({
-            graph: graphDocument.graph,
-            schema,
-            viewState: current,
-            event:
-              current.selectedId === data.node!.id
-                ? { type: "clear-selection" }
-                : { type: "select-composition-root", nodeId: data.node!.id },
-          })
-        );
-        return;
-      }
-
-      applyPolicy({ type: "select-node", nodeId: data.node.id });
+      handleSelectArchitectureNode(data.node.id);
     },
-    [applyPolicy, graphDocument.graph, schema]
+    [handleSelectArchitectureNode]
   );
   const handlePaneClick = useCallback(() => {
     applyPolicy({ type: "clear-selection" });
@@ -170,7 +181,12 @@ function ReadyViewer({ payload }: { payload: ViewerPayload }) {
           </ReactFlowProvider>
         </div>
         {nodeDetails ? (
-          <NodeDetailsDrawer details={nodeDetails} onClose={handleCloseDetails} />
+          <NodeDetailsDrawer
+            details={nodeDetails}
+            {...(viewState.selectedId != null ? { selectedId: viewState.selectedId } : {})}
+            onClose={handleCloseDetails}
+            onPeerClick={handleSelectArchitectureNode}
+          />
         ) : null}
       </div>
     </ViewerFrame>
