@@ -1,6 +1,6 @@
 ---
 title: "Parsing-slop: a particular form of AI slop"
-description: When AI never names a shape, every file becomes a parser — why parsing-slop spreads, what it costs, and why every boundary deserves an explicit shape.
+description: When AI never names a shape, every file becomes a parser. Why parsing-slop spreads, what it costs, and why every boundary deserves an explicit shape.
 date: 2026-06-16
 author: Fabio Fognani
 tags:
@@ -12,7 +12,7 @@ tags:
 
 Recently, while programming with AI assistants, I found myself repeating the same piece of feedback over and over again:
 
-> Don't do custom parsing. Avoid parsing-slop. Define a schema instead.
+> Don't do custom parsing. Define a schema instead.
 
 At first, I assumed these were isolated episodes. Then I realized I was observing a recurring pattern — one that appears so frequently in AI-generated code that it deserves a name of its own.
 
@@ -38,11 +38,13 @@ if (isRecord(data)) {
 }
 ```
 
-On its own, there is nothing wrong with this code. The problem begins when the same pattern appears everywhere — and is asked to validate structures that were never named.
+On its own, there is nothing wrong with this code. The problem begins when the same pattern appears everywhere — and is asked to validate structures that were never named, and were never made clear enough to anchor in a mental model.
 
 One consumer walks a nested object with a dozen fields. Another branches on a polymorphic payload — different shapes behind the same entry point. A third mixes strings, nested records, arrays, and optional keys in one inline parser. A fourth reimplements a slightly different version of the same contract because it only needs a subset today.
 
 The shape of the data exists, but it is never **declared**. It is rediscovered repeatedly by every consumer.
+
+While a declared schema gives you a shape you can recognize at a glance, a custom parser does the opposite: its imperative flow takes you by the hand through low-level checks (`typeof`, `isRecord`, nested guards...) and leaves you to interpret each branch and reconstruct the object's structure in your head as you read. All of this repeated and scattered across many files and layers.
 
 This is **parsing-slop**.
 
@@ -147,7 +149,7 @@ function parseSomething(fields: unknown): { title: string } {
 }
 ```
 
-That is parsing-slop in miniature: the contract was never named, so every consumer has to rediscover whether `title` is a string or a locale map. The Contentful post walks through the structured alternative — separate transport and flat schemas, generated once at the boundary.
+That is parsing-slop in a nutshell: the contract was never named, so every consumer has to rediscover whether `title` is a string or a locale map. The Contentful post walks through the structured alternative — separate transport and flat schemas, generated once at the boundary.
 
 Over time, this kind of function becomes a graveyard of historical assumptions.
 
@@ -285,7 +287,7 @@ Inside the boundary, use [`@xndrjs/domain`](/v0/domain/overview/) for trusted re
 - **`capability`** for named transitions instead of mutating parsed blobs
 - **`proof`** when a workflow needs a stronger guarantee than the base shape already carries
 
-Call `create` or `safeCreate` when data crosses in. After that, use cases should receive `Article`, not `unknown` with another round of `isRecord`.
+Call `create` or `safeCreate` when data crosses in. After that, use cases should receive `Article`, not some `unknown` stuff with another round of `isRecord`.
 
 ### Map explicitly between layers
 
@@ -302,7 +304,9 @@ Each arrow is a named transformation between named shapes — not a `typeof` bra
 
 Make shape modeling an **explicit step** in your workflow — not something you hope will emerge from the implementation.
 
-Through skills, rules, or deliberate prompts, make your AI assistant name the shapes at every boundary and agree on the [mental model](/v0/getting-started/mental-model/) **before** it writes handlers, use cases, or components. Do not let it produce behavioral code while contracts are still implicit. When that order is reversed, parsing-slop happens: orchestration code fills up with inline `typeof` checks and ad hoc guards instead of calling named shapes. You end up working at the wrong level of abstraction because of a foggy mental model.
+Through skills, rules, or deliberate prompts, make your AI assistant name the shapes at every boundary and agree on the [mental model](/v0/getting-started/mental-model/) **before** it writes handlers, use cases, or components. Do not let it produce behavioral code while contracts are still implicit. When that order is reversed, parsing-slop happens: orchestration code fills up with inline `typeof` checks and ad hoc guards instead of calling named shapes.
+
+You end up working at the wrong level of abstraction because of a foggy mental model.
 
 ## Parse once, name things, move on
 
