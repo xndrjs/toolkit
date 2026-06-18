@@ -3,7 +3,7 @@ import Analytics from "@vercel/analytics/astro";
 import ogImage from "../assets/xndrjs-dev-og.png";
 
 const { head } = Astro.locals.starlightRoute;
-const site = Astro.site ?? new URL("https://xndrjs.dev");
+const site = Astro.site ?? new URL("https://www.xndrjs.dev");
 const ogImageUrl = new URL(ogImage.src, site);
 ---
 

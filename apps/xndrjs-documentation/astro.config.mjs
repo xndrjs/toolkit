@@ -5,7 +5,7 @@ import mermaid from "astro-mermaid";
 
 // https://astro.build/config
 export default defineConfig({
-  site: "https://xndrjs.dev",
+  site: "https://www.xndrjs.dev",
   integrations: [
     mermaid(),
     starlight({
