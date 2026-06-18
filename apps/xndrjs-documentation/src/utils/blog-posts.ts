@@ -24,6 +24,17 @@ export function isBlogAreaRoute(docId: string): boolean {
   return isBlogIndexBase(base) || base.startsWith("blog/");
 }
 
+/** Starlight docs route id is the blog index (`blog` or `blog/index`). */
+export function isBlogIndexRoute(docId: string): boolean {
+  return isBlogIndexBase(blogEntryBaseId(docId));
+}
+
+/** Starlight docs route id is a single blog post (not the index). */
+export function isBlogPostRoute(docId: string): boolean {
+  const base = blogEntryBaseId(docId);
+  return base.startsWith("blog/") && !isBlogIndexBase(base);
+}
+
 export function formatBlogDate(d: Date): string {
   return d.toLocaleDateString("en-US", {
     year: "numeric",
@@ -55,6 +66,29 @@ export function sortBlogPostsNewestFirst(
 export async function getBlogPostsSorted(): Promise<CollectionEntry<"docs">[]> {
   const all = await getCollection("docs");
   return sortBlogPostsNewestFirst(all.filter(isBlogPost));
+}
+
+/** Adjacent posts in reading order (prev = older, next = newer). Assumes `posts` is newest-first. */
+export function getBlogPostNeighbors(
+  currentDocId: string,
+  posts: CollectionEntry<"docs">[]
+): {
+  prev: CollectionEntry<"docs"> | undefined;
+  next: CollectionEntry<"docs"> | undefined;
+} {
+  const currentBase = blogEntryBaseId(currentDocId);
+  const index = posts.findIndex((entry) => blogEntryBaseId(entry.id) === currentBase);
+  if (index === -1) return { prev: undefined, next: undefined };
+  return {
+    prev: posts[index + 1],
+    next: posts[index - 1],
+  };
+}
+
+export function blogPostTitle(entry: CollectionEntry<"docs">): string {
+  const title = entry.data.title;
+  if (typeof title === "string" && title.length > 0) return title;
+  return blogEntryBaseId(entry.id);
 }
 
 /** URL pathname for a docs entry, matching Starlight’s `slugToPathname` (e.g. `blog/index` → `/blog/`). */

@@ -1,0 +1,94 @@
+---
+import MobileTableOfContents from "@astrojs/starlight/components/MobileTableOfContents.astro";
+import TableOfContents from "@astrojs/starlight/components/TableOfContents.astro";
+import { docIdToPathname, isBlogPostRoute } from "../utils/blog-posts";
+
+const route = Astro.locals.starlightRoute;
+const { toc } = route;
+const showAllPostsLink = isBlogPostRoute(route.id);
+const allPostsHref = docIdToPathname("blog/index");
+---
+
+{
+  toc && (
+    <>
+      <div class="lg:sl-hidden">
+        <MobileTableOfContents />
+      </div>
+      <div class="right-sidebar-panel sl-hidden lg:sl-block">
+        <div class="sl-container">
+          {showAllPostsLink ? (
+            <nav class="blog-all-posts" aria-label="Blog">
+              <a class="blog-all-posts-link" href={allPostsHref}>All posts</a>
+            </nav>
+          ) : null}
+          <TableOfContents />
+        </div>
+      </div>
+    </>
+  )
+}
+
+<style>
+  .blog-all-posts {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+  }
+
+  .blog-all-posts-link {
+    display: inline-block;
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--sl-color-gray-2);
+  }
+
+  .blog-all-posts-link:hover,
+  .blog-all-posts-link:focus-visible {
+    color: var(--sl-color-white);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+
+  .right-sidebar-panel :global(h2) {
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-h5);
+    font-weight: 600;
+    line-height: var(--sl-line-height-headings);
+    margin-bottom: 0.5rem;
+  }
+
+  .right-sidebar-panel :global(:where(a)) {
+    display: block;
+    font-size: var(--sl-text-xs);
+    text-decoration: none;
+    color: var(--sl-color-gray-3);
+    overflow-wrap: anywhere;
+  }
+
+  .right-sidebar-panel :global(:where(a):hover) {
+    color: var(--sl-color-white);
+  }
+
+  .right-sidebar-panel {
+    padding: 1rem var(--sl-sidebar-pad-x);
+  }
+
+  .sl-container {
+    width: calc(var(--sl-sidebar-width) - 2 * var(--sl-sidebar-pad-x));
+  }
+
+  @media (min-width: 72rem) {
+    .sl-container {
+      max-width: calc(
+        (
+          (
+            100vw - var(--sl-sidebar-width) - 2 * var(--sl-content-pad-x) - 2 *
+              var(--sl-sidebar-pad-x)
+          ) * 0.25
+        )
+      );
+    }
+  }
+</style>

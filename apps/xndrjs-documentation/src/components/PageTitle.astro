@@ -1,12 +1,14 @@
 ---
-import { formatBlogDate, isBlogPost } from "../utils/blog-posts";
+import { docIdToPathname, formatBlogDate, isBlogPost, isBlogPostRoute } from "../utils/blog-posts";
 
 /** Matches Starlight’s page title anchor (`@astrojs/starlight/constants`). */
 const PAGE_TITLE_ID = "_top";
 
-const { entry } = Astro.locals.starlightRoute;
+const route = Astro.locals.starlightRoute;
+const { entry } = route;
 const data = entry.data;
 const showMeta = isBlogPost(entry);
+const showBackLink = isBlogPostRoute(route.id);
 const author =
   typeof data.author === "string" && data.author.length > 0
     ? data.author
@@ -14,6 +16,13 @@ const author =
 const date = data.date instanceof Date ? data.date : null;
 ---
 
+{
+  showBackLink ? (
+    <p class="blog-back-link lg:sl-hidden">
+      <a href={docIdToPathname("blog/index")}>All posts</a>
+    </p>
+  ) : null
+}
 <h1 id={PAGE_TITLE_ID}>{data.title}</h1>
 {
   showMeta && (author || date) ? (
@@ -49,6 +58,24 @@ const date = data.date instanceof Date ? data.date : null;
     font-size: var(--sl-text-sm);
     color: var(--sl-color-gray-3);
     line-height: 1.5;
+  }
+
+  .blog-back-link {
+    margin: 0 0 0.75rem;
+    font-size: var(--sl-text-sm);
+  }
+
+  .blog-back-link a {
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--sl-color-gray-2);
+  }
+
+  .blog-back-link a:hover,
+  .blog-back-link a:focus-visible {
+    color: var(--sl-color-white);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
   }
 
   .blog-page-meta__author {
