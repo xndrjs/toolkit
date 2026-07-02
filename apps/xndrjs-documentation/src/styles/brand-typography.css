@@ -1,9 +1,21 @@
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap");
 
+/*
+ * Readability: bump body text above Starlight's implicit 16px default.
+ * Paragraph text does not use --sl-text-body — it inherits from html — so set the root size here.
+ * Unlayered rules win over Starlight's @layer starlight.base token defaults.
+ */
 :root {
   --xndr-brand-mono:
     "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
     monospace;
+
+  --sl-text-base: 1.125rem; /* 18px */
+  --sl-text-body: var(--sl-text-base);
+}
+
+html {
+  font-size: var(--sl-text-base);
 }
 
 /* Navbar wordmark */
