@@ -123,7 +123,7 @@ export class IcuTranslationProviderSingle<
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `[i18n ICU Syntax Error] CMS/dictionary error for key "${String(key)}" [${resolvedLocale}]: ${message}`
+          `[i18n ICU Syntax Error] Dictionary error for key "${String(key)}" [${resolvedLocale}]: ${message}`
         );
       }
     }

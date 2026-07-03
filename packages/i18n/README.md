@@ -1,17 +1,17 @@
 # @xndrjs/i18n
 
-A **compiler-first, type-safe i18n system** based on the [ICU MessageFormat](https://formatjs.github.io/docs/core-concepts/icu-syntax/) standard, with **runtime overrides from a CMS** (no rebuild required).
+A **compiler-first, type-safe i18n system** based on the [ICU MessageFormat](https://formatjs.github.io/docs/core-concepts/icu-syntax/) standard, with **runtime dictionary overrides from external sources** (no rebuild required).
 
-The core idea: your ICU strings live in local JSON files that act as **type-safe fallbacks**. A build-time codegen step parses the ICU AST and generates exact TypeScript types for every translation key and its parameters. At runtime, a centralized provider caches compiled messages and lets you replace the whole dictionary (or a single namespace) on the fly.
+The core idea: your ICU strings live in local JSON files that act as **type-safe fallbacks**. A build-time codegen step parses the ICU AST and generates exact TypeScript types for every translation key and its parameters. At runtime, a centralized provider caches compiled messages and lets you replace the whole dictionary (or a single namespace) on the fly from any source (i.e. a CMS).
 
 ## Key features
 
 - **Type-safe `.get()`** — the compiler knows exactly which parameters each key requires (`string`, `number`, or none).
 - **ICU MessageFormat** — full support for interpolation, plurals, and select.
-- **Runtime override** — hydrate translations from a CMS via `setAll()` / `setNamespace()` without rebuilding.
+- **Runtime override** — hydrate translations from an external source via `setAll()` / `setNamespace()` without rebuilding.
 - **Single-file or multi-namespace** — one flat dictionary, or multiple JSON files each bound to a namespace.
 - **Hot compilation cache** — compiled `IntlMessageFormat` instances are cached and invalidated on override.
-- **Explicit runtime errors** — malformed ICU (e.g. a broken CMS edit) or missing parameters throw descriptive errors.
+- **Explicit runtime errors** — malformed ICU (e.g. a corrupt remote payload) or missing parameters throw descriptive errors.
 - **Publishable library** — the runtime and codegen live in a standalone package (`@xndrjs/i18n`) that carries no project-specific types.
 
 ## Repository layout
@@ -58,7 +58,7 @@ flowchart TB
   dict["dictionary.generated.ts"]
   inst["instance.generated.ts (factory)"]
   provider["IcuTranslationProvider (Single | Multi)"]
-  cms["CMS runtime override"]
+  external["External runtime override (API, file, DB, CMS, ...)"]
 
   config --> codegen
   json --> codegen
@@ -68,7 +68,7 @@ flowchart TB
   types --> provider
   dict --> inst
   inst --> provider
-  cms -->|"setAll / setNamespace"| provider
+  external -->|"setAll / setNamespace"| provider
 ```
 
 ### 1. Source JSON
@@ -141,8 +141,8 @@ Create a provider with the generated factory (no side effects at import time):
 import { createI18n } from "./i18n";
 
 const i18n = createI18n();
-// or with a CMS payload directly:
-const i18n = createI18n(cmsPayload);
+// or with an external dictionary at init:
+const i18n = createI18n(externalDictionary);
 ```
 
 Optionally, wrap it in an app-owned singleton (`i18n.ts`):
@@ -325,7 +325,7 @@ i18n.setNamespace("billing", externalBillingPayload);
 
 ### External dictionary validation
 
-When translations arrive from an external source (API, database, file, etc.), validate the `unknown` input before calling `setAll()` or `setNamespace()`.
+When translations arrive from an external source (i.e. a CMS), validate the `unknown` input before calling `setAll()` or `setNamespace()`.
 
 Enable validation by adding `dictionarySchemaOutput` to `i18n.codegen.json`:
 
