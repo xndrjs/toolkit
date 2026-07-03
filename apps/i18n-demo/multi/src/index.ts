@@ -1,5 +1,5 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
-import { i18n } from "./i18n/index.js";
+import { ensureNamespacesLoaded, i18n } from "./i18n/index.js";
 import { dictionary } from "./i18n/generated/dictionary.generated.js";
 import {
   validateExternalDictionary,
@@ -13,6 +13,18 @@ export function exampleMultiNamespaceUsage(): void {
   i18n.get("default", "dashboard_status", "it", { msgCount: 3, chatCount: 2 });
   i18n.get("default", "inbox_owner", "en", { gender: "female", name: "Ada" });
   i18n.get("default", "ranking_position", "en", { position: 3 });
+
+  const t = i18n.forLocale("en");
+  t.get("default", "login_button");
+  t.get("default", "welcome", { name: "Ada" });
+  t.get("default", "dashboard_status", { msgCount: 3, chatCount: 2 });
+  t.get("default", "inbox_owner", { gender: "other", name: "Sam" });
+  t.get("default", "ranking_position", { position: 4 });
+}
+
+export async function exampleLazyNamespaceLoading(): Promise<void> {
+  await ensureNamespacesLoaded(i18n, ["user", "billing"]);
+
   i18n.get("user", "greeting", "en", { name: "Ada" });
   i18n.get("billing", "invoice_summary", "it", { count: 5 });
   i18n.get("billing", "account_balance", "en", { amount: 1234.5 });
@@ -22,12 +34,6 @@ export function exampleMultiNamespaceUsage(): void {
   });
 
   const t = i18n.forLocale("en");
-  t.get("default", "login_button");
-  t.get("default", "login_button");
-  t.get("default", "welcome", { name: "Ada" });
-  t.get("default", "dashboard_status", { msgCount: 3, chatCount: 2 });
-  t.get("default", "inbox_owner", { gender: "other", name: "Sam" });
-  t.get("default", "ranking_position", { position: 4 });
   t.get("user", "greeting", { name: "Ada" });
   t.get("billing", "invoice_summary", { count: 5 });
   t.get("billing", "account_balance", { amount: 1234.5 });
@@ -55,7 +61,6 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
 
   const result = validateExternalNamespace("billing", rawBilling);
   if (!result.ok) {
-    // optional: format issues and log as readable error
     console.error(formatIssues(result.issues));
     return;
   }
@@ -64,11 +69,21 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
 }
 
 async function loadExternalTranslations(): Promise<unknown> {
-  return dictionary;
+  const [user, billing] = await Promise.all([
+    import("./i18n/translations/user.json").then((module) => module.default),
+    import("./i18n/translations/billing.json").then((module) => module.default),
+  ]);
+
+  return {
+    ...dictionary,
+    user,
+    billing,
+  };
 }
 
 async function loadExternalBillingTranslations(): Promise<unknown> {
-  return dictionary.billing;
+  return import("./i18n/translations/billing.json").then((module) => module.default);
 }
 
 exampleMultiNamespaceUsage();
+void exampleLazyNamespaceLoading();

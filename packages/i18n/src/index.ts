@@ -27,3 +27,6 @@ export {
   validateLocaleFallback,
 } from "./resolve-locale.js";
 export type { ResolvedLocaleTemplate } from "./resolve-locale.js";
+
+export { ensureNamespacesLoadedImpl } from "./ensure-namespace.js";
+export type { EnsureNamespacesLoadedOptions } from "./ensure-namespace.js";

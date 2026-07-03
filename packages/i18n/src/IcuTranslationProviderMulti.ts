@@ -41,6 +41,7 @@ export interface TranslationProviderMulti<
     locale: Locale
   ): TranslationProviderMultiForLocale<Schema, Params, Locale>;
   getAll(): Schema;
+  hasNamespace<NS extends keyof Schema & string>(namespace: NS): boolean;
   setAll(values: Schema): void;
   setNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void;
 }
@@ -90,9 +91,11 @@ export class IcuTranslationProviderMulti<
   private dictionary: Schema;
   private compiledCache: MultiCompiledCache = {};
   private readonly localeFallback?: Fallback;
+  private loadedNamespaces: Set<string>;
 
-  constructor(dictionary: Schema, options?: IcuTranslationProviderOptions<Fallback>) {
-    this.dictionary = structuredClone(dictionary);
+  constructor(dictionary: Partial<Schema>, options?: IcuTranslationProviderOptions<Fallback>) {
+    this.dictionary = structuredClone(dictionary) as Schema;
+    this.loadedNamespaces = new Set(Object.keys(dictionary));
     if (options?.localeFallback) {
       validateLocaleFallback(options.localeFallback);
       this.localeFallback = options.localeFallback;
@@ -105,6 +108,12 @@ export class IcuTranslationProviderMulti<
     locale: RequestLocales,
     ...args: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
   ): string {
+    if (!this.loadedNamespaces.has(namespace as string)) {
+      throw new Error(
+        `[i18n] Namespace not loaded: "${String(namespace)}". Call ensureNamespacesLoaded(i18n, ["${String(namespace)}"]) first.`
+      );
+    }
+
     const params = args[0] as Record<string, unknown> | undefined;
     const localeByKey = (
       this.dictionary[namespace as string] as Record<string, Record<string, string>>
@@ -162,9 +171,14 @@ export class IcuTranslationProviderMulti<
     return cloneAndFreeze(this.dictionary);
   }
 
+  hasNamespace<NS extends keyof Schema & string>(namespace: NS): boolean {
+    return this.loadedNamespaces.has(namespace);
+  }
+
   setAll(values: Schema): void {
     this.dictionary = structuredClone(values);
     this.compiledCache = {};
+    this.loadedNamespaces = new Set(Object.keys(values));
   }
 
   setNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void {
@@ -172,6 +186,7 @@ export class IcuTranslationProviderMulti<
       ...this.dictionary,
       [namespace]: structuredClone(values),
     };
+    this.loadedNamespaces.add(namespace as string);
 
     for (const locale of Object.keys(this.compiledCache)) {
       delete this.compiledCache[locale]?.[namespace as string];

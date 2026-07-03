@@ -8,6 +8,8 @@
   "dictionaryOutput": "src/i18n/generated/dictionary.generated.ts",
   "instanceOutput": "src/i18n/generated/instance.generated.ts",
   "dictionarySchemaOutput": "src/i18n/generated/dictionary-schema.generated.ts",
+  "loadOnInit": ["default"],
+  "namespaceLoadersOutput": "src/i18n/generated/namespace-loaders.generated.ts",
   "paramsTypeName": "MyProjectParams",
   "schemaTypeName": "MyProjectSchema",
   "localeTypeName": "MyProjectLocale",

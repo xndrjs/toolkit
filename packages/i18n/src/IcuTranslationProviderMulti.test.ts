@@ -144,6 +144,35 @@ describe("IcuTranslationProviderMulti", () => {
     expect(provider.get("billing", "empty_label", "en")).toBe("");
   });
 
+  it("tracks loaded namespaces with hasNamespace", () => {
+    const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({
+      default: dictionary.default,
+    });
+
+    expect(partial.hasNamespace("default")).toBe(true);
+    expect(partial.hasNamespace("billing")).toBe(false);
+  });
+
+  it("throws when getting from an unloaded namespace", () => {
+    const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({
+      default: dictionary.default,
+    });
+
+    expect(() =>
+      partial.get("billing", "invoice_summary", "en", { count: 1, name: "Ada" })
+    ).toThrow(
+      '[i18n] Namespace not loaded: "billing". Call ensureNamespacesLoaded(i18n, ["billing"]) first.'
+    );
+  });
+
+  it("supports partial initialization", () => {
+    const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({
+      default: dictionary.default,
+    });
+
+    expect(partial.get("default", "login_button", "en")).toBe("Login");
+  });
+
   it("throws when namespace, key, or locale is missing", () => {
     expect(() =>
       provider.get("default", "login_button", "fr" as unknown as LocaleOfMulti<TestSchema>)

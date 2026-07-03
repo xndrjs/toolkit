@@ -36,3 +36,6 @@ export type MyProjectSchema = {
   user: typeof import("../translations/user.json");
   billing: typeof import("../translations/billing.json");
 };
+export type LoadOnInitNamespace = "default";
+export type LazyNamespace = "user" | "billing";
+export type InitialSchema = Pick<MyProjectSchema, LoadOnInitNamespace>;

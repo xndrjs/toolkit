@@ -324,4 +324,127 @@ describe("generate-i18n-types", () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("Circular locale fallback");
   });
+
+  it("generates lazy namespace loaders when loadOnInit is a subset", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({
+        welcome: { en: "Welcome {name}!" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/billing.json"),
+      JSON.stringify({
+        invoice_summary: {
+          en: "You have {count, plural, one {1 invoice} other {{count} invoices}}",
+        },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+          billing: "src/i18n/translations/billing.json",
+        },
+        loadOnInit: ["default"],
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        dictionarySchemaOutput: "src/i18n/dictionary-schema.generated.ts",
+        namespaceLoadersOutput: "src/i18n/namespace-loaders.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+
+    const types = readFileSync(join(tempDir, "src/i18n/i18n-types.generated.ts"), "utf8");
+    const dictionary = readFileSync(join(tempDir, "src/i18n/dictionary.generated.ts"), "utf8");
+    const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
+    const loaders = readFileSync(join(tempDir, "src/i18n/namespace-loaders.generated.ts"), "utf8");
+
+    expect(types).toContain("export type LoadOnInitNamespace = 'default'");
+    expect(types).toContain("export type LazyNamespace = 'billing'");
+    expect(types).toContain("export type InitialSchema = Pick<AppSchema, LoadOnInitNamespace>");
+    expect(dictionary).toContain("export const dictionary: InitialSchema");
+    expect(dictionary).not.toContain("billingNs");
+    expect(factory).toContain("initialDictionary: InitialSchema = dictionary");
+    expect(loaders).toContain("export const namespaceLoaders");
+    expect(loaders).toContain("export async function ensureNamespacesLoaded(");
+    expect(loaders).toContain("namespaces: LazyNamespace[]");
+    expect(loaders).toContain("import('./translations/billing.json')");
+  });
+
+  it("keeps eager output when loadOnInit is omitted", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({ welcome: { en: "Welcome {name}!" } })
+    );
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/billing.json"),
+      JSON.stringify({ invoice_summary: { en: "Invoice" } })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+          billing: "src/i18n/translations/billing.json",
+        },
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+
+    const types = readFileSync(join(tempDir, "src/i18n/i18n-types.generated.ts"), "utf8");
+    const dictionary = readFileSync(join(tempDir, "src/i18n/dictionary.generated.ts"), "utf8");
+    const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
+
+    expect(types).not.toContain("LazyNamespace");
+    expect(dictionary).toContain("export const dictionary: AppSchema");
+    expect(dictionary).toContain("billingNs");
+    expect(factory).toContain("initialDictionary: AppSchema = dictionary");
+    expect(result.stdout).not.toContain("namespace-loaders.generated.ts");
+  });
+
+  it("fails when loadOnInit is used in single mode", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/strings.json"),
+      JSON.stringify({ welcome: { en: "Welcome" } })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        dictionary: "src/i18n/translations/strings.json",
+        loadOnInit: ["default"],
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("loadOnInit");
+  });
 });
