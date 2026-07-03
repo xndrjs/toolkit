@@ -1,0 +1,65 @@
+{
+  "name": "@xndrjs/i18n",
+  "version": "0.1.0",
+  "description": "Compiler-first, type-safe ICU MessageFormat i18n with runtime CMS override.",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/i18n"
+  },
+  "type": "module",
+  "bin": {
+    "xndrjs-i18n-codegen": "./bin/codegen.mjs"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./validation": {
+      "types": "./dist/validation/index.d.ts",
+      "import": "./dist/validation/index.js",
+      "default": "./dist/validation/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "src"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
+    "prepublishOnly": "pnpm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@formatjs/icu-messageformat-parser": "^3.5.12",
+    "intl-messageformat": "^11.2.9"
+  },
+  "peerDependencies": {
+    "tsx": ">=4",
+    "zod": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
+    "vitest": "^4.1.0",
+    "zod": "^4.3.6"
+  }
+}

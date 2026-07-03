@@ -1,0 +1,22 @@
+{
+  "name": "@xndrjs/i18n-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "i18n:codegen:single": "xndrjs-i18n-codegen --config single/i18n.codegen.json",
+    "i18n:codegen:multi": "xndrjs-i18n-codegen --config multi/i18n.codegen.json",
+    "i18n:codegen": "pnpm run i18n:codegen:single && pnpm run i18n:codegen:multi",
+    "demo:single": "tsx single/src/index.ts",
+    "demo:multi": "tsx multi/src/index.ts",
+    "demo": "pnpm run demo:single && pnpm run demo:multi",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xndrjs/i18n": "workspace:^",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4"
+  }
+}

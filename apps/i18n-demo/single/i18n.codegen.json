@@ -1,0 +1,16 @@
+{
+  "dictionary": "src/i18n/translations/strings.json",
+  "typesOutput": "src/i18n/generated/i18n-types.generated.ts",
+  "dictionaryOutput": "src/i18n/generated/dictionary.generated.ts",
+  "instanceOutput": "src/i18n/generated/instance.generated.ts",
+  "dictionarySchemaOutput": "src/i18n/generated/dictionary-schema.generated.ts",
+  "paramsTypeName": "MyProjectParams",
+  "schemaTypeName": "MyProjectSchema",
+  "localeTypeName": "MyProjectLocale",
+  "factoryName": "createI18n",
+  "localeFallback": {
+    "en": null,
+    "de-CH": "en",
+    "it": "en"
+  }
+}

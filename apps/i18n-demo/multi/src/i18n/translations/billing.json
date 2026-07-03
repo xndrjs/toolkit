@@ -1,0 +1,14 @@
+{
+  "invoice_summary": {
+    "it": "Hai {count, plural, one {1 fattura} other {{count} fatture}}",
+    "en": "You have {count, plural, one {1 invoice} other {{count} invoices}}"
+  },
+  "account_balance": {
+    "it": "Saldo: {amount, number, ::currency/EUR}",
+    "en": "Balance: {amount, number, ::currency/EUR}"
+  },
+  "appointment_summary": {
+    "it": "Scade il {dueDate, date, short} alle {startTime, time, short}",
+    "en": "Due {dueDate, date, short} at {startTime, time, short}"
+  }
+}

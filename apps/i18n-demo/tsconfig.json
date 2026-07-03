@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.repo.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["single/src/**/*.ts", "multi/src/**/*.ts"]
+}

@@ -24,6 +24,13 @@ const baseConfig = require("@config/eslint").default;
 
 module.exports = [
   // Ignore generated artifacts from package builds.
-  { ignores: ["**/dist/**", "**/.astro/**"] },
+  { ignores: ["**/dist/**", "**/.astro/**", "**/i18n/generated/**"] },
   ...baseConfig,
+  {
+    files: ["packages/i18n/**/*.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-definitions": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+    },
+  },
 ];

@@ -42,7 +42,7 @@ Compare the two styles, first OOP:
 ```ts
 import { z } from "zod";
 
-const emailSchema = z.string().email();
+const emailSchema = z.email();
 
 // OOP: data and behavior share one type
 class User {
@@ -80,7 +80,7 @@ const UserShape = domain.shape(
   zodToValidator(
     // define the schema of this Shape
     z.object({
-      email: z.string().email(),
+      email: z.email(),
     })
   )
 );
