@@ -185,8 +185,39 @@ describe("IcuTranslationProviderSingle", () => {
     expect(local.get("login_button", "en")).toBe("Sign in");
   });
 
-  it("returns the current dictionary from getAll", () => {
-    expect(provider.getAll()).toBe(dictionary);
+  it("returns a deep-frozen snapshot from getAll", () => {
+    expect(provider.getAll()).toEqual(dictionary);
+    expect(provider.getAll()).not.toBe(dictionary);
+    expect(Object.isFrozen(provider.getAll())).toBe(true);
+  });
+
+  it("does not mutate the provider when getAll snapshot is modified", () => {
+    const snapshot = provider.getAll();
+    expect(() => {
+      snapshot.welcome.en = "Hacked";
+    }).toThrow(TypeError);
+    expect(provider.get("welcome", "en", { name: "Ada" })).toBe("Welcome Ada!");
+  });
+
+  it("does not reflect external dictionary mutations after construction", () => {
+    const external = {
+      login_button: { en: "Login", it: "Accedi" },
+      welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
+      empty_label: { en: "" },
+      broken: { en: "Hi {name" },
+      invoice_count: {
+        en: "You have {count, plural, one {1 invoice} other {{count} invoices}}",
+        it: "Hai {count, plural, one {1 fattura} other {{count} fatture}}",
+      },
+      dashboard_status: dictionary.dashboard_status,
+      inbox_owner: dictionary.inbox_owner,
+      ranking_position: dictionary.ranking_position,
+      account_balance: dictionary.account_balance,
+      appointment_summary: dictionary.appointment_summary,
+    };
+    const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(external);
+    external.login_button.en = "Sign in";
+    expect(local.get("login_button", "en")).toBe("Login");
   });
 
   describe("forLocale", () => {

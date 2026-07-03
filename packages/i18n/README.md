@@ -376,7 +376,7 @@ Low-level API is also available from `@xndrjs/i18n/validation` for custom wiring
 Both providers share this behavior:
 
 - **Compilation cache** — compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode).
-- **`getAll()`** — returns the current dictionary.
+- **`getAll()`** — returns a deep-frozen snapshot of the current dictionary (not a live reference).
 - **`setAll(values)`** — replaces the dictionary and clears the entire cache.
 - **`setNamespace(ns, values)`** — (multi only) replaces one namespace and invalidates only its cache entries.
 - **Missing key/locale** — throws an error if the template is `undefined`. An empty string (`""`) is treated as a valid template.

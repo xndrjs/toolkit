@@ -195,6 +195,20 @@ describe("IcuTranslationProviderMulti", () => {
     expect(local.get("default", "login_button", "en")).toBe("Sign in");
   });
 
+  it("returns a deep-frozen snapshot from getAll", () => {
+    expect(provider.getAll()).toEqual(dictionary);
+    expect(provider.getAll()).not.toBe(dictionary);
+    expect(Object.isFrozen(provider.getAll().default)).toBe(true);
+  });
+
+  it("does not mutate the provider when getAll snapshot is modified", () => {
+    const snapshot = provider.getAll();
+    expect(() => {
+      snapshot.default.login_button.en = "Hacked";
+    }).toThrow(TypeError);
+    expect(provider.get("default", "login_button", "en")).toBe("Login");
+  });
+
   describe("forLocale", () => {
     it("binds a locale so get() no longer requires it", () => {
       const it = provider.forLocale("it");

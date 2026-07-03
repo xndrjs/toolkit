@@ -1,4 +1,5 @@
 import { IntlMessageFormat } from "intl-messageformat";
+import { cloneAndFreeze } from "./deep-freeze.js";
 import {
   formatLocaleFallbackChain,
   resolveLocaleTemplate,
@@ -83,7 +84,7 @@ export class IcuTranslationProviderSingle<
   private readonly localeFallback?: Fallback;
 
   constructor(dictionary: Schema, options?: IcuTranslationProviderOptions<Fallback>) {
-    this.dictionary = dictionary;
+    this.dictionary = structuredClone(dictionary);
     if (options?.localeFallback) {
       validateLocaleFallback(options.localeFallback);
       this.localeFallback = options.localeFallback;
@@ -144,11 +145,11 @@ export class IcuTranslationProviderSingle<
   }
 
   getAll(): Schema {
-    return this.dictionary;
+    return cloneAndFreeze(this.dictionary);
   }
 
   setAll(values: Schema): void {
-    this.dictionary = values;
+    this.dictionary = structuredClone(values);
     this.compiledCache = {};
   }
 }
