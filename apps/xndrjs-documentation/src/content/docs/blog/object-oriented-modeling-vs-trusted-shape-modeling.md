@@ -61,7 +61,13 @@ const user = new User("ada@example.com");
 user.setEmail("not-an-email");
 ```
 
-Then `xndrjs`. We start with the model, a `UserShape`:
+Did you notice? We forgot validation in the constructor. _OOPs_! (Object Oriented Mistake)
+
+```ts
+const user = new User("not-an-email"); // would not throw
+```
+
+Then we have `xndrjs`. We start with the model, a `UserShape`:
 
 ```ts
 import { domain, zodToValidator } from "@xndrjs/domain-zod";
