@@ -16,8 +16,12 @@ const shouldRenderSearch =
   <div class="title-wrapper sl-flex">
     <SiteTitle />
   </div>
-  <div class="sl-flex print:hidden">
+  <div class="search-wrapper sl-flex print:hidden">
     {shouldRenderSearch && <Search />}
+  </div>
+  <div class="sl-flex md:sl-hidden print:hidden mobile-nav-links">
+    <a class="blog-nav-link" href="/latest/">Docs</a>
+    <a class="blog-nav-link" href="/blog/">Blog</a>
   </div>
   <div class="sl-hidden md:sl-flex print:hidden right-group">
     <div class="sl-flex social-icons">
@@ -46,12 +50,39 @@ const shouldRenderSearch =
       padding: 0.25rem;
       margin: -0.25rem;
       min-width: 0;
+      flex: 1;
+    }
+
+    .search-wrapper {
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 49.999rem) {
+      .header {
+        justify-content: flex-start;
+        gap: 0.25rem;
+      }
+
+      .mobile-nav-links {
+        order: 2;
+      }
+
+      .search-wrapper {
+        order: 3;
+        margin-inline-start: 0.25rem;
+      }
     }
 
     .right-group,
-    .social-icons {
+    .social-icons,
+    .mobile-nav-links {
       gap: 1rem;
       align-items: center;
+    }
+
+    .mobile-nav-links {
+      flex-shrink: 0;
+      gap: 0.25rem;
     }
 
     .blog-nav-link {
@@ -78,6 +109,13 @@ const shouldRenderSearch =
       }
       :global(:root:not([data-has-toc])) {
         --__toc-width: 0rem;
+      }
+      .title-wrapper {
+        flex: unset;
+      }
+      .mobile-nav-links,
+      .search-wrapper {
+        order: unset;
       }
       .header {
         --__sidebar-width: max(0rem, var(--sl-content-inline-start, 0rem) - var(--sl-nav-pad-x));

@@ -1,0 +1,92 @@
+---
+import { Icon } from "@astrojs/starlight/components";
+import {
+  blogPostTitle,
+  docIdToPathname,
+  getBlogPostNeighbors,
+  getBlogPostsSorted,
+} from "../utils/blog-posts";
+
+const route = Astro.locals.starlightRoute;
+const posts = await getBlogPostsSorted();
+const { prev, next } = getBlogPostNeighbors(route.id, posts);
+const isRtl = route.dir === "rtl";
+---
+
+{
+  (prev || next) && (
+    <nav class="blog-post-pagination print:hidden" aria-label="Blog post pagination">
+      {prev ? (
+        <a href={docIdToPathname(prev.id)} rel="prev">
+          <Icon name={isRtl ? "right-arrow" : "left-arrow"} size="1.5rem" />
+          <span>
+            Previous post
+            <br />
+            <span class="link-title">{blogPostTitle(prev)}</span>
+          </span>
+        </a>
+      ) : (
+        <span />
+      )}
+      {next ? (
+        <a href={docIdToPathname(next.id)} rel="next">
+          <Icon name={isRtl ? "left-arrow" : "right-arrow"} size="1.5rem" />
+          <span>
+            Next post
+            <br />
+            <span class="link-title">{blogPostTitle(next)}</span>
+          </span>
+        </a>
+      ) : (
+        <span />
+      )}
+    </nav>
+  )
+}
+
+<style>
+  .blog-post-pagination {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    gap: 1rem;
+    margin-top: 3rem;
+  }
+
+  a {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+    flex-basis: calc(50% - 0.5rem);
+    flex-grow: 1;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    text-decoration: none;
+    color: var(--sl-color-gray-2);
+    box-shadow: var(--sl-shadow-md);
+    overflow-wrap: anywhere;
+  }
+
+  a[rel="next"] {
+    justify-content: end;
+    text-align: end;
+    flex-direction: row-reverse;
+  }
+
+  a:hover {
+    border-color: var(--sl-color-gray-2);
+  }
+
+  .link-title {
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-lg);
+    line-height: var(--sl-line-height-headings);
+    font-weight: 600;
+  }
+
+  a :global(svg) {
+    flex-shrink: 0;
+  }
+</style>

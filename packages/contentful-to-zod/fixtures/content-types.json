@@ -1,5 +1,19 @@
 [
   {
+    "id": "author",
+    "name": "Author",
+    "displayField": "name",
+    "fields": [
+      {
+        "id": "name",
+        "name": "Name",
+        "type": "Symbol",
+        "required": true,
+        "localized": false
+      }
+    ]
+  },
+  {
     "id": "blogPost",
     "name": "Blog Post",
     "displayField": "title",
@@ -25,12 +39,20 @@
         "type": "Link",
         "linkType": "Entry",
         "required": false,
-        "localized": false
+        "localized": false,
+        "validations": [{ "linkContentType": ["author"] }]
       },
       {
         "id": "excerpt",
         "name": "Excerpt",
         "type": "Text",
+        "required": false,
+        "localized": true
+      },
+      {
+        "id": "metadata",
+        "name": "Metadata",
+        "type": "Object",
         "required": false,
         "localized": true
       }

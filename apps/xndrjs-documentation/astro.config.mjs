@@ -5,18 +5,22 @@ import mermaid from "astro-mermaid";
 
 // https://astro.build/config
 export default defineConfig({
+  site: "https://www.xndrjs.dev",
   integrations: [
     mermaid(),
     starlight({
       title: "xndrjs",
-      customCss: ["./src/styles/brand-typography.css"],
+      customCss: ["./src/styles/brand-typography.css", "./src/styles/blog-layout.css"],
+      routeMiddleware: "./src/routeData.ts",
       social: [{ icon: "github", label: "GitHub", href: "https://github.com/xndrjs/toolkit" }],
       components: {
         Head: "./src/components/Head.astro",
         Header: "./src/components/Header.astro",
         MobileMenuFooter: "./src/components/MobileMenuFooter.astro",
         Sidebar: "./src/components/Sidebar.astro",
+        PageSidebar: "./src/components/PageSidebar.astro",
         PageTitle: "./src/components/PageTitle.astro",
+        Footer: "./src/components/Footer.astro",
       },
       sidebar: [
         {

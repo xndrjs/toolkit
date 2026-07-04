@@ -88,11 +88,11 @@ Frameworks stay useful entry points. Your domain stays the place where meaning, 
   </Card>
 
   <Card title="Beyond the domain" icon="open-book">
-    `xndrjs` also includes a small package for retryable async tasks. And there will be more.
+    `xndrjs` is more than a set of domain utilities. It aims to define a shape-driven workflow for Clean Architecture: name the data at every boundary first, then let business logic and infrastructure code follow from those shapes.
 
-    But these areas are harder to capture with a large universal API, so the toolkit stays intentionally light there.
+    The domain is the most fundamental layer, but not the only one. Transport payloads, use-case inputs, view models, and async tasks all cross boundaries that deserve an explicit contract.
 
-    The goal is to provide useful primitives and clear guidance for integrating them into your own architecture, while keeping framework and infrastructure choices outside the core.
+    The toolkit stays intentionally light on frameworks and infrastructure, while giving you primitives and a clear order of work — model the shape, map between layers, then write behavior.
 
   </Card>
 </CardGrid>

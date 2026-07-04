@@ -1,0 +1,22 @@
+/*
+ * Blog post detail: center the reading column in the space left of the right TOC
+ * sidebar, with matching empty space on the left. Only when the desktop TOC is shown.
+ */
+@media (min-width: 72rem) {
+  html[data-has-toc]:not([data-has-sidebar]) {
+    /* Pages without a left sidebar use a wider default; blog posts read better narrower. */
+    --sl-content-width: 45rem;
+  }
+
+  html[data-has-toc]:not([data-has-sidebar]) .main-pane {
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  html[data-has-toc]:not([data-has-sidebar]) .main-pane .sl-container {
+    --sl-content-margin-inline: auto;
+    margin-inline: auto;
+    max-width: min(var(--sl-content-width), 100%);
+  }
+}

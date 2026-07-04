@@ -4,7 +4,8 @@ import { formatBlogDate, isBlogPost } from "../utils/blog-posts";
 /** Matches Starlight’s page title anchor (`@astrojs/starlight/constants`). */
 const PAGE_TITLE_ID = "_top";
 
-const { entry } = Astro.locals.starlightRoute;
+const route = Astro.locals.starlightRoute;
+const { entry } = route;
 const data = entry.data;
 const showMeta = isBlogPost(entry);
 const author =

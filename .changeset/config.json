@@ -7,6 +7,10 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
+  "privatePackages": {
+    "version": false,
+    "tag": false
+  },
   "ignore": [
     "@config/eslint",
     "@config/vitest",
@@ -14,6 +18,7 @@
     "@xndrjs/bench-perf",
     "@xndrjs/documentation",
     "@xndrjs/oas-core-validator-demo",
-    "@xndrjs/interop-demo"
+    "@xndrjs/interop-demo",
+    "@xndrjs/i18n-demo"
   ]
 }

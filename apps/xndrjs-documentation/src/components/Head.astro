@@ -1,8 +1,17 @@
 ---
 import Analytics from "@vercel/analytics/astro";
+import ogImage from "../assets/xndrjs-dev-og.png";
 
 const { head } = Astro.locals.starlightRoute;
+const site = Astro.site ?? new URL("https://www.xndrjs.dev");
+const ogImageUrl = new URL(ogImage.src, site);
 ---
 
 {head.map(({ tag: Tag, attrs, content }) => <Tag {...attrs} set:html={content} />)}
+
+<meta property="og:image" content={ogImageUrl.href} />
+<meta property="og:image:width" content={String(ogImage.width)} />
+<meta property="og:image:height" content={String(ogImage.height)} />
+<meta name="twitter:image" content={ogImageUrl.href} />
+
 <Analytics />

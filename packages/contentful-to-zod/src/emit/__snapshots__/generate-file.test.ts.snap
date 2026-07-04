@@ -65,20 +65,49 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
-export const BlogPostFieldSchema = z.object({
+export const AuthorFieldsSchema = z.object({
+  "name": flatField(z.string()),
+});
+
+export type AuthorFields = z.infer<typeof AuthorFieldsSchema>;
+
+export const AuthorDeliveryFieldsSchema = z.object({
+  "name": transportField(z.string()),
+});
+
+export type AuthorDeliveryFields = z.infer<typeof AuthorDeliveryFieldsSchema>;
+
+export const AuthorEntrySchema = z.object({
+  sys: ContentfulEntrySysSchema.extend({
+    contentType: z.object({
+      sys: z.object({
+        type: z.literal("Link"),
+        linkType: z.literal("ContentType"),
+        id: z.literal("author"),
+      }),
+    }),
+  }),
+  fields: AuthorDeliveryFieldsSchema,
+});
+
+export type AuthorEntry = z.infer<typeof AuthorEntrySchema>;
+
+export const BlogPostFieldsSchema = z.object({
   "title": flatField(z.string().max(256)),
   "slug": flatField(z.string()),
   "author": flatField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
   "excerpt": flatField(z.string()),
+  "metadata": flatField(z.record(z.string(), z.unknown())),
 });
 
-export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
+export type BlogPostFields = z.infer<typeof BlogPostFieldsSchema>;
 
 export const BlogPostDeliveryFieldsSchema = z.object({
   "title": transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
   "slug": transportField(z.string()),
   "author": transportField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
   "excerpt": transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
+  "metadata": transportField(z.record(ContentfulLocaleCodeSchema, z.record(z.string(), z.unknown()))),
 });
 
 export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliveryFieldsSchema>;
@@ -110,6 +139,16 @@ export function pickLocale<T>(
   return value[locale] ?? null;
 }
 
+/** Flatten validated \`AuthorDeliveryFields\` (from \`entry.fields\`) to \`AuthorFields\` for a single locale. */
+export function flattenAuthorEntryFields(
+  fields: AuthorDeliveryFields,
+  _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,
+): AuthorFields {
+  return {
+    "name": fields.name ?? null,
+  };
+}
+
 /** Flatten validated \`BlogPostDeliveryFields\` (from \`entry.fields\`) to \`BlogPostFields\` for a single locale. */
 export function flattenBlogPostEntryFields(
   fields: BlogPostDeliveryFields,
@@ -120,7 +159,137 @@ export function flattenBlogPostEntryFields(
     "slug": fields.slug ?? null,
     "author": fields.author ?? null,
     "excerpt": pickLocale(fields.excerpt ?? null, _locale),
+    "metadata": pickLocale(fields.metadata ?? null, _locale),
   };
+}
+
+/** Error when a resolved entry's content type is not allowed for a link field (from CMA \`linkContentType\`). */
+export class LinkFieldTargetError extends Error {
+  constructor(
+    public readonly parentContentTypeId: string,
+    public readonly fieldId: string,
+    public readonly resolvedContentTypeId: string,
+    public readonly allowedContentTypeIds: readonly string[],
+  ) {
+    super(
+      \`Entry sys.contentType.sys.id is "\${resolvedContentTypeId}" but link field "\${parentContentTypeId}.\${fieldId}" only allows: \${allowedContentTypeIds.join(", ")}\`,
+    );
+    this.name = 'LinkFieldTargetError';
+  }
+}
+
+function readResolvedEntryContentTypeId(entry: unknown): string {
+  if (typeof entry !== 'object' || entry === null) {
+    throw new Error('Expected a resolved Contentful entry object');
+  }
+  const sys = (entry as { sys?: unknown }).sys;
+  if (typeof sys !== 'object' || sys === null) {
+    throw new Error('Resolved entry is missing sys');
+  }
+  const contentType = (sys as { contentType?: unknown }).contentType;
+  if (typeof contentType !== 'object' || contentType === null) {
+    throw new Error('Resolved entry sys is missing contentType');
+  }
+  const contentTypeSys = (contentType as { sys?: unknown }).sys;
+  if (typeof contentTypeSys !== 'object' || contentTypeSys === null) {
+    throw new Error('Resolved entry sys.contentType is missing sys');
+  }
+  const id = (contentTypeSys as { id?: unknown }).id;
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new Error('Resolved entry sys.contentType.sys.id is not a string');
+  }
+  return id;
+}
+
+export interface ResolvedEntryForLinkFieldMap {
+  "blogPost": {
+    "author": AuthorEntry;
+  };
+}
+
+export interface LinkFieldHandlersMap {
+  "blogPost": {
+    "author": (entry: unknown) => AuthorEntry;
+  };
+}
+
+export type LinkParentContentTypeId = keyof ResolvedEntryForLinkFieldMap;
+
+export type LinkFieldName<CType extends LinkParentContentTypeId> =
+  keyof ResolvedEntryForLinkFieldMap[CType] & string;
+
+export type ResolvedEntryForLinkField<
+  CType extends LinkParentContentTypeId,
+  Field extends LinkFieldName<CType>,
+> = ResolvedEntryForLinkFieldMap[CType][Field];
+
+export interface LinkFieldAllowedContentTypesMap {
+  "blogPost": {
+    "author": readonly ["author"];
+  };
+}
+
+export type LinkFieldAllowedContentTypes<
+  CType extends LinkParentContentTypeId,
+  Field extends LinkFieldName<CType> & keyof LinkFieldAllowedContentTypesMap[CType],
+> = LinkFieldAllowedContentTypesMap[CType][Field];
+
+/** Allowed resolved entry content type ids per link field (\`linkContentType\` from CMA). */
+export const LINK_FIELD_ALLOWED_CONTENT_TYPES = {
+  "blogPost": {
+    "author": ["author"] as const,
+  },
+} as const;
+
+const LINK_FIELD_HANDLERS = {
+  "blogPost": {
+    "author": (entry: unknown) => {
+      const parentContentTypeId = "blogPost";
+      const fieldId = "author";
+      const allowed = LINK_FIELD_ALLOWED_CONTENT_TYPES[parentContentTypeId][fieldId];
+      const resolvedId = readResolvedEntryContentTypeId(entry);
+      switch (resolvedId) {
+    case "author":
+      return AuthorEntrySchema.parse(entry);
+    default:
+      throw new LinkFieldTargetError(parentContentTypeId, fieldId, resolvedId, allowed);
+      }
+    },
+  },
+} as const;
+
+/**
+ * Allowed resolved entry content type ids for a parent link field (\`linkContentType\` from CMA).
+ */
+export function getAllowedEntryLinkContentTypes<
+  const CType extends LinkParentContentTypeId,
+  const Field extends LinkFieldName<CType> & keyof LinkFieldAllowedContentTypesMap[CType],
+>(
+  ctype: CType,
+  fieldName: Field,
+): LinkFieldAllowedContentTypes<CType, Field> {
+  return (
+    LINK_FIELD_ALLOWED_CONTENT_TYPES[ctype] as LinkFieldAllowedContentTypesMap[CType]
+  )[fieldName];
+}
+
+/**
+ * Parse a resolved entry (include/fetch) for a parent link field, using CMA \`linkContentType\` rules.
+ * Return type is a single entry type or a union when the field allows multiple targets.
+ */
+export function parseEntryAsLinkField<
+  const CType extends LinkParentContentTypeId,
+  const Field extends LinkFieldName<CType>,
+>(
+  ctype: CType,
+  fieldName: Field,
+  entry: unknown,
+): ResolvedEntryForLinkField<CType, Field> {
+  return (
+    LINK_FIELD_HANDLERS[ctype] as {
+      [F in LinkFieldName<CType>]: (entry: unknown) => ResolvedEntryForLinkField<CType, F>;
+    }
+  )[fieldName](entry);
 }
 "
 `;
@@ -147,14 +316,21 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
-export const BlogPostFieldSchema = z.object({
+export const AuthorFieldsSchema = z.object({
+  "name": flatField(z.string()),
+});
+
+export type AuthorFields = z.infer<typeof AuthorFieldsSchema>;
+
+export const BlogPostFieldsSchema = z.object({
   "title": flatField(z.string().max(256)),
   "slug": flatField(z.string()),
   "author": flatField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
   "excerpt": flatField(z.string()),
+  "metadata": flatField(z.record(z.string(), z.unknown())),
 });
 
-export type BlogPostFields = z.infer<typeof BlogPostFieldSchema>;
+export type BlogPostFields = z.infer<typeof BlogPostFieldsSchema>;
 "
 `;
 
@@ -215,11 +391,33 @@ export const ContentfulEntryLinkSchema = z.object({ "sys": z.object({ "type": z.
 
 export const ContentfulAssetLinkSchema = z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Asset"), "id": z.string() }) });
 
+export const AuthorDeliveryFieldsSchema = z.object({
+  "name": transportField(z.string()),
+});
+
+export type AuthorDeliveryFields = z.infer<typeof AuthorDeliveryFieldsSchema>;
+
+export const AuthorEntrySchema = z.object({
+  sys: ContentfulEntrySysSchema.extend({
+    contentType: z.object({
+      sys: z.object({
+        type: z.literal("Link"),
+        linkType: z.literal("ContentType"),
+        id: z.literal("author"),
+      }),
+    }),
+  }),
+  fields: AuthorDeliveryFieldsSchema,
+});
+
+export type AuthorEntry = z.infer<typeof AuthorEntrySchema>;
+
 export const BlogPostDeliveryFieldsSchema = z.object({
   "title": transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
   "slug": transportField(z.string()),
   "author": transportField(z.object({ "sys": z.object({ "type": z.literal("Link"), "linkType": z.literal("Entry"), "id": z.string() }) })),
   "excerpt": transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
+  "metadata": transportField(z.record(ContentfulLocaleCodeSchema, z.record(z.string(), z.unknown()))),
 });
 
 export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliveryFieldsSchema>;
@@ -249,6 +447,135 @@ export function pickLocale<T>(
     return null;
   }
   return value[locale] ?? null;
+}
+
+/** Error when a resolved entry's content type is not allowed for a link field (from CMA \`linkContentType\`). */
+export class LinkFieldTargetError extends Error {
+  constructor(
+    public readonly parentContentTypeId: string,
+    public readonly fieldId: string,
+    public readonly resolvedContentTypeId: string,
+    public readonly allowedContentTypeIds: readonly string[],
+  ) {
+    super(
+      \`Entry sys.contentType.sys.id is "\${resolvedContentTypeId}" but link field "\${parentContentTypeId}.\${fieldId}" only allows: \${allowedContentTypeIds.join(", ")}\`,
+    );
+    this.name = 'LinkFieldTargetError';
+  }
+}
+
+function readResolvedEntryContentTypeId(entry: unknown): string {
+  if (typeof entry !== 'object' || entry === null) {
+    throw new Error('Expected a resolved Contentful entry object');
+  }
+  const sys = (entry as { sys?: unknown }).sys;
+  if (typeof sys !== 'object' || sys === null) {
+    throw new Error('Resolved entry is missing sys');
+  }
+  const contentType = (sys as { contentType?: unknown }).contentType;
+  if (typeof contentType !== 'object' || contentType === null) {
+    throw new Error('Resolved entry sys is missing contentType');
+  }
+  const contentTypeSys = (contentType as { sys?: unknown }).sys;
+  if (typeof contentTypeSys !== 'object' || contentTypeSys === null) {
+    throw new Error('Resolved entry sys.contentType is missing sys');
+  }
+  const id = (contentTypeSys as { id?: unknown }).id;
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new Error('Resolved entry sys.contentType.sys.id is not a string');
+  }
+  return id;
+}
+
+export interface ResolvedEntryForLinkFieldMap {
+  "blogPost": {
+    "author": AuthorEntry;
+  };
+}
+
+export interface LinkFieldHandlersMap {
+  "blogPost": {
+    "author": (entry: unknown) => AuthorEntry;
+  };
+}
+
+export type LinkParentContentTypeId = keyof ResolvedEntryForLinkFieldMap;
+
+export type LinkFieldName<CType extends LinkParentContentTypeId> =
+  keyof ResolvedEntryForLinkFieldMap[CType] & string;
+
+export type ResolvedEntryForLinkField<
+  CType extends LinkParentContentTypeId,
+  Field extends LinkFieldName<CType>,
+> = ResolvedEntryForLinkFieldMap[CType][Field];
+
+export interface LinkFieldAllowedContentTypesMap {
+  "blogPost": {
+    "author": readonly ["author"];
+  };
+}
+
+export type LinkFieldAllowedContentTypes<
+  CType extends LinkParentContentTypeId,
+  Field extends LinkFieldName<CType> & keyof LinkFieldAllowedContentTypesMap[CType],
+> = LinkFieldAllowedContentTypesMap[CType][Field];
+
+/** Allowed resolved entry content type ids per link field (\`linkContentType\` from CMA). */
+export const LINK_FIELD_ALLOWED_CONTENT_TYPES = {
+  "blogPost": {
+    "author": ["author"] as const,
+  },
+} as const;
+
+const LINK_FIELD_HANDLERS = {
+  "blogPost": {
+    "author": (entry: unknown) => {
+      const parentContentTypeId = "blogPost";
+      const fieldId = "author";
+      const allowed = LINK_FIELD_ALLOWED_CONTENT_TYPES[parentContentTypeId][fieldId];
+      const resolvedId = readResolvedEntryContentTypeId(entry);
+      switch (resolvedId) {
+    case "author":
+      return AuthorEntrySchema.parse(entry);
+    default:
+      throw new LinkFieldTargetError(parentContentTypeId, fieldId, resolvedId, allowed);
+      }
+    },
+  },
+} as const;
+
+/**
+ * Allowed resolved entry content type ids for a parent link field (\`linkContentType\` from CMA).
+ */
+export function getAllowedEntryLinkContentTypes<
+  const CType extends LinkParentContentTypeId,
+  const Field extends LinkFieldName<CType> & keyof LinkFieldAllowedContentTypesMap[CType],
+>(
+  ctype: CType,
+  fieldName: Field,
+): LinkFieldAllowedContentTypes<CType, Field> {
+  return (
+    LINK_FIELD_ALLOWED_CONTENT_TYPES[ctype] as LinkFieldAllowedContentTypesMap[CType]
+  )[fieldName];
+}
+
+/**
+ * Parse a resolved entry (include/fetch) for a parent link field, using CMA \`linkContentType\` rules.
+ * Return type is a single entry type or a union when the field allows multiple targets.
+ */
+export function parseEntryAsLinkField<
+  const CType extends LinkParentContentTypeId,
+  const Field extends LinkFieldName<CType>,
+>(
+  ctype: CType,
+  fieldName: Field,
+  entry: unknown,
+): ResolvedEntryForLinkField<CType, Field> {
+  return (
+    LINK_FIELD_HANDLERS[ctype] as {
+      [F in LinkFieldName<CType>]: (entry: unknown) => ResolvedEntryForLinkField<CType, F>;
+    }
+  )[fieldName](entry);
 }
 "
 `;

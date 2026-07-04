@@ -64,6 +64,7 @@ describe("generated locale helpers", () => {
       slug: "my-post",
       author: null,
       excerpt: "Riassunto",
+      metadata: null,
     });
   });
 
@@ -92,14 +93,14 @@ describe("generated locale helpers", () => {
     expect(flat.author).toBeNull();
   });
 
-  it("BlogPostFieldSchema normalizes undefined flat values to null", async () => {
+  it("BlogPostFieldsSchema normalizes undefined flat values to null", async () => {
     const source = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
     const mod = await importGeneratedModule<{
-      BlogPostFieldSchema: { parse: (value: unknown) => Record<string, unknown> };
+      BlogPostFieldsSchema: { parse: (value: unknown) => Record<string, unknown> };
     }>(source);
 
     expect(
-      mod.BlogPostFieldSchema.parse({
+      mod.BlogPostFieldsSchema.parse({
         title: null,
         slug: undefined,
         author: undefined,
@@ -110,6 +111,7 @@ describe("generated locale helpers", () => {
       slug: null,
       author: null,
       excerpt: null,
+      metadata: null,
     });
   });
 
@@ -121,7 +123,7 @@ describe("generated locale helpers", () => {
           fields: { title: unknown; slug: unknown };
         };
       };
-      BlogPostFieldSchema: { parse: (value: unknown) => unknown };
+      BlogPostFieldsSchema: { parse: (value: unknown) => unknown };
       flattenBlogPostEntryFields: (fields: unknown, locale?: string) => unknown;
     }>(source);
 
@@ -146,11 +148,12 @@ describe("generated locale helpers", () => {
     expect(entry.fields.title).toBeNull();
 
     const flat = mod.flattenBlogPostEntryFields(entry.fields, "en-US");
-    expect(mod.BlogPostFieldSchema.parse(flat)).toEqual({
+    expect(mod.BlogPostFieldsSchema.parse(flat)).toEqual({
       title: null,
       slug: "draft-without-title",
       author: null,
       excerpt: null,
+      metadata: null,
     });
   });
 });

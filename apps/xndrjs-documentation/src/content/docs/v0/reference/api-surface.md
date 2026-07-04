@@ -130,4 +130,4 @@ import {
 - `fetchContentTypes(cma)` / `fetchLocales(cma)`: fetch from the Contentful Management API.
 - `defineConfig(...)`: typed config for CLI and programmatic codegen.
 
-Generated output includes `*EntrySchema`, `*FieldSchema`, `flatten*EntryFields`, and `pickLocale` (depending on `locale.mode`). See [Contentful to Zod](/latest/infrastructure/contentful-to-zod/) for CLI, pipeline, and naming.
+Generated output includes `*EntrySchema`, `*FieldsSchema`, `flatten*EntryFields`, and `pickLocale` (depending on `locale.mode`). See [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) for CLI, pipeline, and naming.

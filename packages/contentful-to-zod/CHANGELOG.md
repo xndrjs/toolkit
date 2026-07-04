@@ -1,9 +1,16 @@
 # @xndrjs/contentful-to-zod
 
-## 0.2.0-alpha.0
+## 0.2.1
+
+### Patch Changes
+
+- Narrow resolved entry links using CMA linkContentType: parseEntryAsLinkField validates and types fetched entries; getAllowedEntryLinkContentTypes exposes the allowed target content types per parent field.
+
+## 0.2.0
 
 ### Minor Changes
 
+- Config-first CLI: load `contentful-to-zod.config.ts` with jiti, merge CLI args over config (with warnings), and drop hardcoded Contentful env fallbacks. Rename generated flat field schemas from `*FieldSchema` to `*FieldsSchema` for consistency with `*DeliveryFieldsSchema`.
 - 917b3b9: Improved config loading and options
 
 ## 0.1.2

@@ -29,6 +29,12 @@ export type {
 export type { Locale } from "./model/locale";
 
 export { generateZodSchemas, type GenerateZodSchemasOptions } from "./emit/generate-file";
+export {
+  collectLinkFieldTargets,
+  linkContentTypeFromValidations,
+  validateLinkFieldTargets,
+  type LinkFieldTarget,
+} from "./emit/link-fields";
 export { fieldToZod, wrapForDelivery, validateObjectOverrides } from "./emit/field-to-zod";
 export {
   buildLocaleCodeSchema,

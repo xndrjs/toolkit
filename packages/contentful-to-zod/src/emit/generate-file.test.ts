@@ -11,7 +11,7 @@ describe("generateZodSchemas locale modes", () => {
     const output = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
 
     expect(output).toMatchSnapshot();
-    expect(output).toContain("export const BlogPostFieldSchema");
+    expect(output).toContain("export const BlogPostFieldsSchema");
     expect(output).toContain("export const BlogPostDeliveryFieldsSchema");
     expect(output).toContain("export const BlogPostEntrySchema");
     expect(output).toContain("export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>");
@@ -19,6 +19,7 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).toContain('id: z.literal("blogPost")');
     expect(output).toContain("export function pickLocale");
     expect(output).toContain("export function flattenBlogPostEntryFields");
+    expect(output).toContain("export function parseEntryAsLinkField");
     expect(output).toContain("export function flatField");
     expect(output).toContain("export function transportField");
     expect(output).toContain('"title": flatField(z.string().max(256))');
@@ -29,7 +30,7 @@ describe("generateZodSchemas locale modes", () => {
     const output = generateZodSchemas(contentTypes, { localeMode: "cma" });
 
     expect(output).toMatchSnapshot();
-    expect(output).toContain("export const BlogPostFieldSchema");
+    expect(output).toContain("export const BlogPostFieldsSchema");
     expect(output).not.toContain("BlogPostDeliveryFieldsSchema");
     expect(output).not.toContain("BlogPostEntrySchema");
     expect(output).not.toContain("ContentfulEntrySysSchema");
@@ -44,7 +45,7 @@ describe("generateZodSchemas locale modes", () => {
     const output = generateZodSchemas(contentTypes, { locales, localeMode: "delivery" });
 
     expect(output).toMatchSnapshot();
-    expect(output).not.toContain("export const BlogPostFieldSchema");
+    expect(output).not.toContain("export const BlogPostFieldsSchema");
     expect(output).toContain("export const BlogPostDeliveryFieldsSchema");
     expect(output).toContain("export const BlogPostEntrySchema");
     expect(output).toContain("ContentfulEntrySysSchema");

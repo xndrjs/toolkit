@@ -23,7 +23,9 @@ import {
   fieldsTypeName,
 } from "./schema-name";
 import { emitContentTypeEntrySchema, emitEntrySysPrimitives } from "./entry-to-source";
+import { emitLinkFieldParseHelpers } from "./emit-link-field-parse";
 import { emitLocaleHelpers } from "./helpers-to-source";
+import { collectLinkFieldTargets, validateLinkFieldTargets } from "./link-fields";
 import { emitFlatFieldHelper, emitTransportFieldHelper } from "./transport-primitives";
 import { zodToSource } from "./zod-to-source";
 
@@ -134,6 +136,10 @@ export function generateZodSchemas(
 
   validateObjectOverrides(selectedContentTypes, config);
 
+  const linkFieldTargets = collectLinkFieldTargets(selectedContentTypes, config);
+  const availableContentTypeIds = new Set(selectedContentTypes.map((ct) => ct.id));
+  validateLinkFieldTargets(linkFieldTargets, availableContentTypeIds);
+
   const sections: string[] = [emitFileHeader()];
 
   const includeDelivery = localeMode === "delivery" || localeMode === "both";
@@ -184,6 +190,13 @@ export function generateZodSchemas(
   const helpers = emitLocaleHelpers(selectedContentTypes, localeMode, config);
   if (helpers) {
     sections.push("", helpers);
+  }
+
+  if (includeDelivery && linkFieldTargets.length > 0) {
+    const linkHelpers = emitLinkFieldParseHelpers(linkFieldTargets);
+    if (linkHelpers) {
+      sections.push("", linkHelpers);
+    }
   }
 
   return `${sections.join("\n").trimEnd()}\n`;
