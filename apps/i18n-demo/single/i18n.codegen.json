@@ -1,5 +1,5 @@
 {
-  "dictionary": "src/i18n/translations/strings.json",
+  "dictionary": "src/i18n/translations/translations.json",
   "typesOutput": "src/i18n/generated/i18n-types.generated.ts",
   "dictionaryOutput": "src/i18n/generated/dictionary.generated.ts",
   "instanceOutput": "src/i18n/generated/instance.generated.ts",

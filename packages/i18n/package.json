@@ -11,7 +11,8 @@
   },
   "type": "module",
   "bin": {
-    "xndrjs-i18n-codegen": "./bin/codegen.mjs"
+    "xndrjs-i18n-codegen": "./bin/codegen.mjs",
+    "xndrjs-i18n-setup": "./bin/setup.mjs"
   },
   "types": "./dist/index.d.ts",
   "exports": {

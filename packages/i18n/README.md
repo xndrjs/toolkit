@@ -15,6 +15,94 @@ The core idea: your ICU strings live in local JSON files that act as **type-safe
 - **Explicit runtime errors** — malformed ICU (e.g. a corrupt remote payload) or missing parameters throw descriptive errors.
 - **Publishable library** — the runtime and codegen live in a standalone package (`@xndrjs/i18n`) that carries no project-specific types.
 
+## Getting started
+
+### Install
+
+```bash
+npm install @xndrjs/i18n tsx
+# optional — external dictionary validation
+npm install zod
+```
+
+`tsx` is a **peer dependency** required by `xndrjs-i18n-codegen`: the CLI runs the TypeScript codegen script directly (no precompiled JS bundle). Add it to your app or monorepo root.
+
+`zod` is optional — only needed when you use `dictionarySchemaOutput` and the generated `validateExternalDictionary()` helpers.
+
+### Quick setup (single file)
+
+**1. Translation JSON** (`src/i18n/translations/translations.json`):
+
+```json
+{
+  "login_button": { "en": "Login", "it": "Accedi" },
+  "welcome": { "en": "Welcome {name}!" }
+}
+```
+
+**2. Codegen config** (`i18n.codegen.json` at project root):
+
+```json
+{
+  "dictionary": "src/i18n/translations/translations.json",
+  "typesOutput": "src/i18n/generated/i18n-types.generated.ts",
+  "dictionaryOutput": "src/i18n/generated/dictionary.generated.ts",
+  "instanceOutput": "src/i18n/generated/instance.generated.ts",
+  "paramsTypeName": "MyProjectParams",
+  "schemaTypeName": "MyProjectSchema"
+}
+```
+
+**3. npm script** (`package.json`):
+
+```json
+{
+  "scripts": {
+    "i18n:codegen": "xndrjs-i18n-codegen --config i18n.codegen.json"
+  }
+}
+```
+
+**4. Generate and use:**
+
+```bash
+npm run i18n:codegen
+```
+
+```ts
+// src/i18n/index.ts
+import { createI18n } from "./generated/instance.generated.js";
+
+export * from "./generated/instance.generated.js";
+export * from "./generated/i18n-types.generated.js";
+
+export const i18n = createI18n();
+```
+
+```ts
+import { i18n } from "./i18n";
+
+i18n.get("login_button", "it"); // "Accedi"
+i18n.get("welcome", "en", { name: "Ada" }); // "Welcome Ada!"
+```
+
+Run codegen after every change to your JSON files (or wire it into your build).
+
+Or scaffold the starter files with the setup CLI:
+
+```bash
+xndrjs-i18n-setup single . --project MyApp
+xndrjs-i18n-setup multi apps/myapp --project MyApp
+```
+
+This creates `i18n.codegen.json`, starter translation JSON, and `src/i18n/index.ts`. Edit the config for lazy loading, validation, locale fallback, and extra namespaces, then run codegen.
+
+### Quick setup (multi namespace)
+
+Use `namespaces` instead of `dictionary` in `i18n.codegen.json`. See [Configuration](#configuration-i18ncodegenjson) and the [multi-namespace example](#multi-namespace-example) below.
+
+For lazy loading, add `loadOnInit`, `dictionarySchemaOutput`, and `namespaceLoadersOutput` — see [Lazy namespace loading](#lazy-namespace-loading-multi-mode). Lazy mode requires `zod` (validation runs before a namespace is registered).
+
 ## Repository layout
 
 This package lives in the xndrjs-toolkit pnpm monorepo.
@@ -242,7 +330,7 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 
 ```json
 {
-  "dictionary": "src/i18n/translations/strings.json",
+  "dictionary": "src/i18n/translations/translations.json",
   "defaultNamespace": "default",
   "typesOutput": "src/i18n/i18n-types.generated.ts",
   "dictionaryOutput": "src/i18n/dictionary.generated.ts",
@@ -416,6 +504,7 @@ Both providers share this behavior:
 
 - **Compilation cache** — compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode).
 - **`getAll()`** — returns a deep-frozen snapshot of the current dictionary (not a live reference).
+- **`hasNamespace(ns)`** — (multi only) returns whether a namespace has been loaded (eager init, lazy load, or `setNamespace`).
 - **`setAll(values)`** — replaces the dictionary and clears the entire cache.
 - **`setNamespace(ns, values)`** — (multi only) replaces one namespace and invalidates only its cache entries.
 - **Missing key/locale** — throws an error if the template is `undefined`. An empty string (`""`) is treated as a valid template.

@@ -27,7 +27,7 @@ function main() {
 
   const config = loadConfig(configPath);
   const entries = resolveNamespaces(config);
-  const isSingle = entries.length === 1;
+  const isSingle = Boolean(config.dictionary);
   const { loadOnInitSet, lazyEntries, hasLazy } = resolveLoadOnInit(config, entries, isSingle);
 
   if (hasLazy && !config.dictionarySchemaOutput) {

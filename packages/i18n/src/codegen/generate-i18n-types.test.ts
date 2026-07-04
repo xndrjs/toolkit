@@ -136,7 +136,7 @@ describe("generate-i18n-types", () => {
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
 
     writeFileSync(
-      join(tempDir, "src/i18n/translations/strings.json"),
+      join(tempDir, "src/i18n/translations/translations.json"),
       JSON.stringify({
         login_button: { en: "Login" },
       })
@@ -144,7 +144,7 @@ describe("generate-i18n-types", () => {
     writeFileSync(
       join(tempDir, "i18n.codegen.json"),
       JSON.stringify({
-        dictionary: "src/i18n/translations/strings.json",
+        dictionary: "src/i18n/translations/translations.json",
         typesOutput: "src/i18n/i18n-types.generated.ts",
         dictionaryOutput: "src/i18n/dictionary.generated.ts",
         instanceOutput: "src/i18n/instance.generated.ts",
@@ -163,7 +163,7 @@ describe("generate-i18n-types", () => {
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
 
     writeFileSync(
-      join(tempDir, "src/i18n/translations/strings.json"),
+      join(tempDir, "src/i18n/translations/translations.json"),
       JSON.stringify({
         welcome: { en: "Welcome {name}!" },
       })
@@ -171,7 +171,7 @@ describe("generate-i18n-types", () => {
     writeFileSync(
       join(tempDir, "i18n.codegen.json"),
       JSON.stringify({
-        dictionary: "src/i18n/translations/strings.json",
+        dictionary: "src/i18n/translations/translations.json",
         typesOutput: "src/i18n/i18n-types.generated.ts",
         dictionaryOutput: "src/i18n/dictionary.generated.ts",
         instanceOutput: "src/i18n/instance.generated.ts",
@@ -195,7 +195,7 @@ describe("generate-i18n-types", () => {
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
 
     writeFileSync(
-      join(tempDir, "src/i18n/translations/strings.json"),
+      join(tempDir, "src/i18n/translations/translations.json"),
       JSON.stringify({
         login_button: { en: "Login" },
         welcome: { en: "Welcome {name}!" },
@@ -204,7 +204,7 @@ describe("generate-i18n-types", () => {
     writeFileSync(
       join(tempDir, "i18n.codegen.json"),
       JSON.stringify({
-        dictionary: "src/i18n/translations/strings.json",
+        dictionary: "src/i18n/translations/translations.json",
         typesOutput: "src/i18n/i18n-types.generated.ts",
         dictionaryOutput: "src/i18n/dictionary.generated.ts",
         instanceOutput: "src/i18n/instance.generated.ts",
@@ -232,7 +232,7 @@ describe("generate-i18n-types", () => {
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
 
     writeFileSync(
-      join(tempDir, "src/i18n/translations/strings.json"),
+      join(tempDir, "src/i18n/translations/translations.json"),
       JSON.stringify({
         broken: { en: "Hello {{name}}" },
       })
@@ -240,7 +240,7 @@ describe("generate-i18n-types", () => {
     writeFileSync(
       join(tempDir, "i18n.codegen.json"),
       JSON.stringify({
-        dictionary: "src/i18n/translations/strings.json",
+        dictionary: "src/i18n/translations/translations.json",
         typesOutput: "src/i18n/i18n-types.generated.ts",
         dictionaryOutput: "src/i18n/dictionary.generated.ts",
         instanceOutput: "src/i18n/instance.generated.ts",
@@ -259,7 +259,7 @@ describe("generate-i18n-types", () => {
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
 
     writeFileSync(
-      join(tempDir, "src/i18n/translations/strings.json"),
+      join(tempDir, "src/i18n/translations/translations.json"),
       JSON.stringify({
         login_button: { en: "Login" },
       })
@@ -267,7 +267,7 @@ describe("generate-i18n-types", () => {
     writeFileSync(
       join(tempDir, "i18n.codegen.json"),
       JSON.stringify({
-        dictionary: "src/i18n/translations/strings.json",
+        dictionary: "src/i18n/translations/translations.json",
         typesOutput: "src/i18n/i18n-types.generated.ts",
         dictionaryOutput: "src/i18n/dictionary.generated.ts",
         instanceOutput: "src/i18n/instance.generated.ts",
@@ -299,7 +299,7 @@ describe("generate-i18n-types", () => {
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
 
     writeFileSync(
-      join(tempDir, "src/i18n/translations/strings.json"),
+      join(tempDir, "src/i18n/translations/translations.json"),
       JSON.stringify({
         login_button: { en: "Login" },
       })
@@ -307,7 +307,7 @@ describe("generate-i18n-types", () => {
     writeFileSync(
       join(tempDir, "i18n.codegen.json"),
       JSON.stringify({
-        dictionary: "src/i18n/translations/strings.json",
+        dictionary: "src/i18n/translations/translations.json",
         typesOutput: "src/i18n/i18n-types.generated.ts",
         dictionaryOutput: "src/i18n/dictionary.generated.ts",
         instanceOutput: "src/i18n/instance.generated.ts",
@@ -427,13 +427,13 @@ describe("generate-i18n-types", () => {
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
 
     writeFileSync(
-      join(tempDir, "src/i18n/translations/strings.json"),
+      join(tempDir, "src/i18n/translations/translations.json"),
       JSON.stringify({ welcome: { en: "Welcome" } })
     );
     writeFileSync(
       join(tempDir, "i18n.codegen.json"),
       JSON.stringify({
-        dictionary: "src/i18n/translations/strings.json",
+        dictionary: "src/i18n/translations/translations.json",
         loadOnInit: ["default"],
         typesOutput: "src/i18n/i18n-types.generated.ts",
         dictionaryOutput: "src/i18n/dictionary.generated.ts",
@@ -446,5 +446,37 @@ describe("generate-i18n-types", () => {
     const result = runCodegen(tempDir);
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("loadOnInit");
+  });
+
+  it("keeps multi mode when namespaces has a single entry", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({ welcome: { en: "Welcome {name}!" } })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+        },
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+
+    const types = readFileSync(join(tempDir, "src/i18n/i18n-types.generated.ts"), "utf8");
+    const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
+    expect(types).toContain("export const I18N_MODE = 'multi' as const");
+    expect(types).toContain("default: {");
+    expect(factory).toContain("IcuTranslationProviderMulti");
   });
 });

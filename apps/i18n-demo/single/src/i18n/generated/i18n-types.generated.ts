@@ -21,4 +21,4 @@ export type MyProjectParams = {
   appointment_summary: { dueDate: Date | number; startTime: Date | number };
 };
 
-export type MyProjectSchema = typeof import("../translations/strings.json");
+export type MyProjectSchema = typeof import("../translations/translations.json");
