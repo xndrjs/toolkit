@@ -14,7 +14,9 @@
     "@xndrjs/domain-ajv": "0.2.1",
     "@xndrjs/domain-valibot": "0.3.0",
     "@xndrjs/domain-zod": "0.3.0",
-    "@xndrjs/tasks": "0.2.0"
+    "@xndrjs/tasks": "0.2.0",
+    "@xndrjs/i18n-demo": "0.0.0",
+    "@xndrjs/i18n": "0.1.0"
   },
-  "changesets": ["clean-adults-knock"]
+  "changesets": ["clean-adults-knock", "i18n-alpha-release"]
 }
