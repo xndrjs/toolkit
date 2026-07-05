@@ -40,14 +40,14 @@ npm install zod
 }
 ```
 
-**2. Codegen config** (`i18n.codegen.json` at project root):
+**2. Codegen config** (`src/i18n/i18n.codegen.json`):
 
 ```json
 {
-  "dictionary": "src/i18n/translations/translations.json",
-  "typesOutput": "src/i18n/generated/i18n-types.generated.ts",
-  "dictionaryOutput": "src/i18n/generated/dictionary.generated.ts",
-  "instanceOutput": "src/i18n/generated/instance.generated.ts",
+  "dictionary": "translations/translations.json",
+  "typesOutput": "generated/i18n-types.generated.ts",
+  "dictionaryOutput": "generated/dictionary.generated.ts",
+  "instanceOutput": "generated/instance.generated.ts",
   "paramsTypeName": "MyProjectParams",
   "schemaTypeName": "MyProjectSchema"
 }
@@ -58,7 +58,7 @@ npm install zod
 ```json
 {
   "scripts": {
-    "i18n:codegen": "xndrjs-i18n-codegen --config i18n.codegen.json"
+    "i18n:codegen": "xndrjs-i18n-codegen --config src/i18n/i18n.codegen.json"
   }
 }
 ```
@@ -95,11 +95,11 @@ xndrjs-i18n-setup single . --project MyApp
 xndrjs-i18n-setup multi apps/myapp --project MyApp
 ```
 
-This creates `i18n.codegen.json`, starter translation JSON, and `src/i18n/index.ts`. Edit the config for lazy loading, validation, locale fallback, and extra namespaces, then run codegen.
+This creates `src/i18n/i18n.codegen.json`, starter translation JSON, and `src/i18n/index.ts`. Edit the config for lazy loading, validation, locale fallback, and extra namespaces, then run codegen.
 
 ### Quick setup (multi namespace)
 
-Use `namespaces` instead of `dictionary` in `i18n.codegen.json`. See [Configuration](#configuration-i18ncodegenjson) and the [multi-namespace example](#multi-namespace-example) below.
+Use `namespaces` instead of `dictionary` in `src/i18n/i18n.codegen.json`. See [Configuration](#configuration-i18ncodegenjson) and the [multi-namespace example](#multi-namespace-example) below.
 
 For lazy loading, add `loadOnInit`, `dictionarySchemaOutput`, and `namespaceLoadersOutput` — see [Lazy namespace loading](#lazy-namespace-loading-multi-mode). Lazy mode requires `zod` (validation runs before a namespace is registered).
 
@@ -122,7 +122,7 @@ xndrjs-toolkit/
 │               └── generate-i18n-types.ts
 └── apps/
     └── i18n-demo/                  # @xndrjs/i18n-demo — workshop app
-        ├── single/                 # single-file example
+        ├── single/                 # single-file example (config at sub-project root)
         │   ├── i18n.codegen.json
         │   └── src/i18n/
         └── multi/                  # multi-namespace example
@@ -130,35 +130,22 @@ xndrjs-toolkit/
             └── src/i18n/
 ```
 
+A typical consumer app scaffolded with `xndrjs-i18n-setup` colocates the config under `src/i18n/`:
+
+```
+my-app/
+└── src/i18n/
+    ├── i18n.codegen.json
+    ├── index.ts
+    ├── generated/
+    └── translations/
+```
+
 ### Library vs. consumer
 
 `@xndrjs/i18n` is **generic** and never imports project-specific types. It exposes two provider classes parametrized by `Schema` and `Params` generics, plus the codegen CLI.
 
 The consumer app owns its ICU JSON, its codegen config, and the generated files that bind the generic providers to concrete types.
-
-## How it works
-
-```mermaid
-flowchart TB
-  config[i18n.codegen.json]
-  json["translations/*.json (ICU strings)"]
-  codegen["xndrjs-i18n-codegen"]
-  types["i18n-types.generated.ts (Params + Schema)"]
-  dict["dictionary.generated.ts"]
-  inst["instance.generated.ts (factory)"]
-  provider["IcuTranslationProvider (Single | Multi)"]
-  external["External runtime override (API, file, DB, CMS, ...)"]
-
-  config --> codegen
-  json --> codegen
-  codegen --> types
-  codegen --> dict
-  codegen --> inst
-  types --> provider
-  dict --> inst
-  inst --> provider
-  external -->|"setAll / setNamespace"| provider
-```
 
 ### 1. Source JSON
 
@@ -177,7 +164,7 @@ Each translation key maps locale codes to ICU strings. Structure is identical in
 
 ### 2. Codegen (build-time)
 
-`xndrjs-i18n-codegen` reads `i18n.codegen.json`, parses every ICU string with `@formatjs/icu-messageformat-parser`, and infers parameter types:
+`xndrjs-i18n-codegen` reads `i18n.codegen.json` (by default `src/i18n/i18n.codegen.json`), parses every ICU string with `@formatjs/icu-messageformat-parser`, and infers parameter types:
 
 | ICU construct                             | Inferred type |
 | ----------------------------------------- | ------------- |
@@ -297,22 +284,22 @@ const localeFallback = {
 const i18n = new IcuTranslationProviderMulti(schema, { localeFallback });
 ```
 
-## Configuration (`i18n.codegen.json`)
+## Configuration (`src/i18n/i18n.codegen.json`)
 
-Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-file).
+Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-file). Paths in the config are relative to the directory containing `i18n.codegen.json` (typically `src/i18n/`).
 
 ### Multi-namespace
 
 ```json
 {
   "namespaces": {
-    "default": "src/i18n/translations/default.json",
-    "user": "src/i18n/translations/user.json",
-    "billing": "src/i18n/translations/billing.json"
+    "default": "translations/default.json",
+    "user": "translations/user.json",
+    "billing": "translations/billing.json"
   },
-  "typesOutput": "src/i18n/i18n-types.generated.ts",
-  "dictionaryOutput": "src/i18n/dictionary.generated.ts",
-  "instanceOutput": "src/i18n/instance.generated.ts",
+  "typesOutput": "generated/i18n-types.generated.ts",
+  "dictionaryOutput": "generated/dictionary.generated.ts",
+  "instanceOutput": "generated/instance.generated.ts",
   "paramsTypeName": "MyProjectParams",
   "schemaTypeName": "MyProjectSchema",
   "localeTypeName": "MyProjectLocale",
@@ -330,11 +317,11 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 
 ```json
 {
-  "dictionary": "src/i18n/translations/translations.json",
+  "dictionary": "translations/translations.json",
   "defaultNamespace": "default",
-  "typesOutput": "src/i18n/i18n-types.generated.ts",
-  "dictionaryOutput": "src/i18n/dictionary.generated.ts",
-  "instanceOutput": "src/i18n/instance.generated.ts",
+  "typesOutput": "generated/i18n-types.generated.ts",
+  "dictionaryOutput": "generated/dictionary.generated.ts",
+  "instanceOutput": "generated/instance.generated.ts",
   "paramsTypeName": "MyProjectParams",
   "schemaTypeName": "MyProjectSchema",
   "localeTypeName": "MyProjectLocale",
@@ -365,7 +352,7 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 | `loadOnInit`                        | Multi mode only. Namespaces to include in the initial bundle via static imports. When omitted, all namespaces are eager (default).                                                  |
 | `namespaceLoadersOutput`            | Output path for generated lazy loaders and `ensureNamespacesLoaded()`. Defaults to `{dirname(instanceOutput)}/namespace-loaders.generated.ts`. Required when lazy namespaces exist. |
 
-> Paths are resolved relative to the directory containing `i18n.codegen.json` (i.e. the consumer app root).
+> Paths are resolved relative to the directory containing `i18n.codegen.json` (e.g. `src/i18n/` when using `xndrjs-i18n-setup`).
 
 ## Usage
 
@@ -454,11 +441,11 @@ When `loadOnInit` is omitted, behavior is unchanged: all namespaces are statical
 
 When translations arrive from an external source (i.e. a CMS), validate the `unknown` input before calling `setAll()` or `setNamespace()`.
 
-Enable validation by adding `dictionarySchemaOutput` to `i18n.codegen.json`:
+Enable validation by adding `dictionarySchemaOutput` to `src/i18n/i18n.codegen.json`:
 
 ```json
 {
-  "dictionarySchemaOutput": "src/i18n/generated/dictionary-schema.generated.ts"
+  "dictionarySchemaOutput": "generated/dictionary-schema.generated.ts"
 }
 ```
 
@@ -553,7 +540,7 @@ pnpm run demo:multi            # tsx multi/src/index.ts
 ## Adding a namespace
 
 1. Create a new JSON file (any name/path).
-2. Add it to `namespaces` in `i18n.codegen.json`.
+2. Add it to `namespaces` in `src/i18n/i18n.codegen.json`.
 3. Re-run codegen. `dictionary.generated.ts` wires the import automatically.
 
 ## Migrating single-file to multi-namespace

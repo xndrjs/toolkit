@@ -18,5 +18,5 @@
     "@xndrjs/i18n-demo": "0.0.0",
     "@xndrjs/i18n": "0.1.0"
   },
-  "changesets": ["clean-adults-knock", "i18n-alpha-release"]
+  "changesets": ["clean-adults-knock", "i18n-alpha-release", "i18n-setup-config-colocate"]
 }

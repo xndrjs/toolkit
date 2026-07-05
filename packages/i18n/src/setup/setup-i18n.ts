@@ -19,8 +19,10 @@ export interface SetupResult {
 }
 
 const I18N_ROOT = "src/i18n";
-const GENERATED_DIR = `${I18N_ROOT}/generated`;
-const TRANSLATIONS_DIR = `${I18N_ROOT}/translations`;
+const CONFIG_FILE = `${I18N_ROOT}/i18n.codegen.json`;
+/** Paths in i18n.codegen.json are relative to src/i18n/ */
+const GENERATED_DIR = "generated";
+const TRANSLATIONS_DIR = "translations";
 
 const DEFAULT_STARTER = {
   welcome: { en: "Welcome {name}!" },
@@ -85,7 +87,7 @@ export function runSetup(options: SetupOptions): SetupResult {
     );
   }
 
-  const configPath = path.join(targetDir, "i18n.codegen.json");
+  const configPath = path.join(targetDir, CONFIG_FILE);
   if (fs.existsSync(configPath) && !options.force) {
     throw new Error(
       `[Setup Error] ${relative(process.cwd(), configPath)} already exists. Use --force to overwrite.`
@@ -98,11 +100,11 @@ export function runSetup(options: SetupOptions): SetupResult {
   created.push(relative(targetDir, configPath));
 
   if (options.mode === "single") {
-    const translationsPath = path.join(targetDir, TRANSLATIONS_DIR, "translations.json");
+    const translationsPath = path.join(targetDir, I18N_ROOT, TRANSLATIONS_DIR, "translations.json");
     writeJson(translationsPath, DEFAULT_STARTER);
     created.push(relative(targetDir, translationsPath));
   } else {
-    const defaultPath = path.join(targetDir, TRANSLATIONS_DIR, "default.json");
+    const defaultPath = path.join(targetDir, I18N_ROOT, TRANSLATIONS_DIR, "default.json");
     writeJson(defaultPath, DEFAULT_STARTER);
     created.push(relative(targetDir, defaultPath));
   }
@@ -111,7 +113,7 @@ export function runSetup(options: SetupOptions): SetupResult {
   writeText(indexPath, INDEX_TS);
   created.push(relative(targetDir, indexPath));
 
-  fs.mkdirSync(path.join(targetDir, GENERATED_DIR), { recursive: true });
+  fs.mkdirSync(path.join(targetDir, I18N_ROOT, GENERATED_DIR), { recursive: true });
 
   return { targetDir, project, created };
 }
@@ -163,9 +165,7 @@ function main() {
     console.log("");
     console.log("Next:");
     console.log(`  cd ${path.relative(process.cwd(), result.targetDir) || "."}`);
-    console.log(
-      '  npm pkg set scripts.i18n:codegen="xndrjs-i18n-codegen --config i18n.codegen.json"'
-    );
+    console.log(`  npm pkg set scripts.i18n:codegen="xndrjs-i18n-codegen --config ${CONFIG_FILE}"`);
     console.log("  npm run i18n:codegen");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
