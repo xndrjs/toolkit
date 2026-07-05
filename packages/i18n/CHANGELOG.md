@@ -1,5 +1,11 @@
 # @xndrjs/i18n
 
+## 0.2.0-alpha.1
+
+### Patch Changes
+
+- 0c5e764: Setup CLI scaffolds `i18n/` under the target directory (no hardcoded `src/`); codegen default config is `i18n/i18n.codegen.json`. Next-steps output suggests a package script without binding to a specific package manager.
+
 ## 0.2.0-alpha.0
 
 ### Minor Changes
