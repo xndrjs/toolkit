@@ -49,25 +49,35 @@ describe("setup-i18n", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-setup-"));
     const result = runSetup({ mode: "single", targetDir: tempDir, project: "MyApp" });
 
-    const config = JSON.parse(readFileSync(join(tempDir, "src/i18n/i18n.codegen.json"), "utf8"));
+    const config = JSON.parse(readFileSync(join(tempDir, "i18n/i18n.codegen.json"), "utf8"));
     expect(config.dictionary).toBe("translations/translations.json");
     expect(config.paramsTypeName).toBe("MyAppParams");
     expect(config.schemaTypeName).toBe("MyAppSchema");
     expect(config.localeTypeName).toBe("MyAppLocale");
-    expect(existsSync(join(tempDir, "src/i18n/translations/translations.json"))).toBe(true);
-    expect(existsSync(join(tempDir, "src/i18n/index.ts"))).toBe(true);
-    expect(result.created).toContain("src/i18n/i18n.codegen.json");
+    expect(existsSync(join(tempDir, "i18n/translations/translations.json"))).toBe(true);
+    expect(existsSync(join(tempDir, "i18n/index.ts"))).toBe(true);
+    expect(existsSync(join(tempDir, "src"))).toBe(false);
+    expect(result.created).toContain("i18n/i18n.codegen.json");
   });
 
   it("scaffolds multi mode with default namespace only", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-setup-"));
     runSetup({ mode: "multi", targetDir: tempDir, project: "MyApp" });
 
-    const config = JSON.parse(readFileSync(join(tempDir, "src/i18n/i18n.codegen.json"), "utf8"));
+    const config = JSON.parse(readFileSync(join(tempDir, "i18n/i18n.codegen.json"), "utf8"));
     expect(config.namespaces).toEqual({
       default: "translations/default.json",
     });
-    expect(existsSync(join(tempDir, "src/i18n/translations/default.json"))).toBe(true);
+    expect(existsSync(join(tempDir, "i18n/translations/default.json"))).toBe(true);
+  });
+
+  it("scaffolds under src/i18n when targetDir is src", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-setup-"));
+    const srcDir = join(tempDir, "src");
+    runSetup({ mode: "single", targetDir: srcDir, project: "MyApp" });
+
+    expect(existsSync(join(srcDir, "i18n/i18n.codegen.json"))).toBe(true);
+    expect(existsSync(join(tempDir, "i18n"))).toBe(false);
   });
 
   it("refuses to overwrite an existing config without --force", () => {

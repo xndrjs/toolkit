@@ -1,6 +1,7 @@
 node_modules
 dist
 artifacts
+version_log.txt
 
 # llm analysis files
 analysis

@@ -17,7 +17,7 @@ function main() {
   const configArgIndex = process.argv.indexOf("--config");
   const configPath = path.resolve(
     process.cwd(),
-    configArgIndex >= 0 ? process.argv[configArgIndex + 1]! : "src/i18n/i18n.codegen.json"
+    configArgIndex >= 0 ? process.argv[configArgIndex + 1]! : "i18n/i18n.codegen.json"
   );
   const projectRoot = path.dirname(configPath);
 

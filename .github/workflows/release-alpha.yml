@@ -80,6 +80,8 @@ jobs:
 
       - name: Commit version bump
         if: steps.bump.outputs.skip_publish != 'true'
+        env:
+          HUSKY: 0
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

@@ -1,6 +1,6 @@
 import { normalizeDictionary } from "./normalize.js";
 import { toDictionary, toNamespaceDictionary } from "./to-dictionary.js";
-import type { DictionarySpec, NormalizedDictionary, ValidationResult } from "./types.js";
+import type { DictionarySpec, ValidationResult } from "./types.js";
 import { validateNormalizedDictionary } from "./validate-normalized.js";
 
 export function validateExternalDictionary<TSchema>(

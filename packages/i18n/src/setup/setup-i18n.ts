@@ -18,9 +18,9 @@ export interface SetupResult {
   created: string[];
 }
 
-const I18N_ROOT = "src/i18n";
+const I18N_ROOT = "i18n";
 const CONFIG_FILE = `${I18N_ROOT}/i18n.codegen.json`;
-/** Paths in i18n.codegen.json are relative to src/i18n/ */
+/** Paths in i18n.codegen.json are relative to the i18n/ folder */
 const GENERATED_DIR = "generated";
 const TRANSLATIONS_DIR = "translations";
 
@@ -162,11 +162,13 @@ function main() {
       `   Project types: ${result.project}Params, ${result.project}Schema, ${result.project}Locale`
     );
     console.log(`   Created: ${result.created.join(", ")}`);
+    const targetLabel = path.relative(process.cwd(), result.targetDir) || ".";
+
     console.log("");
-    console.log("Next:");
-    console.log(`  cd ${path.relative(process.cwd(), result.targetDir) || "."}`);
-    console.log(`  npm pkg set scripts.i18n:codegen="xndrjs-i18n-codegen --config ${CONFIG_FILE}"`);
-    console.log("  npm run i18n:codegen");
+    console.log(`Add to package.json scripts (from ${targetLabel}):`);
+    console.log(`  "i18n:codegen": "xndrjs-i18n-codegen --config ${CONFIG_FILE}"`);
+    console.log("");
+    console.log("Then run your package manager's run script (pnpm/npm/yarn).");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);

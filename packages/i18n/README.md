@@ -31,7 +31,7 @@ npm install zod
 
 ### Quick setup (single file)
 
-**1. Translation JSON** (`src/i18n/translations/translations.json`):
+**1. Translation JSON** (`i18n/translations/translations.json`):
 
 ```json
 {
@@ -40,7 +40,7 @@ npm install zod
 }
 ```
 
-**2. Codegen config** (`src/i18n/i18n.codegen.json`):
+**2. Codegen config** (`i18n/i18n.codegen.json`):
 
 ```json
 {
@@ -58,7 +58,7 @@ npm install zod
 ```json
 {
   "scripts": {
-    "i18n:codegen": "xndrjs-i18n-codegen --config src/i18n/i18n.codegen.json"
+    "i18n:codegen": "xndrjs-i18n-codegen --config i18n/i18n.codegen.json"
   }
 }
 ```
@@ -70,7 +70,7 @@ npm run i18n:codegen
 ```
 
 ```ts
-// src/i18n/index.ts
+// i18n/index.ts
 import { createI18n } from "./generated/instance.generated.js";
 
 export * from "./generated/instance.generated.js";
@@ -95,11 +95,11 @@ xndrjs-i18n-setup single . --project MyApp
 xndrjs-i18n-setup multi apps/myapp --project MyApp
 ```
 
-This creates `src/i18n/i18n.codegen.json`, starter translation JSON, and `src/i18n/index.ts`. Edit the config for lazy loading, validation, locale fallback, and extra namespaces, then run codegen.
+This creates `i18n/i18n.codegen.json`, starter translation JSON, and `i18n/index.ts` under the target directory. Pass `src` as the target directory if your project uses a `src/` layout (`src/i18n/`). Edit the config for lazy loading, validation, locale fallback, and extra namespaces, then run codegen.
 
 ### Quick setup (multi namespace)
 
-Use `namespaces` instead of `dictionary` in `src/i18n/i18n.codegen.json`. See [Configuration](#configuration-i18ncodegenjson) and the [multi-namespace example](#multi-namespace-example) below.
+Use `namespaces` instead of `dictionary` in `i18n/i18n.codegen.json`. See [Configuration](#configuration-i18ncodegenjson) and the [multi-namespace example](#multi-namespace-example) below.
 
 For lazy loading, add `loadOnInit`, `dictionarySchemaOutput`, and `namespaceLoadersOutput` — see [Lazy namespace loading](#lazy-namespace-loading-multi-mode). Lazy mode requires `zod` (validation runs before a namespace is registered).
 
@@ -130,15 +130,27 @@ xndrjs-toolkit/
             └── src/i18n/
 ```
 
-A typical consumer app scaffolded with `xndrjs-i18n-setup` colocates the config under `src/i18n/`:
+A typical consumer app scaffolded with `xndrjs-i18n-setup single .` colocates everything under `i18n/`:
 
 ```
 my-app/
-└── src/i18n/
+└── i18n/
     ├── i18n.codegen.json
     ├── index.ts
     ├── generated/
     └── translations/
+```
+
+For a `src/` layout, run `xndrjs-i18n-setup single src` instead:
+
+```
+my-app/
+└── src/
+    └── i18n/
+        ├── i18n.codegen.json
+        ├── index.ts
+        ├── generated/
+        └── translations/
 ```
 
 ### Library vs. consumer
@@ -164,7 +176,7 @@ Each translation key maps locale codes to ICU strings. Structure is identical in
 
 ### 2. Codegen (build-time)
 
-`xndrjs-i18n-codegen` reads `i18n.codegen.json` (by default `src/i18n/i18n.codegen.json`), parses every ICU string with `@formatjs/icu-messageformat-parser`, and infers parameter types:
+`xndrjs-i18n-codegen` reads `i18n.codegen.json` (by default `i18n/i18n.codegen.json`), parses every ICU string with `@formatjs/icu-messageformat-parser`, and infers parameter types:
 
 | ICU construct                             | Inferred type |
 | ----------------------------------------- | ------------- |
@@ -284,9 +296,9 @@ const localeFallback = {
 const i18n = new IcuTranslationProviderMulti(schema, { localeFallback });
 ```
 
-## Configuration (`src/i18n/i18n.codegen.json`)
+## Configuration (`i18n/i18n.codegen.json`)
 
-Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-file). Paths in the config are relative to the directory containing `i18n.codegen.json` (typically `src/i18n/`).
+Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-file). Paths in the config are relative to the directory containing `i18n.codegen.json` (the `i18n/` folder created by setup).
 
 ### Multi-namespace
 
@@ -352,7 +364,7 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 | `loadOnInit`                        | Multi mode only. Namespaces to include in the initial bundle via static imports. When omitted, all namespaces are eager (default).                                                  |
 | `namespaceLoadersOutput`            | Output path for generated lazy loaders and `ensureNamespacesLoaded()`. Defaults to `{dirname(instanceOutput)}/namespace-loaders.generated.ts`. Required when lazy namespaces exist. |
 
-> Paths are resolved relative to the directory containing `i18n.codegen.json` (e.g. `src/i18n/` when using `xndrjs-i18n-setup`).
+> Paths are resolved relative to the directory containing `i18n.codegen.json` (e.g. `i18n/` when using `xndrjs-i18n-setup .`).
 
 ## Usage
 
@@ -408,12 +420,12 @@ Split namespaces across chunks by listing only the namespaces you need at startu
 ```json
 {
   "namespaces": {
-    "default": "src/i18n/translations/default.json",
-    "billing": "src/i18n/translations/billing.json"
+    "default": "translations/default.json",
+    "billing": "translations/billing.json"
   },
   "loadOnInit": ["default"],
-  "dictionarySchemaOutput": "src/i18n/generated/dictionary-schema.generated.ts",
-  "namespaceLoadersOutput": "src/i18n/generated/namespace-loaders.generated.ts"
+  "dictionarySchemaOutput": "generated/dictionary-schema.generated.ts",
+  "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts"
 }
 ```
 
@@ -441,7 +453,7 @@ When `loadOnInit` is omitted, behavior is unchanged: all namespaces are statical
 
 When translations arrive from an external source (i.e. a CMS), validate the `unknown` input before calling `setAll()` or `setNamespace()`.
 
-Enable validation by adding `dictionarySchemaOutput` to `src/i18n/i18n.codegen.json`:
+Enable validation by adding `dictionarySchemaOutput` to `i18n/i18n.codegen.json`:
 
 ```json
 {
@@ -540,7 +552,7 @@ pnpm run demo:multi            # tsx multi/src/index.ts
 ## Adding a namespace
 
 1. Create a new JSON file (any name/path).
-2. Add it to `namespaces` in `src/i18n/i18n.codegen.json`.
+2. Add it to `namespaces` in `i18n/i18n.codegen.json`.
 3. Re-run codegen. `dictionary.generated.ts` wires the import automatically.
 
 ## Migrating single-file to multi-namespace
