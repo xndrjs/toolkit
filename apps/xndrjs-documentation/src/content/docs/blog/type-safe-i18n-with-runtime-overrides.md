@@ -15,7 +15,7 @@ Then the product grows. Editorial teams want to change copy without waiting for 
 
 Those are not exotic edge cases. They are the normal lifecycle of i18n in a TypeScript codebase tied to a CMS.
 
-We built [`@xndrjs/i18n`](https://github.com/xndrjs/toolkit/tree/main/packages/i18n) to address them directly — compiler-first, ICU-native, and designed for runtime dictionary overrides without giving up type safety.
+I built [`@xndrjs/i18n`](https://github.com/xndrjs/toolkit/tree/main/packages/i18n) to address them directly — compiler-first, ICU-native, and designed for runtime dictionary overrides without giving up type safety.
 
 Here is the problem map, and how the library maps back to it.
 
@@ -371,7 +371,7 @@ There are no React, Vue, or Next.js wrappers — on purpose. The vanilla API is 
 
 Runtime overrides and optional Zod validation mean editorial workflows do not have to fight your deploy pipeline. Local JSON keeps tests and first paint predictable; a CMS payload can replace or patch the dictionary when it arrives.
 
-If i18n in your project has been "fine until it wasn't" — typos shipping silently, plural keys multiplying, every label change waiting on CI — this is the shape of tooling we wanted: strict where it helps, flexible where products actually live.
+If i18n in your project has been "fine until it wasn't" — typos shipping silently, plural keys multiplying, every label change waiting on CI — this is the shape of tooling you wanted: strict where it helps, flexible where products actually live.
 
 ---
 
