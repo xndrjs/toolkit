@@ -1,5 +1,11 @@
 # @xndrjs/contentful-to-zod
 
+## 0.3.0
+
+### Minor Changes
+
+- 917b3b9: Improved config loading and options
+
 ## 0.2.1
 
 ### Patch Changes
