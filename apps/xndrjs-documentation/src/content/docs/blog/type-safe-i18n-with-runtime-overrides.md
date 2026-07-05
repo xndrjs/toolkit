@@ -377,6 +377,6 @@ If i18n in your project has been "fine until it wasn't" — typos shipping silen
 
 **Related Links**
 
+- [Docs: i18n](/v0/infrastructure/i18n/)
 - [GitHub: @xndrjs/i18n](https://github.com/xndrjs/toolkit/tree/main/packages/i18n)
-- [Package README](https://github.com/xndrjs/toolkit/blob/main/packages/i18n/README.md)
 - [Related: Generating Zod schemas from Contentful](/latest/blog/generating-zod-schemas-from-contentful/)

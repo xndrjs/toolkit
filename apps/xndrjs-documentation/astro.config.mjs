@@ -66,6 +66,7 @@ export default defineConfig({
               items: [
                 { label: "Tasks", slug: "v0/infrastructure/tasks" },
                 { label: "Contentful to Zod", slug: "v0/infrastructure/contentful-to-zod" },
+                { label: "i18n", slug: "v0/infrastructure/i18n" },
               ],
             },
             {

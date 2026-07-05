@@ -131,3 +131,18 @@ import {
 - `defineConfig(...)`: typed config for CLI and programmatic codegen.
 
 Generated output includes `*EntrySchema`, `*FieldsSchema`, `flatten*EntryFields`, and `pickLocale` (depending on `locale.mode`). See [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) for CLI, pipeline, and naming.
+
+## @xndrjs/i18n
+
+```ts
+import { IcuTranslationProviderMulti, IcuTranslationProviderSingle } from "@xndrjs/i18n";
+import { formatIssues } from "@xndrjs/i18n/validation";
+```
+
+- `createI18n()` (generated): typed factory bound to your dictionary schema.
+- `.get(...)`: format ICU templates with compile-time key and param checking.
+- `.setAll()` / `.setNamespace()`: runtime dictionary override without rebuild.
+- `ensureNamespacesLoaded()` (generated, multi mode): preload lazy namespaces.
+- `validateExternalDictionary()` (generated, optional): validate CMS payloads before hydrate.
+
+See [i18n](/v0/infrastructure/i18n/) for setup, codegen config, locale fallback, and lazy loading.

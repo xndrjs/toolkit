@@ -10,6 +10,9 @@ Current documentation scope:
 - `@xndrjs/domain-zod`
 - `@xndrjs/domain-ajv`
 - `@xndrjs/domain-valibot`
+- `@xndrjs/i18n`
+- `@xndrjs/contentful-to-zod`
+- `@xndrjs/tasks`
 - `@xndrjs/bench-perf` (private app under `apps/bench-perf`)
 
 ## Source of truth
