@@ -1,5 +1,11 @@
 # @xndrjs/i18n
 
+## 0.2.1
+
+### Patch Changes
+
+- e7c1320: fix(i18n): cross-locale ICU variable merge
+
 ## 0.2.0
 
 ### Patch Changes
