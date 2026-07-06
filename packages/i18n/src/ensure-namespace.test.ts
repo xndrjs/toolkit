@@ -89,7 +89,7 @@ describe("ensureNamespacesLoadedImpl", () => {
     const options = {
       provider,
       resolveLoader: () => load,
-      validate: () => ({ ok: true, data: billingNs }),
+      validate: () => ({ ok: true, data: billingNs }) as const,
     };
 
     const first = ensureNamespacesLoadedImpl(options, ["billing"]);
