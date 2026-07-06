@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { parse } from "@formatjs/icu-messageformat-parser";
 import {
-  extractVariables,
-  mergeVariableSpecs,
+  extractVariableMeta,
+  mergeVariableMetaAcrossLocales,
   type VariableSpec,
 } from "../icu/extract-variables.js";
 import type { DictionaryJson, NamespaceEntry } from "./types.js";
@@ -52,7 +52,7 @@ export function analyzeDictionaries(
     argsSpecByNamespace[entry.namespace] = {};
 
     for (const [key, localesByKey] of Object.entries(dictionary)) {
-      const variables: VariableSpec = {};
+      const localeMetas: ReturnType<typeof extractVariableMeta>[] = [];
 
       for (const locale of Object.keys(localesByKey)) {
         locales.add(locale);
@@ -61,8 +61,7 @@ export function analyzeDictionaries(
       for (const [locale, template] of Object.entries(localesByKey)) {
         try {
           const ast = parse(template);
-          const extracted = extractVariables(ast);
-          Object.assign(variables, mergeVariableSpecs(variables, extracted));
+          localeMetas.push(extractVariableMeta(ast));
         } catch (error) {
           hasErrors = true;
           const message = error instanceof Error ? error.message : String(error);
@@ -71,6 +70,21 @@ export function analyzeDictionaries(
           );
         }
       }
+
+      if (localeMetas.length === 0) {
+        continue;
+      }
+
+      const mergedVariables = mergeVariableMetaAcrossLocales(localeMetas);
+      if (!mergedVariables.ok) {
+        hasErrors = true;
+        console.error(
+          `[Codegen Error] ${mergedVariables.message} — namespace "${entry.namespace}", key "${key}"`
+        );
+        continue;
+      }
+
+      const variables = mergedVariables.merged;
 
       paramsByNamespace[entry.namespace]![key] = paramsTypeForVariables(variables);
       argsSpecByNamespace[entry.namespace]![key] = variables;

@@ -448,6 +448,128 @@ describe("generate-i18n-types", () => {
     expect(result.stderr).toContain("loadOnInit");
   });
 
+  it("infers number when English plural and Italian simple interpolation share a key", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/translations.json"),
+      JSON.stringify({
+        invoice_count: {
+          en: "You have {count, plural, one {1 invoice} other {# invoices}}",
+          it: "Hai {count} fatture",
+        },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        dictionary: "src/i18n/translations/translations.json",
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+
+    const types = readFileSync(join(tempDir, "src/i18n/i18n-types.generated.ts"), "utf8");
+    expect(types).toContain("invoice_count: { count: number }");
+  });
+
+  it("fails when plural and select disagree on the same variable across locales", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/translations.json"),
+      JSON.stringify({
+        broken: {
+          en: "{myVar, select, other {x}}",
+          it: "{myVar, plural, one {1} other {#}}",
+        },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        dictionary: "src/i18n/translations/translations.json",
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Incompatible ICU variable "myVar"');
+  });
+
+  it("fails when plural and selectordinal disagree on the same variable across locales", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/translations.json"),
+      JSON.stringify({
+        broken: {
+          en: "{rank, plural, one {1} other {#}}",
+          it: "{rank, selectordinal, one {#°} other {#°}}",
+        },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        dictionary: "src/i18n/translations/translations.json",
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Incompatible ICU variable "rank"');
+  });
+
+  it("fails when select and number format disagree on the same variable across locales", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/translations.json"),
+      JSON.stringify({
+        broken: {
+          en: "{value, select, other {x}}",
+          it: "{value, number}",
+        },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        dictionary: "src/i18n/translations/translations.json",
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Incompatible ICU variable "value"');
+  });
+
   it("keeps multi mode when namespaces has a single entry", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });

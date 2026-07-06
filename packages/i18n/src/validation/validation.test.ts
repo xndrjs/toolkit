@@ -87,6 +87,110 @@ describe("normalizeDictionary", () => {
       expect(result.issues[0]?.kind).toBe("locale_args_mismatch");
     }
   });
+
+  it("accepts plural in one locale and simple interpolation in another for the same variable", () => {
+    const result = normalizeDictionary(
+      {
+        login_button: { en: "Login" },
+        welcome: { en: "Welcome {name}!" },
+        invoice_count: {
+          en: "You have {count, plural, one {1 invoice} other {# invoices}}",
+          it: "Hai {count} fatture",
+        },
+      },
+      spec
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok && result.data.mode === "single") {
+      expect(result.data.keys.invoice_count?.mergedArgs).toEqual({ count: "number" });
+    }
+  });
+
+  it("rejects plural and select on the same variable across locales", () => {
+    const result = normalizeDictionary(
+      {
+        login_button: { en: "Login" },
+        welcome: { en: "Welcome {name}!" },
+        invoice_count: {
+          en: "{count, select, other {{count}}}",
+          it: "{count, plural, one {1} other {#}}",
+        },
+      },
+      spec
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.some((issue) => issue.kind === "locale_args_mismatch")).toBe(true);
+    }
+  });
+
+  it("rejects plural and selectordinal on the same variable across locales", () => {
+    const result = normalizeDictionary(
+      {
+        login_button: { en: "Login" },
+        welcome: { en: "Welcome {name}!" },
+        invoice_count: {
+          en: "{count, plural, one {1} other {#}}",
+          it: "{count, selectordinal, one {#°} other {#°}}",
+        },
+      },
+      spec
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.some((issue) => issue.kind === "locale_args_mismatch")).toBe(true);
+    }
+  });
+
+  it("rejects select and number format on the same variable across locales", () => {
+    const result = normalizeDictionary(
+      {
+        login_button: { en: "Login" },
+        welcome: { en: "Welcome {name}!" },
+        invoice_count: {
+          en: "{count, select, other {x}}",
+          it: "{count, number}",
+        },
+      },
+      spec
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.some((issue) => issue.kind === "locale_args_mismatch")).toBe(true);
+    }
+  });
+
+  it("accepts select in one locale and simple interpolation in another", () => {
+    const result = normalizeDictionary(
+      {
+        login_button: { en: "Login" },
+        welcome: {
+          en: "{gender, select, female {she} other {they}}",
+          it: "Pronome: {gender}",
+        },
+        invoice_count: {
+          en: "You have {count, plural, one {1 invoice} other {# invoices}}",
+        },
+      },
+      {
+        ...spec,
+        requiredKeys: ["login_button", "welcome", "invoice_count"],
+        argsByKey: {
+          ...spec.argsByKey,
+          welcome: { gender: "string" },
+        },
+      }
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok && result.data.mode === "single") {
+      expect(result.data.keys.welcome?.mergedArgs).toEqual({ gender: "string" });
+    }
+  });
 });
 
 describe("validateNormalizedDictionary", () => {

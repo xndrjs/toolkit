@@ -1,4 +1,4 @@
-import { variableSpecsEqual } from "../icu/extract-variables.js";
+import { mergeVariableMetaAcrossLocales, type VariableMetaSpec } from "../icu/extract-variables.js";
 import { parseTemplate } from "../icu/parse-template.js";
 import type {
   DictionarySpec,
@@ -45,8 +45,9 @@ function normalizeKeyDictionary(
     }
 
     const locales: Record<string, ParsedKeyEntry["locales"][string]> = {};
+    const localeMetas: VariableMetaSpec[] = [];
     let mergedArgs: ParsedKeyEntry["mergedArgs"] = {};
-    let hasLocaleArgs = false;
+    let localeArgsMismatch: ValidationIssue | undefined;
 
     for (const [locale, template] of Object.entries(keyValue)) {
       const localePath = [...keyPathPrefix, key, locale];
@@ -71,23 +72,29 @@ function normalizeKeyDictionary(
       }
 
       locales[locale] = { template, args: parsed.args };
+      localeMetas.push(parsed.meta);
+    }
 
-      if (!hasLocaleArgs) {
-        mergedArgs = { ...parsed.args };
-        hasLocaleArgs = true;
-      } else if (!variableSpecsEqual(mergedArgs, parsed.args)) {
+    if (localeMetas.length > 0) {
+      const merged = mergeVariableMetaAcrossLocales(localeMetas);
+      if (!merged.ok) {
         const localeArgs: Record<string, ParsedKeyEntry["mergedArgs"]> = {};
         for (const [loc, entry] of Object.entries(locales)) {
           localeArgs[loc] = entry.args;
         }
-        issues.push({
+        localeArgsMismatch = {
           kind: "locale_args_mismatch",
           path: [...keyPathPrefix, key],
           locales: localeArgs,
-          message: `Inconsistent ICU variables across locales for key "${key}"`,
-        });
-        break;
+          message: merged.message,
+        };
+      } else {
+        mergedArgs = merged.merged;
       }
+    }
+
+    if (localeArgsMismatch) {
+      issues.push(localeArgsMismatch);
     }
 
     keys[key] = { locales, mergedArgs };
