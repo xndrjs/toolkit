@@ -61,7 +61,7 @@ These packages are optional and solve problems outside the domain modeling core:
 
 ```bash
 pnpm add @xndrjs/tasks
-pnpm add @xndrjs/i18n tsx
+pnpm add @xndrjs/i18n
 pnpm add -D @xndrjs/contentful-to-zod zod
 ```
 

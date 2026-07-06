@@ -294,11 +294,30 @@ There is no magic shrink for "all locales, all keys, all upfront." The levers ar
 
 ## Quick setup
 
-Scaffold starter files:
+Scaffold starter files by first installing `@xndrjs/i18n` in your project:
 
 ```bash
-npm install @xndrjs/i18n tsx
-npx xndrjs-i18n-setup multi . --project MyApp
+pnpm add @xndrjs/i18n
+pnpm add -D tsx
+```
+
+Of course add `--filter` if you're using a monorepo and want to install `@xndrjs/i18n` in a specific app or package:
+
+```bash
+pnpm --filter YourAppOrPackageName add @xndrjs/i18n
+pnpm --filter YourAppOrPackageName add -D tsx
+```
+
+Then run the setup:
+
+```bash
+pnpm exec xndrjs-i18n-setup multi . --project MyApp
+```
+
+or, if you're using a monorepo:
+
+```bash
+pnpm --filter YourAppOrPackageName exec xndrjs-i18n-setup multi . --project MyApp
 ```
 
 Add your ICU strings under `i18n/translations/`, wire codegen into `package.json`
@@ -314,7 +333,9 @@ Add your ICU strings under `i18n/translations/`, wire codegen into `package.json
 then run it
 
 ```bash
-npm run i18n:codegen
+pnpm run i18n:codegen
+# or, in a monorepo
+pnpm --filter YourAppOrPackageName i18n:codegen
 ```
 
 Use the generated factory:
