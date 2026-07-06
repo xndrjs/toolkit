@@ -8,6 +8,8 @@ type TestSchema = {
   empty_label: { en: string };
   broken: { en: string };
   invoice_count: { en: string; it: string };
+  item_count_zero: { en: string };
+  item_count_exact: { en: string };
   dashboard_status: { en: string; it: string };
   inbox_owner: { en: string; it: string };
   ranking_position: { en: string; it: string };
@@ -21,6 +23,8 @@ type TestParams = {
   empty_label: never;
   broken: { name: string };
   invoice_count: { count: number };
+  item_count_zero: { count: number };
+  item_count_exact: { count: number };
   dashboard_status: { msgCount: number; chatCount: number };
   inbox_owner: { gender: string; name: string };
   ranking_position: { position: number };
@@ -36,6 +40,12 @@ const dictionary: TestSchema = {
   invoice_count: {
     en: "You have {count, plural, one {1 invoice} other {{count} invoices}}",
     it: "Hai {count, plural, one {1 fattura} other {{count} fatture}}",
+  },
+  item_count_zero: {
+    en: "{count, plural, zero {no items} one {1 item} other {{count} items}}",
+  },
+  item_count_exact: {
+    en: "{count, plural, =5 {five items} one {1 item} other {{count} items}}",
   },
   dashboard_status: {
     en: "You have {msgCount, plural, one {1 message} other {{msgCount} messages}} in {chatCount, plural, one {one chat} other {{chatCount} chats}}",
@@ -76,6 +86,15 @@ describe("IcuTranslationProviderSingle", () => {
       expect(provider.get("invoice_count", "en", { count: 5 })).toBe("You have 5 invoices");
       expect(provider.get("invoice_count", "it", { count: 1 })).toBe("Hai 1 fattura");
       expect(provider.get("invoice_count", "it", { count: 5 })).toBe("Hai 5 fatture");
+    });
+
+    it("uses =5 for an exact match; zero is a locale plural category, not exact match in English", () => {
+      // ICU "zero" is a plural rule category (e.g. Arabic); in English, 0 maps to "other".
+      expect(provider.get("item_count_zero", "en", { count: 0 })).toBe("0 items");
+      // "=5" is an exact-value selector and matches count === 5 in any locale.
+      expect(provider.get("item_count_exact", "en", { count: 0 })).toBe("0 items");
+      expect(provider.get("item_count_exact", "en", { count: 1 })).toBe("1 item");
+      expect(provider.get("item_count_exact", "en", { count: 5 })).toBe("five items");
     });
 
     it("formats nested numeric plurals with double-brace references", () => {
@@ -209,6 +228,8 @@ describe("IcuTranslationProviderSingle", () => {
         en: "You have {count, plural, one {1 invoice} other {{count} invoices}}",
         it: "Hai {count, plural, one {1 fattura} other {{count} fatture}}",
       },
+      item_count_zero: dictionary.item_count_zero,
+      item_count_exact: dictionary.item_count_exact,
       dashboard_status: dictionary.dashboard_status,
       inbox_owner: dictionary.inbox_owner,
       ranking_position: dictionary.ranking_position,
