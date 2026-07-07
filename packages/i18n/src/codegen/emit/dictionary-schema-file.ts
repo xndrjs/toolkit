@@ -1,6 +1,6 @@
 import type { VariableSpec } from "../../icu/extract-variables.js";
-import { GENERATED_FILE_BANNER } from "../paths.js";
-import type { NamespaceEntry } from "../types.js";
+import { GENERATED_FILE_BANNER, toRelativeModuleImport } from "../paths.js";
+import type { ImportExtension, NamespaceEntry } from "../types.js";
 
 function formatVariableSpecObject(spec: VariableSpec): string {
   const entries = Object.entries(spec);
@@ -70,8 +70,10 @@ export function formatDictionarySchemaFile(
   schemaTypeName: string,
   typesModule: string,
   isSingle: boolean,
-  dictionarySpecBlock: string
+  dictionarySpecBlock: string,
+  importExtension: ImportExtension
 ): string {
+  const typesImport = toRelativeModuleImport(typesModule, importExtension);
   const namespaceImport = isSingle
     ? ""
     : `  validateExternalNamespace as validateExternalNamespaceImpl,\n`;
@@ -99,7 +101,7 @@ export function formatDictionarySchemaFile(
     `  type NormalizedDictionary,\n` +
     `  type ValidationResult,\n` +
     `} from '@xndrjs/i18n/validation';\n` +
-    `import type { ${schemaTypeName} } from './${typesModule}.js';\n\n` +
+    `import type { ${schemaTypeName} } from '${typesImport}';\n\n` +
     `${dictionarySpecBlock}\n` +
     `export function normalizeExternalDictionary(\n` +
     `  input: unknown,\n` +

@@ -1,15 +1,15 @@
 // Automatically generated code. Do not edit manually.
 import { ensureNamespacesLoadedImpl } from "@xndrjs/i18n";
-import { validateExternalNamespace } from "./dictionary-schema.generated.js";
-import type { MyProjectSchema, LazyNamespace } from "./i18n-types.generated.js";
-import type { createI18n } from "./instance.generated.js";
+import { validateExternalNamespace } from "./dictionary-schema.generated";
+import type { MyProjectSchema, LazyNamespace } from "./i18n-types.generated";
+import type { createI18n } from "./instance.generated";
 
 export const namespaceLoaders: Record<
   LazyNamespace,
   () => Promise<MyProjectSchema[LazyNamespace]>
 > = {
   user: () => import("../translations/user.json").then((m) => m.default),
-  billing: () => import("../translations/billing.json").then((m) => m.default),
+  billing: () => import("./translations/billing.json").then((m) => m.default),
 };
 
 export async function ensureNamespacesLoaded(

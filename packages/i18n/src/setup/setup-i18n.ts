@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEFAULT_IMPORT_EXTENSION, importExtensionSuffix } from "../codegen/paths.js";
 import { inferProjectName, typeNamesForProject } from "./type-names.js";
 
 export type SetupMode = "single" | "multi";
@@ -28,11 +29,13 @@ const DEFAULT_STARTER = {
   welcome: { en: "Welcome {name}!" },
 };
 
+const DEFAULT_IMPORT_SUFFIX = importExtensionSuffix(DEFAULT_IMPORT_EXTENSION);
+
 const INDEX_TS =
-  `import { createI18n } from "./generated/instance.generated.js";\n\n` +
-  `export * from "./generated/instance.generated.js";\n` +
-  `export * from "./generated/dictionary.generated.js";\n` +
-  `export * from "./generated/i18n-types.generated.js";\n\n` +
+  `import { createI18n } from "./generated/instance.generated${DEFAULT_IMPORT_SUFFIX}";\n\n` +
+  `export * from "./generated/instance.generated${DEFAULT_IMPORT_SUFFIX}";\n` +
+  `export * from "./generated/dictionary.generated${DEFAULT_IMPORT_SUFFIX}";\n` +
+  `export * from "./generated/i18n-types.generated${DEFAULT_IMPORT_SUFFIX}";\n\n` +
   `export const i18n = createI18n();\n`;
 
 function writeJson(filePath: string, value: unknown): void {

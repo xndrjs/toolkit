@@ -2,8 +2,8 @@
 export const I18N_MODE = "single" as const;
 
 export const LOCALE_FALLBACK = {
-  en: null,
   "de-CH": "en",
+  en: null,
   it: "en",
 } as const satisfies Record<string, string | null>;
 
@@ -19,6 +19,9 @@ export type MyProjectParams = {
   ranking_position: { position: number };
   account_balance: { amount: number };
   appointment_summary: { dueDate: Date | number; startTime: Date | number };
+  invoice_due_long: { dueDate: Date | number };
+  discount_rate: { rate: number };
+  meeting_time: { startTime: Date | number };
 };
 
 export type MyProjectSchema = typeof import("../translations/translations.json");

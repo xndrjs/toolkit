@@ -87,7 +87,7 @@ The catch: lazy loading must be **explicit**. Silent fallbacks to missing keys h
 
 `@xndrjs/i18n` separates **codegen** from **runtime**.
 
-At build time, `xndrjs-i18n-codegen` reads your ICU JSON, parses every string with `@formatjs/icu-messageformat-parser`, and generates exact TypeScript types for keys and parameters:
+At build time, `xndrjs-i18n-codegen` reads your ICU dictionaries (JSON or YAML), parses every string with `@formatjs/icu-messageformat-parser`, and generates exact TypeScript types for keys and parameters:
 
 ```ts
 export type MyProjectParams = {
@@ -110,13 +110,13 @@ i18n.get("default", "welcome", "en"); // ✗ compile error — missing { name }
 i18n.get("billing", "login_button", "it"); // ✗ compile error — key not in namespace
 ```
 
-Add a key to JSON, re-run codegen, and TypeScript flags every call site that needs updating. That is the loop that keeps UI code and dictionary in sync.
+Add a key to a dictionary file, re-run codegen, and TypeScript flags every call site that needs updating. That is the loop that keeps UI code and dictionary in sync.
 
 ### Single file vs multi-namespace
 
 Codegen runs in one of two modes — you pick at config time, and the generated API follows.
 
-**Single-file mode** is the flat setup: one JSON dictionary, one provider, a two-argument `.get()`:
+**Single-file mode** is the flat setup: one dictionary file, one provider, a two-argument `.get()`:
 
 ```ts
 i18n.get("login_button", "it");
@@ -125,7 +125,7 @@ i18n.get("welcome", "en", { name: "Ada" });
 
 It fits smaller apps and early integrations — less structure to maintain, no namespace argument at every call site. Runtime override is `setAll()` only; there is no per-slice patching and no namespace-level lazy loading.
 
-**Multi-namespace mode** splits the dictionary by domain — `default`, `billing`, `admin`, each in its own JSON file — and exposes a namespaced API:
+**Multi-namespace mode** splits the dictionary by domain — `default`, `billing`, `admin`, each in its own file (`.json` or `.yaml`) — and exposes a namespaced API:
 
 ```ts
 i18n.get("default", "login_button", "it");
@@ -247,7 +247,7 @@ In multi-namespace mode, you can split dictionaries across chunks. List only the
 {
   "namespaces": {
     "default": "translations/default.json",
-    "billing": "translations/billing.json",
+    "billing": "translations/billing.yaml",
     "admin": "translations/admin.json"
   },
   "loadOnInit": ["default"],
@@ -277,6 +277,55 @@ If you forget, the library throws explicitly:
 No silent empty strings. No guessing whether the key is missing or the namespace was never fetched.
 
 When `loadOnInit` is omitted, behavior stays simple: all namespaces are statically imported, same as a traditional setup.
+
+### YAML authoring — multiline strings without JSON pain
+
+JSON is fine for short labels. It becomes awkward when a translation spans multiple lines — legal copy, refund policies, email bodies. JSON has no native multiline strings; you end up with `\n` escapes or string concatenation that translators hate.
+
+`@xndrjs/i18n` lets you author dictionaries as **YAML** (`.yaml` / `.yml`) while keeping the same runtime model.
+
+**YAML is an authoring format, not a runtime format.** YAML never reaches production — codegen compiles it to the same generated JSON the runtime already consumes.
+
+1. You edit `translations/billing.yaml` (or mix JSON and YAML per namespace).
+2. Codegen compiles YAML → JSON under `generated/translations/` (next to your other generated `.ts` files).
+3. Generated TypeScript still imports the **compiled JSON** — lazy loaders, validation, and `setNamespace()` work unchanged.
+
+```yaml
+# translations/billing.yaml
+appointment_summary:
+  en: |
+    Due {dueDate, date, short}
+    at {startTime, time, short}
+  it: |
+    Scade il {dueDate, date, short}
+    alle {startTime, time, short}
+
+refund_policy_markdown:
+  en: |
+    # Refund policy
+
+    Contact support within **{days, number} days** of purchase.
+```
+
+YAML block scalars make long ICU messages much easier to read while preserving (or intentionally folding) line breaks.
+
+Mixed namespaces are fine — `default.json` for core UI, `billing.yaml` for long-form copy:
+
+```json
+{
+  "namespaces": {
+    "default": "translations/default.json",
+    "billing": "translations/billing.yaml"
+  },
+  "loadOnInit": ["default"]
+}
+```
+
+**Edit only the YAML source.** The compiled JSON in `generated/translations/` is overwritten on every codegen run — same philosophy as `.generated.ts` files.
+
+Runtime overrides from a CMS or static `public/` folder still validate against the same schema: fetch JSON (compiled from YAML at build time), run `validateExternalNamespace("billing", raw)`, then `setNamespace("billing", result.data)`.
+
+Rich text (typically Markdown, occasionally HTML) is treated as plain message content. `@xndrjs/i18n` formats ICU parameters but does not interpret markup. Keep formatted copy in dedicated keys; prefer Markdown over raw HTML. Unquoted `<tags>` are parsed as ICU syntax, not literal HTML — quote them (for example `'<strong>'`) if you need tags at all. That is a known, deliberate limitation: translation files are a poor place for heavy markup.
 
 ### What actually affects bundle size
 
@@ -320,7 +369,7 @@ or, if you're using a monorepo:
 pnpm --filter YourAppOrPackageName exec xndrjs-i18n-setup multi . --project MyApp
 ```
 
-Add your ICU strings under `i18n/translations/`, wire codegen into `package.json`
+Add your ICU strings under `i18n/translations/` (`.json`, `.yaml`, or `.yml` per namespace), wire codegen into `package.json`
 
 ```json
 {
@@ -386,7 +435,7 @@ Codegen emits `LOCALE_FALLBACK` and extends your locale union type to include fa
 
 ## Final words
 
-`@xndrjs/i18n` is a small, deliberate stack: ICU JSON as the source of truth, codegen that turns templates into TypeScript contracts, and a runtime provider that formats, caches, overrides, and fails loudly when something is wrong.
+`@xndrjs/i18n` is a small, deliberate stack: ICU dictionaries (JSON or YAML at authoring time) as the source of truth, codegen that turns templates into TypeScript contracts, and a runtime provider that formats, caches, overrides, and fails loudly when something is wrong.
 
 There are no React, Vue, or Next.js wrappers — on purpose. The vanilla API is a typed provider with `.get()`, `forLocale()`, and optional async preload: enough to wire into any framework with a thin hook or context of your own. `@xndrjs/i18n` does not barge into your stack with opinionated lifecycle or rendering assumptions. You import `createI18n()`, call it where it fits, and keep your UI layer in charge.
 

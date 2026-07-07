@@ -15,6 +15,8 @@ type TestSchema = {
   ranking_position: { en: string; it: string };
   account_balance: { en: string; it: string };
   appointment_summary: { en: string; it: string };
+  invoice_due_long: { en: string; it: string };
+  discount_rate: { en: string; it: string };
 };
 
 type TestParams = {
@@ -30,6 +32,8 @@ type TestParams = {
   ranking_position: { position: number };
   account_balance: { amount: number };
   appointment_summary: { dueDate: Date | number; startTime: Date | number };
+  invoice_due_long: { dueDate: Date | number };
+  discount_rate: { rate: number };
 };
 
 const dictionary: TestSchema = {
@@ -66,6 +70,14 @@ const dictionary: TestSchema = {
   appointment_summary: {
     en: "Due {dueDate, date, short} at {startTime, time, short}",
     it: "Scade il {dueDate, date, short} alle {startTime, time, short}",
+  },
+  invoice_due_long: {
+    en: "Payment due on {dueDate, date, ::yMMMMd}",
+    it: "Pagamento entro il {dueDate, date, ::yMMMMd}",
+  },
+  discount_rate: {
+    en: "Save {rate, number, ::percent} today",
+    it: "Risparmia il {rate, number, ::percent} oggi",
   },
 };
 
@@ -168,6 +180,25 @@ describe("IcuTranslationProviderSingle", () => {
         })
       ).toBe(`Due ${expectedDate} at ${expectedTime}`);
     });
+
+    it("formats ICU date and number skeletons (::yMMMMd, ::percent)", () => {
+      const when = new Date("2026-07-01T13:30:00Z");
+      const expectedLongDate = new Intl.DateTimeFormat("en", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(when);
+      const expectedPercent = new Intl.NumberFormat("en", {
+        style: "percent",
+      }).format(0.25);
+
+      expect(provider.get("invoice_due_long", "en", { dueDate: when })).toBe(
+        `Payment due on ${expectedLongDate}`
+      );
+      expect(provider.get("discount_rate", "en", { rate: 0.25 })).toBe(
+        `Save ${expectedPercent} today`
+      );
+    });
   });
 
   it("treats an empty string template as valid", () => {
@@ -235,6 +266,8 @@ describe("IcuTranslationProviderSingle", () => {
       ranking_position: dictionary.ranking_position,
       account_balance: dictionary.account_balance,
       appointment_summary: dictionary.appointment_summary,
+      invoice_due_long: dictionary.invoice_due_long,
+      discount_rate: dictionary.discount_rate,
     };
     const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(external);
     external.login_button.en = "Sign in";

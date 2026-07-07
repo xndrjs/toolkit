@@ -2,9 +2,9 @@
 export const I18N_MODE = "multi" as const;
 
 export const LOCALE_FALLBACK = {
-  en: null,
-  "de-DE": "en",
   "de-CH": "de-DE",
+  "de-DE": "en",
+  en: null,
   it: "en",
 } as const satisfies Record<string, string | null>;
 
@@ -28,13 +28,18 @@ export type MyProjectParams = {
     invoice_summary: { count: number };
     account_balance: { amount: number };
     appointment_summary: { dueDate: Date | number; startTime: Date | number };
+    invoice_due_long: { dueDate: Date | number };
+    discount_rate: { rate: number };
+    meeting_time: { startTime: Date | number };
+    payment_notice_html: { amount: number; dueDate: Date | number };
+    refund_policy_markdown: { days: number };
   };
 };
 
 export type MyProjectSchema = {
   default: typeof import("../translations/default.json");
   user: typeof import("../translations/user.json");
-  billing: typeof import("../translations/billing.json");
+  billing: typeof import("./translations/billing.json");
 };
 export type LoadOnInitNamespace = "default";
 export type LazyNamespace = "user" | "billing";

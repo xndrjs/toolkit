@@ -1,3 +1,6 @@
+export const SUPPORTED_IMPORT_EXTENSIONS = ["none", ".ts", ".js"] as const;
+export type ImportExtension = (typeof SUPPORTED_IMPORT_EXTENSIONS)[number];
+
 export interface CodegenConfig {
   dictionary?: string;
   namespaces?: Record<string, string>;
@@ -8,6 +11,8 @@ export interface CodegenConfig {
   dictionarySchemaOutput?: string;
   loadOnInit?: string[];
   namespaceLoadersOutput?: string;
+  /** Extension used in relative imports between generated modules. Default: "none" */
+  importExtension?: ImportExtension;
   paramsTypeName: string;
   schemaTypeName: string;
   localeTypeName?: string;

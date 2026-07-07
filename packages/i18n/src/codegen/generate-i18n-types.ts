@@ -11,7 +11,9 @@ import { formatNamespaceLoadersFile } from "./emit/namespace-loaders-file.js";
 import { formatTypesFile } from "./emit/types-file.js";
 import { analyzeDictionaries } from "./icu-analysis.js";
 import { collectRequestLocales, validateCodegenLocaleFallback } from "./locale-fallback.js";
-import { fail, toModuleBasename } from "./paths.js";
+import { enrichLocaleFallback } from "./locale-policy.js";
+import { fail, resolveImportExtension, toModuleBasename } from "./paths.js";
+import { prepareDictionaryEntries } from "./read-dictionary.js";
 
 function main() {
   const configArgIndex = process.argv.indexOf("--config");
@@ -26,7 +28,21 @@ function main() {
   }
 
   const config = loadConfig(configPath);
-  const entries = resolveNamespaces(config);
+  const sourceEntries = resolveNamespaces(config);
+  const generatedDirRelative = path.dirname(config.typesOutput);
+  let resolvedEntries;
+  let compiledFiles: string[];
+
+  try {
+    const prepared = prepareDictionaryEntries(projectRoot, sourceEntries, generatedDirRelative);
+    resolvedEntries = prepared.resolvedEntries;
+    compiledFiles = prepared.compiledFiles;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    fail(message);
+  }
+
+  const entries = resolvedEntries;
   const isSingle = Boolean(config.dictionary);
   const { loadOnInitSet, lazyEntries, hasLazy } = resolveLoadOnInit(config, entries, isSingle);
 
@@ -57,6 +73,7 @@ function main() {
   const localeFallbackConstName = config.localeFallbackConstName ?? "LOCALE_FALLBACK";
   const localeFallbackTypeName = `${localeTypeName}Fallback`;
   const factoryName = config.factoryName ?? "createI18n";
+  const importExtension = resolveImportExtension(config);
   const typesModule = toModuleBasename(typesOutputPath);
 
   const requestLocales = collectRequestLocales(locales, config.localeFallback);
@@ -69,6 +86,10 @@ function main() {
     ? entries.filter((entry) => loadOnInitSet.has(entry.namespace))
     : entries;
 
+  const localeFallbackForEmit = config.localeFallback
+    ? enrichLocaleFallback(locales, config.localeFallback)
+    : undefined;
+
   const typesContent = formatTypesFile({
     isSingle,
     entries,
@@ -79,7 +100,7 @@ function main() {
     localeTypeName,
     localeFallbackConstName,
     localeFallbackTypeName,
-    localeFallback: config.localeFallback,
+    localeFallback: localeFallbackForEmit,
     paramsByNamespace,
     requestLocaleUnion,
     hasLazy,
@@ -96,6 +117,7 @@ function main() {
     dictionaryOutputPath,
     typesOutputPath,
     schemaTypeName,
+    importExtension,
   });
 
   const instanceContent = formatInstanceFile({
@@ -109,6 +131,7 @@ function main() {
     localeFallbackConstName,
     factoryName,
     hasLocaleFallback: Boolean(config.localeFallback),
+    importExtension,
   });
 
   fs.mkdirSync(path.dirname(typesOutputPath), { recursive: true });
@@ -133,7 +156,8 @@ function main() {
       schemaTypeName,
       typesModule,
       isSingle,
-      dictionarySpecBlock
+      dictionarySpecBlock,
+      importExtension
     );
 
     fs.mkdirSync(path.dirname(dictionarySchemaOutputPath), { recursive: true });
@@ -159,7 +183,8 @@ function main() {
       typesModule,
       toModuleBasename(dictionarySchemaOutputPath),
       toModuleBasename(instanceOutputPath),
-      factoryName
+      factoryName,
+      importExtension
     );
 
     fs.mkdirSync(path.dirname(namespaceLoadersOutputPath), { recursive: true });
@@ -168,6 +193,9 @@ function main() {
   }
 
   console.log(`✅ Generated: ${generatedFiles.join(", ")}`);
+  if (compiledFiles.length > 0) {
+    console.log(`✅ Compiled: ${compiledFiles.join(", ")}`);
+  }
 }
 
 main();

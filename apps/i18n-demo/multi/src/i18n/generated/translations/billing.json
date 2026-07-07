@@ -1,0 +1,34 @@
+{
+  "invoice_summary": {
+    "it": "Hai {count, plural, one {1 fattura} other {# fatture}}",
+    "en": "You have {count, plural, one {1 invoice} other {# invoices} }"
+  },
+  "account_balance": {
+    "it": "Saldo: {amount, number, ::currency/EUR}",
+    "en": "Balance: {amount, number, ::currency/EUR}"
+  },
+  "appointment_summary": {
+    "it": "Scade il {dueDate, date, short} alle {startTime, time, short}",
+    "en": "Due {dueDate, date, short}\nat {startTime, time, short}"
+  },
+  "invoice_due_long": {
+    "it": "Pagamento entro il {dueDate, date, ::yMMMMd}",
+    "en": "Payment due on {dueDate, date, ::yMMMMd}"
+  },
+  "discount_rate": {
+    "it": "Risparmia il {rate, number, ::percent} oggi",
+    "en": "Save {rate, number, ::percent} today"
+  },
+  "meeting_time": {
+    "it": "Chiamata alle {startTime, time, ::HHmm} UTC",
+    "en": "Call at {startTime, time, ::HHmm} UTC"
+  },
+  "payment_notice_html": {
+    "it": "Paga '<strong>'{amount, number, ::currency/EUR}'</strong>' entro il '<em>'{dueDate, date, short}'</em>'.",
+    "en": "Pay '<strong>'{amount, number, ::currency/EUR}'</strong>' by '<em>'{dueDate, date, short}'</em>'."
+  },
+  "refund_policy_markdown": {
+    "it": "# Politica rimborsi\n\n## Panoramica\n\nContatta il supporto entro **{days, number} giorni** dall'acquisto.\n\n### Cosa è coperto\n\n- Abbonamenti attivi\n- Acquisti una tantum\n- Upgrade di piano\n\nLeggi i [termini di servizio](https://example.com/it/terms) o scrivi a [supporto](mailto:support@example.com).\n\n***Nota:*** i rimborsi possono richiedere *5-10 giorni lavorativi*.\n\n#### Documentazione\n\nConsulta anche le [FAQ fatturazione](/it/billing/faq) e la guida `refund-flow`.\n\n> I rimborsi parziali sono valutati caso per caso.\n",
+    "en": "# Refund policy\n\n## Overview\n\nContact support within **{days, number} days** of purchase.\n\n### What's covered\n\n- Active subscriptions\n- One-time purchases\n- Plan upgrades\n\nRead our [terms of service](https://example.com/terms) or email [support](mailto:support@example.com).\n\n***Note:*** refunds may take *5-10 business days*.\n\n#### Documentation\n\nSee also the [billing FAQ](/billing/faq) and the `refund-flow` guide.\n\n> Partial refunds are reviewed case by case.\n"
+  }
+}

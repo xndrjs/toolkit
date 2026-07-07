@@ -8,7 +8,7 @@ import {
   type NormalizedDictionary,
   type ValidationResult,
 } from "@xndrjs/i18n/validation";
-import type { MyProjectSchema } from "./i18n-types.generated.js";
+import type { MyProjectSchema } from "./i18n-types.generated";
 
 export const DICTIONARY_SPEC = {
   mode: "multi" as const,
@@ -21,7 +21,16 @@ export const DICTIONARY_SPEC = {
       "ranking_position",
     ] as const,
     user: ["profile_title", "greeting"] as const,
-    billing: ["invoice_summary", "account_balance", "appointment_summary"] as const,
+    billing: [
+      "invoice_summary",
+      "account_balance",
+      "appointment_summary",
+      "invoice_due_long",
+      "discount_rate",
+      "meeting_time",
+      "payment_notice_html",
+      "refund_policy_markdown",
+    ] as const,
   },
   argsByKey: {
     default: {
@@ -57,6 +66,22 @@ export const DICTIONARY_SPEC = {
       appointment_summary: {
         dueDate: "date",
         startTime: "date",
+      },
+      invoice_due_long: {
+        dueDate: "date",
+      },
+      discount_rate: {
+        rate: "number",
+      },
+      meeting_time: {
+        startTime: "date",
+      },
+      payment_notice_html: {
+        amount: "number",
+        dueDate: "date",
+      },
+      refund_policy_markdown: {
+        days: "number",
       },
     },
   },

@@ -112,7 +112,8 @@ xndrjs-toolkit/
 ├── packages/
 │   └── i18n/                       # @xndrjs/i18n — the publishable library
 │       ├── bin/
-│       │   └── codegen.mjs         # CLI entry: xndrjs-i18n-codegen
+│       │   ├── codegen.mjs         # CLI entry: xndrjs-i18n-codegen
+│       │   └── audit.mjs           # CLI entry: xndrjs-i18n-audit
 │       └── src/
 │           ├── index.ts            # public exports
 │           ├── types.ts            # generic dictionary/cache types
@@ -283,6 +284,8 @@ When a translation is missing for the requested locale (`undefined` in the dicti
 
 Codegen emits `LOCALE_FALLBACK` and extends `MyProjectLocale` with the fallback locales. The generated factory wires the map into the provider automatically.
 
+When `localeFallback` is present in config, codegen **enriches** the generated map: every locale in `MyProjectLocale` that is missing from your config is added with `null` (explicit terminal — no fallback chain). Runtime behavior is unchanged; the map is simply complete. If `localeFallback` is omitted from config, no `LOCALE_FALLBACK` is emitted (current behavior).
+
 You can also pass a fallback map manually when constructing a provider:
 
 ```ts
@@ -296,6 +299,27 @@ const localeFallback = {
 const i18n = new IcuTranslationProviderMulti(schema, { localeFallback });
 ```
 
+### 6. Translation audit (`xndrjs-i18n-audit`)
+
+Report missing translations as JSON — useful for translator backlogs and optional CI gates.
+
+```bash
+xndrjs-i18n-audit --config i18n/i18n.codegen.json
+xndrjs-i18n-audit --config i18n/i18n.codegen.json --out audit.json
+xndrjs-i18n-audit --config i18n/i18n.codegen.json --fail-on effective
+```
+
+**`requiredLocales`** in the report match generated `MyProjectLocale` (dictionary locales ∪ fallback keys and targets).
+
+| Field                      | Meaning                                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------------------- |
+| `missingDirectByLocale`    | No template for that locale on the key (or empty string when `--allow-empty` is not set) |
+| `missingEffectiveByLocale` | Runtime would fail after walking `LOCALE_FALLBACK` — real coverage gaps                  |
+
+By default the CLI **does not fail** (exit `0`) — report-only. Pass `--fail-on effective`, `direct`, or `any` to exit `1` when gaps exist (for CI).
+
+Locales such as `de-CH` that exist only in `localeFallback` (not in source files) typically show high `missingDirect` but low `missingEffective` when `en` covers the chain — that is expected.
+
 ## Configuration (`i18n/i18n.codegen.json`)
 
 Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-file). Paths in the config are relative to the directory containing `i18n.codegen.json` (the `i18n/` folder created by setup).
@@ -307,7 +331,7 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
   "namespaces": {
     "default": "translations/default.json",
     "user": "translations/user.json",
-    "billing": "translations/billing.json"
+    "billing": "translations/billing.yaml"
   },
   "typesOutput": "generated/i18n-types.generated.ts",
   "dictionaryOutput": "generated/dictionary.generated.ts",
@@ -349,12 +373,13 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 
 | Field                               | Description                                                                                                                                                                         |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `dictionary`                        | Path to a single JSON file (flat API). Mutually exclusive with `namespaces`.                                                                                                        |
-| `namespaces`                        | Map of `namespace -> JSON path` (namespaced API). Mutually exclusive with `dictionary`.                                                                                             |
+| `dictionary`                        | Path to a single dictionary file (`.json`, `.yaml`, or `.yml`) for the flat API. Mutually exclusive with `namespaces`.                                                              |
+| `namespaces`                        | Map of `namespace -> dictionary path` (`.json`, `.yaml`, or `.yml`) for the namespaced API. Mutually exclusive with `dictionary`.                                                   |
 | `defaultNamespace`                  | Optional. Namespace label used internally in single-file mode (default `"default"`). Not exposed in the flat API.                                                                   |
 | `typesOutput`                       | Output path for the generated types.                                                                                                                                                |
 | `dictionaryOutput`                  | Output path for the generated dictionary manifest.                                                                                                                                  |
 | `instanceOutput`                    | Output path for the generated factory (`createI18n`).                                                                                                                               |
+| `importExtension`                   | Optional. Relative import suffix between generated `.ts` modules: `"none"` (default, extensionless), `".ts"`, or `".js"`.                                                           |
 | `factoryName`                       | Name of the exported factory function (default `createI18n`).                                                                                                                       |
 | `paramsTypeName` / `schemaTypeName` | Names of the exported types (customizable per project).                                                                                                                             |
 | `localeTypeName`                    | Name of the exported locale union type (default `MyProjectLocale`).                                                                                                                 |
@@ -365,6 +390,29 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 | `namespaceLoadersOutput`            | Output path for generated lazy loaders and `ensureNamespacesLoaded()`. Defaults to `{dirname(instanceOutput)}/namespace-loaders.generated.ts`. Required when lazy namespaces exist. |
 
 > Paths are resolved relative to the directory containing `i18n.codegen.json` (e.g. `i18n/` when using `xndrjs-i18n-setup .`).
+
+### YAML authoring
+
+Dictionary paths may use `.yaml` or `.yml` instead of `.json`. **YAML is an authoring format, not a runtime format** — codegen compiles YAML to JSON under the generated output directory (for example `translations/billing.yaml` → `{dirname(typesOutput)}/translations/billing.json`); generated TypeScript imports the compiled JSON at runtime. Edit only the YAML source — the compiled JSON is overwritten on each codegen run.
+
+YAML block scalars make long ICU messages much easier to read while preserving (or intentionally folding) line breaks.
+
+```yaml
+# translations/billing.yaml
+appointment_summary:
+  en: |
+    Due {dueDate, date, short}
+    at {startTime, time, short}
+  it: "Scade il {dueDate, date, short} alle {startTime, time, short}"
+```
+
+Workflow:
+
+1. Edit the `.yaml` / `.yml` source file under `translations/`.
+2. Run `xndrjs-i18n-codegen`.
+3. Commit the YAML source; the compiled JSON lives under `generated/translations/` and is safe to commit or gitignore if CI regenerates it before build.
+
+Mixed namespaces are supported: some namespaces can stay `.json` while others use YAML.
 
 ## Usage
 
@@ -421,7 +469,7 @@ Split namespaces across chunks by listing only the namespaces you need at startu
 {
   "namespaces": {
     "default": "translations/default.json",
-    "billing": "translations/billing.json"
+    "billing": "translations/billing.yaml"
   },
   "loadOnInit": ["default"],
   "dictionarySchemaOutput": "generated/dictionary-schema.generated.ts",
@@ -537,8 +585,10 @@ pnpm --filter @xndrjs/i18n test
 From inside `apps/i18n-demo/`:
 
 ```bash
-pnpm run i18n:codegen:single   # xndrjs-i18n-codegen --config single/i18n.codegen.json
-pnpm run i18n:codegen:multi    # xndrjs-i18n-codegen --config multi/i18n.codegen.json
+pnpm run i18n:codegen:single   # xndrjs-i18n-codegen --config single/src/i18n/i18n.codegen.json
+pnpm run i18n:codegen:multi    # xndrjs-i18n-codegen --config multi/src/i18n/i18n.codegen.json
+pnpm run i18n:audit:single     # xndrjs-i18n-audit --config single/src/i18n/i18n.codegen.json
+pnpm run i18n:audit:multi      # xndrjs-i18n-audit --config multi/src/i18n/i18n.codegen.json
 pnpm run demo:single           # tsx single/src/index.ts
 pnpm run demo:multi            # tsx multi/src/index.ts
 ```
@@ -551,7 +601,7 @@ pnpm run demo:multi            # tsx multi/src/index.ts
 
 ## Adding a namespace
 
-1. Create a new JSON file (any name/path).
+1. Create a new dictionary file (`.json`, `.yaml`, or `.yml`, any path).
 2. Add it to `namespaces` in `i18n/i18n.codegen.json`.
 3. Re-run codegen. `dictionary.generated.ts` wires the import automatically.
 

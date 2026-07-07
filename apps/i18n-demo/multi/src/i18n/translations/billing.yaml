@@ -1,0 +1,85 @@
+invoice_summary:
+  it: "Hai {count, plural, one {1 fattura} other {# fatture}}"
+  en: >- # folds lines, trims last newline
+    You have {count, plural,
+    one {1 invoice}
+    other {# invoices}
+    }
+
+account_balance:
+  it: "Saldo: {amount, number, ::currency/EUR}"
+  en: "Balance: {amount, number, ::currency/EUR}"
+
+appointment_summary:
+  it: "Scade il {dueDate, date, short} alle {startTime, time, short}"
+  en: |- # keeps newlines, trims last newline
+    Due {dueDate, date, short}
+    at {startTime, time, short}
+
+invoice_due_long:
+  # ICU date skeleton (::field letters) — longer, locale-aware label
+  it: "Pagamento entro il {dueDate, date, ::yMMMMd}"
+  en: "Payment due on {dueDate, date, ::yMMMMd}"
+
+discount_rate:
+  # ICU number skeleton — percent style (0.25 → 25%)
+  it: "Risparmia il {rate, number, ::percent} oggi"
+  en: "Save {rate, number, ::percent} today"
+
+meeting_time:
+  # ICU time skeleton — 24h hours and minutes
+  it: "Chiamata alle {startTime, time, ::HHmm} UTC"
+  en: "Call at {startTime, time, ::HHmm} UTC"
+
+payment_notice_html:
+  # Raw HTML tags are parsed as ICU rich-text placeholders at runtime (e.g. "strong").
+  # Codegen accepts the string; intl-messageformat fails unless tags are ICU-quoted.
+  it: "Paga '<strong>'{amount, number, ::currency/EUR}'</strong>' entro il '<em>'{dueDate, date, short}'</em>'."
+  en: "Pay '<strong>'{amount, number, ::currency/EUR}'</strong>' by '<em>'{dueDate, date, short}'</em>'."
+
+refund_policy_markdown:
+  # Markdown/plain text with ICU placeholders — codegen and runtime both work.
+  it: |
+    # Politica rimborsi
+
+    ## Panoramica
+
+    Contatta il supporto entro **{days, number} giorni** dall'acquisto.
+
+    ### Cosa è coperto
+
+    - Abbonamenti attivi
+    - Acquisti una tantum
+    - Upgrade di piano
+
+    Leggi i [termini di servizio](https://example.com/it/terms) o scrivi a [supporto](mailto:support@example.com).
+
+    ***Nota:*** i rimborsi possono richiedere *5-10 giorni lavorativi*.
+
+    #### Documentazione
+
+    Consulta anche le [FAQ fatturazione](/it/billing/faq) e la guida `refund-flow`.
+
+    > I rimborsi parziali sono valutati caso per caso.
+  en: |
+    # Refund policy
+
+    ## Overview
+
+    Contact support within **{days, number} days** of purchase.
+
+    ### What's covered
+
+    - Active subscriptions
+    - One-time purchases
+    - Plan upgrades
+
+    Read our [terms of service](https://example.com/terms) or email [support](mailto:support@example.com).
+
+    ***Note:*** refunds may take *5-10 business days*.
+
+    #### Documentation
+
+    See also the [billing FAQ](/billing/faq) and the `refund-flow` guide.
+
+    > Partial refunds are reviewed case by case.

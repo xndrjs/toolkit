@@ -1,0 +1,23 @@
+{
+  "namespaces": {
+    "default": "translations/default.json",
+    "user": "translations/user.json",
+    "billing": "translations/billing.yaml"
+  },
+  "typesOutput": "generated/i18n-types.generated.ts",
+  "dictionaryOutput": "generated/dictionary.generated.ts",
+  "instanceOutput": "generated/instance.generated.ts",
+  "dictionarySchemaOutput": "generated/dictionary-schema.generated.ts",
+  "loadOnInit": ["default"],
+  "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts",
+  "paramsTypeName": "MyProjectParams",
+  "schemaTypeName": "MyProjectSchema",
+  "localeTypeName": "MyProjectLocale",
+  "factoryName": "createI18n",
+  "localeFallback": {
+    "en": null,
+    "de-DE": "en",
+    "de-CH": "de-DE",
+    "it": "en"
+  }
+}
