@@ -132,6 +132,7 @@ function main() {
     factoryName,
     hasLocaleFallback: Boolean(config.localeFallback),
     hasLocaleType: Boolean(requestLocaleUnion),
+    namespaceNames: entries.map((entry) => entry.namespace),
     importExtension,
   });
 

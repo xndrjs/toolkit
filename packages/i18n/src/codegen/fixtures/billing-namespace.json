@@ -1,0 +1,6 @@
+{
+  "invoice_summary": {
+    "en": "You have {count, plural, one {1 invoice} other {{count} invoices}}",
+    "it": "Hai {count, plural, one {1 fattura} other {{count} fatture}}"
+  }
+}

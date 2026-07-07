@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectLocales } from "./project-locales.js";
+import { projectLocales, projectNamespacesLocales } from "./project-locales.js";
 
 describe("projectLocales", () => {
   const dictionary = {
@@ -62,6 +62,24 @@ describe("projectLocales", () => {
       login_button: { en: "Login" },
       welcome: { en: "Welcome {name}!" },
       empty_label: { en: "" },
+    });
+  });
+});
+
+describe("projectNamespacesLocales", () => {
+  it("projects each namespace independently", () => {
+    const dictionary = {
+      default: {
+        login_button: { en: "Login", it: "Accedi" },
+      },
+      billing: {
+        invoice_summary: { en: "{count} invoices", it: "{count} fatture" },
+      },
+    };
+
+    expect(projectNamespacesLocales(dictionary, ["en"])).toEqual({
+      default: { login_button: { en: "Login" } },
+      billing: { invoice_summary: { en: "{count} invoices" } },
     });
   });
 });

@@ -28,7 +28,7 @@ export {
 } from "./resolve-locale.js";
 export type { ResolvedLocaleTemplate } from "./resolve-locale.js";
 
-export { projectLocales } from "./project-locales.js";
+export { projectLocales, projectNamespacesLocales } from "./project-locales.js";
 
 export { ensureNamespacesLoadedImpl } from "./ensure-namespace.js";
 export type { EnsureNamespacesLoadedOptions } from "./ensure-namespace.js";

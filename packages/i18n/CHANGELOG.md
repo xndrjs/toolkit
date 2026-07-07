@@ -1,5 +1,11 @@
 # @xndrjs/i18n
 
+## 0.3.2
+
+### Patch Changes
+
+- Add locale projection helpers: `projectLocales` and `projectNamespacesLocales` in the runtime package. Codegen emits typed wrappers in `instance.generated.ts` — `projectLocales` for the full schema (`setAll`), and in multi mode `projectNamespaceLocales` per namespace (`setNamespace`) — with `LOCALE_FALLBACK` wired in automatically.
+
 ## 0.3.1
 
 ### Patch Changes

@@ -1,5 +1,5 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
-import { ensureNamespacesLoaded, i18n, dictionary } from "./i18n";
+import { ensureNamespacesLoaded, i18n, dictionary, projectNamespaceLocales } from "./i18n";
 import {
   validateExternalDictionary,
   validateExternalNamespace,
@@ -117,6 +117,32 @@ export async function exampleLazyNamespaceLoading(): Promise<void> {
   );
 }
 
+export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
+  await ensureNamespacesLoaded(i18n, ["billing"]);
+
+  const rawBilling: unknown = await loadCompiledBillingDictionary();
+  const result = validateExternalNamespace("billing", rawBilling);
+  if (!result.ok) {
+    console.error(
+      "billing projectNamespaceLocales validation failed:",
+      formatIssues(result.issues)
+    );
+    return;
+  }
+
+  const activeLocale = "it" as const;
+  i18n.setNamespace("billing", projectNamespaceLocales(result.data, [activeLocale]));
+
+  console.log(
+    "billing.invoice_summary @ it (projectNamespaceLocales + setNamespace):",
+    i18n.get("billing", "invoice_summary", "it", { count: 3 })
+  );
+  console.log(
+    "billing.account_balance @ it (single-locale slice in memory):",
+    i18n.get("billing", "account_balance", "it", { amount: 42 })
+  );
+}
+
 export async function exampleExternalNamespacePatch(): Promise<void> {
   const rawBilling: unknown = await loadCompiledBillingDictionary();
 
@@ -182,6 +208,7 @@ async function loadExternalTranslations(): Promise<unknown> {
 async function main(): Promise<void> {
   exampleMultiNamespaceUsage();
   await exampleLazyNamespaceLoading();
+  await exampleProjectNamespaceLocalesPatch();
   await exampleExternalNamespacePatch();
   await exampleExternalDictionaryHydration();
 }

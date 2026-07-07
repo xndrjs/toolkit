@@ -13,6 +13,7 @@ export interface InstanceFileOptions {
   factoryName: string;
   hasLocaleFallback: boolean;
   hasLocaleType: boolean;
+  namespaceNames: string[];
   importExtension: ImportExtension;
 }
 
@@ -29,6 +30,7 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     factoryName,
     hasLocaleFallback,
     hasLocaleType,
+    namespaceNames,
     importExtension,
   } = options;
 
@@ -54,10 +56,27 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     : "";
   const localesParamType = hasLocaleType ? `readonly ${localeTypeName}[]` : "readonly string[]";
   const projectLocalesFallbackArg = hasLocaleFallback ? `, ${localeFallbackConstName}` : "";
+  const coreImports = isSingle
+    ? "projectLocales as projectLocalesCore"
+    : "projectLocales as projectLocalesCore, projectNamespacesLocales as projectNamespacesLocalesCore";
+  const projectLocalesBlock = isSingle
+    ? `\n` +
+      `export function projectLocales(\n` +
+      `  dictionary: ${schemaTypeName},\n` +
+      `  locales: ${localesParamType},\n` +
+      `): ${schemaTypeName} {\n` +
+      `  return projectLocalesCore(dictionary, locales${projectLocalesFallbackArg});\n` +
+      `}\n`
+    : formatMultiProjectLocalesBlock(
+        schemaTypeName,
+        namespaceNames,
+        localesParamType,
+        projectLocalesFallbackArg
+      );
 
   return (
     `${GENERATED_FILE_BANNER}` +
-    `import { ${providerClass}, projectLocales as projectLocalesCore, type KeyDictionary } from '@xndrjs/i18n';\n` +
+    `import { ${providerClass}, ${coreImports} } from '@xndrjs/i18n';\n` +
     `import { dictionary } from '${dictionaryImport}';\n` +
     initialDictionaryImport +
     typesImportLine +
@@ -67,11 +86,41 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     `) {\n` +
     `  return new ${providerClass}<${providerTypeArgs}>(initialDictionary${providerOptions});\n` +
     `}\n` +
+    projectLocalesBlock
+  );
+}
+
+function formatMultiProjectLocalesBlock(
+  schemaTypeName: string,
+  namespaceNames: string[],
+  localesParamType: string,
+  projectLocalesFallbackArg: string
+): string {
+  const overloads = namespaceNames
+    .map(
+      (namespace) =>
+        `export function projectNamespaceLocales(\n` +
+        `  dictionary: ${schemaTypeName}["${namespace}"],\n` +
+        `  locales: ${localesParamType},\n` +
+        `): ${schemaTypeName}["${namespace}"];`
+    )
+    .join("\n");
+
+  return (
     `\n` +
     `export function projectLocales(\n` +
-    `  dictionary: KeyDictionary,\n` +
+    `  dictionary: ${schemaTypeName},\n` +
     `  locales: ${localesParamType},\n` +
-    `): KeyDictionary {\n` +
+    `): ${schemaTypeName} {\n` +
+    `  return projectNamespacesLocalesCore(dictionary, locales${projectLocalesFallbackArg});\n` +
+    `}\n` +
+    `\n` +
+    overloads +
+    `\n` +
+    `export function projectNamespaceLocales(\n` +
+    `  dictionary: ${schemaTypeName}[keyof ${schemaTypeName}],\n` +
+    `  locales: ${localesParamType},\n` +
+    `): ${schemaTypeName}[keyof ${schemaTypeName}] {\n` +
     `  return projectLocalesCore(dictionary, locales${projectLocalesFallbackArg});\n` +
     `}\n`
   );

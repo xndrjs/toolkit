@@ -345,20 +345,25 @@ Codegen emits `LOCALE_FALLBACK` and wires it into `createI18n()`. If the chain c
 
 Lazy namespaces split the dictionary by **domain** — billing does not ship with the landing page. That helps, but each loaded namespace still carries **every locale** for every key. In production you usually render **one locale at a time** (sometimes a small regional group — i.e. APAC — not thirty languages at once).
 
-`projectLocales(dictionary, locales, localeFallback?)` builds a slimmer dictionary: **only** the locales you pass in. For each key, it keeps the direct template when present; otherwise it walks `localeFallback` with the same rules as `.get()`. You then hydrate with `setAll()` or `setNamespace()` using that slice — the in-memory provider holds just what the current context needs.
+Codegen emits typed helpers: **`projectLocales`** for the full schema (`setAll`), and in multi mode **`projectNamespaceLocales`** for one namespace (`setNamespace`). Both keep only the locales you pass in and resolve `LOCALE_FALLBACK` like `.get()`.
 
 ```ts
-import { createI18n, projectLocales } from "./i18n/generated/instance.generated.js";
+import {
+  createI18n,
+  projectNamespaceLocales,
+  projectLocales,
+} from "./i18n/generated/instance.generated.js";
 
 const i18n = createI18n();
-i18n.setNamespace("billing", projectLocales(billingDictionary, [userLocale]));
+i18n.setNamespace("billing", projectNamespaceLocales(billingDictionary, [userLocale]));
+i18n.setAll(projectLocales(fullDictionary, [userLocale])); // multi: all namespaces
 ```
 
 Typical ways to use it:
 
-1. **On-demand API** — an endpoint receives `locale` (and namespace), loads the full dictionary from your CMS or storage, runs `projectLocales`, returns JSON. The client calls `setNamespace` with a payload that already contains one locale per key.
+1. **On-demand API** — an endpoint receives `locale` (and namespace), loads the full dictionary from your CMS or storage, runs `projectNamespaceLocales` (or `projectLocales` for the full schema), returns JSON.
 
-2. **Cache per locale** — at build or sync time, precompute with `projectLocales` and store in Redis. Each request fetches a small blob instead of the full multilingual file.
+2. **Cache per locale** — at build or sync time, precompute with `projectNamespaceLocales` and store in Redis. Each request fetches a small blob instead of the full multilingual file.
 
 3. **Static files in `public/`** — codegen compiles YAML/JSON; a build step writes `public/i18n/billing.de-CH.json`, `public/i18n/billing.it.json`, etc. The app fetches the file for the active locale and passes it to `setNamespace` after validation.
 

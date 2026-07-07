@@ -2,7 +2,7 @@
 import {
   IcuTranslationProviderMulti,
   projectLocales as projectLocalesCore,
-  type KeyDictionary,
+  projectNamespacesLocales as projectNamespacesLocalesCore,
 } from "@xndrjs/i18n";
 import { dictionary } from "./dictionary.generated";
 import type { MyProjectParams, MyProjectSchema, InitialSchema } from "./i18n-types.generated";
@@ -20,8 +20,27 @@ export function createI18n(initialDictionary: InitialSchema = dictionary) {
 }
 
 export function projectLocales(
-  dictionary: KeyDictionary,
+  dictionary: MyProjectSchema,
   locales: readonly MyProjectLocale[]
-): KeyDictionary {
+): MyProjectSchema {
+  return projectNamespacesLocalesCore(dictionary, locales, LOCALE_FALLBACK);
+}
+
+export function projectNamespaceLocales(
+  dictionary: MyProjectSchema["default"],
+  locales: readonly MyProjectLocale[]
+): MyProjectSchema["default"];
+export function projectNamespaceLocales(
+  dictionary: MyProjectSchema["user"],
+  locales: readonly MyProjectLocale[]
+): MyProjectSchema["user"];
+export function projectNamespaceLocales(
+  dictionary: MyProjectSchema["billing"],
+  locales: readonly MyProjectLocale[]
+): MyProjectSchema["billing"];
+export function projectNamespaceLocales(
+  dictionary: MyProjectSchema[keyof MyProjectSchema],
+  locales: readonly MyProjectLocale[]
+): MyProjectSchema[keyof MyProjectSchema] {
   return projectLocalesCore(dictionary, locales, LOCALE_FALLBACK);
 }

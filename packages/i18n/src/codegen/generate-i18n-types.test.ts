@@ -74,7 +74,8 @@ describe("generate-i18n-types", () => {
     expect(types).toContain("export type AppLocale = 'en'");
     expect(factory).toContain("export function createI18n(");
     expect(factory).toContain("export function projectLocales(");
-    expect(factory).toContain("locales: readonly AppLocale[]");
+    expect(factory).toContain("projectNamespacesLocalesCore(dictionary, locales)");
+    expect(factory).toContain("export function projectNamespaceLocales(");
     expect(factory).toContain("projectLocalesCore(dictionary, locales)");
     expect(factory).toContain("IcuTranslationProviderMulti");
     expect(types).toContain("login_button: never");
@@ -224,6 +225,10 @@ describe("generate-i18n-types", () => {
     expect(types).toContain("export const I18N_MODE = 'single' as const");
     expect(types).toContain("export type AppLocale = 'en'");
     expect(factory).toContain("export function createI18n(");
+    expect(factory).toContain("export function projectLocales(");
+    expect(factory).toContain("dictionary: AppSchema");
+    expect(factory).not.toContain("projectNamespaceLocales");
+    expect(factory).not.toContain("projectNamespacesLocalesCore");
     expect(factory).toContain("IcuTranslationProviderSingle");
     expect(types).toContain("login_button: never;");
     expect(types).toContain("welcome: { name: string };");
