@@ -131,6 +131,7 @@ function main() {
     localeFallbackConstName,
     factoryName,
     hasLocaleFallback: Boolean(config.localeFallback),
+    hasLocaleType: Boolean(requestLocaleUnion),
     importExtension,
   });
 

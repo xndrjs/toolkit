@@ -195,7 +195,7 @@ Variables found across **all locales** of the same key are merged. If parsing fa
 
 - **`i18n-types.generated.ts`** — `I18N_MODE`, `MyProjectParams`, `MyProjectSchema`.
 - **`dictionary.generated.ts`** — imports the JSON files and assembles the initial dictionary.
-- **`instance.generated.ts`** — exports `createI18n()`, a typed factory with the default dictionary as fallback.
+- **`instance.generated.ts`** — exports `createI18n()` and typed `projectLocales()` (with `LOCALE_FALLBACK` wired in when configured).
 - **`i18n.ts`** (optional, hand-written) — app-owned singleton if desired.
 
 Example generated types (multi-namespace):
@@ -301,6 +301,20 @@ const localeFallback = {
 
 const i18n = new IcuTranslationProviderMulti(schema, { localeFallback });
 ```
+
+#### `projectLocales`
+
+Namespaces split the dictionary by domain; `projectLocales` splits it by **locale**. Use it before `setAll()` / `setNamespace()` when you only need one locale (or a small regional group) in memory — not every language on every loaded namespace.
+
+```ts
+import { createI18n, projectLocales } from "./i18n/generated/instance.generated.js";
+import billingDictionary from "./i18n/translations/billing.json";
+
+const i18n = createI18n();
+i18n.setNamespace("billing", projectLocales(billingDictionary, [activeLocale]));
+```
+
+Codegen emits a typed `projectLocales` in `instance.generated.ts` (wires `LOCALE_FALLBACK` like `createI18n`). The low-level `@xndrjs/i18n` export remains for tooling without codegen.
 
 ### 6. Translation audit (`xndrjs-i18n-audit`)
 

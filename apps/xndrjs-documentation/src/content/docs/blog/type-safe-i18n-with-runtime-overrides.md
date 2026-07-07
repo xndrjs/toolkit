@@ -116,40 +116,29 @@ Add a key to a dictionary file, re-run codegen, and TypeScript flags every call 
 
 ### Single file vs multi-namespace
 
-Codegen runs in one of two modes — you pick at config time, and the generated API follows.
+Codegen runs in one of two modes — you pick at config time, and the
+generated API follows. Small project? **Single file** — one dictionary, two-argument `.get(key, locale)`.
 
-**Single-file mode** is the flat setup: one dictionary file, one provider, a two-argument `.get()`:
+Large project? **Multi-namespace** — split by domain (`default`, `billing`, …), three-argument `.get(namespace, key, locale)`, plus `setNamespace()` and `loadOnInit` for lazy loading.
 
-```ts
-i18n.get("login_button", "it");
-i18n.get("welcome", "en", { name: "Ada" });
-```
-
-It fits smaller apps and early integrations — less structure to maintain, no namespace argument at every call site. Runtime override is `setAll()` only; there is no per-slice patching and no namespace-level lazy loading.
-
-**Multi-namespace mode** splits the dictionary by domain — `default`, `billing`, `admin`, each in its own file (`.json` or `.yaml`) — and exposes a namespaced API:
+Same runtime, different generated API:
 
 ```ts
-i18n.get("default", "login_button", "it");
-i18n.get("billing", "invoice_summary", "en", { count: 12 });
+i18n.get("welcome", "en", { name: "Ada" }); // single
+i18n.get("default", "welcome", "en", { name: "Ada" }); // multi
 ```
-
-That is the mode you want when the dictionary outgrows a single file: clearer ownership per team or feature, `setNamespace()` for partial CMS updates, and `loadOnInit` for code-splitting. Codegen emits `I18N_MODE = 'multi'` and types keyed by namespace so a typo in `"billing"` vs `"default"` is still a compile error.
-
-You can start single and migrate later — split the JSON, swap `dictionary` for `namespaces` in `i18n.codegen.json`, re-run codegen, and update call sites from `get(key, locale)` to `get(namespace, key, locale)`.
 
 ### Dynamic access when you need it
 
-Type safety does not mean locking you into only `.get()`.
-
-The provider exposes `getAll()` — a deep-frozen snapshot of the current dictionary. You can walk namespaces and keys with plain object access when building admin tools, translation diff views, or CMS preview panels:
+`getAll()` exposes the current dictionary for tooling and administrative use cases:
 
 ```ts
 const snapshot = i18n.getAll();
 const label = snapshot.default.login_button.en;
 ```
 
-Codegen gives you precise types for the happy path. `getAll()` keeps escape hatches open for tooling that genuinely needs to iterate.
+Codegen gives you precise types for the happy path. `getAll()` keeps
+escape hatches open for tooling that genuinely needs to iterate.
 
 ### Build-time values are defaults, not prisons
 
@@ -259,7 +248,7 @@ In multi-namespace mode, you can split dictionaries across chunks. List only the
 }
 ```
 
-Codegen emits dynamic `import()` loaders and a typed `ensureNamespacesLoaded()` helper:
+Codegen emits dynamic `import()` loaders and a typed `ensureNamespacesLoaded()` helper — the **default path** for lazy-loading bundled JSON chunks. For richer flows — `projectLocales` before hydrate, payloads from an API or CMS — wire your own loader with `ensureNamespacesLoadedImpl`, or call `setNamespace()` directly after fetch and validation.
 
 ```ts
 import { i18n, ensureNamespacesLoaded } from "./i18n";
@@ -270,40 +259,16 @@ await ensureNamespacesLoaded(i18n, ["billing"]);
 i18n.get("billing", "invoice_summary", "en", { count: 12 });
 ```
 
-`.get()` stays synchronous — preload lazy namespaces before rendering the UI that needs them.
+Of course, `.get()` stays synchronous — preload _before_ rendering. If you forget, the library throws explicitly instead of returning an empty string.
 
-If you forget, the library throws explicitly:
+Bundle size depends on how many namespaces and locales you choose to ship. Lazy namespaces and runtime projection (below) let you keep both under control.
 
-```text
-[i18n] Namespace not loaded: "billing". Call ensureNamespacesLoaded(i18n, ["billing"]) first.
-```
+### YAML authoring
 
-No silent empty strings. No guessing whether the key is missing or the namespace was never fetched.
-
-When `loadOnInit` is omitted, behavior stays simple: all namespaces are statically imported, same as a traditional setup.
-
-### YAML authoring — readable ICU on multiple lines
-
-JSON is fine for short labels. It gets hard to read when a message has **several ICU parameters**, or **plural/select branches** (`zero`, `one`, `few`, `other`…) that you would otherwise cram onto one line with escapes and concatenation.
-
-`@xndrjs/i18n` lets you author dictionaries as **YAML** (`.yaml` / `.yml`) while keeping the same runtime model.
-
-**YAML is an authoring format, not a runtime format.** YAML never reaches production — codegen compiles it to the same generated JSON the runtime already consumes.
-
-1. You edit `translations/billing.yaml` (or mix JSON and YAML per namespace).
-2. Codegen compiles YAML → JSON under `generated/translations/` (next to your other generated `.ts` files).
-3. Generated TypeScript still imports the **compiled JSON** — lazy loaders, validation, and `setNamespace()` work unchanged.
+JSON is fine for short labels. For complex ICU — plurals, multi-parameter templates — **YAML** keeps strings readable without changing the runtime: you author `.yaml` / `.yml`, codegen compiles to JSON, the provider still consumes JSON.
 
 ```yaml
 # translations/billing.yaml
-appointment_summary:
-  en: |
-    Due {dueDate, date, short}
-    at {startTime, time, short}
-  it: |
-    Scade il {dueDate, date, short}
-    alle {startTime, time, short}
-
 invoice_summary:
   en: |
     You have {count, plural,
@@ -313,87 +278,31 @@ invoice_summary:
     }
 ```
 
-YAML block scalars keep complex ICU readable in source while preserving (or intentionally folding) line breaks.
-
-Mixed namespaces are fine — `default.json` for core UI, `billing.yaml` for messages that benefit from multiline ICU:
-
-```json
-// i18n/i18n.codegen.json
-{
-  "namespaces": {
-    "default": "translations/default.json",
-    "billing": "translations/billing.yaml"
-  },
-  "loadOnInit": ["default"]
-}
-```
-
-**Edit only the YAML source.** The compiled JSON in `generated/translations/` is overwritten on every codegen run — same philosophy as `.generated.ts` files.
-
-Runtime overrides from a CMS or static `public/` folder still validate against the same schema: fetch JSON (compiled from YAML at build time), run `validateExternalNamespace("billing", raw)`, then `setNamespace("billing", result.data)`.
-
-**What YAML is not for:** long legal copy, or email bodies rarely belong in a single i18n string. A content template (for example Handlebars) with localized fragments inside is usually the better fit. Markdown, HTML, and layout are outside what i18n should own; `@xndrjs/i18n` formats ICU parameters only, it should not render markup. If you do embed markup in a string, unquoted `<tags>` are parsed as ICU syntax — quote them (for example `'<strong>'`) or avoid HTML altogether.
-
-### What actually affects bundle size
-
-It helps to separate three layers:
-
-**Runtime library** — `@xndrjs/i18n` plus `intl-messageformat`. Fixed cost on every page that calls `.get()`. The codegen CLI and generated TypeScript types are build-time artifacts; they do not ship to the browser.
-
-**Bundled dictionary** — whatever JSON your generated `dictionary.generated.ts` statically imports. In single mode, that is the whole file. In multi mode without `loadOnInit`, every namespace. Each key typically carries **all locales** for that key in one object, so the JSON weight scales with `keys × locales`, not just the locale the user picked.
-
-**On-demand and remote copy** — lazy namespaces (`loadOnInit` + `ensureNamespacesLoaded`) move whole namespace files into separate async chunks, so billing copy does not ride along with the landing page. Runtime overrides from a CMS push updated strings over the network instead of through a redeploy; the bundled JSON remains typed fallbacks for first paint, tests, and offline.
-
-There is no magic shrink for "all locales, all keys, all upfront." The levers are: split by namespace, load namespaces when a route needs them, and hydrate editorial strings at runtime when you do not want every label change to pass through the JS bundle at all.
+Mixed namespaces (i.e. `default.json` + `billing.yaml`) work out of the box. Authoring details — block scalars, generated output layout, CMS validation — are in the [i18n docs](/v0/infrastructure/i18n/).
 
 ---
 
 ## Quick setup
 
-Scaffold starter files by first installing `@xndrjs/i18n` in your project:
-
 ```bash
-pnpm add @xndrjs/i18n
-pnpm add -D tsx
+pnpm --filter YourApp add @xndrjs/i18n
+pnpm --filter YourApp add -D tsx
+pnpm --filter YourApp exec xndrjs-i18n-setup multi . --project MyApp
 ```
 
-Of course add `--filter` if you're using a monorepo and want to install `@xndrjs/i18n` in a specific app or package:
-
-```bash
-pnpm --filter YourAppOrPackageName add @xndrjs/i18n
-pnpm --filter YourAppOrPackageName add -D tsx
-```
-
-Then run the setup:
-
-```bash
-pnpm exec xndrjs-i18n-setup multi . --project MyApp
-```
-
-or, if you're using a monorepo:
-
-```bash
-pnpm --filter YourAppOrPackageName exec xndrjs-i18n-setup multi . --project MyApp
-```
-
-Add your ICU strings under `i18n/translations/` (`.json`, `.yaml`, or `.yml` per namespace), wire codegen into `package.json`
+Add ICU strings under `i18n/translations/`, wire codegen, run it:
 
 ```json
 // package.json
 {
   "scripts": {
-    "i18n:codegen": "xndrjs-i18n-codegen --config i18n/i18n.codegen.json",
-    "i18n:audit": "xndrjs-i18n-audit --config i18n/i18n.codegen.json"
+    "i18n:codegen": "xndrjs-i18n-codegen --config i18n/i18n.codegen.json"
   }
 }
 ```
 
-then run codegen
-
 ```bash
-pnpm run i18n:codegen
-# or, in a monorepo
-pnpm --filter YourAppOrPackageName i18n:codegen
+pnpm --filter YourApp run i18n:codegen
 ```
 
 Use the generated factory:
@@ -402,46 +311,58 @@ Use the generated factory:
 import { createI18n } from "./i18n/generated/instance.generated.js";
 
 export const i18n = createI18n();
-
-i18n.get("default", "login_button", "it"); // "Accedi"
-i18n.get("default", "welcome", "en", { name: "Ada" }); // "Welcome Ada!"
+i18n.get("default", "welcome", "en", { name: "Ada" });
 ```
 
-For locale-bound call sites, bind once and drop the locale argument on every `.get()`:
+For locale-bound call sites, bind once and drop the locale argument
+on every `.get()`:
 
 ```ts
 const i18nEn = i18n.forLocale("en");
-i18nEn.get("default", "login_button");
 i18nEn.get("default", "welcome", { name: "Ada" });
 ```
+
+If you are not in a monorepo, drop the `--filter YourApp` part from the commands above. Full setup options are in the [i18n docs](/v0/infrastructure/i18n/).
 
 ---
 
 ## Locale fallback
 
-Real products rarely ship every string in every locale, especially on day one. At the same time, falling back to one global default for everything is too blunt.
-
-Some locales are **intentionally partial** — they define only the keys that differ from a sibling locale. Latin American Spanish can reuse almost all of `es-ES` and override a handful of labels. `en-US` can match `en` except for some spelling or legal copy. You do not need to duplicate the full dictionary for every regional variant; the fallback chain fills in whatever was left undefined.
-
-Configure a **locale fallback map** in `i18n/i18n.codegen.json`. When `.get()` is called for a locale that has no template for that key (`undefined` in the dictionary), the provider walks the chain before throwing:
+Real products rarely ship every string in every locale on day one. **Partial locales become first-class citizens**: `de-CH` overrides only what differs from `de-DE`; the rest resolves through a configured chain.
 
 ```json
 // i18n/i18n.codegen.json
-{
-  "localeFallback": {
-    "en": null,
-    "de-DE": "en",
-    "de-CH": "de-DE",
-    "it": "en"
-  }
+"localeFallback": {
+  "en": null,
+  "de-DE": "en",
+  "de-CH": "de-DE"
 }
 ```
 
-`null` marks a terminal locale — no further fallback. Any other value is the next locale to try, recursively. So `de-CH` can fall back to `de-DE`, then to `en`, while `en` stops at the end of the chain.
+Codegen emits `LOCALE_FALLBACK` and wires it into `createI18n()`. If the chain cannot resolve a key, `.get()` throws with the path it tried.
 
-An empty string `""` is treated as a deliberate template and does **not** trigger fallback — useful when a locale intentionally renders blank.
+### `projectLocales`
 
-Codegen emits `LOCALE_FALLBACK` and extends your locale union type to include fallback locales. The generated `createI18n()` factory wires the map in automatically. If the chain exhausts without finding a template, `.get()` throws and includes the full path it tried — same explicit-error philosophy as missing namespaces.
+Lazy namespaces split the dictionary by **domain** — billing does not ship with the landing page. That helps, but each loaded namespace still carries **every locale** for every key. In production you usually render **one locale at a time** (sometimes a small regional group — i.e. APAC — not thirty languages at once).
+
+`projectLocales(dictionary, locales, localeFallback?)` builds a slimmer dictionary: **only** the locales you pass in. For each key, it keeps the direct template when present; otherwise it walks `localeFallback` with the same rules as `.get()`. You then hydrate with `setAll()` or `setNamespace()` using that slice — the in-memory provider holds just what the current context needs.
+
+```ts
+import { createI18n, projectLocales } from "./i18n/generated/instance.generated.js";
+
+const i18n = createI18n();
+i18n.setNamespace("billing", projectLocales(billingDictionary, [userLocale]));
+```
+
+Typical ways to use it:
+
+1. **On-demand API** — an endpoint receives `locale` (and namespace), loads the full dictionary from your CMS or storage, runs `projectLocales`, returns JSON. The client calls `setNamespace` with a payload that already contains one locale per key.
+
+2. **Cache per locale** — at build or sync time, precompute with `projectLocales` and store in Redis. Each request fetches a small blob instead of the full multilingual file.
+
+3. **Static files in `public/`** — codegen compiles YAML/JSON; a build step writes `public/i18n/billing.de-CH.json`, `public/i18n/billing.it.json`, etc. The app fetches the file for the active locale and passes it to `setNamespace` after validation.
+
+Same pattern everywhere: **full dictionary as source of truth**, **projected slice at the boundary**, typed hydration at runtime.
 
 ### Translation audit
 
@@ -453,15 +374,7 @@ pnpm exec xndrjs-i18n-audit --config i18n/i18n.codegen.json --out audit.json
 pnpm exec xndrjs-i18n-audit --config i18n/i18n.codegen.json --fail-on effective
 ```
 
-| Field                      | Meaning                                                                                                                                                     |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `requiredLocales`          | All locales your i18n instance can use. The audit checks every key against each of them.                                                                    |
-| `missingDirectByLocale`    | The key has no string for that locale in the dictionary. Often fine at runtime if fallback supplies another locale, so it's mainly a translator to-do list. |
-| `missingEffectiveByLocale` | No string for that locale, and fallback chain cannot find one either. Calling `.get()` would throw — fix before shipping!                                   |
-
-By default the CLI is report-only (exit `0`). Pass `--fail-on effective`, `direct`, or `any` to gate CI when gaps remain.
-
-A regional locale such as `en-US` that only overrides a few keys will show many `missingDirect` entries but few `missingEffective` ones when a fallback language, i.e. `en`, covers the chain — that is expected, not a bug.
+Report-only by default; `--fail-on effective`, `direct`, or `any` gates CI. Field definitions (`missingDirect`, `missingEffective`) are in the [i18n docs](/v0/infrastructure/i18n/).
 
 ---
 
@@ -471,7 +384,7 @@ A regional locale such as `en-US` that only overrides a few keys will show many 
 
 There are no React, Vue, or Next.js wrappers — on purpose. The vanilla API is a typed provider with `.get()`, `forLocale()`, and optional async preload: enough to wire into any framework with a thin hook or context of your own. `@xndrjs/i18n` does not barge into your stack with opinionated lifecycle or rendering assumptions. You import `createI18n()`, call it where it fits, and keep your UI layer in charge.
 
-Runtime overrides and optional Zod validation mean editorial workflows do not have to fight your deploy pipeline. Local JSON keeps tests and first paint predictable; a CMS payload can replace or patch the dictionary when it arrives.
+Runtime overrides and optional Zod validation mean editorial workflows do not have to fight your deploy pipeline. Local JSON keeps tests and first paint predictable; a CMS payload can replace or patch the dictionary when it arrives. The same primitives stay flexible enough to match however your project splits and fetches translations — lazy namespaces, per-locale projection, API hydration — and scale with you as those policies evolve.
 
 If i18n in your project has been "fine until it wasn't" — typos shipping silently, plural keys multiplying, every label change waiting on CI — this is the shape of tooling you wanted: strict where it helps, flexible where products actually live.
 

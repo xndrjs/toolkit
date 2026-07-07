@@ -1,5 +1,11 @@
 # @xndrjs/i18n
 
+## 0.3.1
+
+### Patch Changes
+
+- Add `projectLocales(dictionary, locales, localeFallback?)` to build a dictionary containing only the requested locales, filling missing entries via the same fallback resolution as runtime `.get()`. Codegen now also emits a typed `projectLocales` wrapper in `instance.generated.ts` that wires in `LOCALE_FALLBACK` automatically.
+
 ## 0.3.0
 
 ### Minor Changes

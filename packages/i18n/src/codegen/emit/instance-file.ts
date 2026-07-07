@@ -12,6 +12,7 @@ export interface InstanceFileOptions {
   localeFallbackConstName: string;
   factoryName: string;
   hasLocaleFallback: boolean;
+  hasLocaleType: boolean;
   importExtension: ImportExtension;
 }
 
@@ -27,6 +28,7 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     localeFallbackConstName,
     factoryName,
     hasLocaleFallback,
+    hasLocaleType,
     importExtension,
   } = options;
 
@@ -45,21 +47,32 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
   const providerOptions = hasLocaleFallback
     ? `, {\n    localeFallback: ${localeFallbackConstName},\n  }`
     : "";
-  const fallbackImport = hasLocaleFallback
-    ? `import { ${localeFallbackConstName}, type ${localeTypeName} } from '${typesImport}';\n`
+  const typesImportLine = hasLocaleType
+    ? hasLocaleFallback
+      ? `import { ${localeFallbackConstName}, type ${localeTypeName} } from '${typesImport}';\n`
+      : `import type { ${localeTypeName} } from '${typesImport}';\n`
     : "";
+  const localesParamType = hasLocaleType ? `readonly ${localeTypeName}[]` : "readonly string[]";
+  const projectLocalesFallbackArg = hasLocaleFallback ? `, ${localeFallbackConstName}` : "";
 
   return (
     `${GENERATED_FILE_BANNER}` +
-    `import { ${providerClass} } from '@xndrjs/i18n';\n` +
+    `import { ${providerClass}, projectLocales as projectLocalesCore, type KeyDictionary } from '@xndrjs/i18n';\n` +
     `import { dictionary } from '${dictionaryImport}';\n` +
     initialDictionaryImport +
-    fallbackImport +
+    typesImportLine +
     `\n` +
     `export function ${factoryName}(\n` +
     `  initialDictionary: ${initialDictionaryType} = dictionary,\n` +
     `) {\n` +
     `  return new ${providerClass}<${providerTypeArgs}>(initialDictionary${providerOptions});\n` +
+    `}\n` +
+    `\n` +
+    `export function projectLocales(\n` +
+    `  dictionary: KeyDictionary,\n` +
+    `  locales: ${localesParamType},\n` +
+    `): KeyDictionary {\n` +
+    `  return projectLocalesCore(dictionary, locales${projectLocalesFallbackArg});\n` +
     `}\n`
   );
 }

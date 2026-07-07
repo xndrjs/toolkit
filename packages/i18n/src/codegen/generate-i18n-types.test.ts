@@ -73,6 +73,9 @@ describe("generate-i18n-types", () => {
     expect(types).toContain("export const I18N_MODE = 'multi' as const");
     expect(types).toContain("export type AppLocale = 'en'");
     expect(factory).toContain("export function createI18n(");
+    expect(factory).toContain("export function projectLocales(");
+    expect(factory).toContain("locales: readonly AppLocale[]");
+    expect(factory).toContain("projectLocalesCore(dictionary, locales)");
     expect(factory).toContain("IcuTranslationProviderMulti");
     expect(types).toContain("login_button: never");
     expect(types).toContain("welcome: { name: string }");
@@ -289,6 +292,7 @@ describe("generate-i18n-types", () => {
     expect(types).toContain('"de-CH": "en"');
     expect(types).toContain("export type AppLocale = 'de-CH' | 'en'");
     expect(factory).toContain("localeFallback: LOCALE_FALLBACK");
+    expect(factory).toContain("projectLocalesCore(dictionary, locales, LOCALE_FALLBACK)");
     expect(factory).toContain(
       "IcuTranslationProviderSingle<AppSchema, AppParams, AppLocale, typeof LOCALE_FALLBACK>"
     );
@@ -358,6 +362,8 @@ describe("generate-i18n-types", () => {
     const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
     expect(types).not.toContain("export const LOCALE_FALLBACK");
     expect(factory).not.toContain("localeFallback:");
+    expect(factory).toContain("projectLocalesCore(dictionary, locales)");
+    expect(factory).not.toContain("LOCALE_FALLBACK");
     expect(types).toContain("export type AppLocale = 'en' | 'it'");
   });
 
