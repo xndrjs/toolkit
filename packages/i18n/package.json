@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/i18n",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Compiler-first, type-safe ICU MessageFormat i18n with runtime dictionary override from external sources.",
   "private": false,
   "license": "MIT",
@@ -12,7 +12,8 @@
   "type": "module",
   "bin": {
     "xndrjs-i18n-codegen": "./bin/codegen.mjs",
-    "xndrjs-i18n-setup": "./bin/setup.mjs"
+    "xndrjs-i18n-setup": "./bin/setup.mjs",
+    "xndrjs-i18n-audit": "./bin/audit.mjs"
   },
   "types": "./dist/index.d.ts",
   "exports": {
@@ -46,7 +47,8 @@
   },
   "dependencies": {
     "@formatjs/icu-messageformat-parser": "^3.5.12",
-    "intl-messageformat": "^11.2.9"
+    "intl-messageformat": "^11.2.9",
+    "yaml": "^2.8.1"
   },
   "peerDependencies": {
     "tsx": ">=4",

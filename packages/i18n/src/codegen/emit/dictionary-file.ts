@@ -4,8 +4,9 @@ import {
   toImportIdentifier,
   toImportPath,
   toModuleBasename,
+  toRelativeModuleImport,
 } from "../paths.js";
-import type { NamespaceEntry } from "../types.js";
+import type { ImportExtension, NamespaceEntry } from "../types.js";
 
 export interface DictionaryFileOptions {
   isSingle: boolean;
@@ -16,6 +17,7 @@ export interface DictionaryFileOptions {
   dictionaryOutputPath: string;
   typesOutputPath: string;
   schemaTypeName: string;
+  importExtension: ImportExtension;
 }
 
 export function formatDictionaryFile(options: DictionaryFileOptions): string {
@@ -28,9 +30,11 @@ export function formatDictionaryFile(options: DictionaryFileOptions): string {
     dictionaryOutputPath,
     typesOutputPath,
     schemaTypeName,
+    importExtension,
   } = options;
 
   const typesModule = toModuleBasename(typesOutputPath);
+  const typesImport = toRelativeModuleImport(typesModule, importExtension);
 
   if (isSingle) {
     const entry = entries[0]!;
@@ -43,7 +47,7 @@ export function formatDictionaryFile(options: DictionaryFileOptions): string {
     return (
       `${GENERATED_FILE_BANNER}` +
       `import ${importId} from '${importPath}.json';\n` +
-      `import type { ${schemaTypeName} } from './${typesModule}.js';\n\n` +
+      `import type { ${schemaTypeName} } from '${typesImport}';\n\n` +
       `export const dictionary: ${schemaTypeName} = ${importId};\n`
     );
   }
@@ -67,7 +71,7 @@ export function formatDictionaryFile(options: DictionaryFileOptions): string {
   return (
     `${GENERATED_FILE_BANNER}` +
     `${imports}\n` +
-    `import type { ${dictionaryTypeName} } from './${typesModule}.js';\n\n` +
+    `import type { ${dictionaryTypeName} } from '${typesImport}';\n\n` +
     `export const dictionary: ${dictionaryTypeName} = {\n${objectEntries}\n};\n`
   );
 }

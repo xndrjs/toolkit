@@ -1,5 +1,16 @@
 # @xndrjs/i18n
 
+## 0.3.0
+
+### Minor Changes
+
+- 48825fa: Add `importExtension` to `i18n.codegen.json` to control relative import suffixes between generated modules (`"none"`, `".ts"`, or `".js"`). Defaults to `"none"` for bundler-style projects; use `".js"` for `moduleResolution: "NodeNext"`. Setup scaffolds `i18n/index.ts` with the same default.
+- c99ca5c: Add `xndrjs-i18n-audit` CLI to report missing translations (`missingDirectByLocale` vs `missingEffectiveByLocale`) against generated `MyProjectLocale`. Default is report-only (exit 0); optional `--fail-on effective|direct|any` for CI.
+
+  When `localeFallback` is set in config, codegen now enriches generated `LOCALE_FALLBACK` with `[locale]: null` for every locale in `MyProjectLocale` not explicitly listed (runtime behavior unchanged).
+
+- c17a3f4: Add YAML dictionary authoring (`.yaml` / `.yml`). Codegen compiles YAML sources to JSON under `{dirname(typesOutput)}/translations/` and keeps generated runtime imports JSON-based. Supports mixed JSON/YAML namespaces and multiline ICU strings.
+
 ## 0.2.1
 
 ### Patch Changes

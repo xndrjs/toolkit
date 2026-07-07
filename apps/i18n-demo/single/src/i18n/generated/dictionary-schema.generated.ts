@@ -7,7 +7,7 @@ import {
   type NormalizedDictionary,
   type ValidationResult,
 } from "@xndrjs/i18n/validation";
-import type { MyProjectSchema } from "./i18n-types.generated.js";
+import type { MyProjectSchema } from "./i18n-types.generated";
 
 export const DICTIONARY_SPEC = {
   mode: "single" as const,
@@ -19,6 +19,9 @@ export const DICTIONARY_SPEC = {
     "ranking_position",
     "account_balance",
     "appointment_summary",
+    "invoice_due_long",
+    "discount_rate",
+    "meeting_time",
   ] as const,
   argsByKey: {
     login_button: {},
@@ -41,6 +44,15 @@ export const DICTIONARY_SPEC = {
     },
     appointment_summary: {
       dueDate: "date",
+      startTime: "date",
+    },
+    invoice_due_long: {
+      dueDate: "date",
+    },
+    discount_rate: {
+      rate: "number",
+    },
+    meeting_time: {
       startTime: "date",
     },
   },

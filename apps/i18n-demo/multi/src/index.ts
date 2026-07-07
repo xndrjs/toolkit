@@ -1,46 +1,148 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
-import { ensureNamespacesLoaded, i18n } from "./i18n/index.js";
-import { dictionary } from "./i18n/generated/dictionary.generated.js";
+import { ensureNamespacesLoaded, i18n, dictionary } from "./i18n";
 import {
   validateExternalDictionary,
   validateExternalNamespace,
-} from "./i18n/generated/dictionary-schema.generated.js";
+} from "./i18n/generated/dictionary-schema.generated";
+
+/** JSON compiled from `translations/billing.yaml` during codegen. */
+async function loadCompiledBillingDictionary(): Promise<unknown> {
+  return import("./i18n/generated/translations/billing.json").then((module) => module.default);
+}
 
 export function exampleMultiNamespaceUsage(): void {
-  i18n.get("default", "login_button", "it");
-  i18n.get("default", "login_button", "de-CH");
-  i18n.get("default", "welcome", "en", { name: "Ada" });
-  i18n.get("default", "dashboard_status", "it", { msgCount: 3, chatCount: 2 });
-  i18n.get("default", "inbox_owner", "en", { gender: "female", name: "Ada" });
-  i18n.get("default", "ranking_position", "en", { position: 3 });
+  console.log("default.login_button @ it:", i18n.get("default", "login_button", "it"));
+  console.log("default.login_button @ de-CH:", i18n.get("default", "login_button", "de-CH"));
+  console.log("default.welcome @ en:", i18n.get("default", "welcome", "en", { name: "Ada" }));
+  console.log(
+    "default.dashboard_status @ it:",
+    i18n.get("default", "dashboard_status", "it", { msgCount: 3, chatCount: 2 })
+  );
+  console.log(
+    "default.inbox_owner @ en:",
+    i18n.get("default", "inbox_owner", "en", { gender: "female", name: "Ada" })
+  );
+  console.log(
+    "default.ranking_position @ en:",
+    i18n.get("default", "ranking_position", "en", { position: 3 })
+  );
 
   const t = i18n.forLocale("en");
-  t.get("default", "login_button");
-  t.get("default", "welcome", { name: "Ada" });
-  t.get("default", "dashboard_status", { msgCount: 3, chatCount: 2 });
-  t.get("default", "inbox_owner", { gender: "other", name: "Sam" });
-  t.get("default", "ranking_position", { position: 4 });
+  console.log("default.login_button @ en (bound):", t.get("default", "login_button"));
+  console.log("default.welcome @ en (bound):", t.get("default", "welcome", { name: "Ada" }));
+  console.log(
+    "default.dashboard_status @ en (bound):",
+    t.get("default", "dashboard_status", { msgCount: 3, chatCount: 2 })
+  );
+  console.log(
+    "default.inbox_owner @ en (bound):",
+    t.get("default", "inbox_owner", { gender: "other", name: "Sam" })
+  );
+  console.log(
+    "default.ranking_position @ en (bound):",
+    t.get("default", "ranking_position", { position: 4 })
+  );
 }
 
 export async function exampleLazyNamespaceLoading(): Promise<void> {
   await ensureNamespacesLoaded(i18n, ["user", "billing"]);
 
-  i18n.get("user", "greeting", "en", { name: "Ada" });
-  i18n.get("billing", "invoice_summary", "it", { count: 5 });
-  i18n.get("billing", "account_balance", "en", { amount: 1234.5 });
-  i18n.get("billing", "appointment_summary", "en", {
-    dueDate: new Date("2026-07-01T13:30:00Z"),
-    startTime: new Date("2026-07-01T13:30:00Z"),
-  });
+  console.log("user.greeting @ en:", i18n.get("user", "greeting", "en", { name: "Ada" }));
+  console.log(
+    "billing.invoice_summary @ it:",
+    i18n.get("billing", "invoice_summary", "it", { count: 5 })
+  );
+  console.log(
+    "billing.account_balance @ en:",
+    i18n.get("billing", "account_balance", "en", { amount: 1234.5 })
+  );
+  console.log(
+    "billing.appointment_summary @ en:",
+    i18n.get("billing", "appointment_summary", "en", {
+      dueDate: new Date("2026-07-01T13:30:00Z"),
+      startTime: new Date("2026-07-01T13:30:00Z"),
+    })
+  );
+  console.log(
+    "billing.invoice_due_long @ en:",
+    i18n.get("billing", "invoice_due_long", "en", {
+      dueDate: new Date("2026-07-01T13:30:00Z"),
+    })
+  );
+  console.log(
+    "billing.discount_rate @ en:",
+    i18n.get("billing", "discount_rate", "en", { rate: 0.25 })
+  );
+  console.log(
+    "billing.meeting_time @ en:",
+    i18n.get("billing", "meeting_time", "en", {
+      startTime: new Date("2026-07-01T13:30:00Z"),
+    })
+  );
+  try {
+    console.log(
+      "billing.payment_notice_html @ en:",
+      i18n.get("billing", "payment_notice_html", "en", {
+        amount: 99.5,
+        dueDate: new Date("2026-07-01T13:30:00Z"),
+      })
+    );
+  } catch (error) {
+    console.error(
+      "billing.payment_notice_html @ en (error):",
+      error instanceof Error ? error.message : error
+    );
+  }
+  console.log(
+    "billing.refund_policy_markdown @ en:",
+    i18n.get("billing", "refund_policy_markdown", "en", { days: 14 })
+  );
 
   const t = i18n.forLocale("en");
-  t.get("user", "greeting", { name: "Ada" });
-  t.get("billing", "invoice_summary", { count: 5 });
-  t.get("billing", "account_balance", { amount: 1234.5 });
-  t.get("billing", "appointment_summary", {
-    dueDate: new Date("2026-07-01T13:30:00Z"),
-    startTime: new Date("2026-07-01T13:30:00Z"),
-  });
+  console.log("user.greeting @ en (bound):", t.get("user", "greeting", { name: "Ada" }));
+  console.log(
+    "billing.invoice_summary @ en (bound):",
+    t.get("billing", "invoice_summary", { count: 5 })
+  );
+  console.log(
+    "billing.account_balance @ en (bound):",
+    t.get("billing", "account_balance", { amount: 1234.5 })
+  );
+  console.log(
+    "billing.appointment_summary @ en (bound):",
+    t.get("billing", "appointment_summary", {
+      dueDate: new Date("2026-07-01T13:30:00Z"),
+      startTime: new Date("2026-07-01T13:30:00Z"),
+    })
+  );
+}
+
+export async function exampleExternalNamespacePatch(): Promise<void> {
+  const rawBilling: unknown = await loadCompiledBillingDictionary();
+
+  const result = validateExternalNamespace("billing", rawBilling);
+  if (!result.ok) {
+    console.error("billing setNamespace validation failed:", formatIssues(result.issues));
+    return;
+  }
+
+  i18n.setNamespace("billing", result.data);
+
+  console.log(
+    "billing.invoice_summary @ en (patched from generated/translations/billing.json):",
+    i18n.get("billing", "invoice_summary", "en", { count: 1 })
+  );
+  console.log(
+    "billing.payment_notice_html @ en (patched, ICU-quoted HTML):",
+    i18n.get("billing", "payment_notice_html", "en", {
+      amount: 250,
+      dueDate: new Date("2026-08-01T10:00:00Z"),
+    })
+  );
+  console.log(
+    "billing.refund_policy_markdown @ en (patched, markdown from YAML compile):",
+    i18n.get("billing", "refund_policy_markdown", "en", { days: 30 })
+  );
 }
 
 export async function exampleExternalDictionaryHydration(): Promise<void> {
@@ -48,30 +150,26 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 
   const result = validateExternalDictionary(raw);
   if (!result.ok) {
-    console.error(formatIssues(result.issues));
+    console.error("setAll validation failed:", formatIssues(result.issues));
     return;
   }
 
   i18n.setAll(result.data);
-  i18n.get("billing", "invoice_summary", "en", { count: 12 });
-}
 
-export async function exampleExternalNamespacePatch(): Promise<void> {
-  const rawBilling: unknown = await loadExternalBillingTranslations();
-
-  const result = validateExternalNamespace("billing", rawBilling);
-  if (!result.ok) {
-    console.error(formatIssues(result.issues));
-    return;
-  }
-
-  i18n.setNamespace("billing", result.data);
+  console.log(
+    "billing.invoice_summary @ en (hydrated, billing from YAML→JSON compile):",
+    i18n.get("billing", "invoice_summary", "en", { count: 12 })
+  );
+  console.log(
+    "billing.refund_policy_markdown @ en (hydrated, markdown headings/links):",
+    i18n.get("billing", "refund_policy_markdown", "en", { days: 21 })
+  );
 }
 
 async function loadExternalTranslations(): Promise<unknown> {
   const [user, billing] = await Promise.all([
     import("./i18n/translations/user.json").then((module) => module.default),
-    import("./i18n/translations/billing.json").then((module) => module.default),
+    loadCompiledBillingDictionary(),
   ]);
 
   return {
@@ -81,9 +179,11 @@ async function loadExternalTranslations(): Promise<unknown> {
   };
 }
 
-async function loadExternalBillingTranslations(): Promise<unknown> {
-  return import("./i18n/translations/billing.json").then((module) => module.default);
+async function main(): Promise<void> {
+  exampleMultiNamespaceUsage();
+  await exampleLazyNamespaceLoading();
+  await exampleExternalNamespacePatch();
+  await exampleExternalDictionaryHydration();
 }
 
-exampleMultiNamespaceUsage();
-void exampleLazyNamespaceLoading();
+void main();

@@ -20,5 +20,17 @@
   "appointment_summary": {
     "it": "Scade il {dueDate, date, short} alle {startTime, time, short}",
     "en": "Due {dueDate, date, short} at {startTime, time, short}"
+  },
+  "invoice_due_long": {
+    "it": "Pagamento entro il {dueDate, date, ::yMMMMd}",
+    "en": "Payment due on {dueDate, date, ::yMMMMd}"
+  },
+  "discount_rate": {
+    "it": "Risparmia il {rate, number, ::percent} oggi",
+    "en": "Save {rate, number, ::percent} today"
+  },
+  "meeting_time": {
+    "it": "Chiamata alle {startTime, time, ::HHmm} UTC",
+    "en": "Call at {startTime, time, ::HHmm} UTC"
   }
 }

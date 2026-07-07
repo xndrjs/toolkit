@@ -8,11 +8,15 @@ type TestSchema = {
   empty_label: { en: string };
   broken: { en: string };
   invoice_count: { en: string; it: string };
+  item_count_zero: { en: string };
+  item_count_exact: { en: string };
   dashboard_status: { en: string; it: string };
   inbox_owner: { en: string; it: string };
   ranking_position: { en: string; it: string };
   account_balance: { en: string; it: string };
   appointment_summary: { en: string; it: string };
+  invoice_due_long: { en: string; it: string };
+  discount_rate: { en: string; it: string };
 };
 
 type TestParams = {
@@ -21,11 +25,15 @@ type TestParams = {
   empty_label: never;
   broken: { name: string };
   invoice_count: { count: number };
+  item_count_zero: { count: number };
+  item_count_exact: { count: number };
   dashboard_status: { msgCount: number; chatCount: number };
   inbox_owner: { gender: string; name: string };
   ranking_position: { position: number };
   account_balance: { amount: number };
   appointment_summary: { dueDate: Date | number; startTime: Date | number };
+  invoice_due_long: { dueDate: Date | number };
+  discount_rate: { rate: number };
 };
 
 const dictionary: TestSchema = {
@@ -36,6 +44,12 @@ const dictionary: TestSchema = {
   invoice_count: {
     en: "You have {count, plural, one {1 invoice} other {{count} invoices}}",
     it: "Hai {count, plural, one {1 fattura} other {{count} fatture}}",
+  },
+  item_count_zero: {
+    en: "{count, plural, zero {no items} one {1 item} other {{count} items}}",
+  },
+  item_count_exact: {
+    en: "{count, plural, =5 {five items} one {1 item} other {{count} items}}",
   },
   dashboard_status: {
     en: "You have {msgCount, plural, one {1 message} other {{msgCount} messages}} in {chatCount, plural, one {one chat} other {{chatCount} chats}}",
@@ -57,6 +71,14 @@ const dictionary: TestSchema = {
     en: "Due {dueDate, date, short} at {startTime, time, short}",
     it: "Scade il {dueDate, date, short} alle {startTime, time, short}",
   },
+  invoice_due_long: {
+    en: "Payment due on {dueDate, date, ::yMMMMd}",
+    it: "Pagamento entro il {dueDate, date, ::yMMMMd}",
+  },
+  discount_rate: {
+    en: "Save {rate, number, ::percent} today",
+    it: "Risparmia il {rate, number, ::percent} oggi",
+  },
 };
 
 describe("IcuTranslationProviderSingle", () => {
@@ -76,6 +98,15 @@ describe("IcuTranslationProviderSingle", () => {
       expect(provider.get("invoice_count", "en", { count: 5 })).toBe("You have 5 invoices");
       expect(provider.get("invoice_count", "it", { count: 1 })).toBe("Hai 1 fattura");
       expect(provider.get("invoice_count", "it", { count: 5 })).toBe("Hai 5 fatture");
+    });
+
+    it("uses =5 for an exact match; zero is a locale plural category, not exact match in English", () => {
+      // ICU "zero" is a plural rule category (e.g. Arabic); in English, 0 maps to "other".
+      expect(provider.get("item_count_zero", "en", { count: 0 })).toBe("0 items");
+      // "=5" is an exact-value selector and matches count === 5 in any locale.
+      expect(provider.get("item_count_exact", "en", { count: 0 })).toBe("0 items");
+      expect(provider.get("item_count_exact", "en", { count: 1 })).toBe("1 item");
+      expect(provider.get("item_count_exact", "en", { count: 5 })).toBe("five items");
     });
 
     it("formats nested numeric plurals with double-brace references", () => {
@@ -149,6 +180,25 @@ describe("IcuTranslationProviderSingle", () => {
         })
       ).toBe(`Due ${expectedDate} at ${expectedTime}`);
     });
+
+    it("formats ICU date and number skeletons (::yMMMMd, ::percent)", () => {
+      const when = new Date("2026-07-01T13:30:00Z");
+      const expectedLongDate = new Intl.DateTimeFormat("en", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }).format(when);
+      const expectedPercent = new Intl.NumberFormat("en", {
+        style: "percent",
+      }).format(0.25);
+
+      expect(provider.get("invoice_due_long", "en", { dueDate: when })).toBe(
+        `Payment due on ${expectedLongDate}`
+      );
+      expect(provider.get("discount_rate", "en", { rate: 0.25 })).toBe(
+        `Save ${expectedPercent} today`
+      );
+    });
   });
 
   it("treats an empty string template as valid", () => {
@@ -209,11 +259,15 @@ describe("IcuTranslationProviderSingle", () => {
         en: "You have {count, plural, one {1 invoice} other {{count} invoices}}",
         it: "Hai {count, plural, one {1 fattura} other {{count} fatture}}",
       },
+      item_count_zero: dictionary.item_count_zero,
+      item_count_exact: dictionary.item_count_exact,
       dashboard_status: dictionary.dashboard_status,
       inbox_owner: dictionary.inbox_owner,
       ranking_position: dictionary.ranking_position,
       account_balance: dictionary.account_balance,
       appointment_summary: dictionary.appointment_summary,
+      invoice_due_long: dictionary.invoice_due_long,
+      discount_rate: dictionary.discount_rate,
     };
     const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(external);
     external.login_button.en = "Sign in";

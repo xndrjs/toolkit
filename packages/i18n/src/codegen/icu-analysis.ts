@@ -6,7 +6,8 @@ import {
   mergeVariableMetaAcrossLocales,
   type VariableSpec,
 } from "../icu/extract-variables.js";
-import type { DictionaryJson, NamespaceEntry } from "./types.js";
+import type { NamespaceEntry } from "./types.js";
+import { readDictionaryFile } from "./read-dictionary.js";
 
 export function paramsTypeForVariables(variables: VariableSpec): string {
   const keys = Object.keys(variables);
@@ -47,7 +48,7 @@ export function analyzeDictionaries(
       continue;
     }
 
-    const dictionary = JSON.parse(fs.readFileSync(absolutePath, "utf8")) as DictionaryJson;
+    const dictionary = readDictionaryFile(absolutePath);
     paramsByNamespace[entry.namespace] = {};
     argsSpecByNamespace[entry.namespace] = {};
 

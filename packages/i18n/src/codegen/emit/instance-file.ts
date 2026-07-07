@@ -1,4 +1,5 @@
-import { GENERATED_FILE_BANNER, toModuleBasename } from "../paths.js";
+import { GENERATED_FILE_BANNER, toModuleBasename, toRelativeModuleImport } from "../paths.js";
+import type { ImportExtension } from "../types.js";
 
 export interface InstanceFileOptions {
   isSingle: boolean;
@@ -11,6 +12,7 @@ export interface InstanceFileOptions {
   localeFallbackConstName: string;
   factoryName: string;
   hasLocaleFallback: boolean;
+  importExtension: ImportExtension;
 }
 
 export function formatInstanceFile(options: InstanceFileOptions): string {
@@ -25,15 +27,18 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     localeFallbackConstName,
     factoryName,
     hasLocaleFallback,
+    importExtension,
   } = options;
 
   const providerClass = isSingle ? "IcuTranslationProviderSingle" : "IcuTranslationProviderMulti";
   const typesModule = toModuleBasename(typesOutputPath);
   const dictionaryModule = toModuleBasename(dictionaryOutputPath);
+  const typesImport = toRelativeModuleImport(typesModule, importExtension);
+  const dictionaryImport = toRelativeModuleImport(dictionaryModule, importExtension);
   const initialDictionaryType = hasLazy ? "InitialSchema" : schemaTypeName;
   const initialDictionaryImport = hasLazy
-    ? `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema } from './${typesModule}.js';\n`
-    : `import type { ${paramsTypeName}, ${schemaTypeName} } from './${typesModule}.js';\n`;
+    ? `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema } from '${typesImport}';\n`
+    : `import type { ${paramsTypeName}, ${schemaTypeName} } from '${typesImport}';\n`;
   const providerTypeArgs = hasLocaleFallback
     ? `${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, typeof ${localeFallbackConstName}`
     : `${schemaTypeName}, ${paramsTypeName}`;
@@ -41,13 +46,13 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     ? `, {\n    localeFallback: ${localeFallbackConstName},\n  }`
     : "";
   const fallbackImport = hasLocaleFallback
-    ? `import { ${localeFallbackConstName}, type ${localeTypeName} } from './${typesModule}.js';\n`
+    ? `import { ${localeFallbackConstName}, type ${localeTypeName} } from '${typesImport}';\n`
     : "";
 
   return (
     `${GENERATED_FILE_BANNER}` +
     `import { ${providerClass} } from '@xndrjs/i18n';\n` +
-    `import { dictionary } from './${dictionaryModule}.js';\n` +
+    `import { dictionary } from '${dictionaryImport}';\n` +
     initialDictionaryImport +
     fallbackImport +
     `\n` +
