@@ -41,6 +41,7 @@ Type-safe keys are not a luxury feature. They are how you keep UI code honest as
 Some translations are static labels. Many are not.
 
 ```json
+// translations/default.json
 {
   "welcome": { "en": "Welcome {name}!" },
   "dashboard_status": {
@@ -90,6 +91,7 @@ The catch: lazy loading must be **explicit**. Silent fallbacks to missing keys h
 At build time, `xndrjs-i18n-codegen` reads your ICU dictionaries (JSON or YAML), parses every string with `@formatjs/icu-messageformat-parser`, and generates exact TypeScript types for keys and parameters:
 
 ```ts
+// i18n/generated/i18n-types.generated.ts
 export type MyProjectParams = {
   default: {
     login_button: never;
@@ -213,6 +215,7 @@ So the limitation is not manual branching at the call site. It is everything aro
 **ICU MessageFormat** is a standard designed exactly for this. One key, one template, inline grammatical branches — with `#` for the count inside plural branches:
 
 ```json
+// translations/default.json
 {
   "dashboard_status": {
     "en": "You have {msgCount, plural, one {1 message} other {# messages}} in {chatCount, plural, one {one chat} other {# chats}}",
@@ -244,6 +247,7 @@ One key. One parameter object. Grammar lives in the string where translators exp
 In multi-namespace mode, you can split dictionaries across chunks. List only the namespaces you need at startup in `loadOnInit`; everything else loads on demand:
 
 ```json
+// i18n/i18n.codegen.json
 {
   "namespaces": {
     "default": "translations/default.json",
@@ -278,9 +282,9 @@ No silent empty strings. No guessing whether the key is missing or the namespace
 
 When `loadOnInit` is omitted, behavior stays simple: all namespaces are statically imported, same as a traditional setup.
 
-### YAML authoring — multiline strings without JSON pain
+### YAML authoring — readable ICU on multiple lines
 
-JSON is fine for short labels. It becomes awkward when a translation spans multiple lines — legal copy, refund policies, email bodies. JSON has no native multiline strings; you end up with `\n` escapes or string concatenation that translators hate.
+JSON is fine for short labels. It gets hard to read when a message has **several ICU parameters**, or **plural/select branches** (`zero`, `one`, `few`, `other`…) that you would otherwise cram onto one line with escapes and concatenation.
 
 `@xndrjs/i18n` lets you author dictionaries as **YAML** (`.yaml` / `.yml`) while keeping the same runtime model.
 
@@ -300,18 +304,21 @@ appointment_summary:
     Scade il {dueDate, date, short}
     alle {startTime, time, short}
 
-refund_policy_markdown:
+invoice_summary:
   en: |
-    # Refund policy
-
-    Contact support within **{days, number} days** of purchase.
+    You have {count, plural,
+      zero {no invoices}
+      one {one invoice}
+      other {# invoices}
+    }
 ```
 
-YAML block scalars make long ICU messages much easier to read while preserving (or intentionally folding) line breaks.
+YAML block scalars keep complex ICU readable in source while preserving (or intentionally folding) line breaks.
 
-Mixed namespaces are fine — `default.json` for core UI, `billing.yaml` for long-form copy:
+Mixed namespaces are fine — `default.json` for core UI, `billing.yaml` for messages that benefit from multiline ICU:
 
 ```json
+// i18n/i18n.codegen.json
 {
   "namespaces": {
     "default": "translations/default.json",
@@ -325,7 +332,7 @@ Mixed namespaces are fine — `default.json` for core UI, `billing.yaml` for lon
 
 Runtime overrides from a CMS or static `public/` folder still validate against the same schema: fetch JSON (compiled from YAML at build time), run `validateExternalNamespace("billing", raw)`, then `setNamespace("billing", result.data)`.
 
-Rich text (typically Markdown, occasionally HTML) is treated as plain message content. `@xndrjs/i18n` formats ICU parameters but does not interpret markup. Keep formatted copy in dedicated keys; prefer Markdown over raw HTML. Unquoted `<tags>` are parsed as ICU syntax, not literal HTML — quote them (for example `'<strong>'`) if you need tags at all. That is a known, deliberate limitation: translation files are a poor place for heavy markup.
+**What YAML is not for:** long legal copy, or email bodies rarely belong in a single i18n string. A content template (for example Handlebars) with localized fragments inside is usually the better fit. Markdown, HTML, and layout are outside what i18n should own; `@xndrjs/i18n` formats ICU parameters only, it should not render markup. If you do embed markup in a string, unquoted `<tags>` are parsed as ICU syntax — quote them (for example `'<strong>'`) or avoid HTML altogether.
 
 ### What actually affects bundle size
 
@@ -372,14 +379,16 @@ pnpm --filter YourAppOrPackageName exec xndrjs-i18n-setup multi . --project MyAp
 Add your ICU strings under `i18n/translations/` (`.json`, `.yaml`, or `.yml` per namespace), wire codegen into `package.json`
 
 ```json
+// package.json
 {
   "scripts": {
-    "i18n:codegen": "xndrjs-i18n-codegen --config i18n/i18n.codegen.json"
+    "i18n:codegen": "xndrjs-i18n-codegen --config i18n/i18n.codegen.json",
+    "i18n:audit": "xndrjs-i18n-audit --config i18n/i18n.codegen.json"
   }
 }
 ```
 
-then run it
+then run codegen
 
 ```bash
 pnpm run i18n:codegen
@@ -417,11 +426,14 @@ Some locales are **intentionally partial** — they define only the keys that di
 Configure a **locale fallback map** in `i18n/i18n.codegen.json`. When `.get()` is called for a locale that has no template for that key (`undefined` in the dictionary), the provider walks the chain before throwing:
 
 ```json
-"localeFallback": {
-  "en": null,
-  "de-DE": "en",
-  "de-CH": "de-DE",
-  "it": "en"
+// i18n/i18n.codegen.json
+{
+  "localeFallback": {
+    "en": null,
+    "de-DE": "en",
+    "de-CH": "de-DE",
+    "it": "en"
+  }
 }
 ```
 
@@ -430,6 +442,26 @@ Configure a **locale fallback map** in `i18n/i18n.codegen.json`. When `.get()` i
 An empty string `""` is treated as a deliberate template and does **not** trigger fallback — useful when a locale intentionally renders blank.
 
 Codegen emits `LOCALE_FALLBACK` and extends your locale union type to include fallback locales. The generated `createI18n()` factory wires the map in automatically. If the chain exhausts without finding a template, `.get()` throws and includes the full path it tried — same explicit-error philosophy as missing namespaces.
+
+### Translation audit
+
+Partial locales and fallback chains make it easy to ship fast — but hard to see what is still missing. `xndrjs-i18n-audit` reads the same `i18n/i18n.codegen.json` as codegen and emits a JSON report of gaps per namespace and locale:
+
+```bash
+pnpm exec xndrjs-i18n-audit --config i18n/i18n.codegen.json
+pnpm exec xndrjs-i18n-audit --config i18n/i18n.codegen.json --out audit.json
+pnpm exec xndrjs-i18n-audit --config i18n/i18n.codegen.json --fail-on effective
+```
+
+| Field                      | Meaning                                                                                                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requiredLocales`          | All locales your i18n instance can use. The audit checks every key against each of them.                                                                    |
+| `missingDirectByLocale`    | The key has no string for that locale in the dictionary. Often fine at runtime if fallback supplies another locale, so it's mainly a translator to-do list. |
+| `missingEffectiveByLocale` | No string for that locale, and fallback chain cannot find one either. Calling `.get()` would throw — fix before shipping!                                   |
+
+By default the CLI is report-only (exit `0`). Pass `--fail-on effective`, `direct`, or `any` to gate CI when gaps remain.
+
+A regional locale such as `en-US` that only overrides a few keys will show many `missingDirect` entries but few `missingEffective` ones when a fallback language, i.e. `en`, covers the chain — that is expected, not a bug.
 
 ---
 

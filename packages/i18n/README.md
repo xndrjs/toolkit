@@ -13,6 +13,7 @@ The core idea: your ICU strings live in local JSON files that act as **type-safe
 - **Lazy namespace loading** — optional code-splitting via `loadOnInit` and `ensureNamespacesLoaded()` (multi mode).
 - **Hot compilation cache** — compiled `IntlMessageFormat` instances are cached and invalidated on override.
 - **Explicit runtime errors** — malformed ICU (e.g. a corrupt remote payload) or missing parameters throw descriptive errors.
+- **Translation audit** — `xndrjs-i18n-audit` reports missing locales per key (direct vs effective after fallback); optional CI gate via `--fail-on`.
 - **Publishable library** — the runtime and codegen live in a standalone package (`@xndrjs/i18n`) that carries no project-specific types.
 
 ## Getting started
@@ -58,15 +59,17 @@ npm install zod
 ```json
 {
   "scripts": {
-    "i18n:codegen": "xndrjs-i18n-codegen --config i18n/i18n.codegen.json"
+    "i18n:codegen": "xndrjs-i18n-codegen --config i18n/i18n.codegen.json",
+    "i18n:audit": "xndrjs-i18n-audit --config i18n/i18n.codegen.json"
   }
 }
 ```
 
-**4. Generate and use:**
+**4. Generate and audit:**
 
 ```bash
 npm run i18n:codegen
+npm run i18n:audit
 ```
 
 ```ts
@@ -395,7 +398,9 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 
 Dictionary paths may use `.yaml` or `.yml` instead of `.json`. **YAML is an authoring format, not a runtime format** — codegen compiles YAML to JSON under the generated output directory (for example `translations/billing.yaml` → `{dirname(typesOutput)}/translations/billing.json`); generated TypeScript imports the compiled JSON at runtime. Edit only the YAML source — the compiled JSON is overwritten on each codegen run.
 
-YAML block scalars make long ICU messages much easier to read while preserving (or intentionally folding) line breaks.
+Use YAML when ICU is hard to read on one line: multiple parameters, or plural/select branches. It is not aimed at long legal copy or styled pages — those usually belong in a separate content template with localized fragments inside.
+
+YAML block scalars keep complex ICU readable in source while preserving (or intentionally folding) line breaks.
 
 ```yaml
 # translations/billing.yaml
