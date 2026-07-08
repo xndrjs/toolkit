@@ -1,5 +1,11 @@
 # @xndrjs/i18n
 
+## 0.3.3-alpha.0
+
+### Patch Changes
+
+- 15ce5ce: Validate `i18n.codegen.json` with a strict Zod schema in `loadConfig` (codegen and audit). Unknown keys and invalid values fail with a formatted issue report; allowed keys are derived from the schema shape so the list cannot drift from validation rules.
+
 ## 0.3.2
 
 ### Patch Changes
