@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CODEGEN_CONFIG_KEYS } from "./codegen-config-schema.js";
+import { codegenConfigKeys } from "./codegen-config-schema.js";
 import { loadConfig } from "./config.js";
 
 function writeConfig(dir: string, config: Record<string, unknown>) {
@@ -56,7 +56,7 @@ describe("loadConfig", () => {
     const message = String(errorSpy.mock.calls[0]?.[0]);
     expect(message).toContain("Invalid i18n.codegen.json");
     expect(message).toContain("typoKey");
-    expect(message).toContain(`Allowed keys: ${CODEGEN_CONFIG_KEYS.join(", ")}`);
+    expect(message).toContain(`Allowed keys: ${codegenConfigKeys.join(", ")}`);
 
     exitSpy.mockRestore();
     errorSpy.mockRestore();
