@@ -54,11 +54,6 @@
     "tsx": ">=4",
     "zod": "^4.0.0"
   },
-  "peerDependenciesMeta": {
-    "zod": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "tsup": "^8.5.1",
     "tsx": "^4.22.4",

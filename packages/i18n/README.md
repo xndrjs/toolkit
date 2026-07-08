@@ -21,14 +21,14 @@ The core idea: your ICU strings live in local JSON files that act as **type-safe
 ### Install
 
 ```bash
-npm install @xndrjs/i18n tsx
-# optional — external dictionary validation
-npm install zod
+npm install @xndrjs/i18n zod
+npm install -D tsx
 ```
 
-`tsx` is a **peer dependency** required by `xndrjs-i18n-codegen`: the CLI runs the TypeScript codegen script directly (no precompiled JS bundle). Add it to your app or monorepo root.
+`tsx` and `zod` are **peer dependencies** of `@xndrjs/i18n`:
 
-`zod` is optional — only needed when you use `dictionarySchemaOutput` and the generated `validateExternalDictionary()` helpers.
+- **`tsx`** — required by `xndrjs-i18n-codegen` and `xndrjs-i18n-audit` (CLIs run TypeScript directly). Install as a **devDependency** — only needed at build/CI time.
+- **`zod`** — required by codegen/audit config validation (`i18n.codegen.json`) and by `@xndrjs/i18n/validation` when using `dictionarySchemaOutput` and `validateExternalDictionary()`. Use a **devDependency** if validation runs only at build time; a regular **dependency** if you validate CMS payloads in production.
 
 ### Quick setup (single file)
 
@@ -533,7 +533,7 @@ Enable validation by adding `dictionarySchemaOutput` to `i18n/i18n.codegen.json`
 }
 ```
 
-Add `zod` as a dependency in the consumer app (optional peer of `@xndrjs/i18n`).
+Add `zod` as a dependency in the consumer app (required peer of `@xndrjs/i18n`).
 
 Codegen emits `DICTIONARY_SPEC` and `validateExternalDictionary()`. Validation runs in two phases:
 
@@ -641,5 +641,5 @@ pnpm run demo:multi            # tsx multi/src/index.ts
 - **TypeScript 6** (`strict`, `resolveJsonModule`, `moduleResolution: "bundler"`)
 - **[intl-messageformat](https://www.npmjs.com/package/intl-messageformat)** — runtime ICU formatting
 - **[@formatjs/icu-messageformat-parser](https://www.npmjs.com/package/@formatjs/icu-messageformat-parser)** — build-time AST parsing
-- **[zod](https://www.npmjs.com/package/zod)** — optional peer for external dictionary validation
+- **[zod](https://www.npmjs.com/package/zod)** — peer dependency (config validation, external dictionary validation)
 - **[tsx](https://www.npmjs.com/package/tsx)** — runs TypeScript scripts directly
