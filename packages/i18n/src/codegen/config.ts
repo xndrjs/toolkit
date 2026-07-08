@@ -1,10 +1,28 @@
 import fs from "node:fs";
-import type { CodegenConfig, LoadOnInitResolution, NamespaceEntry } from "./types.js";
+import type { LoadOnInitResolution, NamespaceEntry } from "./types.js";
+import {
+  CodegenConfig,
+  codegenConfigSchema,
+  formatCodegenConfigIssues,
+} from "./codegen-config-schema.js";
 import { fail } from "./paths.js";
 
 export function loadConfig(configPath: string): CodegenConfig {
-  const raw = fs.readFileSync(configPath, "utf8");
-  return JSON.parse(raw) as CodegenConfig;
+  let raw: unknown;
+
+  try {
+    raw = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    fail(`[Codegen Error] Failed to parse config JSON (${configPath}): ${message}`);
+  }
+
+  const result = codegenConfigSchema.safeParse(raw);
+  if (!result.success) {
+    fail(formatCodegenConfigIssues(result.error));
+  }
+
+  return result.data;
 }
 
 export function resolveNamespaces(config: CodegenConfig): NamespaceEntry[] {

@@ -1,7 +1,8 @@
 import path from "node:path";
-import type { CodegenConfig, DictionaryJson } from "../codegen/types.js";
+import type { DictionaryJson } from "../codegen/types.js";
 import { buildRequiredLocales, enrichLocaleFallback } from "../codegen/locale-policy.js";
 import { resolveLocaleTemplate } from "../resolve-locale.js";
+import { CodegenConfig } from "../codegen/codegen-config-schema.js";
 
 export type FailOnCriterion = "effective" | "direct" | "any";
 
@@ -105,7 +106,7 @@ export function auditDictionaries(options: AuditDictionariesOptions): I18nAuditR
 
   return {
     requiredLocales,
-    localeFallback: localeFallbackForAudit,
+    ...(localeFallbackForAudit !== undefined ? { localeFallback: localeFallbackForAudit } : {}),
     summary,
     missingDirectByLocale,
     missingEffectiveByLocale,
@@ -162,7 +163,9 @@ export async function runAuditFromConfig(options: RunAuditOptions): Promise<RunA
   const report = auditDictionaries({
     namespaces,
     config,
-    treatEmptyAsMissing: options.treatEmptyAsMissing,
+    ...(options.treatEmptyAsMissing !== undefined
+      ? { treatEmptyAsMissing: options.treatEmptyAsMissing }
+      : {}),
   });
 
   const exitCode =

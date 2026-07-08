@@ -795,7 +795,10 @@ describe("generate-i18n-types", () => {
 
     const result = runCodegen(tempDir);
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain('importExtension must be "none", ".ts", or ".js"');
+    expect(result.stderr).toContain("Invalid i18n.codegen.json");
+    expect(result.stderr).toContain("importExtension");
+    expect(result.stderr).toContain('one of "none"|".ts"|".js"');
+    expect(result.stderr).toContain("Allowed keys:");
   });
 
   it("compiles yaml dictionaries to json and generates json imports", () => {

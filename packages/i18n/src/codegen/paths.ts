@@ -1,6 +1,7 @@
 import path from "node:path";
-import type { CodegenConfig, ImportExtension } from "./types.js";
-import { SUPPORTED_IMPORT_EXTENSIONS } from "./types.js";
+import type { ImportExtension } from "./types.js";
+import { SUPPORTED_IMPORT_EXTENSIONS } from "./constants.js";
+import { CodegenConfig } from "./codegen-config-schema.js";
 
 export const GENERATED_FILE_BANNER = "// Automatically generated code. Do not edit manually.\n";
 export const DEFAULT_IMPORT_EXTENSION: ImportExtension = "none";

@@ -37,7 +37,12 @@ export function parseAuditArgs(argv: string[]): AuditCliOptions {
 
   const treatEmptyAsMissing = !argv.includes("--allow-empty");
 
-  return { configPath, outPath, failOn, treatEmptyAsMissing };
+  return {
+    configPath,
+    treatEmptyAsMissing,
+    ...(outPath !== undefined ? { outPath } : {}),
+    ...(failOn !== undefined ? { failOn } : {}),
+  };
 }
 
 export async function runAuditCli(argv = process.argv.slice(2)): Promise<number> {
@@ -56,7 +61,7 @@ export async function runAuditCli(argv = process.argv.slice(2)): Promise<number>
     config,
     configPath: options.configPath,
     treatEmptyAsMissing: options.treatEmptyAsMissing,
-    failOn: options.failOn,
+    ...(options.failOn !== undefined ? { failOn: options.failOn } : {}),
   });
 
   const json = `${JSON.stringify(report, null, 2)}\n`;
