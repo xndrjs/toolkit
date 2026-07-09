@@ -175,7 +175,7 @@ i18n.setAll(result.data);
 
 Codegen can emit Zod-backed validators that check both structure and ICU parameter compatibility against your static `Params` schema. Malformed remote payloads fail at the boundary — not inside a random component three layers deep.
 
-### ICU MessageFormat — one key, many grammatical shapes
+### ICU MessageFormat — grammar lives in the template
 
 Pluralization and gendered phrasing are where naive i18n approaches start to hurt.
 
