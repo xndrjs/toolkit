@@ -1,5 +1,15 @@
 # @xndrjs/i18n
 
+## 0.4.0
+
+### Minor Changes
+
+- **Breaking (codegen output).** Generated `createI18n` no longer imports the fallback dictionary: the `dictionary` argument is required, so each call site chooses the data source (codegen fallback, lazy loaders, CMS, etc.) and `instance.generated.ts` does not pull JSON into the FE bundle by default.
+
+  Codegen now exports `defaultDictionary` (was `dictionary`) from `dictionary.generated.ts`. Re-run codegen and update `i18n/index.ts` (or your factory module) to pass `defaultDictionary` explicitly, e.g. `createI18n(defaultDictionary)`.
+
+  Setup scaffold (`xndrjs-i18n-setup`) emits the same pattern.
+
 ## 0.3.3
 
 ### Patch Changes
