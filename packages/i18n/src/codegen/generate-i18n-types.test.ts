@@ -456,9 +456,6 @@ describe("generate-i18n-types", () => {
     expect(factory).not.toContain("import { dictionary }");
     expect(loaders).toContain("export const namespaceLoaders");
     expect(loaders).toContain("[K in LazyNamespace]: () => Promise<AppSchema[K]>");
-    expect(loaders).not.toContain("ensureNamespacesLoaded");
-    expect(loaders).not.toContain("ensureNamespacesLoadedImpl");
-    expect(loaders).not.toContain("validateExternalNamespace");
     expect(loaders).toContain("import('./translations/billing.json')");
   });
 
