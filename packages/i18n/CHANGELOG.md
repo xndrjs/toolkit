@@ -4,6 +4,8 @@
 
 ### Minor Changes
 
+- 1f56ce8: Remove `ensureNamespacesLoaded` / `ensureNamespacesLoadedImpl`. Lazy namespaces are registered via generated `namespaceLoaders` and `setNamespace()` — no runtime validation on trusted codegen JSON imports. `dictionarySchemaOutput` is optional for lazy loading; use it only for external CMS/API hydration. Breaking: re-run codegen and replace `ensureNamespacesLoaded(i18n, …)` with `namespaceLoaders` + `setNamespace()` (optionally `projectNamespaceLocales` before register).
+
 - **Breaking (codegen output).** Generated `createI18n` no longer imports the fallback dictionary: the `dictionary` argument is required, so each call site chooses the data source (codegen fallback, lazy loaders, CMS, etc.) and `instance.generated.ts` does not pull JSON into the FE bundle by default.
 
   Codegen now exports `defaultDictionary` (was `dictionary`) from `dictionary.generated.ts`. Re-run codegen and update `i18n/index.ts` (or your factory module) to pass `defaultDictionary` explicitly, e.g. `createI18n(defaultDictionary)`.
