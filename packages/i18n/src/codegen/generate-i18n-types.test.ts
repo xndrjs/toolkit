@@ -450,9 +450,10 @@ describe("generate-i18n-types", () => {
     expect(types).toContain("export type LoadOnInitNamespace = 'default'");
     expect(types).toContain("export type LazyNamespace = 'billing'");
     expect(types).toContain("export type InitialSchema = Pick<AppSchema, LoadOnInitNamespace>");
-    expect(dictionary).toContain("export const dictionary: InitialSchema");
+    expect(dictionary).toContain("export const defaultDictionary: InitialSchema");
     expect(dictionary).not.toContain("billingNs");
-    expect(factory).toContain("initialDictionary: InitialSchema = dictionary");
+    expect(factory).toContain("dictionary: InitialSchema,");
+    expect(factory).not.toContain("import { dictionary }");
     expect(loaders).toContain("export const namespaceLoaders");
     expect(loaders).toContain("export async function ensureNamespacesLoaded(");
     expect(loaders).toContain("namespaces: LazyNamespace[]");
@@ -494,9 +495,10 @@ describe("generate-i18n-types", () => {
     const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
 
     expect(types).not.toContain("LazyNamespace");
-    expect(dictionary).toContain("export const dictionary: AppSchema");
+    expect(dictionary).toContain("export const defaultDictionary: AppSchema");
     expect(dictionary).toContain("billingNs");
-    expect(factory).toContain("initialDictionary: AppSchema = dictionary");
+    expect(factory).toContain("dictionary: AppSchema,");
+    expect(factory).not.toContain("import { dictionary }");
     expect(result.stdout).not.toContain("namespace-loaders.generated.ts");
   });
 
@@ -706,8 +708,9 @@ describe("generate-i18n-types", () => {
     const dictionary = readFileSync(join(tempDir, "src/i18n/dictionary.generated.ts"), "utf8");
     const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
     expect(dictionary).toContain("from './i18n-types.generated'");
-    expect(factory).toContain("from './dictionary.generated'");
+    expect(factory).not.toContain("from './dictionary.generated'");
     expect(factory).toContain("from './i18n-types.generated'");
+    expect(factory).toContain("dictionary: AppSchema,");
     expect(dictionary).not.toContain(".generated.js");
     expect(dictionary).not.toContain(".generated.ts");
     expect(factory).not.toContain(".generated.js");
@@ -739,7 +742,7 @@ describe("generate-i18n-types", () => {
     expect(result.status).toBe(0);
 
     const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
-    expect(factory).toContain("from './dictionary.generated.ts'");
+    expect(factory).not.toContain("from './dictionary.generated.ts'");
     expect(factory).toContain("from './i18n-types.generated.ts'");
   });
 
@@ -768,7 +771,7 @@ describe("generate-i18n-types", () => {
     expect(result.status).toBe(0);
 
     const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
-    expect(factory).toContain("from './dictionary.generated.js'");
+    expect(factory).not.toContain("from './dictionary.generated.js'");
     expect(factory).toContain("from './i18n-types.generated.js'");
   });
 

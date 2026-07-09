@@ -124,7 +124,6 @@ function main() {
     isSingle,
     hasLazy,
     typesOutputPath,
-    dictionaryOutputPath,
     paramsTypeName,
     schemaTypeName,
     localeTypeName,

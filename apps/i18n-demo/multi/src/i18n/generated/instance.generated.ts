@@ -4,17 +4,16 @@ import {
   projectLocales as projectLocalesCore,
   projectNamespacesLocales as projectNamespacesLocalesCore,
 } from "@xndrjs/i18n";
-import { dictionary } from "./dictionary.generated";
 import type { MyProjectParams, MyProjectSchema, InitialSchema } from "./i18n-types.generated";
 import { LOCALE_FALLBACK, type MyProjectLocale } from "./i18n-types.generated";
 
-export function createI18n(initialDictionary: InitialSchema = dictionary) {
+export function createI18n(dictionary: InitialSchema) {
   return new IcuTranslationProviderMulti<
     MyProjectSchema,
     MyProjectParams,
     MyProjectLocale,
     typeof LOCALE_FALLBACK
-  >(initialDictionary, {
+  >(dictionary, {
     localeFallback: LOCALE_FALLBACK,
   });
 }

@@ -48,7 +48,7 @@ export function formatDictionaryFile(options: DictionaryFileOptions): string {
       `${GENERATED_FILE_BANNER}` +
       `import ${importId} from '${importPath}.json';\n` +
       `import type { ${schemaTypeName} } from '${typesImport}';\n\n` +
-      `export const dictionary: ${schemaTypeName} = ${importId};\n`
+      `export const defaultDictionary: ${schemaTypeName} = ${importId};\n`
     );
   }
 
@@ -72,6 +72,6 @@ export function formatDictionaryFile(options: DictionaryFileOptions): string {
     `${GENERATED_FILE_BANNER}` +
     `${imports}\n` +
     `import type { ${dictionaryTypeName} } from '${typesImport}';\n\n` +
-    `export const dictionary: ${dictionaryTypeName} = {\n${objectEntries}\n};\n`
+    `export const defaultDictionary: ${dictionaryTypeName} = {\n${objectEntries}\n};\n`
   );
 }

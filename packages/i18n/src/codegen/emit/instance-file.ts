@@ -5,7 +5,6 @@ export interface InstanceFileOptions {
   isSingle: boolean;
   hasLazy: boolean;
   typesOutputPath: string;
-  dictionaryOutputPath: string;
   paramsTypeName: string;
   schemaTypeName: string;
   localeTypeName: string;
@@ -22,7 +21,6 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     isSingle,
     hasLazy,
     typesOutputPath,
-    dictionaryOutputPath,
     paramsTypeName,
     schemaTypeName,
     localeTypeName,
@@ -36,11 +34,9 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
 
   const providerClass = isSingle ? "IcuTranslationProviderSingle" : "IcuTranslationProviderMulti";
   const typesModule = toModuleBasename(typesOutputPath);
-  const dictionaryModule = toModuleBasename(dictionaryOutputPath);
   const typesImport = toRelativeModuleImport(typesModule, importExtension);
-  const dictionaryImport = toRelativeModuleImport(dictionaryModule, importExtension);
-  const initialDictionaryType = hasLazy ? "InitialSchema" : schemaTypeName;
-  const initialDictionaryImport = hasLazy
+  const dictionaryParamType = hasLazy ? "InitialSchema" : schemaTypeName;
+  const schemaTypesImport = hasLazy
     ? `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema } from '${typesImport}';\n`
     : `import type { ${paramsTypeName}, ${schemaTypeName} } from '${typesImport}';\n`;
   const providerTypeArgs = hasLocaleFallback
@@ -77,14 +73,13 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
   return (
     `${GENERATED_FILE_BANNER}` +
     `import { ${providerClass}, ${coreImports} } from '@xndrjs/i18n';\n` +
-    `import { dictionary } from '${dictionaryImport}';\n` +
-    initialDictionaryImport +
+    schemaTypesImport +
     typesImportLine +
     `\n` +
     `export function ${factoryName}(\n` +
-    `  initialDictionary: ${initialDictionaryType} = dictionary,\n` +
+    `  dictionary: ${dictionaryParamType},\n` +
     `) {\n` +
-    `  return new ${providerClass}<${providerTypeArgs}>(initialDictionary${providerOptions});\n` +
+    `  return new ${providerClass}<${providerTypeArgs}>(dictionary${providerOptions});\n` +
     `}\n` +
     projectLocalesBlock
   );

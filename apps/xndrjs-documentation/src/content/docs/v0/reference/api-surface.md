@@ -139,7 +139,7 @@ import { IcuTranslationProviderMulti, IcuTranslationProviderSingle } from "@xndr
 import { formatIssues } from "@xndrjs/i18n/validation";
 ```
 
-- `createI18n()` (generated): typed factory bound to your dictionary schema.
+- `createI18n(dictionary)` (generated): typed factory bound to your dictionary schema; `dictionary` is required.
 - `.get(...)`: format ICU templates with compile-time key and param checking.
 - `.setAll()` / `.setNamespace()`: runtime dictionary override without rebuild.
 - `ensureNamespacesLoaded()` (generated, multi mode): preload lazy namespaces.

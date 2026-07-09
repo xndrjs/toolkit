@@ -75,11 +75,13 @@ npm run i18n:audit
 ```ts
 // i18n/index.ts
 import { createI18n } from "./generated/instance.generated.js";
+import { defaultDictionary } from "./generated/dictionary.generated.js";
 
 export * from "./generated/instance.generated.js";
+export * from "./generated/dictionary.generated.js";
 export * from "./generated/i18n-types.generated.js";
 
-export const i18n = createI18n();
+export const i18n = createI18n(defaultDictionary);
 ```
 
 ```ts
@@ -194,8 +196,8 @@ Variables found across **all locales** of the same key are merged. If parsing fa
 ### 3. Generated files
 
 - **`i18n-types.generated.ts`** — `I18N_MODE`, `MyProjectParams`, `MyProjectSchema`.
-- **`dictionary.generated.ts`** — imports the JSON files and assembles the initial dictionary.
-- **`instance.generated.ts`** — exports `createI18n()`, typed `projectLocales()` (full schema), and in multi mode `projectNamespaceLocales()` (single namespace); `LOCALE_FALLBACK` wired in when configured.
+- **`dictionary.generated.ts`** — imports the JSON files and exports `defaultDictionary` (the codegen fallback dictionary).
+- **`instance.generated.ts`** — exports `createI18n(dictionary)` (required argument; no default import of the fallback dictionary), typed `projectLocales()` (full schema), and in multi mode `projectNamespaceLocales()` (single namespace); `LOCALE_FALLBACK` wired in when configured.
 - **`i18n.ts`** (optional, hand-written) — app-owned singleton if desired.
 
 Example generated types (multi-namespace):
@@ -227,12 +229,13 @@ export type MyProjectSchema = {
 
 ### 4. Runtime provider
 
-Create a provider with the generated factory (no side effects at import time):
+Create a provider with the generated factory (no side effects at import time). Pass the dictionary explicitly — from codegen’s `dictionary.generated.ts`, from lazy loaders, or from an external source — so the factory module does not pull fallback JSON into your bundle:
 
 ```ts
 import { createI18n } from "./i18n";
+import { defaultDictionary } from "./i18n/generated/dictionary.generated.js";
 
-const i18n = createI18n();
+const i18n = createI18n(defaultDictionary);
 // or with an external dictionary at init:
 const i18n = createI18n(externalDictionary);
 ```
@@ -241,7 +244,8 @@ Optionally, wrap it in an app-owned singleton (`i18n.ts`):
 
 ```ts
 import { createI18n } from "./instance.generated.js";
-export const i18n = createI18n();
+import { defaultDictionary } from "./dictionary.generated.js";
+export const i18n = createI18n(defaultDictionary);
 ```
 
 ### Locale-bound provider (`forLocale`)
@@ -249,7 +253,7 @@ export const i18n = createI18n();
 Bind a locale once and omit it on every `.get()`:
 
 ```ts
-const i18n = createI18n();
+const i18n = createI18n(defaultDictionary);
 const i18nEn = i18n.forLocale("en");
 
 i18nEn.get("login_button"); // single-file
@@ -312,9 +316,10 @@ import {
   projectLocales,
   projectNamespaceLocales,
 } from "./i18n/generated/instance.generated.js";
+import { defaultDictionary } from "./i18n/generated/dictionary.generated.js";
 import billingDictionary from "./i18n/translations/billing.json";
 
-const i18n = createI18n();
+const i18n = createI18n(defaultDictionary);
 i18n.setNamespace("billing", projectNamespaceLocales(billingDictionary, [activeLocale]));
 i18n.setAll(projectLocales(fullDictionary, [activeLocale])); // multi: all namespaces
 ```
@@ -453,7 +458,7 @@ Mixed namespaces are supported: some namespaces can stay `.json` while others us
 
 ```ts
 import { i18n } from "./i18n"; // app singleton from i18n.ts
-// or: import { createI18n } from './i18n'; const i18n = createI18n();
+// or: import { createI18n, defaultDictionary } from './i18n'; const i18n = createI18n(defaultDictionary);
 
 i18n.get("default", "login_button", "it"); // "Accedi"
 i18n.get("default", "welcome", "en", { name: "Ada" }); // "Welcome Ada!"
@@ -469,7 +474,7 @@ i18n.get("billing", "login_button", "it"); // ✗ key not in namespace
 
 ```ts
 import { i18n } from "./i18n"; // app singleton from i18n.ts
-// or: import { createI18n } from './i18n'; const i18n = createI18n();
+// or: import { createI18n, defaultDictionary } from './i18n'; const i18n = createI18n(defaultDictionary);
 
 i18n.get("login_button", "it");
 i18n.get("welcome", "en", { name: "Ada" });

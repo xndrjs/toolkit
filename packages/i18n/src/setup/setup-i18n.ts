@@ -32,11 +32,12 @@ const DEFAULT_STARTER = {
 const DEFAULT_IMPORT_SUFFIX = importExtensionSuffix(DEFAULT_IMPORT_EXTENSION);
 
 const INDEX_TS =
-  `import { createI18n } from "./generated/instance.generated${DEFAULT_IMPORT_SUFFIX}";\n\n` +
+  `import { createI18n } from "./generated/instance.generated${DEFAULT_IMPORT_SUFFIX}";\n` +
+  `import { defaultDictionary } from "./generated/dictionary.generated${DEFAULT_IMPORT_SUFFIX}";\n\n` +
   `export * from "./generated/instance.generated${DEFAULT_IMPORT_SUFFIX}";\n` +
   `export * from "./generated/dictionary.generated${DEFAULT_IMPORT_SUFFIX}";\n` +
   `export * from "./generated/i18n-types.generated${DEFAULT_IMPORT_SUFFIX}";\n\n` +
-  `export const i18n = createI18n();\n`;
+  `export const i18n = createI18n(defaultDictionary);\n`;
 
 function writeJson(filePath: string, value: unknown): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

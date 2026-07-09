@@ -309,8 +309,9 @@ Use the generated factory:
 
 ```ts
 import { createI18n } from "./i18n/generated/instance.generated.js";
+import { defaultDictionary } from "./i18n/generated/dictionary.generated.js";
 
-export const i18n = createI18n();
+export const i18n = createI18n(defaultDictionary);
 i18n.get("default", "welcome", "en", { name: "Ada" });
 ```
 
@@ -339,7 +340,7 @@ Real products rarely ship every string in every locale on day one. **Partial loc
 }
 ```
 
-Codegen emits `LOCALE_FALLBACK` and wires it into `createI18n()`. If the chain cannot resolve a key, `.get()` throws with the path it tried.
+Codegen emits `LOCALE_FALLBACK` and wires it into `createI18n(dictionary)`. If the chain cannot resolve a key, `.get()` throws with the path it tried.
 
 ### `projectLocales`
 
@@ -353,8 +354,9 @@ import {
   projectNamespaceLocales,
   projectLocales,
 } from "./i18n/generated/instance.generated.js";
+import { defaultDictionary } from "./i18n/generated/dictionary.generated.js";
 
-const i18n = createI18n();
+const i18n = createI18n(defaultDictionary);
 i18n.setNamespace("billing", projectNamespaceLocales(billingDictionary, [userLocale]));
 i18n.setAll(projectLocales(fullDictionary, [userLocale])); // multi: all namespaces
 ```
@@ -387,7 +389,7 @@ Report-only by default; `--fail-on effective`, `direct`, or `any` gates CI. Fiel
 
 `@xndrjs/i18n` is a small, deliberate stack: ICU dictionaries (JSON or YAML at authoring time) as the source of truth, codegen that turns templates into TypeScript contracts, and a runtime provider that formats, caches, overrides, and fails loudly when something is wrong.
 
-There are no React, Vue, or Next.js wrappers — on purpose. The vanilla API is a typed provider with `.get()`, `forLocale()`, and optional async preload: enough to wire into any framework with a thin hook or context of your own. `@xndrjs/i18n` does not barge into your stack with opinionated lifecycle or rendering assumptions. You import `createI18n()`, call it where it fits, and keep your UI layer in charge.
+There are no React, Vue, or Next.js wrappers — on purpose. The vanilla API is a typed provider with `.get()`, `forLocale()`, and optional async preload: enough to wire into any framework with a thin hook or context of your own. `@xndrjs/i18n` does not barge into your stack with opinionated lifecycle or rendering assumptions. You import `createI18n(dictionary)`, call it where it fits, and keep your UI layer in charge.
 
 Runtime overrides and optional Zod validation mean editorial workflows do not have to fight your deploy pipeline. Local JSON keeps tests and first paint predictable; a CMS payload can replace or patch the dictionary when it arrives. The same primitives stay flexible enough to match however your project splits and fetches translations — lazy namespaces, per-locale projection, API hydration — and scale with you as those policies evolve.
 

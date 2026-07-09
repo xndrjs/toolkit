@@ -124,9 +124,10 @@ describe("codegen projectLocales + setNamespace", () => {
         join(tempDir, "src/hydrate-billing.ts"),
         [
           `import { createI18n, projectNamespaceLocales } from "./i18n/instance.generated.js";`,
+          `import { defaultDictionary } from "./i18n/dictionary.generated.js";`,
           `import billingDictionary from "./i18n/translations/billing.json";`,
           ``,
-          `const i18n = createI18n();`,
+          `const i18n = createI18n(defaultDictionary);`,
           `i18n.setNamespace("billing", projectNamespaceLocales(billingDictionary, ["en"]));`,
         ].join("\n")
       );
@@ -145,16 +146,17 @@ describe("codegen projectLocales + setNamespace", () => {
         join(tempDir, "src/hydrate-all.ts"),
         [
           `import { createI18n, projectLocales } from "./i18n/instance.generated.js";`,
+          `import { defaultDictionary } from "./i18n/dictionary.generated.js";`,
           `import type { AppSchema } from "./i18n/i18n-types.generated.js";`,
           `import billingDictionary from "./i18n/translations/billing.json";`,
-          `import defaultDictionary from "./i18n/translations/default.json";`,
+          `import defaultNs from "./i18n/translations/default.json";`,
           ``,
           `const fullDictionary = {`,
-          `  default: defaultDictionary,`,
+          `  default: defaultNs,`,
           `  billing: billingDictionary,`,
           `} satisfies AppSchema;`,
           ``,
-          `const i18n = createI18n();`,
+          `const i18n = createI18n(defaultDictionary);`,
           `i18n.setAll(projectLocales(fullDictionary, ["en"]));`,
         ].join("\n")
       );
