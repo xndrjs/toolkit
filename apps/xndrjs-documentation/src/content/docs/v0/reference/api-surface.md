@@ -142,7 +142,7 @@ import { formatIssues } from "@xndrjs/i18n/validation";
 - `createI18n(dictionary)` (generated): typed factory bound to your dictionary schema; `dictionary` is required.
 - `.get(...)`: format ICU templates with compile-time key and param checking.
 - `.setAll()` / `.setNamespace()`: runtime dictionary override without rebuild.
-- `ensureNamespacesLoaded()` (generated, multi mode): preload lazy namespaces.
+- `namespaceLoaders` (generated, multi mode): typed dynamic `import()` loaders for lazy namespaces.
 - `validateExternalDictionary()` (generated, optional): validate CMS payloads before hydrate.
 
 See [i18n](/v0/infrastructure/i18n/) for setup, codegen config, locale fallback, and lazy loading.

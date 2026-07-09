@@ -161,7 +161,7 @@ describe("IcuTranslationProviderMulti", () => {
     expect(() =>
       partial.get("billing", "invoice_summary", "en", { count: 1, name: "Ada" })
     ).toThrow(
-      '[i18n] Namespace not loaded: "billing". Call ensureNamespacesLoaded(i18n, ["billing"]) first.'
+      '[i18n] Namespace not loaded: "billing". Register it with setNamespace() before calling .get().'
     );
   });
 

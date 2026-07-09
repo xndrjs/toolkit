@@ -10,7 +10,7 @@ The core idea: your ICU strings live in local JSON files that act as **type-safe
 - **ICU MessageFormat** — full support for interpolation, plurals, and select.
 - **Runtime override** — hydrate translations from an external source via `setAll()` / `setNamespace()` without rebuilding.
 - **Single-file or multi-namespace** — one flat dictionary, or multiple JSON files each bound to a namespace.
-- **Lazy namespace loading** — optional code-splitting via `loadOnInit` and `ensureNamespacesLoaded()` (multi mode).
+- **Lazy namespace loading** — optional code-splitting via `loadOnInit` and generated `namespaceLoaders` (multi mode).
 - **Hot compilation cache** — compiled `IntlMessageFormat` instances are cached and invalidated on override.
 - **Explicit runtime errors** — malformed ICU (e.g. a corrupt remote payload) or missing parameters throw descriptive errors.
 - **Translation audit** — `xndrjs-i18n-audit` reports missing locales per key (direct vs effective after fallback); optional CI gate via `--fail-on`.
@@ -106,7 +106,7 @@ This creates `i18n/i18n.codegen.json`, starter translation JSON, and `i18n/index
 
 Use `namespaces` instead of `dictionary` in `i18n/i18n.codegen.json`. See [Configuration](#configuration-i18ncodegenjson) and the [multi-namespace example](#multi-namespace-example) below.
 
-For lazy loading, add `loadOnInit`, `dictionarySchemaOutput`, and `namespaceLoadersOutput` — see [Lazy namespace loading](#lazy-namespace-loading-multi-mode). Lazy mode requires `zod` (validation runs before a namespace is registered).
+For lazy loading, add `loadOnInit` and `namespaceLoadersOutput` — see [Lazy namespace loading](#lazy-namespace-loading-multi-mode). Add `dictionarySchemaOutput` only when you validate external CMS/API payloads.
 
 ## Repository layout
 
@@ -398,23 +398,23 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 }
 ```
 
-| Field                               | Description                                                                                                                                                                         |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `dictionary`                        | Path to a single dictionary file (`.json`, `.yaml`, or `.yml`) for the flat API. Mutually exclusive with `namespaces`.                                                              |
-| `namespaces`                        | Map of `namespace -> dictionary path` (`.json`, `.yaml`, or `.yml`) for the namespaced API. Mutually exclusive with `dictionary`.                                                   |
-| `defaultNamespace`                  | Optional. Namespace label used internally in single-file mode (default `"default"`). Not exposed in the flat API.                                                                   |
-| `typesOutput`                       | Output path for the generated types.                                                                                                                                                |
-| `dictionaryOutput`                  | Output path for the generated dictionary manifest.                                                                                                                                  |
-| `instanceOutput`                    | Output path for the generated factory (`createI18n`).                                                                                                                               |
-| `importExtension`                   | Optional. Relative import suffix between generated `.ts` modules: `"none"` (default, extensionless), `".ts"`, or `".js"`.                                                           |
-| `factoryName`                       | Name of the exported factory function (default `createI18n`).                                                                                                                       |
-| `paramsTypeName` / `schemaTypeName` | Names of the exported types (customizable per project).                                                                                                                             |
-| `localeTypeName`                    | Name of the exported locale union type (default `MyProjectLocale`).                                                                                                                 |
-| `localeFallback`                    | Optional map of `locale -> next locale                                                                                                                                              | null` for runtime fallback resolution. |
-| `localeFallbackConstName`           | Name of the generated fallback constant (default `LOCALE_FALLBACK`).                                                                                                                |
-| `dictionarySchemaOutput`            | Optional path for generated external dictionary validation (`dictionary-schema.generated.ts`). Requires `zod` in the consumer app.                                                  |
-| `loadOnInit`                        | Multi mode only. Namespaces to include in the initial bundle via static imports. When omitted, all namespaces are eager (default).                                                  |
-| `namespaceLoadersOutput`            | Output path for generated lazy loaders and `ensureNamespacesLoaded()`. Defaults to `{dirname(instanceOutput)}/namespace-loaders.generated.ts`. Required when lazy namespaces exist. |
+| Field                               | Description                                                                                                                                                                                        |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `dictionary`                        | Path to a single dictionary file (`.json`, `.yaml`, or `.yml`) for the flat API. Mutually exclusive with `namespaces`.                                                                             |
+| `namespaces`                        | Map of `namespace -> dictionary path` (`.json`, `.yaml`, or `.yml`) for the namespaced API. Mutually exclusive with `dictionary`.                                                                  |
+| `defaultNamespace`                  | Optional. Namespace label used internally in single-file mode (default `"default"`). Not exposed in the flat API.                                                                                  |
+| `typesOutput`                       | Output path for the generated types.                                                                                                                                                               |
+| `dictionaryOutput`                  | Output path for the generated dictionary manifest.                                                                                                                                                 |
+| `instanceOutput`                    | Output path for the generated factory (`createI18n`).                                                                                                                                              |
+| `importExtension`                   | Optional. Relative import suffix between generated `.ts` modules: `"none"` (default, extensionless), `".ts"`, or `".js"`.                                                                          |
+| `factoryName`                       | Name of the exported factory function (default `createI18n`).                                                                                                                                      |
+| `paramsTypeName` / `schemaTypeName` | Names of the exported types (customizable per project).                                                                                                                                            |
+| `localeTypeName`                    | Name of the exported locale union type (default `MyProjectLocale`).                                                                                                                                |
+| `localeFallback`                    | Optional map of `locale -> next locale                                                                                                                                                             | null` for runtime fallback resolution. |
+| `localeFallbackConstName`           | Name of the generated fallback constant (default `LOCALE_FALLBACK`).                                                                                                                               |
+| `dictionarySchemaOutput`            | Optional path for generated external dictionary validation (`dictionary-schema.generated.ts`). Requires `zod` in the consumer app.                                                                 |
+| `loadOnInit`                        | Multi mode only. Namespaces to include in the initial bundle via static imports. When omitted, all namespaces are eager (default).                                                                 |
+| `namespaceLoadersOutput`            | Output path for generated `namespaceLoaders` (dynamic `import()` per lazy namespace). Defaults to `{dirname(instanceOutput)}/namespace-loaders.generated.ts`. Required when lazy namespaces exist. |
 
 > Paths are resolved relative to the directory containing `i18n.codegen.json` (e.g. `i18n/` when using `xndrjs-i18n-setup .`).
 
@@ -492,7 +492,7 @@ i18n.setNamespace("billing", externalBillingPayload);
 
 ### Lazy namespace loading (multi mode)
 
-Split namespaces across chunks by listing only the namespaces you need at startup in `loadOnInit`. Codegen emits dynamic `import()` loaders and a generated `ensureNamespacesLoaded(i18n, namespaces)` helper. `.get()` stays synchronous — preload lazy namespaces before rendering.
+Split namespaces across chunks by listing only the namespaces you need at startup in `loadOnInit`. Codegen emits typed `namespaceLoaders` — one dynamic `import()` per lazy namespace. `.get()` stays synchronous — register lazy namespaces with `setNamespace()` before rendering.
 
 ```json
 {
@@ -501,7 +501,6 @@ Split namespaces across chunks by listing only the namespaces you need at startu
     "billing": "translations/billing.yaml"
   },
   "loadOnInit": ["default"],
-  "dictionarySchemaOutput": "generated/dictionary-schema.generated.ts",
   "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts"
 }
 ```
@@ -509,22 +508,40 @@ Split namespaces across chunks by listing only the namespaces you need at startu
 Codegen also emits `LoadOnInitNamespace`, `LazyNamespace`, and `InitialSchema` types. The generated factory accepts a partial `InitialSchema` at init time.
 
 ```ts
-import { i18n, ensureNamespacesLoaded } from "./i18n";
+import { i18n, namespaceLoaders, type LazyNamespace } from "./i18n";
 
 i18n.get("default", "login_button", "en"); // available immediately
 
-await ensureNamespacesLoaded(i18n, ["billing"]);
+if (!i18n.hasNamespace("billing")) {
+  i18n.setNamespace("billing", await namespaceLoaders.billing());
+}
 i18n.get("billing", "invoice_summary", "en", { count: 12 });
 
 // batch preload
-await ensureNamespacesLoaded(i18n, ["user", "billing"]);
+await Promise.all(
+  (["user", "billing"] as const satisfies readonly LazyNamespace[]).map(async (namespace) => {
+    if (i18n.hasNamespace(namespace)) return;
+    i18n.setNamespace(namespace, await namespaceLoaders[namespace]());
+  })
+);
+```
+
+Optional locale projection before register:
+
+```ts
+import { projectNamespaceLocales } from "./i18n/generated/instance.generated.js";
+
+const billing = await namespaceLoaders.billing();
+i18n.setNamespace("billing", projectNamespaceLocales(billing, [userLocale]));
 ```
 
 Calling `.get()` on a namespace that is not loaded throws:
 
-`[i18n] Namespace not loaded: "billing". Call ensureNamespacesLoaded(i18n, ["billing"]) first.`
+`[i18n] Namespace not loaded: "billing". Register it with setNamespace() before calling .get().`
 
 When `loadOnInit` is omitted, behavior is unchanged: all namespaces are statically imported.
+
+Fetch/CMS hydration is app-owned: fetch → `validateExternalNamespace()` (requires `dictionarySchemaOutput` + `zod`) → `setNamespace()`.
 
 ### External dictionary validation
 

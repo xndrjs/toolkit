@@ -248,14 +248,16 @@ In multi-namespace mode, you can split dictionaries across chunks. List only the
 }
 ```
 
-Codegen emits dynamic `import()` loaders and a typed `ensureNamespacesLoaded()` helper — the **default path** for lazy-loading bundled JSON chunks. For richer flows — `projectLocales` before hydrate, payloads from an API or CMS — wire your own loader with `ensureNamespacesLoadedImpl`, or call `setNamespace()` directly after fetch and validation.
+Codegen emits typed `namespaceLoaders` — dynamic `import()` per lazy namespace. Register with `setNamespace()` (optionally after `projectNamespaceLocales`). For CMS/API payloads, fetch and validate yourself, then `setNamespace()`.
 
 ```ts
-import { i18n, ensureNamespacesLoaded } from "./i18n";
+import { i18n, namespaceLoaders } from "./i18n";
 
 i18n.get("default", "login_button", "en"); // available immediately
 
-await ensureNamespacesLoaded(i18n, ["billing"]);
+if (!i18n.hasNamespace("billing")) {
+  i18n.setNamespace("billing", await namespaceLoaders.billing());
+}
 i18n.get("billing", "invoice_summary", "en", { count: 12 });
 ```
 

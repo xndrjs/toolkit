@@ -46,12 +46,6 @@ function main() {
   const isSingle = Boolean(config.dictionary);
   const { loadOnInitSet, lazyEntries, hasLazy } = resolveLoadOnInit(config, entries, isSingle);
 
-  if (hasLazy && !config.dictionarySchemaOutput) {
-    fail(
-      '[Codegen Error] Lazy namespaces require "dictionarySchemaOutput" for validateExternalNamespace.'
-    );
-  }
-
   const typesOutputPath = path.resolve(projectRoot, config.typesOutput);
   const dictionaryOutputPath = path.resolve(projectRoot, config.dictionaryOutput);
   const instanceOutputPath = path.resolve(projectRoot, config.instanceOutput);
@@ -172,7 +166,6 @@ function main() {
       config.namespaceLoadersOutput ??
         path.join(path.dirname(config.instanceOutput), "namespace-loaders.generated.ts")
     );
-    const dictionarySchemaOutputPath = path.resolve(projectRoot, config.dictionarySchemaOutput!);
     const lazyEntriesWithPaths = lazyEntries.map((entry) => ({
       ...entry,
       absolutePath: path.resolve(projectRoot, entry.filePath),
@@ -182,9 +175,6 @@ function main() {
       lazyEntriesWithPaths,
       schemaTypeName,
       typesModule,
-      toModuleBasename(dictionarySchemaOutputPath),
-      toModuleBasename(instanceOutputPath),
-      factoryName,
       importExtension
     );
 

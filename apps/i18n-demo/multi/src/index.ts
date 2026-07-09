@@ -1,14 +1,9 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
-import { ensureNamespacesLoaded, i18n, dictionary, projectNamespaceLocales } from "./i18n";
+import { defaultDictionary, i18n, namespaceLoaders, projectNamespaceLocales } from "./i18n";
 import {
   validateExternalDictionary,
   validateExternalNamespace,
 } from "./i18n/generated/dictionary-schema.generated";
-
-/** JSON compiled from `translations/billing.yaml` during codegen. */
-async function loadCompiledBillingDictionary(): Promise<unknown> {
-  return import("./i18n/generated/translations/billing.json").then((module) => module.default);
-}
 
 export function exampleMultiNamespaceUsage(): void {
   console.log("default.login_button @ it:", i18n.get("default", "login_button", "it"));
@@ -45,7 +40,14 @@ export function exampleMultiNamespaceUsage(): void {
 }
 
 export async function exampleLazyNamespaceLoading(): Promise<void> {
-  await ensureNamespacesLoaded(i18n, ["user", "billing"]);
+  await Promise.all(
+    (["user", "billing"] as const).map(async (namespace) => {
+      if (i18n.hasNamespace(namespace)) {
+        return;
+      }
+      i18n.setNamespace(namespace, await namespaceLoaders[namespace]());
+    })
+  );
 
   console.log("user.greeting @ en:", i18n.get("user", "greeting", "en", { name: "Ada" }));
   console.log(
@@ -118,20 +120,9 @@ export async function exampleLazyNamespaceLoading(): Promise<void> {
 }
 
 export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
-  await ensureNamespacesLoaded(i18n, ["billing"]);
-
-  const rawBilling: unknown = await loadCompiledBillingDictionary();
-  const result = validateExternalNamespace("billing", rawBilling);
-  if (!result.ok) {
-    console.error(
-      "billing projectNamespaceLocales validation failed:",
-      formatIssues(result.issues)
-    );
-    return;
-  }
-
   const activeLocale = "it" as const;
-  i18n.setNamespace("billing", projectNamespaceLocales(result.data, [activeLocale]));
+  const billing = await namespaceLoaders.billing();
+  i18n.setNamespace("billing", projectNamespaceLocales(billing, [activeLocale]));
 
   console.log(
     "billing.invoice_summary @ it (projectNamespaceLocales + setNamespace):",
@@ -144,8 +135,10 @@ export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
 }
 
 export async function exampleExternalNamespacePatch(): Promise<void> {
-  const rawBilling: unknown = await loadCompiledBillingDictionary();
+  // We use namespaceLoaders here but simulate an external fetch...
+  const rawBilling: unknown = await namespaceLoaders.billing();
 
+  // ...so we re-validate after loading
   const result = validateExternalNamespace("billing", rawBilling);
   if (!result.ok) {
     console.error("billing setNamespace validation failed:", formatIssues(result.issues));
@@ -193,13 +186,11 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 }
 
 async function loadExternalTranslations(): Promise<unknown> {
-  const [user, billing] = await Promise.all([
-    import("./i18n/translations/user.json").then((module) => module.default),
-    loadCompiledBillingDictionary(),
-  ]);
+  // We use namespaceLoaders here but simulate an external fetch, so we re-validate.
+  const [user, billing] = await Promise.all([namespaceLoaders.user(), namespaceLoaders.billing()]);
 
   return {
-    ...dictionary,
+    ...defaultDictionary,
     user,
     billing,
   };

@@ -110,7 +110,7 @@ export class IcuTranslationProviderMulti<
   ): string {
     if (!this.loadedNamespaces.has(namespace as string)) {
       throw new Error(
-        `[i18n] Namespace not loaded: "${String(namespace)}". Call ensureNamespacesLoaded(i18n, ["${String(namespace)}"]) first.`
+        `[i18n] Namespace not loaded: "${String(namespace)}". Register it with setNamespace() before calling .get().`
       );
     }
 
