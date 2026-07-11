@@ -1,5 +1,38 @@
 # @xndrjs/i18n
 
+## 0.5.0
+
+### Minor Changes
+
+- ### Breaking Changes
+  - Align locale and delivery-area projection naming across `@xndrjs/i18n` and codegen output:
+    - **Generated:** `projectDictionaryLocales`, `projectNamespaceLocales` (multi), `projectDictionaryForDeliveryArea`, `projectNamespaceForDeliveryArea` (multi + `delivery: "custom"` only). Replaces generated `projectLocales`.
+    - **Library (tooling):** `projectNamespaceLocalesCore`, `projectDictionaryLocalesCore`, `projectNamespaceForDeliveryAreaCore`, `projectDictionaryForDeliveryAreaCore`. Replaces `projectLocales`, `projectNamespacesLocales`, and the previous non-`Core` delivery-area exports.
+  - Generated wrappers now import matching `*Core` functions directly (no cross-wired aliases). Re-run codegen after upgrading.
+
+  ### Minor Changes
+  - Add `delivery` to `i18n.codegen.json`: `"canonical"` (default), `"split-by-locale"`, or `"custom"`. Authoring stays canonical; codegen materializes delivery artifacts under `{deliveryOutput}/translations/`.
+  - Add optional `deliveryOutput` (defaults to `dirname(typesOutput)`). Use e.g. `public/i18n` to ship per-locale or per-area JSON from a static host.
+  - **Split-by-locale:** emits `{basename}.{locale}.json`, exports `defaultDictionaryFor(locale)`, and typed `namespaceLoaders.billing(locale)` instead of `namespaceLoaders.billing()`.
+  - **Custom:** declare named delivery areas in `deliveryArtifacts` (e.g. `eu`, `amer`); codegen emits `{basename}.{area}.json`, `defaultDictionaryFor(area)`, area-scoped loaders, and `projectDictionaryForDeliveryArea` / `projectNamespaceForDeliveryArea` helpers.
+  - `MyProjectSchema` is now emitted explicitly as `Partial<Record<MyProjectLocale, string>>` per key (no `typeof import` of dictionary JSON), so split delivery and YAML authoring typecheck without duplicate JSON sources. Audit still reads canonical config paths.
+  - Export `@xndrjs/i18n/codegen` for tooling that reuses codegen config and dictionary readers without the CLI binaries.
+
+## 0.5.0
+
+### Breaking Changes
+
+- Align locale and delivery-area projection naming across `@xndrjs/i18n` and codegen output:
+  - **Generated:** `projectDictionaryLocales`, `projectNamespaceLocales` (multi), `projectDictionaryForDeliveryArea`, `projectNamespaceForDeliveryArea` (multi + `delivery: "custom"` only). Replaces generated `projectLocales`.
+  - **Library (tooling):** `projectNamespaceLocalesCore`, `projectDictionaryLocalesCore`, `projectNamespaceForDeliveryAreaCore`, `projectDictionaryForDeliveryAreaCore`. Replaces `projectLocales`, `projectNamespacesLocales`, and the previous non-`Core` delivery-area exports.
+- Generated wrappers now import matching `*Core` functions directly (no cross-wired aliases). Re-run codegen after upgrading.
+
+### Minor Changes
+
+- Add optional `deliveryOutput` to `i18n.codegen.json`: directory for compiled and split delivery JSON (under `{deliveryOutput}/translations/`). Defaults to `dirname(typesOutput)` when omitted.
+
+- Add `delivery` to `i18n.codegen.json`: `"canonical"` (default, unchanged behavior) or `"split-by-locale"`. Split mode emits `{basename}.{locale}.json` under `generated/translations/` using the same projection as `projectNamespaceLocalesCore` (including `localeFallback`). Codegen exports `defaultDictionaryFor(locale)` instead of `defaultDictionary`, and nested `namespaceLoaders.billing(locale)` instead of `namespaceLoaders.billing()`. `MyProjectSchema` is now emitted explicitly as `Partial<Record<MyProjectLocale, string>>` per key (no `typeof import` of dictionary JSON), so split delivery and YAML authoring typecheck without duplicate JSON sources. Audit still reads canonical config paths. Opt-in only — re-run codegen after upgrading.
+
 ## 0.4.0
 
 ### Minor Changes

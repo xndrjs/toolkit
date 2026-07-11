@@ -293,4 +293,4 @@ No runtime dependency on `@xndrjs/contentful-to-zod` in production — only the 
 
 - [Docs: contentful-to-zod](/latest/infrastructure/contentful-to-zod/)
 - [GitHub: xndrjs/toolkit](https://github.com/xndrjs/toolkit/tree/main/packages/contentful-to-zod)
-- [Related: 5 cases where TypeScript types are not enough](/latest/blog/typescript-types-not-enough-data-correctness/)
+- [Related: 5 cases where TypeScript types are not enough](/blog/typescript-types-not-enough-data-correctness/)

@@ -1,0 +1,17 @@
+{
+  "login_button": {
+    "de-CH": "Login"
+  },
+  "welcome": {
+    "de-CH": "Welcome {name}!"
+  },
+  "dashboard_status": {
+    "de-CH": "You have {msgCount, plural, one {1 message} other {{msgCount} messages}} in {chatCount, plural, one {one chat} other {{chatCount} chats}}"
+  },
+  "inbox_owner": {
+    "de-CH": "{gender, select, female {{name} owns her inbox} male {{name} owns his inbox} other {{name} owns their inbox}}"
+  },
+  "ranking_position": {
+    "de-CH": "You finished {position, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}"
+  }
+}

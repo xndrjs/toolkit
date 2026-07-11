@@ -17,8 +17,9 @@ export type {
   LocaleFallbackMap,
   LocaleOfMulti,
   LocaleOfSingle,
+  MissingTranslationContext,
   MultiDictionary,
-  RequestLocale,
+  OnMissingTranslation,
 } from "./types.js";
 
 export {
@@ -28,4 +29,9 @@ export {
 } from "./resolve-locale.js";
 export type { ResolvedLocaleTemplate } from "./resolve-locale.js";
 
-export { projectLocales, projectNamespacesLocales } from "./project-locales.js";
+export {
+  projectDictionaryForDeliveryAreaCore,
+  projectDictionaryLocalesCore,
+  projectNamespaceForDeliveryAreaCore,
+  projectNamespaceLocalesCore,
+} from "./project-locales.js";

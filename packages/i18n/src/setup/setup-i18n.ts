@@ -1,10 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildCodegenConfig, type SetupMode } from "../codegen-config/build-config.js";
+import { inferProjectName } from "../codegen-config/type-names.js";
+import { writeCodegenConfig } from "../codegen-config/write-config.js";
 import { DEFAULT_IMPORT_EXTENSION, importExtensionSuffix } from "../codegen/paths.js";
-import { inferProjectName, typeNamesForProject } from "./type-names.js";
 
-export type SetupMode = "single" | "multi";
+export type { SetupMode } from "../codegen-config/build-config.js";
+export { buildCodegenConfig } from "../codegen-config/build-config.js";
 
 export interface SetupOptions {
   mode: SetupMode;
@@ -53,33 +56,6 @@ function relative(fromRoot: string, filePath: string): string {
   return path.relative(fromRoot, filePath).replace(/\\/g, "/");
 }
 
-export function buildCodegenConfig(mode: SetupMode, project: string): Record<string, unknown> {
-  const typeNames = typeNamesForProject(project);
-  const base = {
-    typesOutput: `${GENERATED_DIR}/i18n-types.generated.ts`,
-    dictionaryOutput: `${GENERATED_DIR}/dictionary.generated.ts`,
-    instanceOutput: `${GENERATED_DIR}/instance.generated.ts`,
-    paramsTypeName: typeNames.paramsTypeName,
-    schemaTypeName: typeNames.schemaTypeName,
-    localeTypeName: typeNames.localeTypeName,
-    factoryName: "createI18n",
-  };
-
-  if (mode === "single") {
-    return {
-      dictionary: `${TRANSLATIONS_DIR}/translations.json`,
-      ...base,
-    };
-  }
-
-  return {
-    namespaces: {
-      default: `${TRANSLATIONS_DIR}/default.json`,
-    },
-    ...base,
-  };
-}
-
 export function runSetup(options: SetupOptions): SetupResult {
   const targetDir = path.resolve(options.targetDir);
   const project =
@@ -100,7 +76,7 @@ export function runSetup(options: SetupOptions): SetupResult {
 
   const created: string[] = [];
 
-  writeJson(configPath, buildCodegenConfig(options.mode, project));
+  writeCodegenConfig(configPath, buildCodegenConfig(options.mode, project));
   created.push(relative(targetDir, configPath));
 
   if (options.mode === "single") {

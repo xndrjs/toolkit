@@ -1,0 +1,8 @@
+{
+  "profile_title": {
+    "de-CH": "Your profile"
+  },
+  "greeting": {
+    "de-CH": "Hi {name}!"
+  }
+}

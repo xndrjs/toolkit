@@ -14,6 +14,7 @@ export default defineConfig({
   entry: {
     index: "src/index.ts",
     "validation/index": "src/validation/index.ts",
+    "codegen/index": "src/codegen-config/index.ts",
   },
   dts: true,
   clean: true,

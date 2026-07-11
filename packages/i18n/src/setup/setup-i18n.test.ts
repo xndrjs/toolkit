@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, afterEach } from "vitest";
 import { buildCodegenConfig, parseSetupArgs, runSetup } from "./setup-i18n.js";
-import { inferProjectName, typeNamesForProject } from "./type-names.js";
+import { inferProjectName, typeNamesForProject } from "../codegen-config/type-names.js";
 
 describe("type-names", () => {
   it("derives PascalCase project names from directory names", () => {

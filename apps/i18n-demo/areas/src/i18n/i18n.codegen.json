@@ -1,0 +1,30 @@
+{
+  "delivery": "custom",
+  "deliveryOutput": "../public",
+  "deliveryArtifacts": {
+    "eu": ["it", "fr", "es", "en"],
+    "amer": ["en-US", "es-AR"]
+  },
+  "namespaces": {
+    "default": "translations/default.json",
+    "billing": "translations/billing.yaml"
+  },
+  "typesOutput": "generated/i18n-types.generated.ts",
+  "dictionaryOutput": "generated/dictionary.generated.ts",
+  "instanceOutput": "generated/instance.generated.ts",
+  "dictionarySchemaOutput": "generated/dictionary-schema.generated.ts",
+  "loadOnInit": ["default"],
+  "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts",
+  "paramsTypeName": "MyProjectParams",
+  "schemaTypeName": "MyProjectSchema",
+  "localeTypeName": "MyProjectLocale",
+  "factoryName": "createI18n",
+  "localeFallback": {
+    "en": null,
+    "en-US": "en",
+    "it": "en",
+    "fr": null,
+    "es": null,
+    "es-AR": "es"
+  }
+}

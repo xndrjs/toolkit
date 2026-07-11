@@ -3,6 +3,11 @@ export function deepFreeze<T>(value: T): T {
     return value;
   }
 
+  // Guards against infinite recursion on cyclic structures.
+  if (Object.isFrozen(value)) {
+    return value;
+  }
+
   Object.freeze(value);
 
   for (const child of Object.values(value)) {

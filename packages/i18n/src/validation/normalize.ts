@@ -107,6 +107,10 @@ function normalizeKeyDictionary(
   return { ok: true, data: keys };
 }
 
+/**
+ * Validation step 1: coerce external input into a normalized dictionary shape
+ * (keys, locales, ICU args) against a `DictionarySpec`.
+ */
 export function normalizeDictionary(
   input: unknown,
   spec: DictionarySpec

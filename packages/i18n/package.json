@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/i18n",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Compiler-first, type-safe ICU MessageFormat i18n with runtime dictionary override from external sources.",
   "private": false,
   "license": "MIT",
@@ -26,6 +26,11 @@
       "types": "./dist/validation/index.d.ts",
       "import": "./dist/validation/index.js",
       "default": "./dist/validation/index.js"
+    },
+    "./codegen": {
+      "types": "./dist/codegen/index.d.ts",
+      "import": "./dist/codegen/index.js",
+      "default": "./dist/codegen/index.js"
     }
   },
   "files": [

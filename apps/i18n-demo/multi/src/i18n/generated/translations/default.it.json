@@ -1,0 +1,17 @@
+{
+  "login_button": {
+    "it": "Accedi"
+  },
+  "welcome": {
+    "it": "Benvenuto {name}!"
+  },
+  "dashboard_status": {
+    "it": "Hai {msgCount, plural, one {1 messaggio} other {{msgCount} messaggi}} in {chatCount, plural, one {una chat} other {{chatCount} chat}}"
+  },
+  "inbox_owner": {
+    "it": "{gender, select, female {{name} gestisce la sua casella} male {{name} gestisce la sua casella} other {{name} gestisce la propria casella}}"
+  },
+  "ranking_position": {
+    "it": "Hai concluso al {position, selectordinal, one {#°} other {#°}} posto"
+  }
+}

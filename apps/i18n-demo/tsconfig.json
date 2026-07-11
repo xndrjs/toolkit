@@ -3,5 +3,10 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["single/src/**/*.ts", "multi/src/**/*.ts"]
+  "include": [
+    "single/src/**/*.ts",
+    "multi/src/**/*.ts",
+    "areas/src/**/*.ts",
+    "programmatic/**/*.ts"
+  ]
 }

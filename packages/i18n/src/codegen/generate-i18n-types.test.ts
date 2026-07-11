@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -73,10 +73,11 @@ describe("generate-i18n-types", () => {
     expect(types).toContain("export const I18N_MODE = 'multi' as const");
     expect(types).toContain("export type AppLocale = 'en'");
     expect(factory).toContain("export function createI18n(");
-    expect(factory).toContain("export function projectLocales(");
-    expect(factory).toContain("projectNamespacesLocalesCore(dictionary, locales)");
+    expect(factory).toContain("options?: { onMissing?: OnMissingTranslation }");
+    expect(factory).toContain("export function projectDictionaryLocales(");
+    expect(factory).toContain("projectDictionaryLocalesCore(dictionary, locales)");
     expect(factory).toContain("export function projectNamespaceLocales(");
-    expect(factory).toContain("projectLocalesCore(dictionary, locales)");
+    expect(factory).toContain("projectNamespaceLocalesCore(dictionary, locales)");
     expect(factory).toContain("IcuTranslationProviderMulti");
     expect(types).toContain("login_button: never");
     expect(types).toContain("welcome: { name: string }");
@@ -88,6 +89,41 @@ describe("generate-i18n-types", () => {
     expect(types).toContain("invoice_summary: { count: number }");
     expect(types).toContain("export type AppParams");
     expect(types).toContain("export type AppSchema");
+  });
+
+  it("does not rewrite unchanged generated files on rerun", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/translations.json"),
+      JSON.stringify({ welcome: { en: "Welcome {name}!" } })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        dictionary: "src/i18n/translations/translations.json",
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    expect(runCodegen(tempDir).status).toBe(0);
+
+    const generatedPaths = [
+      join(tempDir, "src/i18n/i18n-types.generated.ts"),
+      join(tempDir, "src/i18n/dictionary.generated.ts"),
+      join(tempDir, "src/i18n/instance.generated.ts"),
+    ];
+    const mtimesBefore = generatedPaths.map((filePath) => statSync(filePath).mtimeMs);
+
+    expect(runCodegen(tempDir).status).toBe(0);
+
+    const mtimesAfter = generatedPaths.map((filePath) => statSync(filePath).mtimeMs);
+    expect(mtimesAfter).toEqual(mtimesBefore);
   });
 
   it("generates dictionary schema file when dictionarySchemaOutput is set", () => {
@@ -225,10 +261,10 @@ describe("generate-i18n-types", () => {
     expect(types).toContain("export const I18N_MODE = 'single' as const");
     expect(types).toContain("export type AppLocale = 'en'");
     expect(factory).toContain("export function createI18n(");
-    expect(factory).toContain("export function projectLocales(");
+    expect(factory).toContain("export function projectDictionaryLocales(");
     expect(factory).toContain("dictionary: AppSchema");
-    expect(factory).not.toContain("projectNamespaceLocales");
-    expect(factory).not.toContain("projectNamespacesLocalesCore");
+    expect(factory).not.toContain("export function projectNamespaceLocales(");
+    expect(factory).not.toContain("projectDictionaryLocalesCore");
     expect(factory).toContain("IcuTranslationProviderSingle");
     expect(types).toContain("login_button: never;");
     expect(types).toContain("welcome: { name: string };");
@@ -297,7 +333,8 @@ describe("generate-i18n-types", () => {
     expect(types).toContain('"de-CH": "en"');
     expect(types).toContain("export type AppLocale = 'de-CH' | 'en'");
     expect(factory).toContain("localeFallback: LOCALE_FALLBACK");
-    expect(factory).toContain("projectLocalesCore(dictionary, locales, LOCALE_FALLBACK)");
+    expect(factory).toContain("...options");
+    expect(factory).toContain("projectNamespaceLocalesCore(dictionary, locales, LOCALE_FALLBACK)");
     expect(factory).toContain(
       "IcuTranslationProviderSingle<AppSchema, AppParams, AppLocale, typeof LOCALE_FALLBACK>"
     );
@@ -367,7 +404,7 @@ describe("generate-i18n-types", () => {
     const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
     expect(types).not.toContain("export const LOCALE_FALLBACK");
     expect(factory).not.toContain("localeFallback:");
-    expect(factory).toContain("projectLocalesCore(dictionary, locales)");
+    expect(factory).toContain("projectNamespaceLocalesCore(dictionary, locales)");
     expect(factory).not.toContain("LOCALE_FALLBACK");
     expect(types).toContain("export type AppLocale = 'en' | 'it'");
   });
@@ -456,9 +493,6 @@ describe("generate-i18n-types", () => {
     expect(factory).not.toContain("import { dictionary }");
     expect(loaders).toContain("export const namespaceLoaders");
     expect(loaders).toContain("[K in LazyNamespace]: () => Promise<AppSchema[K]>");
-    expect(loaders).not.toContain("ensureNamespacesLoaded");
-    expect(loaders).not.toContain("ensureNamespacesLoadedImpl");
-    expect(loaders).not.toContain("validateExternalNamespace");
     expect(loaders).toContain("import('./translations/billing.json')");
   });
 
@@ -851,7 +885,8 @@ describe("generate-i18n-types", () => {
     );
     const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
     expect(dictionary).toContain("from './translations/translations.json'");
-    expect(types).toContain("typeof import('./translations/translations.json')");
+    expect(types).toContain("welcome: Partial<Record<AppLocale, string>>;");
+    expect(types).not.toContain("typeof import");
   });
 
   it("supports mixed json and yaml namespaces", () => {
@@ -896,8 +931,9 @@ describe("generate-i18n-types", () => {
     const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
     expect(dictionary).toContain("from '../translations/default.json'");
     expect(dictionary).toContain("from './translations/billing.json'");
-    expect(types).toContain("default: typeof import('../translations/default.json')");
-    expect(types).toContain("billing: typeof import('./translations/billing.json')");
+    expect(types).toContain("login_button: Partial<Record<AppLocale, string>>;");
+    expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
+    expect(types).not.toContain("typeof import");
   });
 
   it("generates lazy loaders that import compiled json for yaml namespaces", () => {
@@ -965,7 +1001,709 @@ describe("generate-i18n-types", () => {
 
     const result = runCodegen(tempDir);
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain("unsupported dictionary extension");
+    expect(result.stderr).toMatch(/unsupported dictionary (extension|format)/i);
+  });
+
+  it("generates split-by-locale delivery with per-locale files and defaultDictionaryFor", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({
+        welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/user.json"),
+      JSON.stringify({
+        profile_title: { en: "Your profile", it: "Il tuo profilo" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/billing.json"),
+      JSON.stringify({
+        invoice_summary: {
+          en: "You have {count, plural, one {1 invoice} other {{count} invoices}}",
+          it: "Hai {count} fatture",
+        },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+          user: "src/i18n/translations/user.json",
+          billing: "src/i18n/translations/billing.json",
+        },
+        loadOnInit: ["default"],
+        delivery: "split-by-locale",
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        namespaceLoadersOutput: "src/i18n/generated/namespace-loaders.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("default.en.json");
+    expect(result.stdout).toContain("user.it.json");
+    expect(result.stdout).toContain("billing.en.json");
+
+    const userEn = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/user.en.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(userEn.profile_title).toEqual({ en: "Your profile" });
+
+    const billingIt = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.it.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(billingIt.invoice_summary).toEqual({ it: "Hai {count} fatture" });
+
+    expect(() =>
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.json"), "utf8")
+    ).toThrow();
+
+    const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
+    const dictionary = readFileSync(
+      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
+      "utf8"
+    );
+    const loaders = readFileSync(
+      join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
+      "utf8"
+    );
+
+    expect(types).toContain("welcome: Partial<Record<AppLocale, string>>;");
+    expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
+    expect(types).not.toContain("typeof import");
+    expect(types).toContain("export type AppLocale = 'en' | 'it'");
+    expect(types).toContain("invoice_summary: { count: number }");
+
+    expect(dictionary).toContain("import defaultEn from './translations/default.en.json';");
+    expect(dictionary).toContain("import defaultIt from './translations/default.it.json';");
+    expect(dictionary).toContain(
+      "export function defaultDictionaryFor(locale: AppLocale): InitialSchema"
+    );
+    expect(dictionary).toContain("default: defaultByLocale[locale],");
+    expect(dictionary).not.toContain("as unknown as");
+    expect(dictionary).not.toContain("export const defaultDictionary");
+    expect(dictionary).not.toContain("billingEn");
+
+    expect(loaders).toContain(
+      "[K in LazyNamespace]: (locale: AppLocale) => Promise<AppSchema[K]>;"
+    );
+    expect(loaders).toContain("billing: (locale) => {");
+    expect(loaders).toContain('case "it":');
+    expect(loaders).toContain(
+      "return import('./translations/billing.it.json').then((m) => m.default);"
+    );
+    expect(loaders).toContain('case "en":');
+    expect(loaders).toContain(
+      "return import('./translations/billing.en.json').then((m) => m.default);"
+    );
+    expect(loaders).toContain("user: (locale) => {");
+    expect(loaders).not.toContain("import('./translations/billing.json')");
+  });
+
+  it("writes delivery json under deliveryOutput when it differs from typesOutput directory", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({
+        welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/billing.yaml"),
+      `invoice_summary:
+  en: You have {count} invoices
+  it: Hai {count} fatture
+`
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+          billing: "src/i18n/translations/billing.yaml",
+        },
+        loadOnInit: ["default"],
+        delivery: "split-by-locale",
+        deliveryOutput: "public/i18n",
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        namespaceLoadersOutput: "src/i18n/generated/namespace-loaders.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("public/i18n/translations/billing.en.json");
+    expect(result.stdout).toContain("public/i18n/translations/billing.it.json");
+
+    expect(() =>
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.en.json"), "utf8")
+    ).toThrow();
+
+    const billingEn = JSON.parse(
+      readFileSync(join(tempDir, "public/i18n/translations/billing.en.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(billingEn.invoice_summary).toEqual({ en: "You have {count} invoices" });
+
+    const dictionary = readFileSync(
+      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
+      "utf8"
+    );
+    const loaders = readFileSync(
+      join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
+      "utf8"
+    );
+
+    expect(dictionary).toContain(
+      "import defaultEn from '../../../public/i18n/translations/default.en.json';"
+    );
+    expect(dictionary).toContain(
+      "import defaultIt from '../../../public/i18n/translations/default.it.json';"
+    );
+    expect(loaders).toContain(
+      "return import('../../../public/i18n/translations/billing.en.json').then((m) => m.default);"
+    );
+    expect(loaders).toContain(
+      "return import('../../../public/i18n/translations/billing.it.json').then((m) => m.default);"
+    );
+  });
+
+  it("applies localeFallback when generating split-by-locale files", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({
+        login_button: { en: "Login", it: "Accedi" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+        },
+        delivery: "split-by-locale",
+        localeFallback: {
+          en: null,
+          "de-DE": "en",
+          "de-CH": "de-DE",
+          it: "en",
+        },
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("default.de-CH.json");
+
+    const deChSplit = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/default.de-CH.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(deChSplit).toEqual({
+      login_button: { "de-CH": "Login" },
+    });
+
+    const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
+    expect(types).toContain("export type AppLocale = 'de-CH' | 'de-DE' | 'en' | 'it'");
+  });
+
+  it("splits yaml sources into per-locale json without a canonical intermediate", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/billing.yaml"),
+      `invoice_summary:
+  en: You have {count} invoices
+  it: Hai {count} fatture
+`
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          billing: "src/i18n/translations/billing.yaml",
+        },
+        delivery: "split-by-locale",
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("billing.en.json");
+    expect(result.stdout).toContain("billing.it.json");
+
+    expect(() =>
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.json"), "utf8")
+    ).toThrow();
+
+    const enSplit = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.en.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(enSplit.invoice_summary).toEqual({ en: "You have {count} invoices" });
+
+    const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
+    const dictionary = readFileSync(
+      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
+      "utf8"
+    );
+    expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
+    expect(types).not.toContain("typeof import");
+    expect(dictionary).toContain("import billingEn from './translations/billing.en.json';");
+    expect(dictionary).toContain(
+      "export function defaultDictionaryFor(locale: AppLocale): AppSchema"
+    );
+    expect(dictionary).toContain("billing: billingByLocale[locale],");
+  });
+
+  it("emits defaultDictionaryFor in single mode with split-by-locale delivery", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    const sourcePath = join(tempDir, "src/i18n/translations/translations.json");
+    writeFileSync(
+      sourcePath,
+      JSON.stringify({
+        welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        dictionary: "src/i18n/translations/translations.json",
+        delivery: "split-by-locale",
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+
+    const sourceAfter = JSON.parse(readFileSync(sourcePath, "utf8")) as Record<
+      string,
+      Record<string, string>
+    >;
+    expect(sourceAfter.welcome).toEqual({
+      en: "Welcome {name}!",
+      it: "Benvenuto {name}!",
+    });
+
+    const dictionary = readFileSync(
+      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
+      "utf8"
+    );
+    const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
+    expect(types).toContain("welcome: Partial<Record<AppLocale, string>>;");
+    expect(types).not.toContain("typeof import");
+    expect(dictionary).toContain("import defaultEn from './translations/translations.en.json';");
+    expect(dictionary).toContain("import defaultIt from './translations/translations.it.json';");
+    expect(dictionary).toContain(
+      "export function defaultDictionaryFor(locale: AppLocale): AppSchema"
+    );
+    expect(dictionary).toContain("return defaultByLocale[locale];");
+    expect(dictionary).not.toContain("export const defaultDictionary");
+  });
+
+  it("keeps canonical output when delivery is explicitly set to canonical", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({ welcome: { en: "Welcome {name}!" } })
+    );
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/billing.json"),
+      JSON.stringify({ invoice_summary: { en: "Invoice" } })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+          billing: "src/i18n/translations/billing.json",
+        },
+        loadOnInit: ["default"],
+        delivery: "canonical",
+        typesOutput: "src/i18n/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/dictionary.generated.ts",
+        instanceOutput: "src/i18n/instance.generated.ts",
+        namespaceLoadersOutput: "src/i18n/namespace-loaders.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+
+    const dictionary = readFileSync(join(tempDir, "src/i18n/dictionary.generated.ts"), "utf8");
+    const loaders = readFileSync(join(tempDir, "src/i18n/namespace-loaders.generated.ts"), "utf8");
+
+    expect(dictionary).toContain("export const defaultDictionary: InitialSchema");
+    expect(dictionary).not.toContain("defaultDictionaryFor");
+    expect(loaders).toContain("[K in LazyNamespace]: () => Promise<AppSchema[K]>");
+    expect(loaders).toContain("import('./translations/billing.json')");
+    expect(loaders).not.toContain("billing: {");
+    expect(result.stdout).not.toContain(".en.json");
+    expect(result.stdout).not.toContain(".it.json");
+  });
+
+  it("generates custom delivery with per-area json files", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({
+        some_key: { it: "Ciao", fr: "Hallo", "en-US": "Hello" },
+        some_other_key: { "en-US": "Computer", fr: "Ordinateur" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/billing.json"),
+      JSON.stringify({
+        invoice_summary: {
+          "en-US": "You have {count, plural, one {1 invoice} other {{count} invoices}}",
+          it: "Hai {count} fatture",
+        },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+          billing: "src/i18n/translations/billing.json",
+        },
+        loadOnInit: ["default"],
+        delivery: "custom",
+        deliveryArtifacts: {
+          eu: ["it", "fr"],
+          us: ["en-US"],
+        },
+        localeFallback: {
+          "en-US": null,
+          it: "en-US",
+          fr: null,
+        },
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        namespaceLoadersOutput: "src/i18n/generated/namespace-loaders.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("default.eu.json");
+    expect(result.stdout).toContain("default.us.json");
+    expect(result.stdout).toContain("billing.eu.json");
+    expect(result.stdout).toContain("billing.us.json");
+
+    const defaultEu = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/default.eu.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(defaultEu).toEqual({
+      some_key: { it: "Ciao", fr: "Hallo" },
+      some_other_key: { it: "Computer", fr: "Ordinateur" },
+    });
+
+    const defaultUs = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/default.us.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(defaultUs).toEqual({
+      some_key: { "en-US": "Hello" },
+      some_other_key: { "en-US": "Computer" },
+    });
+
+    expect(() =>
+      readFileSync(join(tempDir, "src/i18n/generated/translations/default.json"), "utf8")
+    ).toThrow();
+
+    const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
+    const dictionary = readFileSync(
+      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
+      "utf8"
+    );
+    const loaders = readFileSync(
+      join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
+      "utf8"
+    );
+    const factory = readFileSync(join(tempDir, "src/i18n/generated/instance.generated.ts"), "utf8");
+
+    const billingEu = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.eu.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(billingEu.invoice_summary).toEqual({ it: "Hai {count} fatture" });
+
+    const billingUs = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.us.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(billingUs.invoice_summary).toEqual({
+      "en-US": "You have {count, plural, one {1 invoice} other {{count} invoices}}",
+    });
+
+    expect(() =>
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.json"), "utf8")
+    ).toThrow();
+
+    expect(types).toContain("export type AppDeliveryArea = 'eu' | 'us';");
+    expect(types).toContain("export const LOCALE_DELIVERY_AREA = {");
+    expect(types).toContain('"it": "eu"');
+    expect(types).toContain('"fr": "eu"');
+    expect(types).toContain('"en-US": "us"');
+    expect(types).toContain("} as const satisfies Record<AppLocale, AppDeliveryArea>;");
+    expect(types).toContain("export type AppLocale = 'en-US' | 'fr' | 'it';");
+    expect(types).toContain("export const LOCALE_FALLBACK");
+    expect(types).toContain('"it": "en-US"');
+    expect(types).toContain("some_key: Partial<Record<AppLocale, string>>;");
+    expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
+    expect(types).not.toContain("typeof import");
+    expect(types).toContain("invoice_summary: { count: number }");
+
+    expect(dictionary).toContain("import defaultEu from './translations/default.eu.json';");
+    expect(dictionary).toContain("import defaultUs from './translations/default.us.json';");
+    expect(dictionary).toContain(
+      "export function defaultDictionaryFor(area: AppDeliveryArea): InitialSchema"
+    );
+    expect(dictionary).toContain("default: defaultByArea[area],");
+    expect(dictionary).not.toContain("as unknown as");
+    expect(dictionary).not.toContain("export const defaultDictionary");
+    expect(dictionary).not.toContain("billingEu");
+
+    expect(loaders).toContain(
+      "[K in LazyNamespace]: (area: AppDeliveryArea) => Promise<AppSchema[K]>;"
+    );
+    expect(loaders).toContain("billing: (area) => {");
+    expect(loaders).toContain('case "eu":');
+    expect(loaders).toContain('case "us":');
+    expect(loaders).toContain(
+      "return import('./translations/billing.eu.json').then((m) => m.default);"
+    );
+    expect(loaders).toContain(
+      "return import('./translations/billing.us.json').then((m) => m.default);"
+    );
+    expect(loaders).not.toContain("import('./translations/billing.json')");
+
+    expect(factory).toContain("export function projectDictionaryForDeliveryArea(");
+    expect(factory).toContain("export function projectNamespaceForDeliveryArea(");
+    expect(factory).toContain(
+      "projectDictionaryForDeliveryAreaCore(dictionary, areaLocales, LOCALE_FALLBACK)"
+    );
+    expect(factory).toContain(
+      "projectNamespaceForDeliveryAreaCore(dictionary, areaLocales, LOCALE_FALLBACK)"
+    );
+  });
+
+  it("fails when deliveryArtifacts does not partition request locales", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({
+        some_key: { it: "Ciao", fr: "Hallo", "en-US": "Hello" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+        },
+        delivery: "custom",
+        deliveryArtifacts: {
+          eu: ["it", "fr"],
+        },
+        localeFallback: {
+          "en-US": null,
+          it: "en-US",
+          fr: null,
+        },
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("missing locales");
+    expect(result.stderr).toContain("en-US");
+  });
+
+  it("splits yaml sources into per-area json without a canonical intermediate", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/billing.yaml"),
+      `invoice_summary:
+  en-US: You have {count} invoices
+  it: Hai {count} fatture
+`
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          billing: "src/i18n/translations/billing.yaml",
+        },
+        delivery: "custom",
+        deliveryArtifacts: {
+          eu: ["it"],
+          us: ["en-US"],
+        },
+        localeFallback: {
+          "en-US": null,
+          it: "en-US",
+        },
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("billing.eu.json");
+    expect(result.stdout).toContain("billing.us.json");
+
+    expect(() =>
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.json"), "utf8")
+    ).toThrow();
+
+    const euSplit = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.eu.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(euSplit.invoice_summary).toEqual({ it: "Hai {count} fatture" });
+
+    const usSplit = JSON.parse(
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.us.json"), "utf8")
+    ) as Record<string, Record<string, string>>;
+    expect(usSplit.invoice_summary).toEqual({ "en-US": "You have {count} invoices" });
+
+    const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
+    const dictionary = readFileSync(
+      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
+      "utf8"
+    );
+    expect(types).toContain("export type AppDeliveryArea = 'eu' | 'us';");
+    expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
+    expect(types).not.toContain("typeof import");
+    expect(dictionary).toContain("import billingEu from './translations/billing.eu.json';");
+    expect(dictionary).toContain("import billingUs from './translations/billing.us.json';");
+    expect(dictionary).toContain(
+      "export function defaultDictionaryFor(area: AppDeliveryArea): AppSchema"
+    );
+    expect(dictionary).toContain("billing: billingByArea[area],");
+  });
+
+  it("emits defaultDictionaryFor in single mode with custom delivery", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    const sourcePath = join(tempDir, "src/i18n/translations/translations.json");
+    writeFileSync(
+      sourcePath,
+      JSON.stringify({
+        some_key: { it: "Ciao", "en-US": "Hello" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        dictionary: "src/i18n/translations/translations.json",
+        delivery: "custom",
+        deliveryArtifacts: {
+          eu: ["it"],
+          us: ["en-US"],
+        },
+        localeFallback: {
+          "en-US": null,
+          it: "en-US",
+        },
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+
+    const sourceAfter = JSON.parse(readFileSync(sourcePath, "utf8")) as Record<
+      string,
+      Record<string, string>
+    >;
+    expect(sourceAfter.some_key).toEqual({
+      it: "Ciao",
+      "en-US": "Hello",
+    });
+
+    const dictionary = readFileSync(
+      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
+      "utf8"
+    );
+    const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
+    expect(types).toContain("some_key: Partial<Record<AppLocale, string>>;");
+    expect(types).not.toContain("typeof import");
+    expect(dictionary).toContain("import defaultEu from './translations/translations.eu.json';");
+    expect(dictionary).toContain("import defaultUs from './translations/translations.us.json';");
+    expect(dictionary).toContain(
+      "export function defaultDictionaryFor(area: AppDeliveryArea): AppSchema"
+    );
+    expect(dictionary).toContain("return defaultByArea[area];");
+    expect(dictionary).not.toContain("export const defaultDictionary");
   });
 
   it("fails when yaml dictionary has invalid shape", () => {

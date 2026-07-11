@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loadConfig, resolveLoadOnInit, resolveNamespaces } from "./config.js";
+import {
+  loadConfig,
+  resolveDeliveryOutputDir,
+  resolveLoadOnInit,
+  resolveNamespaces,
+} from "./config.js";
 import { formatDictionaryFile } from "./emit/dictionary-file.js";
 import {
   formatDictionarySchemaFile,
@@ -10,11 +15,18 @@ import { formatInstanceFile } from "./emit/instance-file.js";
 import { formatNamespaceLoadersFile } from "./emit/namespace-loaders-file.js";
 import { formatTypesFile } from "./emit/types-file.js";
 import { analyzeDictionaries } from "./icu-analysis.js";
-import { collectRequestLocales, validateCodegenLocaleFallback } from "./locale-fallback.js";
+import { getDeliveryArtifactsIssues } from "./delivery-artifacts.js";
+import { collectRequestLocales, getCodegenLocaleFallbackIssues } from "./locale-fallback.js";
 import { enrichLocaleFallback } from "./locale-policy.js";
-import { fail, resolveImportExtension, toModuleBasename } from "./paths.js";
+import { reportCodegenIssues, resolveImportExtension, toModuleBasename } from "./paths.js";
 import { prepareDictionaryEntries } from "./read-dictionary.js";
+import { writeFileIfChanged } from "./write-file-if-changed.js";
 
+/**
+ * Codegen CLI entry point. Pipeline:
+ * config → analyze (ICU + types input) → validate locale/delivery policy →
+ * prepare artifacts (YAML→JSON, split) → resolve lazy/eager → emit generated .ts files.
+ */
 function main() {
   const configArgIndex = process.argv.indexOf("--config");
   const configPath = path.resolve(
@@ -24,41 +36,29 @@ function main() {
   const projectRoot = path.dirname(configPath);
 
   if (!fs.existsSync(configPath)) {
-    fail(`[Codegen Error] Config file not found: ${configPath}`);
+    throw new Error(`[Codegen Error] Config file not found: ${configPath}`);
   }
 
   const config = loadConfig(configPath);
   const sourceEntries = resolveNamespaces(config);
-  const generatedDirRelative = path.dirname(config.typesOutput);
-  let resolvedEntries;
-  let compiledFiles: string[];
-
-  try {
-    const prepared = prepareDictionaryEntries(projectRoot, sourceEntries, generatedDirRelative);
-    resolvedEntries = prepared.resolvedEntries;
-    compiledFiles = prepared.compiledFiles;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    fail(message);
-  }
-
-  const entries = resolvedEntries;
+  const deliveryOutputRelative = resolveDeliveryOutputDir(config);
+  const delivery = config.delivery ?? "canonical";
   const isSingle = Boolean(config.dictionary);
-  const { loadOnInitSet, lazyEntries, hasLazy } = resolveLoadOnInit(config, entries, isSingle);
 
-  const typesOutputPath = path.resolve(projectRoot, config.typesOutput);
-  const dictionaryOutputPath = path.resolve(projectRoot, config.dictionaryOutput);
-  const instanceOutputPath = path.resolve(projectRoot, config.instanceOutput);
-
-  const analysisResult = analyzeDictionaries(projectRoot, entries);
+  const analysisResult = analyzeDictionaries(projectRoot, sourceEntries);
   if (!analysisResult.ok) {
     process.exit(1);
   }
 
-  const { paramsByNamespace, argsSpecByNamespace, locales } = analysisResult.analysis;
+  const { paramsByNamespace, argsSpecByNamespace, locales, dictionariesByNamespace } =
+    analysisResult.analysis;
 
-  if (config.localeFallback && validateCodegenLocaleFallback(config.localeFallback, locales)) {
-    process.exit(1);
+  if (config.localeFallback) {
+    const localeFallbackIssues = getCodegenLocaleFallbackIssues(config.localeFallback, locales);
+    if (localeFallbackIssues.length > 0) {
+      reportCodegenIssues(localeFallbackIssues);
+      process.exit(1);
+    }
   }
 
   const paramsTypeName = config.paramsTypeName;
@@ -68,13 +68,54 @@ function main() {
   const localeFallbackTypeName = `${localeTypeName}Fallback`;
   const factoryName = config.factoryName ?? "createI18n";
   const importExtension = resolveImportExtension(config);
-  const typesModule = toModuleBasename(typesOutputPath);
 
   const requestLocales = collectRequestLocales(locales, config.localeFallback);
-  const requestLocaleUnion = [...requestLocales]
+  const requestLocalesList = [...requestLocales].sort();
+
+  if (delivery === "custom" && config.deliveryArtifacts) {
+    const deliveryArtifactsIssues = getDeliveryArtifactsIssues(
+      config.deliveryArtifacts,
+      requestLocales
+    );
+    if (deliveryArtifactsIssues.length > 0) {
+      reportCodegenIssues(deliveryArtifactsIssues);
+      process.exit(1);
+    }
+  }
+
+  const {
+    resolvedEntries: entries,
+    splitPathsByNamespace,
+    compiledFiles,
+  } = prepareDictionaryEntries(projectRoot, sourceEntries, deliveryOutputRelative, {
+    dictionariesByNamespace,
+    delivery,
+    localeFallback: config.localeFallback,
+    requestLocales: delivery === "split-by-locale" ? requestLocalesList : undefined,
+    deliveryArtifacts: delivery === "custom" ? config.deliveryArtifacts : undefined,
+  });
+
+  const { loadOnInitSet, lazyEntries, hasLazy } = resolveLoadOnInit(config, entries, isSingle);
+
+  const typesOutputPath = path.resolve(projectRoot, config.typesOutput);
+  const dictionaryOutputPath = path.resolve(projectRoot, config.dictionaryOutput);
+  const instanceOutputPath = path.resolve(projectRoot, config.instanceOutput);
+  const typesModule = toModuleBasename(typesOutputPath);
+
+  const requestLocaleUnion = requestLocalesList
     .sort()
     .map((locale) => `'${locale}'`)
     .join(" | ");
+
+  const deliveryAreaNames =
+    delivery === "custom" && config.deliveryArtifacts
+      ? Object.keys(config.deliveryArtifacts).sort()
+      : undefined;
+  const deliveryAreaTypeName =
+    delivery === "custom" ? schemaTypeName.replace(/Schema$/, "DeliveryArea") : undefined;
+  const deliveryAreaUnion = deliveryAreaNames
+    ? deliveryAreaNames.map((area) => `'${area}'`).join(" | ")
+    : undefined;
 
   const eagerEntries = hasLazy
     ? entries.filter((entry) => loadOnInitSet.has(entry.namespace))
@@ -97,6 +138,15 @@ function main() {
     localeFallback: localeFallbackForEmit,
     paramsByNamespace,
     requestLocaleUnion,
+    ...(deliveryAreaTypeName && deliveryAreaUnion
+      ? {
+          deliveryAreaTypeName,
+          deliveryAreaUnion,
+          ...(delivery === "custom" && config.deliveryArtifacts
+            ? { deliveryArtifacts: config.deliveryArtifacts }
+            : {}),
+        }
+      : {}),
     hasLazy,
     loadOnInitSet,
     lazyEntries,
@@ -111,7 +161,14 @@ function main() {
     dictionaryOutputPath,
     typesOutputPath,
     schemaTypeName,
+    localeTypeName,
     importExtension,
+    delivery,
+    splitPathsByNamespace,
+    ...(delivery === "split-by-locale" ? { requestLocales: requestLocalesList } : {}),
+    ...(delivery === "custom" && deliveryAreaTypeName && deliveryAreaNames
+      ? { deliveryAreaTypeName, deliveryAreaNames }
+      : {}),
   });
 
   const instanceContent = formatInstanceFile({
@@ -127,16 +184,12 @@ function main() {
     hasLocaleType: Boolean(requestLocaleUnion),
     namespaceNames: entries.map((entry) => entry.namespace),
     importExtension,
+    delivery,
   });
 
-  fs.mkdirSync(path.dirname(typesOutputPath), { recursive: true });
-  fs.writeFileSync(typesOutputPath, typesContent);
-
-  fs.mkdirSync(path.dirname(dictionaryOutputPath), { recursive: true });
-  fs.writeFileSync(dictionaryOutputPath, dictionaryContent);
-
-  fs.mkdirSync(path.dirname(instanceOutputPath), { recursive: true });
-  fs.writeFileSync(instanceOutputPath, instanceContent);
+  writeFileIfChanged(typesOutputPath, typesContent);
+  writeFileIfChanged(dictionaryOutputPath, dictionaryContent);
+  writeFileIfChanged(instanceOutputPath, instanceContent);
 
   const generatedFiles = [
     path.relative(projectRoot, typesOutputPath),
@@ -155,8 +208,7 @@ function main() {
       importExtension
     );
 
-    fs.mkdirSync(path.dirname(dictionarySchemaOutputPath), { recursive: true });
-    fs.writeFileSync(dictionarySchemaOutputPath, dictionarySchemaContent);
+    writeFileIfChanged(dictionarySchemaOutputPath, dictionarySchemaContent);
     generatedFiles.push(path.relative(projectRoot, dictionarySchemaOutputPath));
   }
 
@@ -170,16 +222,23 @@ function main() {
       ...entry,
       absolutePath: path.resolve(projectRoot, entry.filePath),
     }));
-    const namespaceLoadersContent = formatNamespaceLoadersFile(
-      namespaceLoadersOutputPath,
-      lazyEntriesWithPaths,
+    const namespaceLoadersContent = formatNamespaceLoadersFile({
+      loadersOutputPath: namespaceLoadersOutputPath,
+      lazyEntries: lazyEntriesWithPaths,
       schemaTypeName,
+      localeTypeName,
       typesModule,
-      importExtension
-    );
+      importExtension,
+      projectRoot,
+      delivery,
+      splitPathsByNamespace,
+      ...(delivery === "split-by-locale" ? { requestLocales: requestLocalesList } : {}),
+      ...(delivery === "custom" && deliveryAreaTypeName && deliveryAreaNames
+        ? { deliveryAreaTypeName, deliveryAreaNames }
+        : {}),
+    });
 
-    fs.mkdirSync(path.dirname(namespaceLoadersOutputPath), { recursive: true });
-    fs.writeFileSync(namespaceLoadersOutputPath, namespaceLoadersContent);
+    writeFileIfChanged(namespaceLoadersOutputPath, namespaceLoadersContent);
     generatedFiles.push(path.relative(projectRoot, namespaceLoadersOutputPath));
   }
 
@@ -189,4 +248,9 @@ function main() {
   }
 }
 
-main();
+try {
+  main();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}

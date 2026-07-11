@@ -1,5 +1,9 @@
 import { validateLocaleFallback } from "../resolve-locale.js";
 
+/**
+ * Union of locales found in dictionaries plus every locale referenced by `localeFallback`.
+ * Drives split-by-locale partitioning and the generated locale union type.
+ */
 export function collectRequestLocales(
   dictionaryLocales: Set<string>,
   fallback?: Record<string, string | null>
@@ -19,30 +23,35 @@ export function collectRequestLocales(
   return all;
 }
 
-export function validateCodegenLocaleFallback(
+export type LocaleFallbackIssue = {
+  path: (string | number)[];
+  message: string;
+};
+
+/** Pre-emit validation gate for `localeFallback` config against discovered dictionary locales. */
+export function getCodegenLocaleFallbackIssues(
   fallback: Record<string, string | null>,
   dictionaryLocales: Set<string>
-): boolean {
-  let hasErrors = false;
+): LocaleFallbackIssue[] {
+  const issues: LocaleFallbackIssue[] = [];
 
   try {
     validateLocaleFallback(fallback);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[Codegen Error] ${message}`);
-    hasErrors = true;
+    issues.push({ path: ["localeFallback"], message });
   }
 
   for (const [locale, target] of Object.entries(fallback)) {
     if (target !== null && !(target in fallback) && !dictionaryLocales.has(target)) {
-      console.error(
-        `[Codegen Error] localeFallback: "${locale}" points to "${target}" which is not defined in the fallback map or dictionary locales`
-      );
-      hasErrors = true;
+      issues.push({
+        path: ["localeFallback", locale],
+        message: `localeFallback: "${locale}" points to "${target}" which is not defined in the fallback map or dictionary locales`,
+      });
     }
   }
 
-  return hasErrors;
+  return issues;
 }
 
 export function formatLocaleFallbackBlock(

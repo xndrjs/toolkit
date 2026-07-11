@@ -5,8 +5,10 @@ import {
   codegenConfigSchema,
   formatCodegenConfigIssues,
 } from "./codegen-config-schema.js";
-import { fail } from "./paths.js";
 
+export { resolveDeliveryOutputDir } from "./codegen-config-schema.js";
+
+/** Parses and validates `i18n.codegen.json`; first step of the codegen pipeline. */
 export function loadConfig(configPath: string): CodegenConfig {
   let raw: unknown;
 
@@ -14,17 +16,18 @@ export function loadConfig(configPath: string): CodegenConfig {
     raw = JSON.parse(fs.readFileSync(configPath, "utf8"));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    fail(`[Codegen Error] Failed to parse config JSON (${configPath}): ${message}`);
+    throw new Error(`[Codegen Error] Failed to parse config JSON (${configPath}): ${message}`);
   }
 
   const result = codegenConfigSchema.safeParse(raw);
   if (!result.success) {
-    fail(formatCodegenConfigIssues(result.error));
+    throw new Error(formatCodegenConfigIssues(result.error));
   }
 
   return result.data;
 }
 
+/** Maps config to namespace entries (`dictionary` single vs `namespaces` multi). */
 export function resolveNamespaces(config: CodegenConfig): NamespaceEntry[] {
   const hasDictionary = Boolean(config.dictionary);
   const hasNamespaces = Boolean(config.namespaces);
@@ -50,6 +53,10 @@ export function resolveNamespaces(config: CodegenConfig): NamespaceEntry[] {
   }));
 }
 
+/**
+ * Splits namespaces into eager (`loadOnInit`) and lazy sets.
+ * Drives `InitialSchema`, `defaultDictionary`, and `namespace-loaders.generated.ts`.
+ */
 export function resolveLoadOnInit(
   config: CodegenConfig,
   entries: NamespaceEntry[],
@@ -57,7 +64,9 @@ export function resolveLoadOnInit(
 ): LoadOnInitResolution {
   if (isSingle) {
     if (config.loadOnInit) {
-      fail('[Codegen Error] "loadOnInit" is only supported in multi mode (namespaces config).');
+      throw new Error(
+        '[Codegen Error] "loadOnInit" is only supported in multi mode (namespaces config).'
+      );
     }
     const all = new Set(entries.map((entry) => entry.namespace));
     return { loadOnInitSet: all, lazyEntries: [], hasLazy: false };
@@ -70,7 +79,7 @@ export function resolveLoadOnInit(
 
   for (const namespace of loadOnInitSet) {
     if (!allNamespaces.has(namespace)) {
-      fail(
+      throw new Error(
         `[Codegen Error] loadOnInit: namespace "${namespace}" is not defined in namespaces config.`
       );
     }

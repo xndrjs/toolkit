@@ -1,16 +1,13 @@
-import { IntlMessageFormat } from "intl-messageformat";
 import { cloneAndFreeze } from "./deep-freeze.js";
-import {
-  formatLocaleFallbackChain,
-  resolveLocaleTemplate,
-  validateLocaleFallback,
-} from "./resolve-locale.js";
+import { resolveAndFormat } from "./format-core.js";
+import { validateLocaleFallback } from "./resolve-locale.js";
 import type {
   IcuTranslationProviderOptions,
   LocaleFallbackMap,
   LocaleOfMulti,
   MultiCompiledCache,
   MultiDictionary,
+  OnMissingTranslation,
 } from "./types.js";
 
 export interface TranslationProviderMultiForLocale<
@@ -68,17 +65,8 @@ export class IcuTranslationProviderMultiForLocale<
     key: K,
     ...args: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
   ): string {
-    return (
-      this.provider.get as <
-        NS extends keyof Schema,
-        K extends keyof Schema[NS] & keyof Params[NS] & string,
-      >(
-        namespace: NS,
-        key: K,
-        locale: Locale,
-        ...params: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
-      ) => string
-    )(namespace, key, this.locale, ...args);
+    const params = args[0] as Record<string, unknown> | undefined;
+    return this.provider.getWithLocale(String(namespace), String(key), this.locale, params);
   }
 }
 
@@ -91,6 +79,7 @@ export class IcuTranslationProviderMulti<
   private dictionary: Schema;
   private compiledCache: MultiCompiledCache = {};
   private readonly localeFallback?: Fallback;
+  private readonly onMissing: OnMissingTranslation;
   private loadedNamespaces: Set<string>;
 
   constructor(dictionary: Partial<Schema>, options?: IcuTranslationProviderOptions<Fallback>) {
@@ -100,6 +89,7 @@ export class IcuTranslationProviderMulti<
       validateLocaleFallback(options.localeFallback);
       this.localeFallback = options.localeFallback;
     }
+    this.onMissing = options?.onMissing ?? "throw";
   }
 
   get<NS extends keyof Schema, K extends keyof Schema[NS] & keyof Params[NS] & string>(
@@ -108,57 +98,47 @@ export class IcuTranslationProviderMulti<
     locale: RequestLocales,
     ...args: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
   ): string {
-    if (!this.loadedNamespaces.has(namespace as string)) {
-      throw new Error(
-        `[i18n] Namespace not loaded: "${String(namespace)}". Register it with setNamespace() before calling .get().`
-      );
-    }
-
     const params = args[0] as Record<string, unknown> | undefined;
+    return this.getWithLocale(String(namespace), String(key), locale, params);
+  }
+
+  getWithLocale(
+    namespace: string,
+    key: string,
+    locale: string,
+    params?: Record<string, unknown>
+  ): string {
+    if (!this.loadedNamespaces.has(namespace)) {
+      throw new Error(
+        `[i18n] Namespace not loaded: "${namespace}". Register it with setNamespace() before calling .get().`
+      );
+    }
+
     const localeByKey = (
-      this.dictionary[namespace as string] as Record<string, Record<string, string>>
+      this.dictionary[namespace] as Record<string, Record<string, string>> | undefined
     )?.[key];
-    const resolved = resolveLocaleTemplate(localeByKey, locale, this.localeFallback);
 
-    if (!resolved) {
-      const chain = formatLocaleFallbackChain(locale, this.localeFallback);
-      throw new Error(
-        `[i18n] Missing key or locale: namespace "${String(namespace)}", key "${String(key)}" [${locale}] (fallback chain: ${chain})`
-      );
-    }
-
-    const { template, resolvedLocale } = resolved;
-
-    if (!this.compiledCache[resolvedLocale]) {
-      this.compiledCache[resolvedLocale] = {};
-    }
-
-    if (!this.compiledCache[resolvedLocale][namespace as string]) {
-      this.compiledCache[resolvedLocale][namespace as string] = {};
-    }
-
-    const namespaceCache = this.compiledCache[resolvedLocale][namespace as string]!;
-    const cacheKey = String(key);
-
-    if (!namespaceCache[cacheKey]) {
-      try {
-        namespaceCache[cacheKey] = new IntlMessageFormat(template, resolvedLocale);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        throw new Error(
-          `[i18n ICU Syntax Error] namespace "${String(namespace)}", key "${String(key)}" [${resolvedLocale}]: ${message}`
-        );
-      }
-    }
-
-    try {
-      return namespaceCache[cacheKey].format(params) as string;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `[i18n Formatting Error] namespace "${String(namespace)}", key "${String(key)}" [${resolvedLocale}]: ${message}`
-      );
-    }
+    return resolveAndFormat({
+      localeByKey,
+      locale,
+      params,
+      getCache: (resolvedLocale) => {
+        if (!this.compiledCache[resolvedLocale]) {
+          this.compiledCache[resolvedLocale] = {};
+        }
+        if (!this.compiledCache[resolvedLocale]![namespace]) {
+          this.compiledCache[resolvedLocale]![namespace] = {};
+        }
+        return this.compiledCache[resolvedLocale]![namespace]!;
+      },
+      context: {
+        namespace,
+        key,
+        locale,
+        localeFallback: this.localeFallback,
+        onMissing: this.onMissing,
+      },
+    });
   }
 
   forLocale<Locale extends RequestLocales>(

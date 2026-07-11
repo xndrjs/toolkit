@@ -1,9 +1,10 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { codegenConfigKeys } from "./codegen-config-schema.js";
-import { loadConfig } from "./config.js";
+import { loadConfig, resolveDeliveryOutputDir, resolveLoadOnInit } from "./config.js";
+import { resolveImportExtension } from "./paths.js";
 
 function writeConfig(dir: string, config: Record<string, unknown>) {
   const configPath = join(dir, "i18n.codegen.json");
@@ -35,72 +36,206 @@ describe("loadConfig", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
     const configPath = writeConfig(tempDir, validMultiConfig);
 
-    expect(loadConfig(configPath)).toEqual(validMultiConfig);
+    expect(loadConfig(configPath)).toEqual({
+      ...validMultiConfig,
+      delivery: "canonical",
+    });
   });
 
-  it("fails on unknown top-level keys and reports allowed keys", () => {
+  it("throws on invalid config JSON", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = join(tempDir, "i18n.codegen.json");
+    writeFileSync(configPath, "{ not json");
+
+    expect(() => loadConfig(configPath)).toThrow(
+      `[Codegen Error] Failed to parse config JSON (${configPath})`
+    );
+  });
+
+  it("throws on unknown top-level keys and reports allowed keys", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
     const configPath = writeConfig(tempDir, {
       ...validMultiConfig,
       typoKey: true,
     });
 
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as typeof process.exit);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => void 0);
-
-    expect(() => loadConfig(configPath)).toThrow("process.exit");
-    expect(errorSpy).toHaveBeenCalled();
-
-    const message = String(errorSpy.mock.calls[0]?.[0]);
-    expect(message).toContain("Invalid i18n.codegen.json");
-    expect(message).toContain("typoKey");
-    expect(message).toContain(`Allowed keys: ${codegenConfigKeys.join(", ")}`);
-
-    exitSpy.mockRestore();
-    errorSpy.mockRestore();
+    const act = () => loadConfig(configPath);
+    expect(act).toThrow("Invalid i18n.codegen.json");
+    expect(act).toThrow("typoKey");
+    expect(act).toThrow(`Allowed keys: ${codegenConfigKeys.join(", ")}`);
   });
 
-  it("fails when both dictionary and namespaces are present", () => {
+  it("throws when both dictionary and namespaces are present", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
     const configPath = writeConfig(tempDir, {
       ...validMultiConfig,
       dictionary: "translations/default.json",
     });
 
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as typeof process.exit);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => void 0);
-
-    expect(() => loadConfig(configPath)).toThrow("process.exit");
-
-    const message = String(errorSpy.mock.calls[0]?.[0]);
-    expect(message).toContain('Specify exactly one of "dictionary" or "namespaces".');
-
-    exitSpy.mockRestore();
-    errorSpy.mockRestore();
+    expect(() => loadConfig(configPath)).toThrow(
+      'Specify exactly one of "dictionary" or "namespaces".'
+    );
   });
 
-  it("fails when required fields are missing", () => {
+  it("throws when required fields are missing", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
     const configPath = writeConfig(tempDir, {
       namespaces: validMultiConfig.namespaces,
     });
 
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as typeof process.exit);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => void 0);
+    const act = () => loadConfig(configPath);
+    expect(act).toThrow("typesOutput");
+    expect(act).toThrow("Allowed keys:");
+  });
 
-    expect(() => loadConfig(configPath)).toThrow("process.exit");
+  it("throws when a namespace name is not a valid identifier", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      namespaces: {
+        default: "translations/default.json",
+        "user-area": "translations/user-area.json",
+      },
+    });
 
-    const message = String(errorSpy.mock.calls[0]?.[0]);
-    expect(message).toContain("typesOutput");
-    expect(message).toContain("Allowed keys:");
+    expect(() => loadConfig(configPath)).toThrow(
+      'Invalid namespace name "user-area" (allowed: letters, digits, underscore; must not start with a digit).'
+    );
+  });
 
-    exitSpy.mockRestore();
-    errorSpy.mockRestore();
+  it("throws when defaultNamespace is not a valid identifier", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      defaultNamespace: "1default",
+    });
+
+    expect(() => loadConfig(configPath)).toThrow(
+      'defaultNamespace: Invalid namespace name "1default"'
+    );
+  });
+
+  it("accepts deliveryOutput for custom json artifact directory", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      deliveryOutput: "public/i18n",
+    });
+
+    expect(loadConfig(configPath)).toMatchObject({
+      deliveryOutput: "public/i18n",
+      delivery: "canonical",
+    });
+  });
+
+  it("resolveDeliveryOutputDir defaults to dirname(typesOutput)", () => {
+    expect(
+      resolveDeliveryOutputDir({
+        typesOutput: "generated/i18n-types.generated.ts",
+      })
+    ).toBe("generated");
+    expect(
+      resolveDeliveryOutputDir({
+        typesOutput: "generated/i18n-types.generated.ts",
+        deliveryOutput: "public/i18n",
+      })
+    ).toBe("public/i18n");
+  });
+
+  it("accepts custom delivery with deliveryArtifacts", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      delivery: "custom",
+      deliveryArtifacts: {
+        eu: ["it", "fr"],
+        us: ["en-US"],
+      },
+      localeFallback: {
+        "en-US": null,
+        it: "en-US",
+        fr: null,
+      },
+    });
+
+    expect(loadConfig(configPath)).toMatchObject({
+      delivery: "custom",
+      deliveryArtifacts: {
+        eu: ["it", "fr"],
+        us: ["en-US"],
+      },
+    });
+  });
+
+  it("throws when delivery is custom without deliveryArtifacts", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      delivery: "custom",
+    });
+
+    expect(() => loadConfig(configPath)).toThrow(
+      'deliveryArtifacts is required when delivery is "custom"'
+    );
+  });
+
+  it("throws when deliveryArtifacts is set for non-custom delivery", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      delivery: "split-by-locale",
+      deliveryArtifacts: {
+        eu: ["it"],
+      },
+    });
+
+    expect(() => loadConfig(configPath)).toThrow(
+      'deliveryArtifacts is only allowed when delivery is "custom"'
+    );
+  });
+
+  it("throws when deliveryArtifacts has duplicate locales across areas", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      delivery: "custom",
+      deliveryArtifacts: {
+        eu: ["it", "fr"],
+        us: ["fr"],
+      },
+    });
+
+    expect(() => loadConfig(configPath)).toThrow('Locale "fr" appears in both "eu" and "us"');
+  });
+});
+
+describe("resolveLoadOnInit", () => {
+  const entries = [
+    { namespace: "default", filePath: "translations/default.json" },
+    { namespace: "billing", filePath: "translations/billing.json" },
+  ];
+
+  it("throws when loadOnInit is used in single mode", () => {
+    const config = { ...validMultiConfig, delivery: "canonical" as const, loadOnInit: ["default"] };
+
+    expect(() => resolveLoadOnInit(config, entries, true)).toThrow(
+      '[Codegen Error] "loadOnInit" is only supported in multi mode (namespaces config).'
+    );
+  });
+
+  it("throws when loadOnInit references an unknown namespace", () => {
+    const config = { ...validMultiConfig, delivery: "canonical" as const, loadOnInit: ["missing"] };
+
+    expect(() => resolveLoadOnInit(config, entries, false)).toThrow(
+      '[Codegen Error] loadOnInit: namespace "missing" is not defined in namespaces config.'
+    );
+  });
+});
+
+describe("resolveImportExtension", () => {
+  it("throws on unsupported import extensions", () => {
+    expect(() => resolveImportExtension({ importExtension: ".mjs" as never })).toThrow(
+      '[Codegen Error] importExtension must be "none", ".ts", or ".js", got ".mjs".'
+    );
   });
 });

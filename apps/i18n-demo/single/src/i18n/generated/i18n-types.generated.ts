@@ -24,4 +24,15 @@ export type MyProjectParams = {
   meeting_time: { startTime: Date | number };
 };
 
-export type MyProjectSchema = typeof import("../translations/translations.json");
+export type MyProjectSchema = {
+  login_button: Partial<Record<MyProjectLocale, string>>;
+  welcome: Partial<Record<MyProjectLocale, string>>;
+  dashboard_status: Partial<Record<MyProjectLocale, string>>;
+  inbox_owner: Partial<Record<MyProjectLocale, string>>;
+  ranking_position: Partial<Record<MyProjectLocale, string>>;
+  account_balance: Partial<Record<MyProjectLocale, string>>;
+  appointment_summary: Partial<Record<MyProjectLocale, string>>;
+  invoice_due_long: Partial<Record<MyProjectLocale, string>>;
+  discount_rate: Partial<Record<MyProjectLocale, string>>;
+  meeting_time: Partial<Record<MyProjectLocale, string>>;
+};

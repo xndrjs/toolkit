@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseAuditArgs, runAuditCli } from "./run-audit.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -116,6 +116,40 @@ describe("runAuditCli", () => {
       expect(report.missingEffectiveByLocale.default.en).toEqual([]);
     } finally {
       process.chdir(previousCwd);
+    }
+  });
+
+  it("exits 2 with an error message when the config is invalid", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-audit-"));
+    mkdirSync(join(tempDir, "i18n"), { recursive: true });
+    writeFileSync(
+      join(tempDir, "i18n/i18n.codegen.json"),
+      JSON.stringify({ namespaces: { default: "translations/default.json" } })
+    );
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => void 0);
+    const previousCwd = process.cwd();
+    process.chdir(tempDir);
+    try {
+      const exitCode = await runAuditCli(["--config", "i18n/i18n.codegen.json"]);
+      expect(exitCode).toBe(2);
+      expect(String(errorSpy.mock.calls[0]?.[0])).toContain("Invalid i18n.codegen.json");
+    } finally {
+      process.chdir(previousCwd);
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("exits 2 with an error message when --fail-on has an invalid value", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => void 0);
+    try {
+      const exitCode = await runAuditCli(["--fail-on", "bogus"]);
+      expect(exitCode).toBe(2);
+      expect(String(errorSpy.mock.calls[0]?.[0])).toContain(
+        "[Audit Error] --fail-on must be one of: effective, direct, any"
+      );
+    } finally {
+      errorSpy.mockRestore();
     }
   });
 

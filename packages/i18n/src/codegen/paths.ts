@@ -6,10 +6,10 @@ import { CodegenConfig } from "./codegen-config-schema.js";
 export const GENERATED_FILE_BANNER = "// Automatically generated code. Do not edit manually.\n";
 export const DEFAULT_IMPORT_EXTENSION: ImportExtension = "none";
 
-export function fail(message: string): never {
-  console.error(message);
-  process.exit(1);
-  throw new Error(message);
+export function reportCodegenIssues(issues: readonly { message: string }[]): void {
+  for (const issue of issues) {
+    console.error(`[Codegen Error] ${issue.message}`);
+  }
 }
 
 export function toImportPath(fromFile: string, toFile: string): string {
@@ -27,7 +27,7 @@ export function resolveImportExtension(
 ): ImportExtension {
   const extension = config.importExtension ?? DEFAULT_IMPORT_EXTENSION;
   if (!SUPPORTED_IMPORT_EXTENSIONS.includes(extension)) {
-    fail(
+    throw new Error(
       `[Codegen Error] importExtension must be "none", ".ts", or ".js", got ${JSON.stringify(extension)}.`
     );
   }
@@ -51,4 +51,8 @@ export function toImportIdentifier(namespace: string): string {
     return `ns_${safe}`;
   }
   return `${safe}Ns`;
+}
+
+export function toLocaleObjectKey(locale: string): string {
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(locale) ? locale : JSON.stringify(locale);
 }

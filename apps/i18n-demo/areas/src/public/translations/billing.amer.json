@@ -1,0 +1,10 @@
+{
+  "invoice_summary": {
+    "en-US": "You have {count, plural, one {1 invoice} other {# invoices} }",
+    "es-AR": "Tienes {count, plural, one {1 factura} other {# facturas} }"
+  },
+  "account_balance": {
+    "en-US": "Balance: {amount, number, ::currency/USD}",
+    "es-AR": "Saldo: {amount, number, ::currency/EUR}"
+  }
+}

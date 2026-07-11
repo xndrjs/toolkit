@@ -1,0 +1,8 @@
+{
+  "profile_title": {
+    "it": "Il tuo profilo"
+  },
+  "greeting": {
+    "it": "Ciao {name}!"
+  }
+}

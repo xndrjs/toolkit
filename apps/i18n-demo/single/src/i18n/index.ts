@@ -5,4 +5,7 @@ export * from "./generated/instance.generated";
 export * from "./generated/dictionary.generated";
 export * from "./generated/i18n-types.generated";
 
-export const i18n = createI18n(defaultDictionary);
+export const i18n = createI18n(defaultDictionary, {
+  onMissing: ({ key, locale, fallbackChain }) =>
+    `¯\\_(ツ)_/¯ no "${key}" for ${locale} (tried ${fallbackChain})`,
+});

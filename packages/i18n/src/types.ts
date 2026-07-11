@@ -18,15 +18,30 @@ export type LocaleOfMulti<Schema extends MultiDictionary> = {
 
 export type LocaleFallbackMap = Record<string, string | null>;
 
-export type RequestLocale<
-  DictionaryLocale extends string,
-  Fallback extends LocaleFallbackMap | undefined = undefined,
-> = DictionaryLocale | (Fallback extends LocaleFallbackMap ? keyof Fallback & string : never);
+export type MissingTranslationContext = {
+  /** Only set by the multi-namespace provider. */
+  namespace?: string;
+  key: string;
+  locale: string;
+  fallbackChain: string;
+};
+
+export type OnMissingTranslation =
+  | "throw"
+  | "key"
+  | ((context: MissingTranslationContext) => string);
 
 export type IcuTranslationProviderOptions<
   Fallback extends LocaleFallbackMap | undefined = undefined,
 > = {
   localeFallback?: Fallback;
+  /**
+   * Strategy when no template resolves for a key/locale (after walking the
+   * fallback chain). "throw" (default) raises an error, "key" returns the
+   * translation key itself, a function receives the context and returns the
+   * string to display. ICU syntax and formatting errors always throw.
+   */
+  onMissing?: OnMissingTranslation;
 };
 
 export type LocaleCache = Record<string, IntlMessageFormat>;

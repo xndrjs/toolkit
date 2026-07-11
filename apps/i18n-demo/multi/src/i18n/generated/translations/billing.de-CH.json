@@ -1,0 +1,26 @@
+{
+  "invoice_summary": {
+    "de-CH": "You have {count, plural, one {1 invoice} other {# invoices} }"
+  },
+  "account_balance": {
+    "de-CH": "Balance: {amount, number, ::currency/EUR}"
+  },
+  "appointment_summary": {
+    "de-CH": "Due {dueDate, date, short}\nat {startTime, time, short}"
+  },
+  "invoice_due_long": {
+    "de-CH": "Payment due on {dueDate, date, ::yMMMMd}"
+  },
+  "discount_rate": {
+    "de-CH": "Save {rate, number, ::percent} today"
+  },
+  "meeting_time": {
+    "de-CH": "Call at {startTime, time, ::HHmm} UTC"
+  },
+  "payment_notice_html": {
+    "de-CH": "Pay '<strong>'{amount, number, ::currency/EUR}'</strong>' by '<em>'{dueDate, date, short}'</em>'."
+  },
+  "refund_policy_markdown": {
+    "de-CH": "# Refund policy\n\n## Overview\n\nContact support within **{days, number} days** of purchase.\n\n### What's covered\n\n- Active subscriptions\n- One-time purchases\n- Plan upgrades\n\nRead our [terms of service](https://example.com/terms) or email [support](mailto:support@example.com).\n\n***Note:*** refunds may take *5-10 business days*.\n\n#### Documentation\n\nSee also the [billing FAQ](/billing/faq) and the `refund-flow` guide.\n\n> Partial refunds are reviewed case by case.\n"
+  }
+}

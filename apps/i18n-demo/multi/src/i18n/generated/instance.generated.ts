@@ -1,13 +1,17 @@
 // Automatically generated code. Do not edit manually.
 import {
   IcuTranslationProviderMulti,
-  projectLocales as projectLocalesCore,
-  projectNamespacesLocales as projectNamespacesLocalesCore,
+  projectNamespaceLocalesCore,
+  projectDictionaryLocalesCore,
+  type OnMissingTranslation,
 } from "@xndrjs/i18n";
 import type { MyProjectParams, MyProjectSchema, InitialSchema } from "./i18n-types.generated";
 import { LOCALE_FALLBACK, type MyProjectLocale } from "./i18n-types.generated";
 
-export function createI18n(dictionary: InitialSchema) {
+export function createI18n(
+  dictionary: InitialSchema,
+  options?: { onMissing?: OnMissingTranslation }
+) {
   return new IcuTranslationProviderMulti<
     MyProjectSchema,
     MyProjectParams,
@@ -15,14 +19,15 @@ export function createI18n(dictionary: InitialSchema) {
     typeof LOCALE_FALLBACK
   >(dictionary, {
     localeFallback: LOCALE_FALLBACK,
+    ...options,
   });
 }
 
-export function projectLocales(
+export function projectDictionaryLocales(
   dictionary: MyProjectSchema,
   locales: readonly MyProjectLocale[]
 ): MyProjectSchema {
-  return projectNamespacesLocalesCore(dictionary, locales, LOCALE_FALLBACK);
+  return projectDictionaryLocalesCore(dictionary, locales, LOCALE_FALLBACK);
 }
 
 export function projectNamespaceLocales(
@@ -41,5 +46,5 @@ export function projectNamespaceLocales(
   dictionary: MyProjectSchema[keyof MyProjectSchema],
   locales: readonly MyProjectLocale[]
 ): MyProjectSchema[keyof MyProjectSchema] {
-  return projectLocalesCore(dictionary, locales, LOCALE_FALLBACK);
+  return projectNamespaceLocalesCore(dictionary, locales, LOCALE_FALLBACK);
 }
