@@ -138,47 +138,6 @@ const label = snapshot.default.login_button.en;
 Codegen gives you precise types for the happy path. `getAll()` keeps
 escape hatches open for tooling that genuinely needs to iterate.
 
-<<<<<<< HEAD
-
-### Build-time values are defaults, not prisons
-
-Local JSON files are **typed fallbacks**, not the only source of truth forever.
-
-At runtime you can replace the entire dictionary or patch a single namespace:
-
-```ts
-// Full override — replaces everything, clears the compilation cache
-i18n.setAll(externalPayload);
-
-// Partial patch — updates one namespace, invalidates only its cache entries
-i18n.setNamespace("billing", externalBillingPayload);
-```
-
-Compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode). Overrides invalidate the relevant cache entries so the next `.get()` picks up fresh strings.
-
-When translations arrive from a CMS, validate before hydrating:
-
-```ts
-import { formatIssues } from "@xndrjs/i18n/validation";
-import { validateExternalDictionary } from "./i18n/generated/dictionary-schema.generated.js";
-
-const raw: unknown = await loadTranslations();
-const result = validateExternalDictionary(raw);
-
-if (!result.ok) {
-  console.error(formatIssues(result.issues));
-  return;
-}
-
-i18n.setAll(result.data);
-```
-
-Codegen can emit Zod-backed validators that check both structure and ICU parameter compatibility against your static `Params` schema. Malformed remote payloads fail at the boundary — not inside a random component three layers deep.
-
-=======
-
-> > > > > > > main
-
 ### ICU MessageFormat — grammar lives in the template
 
 Pluralization and gendered phrasing are where naive i18n approaches start to hurt.
