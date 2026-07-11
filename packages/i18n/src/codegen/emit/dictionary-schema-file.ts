@@ -14,6 +14,7 @@ function formatVariableSpecObject(spec: VariableSpec): string {
   return `{\n${lines.join("\n")}\n    }`;
 }
 
+/** Builds the `DICTIONARY_SPEC` constant from ICU analysis output (keys + variable args). */
 export function formatDictionarySpecBlock(
   isSingle: boolean,
   entries: NamespaceEntry[],
@@ -66,6 +67,10 @@ export function formatDictionarySpecBlock(
   );
 }
 
+/**
+ * Emits the optional dictionary-schema module: `DICTIONARY_SPEC` plus thin wrappers
+ * around `@xndrjs/i18n/validation` for external dictionary ingestion.
+ */
 export function formatDictionarySchemaFile(
   schemaTypeName: string,
   typesModule: string,

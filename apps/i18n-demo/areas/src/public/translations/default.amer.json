@@ -1,0 +1,14 @@
+{
+  "some_key": {
+    "en-US": "Hello",
+    "es-AR": "¿Qué tal, che?"
+  },
+  "some_other_key": {
+    "en-US": "Computer",
+    "es-AR": "Computadora"
+  },
+  "welcome": {
+    "en-US": "Welcome {name}!",
+    "es-AR": "¡Bienvenido {name}!"
+  }
+}

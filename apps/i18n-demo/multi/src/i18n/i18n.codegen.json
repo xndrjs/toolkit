@@ -1,4 +1,5 @@
 {
+  "delivery": "split-by-locale",
   "namespaces": {
     "default": "translations/default.json",
     "user": "translations/user.json",

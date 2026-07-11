@@ -1,5 +1,5 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
-import { i18n, dictionary } from "./i18n";
+import { i18n, defaultDictionary } from "./i18n";
 import { validateExternalDictionary } from "./i18n/generated/dictionary-schema.generated";
 
 export function exampleSingleFileUsage(): void {
@@ -50,6 +50,8 @@ export function exampleSingleFileUsage(): void {
       startTime: new Date("2026-07-01T13:30:00Z"),
     })
   );
+
+  console.log("ghost_key @ en (onMissing: custom):", i18n.get("ghost_key" as "login_button", "en"));
 }
 
 export async function exampleExternalDictionaryHydration(): Promise<void> {
@@ -67,7 +69,7 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 }
 
 async function loadExternalTranslations(): Promise<unknown> {
-  return dictionary;
+  return defaultDictionary;
 }
 
 exampleSingleFileUsage();

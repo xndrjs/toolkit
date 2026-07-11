@@ -1,6 +1,6 @@
 ---
-title: "Type-safe i18n with runtime overrides: why I built @xndrjs/i18n"
-description: The real needs behind a modern i18n library — type-safe keys and parameters, CMS-friendly runtime updates, ICU MessageFormat, and lazy namespace loading.
+title: "Type-safe i18n and flexible delivery: why I built @xndrjs/i18n"
+description: The real needs behind a modern i18n library — type-safe keys and parameters, ICU MessageFormat, lazy namespace loading, and per-locale delivery.
 date: 2026-07-05
 author: Fabio Fognani
 tags:
@@ -11,11 +11,11 @@ tags:
 
 Every frontend project eventually needs translations. The first integration is usually quick: pick a library, drop JSON files in a folder, wire up a hook or a helper, ship.
 
-Then the product grows. Editorial teams want to change copy without waiting for a deploy. Pluralization rules get weird. Someone typos a key in a component and nothing fails until QA. A mega-site starts shipping every locale in the initial bundle because nobody planned for lazy loading.
+Then the product grows. Pluralization rules get weird. Someone typos a key in a component and nothing fails until QA. A mega-site starts shipping every locale in the initial bundle because nobody planned how translations should be split and loaded.
 
-Those are not exotic edge cases. They are the normal lifecycle of i18n in a TypeScript codebase tied to a CMS.
+Those are not exotic edge cases. They are the normal lifecycle of i18n in a TypeScript codebase.
 
-I built [`@xndrjs/i18n`](https://github.com/xndrjs/toolkit/tree/main/packages/i18n) to address them directly — compiler-first, ICU-native, and designed for runtime dictionary overrides without giving up type safety.
+I built [`@xndrjs/i18n`](https://github.com/xndrjs/toolkit/tree/main/packages/i18n) to address them directly — compiler-first, ICU-native, and explicit about how dictionaries move from authoring to delivery and runtime.
 
 Here is the problem map, and how the library maps back to it.
 
@@ -54,29 +54,27 @@ Some translations are static labels. Many are not.
 
 Miss `{ name }` on `welcome` and you get a broken string at runtime. Pass a string where a plural rule expects a number and ICU formatting fails. TypeScript can catch both — but only if something connects the JSON templates to your call sites.
 
-### 3. Runtime updates — editorial copy should not require a full rebuild
+### 3. Flexible delivery — author once, ship only what is needed
 
-In a CMS-driven product, labels change constantly. A marketing team tweaks a CTA. Legal updates a disclaimer. Product renames a feature.
+Authoring and delivery have different needs. Authors and translators benefit from one canonical multilocale dictionary per domain: they can see the full context, codegen can infer one contract, and audit can inspect one source of truth.
 
-If translations live only inside static JSON bundled at build time, every label change flows through the same pipeline as a code change: commit, CI, deploy. On a large editorial site that is expensive noise.
+Users should not have to download that full matrix. A session usually needs one locale, or at most a small regional group. Delivery therefore needs to be able to materialize:
 
-What you want instead:
+- one multilocale file per namespace for small applications
+- one file per namespace and locale
+- custom slices for regions or locale families
 
-- **Local JSON as typed fallbacks** — the app still works offline, in tests, and on first paint.
-- **Runtime hydration** — fetch updated strings from a CMS or API and swap them in without rebuilding.
-- **Validation at the boundary** — external payloads are `unknown` until you prove they match the expected shape.
-
-The build-time dictionary defines the contract. The runtime dictionary can override the values.
+The source dictionary stays canonical. Codegen decides how to project it into artifacts for a JavaScript bundle, static host, or CDN.
 
 ### 4. Lazy loading — when "all translations upfront" does not scale
 
 A small app can afford to ship every locale in the initial bundle. A product with dozens of namespaces — onboarding, billing, admin, marketing, error pages — cannot.
 
-Lazy loading translations by route or feature reduces:
+Lazy loading translations by route, feature, and locale reduces:
 
 - initial JavaScript bundle size
 - time-to-interactive on first visit
-- wasted fetch for locales and domains the user may never open
+- wasted network transfers for locales and domains the user may never open
 
 The catch: lazy loading must be **explicit**. Silent fallbacks to missing keys hide integration bugs. You want a clear signal when a namespace was not loaded yet, not a blank label in production.
 
@@ -119,7 +117,7 @@ Add a key to a dictionary file, re-run codegen, and TypeScript flags every call 
 Codegen runs in one of two modes — you pick at config time, and the
 generated API follows. Small project? **Single file** — one dictionary, two-argument `.get(key, locale)`.
 
-Large project? **Multi-namespace** — split by domain (`default`, `billing`, …), three-argument `.get(namespace, key, locale)`, plus `setNamespace()` and `loadOnInit` for lazy loading.
+Large project? **Multi-namespace** — split by domain (`default`, `billing`, …), three-argument `.get(namespace, key, locale)`, plus `loadOnInit` and generated loaders for lazy loading.
 
 Same runtime, different generated API:
 
@@ -139,6 +137,8 @@ const label = snapshot.default.login_button.en;
 
 Codegen gives you precise types for the happy path. `getAll()` keeps
 escape hatches open for tooling that genuinely needs to iterate.
+
+<<<<<<< HEAD
 
 ### Build-time values are defaults, not prisons
 
@@ -174,6 +174,10 @@ i18n.setAll(result.data);
 ```
 
 Codegen can emit Zod-backed validators that check both structure and ICU parameter compatibility against your static `Params` schema. Malformed remote payloads fail at the boundary — not inside a random component three layers deep.
+
+=======
+
+> > > > > > > main
 
 ### ICU MessageFormat — grammar lives in the template
 
@@ -231,13 +235,35 @@ The codegen step parses ICU syntax and infers parameter types:
 
 One key. One parameter object. Grammar lives in the string where translators expect it.
 
-### Lazy loading by namespace — with explicit errors
+### From canonical authoring to flexible delivery
 
-In multi-namespace mode, you can split dictionaries across chunks. List only the namespaces you need at startup in `loadOnInit`; everything else loads on demand:
+Authoring is always the same: one multilocale JSON or YAML file per namespace, edited in the repository or synchronized from another system.
+
+```json
+{
+  "welcome": { "en": "Welcome {name}!", "it": "Benvenuto {name}!" },
+  "login_button": { "en": "Login", "it": "Accedi" }
+}
+```
+
+Codegen reads those canonical files for types, parameter inference, fallback, and audit. The `delivery` option controls only the generated artifacts:
+
+| `delivery`          | What is generated                     | Typical use                                     |
+| ------------------- | ------------------------------------- | ----------------------------------------------- |
+| `"canonical"`       | One multilocale file per namespace    | Small apps, few locales, simple bundles         |
+| `"split-by-locale"` | One file per namespace and locale     | One language per session, CDN caching by locale |
+| `"custom"`          | One file per namespace and named area | Regional bundles or grouped language variants   |
+
+This separation matters: optimizing delivery does not create a second authoring format or a second source of truth.
+
+### Split by locale with generated namespace loaders
+
+In multi-namespace mode, list only the namespaces needed at startup in `loadOnInit`. Set `delivery` to `split-by-locale` and codegen emits one JSON artifact for every lazy namespace and locale, plus typed `namespaceLoaders`:
 
 ```json
 // i18n/i18n.codegen.json
 {
+  "delivery": "split-by-locale",
   "namespaces": {
     "default": "translations/default.json",
     "billing": "translations/billing.yaml",
@@ -248,22 +274,82 @@ In multi-namespace mode, you can split dictionaries across chunks. List only the
 }
 ```
 
-Codegen emits typed `namespaceLoaders` — dynamic `import()` per lazy namespace. Register with `setNamespace()` (optionally after `projectNamespaceLocales`). For CMS/API payloads, fetch and validate yourself, then `setNamespace()`.
+The generated files look like this:
+
+```text
+generated/translations/
+├── billing.en.json
+├── billing.it.json
+├── admin.en.json
+└── admin.it.json
+```
+
+Each loader accepts only a known locale and resolves to the exact schema for its namespace. Preload the namespace before rendering the feature that uses it:
 
 ```ts
 import { i18n, namespaceLoaders } from "./i18n";
 
 i18n.get("default", "login_button", "en"); // available immediately
 
-if (!i18n.hasNamespace("billing")) {
-  i18n.setNamespace("billing", await namespaceLoaders.billing());
-}
+const billing = await namespaceLoaders.billing("en");
+i18n.setNamespace("billing", billing);
+
 i18n.get("billing", "invoice_summary", "en", { count: 12 });
 ```
 
-Of course, `.get()` stays synchronous — preload _before_ rendering. If you forget, the library throws explicitly instead of returning an empty string.
+`.get()` stays synchronous. The async boundary belongs to route or feature loading; if you render before preloading, the library throws an explicit “namespace not loaded” error instead of returning an empty label.
 
-Bundle size depends on how many namespaces and locales you choose to ship. Lazy namespaces and runtime projection (below) let you keep both under control.
+The loader is generated as a finite switch of dynamic imports:
+
+```ts
+export const namespaceLoaders = {
+  billing: (locale: MyProjectLocale) => {
+    switch (locale) {
+      case "en":
+        return import("./translations/billing.en.json").then((m) => m.default);
+      case "it":
+        return import("./translations/billing.it.json").then((m) => m.default);
+    }
+  },
+};
+```
+
+That detail has different consequences on the client and server:
+
+- **Client-side bundling:** bundlers can see every literal import target and emit a separate chunk for each namespace-locale pair. The initial bundle contains the loader map, not every translation value. Calling `namespaceLoaders.billing("it")` triggers a network request for the Italian billing chunk the first time it is needed; normal browser and CDN caching applies afterward.
+- **Server-side bundling:** the same dynamic import defers module evaluation, but it does not automatically mean a browser fetch. In a bundled server deployment, the JSON may become a server chunk loaded from the deployment filesystem; in an unbundled Node.js deployment, it is resolved directly from disk. This can reduce eagerly loaded code and memory, but the bundler and deployment target decide whether it changes the total server artifact size.
+- **SSR and hydration:** loading a namespace on the server does not by itself make that module available in the browser. If the hydrated client needs to translate the same feature, it will load its own client chunk unless you serialize the required dictionary into the page and adopt a separate hydration strategy.
+
+Dynamic `import()` is therefore a code-splitting boundary.
+
+### Custom delivery areas
+
+`"delivery": "custom"` uses the same loader model but groups locales into named artifacts that match product or infrastructure boundaries:
+
+```json
+{
+  "delivery": "custom",
+  "deliveryArtifacts": {
+    "eu": ["it", "fr", "es", "en"],
+    "amer": ["en-US", "es-AR"]
+  },
+  "namespaces": {
+    "default": "translations/default.json",
+    "billing": "translations/billing.yaml"
+  }
+}
+```
+
+Codegen produces `billing.eu.json`, `billing.amer.json`, and equivalent files for the other namespaces. The generated loader accepts the typed area name:
+
+```ts
+const billing = await namespaceLoaders.billing("amer");
+i18n.setNamespace("billing", billing);
+```
+
+Areas can follow geography (`emea`, `amer`, `apac`) or group sibling locales (`es`, `es-MX`, `es-AR`). Fallback is resolved while codegen projects each artifact, so a regional slice can receive values inherited from a parent locale without carrying that parent as a separate runtime locale.
+
+The practical rule is simple: use canonical delivery while dictionaries are modest, split by locale when a session needs one language, and use custom areas when your CDN, backend, or regional deployment naturally ships a small locale group.
 
 ### YAML authoring
 
@@ -280,7 +366,7 @@ invoice_summary:
     }
 ```
 
-Mixed namespaces (i.e. `default.json` + `billing.yaml`) work out of the box. Authoring details — block scalars, generated output layout, CMS validation — are in the [i18n docs](/v0/infrastructure/i18n/).
+Mixed namespaces (i.e. `default.json` + `billing.yaml`) work out of the box. Authoring details — block scalars and generated output layout — are in the [i18n docs](/v0/infrastructure/i18n/).
 
 ---
 
@@ -344,34 +430,11 @@ Real products rarely ship every string in every locale on day one. **Partial loc
 
 Codegen emits `LOCALE_FALLBACK` and wires it into `createI18n(dictionary)`. If the chain cannot resolve a key, `.get()` throws with the path it tried.
 
-### `projectLocales`
+### Fallback inside delivery slices
 
-Lazy namespaces split the dictionary by **domain** — billing does not ship with the landing page. That helps, but each loaded namespace still carries **every locale** for every key. In production you usually render **one locale at a time** (sometimes a small regional group — i.e. APAC — not thirty languages at once).
+With split-by-locale or custom delivery, fallback is applied when codegen materializes each slice. For example, `de-CH` can inherit missing values from `de-DE` and then `en`, while `billing.de-CH.json` still contains only the effective `de-CH` dictionary the runtime needs.
 
-Codegen emits typed helpers: **`projectLocales`** for the full schema (`setAll`), and in multi mode **`projectNamespaceLocales`** for one namespace (`setNamespace`). Both keep only the locales you pass in and resolve `LOCALE_FALLBACK` like `.get()`.
-
-```ts
-import {
-  createI18n,
-  projectNamespaceLocales,
-  projectLocales,
-} from "./i18n/generated/instance.generated.js";
-import { defaultDictionary } from "./i18n/generated/dictionary.generated.js";
-
-const i18n = createI18n(defaultDictionary);
-i18n.setNamespace("billing", projectNamespaceLocales(billingDictionary, [userLocale]));
-i18n.setAll(projectLocales(fullDictionary, [userLocale])); // multi: all namespaces
-```
-
-Typical ways to use it:
-
-1. **On-demand API** — an endpoint receives `locale` (and namespace), loads the full dictionary from your CMS or storage, runs `projectNamespaceLocales` (or `projectLocales` for the full schema), returns JSON.
-
-2. **Cache per locale** — at build or sync time, precompute with `projectNamespaceLocales` and store in Redis. Each request fetches a small blob instead of the full multilingual file.
-
-3. **Static files in `public/`** — codegen compiles YAML/JSON; a build step writes `public/i18n/billing.de-CH.json`, `public/i18n/billing.it.json`, etc. The app fetches the file for the active locale and passes it to `setNamespace` after validation.
-
-Same pattern everywhere: **full dictionary as source of truth**, **projected slice at the boundary**, typed hydration at runtime.
+That keeps the runtime payload small without changing the canonical authoring files or weakening fallback guarantees.
 
 ### Translation audit
 
@@ -389,13 +452,13 @@ Report-only by default; `--fail-on effective`, `direct`, or `any` gates CI. Fiel
 
 ## Final words
 
-`@xndrjs/i18n` is a small, deliberate stack: ICU dictionaries (JSON or YAML at authoring time) as the source of truth, codegen that turns templates into TypeScript contracts, and a runtime provider that formats, caches, overrides, and fails loudly when something is wrong.
+`@xndrjs/i18n` is a small, deliberate stack: canonical ICU dictionaries (JSON or YAML at authoring time) as the source of truth, codegen that turns templates into TypeScript contracts and delivery artifacts, and a runtime provider that formats, caches, and fails loudly when something is wrong.
 
 There are no React, Vue, or Next.js wrappers — on purpose. The vanilla API is a typed provider with `.get()`, `forLocale()`, and optional async preload: enough to wire into any framework with a thin hook or context of your own. `@xndrjs/i18n` does not barge into your stack with opinionated lifecycle or rendering assumptions. You import `createI18n(dictionary)`, call it where it fits, and keep your UI layer in charge.
 
-Runtime overrides and optional Zod validation mean editorial workflows do not have to fight your deploy pipeline. Local JSON keeps tests and first paint predictable; a CMS payload can replace or patch the dictionary when it arrives. The same primitives stay flexible enough to match however your project splits and fetches translations — lazy namespaces, per-locale projection, API hydration — and scale with you as those policies evolve.
+The delivery shape can evolve independently from authoring: start with canonical files, move to per-locale chunks as the language matrix grows, or introduce named regional areas when infrastructure demands it. Generated namespace loaders keep those boundaries typed and make the asynchronous part explicit.
 
-If i18n in your project has been "fine until it wasn't" — typos shipping silently, plural keys multiplying, every label change waiting on CI — this is the shape of tooling you wanted: strict where it helps, flexible where products actually live.
+If i18n in your project has been "fine until it wasn't" — typos shipping silently, plural keys multiplying, every visitor downloading every locale — this is the shape of tooling you wanted: strict where it helps, flexible where products actually live.
 
 ---
 
@@ -403,4 +466,4 @@ If i18n in your project has been "fine until it wasn't" — typos shipping silen
 
 - [Docs: i18n](/v0/infrastructure/i18n/)
 - [GitHub: @xndrjs/i18n](https://github.com/xndrjs/toolkit/tree/main/packages/i18n)
-- [Related: Generating Zod schemas from Contentful](/latest/blog/generating-zod-schemas-from-contentful/)
+- [Related: Generating Zod schemas from Contentful](/blog/generating-zod-schemas-from-contentful/)

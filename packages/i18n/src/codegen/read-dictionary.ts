@@ -1,8 +1,21 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { IDENTIFIER_NAME_PATTERN, IDENTIFIER_NAME_REQUIREMENT } from "./constants.js";
+import type { DeliveryMode } from "./codegen-config-schema.js";
+import type { DeliveryArtifactsMap } from "./delivery-artifacts.js";
+import {
+  projectNamespaceForDeliveryAreaCore,
+  projectNamespaceLocalesCore,
+} from "../project-locales.js";
+import type { LocaleFallbackMap } from "../types.js";
 import type { DictionaryJson, NamespaceEntry } from "./types.js";
+import { writeFileIfChanged } from "./write-file-if-changed.js";
 
+/**
+ * Dictionary I/O for codegen and audit: read/validate source files (`readDictionaryFile`)
+ * and write compiled or split JSON artifacts (`prepareDictionaryEntries`).
+ */
 export const SUPPORTED_DICTIONARY_EXTENSIONS = [".json", ".yaml", ".yml"] as const;
 export type DictionaryFormat = "json" | "yaml";
 
@@ -22,12 +35,70 @@ export function resolveCompiledJsonPath(sourcePath: string, generatedDirRelative
   return path.join(generatedDirRelative, "translations", baseName).replace(/\\/g, "/");
 }
 
+export function resolveSplitJsonPath(
+  sourcePath: string,
+  locale: string,
+  generatedDirRelative: string
+): string {
+  const baseName = path.basename(sourcePath, path.extname(sourcePath));
+  return path
+    .join(generatedDirRelative, "translations", `${baseName}.${locale}.json`)
+    .replace(/\\/g, "/");
+}
+
+export function resolveAreaJsonPath(
+  sourcePath: string,
+  area: string,
+  generatedDirRelative: string
+): string {
+  const baseName = path.basename(sourcePath, path.extname(sourcePath));
+  return path
+    .join(generatedDirRelative, "translations", `${baseName}.${area}.json`)
+    .replace(/\\/g, "/");
+}
+
+/** Projects a canonical dictionary into per-locale slices for split-by-locale delivery. */
+export function splitDictionaryByLocale(
+  dictionary: DictionaryJson,
+  locales: readonly string[],
+  localeFallback?: LocaleFallbackMap
+): Record<string, DictionaryJson> {
+  const byLocale: Record<string, DictionaryJson> = {};
+
+  for (const locale of locales) {
+    byLocale[locale] = projectNamespaceLocalesCore(dictionary, [locale], localeFallback);
+  }
+
+  return byLocale;
+}
+
+/** Projects a canonical dictionary into per-area slices for custom delivery. */
+export function splitDictionaryByDeliveryArea(
+  dictionary: DictionaryJson,
+  deliveryArtifacts: DeliveryArtifactsMap,
+  localeFallback?: LocaleFallbackMap
+): Record<string, DictionaryJson> {
+  const byArea: Record<string, DictionaryJson> = {};
+
+  for (const [area, areaLocales] of Object.entries(deliveryArtifacts)) {
+    byArea[area] = projectNamespaceForDeliveryAreaCore(dictionary, areaLocales, localeFallback);
+  }
+
+  return byArea;
+}
+
 function assertDictionaryShape(value: unknown, context: string): asserts value is DictionaryJson {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`[Codegen Error] ${context} must be a plain object.`);
   }
 
   for (const [key, localesByKey] of Object.entries(value)) {
+    if (!IDENTIFIER_NAME_PATTERN.test(key)) {
+      throw new Error(
+        `[Codegen Error] ${context}: invalid key "${key}" (${IDENTIFIER_NAME_REQUIREMENT}).`
+      );
+    }
+
     if (localesByKey === null || typeof localesByKey !== "object" || Array.isArray(localesByKey)) {
       throw new Error(`[Codegen Error] ${context}: key "${key}" must map locales to strings.`);
     }
@@ -42,6 +113,7 @@ function assertDictionaryShape(value: unknown, context: string): asserts value i
   }
 }
 
+/** Reads and shape-validates a dictionary file from disk (JSON or YAML). */
 export function readDictionaryFile(absolutePath: string): DictionaryJson {
   const format = getDictionaryFormat(absolutePath);
   if (!format) {
@@ -65,31 +137,51 @@ export function readDictionaryFile(absolutePath: string): DictionaryJson {
 }
 
 function writeCompiledJson(absoluteJsonPath: string, dictionary: DictionaryJson): boolean {
-  const nextContent = `${JSON.stringify(dictionary, null, 2)}\n`;
-  if (fs.existsSync(absoluteJsonPath)) {
-    const currentContent = fs.readFileSync(absoluteJsonPath, "utf8");
-    if (currentContent === nextContent) {
-      return false;
-    }
-  }
+  return writeFileIfChanged(absoluteJsonPath, `${JSON.stringify(dictionary, null, 2)}\n`);
+}
 
-  fs.mkdirSync(path.dirname(absoluteJsonPath), { recursive: true });
-  fs.writeFileSync(absoluteJsonPath, nextContent);
-  return true;
+export interface PrepareDictionaryEntriesOptions {
+  dictionariesByNamespace: Record<string, DictionaryJson>;
+  delivery?: DeliveryMode;
+  localeFallback?: LocaleFallbackMap | undefined;
+  requestLocales?: readonly string[] | undefined;
+  deliveryArtifacts?: DeliveryArtifactsMap | undefined;
 }
 
 export interface PrepareDictionariesResult {
   resolvedEntries: NamespaceEntry[];
+  splitPathsByNamespace: Record<string, Record<string, string>>;
   compiledFiles: string[];
 }
 
+/**
+ * Phase 2 of codegen: materialize JSON artifacts on disk (YAML compile, locale/area split).
+ * Returns `splitPathsByNamespace` consumed by dictionary and namespace-loader emitters.
+ */
 export function prepareDictionaryEntries(
   projectRoot: string,
   entries: NamespaceEntry[],
-  generatedDirRelative: string
+  generatedDirRelative: string,
+  options: PrepareDictionaryEntriesOptions
 ): PrepareDictionariesResult {
+  const delivery = options.delivery ?? "canonical";
+  const { dictionariesByNamespace, localeFallback, requestLocales, deliveryArtifacts } = options;
   const resolvedEntries: NamespaceEntry[] = [];
+  const splitPathsByNamespace: Record<string, Record<string, string>> = {};
   const compiledFiles: string[] = [];
+
+  if (delivery === "split-by-locale" && (!requestLocales || requestLocales.length === 0)) {
+    throw new Error(
+      "[Codegen Error] split-by-locale delivery requires at least one request locale."
+    );
+  }
+
+  if (
+    delivery === "custom" &&
+    (!deliveryArtifacts || Object.keys(deliveryArtifacts).length === 0)
+  ) {
+    throw new Error("[Codegen Error] custom delivery requires deliveryArtifacts.");
+  }
 
   for (const entry of entries) {
     const sourceAbsolutePath = path.resolve(projectRoot, entry.filePath);
@@ -101,13 +193,70 @@ export function prepareDictionaryEntries(
       );
     }
 
-    if (!fs.existsSync(sourceAbsolutePath)) {
+    const dictionary = dictionariesByNamespace[entry.namespace];
+    if (!dictionary) {
       throw new Error(
-        `[Codegen Error] Dictionary file not found for namespace "${entry.namespace}": ${sourceAbsolutePath}`
+        `[Codegen Error] Missing parsed dictionary for namespace "${entry.namespace}".`
       );
     }
 
-    const dictionary = readDictionaryFile(sourceAbsolutePath);
+    if (delivery === "split-by-locale") {
+      const splitPaths: Record<string, string> = {};
+      const dictionariesByLocale = splitDictionaryByLocale(
+        dictionary,
+        requestLocales!,
+        localeFallback
+      );
+
+      for (const locale of requestLocales!) {
+        const splitRelativePath = resolveSplitJsonPath(
+          entry.filePath,
+          locale,
+          generatedDirRelative
+        );
+        const splitAbsolutePath = path.resolve(projectRoot, splitRelativePath);
+        const wroteFile = writeCompiledJson(splitAbsolutePath, dictionariesByLocale[locale]!);
+
+        if (wroteFile) {
+          compiledFiles.push(
+            `${path.relative(projectRoot, sourceAbsolutePath)} → ${splitRelativePath}`
+          );
+        }
+
+        splitPaths[locale] = splitRelativePath;
+      }
+
+      splitPathsByNamespace[entry.namespace] = splitPaths;
+      resolvedEntries.push(entry);
+      continue;
+    }
+
+    if (delivery === "custom") {
+      const splitPaths: Record<string, string> = {};
+      const dictionariesByArea = splitDictionaryByDeliveryArea(
+        dictionary,
+        deliveryArtifacts!,
+        localeFallback
+      );
+
+      for (const area of Object.keys(deliveryArtifacts!).sort()) {
+        const areaRelativePath = resolveAreaJsonPath(entry.filePath, area, generatedDirRelative);
+        const areaAbsolutePath = path.resolve(projectRoot, areaRelativePath);
+        const wroteFile = writeCompiledJson(areaAbsolutePath, dictionariesByArea[area]!);
+
+        if (wroteFile) {
+          compiledFiles.push(
+            `${path.relative(projectRoot, sourceAbsolutePath)} → ${areaRelativePath}`
+          );
+        }
+
+        splitPaths[area] = areaRelativePath;
+      }
+
+      splitPathsByNamespace[entry.namespace] = splitPaths;
+      resolvedEntries.push(entry);
+      continue;
+    }
 
     if (format === "yaml") {
       const compiledRelativePath = resolveCompiledJsonPath(entry.filePath, generatedDirRelative);
@@ -129,5 +278,5 @@ export function prepareDictionaryEntries(
     resolvedEntries.push(entry);
   }
 
-  return { resolvedEntries, compiledFiles };
+  return { resolvedEntries, splitPathsByNamespace, compiledFiles };
 }

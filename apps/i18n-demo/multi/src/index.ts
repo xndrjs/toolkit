@@ -1,9 +1,11 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
-import { defaultDictionary, i18n, namespaceLoaders, projectNamespaceLocales } from "./i18n";
+import { defaultDictionaryFor, i18n, namespaceLoaders, projectNamespaceLocales } from "./i18n";
 import {
   validateExternalDictionary,
   validateExternalNamespace,
 } from "./i18n/generated/dictionary-schema.generated";
+
+const demoLocale = "en";
 
 export function exampleMultiNamespaceUsage(): void {
   console.log("default.login_button @ it:", i18n.get("default", "login_button", "it"));
@@ -45,7 +47,7 @@ export async function exampleLazyNamespaceLoading(): Promise<void> {
       if (i18n.hasNamespace(namespace)) {
         return;
       }
-      i18n.setNamespace(namespace, await namespaceLoaders[namespace]());
+      i18n.setNamespace(namespace, await namespaceLoaders[namespace](demoLocale));
     })
   );
 
@@ -119,9 +121,20 @@ export async function exampleLazyNamespaceLoading(): Promise<void> {
   );
 }
 
+export async function exampleSplitByLocaleDelivery(): Promise<void> {
+  const activeLocale = "it";
+
+  i18n.setNamespace("billing", await namespaceLoaders.billing(activeLocale));
+
+  console.log(
+    "billing.invoice_summary @ it (split-by-locale loader):",
+    i18n.get("billing", "invoice_summary", "it", { count: 2 })
+  );
+}
+
 export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
-  const activeLocale = "it" as const;
-  const billing = await namespaceLoaders.billing();
+  const activeLocale = "it";
+  const billing = await namespaceLoaders.billing(activeLocale);
   i18n.setNamespace("billing", projectNamespaceLocales(billing, [activeLocale]));
 
   console.log(
@@ -136,7 +149,7 @@ export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
 
 export async function exampleExternalNamespacePatch(): Promise<void> {
   // We use namespaceLoaders here but simulate an external fetch...
-  const rawBilling: unknown = await namespaceLoaders.billing();
+  const rawBilling: unknown = await namespaceLoaders.billing(demoLocale);
 
   // ...so we re-validate after loading
   const result = validateExternalNamespace("billing", rawBilling);
@@ -148,7 +161,7 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
   i18n.setNamespace("billing", result.data);
 
   console.log(
-    "billing.invoice_summary @ en (patched from generated/translations/billing.json):",
+    "billing.invoice_summary @ en (patched from generated/translations/billing.en.json):",
     i18n.get("billing", "invoice_summary", "en", { count: 1 })
   );
   console.log(
@@ -159,13 +172,13 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
     })
   );
   console.log(
-    "billing.refund_policy_markdown @ en (patched, markdown from YAML compile):",
+    "billing.refund_policy_markdown @ en (patched, markdown from split compile):",
     i18n.get("billing", "refund_policy_markdown", "en", { days: 30 })
   );
 }
 
 export async function exampleExternalDictionaryHydration(): Promise<void> {
-  const raw: unknown = await loadExternalTranslations();
+  const raw = await loadExternalTranslations();
 
   const result = validateExternalDictionary(raw);
   if (!result.ok) {
@@ -176,7 +189,7 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
   i18n.setAll(result.data);
 
   console.log(
-    "billing.invoice_summary @ en (hydrated, billing from YAML→JSON compile):",
+    "billing.invoice_summary @ en (hydrated, split per-locale billing):",
     i18n.get("billing", "invoice_summary", "en", { count: 12 })
   );
   console.log(
@@ -186,11 +199,15 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 }
 
 async function loadExternalTranslations(): Promise<unknown> {
-  // We use namespaceLoaders here but simulate an external fetch, so we re-validate.
-  const [user, billing] = await Promise.all([namespaceLoaders.user(), namespaceLoaders.billing()]);
+  // We're loading with namespaceLoaders for commodity
+  // but cast to unknown to simulate external source
+  const [user, billing] = await Promise.all([
+    namespaceLoaders.user(demoLocale),
+    namespaceLoaders.billing(demoLocale),
+  ]);
 
   return {
-    ...defaultDictionary,
+    ...defaultDictionaryFor(demoLocale),
     user,
     billing,
   };
@@ -199,6 +216,7 @@ async function loadExternalTranslations(): Promise<unknown> {
 async function main(): Promise<void> {
   exampleMultiNamespaceUsage();
   await exampleLazyNamespaceLoading();
+  await exampleSplitByLocaleDelivery();
   await exampleProjectNamespaceLocalesPatch();
   await exampleExternalNamespacePatch();
   await exampleExternalDictionaryHydration();

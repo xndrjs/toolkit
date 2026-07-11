@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { projectLocales, projectNamespacesLocales } from "./project-locales.js";
+import {
+  projectDictionaryForDeliveryAreaCore,
+  projectDictionaryLocalesCore,
+  projectNamespaceForDeliveryAreaCore,
+  projectNamespaceLocalesCore,
+} from "./project-locales.js";
 
-describe("projectLocales", () => {
+describe("projectNamespaceLocalesCore", () => {
   const dictionary = {
     login_button: { en: "Login", it: "Accedi" },
     welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
@@ -16,7 +21,7 @@ describe("projectLocales", () => {
   } as const;
 
   it("keeps only the requested locales with direct templates", () => {
-    expect(projectLocales(dictionary, ["en", "it"])).toEqual({
+    expect(projectNamespaceLocalesCore(dictionary, ["en", "it"])).toEqual({
       login_button: { en: "Login", it: "Accedi" },
       welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
       empty_label: { en: "" },
@@ -24,7 +29,7 @@ describe("projectLocales", () => {
   });
 
   it("drops locales not listed in the projection", () => {
-    expect(projectLocales(dictionary, ["en"])).toEqual({
+    expect(projectNamespaceLocalesCore(dictionary, ["en"])).toEqual({
       login_button: { en: "Login" },
       welcome: { en: "Welcome {name}!" },
       empty_label: { en: "" },
@@ -32,7 +37,7 @@ describe("projectLocales", () => {
   });
 
   it("resolves fallback templates for missing direct locale entries", () => {
-    expect(projectLocales(dictionary, ["de-CH"], fallback)).toEqual({
+    expect(projectNamespaceLocalesCore(dictionary, ["de-CH"], fallback)).toEqual({
       login_button: { "de-CH": "Login" },
       welcome: { "de-CH": "Welcome {name}!" },
       empty_label: { "de-CH": "" },
@@ -40,7 +45,7 @@ describe("projectLocales", () => {
   });
 
   it("projects multiple locales with mixed direct and fallback resolution", () => {
-    expect(projectLocales(dictionary, ["it", "de-CH"], fallback)).toEqual({
+    expect(projectNamespaceLocalesCore(dictionary, ["it", "de-CH"], fallback)).toEqual({
       login_button: { it: "Accedi", "de-CH": "Login" },
       welcome: { it: "Benvenuto {name}!", "de-CH": "Welcome {name}!" },
       empty_label: { it: "", "de-CH": "" },
@@ -52,13 +57,13 @@ describe("projectLocales", () => {
       login_button: { it: "Accedi" },
     };
 
-    expect(projectLocales(partial, ["en", "it"], fallback)).toEqual({
+    expect(projectNamespaceLocalesCore(partial, ["en", "it"], fallback)).toEqual({
       login_button: { it: "Accedi" },
     });
   });
 
   it("deduplicates locales in the projection list", () => {
-    expect(projectLocales(dictionary, ["en", "en"])).toEqual({
+    expect(projectNamespaceLocalesCore(dictionary, ["en", "en"])).toEqual({
       login_button: { en: "Login" },
       welcome: { en: "Welcome {name}!" },
       empty_label: { en: "" },
@@ -66,7 +71,121 @@ describe("projectLocales", () => {
   });
 });
 
-describe("projectNamespacesLocales", () => {
+describe("projectNamespaceForDeliveryAreaCore", () => {
+  const namespace = {
+    some_key: { it: "Ciao", "it-CH": "Ciao CH", fr: "Hallo", "en-US": "Hello" },
+    some_other_key: { "en-US": "Computer", fr: "Ordinateur" },
+  };
+
+  const localeFallback = {
+    "en-US": null,
+    it: "en-US",
+    "it-CH": "it",
+    fr: null,
+  } as const;
+
+  it("projects eu area with fallback resolution for full locales", () => {
+    expect(
+      projectNamespaceForDeliveryAreaCore(namespace, ["it", "fr", "it-CH"], localeFallback)
+    ).toEqual({
+      some_key: { it: "Ciao", fr: "Hallo", "it-CH": "Ciao CH" },
+      // it-CH is preserve (fallback it is in the area): copied only when present in the
+      // canonical dict; "it" is full (fallback en-US is outside the area) and resolves here.
+      some_other_key: { it: "Computer", fr: "Ordinateur" },
+    });
+  });
+
+  it("projects us area with single full locale", () => {
+    expect(projectNamespaceForDeliveryAreaCore(namespace, ["en-US"], localeFallback)).toEqual({
+      some_key: { "en-US": "Hello" },
+      some_other_key: { "en-US": "Computer" },
+    });
+  });
+
+  it("preserves canonical entries for in-area fallback locales without resolving", () => {
+    const withInAreaFallback = {
+      some_key: { it: "Ciao", "it-CH": "Ciao CH", fr: "Hallo", "en-US": "Hello" },
+      some_other_key: {
+        it: "Italiano",
+        "it-CH": "Svizzero",
+        "en-US": "Computer",
+        fr: "Ordinateur",
+      },
+    };
+
+    expect(
+      projectNamespaceForDeliveryAreaCore(
+        withInAreaFallback,
+        ["it", "it-CH", "en-US", "fr"],
+        localeFallback
+      )
+    ).toEqual({
+      some_key: { it: "Ciao", "it-CH": "Ciao CH", "en-US": "Hello", fr: "Hallo" },
+      some_other_key: {
+        it: "Italiano",
+        "it-CH": "Svizzero",
+        "en-US": "Computer",
+        fr: "Ordinateur",
+      },
+    });
+  });
+});
+
+describe("projectDictionaryForDeliveryAreaCore", () => {
+  const localeFallback = {
+    "en-US": null,
+    it: "en-US",
+    "it-CH": "it",
+    fr: null,
+  } as const;
+
+  it("projects each namespace independently for a multi-namespace dictionary", () => {
+    const dictionary = {
+      default: {
+        some_key: { it: "Ciao", "it-CH": "Ciao CH", fr: "Hallo", "en-US": "Hello" },
+        some_other_key: { "en-US": "Computer", fr: "Ordinateur" },
+      },
+      billing: {
+        invoice_summary: {
+          it: "{count} fatture",
+          "en-US": "{count} invoices",
+          fr: "{count} factures",
+        },
+      },
+    };
+
+    expect(
+      projectDictionaryForDeliveryAreaCore(dictionary, ["it", "fr", "it-CH"], localeFallback)
+    ).toEqual({
+      default: {
+        some_key: { it: "Ciao", fr: "Hallo", "it-CH": "Ciao CH" },
+        some_other_key: { it: "Computer", fr: "Ordinateur" },
+      },
+      billing: {
+        invoice_summary: { it: "{count} fatture", fr: "{count} factures" },
+      },
+    });
+  });
+
+  it("matches projectNamespaceForDeliveryAreaCore applied per namespace", () => {
+    const dictionary = {
+      default: {
+        some_key: { it: "Ciao", "en-US": "Hello" },
+      },
+      billing: {
+        invoice_summary: { it: "{count} fatture", "en-US": "{count} invoices" },
+      },
+    };
+    const areaLocales = ["en-US"] as const;
+
+    expect(projectDictionaryForDeliveryAreaCore(dictionary, areaLocales, localeFallback)).toEqual({
+      default: projectNamespaceForDeliveryAreaCore(dictionary.default, areaLocales, localeFallback),
+      billing: projectNamespaceForDeliveryAreaCore(dictionary.billing, areaLocales, localeFallback),
+    });
+  });
+});
+
+describe("projectDictionaryLocalesCore", () => {
   it("projects each namespace independently", () => {
     const dictionary = {
       default: {
@@ -77,7 +196,7 @@ describe("projectNamespacesLocales", () => {
       },
     };
 
-    expect(projectNamespacesLocales(dictionary, ["en"])).toEqual({
+    expect(projectDictionaryLocalesCore(dictionary, ["en"])).toEqual({
       default: { login_button: { en: "Login" } },
       billing: { invoice_summary: { en: "{count} invoices" } },
     });

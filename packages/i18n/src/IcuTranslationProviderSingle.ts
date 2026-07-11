@@ -1,15 +1,12 @@
-import { IntlMessageFormat } from "intl-messageformat";
 import { cloneAndFreeze } from "./deep-freeze.js";
-import {
-  formatLocaleFallbackChain,
-  resolveLocaleTemplate,
-  validateLocaleFallback,
-} from "./resolve-locale.js";
+import { resolveAndFormat } from "./format-core.js";
+import { validateLocaleFallback } from "./resolve-locale.js";
 import type {
   IcuTranslationProviderOptions,
   KeyDictionary,
   LocaleFallbackMap,
   LocaleOfSingle,
+  OnMissingTranslation,
   SingleCompiledCache,
 } from "./types.js";
 
@@ -63,13 +60,8 @@ export class IcuTranslationProviderSingleForLocale<
     key: K,
     ...args: Params[K] extends never ? [] : [params: Params[K]]
   ): string {
-    return (
-      this.provider.get as (
-        key: K,
-        locale: Locale,
-        ...params: Params[K] extends never ? [] : [params: Params[K]]
-      ) => string
-    )(key, this.locale, ...args);
+    const params = args[0] as Record<string, unknown> | undefined;
+    return this.provider.getWithLocale(String(key), this.locale, params);
   }
 }
 
@@ -82,6 +74,7 @@ export class IcuTranslationProviderSingle<
   private dictionary: Schema;
   private compiledCache: SingleCompiledCache = {};
   private readonly localeFallback?: Fallback;
+  private readonly onMissing: OnMissingTranslation;
 
   constructor(dictionary: Schema, options?: IcuTranslationProviderOptions<Fallback>) {
     this.dictionary = structuredClone(dictionary);
@@ -89,6 +82,7 @@ export class IcuTranslationProviderSingle<
       validateLocaleFallback(options.localeFallback);
       this.localeFallback = options.localeFallback;
     }
+    this.onMissing = options?.onMissing ?? "throw";
   }
 
   get<K extends keyof Schema & string>(
@@ -97,45 +91,27 @@ export class IcuTranslationProviderSingle<
     ...args: Params[K] extends never ? [] : [params: Params[K]]
   ): string {
     const params = args[0] as Record<string, unknown> | undefined;
-    const resolved = resolveLocaleTemplate(this.dictionary[key], locale, this.localeFallback);
+    return this.getWithLocale(String(key), locale, params);
+  }
 
-    if (!resolved) {
-      const chain = formatLocaleFallbackChain(locale, this.localeFallback);
-      throw new Error(
-        `[i18n] Missing key or locale: "${String(key)}" [${locale}] (fallback chain: ${chain})`
-      );
-    }
-
-    const { template, resolvedLocale } = resolved;
-
-    if (!this.compiledCache[resolvedLocale]) {
-      this.compiledCache[resolvedLocale] = {};
-    }
-
-    const cacheKey = String(key);
-
-    if (!this.compiledCache[resolvedLocale][cacheKey]) {
-      try {
-        this.compiledCache[resolvedLocale][cacheKey] = new IntlMessageFormat(
-          template,
-          resolvedLocale
-        );
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        throw new Error(
-          `[i18n ICU Syntax Error] Dictionary error for key "${String(key)}" [${resolvedLocale}]: ${message}`
-        );
-      }
-    }
-
-    try {
-      return this.compiledCache[resolvedLocale][cacheKey].format(params) as string;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `[i18n Formatting Error] Invalid or missing parameters for key "${String(key)}" [${resolvedLocale}]: ${message}`
-      );
-    }
+  getWithLocale(key: string, locale: string, params?: Record<string, unknown>): string {
+    return resolveAndFormat({
+      localeByKey: this.dictionary[key],
+      locale,
+      params,
+      getCache: (resolvedLocale) => {
+        if (!this.compiledCache[resolvedLocale]) {
+          this.compiledCache[resolvedLocale] = {};
+        }
+        return this.compiledCache[resolvedLocale]!;
+      },
+      context: {
+        key,
+        locale,
+        localeFallback: this.localeFallback,
+        onMissing: this.onMissing,
+      },
+    });
   }
 
   forLocale<Locale extends RequestLocales>(

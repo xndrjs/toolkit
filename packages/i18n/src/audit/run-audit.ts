@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { CodegenConfig } from "../codegen/codegen-config-schema.js";
 import { loadConfig } from "../codegen/config.js";
-import { fail } from "../codegen/paths.js";
 import { type FailOnCriterion, runAuditFromConfig } from "./audit-dictionaries.js";
 
 const FAIL_ON_VALUES = new Set<FailOnCriterion>(["effective", "direct", "any"]);
@@ -30,7 +30,7 @@ export function parseAuditArgs(argv: string[]): AuditCliOptions {
   if (failOnArgIndex >= 0) {
     const value = argv[failOnArgIndex + 1];
     if (!value || !FAIL_ON_VALUES.has(value as FailOnCriterion)) {
-      fail(`[Audit Error] --fail-on must be one of: effective, direct, any`);
+      throw new Error(`[Audit Error] --fail-on must be one of: effective, direct, any`);
     }
     failOn = value as FailOnCriterion;
   }
@@ -46,20 +46,28 @@ export function parseAuditArgs(argv: string[]): AuditCliOptions {
 }
 
 export async function runAuditCli(argv = process.argv.slice(2)): Promise<number> {
-  const options = parseAuditArgs(argv);
+  let options: AuditCliOptions;
+  let config: CodegenConfig;
 
-  if (!fs.existsSync(options.configPath)) {
-    console.error(`[Audit Error] Config file not found: ${options.configPath}`);
+  try {
+    options = parseAuditArgs(argv);
+
+    if (!fs.existsSync(options.configPath)) {
+      console.error(`[Audit Error] Config file not found: ${options.configPath}`);
+      return 2;
+    }
+
+    config = loadConfig(options.configPath);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
     return 2;
   }
 
   const projectRoot = path.dirname(options.configPath);
-  const config = loadConfig(options.configPath);
 
   const { report, exitCode } = await runAuditFromConfig({
     projectRoot,
     config,
-    configPath: options.configPath,
     treatEmptyAsMissing: options.treatEmptyAsMissing,
     ...(options.failOn !== undefined ? { failOn: options.failOn } : {}),
   });

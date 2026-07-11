@@ -287,4 +287,51 @@ describe("IcuTranslationProviderMulti", () => {
       );
     });
   });
+
+  describe("onMissing", () => {
+    it('returns "namespace.key" with onMissing: "key"', () => {
+      const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(dictionary, {
+        onMissing: "key",
+      });
+      expect(local.get("default", "missing_key" as "login_button", "en")).toBe(
+        "default.missing_key"
+      );
+    });
+
+    it("calls a custom handler with namespace, key, locale, and fallback chain", () => {
+      const contexts: unknown[] = [];
+      const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(dictionary, {
+        onMissing: (context) => {
+          contexts.push(context);
+          return `<missing:${context.namespace}/${context.key}>`;
+        },
+      });
+
+      expect(local.get("default", "missing_key" as "login_button", "en")).toBe(
+        "<missing:default/missing_key>"
+      );
+      expect(contexts).toEqual([
+        { namespace: "default", key: "missing_key", locale: "en", fallbackChain: "en" },
+      ]);
+    });
+
+    it("still throws for unloaded namespaces with a lenient onMissing", () => {
+      const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(
+        { default: dictionary.default },
+        { onMissing: "key" }
+      );
+      expect(() => local.get("billing", "account_balance", "en", { amount: 1 })).toThrow(
+        '[i18n] Namespace not loaded: "billing"'
+      );
+    });
+
+    it("applies onMissing through forLocale wrappers", () => {
+      const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(dictionary, {
+        onMissing: "key",
+      });
+      expect(local.forLocale("en").get("default", "missing_key" as "login_button")).toBe(
+        "default.missing_key"
+      );
+    });
+  });
 });

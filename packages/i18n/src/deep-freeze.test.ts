@@ -12,6 +12,19 @@ describe("deepFreeze", () => {
       value.welcome.en = "Hacked";
     }).toThrow(TypeError);
   });
+
+  it("does not recurse forever on cyclic structures", () => {
+    const value: { name: string; self?: unknown; child: { parent?: unknown } } = {
+      name: "root",
+      child: {},
+    };
+    value.self = value;
+    value.child.parent = value;
+
+    expect(() => deepFreeze(value)).not.toThrow();
+    expect(Object.isFrozen(value)).toBe(true);
+    expect(Object.isFrozen(value.child)).toBe(true);
+  });
 });
 
 describe("cloneAndFreeze", () => {

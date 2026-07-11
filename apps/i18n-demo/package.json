@@ -6,13 +6,19 @@
   "scripts": {
     "i18n:codegen:single": "xndrjs-i18n-codegen --config single/src/i18n/i18n.codegen.json",
     "i18n:codegen:multi": "xndrjs-i18n-codegen --config multi/src/i18n/i18n.codegen.json",
-    "i18n:codegen": "pnpm run i18n:codegen:single && pnpm run i18n:codegen:multi",
+    "i18n:codegen:areas": "xndrjs-i18n-codegen --config areas/src/i18n/i18n.codegen.json",
+    "i18n:write-config:programmatic": "tsx programmatic/src/i18n/write-config.ts",
+    "i18n:codegen:programmatic": "pnpm run i18n:write-config:programmatic && xndrjs-i18n-codegen --config programmatic/src/i18n/i18n.codegen.json",
+    "i18n:codegen": "pnpm run i18n:codegen:single && pnpm run i18n:codegen:multi && pnpm run i18n:codegen:areas && pnpm run i18n:codegen:programmatic",
     "i18n:audit:single": "xndrjs-i18n-audit --config single/src/i18n/i18n.codegen.json",
     "i18n:audit:multi": "xndrjs-i18n-audit --config multi/src/i18n/i18n.codegen.json",
-    "i18n:audit": "pnpm run i18n:audit:single && pnpm run i18n:audit:multi",
+    "i18n:audit:areas": "xndrjs-i18n-audit --config areas/src/i18n/i18n.codegen.json",
+    "i18n:audit": "pnpm run i18n:audit:single && pnpm run i18n:audit:multi && pnpm run i18n:audit:areas",
     "demo:single": "tsx single/src/index.ts",
     "demo:multi": "tsx multi/src/index.ts",
-    "demo": "pnpm run demo:single && pnpm run demo:multi",
+    "demo:areas": "tsx areas/src/index.ts",
+    "demo:programmatic": "tsx programmatic/src/index.ts",
+    "demo": "pnpm run demo:single && pnpm run demo:multi && pnpm run demo:areas && pnpm run demo:programmatic",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -37,9 +37,27 @@ export type MyProjectParams = {
 };
 
 export type MyProjectSchema = {
-  default: typeof import("../translations/default.json");
-  user: typeof import("../translations/user.json");
-  billing: typeof import("./translations/billing.json");
+  default: {
+    login_button: Partial<Record<MyProjectLocale, string>>;
+    welcome: Partial<Record<MyProjectLocale, string>>;
+    dashboard_status: Partial<Record<MyProjectLocale, string>>;
+    inbox_owner: Partial<Record<MyProjectLocale, string>>;
+    ranking_position: Partial<Record<MyProjectLocale, string>>;
+  };
+  user: {
+    profile_title: Partial<Record<MyProjectLocale, string>>;
+    greeting: Partial<Record<MyProjectLocale, string>>;
+  };
+  billing: {
+    invoice_summary: Partial<Record<MyProjectLocale, string>>;
+    account_balance: Partial<Record<MyProjectLocale, string>>;
+    appointment_summary: Partial<Record<MyProjectLocale, string>>;
+    invoice_due_long: Partial<Record<MyProjectLocale, string>>;
+    discount_rate: Partial<Record<MyProjectLocale, string>>;
+    meeting_time: Partial<Record<MyProjectLocale, string>>;
+    payment_notice_html: Partial<Record<MyProjectLocale, string>>;
+    refund_policy_markdown: Partial<Record<MyProjectLocale, string>>;
+  };
 };
 export type LoadOnInitNamespace = "default";
 export type LazyNamespace = "user" | "billing";

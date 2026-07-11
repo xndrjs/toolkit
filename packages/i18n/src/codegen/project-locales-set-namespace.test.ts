@@ -95,7 +95,7 @@ function writeTscProject(tempDir: string) {
   );
 }
 
-describe("codegen projectLocales + setNamespace", () => {
+describe("codegen projectDictionaryLocales + setNamespace", () => {
   describe("generated instance output", () => {
     let tempDir: string;
 
@@ -112,7 +112,7 @@ describe("codegen projectLocales + setNamespace", () => {
       const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
       expect(factory).toContain('dictionary: AppSchema["billing"]');
       expect(factory).toContain(
-        "projectNamespacesLocalesCore(dictionary, locales, LOCALE_FALLBACK)"
+        "projectDictionaryLocalesCore(dictionary, locales, LOCALE_FALLBACK)"
       );
     });
 
@@ -138,14 +138,14 @@ describe("codegen projectLocales + setNamespace", () => {
       expect(tsc.status, `${tsc.stdout}\n${tsc.stderr}`).toBe(0);
     });
 
-    it("passes tsc when replacing the full schema with projectLocales before setAll", () => {
+    it("passes tsc when replacing the full schema with projectDictionaryLocales before setAll", () => {
       tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
       setupMultiCodegenFixture(tempDir);
 
       writeFileSync(
         join(tempDir, "src/hydrate-all.ts"),
         [
-          `import { createI18n, projectLocales } from "./i18n/instance.generated.js";`,
+          `import { createI18n, projectDictionaryLocales } from "./i18n/instance.generated.js";`,
           `import { defaultDictionary } from "./i18n/dictionary.generated.js";`,
           `import type { AppSchema } from "./i18n/i18n-types.generated.js";`,
           `import billingDictionary from "./i18n/translations/billing.json";`,
@@ -157,7 +157,7 @@ describe("codegen projectLocales + setNamespace", () => {
           `} satisfies AppSchema;`,
           ``,
           `const i18n = createI18n(defaultDictionary);`,
-          `i18n.setAll(projectLocales(fullDictionary, ["en"]));`,
+          `i18n.setAll(projectDictionaryLocales(fullDictionary, ["en"]));`,
         ].join("\n")
       );
 

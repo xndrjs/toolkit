@@ -59,6 +59,10 @@ function collectDictionaryLocales(namespaces: Record<string, DictionaryJson>): S
   return locales;
 }
 
+/**
+ * Audit pipeline: reports missing translations per namespace/locale (direct and
+ * effective via fallback), using the same locale policy as codegen.
+ */
 export function auditDictionaries(options: AuditDictionariesOptions): I18nAuditReport {
   const { namespaces, config, treatEmptyAsMissing = true } = options;
   const dictionaryLocales = collectDictionaryLocales(namespaces);
@@ -137,7 +141,6 @@ export function reportHasGaps(report: I18nAuditReport, criterion: FailOnCriterio
 export interface RunAuditOptions {
   projectRoot: string;
   config: CodegenConfig;
-  configPath: string;
   treatEmptyAsMissing?: boolean;
   failOn?: FailOnCriterion;
 }

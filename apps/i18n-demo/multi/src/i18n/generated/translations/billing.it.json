@@ -1,0 +1,26 @@
+{
+  "invoice_summary": {
+    "it": "Hai {count, plural, one {1 fattura} other {# fatture}}"
+  },
+  "account_balance": {
+    "it": "Saldo: {amount, number, ::currency/EUR}"
+  },
+  "appointment_summary": {
+    "it": "Scade il {dueDate, date, short} alle {startTime, time, short}"
+  },
+  "invoice_due_long": {
+    "it": "Pagamento entro il {dueDate, date, ::yMMMMd}"
+  },
+  "discount_rate": {
+    "it": "Risparmia il {rate, number, ::percent} oggi"
+  },
+  "meeting_time": {
+    "it": "Chiamata alle {startTime, time, ::HHmm} UTC"
+  },
+  "payment_notice_html": {
+    "it": "Paga '<strong>'{amount, number, ::currency/EUR}'</strong>' entro il '<em>'{dueDate, date, short}'</em>'."
+  },
+  "refund_policy_markdown": {
+    "it": "# Politica rimborsi\n\n## Panoramica\n\nContatta il supporto entro **{days, number} giorni** dall'acquisto.\n\n### Cosa è coperto\n\n- Abbonamenti attivi\n- Acquisti una tantum\n- Upgrade di piano\n\nLeggi i [termini di servizio](https://example.com/it/terms) o scrivi a [supporto](mailto:support@example.com).\n\n***Nota:*** i rimborsi possono richiedere *5-10 giorni lavorativi*.\n\n#### Documentazione\n\nConsulta anche le [FAQ fatturazione](/it/billing/faq) e la guida `refund-flow`.\n\n> I rimborsi parziali sono valutati caso per caso.\n"
+  }
+}

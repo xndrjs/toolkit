@@ -1,0 +1,19 @@
+{
+  "some_key": {
+    "fr": "Hallo",
+    "es": "Hola",
+    "en": "Hello",
+    "it": "Ciao"
+  },
+  "some_other_key": {
+    "fr": "Ordinateur",
+    "es": "Computadora",
+    "en": "Computer"
+  },
+  "welcome": {
+    "fr": "Bienvenue {name}!",
+    "es": "¡Bienvenido {name}!",
+    "en": "Welcome {name}!",
+    "it": "Benvenuto {name}!"
+  }
+}

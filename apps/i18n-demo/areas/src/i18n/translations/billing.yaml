@@ -1,0 +1,21 @@
+invoice_summary:
+  en: "You have {count, plural,
+    one {1 invoice}
+    other {# invoices}
+    }"
+  it: "Hai {count} fatture"
+  fr: "Vous avez {count, plural,
+    one {1 facture}
+    other {# factures}
+    }"
+  es: "Tienes {count, plural,
+    one {1 factura}
+    other {# facturas}
+    }"
+
+account_balance:
+  en: "Balance: {amount, number, ::currency/GBP}"
+  "en-US": "Balance: {amount, number, ::currency/USD}"
+  it: "Saldo: {amount, number, ::currency/EUR}"
+  fr: "Solde: {amount, number, ::currency/EUR}"
+  es: "Saldo: {amount, number, ::currency/EUR}"

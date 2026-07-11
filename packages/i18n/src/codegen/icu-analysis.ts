@@ -6,7 +6,7 @@ import {
   mergeVariableMetaAcrossLocales,
   type VariableSpec,
 } from "../icu/extract-variables.js";
-import type { NamespaceEntry } from "./types.js";
+import type { DictionaryJson, NamespaceEntry } from "./types.js";
 import { readDictionaryFile } from "./read-dictionary.js";
 
 export function paramsTypeForVariables(variables: VariableSpec): string {
@@ -26,8 +26,13 @@ export interface DictionaryAnalysis {
   paramsByNamespace: Record<string, Record<string, string>>;
   argsSpecByNamespace: Record<string, Record<string, VariableSpec>>;
   locales: Set<string>;
+  dictionariesByNamespace: Record<string, DictionaryJson>;
 }
 
+/**
+ * Phase 1 of codegen: read source dictionaries, validate ICU syntax, infer param types.
+ * Output feeds type emission, optional `DICTIONARY_SPEC`, and `prepareDictionaryEntries`.
+ */
 export function analyzeDictionaries(
   projectRoot: string,
   entries: NamespaceEntry[]
@@ -35,6 +40,7 @@ export function analyzeDictionaries(
   const paramsByNamespace: Record<string, Record<string, string>> = {};
   const argsSpecByNamespace: Record<string, Record<string, VariableSpec>> = {};
   const locales = new Set<string>();
+  const dictionariesByNamespace: Record<string, DictionaryJson> = {};
   let hasErrors = false;
 
   for (const entry of entries) {
@@ -49,6 +55,7 @@ export function analyzeDictionaries(
     }
 
     const dictionary = readDictionaryFile(absolutePath);
+    dictionariesByNamespace[entry.namespace] = dictionary;
     paramsByNamespace[entry.namespace] = {};
     argsSpecByNamespace[entry.namespace] = {};
 
@@ -98,6 +105,6 @@ export function analyzeDictionaries(
 
   return {
     ok: true,
-    analysis: { paramsByNamespace, argsSpecByNamespace, locales },
+    analysis: { paramsByNamespace, argsSpecByNamespace, locales, dictionariesByNamespace },
   };
 }

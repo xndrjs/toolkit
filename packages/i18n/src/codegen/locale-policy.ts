@@ -7,6 +7,10 @@ export function buildRequiredLocales(
   return [...collectRequestLocales(dictionaryLocales, configFallback)].sort();
 }
 
+/**
+ * Completes `localeFallback` with explicit `null` entries for every request locale,
+ * producing a stable map emitted into `i18n-types.generated.ts`.
+ */
 export function enrichLocaleFallback(
   dictionaryLocales: Set<string>,
   configFallback: Record<string, string | null>

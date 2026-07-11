@@ -365,4 +365,71 @@ describe("IcuTranslationProviderSingle", () => {
       ).toThrow("[i18n] Circular locale fallback detected");
     });
   });
+
+  describe("onMissing", () => {
+    it('throws on missing translations with onMissing: "throw" (explicit default)', () => {
+      const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(dictionary, {
+        onMissing: "throw",
+      });
+      expect(() => local.get("missing_key" as "login_button", "en")).toThrow(
+        '[i18n] Missing key or locale: "missing_key" [en] (fallback chain: en)'
+      );
+    });
+
+    it('returns the key itself with onMissing: "key"', () => {
+      const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(dictionary, {
+        onMissing: "key",
+      });
+      expect(local.get("missing_key" as "login_button", "en")).toBe("missing_key");
+    });
+
+    it("calls a custom handler with the missing-translation context", () => {
+      const contexts: unknown[] = [];
+      const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(dictionary, {
+        onMissing: (context) => {
+          contexts.push(context);
+          return `<missing:${context.key}>`;
+        },
+      });
+
+      expect(local.get("missing_key" as "login_button", "en")).toBe("<missing:missing_key>");
+      expect(contexts).toEqual([{ key: "missing_key", locale: "en", fallbackChain: "en" }]);
+    });
+
+    it("includes the walked fallback chain in the handler context", () => {
+      const fallbackMap = { en: null, "de-CH": "fr", fr: null } as const;
+      const contexts: { fallbackChain: string }[] = [];
+      const local = new IcuTranslationProviderSingle<
+        TestSchema,
+        TestParams,
+        keyof typeof fallbackMap | LocaleOfSingle<TestSchema>,
+        typeof fallbackMap
+      >(dictionary, {
+        localeFallback: fallbackMap,
+        onMissing: (context) => {
+          contexts.push(context);
+          return context.key;
+        },
+      });
+
+      expect(local.get("login_button", "de-CH")).toBe("login_button");
+      expect(contexts[0]?.fallbackChain).toBe("de-CH → fr");
+    });
+
+    it("still throws ICU syntax and formatting errors with a lenient onMissing", () => {
+      const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(dictionary, {
+        onMissing: "key",
+      });
+      expect(() => local.get("broken", "en", { name: "Ada" })).toThrow("[i18n ICU Syntax Error]");
+      // @ts-expect-error
+      expect(() => local.get("welcome", "en")).toThrow("[i18n Formatting Error]");
+    });
+
+    it("applies onMissing through forLocale wrappers", () => {
+      const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(dictionary, {
+        onMissing: "key",
+      });
+      expect(local.forLocale("en").get("missing_key" as "login_button")).toBe("missing_key");
+    });
+  });
 });
