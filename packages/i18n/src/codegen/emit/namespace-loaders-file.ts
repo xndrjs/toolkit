@@ -39,35 +39,48 @@ function formatI18nMultiInstanceType(options: NamespaceLoadersFileOptions): stri
   return `TranslationProviderMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
 }
 
-function formatDefaultNamespacesLiteral(lazyEntries: NamespaceEntry[]): string {
-  return [...lazyEntries]
-    .map((entry) => entry.namespace)
-    .sort()
-    .map((namespace) => JSON.stringify(namespace))
-    .join(", ");
+function formatI18nSingleInstanceType(options: NamespaceLoadersFileOptions): string {
+  const { schemaTypeName, paramsTypeName, localeTypeName } = options;
+
+  return `TranslationProviderSingle<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
 }
 
 function formatLoadNamespacesHelper(
   options: NamespaceLoadersFileOptions,
   { paramName, paramTypeName, loadNamespacesFunctionName }: PartitionedNamespaceLoadersParams
 ): string {
-  const { lazyEntries } = options;
+  const { lazyEntries, isSingle } = options;
   const defaultNamespaces = formatDefaultNamespacesLiteral(lazyEntries);
+  const i18nInstanceType = isSingle
+    ? formatI18nSingleInstanceType(options)
+    : formatI18nMultiInstanceType(options);
+  const mergeCall = isSingle
+    ? `i18n.mergeAll(await namespaceLoaders[namespace](${paramName}))`
+    : `i18n.mergeNamespace(namespace, await namespaceLoaders[namespace](${paramName}))`;
+  const i18nTypeAlias = isSingle ? "I18nSingleInstance" : "I18nMultiInstance";
 
   return (
-    `\ntype I18nMultiInstance = ${formatI18nMultiInstanceType(options)};\n\n` +
+    `\ntype ${i18nTypeAlias} = ${i18nInstanceType};\n\n` +
     `export async function ${loadNamespacesFunctionName}(\n` +
-    `  i18n: I18nMultiInstance,\n` +
+    `  i18n: ${i18nTypeAlias},\n` +
     `  ${paramName}: ${paramTypeName},\n` +
     `  namespaces: readonly LazyNamespace[] = [${defaultNamespaces}] as const,\n` +
     `): Promise<void> {\n` +
     `  await Promise.all(\n` +
     `    namespaces.map(async (namespace) => {\n` +
-    `      i18n.mergeNamespace(namespace, await namespaceLoaders[namespace](${paramName}));\n` +
+    `      ${mergeCall};\n` +
     `    }),\n` +
     `  );\n` +
     `}\n`
   );
+}
+
+function formatDefaultNamespacesLiteral(lazyEntries: NamespaceEntry[]): string {
+  return [...lazyEntries]
+    .map((entry) => entry.namespace)
+    .sort()
+    .map((namespace) => JSON.stringify(namespace))
+    .join(", ");
 }
 
 function formatPartitionedTypesImport(
@@ -78,7 +91,10 @@ function formatPartitionedTypesImport(
     options;
 
   if (isSingle) {
-    return `import type { ${schemaTypeName}, LazyNamespace, ${paramTypeName} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`;
+    return (
+      `import type { TranslationProviderSingle } from '@xndrjs/i18n';\n` +
+      `import type { ${schemaTypeName}, LazyNamespace, ${paramTypeName}, ${localeTypeName} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`
+    );
   }
 
   const paramTypeImport = paramTypeName === localeTypeName ? "" : `, ${paramTypeName}`;
@@ -110,7 +126,10 @@ function formatPartitionedNamespaceLoadersFile(
     schemaTypeName,
     projectRoot,
     splitPathsByNamespace = {},
+    isSingle = false,
   } = options;
+
+  const loaderValueType = isSingle ? schemaTypeName : `${schemaTypeName}[K]`;
 
   const typesImport = formatPartitionedTypesImport(options, paramTypeName);
   const loaderEntries = lazyEntries
@@ -148,9 +167,9 @@ function formatPartitionedNamespaceLoadersFile(
     `${GENERATED_FILE_BANNER}` +
     typesImport +
     `export const namespaceLoaders: {\n` +
-    `  [K in LazyNamespace]: (${paramName}: ${paramTypeName}) => Promise<${schemaTypeName}[K]>;\n` +
+    `  [K in LazyNamespace]: (${paramName}: ${paramTypeName}) => Promise<${loaderValueType}>;\n` +
     `} = {\n${loaderEntries}\n};\n` +
-    (options.isSingle ? "" : formatLoadNamespacesHelper(options, params))
+    formatLoadNamespacesHelper(options, params)
   );
 }
 

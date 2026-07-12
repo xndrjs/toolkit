@@ -64,7 +64,7 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
     return;
   }
 
-  i18n.setAll(result.data);
+  i18n.mergeAll(result.data);
   console.log("welcome @ en (hydrated):", i18n.get("welcome", "en", { name: "Ada" }));
 }
 

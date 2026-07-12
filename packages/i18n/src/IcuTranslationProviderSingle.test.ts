@@ -235,6 +235,27 @@ describe("IcuTranslationProviderSingle", () => {
     expect(local.get("login_button", "en")).toBe("Sign in");
   });
 
+  it("merges locales per key with mergeAll without dropping existing locales", () => {
+    const local = new IcuTranslationProviderSingle<TestSchema, TestParams>({
+      ...dictionary,
+      // @ts-expect-error missing locale
+      welcome: {
+        en: "Welcome {name}!",
+      },
+    });
+
+    local.mergeAll({
+      // @ts-expect-error missing locale
+      welcome: {
+        it: "Benvenuto {name}!",
+      },
+    });
+
+    expect(local.get("welcome", "en", { name: "Ada" })).toBe("Welcome Ada!");
+    expect(local.get("welcome", "it", { name: "Ada" })).toBe("Benvenuto Ada!");
+    expect(local.get("login_button", "en")).toBe("Login");
+  });
+
   it("returns a deep-frozen snapshot from getAll", () => {
     expect(provider.getAll()).toEqual(dictionary);
     expect(provider.getAll()).not.toBe(dictionary);

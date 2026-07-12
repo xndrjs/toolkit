@@ -1,5 +1,6 @@
 import { cloneAndFreeze } from "./deep-freeze.js";
 import { resolveAndFormat } from "./format-core.js";
+import { mergeNamespaceLocalesCore } from "./project-locales.js";
 import { validateLocaleFallback } from "./resolve-locale.js";
 import type {
   IcuTranslationProviderOptions,
@@ -37,6 +38,7 @@ export interface TranslationProviderSingle<
   ): TranslationProviderSingleForLocale<Schema, Params, Locale>;
   getAll(): Schema;
   setAll(values: Schema): void;
+  mergeAll(values: Partial<Schema>): void;
 }
 
 export class IcuTranslationProviderSingleForLocale<
@@ -127,5 +129,19 @@ export class IcuTranslationProviderSingle<
   setAll(values: Schema): void {
     this.dictionary = structuredClone(values);
     this.compiledCache = {};
+  }
+
+  mergeAll(values: Partial<Schema>): void {
+    this.dictionary = mergeNamespaceLocalesCore(this.dictionary, values as Schema);
+
+    for (const [key, incomingLocales] of Object.entries(values)) {
+      if (incomingLocales === undefined || typeof incomingLocales !== "object") {
+        continue;
+      }
+
+      for (const locale of Object.keys(incomingLocales)) {
+        delete this.compiledCache[locale]?.[key];
+      }
+    }
   }
 }

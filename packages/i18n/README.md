@@ -621,12 +621,12 @@ Use split delivery when you want smaller lazy chunks (one locale per dynamic imp
 
 ### Single vs. multi-namespace API
 
-|             | Single-file                    | Multi-namespace                               |
-| ----------- | ------------------------------ | --------------------------------------------- |
-| `I18N_MODE` | `'single'`                     | `'multi'`                                     |
-| Provider    | `IcuTranslationProviderSingle` | `IcuTranslationProviderMulti`                 |
-| `.get()`    | `get(key, locale, params?)`    | `get(namespace, key, locale, params?)`        |
-| Override    | `setAll(schema)`               | `setAll(schema)` + `setNamespace(ns, values)` |
+|             | Single-file                           | Multi-namespace                                                               |
+| ----------- | ------------------------------------- | ----------------------------------------------------------------------------- |
+| `I18N_MODE` | `'single'`                            | `'multi'`                                                                     |
+| Provider    | `IcuTranslationProviderSingle`        | `IcuTranslationProviderMulti`                                                 |
+| `.get()`    | `get(key, locale, params?)`           | `get(namespace, key, locale, params?)`                                        |
+| Override    | `setAll(schema)` / `mergeAll(schema)` | `setAll(schema)` + `setNamespace(ns, values)` / `mergeNamespace` / `mergeAll` |
 
 ### Multi-namespace example
 
@@ -668,10 +668,10 @@ i18n.setNamespace("billing", externalBillingPayload);
 
 `.get()` stays synchronous — register lazy namespaces with `setNamespace()` before rendering. The pattern depends on `delivery`:
 
-| Delivery                     | Loading pattern                                                                                                                                                                                                                   |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `canonical`                  | `loadOnInit` for eager namespaces; manual `namespaceLoaders.ns()` for lazy ones. Use `hasNamespace` to skip already-loaded namespaces.                                                                                            |
-| `split-by-locale` / `custom` | Every namespace is lazy. Prefer `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea` — they call `mergeNamespace()` so loading another locale or area accumulates translations instead of replacing prior locales. |
+| Delivery                     | Loading pattern                                                                                                                                                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `canonical`                  | `loadOnInit` for eager namespaces; manual `namespaceLoaders.ns()` for lazy ones. Use `hasNamespace` to skip already-loaded namespaces.                                                                                                                             |
+| `split-by-locale` / `custom` | Every namespace is lazy. Prefer `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea` — they call `mergeAll()` (single) or `mergeNamespace()` (multi) so loading another locale or area accumulates translations instead of replacing prior locales. |
 
 #### Canonical delivery — `loadOnInit` and manual loaders
 
@@ -714,7 +714,7 @@ await Promise.all(
 
 #### Split-by-locale / custom — `ensureNamespacesLoaded*`
 
-With `split-by-locale` or `custom`, codegen emits `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea`. These helpers call `mergeNamespace()` — loading another locale or delivery area **adds** locale entries per key instead of replacing the whole namespace:
+With `split-by-locale` or `custom`, codegen emits `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea`. These helpers call `mergeAll()` in single mode or `mergeNamespace()` in multi mode — loading another locale or delivery area **adds** locale entries per key instead of replacing the whole dictionary:
 
 ```ts
 import { createI18n } from "./generated/instance.generated.js";
@@ -743,11 +743,15 @@ Route-scoped subset:
 await ensureNamespacesLoadedForLocale(i18n, activeLocale, ["billing"]);
 ```
 
-Manual loader calls (without the helper) should use `mergeNamespace` when accumulating locales on the same instance:
+Manual loader calls (without the helper) should use `mergeAll` (single) or `mergeNamespace` (multi) when accumulating locales on the same instance:
 
 ```ts
 const locale = "it" as const;
 
+// single
+i18n.mergeAll(await namespaceLoaders.default(locale));
+
+// multi
 i18n.mergeNamespace("billing", await namespaceLoaders.billing(locale));
 
 // add another locale on the same instance:
@@ -829,8 +833,9 @@ Both providers share this behavior:
 - **`getAll()`** — returns a deep-frozen snapshot of the current dictionary (not a live reference).
 - **`hasNamespace(ns)`** — (multi only) returns whether a namespace has been loaded (eager init, lazy load, or `setNamespace`).
 - **`setAll(values)`** — replaces the dictionary and clears the entire cache.
+- **`mergeAll(values)`** — merges locale entries per translation key (single: whole schema; multi: each namespace in `values`). Alternative to `setAll` when accumulating locales on the same instance. Used by generated `ensureNamespacesLoaded*` helpers in single-mode split/custom delivery.
 - **`setNamespace(ns, values)`** — (multi only) replaces one namespace and invalidates only its cache entries.
-- **`mergeNamespace(ns, values)`** — (multi only) merges locale entries per translation key into an existing namespace (or registers it when not loaded yet). Used by generated `ensureNamespacesLoaded*` helpers in split/custom delivery.
+- **`mergeNamespace(ns, values)`** — (multi only) merges locale entries per translation key into an existing namespace (or registers it when not loaded yet). Used by generated `ensureNamespacesLoaded*` helpers in multi-mode split/custom delivery.
 - **Missing key/locale** — by default throws an error if the template is `undefined` (configurable via `onMissing`, see below). An empty string (`""`) is treated as a valid template.
 - **ICU syntax error** — throws `[i18n ICU Syntax Error] ...`.
 - **Formatting error** (missing/invalid params) — throws `[i18n Formatting Error] ...`.

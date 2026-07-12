@@ -108,6 +108,43 @@ describe("formatNamespaceLoadersFile", () => {
     expect(output.match(/from '\.\/i18n-types\.generated'/g)?.length).toBe(1);
   });
 
+  it("emits mergeAll helper for single mode in split delivery", () => {
+    const output = formatNamespaceLoadersFile({
+      loadersOutputPath,
+      lazyEntries: [
+        {
+          namespace: "default",
+          filePath: "src/i18n/translations/translations.json",
+          absolutePath: path.join(projectRoot, "src/i18n/translations/translations.json"),
+        },
+      ],
+      schemaTypeName: "AppSchema",
+      paramsTypeName: "AppParams",
+      localeTypeName: "AppLocale",
+      localeFallbackConstName: "LOCALE_FALLBACK",
+      hasLocaleFallback: true,
+      typesModule: "i18n-types.generated",
+      importExtension: "none",
+      projectRoot,
+      isSingle: true,
+      delivery: "split-by-locale",
+      requestLocales: ["en", "it"],
+      splitPathsByNamespace: {
+        default: {
+          en: "src/i18n/generated/translations/translations.en.json",
+          it: "src/i18n/generated/translations/translations.it.json",
+        },
+      },
+    });
+
+    expect(output).toContain("[K in LazyNamespace]: (locale: AppLocale) => Promise<AppSchema>;");
+    expect(output).toContain("import type { TranslationProviderSingle } from '@xndrjs/i18n';");
+    expect(output).toContain("type I18nSingleInstance = TranslationProviderSingle<");
+    expect(output).toContain("export async function ensureNamespacesLoadedForLocale(");
+    expect(output).toContain("i18n.mergeAll(await namespaceLoaders[namespace](locale));");
+    expect(output).not.toContain("mergeNamespace");
+  });
+
   it("throws when a split path is missing", () => {
     expect(() =>
       formatNamespaceLoadersFile({

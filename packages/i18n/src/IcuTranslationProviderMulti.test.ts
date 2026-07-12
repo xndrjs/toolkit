@@ -249,6 +249,35 @@ describe("IcuTranslationProviderMulti", () => {
     expect(local.get("default", "login_button", "en")).toBe("Sign in");
   });
 
+  it("merges namespaces with mergeAll without dropping existing locales", () => {
+    const local = new IcuTranslationProviderMulti<TestSchema, TestParams>({
+      billing: {
+        // @ts-expect-error missing locale
+        invoice_summary: {
+          en: "You have {count, plural, one {1 invoice} other {{count} invoices}} for {name}",
+        },
+      },
+    });
+
+    local.mergeAll({
+      billing: {
+        // @ts-expect-error missing locale
+        invoice_summary: {
+          it: "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}",
+        },
+      },
+      default: dictionary.default,
+    });
+
+    expect(local.get("billing", "invoice_summary", "en", { count: 2, name: "Bob" })).toBe(
+      "You have 2 invoices for Bob"
+    );
+    expect(local.get("billing", "invoice_summary", "it", { count: 2, name: "Bob" })).toBe(
+      "Hai 2 fatture per Bob"
+    );
+    expect(local.get("default", "login_button", "en")).toBe("Login");
+  });
+
   it("returns a deep-frozen snapshot from getAll", () => {
     expect(provider.getAll()).toEqual(dictionary);
     expect(provider.getAll()).not.toBe(dictionary);

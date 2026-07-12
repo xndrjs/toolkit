@@ -30,6 +30,7 @@ export {
 export type { ResolvedLocaleTemplate } from "./resolve-locale.js";
 
 export {
+  mergeDictionaryLocalesCore,
   mergeNamespaceLocalesCore,
   projectDictionaryForDeliveryAreaCore,
   projectDictionaryLocalesCore,

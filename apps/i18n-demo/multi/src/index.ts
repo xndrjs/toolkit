@@ -149,10 +149,10 @@ export async function exampleCreateI18nForLocale(): Promise<void> {
 export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
   const activeLocale = "it";
   const billing = await namespaceLoaders.billing(activeLocale);
-  i18n.setNamespace("billing", projectNamespaceLocales(billing, [activeLocale]));
+  i18n.mergeNamespace("billing", projectNamespaceLocales(billing, [activeLocale]));
 
   console.log(
-    "billing.invoice_summary @ it (projectNamespaceLocales + setNamespace):",
+    "billing.invoice_summary @ it (projectNamespaceLocales + mergeNamespace):",
     i18n.get("billing", "invoice_summary", "it", { count: 3 })
   );
   console.log(
@@ -167,11 +167,11 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
 
   const result = validateExternalNamespace("billing", rawBilling);
   if (!result.ok) {
-    console.error("billing setNamespace validation failed:", formatIssues(result.issues));
+    console.error("billing mergeNamespace validation failed:", formatIssues(result.issues));
     return;
   }
 
-  i18n.setNamespace("billing", result.data);
+  i18n.mergeNamespace("billing", result.data);
 
   console.log(
     "billing.invoice_summary @ en (patched from generated/translations/billing.en.json):",
@@ -195,11 +195,11 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 
   const result = validateExternalDictionary(raw);
   if (!result.ok) {
-    console.error("setAll validation failed:", formatIssues(result.issues));
+    console.error("mergeAll validation failed:", formatIssues(result.issues));
     return;
   }
 
-  i18n.setAll(result.data);
+  i18n.mergeAll(result.data);
 
   console.log(
     "billing.invoice_summary @ en (hydrated, split per-locale billing):",

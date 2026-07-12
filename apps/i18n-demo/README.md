@@ -11,6 +11,8 @@ Workshop app for `@xndrjs/i18n` with three consumer setups in one package:
 
 All namespaces are lazy. Bootstrap with an empty provider, then register namespaces before rendering:
 
+`ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea` call `mergeNamespace` (or `mergeAll` in single mode) so loading another locale or area accumulates translations on the same instance.
+
 ```ts
 import { createI18n, ensureNamespacesLoadedForLocale } from "./i18n";
 
@@ -19,8 +21,15 @@ export const i18n = createI18n({});
 // Shell / layout: only default
 await ensureNamespacesLoadedForLocale(i18n, activeLocale, ["default"]);
 
-// Billing route: add billing for the same locale
+// Billing route: merge billing for the same locale (or another locale on the shared instance)
 await ensureNamespacesLoadedForLocale(i18n, activeLocale, ["billing"]);
+```
+
+For manual patches after validation, prefer `mergeNamespace` / `mergeAll` over `setNamespace` / `setAll` when you keep prior locales in memory:
+
+```ts
+i18n.mergeNamespace("billing", validatedBilling);
+i18n.mergeAll(validatedDictionary);
 ```
 
 `createI18nForLocale(locale, namespaces?)` in `multi/src/i18n/index.ts` wraps the same pattern for per-request instances.
@@ -38,7 +47,7 @@ const i18n = createI18n({});
 await ensureNamespacesLoadedForArea(i18n, "eu", ["default", "billing"]);
 ```
 
-`createI18nForArea(area, namespaces?)` in `areas/src/i18n/index.ts` returns a ready instance.
+`createI18nForArea(area, namespaces?)` in `areas/src/i18n/index.ts` returns a ready instance. Generated helpers use `mergeNamespace`; manual hydration should use `mergeNamespace` / `mergeAll` when accumulating locales on a shared provider.
 
 Run: `pnpm run demo:areas`
 

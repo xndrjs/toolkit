@@ -173,3 +173,28 @@ export function mergeNamespaceLocalesCore<T extends KeyDictionary>(existing: T, 
 
   return merged;
 }
+
+/**
+ * Merges locale entries per key in every namespace present in `incoming`.
+ * Namespaces and keys not in `incoming` are preserved from `existing`.
+ */
+export function mergeDictionaryLocalesCore<T extends MultiDictionary>(
+  existing: T,
+  incoming: Partial<T>
+): T {
+  const merged = structuredClone(existing) as T;
+
+  for (const namespace of Object.keys(incoming) as (keyof T & string)[]) {
+    const incomingNamespace = incoming[namespace];
+    if (incomingNamespace === undefined) {
+      continue;
+    }
+
+    merged[namespace] = mergeNamespaceLocalesCore(
+      (merged[namespace] ?? {}) as T[typeof namespace],
+      incomingNamespace as T[typeof namespace]
+    ) as T[typeof namespace];
+  }
+
+  return merged;
+}

@@ -41,6 +41,7 @@ export interface TranslationProviderMulti<
   getAll(): Schema;
   hasNamespace<NS extends keyof Schema & string>(namespace: NS): boolean;
   setAll(values: Schema): void;
+  mergeAll(values: Partial<Schema>): void;
   setNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void;
   mergeNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void;
 }
@@ -161,6 +162,15 @@ export class IcuTranslationProviderMulti<
     this.dictionary = structuredClone(values);
     this.compiledCache = {};
     this.loadedNamespaces = new Set(Object.keys(values));
+  }
+
+  mergeAll(values: Partial<Schema>): void {
+    for (const namespace of Object.keys(values) as (keyof Schema & string)[]) {
+      const incoming = values[namespace];
+      if (incoming !== undefined) {
+        this.mergeNamespace(namespace, incoming as Schema[typeof namespace]);
+      }
+    }
   }
 
   setNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void {

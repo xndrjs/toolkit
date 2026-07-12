@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mergeDictionaryLocalesCore,
   mergeNamespaceLocalesCore,
   projectDictionaryForDeliveryAreaCore,
   projectDictionaryLocalesCore,
@@ -233,6 +234,37 @@ describe("mergeNamespaceLocalesCore", () => {
 
     expect(mergeNamespaceLocalesCore(existing, incoming)).toEqual({
       welcome: { en: "Hello {name}!" },
+    });
+  });
+});
+
+describe("mergeDictionaryLocalesCore", () => {
+  it("merges each namespace without dropping existing locales", () => {
+    const existing = {
+      default: {
+        welcome: { en: "Welcome {name}!" },
+      },
+      billing: {
+        invoice_summary: { en: "{count} invoices" },
+      },
+    };
+    const incoming = {
+      default: {
+        welcome: { it: "Benvenuto {name}!" },
+      },
+      billing: {
+        invoice_summary: { it: "{count} fatture" },
+      },
+    };
+
+    // @ts-expect-error missing locale
+    expect(mergeDictionaryLocalesCore(existing, incoming)).toEqual({
+      default: {
+        welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
+      },
+      billing: {
+        invoice_summary: { en: "{count} invoices", it: "{count} fatture" },
+      },
     });
   });
 });
