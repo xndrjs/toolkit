@@ -195,7 +195,7 @@ Variables found across **all locales** of the same key are merged. If parsing fa
 
 ### 3. Generated files
 
-- **`i18n-types.generated.ts`** — `I18N_MODE`, `MyProjectParams`, `MyProjectSchema`.
+- **`i18n-types.generated.ts`** — `I18N_MODE`, `MyProjectParams`, `MyProjectSchema`. With `delivery: "custom"`, also `MyProjectDeliveryArea`, `DELIVERY_ARTIFACTS`, `LOCALE_DELIVERY_AREA`, and `MyProjectDeliveryArtifacts`.
 - **`dictionary.generated.ts`** — imports the JSON files and exports `defaultDictionary` (canonical delivery) or `defaultDictionaryFor(locale)` / `defaultDictionaryFor(area)` when eager namespaces exist in split/custom delivery. Omitted when every namespace is lazy in split/custom delivery.
 - **`instance.generated.ts`** — exports `createI18n(dictionary)` (required argument; no default import of the fallback dictionary), typed `projectDictionaryLocales()` (full schema), and in multi mode `projectNamespaceLocales()` (single namespace); with `delivery: "custom"`, also `projectDictionaryForDeliveryArea()` and `projectNamespaceForDeliveryArea()`; `LOCALE_FALLBACK` wired in when configured.
 - **`i18n.ts`** (optional, hand-written) — app-owned singleton if desired.
@@ -424,7 +424,8 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 | `dictionarySchemaOutput`            | Optional path for generated external dictionary validation (`dictionary-schema.generated.ts`). Requires `zod` in the consumer app.                                                                                                                                                                                                                                                                          |
 | `loadOnInit`                        | Multi mode only; **canonical delivery only**. Namespaces to include in the initial bundle via static imports. When omitted, all namespaces are eager (default). Not allowed with `split-by-locale` or `custom` — those modes load every namespace through `namespaceLoaders`.                                                                                                                               |
 | `namespaceLoadersOutput`            | Output path for generated `namespaceLoaders` (dynamic `import()` per lazy namespace). Defaults to `{dirname(instanceOutput)}/namespace-loaders.generated.ts`. Required when lazy namespaces exist.                                                                                                                                                                                                          |
-| `delivery`                          | Optional. `"canonical"` (default) — one multilocale JSON per namespace. `"split-by-locale"` — emits `{basename}.{locale}.json` under `{deliveryOutput}/translations/` and per-locale loaders.                                                                                                                                                                                                               |
+| `delivery`                          | Optional. `"canonical"` (default) — one multilocale JSON per namespace. `"split-by-locale"` — emits `{basename}.{locale}.json` under `{deliveryOutput}/translations/` and per-locale loaders. `"custom"` — named delivery areas via `deliveryArtifacts`; emits `{basename}.{area}.json`, area-scoped loaders, and typed `DELIVERY_ARTIFACTS` / `LOCALE_DELIVERY_AREA` in `i18n-types.generated.ts`.         |
+| `deliveryArtifacts`                 | Required when `delivery` is `"custom"`. Map of delivery area → locale list (e.g. `{ "eu": ["en", "it"], "amer": ["en-US"] }`). Codegen validates structure and that locales partition the project locale set. Emitted as `DELIVERY_ARTIFACTS` (area → locales) and `LOCALE_DELIVERY_AREA` (locale → area).                                                                                                  |
 | `deliveryOutput`                    | Optional. Directory for compiled and split delivery JSON (files land in `{deliveryOutput}/translations/`). Defaults to `dirname(typesOutput)`. Use e.g. `public/i18n` to ship per-locale JSON from a static host while keeping generated TypeScript under `generated/`.                                                                                                                                     |
 
 > Paths are resolved relative to the directory containing `i18n.codegen.json` (e.g. `i18n/` when using `xndrjs-i18n-setup .`).
@@ -482,6 +483,7 @@ Codegen writes `{deliveryOutput}/translations/{basename}.{locale}.json` (for exa
 | `export const defaultDictionary` | `dictionary.generated.ts` is not generated                                                                                         |
 | `namespaceLoaders.billing()`     | `namespaceLoaders.billing(locale)` or `namespaceLoaders.billing(area)`                                                             |
 | —                                | `ensureNamespacesLoadedForLocale(i18n, locale)` or `ensureNamespacesLoadedForArea(i18n, area)` in `namespace-loaders.generated.ts` |
+| —                                | `DELIVERY_ARTIFACTS`, `LOCALE_DELIVERY_AREA` in `i18n-types.generated.ts` (`custom` only)                                          |
 
 When `loadOnInit` lists eager namespaces in **canonical** delivery only, `dictionary.generated.ts` still exports `defaultDictionary` with static imports. In split/custom delivery, eager slices use `defaultDictionaryFor(locale)` or `defaultDictionaryFor(area)` when configured.
 
@@ -503,6 +505,55 @@ import { ensureNamespacesLoadedForArea } from "./generated/namespace-loaders.gen
 
 const i18n = createI18n({});
 await ensureNamespacesLoadedForArea(i18n, activeArea);
+```
+
+Custom delivery config and typed artifacts (no need to read `deliveryArtifacts` from JSON at runtime):
+
+```json
+{
+  "delivery": "custom",
+  "deliveryArtifacts": {
+    "eu": ["en", "it", "fr"],
+    "amer": ["en-US", "es-AR"]
+  },
+  "namespaces": {
+    "default": "translations/default.json",
+    "billing": "translations/billing.yaml"
+  },
+  "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts"
+}
+```
+
+Codegen emits the partition in `i18n-types.generated.ts`:
+
+```ts
+export type MyProjectDeliveryArea = "amer" | "eu";
+
+export const DELIVERY_ARTIFACTS = {
+  amer: ["en-US", "es-AR"] as const,
+  eu: ["en", "fr", "it"] as const,
+} as const satisfies Record<MyProjectDeliveryArea, readonly MyProjectLocale[]>;
+
+export type MyProjectDeliveryArtifacts = typeof DELIVERY_ARTIFACTS;
+
+export const LOCALE_DELIVERY_AREA = {
+  "en-US": "amer",
+  "es-AR": "amer",
+  en: "eu",
+  fr: "eu",
+  it: "eu",
+} as const satisfies Record<MyProjectLocale, MyProjectDeliveryArea>;
+```
+
+```ts
+import {
+  DELIVERY_ARTIFACTS,
+  LOCALE_DELIVERY_AREA,
+  type MyProjectDeliveryArea,
+} from "./generated/i18n-types.generated.js";
+
+const euLocales = DELIVERY_ARTIFACTS.eu; // readonly ["en", "fr", "it"]
+const areaForEnUs: MyProjectDeliveryArea = LOCALE_DELIVERY_AREA["en-US"]; // "amer"
 ```
 
 Example `dictionary.generated.ts` (multi, canonical delivery, `loadOnInit: ["default"]`):
@@ -533,6 +584,10 @@ export const namespaceLoaders = {
         return import("./translations/billing.it.json").then((m) => m.default);
       case "de-CH":
         return import("./translations/billing.de-CH.json").then((m) => m.default);
+      default:
+        throw new Error(
+          `[i18n] No translation artifact for namespace "billing" and locale "${String(locale)}".`
+        );
     }
   },
 };
@@ -611,10 +666,20 @@ i18n.setNamespace("billing", externalBillingPayload);
 
 ### Lazy namespace loading (multi mode)
 
-Split namespaces across chunks with `loadOnInit` in **canonical** delivery only. With `split-by-locale` or `custom`, every namespace is lazy and codegen emits typed `namespaceLoaders` — one dynamic `import()` per lazy namespace (and per locale or delivery area). `.get()` stays synchronous — register lazy namespaces with `setNamespace()` before rendering.
+`.get()` stays synchronous — register lazy namespaces with `setNamespace()` before rendering. The pattern depends on `delivery`:
+
+| Delivery                     | Loading pattern                                                                                                                                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `canonical`                  | `loadOnInit` for eager namespaces; manual `namespaceLoaders.ns()` for lazy ones. Use `hasNamespace` to skip already-loaded namespaces.                                                                    |
+| `split-by-locale` / `custom` | Every namespace is lazy. Prefer `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea` — they always call `setNamespace()` (safe when switching locale or area on a shared `i18n` instance). |
+
+#### Canonical delivery — `loadOnInit` and manual loaders
+
+Split namespaces across chunks with `loadOnInit` in **canonical** delivery only. Codegen emits typed `namespaceLoaders` with one dynamic `import()` per lazy namespace.
 
 ```json
 {
+  "delivery": "canonical",
   "namespaces": {
     "default": "translations/default.json",
     "billing": "translations/billing.yaml"
@@ -625,6 +690,8 @@ Split namespaces across chunks with `loadOnInit` in **canonical** delivery only.
 ```
 
 Codegen also emits `LoadOnInitNamespace`, `LazyNamespace`, and `InitialSchema` types. The generated factory accepts a partial `InitialSchema` at init time.
+
+Use `hasNamespace` when loading lazily by hand — namespaces loaded once stay in memory:
 
 ```ts
 import { i18n, namespaceLoaders, type LazyNamespace } from "./i18n";
@@ -645,15 +712,48 @@ await Promise.all(
 );
 ```
 
-With `delivery: "split-by-locale"`, pick the locale on each loader:
+#### Split-by-locale / custom — `ensureNamespacesLoaded*`
+
+With `split-by-locale` or `custom`, codegen emits `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea`. These helpers **always** reload the requested namespaces — do not guard with `hasNamespace` when switching locale or delivery area on the same instance:
+
+```ts
+import { createI18n } from "./generated/instance.generated.js";
+import {
+  ensureNamespacesLoadedForLocale,
+  ensureNamespacesLoadedForArea,
+} from "./generated/namespace-loaders.generated.js";
+
+const i18n = createI18n({});
+
+// split-by-locale
+await ensureNamespacesLoadedForLocale(i18n, "it");
+i18n.get("billing", "invoice_summary", "it", { count: 3 });
+
+await ensureNamespacesLoadedForLocale(i18n, "en"); // reloads billing for en
+i18n.get("billing", "invoice_summary", "en", { count: 3 });
+
+// custom delivery
+await ensureNamespacesLoadedForArea(i18n, "eu", ["billing"]);
+```
+
+Route-scoped subset:
+
+```ts
+await ensureNamespacesLoadedForLocale(i18n, activeLocale, ["billing"]);
+```
+
+Manual loader calls (without the helper) follow the same rule — call `setNamespace` again when the locale or area changes:
 
 ```ts
 const locale = "it" as const;
 
-if (!i18n.hasNamespace("billing")) {
-  i18n.setNamespace("billing", await namespaceLoaders.billing(locale));
-}
+i18n.setNamespace("billing", await namespaceLoaders.billing(locale));
+
+// after locale change on the same instance:
+i18n.setNamespace("billing", await namespaceLoaders.billing("en"));
 ```
+
+Generated loaders throw if locale/area does not match a known artifact (no silent `undefined` into `setNamespace`).
 
 Optional locale projection before register:
 

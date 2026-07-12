@@ -1,5 +1,27 @@
 # @xndrjs/i18n
 
+## 0.6.0
+
+### Minor Changes
+
+- 2f6cdd7: ### Breaking Changes (codegen output — re-run `xndrjs-i18n-codegen` after upgrading)
+  - **Split-by-locale / custom (all lazy namespaces):** codegen no longer emits an empty `dictionary.generated.ts`. Start providers with `createI18n({})` and register namespaces via the generated helpers below. Remove `export * from "./dictionary.generated"` (or equivalent imports) when the file is omitted.
+  - **`loadOnInit` is canonical-only:** configs with `delivery: "split-by-locale"` or `delivery: "custom"` must not set `loadOnInit`; codegen fails validation otherwise. Those modes always load namespaces through lazy loaders.
+  - Generated `dictionary-schema.generated.ts` imports the validation helper as `validateExternalNamespaceCore` (was `validateExternalNamespaceImpl`). Public API remains `validateExternalNamespace`.
+
+  ### Minor Changes
+  - **Split-by-locale:** codegen emits `ensureNamespacesLoadedForLocale(i18n, locale, namespaces?)` in `namespace-loaders.generated.ts` — registers missing lazy namespaces on a shared `i18n` instance via `setNamespace()`.
+  - **Custom delivery:** codegen emits `ensureNamespacesLoadedForArea(i18n, area, namespaces?)` with the same semantics for delivery areas.
+  - Default `namespaces` argument lists all lazy namespaces (sorted). Pass a subset for route-scoped loading.
+
+### Patch Changes
+
+- 2079ab3: ### Patch Changes
+  - **Split-by-locale / custom:** generated `ensureNamespacesLoadedForLocale` and `ensureNamespacesLoadedForArea` always call `setNamespace()` — removed the `hasNamespace` early return that blocked reloading when switching locale or delivery area on a shared `i18n` instance.
+  - **Custom delivery:** codegen emits strongly typed `DELIVERY_ARTIFACTS` and `{SchemaPrefix}DeliveryArtifacts` in `i18n-types.generated.ts` (area → locales map from `deliveryArtifacts` config). Re-run `xndrjs-i18n-codegen` after upgrading.
+  - **`dictionaryOutput` is optional** when `dictionary.generated.ts` is not emitted (split/custom with all lazy namespaces). Defaults to `{dirname(typesOutput)}/dictionary.generated.ts` for stale-file cleanup only.
+  - **Split-by-locale / custom loaders:** generated `namespaceLoaders` switch statements throw if locale/area does not match a known artifact (no silent `undefined` into `setNamespace`). Re-run `xndrjs-i18n-codegen` after upgrading.
+
 ## 0.6.0-alpha.1
 
 ### Patch Changes
@@ -20,7 +42,7 @@
   - Generated `dictionary-schema.generated.ts` imports the validation helper as `validateExternalNamespaceCore` (was `validateExternalNamespaceImpl`). Public API remains `validateExternalNamespace`.
 
   ### Minor Changes
-  - **Split-by-locale:** codegen emits `ensureNamespacesLoadedForLocale(i18n, locale, namespaces?)` in `namespace-loaders.generated.ts` — registers missing lazy namespaces on a shared `i18n` instance via `setNamespace()`.
+  - **Split-by-locale:** codegen emits `ensureNamespacesLoadedForLocale(i18n, locale, namespaces?)` in `namespace-loaders.generated.ts` — loads or updates lazy namespaces on a shared `i18n` instance via `setNamespace()`.
   - **Custom delivery:** codegen emits `ensureNamespacesLoadedForArea(i18n, area, namespaces?)` with the same semantics for delivery areas.
   - Default `namespaces` argument lists all lazy namespaces (sorted). Pass a subset for route-scoped loading.
 
