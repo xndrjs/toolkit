@@ -19,6 +19,7 @@
     "@xndrjs/tasks": "0.2.0"
   },
   "changesets": [
-    "i18n-ensure-namespaces-loaded"
+    "i18n-ensure-namespaces-loaded",
+    "i18n-ensure-reload-and-delivery-artifacts"
   ]
 }
