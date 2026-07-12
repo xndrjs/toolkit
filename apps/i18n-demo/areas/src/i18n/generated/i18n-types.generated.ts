@@ -48,6 +48,6 @@ export type MyProjectSchema = {
     account_balance: Partial<Record<MyProjectLocale, string>>;
   };
 };
-export type LoadOnInitNamespace = "default";
-export type LazyNamespace = "billing";
+export type LoadOnInitNamespace = never;
+export type LazyNamespace = "default" | "billing";
 export type InitialSchema = Pick<MyProjectSchema, LoadOnInitNamespace>;

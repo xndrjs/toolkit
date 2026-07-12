@@ -11,10 +11,14 @@ export interface NamespaceLoadersFileOptions {
   loadersOutputPath: string;
   lazyEntries: (NamespaceEntry & { absolutePath: string })[];
   schemaTypeName: string;
+  paramsTypeName: string;
   localeTypeName: string;
+  localeFallbackConstName: string;
+  hasLocaleFallback: boolean;
   typesModule: string;
   importExtension: ImportExtension;
   projectRoot: string;
+  isSingle?: boolean;
   delivery?: DeliveryMode;
   splitPathsByNamespace?: Record<string, Record<string, string>>;
   requestLocales?: readonly string[];
@@ -26,6 +30,84 @@ interface PartitionedNamespaceLoadersParams {
   partitionKeys: readonly string[];
   paramName: string;
   paramTypeName: string;
+  loadNamespacesFunctionName: string;
+}
+
+function formatI18nMultiInstanceType(options: NamespaceLoadersFileOptions): string {
+  const {
+    schemaTypeName,
+    paramsTypeName,
+    localeTypeName,
+    localeFallbackConstName,
+    hasLocaleFallback,
+  } = options;
+
+  const typeArgs = hasLocaleFallback
+    ? `${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, typeof ${localeFallbackConstName}`
+    : `${schemaTypeName}, ${paramsTypeName}`;
+
+  return `IcuTranslationProviderMulti<${typeArgs}>`;
+}
+
+function formatDefaultNamespacesLiteral(lazyEntries: NamespaceEntry[]): string {
+  return [...lazyEntries]
+    .map((entry) => entry.namespace)
+    .sort()
+    .map((namespace) => JSON.stringify(namespace))
+    .join(", ");
+}
+
+function formatLoadNamespacesHelper(
+  options: NamespaceLoadersFileOptions,
+  { paramName, paramTypeName, loadNamespacesFunctionName }: PartitionedNamespaceLoadersParams
+): string {
+  const { lazyEntries } = options;
+  const defaultNamespaces = formatDefaultNamespacesLiteral(lazyEntries);
+
+  return (
+    `\ntype I18nMultiInstance = ${formatI18nMultiInstanceType(options)};\n\n` +
+    `export async function ${loadNamespacesFunctionName}(\n` +
+    `  i18n: I18nMultiInstance,\n` +
+    `  ${paramName}: ${paramTypeName},\n` +
+    `  namespaces: readonly LazyNamespace[] = [${defaultNamespaces}] as const,\n` +
+    `): Promise<void> {\n` +
+    `  await Promise.all(\n` +
+    `    namespaces.map(async (namespace) => {\n` +
+    `      if (i18n.hasNamespace(namespace)) {\n` +
+    `        return;\n` +
+    `      }\n` +
+    `      i18n.setNamespace(namespace, await namespaceLoaders[namespace](${paramName}));\n` +
+    `    }),\n` +
+    `  );\n` +
+    `}\n`
+  );
+}
+
+function formatPartitionedTypesImport(
+  options: NamespaceLoadersFileOptions,
+  paramTypeName: string
+): string {
+  const {
+    schemaTypeName,
+    paramsTypeName,
+    localeTypeName,
+    localeFallbackConstName,
+    hasLocaleFallback,
+    typesModule,
+    importExtension,
+    isSingle,
+  } = options;
+
+  if (isSingle) {
+    return `import type { ${schemaTypeName}, LazyNamespace, ${paramTypeName} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`;
+  }
+
+  const fallbackImport = hasLocaleFallback ? `${localeFallbackConstName}, ` : "";
+  const paramTypeImport = paramTypeName === localeTypeName ? "" : `, type ${paramTypeName}`;
+  return (
+    `import { IcuTranslationProviderMulti } from '@xndrjs/i18n';\n` +
+    `import { ${fallbackImport}type ${localeTypeName}, type ${paramsTypeName}, type ${schemaTypeName}, type LazyNamespace${paramTypeImport} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`
+  );
 }
 
 /**
@@ -35,19 +117,18 @@ interface PartitionedNamespaceLoadersParams {
  */
 function formatPartitionedNamespaceLoadersFile(
   options: NamespaceLoadersFileOptions,
-  { partitionKeys, paramName, paramTypeName }: PartitionedNamespaceLoadersParams
+  params: PartitionedNamespaceLoadersParams
 ): string {
+  const { partitionKeys, paramName, paramTypeName } = params;
   const {
     loadersOutputPath,
     lazyEntries,
     schemaTypeName,
-    typesModule,
-    importExtension,
     projectRoot,
     splitPathsByNamespace = {},
   } = options;
 
-  const typesImport = toRelativeModuleImport(typesModule, importExtension);
+  const typesImport = formatPartitionedTypesImport(options, paramTypeName);
   const loaderEntries = lazyEntries
     .map((entry) => {
       const switchCases = partitionKeys
@@ -80,10 +161,11 @@ function formatPartitionedNamespaceLoadersFile(
 
   return (
     `${GENERATED_FILE_BANNER}` +
-    `import type { ${schemaTypeName}, LazyNamespace, ${paramTypeName} } from '${typesImport}';\n\n` +
+    typesImport +
     `export const namespaceLoaders: {\n` +
     `  [K in LazyNamespace]: (${paramName}: ${paramTypeName}) => Promise<${schemaTypeName}[K]>;\n` +
-    `} = {\n${loaderEntries}\n};\n`
+    `} = {\n${loaderEntries}\n};\n` +
+    (options.isSingle ? "" : formatLoadNamespacesHelper(options, params))
   );
 }
 
@@ -118,6 +200,7 @@ export function formatNamespaceLoadersFile(options: NamespaceLoadersFileOptions)
       partitionKeys: options.requestLocales ?? [],
       paramName: "locale",
       paramTypeName: options.localeTypeName,
+      loadNamespacesFunctionName: "ensureNamespacesLoadedForLocale",
     });
   }
   if (delivery === "custom") {
@@ -128,6 +211,7 @@ export function formatNamespaceLoadersFile(options: NamespaceLoadersFileOptions)
       partitionKeys: options.deliveryAreaNames ?? [],
       paramName: "area",
       paramTypeName: options.deliveryAreaTypeName,
+      loadNamespacesFunctionName: "ensureNamespacesLoadedForArea",
     });
   }
   return formatCanonicalNamespaceLoadersFile(options);

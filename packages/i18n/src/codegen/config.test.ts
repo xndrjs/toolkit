@@ -207,6 +207,35 @@ describe("loadConfig", () => {
 
     expect(() => loadConfig(configPath)).toThrow('Locale "fr" appears in both "eu" and "us"');
   });
+
+  it("throws when loadOnInit is set for split-by-locale delivery", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      delivery: "split-by-locale",
+      loadOnInit: ["default"],
+    });
+
+    expect(() => loadConfig(configPath)).toThrow(
+      'loadOnInit is only allowed when delivery is "canonical".'
+    );
+  });
+
+  it("throws when loadOnInit is set for custom delivery", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      delivery: "custom",
+      deliveryArtifacts: {
+        eu: ["it"],
+      },
+      loadOnInit: ["default"],
+    });
+
+    expect(() => loadConfig(configPath)).toThrow(
+      'loadOnInit is only allowed when delivery is "canonical".'
+    );
+  });
 });
 
 describe("resolveLoadOnInit", () => {
@@ -229,6 +258,26 @@ describe("resolveLoadOnInit", () => {
     expect(() => resolveLoadOnInit(config, entries, false)).toThrow(
       '[Codegen Error] loadOnInit: namespace "missing" is not defined in namespaces config.'
     );
+  });
+
+  it("treats all namespaces as lazy when delivery is split-by-locale", () => {
+    const config = { ...validMultiConfig, delivery: "split-by-locale" as const };
+
+    expect(resolveLoadOnInit(config, entries, false)).toEqual({
+      loadOnInitSet: new Set(),
+      lazyEntries: entries,
+      hasLazy: true,
+    });
+  });
+
+  it("treats all namespaces as lazy when delivery is custom", () => {
+    const config = { ...validMultiConfig, delivery: "custom" as const };
+
+    expect(resolveLoadOnInit(config, entries, false)).toEqual({
+      loadOnInitSet: new Set(),
+      lazyEntries: entries,
+      hasLazy: true,
+    });
   });
 });
 

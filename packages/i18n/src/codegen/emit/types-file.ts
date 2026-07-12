@@ -12,10 +12,13 @@ export function formatLazyTypesBlock(
   lazyEntries: NamespaceEntry[],
   schemaTypeName: string
 ): string {
-  const loadOnInitUnion = [...loadOnInitSet]
-    .sort()
-    .map((namespace) => `'${namespace}'`)
-    .join(" | ");
+  const loadOnInitUnion =
+    loadOnInitSet.size > 0
+      ? [...loadOnInitSet]
+          .sort()
+          .map((namespace) => `'${namespace}'`)
+          .join(" | ")
+      : "never";
   const lazyUnion = lazyEntries.map((entry) => `'${entry.namespace}'`).join(" | ");
 
   return (

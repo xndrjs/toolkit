@@ -9,7 +9,6 @@
   "dictionaryOutput": "generated/dictionary.generated.ts",
   "instanceOutput": "generated/instance.generated.ts",
   "dictionarySchemaOutput": "generated/dictionary-schema.generated.ts",
-  "loadOnInit": ["default"],
   "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts",
   "paramsTypeName": "MyProjectParams",
   "schemaTypeName": "MyProjectSchema",

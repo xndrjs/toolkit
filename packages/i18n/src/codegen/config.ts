@@ -72,6 +72,15 @@ export function resolveLoadOnInit(
     return { loadOnInitSet: all, lazyEntries: [], hasLazy: false };
   }
 
+  const delivery = config.delivery ?? "canonical";
+  if (delivery !== "canonical") {
+    return {
+      loadOnInitSet: new Set(),
+      lazyEntries: entries,
+      hasLazy: entries.length > 0,
+    };
+  }
+
   const allNamespaces = new Set(entries.map((entry) => entry.namespace));
   const loadOnInitSet = config.loadOnInit
     ? new Set(config.loadOnInit)

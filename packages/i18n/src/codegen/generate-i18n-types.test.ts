@@ -1038,7 +1038,6 @@ describe("generate-i18n-types", () => {
           user: "src/i18n/translations/user.json",
           billing: "src/i18n/translations/billing.json",
         },
-        loadOnInit: ["default"],
         delivery: "split-by-locale",
         typesOutput: "src/i18n/generated/i18n-types.generated.ts",
         dictionaryOutput: "src/i18n/generated/dictionary.generated.ts",
@@ -1085,19 +1084,19 @@ describe("generate-i18n-types", () => {
     expect(types).toContain("export type AppLocale = 'en' | 'it'");
     expect(types).toContain("invoice_summary: { count: number }");
 
-    expect(dictionary).toContain("import defaultEn from './translations/default.en.json';");
-    expect(dictionary).toContain("import defaultIt from './translations/default.it.json';");
-    expect(dictionary).toContain(
-      "export function defaultDictionaryFor(locale: AppLocale): InitialSchema"
-    );
-    expect(dictionary).toContain("default: defaultByLocale[locale],");
+    expect(dictionary).not.toContain("defaultDictionaryFor");
     expect(dictionary).not.toContain("as unknown as");
     expect(dictionary).not.toContain("export const defaultDictionary");
     expect(dictionary).not.toContain("billingEn");
 
+    expect(types).toContain("export type LoadOnInitNamespace = never;");
+    expect(types).toContain("export type LazyNamespace = 'default' | 'user' | 'billing';");
+
     expect(loaders).toContain(
       "[K in LazyNamespace]: (locale: AppLocale) => Promise<AppSchema[K]>;"
     );
+    expect(loaders).toContain("export async function ensureNamespacesLoadedForLocale(");
+    expect(loaders).toContain("default: (locale) => {");
     expect(loaders).toContain("billing: (locale) => {");
     expect(loaders).toContain('case "it":');
     expect(loaders).toContain(
@@ -1136,7 +1135,6 @@ describe("generate-i18n-types", () => {
           default: "src/i18n/translations/default.json",
           billing: "src/i18n/translations/billing.yaml",
         },
-        loadOnInit: ["default"],
         delivery: "split-by-locale",
         deliveryOutput: "public/i18n",
         typesOutput: "src/i18n/generated/i18n-types.generated.ts",
@@ -1171,11 +1169,10 @@ describe("generate-i18n-types", () => {
       "utf8"
     );
 
-    expect(dictionary).toContain(
-      "import defaultEn from '../../../public/i18n/translations/default.en.json';"
-    );
-    expect(dictionary).toContain(
-      "import defaultIt from '../../../public/i18n/translations/default.it.json';"
+    expect(dictionary).not.toContain("defaultDictionaryFor");
+    expect(loaders).toContain("export async function ensureNamespacesLoadedForLocale(");
+    expect(loaders).toContain(
+      "return import('../../../public/i18n/translations/default.en.json').then((m) => m.default);"
     );
     expect(loaders).toContain(
       "return import('../../../public/i18n/translations/billing.en.json').then((m) => m.default);"
@@ -1280,11 +1277,13 @@ describe("generate-i18n-types", () => {
     );
     expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
     expect(types).not.toContain("typeof import");
-    expect(dictionary).toContain("import billingEn from './translations/billing.en.json';");
-    expect(dictionary).toContain(
-      "export function defaultDictionaryFor(locale: AppLocale): AppSchema"
+    expect(types).toContain("export type LazyNamespace = 'billing';");
+    expect(dictionary).not.toContain("defaultDictionaryFor");
+    const loaders = readFileSync(
+      join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
+      "utf8"
     );
-    expect(dictionary).toContain("billing: billingByLocale[locale],");
+    expect(loaders).toContain("export async function ensureNamespacesLoadedForLocale(");
   });
 
   it("emits defaultDictionaryFor in single mode with split-by-locale delivery", () => {
@@ -1413,7 +1412,6 @@ describe("generate-i18n-types", () => {
           default: "src/i18n/translations/default.json",
           billing: "src/i18n/translations/billing.json",
         },
-        loadOnInit: ["default"],
         delivery: "custom",
         deliveryArtifacts: {
           eu: ["it", "fr"],
@@ -1501,19 +1499,20 @@ describe("generate-i18n-types", () => {
     expect(types).not.toContain("typeof import");
     expect(types).toContain("invoice_summary: { count: number }");
 
-    expect(dictionary).toContain("import defaultEu from './translations/default.eu.json';");
-    expect(dictionary).toContain("import defaultUs from './translations/default.us.json';");
-    expect(dictionary).toContain(
-      "export function defaultDictionaryFor(area: AppDeliveryArea): InitialSchema"
-    );
-    expect(dictionary).toContain("default: defaultByArea[area],");
+    expect(dictionary).not.toContain("defaultDictionaryFor");
+    expect(dictionary).not.toContain("import defaultEu");
     expect(dictionary).not.toContain("as unknown as");
     expect(dictionary).not.toContain("export const defaultDictionary");
     expect(dictionary).not.toContain("billingEu");
 
+    expect(types).toContain("export type LoadOnInitNamespace = never;");
+    expect(types).toContain("export type LazyNamespace = 'default' | 'billing';");
+
     expect(loaders).toContain(
       "[K in LazyNamespace]: (area: AppDeliveryArea) => Promise<AppSchema[K]>;"
     );
+    expect(loaders).toContain("export async function ensureNamespacesLoadedForArea(");
+    expect(loaders).toContain("default: (area) => {");
     expect(loaders).toContain("billing: (area) => {");
     expect(loaders).toContain('case "eu":');
     expect(loaders).toContain('case "us":');
@@ -1637,12 +1636,13 @@ describe("generate-i18n-types", () => {
     expect(types).toContain("export type AppDeliveryArea = 'eu' | 'us';");
     expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
     expect(types).not.toContain("typeof import");
-    expect(dictionary).toContain("import billingEu from './translations/billing.eu.json';");
-    expect(dictionary).toContain("import billingUs from './translations/billing.us.json';");
-    expect(dictionary).toContain(
-      "export function defaultDictionaryFor(area: AppDeliveryArea): AppSchema"
+    expect(types).toContain("export type LazyNamespace = 'billing';");
+    expect(dictionary).not.toContain("defaultDictionaryFor");
+    const loaders = readFileSync(
+      join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
+      "utf8"
     );
-    expect(dictionary).toContain("billing: billingByArea[area],");
+    expect(loaders).toContain("export async function ensureNamespacesLoadedForArea(");
   });
 
   it("emits defaultDictionaryFor in single mode with custom delivery", () => {

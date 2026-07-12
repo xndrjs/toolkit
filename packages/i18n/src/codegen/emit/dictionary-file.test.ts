@@ -30,6 +30,39 @@ describe("formatDictionaryFile", () => {
     expect(output).not.toContain("defaultDictionaryFor");
   });
 
+  it("emits an empty module when all namespaces are lazy in split mode (multi)", () => {
+    const output = formatDictionaryFile({
+      isSingle: false,
+      hasLazy: true,
+      entries: [
+        { namespace: "default", filePath: "src/i18n/translations/default.json" },
+        { namespace: "billing", filePath: "src/i18n/translations/billing.json" },
+      ],
+      eagerEntries: [],
+      projectRoot,
+      dictionaryOutputPath,
+      typesOutputPath,
+      schemaTypeName: "AppSchema",
+      localeTypeName: "AppLocale",
+      importExtension: "none",
+      delivery: "split-by-locale",
+      requestLocales: ["en", "it"],
+      splitPathsByNamespace: {
+        default: {
+          en: "src/i18n/generated/translations/default.en.json",
+          it: "src/i18n/generated/translations/default.it.json",
+        },
+        billing: {
+          en: "src/i18n/generated/translations/billing.en.json",
+          it: "src/i18n/generated/translations/billing.it.json",
+        },
+      },
+    });
+
+    expect(output).toContain("export {};");
+    expect(output).not.toContain("defaultDictionaryFor");
+  });
+
   it("emits defaultDictionaryFor with per-locale imports in split mode (multi)", () => {
     const output = formatDictionaryFile({
       isSingle: false,

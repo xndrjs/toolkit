@@ -196,7 +196,7 @@ Variables found across **all locales** of the same key are merged. If parsing fa
 ### 3. Generated files
 
 - **`i18n-types.generated.ts`** — `I18N_MODE`, `MyProjectParams`, `MyProjectSchema`.
-- **`dictionary.generated.ts`** — imports the JSON files and exports `defaultDictionary` (canonical delivery) or `defaultDictionaryFor(locale)` (split-by-locale delivery).
+- **`dictionary.generated.ts`** — imports the JSON files and exports `defaultDictionary` (canonical delivery) or `defaultDictionaryFor(locale)` / `defaultDictionaryFor(area)` when eager namespaces exist in split/custom delivery; otherwise an empty module (`export {}`).
 - **`instance.generated.ts`** — exports `createI18n(dictionary)` (required argument; no default import of the fallback dictionary), typed `projectDictionaryLocales()` (full schema), and in multi mode `projectNamespaceLocales()` (single namespace); with `delivery: "custom"`, also `projectDictionaryForDeliveryArea()` and `projectNamespaceForDeliveryArea()`; `LOCALE_FALLBACK` wired in when configured.
 - **`i18n.ts`** (optional, hand-written) — app-owned singleton if desired.
 
@@ -407,25 +407,25 @@ Specify **exactly one** of `dictionary` (single-file) or `namespaces` (multi-fil
 }
 ```
 
-| Field                               | Description                                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `dictionary`                        | Path to a single dictionary file (`.json`, `.yaml`, or `.yml`) for the flat API. Mutually exclusive with `namespaces`.                                                                                                                                                  |
-| `namespaces`                        | Map of `namespace -> dictionary path` (`.json`, `.yaml`, or `.yml`) for the namespaced API. Mutually exclusive with `dictionary`.                                                                                                                                       |
-| `defaultNamespace`                  | Optional. Namespace label used internally in single-file mode (default `"default"`). Not exposed in the flat API.                                                                                                                                                       |
-| `typesOutput`                       | Output path for the generated types.                                                                                                                                                                                                                                    |
-| `dictionaryOutput`                  | Output path for the generated dictionary manifest.                                                                                                                                                                                                                      |
-| `instanceOutput`                    | Output path for the generated factory (`createI18n`).                                                                                                                                                                                                                   |
-| `importExtension`                   | Optional. Relative import suffix between generated `.ts` modules: `"none"` (default, extensionless), `".ts"`, or `".js"`.                                                                                                                                               |
-| `factoryName`                       | Name of the exported factory function (default `createI18n`).                                                                                                                                                                                                           |
-| `paramsTypeName` / `schemaTypeName` | Names of the exported types (customizable per project).                                                                                                                                                                                                                 |
-| `localeTypeName`                    | Name of the exported locale union type (default `MyProjectLocale`).                                                                                                                                                                                                     |
-| `localeFallback`                    | Optional map of `locale -> next locale                                                                                                                                                                                                                                  | null` for runtime fallback resolution. |
-| `localeFallbackConstName`           | Name of the generated fallback constant (default `LOCALE_FALLBACK`).                                                                                                                                                                                                    |
-| `dictionarySchemaOutput`            | Optional path for generated external dictionary validation (`dictionary-schema.generated.ts`). Requires `zod` in the consumer app.                                                                                                                                      |
-| `loadOnInit`                        | Multi mode only. Namespaces to include in the initial bundle via static imports. When omitted, all namespaces are eager (default).                                                                                                                                      |
-| `namespaceLoadersOutput`            | Output path for generated `namespaceLoaders` (dynamic `import()` per lazy namespace). Defaults to `{dirname(instanceOutput)}/namespace-loaders.generated.ts`. Required when lazy namespaces exist.                                                                      |
-| `delivery`                          | Optional. `"canonical"` (default) — one multilocale JSON per namespace. `"split-by-locale"` — emits `{basename}.{locale}.json` under `{deliveryOutput}/translations/` and per-locale loaders.                                                                           |
-| `deliveryOutput`                    | Optional. Directory for compiled and split delivery JSON (files land in `{deliveryOutput}/translations/`). Defaults to `dirname(typesOutput)`. Use e.g. `public/i18n` to ship per-locale JSON from a static host while keeping generated TypeScript under `generated/`. |
+| Field                               | Description                                                                                                                                                                                                                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `dictionary`                        | Path to a single dictionary file (`.json`, `.yaml`, or `.yml`) for the flat API. Mutually exclusive with `namespaces`.                                                                                                                                                        |
+| `namespaces`                        | Map of `namespace -> dictionary path` (`.json`, `.yaml`, or `.yml`) for the namespaced API. Mutually exclusive with `dictionary`.                                                                                                                                             |
+| `defaultNamespace`                  | Optional. Namespace label used internally in single-file mode (default `"default"`). Not exposed in the flat API.                                                                                                                                                             |
+| `typesOutput`                       | Output path for the generated types.                                                                                                                                                                                                                                          |
+| `dictionaryOutput`                  | Output path for the generated dictionary manifest.                                                                                                                                                                                                                            |
+| `instanceOutput`                    | Output path for the generated factory (`createI18n`).                                                                                                                                                                                                                         |
+| `importExtension`                   | Optional. Relative import suffix between generated `.ts` modules: `"none"` (default, extensionless), `".ts"`, or `".js"`.                                                                                                                                                     |
+| `factoryName`                       | Name of the exported factory function (default `createI18n`).                                                                                                                                                                                                                 |
+| `paramsTypeName` / `schemaTypeName` | Names of the exported types (customizable per project).                                                                                                                                                                                                                       |
+| `localeTypeName`                    | Name of the exported locale union type (default `MyProjectLocale`).                                                                                                                                                                                                           |
+| `localeFallback`                    | Optional map of `locale -> next locale                                                                                                                                                                                                                                        | null` for runtime fallback resolution. |
+| `localeFallbackConstName`           | Name of the generated fallback constant (default `LOCALE_FALLBACK`).                                                                                                                                                                                                          |
+| `dictionarySchemaOutput`            | Optional path for generated external dictionary validation (`dictionary-schema.generated.ts`). Requires `zod` in the consumer app.                                                                                                                                            |
+| `loadOnInit`                        | Multi mode only; **canonical delivery only**. Namespaces to include in the initial bundle via static imports. When omitted, all namespaces are eager (default). Not allowed with `split-by-locale` or `custom` — those modes load every namespace through `namespaceLoaders`. |
+| `namespaceLoadersOutput`            | Output path for generated `namespaceLoaders` (dynamic `import()` per lazy namespace). Defaults to `{dirname(instanceOutput)}/namespace-loaders.generated.ts`. Required when lazy namespaces exist.                                                                            |
+| `delivery`                          | Optional. `"canonical"` (default) — one multilocale JSON per namespace. `"split-by-locale"` — emits `{basename}.{locale}.json` under `{deliveryOutput}/translations/` and per-locale loaders.                                                                                 |
+| `deliveryOutput`                    | Optional. Directory for compiled and split delivery JSON (files land in `{deliveryOutput}/translations/`). Defaults to `dirname(typesOutput)`. Use e.g. `public/i18n` to ship per-locale JSON from a static host while keeping generated TypeScript under `generated/`.       |
 
 > Paths are resolved relative to the directory containing `i18n.codegen.json` (e.g. `i18n/` when using `xndrjs-i18n-setup .`).
 
@@ -458,7 +458,7 @@ Mixed namespaces are supported: some namespaces can stay `.json` while others us
 
 By default (`delivery: "canonical"`), codegen keeps one multilocale JSON per namespace — either your source file in place (`.json`) or a compiled YAML → JSON under `{deliveryOutput}/translations/` (default: `generated/translations/`).
 
-Set `"delivery": "split-by-locale"` to emit **one JSON file per locale** instead:
+Set `"delivery": "split-by-locale"` to emit **one JSON file per locale** instead. All namespaces are lazy in this mode — register them with `namespaceLoaders` before rendering:
 
 ```json
 {
@@ -467,7 +467,7 @@ Set `"delivery": "split-by-locale"` to emit **one JSON file per locale** instead
     "default": "translations/default.json",
     "billing": "translations/billing.yaml"
   },
-  "loadOnInit": ["default"]
+  "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts"
 }
 ```
 
@@ -477,12 +477,35 @@ Codegen writes `{deliveryOutput}/translations/{basename}.{locale}.json` (for exa
 
 **Generated API changes (opt-in):**
 
-| Canonical                        | Split-by-locale                                |
-| -------------------------------- | ---------------------------------------------- |
-| `export const defaultDictionary` | `export function defaultDictionaryFor(locale)` |
-| `namespaceLoaders.billing()`     | `namespaceLoaders.billing(locale)`             |
+| Canonical                        | Split-by-locale / custom (all lazy)                                                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `export const defaultDictionary` | `dictionary.generated.ts` is empty (`export {}`)                                                                                   |
+| `namespaceLoaders.billing()`     | `namespaceLoaders.billing(locale)` or `namespaceLoaders.billing(area)`                                                             |
+| —                                | `ensureNamespacesLoadedForLocale(i18n, locale)` or `ensureNamespacesLoadedForArea(i18n, area)` in `namespace-loaders.generated.ts` |
 
-Example `dictionary.generated.ts` (multi, `loadOnInit: ["default"]`):
+When `loadOnInit` lists eager namespaces in **canonical** delivery only, `dictionary.generated.ts` still exports `defaultDictionary` with static imports. In split/custom delivery, eager slices use `defaultDictionaryFor(locale)` or `defaultDictionaryFor(area)` when configured.
+
+Example init (multi, split-by-locale, all namespaces lazy):
+
+```ts
+import { createI18n } from "./generated/instance.generated.js";
+import { ensureNamespacesLoadedForLocale } from "./generated/namespace-loaders.generated.js";
+
+const i18n = createI18n({});
+await ensureNamespacesLoadedForLocale(i18n, activeLocale);
+```
+
+Example init (multi, custom delivery, all namespaces lazy):
+
+```ts
+import { createI18n } from "./generated/instance.generated.js";
+import { ensureNamespacesLoadedForArea } from "./generated/namespace-loaders.generated.js";
+
+const i18n = createI18n({});
+await ensureNamespacesLoadedForArea(i18n, activeArea);
+```
+
+Example `dictionary.generated.ts` (multi, canonical delivery, `loadOnInit: ["default"]`):
 
 ```ts
 import defaultEn from "./translations/default.en.json";
@@ -513,19 +536,31 @@ export const namespaceLoaders = {
     }
   },
 };
+
+export async function ensureNamespacesLoadedForLocale(
+  i18n: I18nMultiInstance,
+  locale: MyProjectLocale,
+  namespaces: readonly LazyNamespace[] = ["billing", "default"] as const
+): Promise<void> {
+  await Promise.all(
+    namespaces.map(async (namespace) => {
+      if (i18n.hasNamespace(namespace)) {
+        return;
+      }
+      i18n.setNamespace(namespace, await namespaceLoaders[namespace](locale));
+    })
+  );
+}
 ```
 
-Init with the active locale:
+Load only the namespaces you need:
 
 ```ts
 import { createI18n } from "./generated/instance.generated.js";
-import { defaultDictionaryFor } from "./generated/dictionary.generated.js";
+import { ensureNamespacesLoadedForLocale } from "./generated/namespace-loaders.generated.js";
 
-const i18n = createI18n(defaultDictionaryFor(activeLocale));
-
-if (!i18n.hasNamespace("billing")) {
-  i18n.setNamespace("billing", await namespaceLoaders.billing(activeLocale));
-}
+const i18n = createI18n({});
+await ensureNamespacesLoadedForLocale(i18n, activeLocale, ["billing"]);
 ```
 
 Use split delivery when you want smaller lazy chunks (one locale per dynamic import) or when serving per-locale JSON from `public/` without runtime `projectNamespaceLocales`. Runtime `projectDictionaryLocales` / `projectNamespaceLocales` remain available for external CMS/API payloads.
@@ -579,7 +614,7 @@ i18n.setNamespace("billing", externalBillingPayload);
 
 ### Lazy namespace loading (multi mode)
 
-Split namespaces across chunks by listing only the namespaces you need at startup in `loadOnInit`. Codegen emits typed `namespaceLoaders` — one dynamic `import()` per lazy namespace (or per lazy namespace **and locale** when `delivery: "split-by-locale"`). `.get()` stays synchronous — register lazy namespaces with `setNamespace()` before rendering.
+Split namespaces across chunks with `loadOnInit` in **canonical** delivery only. With `split-by-locale` or `custom`, every namespace is lazy and codegen emits typed `namespaceLoaders` — one dynamic `import()` per lazy namespace (and per locale or delivery area). `.get()` stays synchronous — register lazy namespaces with `setNamespace()` before rendering.
 
 ```json
 {

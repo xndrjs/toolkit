@@ -59,6 +59,6 @@ export type MyProjectSchema = {
     refund_policy_markdown: Partial<Record<MyProjectLocale, string>>;
   };
 };
-export type LoadOnInitNamespace = "default";
-export type LazyNamespace = "user" | "billing";
+export type LoadOnInitNamespace = never;
+export type LazyNamespace = "default" | "user" | "billing";
 export type InitialSchema = Pick<MyProjectSchema, LoadOnInitNamespace>;

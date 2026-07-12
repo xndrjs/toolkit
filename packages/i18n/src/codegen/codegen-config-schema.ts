@@ -99,6 +99,14 @@ export const codegenConfigSchema = z
         message: 'deliveryArtifacts is only allowed when delivery is "custom".',
       });
     }
+
+    if (config.loadOnInit !== undefined && config.delivery !== "canonical") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["loadOnInit"],
+        message: 'loadOnInit is only allowed when delivery is "canonical".',
+      });
+    }
   });
 
 export type CodegenConfigInput = z.input<typeof codegenConfigSchema>;

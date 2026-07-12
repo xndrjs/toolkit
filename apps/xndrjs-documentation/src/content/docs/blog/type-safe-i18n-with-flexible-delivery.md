@@ -217,7 +217,7 @@ This separation matters: optimizing delivery does not create a second authoring 
 
 ### Split by locale with generated namespace loaders
 
-In multi-namespace mode, list only the namespaces needed at startup in `loadOnInit`. Set `delivery` to `split-by-locale` and codegen emits one JSON artifact for every lazy namespace and locale, plus typed `namespaceLoaders`:
+In multi-namespace mode with `split-by-locale` or `custom` delivery, codegen emits one JSON artifact for every namespace and locale or area, plus typed `namespaceLoaders`. All namespaces are lazy in those modes — preload each namespace before rendering the feature that uses it:
 
 ```json
 // i18n/i18n.codegen.json
@@ -228,7 +228,6 @@ In multi-namespace mode, list only the namespaces needed at startup in `loadOnIn
     "billing": "translations/billing.yaml",
     "admin": "translations/admin.json"
   },
-  "loadOnInit": ["default"],
   "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts"
 }
 ```
@@ -243,15 +242,13 @@ generated/translations/
 └── admin.it.json
 ```
 
-Each loader accepts only a known locale and resolves to the exact schema for its namespace. Preload the namespace before rendering the feature that uses it:
+Each loader accepts only a known locale and resolves to the exact schema for its namespace. Preload namespaces before rendering the feature that uses them:
 
 ```ts
-import { i18n, namespaceLoaders } from "./i18n";
+import { createI18n, ensureNamespacesLoadedForLocale } from "./i18n";
 
-i18n.get("default", "login_button", "en"); // available immediately
-
-const billing = await namespaceLoaders.billing("en");
-i18n.setNamespace("billing", billing);
+const i18n = createI18n({});
+await ensureNamespacesLoadedForLocale(i18n, "en");
 
 i18n.get("billing", "invoice_summary", "en", { count: 12 });
 ```
@@ -262,6 +259,14 @@ The loader is generated as a finite switch of dynamic imports:
 
 ```ts
 export const namespaceLoaders = {
+  default: (locale: MyProjectLocale) => {
+    switch (locale) {
+      case "en":
+        return import("./translations/default.en.json").then((m) => m.default);
+      case "it":
+        return import("./translations/default.it.json").then((m) => m.default);
+    }
+  },
   billing: (locale: MyProjectLocale) => {
     switch (locale) {
       case "en":
@@ -299,11 +304,13 @@ Dynamic `import()` is therefore a code-splitting boundary.
 }
 ```
 
-Codegen produces `billing.eu.json`, `billing.amer.json`, and equivalent files for the other namespaces. The generated loader accepts the typed area name:
+Codegen produces `billing.eu.json`, `billing.amer.json`, and equivalent files for the other namespaces. Register namespaces for the active delivery area:
 
 ```ts
-const billing = await namespaceLoaders.billing("amer");
-i18n.setNamespace("billing", billing);
+import { createI18n, ensureNamespacesLoadedForArea } from "./i18n";
+
+const i18n = createI18n({});
+await ensureNamespacesLoadedForArea(i18n, "amer");
 ```
 
 Areas can follow geography (`emea`, `amer`, `apac`) or group sibling locales (`es`, `es-MX`, `es-AR`). Fallback is resolved while codegen projects each artifact, so a regional slice can receive values inherited from a parent locale without carrying that parent as a separate runtime locale.

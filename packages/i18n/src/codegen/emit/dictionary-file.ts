@@ -86,6 +86,10 @@ function formatPartitionedDictionaryFile(
   const dictionaryTypeName = hasLazy ? "InitialSchema" : schemaTypeName;
   const schemaTypeImport = hasLazy ? `, ${schemaTypeName}` : "";
 
+  if (eagerEntries.length === 0) {
+    return `${GENERATED_FILE_BANNER}\nexport {};\n`;
+  }
+
   const imports = eagerEntries
     .flatMap((entry) =>
       partitionKeys.map((partitionKey) => {

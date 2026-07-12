@@ -1,11 +1,17 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
-import { defaultDictionaryFor, i18n, namespaceLoaders, projectNamespaceLocales } from "./i18n";
+import {
+  i18n,
+  ensureNamespacesLoadedForLocale,
+  namespaceLoaders,
+  projectNamespaceLocales,
+} from "./i18n";
+import type { LazyNamespace, MyProjectLocale } from "./i18n/generated/i18n-types.generated";
 import {
   validateExternalDictionary,
   validateExternalNamespace,
 } from "./i18n/generated/dictionary-schema.generated";
 
-const demoLocale = "en";
+const demoLocale = "en" as const satisfies MyProjectLocale;
 
 export function exampleMultiNamespaceUsage(): void {
   console.log("default.login_button @ it:", i18n.get("default", "login_button", "it"));
@@ -42,14 +48,7 @@ export function exampleMultiNamespaceUsage(): void {
 }
 
 export async function exampleLazyNamespaceLoading(): Promise<void> {
-  await Promise.all(
-    (["user", "billing"] as const).map(async (namespace) => {
-      if (i18n.hasNamespace(namespace)) {
-        return;
-      }
-      i18n.setNamespace(namespace, await namespaceLoaders[namespace](demoLocale));
-    })
-  );
+  await ensureNamespacesLoadedForLocale(i18n, demoLocale);
 
   console.log("user.greeting @ en:", i18n.get("user", "greeting", "en", { name: "Ada" }));
   console.log(
@@ -199,21 +198,21 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 }
 
 async function loadExternalTranslations(): Promise<unknown> {
-  // We're loading with namespaceLoaders for commodity
-  // but cast to unknown to simulate external source
-  const [user, billing] = await Promise.all([
+  const [defaultNs, user, billing] = await Promise.all([
+    namespaceLoaders.default(demoLocale),
     namespaceLoaders.user(demoLocale),
     namespaceLoaders.billing(demoLocale),
   ]);
 
   return {
-    ...defaultDictionaryFor(demoLocale),
+    default: defaultNs,
     user,
     billing,
   };
 }
 
 async function main(): Promise<void> {
+  await ensureNamespacesLoadedForLocale(i18n, demoLocale, ["default"]);
   exampleMultiNamespaceUsage();
   await exampleLazyNamespaceLoading();
   await exampleSplitByLocaleDelivery();

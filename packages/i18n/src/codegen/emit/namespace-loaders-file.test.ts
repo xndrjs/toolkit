@@ -17,7 +17,10 @@ describe("formatNamespaceLoadersFile", () => {
         },
       ],
       schemaTypeName: "AppSchema",
+      paramsTypeName: "AppParams",
       localeTypeName: "AppLocale",
+      localeFallbackConstName: "LOCALE_FALLBACK",
+      hasLocaleFallback: false,
       typesModule: "i18n-types.generated",
       importExtension: "none",
       projectRoot,
@@ -29,6 +32,7 @@ describe("formatNamespaceLoadersFile", () => {
       "billing: () => import('./translations/billing.json').then((m) => m.default),"
     );
     expect(output).not.toContain("AppLocale");
+    expect(output).not.toContain("ensureNamespacesLoadedForLocale");
   });
 
   it("emits ns(locale) loaders in split mode", () => {
@@ -41,16 +45,25 @@ describe("formatNamespaceLoadersFile", () => {
           absolutePath: path.join(projectRoot, "src/i18n/translations/billing.json"),
         },
         {
+          namespace: "default",
+          filePath: "src/i18n/translations/default.json",
+          absolutePath: path.join(projectRoot, "src/i18n/translations/default.json"),
+        },
+        {
           namespace: "user",
           filePath: "src/i18n/translations/user.json",
           absolutePath: path.join(projectRoot, "src/i18n/translations/user.json"),
         },
       ],
       schemaTypeName: "AppSchema",
+      paramsTypeName: "AppParams",
       localeTypeName: "AppLocale",
+      localeFallbackConstName: "LOCALE_FALLBACK",
+      hasLocaleFallback: true,
       typesModule: "i18n-types.generated",
       importExtension: "none",
       projectRoot,
+      isSingle: false,
       delivery: "split-by-locale",
       requestLocales: ["en", "it", "de-CH"],
       splitPathsByNamespace: {
@@ -58,6 +71,11 @@ describe("formatNamespaceLoadersFile", () => {
           en: "src/i18n/generated/translations/billing.en.json",
           it: "src/i18n/generated/translations/billing.it.json",
           "de-CH": "src/i18n/generated/translations/billing.de-CH.json",
+        },
+        default: {
+          en: "src/i18n/generated/translations/default.en.json",
+          it: "src/i18n/generated/translations/default.it.json",
+          "de-CH": "src/i18n/generated/translations/default.de-CH.json",
         },
         user: {
           en: "src/i18n/generated/translations/user.en.json",
@@ -78,6 +96,12 @@ describe("formatNamespaceLoadersFile", () => {
     expect(output).toContain("user: (locale) => {");
     expect(output).not.toContain("billing: {");
     expect(output).not.toContain("import('./translations/billing.json')");
+    expect(output).toContain("export async function ensureNamespacesLoadedForLocale(");
+    expect(output).toContain("i18n: I18nMultiInstance,");
+    expect(output).toContain(
+      'namespaces: readonly LazyNamespace[] = ["billing", "default", "user"] as const,'
+    );
+    expect(output.match(/from '\.\/i18n-types\.generated'/g)?.length).toBe(1);
   });
 
   it("throws when a split path is missing", () => {
@@ -92,7 +116,10 @@ describe("formatNamespaceLoadersFile", () => {
           },
         ],
         schemaTypeName: "AppSchema",
+        paramsTypeName: "AppParams",
         localeTypeName: "AppLocale",
+        localeFallbackConstName: "LOCALE_FALLBACK",
+        hasLocaleFallback: false,
         typesModule: "i18n-types.generated",
         importExtension: "none",
         projectRoot,
@@ -116,12 +143,21 @@ describe("formatNamespaceLoadersFile", () => {
           filePath: "src/i18n/translations/billing.json",
           absolutePath: path.join(projectRoot, "src/i18n/translations/billing.json"),
         },
+        {
+          namespace: "default",
+          filePath: "src/i18n/translations/default.json",
+          absolutePath: path.join(projectRoot, "src/i18n/translations/default.json"),
+        },
       ],
       schemaTypeName: "AppSchema",
+      paramsTypeName: "AppParams",
       localeTypeName: "AppLocale",
+      localeFallbackConstName: "LOCALE_FALLBACK",
+      hasLocaleFallback: true,
       typesModule: "i18n-types.generated",
       importExtension: "none",
       projectRoot,
+      isSingle: false,
       delivery: "custom",
       deliveryAreaTypeName: "AppDeliveryArea",
       deliveryAreaNames: ["eu", "us"],
@@ -129,6 +165,10 @@ describe("formatNamespaceLoadersFile", () => {
         billing: {
           eu: "src/i18n/generated/translations/billing.eu.json",
           us: "src/i18n/generated/translations/billing.us.json",
+        },
+        default: {
+          eu: "src/i18n/generated/translations/default.eu.json",
+          us: "src/i18n/generated/translations/default.us.json",
         },
       },
     });
@@ -142,8 +182,11 @@ describe("formatNamespaceLoadersFile", () => {
     expect(output).toContain(
       "return import('./generated/translations/billing.eu.json').then((m) => m.default);"
     );
-    expect(output).not.toContain("AppLocale");
     expect(output).not.toContain("import('./translations/billing.json')");
+    expect(output).toContain("export async function ensureNamespacesLoadedForArea(");
+    expect(output).toContain(
+      'namespaces: readonly LazyNamespace[] = ["billing", "default"] as const,'
+    );
   });
 
   it("throws when a custom delivery split path is missing", () => {
@@ -158,7 +201,10 @@ describe("formatNamespaceLoadersFile", () => {
           },
         ],
         schemaTypeName: "AppSchema",
+        paramsTypeName: "AppParams",
         localeTypeName: "AppLocale",
+        localeFallbackConstName: "LOCALE_FALLBACK",
+        hasLocaleFallback: false,
         typesModule: "i18n-types.generated",
         importExtension: "none",
         projectRoot,
