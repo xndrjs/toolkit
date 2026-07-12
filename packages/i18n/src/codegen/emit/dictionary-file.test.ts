@@ -59,8 +59,7 @@ describe("formatDictionaryFile", () => {
       },
     });
 
-    expect(output).toContain("export {};");
-    expect(output).not.toContain("defaultDictionaryFor");
+    expect(output).toBeNull();
   });
 
   it("emits defaultDictionaryFor with per-locale imports in split mode (multi)", () => {

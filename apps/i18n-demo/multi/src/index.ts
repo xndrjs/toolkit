@@ -1,15 +1,14 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
 import {
-  i18n,
+  createI18nForLocale,
   ensureNamespacesLoadedForLocale,
+  i18n,
   namespaceLoaders,
   projectNamespaceLocales,
-} from "./i18n";
-import type { LazyNamespace, MyProjectLocale } from "./i18n/generated/i18n-types.generated";
-import {
   validateExternalDictionary,
   validateExternalNamespace,
-} from "./i18n/generated/dictionary-schema.generated";
+} from "./i18n";
+import type { MyProjectLocale } from "./i18n/generated/i18n-types.generated";
 
 const demoLocale = "en" as const satisfies MyProjectLocale;
 
@@ -47,7 +46,8 @@ export function exampleMultiNamespaceUsage(): void {
   );
 }
 
-export async function exampleLazyNamespaceLoading(): Promise<void> {
+export async function exampleEnsureNamespacesLoadedForLocale(): Promise<void> {
+  // All namespaces are lazy in split-by-locale mode — register them on the shared instance.
   await ensureNamespacesLoadedForLocale(i18n, demoLocale);
 
   console.log("user.greeting @ en:", i18n.get("user", "greeting", "en", { name: "Ada" }));
@@ -120,14 +120,29 @@ export async function exampleLazyNamespaceLoading(): Promise<void> {
   );
 }
 
-export async function exampleSplitByLocaleDelivery(): Promise<void> {
-  const activeLocale = "it";
+export async function exampleEnsureNamespacesForRoute(): Promise<void> {
+  const billingLocale = "it" as const satisfies MyProjectLocale;
 
-  i18n.setNamespace("billing", await namespaceLoaders.billing(activeLocale));
+  // Billing route: load only the namespaces this page needs.
+  await ensureNamespacesLoadedForLocale(i18n, billingLocale, ["billing"]);
 
   console.log(
-    "billing.invoice_summary @ it (split-by-locale loader):",
+    "billing.invoice_summary @ it (route-scoped ensureNamespacesLoadedForLocale):",
     i18n.get("billing", "invoice_summary", "it", { count: 2 })
+  );
+}
+
+export async function exampleCreateI18nForLocale(): Promise<void> {
+  // Per-request instance — useful when each request owns its own provider.
+  const requestI18n = await createI18nForLocale("de-CH", ["default", "user"]);
+
+  console.log(
+    "default.login_button @ de-CH (per-request instance):",
+    requestI18n.get("default", "login_button", "de-CH")
+  );
+  console.log(
+    "user.greeting @ de-CH (per-request instance):",
+    requestI18n.get("user", "greeting", "de-CH", { name: "Lena" })
   );
 }
 
@@ -147,10 +162,9 @@ export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
 }
 
 export async function exampleExternalNamespacePatch(): Promise<void> {
-  // We use namespaceLoaders here but simulate an external fetch...
+  // namespaceLoaders simulates a fetch from split delivery JSON on disk/CDN.
   const rawBilling: unknown = await namespaceLoaders.billing(demoLocale);
 
-  // ...so we re-validate after loading
   const result = validateExternalNamespace("billing", rawBilling);
   if (!result.ok) {
     console.error("billing setNamespace validation failed:", formatIssues(result.issues));
@@ -214,8 +228,9 @@ async function loadExternalTranslations(): Promise<unknown> {
 async function main(): Promise<void> {
   await ensureNamespacesLoadedForLocale(i18n, demoLocale, ["default"]);
   exampleMultiNamespaceUsage();
-  await exampleLazyNamespaceLoading();
-  await exampleSplitByLocaleDelivery();
+  await exampleEnsureNamespacesLoadedForLocale();
+  await exampleEnsureNamespacesForRoute();
+  await exampleCreateI18nForLocale();
   await exampleProjectNamespaceLocalesPatch();
   await exampleExternalNamespacePatch();
   await exampleExternalDictionaryHydration();

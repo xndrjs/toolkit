@@ -188,14 +188,20 @@ function main() {
   });
 
   writeFileIfChanged(typesOutputPath, typesContent);
-  writeFileIfChanged(dictionaryOutputPath, dictionaryContent);
-  writeFileIfChanged(instanceOutputPath, instanceContent);
 
   const generatedFiles = [
     path.relative(projectRoot, typesOutputPath),
-    path.relative(projectRoot, dictionaryOutputPath),
     path.relative(projectRoot, instanceOutputPath),
   ];
+
+  if (dictionaryContent !== null) {
+    writeFileIfChanged(dictionaryOutputPath, dictionaryContent);
+    generatedFiles.splice(1, 0, path.relative(projectRoot, dictionaryOutputPath));
+  } else if (fs.existsSync(dictionaryOutputPath)) {
+    fs.unlinkSync(dictionaryOutputPath);
+  }
+
+  writeFileIfChanged(instanceOutputPath, instanceContent);
 
   if (config.dictionarySchemaOutput) {
     const dictionarySchemaOutputPath = path.resolve(projectRoot, config.dictionarySchemaOutput);

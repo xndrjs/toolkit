@@ -1,4 +1,12 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -168,6 +176,7 @@ describe("generate-i18n-types", () => {
     expect(schema).toContain("mode: 'multi' as const");
     expect(schema).toContain("validateExternalDictionary");
     expect(schema).toContain("validateExternalNamespace");
+    expect(schema).toContain("validateExternalNamespaceCore");
     expect(schema).toContain('"name": "string"');
   });
 
@@ -228,6 +237,7 @@ describe("generate-i18n-types", () => {
     expect(schema).toContain("mode: 'single' as const");
     expect(schema).toContain("validateExternalDictionary");
     expect(schema).not.toContain("validateExternalNamespaceImpl");
+    expect(schema).not.toContain("validateExternalNamespaceCore");
   });
 
   it("generates flat types for single-file config", () => {
@@ -1069,25 +1079,19 @@ describe("generate-i18n-types", () => {
     ).toThrow();
 
     const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
-    const dictionary = readFileSync(
-      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
-      "utf8"
-    );
     const loaders = readFileSync(
       join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
       "utf8"
     );
+
+    expect(existsSync(join(tempDir, "src/i18n/generated/dictionary.generated.ts"))).toBe(false);
+    expect(result.stdout).not.toContain("dictionary.generated.ts");
 
     expect(types).toContain("welcome: Partial<Record<AppLocale, string>>;");
     expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
     expect(types).not.toContain("typeof import");
     expect(types).toContain("export type AppLocale = 'en' | 'it'");
     expect(types).toContain("invoice_summary: { count: number }");
-
-    expect(dictionary).not.toContain("defaultDictionaryFor");
-    expect(dictionary).not.toContain("as unknown as");
-    expect(dictionary).not.toContain("export const defaultDictionary");
-    expect(dictionary).not.toContain("billingEn");
 
     expect(types).toContain("export type LoadOnInitNamespace = never;");
     expect(types).toContain("export type LazyNamespace = 'default' | 'user' | 'billing';");
@@ -1160,16 +1164,12 @@ describe("generate-i18n-types", () => {
     ) as Record<string, Record<string, string>>;
     expect(billingEn.invoice_summary).toEqual({ en: "You have {count} invoices" });
 
-    const dictionary = readFileSync(
-      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
-      "utf8"
-    );
     const loaders = readFileSync(
       join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
       "utf8"
     );
 
-    expect(dictionary).not.toContain("defaultDictionaryFor");
+    expect(existsSync(join(tempDir, "src/i18n/generated/dictionary.generated.ts"))).toBe(false);
     expect(loaders).toContain("export async function ensureNamespacesLoadedForLocale(");
     expect(loaders).toContain(
       "return import('../../../public/i18n/translations/default.en.json').then((m) => m.default);"
@@ -1271,14 +1271,10 @@ describe("generate-i18n-types", () => {
     expect(enSplit.invoice_summary).toEqual({ en: "You have {count} invoices" });
 
     const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
-    const dictionary = readFileSync(
-      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
-      "utf8"
-    );
     expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
     expect(types).not.toContain("typeof import");
     expect(types).toContain("export type LazyNamespace = 'billing';");
-    expect(dictionary).not.toContain("defaultDictionaryFor");
+    expect(existsSync(join(tempDir, "src/i18n/generated/dictionary.generated.ts"))).toBe(false);
     const loaders = readFileSync(
       join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
       "utf8"
@@ -1459,10 +1455,6 @@ describe("generate-i18n-types", () => {
     ).toThrow();
 
     const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
-    const dictionary = readFileSync(
-      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
-      "utf8"
-    );
     const loaders = readFileSync(
       join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
       "utf8"
@@ -1499,11 +1491,8 @@ describe("generate-i18n-types", () => {
     expect(types).not.toContain("typeof import");
     expect(types).toContain("invoice_summary: { count: number }");
 
-    expect(dictionary).not.toContain("defaultDictionaryFor");
-    expect(dictionary).not.toContain("import defaultEu");
-    expect(dictionary).not.toContain("as unknown as");
-    expect(dictionary).not.toContain("export const defaultDictionary");
-    expect(dictionary).not.toContain("billingEu");
+    expect(existsSync(join(tempDir, "src/i18n/generated/dictionary.generated.ts"))).toBe(false);
+    expect(result.stdout).not.toContain("dictionary.generated.ts");
 
     expect(types).toContain("export type LoadOnInitNamespace = never;");
     expect(types).toContain("export type LazyNamespace = 'default' | 'billing';");
@@ -1629,15 +1618,11 @@ describe("generate-i18n-types", () => {
     expect(usSplit.invoice_summary).toEqual({ "en-US": "You have {count} invoices" });
 
     const types = readFileSync(join(tempDir, "src/i18n/generated/i18n-types.generated.ts"), "utf8");
-    const dictionary = readFileSync(
-      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
-      "utf8"
-    );
     expect(types).toContain("export type AppDeliveryArea = 'eu' | 'us';");
     expect(types).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
     expect(types).not.toContain("typeof import");
     expect(types).toContain("export type LazyNamespace = 'billing';");
-    expect(dictionary).not.toContain("defaultDictionaryFor");
+    expect(existsSync(join(tempDir, "src/i18n/generated/dictionary.generated.ts"))).toBe(false);
     const loaders = readFileSync(
       join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
       "utf8"

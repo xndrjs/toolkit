@@ -1,31 +1,24 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
 import {
   createI18n,
+  createI18nForArea,
   ensureNamespacesLoadedForArea,
   LOCALE_DELIVERY_AREA,
   namespaceLoaders,
   projectNamespaceLocales,
+  validateExternalDictionary,
+  validateExternalNamespace,
   type MyProjectDeliveryArea,
   type MyProjectLocale,
 } from "./i18n";
 import type { LazyNamespace } from "./i18n/generated/i18n-types.generated";
-import {
-  validateExternalDictionary,
-  validateExternalNamespace,
-} from "./i18n/generated/dictionary-schema.generated";
 
-async function createAreaI18n(
-  area: MyProjectDeliveryArea,
-  namespaces: readonly LazyNamespace[] = ["default"]
-) {
-  const instance = createI18n({});
-  await ensureNamespacesLoadedForArea(instance, area, namespaces);
-  return instance;
-}
+export async function exampleEnsureNamespacesLoadedForArea(): Promise<void> {
+  const euI18n = createI18n({});
+  await ensureNamespacesLoadedForArea(euI18n, "eu", ["default"]);
 
-export async function exampleInitPerArea(): Promise<void> {
-  const euI18n = await createAreaI18n("eu");
-  const amerI18n = await createAreaI18n("amer");
+  const amerI18n = createI18n({});
+  await ensureNamespacesLoadedForArea(amerI18n, "amer", ["default"]);
 
   console.log("default.some_key @ it (eu area):", euI18n.get("default", "some_key", "it"));
   console.log("default.some_key @ fr (eu area):", euI18n.get("default", "some_key", "fr"));
@@ -61,32 +54,14 @@ export async function exampleInitPerArea(): Promise<void> {
   );
 }
 
-export async function exampleProjectionInEuArea(): Promise<void> {
-  const euI18n = await createAreaI18n("eu");
+export async function exampleCreateI18nForArea(): Promise<void> {
+  const euI18n = await createI18nForArea("eu");
+  const amerI18n = await createI18nForArea("amer");
 
-  // `it` falls back to `en` inside eu → preserve mode: no `it` entry in default.eu.json for this key.
   console.log(
     "default.some_other_key @ it (runtime fallback to en, not in default.eu.json):",
     euI18n.get("default", "some_other_key", "it")
   );
-  console.log(
-    "default.some_other_key @ en (canonical in default.eu.json):",
-    euI18n.get("default", "some_other_key", "en")
-  );
-  console.log(
-    "default.some_other_key @ fr (canonical in default.eu.json):",
-    euI18n.get("default", "some_other_key", "fr")
-  );
-  console.log(
-    "default.some_other_key @ es (canonical in default.eu.json):",
-    euI18n.get("default", "some_other_key", "es")
-  );
-}
-
-export async function exampleProjectionInAmerArea(): Promise<void> {
-  const amerI18n = await createAreaI18n("amer");
-
-  // en-US falls back to en (eu area); es-AR has only `some_key` in canonical.
   console.log(
     "default.some_other_key @ en-US (projected from en in default.amer.json):",
     amerI18n.get("default", "some_other_key", "en-US")
@@ -97,21 +72,21 @@ export async function exampleProjectionInAmerArea(): Promise<void> {
   );
 }
 
-export async function exampleLazyNamespaceLoadingByLocale(): Promise<void> {
+export async function exampleEnsureNamespacesByLocale(): Promise<void> {
   for (const locale of ["it", "en-US", "es-AR"] as const satisfies readonly MyProjectLocale[]) {
     const area = LOCALE_DELIVERY_AREA[locale];
-    const i18n = await createAreaI18n(area, ["default", "billing"]);
+    const i18n = await createI18nForArea(area, ["default", "billing"]);
 
     console.log(
-      `billing.invoice_summary @ ${locale} (via LOCALE_DELIVERY_AREA → ${area}):`,
+      `billing.invoice_summary @ ${locale} (LOCALE_DELIVERY_AREA → ${area}):`,
       i18n.get("billing", "invoice_summary", locale, { count: 1 })
     );
   }
 }
 
-export async function exampleLazyNamespaceLoadingPerArea(): Promise<void> {
+export async function exampleEnsureNamespacesPerArea(): Promise<void> {
   for (const area of ["eu", "amer"] as const satisfies readonly MyProjectDeliveryArea[]) {
-    const i18n = await createAreaI18n(area, ["default", "billing"]);
+    const i18n = await createI18nForArea(area, ["default", "billing"]);
 
     if (area === "eu") {
       console.log(
@@ -143,8 +118,18 @@ export async function exampleLazyNamespaceLoadingPerArea(): Promise<void> {
   }
 }
 
+export async function exampleEnsureNamespacesForRoute(): Promise<void> {
+  const euI18n = createI18n({});
+  await ensureNamespacesLoadedForArea(euI18n, "eu", ["billing"] satisfies readonly LazyNamespace[]);
+
+  console.log(
+    "billing.invoice_summary @ it (route-scoped ensureNamespacesLoadedForArea):",
+    euI18n.get("billing", "invoice_summary", "it", { count: 7 })
+  );
+}
+
 export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
-  const euI18n = await createAreaI18n("eu", ["default"]);
+  const euI18n = await createI18nForArea("eu", ["default"]);
   const billing = await namespaceLoaders.billing("eu");
   euI18n.setNamespace("billing", projectNamespaceLocales(billing, ["it"]));
 
@@ -155,7 +140,7 @@ export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
 }
 
 export async function exampleExternalNamespacePatch(): Promise<void> {
-  const amerI18n = await createAreaI18n("amer", ["default"]);
+  const amerI18n = await createI18nForArea("amer", ["default"]);
   const rawBilling: unknown = await namespaceLoaders.billing("amer");
 
   const result = validateExternalNamespace("billing", rawBilling);
@@ -173,7 +158,7 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
 }
 
 export async function exampleExternalDictionaryHydration(): Promise<void> {
-  const euI18n = await createAreaI18n("eu", ["default"]);
+  const euI18n = await createI18nForArea("eu", ["default"]);
   const raw = await loadExternalTranslations("eu");
 
   const result = validateExternalDictionary(raw);
@@ -203,11 +188,11 @@ async function loadExternalTranslations(area: MyProjectDeliveryArea): Promise<un
 }
 
 async function main(): Promise<void> {
-  await exampleInitPerArea();
-  await exampleProjectionInEuArea();
-  await exampleProjectionInAmerArea();
-  await exampleLazyNamespaceLoadingByLocale();
-  await exampleLazyNamespaceLoadingPerArea();
+  await exampleEnsureNamespacesLoadedForArea();
+  await exampleCreateI18nForArea();
+  await exampleEnsureNamespacesByLocale();
+  await exampleEnsureNamespacesPerArea();
+  await exampleEnsureNamespacesForRoute();
   await exampleProjectNamespaceLocalesPatch();
   await exampleExternalNamespacePatch();
   await exampleExternalDictionaryHydration();

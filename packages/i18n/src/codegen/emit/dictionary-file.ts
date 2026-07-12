@@ -67,7 +67,7 @@ function toPartitionSuffix(paramName: string): string {
 function formatPartitionedDictionaryFile(
   options: DictionaryFileOptions,
   { partitionKeys, paramName, paramTypeName }: PartitionedDictionaryParams
-): string {
+): string | null {
   const {
     isSingle,
     hasLazy,
@@ -87,7 +87,7 @@ function formatPartitionedDictionaryFile(
   const schemaTypeImport = hasLazy ? `, ${schemaTypeName}` : "";
 
   if (eagerEntries.length === 0) {
-    return `${GENERATED_FILE_BANNER}\nexport {};\n`;
+    return null;
   }
 
   const imports = eagerEntries
@@ -168,7 +168,7 @@ function formatPartitionedDictionaryFile(
  * Builds `dictionary.generated.ts` for the configured delivery mode:
  * canonical (single bundled JSON per namespace), split-by-locale, or custom areas.
  */
-export function formatDictionaryFile(options: DictionaryFileOptions): string {
+export function formatDictionaryFile(options: DictionaryFileOptions): string | null {
   const delivery = options.delivery ?? "canonical";
   if (delivery === "split-by-locale") {
     return formatPartitionedDictionaryFile(options, {

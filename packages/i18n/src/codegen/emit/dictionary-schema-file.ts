@@ -81,14 +81,14 @@ export function formatDictionarySchemaFile(
   const typesImport = toRelativeModuleImport(typesModule, importExtension);
   const namespaceImport = isSingle
     ? ""
-    : `  validateExternalNamespace as validateExternalNamespaceImpl,\n`;
+    : `  validateExternalNamespace as validateExternalNamespaceCore,\n`;
   const namespaceValidator = isSingle
     ? ""
     : `export function validateExternalNamespace<NS extends keyof ${schemaTypeName}>(\n` +
       `  namespace: NS,\n` +
       `  input: unknown,\n` +
       `) {\n` +
-      `  return validateExternalNamespaceImpl<${schemaTypeName}[NS]>(\n` +
+      `  return validateExternalNamespaceCore<${schemaTypeName}[NS]>(\n` +
       `    namespace as string,\n` +
       `    input,\n` +
       `    DICTIONARY_SPEC,\n` +

@@ -2,7 +2,7 @@
 import {
   normalizeDictionary,
   validateNormalizedDictionary,
-  validateExternalNamespace as validateExternalNamespaceImpl,
+  validateExternalNamespace as validateExternalNamespaceCore,
   toDictionary,
   type DictionarySpec,
   type NormalizedDictionary,
@@ -117,7 +117,7 @@ export function validateExternalNamespace<NS extends keyof MyProjectSchema>(
   namespace: NS,
   input: unknown
 ) {
-  return validateExternalNamespaceImpl<MyProjectSchema[NS]>(
+  return validateExternalNamespaceCore<MyProjectSchema[NS]>(
     namespace as string,
     input,
     DICTIONARY_SPEC

@@ -196,7 +196,7 @@ Variables found across **all locales** of the same key are merged. If parsing fa
 ### 3. Generated files
 
 - **`i18n-types.generated.ts`** — `I18N_MODE`, `MyProjectParams`, `MyProjectSchema`.
-- **`dictionary.generated.ts`** — imports the JSON files and exports `defaultDictionary` (canonical delivery) or `defaultDictionaryFor(locale)` / `defaultDictionaryFor(area)` when eager namespaces exist in split/custom delivery; otherwise an empty module (`export {}`).
+- **`dictionary.generated.ts`** — imports the JSON files and exports `defaultDictionary` (canonical delivery) or `defaultDictionaryFor(locale)` / `defaultDictionaryFor(area)` when eager namespaces exist in split/custom delivery. Omitted when every namespace is lazy in split/custom delivery.
 - **`instance.generated.ts`** — exports `createI18n(dictionary)` (required argument; no default import of the fallback dictionary), typed `projectDictionaryLocales()` (full schema), and in multi mode `projectNamespaceLocales()` (single namespace); with `delivery: "custom"`, also `projectDictionaryForDeliveryArea()` and `projectNamespaceForDeliveryArea()`; `LOCALE_FALLBACK` wired in when configured.
 - **`i18n.ts`** (optional, hand-written) — app-owned singleton if desired.
 
@@ -479,7 +479,7 @@ Codegen writes `{deliveryOutput}/translations/{basename}.{locale}.json` (for exa
 
 | Canonical                        | Split-by-locale / custom (all lazy)                                                                                                |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `export const defaultDictionary` | `dictionary.generated.ts` is empty (`export {}`)                                                                                   |
+| `export const defaultDictionary` | `dictionary.generated.ts` is not generated                                                                                         |
 | `namespaceLoaders.billing()`     | `namespaceLoaders.billing(locale)` or `namespaceLoaders.billing(area)`                                                             |
 | —                                | `ensureNamespacesLoadedForLocale(i18n, locale)` or `ensureNamespacesLoadedForArea(i18n, area)` in `namespace-loaders.generated.ts` |
 
