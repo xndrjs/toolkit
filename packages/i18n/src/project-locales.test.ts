@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mergeNamespaceLocalesCore,
   projectDictionaryForDeliveryAreaCore,
   projectDictionaryLocalesCore,
   projectNamespaceForDeliveryAreaCore,
@@ -199,6 +200,39 @@ describe("projectDictionaryLocalesCore", () => {
     expect(projectDictionaryLocalesCore(dictionary, ["en"])).toEqual({
       default: { login_button: { en: "Login" } },
       billing: { invoice_summary: { en: "{count} invoices" } },
+    });
+  });
+});
+
+describe("mergeNamespaceLocalesCore", () => {
+  it("merges locale maps per key without dropping existing locales", () => {
+    const existing = {
+      welcome: { en: "Welcome {name}!" },
+      login_button: { en: "Login", it: "Accedi" },
+    };
+    const incoming = {
+      welcome: { it: "Benvenuto {name}!" },
+      invoice_summary: { en: "{count} invoices" },
+    };
+
+    // @ts-expect-error missing key in incoming
+    expect(mergeNamespaceLocalesCore(existing, incoming)).toEqual({
+      welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
+      login_button: { en: "Login", it: "Accedi" },
+      invoice_summary: { en: "{count} invoices" },
+    });
+  });
+
+  it("overwrites the same locale when incoming provides a new template", () => {
+    const existing = {
+      welcome: { en: "Welcome {name}!" },
+    };
+    const incoming = {
+      welcome: { en: "Hello {name}!" },
+    };
+
+    expect(mergeNamespaceLocalesCore(existing, incoming)).toEqual({
+      welcome: { en: "Hello {name}!" },
     });
   });
 });

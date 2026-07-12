@@ -34,19 +34,9 @@ interface PartitionedNamespaceLoadersParams {
 }
 
 function formatI18nMultiInstanceType(options: NamespaceLoadersFileOptions): string {
-  const {
-    schemaTypeName,
-    paramsTypeName,
-    localeTypeName,
-    localeFallbackConstName,
-    hasLocaleFallback,
-  } = options;
+  const { schemaTypeName, paramsTypeName, localeTypeName } = options;
 
-  const typeArgs = hasLocaleFallback
-    ? `${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, typeof ${localeFallbackConstName}`
-    : `${schemaTypeName}, ${paramsTypeName}`;
-
-  return `IcuTranslationProviderMulti<${typeArgs}>`;
+  return `TranslationProviderMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
 }
 
 function formatDefaultNamespacesLiteral(lazyEntries: NamespaceEntry[]): string {
@@ -73,7 +63,7 @@ function formatLoadNamespacesHelper(
     `): Promise<void> {\n` +
     `  await Promise.all(\n` +
     `    namespaces.map(async (namespace) => {\n` +
-    `      i18n.setNamespace(namespace, await namespaceLoaders[namespace](${paramName}));\n` +
+    `      i18n.mergeNamespace(namespace, await namespaceLoaders[namespace](${paramName}));\n` +
     `    }),\n` +
     `  );\n` +
     `}\n`
@@ -84,26 +74,17 @@ function formatPartitionedTypesImport(
   options: NamespaceLoadersFileOptions,
   paramTypeName: string
 ): string {
-  const {
-    schemaTypeName,
-    paramsTypeName,
-    localeTypeName,
-    localeFallbackConstName,
-    hasLocaleFallback,
-    typesModule,
-    importExtension,
-    isSingle,
-  } = options;
+  const { schemaTypeName, paramsTypeName, localeTypeName, typesModule, importExtension, isSingle } =
+    options;
 
   if (isSingle) {
     return `import type { ${schemaTypeName}, LazyNamespace, ${paramTypeName} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`;
   }
 
-  const fallbackImport = hasLocaleFallback ? `${localeFallbackConstName}, ` : "";
-  const paramTypeImport = paramTypeName === localeTypeName ? "" : `, type ${paramTypeName}`;
+  const paramTypeImport = paramTypeName === localeTypeName ? "" : `, ${paramTypeName}`;
   return (
-    `import { IcuTranslationProviderMulti } from '@xndrjs/i18n';\n` +
-    `import { ${fallbackImport}type ${localeTypeName}, type ${paramsTypeName}, type ${schemaTypeName}, type LazyNamespace${paramTypeImport} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`
+    `import type { TranslationProviderMulti } from '@xndrjs/i18n';\n` +
+    `import type { ${localeTypeName}, ${paramsTypeName}, ${schemaTypeName}, LazyNamespace${paramTypeImport} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`
   );
 }
 

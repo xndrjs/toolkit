@@ -1,5 +1,14 @@
 # @xndrjs/i18n
 
+## 0.6.1
+
+### Patch Changes
+
+- ### Patch Changes
+  - **Runtime:** add `mergeNamespace()` on `IcuTranslationProviderMulti` — merges locale entries per translation key instead of replacing the whole namespace. Export `mergeNamespaceLocalesCore` for tooling.
+  - **Split-by-locale / custom:** generated `ensureNamespacesLoadedForLocale` and `ensureNamespacesLoadedForArea` call `mergeNamespace()` so loading another locale or delivery area accumulates translations instead of dropping prior locales.
+  - **Codegen:** `I18nMultiInstance` in `namespace-loaders.generated.ts` is typed as `TranslationProviderMulti<…>` (public interface). Re-run `xndrjs-i18n-codegen` after upgrading.
+
 ## 0.6.0
 
 ### Minor Changes

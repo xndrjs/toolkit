@@ -1,5 +1,6 @@
 import { cloneAndFreeze } from "./deep-freeze.js";
 import { resolveAndFormat } from "./format-core.js";
+import { mergeNamespaceLocalesCore } from "./project-locales.js";
 import { validateLocaleFallback } from "./resolve-locale.js";
 import type {
   IcuTranslationProviderOptions,
@@ -41,6 +42,7 @@ export interface TranslationProviderMulti<
   hasNamespace<NS extends keyof Schema & string>(namespace: NS): boolean;
   setAll(values: Schema): void;
   setNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void;
+  mergeNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void;
 }
 
 export class IcuTranslationProviderMultiForLocale<
@@ -171,5 +173,15 @@ export class IcuTranslationProviderMulti<
     for (const locale of Object.keys(this.compiledCache)) {
       delete this.compiledCache[locale]?.[namespace as string];
     }
+  }
+
+  mergeNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void {
+    if (!this.loadedNamespaces.has(namespace as string)) {
+      this.setNamespace(namespace, values);
+      return;
+    }
+
+    const existing = this.dictionary[namespace];
+    this.setNamespace(namespace, mergeNamespaceLocalesCore(existing as Schema[NS], values));
   }
 }

@@ -152,3 +152,24 @@ export function projectDictionaryLocalesCore<T extends MultiDictionary>(
 
   return result;
 }
+
+/**
+ * Merges locale entries per translation key without dropping keys or locales
+ * already present in `existing`. Incoming locales overwrite the same locale on conflict.
+ */
+export function mergeNamespaceLocalesCore<T extends KeyDictionary>(existing: T, incoming: T): T {
+  const merged = structuredClone(existing);
+
+  for (const [key, incomingLocales] of Object.entries(incoming)) {
+    if (incomingLocales === undefined || typeof incomingLocales !== "object") {
+      continue;
+    }
+
+    merged[key as keyof T] = {
+      ...(merged[key as keyof T] ?? {}),
+      ...incomingLocales,
+    } as T[keyof T];
+  }
+
+  return merged;
+}

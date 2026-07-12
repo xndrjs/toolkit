@@ -599,7 +599,7 @@ export async function ensureNamespacesLoadedForLocale(
 ): Promise<void> {
   await Promise.all(
     namespaces.map(async (namespace) => {
-      i18n.setNamespace(namespace, await namespaceLoaders[namespace](locale));
+      i18n.mergeNamespace(namespace, await namespaceLoaders[namespace](locale));
     })
   );
 }
@@ -668,10 +668,10 @@ i18n.setNamespace("billing", externalBillingPayload);
 
 `.get()` stays synchronous — register lazy namespaces with `setNamespace()` before rendering. The pattern depends on `delivery`:
 
-| Delivery                     | Loading pattern                                                                                                                                                                                           |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `canonical`                  | `loadOnInit` for eager namespaces; manual `namespaceLoaders.ns()` for lazy ones. Use `hasNamespace` to skip already-loaded namespaces.                                                                    |
-| `split-by-locale` / `custom` | Every namespace is lazy. Prefer `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea` — they always call `setNamespace()` (safe when switching locale or area on a shared `i18n` instance). |
+| Delivery                     | Loading pattern                                                                                                                                                                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `canonical`                  | `loadOnInit` for eager namespaces; manual `namespaceLoaders.ns()` for lazy ones. Use `hasNamespace` to skip already-loaded namespaces.                                                                                            |
+| `split-by-locale` / `custom` | Every namespace is lazy. Prefer `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea` — they call `mergeNamespace()` so loading another locale or area accumulates translations instead of replacing prior locales. |
 
 #### Canonical delivery — `loadOnInit` and manual loaders
 
@@ -714,7 +714,7 @@ await Promise.all(
 
 #### Split-by-locale / custom — `ensureNamespacesLoaded*`
 
-With `split-by-locale` or `custom`, codegen emits `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea`. These helpers **always** reload the requested namespaces — do not guard with `hasNamespace` when switching locale or delivery area on the same instance:
+With `split-by-locale` or `custom`, codegen emits `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea`. These helpers call `mergeNamespace()` — loading another locale or delivery area **adds** locale entries per key instead of replacing the whole namespace:
 
 ```ts
 import { createI18n } from "./generated/instance.generated.js";
@@ -725,12 +725,13 @@ import {
 
 const i18n = createI18n({});
 
-// split-by-locale
+// split-by-locale — en and it coexist after both calls
 await ensureNamespacesLoadedForLocale(i18n, "it");
 i18n.get("billing", "invoice_summary", "it", { count: 3 });
 
-await ensureNamespacesLoadedForLocale(i18n, "en"); // reloads billing for en
+await ensureNamespacesLoadedForLocale(i18n, "en");
 i18n.get("billing", "invoice_summary", "en", { count: 3 });
+i18n.get("billing", "invoice_summary", "it", { count: 3 }); // still available
 
 // custom delivery
 await ensureNamespacesLoadedForArea(i18n, "eu", ["billing"]);
@@ -742,15 +743,15 @@ Route-scoped subset:
 await ensureNamespacesLoadedForLocale(i18n, activeLocale, ["billing"]);
 ```
 
-Manual loader calls (without the helper) follow the same rule — call `setNamespace` again when the locale or area changes:
+Manual loader calls (without the helper) should use `mergeNamespace` when accumulating locales on the same instance:
 
 ```ts
 const locale = "it" as const;
 
-i18n.setNamespace("billing", await namespaceLoaders.billing(locale));
+i18n.mergeNamespace("billing", await namespaceLoaders.billing(locale));
 
-// after locale change on the same instance:
-i18n.setNamespace("billing", await namespaceLoaders.billing("en"));
+// add another locale on the same instance:
+i18n.mergeNamespace("billing", await namespaceLoaders.billing("en"));
 ```
 
 Generated loaders throw if locale/area does not match a known artifact (no silent `undefined` into `setNamespace`).
@@ -829,6 +830,7 @@ Both providers share this behavior:
 - **`hasNamespace(ns)`** — (multi only) returns whether a namespace has been loaded (eager init, lazy load, or `setNamespace`).
 - **`setAll(values)`** — replaces the dictionary and clears the entire cache.
 - **`setNamespace(ns, values)`** — (multi only) replaces one namespace and invalidates only its cache entries.
+- **`mergeNamespace(ns, values)`** — (multi only) merges locale entries per translation key into an existing namespace (or registers it when not loaded yet). Used by generated `ensureNamespacesLoaded*` helpers in split/custom delivery.
 - **Missing key/locale** — by default throws an error if the template is `undefined` (configurable via `onMissing`, see below). An empty string (`""`) is treated as a valid template.
 - **ICU syntax error** — throws `[i18n ICU Syntax Error] ...`.
 - **Formatting error** (missing/invalid params) — throws `[i18n Formatting Error] ...`.

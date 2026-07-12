@@ -1,12 +1,11 @@
 // Automatically generated code. Do not edit manually.
-import { IcuTranslationProviderMulti } from "@xndrjs/i18n";
-import {
-  LOCALE_FALLBACK,
-  type MyProjectLocale,
-  type MyProjectParams,
-  type MyProjectSchema,
-  type LazyNamespace,
-  type MyProjectDeliveryArea,
+import type { TranslationProviderMulti } from "@xndrjs/i18n";
+import type {
+  MyProjectLocale,
+  MyProjectParams,
+  MyProjectSchema,
+  LazyNamespace,
+  MyProjectDeliveryArea,
 } from "./i18n-types.generated";
 
 export const namespaceLoaders: {
@@ -38,11 +37,10 @@ export const namespaceLoaders: {
   },
 };
 
-type I18nMultiInstance = IcuTranslationProviderMulti<
+type I18nMultiInstance = TranslationProviderMulti<
   MyProjectSchema,
   MyProjectParams,
-  MyProjectLocale,
-  typeof LOCALE_FALLBACK
+  MyProjectLocale
 >;
 
 export async function ensureNamespacesLoadedForArea(
@@ -52,7 +50,7 @@ export async function ensureNamespacesLoadedForArea(
 ): Promise<void> {
   await Promise.all(
     namespaces.map(async (namespace) => {
-      i18n.setNamespace(namespace, await namespaceLoaders[namespace](area));
+      i18n.mergeNamespace(namespace, await namespaceLoaders[namespace](area));
     })
   );
 }
