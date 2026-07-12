@@ -16,6 +16,13 @@ export type MyProjectLocale = "en" | "en-US" | "es" | "es-AR" | "fr" | "it";
 
 export type MyProjectDeliveryArea = "amer" | "eu";
 
+export const DELIVERY_ARTIFACTS = {
+  amer: ["en-US", "es-AR"] as const,
+  eu: ["en", "es", "fr", "it"] as const,
+} as const satisfies Record<MyProjectDeliveryArea, readonly MyProjectLocale[]>;
+
+export type MyProjectDeliveryArtifacts = typeof DELIVERY_ARTIFACTS;
+
 export const LOCALE_DELIVERY_AREA = {
   en: "eu",
   "en-US": "amer",

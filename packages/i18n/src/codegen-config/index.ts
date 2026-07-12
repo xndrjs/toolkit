@@ -7,6 +7,7 @@ export {
   codegenConfigKeys,
   DELIVERY_MODES,
   resolveDeliveryOutputDir,
+  resolveDictionaryOutputPath,
 } from "../codegen/codegen-config-schema.js";
 
 export type { DeliveryArtifactsMap } from "../codegen/delivery-artifacts.js";

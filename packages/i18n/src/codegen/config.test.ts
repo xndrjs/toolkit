@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { codegenConfigKeys } from "./codegen-config-schema.js";
+import { codegenConfigKeys, resolveDictionaryOutputPath } from "./codegen-config-schema.js";
 import { loadConfig, resolveDeliveryOutputDir, resolveLoadOnInit } from "./config.js";
 import { resolveImportExtension } from "./paths.js";
 
@@ -40,6 +40,35 @@ describe("loadConfig", () => {
       ...validMultiConfig,
       delivery: "canonical",
     });
+  });
+
+  it("accepts split-by-locale config without dictionaryOutput", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const { dictionaryOutput: _dictionaryOutput, ...configWithoutDictionaryOutput } =
+      validMultiConfig;
+    const configPath = writeConfig(tempDir, {
+      ...configWithoutDictionaryOutput,
+      delivery: "split-by-locale",
+    });
+
+    expect(loadConfig(configPath)).toEqual({
+      ...configWithoutDictionaryOutput,
+      delivery: "split-by-locale",
+    });
+  });
+
+  it("resolves dictionaryOutput next to typesOutput when omitted", () => {
+    expect(
+      resolveDictionaryOutputPath({
+        typesOutput: "generated/i18n-types.generated.ts",
+      })
+    ).toBe("generated/dictionary.generated.ts");
+    expect(
+      resolveDictionaryOutputPath({
+        typesOutput: "generated/i18n-types.generated.ts",
+        dictionaryOutput: "custom/dictionary.generated.ts",
+      })
+    ).toBe("custom/dictionary.generated.ts");
   });
 
   it("throws on invalid config JSON", () => {

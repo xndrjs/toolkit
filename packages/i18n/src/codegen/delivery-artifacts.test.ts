@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatDeliveryArtifactsBlock,
   formatLocaleDeliveryAreaBlock,
   getDeliveryAreaNames,
   getDeliveryArtifactsIssues,
   getDeliveryArtifactsPartitionIssues,
   getDeliveryArtifactsStructureIssues,
+  getDeliveryArtifactsTypeName,
   getLocaleDeliveryAreaMap,
 } from "./delivery-artifacts.js";
 
@@ -137,6 +139,28 @@ describe("delivery-artifacts", () => {
         '  "fr": "eu",\n' +
         '  "it": "eu",\n' +
         "} as const satisfies Record<AppLocale, AppDeliveryArea>;\n\n"
+    );
+  });
+
+  it("formats delivery artifacts block for generated types", () => {
+    expect(getDeliveryArtifactsTypeName("AppDeliveryArea")).toBe("AppDeliveryArtifacts");
+
+    expect(
+      formatDeliveryArtifactsBlock(
+        {
+          eu: ["it", "fr"],
+          us: ["en-US"],
+        },
+        "DELIVERY_ARTIFACTS",
+        "AppLocale",
+        "AppDeliveryArea"
+      )
+    ).toBe(
+      "export const DELIVERY_ARTIFACTS = {\n" +
+        '  "eu": ["fr", "it"] as const,\n' +
+        '  "us": ["en-US"] as const,\n' +
+        "} as const satisfies Record<AppDeliveryArea, readonly AppLocale[]>;\n\n" +
+        "export type AppDeliveryArtifacts = typeof DELIVERY_ARTIFACTS;\n\n"
     );
   });
 });

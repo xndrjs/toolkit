@@ -10,7 +10,6 @@
     "billing": "translations/billing.yaml"
   },
   "typesOutput": "generated/i18n-types.generated.ts",
-  "dictionaryOutput": "generated/dictionary.generated.ts",
   "instanceOutput": "generated/instance.generated.ts",
   "dictionarySchemaOutput": "generated/dictionary-schema.generated.ts",
   "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts",

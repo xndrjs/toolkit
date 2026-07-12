@@ -18,6 +18,10 @@ export const namespaceLoaders: {
         return import("../../public/translations/default.amer.json").then((m) => m.default);
       case "eu":
         return import("../../public/translations/default.eu.json").then((m) => m.default);
+      default:
+        throw new Error(
+          `[i18n] No translation artifact for namespace "default" and area "${String(area)}".`
+        );
     }
   },
   billing: (area) => {
@@ -26,6 +30,10 @@ export const namespaceLoaders: {
         return import("../../public/translations/billing.amer.json").then((m) => m.default);
       case "eu":
         return import("../../public/translations/billing.eu.json").then((m) => m.default);
+      default:
+        throw new Error(
+          `[i18n] No translation artifact for namespace "billing" and area "${String(area)}".`
+        );
     }
   },
 };
@@ -44,9 +52,6 @@ export async function ensureNamespacesLoadedForArea(
 ): Promise<void> {
   await Promise.all(
     namespaces.map(async (namespace) => {
-      if (i18n.hasNamespace(namespace)) {
-        return;
-      }
       i18n.setNamespace(namespace, await namespaceLoaders[namespace](area));
     })
   );

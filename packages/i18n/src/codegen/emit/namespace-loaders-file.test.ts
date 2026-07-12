@@ -91,6 +91,9 @@ describe("formatNamespaceLoadersFile", () => {
     expect(output).toContain('case "it":');
     expect(output).toContain('case "de-CH":');
     expect(output).toContain(
+      'throw new Error(`[i18n] No translation artifact for namespace "billing" and locale "${String(locale)}".`);'
+    );
+    expect(output).toContain(
       "return import('./generated/translations/billing.en.json').then((m) => m.default);"
     );
     expect(output).toContain("user: (locale) => {");
@@ -179,6 +182,9 @@ describe("formatNamespaceLoadersFile", () => {
     expect(output).toContain("billing: (area) => {");
     expect(output).toContain('case "eu":');
     expect(output).toContain('case "us":');
+    expect(output).toContain(
+      'throw new Error(`[i18n] No translation artifact for namespace "billing" and area "${String(area)}".`);'
+    );
     expect(output).toContain(
       "return import('./generated/translations/billing.eu.json').then((m) => m.default);"
     );

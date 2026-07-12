@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   loadConfig,
   resolveDeliveryOutputDir,
+  resolveDictionaryOutputPath,
   resolveLoadOnInit,
   resolveNamespaces,
 } from "./config.js";
@@ -98,7 +99,7 @@ function main() {
   const { loadOnInitSet, lazyEntries, hasLazy } = resolveLoadOnInit(config, entries, isSingle);
 
   const typesOutputPath = path.resolve(projectRoot, config.typesOutput);
-  const dictionaryOutputPath = path.resolve(projectRoot, config.dictionaryOutput);
+  const dictionaryOutputPath = path.resolve(projectRoot, resolveDictionaryOutputPath(config));
   const instanceOutputPath = path.resolve(projectRoot, config.instanceOutput);
   const typesModule = toModuleBasename(typesOutputPath);
 

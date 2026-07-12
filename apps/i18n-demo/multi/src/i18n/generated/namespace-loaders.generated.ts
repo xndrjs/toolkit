@@ -21,6 +21,10 @@ export const namespaceLoaders: {
         return import("./translations/default.en.json").then((m) => m.default);
       case "it":
         return import("./translations/default.it.json").then((m) => m.default);
+      default:
+        throw new Error(
+          `[i18n] No translation artifact for namespace "default" and locale "${String(locale)}".`
+        );
     }
   },
   user: (locale) => {
@@ -33,6 +37,10 @@ export const namespaceLoaders: {
         return import("./translations/user.en.json").then((m) => m.default);
       case "it":
         return import("./translations/user.it.json").then((m) => m.default);
+      default:
+        throw new Error(
+          `[i18n] No translation artifact for namespace "user" and locale "${String(locale)}".`
+        );
     }
   },
   billing: (locale) => {
@@ -45,6 +53,10 @@ export const namespaceLoaders: {
         return import("./translations/billing.en.json").then((m) => m.default);
       case "it":
         return import("./translations/billing.it.json").then((m) => m.default);
+      default:
+        throw new Error(
+          `[i18n] No translation artifact for namespace "billing" and locale "${String(locale)}".`
+        );
     }
   },
 };
@@ -63,9 +75,6 @@ export async function ensureNamespacesLoadedForLocale(
 ): Promise<void> {
   await Promise.all(
     namespaces.map(async (namespace) => {
-      if (i18n.hasNamespace(namespace)) {
-        return;
-      }
       i18n.setNamespace(namespace, await namespaceLoaders[namespace](locale));
     })
   );

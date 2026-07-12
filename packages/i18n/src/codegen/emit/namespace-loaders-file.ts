@@ -73,9 +73,6 @@ function formatLoadNamespacesHelper(
     `): Promise<void> {\n` +
     `  await Promise.all(\n` +
     `    namespaces.map(async (namespace) => {\n` +
-    `      if (i18n.hasNamespace(namespace)) {\n` +
-    `        return;\n` +
-    `      }\n` +
     `      i18n.setNamespace(namespace, await namespaceLoaders[namespace](${paramName}));\n` +
     `    }),\n` +
     `  );\n` +
@@ -110,8 +107,14 @@ function formatPartitionedTypesImport(
   );
 }
 
+function formatSwitchDefaultCase(namespace: string, paramName: string): string {
+  return (
+    `      default:\n` +
+    `        throw new Error(\`[i18n] No translation artifact for namespace ${JSON.stringify(namespace)} and ${paramName} "\${String(${paramName})}".\`);\n`
+  );
+}
+
 /**
- * Emits lazy loaders for split-by-locale and custom delivery.
  * Each namespace gets a function that dynamic-imports the JSON for the given
  * partition key (locale or area) via a switch.
  */
@@ -153,6 +156,7 @@ function formatPartitionedNamespaceLoadersFile(
       return (
         `  ${entry.namespace}: (${paramName}) => {\n` +
         `    switch (${paramName}) {\n${switchCases}\n` +
+        `${formatSwitchDefaultCase(entry.namespace, paramName)}` +
         `    }\n` +
         `  },`
       );

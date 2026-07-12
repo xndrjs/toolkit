@@ -122,3 +122,32 @@ export function formatLocaleDeliveryAreaBlock(
 
   return `export const ${constName} = {\n${lines}\n} as const satisfies Record<${localeTypeName}, ${deliveryAreaTypeName}>;\n\n`;
 }
+
+export function getDeliveryArtifactsTypeName(deliveryAreaTypeName: string): string {
+  return deliveryAreaTypeName.endsWith("DeliveryArea")
+    ? deliveryAreaTypeName.replace(/DeliveryArea$/, "DeliveryArtifacts")
+    : `${deliveryAreaTypeName}Artifacts`;
+}
+
+export function formatDeliveryArtifactsBlock(
+  deliveryArtifacts: DeliveryArtifactsMap,
+  constName: string,
+  localeTypeName: string,
+  deliveryAreaTypeName: string
+): string {
+  const deliveryArtifactsTypeName = getDeliveryArtifactsTypeName(deliveryAreaTypeName);
+  const areaEntries = getDeliveryAreaNames(deliveryArtifacts)
+    .map((area) => {
+      const locales = [...deliveryArtifacts[area]!]
+        .sort()
+        .map((locale) => JSON.stringify(locale))
+        .join(", ");
+      return `  ${JSON.stringify(area)}: [${locales}] as const,`;
+    })
+    .join("\n");
+
+  return (
+    `export const ${constName} = {\n${areaEntries}\n} as const satisfies Record<${deliveryAreaTypeName}, readonly ${localeTypeName}[]>;\n\n` +
+    `export type ${deliveryArtifactsTypeName} = typeof ${constName};\n\n`
+  );
+}

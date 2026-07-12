@@ -18,7 +18,13 @@ const codegenConfigShape = {
   namespaces: z.record(z.string(), z.string().min(1)).optional(),
   defaultNamespace: z.string().min(1).optional(),
   typesOutput: z.string().min(1),
-  dictionaryOutput: z.string().min(1),
+  dictionaryOutput: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'Output path for dictionary.generated.ts when emitted (canonical, or split/custom with eager namespaces). Omitted in split/custom when every namespace is lazy — defaults to "{dirname(typesOutput)}/dictionary.generated.ts" for stale-file cleanup only.'
+    ),
   instanceOutput: z.string().min(1),
   dictionarySchemaOutput: z.string().min(1).optional(),
   loadOnInit: z.array(z.string().min(1)).optional(),
@@ -116,6 +122,18 @@ export function resolveDeliveryOutputDir(
   config: Pick<CodegenConfig, "typesOutput" | "deliveryOutput">
 ): string {
   return config.deliveryOutput ?? path.dirname(config.typesOutput);
+}
+
+const DEFAULT_DICTIONARY_BASENAME = "dictionary.generated.ts";
+
+/** Resolved path for dictionary.generated.ts (explicit config or default next to typesOutput). */
+export function resolveDictionaryOutputPath(
+  config: Pick<CodegenConfig, "typesOutput" | "dictionaryOutput">
+): string {
+  return (
+    config.dictionaryOutput ??
+    path.join(path.dirname(config.typesOutput), DEFAULT_DICTIONARY_BASENAME)
+  );
 }
 
 export function formatCodegenConfigIssues(error: z.ZodError): string {

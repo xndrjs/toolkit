@@ -6,7 +6,7 @@ import {
   formatCodegenConfigIssues,
 } from "./codegen-config-schema.js";
 
-export { resolveDeliveryOutputDir } from "./codegen-config-schema.js";
+export { resolveDeliveryOutputDir, resolveDictionaryOutputPath } from "./codegen-config-schema.js";
 
 /** Parses and validates `i18n.codegen.json`; first step of the codegen pipeline. */
 export function loadConfig(configPath: string): CodegenConfig {

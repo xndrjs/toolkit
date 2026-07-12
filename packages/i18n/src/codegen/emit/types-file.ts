@@ -1,4 +1,8 @@
-import { formatLocaleDeliveryAreaBlock, type DeliveryArtifactsMap } from "../delivery-artifacts.js";
+import {
+  formatDeliveryArtifactsBlock,
+  formatLocaleDeliveryAreaBlock,
+  type DeliveryArtifactsMap,
+} from "../delivery-artifacts.js";
 import { formatLocaleFallbackBlock } from "../locale-fallback.js";
 import { GENERATED_FILE_BANNER } from "../paths.js";
 import type { NamespaceEntry } from "../types.js";
@@ -90,7 +94,13 @@ export function formatTypesFile(options: TypesFileOptions): string {
     deliveryAreaTypeName && deliveryAreaUnion
       ? `export type ${deliveryAreaTypeName} = ${deliveryAreaUnion};\n\n` +
         (deliveryArtifacts
-          ? formatLocaleDeliveryAreaBlock(
+          ? formatDeliveryArtifactsBlock(
+              deliveryArtifacts,
+              "DELIVERY_ARTIFACTS",
+              localeTypeName,
+              deliveryAreaTypeName
+            ) +
+            formatLocaleDeliveryAreaBlock(
               deliveryArtifacts,
               localeDeliveryAreaConstName,
               localeTypeName,

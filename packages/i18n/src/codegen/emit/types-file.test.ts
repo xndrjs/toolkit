@@ -105,6 +105,11 @@ describe("formatTypesFile", () => {
 
     expect(output).toContain("export type AppLocale = 'en-US' | 'fr' | 'it';");
     expect(output).toContain("export type AppDeliveryArea = 'eu' | 'us';");
+    expect(output).toContain("export const DELIVERY_ARTIFACTS = {");
+    expect(output).toContain('"eu": ["fr", "it"] as const');
+    expect(output).toContain('"us": ["en-US"] as const');
+    expect(output).toContain("} as const satisfies Record<AppDeliveryArea, readonly AppLocale[]>;");
+    expect(output).toContain("export type AppDeliveryArtifacts = typeof DELIVERY_ARTIFACTS;");
     expect(output).toContain("export const LOCALE_DELIVERY_AREA = {");
     expect(output).toContain('"it": "eu"');
     expect(output).toContain('"en-US": "us"');

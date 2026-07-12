@@ -1114,6 +1114,42 @@ describe("generate-i18n-types", () => {
     expect(loaders).not.toContain("import('./translations/billing.json')");
   });
 
+  it("omits dictionaryOutput in split mode and removes stale dictionary at the default path", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
+    mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
+    mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
+
+    writeFileSync(
+      join(tempDir, "src/i18n/translations/default.json"),
+      JSON.stringify({
+        welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
+      })
+    );
+    writeFileSync(
+      join(tempDir, "src/i18n/generated/dictionary.generated.ts"),
+      "// stale dictionary manifest\n"
+    );
+    writeFileSync(
+      join(tempDir, "i18n.codegen.json"),
+      JSON.stringify({
+        namespaces: {
+          default: "src/i18n/translations/default.json",
+        },
+        delivery: "split-by-locale",
+        typesOutput: "src/i18n/generated/i18n-types.generated.ts",
+        instanceOutput: "src/i18n/generated/instance.generated.ts",
+        namespaceLoadersOutput: "src/i18n/generated/namespace-loaders.generated.ts",
+        paramsTypeName: "AppParams",
+        schemaTypeName: "AppSchema",
+      })
+    );
+
+    const result = runCodegen(tempDir);
+    expect(result.status).toBe(0);
+    expect(existsSync(join(tempDir, "src/i18n/generated/dictionary.generated.ts"))).toBe(false);
+    expect(result.stdout).not.toContain("dictionary.generated.ts");
+  });
+
   it("writes delivery json under deliveryOutput when it differs from typesOutput directory", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-"));
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
@@ -1478,6 +1514,11 @@ describe("generate-i18n-types", () => {
     ).toThrow();
 
     expect(types).toContain("export type AppDeliveryArea = 'eu' | 'us';");
+    expect(types).toContain("export const DELIVERY_ARTIFACTS = {");
+    expect(types).toContain('"eu": ["fr", "it"] as const');
+    expect(types).toContain('"us": ["en-US"] as const');
+    expect(types).toContain("} as const satisfies Record<AppDeliveryArea, readonly AppLocale[]>;");
+    expect(types).toContain("export type AppDeliveryArtifacts = typeof DELIVERY_ARTIFACTS;");
     expect(types).toContain("export const LOCALE_DELIVERY_AREA = {");
     expect(types).toContain('"it": "eu"');
     expect(types).toContain('"fr": "eu"');
