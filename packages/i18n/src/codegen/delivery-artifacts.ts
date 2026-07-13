@@ -148,6 +148,7 @@ export function formatDeliveryArtifactsBlock(
 
   return (
     `export const ${constName} = {\n${areaEntries}\n} as const satisfies Record<${deliveryAreaTypeName}, readonly ${localeTypeName}[]>;\n\n` +
-    `export type ${deliveryArtifactsTypeName} = typeof ${constName};\n\n`
+    `export type ${deliveryArtifactsTypeName} = typeof ${constName};\n\n` +
+    `export type LocalesForDeliveryArea<A extends ${deliveryAreaTypeName}> = ${deliveryArtifactsTypeName}[A][number];\n\n`
   );
 }

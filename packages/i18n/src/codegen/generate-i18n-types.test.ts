@@ -500,7 +500,6 @@ describe("generate-i18n-types", () => {
     const result = runCodegen(tempDir);
     expect(result.status).toBe(0);
 
-    const types = readFileSync(join(tempDir, "src/i18n/i18n-types.generated.ts"), "utf8");
     const dictionary = readFileSync(join(tempDir, "src/i18n/dictionary.generated.ts"), "utf8");
     const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
 

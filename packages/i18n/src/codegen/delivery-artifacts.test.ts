@@ -160,7 +160,8 @@ describe("delivery-artifacts", () => {
         '  "eu": ["fr", "it"] as const,\n' +
         '  "us": ["en-US"] as const,\n' +
         "} as const satisfies Record<AppDeliveryArea, readonly AppLocale[]>;\n\n" +
-        "export type AppDeliveryArtifacts = typeof DELIVERY_ARTIFACTS;\n\n"
+        "export type AppDeliveryArtifacts = typeof DELIVERY_ARTIFACTS;\n\n" +
+        "export type LocalesForDeliveryArea<A extends AppDeliveryArea> = AppDeliveryArtifacts[A][number];\n\n"
     );
   });
 });

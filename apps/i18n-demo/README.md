@@ -35,16 +35,17 @@ Run: `pnpm run demo:multi`
 
 ## Custom delivery areas (`areas/`)
 
-Delivery JSON is grouped by area (`eu`, `amer`). Use `createI18nForArea`:
+Delivery JSON is grouped by area (`eu`, `amer`). Bootstrap with one shared `createI18n({})` builder and load each area explicitly:
 
 ```ts
-import { createI18nForArea } from "./i18n";
+import { createI18n } from "./i18n";
 
-const scope = await createI18nForArea("eu", ["default", "billing"]);
+const i18n = createI18n({});
+const scope = await i18n.withNamespaces(["default", "billing"]).withDeliveryArea("eu").load();
 scope.t("default", "some_key", "it");
 ```
 
-`createI18nForArea(area, namespaces?)` in `areas/src/i18n/index.ts` returns a ready scope. For external hydration, use `load()` then `scope.set()` on a locale-bound scope (same pattern as `multi/`).
+Repeated `load()` calls on the same builder deep-merge translations on the shared engine. For external hydration, use `load()` then `scope.set()` on a locale-bound scope (same pattern as `multi/`).
 
 Run: `pnpm run demo:areas`
 

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { createI18nBuilder, createI18nMultiBuilder } from "./builder.js";
 import { IcuTranslationProviderMulti } from "./IcuTranslationProviderMulti.js";
 import { IcuTranslationProviderSingle } from "./IcuTranslationProviderSingle.js";
@@ -31,6 +31,12 @@ type TestMultiParams = {
   billing: {
     invoice_summary: { count: number; name: string };
   };
+};
+
+type TestDeliveryArea = "eu" | "us";
+type TestDeliveryArtifacts = {
+  eu: readonly ["it"];
+  us: readonly ["en"];
 };
 
 const billingIt = {
@@ -172,7 +178,13 @@ describe("I18nBuilder multi", () => {
     });
     const engine = new IcuTranslationProviderMulti<MultiSchema, TestMultiParams>({});
 
-    const euView = await createI18nBuilder(engine, {
+    const euView = await createI18nMultiBuilder<
+      MultiSchema,
+      TestMultiParams,
+      "en" | "it",
+      TestDeliveryArea,
+      TestDeliveryArtifacts
+    >(engine, {
       namespaceLoaders: {
         billing: billingLoader,
       },
@@ -185,6 +197,12 @@ describe("I18nBuilder multi", () => {
     expect(euView.t("billing", "invoice_summary", "it", { count: 2, name: "Ada" })).toBe(
       "Hai 2 fatture per Ada"
     );
+    expectTypeOf(euView.t).toBeCallableWith("billing", "invoice_summary", "it", {
+      count: 2,
+      name: "Ada",
+    });
+    expectTypeOf(euView.forLocale).toBeCallableWith("it");
+    expectTypeOf(euView.forLocale).parameters.not.toMatchTypeOf<["en-US"]>();
   });
 
   it("loads canonical namespace loaders without a partition", async () => {

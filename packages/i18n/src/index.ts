@@ -1,4 +1,10 @@
 export type {
+  DeliveryArtifactsMap,
+  LocalesForDeliveryArea,
+  LocalesForDeliveryAreaOrAll,
+} from "./builder-types.js";
+
+export type {
   I18nEngineMulti,
   I18nEngineMultiImpl,
   I18nEngineSingle,
@@ -10,6 +16,7 @@ export type {
   I18nBuilderMulti,
   I18nBuilderMultiForLocale,
   I18nBuilderMultiOptions,
+  I18nBuilderMultiPartitioned,
   I18nBuilderSingle,
   I18nBuilderSingleForLocale,
   I18nBuilderSingleOptions,

@@ -16,7 +16,7 @@ import { formatInstanceFile } from "./emit/instance-file.js";
 import { formatNamespaceLoadersFile } from "./emit/namespace-loaders-file.js";
 import { formatTypesFile } from "./emit/types-file.js";
 import { analyzeDictionaries } from "./icu-analysis.js";
-import { getDeliveryArtifactsIssues } from "./delivery-artifacts.js";
+import { getDeliveryArtifactsIssues, getDeliveryArtifactsTypeName } from "./delivery-artifacts.js";
 import { collectRequestLocales, getCodegenLocaleFallbackIssues } from "./locale-fallback.js";
 import { enrichLocaleFallback } from "./locale-policy.js";
 import { reportCodegenIssues, resolveImportExtension, toModuleBasename } from "./paths.js";
@@ -195,6 +195,12 @@ function main() {
     namespaceNames: entries.map((entry) => entry.namespace),
     importExtension,
     delivery,
+    ...(delivery === "custom" && deliveryAreaTypeName
+      ? {
+          deliveryAreaTypeName,
+          deliveryArtifactsTypeName: getDeliveryArtifactsTypeName(deliveryAreaTypeName),
+        }
+      : {}),
   });
 
   writeFileIfChanged(typesOutputPath, typesContent);

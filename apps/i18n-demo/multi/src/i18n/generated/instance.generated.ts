@@ -4,7 +4,10 @@ import {
   projectNamespaceLocalesCore,
   projectDictionaryLocalesCore,
   createI18nBuilder,
+  createI18nMultiBuilder,
   type I18nBuilderMulti,
+  type I18nBuilderMultiOptions,
+  type I18nBuilderMultiPartitioned,
   type I18nScopeMulti,
   type I18nScopeSingle,
   type OnMissingTranslation,
@@ -26,14 +29,9 @@ export function createI18n(
     localeFallback: LOCALE_FALLBACK,
     ...options,
   });
-  return createI18nBuilder(engine, {
-    // The runtime builder expects a partition key typed as string.
-    // Generated loaders are more specific (union of locales/areas), so we widen here.
-    namespaceLoaders: namespaceLoaders as unknown as Record<
-      string,
-      (partition: string) => Promise<unknown>
-    >,
-  });
+  return createI18nMultiBuilder<MyProjectSchema, MyProjectParams, MyProjectLocale>(engine, {
+    namespaceLoaders,
+  } as I18nBuilderMultiOptions<MyProjectSchema, MyProjectLocale>);
 }
 
 export function projectDictionaryLocales(

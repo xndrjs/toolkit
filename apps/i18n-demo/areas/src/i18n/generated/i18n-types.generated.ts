@@ -23,6 +23,9 @@ export const DELIVERY_ARTIFACTS = {
 
 export type MyProjectDeliveryArtifacts = typeof DELIVERY_ARTIFACTS;
 
+export type LocalesForDeliveryArea<A extends MyProjectDeliveryArea> =
+  MyProjectDeliveryArtifacts[A][number];
+
 export const LOCALE_DELIVERY_AREA = {
   en: "eu",
   "en-US": "amer",

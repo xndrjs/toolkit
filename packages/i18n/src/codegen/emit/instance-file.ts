@@ -21,6 +21,8 @@ export interface InstanceFileOptions {
   namespaceNames: string[];
   importExtension: ImportExtension;
   delivery: DeliveryMode;
+  deliveryAreaTypeName?: string;
+  deliveryArtifactsTypeName?: string;
 }
 
 export function formatInstanceFile(options: InstanceFileOptions): string {
@@ -39,6 +41,8 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     namespaceNames,
     importExtension,
     delivery,
+    deliveryAreaTypeName,
+    deliveryArtifactsTypeName,
   } = options;
 
   const emitDeliveryAreaHelpers = delivery === "custom";
@@ -53,9 +57,12 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
       ? toRelativeModuleImport(loadersModule, importExtension)
       : null;
   const dictionaryParamType = hasLazy ? "InitialSchema" : schemaTypeName;
-  const schemaTypesImport = hasLazy
-    ? `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema } from '${typesImport}';\n`
-    : `import type { ${paramsTypeName}, ${schemaTypeName} } from '${typesImport}';\n`;
+  const schemaTypesImport =
+    hasLazy && delivery === "custom" && deliveryAreaTypeName && deliveryArtifactsTypeName
+      ? `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema, ${deliveryAreaTypeName}, ${deliveryArtifactsTypeName} } from '${typesImport}';\n`
+      : hasLazy
+        ? `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema } from '${typesImport}';\n`
+        : `import type { ${paramsTypeName}, ${schemaTypeName} } from '${typesImport}';\n`;
   const providerTypeArgs = hasLocaleFallback
     ? `${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, typeof ${localeFallbackConstName}`
     : `${schemaTypeName}, ${paramsTypeName}`;
@@ -99,6 +106,9 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     localeTypeName,
     namespaceNames,
     loadersImport,
+    delivery,
+    deliveryAreaTypeName,
+    deliveryArtifactsTypeName,
   });
 
   return (
@@ -107,7 +117,10 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     `  ${providerClass},\n` +
     `  ${coreImports},\n` +
     `  createI18nBuilder,\n` +
+    `  createI18nMultiBuilder,\n` +
     `  type I18nBuilderMulti,\n` +
+    `  type I18nBuilderMultiOptions,\n` +
+    `  type I18nBuilderMultiPartitioned,\n` +
     `  type I18nScopeMulti,\n` +
     `  type I18nScopeSingle,\n` +
     `  type OnMissingTranslation,\n` +
@@ -135,6 +148,9 @@ function formatCreateI18nFactory(options: {
   localeTypeName: string;
   namespaceNames: string[];
   loadersImport: string | null;
+  delivery: DeliveryMode;
+  deliveryAreaTypeName?: string;
+  deliveryArtifactsTypeName?: string;
 }): string {
   const {
     isSingle,
@@ -149,6 +165,9 @@ function formatCreateI18nFactory(options: {
     localeTypeName,
     namespaceNames,
     loadersImport,
+    delivery,
+    deliveryAreaTypeName,
+    deliveryArtifactsTypeName,
   } = options;
 
   if (isSingle) {
@@ -183,17 +202,25 @@ function formatCreateI18nFactory(options: {
     throw new Error("[Codegen Error] namespaceLoadersOutputPath is required when hasLazy is true.");
   }
 
+  const builderReturnType =
+    delivery === "custom" && deliveryAreaTypeName && deliveryArtifactsTypeName
+      ? `I18nBuilderMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, ${localeTypeName}, readonly [], ${deliveryAreaTypeName}, ${deliveryArtifactsTypeName}>`
+      : `I18nBuilderMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
+
+  const multiBuilderTypeArgs =
+    delivery === "custom" && deliveryAreaTypeName && deliveryArtifactsTypeName
+      ? `<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, ${deliveryAreaTypeName}, ${deliveryArtifactsTypeName}>`
+      : `<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
+
   return (
     `export function ${factoryName}(\n` +
     `  dictionary: ${dictionaryParamType},\n` +
     `  options?: { onMissing?: OnMissingTranslation },\n` +
-    `): I18nBuilderMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}> {\n` +
+    `): ${builderReturnType} {\n` +
     `  const engine = new ${providerClass}<${providerTypeArgs}>(dictionary${providerOptions});\n` +
-    `  return createI18nBuilder(engine, {\n` +
-    `    // The runtime builder expects a partition key typed as string.\n` +
-    `    // Generated loaders are more specific (union of locales/areas), so we widen here.\n` +
-    `    namespaceLoaders: namespaceLoaders as unknown as Record<string, (partition: string) => Promise<unknown>>,\n` +
-    `  });\n` +
+    `  return createI18nMultiBuilder${multiBuilderTypeArgs}(engine, {\n` +
+    `    namespaceLoaders,\n` +
+    `  } as I18nBuilderMultiOptions<${schemaTypeName}, ${localeTypeName}>);\n` +
     `}\n`
   );
 }

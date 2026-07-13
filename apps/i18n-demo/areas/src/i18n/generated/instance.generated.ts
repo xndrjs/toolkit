@@ -6,19 +6,36 @@ import {
   projectNamespaceForDeliveryAreaCore,
   projectDictionaryForDeliveryAreaCore,
   createI18nBuilder,
+  createI18nMultiBuilder,
   type I18nBuilderMulti,
+  type I18nBuilderMultiOptions,
+  type I18nBuilderMultiPartitioned,
   type I18nScopeMulti,
   type I18nScopeSingle,
   type OnMissingTranslation,
 } from "@xndrjs/i18n";
-import type { MyProjectParams, MyProjectSchema, InitialSchema } from "./i18n-types.generated";
+import type {
+  MyProjectParams,
+  MyProjectSchema,
+  InitialSchema,
+  MyProjectDeliveryArea,
+  MyProjectDeliveryArtifacts,
+} from "./i18n-types.generated";
 import { LOCALE_FALLBACK, type MyProjectLocale } from "./i18n-types.generated";
 import { namespaceLoaders } from "./namespace-loaders.generated";
 
 export function createI18n(
   dictionary: InitialSchema,
   options?: { onMissing?: OnMissingTranslation }
-): I18nBuilderMulti<MyProjectSchema, MyProjectParams, MyProjectLocale> {
+): I18nBuilderMulti<
+  MyProjectSchema,
+  MyProjectParams,
+  MyProjectLocale,
+  MyProjectLocale,
+  readonly [],
+  MyProjectDeliveryArea,
+  MyProjectDeliveryArtifacts
+> {
   const engine = new IcuTranslationProviderMulti<
     MyProjectSchema,
     MyProjectParams,
@@ -28,14 +45,15 @@ export function createI18n(
     localeFallback: LOCALE_FALLBACK,
     ...options,
   });
-  return createI18nBuilder(engine, {
-    // The runtime builder expects a partition key typed as string.
-    // Generated loaders are more specific (union of locales/areas), so we widen here.
-    namespaceLoaders: namespaceLoaders as unknown as Record<
-      string,
-      (partition: string) => Promise<unknown>
-    >,
-  });
+  return createI18nMultiBuilder<
+    MyProjectSchema,
+    MyProjectParams,
+    MyProjectLocale,
+    MyProjectDeliveryArea,
+    MyProjectDeliveryArtifacts
+  >(engine, {
+    namespaceLoaders,
+  } as I18nBuilderMultiOptions<MyProjectSchema, MyProjectLocale>);
 }
 
 export function projectDictionaryLocales(
