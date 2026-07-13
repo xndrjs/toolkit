@@ -420,11 +420,11 @@ Report-only by default; `--fail-on effective`, `direct`, or `any` gates CI. Fiel
 
 `@xndrjs/i18n` is a small, deliberate stack: canonical ICU dictionaries (JSON or YAML at authoring time) as the source of truth, codegen that turns templates into TypeScript contracts and delivery artifacts, and a runtime provider that formats, caches, and fails loudly when something is wrong.
 
-There are no React, Vue, or Next.js wrappers — on purpose. The vanilla API is a typed provider with `.get()`, `forLocale()`, and optional async preload: enough to wire into any framework with a thin hook or context of your own. `@xndrjs/i18n` does not barge into your stack with opinionated lifecycle or rendering assumptions. You import `createI18n(dictionary)`, call it where it fits, and keep your UI layer in charge.
+There are no React, Vue, or Next.js wrappers yet — for now, that is intentional. `@xndrjs/i18n` is still an experimental package, and the focus is on the core: a typed provider with `.get()`, `forLocale()`, and optional async preload, enough to wire into any framework with a thin hook or context of your own. You import `createI18n(dictionary)`, call it where it fits, and keep your UI layer in charge.
 
 The delivery shape can evolve independently from authoring: start with canonical files, move to per-locale chunks as the language matrix grows, or introduce named regional areas when infrastructure demands it. Generated namespace loaders keep those boundaries typed and make the asynchronous part explicit.
 
-If i18n in your project has been "fine until it wasn't" — typos shipping silently, plural keys multiplying, every visitor downloading every locale — this is the shape of tooling you wanted: strict where it helps, flexible where products actually live.
+If some of the problems in this article sound familiar — typos shipping silently, plural keys multiplying, every visitor downloading every locale — and the `@xndrjs/i18n` approach interests you, give it a try.
 
 ---
 
