@@ -1,6 +1,11 @@
 import { cloneAndFreeze } from "./deep-freeze.js";
 import type { I18nEngineSingle } from "./engine.js";
 import { resolveAndFormat } from "./format-core.js";
+import {
+  assertPatchKeySingle,
+  recordPreloadedKeysSingle,
+  seedPreloadedKeysSingle,
+} from "./patch-key.js";
 import { mergeNamespaceLocalesCore } from "./project-locales.js";
 import { validateLocaleFallback } from "./resolve-locale.js";
 import type {
@@ -20,13 +25,17 @@ export class IcuTranslationProviderSingle<
   RequestLocales extends string = LocaleOfSingle<Schema>,
   Fallback extends LocaleFallbackMap | undefined = undefined,
 > implements I18nEngineSingle<Schema, Params, RequestLocales> {
+  readonly __i18nEngineMode = "single" as const;
+
   private dictionary: Schema;
   private compiledCache: SingleCompiledCache = {};
+  private readonly preloadedKeys = new Set<string>();
   private readonly localeFallback?: Fallback;
   private readonly onMissing: OnMissingTranslation;
 
   constructor(dictionary: Schema, options?: IcuTranslationProviderOptions<Fallback>) {
     this.dictionary = structuredClone(dictionary);
+    seedPreloadedKeysSingle(this.dictionary, this.preloadedKeys);
     if (options?.localeFallback) {
       validateLocaleFallback(options.localeFallback);
       this.localeFallback = options.localeFallback;
@@ -69,13 +78,9 @@ export class IcuTranslationProviderSingle<
     return cloneAndFreeze(this.dictionary);
   }
 
-  setAll(values: Schema): void {
-    this.dictionary = structuredClone(values);
-    this.compiledCache = {};
-  }
-
-  mergeAll(values: PartialKeyDictionary<Schema, RequestLocales>): void {
+  applyLoadMergeSingle(values: PartialKeyDictionary<Schema, RequestLocales>): void {
     this.dictionary = mergeNamespaceLocalesCore(this.dictionary, values);
+    recordPreloadedKeysSingle(values, this.preloadedKeys);
 
     for (const [key, incomingLocales] of Object.entries(values)) {
       if (incomingLocales === undefined || typeof incomingLocales !== "object") {
@@ -86,5 +91,14 @@ export class IcuTranslationProviderSingle<
         delete this.compiledCache[locale]?.[key];
       }
     }
+  }
+
+  patchKey(key: string, locale: string, template: string): void {
+    assertPatchKeySingle(key, locale, template, this.preloadedKeys, this.dictionary[key]);
+
+    this.dictionary = mergeNamespaceLocalesCore(this.dictionary, {
+      [key]: { [locale]: template },
+    } as PartialKeyDictionary<Schema, RequestLocales>);
+    delete this.compiledCache[locale]?.[key];
   }
 }

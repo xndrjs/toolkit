@@ -89,7 +89,7 @@ describe("IcuTranslationProviderMulti", () => {
     );
   });
 
-  it("patches a single namespace with setNamespace and invalidates its cache", () => {
+  it("patches a preloaded key and invalidates its cache", () => {
     const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(dictionary);
     const view = () => local.toScope({ namespaces: ["default", "billing"] });
 
@@ -97,37 +97,38 @@ describe("IcuTranslationProviderMulti", () => {
       "You have 2 invoices for Bob"
     );
 
-    local.setNamespace("billing", {
-      ...dictionary.billing,
-      invoice_summary: {
-        en: "{count, plural, one {1 bill} other {{count} bills}}",
-        it: dictionary.billing.invoice_summary.it,
-      },
-    });
+    local.patchKeyMulti(
+      "billing",
+      "invoice_summary",
+      "en",
+      "{count, plural, one {1 bill} other {{count} bills}} for {name}"
+    );
 
-    expect(view().t("billing", "invoice_summary", "en", { count: 2, name: "Bob" })).toBe("2 bills");
+    expect(view().t("billing", "invoice_summary", "en", { count: 2, name: "Bob" })).toBe(
+      "2 bills for Bob"
+    );
     expect(view().t("default", "login_button", "en")).toBe("Login");
   });
 
-  it("adds namespace to dictionary with setNamespace", () => {
+  it("adds namespace to dictionary with applyLoadMergeNamespace", () => {
     const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       default: dictionary.default,
     });
     expect("billing" in partial.getAll()).toBe(false);
 
-    partial.setNamespace("billing", dictionary.billing);
+    partial.applyLoadMergeNamespace("billing", dictionary.billing);
     expect("billing" in partial.getAll()).toBe(true);
   });
 
-  it("adds namespace to dictionary on first mergeNamespace", () => {
+  it("adds namespace to dictionary on first applyLoadMergeNamespace", () => {
     const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({});
     expect("billing" in partial.getAll()).toBe(false);
 
-    partial.mergeNamespace("billing", dictionary.billing);
+    partial.applyLoadMergeNamespace("billing", dictionary.billing);
     expect("billing" in partial.getAll()).toBe(true);
   });
 
-  it("accumulates a locale via mergeNamespace when the namespace already exists", () => {
+  it("accumulates a locale via applyLoadMergeNamespace when the namespace already exists", () => {
     const local = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       billing: {
         invoice_summary: {
@@ -142,7 +143,7 @@ describe("IcuTranslationProviderMulti", () => {
       "You have 1 invoice for Ada"
     );
 
-    local.mergeNamespace("billing", {
+    local.applyLoadMergeNamespace("billing", {
       invoice_summary: {
         it: "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}",
       },
@@ -156,7 +157,7 @@ describe("IcuTranslationProviderMulti", () => {
     );
   });
 
-  it("merges locales per key with mergeNamespace without dropping existing locales", () => {
+  it("merges locales per key with applyLoadMergeNamespace without dropping existing locales", () => {
     const local = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       billing: {
         invoice_summary: {
@@ -166,7 +167,7 @@ describe("IcuTranslationProviderMulti", () => {
     });
     const view = () => local.toScope({ namespaces: ["billing"] });
 
-    local.mergeNamespace("billing", {
+    local.applyLoadMergeNamespace("billing", {
       invoice_summary: {
         it: "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}",
       },
@@ -180,23 +181,17 @@ describe("IcuTranslationProviderMulti", () => {
     );
   });
 
-  it("replaces the full dictionary on setAll", () => {
+  it("patches a preloaded default namespace key", () => {
     const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(dictionary);
 
-    local.setAll({
-      ...dictionary,
-      default: {
-        ...dictionary.default,
-        login_button: { en: "Sign in", it: "Entra" },
-      },
-    });
+    local.patchKeyMulti("default", "login_button", "en", "Sign in");
 
     expect(local.toScope({ namespaces: ["default"] }).t("default", "login_button", "en")).toBe(
       "Sign in"
     );
   });
 
-  it("merges namespaces with mergeAll without dropping existing locales", () => {
+  it("merges namespaces with applyLoadMergeAll without dropping existing locales", () => {
     const local = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       billing: {
         invoice_summary: {
@@ -206,7 +201,7 @@ describe("IcuTranslationProviderMulti", () => {
     });
     const view = () => local.toScope({ namespaces: ["default", "billing"] });
 
-    local.mergeAll({
+    local.applyLoadMergeAll({
       billing: {
         invoice_summary: {
           it: "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}",

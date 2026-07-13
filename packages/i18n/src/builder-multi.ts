@@ -1,6 +1,5 @@
 import { invokeNamespaceLoader, type NamespaceLoader } from "./builder-loaders.js";
-import type { I18nEngineMulti } from "./engine.js";
-import { IcuTranslationProviderMulti } from "./IcuTranslationProviderMulti.js";
+import type { I18nEngineMultiImpl } from "./engine.js";
 import type {
   KeyDictionary,
   LocaleOfMulti,
@@ -79,8 +78,9 @@ export interface I18nBuilderMultiForLocale<
 type MultiBuilderState<
   Schema extends MultiDictionary,
   RequestLocales extends string = LocaleOfMulti<Schema>,
+  NsList extends readonly (keyof Schema & string)[] = readonly (keyof Schema & string)[],
 > = {
-  namespaces: (keyof Schema & string)[];
+  namespaces: NsList;
   locale?: RequestLocales;
   deliveryArea?: string;
   namespaceData: PartialMultiDictionary<Schema, RequestLocales>;
@@ -90,31 +90,35 @@ export class I18nBuilderMultiImpl<
   Schema extends MultiDictionary,
   Params extends MultiParams<Schema>,
   RequestLocales extends string = LocaleOfMulti<Schema>,
-  NsList extends readonly (keyof Schema & string)[] = readonly [],
+  NsList extends readonly (keyof Schema & string)[] = readonly (keyof Schema & string)[],
 > implements I18nBuilderMulti<Schema, Params, RequestLocales, NsList> {
-  private state: MultiBuilderState<Schema, RequestLocales> = {
-    namespaces: [],
-    namespaceData: {},
-  };
+  private state: MultiBuilderState<Schema, RequestLocales, NsList>;
 
   constructor(
-    private readonly engine: I18nEngineMulti<Schema, Params, RequestLocales>,
+    private readonly engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,
     private readonly options?: I18nBuilderMultiOptions<Schema, RequestLocales>,
-    state?: MultiBuilderState<Schema, RequestLocales>
+    state?: MultiBuilderState<Schema, RequestLocales, NsList>
   ) {
     if (state !== undefined) {
       this.state = {
-        namespaces: [...state.namespaces],
+        namespaces: state.namespaces,
         namespaceData: { ...state.namespaceData },
         ...(state.locale !== undefined ? { locale: state.locale } : {}),
         ...(state.deliveryArea !== undefined ? { deliveryArea: state.deliveryArea } : {}),
       };
+      return;
     }
+
+    // Empty until withNamespaces(); NsList is narrowed on the next builder clone.
+    this.state = {
+      namespaces: [] as unknown as NsList,
+      namespaceData: {},
+    };
   }
 
-  private clone(): MultiBuilderState<Schema, RequestLocales> {
+  private clone(): MultiBuilderState<Schema, RequestLocales, NsList> {
     return {
-      namespaces: [...this.state.namespaces],
+      namespaces: this.state.namespaces,
       namespaceData: { ...this.state.namespaceData },
       ...(this.state.locale !== undefined ? { locale: this.state.locale } : {}),
       ...(this.state.deliveryArea !== undefined ? { deliveryArea: this.state.deliveryArea } : {}),
@@ -123,59 +127,53 @@ export class I18nBuilderMultiImpl<
 
   withNamespaces<const NS extends readonly (keyof Schema & string)[]>(
     namespaces: NS
-  ): I18nBuilderMulti<Schema, Params, RequestLocales, NS> {
-    const state = this.clone();
-    state.namespaces = [...namespaces];
-    return new I18nBuilderMultiImpl<Schema, Params, RequestLocales, NS>(
-      this.engine,
-      this.options,
-      state
-    );
+  ): I18nBuilderMultiImpl<Schema, Params, RequestLocales, NS> {
+    return new I18nBuilderMultiImpl<Schema, Params, RequestLocales, NS>(this.engine, this.options, {
+      ...this.clone(),
+      namespaces,
+    });
   }
 
   withLocale<Locale extends RequestLocales>(
     locale: Locale
   ): I18nBuilderMultiForLocaleImpl<Schema, Params, RequestLocales, NsList, Locale> {
-    const state = this.clone();
-    state.locale = locale;
-    delete state.deliveryArea;
+    const { deliveryArea: _deliveryArea, ...rest } = this.clone();
     return new I18nBuilderMultiForLocaleImpl<Schema, Params, RequestLocales, NsList, Locale>(
       this.engine,
       this.options,
-      state
+      { ...rest, locale }
     );
   }
 
   withDeliveryArea<Area extends string>(
     area: Area
-  ): I18nBuilderMulti<Schema, Params, RequestLocales, NsList> {
-    const state = this.clone();
-    state.deliveryArea = area;
-    delete state.locale;
+  ): I18nBuilderMultiImpl<Schema, Params, RequestLocales, NsList> {
+    const { locale: _locale, ...rest } = this.clone();
     return new I18nBuilderMultiImpl<Schema, Params, RequestLocales, NsList>(
       this.engine,
       this.options,
-      state
+      { ...rest, deliveryArea: area }
     );
   }
 
   withNamespaceData<NS extends keyof Schema & string>(
     namespace: NS,
     data: PartialKeyDictionary<Schema[NS], RequestLocales>
-  ): I18nBuilderMulti<Schema, Params, RequestLocales, NsList> {
-    const state = this.clone();
-    const existing = state.namespaceData[namespace];
-    state.namespaceData = {
-      ...state.namespaceData,
-      [namespace]: {
-        ...(existing as KeyDictionary | undefined),
-        ...data,
-      },
-    };
+  ): I18nBuilderMultiImpl<Schema, Params, RequestLocales, NsList> {
+    const existing = this.state.namespaceData[namespace];
     return new I18nBuilderMultiImpl<Schema, Params, RequestLocales, NsList>(
       this.engine,
       this.options,
-      state
+      {
+        ...this.clone(),
+        namespaceData: {
+          ...this.state.namespaceData,
+          [namespace]: {
+            ...(existing as KeyDictionary | undefined),
+            ...data,
+          },
+        },
+      }
     );
   }
 
@@ -186,13 +184,8 @@ export class I18nBuilderMultiImpl<
       RequestLocales
     >
   > {
-    const namespaces = await applyMultiBuilderLoad(this.engine, this.options, this.state);
-    const provider = this.engine as unknown as IcuTranslationProviderMulti<
-      Schema,
-      Params,
-      RequestLocales
-    >;
-    return provider.toScope({ namespaces: namespaces as unknown as NsList });
+    await applyMultiBuilderLoad(this.engine, this.options, this.state);
+    return this.engine.toScope({ namespaces: this.state.namespaces });
   }
 }
 
@@ -204,29 +197,28 @@ export class I18nBuilderMultiForLocaleImpl<
   Locale extends RequestLocales,
 > implements I18nBuilderMultiForLocale<Schema, Params, RequestLocales, NsList, Locale> {
   constructor(
-    private readonly engine: I18nEngineMulti<Schema, Params, RequestLocales>,
+    private readonly engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,
     private readonly options: I18nBuilderMultiOptions<Schema, RequestLocales> | undefined,
-    private readonly state: MultiBuilderState<Schema, RequestLocales>
+    private readonly state: MultiBuilderState<Schema, RequestLocales, NsList> & { locale: Locale }
   ) {}
 
   withNamespaceData<NS extends keyof Schema & string>(
     namespace: NS,
     data: PartialKeyDictionary<Schema[NS], RequestLocales>
-  ): I18nBuilderMultiForLocale<Schema, Params, RequestLocales, NsList, Locale> {
-    const nextState = {
-      ...this.state,
-      namespaceData: {
-        ...this.state.namespaceData,
-        [namespace]: {
-          ...(this.state.namespaceData[namespace] as KeyDictionary | undefined),
-          ...data,
-        },
-      },
-    };
+  ): I18nBuilderMultiForLocaleImpl<Schema, Params, RequestLocales, NsList, Locale> {
     return new I18nBuilderMultiForLocaleImpl<Schema, Params, RequestLocales, NsList, Locale>(
       this.engine,
       this.options,
-      nextState
+      {
+        ...this.state,
+        namespaceData: {
+          ...this.state.namespaceData,
+          [namespace]: {
+            ...(this.state.namespaceData[namespace] as KeyDictionary | undefined),
+            ...data,
+          },
+        },
+      }
     );
   }
 
@@ -238,15 +230,8 @@ export class I18nBuilderMultiForLocaleImpl<
       Locale
     >
   > {
-    const namespaces = await applyMultiBuilderLoad(this.engine, this.options, this.state);
-    const provider = this.engine as unknown as IcuTranslationProviderMulti<
-      Schema,
-      Params,
-      RequestLocales
-    >;
-    return provider
-      .toScope({ namespaces: namespaces as unknown as NsList })
-      .forLocale(this.state.locale as Locale);
+    await applyMultiBuilderLoad(this.engine, this.options, this.state);
+    return this.engine.toScope({ namespaces: this.state.namespaces }).forLocale(this.state.locale);
   }
 }
 
@@ -254,11 +239,12 @@ async function applyMultiBuilderLoad<
   Schema extends MultiDictionary,
   Params extends MultiParams<Schema>,
   RequestLocales extends string,
+  NsList extends readonly (keyof Schema & string)[],
 >(
-  engine: I18nEngineMulti<Schema, Params, RequestLocales>,
+  engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,
   options: I18nBuilderMultiOptions<Schema, RequestLocales> | undefined,
-  state: MultiBuilderState<Schema, RequestLocales>
-): Promise<(keyof Schema & string)[]> {
+  state: MultiBuilderState<Schema, RequestLocales, NsList>
+): Promise<void> {
   if (state.namespaces.length === 0) {
     throw new Error("[i18n] withNamespaces(...) is required before load().");
   }
@@ -273,19 +259,14 @@ async function applyMultiBuilderLoad<
       }
 
       const data = await invokeNamespaceLoader(loader, partition);
-      engine.mergeNamespace(
-        namespace,
-        data as PartialKeyDictionary<Schema[typeof namespace], RequestLocales>
-      );
+      engine.applyLoadMergeNamespace(namespace, data);
     })
   );
 
   for (const namespace of Object.keys(state.namespaceData) as (keyof Schema & string)[]) {
     const data = state.namespaceData[namespace];
     if (data !== undefined) {
-      engine.mergeNamespace(namespace, data);
+      engine.applyLoadMergeNamespace(namespace, data);
     }
   }
-
-  return state.namespaces;
 }

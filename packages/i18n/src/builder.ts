@@ -1,6 +1,6 @@
 import { I18nBuilderMultiImpl, type I18nBuilderMultiOptions } from "./builder-multi.js";
 import { I18nBuilderSingleImpl, type I18nBuilderSingleOptions } from "./single-builder.js";
-import type { I18nEngineMulti, I18nEngineSingle } from "./engine.js";
+import type { I18nEngineMultiImpl, I18nEngineSingleImpl } from "./engine.js";
 import type { KeyDictionary, LocaleOfMulti, LocaleOfSingle, MultiDictionary } from "./types.js";
 import type { MultiParams } from "./scope-types.js";
 
@@ -17,11 +17,11 @@ export type {
   I18nBuilderSingleOptions,
 } from "./single-builder.js";
 
-type AnySingleEngine = I18nEngineSingle<KeyDictionary, { [K in keyof KeyDictionary]: unknown }>;
-type AnyMultiEngine = I18nEngineMulti<MultiDictionary, MultiParams<MultiDictionary>>;
+type AnySingleEngine = I18nEngineSingleImpl<KeyDictionary, { [K in keyof KeyDictionary]: unknown }>;
+type AnyMultiEngine = I18nEngineMultiImpl<MultiDictionary, MultiParams<MultiDictionary>>;
 
 function isMultiEngine(engine: AnySingleEngine | AnyMultiEngine): engine is AnyMultiEngine {
-  return typeof (engine as AnyMultiEngine).mergeNamespace === "function";
+  return engine.__i18nEngineMode === "multi";
 }
 
 export function createI18nSingleBuilder<
@@ -29,7 +29,7 @@ export function createI18nSingleBuilder<
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string = LocaleOfSingle<Schema>,
 >(
-  engine: I18nEngineSingle<Schema, Params, RequestLocales>,
+  engine: I18nEngineSingleImpl<Schema, Params, RequestLocales>,
   options?: I18nBuilderSingleOptions<Schema, RequestLocales>
 ): I18nBuilderSingleImpl<Schema, Params, RequestLocales> {
   return new I18nBuilderSingleImpl(engine, options);
@@ -40,7 +40,7 @@ export function createI18nMultiBuilder<
   Params extends MultiParams<Schema>,
   RequestLocales extends string = LocaleOfMulti<Schema>,
 >(
-  engine: I18nEngineMulti<Schema, Params, RequestLocales>,
+  engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,
   options?: I18nBuilderMultiOptions<Schema, RequestLocales>
 ): I18nBuilderMultiImpl<Schema, Params, RequestLocales> {
   return new I18nBuilderMultiImpl(engine, options);
@@ -51,7 +51,7 @@ export function createI18nBuilder<
   Params extends MultiParams<Schema>,
   RequestLocales extends string = LocaleOfMulti<Schema>,
 >(
-  engine: I18nEngineMulti<Schema, Params, RequestLocales>,
+  engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,
   options?: I18nBuilderMultiOptions<Schema, RequestLocales>
 ): I18nBuilderMultiImpl<Schema, Params, RequestLocales>;
 
@@ -60,7 +60,7 @@ export function createI18nBuilder<
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string = LocaleOfSingle<Schema>,
 >(
-  engine: I18nEngineSingle<Schema, Params, RequestLocales>,
+  engine: I18nEngineSingleImpl<Schema, Params, RequestLocales>,
   options?: I18nBuilderSingleOptions<Schema, RequestLocales>
 ): I18nBuilderSingleImpl<Schema, Params, RequestLocales>;
 

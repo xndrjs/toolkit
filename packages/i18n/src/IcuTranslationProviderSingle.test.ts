@@ -83,19 +83,17 @@ const dictionary: TestSchema = {
 describe("IcuTranslationProviderSingle", () => {
   const engine = new IcuTranslationProviderSingle<TestSchema, TestParams>(dictionary);
 
-  it("replaces the dictionary and invalidates cache on setAll", () => {
+  it("patches a preloaded key and invalidates cache", () => {
     const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(dictionary);
     expect(local.toScope().t("login_button", "en")).toBe("Login");
 
-    local.setAll({
-      ...dictionary,
-      login_button: { en: "Sign in", it: "Entra" },
-    });
+    local.patchKey("login_button", "en", "Sign in");
 
     expect(local.toScope().t("login_button", "en")).toBe("Sign in");
+    expect(local.toScope().t("login_button", "it")).toBe("Accedi");
   });
 
-  it("merges locales per key with mergeAll without dropping existing locales", () => {
+  it("merges locales per key with applyLoadMergeSingle without dropping existing locales", () => {
     const local = new IcuTranslationProviderSingle<TestSchema, TestParams>({
       ...dictionary,
       // @ts-expect-error missing locale
@@ -104,7 +102,7 @@ describe("IcuTranslationProviderSingle", () => {
       },
     });
 
-    local.mergeAll({
+    local.applyLoadMergeSingle({
       welcome: {
         // @ts-expect-error adding locale via merge
         it: "Benvenuto {name}!",
@@ -115,6 +113,16 @@ describe("IcuTranslationProviderSingle", () => {
     expect(view.t("welcome", "en", { name: "Ada" })).toBe("Welcome Ada!");
     expect(view.t("welcome", "it", { name: "Ada" })).toBe("Benvenuto Ada!");
     expect(view.t("login_button", "en")).toBe("Login");
+  });
+
+  it("throws when patching a key that was not preloaded", () => {
+    const local = new IcuTranslationProviderSingle<TestSchema, TestParams>({
+      login_button: { en: "Login" },
+    } as TestSchema);
+
+    expect(() => local.patchKey("login_button", "it", "Accedi")).toThrow(
+      "[i18n] Key not preloaded: login_button (it)"
+    );
   });
 
   it("returns a deep-frozen snapshot from getAll", () => {

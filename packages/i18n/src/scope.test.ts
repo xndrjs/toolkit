@@ -251,7 +251,7 @@ describe("I18nScope multi", () => {
     );
   });
 
-  it("reflects partial mergeNamespace via a fresh toScope", () => {
+  it("reflects partial applyLoadMergeNamespace via a fresh toScope", () => {
     const partial = new IcuTranslationProviderMulti<MultiSchema, MultiParams>({
       billing: {
         invoice_summary: {
@@ -260,7 +260,7 @@ describe("I18nScope multi", () => {
       },
     });
 
-    partial.mergeNamespace("billing", {
+    partial.applyLoadMergeNamespace("billing", {
       invoice_summary: {
         it: "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}",
       },

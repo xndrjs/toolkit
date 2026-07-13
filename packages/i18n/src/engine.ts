@@ -6,8 +6,6 @@ import type {
   LocaleOfMulti,
   LocaleOfSingle,
   MultiDictionary,
-  PartialKeyDictionary,
-  PartialMultiDictionary,
 } from "./types.js";
 import type { I18nScopeMulti, I18nScopeMultiForLocale } from "./scope-multi.js";
 import type { I18nScopeSingle, I18nScopeSingleForLocale } from "./scope-single.js";
@@ -19,9 +17,8 @@ export interface I18nEngineSingle<
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string = LocaleOfSingle<Schema>,
 > {
+  readonly __i18nEngineMode: "single";
   getAll(): Schema;
-  setAll(values: Schema): void;
-  mergeAll(values: PartialKeyDictionary<Schema, RequestLocales>): void;
   toScope(): I18nScopeSingle<Schema, Params, RequestLocales>;
   toScope<Locale extends RequestLocales>(options: {
     locale: Locale;
@@ -34,14 +31,8 @@ export interface I18nEngineMulti<
   Params extends MultiParams<Schema>,
   RequestLocales extends string = LocaleOfMulti<Schema>,
 > {
+  readonly __i18nEngineMode: "multi";
   getAll(): Schema;
-  setAll(values: Schema): void;
-  mergeAll(values: PartialMultiDictionary<Schema, RequestLocales>): void;
-  setNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void;
-  mergeNamespace<NS extends keyof Schema>(
-    namespace: NS,
-    values: PartialKeyDictionary<Schema[NS], RequestLocales>
-  ): void;
   toScope<NsList extends readonly (keyof Schema & string)[]>(options: {
     namespaces: NsList;
   }): I18nScopeMulti<

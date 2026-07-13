@@ -1,6 +1,5 @@
 import { invokeNamespaceLoader, type NamespaceLoader } from "./builder-loaders.js";
-import type { I18nEngineSingle } from "./engine.js";
-import { IcuTranslationProviderSingle } from "./IcuTranslationProviderSingle.js";
+import type { I18nEngineSingleImpl } from "./engine.js";
 import type {
   KeyDictionary,
   LocaleFallbackMap,
@@ -81,7 +80,7 @@ export class I18nBuilderSingleImpl<
   };
 
   constructor(
-    private readonly engine: I18nEngineSingle<Schema, Params, RequestLocales>,
+    private readonly engine: I18nEngineSingleImpl<Schema, Params, RequestLocales>,
     private readonly options?: I18nBuilderSingleOptions<Schema, RequestLocales>,
     state?: SingleBuilderState<Schema, RequestLocales>
   ) {
@@ -105,23 +104,22 @@ export class I18nBuilderSingleImpl<
   withLocale<Locale extends RequestLocales>(
     locale: Locale
   ): I18nBuilderSingleForLocaleImpl<Schema, Params, RequestLocales, Locale> {
-    const state = this.clone();
-    state.locale = locale;
-    delete state.deliveryArea;
+    const { deliveryArea: _deliveryArea, ...rest } = this.clone();
     return new I18nBuilderSingleForLocaleImpl<Schema, Params, RequestLocales, Locale>(
       this.engine,
       this.options,
-      state
+      { ...rest, locale }
     );
   }
 
   withDeliveryArea<Area extends string>(
     _area: Area
   ): I18nBuilderSingle<Schema, Params, RequestLocales> {
-    const state = this.clone();
-    state.deliveryArea = _area;
-    delete state.locale;
-    return new I18nBuilderSingleImpl(this.engine, this.options, state);
+    const { locale: _locale, ...rest } = this.clone();
+    return new I18nBuilderSingleImpl(this.engine, this.options, {
+      ...rest,
+      deliveryArea: _area,
+    });
   }
 
   withDictionaryData(
@@ -139,9 +137,7 @@ export class I18nBuilderSingleImpl<
     I18nScopeSingleImpl<Schema, Params, RequestLocales, LocaleFallbackMap | undefined>
   > {
     await applySingleBuilderLoad(this.engine, this.options, this.state);
-    return (
-      this.engine as unknown as IcuTranslationProviderSingle<Schema, Params, RequestLocales>
-    ).toScope();
+    return this.engine.toScope();
   }
 }
 
@@ -152,9 +148,9 @@ export class I18nBuilderSingleForLocaleImpl<
   Locale extends RequestLocales = RequestLocales,
 > implements I18nBuilderSingleForLocale<Schema, Params, Locale> {
   constructor(
-    private readonly engine: I18nEngineSingle<Schema, Params, RequestLocales>,
+    private readonly engine: I18nEngineSingleImpl<Schema, Params, RequestLocales>,
     private readonly options: I18nBuilderSingleOptions<Schema, RequestLocales> | undefined,
-    private readonly state: SingleBuilderState<Schema, RequestLocales>
+    private readonly state: SingleBuilderState<Schema, RequestLocales> & { locale: Locale }
   ) {}
 
   withDictionaryData(
@@ -171,9 +167,7 @@ export class I18nBuilderSingleForLocaleImpl<
 
   async load() {
     await applySingleBuilderLoad(this.engine, this.options, this.state);
-    return (this.engine as unknown as IcuTranslationProviderSingle<Schema, Params, RequestLocales>)
-      .toScope()
-      .forLocale(this.state.locale as Locale);
+    return this.engine.toScope().forLocale(this.state.locale);
   }
 }
 
@@ -182,7 +176,7 @@ async function applySingleBuilderLoad<
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string,
 >(
-  engine: I18nEngineSingle<Schema, Params, RequestLocales>,
+  engine: I18nEngineSingleImpl<Schema, Params, RequestLocales>,
   options: I18nBuilderSingleOptions<Schema, RequestLocales> | undefined,
   state: SingleBuilderState<Schema, RequestLocales>
 ): Promise<void> {
@@ -191,10 +185,10 @@ async function applySingleBuilderLoad<
 
   if (loader !== undefined) {
     const data = await invokeNamespaceLoader(loader, partition);
-    engine.mergeAll(data as PartialKeyDictionary<Schema, RequestLocales>);
+    engine.applyLoadMergeSingle(data);
   }
 
   if (Object.keys(state.dictionaryData).length > 0) {
-    engine.mergeAll(state.dictionaryData);
+    engine.applyLoadMergeSingle(state.dictionaryData);
   }
 }

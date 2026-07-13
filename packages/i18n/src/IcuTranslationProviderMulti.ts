@@ -1,6 +1,11 @@
 import { cloneAndFreeze } from "./deep-freeze.js";
 import type { I18nEngineMulti } from "./engine.js";
 import { resolveAndFormat } from "./format-core.js";
+import {
+  assertPatchKeyMulti,
+  recordPreloadedKeysMulti,
+  seedPreloadedKeysMulti,
+} from "./patch-key.js";
 import { mergeNamespaceLocalesCore } from "./project-locales.js";
 import { validateLocaleFallback } from "./resolve-locale.js";
 import type {
@@ -23,8 +28,11 @@ export class IcuTranslationProviderMulti<
   RequestLocales extends string = LocaleOfMulti<Schema>,
   Fallback extends LocaleFallbackMap | undefined = undefined,
 > implements I18nEngineMulti<Schema, Params, RequestLocales> {
+  readonly __i18nEngineMode = "multi" as const;
+
   private dictionary: Schema;
   private compiledCache: MultiCompiledCache = {};
+  private readonly preloadedKeys = new Set<string>();
   private readonly localeFallback?: Fallback;
   private readonly onMissing: OnMissingTranslation;
 
@@ -33,6 +41,7 @@ export class IcuTranslationProviderMulti<
     options?: IcuTranslationProviderOptions<Fallback>
   ) {
     this.dictionary = structuredClone(dictionary) as Schema;
+    seedPreloadedKeysMulti(this.dictionary, this.preloadedKeys);
     if (options?.localeFallback) {
       validateLocaleFallback(options.localeFallback);
       this.localeFallback = options.localeFallback;
@@ -115,32 +124,7 @@ export class IcuTranslationProviderMulti<
     return cloneAndFreeze(this.dictionary);
   }
 
-  setAll(values: Schema): void {
-    this.dictionary = structuredClone(values);
-    this.compiledCache = {};
-  }
-
-  mergeAll(values: PartialMultiDictionary<Schema, RequestLocales>): void {
-    for (const namespace of Object.keys(values) as (keyof Schema & string)[]) {
-      const incoming = values[namespace];
-      if (incoming !== undefined) {
-        this.mergeNamespace(namespace, incoming);
-      }
-    }
-  }
-
-  setNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void {
-    this.dictionary = {
-      ...this.dictionary,
-      [namespace]: structuredClone(values),
-    };
-
-    for (const locale of Object.keys(this.compiledCache)) {
-      delete this.compiledCache[locale]?.[namespace as string];
-    }
-  }
-
-  mergeNamespace<NS extends keyof Schema>(
+  applyLoadMergeNamespace<NS extends keyof Schema>(
     namespace: NS,
     values: PartialKeyDictionary<Schema[NS], RequestLocales>
   ): void {
@@ -151,9 +135,42 @@ export class IcuTranslationProviderMulti<
       ...this.dictionary,
       [namespace]: merged,
     };
+    recordPreloadedKeysMulti(namespace as string, values, this.preloadedKeys);
 
-    for (const locale of Object.keys(this.compiledCache)) {
-      delete this.compiledCache[locale]?.[namespace as string];
+    for (const [key, incomingLocales] of Object.entries(values)) {
+      if (incomingLocales === undefined || typeof incomingLocales !== "object") {
+        continue;
+      }
+
+      for (const locale of Object.keys(incomingLocales)) {
+        delete this.compiledCache[locale]?.[namespace as string]?.[key];
+      }
     }
+  }
+
+  applyLoadMergeAll(values: PartialMultiDictionary<Schema, RequestLocales>): void {
+    for (const namespace of Object.keys(values) as (keyof Schema & string)[]) {
+      const incoming = values[namespace];
+      if (incoming !== undefined) {
+        this.applyLoadMergeNamespace(namespace, incoming);
+      }
+    }
+  }
+
+  patchKeyMulti(namespace: string, key: string, locale: string, template: string): void {
+    const namespaceDictionary = this.dictionary[namespace] as
+      | Record<string, Record<string, string>>
+      | undefined;
+    const localeByKey = namespaceDictionary?.[key];
+
+    assertPatchKeyMulti(namespace, key, locale, template, this.preloadedKeys, localeByKey);
+
+    this.applyLoadMergeNamespace(
+      namespace as keyof Schema,
+      { [key]: { [locale]: template } } as PartialKeyDictionary<
+        Schema[keyof Schema],
+        RequestLocales
+      >
+    );
   }
 }

@@ -116,7 +116,7 @@ describe("codegen projectDictionaryLocales + setNamespace", () => {
       );
     });
 
-    it("passes tsc when hydrating with projectNamespaceLocales before setNamespace", () => {
+    it("passes tsc when hydrating with projectNamespaceLocales before applyLoadMergeNamespace", () => {
       tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
       setupMultiCodegenFixture(tempDir);
 
@@ -132,7 +132,7 @@ describe("codegen projectDictionaryLocales + setNamespace", () => {
           `const engine = new IcuTranslationProviderMulti(defaultDictionary, {`,
           `  localeFallback: LOCALE_FALLBACK,`,
           `});`,
-          `engine.setNamespace("billing", projectNamespaceLocales(billingDictionary, ["en"]));`,
+          `engine.applyLoadMergeNamespace("billing", projectNamespaceLocales(billingDictionary, ["en"]));`,
         ].join("\n")
       );
 
@@ -142,7 +142,7 @@ describe("codegen projectDictionaryLocales + setNamespace", () => {
       expect(tsc.status, `${tsc.stdout}\n${tsc.stderr}`).toBe(0);
     });
 
-    it("passes tsc when replacing the full schema with projectDictionaryLocales before setAll", () => {
+    it("passes tsc when merging the full schema with projectDictionaryLocales via applyLoadMergeAll", () => {
       tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
       setupMultiCodegenFixture(tempDir);
 
@@ -165,7 +165,7 @@ describe("codegen projectDictionaryLocales + setNamespace", () => {
           `const engine = new IcuTranslationProviderMulti(defaultDictionary, {`,
           `  localeFallback: LOCALE_FALLBACK,`,
           `});`,
-          `engine.setAll(projectDictionaryLocales(fullDictionary, ["en"]));`,
+          `engine.applyLoadMergeAll(projectDictionaryLocales(fullDictionary, ["en"]));`,
         ].join("\n")
       );
 
