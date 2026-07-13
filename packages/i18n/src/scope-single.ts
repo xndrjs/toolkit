@@ -26,6 +26,7 @@ export interface I18nScopeSingleForLocale<
 > {
   readonly locale: Locale;
   t<const K extends keyof Schema & string>(key: K, ...params: ParamArgs<Params[K]>): string;
+  set<const K extends keyof Schema & string>(key: K, template: string): void;
   forLocale<Next extends Locale>(locale: Next): I18nScopeSingleForLocale<Schema, Params, Next>;
 }
 
@@ -61,7 +62,7 @@ export class I18nScopeSingleForLocaleImpl<
   RequestLocales extends string,
   Locale extends RequestLocales,
   Fallback extends LocaleFallbackMap | undefined,
-> {
+> implements I18nScopeSingleForLocale<Schema, Params, Locale> {
   constructor(
     private readonly engine: IcuTranslationProviderSingle<Schema, Params, RequestLocales, Fallback>,
     readonly locale: Locale
@@ -70,6 +71,10 @@ export class I18nScopeSingleForLocaleImpl<
   t<const K extends keyof Schema & string>(key: K, ...args: ParamArgs<Params[K]>): string {
     const params = args[0] as Record<string, unknown> | undefined;
     return this.engine.getWithLocale(String(key), this.locale, params);
+  }
+
+  set<const K extends keyof Schema & string>(key: K, template: string): void {
+    this.engine.patchKey(String(key), this.locale, template);
   }
 
   forLocale<Next extends Locale>(

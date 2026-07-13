@@ -38,6 +38,14 @@ export interface I18nScopeMultiForLocale<
     key: K,
     ...params: ParamArgs<Params[NS][K]>
   ): string;
+  set<
+    const NS extends keyof Schema & keyof Params & string,
+    const K extends keyof Schema[NS] & keyof Params[NS] & string,
+  >(
+    namespace: NS,
+    key: K,
+    template: string
+  ): void;
   forLocale<Next extends RequestLocales>(
     locale: Next
   ): I18nScopeMultiForLocale<Schema, Params, RequestLocales, Next>;
@@ -86,6 +94,13 @@ export class I18nScopeMultiForLocaleImpl<
   >(namespace: NS, key: K, ...args: ParamArgs<Params[NS][K]>): string {
     const params = args[0] as Record<string, unknown> | undefined;
     return this.engine.getWithLocale(String(namespace), String(key), this.locale, params);
+  }
+
+  set<
+    const NS extends keyof Schema & keyof Params & string,
+    const K extends keyof Schema[NS] & keyof Params[NS] & string,
+  >(namespace: NS, key: K, template: string): void {
+    this.engine.patchKeyMulti(String(namespace), String(key), this.locale, template);
   }
 
   forLocale<Next extends RequestLocales>(
