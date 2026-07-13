@@ -148,7 +148,12 @@ async function applySingleBuilderLoad<
   const loader = options?.dictionaryLoader;
 
   if (loader !== undefined) {
+    if (engine.hasBuilderResourceLoaded(partition)) {
+      return;
+    }
+
     const data = await invokeNamespaceLoader(loader, partition);
     engine.applyLoadMergeSingle(data);
+    engine.markBuilderResourceLoaded(partition);
   }
 }

@@ -228,6 +228,65 @@ describe("I18nBuilder multi", () => {
       "You have 1 invoice for Ada"
     );
   });
+
+  it("skips a repeated load for the same namespace partition", async () => {
+    const billingLoader = vi.fn(async (locale: string) =>
+      locale === "it" ? billingIt : billingEn
+    );
+    const engine = new IcuTranslationProviderMulti<MultiSchema, TestMultiParams>({});
+    const options = { namespaceLoaders: { billing: billingLoader } };
+    const chain = () =>
+      createI18nBuilder(engine, options).withNamespaces(["billing"]).withLocale("it");
+
+    await chain().load();
+    await chain().load();
+
+    expect(billingLoader).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves runtime patches when a later builder reloads the same resource", async () => {
+    const billingLoader = vi.fn(async () => billingEn);
+    const engine = new IcuTranslationProviderMulti<MultiSchema, TestMultiParams>({});
+    const options = { namespaceLoaders: { billing: billingLoader } };
+
+    const firstView = await createI18nBuilder(engine, options)
+      .withNamespaces(["billing"])
+      .withLocale("en")
+      .load();
+
+    firstView.set(
+      "billing",
+      "invoice_summary",
+      "You have {count, plural, one {1 invoice only} other {{count} invoices only}} for {name}"
+    );
+
+    const secondView = await createI18nBuilder(engine, options)
+      .withNamespaces(["billing"])
+      .withLocale("en")
+      .load();
+
+    expect(billingLoader).toHaveBeenCalledTimes(1);
+    expect(secondView.t("billing", "invoice_summary", { count: 1, name: "Ada" })).toBe(
+      "You have 1 invoice only for Ada"
+    );
+  });
+
+  it("still loads a different partition for the same namespace", async () => {
+    const billingLoader = vi.fn(async (locale: string) =>
+      locale === "it" ? billingIt : billingEn
+    );
+    const engine = new IcuTranslationProviderMulti<MultiSchema, TestMultiParams>({});
+    const builder = createI18nBuilder(engine, {
+      namespaceLoaders: { billing: billingLoader },
+    });
+
+    await builder.withNamespaces(["billing"]).withLocale("it").load();
+    await builder.withNamespaces(["billing"]).withLocale("en").load();
+
+    expect(billingLoader).toHaveBeenCalledTimes(2);
+    expect(billingLoader).toHaveBeenNthCalledWith(1, "it");
+    expect(billingLoader).toHaveBeenNthCalledWith(2, "en");
+  });
 });
 
 describe("I18nBuilder single", () => {
@@ -298,5 +357,50 @@ describe("I18nBuilder single", () => {
     expect(() => view.forLocale("it").set("login_button", "Accedi")).toThrow(
       "[i18n] Key not preloaded: login_button (it)"
     );
+  });
+
+  it("skips a repeated load for the same locale partition", async () => {
+    const dictionaryLoader = vi.fn(async () => ({
+      login_button: { en: "Login" },
+      welcome: { en: "Welcome {name}!" },
+    }));
+    const engine = new IcuTranslationProviderSingle<SingleSchema, SingleParams>({
+      login_button: { en: "", it: "" },
+      welcome: { en: "", it: "" },
+    });
+    const options = { dictionaryLoader };
+    const chain = () =>
+      createI18nBuilder<SingleSchema, SingleParams>(engine, options).withLocale("en");
+
+    await chain().load();
+    await chain().load();
+
+    expect(dictionaryLoader).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves runtime patches when a later builder reloads the same resource", async () => {
+    const dictionaryLoader = vi.fn(async () => ({
+      login_button: { en: "Login" },
+      welcome: { en: "Welcome {name}!" },
+    }));
+    const engine = new IcuTranslationProviderSingle<SingleSchema, SingleParams>({
+      login_button: { en: "", it: "" },
+      welcome: { en: "", it: "" },
+    });
+    const options = { dictionaryLoader };
+
+    const firstView = await createI18nBuilder<SingleSchema, SingleParams>(engine, options)
+      .withLocale("en")
+      .load();
+
+    firstView.set("login_button", "Sign in");
+
+    const secondView = await createI18nBuilder<SingleSchema, SingleParams>(engine, options)
+      .withLocale("en")
+      .load();
+
+    expect(dictionaryLoader).toHaveBeenCalledTimes(1);
+    expect(secondView.t("login_button")).toBe("Sign in");
+    expect(secondView.t("welcome", { name: "Ada" })).toBe("Welcome Ada!");
   });
 });

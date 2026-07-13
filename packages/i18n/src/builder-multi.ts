@@ -364,8 +364,13 @@ async function applyMultiBuilderLoad<
         return;
       }
 
+      if (engine.hasBuilderResourceLoaded(namespace, partition)) {
+        return;
+      }
+
       const data = await invokeNamespaceLoader(loader, partition);
       engine.applyLoadMergeNamespace(namespace, data);
+      engine.markBuilderResourceLoaded(namespace, partition);
     })
   );
 }

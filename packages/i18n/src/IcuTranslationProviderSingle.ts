@@ -1,4 +1,5 @@
 import { cloneAndFreeze } from "./deep-freeze.js";
+import { BuilderLoadRegistry, SINGLE_BUILDER_RESOURCE } from "./builder-load-registry.js";
 import type { I18nEngineSingle } from "./engine.js";
 import { resolveAndFormat } from "./format-core.js";
 import {
@@ -30,6 +31,7 @@ export class IcuTranslationProviderSingle<
   private dictionary: Schema;
   private compiledCache: SingleCompiledCache = {};
   private readonly preloadedKeys = new Set<string>();
+  private readonly builderLoadRegistry = new BuilderLoadRegistry();
   private readonly localeFallback?: Fallback;
   private readonly onMissing: OnMissingTranslation;
 
@@ -76,6 +78,14 @@ export class IcuTranslationProviderSingle<
 
   getAll(): Schema {
     return cloneAndFreeze(this.dictionary);
+  }
+
+  hasBuilderResourceLoaded(partition: string | undefined): boolean {
+    return this.builderLoadRegistry.has(SINGLE_BUILDER_RESOURCE, partition);
+  }
+
+  markBuilderResourceLoaded(partition: string | undefined): void {
+    this.builderLoadRegistry.mark(SINGLE_BUILDER_RESOURCE, partition);
   }
 
   applyLoadMergeSingle(values: PartialKeyDictionary<Schema, RequestLocales>): void {

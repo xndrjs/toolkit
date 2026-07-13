@@ -1,4 +1,5 @@
 import { cloneAndFreeze } from "./deep-freeze.js";
+import { BuilderLoadRegistry } from "./builder-load-registry.js";
 import type { I18nEngineMulti } from "./engine.js";
 import { resolveAndFormat } from "./format-core.js";
 import {
@@ -33,6 +34,7 @@ export class IcuTranslationProviderMulti<
   private dictionary: Schema;
   private compiledCache: MultiCompiledCache = {};
   private readonly preloadedKeys = new Set<string>();
+  private readonly builderLoadRegistry = new BuilderLoadRegistry();
   private readonly localeFallback?: Fallback;
   private readonly onMissing: OnMissingTranslation;
 
@@ -122,6 +124,14 @@ export class IcuTranslationProviderMulti<
 
   getAll(): Schema {
     return cloneAndFreeze(this.dictionary);
+  }
+
+  hasBuilderResourceLoaded(namespace: string, partition: string | undefined): boolean {
+    return this.builderLoadRegistry.has(namespace, partition);
+  }
+
+  markBuilderResourceLoaded(namespace: string, partition: string | undefined): void {
+    this.builderLoadRegistry.mark(namespace, partition);
   }
 
   applyLoadMergeNamespace<NS extends keyof Schema>(
