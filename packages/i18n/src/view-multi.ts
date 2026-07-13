@@ -1,6 +1,6 @@
 import type { IcuTranslationProviderMulti } from "./IcuTranslationProviderMulti.js";
 import type { LocaleFallbackMap, LocaleOfMulti, MultiDictionary } from "./types.js";
-import type { MultiParams } from "./view-types.js";
+import type { MultiParams, ParamArgs } from "./view-types.js";
 
 /** Read-only, type-safe translation view for a multi-namespace schema subset. */
 export interface I18nViewMulti<
@@ -9,13 +9,13 @@ export interface I18nViewMulti<
   RequestLocales extends string = LocaleOfMulti<Schema>,
 > {
   t<
-    NS extends keyof Schema & keyof Params & string,
-    K extends keyof Schema[NS] & keyof Params[NS] & string,
+    const NS extends keyof Schema & keyof Params & string,
+    const K extends keyof Schema[NS] & keyof Params[NS] & string,
   >(
     namespace: NS,
     key: K,
     locale: RequestLocales,
-    ...params: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
+    ...params: ParamArgs<Params[NS][K]>
   ): string;
   forLocale<Locale extends RequestLocales>(
     locale: Locale
@@ -31,12 +31,12 @@ export interface I18nViewMultiForLocale<
 > {
   readonly locale: Locale;
   t<
-    NS extends keyof Schema & keyof Params & string,
-    K extends keyof Schema[NS] & keyof Params[NS] & string,
+    const NS extends keyof Schema & keyof Params & string,
+    const K extends keyof Schema[NS] & keyof Params[NS] & string,
   >(
     namespace: NS,
     key: K,
-    ...params: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
+    ...params: ParamArgs<Params[NS][K]>
   ): string;
   forLocale<Next extends RequestLocales>(
     locale: Next
@@ -53,12 +53,10 @@ export class I18nViewMultiImpl<
     private readonly engine: IcuTranslationProviderMulti<Schema, Params, RequestLocales, Fallback>
   ) {}
 
-  t<NS extends keyof Schema, K extends keyof Schema[NS] & keyof Params[NS] & string>(
-    namespace: NS,
-    key: K,
-    locale: RequestLocales,
-    ...args: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
-  ): string {
+  t<
+    const NS extends keyof Schema & keyof Params & string,
+    const K extends keyof Schema[NS] & keyof Params[NS] & string,
+  >(namespace: NS, key: K, locale: RequestLocales, ...args: ParamArgs<Params[NS][K]>): string {
     const params = args[0] as Record<string, unknown> | undefined;
     return this.engine.getWithLocale(String(namespace), String(key), locale, params);
   }
@@ -82,11 +80,10 @@ export class I18nViewMultiForLocaleImpl<
     readonly locale: Locale
   ) {}
 
-  t<NS extends keyof Schema, K extends keyof Schema[NS] & keyof Params[NS] & string>(
-    namespace: NS,
-    key: K,
-    ...args: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
-  ): string {
+  t<
+    const NS extends keyof Schema & keyof Params & string,
+    const K extends keyof Schema[NS] & keyof Params[NS] & string,
+  >(namespace: NS, key: K, ...args: ParamArgs<Params[NS][K]>): string {
     const params = args[0] as Record<string, unknown> | undefined;
     return this.engine.getWithLocale(String(namespace), String(key), this.locale, params);
   }

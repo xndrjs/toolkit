@@ -6,6 +6,24 @@ export type {
 } from "./engine.js";
 
 export type {
+  CanonicalLoader,
+  I18nBuilderMulti,
+  I18nBuilderMultiForLocale,
+  I18nBuilderMultiOptions,
+  I18nBuilderSingle,
+  I18nBuilderSingleForLocale,
+  I18nBuilderSingleOptions,
+  NamespaceLoader,
+  PartitionedLoader,
+} from "./builder.js";
+export {
+  createI18nBuilder,
+  createI18nMultiBuilder,
+  createI18nSingleBuilder,
+  invokeNamespaceLoader,
+} from "./builder.js";
+
+export type {
   TranslationProviderSingle,
   TranslationProviderSingleForLocale,
 } from "./IcuTranslationProviderSingle.js";

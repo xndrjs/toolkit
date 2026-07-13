@@ -22,3 +22,6 @@ export type ParamsForNamespaces<
 export type SingleParams<Schema extends KeyDictionary> = {
   [K in keyof Schema]: unknown;
 };
+
+/** Rest args for `t()` — `never` params omit the third argument. */
+export type ParamArgs<P> = [P] extends [never] ? [] : [params: P];
