@@ -139,10 +139,12 @@ import { IcuTranslationProviderMulti, IcuTranslationProviderSingle } from "@xndr
 import { formatIssues } from "@xndrjs/i18n/validation";
 ```
 
-- `createI18n(dictionary)` (generated): typed factory bound to your dictionary schema; `dictionary` is required.
-- `.get(...)`: format ICU templates with compile-time key and param checking.
-- `.setAll()` / `.setNamespace()`: runtime dictionary override without rebuild.
-- `namespaceLoaders` (generated, multi mode): typed dynamic `import()` loaders for lazy namespaces.
-- `validateExternalDictionary()` (generated, optional): validate CMS payloads before hydrate.
+- `createI18n(dictionary)` (generated): typed factory; returns a **scope** (eager canonical) or a **builder** (lazy split/custom).
+- Builder: `withNamespaces([...]).withLocale(locale).load()` / `withDeliveryArea(area).load()` — async lazy load; returns a locale-bound scope.
+- `scope.t(...)` / `scope.forLocale(locale).t(...)`: format ICU templates with compile-time key and param checking.
+- `scope.set(...)` on locale-bound scopes: single-key runtime patch after preload (CMS/webhook deltas).
+- Repeated `load()` for the same namespace + partition is skipped on the shared engine (patches preserved).
+- `namespaceLoaders` (generated, multi mode): typed dynamic `import()` loaders wired into the builder.
+- `validateExternalKey` / `validateExternalNamespacePartial` (generated, optional): validate CMS payloads before `scope.set()`.
 
 See [i18n](/v0/infrastructure/i18n/) for setup, codegen config, locale fallback, and lazy loading.

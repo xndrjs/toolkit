@@ -66,7 +66,24 @@ export default defineConfig({
               items: [
                 { label: "Tasks", slug: "v0/infrastructure/tasks" },
                 { label: "Contentful to Zod", slug: "v0/infrastructure/contentful-to-zod" },
-                { label: "i18n", slug: "v0/infrastructure/i18n" },
+                {
+                  label: "i18n",
+                  items: [
+                    { label: "Overview", slug: "v0/infrastructure/i18n" },
+                    { label: "Dictionaries", slug: "v0/infrastructure/i18n/dictionaries" },
+                    { label: "Delivery", slug: "v0/infrastructure/i18n/delivery" },
+                    { label: "Codegen", slug: "v0/infrastructure/i18n/codegen" },
+                    { label: "Runtime", slug: "v0/infrastructure/i18n/runtime" },
+                    { label: "Locale fallback", slug: "v0/infrastructure/i18n/locale-fallback" },
+                    { label: "Lazy loading", slug: "v0/infrastructure/i18n/lazy-loading" },
+                    { label: "External validation", slug: "v0/infrastructure/i18n/validation" },
+                    { label: "Configuration", slug: "v0/infrastructure/i18n/configuration" },
+                    {
+                      label: "Errors & exports",
+                      slug: "v0/infrastructure/i18n/errors-and-exports",
+                    },
+                  ],
+                },
               ],
             },
             {

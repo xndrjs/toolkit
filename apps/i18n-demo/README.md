@@ -45,7 +45,7 @@ const scope = await i18n.withNamespaces(["default", "billing"]).withDeliveryArea
 scope.t("default", "some_key", "it");
 ```
 
-Repeated `load()` calls on the same builder deep-merge translations on the shared engine. For external hydration, use `load()` then `scope.set()` on a locale-bound scope (same pattern as `multi/`).
+Different locale partitions accumulate on the shared engine (`it` then `en`). Reloading the **same** namespace + delivery area is skipped — runtime `scope.set()` patches are preserved. For external hydration, use `load()` then `scope.set()` on a locale-bound scope (same pattern as `multi/`).
 
 Run: `pnpm run demo:areas`
 

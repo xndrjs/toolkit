@@ -2,7 +2,7 @@
 
 A **compiler-first, type-safe i18n system** based on the [ICU MessageFormat](https://formatjs.github.io/docs/core-concepts/icu-syntax/) standard, with **runtime dictionary overrides from external sources** (no rebuild required).
 
-The core idea: your ICU strings live in local JSON files that act as **type-safe fallbacks**. A build-time codegen step parses the ICU AST and generates exact TypeScript types for every translation key and its parameters. At runtime, a centralized provider caches compiled messages and lets you replace the whole dictionary (or a single namespace) on the fly from any source (i.e. a CMS).
+The core idea: your ICU strings live in local JSON files that act as **type-safe fallbacks**. A build-time codegen step parses the ICU AST and generates exact TypeScript types for every translation key and its parameters. At runtime, a centralized engine caches compiled messages; the builder loads lazy artifacts, and locale-bound scopes patch individual keys via `scope.set()` (for example from a CMS) without rebuilding.
 
 ## Key features
 
@@ -497,7 +497,7 @@ Example init (multi, split-by-locale, all namespaces lazy):
 ```ts
 import { createI18n } from "./generated/instance.generated.js";
 
-const view = await createI18n({})
+const scope = await createI18n({})
   .withNamespaces(["default", "billing"])
   .withLocale(activeLocale)
   .load();
@@ -508,10 +508,13 @@ Example init (multi, custom delivery, all namespaces lazy):
 ```ts
 import { createI18n } from "./generated/instance.generated.js";
 
-const view = await createI18n({})
+const scope = await createI18n({})
   .withNamespaces(["default", "billing"])
   .withDeliveryArea(activeArea)
   .load();
+
+// ActiveLocales is narrowed to DELIVERY_ARTIFACTS[activeArea] — forLocale() only accepts those locales.
+scope.t("default", "login_button", "it");
 ```
 
 Custom delivery config and typed artifacts (no need to read `deliveryArtifacts` from JSON at runtime):
@@ -736,13 +739,17 @@ const scope = await createI18n({})
 scope.t("billing", "invoice_summary", { count: 3 });
 ```
 
-Repeated `load()` calls on the same builder deep-merge locale entries on the shared engine — load `"it"`, then `"en"`, and both remain available:
+Different locale or delivery-area partitions accumulate on the shared engine — load `"it"`, then `"en"`, and both remain available. Loading the **same** namespace + partition again is a no-op (preserves runtime `scope.set()` patches):
 
 ```ts
 const builder = createI18n({}).withNamespaces(["billing"] as const);
 const itScope = await builder.withLocale("it").load();
 const enScope = await builder.withLocale("en").load();
 // itScope and enScope share one engine; both locales are preloaded for billing keys.
+
+itScope.set("billing", "invoice_summary", "Custom {count} for {name}");
+await builder.withLocale("it").load(); // skipped — patch preserved
+itScope.t("billing", "invoice_summary", { count: 1, name: "Ada" }); // "Custom 1 for Ada"
 ```
 
 Generated loaders throw if locale/area does not match a known artifact (no silent empty payloads into `load()`).
@@ -834,7 +841,8 @@ Both providers share this behavior:
 
 - **Compilation cache** — compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode). Invalidated on `scope.set()` for the affected key/locale.
 - **`getAll()`** — returns a deep-frozen snapshot of the current dictionary (not a live reference).
-- **No public merge/replace** — `setAll`, `mergeAll`, `setNamespace`, and `mergeNamespace` were removed in 0.7.0. Deep merge is internal to `load()`; patches go through `scope.set()`.
+- **Load deduplication** — the engine tracks lazy resources loaded via the builder (`namespace` + locale or delivery area). A repeated `load()` for the same resource is skipped so default artifacts do not overwrite runtime `scope.set()` patches.
+- **No public merge/replace** — `setAll`, `mergeAll`, `setNamespace`, and `mergeNamespace` were removed in 0.7.0. The first `load()` per resource deep-merges defaults; further patches go through `scope.set()`.
 - **Missing key/locale** — by default throws an error if the template is `undefined` (configurable via `onMissing`, see below). An empty string (`""`) is treated as a valid template.
 - **ICU syntax error** — throws `[i18n ICU Syntax Error] ...`.
 - **Formatting error** (missing/invalid params) — throws `[i18n Formatting Error] ...`.

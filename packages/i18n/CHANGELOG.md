@@ -4,23 +4,25 @@
 
 ### Breaking Changes (0.7.0)
 
-- **View → Scope rename:** public types are now `I18nScopeSingle`, `I18nScopeMulti`, `I18nScope*ForLocale` (was `I18nView*`). Engine projection is `toScope()` (was `toView()`). Source files: `scope-single.ts`, `scope-multi.ts`, `scope-types.ts`. Spec: `docs/spec-engine-scope-builder.md`.
+- **View → Scope rename:** public types are now `I18nScopeSingle`, `I18nScopeMulti`, `I18nScope*ForLocale` (was `I18nView*`). Engine projection is `toScope()` (was `toView()`). Source files: `scope-single.ts`, `scope-multi.ts`, `scope-types.ts`. Runtime docs: `apps/xndrjs-documentation/src/content/docs/v0/infrastructure/i18n/runtime.md`.
 - **`IcuTranslationProviderMulti`:** removed `hasNamespace()` and the internal `loadedNamespaces` set. Namespace availability is determined solely by `dictionary` keys. Accessing a namespace not present in the dictionary now degrades through `onMissing` (same as a missing key) instead of throwing a dedicated "namespace not loaded" error.
 - **Removed public merge/replace APIs:** `setAll`, `setNamespace`, `mergeAll`, and `mergeNamespace` are no longer on the engine or providers. Deep merge happens only via the builder `load()` path; key-level runtime patches go through `scope.set()` on locale-bound scopes.
 - **Removed builder hydration:** `withNamespaceData` and `withDictionaryData` are gone. External/CMS payloads: `load()` first (preload gate), then validate and call `scope.set(...)` per key.
 - **`scope.set()` on locale-bound scopes:** `I18nScopeSingleForLocale` and `I18nScopeMultiForLocale` expose `set(...)` for single-key patches. Requires the `(key, locale)` or `(namespace, key, locale)` triple to have been preloaded; re-validates ICU syntax and parameter compatibility against other locales for the same key. Errors: `[i18n] Key not preloaded: ...`, `[i18n] ICU syntax error on patch: ...`, `[i18n] ICU args mismatch on patch: ...`.
+- **Builder load deduplication:** the shared engine tracks lazy resources already loaded via `load()` (namespace + locale or delivery area). A repeated `load()` for the same resource is skipped — the loader is not invoked and defaults are not re-merged. Runtime patches from `scope.set()` on a prior builder instance are preserved when another builder reloads the same partition.
+- **Delivery-area locale narrowing:** after `withDeliveryArea(area)`, the builder returns `I18nBuilderMultiPartitioned` with `ActiveLocales` narrowed to the locales served by that area (from codegen `DELIVERY_ARTIFACTS`). Unbound scopes expose `forLocale` only for those locales at compile time.
 - **Partial external validation:** codegen emits `validateExternalDictionaryPartial`, `validateExternalNamespacePartial`, and `validateExternalKey` (when `dictionarySchemaOutput` is configured) for CMS/webhook deltas that omit full namespace snapshots.
 
 ### Migration (0.6.x → 0.7.0)
 
-| Before (0.6.x)                      | After (0.7.0)                                                                                              |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `engine.mergeNamespace(ns, data)`   | `await builder.withNamespaces([ns]).withLocale(locale).load()` then `scope.set(ns, key, template)` per key |
-| `engine.mergeAll(data)`             | successive `load()` calls on the same builder (deep merge)                                                 |
-| `engine.setNamespace` / `setAll`    | removed — use `load()` + `scope.set()`                                                                     |
-| `builder.withNamespaceData(...)`    | removed — validate external payload, `load()`, then `scope.set()`                                          |
-| `view.t(...)` / `toView()`          | `scope.t(...)` / `toScope()`                                                                               |
-| `validateExternalNamespace` + merge | `validateExternalKey` or `validateExternalNamespacePartial` + `scope.set()`                                |
+| Before (0.6.x)                      | After (0.7.0)                                                                                                                                  |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine.mergeNamespace(ns, data)`   | `await builder.withNamespaces([ns]).withLocale(locale).load()` then `scope.set(ns, key, template)` per key                                     |
+| `engine.mergeAll(data)`             | successive `load()` calls for **different** partitions (locale/area) on the same shared engine; same partition is skipped after the first load |
+| `engine.setNamespace` / `setAll`    | removed — use `load()` + `scope.set()`                                                                                                         |
+| `builder.withNamespaceData(...)`    | removed — validate external payload, `load()`, then `scope.set()`                                                                              |
+| `view.t(...)` / `toView()`          | `scope.t(...)` / `toScope()`                                                                                                                   |
+| `validateExternalNamespace` + merge | `validateExternalKey` or `validateExternalNamespacePartial` + `scope.set()`                                                                    |
 
 Re-run `xndrjs-i18n-codegen` after upgrading so generated validation helpers and factory signatures match.
 
