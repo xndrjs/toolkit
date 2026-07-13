@@ -14,15 +14,19 @@ All namespaces are lazy. Bootstrap with `createI18n({})` and use the builder to 
 ```ts
 import { createI18nForLocale } from "./i18n";
 
-const view = await createI18nForLocale(activeLocale, ["default", "billing"]);
-view.t("billing", "invoice_summary", { count: 2 });
+const scope = await createI18nForLocale(activeLocale, ["default", "billing"]);
+scope.t("billing", "invoice_summary", { count: 2 });
 ```
 
-For manual patches after validation, prefer `mergeNamespace` / `mergeAll` over `setNamespace` / `setAll` when you keep prior locales in memory:
+For external/CMS patches after validation, `load()` first (preload gate), then patch individual keys on the locale-bound scope:
 
 ```ts
-i18n.mergeNamespace("billing", validatedBilling);
-i18n.mergeAll(validatedDictionary);
+const scope = await createI18n({}).withNamespaces(["billing"]).withLocale(locale).load();
+
+const result = validateExternalKey("billing", "invoice_summary", rawLocales);
+if (result.ok) {
+  scope.set("billing", "invoice_summary", result.data.invoice_summary[locale]!);
+}
 ```
 
 `createI18nForLocale(locale, namespaces?)` in `multi/src/i18n/index.ts` wraps the same pattern for per-request instances.
@@ -36,11 +40,11 @@ Delivery JSON is grouped by area (`eu`, `amer`). Use `createI18nForArea`:
 ```ts
 import { createI18nForArea } from "./i18n";
 
-const view = await createI18nForArea("eu", ["default", "billing"]);
-view.t("default", "some_key", "it");
+const scope = await createI18nForArea("eu", ["default", "billing"]);
+scope.t("default", "some_key", "it");
 ```
 
-`createI18nForArea(area, namespaces?)` in `areas/src/i18n/index.ts` returns a ready instance. Generated helpers use `mergeNamespace`; manual hydration should use `mergeNamespace` / `mergeAll` when accumulating locales on a shared provider.
+`createI18nForArea(area, namespaces?)` in `areas/src/i18n/index.ts` returns a ready scope. For external hydration, use `load()` then `scope.set()` on a locale-bound scope (same pattern as `multi/`).
 
 Run: `pnpm run demo:areas`
 

@@ -8,7 +8,7 @@ The core idea: your ICU strings live in local JSON files that act as **type-safe
 
 - **Type-safe `t()`** — the compiler knows exactly which parameters each key requires (`string`, `number`, or none).
 - **ICU MessageFormat** — full support for interpolation, plurals, and select.
-- **Runtime override** — hydrate translations from an external source via `setAll()` / `setNamespace()` without rebuilding.
+- **Runtime override** — patch individual translation keys from an external source via `scope.set()` on locale-bound scopes (after `load()`), without rebuilding.
 - **Single-file or multi-namespace** — one flat dictionary, or multiple JSON files each bound to a namespace.
 - **Lazy namespace loading** — optional code-splitting via `loadOnInit` and generated `namespaceLoaders` (multi mode).
 - **Hot compilation cache** — compiled `IntlMessageFormat` instances are cached and invalidated on override.
@@ -317,23 +317,25 @@ const i18n = new IcuTranslationProviderMulti(schema, { localeFallback });
 
 #### `projectDictionaryLocales` / `projectNamespaceLocales`
 
-Namespaces split the dictionary by domain; locale projection splits it by **locale**. Use before `setAll()` / `setNamespace()` when you only need one locale (or a small regional group) in memory.
+Namespaces split the dictionary by domain; locale projection splits it by **locale**. Use with `load()` + `scope.set()` when ingesting external payloads for a single locale (or a small regional group) in memory.
 
 ```ts
-import { IcuTranslationProviderMulti } from "@xndrjs/i18n";
-import { LOCALE_FALLBACK } from "./i18n/generated/i18n-types.generated.js";
+import { createI18n } from "./i18n/generated/instance.generated.js";
+import { validateExternalKey } from "./i18n/generated/dictionary-schema.generated.js";
 import {
   projectDictionaryLocales,
   projectNamespaceLocales,
 } from "./i18n/generated/instance.generated.js";
-import { defaultDictionary } from "./i18n/generated/dictionary.generated.js";
 import billingDictionary from "./i18n/translations/billing.json";
 
-const engine = new IcuTranslationProviderMulti(defaultDictionary, {
-  localeFallback: LOCALE_FALLBACK,
-});
-engine.setNamespace("billing", projectNamespaceLocales(billingDictionary, [activeLocale]));
-engine.setAll(projectDictionaryLocales(fullDictionary, [activeLocale])); // multi: all namespaces
+const scope = await createI18n({}).withNamespaces(["billing"]).withLocale(activeLocale).load();
+
+// Optional: validate a projected slice, then patch one key
+const billingEn = projectNamespaceLocales(billingDictionary, [activeLocale]);
+const result = validateExternalKey("billing", "invoice_summary", billingEn.invoice_summary);
+if (result.ok) {
+  scope.set("billing", "invoice_summary", result.data.invoice_summary[activeLocale]!);
+}
 ```
 
 Codegen emits typed wrappers in `instance.generated.ts` (`projectDictionaryLocales` for the full schema; `projectNamespaceLocales` in multi mode for one namespace). With `delivery: "custom"`, it also emits `projectDictionaryForDeliveryArea` and `projectNamespaceForDeliveryArea`. The low-level `@xndrjs/i18n` exports are `*Core` helpers for tooling without codegen.
@@ -613,12 +615,12 @@ Use split delivery when you want smaller lazy chunks (one locale per dynamic imp
 
 ### Single vs. multi-namespace API
 
-|             | Single-file                           | Multi-namespace                                                               |
-| ----------- | ------------------------------------- | ----------------------------------------------------------------------------- |
-| `I18N_MODE` | `'single'`                            | `'multi'`                                                                     |
-| Provider    | `IcuTranslationProviderSingle`        | `IcuTranslationProviderMulti`                                                 |
-| `t()`       | `t(key, locale, params?)`             | `t(namespace, key, locale, params?)`                                          |
-| Override    | `setAll(schema)` / `mergeAll(schema)` | `setAll(schema)` + `setNamespace(ns, values)` / `mergeNamespace` / `mergeAll` |
+|             | Single-file                                      | Multi-namespace                                      |
+| ----------- | ------------------------------------------------ | ---------------------------------------------------- |
+| `I18N_MODE` | `'single'`                                       | `'multi'`                                            |
+| Provider    | `IcuTranslationProviderSingle`                   | `IcuTranslationProviderMulti`                        |
+| `t()`       | `t(key, locale, params?)`                        | `t(namespace, key, locale, params?)`                 |
+| Patch       | `scope.set(key, template)` on locale-bound scope | `scope.set(ns, key, template)` on locale-bound scope |
 
 ### Multi-namespace example
 
@@ -626,14 +628,14 @@ Use split delivery when you want smaller lazy chunks (one locale per dynamic imp
 import { i18n } from "./i18n"; // app singleton from i18n.ts
 // or: import { createI18n, defaultDictionary } from './i18n'; const i18n = createI18n(defaultDictionary);
 
-view.t("default", "login_button", "it"); // "Accedi"
-view.t("default", "welcome", "en", { name: "Ada" }); // "Welcome Ada!"
-view.t("default", "dashboard_status", "it", { msgCount: 3, chatCount: 2 });
-view.t("billing", "invoice_summary", "en", { count: 12 });
+scope.t("default", "login_button", "it"); // "Accedi"
+scope.t("default", "welcome", "en", { name: "Ada" }); // "Welcome Ada!"
+scope.t("default", "dashboard_status", "it", { msgCount: 3, chatCount: 2 });
+scope.t("billing", "invoice_summary", "en", { count: 12 });
 
 // Compile-time errors:
-view.t("default", "welcome", "it"); // ✗ missing { name }
-view.t("billing", "login_button", "it"); // ✗ key not in namespace
+scope.t("default", "welcome", "it"); // ✗ missing { name }
+scope.t("billing", "login_button", "it"); // ✗ key not in namespace
 ```
 
 ### Single-file example
@@ -646,19 +648,30 @@ i18n.t("login_button", "it");
 i18n.t("welcome", "en", { name: "Ada" });
 ```
 
-### Runtime override
+### Runtime override (key-level patch)
+
+Runtime patches go through **`scope.set()`** on a locale-bound scope returned from `load()`. The key (and locale) must already be preloaded — typically via a prior `load()` call or the canonical eager dictionary.
 
 ```ts
-// Full override — replaces the entire dictionary and clears the cache
-i18n.setAll(externalPayload);
+// Multi — locale-bound scope from load()
+const scope = await createI18n({}).withNamespaces(["billing"]).withLocale("en").load();
+scope.set(
+  "billing",
+  "invoice_summary",
+  "You have {count, plural, one {1 invoice} other {# invoices}}"
+);
+scope.t("billing", "invoice_summary", { count: 2 });
 
-// Partial patch — updates a single namespace and invalidates only its cache
-i18n.setNamespace("billing", externalBillingPayload);
+// Single — same pattern
+const singleScope = await createI18n(defaultDictionary).withLocale("en").load();
+singleScope.set("welcome", "Welcome {name}!");
 ```
+
+Unbound scopes (without `withLocale` / `withDeliveryArea` before `load()`) are read-only; call `.forLocale(locale)` before patching.
 
 ### Lazy namespace loading (multi mode)
 
-`.get()` stays synchronous — register lazy namespaces with `setNamespace()` before rendering. The pattern depends on `delivery`:
+The pattern depends on `delivery`:
 
 | Delivery                     | Loading pattern                                                                                                                                  |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -683,20 +696,26 @@ Split namespaces across chunks with `loadOnInit` in **canonical** delivery only.
 
 Codegen also emits `LoadOnInitNamespace`, `LazyNamespace`, and `InitialSchema` types. The generated factory accepts a partial `InitialSchema` at init time.
 
-Canonical delivery: load eager namespaces via `loadOnInit`. For the remaining ones, call `namespaceLoaders` and register them on the engine (if you are using the engine directly).
+Canonical delivery: eager namespaces load via `loadOnInit`. For lazy ones, use the builder or call generated `namespaceLoaders` inside a custom loader wired into `createI18n`.
 
 ```ts
-import { i18n, namespaceLoaders, type LazyNamespace } from "./i18n";
+import { createI18n, namespaceLoaders, type LazyNamespace } from "./i18n";
 
-i18n.get("default", "login_button", "en"); // available immediately
+// Eager namespace available immediately on the canonical singleton scope
+const scope = createI18n(defaultDictionary).toScope();
+scope.t("default", "login_button", "en");
 
-engine.setNamespace("billing", await namespaceLoaders.billing());
-view.t("billing", "invoice_summary", "en", { count: 12 });
+// Lazy namespace — load via builder
+const billingScope = await createI18n(defaultDictionary)
+  .withNamespaces(["billing"])
+  .withLocale("en")
+  .load();
+billingScope.t("billing", "invoice_summary", { count: 12 });
 
-// batch preload
+// batch preload several lazy namespaces for one locale
 await Promise.all(
   (["user", "billing"] as const satisfies readonly LazyNamespace[]).map(async (namespace) => {
-    engine.setNamespace(namespace, await namespaceLoaders[namespace]());
+    await namespaceLoaders[namespace]();
   })
 );
 ```
@@ -717,43 +736,37 @@ const scope = await createI18n({})
 scope.t("billing", "invoice_summary", { count: 3 });
 ```
 
-Manual loader calls (without the helper) should use `mergeAll` (single) or `mergeNamespace` (multi) when accumulating locales on the same instance:
+Repeated `load()` calls on the same builder deep-merge locale entries on the shared engine — load `"it"`, then `"en"`, and both remain available:
 
 ```ts
-const locale = "it" as const;
-
-// single
-i18n.mergeAll(await namespaceLoaders.default(locale));
-
-// multi
-i18n.mergeNamespace("billing", await namespaceLoaders.billing(locale));
-
-// add another locale on the same instance:
-i18n.mergeNamespace("billing", await namespaceLoaders.billing("en"));
+const builder = createI18n({}).withNamespaces(["billing"] as const);
+const itScope = await builder.withLocale("it").load();
+const enScope = await builder.withLocale("en").load();
+// itScope and enScope share one engine; both locales are preloaded for billing keys.
 ```
 
-Generated loaders throw if locale/area does not match a known artifact (no silent `undefined` into `setNamespace`).
+Generated loaders throw if locale/area does not match a known artifact (no silent empty payloads into `load()`).
 
-Optional locale projection before register:
+Optional locale projection before validating external slices:
 
 ```ts
 import { projectNamespaceLocales } from "./i18n/generated/instance.generated.js";
 
 const billing = await namespaceLoaders.billing();
-i18n.setNamespace("billing", projectNamespaceLocales(billing, [userLocale]));
+const billingSlice = projectNamespaceLocales(billing, [userLocale]);
+const result = validateExternalKey("billing", "invoice_summary", billingSlice.invoice_summary);
+if (result.ok) {
+  scope.set("billing", "invoice_summary", result.data.invoice_summary[userLocale]!);
+}
 ```
 
-Calling `.get()` on a namespace that is not loaded throws:
+When a namespace key was never loaded, `t()` resolves through `onMissing` (default: throw).
 
-`[i18n] Namespace not loaded: "billing". Register it with setNamespace() before calling .get().`
-
-When `loadOnInit` is omitted, behavior is unchanged: all namespaces are statically imported.
-
-Fetch/CMS hydration is app-owned: fetch → `validateExternalNamespace()` (requires `dictionarySchemaOutput` + `zod`) → `setNamespace()`.
+Fetch/CMS hydration is app-owned: fetch → validate (`validateExternalKey` / `validateExternalNamespacePartial`) → `load()` → `scope.set()` per key.
 
 ### External dictionary validation
 
-When translations arrive from an external source (i.e. a CMS), validate the `unknown` input before calling `setAll()` or `setNamespace()`.
+When translations arrive from an external source (i.e. a CMS), validate the `unknown` input before calling `scope.set()`. Keys must be preloaded via `load()` first.
 
 Enable validation by adding `dictionarySchemaOutput` to `i18n/i18n.codegen.json`:
 
@@ -765,35 +778,51 @@ Enable validation by adding `dictionarySchemaOutput` to `i18n/i18n.codegen.json`
 
 Add `zod` as a dependency in the consumer app (required peer of `@xndrjs/i18n`).
 
-Codegen emits `DICTIONARY_SPEC` and `validateExternalDictionary()`. Validation runs in two phases:
+Codegen emits `DICTIONARY_SPEC`, `validateExternalDictionary()`, `validateExternalDictionaryPartial()`, `validateExternalNamespacePartial()`, and `validateExternalKey()`. Validation runs in two phases:
 
 1. **Normalize** — parse ICU templates, extract variables, check required keys (missing keys fail; extra keys are ignored; partial locales are OK).
 2. **Validate** — compare extracted arguments against the static `Params` schema via Zod.
 
 ```ts
 import { formatIssues } from "@xndrjs/i18n/validation";
-import { validateExternalDictionary } from "./i18n/generated/dictionary-schema.generated.js";
-import { i18n } from "./i18n";
+import {
+  validateExternalDictionaryPartial,
+  validateExternalKey,
+} from "./i18n/generated/dictionary-schema.generated.js";
+import { createI18n } from "./i18n";
 
 const raw: unknown = await loadTranslations();
 
-const result = validateExternalDictionary(raw);
+const scope = await createI18n({}).withNamespaces(["default", "billing"]).withLocale("en").load();
+
+const result = validateExternalDictionaryPartial(raw);
 if (!result.ok) {
   console.error(formatIssues(result.issues));
   return;
 }
 
-i18n.setAll(result.data);
+for (const [namespace, nsData] of Object.entries(result.data)) {
+  if (!nsData) continue;
+  for (const [key, locales] of Object.entries(nsData)) {
+    const keyResult = validateExternalKey(namespace as "default", key, locales);
+    if (keyResult.ok) {
+      const template = keyResult.data[key as keyof typeof keyResult.data]?.en;
+      if (template) scope.set(namespace as "billing", key as "invoice_summary", template);
+    }
+  }
+}
 ```
 
-For a namespace patch (multi mode only):
+For a single key patch (multi mode):
 
 ```ts
-import { validateExternalNamespace } from "./i18n/generated/dictionary-schema.generated.js";
+import { validateExternalKey } from "./i18n/generated/dictionary-schema.generated.js";
 
-const result = validateExternalNamespace("billing", rawBilling);
+const scope = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
+
+const result = validateExternalKey("billing", "invoice_summary", rawLocales);
 if (result.ok) {
-  i18n.setNamespace("billing", result.data);
+  scope.set("billing", "invoice_summary", result.data.invoice_summary.it!);
 }
 ```
 
@@ -803,13 +832,9 @@ Low-level API is also available from `@xndrjs/i18n/validation` for custom wiring
 
 Both providers share this behavior:
 
-- **Compilation cache** — compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode).
+- **Compilation cache** — compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode). Invalidated on `scope.set()` for the affected key/locale.
 - **`getAll()`** — returns a deep-frozen snapshot of the current dictionary (not a live reference).
-- **No `hasNamespace`** — namespace availability is modeled by the builder/scope; the engine dictionary is the source of truth.
-- **`setAll(values)`** — replaces the dictionary and clears the entire cache.
-- **`mergeAll(values)`** — merges locale entries per translation key (single: whole schema; multi: each namespace in `values`). Alternative to `setAll` when accumulating locales on the same instance. Used by generated `ensureNamespacesLoaded*` helpers in single-mode split/custom delivery.
-- **`setNamespace(ns, values)`** — (multi only) replaces one namespace and invalidates only its cache entries.
-- **`mergeNamespace(ns, values)`** — (multi only) merges locale entries per translation key into an existing namespace (or registers it when not loaded yet). Used by generated `ensureNamespacesLoaded*` helpers in multi-mode split/custom delivery.
+- **No public merge/replace** — `setAll`, `mergeAll`, `setNamespace`, and `mergeNamespace` were removed in 0.7.0. Deep merge is internal to `load()`; patches go through `scope.set()`.
 - **Missing key/locale** — by default throws an error if the template is `undefined` (configurable via `onMissing`, see below). An empty string (`""`) is treated as a valid template.
 - **ICU syntax error** — throws `[i18n ICU Syntax Error] ...`.
 - **Formatting error** (missing/invalid params) — throws `[i18n Formatting Error] ...`.
@@ -883,7 +908,7 @@ pnpm run demo:multi            # tsx multi/src/index.ts
 
 1. Add the key with its ICU strings to the relevant JSON file under `translations/`.
 2. Run `pnpm --filter @xndrjs/i18n-demo i18n:codegen:multi` (or `i18n:codegen:single`).
-3. The generated `MyProjectParams` updates; TypeScript will flag any `.get()` call sites that now need (or no longer need) parameters.
+3. The generated `MyProjectParams` updates; TypeScript will flag any `t()` call sites that now need (or no longer need) parameters.
 
 ## Adding a namespace
 
@@ -896,7 +921,7 @@ pnpm run demo:multi            # tsx multi/src/index.ts
 1. Split the flat JSON into per-domain files.
 2. Change `dictionary` to `namespaces` in the config.
 3. Re-run codegen — types and API switch from flat to namespaced.
-4. Update call sites: `get('key', locale)` → `get('namespace', 'key', locale)`.
+4. Update call sites: `t(key, locale)` → `t(namespace, key, locale)` on scopes (or use locale-bound scopes from `load()`).
 
 ## Tech stack
 

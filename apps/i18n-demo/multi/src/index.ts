@@ -3,25 +3,31 @@ import {
   createI18n,
   namespaceLoaders,
   validateExternalDictionaryPartial,
+  validateExternalKey,
   validateExternalNamespacePartial,
 } from "./i18n";
-import type { MyProjectLocale } from "./i18n/generated/i18n-types.generated";
+import type { MyProjectLocale, MyProjectSchema } from "./i18n/generated/i18n-types.generated";
 
 const demoLocale = "en" as const satisfies MyProjectLocale;
 
 export async function exampleCreateI18nForLocale(): Promise<void> {
-  const view = await createI18n({}).withNamespaces(["default", "user"]).withLocale("de-CH").load();
+  const scope = await createI18n({}).withNamespaces(["default", "user"]).withLocale("de-CH").load();
 
-  console.log("default.login_button @ de-CH:", view.t("default", "login_button"));
-  console.log("user.greeting @ de-CH:", view.t("user", "greeting", { name: "Lena" }));
+  console.log("default.login_button @ de-CH:", scope.t("default", "login_button"));
+  console.log("user.greeting @ de-CH:", scope.t("user", "greeting", { name: "Lena" }));
 }
 
 export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
   const activeLocale = "it";
-  await namespaceLoaders.billing(activeLocale);
-  const view = await createI18n({}).withNamespaces(["billing"]).withLocale(activeLocale).load();
+  const scope = await createI18n({}).withNamespaces(["billing"]).withLocale(activeLocale).load();
 
-  console.log("billing.invoice_summary @ it:", view.t("billing", "invoice_summary", { count: 3 }));
+  scope.set(
+    "billing",
+    "invoice_summary",
+    "Hai {count, plural, one {1 fattura aggiornata} other {# fatture aggiornate}}"
+  );
+
+  console.log("billing.invoice_summary @ it:", scope.t("billing", "invoice_summary", { count: 3 }));
 }
 
 export async function exampleExternalNamespacePatch(): Promise<void> {
@@ -29,17 +35,29 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
 
   const result = validateExternalNamespacePartial("billing", rawBilling);
   if (!result.ok) {
-    console.error("billing mergeNamespace validation failed:", formatIssues(result.issues));
+    console.error("billing validation failed:", formatIssues(result.issues));
     return;
   }
 
-  const view = await createI18n({})
-    .withNamespaces(["billing"])
-    .withLocale(demoLocale)
-    .withNamespaceData("billing", result.data)
-    .load();
+  const scope = await createI18n({}).withNamespaces(["billing"]).withLocale(demoLocale).load();
 
-  console.log("billing.invoice_summary @ en:", view.t("billing", "invoice_summary", { count: 1 }));
+  for (const key of Object.keys(result.data) as (keyof MyProjectSchema["billing"])[]) {
+    const locales = result.data[key];
+    if (locales === undefined) continue;
+
+    const keyResult = validateExternalKey("billing", key, locales);
+    if (!keyResult.ok) {
+      console.error(`billing.${key} validation failed:`, formatIssues(keyResult.issues));
+      continue;
+    }
+
+    const template = keyResult.data[key]?.[demoLocale];
+    if (template !== undefined) {
+      scope.set("billing", key, template);
+    }
+  }
+
+  console.log("billing.invoice_summary @ en:", scope.t("billing", "invoice_summary", { count: 1 }));
 }
 
 export async function exampleExternalDictionaryHydration(): Promise<void> {
@@ -47,48 +65,61 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 
   const result = validateExternalDictionaryPartial(raw);
   if (!result.ok) {
-    console.error("mergeAll validation failed:", formatIssues(result.issues));
+    console.error("dictionary validation failed:", formatIssues(result.issues));
     return;
   }
 
   const namespaces = ["default", "user", "billing"] as const;
 
-  let builder = createI18n({}).withNamespaces(namespaces).withLocale(demoLocale);
+  const scope = await createI18n({}).withNamespaces(namespaces).withLocale(demoLocale).load();
 
-  // Merge the validated external payload into the runtime engine via the builder hydration API.
-  // Note: `validateExternalDictionaryPartial` returns `Partial<MyProjectSchema>` so we merge only what is present.
   for (const namespace of Object.keys(result.data) as (typeof namespaces)[number][]) {
-    const data = result.data[namespace];
-    if (data !== undefined) {
-      builder = builder.withNamespaceData(namespace, data as never);
+    const nsData = result.data[namespace];
+    if (nsData === undefined) continue;
+
+    for (const key of Object.keys(nsData) as (keyof MyProjectSchema[typeof namespace])[]) {
+      const locales = nsData[key];
+      if (locales === undefined) continue;
+
+      const keyResult = validateExternalKey(namespace, key, locales);
+      if (!keyResult.ok) {
+        console.error(`${namespace}.${key} validation failed:`, formatIssues(keyResult.issues));
+        continue;
+      }
+
+      const template = keyResult.data[key]?.[demoLocale];
+      if (template !== undefined) {
+        scope.set(namespace, key, template);
+      }
     }
   }
 
-  const view = await builder.load();
-
-  console.log("billing.invoice_summary @ en:", view.t("billing", "invoice_summary", { count: 12 }));
+  console.log(
+    "billing.invoice_summary @ en:",
+    scope.t("billing", "invoice_summary", { count: 12 })
+  );
 }
 
 export async function exampleMergeAccumulatesAcrossLocales(): Promise<void> {
   // Same engine (same createI18n call) — load two locales over time.
   const builder = createI18n({}).withNamespaces(["billing"] as const);
 
-  const itView = await builder.withLocale("it").load();
+  const itScope = await builder.withLocale("it").load();
   console.log(
     "billing.invoice_summary @ it (after it load):",
-    itView.t("billing", "invoice_summary", { count: 2 })
+    itScope.t("billing", "invoice_summary", { count: 2 })
   );
 
-  const enView = await builder.withLocale("en").load();
+  const enScope = await builder.withLocale("en").load();
   console.log(
     "billing.invoice_summary @ en (after en load):",
-    enView.t("billing", "invoice_summary", { count: 2 })
+    enScope.t("billing", "invoice_summary", { count: 2 })
   );
 
-  // Still works because the engine accumulated locales via merge, it didn’t replace the whole namespace.
+  // Still works because load() deep-merges locale entries on the shared engine.
   console.log(
     "billing.invoice_summary @ it (after en load):",
-    itView.t("billing", "invoice_summary", { count: 2 })
+    itScope.t("billing", "invoice_summary", { count: 2 })
   );
 }
 

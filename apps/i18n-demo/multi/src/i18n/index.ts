@@ -7,7 +7,7 @@ export * from "./generated/i18n-types.generated";
 export * from "./generated/namespace-loaders.generated";
 export * from "./generated/dictionary-schema.generated";
 
-/** Creates a ready view for one locale (e.g. per-request SSR). */
+/** Creates a locale-bound scope for one locale (e.g. per-request SSR). */
 export async function createI18nForLocale(
   locale: MyProjectLocale,
   namespaces?: readonly LazyNamespace[]
