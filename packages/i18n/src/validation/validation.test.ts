@@ -526,7 +526,9 @@ describe("validateExternalKey (multi)", () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.invoice_summary.en).toContain("{count");
+      expect((result.data as { invoice_summary: { en: string } }).invoice_summary.en).toContain(
+        "{count"
+      );
     }
   });
 });

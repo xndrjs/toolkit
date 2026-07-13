@@ -1,4 +1,5 @@
 import { cloneAndFreeze } from "./deep-freeze.js";
+import type { I18nEngineMulti } from "./engine.js";
 import { resolveAndFormat } from "./format-core.js";
 import { mergeNamespaceLocalesCore } from "./project-locales.js";
 import { validateLocaleFallback } from "./resolve-locale.js";
@@ -12,77 +13,29 @@ import type {
   PartialKeyDictionary,
   PartialMultiDictionary,
 } from "./types.js";
-
-export interface TranslationProviderMultiForLocale<
+import { I18nViewMultiForLocaleImpl, I18nViewMultiImpl } from "./view-multi.js";
+import type { I18nViewMulti, I18nViewMultiForLocale } from "./view-multi.js";
+import type { MultiParams, ParamsForNamespaces, SchemaForNamespaces } from "./view-types.js";
+/** @deprecated Use `I18nEngineMulti` instead. */
+export type TranslationProviderMulti<
   Schema extends MultiDictionary,
-  Params extends { [NS in keyof Schema]: { [K in keyof Schema[NS]]: unknown } },
-  Locale extends string,
-> {
-  readonly locale: Locale;
-  get<NS extends keyof Schema, K extends keyof Schema[NS] & keyof Params[NS] & string>(
-    namespace: NS,
-    key: K,
-    ...params: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
-  ): string;
-}
-
-export interface TranslationProviderMulti<
-  Schema extends MultiDictionary,
-  Params extends { [NS in keyof Schema]: { [K in keyof Schema[NS]]: unknown } },
+  Params extends MultiParams<Schema>,
   RequestLocales extends string = LocaleOfMulti<Schema>,
-> {
-  get<NS extends keyof Schema, K extends keyof Schema[NS] & keyof Params[NS] & string>(
-    namespace: NS,
-    key: K,
-    locale: RequestLocales,
-    ...params: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
-  ): string;
-  forLocale<Locale extends RequestLocales>(
-    locale: Locale
-  ): TranslationProviderMultiForLocale<Schema, Params, Locale>;
-  getAll(): Schema;
-  setAll(values: Schema): void;
-  mergeAll(values: PartialMultiDictionary<Schema, RequestLocales>): void;
-  setNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void;
-  mergeNamespace<NS extends keyof Schema>(
-    namespace: NS,
-    values: PartialKeyDictionary<Schema[NS], RequestLocales>
-  ): void;
-}
+> = I18nEngineMulti<Schema, Params, RequestLocales>;
 
-export class IcuTranslationProviderMultiForLocale<
+/** @deprecated Use `I18nViewMultiForLocale` instead. */
+export type TranslationProviderMultiForLocale<
   Schema extends MultiDictionary,
-  Params extends { [NS in keyof Schema]: { [K in keyof Schema[NS]]: unknown } },
-  RequestLocales extends string,
-  Locale extends RequestLocales,
-  Fallback extends LocaleFallbackMap | undefined,
-> implements TranslationProviderMultiForLocale<Schema, Params, Locale> {
-  constructor(
-    private readonly provider: IcuTranslationProviderMulti<
-      Schema,
-      Params,
-      RequestLocales,
-      Fallback
-    >,
-    readonly locale: Locale
-  ) {}
-
-  get<NS extends keyof Schema, K extends keyof Schema[NS] & keyof Params[NS] & string>(
-    namespace: NS,
-    key: K,
-    ...args: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
-  ): string {
-    const params = args[0] as Record<string, unknown> | undefined;
-    return this.provider.getWithLocale(String(namespace), String(key), this.locale, params);
-  }
-}
+  Params extends MultiParams<Schema>,
+  Locale extends string,
+> = import("./view-multi.js").I18nViewMultiForLocale<Schema, Params, LocaleOfMulti<Schema>, Locale>;
 
 export class IcuTranslationProviderMulti<
   Schema extends MultiDictionary,
-  Params extends { [NS in keyof Schema]: { [K in keyof Schema[NS]]: unknown } },
+  Params extends MultiParams<Schema>,
   RequestLocales extends string = LocaleOfMulti<Schema>,
   Fallback extends LocaleFallbackMap | undefined = undefined,
-> implements TranslationProviderMulti<Schema, Params, RequestLocales> {
+> implements I18nEngineMulti<Schema, Params, RequestLocales> {
   private dictionary: Schema;
   private compiledCache: MultiCompiledCache = {};
   private readonly localeFallback?: Fallback;
@@ -98,16 +51,6 @@ export class IcuTranslationProviderMulti<
       this.localeFallback = options.localeFallback;
     }
     this.onMissing = options?.onMissing ?? "throw";
-  }
-
-  get<NS extends keyof Schema, K extends keyof Schema[NS] & keyof Params[NS] & string>(
-    namespace: NS,
-    key: K,
-    locale: RequestLocales,
-    ...args: Params[NS][K] extends never ? [] : [params: Params[NS][K]]
-  ): string {
-    const params = args[0] as Record<string, unknown> | undefined;
-    return this.getWithLocale(String(namespace), String(key), locale, params);
   }
 
   getWithLocale(
@@ -143,10 +86,42 @@ export class IcuTranslationProviderMulti<
     });
   }
 
-  forLocale<Locale extends RequestLocales>(
-    locale: Locale
-  ): IcuTranslationProviderMultiForLocale<Schema, Params, RequestLocales, Locale, Fallback> {
-    return new IcuTranslationProviderMultiForLocale(this, locale);
+  toView<
+    NsList extends readonly (keyof Schema & string)[],
+    Locale extends RequestLocales,
+  >(options: {
+    namespaces: NsList;
+    locale: Locale;
+  }): I18nViewMultiForLocale<
+    SchemaForNamespaces<Schema, NsList>,
+    ParamsForNamespaces<Schema, Params, NsList>,
+    RequestLocales,
+    Locale
+  >;
+  toView<NsList extends readonly (keyof Schema & string)[]>(options: {
+    namespaces: NsList;
+  }): I18nViewMulti<
+    SchemaForNamespaces<Schema, NsList>,
+    ParamsForNamespaces<Schema, Params, NsList>,
+    RequestLocales
+  >;
+  toView<
+    NsList extends readonly (keyof Schema & string)[],
+    Locale extends RequestLocales,
+  >(options: { namespaces: NsList; locale?: Locale }) {
+    if (options.locale !== undefined) {
+      return new I18nViewMultiForLocaleImpl(this, options.locale) as I18nViewMultiForLocale<
+        SchemaForNamespaces<Schema, NsList>,
+        ParamsForNamespaces<Schema, Params, NsList>,
+        RequestLocales,
+        Locale
+      >;
+    }
+    return new I18nViewMultiImpl(this) as I18nViewMulti<
+      SchemaForNamespaces<Schema, NsList>,
+      ParamsForNamespaces<Schema, Params, NsList>,
+      RequestLocales
+    >;
   }
 
   getAll(): Schema {

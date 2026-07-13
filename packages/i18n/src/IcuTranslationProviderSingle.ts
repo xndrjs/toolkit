@@ -1,4 +1,5 @@
 import { cloneAndFreeze } from "./deep-freeze.js";
+import type { I18nEngineSingle } from "./engine.js";
 import { resolveAndFormat } from "./format-core.js";
 import { mergeNamespaceLocalesCore } from "./project-locales.js";
 import { validateLocaleFallback } from "./resolve-locale.js";
@@ -11,69 +12,28 @@ import type {
   SingleCompiledCache,
   PartialKeyDictionary,
 } from "./types.js";
+import { I18nViewSingleForLocaleImpl, I18nViewSingleImpl } from "./view-single.js";
 
-export interface TranslationProviderSingleForLocale<
-  Schema extends KeyDictionary,
-  Params extends { [K in keyof Schema]: unknown },
-  Locale extends string,
-> {
-  readonly locale: Locale;
-  get<K extends keyof Schema & string>(
-    key: K,
-    ...params: Params[K] extends never ? [] : [params: Params[K]]
-  ): string;
-}
-
-export interface TranslationProviderSingle<
+/** @deprecated Use `I18nEngineSingle` instead. */
+export type TranslationProviderSingle<
   Schema extends KeyDictionary,
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string = LocaleOfSingle<Schema>,
-> {
-  get<K extends keyof Schema & string>(
-    key: K,
-    locale: RequestLocales,
-    ...params: Params[K] extends never ? [] : [params: Params[K]]
-  ): string;
-  forLocale<Locale extends RequestLocales>(
-    locale: Locale
-  ): TranslationProviderSingleForLocale<Schema, Params, Locale>;
-  getAll(): Schema;
-  setAll(values: Schema): void;
-  mergeAll(values: PartialKeyDictionary<Schema, RequestLocales>): void;
-}
+> = I18nEngineSingle<Schema, Params, RequestLocales>;
 
-export class IcuTranslationProviderSingleForLocale<
+/** @deprecated Use `I18nViewSingleForLocale` instead. */
+export type TranslationProviderSingleForLocale<
   Schema extends KeyDictionary,
   Params extends { [K in keyof Schema]: unknown },
-  RequestLocales extends string,
-  Locale extends RequestLocales,
-  Fallback extends LocaleFallbackMap | undefined,
-> implements TranslationProviderSingleForLocale<Schema, Params, Locale> {
-  constructor(
-    private readonly provider: IcuTranslationProviderSingle<
-      Schema,
-      Params,
-      RequestLocales,
-      Fallback
-    >,
-    readonly locale: Locale
-  ) {}
-
-  get<K extends keyof Schema & string>(
-    key: K,
-    ...args: Params[K] extends never ? [] : [params: Params[K]]
-  ): string {
-    const params = args[0] as Record<string, unknown> | undefined;
-    return this.provider.getWithLocale(String(key), this.locale, params);
-  }
-}
+  Locale extends string,
+> = import("./view-single.js").I18nViewSingleForLocale<Schema, Params, Locale>;
 
 export class IcuTranslationProviderSingle<
   Schema extends KeyDictionary,
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string = LocaleOfSingle<Schema>,
   Fallback extends LocaleFallbackMap | undefined = undefined,
-> implements TranslationProviderSingle<Schema, Params, RequestLocales> {
+> implements I18nEngineSingle<Schema, Params, RequestLocales> {
   private dictionary: Schema;
   private compiledCache: SingleCompiledCache = {};
   private readonly localeFallback?: Fallback;
@@ -86,15 +46,6 @@ export class IcuTranslationProviderSingle<
       this.localeFallback = options.localeFallback;
     }
     this.onMissing = options?.onMissing ?? "throw";
-  }
-
-  get<K extends keyof Schema & string>(
-    key: K,
-    locale: RequestLocales,
-    ...args: Params[K] extends never ? [] : [params: Params[K]]
-  ): string {
-    const params = args[0] as Record<string, unknown> | undefined;
-    return this.getWithLocale(String(key), locale, params);
   }
 
   getWithLocale(key: string, locale: string, params?: Record<string, unknown>): string {
@@ -117,10 +68,15 @@ export class IcuTranslationProviderSingle<
     });
   }
 
-  forLocale<Locale extends RequestLocales>(
-    locale: Locale
-  ): IcuTranslationProviderSingleForLocale<Schema, Params, RequestLocales, Locale, Fallback> {
-    return new IcuTranslationProviderSingleForLocale(this, locale);
+  toView(): I18nViewSingleImpl<Schema, Params, RequestLocales, Fallback>;
+  toView<Locale extends RequestLocales>(options: {
+    locale: Locale;
+  }): I18nViewSingleForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback>;
+  toView<Locale extends RequestLocales>(options?: { locale?: Locale }) {
+    if (options?.locale !== undefined) {
+      return new I18nViewSingleForLocaleImpl(this, options.locale);
+    }
+    return new I18nViewSingleImpl(this);
   }
 
   getAll(): Schema {

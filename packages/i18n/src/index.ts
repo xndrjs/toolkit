@@ -1,4 +1,11 @@
 export type {
+  I18nEngineMulti,
+  I18nEngineMultiImpl,
+  I18nEngineSingle,
+  I18nEngineSingleImpl,
+} from "./engine.js";
+
+export type {
   TranslationProviderSingle,
   TranslationProviderSingleForLocale,
 } from "./IcuTranslationProviderSingle.js";
@@ -9,6 +16,16 @@ export type {
   TranslationProviderMultiForLocale,
 } from "./IcuTranslationProviderMulti.js";
 export { IcuTranslationProviderMulti } from "./IcuTranslationProviderMulti.js";
+
+export type { I18nViewMulti, I18nViewMultiForLocale } from "./view-multi.js";
+export type { I18nViewSingle, I18nViewSingleForLocale } from "./view-single.js";
+
+export type {
+  MultiParams,
+  ParamsForNamespaces,
+  SchemaForNamespaces,
+  SingleParams,
+} from "./view-types.js";
 
 export type {
   IcuTranslationProviderOptions,
