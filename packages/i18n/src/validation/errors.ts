@@ -4,6 +4,8 @@ function issueMessage(issue: ValidationIssue): string {
   switch (issue.kind) {
     case "missing_key":
       return `Missing required key at ${issue.path.join(".")}`;
+    case "unknown_key":
+      return `Unknown key at ${issue.path.join(".")}`;
     case "invalid_input":
     case "invalid_locale_value":
     case "icu_syntax_error":

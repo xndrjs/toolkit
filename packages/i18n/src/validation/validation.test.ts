@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { DictionarySpec } from "./types.js";
-import { normalizeDictionary } from "./normalize.js";
+import { normalizeDictionary, normalizeKeyDictionaryPartial } from "./normalize.js";
 import { validateNormalizedDictionary } from "./validate-normalized.js";
 import { toDictionary } from "./to-dictionary.js";
-import { validateExternalDictionary } from "./index.js";
+import {
+  validateExternalDictionaryPartial,
+  validateExternalKey,
+  validateExternalNamespacePartial,
+} from "./index.js";
 
 const spec: DictionarySpec = {
   mode: "single",
@@ -304,18 +308,95 @@ describe("toDictionary", () => {
   });
 });
 
-describe("validateExternalDictionary", () => {
-  it("validates end-to-end", () => {
-    const result = validateExternalDictionary<typeof validInput>(validInput, spec);
+describe("validateExternalDictionaryPartial", () => {
+  it("validates end-to-end with full snapshot payload", () => {
+    const result = validateExternalDictionaryPartial<typeof validInput>(validInput, spec);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect((result.data as typeof validInput).login_button.en).toBe("Login");
     }
   });
 
-  it("fails on missing key before Zod phase", () => {
-    const result = validateExternalDictionary({ login_button: { en: "Login" } }, spec);
+  it("accepts partial payload with one of N keys", () => {
+    const result = validateExternalDictionaryPartial({ login_button: { en: "Login" } }, spec);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(Object.keys(result.data)).toEqual(["login_button"]);
+    }
+  });
+
+  it("accepts empty payload", () => {
+    const result = validateExternalDictionaryPartial({}, spec);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual({});
+    }
+  });
+
+  it("rejects unknown keys", () => {
+    const result = validateExternalDictionaryPartial(
+      { login_button: { en: "Login" }, typo_key: { en: "Oops" } },
+      spec
+    );
     expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.some((issue) => issue.kind === "unknown_key")).toBe(true);
+    }
+  });
+
+  it("rejects ICU errors on partial keys", () => {
+    const result = validateExternalDictionaryPartial({ welcome: { en: "Hi {name" } }, spec);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues[0]?.kind).toBe("icu_syntax_error");
+    }
+  });
+});
+
+describe("validateExternalKey (single)", () => {
+  it("validates a single key and returns Pick type data", () => {
+    const result = validateExternalKey<{ welcome: (typeof validInput)["welcome"] }>(
+      "welcome",
+      { en: "Welcome {name}!" },
+      spec
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.welcome.en).toBe("Welcome {name}!");
+    }
+  });
+
+  it("rejects unknown keys", () => {
+    const result = validateExternalKey("typo_key", { en: "Oops" }, spec);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues[0]?.kind).toBe("unknown_key");
+    }
+  });
+});
+
+describe("normalizeKeyDictionaryPartial", () => {
+  it("accepts one of N keys without missing_key errors", () => {
+    const result = normalizeKeyDictionaryPartial(
+      { login_button: { en: "Login" } },
+      spec.requiredKeys,
+      spec.argsByKey,
+      []
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects keys with zero locales", () => {
+    const result = normalizeKeyDictionaryPartial(
+      { login_button: {} },
+      spec.requiredKeys,
+      spec.argsByKey,
+      []
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues[0]?.kind).toBe("invalid_input");
+    }
   });
 });
 
@@ -365,5 +446,115 @@ describe("normalizeDictionary multi mode", () => {
         )
       ).toBe(true);
     }
+  });
+});
+
+describe("validateExternalNamespacePartial", () => {
+  const multiSpec: DictionarySpec = {
+    mode: "multi",
+    requiredKeys: {
+      default: ["welcome"],
+      billing: ["invoice_summary"],
+    },
+    argsByKey: {
+      default: { welcome: { name: "string" } },
+      billing: { invoice_summary: { count: "number" } },
+    },
+  };
+
+  it("accepts one of N keys in a namespace", () => {
+    const result = validateExternalNamespacePartial(
+      "billing",
+      {
+        invoice_summary: {
+          en: "You have {count, plural, one {1} other {{count}}}",
+        },
+      },
+      multiSpec
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("does not error when contract keys are absent from payload", () => {
+    const result = validateExternalNamespacePartial("billing", {}, multiSpec);
+    expect(result.ok).toBe(true);
+  });
+
+  it("validates full CMS snapshot when all keys are in payload", () => {
+    const result = validateExternalNamespacePartial(
+      "billing",
+      {
+        invoice_summary: {
+          en: "You have {count, plural, one {1} other {{count}}}",
+        },
+      },
+      multiSpec
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects unknown keys in namespace payload", () => {
+    const result = validateExternalNamespacePartial(
+      "billing",
+      { typo_key: { en: "Oops" } },
+      multiSpec
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues[0]?.kind).toBe("unknown_key");
+    }
+  });
+});
+
+describe("validateExternalKey (multi)", () => {
+  const multiSpec: DictionarySpec = {
+    mode: "multi",
+    requiredKeys: {
+      billing: ["invoice_summary"],
+    },
+    argsByKey: {
+      billing: { invoice_summary: { count: "number" } },
+    },
+  };
+
+  it("validates a single key in a namespace", () => {
+    const result = validateExternalKey(
+      "billing",
+      "invoice_summary",
+      { en: "You have {count, plural, one {1} other {{count}}}" },
+      multiSpec
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.invoice_summary.en).toContain("{count");
+    }
+  });
+});
+
+describe("validateExternalDictionaryPartial (multi)", () => {
+  const multiSpec: DictionarySpec = {
+    mode: "multi",
+    requiredKeys: {
+      default: ["welcome"],
+      billing: ["invoice_summary"],
+    },
+    argsByKey: {
+      default: { welcome: { name: "string" } },
+      billing: { invoice_summary: { count: "number" } },
+    },
+  };
+
+  it("accepts partial namespaces", () => {
+    const result = validateExternalDictionaryPartial(
+      {
+        billing: {
+          invoice_summary: {
+            en: "You have {count, plural, one {1} other {{count}}}",
+          },
+        },
+      },
+      multiSpec
+    );
+    expect(result.ok).toBe(true);
   });
 });

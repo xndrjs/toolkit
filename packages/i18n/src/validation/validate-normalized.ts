@@ -1,9 +1,13 @@
 import type { ZodError } from "zod";
 import { mapArgsSchemaError } from "./create-args-schema.js";
-import { createNormalizedDictionarySchema } from "./create-normalized-schema.js";
+import {
+  createKeyDictionarySchema,
+  createNormalizedDictionarySchema,
+} from "./create-normalized-schema.js";
 import type {
   DictionarySpec,
   NormalizedDictionary,
+  NormalizedKeyDictionary,
   ValidationIssue,
   ValidationResult,
   VariableSpec,
@@ -71,6 +75,44 @@ function mapZodError(
       message: path.length > 0 ? `${path.join(".")}: ${issue.message}` : issue.message,
     };
   });
+}
+
+export function validateNormalizedKeyDictionaryPartial(
+  keys: NormalizedKeyDictionary,
+  argsByKey: Readonly<Record<string, VariableSpec>>,
+  spec: DictionarySpec,
+  keyPathPrefix: readonly string[]
+): ValidationResult<NormalizedKeyDictionary> {
+  const presentKeys = Object.keys(keys);
+  const subsetArgsByKey = Object.fromEntries(
+    presentKeys.filter((key) => key in argsByKey).map((key) => [key, argsByKey[key]!])
+  );
+
+  if (presentKeys.length === 0) {
+    return { ok: true, data: keys };
+  }
+
+  const schema = createKeyDictionarySchema(subsetArgsByKey);
+  const result = schema.safeParse(keys);
+
+  if (result.success) {
+    return { ok: true, data: result.data };
+  }
+
+  const normalized: NormalizedDictionary =
+    spec.mode === "single"
+      ? { mode: "single", keys }
+      : {
+          mode: "multi",
+          namespaces: {
+            [keyPathPrefix[0] ?? ""]: keys,
+          },
+        };
+
+  return {
+    ok: false,
+    issues: mapZodError(result.error, spec, normalized),
+  };
 }
 
 export function validateNormalizedDictionary(

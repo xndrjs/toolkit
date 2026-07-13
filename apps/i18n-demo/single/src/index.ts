@@ -1,6 +1,6 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
 import { i18n, defaultDictionary } from "./i18n";
-import { validateExternalDictionary } from "./i18n/generated/dictionary-schema.generated";
+import { validateExternalDictionaryPartial } from "./i18n/generated/dictionary-schema.generated";
 
 export function exampleSingleFileUsage(): void {
   console.log("login_button @ it:", i18n.get("login_button", "it"));
@@ -57,7 +57,7 @@ export function exampleSingleFileUsage(): void {
 export async function exampleExternalDictionaryHydration(): Promise<void> {
   const raw: unknown = await loadExternalTranslations();
 
-  const result = validateExternalDictionary(raw);
+  const result = validateExternalDictionaryPartial(raw);
   if (!result.ok) {
     // optional: format issues and log as readable error
     console.error(formatIssues(result.issues));

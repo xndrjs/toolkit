@@ -174,9 +174,11 @@ describe("generate-i18n-types", () => {
     const schema = readFileSync(join(tempDir, "src/i18n/dictionary-schema.generated.ts"), "utf8");
     expect(schema).toContain("export const DICTIONARY_SPEC");
     expect(schema).toContain("mode: 'multi' as const");
-    expect(schema).toContain("validateExternalDictionary");
-    expect(schema).toContain("validateExternalNamespace");
-    expect(schema).toContain("validateExternalNamespaceCore");
+    expect(schema).toContain("validateExternalDictionaryPartial");
+    expect(schema).toContain("validateExternalNamespacePartial");
+    expect(schema).toContain("validateExternalKey");
+    expect(schema).not.toMatch(/export function validateExternalDictionary\b/);
+    expect(schema).not.toContain("validateExternalNamespaceCore");
     expect(schema).toContain('"name": "string"');
   });
 
@@ -235,7 +237,9 @@ describe("generate-i18n-types", () => {
 
     const schema = readFileSync(join(tempDir, "src/i18n/dictionary-schema.generated.ts"), "utf8");
     expect(schema).toContain("mode: 'single' as const");
-    expect(schema).toContain("validateExternalDictionary");
+    expect(schema).toContain("validateExternalDictionaryPartial");
+    expect(schema).toContain("validateExternalKey");
+    expect(schema).not.toMatch(/export function validateExternalDictionary\b/);
     expect(schema).not.toContain("validateExternalNamespaceImpl");
     expect(schema).not.toContain("validateExternalNamespaceCore");
   });

@@ -5,10 +5,14 @@ import {
   i18n,
   namespaceLoaders,
   projectNamespaceLocales,
-  validateExternalDictionary,
-  validateExternalNamespace,
+  validateExternalDictionaryPartial,
+  validateExternalNamespacePartial,
 } from "./i18n";
-import type { MyProjectLocale } from "./i18n/generated/i18n-types.generated";
+import type {
+  LazyNamespace,
+  MyProjectLocale,
+  MyProjectSchema,
+} from "./i18n/generated/i18n-types.generated";
 
 const demoLocale = "en" as const satisfies MyProjectLocale;
 
@@ -165,13 +169,13 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
   // namespaceLoaders simulates a fetch from split delivery JSON on disk/CDN.
   const rawBilling: unknown = await namespaceLoaders.billing(demoLocale);
 
-  const result = validateExternalNamespace("billing", rawBilling);
+  const result = validateExternalNamespacePartial("billing", rawBilling);
   if (!result.ok) {
     console.error("billing mergeNamespace validation failed:", formatIssues(result.issues));
     return;
   }
 
-  i18n.mergeNamespace("billing", result.data);
+  i18n.mergeNamespace("billing", result.data as MyProjectSchema["billing"]);
 
   console.log(
     "billing.invoice_summary @ en (patched from generated/translations/billing.en.json):",
@@ -193,7 +197,7 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
 export async function exampleExternalDictionaryHydration(): Promise<void> {
   const raw = await loadExternalTranslations();
 
-  const result = validateExternalDictionary(raw);
+  const result = validateExternalDictionaryPartial(raw);
   if (!result.ok) {
     console.error("mergeAll validation failed:", formatIssues(result.issues));
     return;

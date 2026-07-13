@@ -13,7 +13,7 @@ const parsedKeyEntrySchema = z.object({
   mergedArgs: z.record(z.string(), variableTypeSchema),
 });
 
-function createKeyDictionarySchema(
+export function createKeyDictionarySchema(
   argsByKey: Readonly<Record<string, VariableSpec>>
 ): z.ZodType<Record<string, ParsedKeyEntry>> {
   const keySchemas = Object.fromEntries(

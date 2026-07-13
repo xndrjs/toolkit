@@ -6,12 +6,12 @@ import {
   LOCALE_DELIVERY_AREA,
   namespaceLoaders,
   projectNamespaceLocales,
-  validateExternalDictionary,
-  validateExternalNamespace,
+  validateExternalDictionaryPartial,
+  validateExternalNamespacePartial,
   type MyProjectDeliveryArea,
   type MyProjectLocale,
 } from "./i18n";
-import type { LazyNamespace } from "./i18n/generated/i18n-types.generated";
+import type { LazyNamespace, MyProjectSchema } from "./i18n/generated/i18n-types.generated";
 
 export async function exampleEnsureNamespacesLoadedForArea(): Promise<void> {
   const euI18n = createI18n({});
@@ -143,13 +143,13 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
   const amerI18n = await createI18nForArea("amer", ["default"]);
   const rawBilling: unknown = await namespaceLoaders.billing("amer");
 
-  const result = validateExternalNamespace("billing", rawBilling);
+  const result = validateExternalNamespacePartial("billing", rawBilling);
   if (!result.ok) {
     console.error("billing mergeNamespace validation failed:", formatIssues(result.issues));
     return;
   }
 
-  amerI18n.mergeNamespace("billing", result.data);
+  amerI18n.mergeNamespace("billing", result.data as MyProjectSchema["billing"]);
 
   console.log(
     "billing.invoice_summary @ en-US (patched from billing.amer.json):",
@@ -161,7 +161,7 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
   const euI18n = await createI18nForArea("eu", ["default"]);
   const raw = await loadExternalTranslations("eu");
 
-  const result = validateExternalDictionary(raw);
+  const result = validateExternalDictionaryPartial(raw);
   if (!result.ok) {
     console.error("mergeAll validation failed:", formatIssues(result.issues));
     return;

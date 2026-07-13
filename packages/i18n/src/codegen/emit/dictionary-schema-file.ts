@@ -79,58 +79,71 @@ export function formatDictionarySchemaFile(
   importExtension: ImportExtension
 ): string {
   const typesImport = toRelativeModuleImport(typesModule, importExtension);
-  const namespaceImport = isSingle
-    ? ""
-    : `  validateExternalNamespace as validateExternalNamespaceCore,\n`;
-  const namespaceValidator = isSingle
-    ? ""
-    : `export function validateExternalNamespace<NS extends keyof ${schemaTypeName}>(\n` +
-      `  namespace: NS,\n` +
-      `  input: unknown,\n` +
-      `) {\n` +
-      `  return validateExternalNamespaceCore<${schemaTypeName}[NS]>(\n` +
-      `    namespace as string,\n` +
-      `    input,\n` +
-      `    DICTIONARY_SPEC,\n` +
-      `  );\n` +
-      `}\n\n`;
+  const partialImport = isSingle
+    ? `  validateExternalDictionaryPartial as validateExternalDictionaryPartialCore,\n` +
+      `  validateExternalKey as validateExternalKeyCore,\n`
+    : `  validateExternalDictionaryPartial as validateExternalDictionaryPartialCore,\n` +
+      `  validateExternalNamespacePartial as validateExternalNamespacePartialCore,\n` +
+      `  validateExternalKey as validateExternalKeyCore,\n`;
+
+  const singleKeyValidator =
+    `export function validateExternalKey<K extends keyof ${schemaTypeName}>(\n` +
+    `  key: K,\n` +
+    `  input: unknown,\n` +
+    `): ValidationResult<Pick<${schemaTypeName}, K>> {\n` +
+    `  return validateExternalKeyCore<Pick<${schemaTypeName}, K>>(\n` +
+    `    key as string,\n` +
+    `    input,\n` +
+    `    DICTIONARY_SPEC,\n` +
+    `  );\n` +
+    `}\n\n`;
+
+  const multiValidators =
+    `export function validateExternalNamespacePartial<NS extends keyof ${schemaTypeName}>(\n` +
+    `  namespace: NS,\n` +
+    `  input: unknown,\n` +
+    `): ValidationResult<Partial<${schemaTypeName}[NS]>> {\n` +
+    `  return validateExternalNamespacePartialCore<Partial<${schemaTypeName}[NS]>>(\n` +
+    `    namespace as string,\n` +
+    `    input,\n` +
+    `    DICTIONARY_SPEC,\n` +
+    `  );\n` +
+    `}\n\n` +
+    `export function validateExternalKey<\n` +
+    `  NS extends keyof ${schemaTypeName},\n` +
+    `  K extends keyof ${schemaTypeName}[NS],\n` +
+    `>(\n` +
+    `  namespace: NS,\n` +
+    `  key: K,\n` +
+    `  input: unknown,\n` +
+    `): ValidationResult<Pick<${schemaTypeName}[NS], K>> {\n` +
+    `  return validateExternalKeyCore<Pick<${schemaTypeName}[NS], K>>(\n` +
+    `    namespace as string,\n` +
+    `    key as string,\n` +
+    `    input,\n` +
+    `    DICTIONARY_SPEC,\n` +
+    `  );\n` +
+    `}\n\n`;
+
+  const keyValidator = isSingle ? singleKeyValidator : multiValidators;
 
   return (
     `${GENERATED_FILE_BANNER}` +
     `import {\n` +
-    `  normalizeDictionary,\n` +
-    `  validateNormalizedDictionary,\n` +
-    namespaceImport +
-    `  toDictionary,\n` +
+    partialImport +
     `  type DictionarySpec,\n` +
-    `  type NormalizedDictionary,\n` +
     `  type ValidationResult,\n` +
     `} from '@xndrjs/i18n/validation';\n` +
     `import type { ${schemaTypeName} } from '${typesImport}';\n\n` +
     `${dictionarySpecBlock}\n` +
-    `export function normalizeExternalDictionary(\n` +
+    `export function validateExternalDictionaryPartial(\n` +
     `  input: unknown,\n` +
-    `): ValidationResult<NormalizedDictionary> {\n` +
-    `  return normalizeDictionary(input, DICTIONARY_SPEC);\n` +
+    `): ValidationResult<Partial<${schemaTypeName}>> {\n` +
+    `  return validateExternalDictionaryPartialCore<Partial<${schemaTypeName}>>(\n` +
+    `    input,\n` +
+    `    DICTIONARY_SPEC,\n` +
+    `  );\n` +
     `}\n\n` +
-    `export function validateNormalizedExternalDictionary(\n` +
-    `  normalized: NormalizedDictionary,\n` +
-    `): ValidationResult<NormalizedDictionary> {\n` +
-    `  return validateNormalizedDictionary(normalized, DICTIONARY_SPEC);\n` +
-    `}\n\n` +
-    `export function validateExternalDictionary(\n` +
-    `  input: unknown,\n` +
-    `): ValidationResult<${schemaTypeName}> {\n` +
-    `  const step1 = normalizeExternalDictionary(input);\n` +
-    `  if (!step1.ok) {\n` +
-    `    return step1;\n` +
-    `  }\n\n` +
-    `  const step2 = validateNormalizedExternalDictionary(step1.data);\n` +
-    `  if (!step2.ok) {\n` +
-    `    return step2;\n` +
-    `  }\n\n` +
-    `  return { ok: true, data: toDictionary(step2.data) as ${schemaTypeName} };\n` +
-    `}\n\n` +
-    namespaceValidator
+    keyValidator
   );
 }

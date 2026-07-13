@@ -42,6 +42,10 @@ export type ValidationIssue =
       readonly path: readonly string[];
     }
   | {
+      readonly kind: "unknown_key";
+      readonly path: readonly string[];
+    }
+  | {
       readonly kind: "invalid_locale_value";
       readonly path: readonly string[];
       readonly message: string;

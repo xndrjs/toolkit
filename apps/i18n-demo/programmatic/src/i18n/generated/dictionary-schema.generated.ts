@@ -1,10 +1,8 @@
 // Automatically generated code. Do not edit manually.
 import {
-  normalizeDictionary,
-  validateNormalizedDictionary,
-  toDictionary,
+  validateExternalDictionaryPartial as validateExternalDictionaryPartialCore,
+  validateExternalKey as validateExternalKeyCore,
   type DictionarySpec,
-  type NormalizedDictionary,
   type ValidationResult,
 } from "@xndrjs/i18n/validation";
 import type { ProgrammaticDemoSchema } from "./i18n-types.generated";
@@ -19,30 +17,22 @@ export const DICTIONARY_SPEC = {
   },
 } satisfies DictionarySpec;
 
-export function normalizeExternalDictionary(
+export function validateExternalDictionaryPartial(
   input: unknown
-): ValidationResult<NormalizedDictionary> {
-  return normalizeDictionary(input, DICTIONARY_SPEC);
+): ValidationResult<Partial<ProgrammaticDemoSchema>> {
+  return validateExternalDictionaryPartialCore<Partial<ProgrammaticDemoSchema>>(
+    input,
+    DICTIONARY_SPEC
+  );
 }
 
-export function validateNormalizedExternalDictionary(
-  normalized: NormalizedDictionary
-): ValidationResult<NormalizedDictionary> {
-  return validateNormalizedDictionary(normalized, DICTIONARY_SPEC);
-}
-
-export function validateExternalDictionary(
+export function validateExternalKey<K extends keyof ProgrammaticDemoSchema>(
+  key: K,
   input: unknown
-): ValidationResult<ProgrammaticDemoSchema> {
-  const step1 = normalizeExternalDictionary(input);
-  if (!step1.ok) {
-    return step1;
-  }
-
-  const step2 = validateNormalizedExternalDictionary(step1.data);
-  if (!step2.ok) {
-    return step2;
-  }
-
-  return { ok: true, data: toDictionary(step2.data) as ProgrammaticDemoSchema };
+): ValidationResult<Pick<ProgrammaticDemoSchema, K>> {
+  return validateExternalKeyCore<Pick<ProgrammaticDemoSchema, K>>(
+    key as string,
+    input,
+    DICTIONARY_SPEC
+  );
 }
