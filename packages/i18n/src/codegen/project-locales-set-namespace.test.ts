@@ -95,7 +95,7 @@ function writeTscProject(tempDir: string) {
   );
 }
 
-describe("codegen projectDictionaryLocales + setNamespace", () => {
+describe("codegen projectNamespaceLocales + load + scope.set", () => {
   describe("generated instance output", () => {
     let tempDir: string;
 
@@ -116,23 +116,40 @@ describe("codegen projectDictionaryLocales + setNamespace", () => {
       );
     });
 
-    it("passes tsc when hydrating with projectNamespaceLocales before applyLoadMergeNamespace", () => {
+    it("passes tsc when hydrating with projectNamespaceLocales via load() and scope.set()", () => {
       tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
       setupMultiCodegenFixture(tempDir);
 
       writeFileSync(
         join(tempDir, "src/hydrate-billing.ts"),
         [
-          `import { IcuTranslationProviderMulti } from "@xndrjs/i18n";`,
+          `import { createI18nMultiBuilder, IcuTranslationProviderMulti } from "@xndrjs/i18n";`,
           `import { projectNamespaceLocales } from "./i18n/instance.generated.js";`,
-          `import { LOCALE_FALLBACK } from "./i18n/i18n-types.generated.js";`,
           `import { defaultDictionary } from "./i18n/dictionary.generated.js";`,
+          `import type { AppSchema, AppParams } from "./i18n/i18n-types.generated.js";`,
           `import billingDictionary from "./i18n/translations/billing.json";`,
           ``,
-          `const engine = new IcuTranslationProviderMulti(defaultDictionary, {`,
-          `  localeFallback: LOCALE_FALLBACK,`,
-          `});`,
-          `engine.applyLoadMergeNamespace("billing", projectNamespaceLocales(billingDictionary, ["en"]));`,
+          `async function hydrateBilling() {`,
+          `  const billingEn = projectNamespaceLocales(billingDictionary, ["en"]);`,
+          `  const engine = new IcuTranslationProviderMulti<AppSchema, AppParams>(defaultDictionary);`,
+          `  const view = await createI18nMultiBuilder(engine, {`,
+          `    namespaceLoaders: {`,
+          `      billing: async () => billingEn,`,
+          `    },`,
+          `  })`,
+          `    .withNamespaces(["billing"])`,
+          `    .withLocale("en")`,
+          `    .load();`,
+          ``,
+          `  view.set(`,
+          `    "billing",`,
+          `    "invoice_summary",`,
+          `    "You have {count, plural, one {1 invoice} other {{count} invoices}}"`,
+          `  );`,
+          `  return view.t("billing", "invoice_summary", { count: 1 });`,
+          `}`,
+          ``,
+          `export { hydrateBilling };`,
         ].join("\n")
       );
 
@@ -142,30 +159,42 @@ describe("codegen projectDictionaryLocales + setNamespace", () => {
       expect(tsc.status, `${tsc.stdout}\n${tsc.stderr}`).toBe(0);
     });
 
-    it("passes tsc when merging the full schema with projectDictionaryLocales via applyLoadMergeAll", () => {
+    it("passes tsc when loading projected full schema via builder load()", () => {
       tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
       setupMultiCodegenFixture(tempDir);
 
       writeFileSync(
         join(tempDir, "src/hydrate-all.ts"),
         [
-          `import { IcuTranslationProviderMulti } from "@xndrjs/i18n";`,
+          `import { createI18nMultiBuilder, IcuTranslationProviderMulti } from "@xndrjs/i18n";`,
           `import { projectDictionaryLocales } from "./i18n/instance.generated.js";`,
-          `import { LOCALE_FALLBACK } from "./i18n/i18n-types.generated.js";`,
           `import { defaultDictionary } from "./i18n/dictionary.generated.js";`,
-          `import type { AppSchema } from "./i18n/i18n-types.generated.js";`,
+          `import type { AppSchema, AppParams } from "./i18n/i18n-types.generated.js";`,
           `import billingDictionary from "./i18n/translations/billing.json";`,
           `import defaultNs from "./i18n/translations/default.json";`,
           ``,
-          `const fullDictionary = {`,
-          `  default: defaultNs,`,
-          `  billing: billingDictionary,`,
-          `} satisfies AppSchema;`,
+          `async function hydrateAll() {`,
+          `  const fullDictionary = {`,
+          `    default: defaultNs,`,
+          `    billing: billingDictionary,`,
+          `  } satisfies AppSchema;`,
+          `  const projected = projectDictionaryLocales(fullDictionary, ["en"]);`,
           ``,
-          `const engine = new IcuTranslationProviderMulti(defaultDictionary, {`,
-          `  localeFallback: LOCALE_FALLBACK,`,
-          `});`,
-          `engine.applyLoadMergeAll(projectDictionaryLocales(fullDictionary, ["en"]));`,
+          `  const engine = new IcuTranslationProviderMulti<AppSchema, AppParams>(defaultDictionary);`,
+          `  const view = await createI18nMultiBuilder(engine, {`,
+          `    namespaceLoaders: {`,
+          `      billing: async () => projected.billing,`,
+          `      default: async () => projected.default,`,
+          `    },`,
+          `  })`,
+          `    .withNamespaces(["billing", "default"])`,
+          `    .withLocale("en")`,
+          `    .load();`,
+          ``,
+          `  return view.t("default", "login_button");`,
+          `}`,
+          ``,
+          `export { hydrateAll };`,
         ].join("\n")
       );
 

@@ -209,6 +209,76 @@ describe("I18nScope single", () => {
       ).toBe("missing_key");
     });
   });
+
+  describe("set()", () => {
+    it("patches a preloaded key after load merge", () => {
+      const local = new IcuTranslationProviderSingle<SingleSchema, SingleParams>({
+        login_button: { en: "Login", it: "Accedi" },
+        welcome: { en: "Welcome {name}!", it: "benvenuto {name}..." },
+        empty_label: { en: "" },
+        broken: { en: "Hi {name" },
+        invoice_count: singleDictionary.invoice_count,
+        dashboard_status: singleDictionary.dashboard_status,
+        inbox_owner: singleDictionary.inbox_owner,
+        ranking_position: singleDictionary.ranking_position,
+        account_balance: singleDictionary.account_balance,
+        appointment_summary: singleDictionary.appointment_summary,
+      });
+      local.applyLoadMergeSingle({
+        welcome: { it: "Benvenuto {name}!" },
+      });
+
+      const enScope = local.toScope().forLocale("en");
+      enScope.set("login_button", "Sign in");
+
+      const itScope = local.toScope().forLocale("it");
+
+      expect(enScope.t("login_button")).toBe("Sign in");
+      expect(itScope.t("login_button")).toBe("Accedi");
+
+      expect(itScope.t("welcome", { name: "Mario" })).toBe("Benvenuto Mario!");
+    });
+
+    it("throws when patching a key that was not preloaded", () => {
+      const local = new IcuTranslationProviderSingle<SingleSchema, SingleParams>({
+        // @ts-expect-error missing it
+        login_button: { en: "Login" },
+        welcome: { en: "Welcome {name}!", it: "" },
+        empty_label: { en: "" },
+        broken: { en: "Hi {name" },
+        invoice_count: singleDictionary.invoice_count,
+        dashboard_status: singleDictionary.dashboard_status,
+        inbox_owner: singleDictionary.inbox_owner,
+        ranking_position: singleDictionary.ranking_position,
+        account_balance: singleDictionary.account_balance,
+        appointment_summary: singleDictionary.appointment_summary,
+      });
+
+      expect(() => local.toScope().forLocale("it").set("login_button", "Accedi")).toThrow(
+        "[i18n] Key not preloaded: login_button (it)"
+      );
+    });
+
+    it("invalidates compiled cache after set()", () => {
+      const local = new IcuTranslationProviderSingle<SingleSchema, SingleParams>(singleDictionary);
+      const en = local.toScope().forLocale("en");
+
+      expect(en.t("welcome", { name: "Ada" })).toBe("Welcome Ada!");
+
+      en.set("welcome", "Hi {name}!");
+
+      expect(en.t("welcome", { name: "Ada" })).toBe("Hi Ada!");
+    });
+
+    it("throws on ICU args mismatch against other locales", () => {
+      const local = new IcuTranslationProviderSingle<SingleSchema, SingleParams>(singleDictionary);
+      const en = local.toScope().forLocale("en");
+
+      expect(() => en.set("invoice_count", "{count, select, other {{count}}}")).toThrow(
+        "[i18n] ICU args mismatch on patch:"
+      );
+    });
+  });
 });
 
 describe("I18nScope multi", () => {
@@ -302,6 +372,86 @@ describe("I18nScope multi", () => {
     it("resolves a locale through the fallback chain", () => {
       const view = fallbackEngine.toScope({ namespaces: ["default"] });
       expect(view.t("default", "login_button", "de-CH")).toBe("Login");
+    });
+  });
+
+  describe("set()", () => {
+    it("patches a preloaded key after load merge", () => {
+      const local = new IcuTranslationProviderMulti<MultiSchema, MultiParams>({
+        billing: {
+          invoice_summary: {
+            en: "You have {count, plural, one {1 invoice} other {{count} invoices}} for {name}",
+          },
+        },
+      });
+      local.applyLoadMergeNamespace("billing", {
+        invoice_summary: {
+          it: "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}",
+        },
+      });
+
+      const en = local.toScope({ namespaces: ["billing"] }).forLocale("en");
+      en.set(
+        "billing",
+        "invoice_summary",
+        "You have {count, plural, one {1 invoice only} other {{count} invoices only}} for {name}"
+      );
+
+      expect(en.t("billing", "invoice_summary", { count: 1, name: "Ada" })).toBe(
+        "You have 1 invoice only for Ada"
+      );
+      expect(
+        local
+          .toScope({ namespaces: ["billing"], locale: "it" })
+          .t("billing", "invoice_summary", { count: 2, name: "Bob" })
+      ).toBe("Hai 2 fatture per Bob");
+    });
+
+    it("throws when patching a key that was not preloaded", () => {
+      const local = new IcuTranslationProviderMulti<MultiSchema, MultiParams>({
+        billing: {
+          invoice_summary: {
+            en: "You have {count, plural, one {1 invoice} other {{count} invoices}} for {name}",
+          },
+        },
+      });
+
+      expect(() =>
+        local
+          .toScope({ namespaces: ["billing"] })
+          .forLocale("it")
+          .set(
+            "billing",
+            "invoice_summary",
+            "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}"
+          )
+      ).toThrow("[i18n] Key not preloaded: billing.invoice_summary (it)");
+    });
+
+    it("invalidates compiled cache after set()", () => {
+      const local = new IcuTranslationProviderMulti<MultiSchema, MultiParams>(multiDictionary);
+      const en = local.toScope({ namespaces: ["billing"] }).forLocale("en");
+
+      expect(en.t("billing", "invoice_summary", { count: 2, name: "Bob" })).toBe(
+        "You have 2 invoices for Bob"
+      );
+
+      en.set(
+        "billing",
+        "invoice_summary",
+        "{count, plural, one {1 bill} other {{count} bills}} for {name}"
+      );
+
+      expect(en.t("billing", "invoice_summary", { count: 2, name: "Bob" })).toBe("2 bills for Bob");
+    });
+
+    it("throws on ICU args mismatch against other locales", () => {
+      const local = new IcuTranslationProviderMulti<MultiSchema, MultiParams>(multiDictionary);
+      const en = local.toScope({ namespaces: ["billing"] }).forLocale("en");
+
+      expect(() =>
+        en.set("billing", "invoice_summary", "{count, select, other {{count}}}")
+      ).toThrow("[i18n] ICU args mismatch on patch:");
     });
   });
 });

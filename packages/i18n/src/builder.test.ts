@@ -239,4 +239,46 @@ describe("I18nBuilder single", () => {
     expect(view.t("login_button")).toBe("Accedi");
     expect(view.t("welcome", { name: "Ada" })).toBe("Benvenuto Ada!");
   });
+
+  it("patches a preloaded key via scope.set() after load()", async () => {
+    const dictionaryLoader = vi.fn(async () => ({
+      login_button: { en: "Login" },
+      welcome: { en: "Welcome {name}!" },
+    }));
+    const engine = new IcuTranslationProviderSingle<SingleSchema, SingleParams>({
+      login_button: { en: "", it: "" },
+      welcome: { en: "", it: "" },
+    });
+
+    const view = await createI18nBuilder<SingleSchema, SingleParams>(engine, { dictionaryLoader })
+      .withLocale("en")
+      .load();
+
+    view.set("login_button", "Sign in");
+
+    expect(view.t("login_button")).toBe("Sign in");
+    expect(view.t("welcome", { name: "Ada" })).toBe("Welcome Ada!");
+  });
+
+  it("throws when scope.set() targets a key that was not preloaded", async () => {
+    const dictionaryLoader = vi.fn(async () => ({
+      login_button: { en: "Login" },
+      welcome: { en: "Welcome {name}!" },
+    }));
+    const engine = new IcuTranslationProviderSingle<SingleSchema, SingleParams>({
+      // @ts-expect-error
+      login_button: { en: "" },
+      // @ts-expect-error
+      welcome: { en: "" },
+    });
+
+    const view = await createI18nBuilder<SingleSchema, SingleParams>(engine, { dictionaryLoader })
+      .withLocale("en")
+      .load();
+
+    // @ts-expect-error
+    expect(() => view.forLocale("it").set("login_button", "Accedi")).toThrow(
+      "[i18n] Key not preloaded: login_button (it)"
+    );
+  });
 });

@@ -176,13 +176,15 @@ function main() {
     isSingle,
     hasLazy,
     typesOutputPath,
-    namespaceLoadersOutputPath: hasLazy
-      ? path.resolve(
-          projectRoot,
-          config.namespaceLoadersOutput ??
-            path.join(path.dirname(config.instanceOutput), "namespace-loaders.generated.ts")
-        )
-      : undefined,
+    ...(hasLazy
+      ? {
+          namespaceLoadersOutputPath: path.resolve(
+            projectRoot,
+            config.namespaceLoadersOutput ??
+              path.join(path.dirname(config.instanceOutput), "namespace-loaders.generated.ts")
+          ),
+        }
+      : {}),
     paramsTypeName,
     schemaTypeName,
     localeTypeName,
