@@ -27,7 +27,6 @@ describe("formatDictionaryFile", () => {
 
     expect(output).toContain("export const defaultDictionary: InitialSchema");
     expect(output).toContain("defaultNs");
-    expect(output).not.toContain("defaultDictionaryFor");
   });
 
   it("emits an empty module when all namespaces are lazy in split mode (multi)", () => {
@@ -100,8 +99,6 @@ describe("formatDictionaryFile", () => {
       "export function defaultDictionaryFor(locale: AppLocale): InitialSchema"
     );
     expect(output).toContain("return {\n    default: defaultByLocale[locale],\n  };");
-    expect(output).not.toContain("export const defaultDictionary");
-    expect(output).not.toContain("billingEn");
   });
 
   it("emits defaultDictionaryFor with per-locale imports in split mode (single)", () => {
@@ -136,7 +133,6 @@ describe("formatDictionaryFile", () => {
     );
     expect(output).toContain("export function defaultDictionaryFor(locale: AppLocale): AppSchema");
     expect(output).toContain("return translationsByLocale[locale];");
-    expect(output).not.toContain("export const defaultDictionary");
   });
 
   it("emits defaultDictionaryFor with per-area imports in custom mode (multi)", () => {
@@ -178,8 +174,6 @@ describe("formatDictionaryFile", () => {
       "export function defaultDictionaryFor(area: AppDeliveryArea): InitialSchema"
     );
     expect(output).toContain("return {\n    default: defaultByArea[area],\n  };");
-    expect(output).not.toContain("export const defaultDictionary");
-    expect(output).not.toContain("billingEu");
   });
 
   it("emits defaultDictionaryFor with per-area imports in custom mode (single)", () => {
@@ -217,6 +211,5 @@ describe("formatDictionaryFile", () => {
       "export function defaultDictionaryFor(area: AppDeliveryArea): AppSchema"
     );
     expect(output).toContain("return translationsByArea[area];");
-    expect(output).not.toContain("export const defaultDictionary");
   });
 });

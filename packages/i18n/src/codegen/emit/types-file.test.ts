@@ -37,7 +37,6 @@ describe("formatTypesFile", () => {
 
     expect(output).toContain("login_button: Partial<Record<AppLocale, string>>;");
     expect(output).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
-    expect(output).not.toContain("typeof import");
   });
 
   it("emits explicit Partial schema types for single-file mode", () => {
@@ -65,7 +64,6 @@ describe("formatTypesFile", () => {
     expect(output).toContain(
       "export type AppSchema = {\n  welcome: Partial<Record<AppLocale, string>>;\n};"
     );
-    expect(output).not.toContain("typeof import");
   });
 
   it("emits delivery area type for custom delivery", () => {

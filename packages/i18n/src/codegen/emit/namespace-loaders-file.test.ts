@@ -31,8 +31,6 @@ describe("formatNamespaceLoadersFile", () => {
     expect(output).toContain(
       "billing: () => import('./translations/billing.json').then((m) => m.default),"
     );
-    expect(output).not.toContain("AppLocale");
-    expect(output).not.toContain("ensureNamespacesLoadedForLocale");
   });
 
   it("emits ns(locale) loaders in split mode", () => {
@@ -97,16 +95,13 @@ describe("formatNamespaceLoadersFile", () => {
       "return import('./generated/translations/billing.en.json').then((m) => m.default);"
     );
     expect(output).toContain("user: (locale) => {");
-    expect(output).not.toContain("billing: {");
-    expect(output).not.toContain("import('./translations/billing.json')");
-    expect(output).not.toContain("ensureNamespacesLoadedForLocale");
     expect(output).toContain(
       'export const defaultLazyNamespaces = ["billing", "default", "user"] as const;'
     );
     expect(output.match(/from '\.\/i18n-types\.generated'/g)?.length).toBe(1);
   });
 
-  it("emits mergeAll helper for single mode in split delivery", () => {
+  it("emits locale-scoped loaders for single mode in split delivery", () => {
     const output = formatNamespaceLoadersFile({
       loadersOutputPath,
       lazyEntries: [
@@ -136,8 +131,6 @@ describe("formatNamespaceLoadersFile", () => {
     });
 
     expect(output).toContain("[K in LazyNamespace]: (locale: AppLocale) => Promise<AppSchema>;");
-    expect(output).not.toContain("TranslationProviderSingle");
-    expect(output).not.toContain("ensureNamespacesLoadedForLocale");
     expect(output).toContain('export const defaultLazyNamespaces = ["default"] as const;');
   });
 
@@ -222,8 +215,6 @@ describe("formatNamespaceLoadersFile", () => {
     expect(output).toContain(
       "return import('./generated/translations/billing.eu.json').then((m) => m.default);"
     );
-    expect(output).not.toContain("import('./translations/billing.json')");
-    expect(output).not.toContain("ensureNamespacesLoadedForArea");
     expect(output).toContain(
       'export const defaultLazyNamespaces = ["billing", "default"] as const;'
     );

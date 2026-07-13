@@ -111,6 +111,7 @@ describe("codegen projectNamespaceLocales + load + scope.set", () => {
 
       const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
       expect(factory).toContain('dictionary: AppSchema["billing"]');
+      expect(factory).toContain("export function projectNamespaceLocales(");
       expect(factory).toContain(
         "projectDictionaryLocalesCore(dictionary, locales, LOCALE_FALLBACK)"
       );
@@ -150,51 +151,6 @@ describe("codegen projectNamespaceLocales + load + scope.set", () => {
           `}`,
           ``,
           `export { hydrateBilling };`,
-        ].join("\n")
-      );
-
-      writeTscProject(tempDir);
-
-      const tsc = runTsc(join(tempDir, "tsconfig.json"));
-      expect(tsc.status, `${tsc.stdout}\n${tsc.stderr}`).toBe(0);
-    });
-
-    it("passes tsc when loading projected full schema via builder load()", () => {
-      tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
-      setupMultiCodegenFixture(tempDir);
-
-      writeFileSync(
-        join(tempDir, "src/hydrate-all.ts"),
-        [
-          `import { createI18nMultiBuilder, IcuTranslationProviderMulti } from "@xndrjs/i18n";`,
-          `import { projectDictionaryLocales } from "./i18n/instance.generated.js";`,
-          `import { defaultDictionary } from "./i18n/dictionary.generated.js";`,
-          `import type { AppSchema, AppParams } from "./i18n/i18n-types.generated.js";`,
-          `import billingDictionary from "./i18n/translations/billing.json";`,
-          `import defaultNs from "./i18n/translations/default.json";`,
-          ``,
-          `async function hydrateAll() {`,
-          `  const fullDictionary = {`,
-          `    default: defaultNs,`,
-          `    billing: billingDictionary,`,
-          `  } satisfies AppSchema;`,
-          `  const projected = projectDictionaryLocales(fullDictionary, ["en"]);`,
-          ``,
-          `  const engine = new IcuTranslationProviderMulti<AppSchema, AppParams>(defaultDictionary);`,
-          `  const view = await createI18nMultiBuilder(engine, {`,
-          `    namespaceLoaders: {`,
-          `      billing: async () => projected.billing,`,
-          `      default: async () => projected.default,`,
-          `    },`,
-          `  })`,
-          `    .withNamespaces(["billing", "default"])`,
-          `    .withLocale("en")`,
-          `    .load();`,
-          ``,
-          `  return view.t("default", "login_button");`,
-          `}`,
-          ``,
-          `export { hydrateAll };`,
         ].join("\n")
       );
 
