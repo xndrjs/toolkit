@@ -144,16 +144,16 @@ describe("IcuTranslationProviderMulti", () => {
     expect(provider.get("billing", "empty_label", "en")).toBe("");
   });
 
-  it("tracks loaded namespaces with hasNamespace", () => {
+  it("tracks namespaces via dictionary keys", () => {
     const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       default: dictionary.default,
     });
 
-    expect(partial.hasNamespace("default")).toBe(true);
-    expect(partial.hasNamespace("billing")).toBe(false);
+    expect("default" in partial.getAll()).toBe(true);
+    expect("billing" in partial.getAll()).toBe(false);
   });
 
-  it("throws when getting from an unloaded namespace", () => {
+  it("degrades to onMissing when getting from a namespace not in dictionary", () => {
     const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       default: dictionary.default,
     });
@@ -161,7 +161,7 @@ describe("IcuTranslationProviderMulti", () => {
     expect(() =>
       partial.get("billing", "invoice_summary", "en", { count: 1, name: "Ada" })
     ).toThrow(
-      '[i18n] Namespace not loaded: "billing". Register it with setNamespace() before calling .get().'
+      '[i18n] Missing key or locale: namespace "billing", key "invoice_summary" [en] (fallback chain: en)'
     );
   });
 
@@ -210,10 +210,55 @@ describe("IcuTranslationProviderMulti", () => {
     expect(local.get("default", "login_button", "en")).toBe("Login");
   });
 
+  it("adds namespace to dictionary with setNamespace", () => {
+    const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({
+      default: dictionary.default,
+    });
+    expect("billing" in partial.getAll()).toBe(false);
+
+    partial.setNamespace("billing", dictionary.billing);
+    expect("billing" in partial.getAll()).toBe(true);
+  });
+
+  it("adds namespace to dictionary on first mergeNamespace", () => {
+    const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({});
+    expect("billing" in partial.getAll()).toBe(false);
+
+    partial.mergeNamespace("billing", dictionary.billing);
+    expect("billing" in partial.getAll()).toBe(true);
+  });
+
+  it("accumulates a locale via mergeNamespace when the namespace already exists", () => {
+    const local = new IcuTranslationProviderMulti<TestSchema, TestParams>({
+      billing: {
+        invoice_summary: {
+          en: "You have {count, plural, one {1 invoice} other {{count} invoices}} for {name}",
+        },
+      },
+    });
+
+    expect("billing" in local.getAll()).toBe(true);
+    expect(local.get("billing", "invoice_summary", "en", { count: 1, name: "Ada" })).toBe(
+      "You have 1 invoice for Ada"
+    );
+
+    local.mergeNamespace("billing", {
+      invoice_summary: {
+        it: "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}",
+      },
+    });
+
+    expect(local.get("billing", "invoice_summary", "en", { count: 2, name: "Bob" })).toBe(
+      "You have 2 invoices for Bob"
+    );
+    expect(local.get("billing", "invoice_summary", "it", { count: 2, name: "Bob" })).toBe(
+      "Hai 2 fatture per Bob"
+    );
+  });
+
   it("merges locales per key with mergeNamespace without dropping existing locales", () => {
     const local = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       billing: {
-        // @ts-expect-error missing locale
         invoice_summary: {
           en: "You have {count, plural, one {1 invoice} other {{count} invoices}} for {name}",
         },
@@ -221,7 +266,6 @@ describe("IcuTranslationProviderMulti", () => {
     });
 
     local.mergeNamespace("billing", {
-      // @ts-expect-error missing locale
       invoice_summary: {
         it: "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}",
       },
@@ -252,7 +296,6 @@ describe("IcuTranslationProviderMulti", () => {
   it("merges namespaces with mergeAll without dropping existing locales", () => {
     const local = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       billing: {
-        // @ts-expect-error missing locale
         invoice_summary: {
           en: "You have {count, plural, one {1 invoice} other {{count} invoices}} for {name}",
         },
@@ -261,7 +304,6 @@ describe("IcuTranslationProviderMulti", () => {
 
     local.mergeAll({
       billing: {
-        // @ts-expect-error missing locale
         invoice_summary: {
           it: "Hai {count, plural, one {1 fattura} other {{count} fatture}} per {name}",
         },
@@ -369,13 +411,13 @@ describe("IcuTranslationProviderMulti", () => {
       ]);
     });
 
-    it("still throws for unloaded namespaces with a lenient onMissing", () => {
+    it("applies onMissing for namespaces not in dictionary", () => {
       const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(
         { default: dictionary.default },
         { onMissing: "key" }
       );
-      expect(() => local.get("billing", "account_balance", "en", { amount: 1 })).toThrow(
-        '[i18n] Namespace not loaded: "billing"'
+      expect(local.get("billing", "invoice_summary", "en", { count: 1, name: "Ada" })).toBe(
+        "billing.invoice_summary"
       );
     });
 

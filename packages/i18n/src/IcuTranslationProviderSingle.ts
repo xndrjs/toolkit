@@ -9,6 +9,7 @@ import type {
   LocaleOfSingle,
   OnMissingTranslation,
   SingleCompiledCache,
+  PartialKeyDictionary,
 } from "./types.js";
 
 export interface TranslationProviderSingleForLocale<
@@ -38,7 +39,7 @@ export interface TranslationProviderSingle<
   ): TranslationProviderSingleForLocale<Schema, Params, Locale>;
   getAll(): Schema;
   setAll(values: Schema): void;
-  mergeAll(values: Partial<Schema>): void;
+  mergeAll(values: PartialKeyDictionary<Schema, RequestLocales>): void;
 }
 
 export class IcuTranslationProviderSingleForLocale<
@@ -131,8 +132,8 @@ export class IcuTranslationProviderSingle<
     this.compiledCache = {};
   }
 
-  mergeAll(values: Partial<Schema>): void {
-    this.dictionary = mergeNamespaceLocalesCore(this.dictionary, values as Schema);
+  mergeAll(values: PartialKeyDictionary<Schema, RequestLocales>): void {
+    this.dictionary = mergeNamespaceLocalesCore(this.dictionary, values);
 
     for (const [key, incomingLocales] of Object.entries(values)) {
       if (incomingLocales === undefined || typeof incomingLocales !== "object") {

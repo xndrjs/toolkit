@@ -19,6 +19,8 @@ export type {
   LocaleOfSingle,
   MissingTranslationContext,
   MultiDictionary,
+  PartialKeyDictionary,
+  PartialMultiDictionary,
   OnMissingTranslation,
 } from "./types.js";
 

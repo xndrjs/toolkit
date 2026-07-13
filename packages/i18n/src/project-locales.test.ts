@@ -206,21 +206,23 @@ describe("projectDictionaryLocalesCore", () => {
 });
 
 describe("mergeNamespaceLocalesCore", () => {
+  type TestDictionary = {
+    welcome: Partial<Record<"en" | "it", string>>;
+    login_button: Partial<Record<"en" | "it", string>>;
+  };
+
   it("merges locale maps per key without dropping existing locales", () => {
-    const existing = {
+    const existing: TestDictionary = {
       welcome: { en: "Welcome {name}!" },
       login_button: { en: "Login", it: "Accedi" },
     };
     const incoming = {
       welcome: { it: "Benvenuto {name}!" },
-      invoice_summary: { en: "{count} invoices" },
     };
 
-    // @ts-expect-error missing key in incoming
     expect(mergeNamespaceLocalesCore(existing, incoming)).toEqual({
       welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },
       login_button: { en: "Login", it: "Accedi" },
-      invoice_summary: { en: "{count} invoices" },
     });
   });
 
@@ -239,8 +241,17 @@ describe("mergeNamespaceLocalesCore", () => {
 });
 
 describe("mergeDictionaryLocalesCore", () => {
+  type TestMultiDictionary = {
+    default: {
+      welcome: Partial<Record<"en" | "it", string>>;
+    };
+    billing: {
+      invoice_summary: Partial<Record<"en" | "it", string>>;
+    };
+  };
+
   it("merges each namespace without dropping existing locales", () => {
-    const existing = {
+    const existing: TestMultiDictionary = {
       default: {
         welcome: { en: "Welcome {name}!" },
       },
@@ -257,7 +268,6 @@ describe("mergeDictionaryLocalesCore", () => {
       },
     };
 
-    // @ts-expect-error missing locale
     expect(mergeDictionaryLocalesCore(existing, incoming)).toEqual({
       default: {
         welcome: { en: "Welcome {name}!", it: "Benvenuto {name}!" },

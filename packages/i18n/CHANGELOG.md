@@ -1,5 +1,11 @@
 # @xndrjs/i18n
 
+## Unreleased
+
+### Breaking Changes (0.7.0)
+
+- **`IcuTranslationProviderMulti`:** removed `hasNamespace()` and the internal `loadedNamespaces` set. Namespace availability is determined solely by `dictionary` keys. Accessing a namespace not present in the dictionary now degrades through `onMissing` (same as a missing key) instead of throwing a dedicated "namespace not loaded" error.
+
 ## 0.6.1
 
 ### Patch Changes

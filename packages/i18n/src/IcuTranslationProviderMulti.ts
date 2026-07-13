@@ -9,6 +9,8 @@ import type {
   MultiCompiledCache,
   MultiDictionary,
   OnMissingTranslation,
+  PartialKeyDictionary,
+  PartialMultiDictionary,
 } from "./types.js";
 
 export interface TranslationProviderMultiForLocale<
@@ -39,11 +41,13 @@ export interface TranslationProviderMulti<
     locale: Locale
   ): TranslationProviderMultiForLocale<Schema, Params, Locale>;
   getAll(): Schema;
-  hasNamespace<NS extends keyof Schema & string>(namespace: NS): boolean;
   setAll(values: Schema): void;
-  mergeAll(values: Partial<Schema>): void;
+  mergeAll(values: PartialMultiDictionary<Schema, RequestLocales>): void;
   setNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void;
-  mergeNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void;
+  mergeNamespace<NS extends keyof Schema>(
+    namespace: NS,
+    values: PartialKeyDictionary<Schema[NS], RequestLocales>
+  ): void;
 }
 
 export class IcuTranslationProviderMultiForLocale<
@@ -83,11 +87,12 @@ export class IcuTranslationProviderMulti<
   private compiledCache: MultiCompiledCache = {};
   private readonly localeFallback?: Fallback;
   private readonly onMissing: OnMissingTranslation;
-  private loadedNamespaces: Set<string>;
 
-  constructor(dictionary: Partial<Schema>, options?: IcuTranslationProviderOptions<Fallback>) {
+  constructor(
+    dictionary: PartialMultiDictionary<Schema, RequestLocales>,
+    options?: IcuTranslationProviderOptions<Fallback>
+  ) {
     this.dictionary = structuredClone(dictionary) as Schema;
-    this.loadedNamespaces = new Set(Object.keys(dictionary));
     if (options?.localeFallback) {
       validateLocaleFallback(options.localeFallback);
       this.localeFallback = options.localeFallback;
@@ -111,12 +116,6 @@ export class IcuTranslationProviderMulti<
     locale: string,
     params?: Record<string, unknown>
   ): string {
-    if (!this.loadedNamespaces.has(namespace)) {
-      throw new Error(
-        `[i18n] Namespace not loaded: "${namespace}". Register it with setNamespace() before calling .get().`
-      );
-    }
-
     const localeByKey = (
       this.dictionary[namespace] as Record<string, Record<string, string>> | undefined
     )?.[key];
@@ -154,21 +153,16 @@ export class IcuTranslationProviderMulti<
     return cloneAndFreeze(this.dictionary);
   }
 
-  hasNamespace<NS extends keyof Schema & string>(namespace: NS): boolean {
-    return this.loadedNamespaces.has(namespace);
-  }
-
   setAll(values: Schema): void {
     this.dictionary = structuredClone(values);
     this.compiledCache = {};
-    this.loadedNamespaces = new Set(Object.keys(values));
   }
 
-  mergeAll(values: Partial<Schema>): void {
+  mergeAll(values: PartialMultiDictionary<Schema, RequestLocales>): void {
     for (const namespace of Object.keys(values) as (keyof Schema & string)[]) {
       const incoming = values[namespace];
       if (incoming !== undefined) {
-        this.mergeNamespace(namespace, incoming as Schema[typeof namespace]);
+        this.mergeNamespace(namespace, incoming);
       }
     }
   }
@@ -178,20 +172,26 @@ export class IcuTranslationProviderMulti<
       ...this.dictionary,
       [namespace]: structuredClone(values),
     };
-    this.loadedNamespaces.add(namespace as string);
 
     for (const locale of Object.keys(this.compiledCache)) {
       delete this.compiledCache[locale]?.[namespace as string];
     }
   }
 
-  mergeNamespace<NS extends keyof Schema>(namespace: NS, values: Schema[NS]): void {
-    if (!this.loadedNamespaces.has(namespace as string)) {
-      this.setNamespace(namespace, values);
-      return;
-    }
-
+  mergeNamespace<NS extends keyof Schema>(
+    namespace: NS,
+    values: PartialKeyDictionary<Schema[NS], RequestLocales>
+  ): void {
     const existing = this.dictionary[namespace];
-    this.setNamespace(namespace, mergeNamespaceLocalesCore(existing as Schema[NS], values));
+    const merged = mergeNamespaceLocalesCore((existing ?? {}) as Schema[NS], values);
+
+    this.dictionary = {
+      ...this.dictionary,
+      [namespace]: merged,
+    };
+
+    for (const locale of Object.keys(this.compiledCache)) {
+      delete this.compiledCache[locale]?.[namespace as string];
+    }
   }
 }

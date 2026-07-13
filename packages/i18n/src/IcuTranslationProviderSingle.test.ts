@@ -245,7 +245,6 @@ describe("IcuTranslationProviderSingle", () => {
     });
 
     local.mergeAll({
-      // @ts-expect-error missing locale
       welcome: {
         it: "Benvenuto {name}!",
       },

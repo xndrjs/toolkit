@@ -16,6 +16,22 @@ export type LocaleOfMulti<Schema extends MultiDictionary> = {
 }[keyof Schema] &
   string;
 
+/** Subset of schema keys with any subset of project locales per key — valid input for merge operations. */
+export type PartialKeyDictionary<
+  T extends KeyDictionary,
+  Locales extends string = LocaleOfSingle<T>,
+> = {
+  [K in keyof T]?: Partial<Record<Locales, string>>;
+};
+
+/** Subset of schema namespaces with partial keys/locales — valid input for multi merge operations. */
+export type PartialMultiDictionary<
+  T extends MultiDictionary,
+  Locales extends string = LocaleOfMulti<T>,
+> = {
+  [NS in keyof T]?: PartialKeyDictionary<T[NS], Locales>;
+};
+
 export type LocaleFallbackMap = Record<string, string | null>;
 
 export type MissingTranslationContext = {

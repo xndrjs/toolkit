@@ -1,5 +1,13 @@
 import { resolveLocaleTemplate } from "./resolve-locale.js";
-import type { KeyDictionary, LocaleFallbackMap, MultiDictionary } from "./types.js";
+import type {
+  KeyDictionary,
+  LocaleFallbackMap,
+  LocaleOfMulti,
+  LocaleOfSingle,
+  MultiDictionary,
+  PartialKeyDictionary,
+  PartialMultiDictionary,
+} from "./types.js";
 
 function classifyAreaLocales(
   areaLocales: readonly string[],
@@ -157,7 +165,10 @@ export function projectDictionaryLocalesCore<T extends MultiDictionary>(
  * Merges locale entries per translation key without dropping keys or locales
  * already present in `existing`. Incoming locales overwrite the same locale on conflict.
  */
-export function mergeNamespaceLocalesCore<T extends KeyDictionary>(existing: T, incoming: T): T {
+export function mergeNamespaceLocalesCore<
+  T extends KeyDictionary,
+  Locales extends string = LocaleOfSingle<T>,
+>(existing: T, incoming: PartialKeyDictionary<T, Locales>): T {
   const merged = structuredClone(existing);
 
   for (const [key, incomingLocales] of Object.entries(incoming)) {
@@ -178,10 +189,10 @@ export function mergeNamespaceLocalesCore<T extends KeyDictionary>(existing: T, 
  * Merges locale entries per key in every namespace present in `incoming`.
  * Namespaces and keys not in `incoming` are preserved from `existing`.
  */
-export function mergeDictionaryLocalesCore<T extends MultiDictionary>(
-  existing: T,
-  incoming: Partial<T>
-): T {
+export function mergeDictionaryLocalesCore<
+  T extends MultiDictionary,
+  Locales extends string = LocaleOfMulti<T>,
+>(existing: T, incoming: PartialMultiDictionary<T, Locales>): T {
   const merged = structuredClone(existing) as T;
 
   for (const namespace of Object.keys(incoming) as (keyof T & string)[]) {
