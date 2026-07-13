@@ -96,17 +96,25 @@ describe("I18nBuilder multi", () => {
     );
   });
 
-  it("hydrates via withNamespaceData without a loader", async () => {
+  it("patches a preloaded key via scope.set() after load()", async () => {
+    const billingLoader = vi.fn(async () => billingEn);
     const engine = new IcuTranslationProviderMulti<MultiSchema, TestMultiParams>({});
 
-    const view = await createI18nBuilder(engine)
+    const view = await createI18nBuilder(engine, {
+      namespaceLoaders: { billing: billingLoader },
+    })
       .withNamespaces(["billing"])
-      .withNamespaceData("billing", billingIt)
-      .withLocale("it")
+      .withLocale("en")
       .load();
 
+    view.set(
+      "billing",
+      "invoice_summary",
+      "You have {count, plural, one {1 invoice only} other {{count} invoices only}} for {name}"
+    );
+
     expect(view.t("billing", "invoice_summary", { count: 1, name: "Ada" })).toBe(
-      "Hai 1 fattura per Ada"
+      "You have 1 invoice only for Ada"
     );
   });
 

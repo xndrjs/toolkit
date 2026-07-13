@@ -40,10 +40,6 @@ export interface I18nBuilderSingle<
     area: Area
   ): I18nBuilderSingle<Schema, Params, RequestLocales>;
 
-  withDictionaryData(
-    data: PartialKeyDictionary<Schema, RequestLocales>
-  ): I18nBuilderSingle<Schema, Params, RequestLocales>;
-
   load(): Promise<
     I18nScopeSingleImpl<Schema, Params, RequestLocales, LocaleFallbackMap | undefined>
   >;
@@ -54,10 +50,6 @@ export interface I18nBuilderSingleForLocale<
   Params extends { [K in keyof Schema]: unknown },
   Locale extends string,
 > {
-  withDictionaryData(
-    data: PartialKeyDictionary<Schema, LocaleOfSingle<Schema>>
-  ): I18nBuilderSingleForLocale<Schema, Params, Locale>;
-
   load(): Promise<SingleScopeBound<Schema, Params, Locale>>;
 }
 
@@ -67,7 +59,6 @@ type SingleBuilderState<
 > = {
   locale?: RequestLocales;
   deliveryArea?: string;
-  dictionaryData: PartialKeyDictionary<Schema, RequestLocales>;
 };
 
 export class I18nBuilderSingleImpl<
@@ -75,9 +66,7 @@ export class I18nBuilderSingleImpl<
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string = LocaleOfSingle<Schema>,
 > implements I18nBuilderSingle<Schema, Params, RequestLocales> {
-  private state: SingleBuilderState<Schema, RequestLocales> = {
-    dictionaryData: {},
-  };
+  private state: SingleBuilderState<Schema, RequestLocales> = {};
 
   constructor(
     private readonly engine: I18nEngineSingleImpl<Schema, Params, RequestLocales>,
@@ -86,7 +75,6 @@ export class I18nBuilderSingleImpl<
   ) {
     if (state !== undefined) {
       this.state = {
-        dictionaryData: { ...state.dictionaryData },
         ...(state.locale !== undefined ? { locale: state.locale } : {}),
         ...(state.deliveryArea !== undefined ? { deliveryArea: state.deliveryArea } : {}),
       };
@@ -97,7 +85,6 @@ export class I18nBuilderSingleImpl<
     return {
       ...(this.state.locale !== undefined ? { locale: this.state.locale } : {}),
       ...(this.state.deliveryArea !== undefined ? { deliveryArea: this.state.deliveryArea } : {}),
-      dictionaryData: { ...this.state.dictionaryData },
     };
   }
 
@@ -122,17 +109,6 @@ export class I18nBuilderSingleImpl<
     });
   }
 
-  withDictionaryData(
-    data: PartialKeyDictionary<Schema, RequestLocales>
-  ): I18nBuilderSingle<Schema, Params, RequestLocales> {
-    const state = this.clone();
-    state.dictionaryData = {
-      ...state.dictionaryData,
-      ...data,
-    };
-    return new I18nBuilderSingleImpl(this.engine, this.options, state);
-  }
-
   async load(): Promise<
     I18nScopeSingleImpl<Schema, Params, RequestLocales, LocaleFallbackMap | undefined>
   > {
@@ -152,18 +128,6 @@ export class I18nBuilderSingleForLocaleImpl<
     private readonly options: I18nBuilderSingleOptions<Schema, RequestLocales> | undefined,
     private readonly state: SingleBuilderState<Schema, RequestLocales> & { locale: Locale }
   ) {}
-
-  withDictionaryData(
-    data: PartialKeyDictionary<Schema, RequestLocales>
-  ): I18nBuilderSingleForLocale<Schema, Params, Locale> {
-    return new I18nBuilderSingleForLocaleImpl(this.engine, this.options, {
-      ...this.state,
-      dictionaryData: {
-        ...this.state.dictionaryData,
-        ...data,
-      },
-    });
-  }
 
   async load() {
     await applySingleBuilderLoad(this.engine, this.options, this.state);
@@ -186,9 +150,5 @@ async function applySingleBuilderLoad<
   if (loader !== undefined) {
     const data = await invokeNamespaceLoader(loader, partition);
     engine.applyLoadMergeSingle(data);
-  }
-
-  if (Object.keys(state.dictionaryData).length > 0) {
-    engine.applyLoadMergeSingle(state.dictionaryData);
   }
 }
