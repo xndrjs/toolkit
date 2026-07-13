@@ -23,27 +23,19 @@ export {
   invokeNamespaceLoader,
 } from "./builder.js";
 
-export type {
-  TranslationProviderSingle,
-  TranslationProviderSingleForLocale,
-} from "./IcuTranslationProviderSingle.js";
 export { IcuTranslationProviderSingle } from "./IcuTranslationProviderSingle.js";
 
-export type {
-  TranslationProviderMulti,
-  TranslationProviderMultiForLocale,
-} from "./IcuTranslationProviderMulti.js";
 export { IcuTranslationProviderMulti } from "./IcuTranslationProviderMulti.js";
 
-export type { I18nViewMulti, I18nViewMultiForLocale } from "./view-multi.js";
-export type { I18nViewSingle, I18nViewSingleForLocale } from "./view-single.js";
+export type { I18nScopeMulti, I18nScopeMultiForLocale } from "./scope-multi.js";
+export type { I18nScopeSingle, I18nScopeSingleForLocale } from "./scope-single.js";
 
 export type {
   MultiParams,
   ParamsForNamespaces,
   SchemaForNamespaces,
   SingleParams,
-} from "./view-types.js";
+} from "./scope-types.js";
 
 export type {
   IcuTranslationProviderOptions,

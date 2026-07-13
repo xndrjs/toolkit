@@ -7,13 +7,13 @@ import type {
   LocaleOfSingle,
   PartialKeyDictionary,
 } from "./types.js";
-import type { I18nViewSingleForLocaleImpl, I18nViewSingleImpl } from "./view-single.js";
+import type { I18nScopeSingleForLocaleImpl, I18nScopeSingleImpl } from "./scope-single.js";
 
-type SingleViewBound<
+type SingleScopeBound<
   Schema extends KeyDictionary,
   Params,
   Locale extends string,
-> = I18nViewSingleForLocaleImpl<
+> = I18nScopeSingleForLocaleImpl<
   Schema,
   Params & { [K in keyof Schema]: unknown },
   LocaleOfSingle<Schema>,
@@ -46,7 +46,7 @@ export interface I18nBuilderSingle<
   ): I18nBuilderSingle<Schema, Params, RequestLocales>;
 
   load(): Promise<
-    I18nViewSingleImpl<Schema, Params, RequestLocales, LocaleFallbackMap | undefined>
+    I18nScopeSingleImpl<Schema, Params, RequestLocales, LocaleFallbackMap | undefined>
   >;
 }
 
@@ -59,7 +59,7 @@ export interface I18nBuilderSingleForLocale<
     data: PartialKeyDictionary<Schema, LocaleOfSingle<Schema>>
   ): I18nBuilderSingleForLocale<Schema, Params, Locale>;
 
-  load(): Promise<SingleViewBound<Schema, Params, Locale>>;
+  load(): Promise<SingleScopeBound<Schema, Params, Locale>>;
 }
 
 type SingleBuilderState<
@@ -136,12 +136,12 @@ export class I18nBuilderSingleImpl<
   }
 
   async load(): Promise<
-    I18nViewSingleImpl<Schema, Params, RequestLocales, LocaleFallbackMap | undefined>
+    I18nScopeSingleImpl<Schema, Params, RequestLocales, LocaleFallbackMap | undefined>
   > {
     await applySingleBuilderLoad(this.engine, this.options, this.state);
     return (
       this.engine as unknown as IcuTranslationProviderSingle<Schema, Params, RequestLocales>
-    ).toView();
+    ).toScope();
   }
 }
 
@@ -172,7 +172,7 @@ export class I18nBuilderSingleForLocaleImpl<
   async load() {
     await applySingleBuilderLoad(this.engine, this.options, this.state);
     return (this.engine as unknown as IcuTranslationProviderSingle<Schema, Params, RequestLocales>)
-      .toView()
+      .toScope()
       .forLocale(this.state.locale as Locale);
   }
 }

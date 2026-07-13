@@ -8,8 +8,8 @@ import type {
   PartialKeyDictionary,
   PartialMultiDictionary,
 } from "./types.js";
-import type { I18nViewMulti, I18nViewMultiForLocale } from "./view-multi.js";
-import type { MultiParams, ParamsForNamespaces, SchemaForNamespaces } from "./view-types.js";
+import type { I18nScopeMulti, I18nScopeMultiForLocale } from "./scope-multi.js";
+import type { MultiParams, ParamsForNamespaces, SchemaForNamespaces } from "./scope-types.js";
 
 export type I18nBuilderMultiOptions<
   Schema extends MultiDictionary,
@@ -46,7 +46,7 @@ export interface I18nBuilderMulti<
   ): I18nBuilderMulti<Schema, Params, RequestLocales, NsList>;
 
   load(): Promise<
-    I18nViewMulti<
+    I18nScopeMulti<
       SchemaForNamespaces<Schema, NsList>,
       ParamsForNamespaces<Schema, Params, NsList>,
       RequestLocales
@@ -67,7 +67,7 @@ export interface I18nBuilderMultiForLocale<
   ): I18nBuilderMultiForLocale<Schema, Params, RequestLocales, NsList, Locale>;
 
   load(): Promise<
-    I18nViewMultiForLocale<
+    I18nScopeMultiForLocale<
       SchemaForNamespaces<Schema, NsList>,
       ParamsForNamespaces<Schema, Params, NsList>,
       RequestLocales,
@@ -180,7 +180,7 @@ export class I18nBuilderMultiImpl<
   }
 
   async load(): Promise<
-    I18nViewMulti<
+    I18nScopeMulti<
       SchemaForNamespaces<Schema, NsList>,
       ParamsForNamespaces<Schema, Params, NsList>,
       RequestLocales
@@ -192,7 +192,7 @@ export class I18nBuilderMultiImpl<
       Params,
       RequestLocales
     >;
-    return provider.toView({ namespaces: namespaces as unknown as NsList });
+    return provider.toScope({ namespaces: namespaces as unknown as NsList });
   }
 }
 
@@ -231,7 +231,7 @@ export class I18nBuilderMultiForLocaleImpl<
   }
 
   async load(): Promise<
-    I18nViewMultiForLocale<
+    I18nScopeMultiForLocale<
       SchemaForNamespaces<Schema, NsList>,
       ParamsForNamespaces<Schema, Params, NsList>,
       RequestLocales,
@@ -245,7 +245,7 @@ export class I18nBuilderMultiForLocaleImpl<
       RequestLocales
     >;
     return provider
-      .toView({ namespaces: namespaces as unknown as NsList })
+      .toScope({ namespaces: namespaces as unknown as NsList })
       .forLocale(this.state.locale as Locale);
   }
 }

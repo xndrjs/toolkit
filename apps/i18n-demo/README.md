@@ -9,20 +9,13 @@ Workshop app for `@xndrjs/i18n` with three consumer setups in one package:
 
 ## Split-by-locale (`multi/`)
 
-All namespaces are lazy. Bootstrap with an empty provider, then register namespaces before rendering:
-
-`ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea` call `mergeNamespace` (or `mergeAll` in single mode) so loading another locale or area accumulates translations on the same instance.
+All namespaces are lazy. Bootstrap with `createI18n({})` and use the builder to load what you need for a locale.
 
 ```ts
-import { createI18n, ensureNamespacesLoadedForLocale } from "./i18n";
+import { createI18nForLocale } from "./i18n";
 
-export const i18n = createI18n({});
-
-// Shell / layout: only default
-await ensureNamespacesLoadedForLocale(i18n, activeLocale, ["default"]);
-
-// Billing route: merge billing for the same locale (or another locale on the shared instance)
-await ensureNamespacesLoadedForLocale(i18n, activeLocale, ["billing"]);
+const view = await createI18nForLocale(activeLocale, ["default", "billing"]);
+view.t("billing", "invoice_summary", { count: 2 });
 ```
 
 For manual patches after validation, prefer `mergeNamespace` / `mergeAll` over `setNamespace` / `setAll` when you keep prior locales in memory:
@@ -38,13 +31,13 @@ Run: `pnpm run demo:multi`
 
 ## Custom delivery areas (`areas/`)
 
-Delivery JSON is grouped by area (`eu`, `amer`). Use `ensureNamespacesLoadedForArea` or `createI18nForArea`:
+Delivery JSON is grouped by area (`eu`, `amer`). Use `createI18nForArea`:
 
 ```ts
-import { createI18n, ensureNamespacesLoadedForArea } from "./i18n";
+import { createI18nForArea } from "./i18n";
 
-const i18n = createI18n({});
-await ensureNamespacesLoadedForArea(i18n, "eu", ["default", "billing"]);
+const view = await createI18nForArea("eu", ["default", "billing"]);
+view.t("default", "some_key", "it");
 ```
 
 `createI18nForArea(area, namespaces?)` in `areas/src/i18n/index.ts` returns a ready instance. Generated helpers use `mergeNamespace`; manual hydration should use `mergeNamespace` / `mergeAll` when accumulating locales on a shared provider.

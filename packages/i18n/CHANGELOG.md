@@ -4,6 +4,7 @@
 
 ### Breaking Changes (0.7.0)
 
+- **View → Scope rename:** public types are now `I18nScopeSingle`, `I18nScopeMulti`, `I18nScope*ForLocale` (was `I18nView*`). Engine projection is `toScope()` (was `toView()`). Source files: `scope-single.ts`, `scope-multi.ts`, `scope-types.ts`. Spec: `docs/spec-engine-scope-builder.md`.
 - **`IcuTranslationProviderMulti`:** removed `hasNamespace()` and the internal `loadedNamespaces` set. Namespace availability is determined solely by `dictionary` keys. Accessing a namespace not present in the dictionary now degrades through `onMissing` (same as a missing key) instead of throwing a dedicated "namespace not loaded" error.
 
 ## 0.6.1
@@ -12,9 +13,7 @@
 
 - 55da593: - **Runtime:** add `mergeNamespace()` on `IcuTranslationProviderMulti` and `mergeAll()` on both `IcuTranslationProviderSingle` and `IcuTranslationProviderMulti` — merge locale entries per translation key instead of replacing the whole namespace (multi) or dictionary (single). Use as an alternative to `setNamespace()` / `setAll()` when accumulating locales on the same instance.
   - **Runtime:** export `mergeNamespaceLocalesCore` and `mergeDictionaryLocalesCore` for tooling.
-  - **Split-by-locale / custom:** generated `ensureNamespacesLoadedForLocale` and `ensureNamespacesLoadedForArea` call `mergeNamespace()` (multi) or `mergeAll()` (single) so loading another locale or delivery area accumulates translations instead of dropping prior locales.
-  - **Codegen:** emit `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea` in single mode too (previously multi only). Single-mode loaders are typed as `Promise<AppSchema>` instead of `Promise<AppSchema[K]>`.
-  - **Codegen:** `I18nMultiInstance` / `I18nSingleInstance` in `namespace-loaders.generated.ts` are typed as `TranslationProviderMulti<…>` / `TranslationProviderSingle<…>` (public interfaces). Re-run `xndrjs-i18n-codegen` after upgrading.
+  - **Split-by-locale / custom:** generated loaders are meant to be wired into the builder; loading different locales/areas accumulates translations via `mergeNamespace()` (multi) / `mergeAll()` (single).
 
 ## 0.6.0
 

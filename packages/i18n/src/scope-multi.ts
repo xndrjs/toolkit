@@ -1,9 +1,9 @@
 import type { IcuTranslationProviderMulti } from "./IcuTranslationProviderMulti.js";
 import type { LocaleFallbackMap, LocaleOfMulti, MultiDictionary } from "./types.js";
-import type { MultiParams, ParamArgs } from "./view-types.js";
+import type { MultiParams, ParamArgs } from "./scope-types.js";
 
-/** Read-only, type-safe translation view for a multi-namespace schema subset. */
-export interface I18nViewMulti<
+/** Type-safe translation scope for a multi-namespace schema subset. */
+export interface I18nScopeMulti<
   Schema extends MultiDictionary,
   Params,
   RequestLocales extends string = LocaleOfMulti<Schema>,
@@ -19,11 +19,11 @@ export interface I18nViewMulti<
   ): string;
   forLocale<Locale extends RequestLocales>(
     locale: Locale
-  ): I18nViewMultiForLocale<Schema, Params, RequestLocales, Locale>;
+  ): I18nScopeMultiForLocale<Schema, Params, RequestLocales, Locale>;
 }
 
-/** Multi-namespace view with a bound locale — `t(namespace, key)` without a locale argument. */
-export interface I18nViewMultiForLocale<
+/** Multi-namespace scope with a bound locale — `t(namespace, key)` and `set(...)` without a locale argument. */
+export interface I18nScopeMultiForLocale<
   Schema extends MultiDictionary,
   Params,
   RequestLocales extends string,
@@ -40,15 +40,15 @@ export interface I18nViewMultiForLocale<
   ): string;
   forLocale<Next extends RequestLocales>(
     locale: Next
-  ): I18nViewMultiForLocale<Schema, Params, RequestLocales, Next>;
+  ): I18nScopeMultiForLocale<Schema, Params, RequestLocales, Next>;
 }
 
-export class I18nViewMultiImpl<
+export class I18nScopeMultiImpl<
   Schema extends MultiDictionary,
   Params extends MultiParams<Schema>,
   RequestLocales extends string,
   Fallback extends LocaleFallbackMap | undefined,
-> implements I18nViewMulti<Schema, Params, RequestLocales> {
+> implements I18nScopeMulti<Schema, Params, RequestLocales> {
   constructor(
     private readonly engine: IcuTranslationProviderMulti<Schema, Params, RequestLocales, Fallback>
   ) {}
@@ -63,18 +63,18 @@ export class I18nViewMultiImpl<
 
   forLocale<Locale extends RequestLocales>(
     locale: Locale
-  ): I18nViewMultiForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback> {
-    return new I18nViewMultiForLocaleImpl(this.engine, locale);
+  ): I18nScopeMultiForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback> {
+    return new I18nScopeMultiForLocaleImpl(this.engine, locale);
   }
 }
 
-export class I18nViewMultiForLocaleImpl<
+export class I18nScopeMultiForLocaleImpl<
   Schema extends MultiDictionary,
   Params extends MultiParams<Schema>,
   RequestLocales extends string,
   Locale extends RequestLocales,
   Fallback extends LocaleFallbackMap | undefined,
-> implements I18nViewMultiForLocale<Schema, Params, RequestLocales, Locale> {
+> implements I18nScopeMultiForLocale<Schema, Params, RequestLocales, Locale> {
   constructor(
     private readonly engine: IcuTranslationProviderMulti<Schema, Params, RequestLocales, Fallback>,
     readonly locale: Locale
@@ -90,7 +90,7 @@ export class I18nViewMultiForLocaleImpl<
 
   forLocale<Next extends RequestLocales>(
     locale: Next
-  ): I18nViewMultiForLocaleImpl<Schema, Params, RequestLocales, Next, Fallback> {
-    return new I18nViewMultiForLocaleImpl(this.engine, locale);
+  ): I18nScopeMultiForLocaleImpl<Schema, Params, RequestLocales, Next, Fallback> {
+    return new I18nScopeMultiForLocaleImpl(this.engine, locale);
   }
 }

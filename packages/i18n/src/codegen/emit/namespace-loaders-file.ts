@@ -30,49 +30,6 @@ interface PartitionedNamespaceLoadersParams {
   partitionKeys: readonly string[];
   paramName: string;
   paramTypeName: string;
-  loadNamespacesFunctionName: string;
-}
-
-function formatI18nMultiInstanceType(options: NamespaceLoadersFileOptions): string {
-  const { schemaTypeName, paramsTypeName, localeTypeName } = options;
-
-  return `TranslationProviderMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
-}
-
-function formatI18nSingleInstanceType(options: NamespaceLoadersFileOptions): string {
-  const { schemaTypeName, paramsTypeName, localeTypeName } = options;
-
-  return `TranslationProviderSingle<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
-}
-
-function formatLoadNamespacesHelper(
-  options: NamespaceLoadersFileOptions,
-  { paramName, paramTypeName, loadNamespacesFunctionName }: PartitionedNamespaceLoadersParams
-): string {
-  const { lazyEntries, isSingle } = options;
-  const defaultNamespaces = formatDefaultNamespacesLiteral(lazyEntries);
-  const i18nInstanceType = isSingle
-    ? formatI18nSingleInstanceType(options)
-    : formatI18nMultiInstanceType(options);
-  const mergeCall = isSingle
-    ? `i18n.mergeAll(await namespaceLoaders[namespace](${paramName}))`
-    : `i18n.mergeNamespace(namespace, await namespaceLoaders[namespace](${paramName}))`;
-  const i18nTypeAlias = isSingle ? "I18nSingleInstance" : "I18nMultiInstance";
-
-  return (
-    `\ntype ${i18nTypeAlias} = ${i18nInstanceType};\n\n` +
-    `export async function ${loadNamespacesFunctionName}(\n` +
-    `  i18n: ${i18nTypeAlias},\n` +
-    `  ${paramName}: ${paramTypeName},\n` +
-    `  namespaces: readonly LazyNamespace[] = [${defaultNamespaces}] as const,\n` +
-    `): Promise<void> {\n` +
-    `  await Promise.all(\n` +
-    `    namespaces.map(async (namespace) => {\n` +
-    `      ${mergeCall};\n` +
-    `    }),\n` +
-    `  );\n` +
-    `}\n`
-  );
 }
 
 function formatDefaultNamespacesLiteral(lazyEntries: NamespaceEntry[]): string {
@@ -91,17 +48,11 @@ function formatPartitionedTypesImport(
     options;
 
   if (isSingle) {
-    return (
-      `import type { TranslationProviderSingle } from '@xndrjs/i18n';\n` +
-      `import type { ${schemaTypeName}, LazyNamespace, ${paramTypeName}, ${localeTypeName} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`
-    );
+    return `import type { ${schemaTypeName}, LazyNamespace, ${paramTypeName}, ${localeTypeName} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`;
   }
 
   const paramTypeImport = paramTypeName === localeTypeName ? "" : `, ${paramTypeName}`;
-  return (
-    `import type { TranslationProviderMulti } from '@xndrjs/i18n';\n` +
-    `import type { ${localeTypeName}, ${paramsTypeName}, ${schemaTypeName}, LazyNamespace${paramTypeImport} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`
-  );
+  return `import type { ${localeTypeName}, ${paramsTypeName}, ${schemaTypeName}, LazyNamespace${paramTypeImport} } from '${toRelativeModuleImport(typesModule, importExtension)}';\n\n`;
 }
 
 function formatSwitchDefaultCase(namespace: string, paramName: string): string {
@@ -169,7 +120,8 @@ function formatPartitionedNamespaceLoadersFile(
     `export const namespaceLoaders: {\n` +
     `  [K in LazyNamespace]: (${paramName}: ${paramTypeName}) => Promise<${loaderValueType}>;\n` +
     `} = {\n${loaderEntries}\n};\n` +
-    formatLoadNamespacesHelper(options, params)
+    `\n` +
+    `export const defaultLazyNamespaces = [${formatDefaultNamespacesLiteral(lazyEntries)}] as const;\n`
   );
 }
 
@@ -204,7 +156,6 @@ export function formatNamespaceLoadersFile(options: NamespaceLoadersFileOptions)
       partitionKeys: options.requestLocales ?? [],
       paramName: "locale",
       paramTypeName: options.localeTypeName,
-      loadNamespacesFunctionName: "ensureNamespacesLoadedForLocale",
     });
   }
   if (delivery === "custom") {
@@ -215,7 +166,6 @@ export function formatNamespaceLoadersFile(options: NamespaceLoadersFileOptions)
       partitionKeys: options.deliveryAreaNames ?? [],
       paramName: "area",
       paramTypeName: options.deliveryAreaTypeName,
-      loadNamespacesFunctionName: "ensureNamespacesLoadedForArea",
     });
   }
   return formatCanonicalNamespaceLoadersFile(options);

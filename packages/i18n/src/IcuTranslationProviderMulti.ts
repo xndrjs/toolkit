@@ -13,22 +13,9 @@ import type {
   PartialKeyDictionary,
   PartialMultiDictionary,
 } from "./types.js";
-import { I18nViewMultiForLocaleImpl, I18nViewMultiImpl } from "./view-multi.js";
-import type { I18nViewMulti, I18nViewMultiForLocale } from "./view-multi.js";
-import type { MultiParams, ParamsForNamespaces, SchemaForNamespaces } from "./view-types.js";
-/** @deprecated Use `I18nEngineMulti` instead. */
-export type TranslationProviderMulti<
-  Schema extends MultiDictionary,
-  Params extends MultiParams<Schema>,
-  RequestLocales extends string = LocaleOfMulti<Schema>,
-> = I18nEngineMulti<Schema, Params, RequestLocales>;
-
-/** @deprecated Use `I18nViewMultiForLocale` instead. */
-export type TranslationProviderMultiForLocale<
-  Schema extends MultiDictionary,
-  Params extends MultiParams<Schema>,
-  Locale extends string,
-> = import("./view-multi.js").I18nViewMultiForLocale<Schema, Params, LocaleOfMulti<Schema>, Locale>;
+import { I18nScopeMultiForLocaleImpl, I18nScopeMultiImpl } from "./scope-multi.js";
+import type { I18nScopeMulti, I18nScopeMultiForLocale } from "./scope-multi.js";
+import type { MultiParams, ParamsForNamespaces, SchemaForNamespaces } from "./scope-types.js";
 
 export class IcuTranslationProviderMulti<
   Schema extends MultiDictionary,
@@ -86,38 +73,38 @@ export class IcuTranslationProviderMulti<
     });
   }
 
-  toView<
+  toScope<
     NsList extends readonly (keyof Schema & string)[],
     Locale extends RequestLocales,
   >(options: {
     namespaces: NsList;
     locale: Locale;
-  }): I18nViewMultiForLocale<
+  }): I18nScopeMultiForLocale<
     SchemaForNamespaces<Schema, NsList>,
     ParamsForNamespaces<Schema, Params, NsList>,
     RequestLocales,
     Locale
   >;
-  toView<NsList extends readonly (keyof Schema & string)[]>(options: {
+  toScope<NsList extends readonly (keyof Schema & string)[]>(options: {
     namespaces: NsList;
-  }): I18nViewMulti<
+  }): I18nScopeMulti<
     SchemaForNamespaces<Schema, NsList>,
     ParamsForNamespaces<Schema, Params, NsList>,
     RequestLocales
   >;
-  toView<
+  toScope<
     NsList extends readonly (keyof Schema & string)[],
     Locale extends RequestLocales,
   >(options: { namespaces: NsList; locale?: Locale }) {
     if (options.locale !== undefined) {
-      return new I18nViewMultiForLocaleImpl(this, options.locale) as I18nViewMultiForLocale<
+      return new I18nScopeMultiForLocaleImpl(this, options.locale) as I18nScopeMultiForLocale<
         SchemaForNamespaces<Schema, NsList>,
         ParamsForNamespaces<Schema, Params, NsList>,
         RequestLocales,
         Locale
       >;
     }
-    return new I18nViewMultiImpl(this) as I18nViewMulti<
+    return new I18nScopeMultiImpl(this) as I18nScopeMulti<
       SchemaForNamespaces<Schema, NsList>,
       ParamsForNamespaces<Schema, Params, NsList>,
       RequestLocales

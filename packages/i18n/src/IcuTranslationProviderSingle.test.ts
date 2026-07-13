@@ -85,14 +85,14 @@ describe("IcuTranslationProviderSingle", () => {
 
   it("replaces the dictionary and invalidates cache on setAll", () => {
     const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(dictionary);
-    expect(local.toView().t("login_button", "en")).toBe("Login");
+    expect(local.toScope().t("login_button", "en")).toBe("Login");
 
     local.setAll({
       ...dictionary,
       login_button: { en: "Sign in", it: "Entra" },
     });
 
-    expect(local.toView().t("login_button", "en")).toBe("Sign in");
+    expect(local.toScope().t("login_button", "en")).toBe("Sign in");
   });
 
   it("merges locales per key with mergeAll without dropping existing locales", () => {
@@ -111,7 +111,7 @@ describe("IcuTranslationProviderSingle", () => {
       },
     });
 
-    const view = local.toView();
+    const view = local.toScope();
     expect(view.t("welcome", "en", { name: "Ada" })).toBe("Welcome Ada!");
     expect(view.t("welcome", "it", { name: "Ada" })).toBe("Benvenuto Ada!");
     expect(view.t("login_button", "en")).toBe("Login");
@@ -128,7 +128,7 @@ describe("IcuTranslationProviderSingle", () => {
     expect(() => {
       snapshot.welcome.en = "Hacked";
     }).toThrow(TypeError);
-    expect(engine.toView().t("welcome", "en", { name: "Ada" })).toBe("Welcome Ada!");
+    expect(engine.toScope().t("welcome", "en", { name: "Ada" })).toBe("Welcome Ada!");
   });
 
   it("does not reflect external dictionary mutations after construction", () => {
@@ -153,7 +153,7 @@ describe("IcuTranslationProviderSingle", () => {
     };
     const local = new IcuTranslationProviderSingle<TestSchema, TestParams>(external);
     external.login_button.en = "Sign in";
-    expect(local.toView().t("login_button", "en")).toBe("Login");
+    expect(local.toScope().t("login_button", "en")).toBe("Login");
   });
 
   describe("locale fallback", () => {

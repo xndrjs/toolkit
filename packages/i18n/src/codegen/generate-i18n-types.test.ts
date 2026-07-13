@@ -1103,7 +1103,8 @@ describe("generate-i18n-types", () => {
     expect(loaders).toContain(
       "[K in LazyNamespace]: (locale: AppLocale) => Promise<AppSchema[K]>;"
     );
-    expect(loaders).toContain("export async function ensureNamespacesLoadedForLocale(");
+    expect(loaders).not.toContain("ensureNamespacesLoadedForLocale");
+    expect(loaders).toContain("export const defaultLazyNamespaces");
     expect(loaders).toContain("default: (locale) => {");
     expect(loaders).toContain("billing: (locale) => {");
     expect(loaders).toContain('case "it":');
@@ -1210,7 +1211,8 @@ describe("generate-i18n-types", () => {
     );
 
     expect(existsSync(join(tempDir, "src/i18n/generated/dictionary.generated.ts"))).toBe(false);
-    expect(loaders).toContain("export async function ensureNamespacesLoadedForLocale(");
+    expect(loaders).not.toContain("ensureNamespacesLoadedForLocale");
+    expect(loaders).toContain("export const defaultLazyNamespaces");
     expect(loaders).toContain(
       "return import('../../../public/i18n/translations/default.en.json').then((m) => m.default);"
     );
@@ -1319,7 +1321,8 @@ describe("generate-i18n-types", () => {
       join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
       "utf8"
     );
-    expect(loaders).toContain("export async function ensureNamespacesLoadedForLocale(");
+    expect(loaders).not.toContain("ensureNamespacesLoadedForLocale");
+    expect(loaders).toContain("export const defaultLazyNamespaces");
   });
 
   it("emits defaultDictionaryFor in single mode with split-by-locale delivery", () => {
@@ -1545,7 +1548,8 @@ describe("generate-i18n-types", () => {
     expect(loaders).toContain(
       "[K in LazyNamespace]: (area: AppDeliveryArea) => Promise<AppSchema[K]>;"
     );
-    expect(loaders).toContain("export async function ensureNamespacesLoadedForArea(");
+    expect(loaders).not.toContain("ensureNamespacesLoadedForArea");
+    expect(loaders).toContain("export const defaultLazyNamespaces");
     expect(loaders).toContain("default: (area) => {");
     expect(loaders).toContain("billing: (area) => {");
     expect(loaders).toContain('case "eu":');
@@ -1672,7 +1676,8 @@ describe("generate-i18n-types", () => {
       join(tempDir, "src/i18n/generated/namespace-loaders.generated.ts"),
       "utf8"
     );
-    expect(loaders).toContain("export async function ensureNamespacesLoadedForArea(");
+    expect(loaders).not.toContain("ensureNamespacesLoadedForArea");
+    expect(loaders).toContain("export const defaultLazyNamespaces");
   });
 
   it("emits defaultDictionaryFor in single mode with custom delivery", () => {

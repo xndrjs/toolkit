@@ -1,9 +1,9 @@
 import type { IcuTranslationProviderSingle } from "./IcuTranslationProviderSingle.js";
 import type { KeyDictionary, LocaleFallbackMap, LocaleOfSingle } from "./types.js";
-import type { ParamArgs } from "./view-types.js";
+import type { ParamArgs } from "./scope-types.js";
 
-/** Read-only, type-safe translation view for a single-namespace schema. */
-export interface I18nViewSingle<
+/** Type-safe translation scope for a single-namespace schema. */
+export interface I18nScopeSingle<
   Schema extends KeyDictionary,
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string = LocaleOfSingle<Schema>,
@@ -15,26 +15,26 @@ export interface I18nViewSingle<
   ): string;
   forLocale<Locale extends RequestLocales>(
     locale: Locale
-  ): I18nViewSingleForLocale<Schema, Params, Locale>;
+  ): I18nScopeSingleForLocale<Schema, Params, Locale>;
 }
 
-/** Single-namespace view with a bound locale — `t(key)` without a locale argument. */
-export interface I18nViewSingleForLocale<
+/** Single-namespace scope with a bound locale — `t(key)` and `set(key)` without a locale argument. */
+export interface I18nScopeSingleForLocale<
   Schema extends KeyDictionary,
   Params extends { [K in keyof Schema]: unknown },
   Locale extends string,
 > {
   readonly locale: Locale;
   t<const K extends keyof Schema & string>(key: K, ...params: ParamArgs<Params[K]>): string;
-  forLocale<Next extends Locale>(locale: Next): I18nViewSingleForLocale<Schema, Params, Next>;
+  forLocale<Next extends Locale>(locale: Next): I18nScopeSingleForLocale<Schema, Params, Next>;
 }
 
-export class I18nViewSingleImpl<
+export class I18nScopeSingleImpl<
   Schema extends KeyDictionary,
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string,
   Fallback extends LocaleFallbackMap | undefined,
-> implements I18nViewSingle<Schema, Params, RequestLocales> {
+> implements I18nScopeSingle<Schema, Params, RequestLocales> {
   constructor(
     private readonly engine: IcuTranslationProviderSingle<Schema, Params, RequestLocales, Fallback>
   ) {}
@@ -50,12 +50,12 @@ export class I18nViewSingleImpl<
 
   forLocale<Locale extends RequestLocales>(
     locale: Locale
-  ): I18nViewSingleForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback> {
-    return new I18nViewSingleForLocaleImpl(this.engine, locale);
+  ): I18nScopeSingleForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback> {
+    return new I18nScopeSingleForLocaleImpl(this.engine, locale);
   }
 }
 
-export class I18nViewSingleForLocaleImpl<
+export class I18nScopeSingleForLocaleImpl<
   Schema extends KeyDictionary,
   Params extends { [K in keyof Schema]: unknown },
   RequestLocales extends string,
@@ -74,7 +74,7 @@ export class I18nViewSingleForLocaleImpl<
 
   forLocale<Next extends Locale>(
     locale: Next
-  ): I18nViewSingleForLocaleImpl<Schema, Params, RequestLocales, Next, Fallback> {
-    return new I18nViewSingleForLocaleImpl(this.engine, locale);
+  ): I18nScopeSingleForLocaleImpl<Schema, Params, RequestLocales, Next, Fallback> {
+    return new I18nScopeSingleForLocaleImpl(this.engine, locale);
   }
 }

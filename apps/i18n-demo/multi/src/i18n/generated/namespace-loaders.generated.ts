@@ -1,5 +1,4 @@
 // Automatically generated code. Do not edit manually.
-import type { TranslationProviderMulti } from "@xndrjs/i18n";
 import type {
   MyProjectLocale,
   MyProjectParams,
@@ -60,20 +59,4 @@ export const namespaceLoaders: {
   },
 };
 
-type I18nMultiInstance = TranslationProviderMulti<
-  MyProjectSchema,
-  MyProjectParams,
-  MyProjectLocale
->;
-
-export async function ensureNamespacesLoadedForLocale(
-  i18n: I18nMultiInstance,
-  locale: MyProjectLocale,
-  namespaces: readonly LazyNamespace[] = ["billing", "default", "user"] as const
-): Promise<void> {
-  await Promise.all(
-    namespaces.map(async (namespace) => {
-      i18n.mergeNamespace(namespace, await namespaceLoaders[namespace](locale));
-    })
-  );
-}
+export const defaultLazyNamespaces = ["billing", "default", "user"] as const;

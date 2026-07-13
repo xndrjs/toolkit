@@ -84,14 +84,14 @@ describe("IcuTranslationProviderMulti", () => {
       default: dictionary.default,
     });
 
-    expect(partial.toView({ namespaces: ["default"] }).t("default", "login_button", "en")).toBe(
+    expect(partial.toScope({ namespaces: ["default"] }).t("default", "login_button", "en")).toBe(
       "Login"
     );
   });
 
   it("patches a single namespace with setNamespace and invalidates its cache", () => {
     const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(dictionary);
-    const view = () => local.toView({ namespaces: ["default", "billing"] });
+    const view = () => local.toScope({ namespaces: ["default", "billing"] });
 
     expect(view().t("billing", "invoice_summary", "en", { count: 2, name: "Bob" })).toBe(
       "You have 2 invoices for Bob"
@@ -135,7 +135,7 @@ describe("IcuTranslationProviderMulti", () => {
         },
       },
     });
-    const view = () => local.toView({ namespaces: ["billing"] });
+    const view = () => local.toScope({ namespaces: ["billing"] });
 
     expect("billing" in local.getAll()).toBe(true);
     expect(view().t("billing", "invoice_summary", "en", { count: 1, name: "Ada" })).toBe(
@@ -164,7 +164,7 @@ describe("IcuTranslationProviderMulti", () => {
         },
       },
     });
-    const view = () => local.toView({ namespaces: ["billing"] });
+    const view = () => local.toScope({ namespaces: ["billing"] });
 
     local.mergeNamespace("billing", {
       invoice_summary: {
@@ -191,7 +191,7 @@ describe("IcuTranslationProviderMulti", () => {
       },
     });
 
-    expect(local.toView({ namespaces: ["default"] }).t("default", "login_button", "en")).toBe(
+    expect(local.toScope({ namespaces: ["default"] }).t("default", "login_button", "en")).toBe(
       "Sign in"
     );
   });
@@ -204,7 +204,7 @@ describe("IcuTranslationProviderMulti", () => {
         },
       },
     });
-    const view = () => local.toView({ namespaces: ["default", "billing"] });
+    const view = () => local.toScope({ namespaces: ["default", "billing"] });
 
     local.mergeAll({
       billing: {
@@ -235,7 +235,7 @@ describe("IcuTranslationProviderMulti", () => {
     expect(() => {
       snapshot.default.login_button.en = "Hacked";
     }).toThrow(TypeError);
-    expect(engine.toView({ namespaces: ["default"] }).t("default", "login_button", "en")).toBe(
+    expect(engine.toScope({ namespaces: ["default"] }).t("default", "login_button", "en")).toBe(
       "Login"
     );
   });

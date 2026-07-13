@@ -2,7 +2,7 @@ import { I18nBuilderMultiImpl, type I18nBuilderMultiOptions } from "./builder-mu
 import { I18nBuilderSingleImpl, type I18nBuilderSingleOptions } from "./single-builder.js";
 import type { I18nEngineMulti, I18nEngineSingle } from "./engine.js";
 import type { KeyDictionary, LocaleOfMulti, LocaleOfSingle, MultiDictionary } from "./types.js";
-import type { MultiParams } from "./view-types.js";
+import type { MultiParams } from "./scope-types.js";
 
 export type { CanonicalLoader, NamespaceLoader, PartitionedLoader } from "./builder-loaders.js";
 export { invokeNamespaceLoader } from "./builder-loaders.js";

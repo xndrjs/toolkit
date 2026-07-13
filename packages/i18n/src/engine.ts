@@ -9,9 +9,9 @@ import type {
   PartialKeyDictionary,
   PartialMultiDictionary,
 } from "./types.js";
-import type { I18nViewMulti, I18nViewMultiForLocale } from "./view-multi.js";
-import type { I18nViewSingle, I18nViewSingleForLocale } from "./view-single.js";
-import type { MultiParams, ParamsForNamespaces, SchemaForNamespaces } from "./view-types.js";
+import type { I18nScopeMulti, I18nScopeMultiForLocale } from "./scope-multi.js";
+import type { I18nScopeSingle, I18nScopeSingleForLocale } from "./scope-single.js";
+import type { MultiParams, ParamsForNamespaces, SchemaForNamespaces } from "./scope-types.js";
 
 /** Mutable translation engine for a single-namespace dictionary. */
 export interface I18nEngineSingle<
@@ -22,10 +22,10 @@ export interface I18nEngineSingle<
   getAll(): Schema;
   setAll(values: Schema): void;
   mergeAll(values: PartialKeyDictionary<Schema, RequestLocales>): void;
-  toView(): I18nViewSingle<Schema, Params, RequestLocales>;
-  toView<Locale extends RequestLocales>(options: {
+  toScope(): I18nScopeSingle<Schema, Params, RequestLocales>;
+  toScope<Locale extends RequestLocales>(options: {
     locale: Locale;
-  }): I18nViewSingleForLocale<Schema, Params, Locale>;
+  }): I18nScopeSingleForLocale<Schema, Params, Locale>;
 }
 
 /** Mutable translation engine for a multi-namespace dictionary. */
@@ -42,20 +42,20 @@ export interface I18nEngineMulti<
     namespace: NS,
     values: PartialKeyDictionary<Schema[NS], RequestLocales>
   ): void;
-  toView<NsList extends readonly (keyof Schema & string)[]>(options: {
+  toScope<NsList extends readonly (keyof Schema & string)[]>(options: {
     namespaces: NsList;
-  }): I18nViewMulti<
+  }): I18nScopeMulti<
     SchemaForNamespaces<Schema, NsList>,
     ParamsForNamespaces<Schema, Params, NsList>,
     RequestLocales
   >;
-  toView<
+  toScope<
     NsList extends readonly (keyof Schema & string)[],
     Locale extends RequestLocales,
   >(options: {
     namespaces: NsList;
     locale: Locale;
-  }): I18nViewMultiForLocale<
+  }): I18nScopeMultiForLocale<
     SchemaForNamespaces<Schema, NsList>,
     ParamsForNamespaces<Schema, Params, NsList>,
     RequestLocales,

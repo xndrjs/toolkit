@@ -10,6 +10,7 @@ export interface InstanceFileOptions {
   isSingle: boolean;
   hasLazy: boolean;
   typesOutputPath: string;
+  namespaceLoadersOutputPath?: string;
   paramsTypeName: string;
   schemaTypeName: string;
   localeTypeName: string;
@@ -27,6 +28,7 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     isSingle,
     hasLazy,
     typesOutputPath,
+    namespaceLoadersOutputPath,
     paramsTypeName,
     schemaTypeName,
     localeTypeName,
@@ -43,6 +45,13 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
   const providerClass = isSingle ? "IcuTranslationProviderSingle" : "IcuTranslationProviderMulti";
   const typesModule = toModuleBasename(typesOutputPath);
   const typesImport = toRelativeModuleImport(typesModule, importExtension);
+  const loadersModule = namespaceLoadersOutputPath
+    ? toModuleBasename(namespaceLoadersOutputPath)
+    : null;
+  const loadersImport =
+    loadersModule && namespaceLoadersOutputPath
+      ? toRelativeModuleImport(loadersModule, importExtension)
+      : null;
   const dictionaryParamType = hasLazy ? "InitialSchema" : schemaTypeName;
   const schemaTypesImport = hasLazy
     ? `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema } from '${typesImport}';\n`
@@ -76,19 +85,116 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
         emitDeliveryAreaHelpers
       );
 
+  const createFactoryBlock = formatCreateI18nFactory({
+    isSingle,
+    hasLazy,
+    hasLocaleFallback,
+    providerClass,
+    providerTypeArgs,
+    providerOptions,
+    factoryName,
+    dictionaryParamType,
+    schemaTypeName,
+    paramsTypeName,
+    localeTypeName,
+    namespaceNames,
+    loadersImport,
+  });
+
   return (
     `${GENERATED_FILE_BANNER}` +
-    `import { ${providerClass}, ${coreImports}, type OnMissingTranslation } from '@xndrjs/i18n';\n` +
+    `import {\n` +
+    `  ${providerClass},\n` +
+    `  ${coreImports},\n` +
+    `  createI18nBuilder,\n` +
+    `  type I18nBuilderMulti,\n` +
+    `  type I18nScopeMulti,\n` +
+    `  type I18nScopeSingle,\n` +
+    `  type OnMissingTranslation,\n` +
+    `} from '@xndrjs/i18n';\n` +
     schemaTypesImport +
     typesImportLine +
+    (hasLazy && loadersImport ? `import { namespaceLoaders } from '${loadersImport}';\n` : "") +
     `\n` +
+    createFactoryBlock +
+    projectionBlock
+  );
+}
+
+function formatCreateI18nFactory(options: {
+  isSingle: boolean;
+  hasLazy: boolean;
+  hasLocaleFallback: boolean;
+  providerClass: string;
+  providerTypeArgs: string;
+  providerOptions: string;
+  factoryName: string;
+  dictionaryParamType: string;
+  schemaTypeName: string;
+  paramsTypeName: string;
+  localeTypeName: string;
+  namespaceNames: string[];
+  loadersImport: string | null;
+}): string {
+  const {
+    isSingle,
+    hasLazy,
+    providerClass,
+    providerTypeArgs,
+    providerOptions,
+    factoryName,
+    dictionaryParamType,
+    schemaTypeName,
+    paramsTypeName,
+    localeTypeName,
+    namespaceNames,
+    loadersImport,
+  } = options;
+
+  if (isSingle) {
+    return (
+      `export function ${factoryName}(\n` +
+      `  dictionary: ${dictionaryParamType},\n` +
+      `  options?: { onMissing?: OnMissingTranslation },\n` +
+      `): I18nScopeSingle<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}> {\n` +
+      `  return new ${providerClass}<${providerTypeArgs}>(dictionary${providerOptions}).toScope();\n` +
+      `}\n`
+    );
+  }
+
+  if (!hasLazy) {
+    const namespacesLiteral = `[${namespaceNames
+      .slice()
+      .sort()
+      .map((ns) => JSON.stringify(ns))
+      .join(", ")}] as const`;
+    return (
+      `export function ${factoryName}(\n` +
+      `  dictionary: ${dictionaryParamType},\n` +
+      `  options?: { onMissing?: OnMissingTranslation },\n` +
+      `): I18nScopeMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}> {\n` +
+      `  const engine = new ${providerClass}<${providerTypeArgs}>(dictionary${providerOptions});\n` +
+      `  return engine.toScope({ namespaces: ${namespacesLiteral} });\n` +
+      `}\n`
+    );
+  }
+
+  if (!loadersImport) {
+    throw new Error("[Codegen Error] namespaceLoadersOutputPath is required when hasLazy is true.");
+  }
+
+  return (
     `export function ${factoryName}(\n` +
     `  dictionary: ${dictionaryParamType},\n` +
     `  options?: { onMissing?: OnMissingTranslation },\n` +
-    `) {\n` +
-    `  return new ${providerClass}<${providerTypeArgs}>(dictionary${providerOptions});\n` +
-    `}\n` +
-    projectionBlock
+    `): I18nBuilderMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}> {\n` +
+    `  const engine = new ${providerClass}<${providerTypeArgs}>(dictionary${providerOptions});\n` +
+    `  return createI18nBuilder(engine, {\n` +
+    `    // The runtime builder expects a partition key typed as string.\n` +
+    `    // Generated loaders are more specific (union of locales/areas), so we widen here.\n` +
+    `    namespaceLoaders: namespaceLoaders as unknown as Record<string, (partition: string) => Promise<unknown>>,\n` +
+    `  });\n` +
+    `}\n`
   );
 }
 

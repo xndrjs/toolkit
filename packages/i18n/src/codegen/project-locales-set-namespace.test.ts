@@ -123,12 +123,16 @@ describe("codegen projectDictionaryLocales + setNamespace", () => {
       writeFileSync(
         join(tempDir, "src/hydrate-billing.ts"),
         [
-          `import { createI18n, projectNamespaceLocales } from "./i18n/instance.generated.js";`,
+          `import { IcuTranslationProviderMulti } from "@xndrjs/i18n";`,
+          `import { projectNamespaceLocales } from "./i18n/instance.generated.js";`,
+          `import { LOCALE_FALLBACK } from "./i18n/i18n-types.generated.js";`,
           `import { defaultDictionary } from "./i18n/dictionary.generated.js";`,
           `import billingDictionary from "./i18n/translations/billing.json";`,
           ``,
-          `const i18n = createI18n(defaultDictionary);`,
-          `i18n.setNamespace("billing", projectNamespaceLocales(billingDictionary, ["en"]));`,
+          `const engine = new IcuTranslationProviderMulti(defaultDictionary, {`,
+          `  localeFallback: LOCALE_FALLBACK,`,
+          `});`,
+          `engine.setNamespace("billing", projectNamespaceLocales(billingDictionary, ["en"]));`,
         ].join("\n")
       );
 
@@ -145,7 +149,9 @@ describe("codegen projectDictionaryLocales + setNamespace", () => {
       writeFileSync(
         join(tempDir, "src/hydrate-all.ts"),
         [
-          `import { createI18n, projectDictionaryLocales } from "./i18n/instance.generated.js";`,
+          `import { IcuTranslationProviderMulti } from "@xndrjs/i18n";`,
+          `import { projectDictionaryLocales } from "./i18n/instance.generated.js";`,
+          `import { LOCALE_FALLBACK } from "./i18n/i18n-types.generated.js";`,
           `import { defaultDictionary } from "./i18n/dictionary.generated.js";`,
           `import type { AppSchema } from "./i18n/i18n-types.generated.js";`,
           `import billingDictionary from "./i18n/translations/billing.json";`,
@@ -156,8 +162,10 @@ describe("codegen projectDictionaryLocales + setNamespace", () => {
           `  billing: billingDictionary,`,
           `} satisfies AppSchema;`,
           ``,
-          `const i18n = createI18n(defaultDictionary);`,
-          `i18n.setAll(projectDictionaryLocales(fullDictionary, ["en"]));`,
+          `const engine = new IcuTranslationProviderMulti(defaultDictionary, {`,
+          `  localeFallback: LOCALE_FALLBACK,`,
+          `});`,
+          `engine.setAll(projectDictionaryLocales(fullDictionary, ["en"]));`,
         ].join("\n")
       );
 

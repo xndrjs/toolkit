@@ -1,26 +1,62 @@
-# Analisi: API fluent e type-safety su `get`
+# Analisi: API fluent e type-safety su `t`
 
 **Data:** 2026-07-13  
 **Scope:** `@xndrjs/i18n` (runtime + codegen)  
-**Stato:** bozza per discussione — nessuna implementazione ancora pianificata in dettaglio
+**Stato:** analisi in corso — decisioni architetturali in §1.1; spec rigorosa in [`spec-engine-scope-builder.md`](./spec-engine-scope-builder.md)  
+**Nota:** parte del runtime (builder, scope, codegen) è già stata implementata in parallelo a questo documento. **Non estendere il codice finché l’analisi non è allineata.**
 
 ---
 
 ## 1. Sintesi
 
-L'API attuale espone `.get()` su un provider il cui schema TypeScript rappresenta **l'intero contratto del progetto** (tutte le chiavi, tutti i namespace, tutte le locale), indipendentemente da cosa è effettivamente caricato a runtime.
+L'API attuale (pre-refactor) esponeva `.get()` su un provider il cui schema TypeScript rappresenta **l'intero contratto del progetto** (tutte le chiavi, tutti i namespace, tutte le locale), indipendentemente da cosa è effettivamente caricato a runtime.
 
 Questo crea un divario sistematico tra **type safety compile-time** e **garanzie runtime**: TypeScript suggerisce chiavi e locale sempre disponibili, ma in molte configurazioni di delivery la traduzione può fallire (namespace non caricato) o risolversi con `onMissing` (chiave/locale assente nel dizionario parziale).
 
-La proposta è di:
+La proposta — e la direzione confermata — è:
 
-1. **Rimuovere o radicalmente ridurre** `.get()` sul provider “grezzo”.
-2. Far restituire a `createI18n` un **builder fluent** che produce **view type-safe** solo quando risorsa e namespace sono noti.
-3. **Eliminare `hasNamespace` e il `Set` interno `loadedNamespaces`** — ridondanti con le chiavi del dizionario; sostituiti dal builder.
-4. Nella demo, eliminare `createI18nForArea` / `createI18nForLocale` a favore del builder.
-5. **Valutare validazione esterna per-chiave** — oggi all-or-nothing; serve per merge parziali (§13).
+1. **Rimuovere `.t()`** dal provider “grezzo”; tradurre solo su **scope** type-safe.
+2. Far restituire a `createI18n` un **builder fluent** (lazy) o uno **scope** pronto (eager) quando risorsa e namespace sono noti.
+3. **Eliminare `hasNamespace` e `loadedNamespaces`** — ridondanti con le chiavi del dizionario.
+4. **Unificare read + write** sullo stesso oggetto: lo **scope locale-bound** restituito da `load()` espone `t(...)` e `set(...)` (locale implicita).
+5. **Eliminare** dalle API pubbliche: `setAll`, `setNamespace`, `mergeAll`, `mergeNamespace`, `withNamespaceData`, `withDictionaryData`.
+6. Nella demo, eliminare `createI18nForArea` / `createI18nForLocale` a favore del builder.
+7. **Valutare validazione esterna per-chiave** — oggi all-or-nothing; serve per patch runtime validate (§13).
 
 Obiettivo: allineare il contratto TypeScript alle garanzie runtime — _se compila, la risorsa/chiave è pronta_.
+
+### 1.1 Decisioni prese (2026-07-13)
+
+| Tema                       | Decisione                                 | Rationale                                                                                                                                                                         |
+| -------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Naming**                 | **`Scope`**, non `View`                   | `I18nScopeSingle`, `I18nScopeMulti`, `I18nScope*ForLocale`. “View” implica read-only; lo scope è l’interfaccia operativa read+write nel contesto (namespace + locale).            |
+| **Proiezione engine**      | `toScope()`                               | Proietta un’interfaccia tipizzata dall’engine interno. L’engine non è la superficie pubblica dell’app.                                                                            |
+| **Traduzione**             | **`t(...)`**, non `get`                   | Coerenza ecosistema React/i18n; `get` resta solo nel passato.                                                                                                                     |
+| **Binding partition**      | **`withLocale` / `withDeliveryArea`**     | Nomi codegen-specifici, non `withResource` generico.                                                                                                                              |
+| **Locale per `load()`**    | **Una partition per load**                | `withLocale("it").load()` — non `withLocales([...])`. Split-by-locale = un chunk per partition; scope locale-bound ergonomico; accumulo via load successive sullo stesso builder. |
+| **Read vs write**          | **Unificati sullo scope**                 | `enScope.set("billing", "invoice_summary", "...")` — locale implicita da `withLocale("en").load()`. Niente `engine.forLocale().set()` separato.                                   |
+| **Dove patchare**          | **Scope locale-bound**, non builder       | Il builder è config immutabile (`withX` clona state). `load()` materializza il contesto traducibile.                                                                              |
+| **Replace / merge grezzo** | **Eliminati** (non deprecati)             | `setAll`, `setNamespace`, `mergeAll`, `mergeNamespace` rompono le garanzie monotoniche o permettono locale non precaricate.                                                       |
+| **Hydration builder**      | **`withNamespaceData` eliminato**         | Equivalente a merge pubblico; sostituito da `load()` + `scope.set()`.                                                                                                             |
+| **Preload gate**           | **`set()` solo post-`load()`**            | Patch ammessa solo se `(namespace?, key, locale)` è stata precaricata via builder+loader.                                                                                         |
+| **Builder immutabile**     | **`withX` clona state, engine condiviso** | Ogni `load()` merge deep nell’engine condiviso; scope diversi vedono lo stesso store.                                                                                             |
+
+**Esempio canonico (multi, split-by-locale):**
+
+```ts
+const builder = createI18n({}).withNamespaces(["billing"] as const);
+const enScope = await builder.withLocale("en").load();
+
+enScope.t("billing", "invoice_summary", { count: 2 });
+enScope.set("billing", "invoice_summary", "You have {count} invoices");
+```
+
+**Delivery area:** `load()` senza `withLocale` restituisce scope unbound → `.forLocale("it")` prima di `set()`.
+
+```ts
+const euScope = await builder.withDeliveryArea("eu").load();
+euScope.forLocale("it").set("billing", "invoice_summary", "…");
+```
 
 ---
 
@@ -28,17 +64,17 @@ Obiettivo: allineare il contratto TypeScript alle garanzie runtime — _se compi
 
 ### 2.1 Superficie API rilevante
 
-| Elemento                                    | Dove                              | Ruolo                                                           |
-| ------------------------------------------- | --------------------------------- | --------------------------------------------------------------- |
-| `createI18n(dictionary, options?)`          | `instance.generated.ts` (codegen) | Factory → `IcuTranslationProviderSingle` o `Multi`              |
-| `.get(key, locale, params?)`                | Single                            | Traduzione type-safe su **tutto** `Schema`                      |
-| `.get(ns, key, locale, params?)`            | Multi                             | Idem su **tutti** i namespace di `Schema`                       |
-| `.forLocale(locale)`                        | Entrambi                          | View con locale fissato; **nessun restringimento** sulle chiavi |
-| `hasNamespace` / `loadedNamespaces`         | Multi                             | Tracking namespace caricato — **da eliminare** (vedi §2.5)      |
-| `setNamespace` / `mergeNamespace`           | Multi                             | Gestione namespace lazy (restano sull'engine, non sulla view)   |
-| `ensureNamespacesLoadedForLocale`           | Codegen (split-by-locale)         | Carica artifact per locale, merge sull'istanza                  |
-| `ensureNamespacesLoadedForArea`             | Codegen (custom delivery)         | Idem per delivery area                                          |
-| `createI18nForLocale` / `createI18nForArea` | Demo (`multi`, `areas`)           | `createI18n({})` + ensure + return                              |
+| Elemento                                    | Dove                              | Ruolo                                                            |
+| ------------------------------------------- | --------------------------------- | ---------------------------------------------------------------- |
+| `createI18n(dictionary, options?)`          | `instance.generated.ts` (codegen) | Factory → `IcuTranslationProviderSingle` o `Multi`               |
+| `.get(key, locale, params?)`                | Single                            | Traduzione type-safe su **tutto** `Schema`                       |
+| `.get(ns, key, locale, params?)`            | Multi                             | Idem su **tutti** i namespace di `Schema`                        |
+| `.forLocale(locale)`                        | Entrambi                          | Scope con locale fissato; **nessun restringimento** sulle chiavi |
+| `hasNamespace` / `loadedNamespaces`         | Multi                             | Tracking namespace caricato — **da eliminare** (vedi §2.5)       |
+| `setNamespace` / `mergeNamespace`           | Multi                             | **Target: rimossi** — sostituiti da `load()` + `scope.set()`     |
+| `ensureNamespacesLoadedForLocale`           | Codegen (split-by-locale)         | Carica artifact per locale, merge sull'istanza                   |
+| `ensureNamespacesLoadedForArea`             | Codegen (custom delivery)         | Idem per delivery area                                           |
+| `createI18nForLocale` / `createI18nForArea` | Demo (`multi`, `areas`)           | `createI18n({})` + ensure + return                               |
 
 ### 2.2 Garanzie runtime per modalità di delivery
 
@@ -75,7 +111,7 @@ TypeScript non distingue:
 
 ### 2.4 Perché `forLocale` non risolve
 
-`forLocale("it")` rimuove solo l'argomento `locale` da `.get()`, ma:
+`forLocale("it")` rimuove solo l'argomento `locale` da `.t()`, ma:
 
 - non carica artifact;
 - non restringe `keyof Schema` o `keyof Schema[NS]`;
@@ -91,12 +127,12 @@ Il `Set` **duplica** le chiavi già presenti in `dictionary`: ogni path che aggi
 
 Non risponde a domande che contano davvero per la traduzione:
 
-| Domanda                                             | `hasNamespace`                   | Builder + view                                      |
+| Domanda                                             | `hasNamespace`                   | Builder + scope                                     |
 | --------------------------------------------------- | -------------------------------- | --------------------------------------------------- |
 | Il namespace `billing` è caricato?                  | Sì/No                            | Implicito dopo `withNamespaces(["billing"]).load()` |
 | È caricato **per la locale `it`**?                  | Non lo sa                        | `withLocale("it")` fa parte del contratto           |
 | È caricato **per l'area `eu`**?                     | Non lo sa                        | `withDeliveryArea("eu")` fa parte del contratto     |
-| Posso chiamare `.get("billing", …)` in type safety? | No — `get` resta su schema pieno | Sì — solo sulla view prodotta                       |
+| Posso chiamare `.get("billing", …)` in type safety? | No — `get` resta su schema pieno | Sì — solo sullo scope prodotto                      |
 
 **Esempio del difetto attuale:**
 
@@ -128,9 +164,9 @@ const t = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load
 - **Rimuovere `hasNamespace`** dalla superficie pubblica.
 - **Rimuovere `loadedNamespaces`** dall'engine — unica fonte di verità: le chiavi di `dictionary`.
 - **`mergeNamespace`:** il branch primo-caricamento vs merge usa `!(namespace in dictionary)` al posto del `Set`.
-- **`getWithLocale` (interno):** nessun guard su namespace “caricato”; le view garantiscono il contesto. Un namespace assente nel dizionario degrada su `onMissing` come oggi per chiavi mancanti.
+- **`getWithLocale` (interno):** nessun guard su namespace “caricato”; gli scope garantiscono il contesto. Un namespace assente nel dizionario degrada su `onMissing` come oggi per chiavi mancanti.
 
-Il principio unificato diventa: **nessun controllo runtime manuale sulla disponibilità** — né `hasNamespace`, né `if` prima di `get`, né tracking parallelo al dizionario. Il builder è l'unico modo dichiarativo per ottenere una view traducibile; se la catena `with…` compila e `load()` completa, la risorsa c'è.
+Il principio unificato diventa: **nessun controllo runtime manuale sulla disponibilità** — né `hasNamespace`, né `if` prima di `get`, né tracking parallelo al dizionario. Il builder è l'unico modo dichiarativo per ottenere uno scope traducibile; se la catena `with…` compila e `load()` completa, la risorsa c'è.
 
 ---
 
@@ -138,69 +174,77 @@ Il principio unificato diventa: **nessun controllo runtime manuale sulla disponi
 
 ### 3.1 Principi
 
-1. **Il provider grezzo non espone traduzioni.** Nessun `.get()` (o equivalente) finché non si dichiara esplicitamente contesto (namespace, locale/area).
-2. **`createI18n` restituisce un builder** la cui catena descrive cosa è (o sarà) disponibile.
-3. **Le view finali** espongono una funzione di traduzione (`get` o `t`) il cui schema TypeScript è un **sottoinsieme** del contratto globale, derivato dai generics accumulati nel builder.
-4. **Nessun tracking namespace sull'engine** — né `hasNamespace`, né `loadedNamespaces`; la disponibilità è garantita dal tipo della view e dalle chiavi del dizionario.
+1. **Il provider grezzo non espone traduzioni.** Nessun `.get()` / `.t()` sul tipo pubblico del motore finché non si ottiene uno scope via builder o `toScope()`.
+2. **`createI18n` restituisce un builder** (lazy) o uno **scope** (eager) la cui catena descrive cosa è disponibile.
+3. **Gli scope finali** espongono `t(...)` e, se locale-bound, anche `set(...)` — schema TypeScript ristretto ai generics accumulati nel builder.
+4. **Nessun tracking namespace sull'engine** — né `hasNamespace`, né `loadedNamespaces`; la disponibilità è garantita dal tipo dello scope e dalle chiavi del dizionario.
 5. **Codegen adatta la superficie** al `delivery` mode e a `I18N_MODE` (single/multi).
 
-### 3.2 Esempi target (dalla proposta)
+### 3.2 Esempi target (API confermata)
 
 #### Canonical, single
 
 ```ts
-const i18n = createI18n(defaultDictionary);
-// View completa: tutte le chiavi, tutte le locale del dizionario iniziale.
-const t = i18n.ready(); // o il builder è già “ready” senza passi aggiuntivi
-t.get("welcome", "en", { name: "Ada" });
+const scope = createI18n(defaultDictionary);
+// Scope completo: tutte le chiavi, tutte le locale del dizionario iniziale.
+scope.t("welcome", "en", { name: "Ada" });
 ```
 
 #### Canonical, multi, lazy namespaces
 
 ```ts
-const i18n = createI18n(initialDictionary); // solo namespace eager
-const t = await i18n.withNamespaces(["billing", "errors"]).load();
-// t.get: solo chiavi di billing + errors, tutte le locale del progetto
-t.get("billing", "invoice_summary", "en", { count: 3 });
+const builder = createI18n(initialDictionary); // solo namespace eager
+const scope = await builder.withNamespaces(["billing", "errors"]).load();
+scope.t("billing", "invoice_summary", "en", { count: 3 });
 ```
 
 #### Split-by-locale, single
 
 ```ts
-const i18n = createI18n({}); // nessuna chiave, nessuna locale nel tipo
-const t = await i18n.withResource("it").load();
-t.get("welcome", { name: "Ada" }); // locale "it" già bound
+const builder = createI18n({});
+const scope = await builder.withLocale("it").load();
+scope.t("welcome", { name: "Ada" }); // locale "it" bound
 ```
 
 #### Split-by-locale / custom, multi
 
 ```ts
-const i18n = createI18n({});
-const t = await i18n
-  .withNamespaces(["billing"])
-  .withResource("it") // oppure .withResource("billing", "it")
-  .load();
-t.get("billing", "invoice_summary", { count: 3 });
+const builder = createI18n({});
+const scope = await builder.withNamespaces(["billing"]).withLocale("it").load();
+scope.t("billing", "invoice_summary", { count: 3 });
 ```
 
 #### Custom delivery (areas)
 
 ```ts
-const i18n = createI18n({});
-const t = await i18n.withNamespaces(["default"]).withResource("eu").load();
+const builder = createI18n({});
+const scope = await builder.withNamespaces(["default"]).withDeliveryArea("eu").load();
+scope.t("default", "login_button", "it"); // locale esplicita su scope unbound
 ```
 
-### 3.3 Naming — opzioni da decidere
+#### Patch runtime (post-preload)
 
-| Concetto            | Opzione A                       | Opzione B                                                    | Note                                                            |
-| ------------------- | ------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
-| Caricamento async   | `.load()` terminale             | builder `async` (thenable)                                   | `.load()` è più esplicito                                       |
-| Binding locale/area | `withResource("it")`            | `withLocale("it")` / `withDeliveryArea("eu")`                | Nome unico vs nomi codegen-specifici                            |
-| Multi ns + resource | `withResource("billing", "it")` | `withResource("billing.it")`                                 | Due argomenti è più type-safe                                   |
-| Funzione traduzione | `.get(...)` sulle view          | `.t(...)`                                                    | Coerenza con ecosistema React; `get` resta sulle view ristrette |
-| Stato “già pronto”  | `i18n.ready()` / identity       | `createI18n` ritorna direttamente la view se canonical eager | Meno builder quando non serve                                   |
+```ts
+const builder = createI18n({}).withNamespaces(["billing"] as const);
+const enScope = await builder.withLocale("en").load();
+enScope.set("billing", "invoice_summary", "You have {count} invoices");
+```
 
-**Raccomandazione preliminare:** `withLocale` / `withDeliveryArea` emessi dal codegen in base a `delivery`, più `withNamespaces` per multi. Evitare stringhe composite `"billing.it"` — due parametri tipizzati separano meglio i concern.
+### 3.3 Naming — decisioni prese
+
+| Concetto               | Decisione                              | Note                                                  |
+| ---------------------- | -------------------------------------- | ----------------------------------------------------- |
+| Oggetto operativo      | **`Scope`** (`I18nScope*`)             | Non `View` — read+write nel contesto bound            |
+| Proiezione engine      | **`toScope()`**                        | Engine = store interno                                |
+| Caricamento async      | **`.load()` terminale**                | Esplicito, restituisce scope                          |
+| Binding locale/area    | **`withLocale` / `withDeliveryArea`**  | Emessi dal codegen per delivery mode                  |
+| Locale per load        | **Una partition per `load()`**         | No `withLocales([...])`; accumulo via load successive |
+| Traduzione             | **`.t(...)`**                          | `get` eliminato                                       |
+| Patch runtime          | **`.set(...)` su scope locale-bound**  | Non su builder; non su engine editor separato         |
+| Eager canonical        | **`createI18n(dict)` → scope diretto** | Builder solo se lazy / split / custom                 |
+| Hydration dati esterni | **`load()` + `scope.set()`**           | No `withNamespaceData`; no `mergeNamespace` pubblico  |
+
+Riferimento rigoroso: [`spec-engine-scope-builder.md`](./spec-engine-scope-builder.md).
 
 ---
 
@@ -221,9 +265,9 @@ type I18nBuilder<
 };
 ```
 
-La **view traducibile** è prodotta solo quando:
+Lo **scope traducibile** è prodotto solo quando:
 
-| Mode                | Condizione minima per `get` type-safe                       |
+| Mode                | Condizione minima per `t` type-safe                         |
 | ------------------- | ----------------------------------------------------------- |
 | Single canonical    | `Schema` completo passato a `createI18n`                    |
 | Multi canonical     | `LoadedNamespaces` ⊇ namespace richiesto da ogni call       |
@@ -247,35 +291,37 @@ type ParamsForNamespaces<
 
 Per split-by-locale, le chiavi restano tutte quelle del namespace (il contratto ICU è per chiave, non per locale), ma:
 
-- il **tipo della view** può esporre `forLocale` già bound;
+- il **tipo dello scope** può esporre `forLocale` già bound;
 - opzionalmente si può introdurre `SchemaKeyForLocale` se in futuro si vogliono chiavi presenti solo in alcune locale (oggi il codegen non modella chiavi opzionali per locale).
 
 ### 4.3 `createI18n({})` in split/custom
 
 Oggi `InitialSchema = Pick<Schema, never> = {}` — corretto per il dizionario iniziale.
 
-Con la proposta, il tipo di ritorno di `createI18n({})` non deve implementare `TranslationProvider*` con `.get()` su schema pieno. Propone invece:
+Con la proposta, il tipo di ritorno di `createI18n({})` non espone traduzioni su schema pieno. Restituisce un builder:
 
 ```ts
-type EmptyI18nBuilder = I18nBuilder<..., never, never, never>;
-// Nessun metodo .get(); solo .withResource() / .withNamespaces()
+type EmptyI18nBuilder = I18nBuilderMulti<..., readonly []>;
+// Nessun .t(); solo .withNamespaces() / .withLocale() / .withDeliveryArea() → .load()
 ```
 
-Questo è il cambiamento più importante: **separare il tipo “motore” (mutabile, merge, cache) dal tipo “view” (solo lettura traduzioni)**.
+Questo è il cambiamento centrale: **engine (store interno) vs scope (interfaccia pubblica read+write)**.
 
-### 4.4 View immutabili vs istanza mutabile
+### 4.4 Scope, engine e singleton — decisione
 
-Due approcci:
+**Decisione:** approccio **B** — ogni `.load()` restituisce uno scope; l’engine sottostante è mutabile e condiviso tra tutti i clone del builder.
 
-| Approccio                                          | Pro                                                                      | Contro                                                                  |
-| -------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| **A. View wrapper** (come `ForLocale` oggi)        | Provider interno invariato; `mergeNamespace` resta sull'istanza “engine” | Due riferimenti (engine + view); rischio di usare view stale dopo merge |
-| **B. Builder produce nuova view a ogni `.load()`** | View sempre coerente col caricamento                                     | Singleton condiviso più complesso da modellare                          |
+| Aspetto         | Comportamento                                                                                                  |
+| --------------- | -------------------------------------------------------------------------------------------------------------- |
+| Builder `withX` | Immutabile — clona config, stesso engine                                                                       |
+| `load()`        | Side effect — merge deep artifact nell’engine, ritorna scope                                                   |
+| Scope           | Wrapper sottile — `t()` + `set()` (se locale-bound) delegano all’engine                                        |
+| Singleton demo  | `export const builder = createI18n({})` — riusato; ogni route fa `.withNamespaces(...).withLocale(...).load()` |
+| Patch runtime   | **`scope.set(...)`** sullo scope locale-bound — no engine esposto, no builder.set                              |
 
-Per il pattern **singleton condiviso** della demo `multi` (`export const i18n = createI18n({})`), serve decidere se:
+**Non serve** tenere un riferimento engine a module scope: il builder creato da `createI18n({})` wrappa già l’engine condiviso.
 
-- il builder è monouso (`load()` → view, engine non esposto);
-- oppure `i18n.withNamespaces(...).load()` aggiorna l'engine e restituisce una nuova view (invalidazione esplicita).
+**Scope “stale”:** gli scope non sono snapshot del dizionario, ma delegano all’engine al momento della chiamata. Un patch via `enScope.set(...)` è visibile da altri scope sullo stesso engine. Documentare che il narrowing TypeScript descrive il contesto al momento del `load()`, non una immutabilità dei dati.
 
 ---
 
@@ -283,7 +329,7 @@ Per il pattern **singleton condiviso** della demo `multi` (`export const i18n = 
 
 ### 5.1 Matrice comportamento proposto
 
-| Config                 | `createI18n(...)`               | Passi builder                                      | View finale                                |
+| Config                 | `createI18n(...)`               | Passi builder                                      | Scope finale                               |
 | ---------------------- | ------------------------------- | -------------------------------------------------- | ------------------------------------------ |
 | Single canonical       | `createI18n(defaultDictionary)` | nessuno (o `.ready()`)                             | Tutte le chiavi × tutte le locale          |
 | Multi canonical eager  | `createI18n(defaultDictionary)` | nessuno                                            | Tutti i ns eager × tutte le locale         |
@@ -295,11 +341,11 @@ Per il pattern **singleton condiviso** della demo `multi` (`export const i18n = 
 
 ### 5.2 Cosa succede a `ensureNamespacesLoadedForLocale` / `ForArea`
 
-| Opzione                     | Descrizione                                                                                                                          |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| **Deprecare**               | Il builder chiama internamente gli stessi loader; gli `ensure*` diventano helper interni o vengono rimossi dalla superficie pubblica |
-| **Mantenere per hydration** | `engine.mergeNamespace` + validazione esterna restano per patch runtime; le view si ricreano dopo patch                              |
-| **Ibrido**                  | `engine.load({ locale, namespaces })` imperativo per singleton; builder per istanze fresh                                            |
+| Opzione           | Decisione                                                         |
+| ----------------- | ----------------------------------------------------------------- |
+| **`ensure*`**     | **Rimossi** dal codegen — loader integrati nel builder            |
+| **Patch runtime** | **`scope.set(...)`** post-`load()` — no `mergeNamespace` pubblico |
+| **Singleton**     | Builder condiviso + `load()` per route/request                    |
 
 Nella demo, `createI18nForLocale` / `createI18nForArea` sono sostituibili da:
 
@@ -308,7 +354,7 @@ Nella demo, `createI18nForLocale` / `createI18nForArea` sono sostituibili da:
 const i18n = await createI18nForLocale("it", ["billing"]);
 
 // Dopo
-const t = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
+const scope = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
 ```
 
 ### 5.3 Canonical lazy — `withNamespaces` sync vs async
@@ -316,9 +362,9 @@ const t = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load
 Se `withNamespaces` è solo narrowing type-safe **senza** caricamento:
 
 ```ts
-const i18n = createI18n(partial);
-const t = i18n.withNamespaces(["billing"]); // compile-time OK
-t.get("billing", "key", "en"); // runtime throw se non caricato
+const builder = createI18n(partial);
+const scope = await builder.withNamespaces(["billing"]).load();
+scope.t("billing", "key", "en"); // OK dopo load
 ```
 
 …si ripresenta il problema. Quindi **`withNamespaces` deve implicare caricamento (async)** oppure verificare a compile-time che il namespace sia in `LoadOnInitNamespace`.
@@ -333,25 +379,22 @@ t.get("billing", "key", "en"); // runtime throw se non caricato
 
 ## 6. Implicazioni runtime
 
-### 6.1 Cosa resta nel provider
+### 6.1 Cosa resta nell'engine (interno)
 
-Il motore (`IcuTranslationProviderSingle` / `Multi`) può restare quasi invariato:
+- dizionario, cache ICU, `localeFallback`, `onMissing`, preload metadata;
+- `getWithLocale` interno;
+- merge interno invocato solo da `load()` e da `set()` — **non** esposto come `mergeNamespace` / `mergeAll` pubblici.
 
-- dizionario, cache ICU, `mergeNamespace`, `localeFallback`, `onMissing`;
-- `getWithLocale` interno (non esposto nel tipo pubblico “grezzo”);
-- **semplificazione multi:** rimozione di `loadedNamespaces` e del guard associato in `getWithLocale`.
+### 6.2 Superficie pubblica target
 
-Il lavoro principale è su **interfacce pubbliche** e **codegen**, non sulla logica di formatting.
-
-### 6.2 Cosa cambia nel provider
-
-| Cambiamento                                                 | Necessità                                                     |
-| ----------------------------------------------------------- | ------------------------------------------------------------- |
-| Rimuovere `get` da `TranslationProviderMulti/Single`        | Sì, breaking                                                  |
-| Rimuovere `hasNamespace`                                    | Sì, breaking — sostituito dal builder                         |
-| Rimuovere `loadedNamespaces` (`Set` interno)                | Sì — ridondante con `dictionary`; semplifica `mergeNamespace` |
-| Nuove classi `I18nBuilder`, `I18nView`, `I18nViewForLocale` | Sì                                                            |
-| `forLocale` sul provider grezzo                             | Probabilmente si sposta sulle view                            |
+| Elemento                                               | Stato target                                                   |
+| ------------------------------------------------------ | -------------------------------------------------------------- |
+| `I18nScope*` / `I18nScope*ForLocale`                   | Interfaccia app — `t()`, `set()` (locale-bound), `forLocale()` |
+| `I18nBuilder*`                                         | Config immutabile → `load()` → scope                           |
+| `toScope()`                                            | Solo per wiring avanzato / test — non pattern app              |
+| `get` / `hasNamespace`                                 | **Rimossi**                                                    |
+| `setAll`, `setNamespace`, `mergeAll`, `mergeNamespace` | **Rimossi**                                                    |
+| `withNamespaceData`, `withDictionaryData`              | **Rimossi**                                                    |
 
 ### 6.3 Opzioni `onMissing`
 
@@ -404,10 +447,10 @@ Evita API generiche con `withResource(string)` non tipizzato.
 
 Questa è una **breaking change maggiore** (probabilmente `0.7.0` o `1.0.0`):
 
-- rimozione `.get()`, `hasNamespace` e `loadedNamespaces` dal provider multi;
-- riformulazione demo e documentazione (inclusi pattern `if (!hasNamespace)` nel README);
-- blog post i18n da aggiornare;
-- consumatori devono migrare a view/builder.
+- rimozione `.get()`, `hasNamespace` e `loadedNamespaces`;
+- rename View → Scope, `toView()` → `toScope()`;
+- riformulazione demo e documentazione;
+- consumatori devono migrare a scope/builder.
 
 Si può valutare un periodo di deprecazione con:
 
@@ -425,17 +468,12 @@ get(...)
 ### 8.1 Singleton condiviso (`multi/src/i18n/index.ts`)
 
 ```ts
-export const i18n = createI18n({});
-// shell: await i18n.withNamespaces(["default"]).withLocale(activeLocale).load()
-// route: await i18n.withNamespaces(["billing"]).withLocale(activeLocale).load()
+export const builder = createI18n({});
+// shell: await builder.withNamespaces(["default"]).withLocale(activeLocale).load()
+// route: await builder.withNamespaces(["billing"]).withLocale(activeLocale).load()
 ```
 
-**Questione aperta:** il secondo `load()` sullo stesso engine — merge o replace?
-
-- Oggi `mergeNamespace` **accumula** locale (0.6.1).
-- Le view precedenti potrebbero riferire uno snapshot type-safe non più valido se si aggiungono namespace.
-
-**Proposta:** ogni `.load()` restituisce una nuova view; l'engine è mutabile; documentare che le view non vanno tenute oltre cambi di contesto.
+**Risolto (§4.4):** load successive **accumulano** (deep merge) nello stesso engine. Ogni `load()` restituisce un nuovo scope; gli scope delegano all’engine live — patch e load successivi sono visibili a tutti gli scope sullo stesso builder.
 
 ### 8.2 Istanza fresh per request (SSR)
 
@@ -449,30 +487,33 @@ export async function i18nForRequest(locale: MyProjectLocale) {
 
 ### 8.3 Patch esterne / hydration
 
-Esempi demo che usano `validateExternalNamespace` + `mergeNamespace`:
+Flusso target — niente merge pubblico, niente engine esposto:
 
 ```ts
-const validated = validateExternalNamespace("billing", raw);
-engine.mergeNamespace("billing", validated);
-const t = engine.view({ namespaces: ["billing"], locale: "it" });
+const builder = createI18n({}).withNamespaces(["billing"] as const);
+const itScope = await builder.withLocale("it").load();
+
+// Opzione A: patch diretta (post-preload gate + re-validazione ICU)
+itScope.set("billing", "invoice_summary", "Hai {count} fatture");
+
+// Opzione B: validazione esterna per-chiave prima del set (§13)
+const result = validateExternalKey("billing", "invoice_summary", rawLocales);
+if (result.ok) {
+  itScope.set("billing", "invoice_summary", result.data.it);
+}
 ```
 
-Il builder da solo non copre il flusso “dato già in mano”. Serve:
+Per **patch parziali** da CMS, la validazione per-chiave (§13) sostituisce `validateExternalNamespace` full + `mergeNamespace`.
 
-- `engine.mergeNamespace` (o `withDictionary(ns, dict)`) **+** `toView(...)`;
-- oppure `builder.withNamespaceData("billing", validated).withLocale("it")`.
-
-Per **patch parziali** (solo alcune chiavi), la validazione full è oggi un ostacolo — vedi **§13** (`validateExternalKey` / `validateExternalNamespacePartial`).
-
-Da includere nella API engine, non necessariamente nel builder principale.
+~~`engine.mergeNamespace` + `toScope()`~~ — **scartato** come pattern app: troppo farraginoso rispetto a `load()` + `scope.set()`.
 
 ### 8.4 Projection helpers
 
-`projectNamespaceLocales`, `projectDictionaryForDeliveryArea`, ecc. restano utilità pure — ortogonali al builder. Possono alimentare `withNamespaceData`.
+`projectNamespaceLocales`, `projectDictionaryForDeliveryArea`, ecc. restano utilità pure — ortogonali al builder. **Non** alimentano più `withNamespaceData` (eliminato); eventuali proiezioni manuali vanno validate e applicate via `scope.set()` o future API di ingest validate.
 
 ### 8.5 Single canonical — serve il builder?
 
-Probabilmente no. `createI18n(defaultDictionary)` può restituire direttamente `I18nView<FullSchema>` quando non ci sono lazy namespaces e il dizionario è completo.
+Probabilmente no. `createI18n(defaultDictionary)` può restituire direttamente `I18nScope<FullSchema>` quando non ci sono lazy namespaces e il dizionario è completo.
 
 Il builder diventa obbligatorio solo quando:
 
@@ -499,80 +540,88 @@ Il builder diventa obbligatorio solo quando:
 
 ## 10. Rischi e trade-off
 
-| Rischio                                                 | Mitigazione                                      |
-| ------------------------------------------------------- | ------------------------------------------------ |
-| API più verbosa per il caso semplice (single canonical) | Ritorno diretto della view senza builder         |
-| Async obbligatorio ovunque in split/custom              | Accettabile — il caricamento è già async oggi    |
-| Complessità generics / errori TS illeggibili            | Alias codegen, limitare profondità del builder   |
-| View stale su singleton mutabile                        | Documentazione + `toView()` esplicito dopo merge |
-| Framework bindings (React context)                      | Esportare tipo view stabile, non engine          |
-| Migrazione costosa                                      | Guide per ogni delivery mode nella demo          |
+| Rischio                                                 | Mitigazione                                                                |
+| ------------------------------------------------------- | -------------------------------------------------------------------------- |
+| API più verbosa per il caso semplice (single canonical) | Ritorno diretto dello scope senza builder                                  |
+| Async obbligatorio ovunque in split/custom              | Accettabile — il caricamento è già async oggi                              |
+| Complessità generics / errori TS illeggibili            | Alias codegen, limitare profondità del builder                             |
+| Scope stale su singleton mutabile                       | Gli scope delegano all’engine live; documentare semantica read-after-write |
+| Framework bindings (React context)                      | Esportare tipo scope stabile, non engine                                   |
+| Migrazione costosa                                      | Guide per ogni delivery mode nella demo                                    |
 
 ---
 
-## 11. Piano di sviluppo proposto (bozza)
+## 11. Piano di sviluppo
 
-### Fase 0 — Design freeze (questo documento)
+> **Nota processo:** le fasi 1–3 e parte della 4 sono state implementate in codice **prima** del completamento di questo documento. Da qui in avanti: **allineare l’analisi e la spec, poi proseguire con ciò che manca** (es. `set()`, preload gate, rimozione merge pubblici).
 
-- [ ] Decidere naming (`withLocale` vs `withResource`)
-- [ ] Decidere sync/async per canonical lazy
-- [ ] Decidere destino di `ensure*` e `forLocale`
-- [ ] Decidere modello singleton vs fresh instance
-- [x] Eliminare `hasNamespace` e `loadedNamespaces` — confermato (§2.5)
+### Fase 0 — Design freeze (questo documento + spec)
 
-### Fase 1 — Tipi e view (runtime)
+- [x] Naming: **`Scope`**, `toScope()`, `t()` — §1.1, §3.3
+- [x] `withLocale` / `withDeliveryArea` (no `withResource`)
+- [x] Una partition per `load()` (no `withLocales`)
+- [x] Read+write unificati su scope locale-bound (no engine editor)
+- [x] Rimuovere merge/replace pubblici — target §6.2
+- [x] Eliminare `hasNamespace` e `loadedNamespaces` — §2.5
+- [x] Spec rigorosa — [`spec-engine-scope-builder.md`](./spec-engine-scope-builder.md)
+- [ ] Design freeze formale approvato
 
-- [ ] Introdurre `I18nEngine` (ex provider, senza `get`, `hasNamespace`, né `loadedNamespaces`)
-- [ ] Introdurre `I18nView` / `I18nViewForLocale` con `get` ristretto
-- [ ] Test unitari view + engine separati
-- [ ] Nessun cambio codegen ancora — test con tipi manuali
+### Fase 1 — Tipi e scope (runtime)
+
+- [x] `I18nScope*` / `I18nScope*ForLocale` con `t()` ristretto
+- [x] `toScope()` su engine
+- [x] Test unitari scope — `scope.test.ts`
+- [ ] **`set()`** su scope locale-bound + preload gate + re-validazione ICU
+- [ ] Rimuovere `get` / tipi provider legacy dalla superficie pubblica
 
 ### Fase 2 — Builder (runtime)
 
-- [ ] `I18nBuilder` con `withNamespaces`, `withLocale`, `withDeliveryArea`, `load()`
-- [ ] Integrazione con loader (callback injection per non accoppiare runtime a codegen)
+- [x] `I18nBuilder*` con `withNamespaces`, `withLocale`, `withDeliveryArea`, `load()`
+- [x] Integrazione loader (injection via codegen)
+- [ ] Rimuovere `withNamespaceData` / `withDictionaryData`
 
 ### Fase 3 — Codegen
 
-- [ ] Emettere `createI18n` → builder/view secondo config
-- [ ] Integrare `namespaceLoaders` nel builder
-- [ ] Deprecare/rimuovere `ensure*` dalla superficie pubblica
-- [ ] Aggiornare test codegen
+- [x] `createI18n` → builder/scope secondo config
+- [x] `namespaceLoaders` nel builder; `ensure*` rimossi
+- [x] Test codegen aggiornati
+- [ ] Emettere tipi scope con `set()` quando locale-bound
 
-### Fase 3b — Validazione per-chiave (opzionale, parallela o precedente al builder)
+### Fase 3b — Validazione per-chiave
 
-- [ ] `normalizeKeyDictionaryPartial` + `validateExternalKey` / `validateExternalNamespacePartial`
-- [ ] Wrapper codegen in `dictionary-schema.generated.ts`
-- [ ] Demo `examplePartialKeyPatch`
-- [ ] Documentare matrice full vs partial
+- [ ] `validateExternalKey` / `validateExternalNamespacePartial` (§13)
+- [ ] Demo patch CMS validate → `scope.set()`
 
 ### Fase 4 — Demo e docs
 
-- [ ] Rimuovere `createI18nForLocale` / `createI18nForArea`
-- [ ] Aggiornare `apps/i18n-demo/*`
-- [ ] Aggiornare README package
-- [ ] Aggiornare blog post documentazione
+- [x] Demo su builder esplicito (parziale)
+- [ ] Rimuovere resti `mergeNamespace` in demo
+- [ ] README allineato a scope + `set()`
+- [ ] Blog post
 
-### Fase 5 — Release
+### Fase 5 — Release 0.7.0
 
-- [ ] CHANGELOG breaking
-- [ ] Bump minor/major
-- [ ] Migration guide
-
-**Stima indicativa:** Fase 1–2 runtime ~2–3 giorni; Fase 3 codegen ~2–3 giorni; Fase 4 demo/docs ~1–2 giorni (dipende da decisioni Fase 0).
+- [x] CHANGELOG breaking (parziale — rename Scope)
+- [ ] Migration guide completa
+- [ ] Bump versione dopo `set()` + rimozione merge pubblici
 
 ---
 
-## 12. Domande aperte per la prossima sessione
+## 12. Domande aperte / risolte
 
-1. **Il builder è lo stesso oggetto mutabile dell'engine**, o `createI18n` restituisce un builder che wrappa un engine interno?
-2. **Single canonical:** `createI18n(dict)` ritorna direttamente la view — confermato?
-3. **Multi canonical con tutti i namespace eager:** serve `withNamespaces` o la view è già piena?
-4. **Nome della funzione di traduzione** sulle view: `get` o `t`?
-5. **Hydration / merge manuale:** `engine.merge` + `engine.toView(...)` è sufficiente?
-6. **Versioning:** `0.7.0` con breaking o attendere `1.0.0`?
-7. **`forLocale` sulle view multi:** `view.forNamespace("billing")` ha senso come ulteriore narrowing?
-8. **Validazione per-chiave:** API unica `validateExternalKey` vs flag `partial` su `validateExternalNamespace`? (vedi §14)
+| #   | Domanda                                         | Stato       | Risposta                                                                                                                         |
+| --- | ----------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Builder vs engine mutabile                      | **Risolto** | Builder immutabile che wrappa engine condiviso (§4.4)                                                                            |
+| 2   | Single canonical ritorna scope?                 | **Risolto** | Sì — `createI18n(dict)` → `I18nScopeSingle` via `toScope()`                                                                      |
+| 3   | Multi canonical eager — serve `withNamespaces`? | **Risolto** | No — scope pieno; `withNamespaces` solo per lazy                                                                                 |
+| 4   | `get` o `t`?                                    | **Risolto** | **`t`**                                                                                                                          |
+| 5   | Hydration / patch                               | **Risolto** | **`scope.set()`** post-`load()` — no engine esposto, no merge pubblico                                                           |
+| 6   | View o Scope?                                   | **Risolto** | **`Scope`**                                                                                                                      |
+| 7   | `forLocale` vs `toScope({ locale })`            | **Risolto** | Entrambi: `toScope({ locale })` su engine; `forLocale` su scope unbound; `load()` dopo `withLocale` restituisce già locale-bound |
+| 8   | `withLocales([...])`?                           | **Risolto** | **No** — una partition per load; accumulo via load successive                                                                    |
+| 9   | `forNamespace` narrowing?                       | **Aperto**  | Non previsto in v1 — namespace già ristretto da `withNamespaces`                                                                 |
+| 10  | Validazione per-chiave                          | **Aperto**  | Opzione A (API dedicate) preferita — §13                                                                                         |
+| 11  | Versioning                                      | **Aperto**  | `0.7.0` breaking probabile                                                                                                       |
 
 ---
 
@@ -702,10 +751,9 @@ Utile per tooling; per i consumatori l'opzione A è più chiara.
 Per il **builder** (§8.3):
 
 ```ts
-const key = validateExternalKey("billing", "invoice_summary", raw);
-if (key.ok) {
-  engine.mergeNamespace("billing", key.data);
-  // oppure: builder.withNamespaceData("billing", key.data).withLocale("it").toView()
+const result = validateExternalKey("billing", "invoice_summary", rawLocales);
+if (result.ok) {
+  itScope.set("billing", "invoice_summary", result.data.it!);
 }
 ```
 
@@ -741,31 +789,33 @@ if (key.ok) {
 
 ### 13.9 Rischi
 
-| Rischio                                                             | Mitigazione                                                                                                      |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Due modalità (full vs partial) confuse                              | Naming esplicito (`Partial` / `Key` nel nome); documentazione con matrice “quando usare cosa”                    |
-| CMS invia chiave valida ma dimentica altre obbligatorie per la view | Responsabilità del builder/view — partial non garantisce namespace completo; la view espone solo chiavi caricate |
-| `unknown_key` vs chiavi future del contratto                        | Solo chiavi presenti in `DICTIONARY_SPEC` al momento del codegen sono “note”; altre → errore                     |
-| Duplicazione logica normalize                                       | Estrarre `normalizeSingleKey` condiviso da full e partial                                                        |
+| Rischio                                                             | Mitigazione                                                                                                        |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Due modalità (full vs partial) confuse                              | Naming esplicito (`Partial` / `Key` nel nome); documentazione con matrice “quando usare cosa”                      |
+| CMS invia chiave valida ma dimentica altre obbligatorie per la view | Responsabilità del builder/scope — partial non garantisce namespace completo; lo scope espone solo chiavi caricate |
+| `unknown_key` vs chiavi future del contratto                        | Solo chiavi presenti in `DICTIONARY_SPEC` al momento del codegen sono “note”; altre → errore                       |
+| Duplicazione logica normalize                                       | Estrarre `normalizeSingleKey` condiviso da full e partial                                                          |
 
 ### 13.10 Relazione con il builder
 
 I due lavori sono **complementari**:
 
-| Builder                                                     | Validazione per-chiave                                                |
-| ----------------------------------------------------------- | --------------------------------------------------------------------- |
-| _“Posso tradurre questa chiave?”_ — compile-time, post-load | _“Questo payload esterno è sicuro da mergiare?”_ — runtime, pre-merge |
-| View ristrette dopo `with…().load()`                        | `validateExternalKey` prima di `mergeNamespace` / `withNamespaceData` |
+| Builder / scope                                                      | Validazione per-chiave                                      |
+| -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| _“Posso tradurre/patchare questa chiave?”_ — compile-time, post-load | _“Questo payload esterno è sicuro?”_ — runtime, pre-`set()` |
+| Scope ristretti dopo `with…().load()`                                | `validateExternalKey` prima di `scope.set()`                |
 
 Flusso target per patch CMS:
 
 ```ts
-const delta = await fetchCmsDelta(); // { billing: { invoice_summary: { it: "…" } } }
+const builder = createI18n({}).withNamespaces(["billing"] as const);
+const itScope = await builder.withLocale("it").load();
+
+const delta = await fetchCmsDelta();
 for (const [key, locales] of Object.entries(delta.billing ?? {})) {
   const result = validateExternalKey("billing", key, locales);
-  if (result.ok) engine.mergeNamespace("billing", result.data);
+  if (result.ok) itScope.set("billing", key as keyof typeof delta.billing, locales.it!);
 }
-const t = engine.toView({ namespaces: ["billing"], locale: "it" });
 ```
 
 ---
@@ -778,12 +828,13 @@ Stesso ragionamento per la validazione esterna (§13): oggi il contratto è **sp
 
 Il costo principale non è il formatting ICU (invariato), ma:
 
-- una **riformulazione del contratto TypeScript** (engine vs view);
+- una **riformulazione del contratto TypeScript** (engine interno vs **scope** pubblico);
 - **codegen condizionale** per delivery mode;
-- **breaking change** deliberata sulla superficie pubblica.
+- **breaking change** deliberata: `get` → `t`, View → Scope, rimozione merge/replace pubblici;
+- **`set()`** con preload gate (da implementare).
 
 Il beneficio è un modello mentale chiaro:
 
-> _Non chiami `get` su un dizionario che non hai ancora caricato, e non interroghi `hasNamespace` per scoprire cosa c'è. Costruisci una view con `with…`, attendi il load, poi traduci — se compila, la risorsa c'è._
+> _Non chiami `t` su un dizionario che non hai ancora caricato. Costruisci uno scope con `with…`, attendi `load()`, traduci e — se serve — patchi con `set` sullo stesso scope. Se compila e il preload gate passa, la risorsa c’è._
 
-Prossimo passo consigliato: rispondere alle domande della §12, poi prototipare i tipi della Fase 1 su un branch senza toccare il codegen, per validare che i generics restino leggibili con uno schema reale (es. demo `areas`).
+**Prossimo passo:** approvare design freeze (§11 Fase 0), poi implementare `set()` + rimozione API merge/replace — **solo dopo** chiusura analisi.

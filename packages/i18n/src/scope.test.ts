@@ -126,9 +126,9 @@ const multiDictionary: MultiSchema = {
   },
 };
 
-describe("I18nView single", () => {
+describe("I18nScope single", () => {
   const engine = new IcuTranslationProviderSingle<SingleSchema, SingleParams>(singleDictionary);
-  const view = engine.toView();
+  const view = engine.toScope();
 
   it("translates with t(key, locale)", () => {
     expect(view.t("login_button", "it")).toBe("Accedi");
@@ -151,8 +151,8 @@ describe("I18nView single", () => {
     expect(en.t("welcome", { name: "Ada" })).toBe("Welcome Ada!");
   });
 
-  it("binds locale via toView({ locale })", () => {
-    const it = engine.toView({ locale: "it" });
+  it("binds locale via toScope({ locale })", () => {
+    const it = engine.toScope({ locale: "it" });
 
     expect(it.locale).toBe("it");
     expect(it.t("login_button")).toBe("Accedi");
@@ -182,7 +182,7 @@ describe("I18nView single", () => {
       keyof typeof fallbackMap | LocaleOfSingle<SingleSchema>,
       typeof fallbackMap
     >(singleDictionary, { localeFallback: fallbackMap });
-    const fallbackView = fallbackEngine.toView();
+    const fallbackView = fallbackEngine.toScope();
 
     it("resolves a locale through the fallback chain", () => {
       expect(fallbackView.t("login_button", "de-CH")).toBe("Login");
@@ -194,7 +194,7 @@ describe("I18nView single", () => {
       const local = new IcuTranslationProviderSingle<SingleSchema, SingleParams>(singleDictionary, {
         onMissing: "key",
       });
-      expect(local.toView().t("missing_key" as "login_button", "en")).toBe("missing_key");
+      expect(local.toScope().t("missing_key" as "login_button", "en")).toBe("missing_key");
     });
 
     it("applies onMissing through forLocale wrappers", () => {
@@ -203,7 +203,7 @@ describe("I18nView single", () => {
       });
       expect(
         local
-          .toView()
+          .toScope()
           .forLocale("en")
           .t("missing_key" as "login_button")
       ).toBe("missing_key");
@@ -211,11 +211,11 @@ describe("I18nView single", () => {
   });
 });
 
-describe("I18nView multi", () => {
+describe("I18nScope multi", () => {
   const engine = new IcuTranslationProviderMulti<MultiSchema, MultiParams>(multiDictionary);
 
   it("translates with t(namespace, key, locale)", () => {
-    const view = engine.toView({ namespaces: ["default", "billing"] });
+    const view = engine.toScope({ namespaces: ["default", "billing"] });
 
     expect(view.t("default", "login_button", "it")).toBe("Accedi");
     expect(view.t("default", "welcome", "en", { name: "Ada" })).toBe("Welcome Ada!");
@@ -225,7 +225,7 @@ describe("I18nView multi", () => {
   });
 
   it("restricts namespaces at the type level", () => {
-    const billingOnly = engine.toView({ namespaces: ["billing"] });
+    const billingOnly = engine.toScope({ namespaces: ["billing"] });
 
     expect(billingOnly.t("billing", "invoice_summary", "en", { count: 1, name: "Ada" })).toBe(
       "You have 1 invoice for Ada"
@@ -233,7 +233,7 @@ describe("I18nView multi", () => {
   });
 
   it("binds locale via forLocale", () => {
-    const view = engine.toView({ namespaces: ["default", "billing"] });
+    const view = engine.toScope({ namespaces: ["default", "billing"] });
     const it = view.forLocale("it");
 
     expect(it.locale).toBe("it");
@@ -243,15 +243,15 @@ describe("I18nView multi", () => {
     );
   });
 
-  it("binds locale via toView({ namespaces, locale })", () => {
-    const it = engine.toView({ namespaces: ["billing"], locale: "it" });
+  it("binds locale via toScope({ namespaces, locale })", () => {
+    const it = engine.toScope({ namespaces: ["billing"], locale: "it" });
     expect(it.locale).toBe("it");
     expect(it.t("billing", "invoice_summary", { count: 2, name: "Ada" })).toBe(
       "Hai 2 fatture per Ada"
     );
   });
 
-  it("reflects partial mergeNamespace via a fresh toView", () => {
+  it("reflects partial mergeNamespace via a fresh toScope", () => {
     const partial = new IcuTranslationProviderMulti<MultiSchema, MultiParams>({
       billing: {
         invoice_summary: {
@@ -266,7 +266,7 @@ describe("I18nView multi", () => {
       },
     });
 
-    const view = partial.toView({ namespaces: ["billing"], locale: "it" });
+    const view = partial.toScope({ namespaces: ["billing"], locale: "it" });
     expect(view.t("billing", "invoice_summary", { count: 2, name: "Bob" })).toBe(
       "Hai 2 fatture per Bob"
     );
@@ -277,7 +277,7 @@ describe("I18nView multi", () => {
       { default: multiDictionary.default },
       { onMissing: "key" }
     );
-    const view = partial.toView({ namespaces: ["billing"], locale: "en" });
+    const view = partial.toScope({ namespaces: ["billing"], locale: "en" });
 
     expect(view.t("billing", "invoice_summary", { count: 1, name: "Ada" })).toBe(
       "billing.invoice_summary"
@@ -300,7 +300,7 @@ describe("I18nView multi", () => {
     >(multiDictionary, { localeFallback: fallbackMap });
 
     it("resolves a locale through the fallback chain", () => {
-      const view = fallbackEngine.toView({ namespaces: ["default"] });
+      const view = fallbackEngine.toScope({ namespaces: ["default"] });
       expect(view.t("default", "login_button", "de-CH")).toBe("Login");
     });
   });

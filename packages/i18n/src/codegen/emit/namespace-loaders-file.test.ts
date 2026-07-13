@@ -99,11 +99,9 @@ describe("formatNamespaceLoadersFile", () => {
     expect(output).toContain("user: (locale) => {");
     expect(output).not.toContain("billing: {");
     expect(output).not.toContain("import('./translations/billing.json')");
-    expect(output).toContain("export async function ensureNamespacesLoadedForLocale(");
-    expect(output).toContain("i18n.mergeNamespace(namespace,");
-    expect(output).toContain("i18n: I18nMultiInstance,");
+    expect(output).not.toContain("ensureNamespacesLoadedForLocale");
     expect(output).toContain(
-      'namespaces: readonly LazyNamespace[] = ["billing", "default", "user"] as const,'
+      'export const defaultLazyNamespaces = ["billing", "default", "user"] as const;'
     );
     expect(output.match(/from '\.\/i18n-types\.generated'/g)?.length).toBe(1);
   });
@@ -138,11 +136,9 @@ describe("formatNamespaceLoadersFile", () => {
     });
 
     expect(output).toContain("[K in LazyNamespace]: (locale: AppLocale) => Promise<AppSchema>;");
-    expect(output).toContain("import type { TranslationProviderSingle } from '@xndrjs/i18n';");
-    expect(output).toContain("type I18nSingleInstance = TranslationProviderSingle<");
-    expect(output).toContain("export async function ensureNamespacesLoadedForLocale(");
-    expect(output).toContain("i18n.mergeAll(await namespaceLoaders[namespace](locale));");
-    expect(output).not.toContain("mergeNamespace");
+    expect(output).not.toContain("TranslationProviderSingle");
+    expect(output).not.toContain("ensureNamespacesLoadedForLocale");
+    expect(output).toContain('export const defaultLazyNamespaces = ["default"] as const;');
   });
 
   it("throws when a split path is missing", () => {
@@ -227,10 +223,9 @@ describe("formatNamespaceLoadersFile", () => {
       "return import('./generated/translations/billing.eu.json').then((m) => m.default);"
     );
     expect(output).not.toContain("import('./translations/billing.json')");
-    expect(output).toContain("export async function ensureNamespacesLoadedForArea(");
-    expect(output).toContain("i18n.mergeNamespace(namespace,");
+    expect(output).not.toContain("ensureNamespacesLoadedForArea");
     expect(output).toContain(
-      'namespaces: readonly LazyNamespace[] = ["billing", "default"] as const,'
+      'export const defaultLazyNamespaces = ["billing", "default"] as const;'
     );
   });
 

@@ -12,21 +12,7 @@ import type {
   SingleCompiledCache,
   PartialKeyDictionary,
 } from "./types.js";
-import { I18nViewSingleForLocaleImpl, I18nViewSingleImpl } from "./view-single.js";
-
-/** @deprecated Use `I18nEngineSingle` instead. */
-export type TranslationProviderSingle<
-  Schema extends KeyDictionary,
-  Params extends { [K in keyof Schema]: unknown },
-  RequestLocales extends string = LocaleOfSingle<Schema>,
-> = I18nEngineSingle<Schema, Params, RequestLocales>;
-
-/** @deprecated Use `I18nViewSingleForLocale` instead. */
-export type TranslationProviderSingleForLocale<
-  Schema extends KeyDictionary,
-  Params extends { [K in keyof Schema]: unknown },
-  Locale extends string,
-> = import("./view-single.js").I18nViewSingleForLocale<Schema, Params, Locale>;
+import { I18nScopeSingleForLocaleImpl, I18nScopeSingleImpl } from "./scope-single.js";
 
 export class IcuTranslationProviderSingle<
   Schema extends KeyDictionary,
@@ -68,15 +54,15 @@ export class IcuTranslationProviderSingle<
     });
   }
 
-  toView(): I18nViewSingleImpl<Schema, Params, RequestLocales, Fallback>;
-  toView<Locale extends RequestLocales>(options: {
+  toScope(): I18nScopeSingleImpl<Schema, Params, RequestLocales, Fallback>;
+  toScope<Locale extends RequestLocales>(options: {
     locale: Locale;
-  }): I18nViewSingleForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback>;
-  toView<Locale extends RequestLocales>(options?: { locale?: Locale }) {
+  }): I18nScopeSingleForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback>;
+  toScope<Locale extends RequestLocales>(options?: { locale?: Locale }) {
     if (options?.locale !== undefined) {
-      return new I18nViewSingleForLocaleImpl(this, options.locale);
+      return new I18nScopeSingleForLocaleImpl(this, options.locale);
     }
-    return new I18nViewSingleImpl(this);
+    return new I18nScopeSingleImpl(this);
   }
 
   getAll(): Schema {
