@@ -5,10 +5,9 @@ export type LocalesForDeliveryArea<
 > = Artifacts[Area][number];
 
 /** Map from delivery area to locale lists; empty when custom delivery is not configured. */
-export type DeliveryArtifactsMap<
-  RequestLocales extends string,
-  DeliveryArea extends string,
-> = DeliveryArea extends never
+export type DeliveryArtifactsMap<RequestLocales extends string, DeliveryArea extends string> = [
+  DeliveryArea,
+] extends [never]
   ? Record<string, never>
   : Record<DeliveryArea, readonly RequestLocales[]>;
 
@@ -18,7 +17,7 @@ export type LocalesForDeliveryAreaOrAll<
   DeliveryArea extends string,
   DeliveryArtifacts extends DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
   Area extends string,
-> = DeliveryArea extends never
+> = [DeliveryArea] extends [never]
   ? RequestLocales
   : Area extends DeliveryArea
     ? DeliveryArtifacts[Area][number]

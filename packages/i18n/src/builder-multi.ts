@@ -40,16 +40,7 @@ export interface I18nBuilderMulti<
 
   withLocale<Locale extends ActiveLocales>(
     locale: Locale
-  ): I18nBuilderMultiForLocale<
-    Schema,
-    Params,
-    RequestLocales,
-    ActiveLocales,
-    NsList,
-    Locale,
-    DeliveryArea,
-    DeliveryArtifacts
-  >;
+  ): I18nBuilderMultiForLocale<Schema, Params, RequestLocales, ActiveLocales, NsList, Locale>;
 
   withDeliveryArea<Area extends DeliveryArea>(
     area: Area
@@ -111,9 +102,6 @@ export interface I18nBuilderMultiForLocale<
   ActiveLocales extends RequestLocales,
   NsList extends readonly (keyof Schema & string)[],
   Locale extends ActiveLocales,
-  DeliveryArea extends string = never,
-  DeliveryArtifacts extends DeliveryArtifactsMap<RequestLocales, DeliveryArea> =
-    DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
 > {
   load(): Promise<
     I18nScopeMultiForLocale<
@@ -209,16 +197,7 @@ export class I18nBuilderMultiImpl<
 
   withLocale<Locale extends ActiveLocales>(
     locale: Locale
-  ): I18nBuilderMultiForLocaleImpl<
-    Schema,
-    Params,
-    RequestLocales,
-    ActiveLocales,
-    NsList,
-    Locale,
-    DeliveryArea,
-    DeliveryArtifacts
-  > {
+  ): I18nBuilderMultiForLocaleImpl<Schema, Params, RequestLocales, ActiveLocales, NsList, Locale> {
     const { deliveryArea: _deliveryArea, ...rest } = this.clone();
     return new I18nBuilderMultiForLocaleImpl<
       Schema,
@@ -226,9 +205,7 @@ export class I18nBuilderMultiImpl<
       RequestLocales,
       ActiveLocales,
       NsList,
-      Locale,
-      DeliveryArea,
-      DeliveryArtifacts
+      Locale
     >(this.engine, this.options, { ...rest, locale });
   }
 
@@ -337,18 +314,13 @@ export class I18nBuilderMultiForLocaleImpl<
   ActiveLocales extends RequestLocales,
   NsList extends readonly (keyof Schema & string)[],
   Locale extends ActiveLocales,
-  DeliveryArea extends string = never,
-  DeliveryArtifacts extends DeliveryArtifactsMap<RequestLocales, DeliveryArea> =
-    DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
 > implements I18nBuilderMultiForLocale<
   Schema,
   Params,
   RequestLocales,
   ActiveLocales,
   NsList,
-  Locale,
-  DeliveryArea,
-  DeliveryArtifacts
+  Locale
 > {
   constructor(
     private readonly engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,

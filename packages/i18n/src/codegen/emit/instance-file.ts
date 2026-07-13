@@ -107,8 +107,8 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     namespaceNames,
     loadersImport,
     delivery,
-    deliveryAreaTypeName,
-    deliveryArtifactsTypeName,
+    ...(deliveryAreaTypeName !== undefined ? { deliveryAreaTypeName } : {}),
+    ...(deliveryArtifactsTypeName !== undefined ? { deliveryArtifactsTypeName } : {}),
   });
 
   return (
