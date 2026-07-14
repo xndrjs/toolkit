@@ -18,5 +18,7 @@
     "@xndrjs/i18n": "0.6.1",
     "@xndrjs/tasks": "0.2.0"
   },
-  "changesets": []
+  "changesets": [
+    "i18n-0-7-scopes-builder"
+  ]
 }
