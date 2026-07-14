@@ -20,31 +20,33 @@ With `delivery: "canonical"`, list namespaces needed at startup in `loadOnInit`.
 ```ts
 import { createI18n, defaultDictionary } from "./i18n";
 
-const i18n = createI18n(defaultDictionary);
-i18n.t("default", "login_button", "en");
+const { t } = createI18n(defaultDictionary);
+t("default", "login_button", "en");
 
-const billingScope = await createI18n(defaultDictionary)
+const { t: tBilling } = await createI18n(defaultDictionary)
   .withNamespaces(["billing"])
   .withLocale("en")
   .load();
-billingScope.t("billing", "invoice_summary", { count: 12 });
+tBilling("billing", "invoice_summary", { count: 12 });
 ```
 
 With `delivery: "split-by-locale"`:
 
 ```ts
-const scope = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
-scope.t("billing", "invoice_summary", { count: 3 });
+const { t } = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
+t("billing", "invoice_summary", { count: 3 });
 ```
 
 With `delivery: "custom"`:
 
 ```ts
-const scope = await createI18n({})
+const { forLocale } = await createI18n({})
   .withNamespaces(["default", "billing"])
   .withDeliveryArea("eu")
   .load();
-// forLocale() on the returned unbound scope accepts only eu locales (DELIVERY_ARTIFACTS.eu)
+// forLocale() accepts only eu locales (DELIVERY_ARTIFACTS.eu)
+const { t } = forLocale("it");
+t("billing", "invoice_summary", { count: 3 });
 ```
 
 Optional locale projection before validating external slices:
@@ -52,11 +54,12 @@ Optional locale projection before validating external slices:
 ```ts
 import { projectNamespaceLocales } from "./i18n/generated/instance.generated.js";
 
+const { set } = await createI18n({}).withNamespaces(["billing"]).withLocale(userLocale).load();
 const billing = await namespaceLoaders.billing(userLocale);
 const billingSlice = projectNamespaceLocales(billing, [userLocale]);
 const result = validateExternalKey("billing", "invoice_summary", billingSlice.invoice_summary);
 if (result.ok) {
-  scope.set("billing", "invoice_summary", result.data.invoice_summary[userLocale]!);
+  set("billing", "invoice_summary", result.data.invoice_summary[userLocale]!);
 }
 ```
 

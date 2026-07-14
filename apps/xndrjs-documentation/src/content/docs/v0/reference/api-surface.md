@@ -141,8 +141,8 @@ import { formatIssues } from "@xndrjs/i18n/validation";
 
 - `createI18n(dictionary)` (generated): typed factory; returns a **scope** (eager canonical) or a **builder** (lazy split/custom).
 - Builder: `withNamespaces([...]).withLocale(locale).load()` / `withDeliveryArea(area).load()` — async lazy load; returns a locale-bound scope.
-- `scope.t(...)` / `scope.forLocale(locale).t(...)`: format ICU templates with compile-time key and param checking.
-- `scope.set(...)` on locale-bound scopes: single-key runtime patch after preload (CMS/webhook deltas).
+- `t(...)` / `forLocale(locale)` then `{ t }`: format ICU templates with compile-time key and param checking. Scope methods are destructuring-safe (`const { t, set } = await builder.load()`).
+- `set(...)` on locale-bound scopes: single-key runtime patch after preload (CMS/webhook deltas).
 - Repeated `load()` for the same namespace + partition is skipped on the shared engine (patches preserved).
 - `namespaceLoaders` (generated, multi mode): typed dynamic `import()` loaders wired into the builder.
 - `validateExternalKey` / `validateExternalNamespacePartial` (generated, optional): validate CMS payloads before `scope.set()`.

@@ -73,27 +73,27 @@ export const i18n = createI18n(defaultDictionary);
 Bind a locale once and omit it on every `t()`:
 
 ```ts
-const scopeEn = i18n.forLocale("en");
+const { t } = i18n.forLocale("en");
 
-scopeEn.t("login_button"); // single-file
-scopeEn.t("welcome", { name: "Ada" });
+t("login_button"); // single-file
+t("welcome", { name: "Ada" });
 
-const scopeIt = i18n.forLocale("it");
-scopeIt.t("default", "login_button"); // multi
-scopeIt.t("billing", "invoice_summary", { count: 3 });
+const { t: tIt } = i18n.forLocale("it");
+tIt("default", "login_button"); // multi
+tIt("billing", "invoice_summary", { count: 3 });
 ```
 
 The bound scope shares dictionary, cache, and fallback rules with the engine.
 
 ## Scope and engine API
 
-| Surface                   | Behavior                                                                                       |
-| ------------------------- | ---------------------------------------------------------------------------------------------- |
-| `scope.t(...)`            | Format a key for a locale; TypeScript enforces required params                                 |
-| `scope.forLocale(locale)` | Locale-bound scope with narrower `t()` signature                                               |
-| `engine.getAll()`         | Deep-frozen snapshot of the current dictionary (via engine reference when needed)              |
-| `scope.set(...)`          | Locale-bound only — patch one preloaded key; re-validates ICU and param compatibility          |
-| Builder `load()`          | Invoke lazy loaders once per namespace + partition; skipped if already loaded on shared engine |
+| Surface             | Behavior                                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `t(...)`            | Format a key for a locale; TypeScript enforces required params. Prefer `const { t } = scope`.  |
+| `forLocale(locale)` | Locale-bound scope with narrower `t()` signature — destructure `{ t, set }` from the result    |
+| `engine.getAll()`   | Deep-frozen snapshot of the current dictionary (via engine reference when needed)              |
+| `set(...)`          | Locale-bound only — patch one preloaded key; re-validates ICU and param compatibility          |
+| Builder `load()`    | Invoke lazy loaders once per namespace + partition; skipped if already loaded on shared engine |
 
 Compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode). `scope.set()` invalidates the affected key.
 

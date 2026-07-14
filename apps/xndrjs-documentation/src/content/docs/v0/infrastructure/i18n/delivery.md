@@ -46,12 +46,12 @@ import { createI18n } from "./i18n/generated/instance.generated.js";
 
 const activeLocale = "it" as const;
 
-const scope = await createI18n({})
+const { t } = await createI18n({})
   .withNamespaces(["default", "billing"])
   .withLocale(activeLocale)
   .load();
 
-scope.t("billing", "invoice_summary", { count: 3 });
+t("billing", "invoice_summary", { count: 3 });
 ```
 
 Pass the shared engine via one `createI18n({})` per app — each builder instance shares the same engine when wired through the generated factory. Loading a **different** locale or delivery area adds translations for that partition. Reloading the **same** namespace + partition is skipped so runtime `scope.set()` patches are preserved. Load a subset when a route needs fewer namespaces: `.withNamespaces(["billing"])`.

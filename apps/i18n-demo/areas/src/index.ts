@@ -48,9 +48,12 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
     return;
   }
 
-  const scope = await createI18n({}).withNamespaces(["billing"]).withDeliveryArea(demoArea).load();
+  const { forLocale } = await createI18n({})
+    .withNamespaces(["billing"])
+    .withDeliveryArea(demoArea)
+    .load();
 
-  const { t, set } = scope.forLocale(demoLocale);
+  const { t, set } = forLocale(demoLocale);
 
   for (const key of Object.keys(result.data) as (keyof MyProjectSchema["billing"])[]) {
     const template = result.data[key]?.[demoLocale];

@@ -43,34 +43,36 @@ export type MyProjectParams = {
 
 Specify **exactly one** of `dictionary` (single) or `namespaces` (multi) in `i18n.codegen.json`.
 
-|               | Single-file                                      | Multi-namespace                                                               |
-| ------------- | ------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `I18N_MODE`   | `'single'`                                       | `'multi'`                                                                     |
-| Engine        | `IcuTranslationProviderSingle`                   | `IcuTranslationProviderMulti`                                                 |
-| Scope `t()`   | `t(key, locale, params?)`                        | `t(namespace, key, locale, params?)` on unbound scope; omit locale when bound |
-| Runtime patch | `scope.set(key, template)` on locale-bound scope | `scope.set(ns, key, template)` on locale-bound scope                          |
-| Lazy loading  | Builder + `dictionaryLoader`                     | Builder + `namespaceLoaders` via `withNamespaces().withLocale().load()`       |
+|               | Single-file                                | Multi-namespace                                                               |
+| ------------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| `I18N_MODE`   | `'single'`                                 | `'multi'`                                                                     |
+| Engine        | `IcuTranslationProviderSingle`             | `IcuTranslationProviderMulti`                                                 |
+| Scope `t()`   | `t(key, locale, params?)`                  | `t(namespace, key, locale, params?)` on unbound scope; omit locale when bound |
+| Runtime patch | `set(key, template)` on locale-bound scope | `set(ns, key, template)` on locale-bound scope                                |
+| Lazy loading  | Builder + `dictionaryLoader`               | Builder + `namespaceLoaders` via `withNamespaces().withLocale().load()`       |
 
 **Single-file** — one JSON, flat API, simplest integration:
 
 ```ts
 import { i18n } from "./i18n";
 
-i18n.t("login_button", "it");
-i18n.t("welcome", "en", { name: "Ada" });
+const { t } = i18n;
+
+t("login_button", "it");
+t("welcome", "en", { name: "Ada" });
 ```
 
 **Multi-namespace** — split by domain, builder loading, code-splitting:
 
 ```ts
-const scope = await createI18n({}).withNamespaces(["default", "billing"]).withLocale("en").load();
+const { t } = await createI18n({}).withNamespaces(["default", "billing"]).withLocale("en").load();
 
-scope.t("default", "login_button");
-scope.t("billing", "invoice_summary", { count: 12 });
+t("default", "login_button");
+t("billing", "invoice_summary", { count: 12 });
 
 // compile-time errors:
-scope.t("default", "welcome"); // missing { name }
-scope.t("billing", "login_button"); // key not in namespace
+t("default", "welcome"); // missing { name }
+t("billing", "login_button"); // key not in namespace
 ```
 
 To migrate: split JSON, change `dictionary` → `namespaces`, re-run codegen, update call sites.

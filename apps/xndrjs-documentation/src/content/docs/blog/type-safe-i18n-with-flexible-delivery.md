@@ -102,14 +102,14 @@ export type MyProjectParams = {
 };
 ```
 
-At runtime, `scope.t()` is typed against that schema:
+At runtime, `t()` is typed against that schema:
 
 ```ts
-const scope = i18n.forLocale("en");
+const { t } = i18n.forLocale("en");
 
-scope.t("default", "welcome", { name: "Ada" }); // ✓
-scope.t("default", "welcome"); // ✗ compile error — missing { name }
-scope.t("billing", "login_button"); // ✗ compile error — key not in namespace
+t("default", "welcome", { name: "Ada" }); // ✓
+t("default", "welcome"); // ✗ compile error — missing { name }
+t("billing", "login_button"); // ✗ compile error — key not in namespace
 ```
 
 Add a key to a dictionary file, re-run codegen, and TypeScript flags every call site that needs updating. That is the loop that keeps UI code and dictionary in sync.
@@ -117,15 +117,16 @@ Add a key to a dictionary file, re-run codegen, and TypeScript flags every call 
 ### Single file vs multi-namespace
 
 Codegen runs in one of two modes — you pick at config time, and the
-generated API follows. Small project? **Single file** — one dictionary, `scope.t(key, locale)`.
+generated API follows. Small project? **Single file** — one dictionary, `t(key, locale)` (typically `const { t } = scope`).
 
-Large project? **Multi-namespace** — split by domain (`default`, `billing`, …), `scope.t(namespace, key, locale)`, plus the builder and generated loaders for lazy loading.
+Large project? **Multi-namespace** — split by domain (`default`, `billing`, …), `t(namespace, key, locale)` on unbound scopes or `t(namespace, key)` when locale-bound, plus the builder and generated loaders for lazy loading.
 
 Same runtime, different generated API (locale-bound via `forLocale`):
 
 ```ts
-scope.forLocale("en").t("welcome", { name: "Ada" }); // single
-scope.forLocale("en").t("default", "welcome", { name: "Ada" }); // multi
+const { t } = i18n.forLocale("en");
+t("welcome", { name: "Ada" }); // single
+t("default", "welcome", { name: "Ada" }); // multi
 ```
 
 ### Dynamic access when you need it
@@ -178,10 +179,11 @@ So the limitation is not manual branching at the call site. It is everything aro
 }
 ```
 
-At the call site, one typed `scope.t()` with both counts:
+At the call site, one typed `t()` with both counts:
 
 ```ts
-scope.t("default", "dashboard_status", { msgCount: 3, chatCount: 2 });
+const { t } = i18n.forLocale("en");
+t("default", "dashboard_status", { msgCount: 3, chatCount: 2 });
 // "You have 3 messages in 2 chats"
 ```
 
@@ -249,12 +251,12 @@ Each loader accepts only a known locale and resolves to the exact schema for its
 ```ts
 import { createI18n } from "./i18n";
 
-const scope = await createI18n({}) // shared engine, empty until load
+const { t } = await createI18n({}) // shared engine, empty until load
   .withNamespaces(["billing", "default"]) // which namespaces to fetch
   .withLocale("en") // split-by-locale partition passed to loaders
   .load(); // dynamic import + merge; returns locale-bound scope
 
-scope.t("billing", "invoice_summary", { count: 12 });
+t("billing", "invoice_summary", { count: 12 });
 ```
 
 `load()` is async; the returned scope is locale-bound and exposes a synchronous `t()`. If a key was never preloaded, `t()` resolves through `onMissing` (default: throw) — not a silent empty label.
@@ -315,12 +317,12 @@ Codegen produces `billing.eu.json`, `billing.amer.json`, and equivalent files fo
 ```ts
 import { createI18n } from "./i18n";
 
-const scope = await createI18n({})
+const { t } = await createI18n({})
   .withNamespaces(["default", "billing"])
   .withDeliveryArea("amer")
   .load();
 
-scope.t("default", "welcome", "en-US", { name: "Ada" });
+t("default", "welcome", "en-US", { name: "Ada" });
 // forLocale() on the unbound scope is typed to amer locales only
 ```
 

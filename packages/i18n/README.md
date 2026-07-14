@@ -87,8 +87,10 @@ export const i18n = createI18n(defaultDictionary);
 ```ts
 import { i18n } from "./i18n";
 
-i18n.t("login_button", "it"); // "Accedi"
-i18n.t("welcome", "en", { name: "Ada" }); // "Welcome Ada!"
+const { t } = i18n;
+
+t("login_button", "it"); // "Accedi"
+t("welcome", "en", { name: "Ada" }); // "Welcome Ada!"
 ```
 
 Run codegen after every change to your JSON files (or wire it into your build).
@@ -328,13 +330,13 @@ import {
 } from "./i18n/generated/instance.generated.js";
 import billingDictionary from "./i18n/translations/billing.json";
 
-const scope = await createI18n({}).withNamespaces(["billing"]).withLocale(activeLocale).load();
+const { t, set } = await createI18n({}).withNamespaces(["billing"]).withLocale(activeLocale).load();
 
 // Optional: validate a projected slice, then patch one key
 const billingEn = projectNamespaceLocales(billingDictionary, [activeLocale]);
 const result = validateExternalKey("billing", "invoice_summary", billingEn.invoice_summary);
 if (result.ok) {
-  scope.set("billing", "invoice_summary", result.data.invoice_summary[activeLocale]!);
+  set("billing", "invoice_summary", result.data.invoice_summary[activeLocale]!);
 }
 ```
 
@@ -609,7 +611,7 @@ Load only the namespaces you need:
 ```ts
 import { createI18n } from "./generated/instance.generated.js";
 
-const view = await createI18n({}).withNamespaces(["billing"]).withLocale(activeLocale).load();
+const { t } = await createI18n({}).withNamespaces(["billing"]).withLocale(activeLocale).load();
 ```
 
 Use split delivery when you want smaller lazy chunks (one locale per dynamic import) or when serving per-locale JSON from `public/` without runtime `projectNamespaceLocales`. Runtime `projectDictionaryLocales` / `projectNamespaceLocales` remain available for external CMS/API payloads.
@@ -618,37 +620,41 @@ Use split delivery when you want smaller lazy chunks (one locale per dynamic imp
 
 ### Single vs. multi-namespace API
 
-|             | Single-file                                      | Multi-namespace                                      |
-| ----------- | ------------------------------------------------ | ---------------------------------------------------- |
-| `I18N_MODE` | `'single'`                                       | `'multi'`                                            |
-| Provider    | `IcuTranslationProviderSingle`                   | `IcuTranslationProviderMulti`                        |
-| `t()`       | `t(key, locale, params?)`                        | `t(namespace, key, locale, params?)`                 |
-| Patch       | `scope.set(key, template)` on locale-bound scope | `scope.set(ns, key, template)` on locale-bound scope |
+|             | Single-file                                | Multi-namespace                                |
+| ----------- | ------------------------------------------ | ---------------------------------------------- |
+| `I18N_MODE` | `'single'`                                 | `'multi'`                                      |
+| Provider    | `IcuTranslationProviderSingle`             | `IcuTranslationProviderMulti`                  |
+| `t()`       | `t(key, locale, params?)`                  | `t(namespace, key, locale, params?)`           |
+| Patch       | `set(key, template)` on locale-bound scope | `set(ns, key, template)` on locale-bound scope |
 
 ### Multi-namespace example
 
 ```ts
 import { i18n } from "./i18n"; // app singleton from i18n.ts
-// or: import { createI18n, defaultDictionary } from './i18n'; const i18n = createI18n(defaultDictionary);
+// or: import { createI18n, defaultDictionary } from './i18n'; const { t } = createI18n(defaultDictionary);
 
-scope.t("default", "login_button", "it"); // "Accedi"
-scope.t("default", "welcome", "en", { name: "Ada" }); // "Welcome Ada!"
-scope.t("default", "dashboard_status", "it", { msgCount: 3, chatCount: 2 });
-scope.t("billing", "invoice_summary", "en", { count: 12 });
+const { t } = i18n;
+
+t("default", "login_button", "it"); // "Accedi"
+t("default", "welcome", "en", { name: "Ada" }); // "Welcome Ada!"
+t("default", "dashboard_status", "it", { msgCount: 3, chatCount: 2 });
+t("billing", "invoice_summary", "en", { count: 12 });
 
 // Compile-time errors:
-scope.t("default", "welcome", "it"); // ✗ missing { name }
-scope.t("billing", "login_button", "it"); // ✗ key not in namespace
+t("default", "welcome", "it"); // ✗ missing { name }
+t("billing", "login_button", "it"); // ✗ key not in namespace
 ```
 
 ### Single-file example
 
 ```ts
 import { i18n } from "./i18n"; // app singleton from i18n.ts
-// or: import { createI18n, defaultDictionary } from './i18n'; const i18n = createI18n(defaultDictionary);
+// or: import { createI18n, defaultDictionary } from './i18n'; const { t } = createI18n(defaultDictionary);
 
-i18n.t("login_button", "it");
-i18n.t("welcome", "en", { name: "Ada" });
+const { t } = i18n;
+
+t("login_button", "it");
+t("welcome", "en", { name: "Ada" });
 ```
 
 ### Runtime override (key-level patch)
@@ -657,17 +663,13 @@ Runtime patches go through **`scope.set()`** on a locale-bound scope returned fr
 
 ```ts
 // Multi — locale-bound scope from load()
-const scope = await createI18n({}).withNamespaces(["billing"]).withLocale("en").load();
-scope.set(
-  "billing",
-  "invoice_summary",
-  "You have {count, plural, one {1 invoice} other {# invoices}}"
-);
-scope.t("billing", "invoice_summary", { count: 2 });
+const { t, set } = await createI18n({}).withNamespaces(["billing"]).withLocale("en").load();
+set("billing", "invoice_summary", "You have {count, plural, one {1 invoice} other {# invoices}}");
+t("billing", "invoice_summary", { count: 2 });
 
 // Single — same pattern
-const singleScope = await createI18n(defaultDictionary).withLocale("en").load();
-singleScope.set("welcome", "Welcome {name}!");
+const { set: setWelcome } = await createI18n(defaultDictionary).withLocale("en").load();
+setWelcome("welcome", "Welcome {name}!");
 ```
 
 Unbound scopes (without `withLocale` / `withDeliveryArea` before `load()`) are read-only; call `.forLocale(locale)` before patching.
@@ -705,15 +707,15 @@ Canonical delivery: eager namespaces load via `loadOnInit`. For lazy ones, use t
 import { createI18n, namespaceLoaders, type LazyNamespace } from "./i18n";
 
 // Eager namespace available immediately on the canonical singleton scope
-const scope = createI18n(defaultDictionary).toScope();
-scope.t("default", "login_button", "en");
+const { t } = createI18n(defaultDictionary).toScope();
+t("default", "login_button", "en");
 
 // Lazy namespace — load via builder
-const billingScope = await createI18n(defaultDictionary)
+const { t: tBilling } = await createI18n(defaultDictionary)
   .withNamespaces(["billing"])
   .withLocale("en")
   .load();
-billingScope.t("billing", "invoice_summary", { count: 12 });
+tBilling("billing", "invoice_summary", { count: 12 });
 
 // batch preload several lazy namespaces for one locale
 await Promise.all(
@@ -730,26 +732,26 @@ With `split-by-locale` or `custom`, codegen wires `namespaceLoaders` into `creat
 ```ts
 import { createI18n } from "./generated/instance.generated.js";
 
-const scope = await createI18n({})
+const { t } = await createI18n({})
   .withNamespaces(["billing"])
   .withLocale(activeLocale) // split-by-locale
   // .withDeliveryArea(activeArea) // custom delivery
   .load();
 
-scope.t("billing", "invoice_summary", { count: 3 });
+t("billing", "invoice_summary", { count: 3 });
 ```
 
 Different locale or delivery-area partitions accumulate on the shared engine — load `"it"`, then `"en"`, and both remain available. Loading the **same** namespace + partition again is a no-op (preserves runtime `scope.set()` patches):
 
 ```ts
 const builder = createI18n({}).withNamespaces(["billing"] as const);
-const itScope = await builder.withLocale("it").load();
-const enScope = await builder.withLocale("en").load();
-// itScope and enScope share one engine; both locales are preloaded for billing keys.
+const { t: tIt, set: setIt } = await builder.withLocale("it").load();
+const { t: tEn } = await builder.withLocale("en").load();
+// tIt and tEn share one engine; both locales are preloaded for billing keys.
 
-itScope.set("billing", "invoice_summary", "Custom {count} for {name}");
+setIt("billing", "invoice_summary", "Custom {count} for {name}");
 await builder.withLocale("it").load(); // skipped — patch preserved
-itScope.t("billing", "invoice_summary", { count: 1, name: "Ada" }); // "Custom 1 for Ada"
+tIt("billing", "invoice_summary", { count: 1, name: "Ada" }); // "Custom 1 for Ada"
 ```
 
 Generated loaders throw if locale/area does not match a known artifact (no silent empty payloads into `load()`).
@@ -759,11 +761,12 @@ Optional locale projection before validating external slices:
 ```ts
 import { projectNamespaceLocales } from "./i18n/generated/instance.generated.js";
 
+const { set } = await createI18n({}).withNamespaces(["billing"]).withLocale(userLocale).load();
 const billing = await namespaceLoaders.billing();
 const billingSlice = projectNamespaceLocales(billing, [userLocale]);
 const result = validateExternalKey("billing", "invoice_summary", billingSlice.invoice_summary);
 if (result.ok) {
-  scope.set("billing", "invoice_summary", result.data.invoice_summary[userLocale]!);
+  set("billing", "invoice_summary", result.data.invoice_summary[userLocale]!);
 }
 ```
 
@@ -800,7 +803,10 @@ import { createI18n } from "./i18n";
 
 const raw: unknown = await loadTranslations();
 
-const scope = await createI18n({}).withNamespaces(["default", "billing"]).withLocale("en").load();
+const { t, set } = await createI18n({})
+  .withNamespaces(["default", "billing"])
+  .withLocale("en")
+  .load();
 
 const result = validateExternalDictionaryPartial(raw);
 if (!result.ok) {
@@ -811,10 +817,9 @@ if (!result.ok) {
 for (const [namespace, nsData] of Object.entries(result.data)) {
   if (!nsData) continue;
   for (const [key, locales] of Object.entries(nsData)) {
-    const keyResult = validateExternalKey(namespace as "default", key, locales);
-    if (keyResult.ok) {
-      const template = keyResult.data[key as keyof typeof keyResult.data]?.en;
-      if (template) scope.set(namespace as "billing", key as "invoice_summary", template);
+    const template = locales?.en;
+    if (template !== undefined) {
+      set(namespace as "billing", key as "invoice_summary", template);
     }
   }
 }
@@ -825,11 +830,11 @@ For a single key patch (multi mode):
 ```ts
 import { validateExternalKey } from "./i18n/generated/dictionary-schema.generated.js";
 
-const scope = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
+const { set } = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
 
 const result = validateExternalKey("billing", "invoice_summary", rawLocales);
 if (result.ok) {
-  scope.set("billing", "invoice_summary", result.data.invoice_summary.it!);
+  set("billing", "invoice_summary", result.data.invoice_summary.it!);
 }
 ```
 

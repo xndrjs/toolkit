@@ -18,7 +18,7 @@ import { formatIssues } from "@xndrjs/i18n/validation";
 import { validateExternalKey } from "./i18n/generated/dictionary-schema.generated.js";
 import { createI18n } from "./i18n";
 
-const scope = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
+const { set } = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
 
 const raw: unknown = await loadTranslations();
 const result = validateExternalKey("billing", "invoice_summary", raw);
@@ -28,7 +28,7 @@ if (!result.ok) {
   return;
 }
 
-scope.set("billing", "invoice_summary", result.data.invoice_summary.it!);
+set("billing", "invoice_summary", result.data.invoice_summary.it!);
 ```
 
 Validation runs in two phases:
