@@ -131,15 +131,12 @@ t("default", "welcome", { name: "Ada" }); // multi
 
 ### Dynamic access when you need it
 
-`getAll()` exposes the current dictionary for tooling and administrative use cases:
+The engine exposes a `getAll()` method when you need to walk the full dictionary — admin UIs, previews, diff tools. Most applications never need it: typed `t()` for one key at a time is enough.
 
 ```ts
 const snapshot = i18n.getAll();
 const label = snapshot.default.login_button.en;
 ```
-
-Codegen gives you precise types for the happy path. `getAll()` keeps
-escape hatches open for tooling that genuinely needs to iterate.
 
 ### ICU MessageFormat — grammar lives in the template
 
@@ -221,7 +218,7 @@ This separation matters: optimizing delivery does not create a second authoring 
 
 ### Split by locale with generated namespace loaders
 
-In multi-namespace mode with `split-by-locale` or `custom` delivery, codegen emits one JSON artifact for every namespace and locale or area, plus typed `namespaceLoaders`. All namespaces are lazy in those modes — preload each namespace before rendering the feature that uses it:
+In multi-namespace mode with `split-by-locale` or `custom` delivery, codegen emits one JSON artifact for every namespace and locale or area, plus typed `namespaceLoaders`. All namespaces are lazy in those modes — load them with the builder before the feature that needs them.
 
 ```json
 // i18n/i18n.codegen.json
@@ -251,15 +248,15 @@ Each loader accepts only a known locale and resolves to the exact schema for its
 ```ts
 import { createI18n } from "./i18n";
 
-const { t } = await createI18n({}) // shared engine, empty until load
-  .withNamespaces(["billing", "default"]) // which namespaces to fetch
+const { t } = await createI18n({}) // shared engine, initialized empty
+  .withNamespaces(["billing", "default"]) // which namespaces to load
   .withLocale("en") // split-by-locale partition passed to loaders
   .load(); // dynamic import + merge; returns locale-bound scope
 
 t("billing", "invoice_summary", { count: 12 });
 ```
 
-`load()` is async; the returned scope is locale-bound and exposes a synchronous `t()`. If a key was never preloaded, `t()` resolves through `onMissing` (default: throw) — not a silent empty label.
+`load()` is async; the returned scope is locale-bound and exposes a synchronous `t()`. If a key was never loaded, `t()` resolves through `onMissing` (default: throw) — not a silent empty label by default.
 
 Reloading the same namespace + locale on a shared engine is skipped, so runtime patches via `scope.set()` (for example after CMS validation) are not overwritten by a later default load.
 
@@ -288,7 +285,7 @@ export const namespaceLoaders = {
 
 That detail has different consequences on the client and server:
 
-- **Client-side bundling:** bundlers can see every literal import target and emit a separate chunk for each namespace-locale pair. The initial bundle contains the loader map, not every translation value. Calling `namespaceLoaders.billing("it")` triggers a network request for the Italian billing chunk the first time it is needed; normal browser and CDN caching applies afterward.
+- **Client-side bundling:** bundlers can see every literal import target in the generated loaders and emit a separate chunk for each namespace-locale pair. The initial bundle contains the loader map, not every translation value; the first `load()` for a pair fetches its chunk, then normal browser and CDN caching applies.
 - **Server-side bundling:** the same dynamic import defers module evaluation, but it does not automatically mean a browser fetch. In a bundled server deployment, the JSON may become a server chunk loaded from the deployment filesystem; in an unbundled Node.js deployment, it is resolved directly from disk. This can reduce eagerly loaded code and memory, but the bundler and deployment target decide whether it changes the total server artifact size.
 - **SSR and hydration:** loading a namespace on the server does not by itself make that module available in the browser. If the hydrated client needs to translate the same feature, it will load its own client chunk unless you serialize the required dictionary into the page and adopt a separate hydration strategy.
 
@@ -410,6 +407,8 @@ forLocale("en").t("billing", "invoice_summary", { count: 12 });
 | **Eager** | `createI18n(defaultDictionary)` → scope | Dictionary (or `loadOnInit` namespaces) bundled at startup          |
 | **Lazy**  | `createI18n({})` → builder              | `await builder.withNamespaces([...]).….load()` → locale-bound scope |
 
+With `split-by-locale` or `custom`, multi mode is always lazy — `createI18n({})` returns a builder, not a ready scope.
+
 **Lazy** (multi, when codegen emits `namespaceLoaders`). `t` and `set` can be destructured — scope methods are bound and do not rely on `this`:
 
 ```ts
@@ -427,7 +426,7 @@ Reloading the same namespace + partition on a shared engine is skipped — runti
 
 ### Delivery modes
 
-Authoring stays one multilocale file per namespace; `"delivery"` in config only changes generated artifacts and loader partitions.
+Authoring stays one multilocale file per namespace; `"delivery"` in config only changes generated artifacts and loader partitions. After `withLocale(...).load()`, omit the locale on `t()`; otherwise pass it on each call.
 
 **Canonical** — one multilocale JSON per namespace (all locales in the same file). Eager: pass `defaultDictionary` to `createI18n` (see above).
 
