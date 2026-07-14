@@ -14,18 +14,18 @@ All namespaces are lazy. Bootstrap with `createI18n({})` and use the builder to 
 ```ts
 import { createI18nForLocale } from "./i18n";
 
-const scope = await createI18nForLocale(activeLocale, ["default", "billing"]);
-scope.t("billing", "invoice_summary", { count: 2 });
+const { t } = await createI18nForLocale(activeLocale, ["default", "billing"]);
+t("billing", "invoice_summary", { count: 2 });
 ```
 
 For external/CMS patches after validation, `load()` first (preload gate), then patch individual keys on the locale-bound scope:
 
 ```ts
-const scope = await createI18n({}).withNamespaces(["billing"]).withLocale(locale).load();
+const { t, set } = await createI18n({}).withNamespaces(["billing"]).withLocale(locale).load();
 
 const result = validateExternalKey("billing", "invoice_summary", rawLocales);
 if (result.ok) {
-  scope.set("billing", "invoice_summary", result.data.invoice_summary[locale]!);
+  set("billing", "invoice_summary", result.data.invoice_summary[locale]!);
 }
 ```
 
@@ -41,8 +41,8 @@ Delivery JSON is grouped by area (`eu`, `amer`). Bootstrap with one shared `crea
 import { createI18n } from "./i18n";
 
 const i18n = createI18n({});
-const scope = await i18n.withNamespaces(["default", "billing"]).withDeliveryArea("eu").load();
-scope.t("default", "some_key", "it");
+const { t } = await i18n.withNamespaces(["default", "billing"]).withDeliveryArea("eu").load();
+t("default", "some_key", "it");
 ```
 
 Different locale partitions accumulate on the shared engine (`it` then `en`). Reloading the **same** namespace + delivery area is skipped — runtime `scope.set()` patches are preserved. For external hydration, use `load()` then `scope.set()` on a locale-bound scope (same pattern as `multi/`).

@@ -40,20 +40,20 @@ export class I18nScopeSingleImpl<
     private readonly engine: IcuTranslationProviderSingle<Schema, Params, RequestLocales, Fallback>
   ) {}
 
-  t<const K extends keyof Schema & string>(
+  t = <const K extends keyof Schema & string>(
     key: K,
     locale: RequestLocales,
     ...args: ParamArgs<Params[K]>
-  ): string {
+  ): string => {
     const params = args[0] as Record<string, unknown> | undefined;
     return this.engine.getWithLocale(String(key), locale, params);
-  }
+  };
 
-  forLocale<Locale extends RequestLocales>(
+  forLocale = <Locale extends RequestLocales>(
     locale: Locale
-  ): I18nScopeSingleForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback> {
+  ): I18nScopeSingleForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback> => {
     return new I18nScopeSingleForLocaleImpl(this.engine, locale);
-  }
+  };
 }
 
 export class I18nScopeSingleForLocaleImpl<
@@ -68,18 +68,18 @@ export class I18nScopeSingleForLocaleImpl<
     readonly locale: Locale
   ) {}
 
-  t<const K extends keyof Schema & string>(key: K, ...args: ParamArgs<Params[K]>): string {
+  t = <const K extends keyof Schema & string>(key: K, ...args: ParamArgs<Params[K]>): string => {
     const params = args[0] as Record<string, unknown> | undefined;
     return this.engine.getWithLocale(String(key), this.locale, params);
-  }
+  };
 
-  set<const K extends keyof Schema & string>(key: K, template: string): void {
+  set = <const K extends keyof Schema & string>(key: K, template: string): void => {
     this.engine.patchKey(String(key), this.locale, template);
-  }
+  };
 
-  forLocale<Next extends Locale>(
+  forLocale = <Next extends Locale>(
     locale: Next
-  ): I18nScopeSingleForLocaleImpl<Schema, Params, RequestLocales, Next, Fallback> {
+  ): I18nScopeSingleForLocaleImpl<Schema, Params, RequestLocales, Next, Fallback> => {
     return new I18nScopeSingleForLocaleImpl(this.engine, locale);
-  }
+  };
 }

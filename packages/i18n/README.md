@@ -497,7 +497,7 @@ Example init (multi, split-by-locale, all namespaces lazy):
 ```ts
 import { createI18n } from "./generated/instance.generated.js";
 
-const scope = await createI18n({})
+const { t } = await createI18n({})
   .withNamespaces(["default", "billing"])
   .withLocale(activeLocale)
   .load();
@@ -508,13 +508,13 @@ Example init (multi, custom delivery, all namespaces lazy):
 ```ts
 import { createI18n } from "./generated/instance.generated.js";
 
-const scope = await createI18n({})
+const { t } = await createI18n({})
   .withNamespaces(["default", "billing"])
   .withDeliveryArea(activeArea)
   .load();
 
 // ActiveLocales is narrowed to DELIVERY_ARTIFACTS[activeArea] — forLocale() only accepts those locales.
-scope.t("default", "login_button", "it");
+t("default", "login_button", "it");
 ```
 
 Custom delivery config and typed artifacts (no need to read `deliveryArtifacts` from JSON at runtime):
@@ -842,6 +842,7 @@ Both providers share this behavior:
 - **Compilation cache** — compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode). Invalidated on `scope.set()` for the affected key/locale.
 - **`getAll()`** — returns a deep-frozen snapshot of the current dictionary (not a live reference).
 - **Load deduplication** — the engine tracks lazy resources loaded via the builder (`namespace` + locale or delivery area). A repeated `load()` for the same resource is skipped so default artifacts do not overwrite runtime `scope.set()` patches.
+- **Destructuring-safe scopes** — `t`, `set`, and `forLocale` on scopes can be extracted (`const { t } = scope`) without manual `.bind()`.
 - **No public merge/replace** — `setAll`, `mergeAll`, `setNamespace`, and `mergeNamespace` were removed in 0.7.0. The first `load()` per resource deep-merges defaults; further patches go through `scope.set()`.
 - **Missing key/locale** — by default throws an error if the template is `undefined` (configurable via `onMissing`, see below). An empty string (`""`) is treated as a valid template.
 - **ICU syntax error** — throws `[i18n ICU Syntax Error] ...`.

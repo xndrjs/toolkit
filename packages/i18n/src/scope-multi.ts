@@ -61,19 +61,24 @@ export class I18nScopeMultiImpl<
     private readonly engine: IcuTranslationProviderMulti<Schema, Params, RequestLocales, Fallback>
   ) {}
 
-  t<
+  t = <
     const NS extends keyof Schema & keyof Params & string,
     const K extends keyof Schema[NS] & keyof Params[NS] & string,
-  >(namespace: NS, key: K, locale: RequestLocales, ...args: ParamArgs<Params[NS][K]>): string {
+  >(
+    namespace: NS,
+    key: K,
+    locale: RequestLocales,
+    ...args: ParamArgs<Params[NS][K]>
+  ): string => {
     const params = args[0] as Record<string, unknown> | undefined;
     return this.engine.getWithLocale(String(namespace), String(key), locale, params);
-  }
+  };
 
-  forLocale<Locale extends RequestLocales>(
+  forLocale = <Locale extends RequestLocales>(
     locale: Locale
-  ): I18nScopeMultiForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback> {
+  ): I18nScopeMultiForLocaleImpl<Schema, Params, RequestLocales, Locale, Fallback> => {
     return new I18nScopeMultiForLocaleImpl(this.engine, locale);
-  }
+  };
 }
 
 export class I18nScopeMultiForLocaleImpl<
@@ -88,24 +93,32 @@ export class I18nScopeMultiForLocaleImpl<
     readonly locale: Locale
   ) {}
 
-  t<
+  t = <
     const NS extends keyof Schema & keyof Params & string,
     const K extends keyof Schema[NS] & keyof Params[NS] & string,
-  >(namespace: NS, key: K, ...args: ParamArgs<Params[NS][K]>): string {
+  >(
+    namespace: NS,
+    key: K,
+    ...args: ParamArgs<Params[NS][K]>
+  ): string => {
     const params = args[0] as Record<string, unknown> | undefined;
     return this.engine.getWithLocale(String(namespace), String(key), this.locale, params);
-  }
+  };
 
-  set<
+  set = <
     const NS extends keyof Schema & keyof Params & string,
     const K extends keyof Schema[NS] & keyof Params[NS] & string,
-  >(namespace: NS, key: K, template: string): void {
+  >(
+    namespace: NS,
+    key: K,
+    template: string
+  ): void => {
     this.engine.patchKeyMulti(String(namespace), String(key), this.locale, template);
-  }
+  };
 
-  forLocale<Next extends RequestLocales>(
+  forLocale = <Next extends RequestLocales>(
     locale: Next
-  ): I18nScopeMultiForLocaleImpl<Schema, Params, RequestLocales, Next, Fallback> {
+  ): I18nScopeMultiForLocaleImpl<Schema, Params, RequestLocales, Next, Fallback> => {
     return new I18nScopeMultiForLocaleImpl(this.engine, locale);
-  }
+  };
 }

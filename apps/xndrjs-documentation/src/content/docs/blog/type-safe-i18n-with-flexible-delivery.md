@@ -385,9 +385,10 @@ Codegen mode defines the `t()` signature. With `"delivery": "canonical"` and no 
 ```ts
 import { createI18n, defaultDictionary } from "./i18n";
 
-const scope = createI18n(defaultDictionary);
-scope.t("welcome", "en", { name: "Ada" });
-scope.forLocale("en").t("welcome", { name: "Ada" });
+const { t } = createI18n(defaultDictionary);
+t("welcome", "en", { name: "Ada" });
+const { t: tEn } = createI18n(defaultDictionary).forLocale("en");
+tEn("welcome", { name: "Ada" });
 ```
 
 **Multi-namespace** — keys grouped by domain (`default`, `billing`, …):
@@ -395,9 +396,9 @@ scope.forLocale("en").t("welcome", { name: "Ada" });
 ```ts
 import { createI18n, defaultDictionary } from "./i18n";
 
-const scope = createI18n(defaultDictionary);
-scope.t("default", "welcome", "en", { name: "Ada" });
-scope.forLocale("en").t("billing", "invoice_summary", { count: 12 });
+const { t, forLocale } = createI18n(defaultDictionary);
+t("default", "welcome", "en", { name: "Ada" });
+forLocale("en").t("billing", "invoice_summary", { count: 12 });
 ```
 
 ### Eager vs lazy
@@ -407,17 +408,17 @@ scope.forLocale("en").t("billing", "invoice_summary", { count: 12 });
 | **Eager** | `createI18n(defaultDictionary)` → scope | Dictionary (or `loadOnInit` namespaces) bundled at startup          |
 | **Lazy**  | `createI18n({})` → builder              | `await builder.withNamespaces([...]).….load()` → locale-bound scope |
 
-**Lazy** (multi, when codegen emits `namespaceLoaders`):
+**Lazy** (multi, when codegen emits `namespaceLoaders`). `t` and `set` can be destructured — scope methods are bound and do not rely on `this`:
 
 ```ts
 import { createI18n } from "./i18n";
 
-const scope = await createI18n({}) // shared engine, empty until load
+const { t } = await createI18n({}) // shared engine, empty until load
   .withNamespaces(["billing"]) // which namespaces to fetch
   .withLocale("en") // passed to generated loaders (split/custom)
-  .load(); // dynamic import + merge
+  .load(); // dynamic import + merge; locale-bound scope
 
-scope.t("billing", "invoice_summary", { count: 12 });
+t("billing", "invoice_summary", { count: 12 });
 ```
 
 Reloading the same namespace + partition on a shared engine is skipped — runtime `scope.set()` patches are not overwritten by a later default load.
@@ -432,27 +433,27 @@ Authoring stays one multilocale file per namespace; `"delivery"` in config only 
 
 ```ts
 // generated: billing() → import("./translations/billing.json")
-const scope = await createI18n({})
+const { t } = await createI18n({})
   .withNamespaces(["billing"]) // no withLocale / withDeliveryArea
   .load();
-scope.t("billing", "invoice_summary", "en", { count: 12 });
+t("billing", "invoice_summary", "en", { count: 12 });
 ```
 
 **Split-by-locale** — codegen emits one JSON per namespace **and** locale (`billing.en.json`, `billing.it.json`, …). The loader needs to know which file to import, so the builder passes the active locale via `withLocale(...)`:
 
 ```ts
-const scope = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
-scope.t("billing", "invoice_summary", { count: 3 });
+const { t } = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
+t("billing", "invoice_summary", { count: 3 });
 ```
 
 **Custom areas** — same idea as split-by-locale, but the partition is a **delivery area** (`eu`, `amer`, …) that groups several locales into one regional artifact. Use `withDeliveryArea(...)` instead of `withLocale(...)`:
 
 ```ts
-const scope = await createI18n({})
+const { t } = await createI18n({})
   .withNamespaces(["default", "billing"])
   .withDeliveryArea("eu")
   .load();
-scope.t("default", "welcome", "it", { name: "Ada" });
+t("default", "welcome", "it", { name: "Ada" });
 ```
 
 ---

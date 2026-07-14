@@ -159,6 +159,14 @@ describe("I18nScope single", () => {
     expect(it.t("welcome", { name: "Ada" })).toBe("Benvenuto Ada!");
   });
 
+  it("supports destructuring t and set from locale-bound scopes", () => {
+    const { t, set } = engine.toScope().forLocale("en");
+
+    expect(t("login_button")).toBe("Login");
+    set("login_button", "Sign in");
+    expect(t("login_button")).toBe("Sign in");
+  });
+
   it("throws when key or locale is missing", () => {
     expect(() => view.t("login_button", "fr" as unknown as LocaleOfSingle<SingleSchema>)).toThrow(
       '[i18n] Missing key or locale: "login_button" [fr] (fallback chain: fr)'
@@ -318,6 +326,22 @@ describe("I18nScope multi", () => {
     expect(it.locale).toBe("it");
     expect(it.t("billing", "invoice_summary", { count: 2, name: "Ada" })).toBe(
       "Hai 2 fatture per Ada"
+    );
+  });
+
+  it("supports destructuring t and set from locale-bound scopes", () => {
+    const { t, set } = engine.toScope({ namespaces: ["billing"] }).forLocale("en");
+
+    expect(t("billing", "invoice_summary", { count: 1, name: "Ada" })).toBe(
+      "You have 1 invoice for Ada"
+    );
+    set(
+      "billing",
+      "invoice_summary",
+      "You have {count, plural, one {1 invoice only} other {{count} invoices only}} for {name}"
+    );
+    expect(t("billing", "invoice_summary", { count: 1, name: "Ada" })).toBe(
+      "You have 1 invoice only for Ada"
     );
   });
 

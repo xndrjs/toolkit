@@ -11,23 +11,26 @@ import type { MyProjectLocale, MyProjectSchema } from "./i18n/generated/i18n-typ
 const demoLocale = "en" as const satisfies MyProjectLocale;
 
 export async function exampleCreateI18nForLocale(): Promise<void> {
-  const scope = await createI18n({}).withNamespaces(["default", "user"]).withLocale("de-CH").load();
+  const { t } = await createI18n({}).withNamespaces(["default", "user"]).withLocale("de-CH").load();
 
-  console.log("default.login_button @ de-CH:", scope.t("default", "login_button"));
-  console.log("user.greeting @ de-CH:", scope.t("user", "greeting", { name: "Lena" }));
+  console.log("default.login_button @ de-CH:", t("default", "login_button"));
+  console.log("user.greeting @ de-CH:", t("user", "greeting", { name: "Lena" }));
 }
 
 export async function exampleProjectNamespaceLocalesPatch(): Promise<void> {
   const activeLocale = "it";
-  const scope = await createI18n({}).withNamespaces(["billing"]).withLocale(activeLocale).load();
+  const { t, set } = await createI18n({})
+    .withNamespaces(["billing"])
+    .withLocale(activeLocale)
+    .load();
 
-  scope.set(
+  set(
     "billing",
     "invoice_summary",
     "Hai {count, plural, one {1 fattura aggiornata} other {# fatture aggiornate}}"
   );
 
-  console.log("billing.invoice_summary @ it:", scope.t("billing", "invoice_summary", { count: 3 }));
+  console.log("billing.invoice_summary @ it:", t("billing", "invoice_summary", { count: 3 }));
 }
 
 export async function exampleExternalNamespacePatch(): Promise<void> {
@@ -39,7 +42,7 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
     return;
   }
 
-  const scope = await createI18n({}).withNamespaces(["billing"]).withLocale(demoLocale).load();
+  const { t, set } = await createI18n({}).withNamespaces(["billing"]).withLocale(demoLocale).load();
 
   for (const key of Object.keys(result.data) as (keyof MyProjectSchema["billing"])[]) {
     const locales = result.data[key];
@@ -53,11 +56,11 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
 
     const template = keyResult.data[key]?.[demoLocale];
     if (template !== undefined) {
-      scope.set("billing", key, template);
+      set("billing", key, template);
     }
   }
 
-  console.log("billing.invoice_summary @ en:", scope.t("billing", "invoice_summary", { count: 1 }));
+  console.log("billing.invoice_summary @ en:", t("billing", "invoice_summary", { count: 1 }));
 }
 
 export async function exampleExternalDictionaryHydration(): Promise<void> {
@@ -71,7 +74,7 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 
   const namespaces = ["default", "user", "billing"] as const;
 
-  const scope = await createI18n({}).withNamespaces(namespaces).withLocale(demoLocale).load();
+  const { t, set } = await createI18n({}).withNamespaces(namespaces).withLocale(demoLocale).load();
 
   for (const namespace of Object.keys(result.data) as (typeof namespaces)[number][]) {
     const nsData = result.data[namespace];
@@ -89,37 +92,34 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 
       const template = keyResult.data[key]?.[demoLocale];
       if (template !== undefined) {
-        scope.set(namespace, key, template);
+        set(namespace, key, template);
       }
     }
   }
 
-  console.log(
-    "billing.invoice_summary @ en:",
-    scope.t("billing", "invoice_summary", { count: 12 })
-  );
+  console.log("billing.invoice_summary @ en:", t("billing", "invoice_summary", { count: 12 }));
 }
 
 export async function exampleMergeAccumulatesAcrossLocales(): Promise<void> {
   // Same engine (same createI18n call) — load two locales over time.
   const builder = createI18n({}).withNamespaces(["billing"] as const);
 
-  const itScope = await builder.withLocale("it").load();
+  const { t: tIt } = await builder.withLocale("it").load();
   console.log(
     "billing.invoice_summary @ it (after it load):",
-    itScope.t("billing", "invoice_summary", { count: 2 })
+    tIt("billing", "invoice_summary", { count: 2 })
   );
 
-  const enScope = await builder.withLocale("en").load();
+  const { t: tEn } = await builder.withLocale("en").load();
   console.log(
     "billing.invoice_summary @ en (after en load):",
-    enScope.t("billing", "invoice_summary", { count: 2 })
+    tEn("billing", "invoice_summary", { count: 2 })
   );
 
   // Still works because load() deep-merges locale entries on the shared engine.
   console.log(
     "billing.invoice_summary @ it (after en load):",
-    itScope.t("billing", "invoice_summary", { count: 2 })
+    tIt("billing", "invoice_summary", { count: 2 })
   );
 }
 

@@ -97,6 +97,8 @@ The bound scope shares dictionary, cache, and fallback rules with the engine.
 
 Compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode). `scope.set()` invalidates the affected key.
 
+Scope methods (`t`, `set`, `forLocale`) are **destructuring-safe** — they are bound at construction time, so `const { t } = await builder.load()` works without manual `.bind()`.
+
 Public merge/replace APIs (`setAll`, `mergeAll`, `setNamespace`, `mergeNamespace`) were removed in 0.7.0. Deep merge is internal to the first `load()` per resource; patches go through `scope.set()`.
 
 ### `getAll()` for dynamic access

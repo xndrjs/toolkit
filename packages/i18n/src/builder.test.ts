@@ -244,6 +244,21 @@ describe("I18nBuilder multi", () => {
     expect(billingLoader).toHaveBeenCalledTimes(1);
   });
 
+  it("returns a destructuring-safe locale-bound scope from load()", async () => {
+    const billingLoader = vi.fn(async () => billingEn);
+    const engine = new IcuTranslationProviderMulti<MultiSchema, TestMultiParams>({});
+    const { t } = await createI18nBuilder(engine, {
+      namespaceLoaders: { billing: billingLoader },
+    })
+      .withNamespaces(["billing"])
+      .withLocale("en")
+      .load();
+
+    expect(t("billing", "invoice_summary", { count: 1, name: "Ada" })).toBe(
+      "You have 1 invoice for Ada"
+    );
+  });
+
   it("preserves runtime patches when a later builder reloads the same resource", async () => {
     const billingLoader = vi.fn(async () => billingEn);
     const engine = new IcuTranslationProviderMulti<MultiSchema, TestMultiParams>({});

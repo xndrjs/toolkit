@@ -6,19 +6,13 @@ import type {
   LocaleOfSingle,
   PartialKeyDictionary,
 } from "./types.js";
-import type { I18nScopeSingleForLocaleImpl, I18nScopeSingleImpl } from "./scope-single.js";
+import type { I18nScopeSingleForLocale, I18nScopeSingleImpl } from "./scope-single.js";
 
 type SingleScopeBound<
   Schema extends KeyDictionary,
   Params,
   Locale extends string,
-> = I18nScopeSingleForLocaleImpl<
-  Schema,
-  Params & { [K in keyof Schema]: unknown },
-  LocaleOfSingle<Schema>,
-  Locale,
-  LocaleFallbackMap | undefined
->;
+> = I18nScopeSingleForLocale<Schema, Params & { [K in keyof Schema]: unknown }, Locale>;
 
 export type I18nBuilderSingleOptions<
   Schema extends KeyDictionary,
@@ -129,9 +123,9 @@ export class I18nBuilderSingleForLocaleImpl<
     private readonly state: SingleBuilderState<Schema, RequestLocales> & { locale: Locale }
   ) {}
 
-  async load() {
+  async load(): Promise<SingleScopeBound<Schema, Params, Locale>> {
     await applySingleBuilderLoad(this.engine, this.options, this.state);
-    return this.engine.toScope().forLocale(this.state.locale);
+    return this.engine.toScope({ locale: this.state.locale });
   }
 }
 
