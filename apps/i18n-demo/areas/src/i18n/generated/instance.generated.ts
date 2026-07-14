@@ -5,13 +5,9 @@ import {
   projectDictionaryLocalesCore,
   projectNamespaceForDeliveryAreaCore,
   projectDictionaryForDeliveryAreaCore,
-  createI18nBuilder,
   createI18nMultiBuilder,
-  type I18nBuilderMulti,
+  type I18nBuilderMultiInitial,
   type I18nBuilderMultiOptions,
-  type I18nBuilderMultiPartitioned,
-  type I18nScopeMulti,
-  type I18nScopeSingle,
   type OnMissingTranslation,
 } from "@xndrjs/i18n";
 import type {
@@ -27,12 +23,11 @@ import { namespaceLoaders } from "./namespace-loaders.generated";
 export function createI18n(
   dictionary: InitialSchema,
   options?: { onMissing?: OnMissingTranslation }
-): I18nBuilderMulti<
+): I18nBuilderMultiInitial<
   MyProjectSchema,
   MyProjectParams,
   MyProjectLocale,
   MyProjectLocale,
-  readonly [],
   MyProjectDeliveryArea,
   MyProjectDeliveryArtifacts
 > {

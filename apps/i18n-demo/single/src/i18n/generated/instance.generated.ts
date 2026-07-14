@@ -2,11 +2,6 @@
 import {
   IcuTranslationProviderSingle,
   projectNamespaceLocalesCore,
-  createI18nBuilder,
-  createI18nMultiBuilder,
-  type I18nBuilderMulti,
-  type I18nBuilderMultiPartitioned,
-  type I18nScopeMulti,
   type I18nScopeSingle,
   type OnMissingTranslation,
 } from "@xndrjs/i18n";

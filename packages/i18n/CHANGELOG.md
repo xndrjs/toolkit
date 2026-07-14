@@ -12,6 +12,7 @@
 - **Builder load deduplication:** the shared engine tracks lazy resources already loaded via `load()` (namespace + locale or delivery area). A repeated `load()` for the same resource is skipped — the loader is not invoked and defaults are not re-merged. Runtime patches from `scope.set()` on a prior builder instance are preserved when another builder reloads the same partition.
 - **Delivery-area locale narrowing:** after `withDeliveryArea(area)`, the builder returns `I18nBuilderMultiPartitioned` with `ActiveLocales` narrowed to the locales served by that area (from codegen `DELIVERY_ARTIFACTS`). Unbound scopes expose `forLocale` only for those locales at compile time.
 - **Destructuring-safe scopes:** `t`, `set`, and `forLocale` on scope implementations are arrow-bound — `const { t } = scope` and `const { t, set } = await builder.load()` work without losing `this`.
+- **Builder typestate (multi):** `createI18n({})` returns `I18nBuilderMultiInitial` with only `withNamespaces`. `withLocale`, `withDeliveryArea`, and `load()` are available only after a non-empty `withNamespaces([...])` (`I18nBuilderMultiReady`).
 - **Partial external validation:** codegen emits `validateExternalDictionaryPartial`, `validateExternalNamespacePartial`, and `validateExternalKey` (when `dictionarySchemaOutput` is configured) for CMS/webhook deltas that omit full namespace snapshots.
 
 ### Migration (0.6.x → 0.7.0)

@@ -3,13 +3,9 @@ import {
   IcuTranslationProviderMulti,
   projectNamespaceLocalesCore,
   projectDictionaryLocalesCore,
-  createI18nBuilder,
   createI18nMultiBuilder,
-  type I18nBuilderMulti,
+  type I18nBuilderMultiInitial,
   type I18nBuilderMultiOptions,
-  type I18nBuilderMultiPartitioned,
-  type I18nScopeMulti,
-  type I18nScopeSingle,
   type OnMissingTranslation,
 } from "@xndrjs/i18n";
 import type { MyProjectParams, MyProjectSchema, InitialSchema } from "./i18n-types.generated";
@@ -19,7 +15,7 @@ import { namespaceLoaders } from "./namespace-loaders.generated";
 export function createI18n(
   dictionary: InitialSchema,
   options?: { onMissing?: OnMissingTranslation }
-): I18nBuilderMulti<MyProjectSchema, MyProjectParams, MyProjectLocale> {
+): I18nBuilderMultiInitial<MyProjectSchema, MyProjectParams, MyProjectLocale> {
   const engine = new IcuTranslationProviderMulti<
     MyProjectSchema,
     MyProjectParams,

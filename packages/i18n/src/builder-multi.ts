@@ -16,19 +16,56 @@ export type I18nBuilderMultiOptions<
   };
 };
 
-export interface I18nBuilderMulti<
+/** Non-empty namespace list — required before partition or load. */
+type NonEmptyNamespaces<NS extends readonly string[]> = NS extends readonly [] ? never : NS;
+
+type MultiBuilderState<
+  Schema extends MultiDictionary,
+  RequestLocales extends string = LocaleOfMulti<Schema>,
+  NsList extends readonly (keyof Schema & string)[] = readonly (keyof Schema & string)[],
+> = {
+  namespaces: NsList;
+  locale?: RequestLocales;
+  deliveryArea?: string;
+};
+
+/** Builder returned by `createI18n({})` — only `withNamespaces` until namespaces are selected. */
+export interface I18nBuilderMultiInitial<
   Schema extends MultiDictionary,
   Params extends MultiParams<Schema>,
   RequestLocales extends string = LocaleOfMulti<Schema>,
   ActiveLocales extends RequestLocales = RequestLocales,
-  NsList extends readonly (keyof Schema & string)[] = readonly [],
   DeliveryArea extends string = never,
   DeliveryArtifacts extends DeliveryArtifactsMap<RequestLocales, DeliveryArea> =
     DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
 > {
   withNamespaces<const NS extends readonly (keyof Schema & string)[]>(
-    namespaces: NS
-  ): I18nBuilderMulti<
+    namespaces: NonEmptyNamespaces<NS>
+  ): I18nBuilderMultiReady<
+    Schema,
+    Params,
+    RequestLocales,
+    ActiveLocales,
+    NS,
+    DeliveryArea,
+    DeliveryArtifacts
+  >;
+}
+
+/** Builder after `withNamespaces([...])` — partition selection and `load()` are available. */
+export interface I18nBuilderMultiReady<
+  Schema extends MultiDictionary,
+  Params extends MultiParams<Schema>,
+  RequestLocales extends string = LocaleOfMulti<Schema>,
+  ActiveLocales extends RequestLocales = RequestLocales,
+  NsList extends readonly (keyof Schema & string)[] = readonly (keyof Schema & string)[],
+  DeliveryArea extends string = never,
+  DeliveryArtifacts extends DeliveryArtifactsMap<RequestLocales, DeliveryArea> =
+    DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
+> {
+  withNamespaces<const NS extends readonly (keyof Schema & string)[]>(
+    namespaces: NonEmptyNamespaces<NS>
+  ): I18nBuilderMultiReady<
     Schema,
     Params,
     RequestLocales,
@@ -63,6 +100,35 @@ export interface I18nBuilderMulti<
   >;
 }
 
+/** @deprecated Alias for {@link I18nBuilderMultiInitial} — the multi builder before `withNamespaces`. */
+export type I18nBuilderMulti<
+  Schema extends MultiDictionary,
+  Params extends MultiParams<Schema>,
+  RequestLocales extends string = LocaleOfMulti<Schema>,
+  ActiveLocales extends RequestLocales = RequestLocales,
+  NsList extends readonly (keyof Schema & string)[] = readonly [],
+  DeliveryArea extends string = never,
+  DeliveryArtifacts extends DeliveryArtifactsMap<RequestLocales, DeliveryArea> =
+    DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
+> = [NsList] extends [readonly []]
+  ? I18nBuilderMultiInitial<
+      Schema,
+      Params,
+      RequestLocales,
+      ActiveLocales,
+      DeliveryArea,
+      DeliveryArtifacts
+    >
+  : I18nBuilderMultiReady<
+      Schema,
+      Params,
+      RequestLocales,
+      ActiveLocales,
+      NsList,
+      DeliveryArea,
+      DeliveryArtifacts
+    >;
+
 /** Builder after `withDeliveryArea` — partition is fixed; bind locale via `scope.forLocale` after `load()`. */
 export interface I18nBuilderMultiPartitioned<
   Schema extends MultiDictionary,
@@ -75,7 +141,7 @@ export interface I18nBuilderMultiPartitioned<
     DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
 > {
   withNamespaces<const NS extends readonly (keyof Schema & string)[]>(
-    namespaces: NS
+    namespaces: NonEmptyNamespaces<NS>
   ): I18nBuilderMultiPartitioned<
     Schema,
     Params,
@@ -113,17 +179,51 @@ export interface I18nBuilderMultiForLocale<
   >;
 }
 
-type MultiBuilderState<
+export class I18nBuilderMultiInitialImpl<
   Schema extends MultiDictionary,
+  Params extends MultiParams<Schema>,
   RequestLocales extends string = LocaleOfMulti<Schema>,
-  NsList extends readonly (keyof Schema & string)[] = readonly (keyof Schema & string)[],
-> = {
-  namespaces: NsList;
-  locale?: RequestLocales;
-  deliveryArea?: string;
-};
+  ActiveLocales extends RequestLocales = RequestLocales,
+  DeliveryArea extends string = never,
+  DeliveryArtifacts extends DeliveryArtifactsMap<RequestLocales, DeliveryArea> =
+    DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
+> implements I18nBuilderMultiInitial<
+  Schema,
+  Params,
+  RequestLocales,
+  ActiveLocales,
+  DeliveryArea,
+  DeliveryArtifacts
+> {
+  constructor(
+    private readonly engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,
+    private readonly options?: I18nBuilderMultiOptions<Schema, RequestLocales>
+  ) {}
 
-export class I18nBuilderMultiImpl<
+  withNamespaces<const NS extends readonly (keyof Schema & string)[]>(
+    namespaces: NonEmptyNamespaces<NS>
+  ): I18nBuilderMultiReadyImpl<
+    Schema,
+    Params,
+    RequestLocales,
+    ActiveLocales,
+    NS,
+    DeliveryArea,
+    DeliveryArtifacts
+  > {
+    return new I18nBuilderMultiReadyImpl<
+      Schema,
+      Params,
+      RequestLocales,
+      ActiveLocales,
+      NS,
+      DeliveryArea,
+      DeliveryArtifacts
+    >(this.engine, this.options, { namespaces });
+  }
+}
+
+export class I18nBuilderMultiReadyImpl<
   Schema extends MultiDictionary,
   Params extends MultiParams<Schema>,
   RequestLocales extends string = LocaleOfMulti<Schema>,
@@ -132,7 +232,7 @@ export class I18nBuilderMultiImpl<
   DeliveryArea extends string = never,
   DeliveryArtifacts extends DeliveryArtifactsMap<RequestLocales, DeliveryArea> =
     DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
-> implements I18nBuilderMulti<
+> implements I18nBuilderMultiReady<
   Schema,
   Params,
   RequestLocales,
@@ -141,26 +241,11 @@ export class I18nBuilderMultiImpl<
   DeliveryArea,
   DeliveryArtifacts
 > {
-  private state: MultiBuilderState<Schema, RequestLocales, NsList>;
-
   constructor(
     private readonly engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,
-    private readonly options?: I18nBuilderMultiOptions<Schema, RequestLocales>,
-    state?: MultiBuilderState<Schema, RequestLocales, NsList>
-  ) {
-    if (state !== undefined) {
-      this.state = {
-        namespaces: state.namespaces,
-        ...(state.locale !== undefined ? { locale: state.locale } : {}),
-        ...(state.deliveryArea !== undefined ? { deliveryArea: state.deliveryArea } : {}),
-      };
-      return;
-    }
-
-    this.state = {
-      namespaces: [] as unknown as NsList,
-    };
-  }
+    private readonly options: I18nBuilderMultiOptions<Schema, RequestLocales> | undefined,
+    private readonly state: MultiBuilderState<Schema, RequestLocales, NsList>
+  ) {}
 
   private clone(): MultiBuilderState<Schema, RequestLocales, NsList> {
     return {
@@ -171,8 +256,8 @@ export class I18nBuilderMultiImpl<
   }
 
   withNamespaces<const NS extends readonly (keyof Schema & string)[]>(
-    namespaces: NS
-  ): I18nBuilderMultiImpl<
+    namespaces: NonEmptyNamespaces<NS>
+  ): I18nBuilderMultiReadyImpl<
     Schema,
     Params,
     RequestLocales,
@@ -181,7 +266,7 @@ export class I18nBuilderMultiImpl<
     DeliveryArea,
     DeliveryArtifacts
   > {
-    return new I18nBuilderMultiImpl<
+    return new I18nBuilderMultiReadyImpl<
       Schema,
       Params,
       RequestLocales,
@@ -244,6 +329,26 @@ export class I18nBuilderMultiImpl<
   }
 }
 
+/** @deprecated Use {@link I18nBuilderMultiInitialImpl} or {@link I18nBuilderMultiReadyImpl}. */
+export class I18nBuilderMultiImpl<
+  Schema extends MultiDictionary,
+  Params extends MultiParams<Schema>,
+  RequestLocales extends string = LocaleOfMulti<Schema>,
+  ActiveLocales extends RequestLocales = RequestLocales,
+  NsList extends readonly (keyof Schema & string)[] = readonly (keyof Schema & string)[],
+  DeliveryArea extends string = never,
+  DeliveryArtifacts extends DeliveryArtifactsMap<RequestLocales, DeliveryArea> =
+    DeliveryArtifactsMap<RequestLocales, DeliveryArea>,
+> extends I18nBuilderMultiReadyImpl<
+  Schema,
+  Params,
+  RequestLocales,
+  ActiveLocales,
+  NsList,
+  DeliveryArea,
+  DeliveryArtifacts
+> {}
+
 export class I18nBuilderMultiPartitionedImpl<
   Schema extends MultiDictionary,
   Params extends MultiParams<Schema>,
@@ -271,7 +376,7 @@ export class I18nBuilderMultiPartitionedImpl<
   ) {}
 
   withNamespaces<const NS extends readonly (keyof Schema & string)[]>(
-    namespaces: NS
+    namespaces: NonEmptyNamespaces<NS>
   ): I18nBuilderMultiPartitionedImpl<
     Schema,
     Params,

@@ -76,7 +76,12 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     : "";
   const localesParamType = hasLocaleType ? `readonly ${localeTypeName}[]` : "readonly string[]";
   const fallbackArg = hasLocaleFallback ? `, ${localeFallbackConstName}` : "";
-  const coreImports = formatCoreImports(isSingle, emitDeliveryAreaHelpers);
+  const packageImports = formatPackageImports(
+    providerClass,
+    isSingle,
+    hasLazy,
+    emitDeliveryAreaHelpers
+  );
   const projectionBlock = isSingle
     ? formatSingleProjectionBlock(
         schemaTypeName,
@@ -114,16 +119,7 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
   return (
     `${GENERATED_FILE_BANNER}` +
     `import {\n` +
-    `  ${providerClass},\n` +
-    `  ${coreImports},\n` +
-    `  createI18nBuilder,\n` +
-    `  createI18nMultiBuilder,\n` +
-    `  type I18nBuilderMulti,\n` +
-    `  type I18nBuilderMultiOptions,\n` +
-    `  type I18nBuilderMultiPartitioned,\n` +
-    `  type I18nScopeMulti,\n` +
-    `  type I18nScopeSingle,\n` +
-    `  type OnMissingTranslation,\n` +
+    `  ${packageImports},\n` +
     `} from '@xndrjs/i18n';\n` +
     schemaTypesImport +
     typesImportLine +
@@ -204,8 +200,8 @@ function formatCreateI18nFactory(options: {
 
   const builderReturnType =
     delivery === "custom" && deliveryAreaTypeName && deliveryArtifactsTypeName
-      ? `I18nBuilderMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, ${localeTypeName}, readonly [], ${deliveryAreaTypeName}, ${deliveryArtifactsTypeName}>`
-      : `I18nBuilderMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
+      ? `I18nBuilderMultiInitial<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, ${localeTypeName}, ${deliveryAreaTypeName}, ${deliveryArtifactsTypeName}>`
+      : `I18nBuilderMultiInitial<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
 
   const multiBuilderTypeArgs =
     delivery === "custom" && deliveryAreaTypeName && deliveryArtifactsTypeName
@@ -225,20 +221,38 @@ function formatCreateI18nFactory(options: {
   );
 }
 
-function formatCoreImports(isSingle: boolean, emitDeliveryAreaHelpers: boolean): string {
+function formatPackageImports(
+  providerClass: string,
+  isSingle: boolean,
+  hasLazy: boolean,
+  emitDeliveryAreaHelpers: boolean
+): string {
+  const imports = [providerClass];
+
   if (isSingle) {
-    const imports = ["projectNamespaceLocalesCore"];
+    imports.push("projectNamespaceLocalesCore");
     if (emitDeliveryAreaHelpers) {
       imports.push("projectNamespaceForDeliveryAreaCore");
     }
-    return imports.join(", ");
+    imports.push("type I18nScopeSingle");
+  } else {
+    imports.push("projectNamespaceLocalesCore", "projectDictionaryLocalesCore");
+    if (emitDeliveryAreaHelpers) {
+      imports.push("projectNamespaceForDeliveryAreaCore", "projectDictionaryForDeliveryAreaCore");
+    }
+    if (hasLazy) {
+      imports.push(
+        "createI18nMultiBuilder",
+        "type I18nBuilderMultiInitial",
+        "type I18nBuilderMultiOptions"
+      );
+    } else {
+      imports.push("type I18nScopeMulti");
+    }
   }
 
-  const imports = ["projectNamespaceLocalesCore", "projectDictionaryLocalesCore"];
-  if (emitDeliveryAreaHelpers) {
-    imports.push("projectNamespaceForDeliveryAreaCore", "projectDictionaryForDeliveryAreaCore");
-  }
-  return imports.join(", ");
+  imports.push("type OnMissingTranslation");
+  return imports.join(",\n  ");
 }
 
 function formatSingleProjectionBlock(

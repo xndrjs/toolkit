@@ -1,5 +1,5 @@
 import type { DeliveryArtifactsMap } from "./builder-types.js";
-import { I18nBuilderMultiImpl, type I18nBuilderMultiOptions } from "./builder-multi.js";
+import { I18nBuilderMultiInitialImpl, type I18nBuilderMultiOptions } from "./builder-multi.js";
 import { I18nBuilderSingleImpl, type I18nBuilderSingleOptions } from "./single-builder.js";
 import type { I18nEngineMultiImpl, I18nEngineSingleImpl } from "./engine.js";
 import type { KeyDictionary, LocaleOfMulti, LocaleOfSingle, MultiDictionary } from "./types.js";
@@ -10,8 +10,10 @@ export { invokeNamespaceLoader } from "./builder-loaders.js";
 export type {
   I18nBuilderMulti,
   I18nBuilderMultiForLocale,
+  I18nBuilderMultiInitial,
   I18nBuilderMultiOptions,
   I18nBuilderMultiPartitioned,
+  I18nBuilderMultiReady,
 } from "./builder-multi.js";
 export type {
   I18nBuilderSingle,
@@ -47,21 +49,19 @@ export function createI18nMultiBuilder<
 >(
   engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,
   options?: I18nBuilderMultiOptions<Schema, RequestLocales>
-): I18nBuilderMultiImpl<
+): I18nBuilderMultiInitialImpl<
   Schema,
   Params,
   RequestLocales,
   RequestLocales,
-  readonly [],
   DeliveryArea,
   DeliveryArtifacts
 > {
-  return new I18nBuilderMultiImpl<
+  return new I18nBuilderMultiInitialImpl<
     Schema,
     Params,
     RequestLocales,
     RequestLocales,
-    readonly [],
     DeliveryArea,
     DeliveryArtifacts
   >(engine, options);
@@ -74,12 +74,11 @@ export function createI18nBuilder<
 >(
   engine: I18nEngineMultiImpl<Schema, Params, RequestLocales>,
   options?: I18nBuilderMultiOptions<Schema, RequestLocales>
-): I18nBuilderMultiImpl<
+): I18nBuilderMultiInitialImpl<
   Schema,
   Params,
   RequestLocales,
   RequestLocales,
-  readonly [],
   never,
   DeliveryArtifactsMap<RequestLocales, never>
 >;
