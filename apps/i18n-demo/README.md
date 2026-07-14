@@ -45,7 +45,7 @@ const { t } = await i18n.withNamespaces(["default", "billing"]).withDeliveryArea
 t("default", "some_key", "it");
 ```
 
-Different locale partitions accumulate on the shared engine (`it` then `en`). Reloading the **same** namespace + delivery area is skipped — runtime `scope.set()` patches are preserved. For external hydration, use `load()` then `scope.set()` on a locale-bound scope (same pattern as `multi/`).
+Different locale partitions accumulate on the shared engine (`it` then `en`). Reloading the **same** namespace + delivery area is skipped — runtime `scope.set()` patches are preserved. For external hydration, `load()` first, then `forLocale(locale)` and `set()` per validated key (see `exampleExternalNamespacePatch` in `areas/src/index.ts`).
 
 Run: `pnpm run demo:areas`
 

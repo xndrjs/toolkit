@@ -1,6 +1,9 @@
 import { formatIssues } from "@xndrjs/i18n/validation";
-import { i18n, defaultDictionary } from "./i18n";
+import { i18n } from "./i18n";
 import { validateExternalDictionaryPartial } from "./i18n/generated/dictionary-schema.generated";
+import type { MyProjectLocale, MyProjectSchema } from "./i18n/generated/i18n-types.generated";
+
+const demoLocale = "en" as const satisfies MyProjectLocale;
 
 export function exampleSingleFileUsage(): void {
   const { t, forLocale } = i18n;
@@ -55,18 +58,35 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
 
   const result = validateExternalDictionaryPartial(raw);
   if (!result.ok) {
-    // optional: format issues and log as readable error
     console.error(formatIssues(result.issues));
     return;
   }
 
-  // Note: `i18n` is a scope; use a fresh engine if you need mutation (see package docs).
-  const { t } = i18n;
-  console.log("welcome @ en (validated):", t("welcome", "en", { name: "Ada" }));
+  // Eager canonical keys are preloaded on the shared scope; patch per locale via forLocale().
+  const { t, set } = i18n.forLocale(demoLocale);
+  const typedKeys = Object.keys(result.data) as (keyof MyProjectSchema)[];
+
+  for (const key of typedKeys) {
+    const template = result.data[key]?.[demoLocale];
+    if (template !== undefined) {
+      set(key, template);
+    }
+  }
+
+  console.log("welcome @ en (hydrated):", t("welcome", { name: "Ada" }));
 }
 
 async function loadExternalTranslations(): Promise<unknown> {
-  return defaultDictionary;
+  return {
+    welcome: {
+      en: "Welcome {name} from the CMS!",
+    },
+  };
 }
 
-exampleSingleFileUsage();
+async function main(): Promise<void> {
+  exampleSingleFileUsage();
+  await exampleExternalDictionaryHydration();
+}
+
+void main();

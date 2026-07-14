@@ -3,7 +3,6 @@ import {
   createI18n,
   namespaceLoaders,
   validateExternalDictionaryPartial,
-  validateExternalKey,
   validateExternalNamespacePartial,
 } from "./i18n";
 import type { MyProjectLocale, MyProjectSchema } from "./i18n/generated/i18n-types.generated";
@@ -45,16 +44,7 @@ export async function exampleExternalNamespacePatch(): Promise<void> {
   const { t, set } = await createI18n({}).withNamespaces(["billing"]).withLocale(demoLocale).load();
 
   for (const key of Object.keys(result.data) as (keyof MyProjectSchema["billing"])[]) {
-    const locales = result.data[key];
-    if (locales === undefined) continue;
-
-    const keyResult = validateExternalKey("billing", key, locales);
-    if (!keyResult.ok) {
-      console.error(`billing.${key} validation failed:`, formatIssues(keyResult.issues));
-      continue;
-    }
-
-    const template = keyResult.data[key]?.[demoLocale];
+    const template = result.data[key]?.[demoLocale];
     if (template !== undefined) {
       set("billing", key, template);
     }
@@ -81,16 +71,7 @@ export async function exampleExternalDictionaryHydration(): Promise<void> {
     if (nsData === undefined) continue;
 
     for (const key of Object.keys(nsData) as (keyof MyProjectSchema[typeof namespace])[]) {
-      const locales = nsData[key];
-      if (locales === undefined) continue;
-
-      const keyResult = validateExternalKey(namespace, key, locales);
-      if (!keyResult.ok) {
-        console.error(`${namespace}.${key} validation failed:`, formatIssues(keyResult.issues));
-        continue;
-      }
-
-      const template = keyResult.data[key]?.[demoLocale];
+      const template = nsData[key]?.[demoLocale];
       if (template !== undefined) {
         set(namespace, key, template);
       }
