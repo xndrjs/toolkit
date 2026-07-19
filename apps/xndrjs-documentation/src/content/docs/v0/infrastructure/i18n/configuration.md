@@ -35,13 +35,15 @@ Type names are derived from `projectName`: `MyProjectParams`, `MyProjectSchema`,
 
 ## Field reference
 
-| Field               | Description                                                                                                                                                                        |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `projectName`       | PascalCase project id. Infers `*Params` / `*Schema` / `*Locale` (and `*DeliveryArea` for custom delivery).                                                                         |
-| `namespaces`        | Map of `namespace → dictionary path` (`.json`, `.yaml`, or `.yml`).                                                                                                                |
-| `codegenPath`       | Directory for generated TypeScript modules (fixed basenames).                                                                                                                      |
-| `artifactsPath`     | Optional. Directory for delivery JSON (`{artifactsPath}/translations/`). Defaults to `codegenPath`.                                                                                |
-| `localeFallback`    | Optional `locale → next locale \| null` map. See [Locale fallback](/v0/infrastructure/i18n/locale-fallback/).                                                                      |
-| `delivery`          | Optional. `"split-by-locale"` (default) or `"custom"`. See [Delivery](/v0/infrastructure/i18n/delivery/).                                                                          |
-| `deliveryArtifacts` | Custom delivery only. Map of area name → locale list (for example `"eu": ["en", "it", "fr"]`).                                                                                     |
-| `loaderStrategy`    | Optional. `"import"` (default) or `"fetch"`. Fetch requires `createI18n({ fetchImpl })` (resource id → JSON is app-owned) and enables CMS content updates without a types rebuild. |
+| Field               | Description                                                                                                                                                                                                                            |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `projectName`       | PascalCase project id. Infers `*Params` / `*Schema` / `*Locale` (and `*DeliveryArea` for custom delivery).                                                                                                                             |
+| `namespaces`        | Map of `namespace → dictionary path` (`.json`, `.yaml`, or `.yml`).                                                                                                                                                                    |
+| `codegenPath`       | Directory for generated TypeScript modules (fixed basenames).                                                                                                                                                                          |
+| `artifactsPath`     | Optional. Directory for delivery JSON (`{artifactsPath}/translations/`). Defaults to `codegenPath`.                                                                                                                                    |
+| `localeFallback`    | Optional `locale → next locale \| null` map. See [Locale fallback](/v0/infrastructure/i18n/locale-fallback/).                                                                                                                          |
+| `delivery`          | Optional. `"split-by-locale"` (default) or `"custom"`. See [Delivery](/v0/infrastructure/i18n/delivery/).                                                                                                                              |
+| `deliveryArtifacts` | Custom delivery only. Map of area name → locale list (for example `"eu": ["en", "it", "fr"]`).                                                                                                                                         |
+| `loaderStrategy`    | Optional. `"import"` (default) or `"fetch"`. Fetch requires `createI18n({ fetchImpl })` / `I18nRoot` `fetchImpl` (resource id → JSON is app-owned) and enables CMS content updates without a types rebuild via `regenerateNamespaces`. |
+
+React bindings codegen (`xndrjs-i18n-react-codegen`) reads the same `i18n.codegen.json`. Optional `i18n-react.codegen.json` may set `output` for `react-bindings.generated.tsx`. See [React](/v0/infrastructure/i18n/react/).

@@ -135,7 +135,8 @@ Generated output includes `*EntrySchema`, `*FieldsSchema`, `flatten*EntryFields`
 ## @xndrjs/i18n
 
 ```ts
-import { IcuTranslationProviderMulti, IcuTranslationProviderSingle } from "@xndrjs/i18n";
+import { IcuTranslationProviderMulti } from "@xndrjs/i18n";
+import { runCodegen, regenerateNamespaces } from "@xndrjs/i18n/codegen";
 import { formatIssues } from "@xndrjs/i18n/validation";
 ```
 
@@ -143,6 +144,15 @@ import { formatIssues } from "@xndrjs/i18n/validation";
 - Handle: `load({ namespaces, locale })` / `peek(...)` / `serialize()` — returns a locale-bound scope with typed `t()`.
 - `t(namespace, key, params?)` on the locale-bound scope — compile-time key and param checking; methods are destructuring-safe.
 - `namespaceLoaders` (generated): typed `import()` loaders, or `createNamespaceLoaders(fetchImpl)` when `loaderStrategy` is `"fetch"`.
-- `validateExternalKey` / `validateExternalNamespacePartial` (generated, optional): validate CMS payloads before writing delivery artifacts.
+- `regenerateNamespaces` — content-only delivery JSON refresh (same ICU contract); `runCodegen` for contract changes.
+- `validateExternalKey` / `validateExternalNamespacePartial` (generated, optional): validate CMS payloads before writing authoring files.
 
 See [i18n](/v0/infrastructure/i18n/) for setup, codegen config, locale fallback, and lazy loading.
+
+## @xndrjs/i18n-react
+
+```ts
+import { I18nRootProvider, createI18nLoadGate } from "@xndrjs/i18n-react";
+```
+
+Apps normally import generated bindings (`I18nRoot`, `withI18n`, `I18n`) from `react-bindings.generated.tsx` after `xndrjs-i18n-react-codegen`. No Suspense for namespace loads — use gate / HOC fallbacks. See [React](/v0/infrastructure/i18n/react/).

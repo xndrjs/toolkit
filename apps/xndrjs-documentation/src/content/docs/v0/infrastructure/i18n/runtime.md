@@ -60,4 +60,4 @@ t("default", "welcome", { name: "Ada" });
 t("billing", "invoice_summary", { count: 3 });
 ```
 
-See also [Lazy loading](/v0/infrastructure/i18n/lazy-loading/) and [External validation](/v0/infrastructure/i18n/validation/).
+Pass `serialize()` output into React as `I18nRoot` `state` so client gates resolve via `peek` without reloading warm namespaces. See [React](/v0/infrastructure/i18n/react/), [Lazy loading](/v0/infrastructure/i18n/lazy-loading/), and [External validation](/v0/infrastructure/i18n/validation/).

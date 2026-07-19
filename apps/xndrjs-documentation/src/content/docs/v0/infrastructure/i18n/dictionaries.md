@@ -65,4 +65,4 @@ If markup does appear in a string, unquoted `<tags>` are parsed as ICU syntax, n
 
 ## Serving delivery JSON from `public/`
 
-Set `"artifactsPath": "public/i18n"` in `i18n.codegen.json` to write compiled and split JSON directly under `public/i18n/translations/` while keeping generated TypeScript under `generated/`. You can also load those files with `fetch()` at runtime, then `validateExternalKey()` + `load()` + `scope.set()`. With `delivery: "split-by-locale"`, each file is already one locale per namespace (`billing.it.json`), which maps cleanly to static hosting.
+Set `"artifactsPath": "public/i18n"` in `i18n.codegen.json` to write compiled and split JSON directly under `public/i18n/translations/` while keeping generated TypeScript under `generated/`. With `loaderStrategy: "fetch"`, clients load those files through your `fetchImpl`. For CMS-driven label updates, validate payloads, write authoring files, then call `regenerateNamespaces` — see [Codegen](/v0/infrastructure/i18n/codegen/#full-codegen-vs-content-only-refresh). With `delivery: "split-by-locale"`, each file is already one locale per namespace (`billing.it.json`), which maps cleanly to static hosting.

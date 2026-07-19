@@ -36,11 +36,11 @@ const { t } = await createI18n().load({
 });
 ```
 
-`loaderStrategy: "fetch"` resolves JSON through an injectable `fetchImpl({ locale, namespace, area? })` so CMS content can update without rebuilding TypeScript. URL / storage mapping is app-owned:
+`loaderStrategy: "fetch"` resolves JSON through an injectable `fetchImpl({ locale, namespace, area? })` so delivery JSON can change without rebuilding TypeScript (pair with [`regenerateNamespaces`](/v0/infrastructure/i18n/codegen/#full-codegen-vs-content-only-refresh)). URL / storage mapping is app-owned:
 
 ```ts
 const i18n = createI18n({ fetchImpl: myFetchArtifact });
 const hydrated = createI18n({ fetchImpl: myFetchArtifact, state });
 ```
 
-See [Delivery](/v0/infrastructure/i18n/delivery/) and [External validation](/v0/infrastructure/i18n/validation/).
+In React, pass the same `fetchImpl` to generated `I18nRoot`. See [Delivery](/v0/infrastructure/i18n/delivery/), [React](/v0/infrastructure/i18n/react/), and [External validation](/v0/infrastructure/i18n/validation/).

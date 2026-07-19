@@ -3,7 +3,7 @@ title: External validation
 description: Validate CMS and API translation payloads against the generated dictionary schema.
 ---
 
-Codegen always writes `dictionary-schema.generated.ts` under `codegenPath/`. Use it to validate `unknown` CMS/API payloads against the ICU contract before updating authoring files and calling `regenerateNamespaces`.
+Codegen always writes `dictionary-schema.generated.ts` under `codegenPath/`. Use it to validate `unknown` CMS/API payloads against the ICU contract **before** writing authoring files and calling `regenerateNamespaces`. Validation is not a runtime patch API.
 
 ```ts
 import { formatIssues } from "@xndrjs/i18n/validation";
@@ -17,7 +17,7 @@ if (!result.ok) {
   return;
 }
 
-// merge into delivery artifacts / CMS write path
+// write authoring file, then regenerateNamespaces({ namespaces: ["billing"], … })
 ```
 
 Codegen emits `validateExternalDictionaryPartial()`, `validateExternalNamespacePartial()`, and `validateExternalKey()`.
