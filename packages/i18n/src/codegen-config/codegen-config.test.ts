@@ -13,17 +13,21 @@ describe("codegen-config", () => {
     }
   });
 
-  it("buildCodegenConfig returns a valid single-mode input shape", () => {
-    const config = buildCodegenConfig("single", "MyApp");
-    expect(config.dictionary).toBe("translations/translations.json");
-    expect(config.paramsTypeName).toBe("MyAppParams");
-    expect(config).not.toHaveProperty("namespaces");
+  it("buildCodegenConfig returns a valid multi-namespace input shape", () => {
+    const config = buildCodegenConfig("MyApp");
+    expect(config.namespaces).toEqual({
+      default: "translations/default.json",
+    });
+    expect(config.projectName).toBe("MyApp");
+    expect(config.codegenPath).toBe("generated");
+    expect(config).not.toHaveProperty("dictionary");
+    expect(config).not.toHaveProperty("paramsTypeName");
   });
 
   it("writeCodegenConfig writes formatted JSON", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-codegen-config-"));
     const configPath = join(tempDir, "i18n/i18n.codegen.json");
-    const config: CodegenConfigInput = buildCodegenConfig("multi", "Demo");
+    const config: CodegenConfigInput = buildCodegenConfig("Demo");
 
     writeCodegenConfig(configPath, config);
 

@@ -16,7 +16,7 @@ export interface I18nAuditReport {
 
 export interface AuditDictionariesOptions {
   namespaces: Record<string, DictionaryJson>;
-  config: Pick<CodegenConfig, "localeFallback" | "defaultNamespace">;
+  config: Pick<CodegenConfig, "localeFallback">;
   treatEmptyAsMissing?: boolean;
 }
 

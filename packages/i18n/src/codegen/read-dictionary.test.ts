@@ -105,7 +105,7 @@ describe("read-dictionary", () => {
     expect(() => readDictionaryFile(jsonPath)).not.toThrow();
   });
 
-  it("compiles yaml sources to json under the generated output directory", () => {
+  it("compiles yaml sources into per-locale split files", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-read-dict-"));
     mkdirSync(join(tempDir, "src/i18n/translations"), { recursive: true });
     mkdirSync(join(tempDir, "src/i18n/generated"), { recursive: true });
@@ -121,6 +121,8 @@ describe("read-dictionary", () => {
       [{ namespace: "billing", filePath: "src/i18n/translations/billing.yaml" }],
       "src/i18n/generated",
       {
+        delivery: "split-by-locale",
+        requestLocales: ["en"],
         dictionariesByNamespace: {
           billing: readDictionaryFile(join(tempDir, "src/i18n/translations/billing.yaml")),
         },
@@ -128,20 +130,24 @@ describe("read-dictionary", () => {
     );
 
     expect(result.resolvedEntries).toEqual([
-      { namespace: "billing", filePath: "src/i18n/generated/translations/billing.json" },
+      { namespace: "billing", filePath: "src/i18n/translations/billing.yaml" },
     ]);
-    expect(result.splitPathsByNamespace).toEqual({});
+    expect(result.splitPathsByNamespace).toEqual({
+      billing: {
+        en: "src/i18n/generated/translations/billing.en.json",
+      },
+    });
     expect(result.compiledFiles).toEqual([
-      "src/i18n/translations/billing.yaml → src/i18n/generated/translations/billing.json",
+      "src/i18n/translations/billing.yaml → src/i18n/generated/translations/billing.en.json",
     ]);
 
     const compiled = JSON.parse(
-      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.json"), "utf8")
+      readFileSync(join(tempDir, "src/i18n/generated/translations/billing.en.json"), "utf8")
     ) as Record<string, Record<string, string>>;
     expect(compiled.invoice_summary?.en).toBe("You have {count} invoices");
   });
 
-  it("keeps json sources unchanged", () => {
+  it("splits json sources into per-locale files", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-read-dict-"));
     mkdirSync(join(tempDir, "translations"), { recursive: true });
     writeFileSync(
@@ -154,6 +160,8 @@ describe("read-dictionary", () => {
       [{ namespace: "default", filePath: "translations/default.json" }],
       "generated",
       {
+        delivery: "split-by-locale",
+        requestLocales: ["en"],
         dictionariesByNamespace: {
           default: readDictionaryFile(join(tempDir, "translations/default.json")),
         },
@@ -163,8 +171,14 @@ describe("read-dictionary", () => {
     expect(result.resolvedEntries).toEqual([
       { namespace: "default", filePath: "translations/default.json" },
     ]);
-    expect(result.splitPathsByNamespace).toEqual({});
-    expect(result.compiledFiles).toEqual([]);
+    expect(result.splitPathsByNamespace).toEqual({
+      default: {
+        en: "generated/translations/default.en.json",
+      },
+    });
+    expect(result.compiledFiles).toEqual([
+      "translations/default.json → generated/translations/default.en.json",
+    ]);
   });
 
   it("splits multiple namespaces into per-locale files", () => {
@@ -405,7 +419,11 @@ describe("read-dictionary", () => {
         tempDir,
         [{ namespace: "default", filePath: "translations/default.json" }],
         "generated",
-        { dictionariesByNamespace: {} }
+        {
+          delivery: "split-by-locale",
+          requestLocales: ["en"],
+          dictionariesByNamespace: {},
+        }
       )
     ).toThrow('[Codegen Error] Missing parsed dictionary for namespace "default".');
   });

@@ -1,72 +1,46 @@
 ---
 title: Lazy loading
-description: loadOnInit, generated namespace loaders, and builder load() in multi mode.
+description: Generated namespace loaders and handle.load() for on-demand dictionaries.
 ---
 
-With `delivery: "canonical"`, list namespaces needed at startup in `loadOnInit`. With `split-by-locale` or `custom`, all namespaces are lazy and `loadOnInit` is rejected. Codegen emits typed `namespaceLoaders` wired into the builder factory — one dynamic `import()` per lazy namespace. With `delivery: "split-by-locale"`, each loader is partitioned by locale.
+Every namespace loads through generated `namespaceLoaders` under `codegenPath/namespace-loaders.generated.ts`. There is no eager `loadOnInit` / canonical bundle — call `load({ namespaces, locale })` for what the page needs.
 
 ```json
 {
-  "delivery": "canonical",
+  "projectName": "MyProject",
+  "delivery": "split-by-locale",
   "namespaces": {
     "default": "translations/default.json",
     "billing": "translations/billing.yaml"
   },
-  "loadOnInit": ["default"],
-  "namespaceLoadersOutput": "generated/namespace-loaders.generated.ts"
+  "codegenPath": "generated"
 }
 ```
 
 ```ts
-import { createI18n, defaultDictionary } from "./i18n";
+import { createI18n } from "./i18n";
 
-const { t } = createI18n(defaultDictionary);
-t("default", "login_button", "en");
-
-const { t: tBilling } = await createI18n(defaultDictionary)
-  .withNamespaces(["billing"])
-  .withLocale("en")
-  .load();
-tBilling("billing", "invoice_summary", { count: 12 });
+const { t } = await createI18n().load({
+  namespaces: ["default", "billing"],
+  locale: "en",
+});
+t("billing", "invoice_summary", { count: 12 });
 ```
 
-With `delivery: "split-by-locale"`:
+With `delivery: "custom"`, loaders take a delivery area (mapped from locale via generated `LOCALE_DELIVERY_AREA`):
 
 ```ts
-const { t } = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
-t("billing", "invoice_summary", { count: 3 });
+const { t } = await createI18n().load({
+  namespaces: ["billing"],
+  locale: "it",
+});
 ```
 
-With `delivery: "custom"`:
+`loaderStrategy: "fetch"` resolves JSON through an injectable `fetchImpl({ locale, namespace, area? })` so CMS content can update without rebuilding TypeScript. URL / storage mapping is app-owned:
 
 ```ts
-const { forLocale } = await createI18n({})
-  .withNamespaces(["default", "billing"])
-  .withDeliveryArea("eu")
-  .load();
-// forLocale() accepts only eu locales (DELIVERY_ARTIFACTS.eu)
-const { t } = forLocale("it");
-t("billing", "invoice_summary", { count: 3 });
+const i18n = createI18n({ fetchImpl: myFetchArtifact });
+const hydrated = createI18n({ fetchImpl: myFetchArtifact, state });
 ```
 
-Optional locale projection before validating external slices:
-
-```ts
-import { projectNamespaceLocales } from "./i18n/generated/instance.generated.js";
-
-const { set } = await createI18n({}).withNamespaces(["billing"]).withLocale(userLocale).load();
-const billing = await namespaceLoaders.billing(userLocale);
-const billingSlice = projectNamespaceLocales(billing, [userLocale]);
-const result = validateExternalKey("billing", "invoice_summary", billingSlice.invoice_summary);
-if (result.ok) {
-  set("billing", "invoice_summary", result.data.invoice_summary[userLocale]!);
-}
-```
-
-When a key was never preloaded, `t()` resolves through `onMissing` (default: throw).
-
-When `loadOnInit` is omitted in canonical delivery, all namespaces are statically imported (default eager behavior). `loadOnInit` is **multi mode only** and **canonical delivery only** — codegen fails if used with single-file config or with `split-by-locale` / `custom`.
-
-`dictionarySchemaOutput` is optional for lazy loading; use it when validating external CMS/API payloads before `scope.set()`. See [External validation](/v0/infrastructure/i18n/validation/).
-
-See [Delivery](/v0/infrastructure/i18n/delivery/) for artifact layout and [Runtime](/v0/infrastructure/i18n/runtime/) for load deduplication on the shared engine.
+See [Delivery](/v0/infrastructure/i18n/delivery/) and [External validation](/v0/infrastructure/i18n/validation/).

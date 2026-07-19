@@ -47,16 +47,15 @@ describe("runAuditCli", () => {
   function writeFixture(dictionary: Record<string, Record<string, string>>) {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-audit-"));
     mkdirSync(join(tempDir, "i18n/translations"), { recursive: true });
-    writeFileSync(join(tempDir, "i18n/translations/translations.json"), JSON.stringify(dictionary));
+    writeFileSync(join(tempDir, "i18n/translations/default.json"), JSON.stringify(dictionary));
     writeFileSync(
       join(tempDir, "i18n/i18n.codegen.json"),
       JSON.stringify({
-        dictionary: "translations/translations.json",
-        typesOutput: "generated/i18n-types.generated.ts",
-        dictionaryOutput: "generated/dictionary.generated.ts",
-        instanceOutput: "generated/instance.generated.ts",
-        paramsTypeName: "AppParams",
-        schemaTypeName: "AppSchema",
+        projectName: "App",
+        namespaces: {
+          default: "translations/default.json",
+        },
+        codegenPath: "generated",
         localeFallback: {
           en: null,
           it: "en",

@@ -1,3 +1,7 @@
+/**
+ * External payload validation for server-side codegen/ingest (CMS → authoring files).
+ * Not a runtime patch API — validate before writing authoring, then `regenerateNamespaces` / `load()`.
+ */
 import { normalizeDictionaryPartial, normalizeKeyDictionaryPartial } from "./normalize.js";
 import { toDictionary, toNamespaceDictionary } from "./to-dictionary.js";
 import type {

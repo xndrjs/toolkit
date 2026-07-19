@@ -6,9 +6,8 @@ const projectRoot = "/project";
 const typesOutputPath = path.join(projectRoot, "src/i18n/generated/i18n-types.generated.ts");
 
 describe("formatTypesFile", () => {
-  it("emits explicit Partial schema types for multi-namespace", () => {
+  it("emits explicit Partial schema types and lazy aliases", () => {
     const output = formatTypesFile({
-      isSingle: false,
       entries: [
         { namespace: "default", filePath: "src/i18n/translations/default.json" },
         { namespace: "billing", filePath: "src/i18n/translations/billing.yaml" },
@@ -29,46 +28,23 @@ describe("formatTypesFile", () => {
           invoice_summary: "{ count: number }",
         },
       },
-      requestLocaleUnion: "'en' | 'it'",
-      hasLazy: true,
-      loadOnInitSet: new Set(["default"]),
-      lazyEntries: [{ namespace: "billing", filePath: "src/i18n/translations/billing.yaml" }],
+      requestLocales: ["en", "it"],
+      lazyEntries: [
+        { namespace: "default", filePath: "src/i18n/translations/default.json" },
+        { namespace: "billing", filePath: "src/i18n/translations/billing.yaml" },
+      ],
     });
 
     expect(output).toContain("login_button: Partial<Record<AppLocale, string>>;");
     expect(output).toContain("invoice_summary: Partial<Record<AppLocale, string>>;");
-  });
-
-  it("emits explicit Partial schema types for single-file mode", () => {
-    const output = formatTypesFile({
-      isSingle: true,
-      entries: [{ namespace: "translations", filePath: "src/i18n/translations/translations.yaml" }],
-      projectRoot,
-      typesOutputPath,
-      paramsTypeName: "AppParams",
-      schemaTypeName: "AppSchema",
-      localeTypeName: "AppLocale",
-      localeFallbackConstName: "LOCALE_FALLBACK",
-      localeFallbackTypeName: "AppLocaleFallback",
-      paramsByNamespace: {
-        translations: {
-          welcome: "{ name: string }",
-        },
-      },
-      requestLocaleUnion: "'en' | 'it'",
-      hasLazy: false,
-      loadOnInitSet: new Set(),
-      lazyEntries: [],
-    });
-
-    expect(output).toContain(
-      "export type AppSchema = {\n  welcome: Partial<Record<AppLocale, string>>;\n};"
-    );
+    expect(output).toContain('export const AppLocales = ["en", "it"] as const;');
+    expect(output).toContain("export type AppLocale = (typeof AppLocales)[number];");
+    expect(output).toContain("export type LazyNamespace = 'default' | 'billing'");
+    expect(output).toContain("export type InitialSchema = Record<string, never>");
   });
 
   it("emits delivery area type for custom delivery", () => {
     const output = formatTypesFile({
-      isSingle: false,
       entries: [
         { namespace: "default", filePath: "src/i18n/translations/default.json" },
         { namespace: "billing", filePath: "src/i18n/translations/billing.yaml" },
@@ -89,20 +65,23 @@ describe("formatTypesFile", () => {
         default: { some_key: "never" },
         billing: { invoice_summary: "{ count: number }" },
       },
-      requestLocaleUnion: "'en-US' | 'fr' | 'it'",
+      requestLocales: ["en-US", "fr", "it"],
       deliveryAreaTypeName: "AppDeliveryArea",
-      deliveryAreaUnion: "'eu' | 'us'",
+      deliveryAreaNames: ["eu", "us"],
       deliveryArtifacts: {
         eu: ["it", "fr"],
         us: ["en-US"],
       },
-      hasLazy: true,
-      loadOnInitSet: new Set(["default"]),
-      lazyEntries: [{ namespace: "billing", filePath: "src/i18n/translations/billing.yaml" }],
+      lazyEntries: [
+        { namespace: "default", filePath: "src/i18n/translations/default.json" },
+        { namespace: "billing", filePath: "src/i18n/translations/billing.yaml" },
+      ],
     });
 
-    expect(output).toContain("export type AppLocale = 'en-US' | 'fr' | 'it';");
-    expect(output).toContain("export type AppDeliveryArea = 'eu' | 'us';");
+    expect(output).toContain('export const AppLocales = ["en-US", "fr", "it"] as const;');
+    expect(output).toContain("export type AppLocale = (typeof AppLocales)[number];");
+    expect(output).toContain('export const AppDeliveryAreas = ["eu", "us"] as const;');
+    expect(output).toContain("export type AppDeliveryArea = (typeof AppDeliveryAreas)[number];");
     expect(output).toContain("export const DELIVERY_ARTIFACTS = {");
     expect(output).toContain('"eu": ["fr", "it"] as const');
     expect(output).toContain('"us": ["en-US"] as const');

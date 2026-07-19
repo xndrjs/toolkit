@@ -3,7 +3,7 @@ import type {
   KeyDictionary,
   LocaleFallbackMap,
   LocaleOfMulti,
-  LocaleOfSingle,
+  LocaleOfKeys,
   MultiDictionary,
   PartialKeyDictionary,
   PartialMultiDictionary,
@@ -167,7 +167,7 @@ export function projectDictionaryLocalesCore<T extends MultiDictionary>(
  */
 export function mergeNamespaceLocalesCore<
   T extends KeyDictionary,
-  Locales extends string = LocaleOfSingle<T>,
+  Locales extends string = LocaleOfKeys<T>,
 >(existing: T, incoming: PartialKeyDictionary<T, Locales>): T {
   const merged = structuredClone(existing);
 

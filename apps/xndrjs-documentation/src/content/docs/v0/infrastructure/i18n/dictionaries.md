@@ -22,7 +22,7 @@ Inside a `plural` or `selectordinal` branch, ICU `#` stands in for the numeric a
 
 ## YAML authoring
 
-YAML is an optional **authoring** format for dictionaries — mainly for **multiline ICU**: several parameters on separate lines, or plural/select branches that are unreadable as a single JSON string. **YAML never reaches production:** codegen compiles it to JSON under **`{deliveryOutput}/translations/`** (default `{deliveryOutput}` is `dirname(typesOutput)`, for example `generated/translations/billing.json`). Generated TypeScript imports that compiled JSON at runtime; validation, lazy loaders, and the builder `load()` path behave the same as for hand-written JSON.
+YAML is an optional **authoring** format for dictionaries — mainly for **multiline ICU**: several parameters on separate lines, or plural/select branches that are unreadable as a single JSON string. **YAML never reaches production:** codegen compiles it to JSON under **`{artifactsPath}/translations/`** (default `{artifactsPath}` is `codegenPath`, for example `generated/translations/billing.json`). Generated TypeScript imports that compiled JSON at runtime; validation, lazy loaders, and the `load()` path behave the same as for hand-written JSON.
 
 YAML block scalars keep complex ICU readable in source while preserving (or intentionally folding) line breaks.
 
@@ -65,4 +65,4 @@ If markup does appear in a string, unquoted `<tags>` are parsed as ICU syntax, n
 
 ## Serving delivery JSON from `public/`
 
-Set `"deliveryOutput": "public/i18n"` in `i18n.codegen.json` to write compiled and split JSON directly under `public/i18n/translations/` while keeping generated TypeScript under `generated/`. You can also load those files with `fetch()` at runtime, then `validateExternalKey()` + `load()` + `scope.set()`. With `delivery: "split-by-locale"`, each file is already one locale per namespace (`billing.it.json`), which maps cleanly to static hosting.
+Set `"artifactsPath": "public/i18n"` in `i18n.codegen.json` to write compiled and split JSON directly under `public/i18n/translations/` while keeping generated TypeScript under `generated/`. You can also load those files with `fetch()` at runtime, then `validateExternalKey()` + `load()` + `scope.set()`. With `delivery: "split-by-locale"`, each file is already one locale per namespace (`billing.it.json`), which maps cleanly to static hosting.

@@ -20,9 +20,9 @@ Variables found across **all locales** of the same key are merged. If parsing fa
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `i18n-types.generated.ts`        | `I18N_MODE`, `MyProjectParams`, `MyProjectSchema`, locale union                                                                                                               |
 | `dictionary.generated.ts`        | Imports JSON and exports `defaultDictionary` (canonical) or `defaultDictionaryFor` when eager namespaces exist in split/custom delivery; omitted when every namespace is lazy |
-| `instance.generated.ts`          | Exports `createI18n(dictionary)` — typed factory; dictionary is a required argument (not bundled by default)                                                                  |
-| `dictionary-schema.generated.ts` | Optional — `DICTIONARY_SPEC`, `validateExternalDictionary()`                                                                                                                  |
-| `namespace-loaders.generated.ts` | Optional — typed `namespaceLoaders` map wired into the generated builder factory                                                                                              |
+| `instance.generated.ts`          | Exports `createI18n(options?)` — cold start `createI18n()`, hydrate `createI18n({ state })`, fetch strategy requires `createI18n({ fetchImpl, state? })`                      |
+| `dictionary-schema.generated.ts` | `DICTIONARY_SPEC`, `validateExternalDictionary()`                                                                                                                             |
+| `namespace-loaders.generated.ts` | Typed `namespaceLoaders` (import) or `createNamespaceLoaders(fetchImpl)` (fetch)                                                                                              |
 
 Example generated params (multi-namespace):
 
@@ -65,7 +65,10 @@ t("welcome", "en", { name: "Ada" });
 **Multi-namespace** — split by domain, builder loading, code-splitting:
 
 ```ts
-const { t } = await createI18n({}).withNamespaces(["default", "billing"]).withLocale("en").load();
+const { t } = await createI18n().load({
+  namespaces: ["default", "billing"],
+  locale: "en",
+});
 
 t("default", "login_button");
 t("billing", "invoice_summary", { count: 12 });

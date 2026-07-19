@@ -1,16 +1,11 @@
 import { GENERATED_FILE_BANNER, toModuleBasename, toRelativeModuleImport } from "../paths.js";
-import type { DeliveryMode } from "../codegen-config-schema.js";
+import type { DeliveryMode, LoaderStrategy } from "../codegen-config-schema.js";
 import type { ImportExtension } from "../types.js";
 
-/**
- * Emits the generated instance module: `createI18n` factory wrapping the ICU provider
- * plus runtime projection helpers (`projectDictionaryLocales`, etc.).
- */
+/** Emits the generated instance module: `createI18n` factory wrapping the ICU provider. */
 export interface InstanceFileOptions {
-  isSingle: boolean;
-  hasLazy: boolean;
   typesOutputPath: string;
-  namespaceLoadersOutputPath?: string;
+  namespaceLoadersOutputPath: string;
   paramsTypeName: string;
   schemaTypeName: string;
   localeTypeName: string;
@@ -18,17 +13,16 @@ export interface InstanceFileOptions {
   factoryName: string;
   hasLocaleFallback: boolean;
   hasLocaleType: boolean;
-  namespaceNames: string[];
   importExtension: ImportExtension;
   delivery: DeliveryMode;
-  deliveryAreaTypeName?: string;
-  deliveryArtifactsTypeName?: string;
+  localeDeliveryAreaConstName?: string;
+  loaderStrategy?: LoaderStrategy;
 }
+
+const STATE_TYPE = `{ dictionary: InitialSchema; resources?: readonly (readonly [string, string])[] }`;
 
 export function formatInstanceFile(options: InstanceFileOptions): string {
   const {
-    isSingle,
-    hasLazy,
     typesOutputPath,
     namespaceLoadersOutputPath,
     paramsTypeName,
@@ -38,82 +32,44 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     factoryName,
     hasLocaleFallback,
     hasLocaleType,
-    namespaceNames,
     importExtension,
     delivery,
-    deliveryAreaTypeName,
-    deliveryArtifactsTypeName,
+    localeDeliveryAreaConstName = "LOCALE_DELIVERY_AREA",
+    loaderStrategy = "import",
   } = options;
 
-  const emitDeliveryAreaHelpers = delivery === "custom";
-  const providerClass = isSingle ? "IcuTranslationProviderSingle" : "IcuTranslationProviderMulti";
+  const providerClass = "IcuTranslationProviderMulti";
   const typesModule = toModuleBasename(typesOutputPath);
   const typesImport = toRelativeModuleImport(typesModule, importExtension);
-  const loadersModule = namespaceLoadersOutputPath
-    ? toModuleBasename(namespaceLoadersOutputPath)
-    : null;
-  const loadersImport =
-    loadersModule && namespaceLoadersOutputPath
-      ? toRelativeModuleImport(loadersModule, importExtension)
-      : null;
-  const dictionaryParamType = hasLazy ? "InitialSchema" : schemaTypeName;
-  const schemaTypesImport =
-    hasLazy && delivery === "custom" && deliveryAreaTypeName && deliveryArtifactsTypeName
-      ? `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema, ${deliveryAreaTypeName}, ${deliveryArtifactsTypeName} } from '${typesImport}';\n`
-      : hasLazy
-        ? `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema } from '${typesImport}';\n`
-        : `import type { ${paramsTypeName}, ${schemaTypeName} } from '${typesImport}';\n`;
-  const providerTypeArgs = hasLocaleFallback
-    ? `${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, typeof ${localeFallbackConstName}`
-    : `${schemaTypeName}, ${paramsTypeName}`;
-  const providerOptions = hasLocaleFallback
-    ? `, {\n    localeFallback: ${localeFallbackConstName},\n    ...options,\n  }`
-    : `, options`;
-  const typesImportLine = hasLocaleType
-    ? hasLocaleFallback
-      ? `import { ${localeFallbackConstName}, type ${localeTypeName} } from '${typesImport}';\n`
-      : `import type { ${localeTypeName} } from '${typesImport}';\n`
-    : "";
-  const localesParamType = hasLocaleType ? `readonly ${localeTypeName}[]` : "readonly string[]";
-  const fallbackArg = hasLocaleFallback ? `, ${localeFallbackConstName}` : "";
-  const packageImports = formatPackageImports(
-    providerClass,
-    isSingle,
-    hasLazy,
-    emitDeliveryAreaHelpers
-  );
-  const projectionBlock = isSingle
-    ? formatSingleProjectionBlock(
-        schemaTypeName,
-        localesParamType,
-        fallbackArg,
-        emitDeliveryAreaHelpers
-      )
-    : formatMultiProjectionBlock(
-        schemaTypeName,
-        namespaceNames,
-        localesParamType,
-        fallbackArg,
-        emitDeliveryAreaHelpers
-      );
+  const loadersModule = toModuleBasename(namespaceLoadersOutputPath);
+  const loadersImport = toRelativeModuleImport(loadersModule, importExtension);
+  const schemaTypesImport = `import type { ${paramsTypeName}, ${schemaTypeName}, InitialSchema } from '${typesImport}';\n`;
+  const typesImportLine = formatTypesValueImport({
+    hasLocaleType,
+    hasLocaleFallback,
+    localeTypeName,
+    localeFallbackConstName,
+    localeDeliveryAreaConstName,
+    delivery,
+    typesImport,
+  });
+  const packageImports = formatPackageImports(providerClass, loaderStrategy);
+  const loadersImportLine =
+    loaderStrategy === "fetch"
+      ? `import { createNamespaceLoaders } from '${loadersImport}';\n`
+      : `import { namespaceLoaders } from '${loadersImport}';\n`;
 
   const createFactoryBlock = formatCreateI18nFactory({
-    isSingle,
-    hasLazy,
-    hasLocaleFallback,
     providerClass,
-    providerTypeArgs,
-    providerOptions,
-    factoryName,
-    dictionaryParamType,
     schemaTypeName,
     paramsTypeName,
     localeTypeName,
-    namespaceNames,
-    loadersImport,
+    localeFallbackConstName,
+    factoryName,
+    hasLocaleFallback,
     delivery,
-    ...(deliveryAreaTypeName !== undefined ? { deliveryAreaTypeName } : {}),
-    ...(deliveryArtifactsTypeName !== undefined ? { deliveryArtifactsTypeName } : {}),
+    localeDeliveryAreaConstName,
+    loaderStrategy,
   });
 
   return (
@@ -123,233 +79,179 @@ export function formatInstanceFile(options: InstanceFileOptions): string {
     `} from '@xndrjs/i18n';\n` +
     schemaTypesImport +
     typesImportLine +
-    (hasLazy && loadersImport ? `import { namespaceLoaders } from '${loadersImport}';\n` : "") +
+    loadersImportLine +
     `\n` +
-    createFactoryBlock +
-    projectionBlock
+    createFactoryBlock
   );
 }
 
-function formatCreateI18nFactory(options: {
-  isSingle: boolean;
-  hasLazy: boolean;
+function formatTypesValueImport(options: {
+  hasLocaleType: boolean;
   hasLocaleFallback: boolean;
+  localeTypeName: string;
+  localeFallbackConstName: string;
+  localeDeliveryAreaConstName: string;
+  delivery: DeliveryMode;
+  typesImport: string;
+}): string {
+  const {
+    hasLocaleType,
+    hasLocaleFallback,
+    localeTypeName,
+    localeFallbackConstName,
+    localeDeliveryAreaConstName,
+    delivery,
+    typesImport,
+  } = options;
+
+  if (!hasLocaleType && delivery !== "custom") {
+    return "";
+  }
+
+  const valueNames: string[] = [];
+  if (hasLocaleFallback) {
+    valueNames.push(localeFallbackConstName);
+  }
+  if (delivery === "custom") {
+    valueNames.push(localeDeliveryAreaConstName);
+  }
+
+  if (valueNames.length > 0 && hasLocaleType) {
+    return `import { ${valueNames.join(", ")}, type ${localeTypeName} } from '${typesImport}';\n`;
+  }
+  if (valueNames.length > 0) {
+    return `import { ${valueNames.join(", ")} } from '${typesImport}';\n`;
+  }
+  if (hasLocaleType) {
+    return `import type { ${localeTypeName} } from '${typesImport}';\n`;
+  }
+  return "";
+}
+
+function formatCreateI18nFactory(options: {
   providerClass: string;
-  providerTypeArgs: string;
-  providerOptions: string;
-  factoryName: string;
-  dictionaryParamType: string;
   schemaTypeName: string;
   paramsTypeName: string;
   localeTypeName: string;
-  namespaceNames: string[];
-  loadersImport: string | null;
+  localeFallbackConstName: string;
+  factoryName: string;
+  hasLocaleFallback: boolean;
   delivery: DeliveryMode;
-  deliveryAreaTypeName?: string;
-  deliveryArtifactsTypeName?: string;
+  localeDeliveryAreaConstName: string;
+  loaderStrategy: LoaderStrategy;
 }): string {
   const {
-    isSingle,
-    hasLazy,
     providerClass,
-    providerTypeArgs,
-    providerOptions,
-    factoryName,
-    dictionaryParamType,
     schemaTypeName,
     paramsTypeName,
     localeTypeName,
-    namespaceNames,
-    loadersImport,
+    localeFallbackConstName,
+    factoryName,
+    hasLocaleFallback,
     delivery,
-    deliveryAreaTypeName,
-    deliveryArtifactsTypeName,
+    localeDeliveryAreaConstName,
+    loaderStrategy,
   } = options;
 
-  if (isSingle) {
-    return (
-      `export function ${factoryName}(\n` +
-      `  dictionary: ${dictionaryParamType},\n` +
-      `  options?: { onMissing?: OnMissingTranslation },\n` +
-      `): I18nScopeSingle<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}> {\n` +
-      `  return new ${providerClass}<${providerTypeArgs}>(dictionary${providerOptions}).toScope();\n` +
-      `}\n`
-    );
-  }
+  const providerTypeArgs = hasLocaleFallback
+    ? `${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, typeof ${localeFallbackConstName}`
+    : `${schemaTypeName}, ${paramsTypeName}`;
+  const handleReturnType = `I18nHandle<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
+  const handleTypeArgs = `<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
 
-  if (!hasLazy) {
-    const namespacesLiteral = `[${namespaceNames
-      .slice()
-      .sort()
-      .map((ns) => JSON.stringify(ns))
-      .join(", ")}] as const`;
-    return (
-      `export function ${factoryName}(\n` +
-      `  dictionary: ${dictionaryParamType},\n` +
-      `  options?: { onMissing?: OnMissingTranslation },\n` +
-      `): I18nScopeMulti<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}> {\n` +
-      `  const engine = new ${providerClass}<${providerTypeArgs}>(dictionary${providerOptions});\n` +
-      `  return engine.toScope({ namespaces: ${namespacesLiteral} });\n` +
-      `}\n`
-    );
-  }
+  const partitionForLocale =
+    delivery === "custom"
+      ? `    partitionForLocale: (locale) => ${localeDeliveryAreaConstName}[locale],\n`
+      : `    partitionForLocale: (locale) => locale,\n`;
 
-  if (!loadersImport) {
-    throw new Error("[Codegen Error] namespaceLoadersOutputPath is required when hasLazy is true.");
-  }
+  const optionsType =
+    loaderStrategy === "fetch"
+      ? `{ fetchImpl: FetchArtifact; state?: ${STATE_TYPE}; onMissing?: OnMissingTranslation }`
+      : `{ state?: ${STATE_TYPE}; onMissing?: OnMissingTranslation }`;
 
-  const builderReturnType =
-    delivery === "custom" && deliveryAreaTypeName && deliveryArtifactsTypeName
-      ? `I18nBuilderMultiInitial<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, ${localeTypeName}, ${deliveryAreaTypeName}, ${deliveryArtifactsTypeName}>`
-      : `I18nBuilderMultiInitial<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
+  const optionsParam =
+    loaderStrategy === "fetch" ? `  options: ${optionsType},\n` : `  options?: ${optionsType},\n`;
 
-  const multiBuilderTypeArgs =
-    delivery === "custom" && deliveryAreaTypeName && deliveryArtifactsTypeName
-      ? `<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}, ${deliveryAreaTypeName}, ${deliveryArtifactsTypeName}>`
-      : `<${schemaTypeName}, ${paramsTypeName}, ${localeTypeName}>`;
+  const namespaceLoadersLine =
+    loaderStrategy === "fetch"
+      ? `    namespaceLoaders: createNamespaceLoaders(fetchImpl),\n`
+      : `    namespaceLoaders,\n`;
 
   return (
     `export function ${factoryName}(\n` +
-    `  dictionary: ${dictionaryParamType},\n` +
-    `  options?: { onMissing?: OnMissingTranslation },\n` +
-    `): ${builderReturnType} {\n` +
-    `  const engine = new ${providerClass}<${providerTypeArgs}>(dictionary${providerOptions});\n` +
-    `  return createI18nMultiBuilder${multiBuilderTypeArgs}(engine, {\n` +
-    `    namespaceLoaders,\n` +
-    `  } as I18nBuilderMultiOptions<${schemaTypeName}, ${localeTypeName}>);\n` +
+    optionsParam +
+    `): ${handleReturnType} {\n` +
+    formatBody({
+      providerClass,
+      providerTypeArgs,
+      hasLocaleFallback,
+      localeFallbackConstName,
+      loaderStrategy,
+    }) +
+    `  engine.seedBuilderResources(normalized.resources);\n` +
+    `  return createI18nHandle${handleTypeArgs}(engine, {\n` +
+    namespaceLoadersLine +
+    partitionForLocale +
+    `  } as I18nHandleOptions<${schemaTypeName}, ${localeTypeName}>);\n` +
     `}\n`
   );
 }
 
-function formatPackageImports(
-  providerClass: string,
-  isSingle: boolean,
-  hasLazy: boolean,
-  emitDeliveryAreaHelpers: boolean
-): string {
-  const imports = [providerClass];
+function formatBody(options: {
+  providerClass: string;
+  providerTypeArgs: string;
+  hasLocaleFallback: boolean;
+  localeFallbackConstName: string;
+  loaderStrategy: LoaderStrategy;
+}): string {
+  const {
+    providerClass,
+    providerTypeArgs,
+    hasLocaleFallback,
+    localeFallbackConstName,
+    loaderStrategy,
+  } = options;
 
-  if (isSingle) {
-    imports.push("projectNamespaceLocalesCore");
-    if (emitDeliveryAreaHelpers) {
-      imports.push("projectNamespaceForDeliveryAreaCore");
-    }
-    imports.push("type I18nScopeSingle");
-  } else {
-    imports.push("projectNamespaceLocalesCore", "projectDictionaryLocalesCore");
-    if (emitDeliveryAreaHelpers) {
-      imports.push("projectNamespaceForDeliveryAreaCore", "projectDictionaryForDeliveryAreaCore");
-    }
-    if (hasLazy) {
-      imports.push(
-        "createI18nMultiBuilder",
-        "type I18nBuilderMultiInitial",
-        "type I18nBuilderMultiOptions"
-      );
-    } else {
-      imports.push("type I18nScopeMulti");
-    }
+  if (loaderStrategy === "fetch") {
+    const engineBlock = hasLocaleFallback
+      ? `  const engine = new ${providerClass}<${providerTypeArgs}>(normalized.dictionary, {\n` +
+        `    localeFallback: ${localeFallbackConstName},\n` +
+        `    ...providerOptions,\n` +
+        `  });\n`
+      : `  const engine = new ${providerClass}<${providerTypeArgs}>(normalized.dictionary, providerOptions);\n`;
+
+    return (
+      `  const { fetchImpl, state, ...providerOptions } = options;\n` +
+      `  const normalized = normalizeI18nCreateInput(state);\n` +
+      engineBlock
+    );
   }
 
-  imports.push("type OnMissingTranslation");
-  return imports.join(",\n  ");
+  const engineBlock = hasLocaleFallback
+    ? `  const engine = new ${providerClass}<${providerTypeArgs}>(normalized.dictionary, {\n` +
+      `    localeFallback: ${localeFallbackConstName},\n` +
+      `    ...providerOptions,\n` +
+      `  });\n`
+    : `  const engine = new ${providerClass}<${providerTypeArgs}>(normalized.dictionary, providerOptions);\n`;
+
+  return (
+    `  const { state, ...providerOptions } = options ?? {};\n` +
+    `  const normalized = normalizeI18nCreateInput(state);\n` +
+    engineBlock
+  );
 }
 
-function formatSingleProjectionBlock(
-  schemaTypeName: string,
-  localesParamType: string,
-  fallbackArg: string,
-  emitDeliveryAreaHelpers: boolean
-): string {
-  let block =
-    `\n` +
-    `export function projectDictionaryLocales(\n` +
-    `  dictionary: ${schemaTypeName},\n` +
-    `  locales: ${localesParamType},\n` +
-    `): ${schemaTypeName} {\n` +
-    `  return projectNamespaceLocalesCore(dictionary, locales${fallbackArg});\n` +
-    `}\n`;
-
-  if (emitDeliveryAreaHelpers) {
-    block +=
-      `\n` +
-      `export function projectDictionaryForDeliveryArea(\n` +
-      `  dictionary: ${schemaTypeName},\n` +
-      `  areaLocales: ${localesParamType},\n` +
-      `): ${schemaTypeName} {\n` +
-      `  return projectNamespaceForDeliveryAreaCore(dictionary, areaLocales${fallbackArg});\n` +
-      `}\n`;
+function formatPackageImports(providerClass: string, loaderStrategy: LoaderStrategy): string {
+  const names = [
+    providerClass,
+    "createI18nHandle",
+    "normalizeI18nCreateInput",
+    "type I18nHandle",
+    "type I18nHandleOptions",
+    "type OnMissingTranslation",
+  ];
+  if (loaderStrategy === "fetch") {
+    names.push("type FetchArtifact");
   }
-
-  return block;
-}
-
-function formatMultiProjectionBlock(
-  schemaTypeName: string,
-  namespaceNames: string[],
-  localesParamType: string,
-  fallbackArg: string,
-  emitDeliveryAreaHelpers: boolean
-): string {
-  const namespaceLocaleOverloads = namespaceNames
-    .map(
-      (namespace) =>
-        `export function projectNamespaceLocales(\n` +
-        `  dictionary: ${schemaTypeName}["${namespace}"],\n` +
-        `  locales: ${localesParamType},\n` +
-        `): ${schemaTypeName}["${namespace}"];`
-    )
-    .join("\n");
-
-  const namespaceDeliveryOverloads = emitDeliveryAreaHelpers
-    ? namespaceNames
-        .map(
-          (namespace) =>
-            `export function projectNamespaceForDeliveryArea(\n` +
-            `  dictionary: ${schemaTypeName}["${namespace}"],\n` +
-            `  areaLocales: ${localesParamType},\n` +
-            `): ${schemaTypeName}["${namespace}"];`
-        )
-        .join("\n")
-    : "";
-
-  let block =
-    `\n` +
-    `export function projectDictionaryLocales(\n` +
-    `  dictionary: ${schemaTypeName},\n` +
-    `  locales: ${localesParamType},\n` +
-    `): ${schemaTypeName} {\n` +
-    `  return projectDictionaryLocalesCore(dictionary, locales${fallbackArg});\n` +
-    `}\n` +
-    `\n` +
-    namespaceLocaleOverloads +
-    `\n` +
-    `export function projectNamespaceLocales(\n` +
-    `  dictionary: ${schemaTypeName}[keyof ${schemaTypeName}],\n` +
-    `  locales: ${localesParamType},\n` +
-    `): ${schemaTypeName}[keyof ${schemaTypeName}] {\n` +
-    `  return projectNamespaceLocalesCore(dictionary, locales${fallbackArg});\n` +
-    `}\n`;
-
-  if (emitDeliveryAreaHelpers) {
-    block +=
-      `\n` +
-      `export function projectDictionaryForDeliveryArea(\n` +
-      `  dictionary: ${schemaTypeName},\n` +
-      `  areaLocales: ${localesParamType},\n` +
-      `): ${schemaTypeName} {\n` +
-      `  return projectDictionaryForDeliveryAreaCore(dictionary, areaLocales${fallbackArg});\n` +
-      `}\n` +
-      `\n` +
-      namespaceDeliveryOverloads +
-      `\n` +
-      `export function projectNamespaceForDeliveryArea(\n` +
-      `  dictionary: ${schemaTypeName}[keyof ${schemaTypeName}],\n` +
-      `  areaLocales: ${localesParamType},\n` +
-      `): ${schemaTypeName}[keyof ${schemaTypeName}] {\n` +
-      `  return projectNamespaceForDeliveryAreaCore(dictionary, areaLocales${fallbackArg});\n` +
-      `}\n`;
-  }
-
-  return block;
+  return names.join(",\n  ");
 }

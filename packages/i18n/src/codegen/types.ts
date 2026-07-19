@@ -8,9 +8,3 @@ export interface NamespaceEntry {
 }
 
 export type DictionaryJson = Record<string, Record<string, string>>;
-
-export interface LoadOnInitResolution {
-  loadOnInitSet: Set<string>;
-  lazyEntries: NamespaceEntry[];
-  hasLazy: boolean;
-}

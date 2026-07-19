@@ -13,19 +13,19 @@ export function assertTaskChainingTypes(): void {
     .retry(() => true)
     .inflightDedup(k);
 
-  // @ts-expect-error — at most one .retry()
   task(async () => 1)
     .retry(() => true)
+    // @ts-expect-error — at most one .retry()
     .retry(() => true);
 
-  // @ts-expect-error — use .retry before .inflightDedup when you need both
   task(async () => 1)
     .inflightDedup(k)
+    // @ts-expect-error — use .retry before .inflightDedup when you need both
     .retry(() => true);
 
-  // @ts-expect-error — at most one .inflightDedup()
   task(async () => 1)
     .inflightDedup(k)
+    // @ts-expect-error — at most one .inflightDedup()
     .inflightDedup(k);
 
   task(async () => 1)

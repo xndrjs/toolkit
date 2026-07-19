@@ -142,7 +142,7 @@ function writeCompiledJson(absoluteJsonPath: string, dictionary: DictionaryJson)
 
 export interface PrepareDictionaryEntriesOptions {
   dictionariesByNamespace: Record<string, DictionaryJson>;
-  delivery?: DeliveryMode;
+  delivery: DeliveryMode;
   localeFallback?: LocaleFallbackMap | undefined;
   requestLocales?: readonly string[] | undefined;
   deliveryArtifacts?: DeliveryArtifactsMap | undefined;
@@ -155,8 +155,8 @@ export interface PrepareDictionariesResult {
 }
 
 /**
- * Phase 2 of codegen: materialize JSON artifacts on disk (YAML compile, locale/area split).
- * Returns `splitPathsByNamespace` consumed by dictionary and namespace-loader emitters.
+ * Phase 2 of codegen: materialize JSON artifacts on disk (locale/area split).
+ * Returns `splitPathsByNamespace` consumed by namespace-loader emitters.
  */
 export function prepareDictionaryEntries(
   projectRoot: string,
@@ -164,7 +164,7 @@ export function prepareDictionaryEntries(
   generatedDirRelative: string,
   options: PrepareDictionaryEntriesOptions
 ): PrepareDictionariesResult {
-  const delivery = options.delivery ?? "canonical";
+  const delivery = options.delivery;
   const { dictionariesByNamespace, localeFallback, requestLocales, deliveryArtifacts } = options;
   const resolvedEntries: NamespaceEntry[] = [];
   const splitPathsByNamespace: Record<string, Record<string, string>> = {};
@@ -231,50 +231,28 @@ export function prepareDictionaryEntries(
       continue;
     }
 
-    if (delivery === "custom") {
-      const splitPaths: Record<string, string> = {};
-      const dictionariesByArea = splitDictionaryByDeliveryArea(
-        dictionary,
-        deliveryArtifacts!,
-        localeFallback
-      );
+    const splitPaths: Record<string, string> = {};
+    const dictionariesByArea = splitDictionaryByDeliveryArea(
+      dictionary,
+      deliveryArtifacts!,
+      localeFallback
+    );
 
-      for (const area of Object.keys(deliveryArtifacts!).sort()) {
-        const areaRelativePath = resolveAreaJsonPath(entry.filePath, area, generatedDirRelative);
-        const areaAbsolutePath = path.resolve(projectRoot, areaRelativePath);
-        const wroteFile = writeCompiledJson(areaAbsolutePath, dictionariesByArea[area]!);
-
-        if (wroteFile) {
-          compiledFiles.push(
-            `${path.relative(projectRoot, sourceAbsolutePath)} → ${areaRelativePath}`
-          );
-        }
-
-        splitPaths[area] = areaRelativePath;
-      }
-
-      splitPathsByNamespace[entry.namespace] = splitPaths;
-      resolvedEntries.push(entry);
-      continue;
-    }
-
-    if (format === "yaml") {
-      const compiledRelativePath = resolveCompiledJsonPath(entry.filePath, generatedDirRelative);
-      const compiledAbsolutePath = path.resolve(projectRoot, compiledRelativePath);
-      const wroteFile = writeCompiledJson(compiledAbsolutePath, dictionary);
+    for (const area of Object.keys(deliveryArtifacts!).sort()) {
+      const areaRelativePath = resolveAreaJsonPath(entry.filePath, area, generatedDirRelative);
+      const areaAbsolutePath = path.resolve(projectRoot, areaRelativePath);
+      const wroteFile = writeCompiledJson(areaAbsolutePath, dictionariesByArea[area]!);
 
       if (wroteFile) {
         compiledFiles.push(
-          `${path.relative(projectRoot, sourceAbsolutePath)} → ${compiledRelativePath}`
+          `${path.relative(projectRoot, sourceAbsolutePath)} → ${areaRelativePath}`
         );
       }
-      resolvedEntries.push({
-        namespace: entry.namespace,
-        filePath: compiledRelativePath,
-      });
-      continue;
+
+      splitPaths[area] = areaRelativePath;
     }
 
+    splitPathsByNamespace[entry.namespace] = splitPaths;
     resolvedEntries.push(entry);
   }
 

@@ -1,7 +1,7 @@
 ---
 title: "Type-safe i18n and flexible delivery: why I built @xndrjs/i18n"
 description: The real needs behind a modern i18n library — type-safe keys and parameters, ICU MessageFormat, lazy namespace loading, and per-locale delivery.
-date: 2026-07-05
+date: 2026-07-14
 author: Fabio Fognani
 tags:
   - i18n
@@ -248,7 +248,7 @@ Each loader accepts only a known locale and resolves to the exact schema for its
 ```ts
 import { createI18n } from "./i18n";
 
-const { t } = await createI18n({}) // shared engine, initialized empty
+const { t } = await createI18n() // shared engine, initialized empty
   .withNamespaces(["billing", "default"]) // which namespaces to load
   .withLocale("en") // split-by-locale partition passed to loaders
   .load(); // dynamic import + merge; returns locale-bound scope
@@ -256,9 +256,9 @@ const { t } = await createI18n({}) // shared engine, initialized empty
 t("billing", "invoice_summary", { count: 12 });
 ```
 
-`load()` is async; the returned scope is locale-bound and exposes a synchronous `t()`. If a key was never loaded, `t()` resolves through `onMissing` (default: throw) — not a silent empty label by default.
+`load()` is async; the returned scope is locale-bound and exposes a synchronous `t()`. If a key was never loaded, `t()` resolves through `onMissing` (default: throw; also `"key"` or a custom function) — not a silent empty label by default.
 
-Reloading the same namespace + locale on a shared engine is skipped, so runtime patches via `scope.set()` (for example after CMS validation) are not overwritten by a later default load.
+Reloading the same namespace + locale on a shared engine is skipped, so runtime patches via `scope.set()` (for example, taking fresh values from CMS) are not overwritten by a later default load.
 
 The loader is generated as a finite switch of dynamic imports:
 
@@ -283,13 +283,13 @@ export const namespaceLoaders = {
 };
 ```
 
-That detail has different consequences on the client and server:
+In practice:
 
-- **Client-side bundling:** bundlers can see every literal import target in the generated loaders and emit a separate chunk for each namespace-locale pair. The initial bundle contains the loader map, not every translation value; the first `load()` for a pair fetches its chunk, then normal browser and CDN caching applies.
-- **Server-side bundling:** the same dynamic import defers module evaluation, but it does not automatically mean a browser fetch. In a bundled server deployment, the JSON may become a server chunk loaded from the deployment filesystem; in an unbundled Node.js deployment, it is resolved directly from disk. This can reduce eagerly loaded code and memory, but the bundler and deployment target decide whether it changes the total server artifact size.
-- **SSR and hydration:** loading a namespace on the server does not by itself make that module available in the browser. If the hydrated client needs to translate the same feature, it will load its own client chunk unless you serialize the required dictionary into the page and adopt a separate hydration strategy.
+- **Browser:** one chunk per namespace-locale pair; strings load on first `load()`, not in the initial bundle.
+- **Server:** the import reads from disk or the server bundle — not a client fetch.
+- **SSR:** a server `load()` does not automatically hydrate the client; the browser loads its own chunk — unless you call `serialize()` and bootstrap the client with `createI18n({ state })`.
 
-Dynamic `import()` is therefore a code-splitting boundary.
+Dynamic `import()` is the code-splitting boundary — and it keeps server-to-client handoff flexible when you need it (`serialize()` + `createI18n({ state })`), while still allowing runtime updates to individual namespaces (for example from a CMS) without a full deploy.
 
 ### Custom delivery areas
 
@@ -314,7 +314,7 @@ Codegen produces `billing.eu.json`, `billing.amer.json`, and equivalent files fo
 ```ts
 import { createI18n } from "./i18n";
 
-const { t } = await createI18n({})
+const { t } = await createI18n()
   .withNamespaces(["default", "billing"])
   .withDeliveryArea("amer")
   .load();
@@ -377,16 +377,16 @@ Minimal runtime shapes — pick the row that matches your `i18n.codegen.json`.
 
 ### Single vs multi (eager, canonical)
 
-Codegen mode defines the `t()` signature. With `"delivery": "canonical"` and no lazy loaders, `createI18n(defaultDictionary)` returns a **scope** ready to use.
+Codegen mode defines the `t()` signature. With `"delivery": "canonical"` and no lazy loaders, `createI18n({ dictionary: defaultDictionary })` returns a **scope** ready to use.
 
 **Single file** — one flat dictionary:
 
 ```ts
 import { createI18n, defaultDictionary } from "./i18n";
 
-const { t } = createI18n(defaultDictionary);
+const { t } = createI18n({ dictionary: defaultDictionary });
 t("welcome", "en", { name: "Ada" });
-const { t: tEn } = createI18n(defaultDictionary).forLocale("en");
+const { t: tEn } = createI18n({ dictionary: defaultDictionary }).forLocale("en");
 tEn("welcome", { name: "Ada" });
 ```
 
@@ -395,26 +395,26 @@ tEn("welcome", { name: "Ada" });
 ```ts
 import { createI18n, defaultDictionary } from "./i18n";
 
-const { t, forLocale } = createI18n(defaultDictionary);
+const { t, forLocale } = createI18n({ dictionary: defaultDictionary });
 t("default", "welcome", "en", { name: "Ada" });
 forLocale("en").t("billing", "invoice_summary", { count: 12 });
 ```
 
 ### Eager vs lazy
 
-|           | Init                                    | Load translations                                                   |
-| --------- | --------------------------------------- | ------------------------------------------------------------------- |
-| **Eager** | `createI18n(defaultDictionary)` → scope | Dictionary (or `loadOnInit` namespaces) bundled at startup          |
-| **Lazy**  | `createI18n({})` → builder              | `await builder.withNamespaces([...]).….load()` → locale-bound scope |
+|           | Init                                                    | Load translations                                                   |
+| --------- | ------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Eager** | `createI18n({ dictionary: defaultDictionary })` → scope | Dictionary (or `loadOnInit` namespaces) bundled at startup          |
+| **Lazy**  | `createI18n()` → builder                                | `await builder.withNamespaces([...]).….load()` → locale-bound scope |
 
-With `split-by-locale` or `custom`, multi mode is always lazy — `createI18n({})` returns a builder, not a ready scope.
+With `split-by-locale` or `custom`, multi mode is always lazy — `createI18n()` returns a builder, not a ready scope.
 
 **Lazy** (multi, when codegen emits `namespaceLoaders`). `t` and `set` can be destructured — scope methods are bound and do not rely on `this`:
 
 ```ts
 import { createI18n } from "./i18n";
 
-const { t } = await createI18n({}) // shared engine, empty until load
+const { t } = await createI18n() // shared engine, empty until load
   .withNamespaces(["billing"]) // which namespaces to fetch
   .withLocale("en") // passed to generated loaders (split/custom)
   .load(); // dynamic import + merge; locale-bound scope
@@ -424,17 +424,29 @@ t("billing", "invoice_summary", { count: 12 });
 
 Reloading the same namespace + partition on a shared engine is skipped — runtime `scope.set()` patches are not overwritten by a later default load.
 
+**SSR hydrate** — after server `load()`, pass serialized state to the client:
+
+```ts
+const i18n = createI18n();
+await i18n.load({ namespaces: ["billing"], locale: "en" });
+const state = i18n.serialize();
+
+// client
+const client = createI18n({ state });
+client.peek({ namespaces: ["billing"], locale: "en" }); // loaders skipped when already seeded
+```
+
 ### Delivery modes
 
 Authoring stays one multilocale file per namespace; `"delivery"` in config only changes generated artifacts and loader partitions. After `withLocale(...).load()`, omit the locale on `t()`; otherwise pass it on each call.
 
-**Canonical** — one multilocale JSON per namespace (all locales in the same file). Eager: pass `defaultDictionary` to `createI18n` (see above).
+**Canonical** — one multilocale JSON per namespace (all locales in the same file). Eager: `createI18n({ dictionary: defaultDictionary })` (see above).
 
 **Lazy**: the generated loader imports that whole file in one shot — **no locale or area argument**, because the artifact already contains every locale:
 
 ```ts
 // generated: billing() → import("./translations/billing.json")
-const { t } = await createI18n({})
+const { t } = await createI18n()
   .withNamespaces(["billing"]) // no withLocale / withDeliveryArea
   .load();
 t("billing", "invoice_summary", "en", { count: 12 });
@@ -443,14 +455,14 @@ t("billing", "invoice_summary", "en", { count: 12 });
 **Split-by-locale** — codegen emits one JSON per namespace **and** locale (`billing.en.json`, `billing.it.json`, …). The loader needs to know which file to import, so the builder passes the active locale via `withLocale(...)`:
 
 ```ts
-const { t } = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
+const { t } = await createI18n().withNamespaces(["billing"]).withLocale("it").load();
 t("billing", "invoice_summary", { count: 3 });
 ```
 
 **Custom areas** — same idea as split-by-locale, but the partition is a **delivery area** (`eu`, `amer`, …) that groups several locales into one regional artifact. Use `withDeliveryArea(...)` instead of `withLocale(...)`:
 
 ```ts
-const { t } = await createI18n({})
+const { t } = await createI18n()
   .withNamespaces(["default", "billing"])
   .withDeliveryArea("eu")
   .load();
@@ -472,13 +484,17 @@ Real products rarely ship every string in every locale on day one. **Partial loc
 }
 ```
 
-Codegen emits `LOCALE_FALLBACK` and wires it into `createI18n(dictionary)`. If the chain cannot resolve a key, `t()` throws with the path it tried.
+Codegen emits `LOCALE_FALLBACK` and wires it into the generated factory (`createI18n({ dictionary: defaultDictionary })` or `createI18n()`). If the chain cannot resolve a key, `t()` throws with the path it tried.
 
 ### Fallback inside delivery slices
 
-With split-by-locale or custom delivery, fallback is applied when codegen materializes each slice. For example, `de-CH` can inherit missing values from `de-DE` and then `en`, while `billing.de-CH.json` still contains only the effective `de-CH` dictionary the runtime needs.
+Codegen applies fallback while materializing delivery JSON, in order to keep every delivery artifact self-sufficient. The rules differ by mode:
 
-That keeps the runtime payload small without changing the canonical authoring files or weakening fallback guarantees.
+**Split-by-locale** — one locale per file (`billing.de-CH.json`). Codegen walks the full fallback chain for that locale and writes a **complete** slice: every key resolves to the string the runtime would use for `de-CH`, including values inherited from `de-DE` or `en` when `de-CH` is missing in the canonical source.
+
+**Custom areas** — one file groups several locales (`billing.eu.json`). Locales whose fallback target is **outside** the area are resolved at codegen (same as split-by-locale). Locales whose fallback target is **inside** the same area stay **partial**: codegen copies only what is authored for that locale, because the area artifact is meant to load standalone and runtime fallback between co-located locales still applies via `LOCALE_FALLBACK`.
+
+That keeps the runtime payload as small as possible without changing the canonical authoring files or weakening fallback guarantees.
 
 ### Translation audit
 
@@ -498,7 +514,7 @@ Report-only by default; `--fail-on effective`, `direct`, or `any` gates CI. Fiel
 
 `@xndrjs/i18n` is a small, deliberate stack: canonical ICU dictionaries (JSON or YAML at authoring time) as the source of truth, codegen that turns templates into TypeScript contracts and delivery artifacts, and a runtime provider that formats, caches, and fails loudly when something is wrong.
 
-There are no React, Vue, or Next.js wrappers yet — for now, that is intentional. `@xndrjs/i18n` is still an experimental package, and the focus is on the core: a typed engine with scopes (`t()`, `forLocale()`), a fluent builder for lazy loading, and `scope.set()` for runtime patches — enough to wire into any framework with a thin hook or context of your own. You import `createI18n(dictionary)`, call it where it fits, and keep your UI layer in charge.
+There are no React, Vue, or Next.js wrappers yet — for now, that is intentional. `@xndrjs/i18n` is still an experimental package, and the focus is on the core: a typed engine with scopes (`t()`, `forLocale()`), a fluent builder for lazy loading, and `scope.set()` for runtime patches — enough to wire into any framework with a thin hook or context of your own.
 
 The delivery shape can evolve independently from authoring: start with canonical files, move to per-locale chunks as the language matrix grows, or introduce named regional areas when infrastructure demands it. Generated namespace loaders keep those boundaries typed and make the asynchronous part explicit.
 

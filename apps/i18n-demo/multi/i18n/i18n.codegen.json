@@ -1,0 +1,16 @@
+{
+  "projectName": "MyProject",
+  "delivery": "split-by-locale",
+  "namespaces": {
+    "default": "translations/default.json",
+    "user": "translations/user.json",
+    "billing": "translations/billing.yaml"
+  },
+  "codegenPath": "generated",
+  "localeFallback": {
+    "en": null,
+    "de-DE": "en",
+    "de-CH": "de-DE",
+    "it": "en"
+  }
+}

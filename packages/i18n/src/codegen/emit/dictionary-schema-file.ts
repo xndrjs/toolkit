@@ -16,29 +16,9 @@ function formatVariableSpecObject(spec: VariableSpec): string {
 
 /** Builds the `DICTIONARY_SPEC` constant from ICU analysis output (keys + variable args). */
 export function formatDictionarySpecBlock(
-  isSingle: boolean,
   entries: NamespaceEntry[],
   argsSpecByNamespace: Record<string, Record<string, VariableSpec>>
 ): string {
-  if (isSingle) {
-    const onlyNamespace = entries[0]!.namespace;
-    const argsByKey = argsSpecByNamespace[onlyNamespace] ?? {};
-    const requiredKeys = Object.keys(argsByKey)
-      .map((key) => JSON.stringify(key))
-      .join(", ");
-    const argsLines = Object.entries(argsByKey)
-      .map(([key, spec]) => `    ${JSON.stringify(key)}: ${formatVariableSpecObject(spec)},`)
-      .join("\n");
-
-    return (
-      `export const DICTIONARY_SPEC = {\n` +
-      `  mode: 'single' as const,\n` +
-      `  requiredKeys: [${requiredKeys}] as const,\n` +
-      `  argsByKey: {\n${argsLines}\n  },\n` +
-      `} satisfies DictionarySpec;\n`
-    );
-  }
-
   const requiredKeysLines = entries
     .map((entry) => {
       const keys = Object.keys(argsSpecByNamespace[entry.namespace] ?? {})
@@ -69,34 +49,20 @@ export function formatDictionarySpecBlock(
 
 /**
  * Emits the optional dictionary-schema module: `DICTIONARY_SPEC` plus thin wrappers
- * around `@xndrjs/i18n/validation` for external dictionary ingestion.
+ * around `@xndrjs/i18n/validation` for validating external payloads before
+ * updating authoring / `regenerateNamespaces` (e.g. CMS → authoring JSON), not for runtime key patches.
  */
 export function formatDictionarySchemaFile(
   schemaTypeName: string,
   typesModule: string,
-  isSingle: boolean,
   dictionarySpecBlock: string,
   importExtension: ImportExtension
 ): string {
   const typesImport = toRelativeModuleImport(typesModule, importExtension);
-  const partialImport = isSingle
-    ? `  validateExternalDictionaryPartial as validateExternalDictionaryPartialCore,\n` +
-      `  validateExternalKey as validateExternalKeyCore,\n`
-    : `  validateExternalDictionaryPartial as validateExternalDictionaryPartialCore,\n` +
-      `  validateExternalNamespacePartial as validateExternalNamespacePartialCore,\n` +
-      `  validateExternalKey as validateExternalKeyCore,\n`;
-
-  const singleKeyValidator =
-    `export function validateExternalKey<K extends keyof ${schemaTypeName}>(\n` +
-    `  key: K,\n` +
-    `  input: unknown,\n` +
-    `): ValidationResult<Pick<${schemaTypeName}, K>> {\n` +
-    `  return validateExternalKeyCore<Pick<${schemaTypeName}, K>>(\n` +
-    `    key as string,\n` +
-    `    input,\n` +
-    `    DICTIONARY_SPEC,\n` +
-    `  );\n` +
-    `}\n\n`;
+  const partialImport =
+    `  validateExternalDictionaryPartial as validateExternalDictionaryPartialCore,\n` +
+    `  validateExternalNamespacePartial as validateExternalNamespacePartialCore,\n` +
+    `  validateExternalKey as validateExternalKeyCore,\n`;
 
   const multiValidators =
     `export function validateExternalNamespacePartial<NS extends keyof ${schemaTypeName}>(\n` +
@@ -125,8 +91,6 @@ export function formatDictionarySchemaFile(
     `  );\n` +
     `}\n\n`;
 
-  const keyValidator = isSingle ? singleKeyValidator : multiValidators;
-
   return (
     `${GENERATED_FILE_BANNER}` +
     `import {\n` +
@@ -144,6 +108,6 @@ export function formatDictionarySchemaFile(
     `    DICTIONARY_SPEC,\n` +
     `  );\n` +
     `}\n\n` +
-    keyValidator
+    multiValidators
   );
 }

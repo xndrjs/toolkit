@@ -1,4 +1,4 @@
-import type { KeyDictionary, MultiDictionary } from "./types.js";
+import type { MultiDictionary } from "./types.js";
 
 /** ICU argument map for a multi-namespace schema. */
 export type MultiParams<Schema extends MultiDictionary> = {
@@ -18,10 +18,18 @@ export type ParamsForNamespaces<
   NsList extends readonly (keyof Schema & string)[],
 > = Pick<Params, NsList[number]>;
 
-/** ICU argument map for a single-namespace schema. */
-export type SingleParams<Schema extends KeyDictionary> = {
-  [K in keyof Schema]: unknown;
-};
-
 /** Rest args for `t()` — `never` params omit the third argument. */
 export type ParamArgs<P> = [P] extends [never] ? [] : [params: P];
+
+/**
+ * Namespace-bound `t(key, …)` — locale already bound.
+ * Call sites omit the namespace argument.
+ */
+export type NamespaceBoundTranslateFn<
+  Schema extends MultiDictionary,
+  Params extends MultiParams<Schema>,
+  NS extends keyof Schema & keyof Params & string,
+> = <const K extends keyof Schema[NS] & keyof Params[NS] & string>(
+  key: K,
+  ...params: ParamArgs<Params[NS][K]>
+) => string;

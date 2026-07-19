@@ -1,7 +1,7 @@
 {
   "name": "@xndrjs/i18n",
-  "version": "0.7.0",
-  "description": "Compiler-first, type-safe ICU MessageFormat i18n with runtime dictionary override from external sources.",
+  "version": "0.8.0",
+  "description": "Compiler-first, type-safe ICU MessageFormat i18n with lazy delivery loading and external payload validation for content ingest.",
   "private": false,
   "license": "MIT",
   "repository": {

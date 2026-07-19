@@ -89,27 +89,6 @@ describe("IcuTranslationProviderMulti", () => {
     );
   });
 
-  it("patches a preloaded key and invalidates its cache", () => {
-    const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(dictionary);
-    const view = () => local.toScope({ namespaces: ["default", "billing"] });
-
-    expect(view().t("billing", "invoice_summary", "en", { count: 2, name: "Bob" })).toBe(
-      "You have 2 invoices for Bob"
-    );
-
-    local.patchKeyMulti(
-      "billing",
-      "invoice_summary",
-      "en",
-      "{count, plural, one {1 bill} other {{count} bills}} for {name}"
-    );
-
-    expect(view().t("billing", "invoice_summary", "en", { count: 2, name: "Bob" })).toBe(
-      "2 bills for Bob"
-    );
-    expect(view().t("default", "login_button", "en")).toBe("Login");
-  });
-
   it("adds namespace to dictionary with applyLoadMergeNamespace", () => {
     const partial = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       default: dictionary.default,
@@ -181,16 +160,6 @@ describe("IcuTranslationProviderMulti", () => {
     );
   });
 
-  it("patches a preloaded default namespace key", () => {
-    const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(dictionary);
-
-    local.patchKeyMulti("default", "login_button", "en", "Sign in");
-
-    expect(local.toScope({ namespaces: ["default"] }).t("default", "login_button", "en")).toBe(
-      "Sign in"
-    );
-  });
-
   it("merges namespaces with applyLoadMergeAll without dropping existing locales", () => {
     const local = new IcuTranslationProviderMulti<TestSchema, TestParams>({
       billing: {
@@ -219,19 +188,28 @@ describe("IcuTranslationProviderMulti", () => {
     expect(view().t("default", "login_button", "en")).toBe("Login");
   });
 
-  it("returns a deep-frozen snapshot from getAll", () => {
+  it("returns the live dictionary from getAll (constructor clones the input)", () => {
     expect(engine.getAll()).toEqual(dictionary);
     expect(engine.getAll()).not.toBe(dictionary);
-    expect(Object.isFrozen(engine.getAll().default)).toBe(true);
+    expect(engine.getAll()).toBe(engine.getAll());
   });
 
-  it("does not mutate the engine when getAll snapshot is modified", () => {
-    const snapshot = engine.getAll();
-    expect(() => {
-      snapshot.default.login_button.en = "Hacked";
-    }).toThrow(TypeError);
-    expect(engine.toScope({ namespaces: ["default"] }).t("default", "login_button", "en")).toBe(
-      "Login"
+  it("invalidates compiled cache when applyLoadMergeNamespace overwrites a key", () => {
+    const local = new IcuTranslationProviderMulti<TestSchema, TestParams>(dictionary);
+    const view = () => local.toScope({ namespaces: ["billing"] });
+
+    expect(view().t("billing", "invoice_summary", "en", { count: 2, name: "Bob" })).toBe(
+      "You have 2 invoices for Bob"
+    );
+
+    local.applyLoadMergeNamespace("billing", {
+      invoice_summary: {
+        en: "{count, plural, one {1 bill} other {{count} bills}} for {name}",
+      },
+    });
+
+    expect(view().t("billing", "invoice_summary", "en", { count: 2, name: "Bob" })).toBe(
+      "2 bills for Bob"
     );
   });
 });

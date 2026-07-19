@@ -28,17 +28,17 @@ flowchart TD
 
 ## In this section
 
-| Page                                                            | Topics                                                     |
-| --------------------------------------------------------------- | ---------------------------------------------------------- |
-| [Dictionaries](/v0/infrastructure/i18n/dictionaries/)           | JSON shape, YAML authoring, serving from `public/`         |
-| [Delivery](/v0/infrastructure/i18n/delivery/)                   | Canonical, split-by-locale, custom areas                   |
-| [Codegen](/v0/infrastructure/i18n/codegen/)                     | ICU inference, generated files, single vs multi            |
-| [Runtime](/v0/infrastructure/i18n/runtime/)                     | Engine, scopes, builder, `scope.set()`, load deduplication |
-| [Locale fallback](/v0/infrastructure/i18n/locale-fallback/)     | Fallback chains, locale projection helpers                 |
-| [Lazy loading](/v0/infrastructure/i18n/lazy-loading/)           | `loadOnInit`, namespace loaders, builder `load()`          |
-| [External validation](/v0/infrastructure/i18n/validation/)      | CMS/API payloads before `scope.set()`                      |
-| [Configuration](/v0/infrastructure/i18n/configuration/)         | `i18n.codegen.json` reference                              |
-| [Errors & exports](/v0/infrastructure/i18n/errors-and-exports/) | Error prefixes, package exports                            |
+| Page                                                            | Topics                                                                      |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [Dictionaries](/v0/infrastructure/i18n/dictionaries/)           | JSON shape, YAML authoring, serving from `public/`                          |
+| [Delivery](/v0/infrastructure/i18n/delivery/)                   | Canonical, split-by-locale, custom areas                                    |
+| [Codegen](/v0/infrastructure/i18n/codegen/)                     | ICU inference, generated files, single vs multi                             |
+| [Runtime](/v0/infrastructure/i18n/runtime/)                     | Handle: `createI18n({ state?, fetchImpl? })`, `load` / `peek` / `serialize` |
+| [Locale fallback](/v0/infrastructure/i18n/locale-fallback/)     | Fallback chains, locale projection helpers                                  |
+| [Lazy loading](/v0/infrastructure/i18n/lazy-loading/)           | Namespace loaders, `load({ namespaces, locale })`, fetch DI                 |
+| [External validation](/v0/infrastructure/i18n/validation/)      | CMS/API payloads before `scope.set()`                                       |
+| [Configuration](/v0/infrastructure/i18n/configuration/)         | `i18n.codegen.json` reference                                               |
+| [Errors & exports](/v0/infrastructure/i18n/errors-and-exports/) | Error prefixes, package exports                                             |
 
 ## Install
 
@@ -47,11 +47,11 @@ pnpm add @xndrjs/i18n zod
 pnpm add -D tsx
 ```
 
-| Dependency     | Role                                                                                                                                 |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `@xndrjs/i18n` | Runtime providers, validation helpers, codegen CLI (`xndrjs-i18n-codegen`), audit CLI (`xndrjs-i18n-audit`)                          |
-| `tsx`          | **Peer dependency** (dev) — codegen and audit CLIs run TypeScript directly                                                           |
-| `zod`          | **Peer dependency** — validates `i18n.codegen.json`; also powers `validateExternalDictionary()` when `dictionarySchemaOutput` is set |
+| Dependency     | Role                                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@xndrjs/i18n` | Runtime providers, validation helpers, codegen CLI (`xndrjs-i18n-codegen`), audit CLI (`xndrjs-i18n-audit`)                                |
+| `tsx`          | **Peer dependency** (dev) — codegen and audit CLIs run TypeScript directly                                                                 |
+| `zod`          | **Peer dependency** — validates `i18n.codegen.json`; also powers generated `validateExternal*` helpers in `dictionary-schema.generated.ts` |
 
 Production bundles depend on `@xndrjs/i18n` and `intl-messageformat` (pulled in by the package). Codegen runs at build time only.
 
@@ -68,7 +68,7 @@ This creates under the target directory (for example `i18n/` or `src/i18n/`):
 
 - `i18n.codegen.json`
 - starter translation files (JSON by default; YAML supported)
-- `index.ts` exporting `createI18n(dictionary)` and generated types
+- `index.ts` exporting `createI18n()` (and generated types)
 
 Pass `src` as the target when your app uses a `src/` layout.
 

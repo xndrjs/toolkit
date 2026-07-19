@@ -1,24 +1,13 @@
 ---
 title: External validation
-description: Validate CMS and API translation payloads before scope.set().
+description: Validate CMS and API translation payloads against the generated dictionary schema.
 ---
 
-When translations arrive from a CMS or API, validate `unknown` input before `scope.set()`. Keys must be preloaded via `load()` first.
-
-```json
-{
-  "dictionarySchemaOutput": "generated/dictionary-schema.generated.ts"
-}
-```
-
-Codegen emits `validateExternalDictionary()`, `validateExternalDictionaryPartial()`, `validateExternalNamespacePartial()`, and `validateExternalKey()`:
+Codegen always writes `dictionary-schema.generated.ts` under `codegenPath/`. Use it to validate `unknown` CMS/API payloads against the ICU contract before updating authoring files and calling `regenerateNamespaces`.
 
 ```ts
 import { formatIssues } from "@xndrjs/i18n/validation";
 import { validateExternalKey } from "./i18n/generated/dictionary-schema.generated.js";
-import { createI18n } from "./i18n";
-
-const { set } = await createI18n({}).withNamespaces(["billing"]).withLocale("it").load();
 
 const raw: unknown = await loadTranslations();
 const result = validateExternalKey("billing", "invoice_summary", raw);
@@ -28,8 +17,10 @@ if (!result.ok) {
   return;
 }
 
-set("billing", "invoice_summary", result.data.invoice_summary.it!);
+// merge into delivery artifacts / CMS write path
 ```
+
+Codegen emits `validateExternalDictionaryPartial()`, `validateExternalNamespacePartial()`, and `validateExternalKey()`.
 
 Validation runs in two phases:
 

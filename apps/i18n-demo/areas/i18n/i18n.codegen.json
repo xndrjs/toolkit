@@ -1,0 +1,23 @@
+{
+  "projectName": "MyProject",
+  "delivery": "custom",
+  "artifactsPath": "../../public/i18n",
+  "codegenPath": "generated",
+  "loaderStrategy": "fetch",
+  "deliveryArtifacts": {
+    "eu": ["it", "fr", "es", "en"],
+    "amer": ["en-US", "es-AR"]
+  },
+  "namespaces": {
+    "default": "translations/default.json",
+    "billing": "translations/billing.yaml"
+  },
+  "localeFallback": {
+    "en": null,
+    "en-US": "en",
+    "it": "en",
+    "fr": null,
+    "es": null,
+    "es-AR": "es"
+  }
+}

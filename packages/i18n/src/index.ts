@@ -4,46 +4,32 @@ export type {
   LocalesForDeliveryAreaOrAll,
 } from "./builder-types.js";
 
-export type {
-  I18nEngineMulti,
-  I18nEngineMultiImpl,
-  I18nEngineSingle,
-  I18nEngineSingleImpl,
-} from "./engine.js";
+export type { I18nEngineMulti, I18nEngineMultiImpl } from "./engine.js";
 
 export type {
-  CanonicalLoader,
-  I18nBuilderMulti,
-  I18nBuilderMultiForLocale,
-  I18nBuilderMultiInitial,
-  I18nBuilderMultiOptions,
-  I18nBuilderMultiPartitioned,
-  I18nBuilderMultiReady,
-  I18nBuilderSingle,
-  I18nBuilderSingleForLocale,
-  I18nBuilderSingleOptions,
+  I18nHandle,
+  I18nHandleOptions,
+  LoadNamespacesInput,
   NamespaceLoader,
+  PartitionForLocale,
   PartitionedLoader,
+  ScopeForLocale,
 } from "./builder.js";
-export {
-  createI18nBuilder,
-  createI18nMultiBuilder,
-  createI18nSingleBuilder,
-  invokeNamespaceLoader,
-} from "./builder.js";
+export { createI18nHandle, invokeNamespaceLoader } from "./builder.js";
 
-export { IcuTranslationProviderSingle } from "./IcuTranslationProviderSingle.js";
+export type { BuilderResourceEntry } from "./builder-load-registry.js";
+export type { I18nCreateInput, I18nSerializedState } from "./serialized-state.js";
+export { normalizeI18nCreateInput } from "./serialized-state.js";
 
 export { IcuTranslationProviderMulti } from "./IcuTranslationProviderMulti.js";
 
 export type { I18nScopeMulti, I18nScopeMultiForLocale } from "./scope-multi.js";
-export type { I18nScopeSingle, I18nScopeSingleForLocale } from "./scope-single.js";
 
 export type {
   MultiParams,
+  NamespaceBoundTranslateFn,
   ParamsForNamespaces,
   SchemaForNamespaces,
-  SingleParams,
 } from "./scope-types.js";
 
 export type {
@@ -51,8 +37,8 @@ export type {
   KeyDictionary,
   LocaleDictionary,
   LocaleFallbackMap,
+  LocaleOfKeys,
   LocaleOfMulti,
-  LocaleOfSingle,
   MissingTranslationContext,
   MultiDictionary,
   PartialKeyDictionary,
@@ -67,11 +53,6 @@ export {
 } from "./resolve-locale.js";
 export type { ResolvedLocaleTemplate } from "./resolve-locale.js";
 
-export {
-  mergeDictionaryLocalesCore,
-  mergeNamespaceLocalesCore,
-  projectDictionaryForDeliveryAreaCore,
-  projectDictionaryLocalesCore,
-  projectNamespaceForDeliveryAreaCore,
-  projectNamespaceLocalesCore,
-} from "./project-locales.js";
+export { mergeDictionaryLocalesCore, mergeNamespaceLocalesCore } from "./project-locales.js";
+
+export type { FetchArtifact, DeliveryResourceId } from "./fetch-artifact.js";

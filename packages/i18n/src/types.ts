@@ -4,7 +4,8 @@ export type LocaleDictionary = Record<string, string>;
 export type KeyDictionary = Record<string, LocaleDictionary>;
 export type MultiDictionary = Record<string, KeyDictionary>;
 
-export type LocaleOfSingle<Schema extends KeyDictionary> = {
+/** Locales present on any key of a flat (per-namespace) key dictionary. */
+export type LocaleOfKeys<Schema extends KeyDictionary> = {
   [K in keyof Schema]: keyof Schema[K];
 }[keyof Schema] &
   string;
@@ -19,7 +20,7 @@ export type LocaleOfMulti<Schema extends MultiDictionary> = {
 /** Subset of schema keys with any subset of project locales per key — valid input for merge operations. */
 export type PartialKeyDictionary<
   T extends KeyDictionary,
-  Locales extends string = LocaleOfSingle<T>,
+  Locales extends string = LocaleOfKeys<T>,
 > = {
   [K in keyof T]?: Partial<Record<Locales, string>>;
 };
@@ -61,5 +62,4 @@ export type IcuTranslationProviderOptions<
 };
 
 export type LocaleCache = Record<string, IntlMessageFormat>;
-export type SingleCompiledCache = Record<string, LocaleCache>;
 export type MultiCompiledCache = Record<string, Record<string, LocaleCache>>;

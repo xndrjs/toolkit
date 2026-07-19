@@ -1,12 +1,7 @@
-import { cloneAndFreeze } from "./deep-freeze.js";
-import { BuilderLoadRegistry } from "./builder-load-registry.js";
+import { BuilderLoadRegistry, type BuilderResourceEntry } from "./builder-load-registry.js";
 import type { I18nEngineMulti } from "./engine.js";
+import type { I18nSerializedState } from "./serialized-state.js";
 import { resolveAndFormat } from "./format-core.js";
-import {
-  assertPatchKeyMulti,
-  recordPreloadedKeysMulti,
-  seedPreloadedKeysMulti,
-} from "./patch-key.js";
 import { mergeNamespaceLocalesCore } from "./project-locales.js";
 import { validateLocaleFallback } from "./resolve-locale.js";
 import type {
@@ -31,19 +26,18 @@ export class IcuTranslationProviderMulti<
 > implements I18nEngineMulti<Schema, Params, RequestLocales> {
   readonly __i18nEngineMode = "multi" as const;
 
-  private dictionary: Schema;
+  /** Loaded namespaces only — cold start is `{}`; never claim full Schema until loaded. */
+  private dictionary: PartialMultiDictionary<Schema, RequestLocales>;
   private compiledCache: MultiCompiledCache = {};
-  private readonly preloadedKeys = new Set<string>();
   private readonly builderLoadRegistry = new BuilderLoadRegistry();
   private readonly localeFallback?: Fallback;
   private readonly onMissing: OnMissingTranslation;
 
   constructor(
-    dictionary: PartialMultiDictionary<Schema, RequestLocales>,
+    dictionary: PartialMultiDictionary<Schema, RequestLocales> = {},
     options?: IcuTranslationProviderOptions<Fallback>
   ) {
-    this.dictionary = structuredClone(dictionary) as Schema;
-    seedPreloadedKeysMulti(this.dictionary, this.preloadedKeys);
+    this.dictionary = structuredClone(dictionary);
     if (options?.localeFallback) {
       validateLocaleFallback(options.localeFallback);
       this.localeFallback = options.localeFallback;
@@ -58,7 +52,9 @@ export class IcuTranslationProviderMulti<
     params?: Record<string, unknown>
   ): string {
     const localeByKey = (
-      this.dictionary[namespace] as Record<string, Record<string, string>> | undefined
+      this.dictionary[namespace as keyof Schema] as
+        | Record<string, Record<string, string>>
+        | undefined
     )?.[key];
 
     return resolveAndFormat({
@@ -122,30 +118,41 @@ export class IcuTranslationProviderMulti<
     >;
   }
 
-  getAll(): Schema {
-    return cloneAndFreeze(this.dictionary);
+  /** Live dictionary reference (loaded namespaces only). Do not mutate. */
+  getAll(): PartialMultiDictionary<Schema, RequestLocales> {
+    return this.dictionary;
   }
 
-  hasBuilderResourceLoaded(namespace: string, partition: string | undefined): boolean {
+  hasBuilderResourceLoaded(namespace: string, partition: string): boolean {
     return this.builderLoadRegistry.has(namespace, partition);
   }
 
-  markBuilderResourceLoaded(namespace: string, partition: string | undefined): void {
+  markBuilderResourceLoaded(namespace: string, partition: string): void {
     this.builderLoadRegistry.mark(namespace, partition);
+  }
+
+  seedBuilderResources(resources: readonly BuilderResourceEntry[]): void {
+    this.builderLoadRegistry.seed(resources);
+  }
+
+  serialize(): I18nSerializedState<PartialMultiDictionary<Schema, RequestLocales>> {
+    return {
+      dictionary: this.dictionary,
+      resources: this.builderLoadRegistry.entries(),
+    };
   }
 
   applyLoadMergeNamespace<NS extends keyof Schema>(
     namespace: NS,
     values: PartialKeyDictionary<Schema[NS], RequestLocales>
   ): void {
-    const existing = this.dictionary[namespace];
-    const merged = mergeNamespaceLocalesCore((existing ?? {}) as Schema[NS], values);
+    const existing = (this.dictionary[namespace] ?? {}) as Schema[NS];
+    const merged = mergeNamespaceLocalesCore(existing, values);
 
     this.dictionary = {
       ...this.dictionary,
       [namespace]: merged,
     };
-    recordPreloadedKeysMulti(namespace as string, values, this.preloadedKeys);
 
     for (const [key, incomingLocales] of Object.entries(values)) {
       if (incomingLocales === undefined || typeof incomingLocales !== "object") {
@@ -165,22 +172,5 @@ export class IcuTranslationProviderMulti<
         this.applyLoadMergeNamespace(namespace, incoming);
       }
     }
-  }
-
-  patchKeyMulti(namespace: string, key: string, locale: string, template: string): void {
-    const namespaceDictionary = this.dictionary[namespace] as
-      | Record<string, Record<string, string>>
-      | undefined;
-    const localeByKey = namespaceDictionary?.[key];
-
-    assertPatchKeyMulti(namespace, key, locale, template, this.preloadedKeys, localeByKey);
-
-    this.applyLoadMergeNamespace(
-      namespace as keyof Schema,
-      { [key]: { [locale]: template } } as PartialKeyDictionary<
-        Schema[keyof Schema],
-        RequestLocales
-      >
-    );
   }
 }

@@ -22,7 +22,7 @@ export interface I18nScopeMulti<
   ): I18nScopeMultiForLocale<Schema, Params, RequestLocales, Locale>;
 }
 
-/** Multi-namespace scope with a bound locale — `t(namespace, key)` and `set(...)` without a locale argument. */
+/** Multi-namespace scope with a bound locale — `t(namespace, key)` without a locale argument. */
 export interface I18nScopeMultiForLocale<
   Schema extends MultiDictionary,
   Params,
@@ -38,14 +38,6 @@ export interface I18nScopeMultiForLocale<
     key: K,
     ...params: ParamArgs<Params[NS][K]>
   ): string;
-  set<
-    const NS extends keyof Schema & keyof Params & string,
-    const K extends keyof Schema[NS] & keyof Params[NS] & string,
-  >(
-    namespace: NS,
-    key: K,
-    template: string
-  ): void;
   forLocale<Next extends RequestLocales>(
     locale: Next
   ): I18nScopeMultiForLocale<Schema, Params, RequestLocales, Next>;
@@ -103,17 +95,6 @@ export class I18nScopeMultiForLocaleImpl<
   ): string => {
     const params = args[0] as Record<string, unknown> | undefined;
     return this.engine.getWithLocale(String(namespace), String(key), this.locale, params);
-  };
-
-  set = <
-    const NS extends keyof Schema & keyof Params & string,
-    const K extends keyof Schema[NS] & keyof Params[NS] & string,
-  >(
-    namespace: NS,
-    key: K,
-    template: string
-  ): void => {
-    this.engine.patchKeyMulti(String(namespace), String(key), this.locale, template);
   };
 
   forLocale = <Next extends RequestLocales>(
