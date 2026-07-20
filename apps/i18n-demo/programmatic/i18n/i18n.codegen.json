@@ -1,0 +1,13 @@
+{
+  "projectName": "ProgrammaticDemo",
+  "namespaces": {
+    "default": "translations/default.json",
+    "cms": "translations/cms.json"
+  },
+  "delivery": "split-by-locale",
+  "codegenPath": "generated",
+  "localeFallback": {
+    "en": null,
+    "it": "en"
+  }
+}

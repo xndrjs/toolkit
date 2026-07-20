@@ -3,9 +3,8 @@ import { formatInstanceFile, type InstanceFileOptions } from "./instance-file.js
 
 function baseOptions(overrides: Partial<InstanceFileOptions> = {}): InstanceFileOptions {
   return {
-    isSingle: false,
-    hasLazy: false,
     typesOutputPath: "src/i18n/i18n-types.generated.ts",
+    namespaceLoadersOutputPath: "src/i18n/namespace-loaders.generated.ts",
     paramsTypeName: "AppParams",
     schemaTypeName: "AppSchema",
     localeTypeName: "AppLocale",
@@ -13,9 +12,8 @@ function baseOptions(overrides: Partial<InstanceFileOptions> = {}): InstanceFile
     factoryName: "createI18n",
     hasLocaleFallback: true,
     hasLocaleType: true,
-    namespaceNames: ["default", "billing"],
     importExtension: "none",
-    delivery: "canonical",
+    delivery: "split-by-locale",
     ...overrides,
   };
 }
@@ -26,63 +24,48 @@ function packageImportBlock(output: string): string {
 }
 
 describe("formatInstanceFile package imports", () => {
-  it("emits only single-scope symbols for single eager projects", () => {
-    const imports = packageImportBlock(formatInstanceFile(baseOptions({ isSingle: true })));
-
-    expect(imports).toContain("IcuTranslationProviderSingle");
-    expect(imports).toContain("projectNamespaceLocalesCore");
-    expect(imports).toContain("type I18nScopeSingle");
-    expect(imports).toContain("type OnMissingTranslation");
-    expect(imports).not.toContain("createI18nBuilder");
-    expect(imports).not.toContain("createI18nMultiBuilder");
-    expect(imports).not.toContain("I18nBuilderMultiInitial");
-    expect(imports).not.toContain("I18nBuilderMultiOptions");
-    expect(imports).not.toContain("I18nBuilderMultiPartitioned");
-    expect(imports).not.toContain("I18nScopeMulti");
-    expect(imports).not.toContain("projectDictionaryLocalesCore");
-  });
-
-  it("emits multi eager scope symbols without builder imports", () => {
-    const imports = packageImportBlock(formatInstanceFile(baseOptions()));
+  it("emits lazy multi handle symbols", () => {
+    const output = formatInstanceFile(baseOptions());
+    const imports = packageImportBlock(output);
 
     expect(imports).toContain("IcuTranslationProviderMulti");
-    expect(imports).toContain("projectDictionaryLocalesCore");
-    expect(imports).toContain("type I18nScopeMulti");
-    expect(imports).not.toContain("createI18nMultiBuilder");
-    expect(imports).not.toContain("I18nBuilderMultiInitial");
-    expect(imports).not.toContain("I18nScopeSingle");
+    expect(imports).toContain("createI18nHandle");
+    expect(imports).toContain("type I18nHandle");
+    expect(imports).toContain("type I18nHandleOptions");
+    expect(output).toContain("partitionForLocale: (locale) => locale");
+    expect(output).toContain("I18nHandle<AppSchema, AppParams, AppLocale>");
+    expect(output).toContain(
+      "options?: { state?: { dictionary: InitialSchema; resources?: readonly (readonly [string, string])[] }; onMissing?: OnMissingTranslation }"
+    );
+    expect(output).toContain("const { state, ...providerOptions } = options ?? {}");
   });
 
-  it("emits lazy multi builder symbols instead of I18nScopeMulti", () => {
-    const imports = packageImportBlock(
-      formatInstanceFile(
-        baseOptions({
-          hasLazy: true,
-          namespaceLoadersOutputPath: "src/i18n/namespace-loaders.generated.ts",
-        })
-      )
+  it("injects LOCALE_DELIVERY_AREA for custom delivery", () => {
+    const output = formatInstanceFile(
+      baseOptions({
+        delivery: "custom",
+        localeDeliveryAreaConstName: "LOCALE_DELIVERY_AREA",
+      })
     );
 
-    expect(imports).toContain("createI18nMultiBuilder");
-    expect(imports).toContain("type I18nBuilderMultiInitial");
-    expect(imports).toContain("type I18nBuilderMultiOptions");
-    expect(imports).not.toContain("type I18nScopeMulti");
-    expect(imports).not.toContain("createI18nBuilder");
-    expect(imports).not.toContain("I18nBuilderMultiPartitioned");
+    expect(output).toContain("LOCALE_DELIVERY_AREA");
+    expect(output).toContain("partitionForLocale: (locale) => LOCALE_DELIVERY_AREA[locale]");
   });
 
-  it("includes delivery-area projection helpers when delivery is custom", () => {
-    const imports = packageImportBlock(
-      formatInstanceFile(
-        baseOptions({
-          delivery: "custom",
-          deliveryAreaTypeName: "AppDeliveryArea",
-          deliveryArtifactsTypeName: "AppDeliveryArtifacts",
-        })
-      )
+  it("wires createNamespaceLoaders + required fetchImpl in options bag", () => {
+    const output = formatInstanceFile(
+      baseOptions({
+        loaderStrategy: "fetch",
+      })
     );
 
-    expect(imports).toContain("projectNamespaceForDeliveryAreaCore");
-    expect(imports).toContain("projectDictionaryForDeliveryAreaCore");
+    expect(output).toContain("type FetchArtifact");
+    expect(output).toContain("import { createNamespaceLoaders }");
+    expect(output).toContain(
+      "options: { fetchImpl: FetchArtifact; state?: { dictionary: InitialSchema; resources?: readonly (readonly [string, string])[] }; onMissing?: OnMissingTranslation }"
+    );
+    expect(output).toContain("const { fetchImpl, state, ...providerOptions } = options;");
+    expect(output).toContain("createNamespaceLoaders(fetchImpl)");
+    expect(output).not.toContain("import { namespaceLoaders }");
   });
 });

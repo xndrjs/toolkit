@@ -74,6 +74,7 @@ export default defineConfig({
                     { label: "Delivery", slug: "v0/infrastructure/i18n/delivery" },
                     { label: "Codegen", slug: "v0/infrastructure/i18n/codegen" },
                     { label: "Runtime", slug: "v0/infrastructure/i18n/runtime" },
+                    { label: "React", slug: "v0/infrastructure/i18n/react" },
                     { label: "Locale fallback", slug: "v0/infrastructure/i18n/locale-fallback" },
                     { label: "Lazy loading", slug: "v0/infrastructure/i18n/lazy-loading" },
                     { label: "External validation", slug: "v0/infrastructure/i18n/validation" },

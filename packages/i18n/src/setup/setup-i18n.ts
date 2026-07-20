@@ -1,16 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildCodegenConfig, type SetupMode } from "../codegen-config/build-config.js";
+import { buildCodegenConfig } from "../codegen-config/build-config.js";
 import { inferProjectName } from "../codegen-config/type-names.js";
 import { writeCodegenConfig } from "../codegen-config/write-config.js";
 import { DEFAULT_IMPORT_EXTENSION, importExtensionSuffix } from "../codegen/paths.js";
 
-export type { SetupMode } from "../codegen-config/build-config.js";
 export { buildCodegenConfig } from "../codegen-config/build-config.js";
 
 export interface SetupOptions {
-  mode: SetupMode;
   targetDir: string;
   project?: string | undefined;
   force?: boolean | undefined;
@@ -35,12 +33,11 @@ const DEFAULT_STARTER = {
 const DEFAULT_IMPORT_SUFFIX = importExtensionSuffix(DEFAULT_IMPORT_EXTENSION);
 
 const INDEX_TS =
-  `import { createI18n } from "./generated/instance.generated${DEFAULT_IMPORT_SUFFIX}";\n` +
-  `import { defaultDictionary } from "./generated/dictionary.generated${DEFAULT_IMPORT_SUFFIX}";\n\n` +
+  `import { createI18n } from "./generated/instance.generated${DEFAULT_IMPORT_SUFFIX}";\n\n` +
   `export * from "./generated/instance.generated${DEFAULT_IMPORT_SUFFIX}";\n` +
-  `export * from "./generated/dictionary.generated${DEFAULT_IMPORT_SUFFIX}";\n` +
-  `export * from "./generated/i18n-types.generated${DEFAULT_IMPORT_SUFFIX}";\n\n` +
-  `export const i18n = createI18n(defaultDictionary);\n`;
+  `export * from "./generated/i18n-types.generated${DEFAULT_IMPORT_SUFFIX}";\n` +
+  `export * from "./generated/namespace-loaders.generated${DEFAULT_IMPORT_SUFFIX}";\n\n` +
+  `export const i18n = createI18n();\n`;
 
 function writeJson(filePath: string, value: unknown): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -76,18 +73,12 @@ export function runSetup(options: SetupOptions): SetupResult {
 
   const created: string[] = [];
 
-  writeCodegenConfig(configPath, buildCodegenConfig(options.mode, project));
+  writeCodegenConfig(configPath, buildCodegenConfig(project));
   created.push(relative(targetDir, configPath));
 
-  if (options.mode === "single") {
-    const translationsPath = path.join(targetDir, I18N_ROOT, TRANSLATIONS_DIR, "translations.json");
-    writeJson(translationsPath, DEFAULT_STARTER);
-    created.push(relative(targetDir, translationsPath));
-  } else {
-    const defaultPath = path.join(targetDir, I18N_ROOT, TRANSLATIONS_DIR, "default.json");
-    writeJson(defaultPath, DEFAULT_STARTER);
-    created.push(relative(targetDir, defaultPath));
-  }
+  const defaultPath = path.join(targetDir, I18N_ROOT, TRANSLATIONS_DIR, "default.json");
+  writeJson(defaultPath, DEFAULT_STARTER);
+  created.push(relative(targetDir, defaultPath));
 
   const indexPath = path.join(targetDir, I18N_ROOT, "index.ts");
   writeText(indexPath, INDEX_TS);
@@ -99,18 +90,22 @@ export function runSetup(options: SetupOptions): SetupResult {
 }
 
 export function parseSetupArgs(argv: string[]): SetupOptions {
-  const mode = argv[0];
-  if (mode !== "single" && mode !== "multi") {
-    throw new Error(
-      `[Setup Error] Usage: xndrjs-i18n-setup <single|multi> [targetDir] [--project MyApp] [--force]`
-    );
-  }
+  const first = argv[0];
 
   let targetDir = ".";
   let project: string | undefined;
   let force = false;
+  let startIndex = 0;
 
-  for (let index = 1; index < argv.length; index++) {
+  if (first === "multi") {
+    startIndex = 1;
+  } else if (first !== undefined && !first.startsWith("-")) {
+    // positional targetDir without mode
+  } else if (first === undefined || first.startsWith("-")) {
+    // flags only / empty
+  }
+
+  for (let index = startIndex; index < argv.length; index++) {
     const arg = argv[index]!;
     if (arg === "--project") {
       project = argv[++index];
@@ -129,7 +124,7 @@ export function parseSetupArgs(argv: string[]): SetupOptions {
     targetDir = arg;
   }
 
-  return { mode, targetDir, project, force };
+  return { targetDir, project, force };
 }
 
 function main() {
@@ -137,7 +132,7 @@ function main() {
     const options = parseSetupArgs(process.argv.slice(2));
     const result = runSetup(options);
 
-    console.log(`✅ Setup ${options.mode} i18n in ${result.targetDir}`);
+    console.log(`✅ Setup i18n in ${result.targetDir}`);
     console.log(
       `   Project types: ${result.project}Params, ${result.project}Schema, ${result.project}Locale`
     );

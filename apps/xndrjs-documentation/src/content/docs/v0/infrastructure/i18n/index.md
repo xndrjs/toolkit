@@ -1,44 +1,46 @@
 ---
 title: Overview
-description: Compiler-first, type-safe ICU MessageFormat i18n with JSON or YAML dictionaries, runtime overrides, and optional lazy namespace loading.
+description: Compiler-first, type-safe ICU MessageFormat i18n with JSON or YAML dictionaries and lazy namespace loading.
 ---
 
-`@xndrjs/i18n` is a **compiler-first, type-safe i18n system** based on [ICU MessageFormat](https://formatjs.github.io/docs/core-concepts/icu-syntax/). Local dictionary files (JSON or YAML) act as **typed fallbacks**; a build-time codegen step parses ICU templates and generates exact TypeScript types for keys and parameters. At runtime, a shared **engine** caches compiled messages; the **builder** loads lazy artifacts; **scopes** expose typed `t()` and locale-bound `set()` for CMS patches.
+`@xndrjs/i18n` is a **compiler-first, type-safe i18n system** based on [ICU MessageFormat](https://formatjs.github.io/docs/core-concepts/icu-syntax/). Local dictionary files (JSON or YAML) are the authoring source; a build-time codegen step parses ICU templates and generates exact TypeScript types for keys and parameters. At runtime a shared **engine** caches compiled messages; a generated **handle** (`createI18n`) loads namespaces on demand and exposes typed `t()` on a locale-bound scope.
 
-For motivation, design trade-offs, and split-by-locale delivery, see [Type-safe i18n and flexible delivery](/blog/type-safe-i18n-with-flexible-delivery/).
+Namespaces are always multi-namespace (`t(namespace, key, params?)`). Delivery is `split-by-locale` (default) or `custom` areas — there is no single-file / eager-bundle mode.
+
+For motivation and the developer journey (SSR/CSR, React gates, CMS refresh without rebuild), see [Type-safe i18n for TypeScript and React](/blog/type-safe-i18n-for-typescript-and-react/). React bindings live in [`@xndrjs/i18n-react`](/v0/infrastructure/i18n/react/).
 
 ```mermaid
 flowchart TD
   sources[JSON or YAML dictionaries] --> codegen[xndrjs-i18n-codegen]
   codegen --> compiled[generated/translations/*.json]
   codegen --> types[i18n-types.generated.ts]
-  codegen --> dict[dictionary.generated.ts]
+  codegen --> loaders[namespace-loaders.generated.ts]
   codegen --> factory[instance.generated.ts]
+  codegen --> schema[dictionary-schema.generated.ts]
   sources --> audit[xndrjs-i18n-audit]
-  codegen --> audit
-  compiled --> dict
-  factory --> engine[IcuTranslationProvider engine]
-  CMS[CMS or API payload] --> validate[validateExternalKey optional]
-  validate --> set[scope.set on locale-bound scope]
-  engine --> builder[createI18n builder when lazy]
-  builder --> scope[I18nScope]
-  set --> engine
-  scope --> t["scope.t() typed string"]
+  CMS[CMS or API payload] --> validate[validateExternal* optional]
+  validate --> authoring[update authoring files]
+  authoring --> regen[regenerateNamespaces]
+  regen --> compiled
+  factory --> handle[createI18n handle]
+  loaders --> handle
+  handle --> scope["load → locale-bound t()"]
 ```
 
 ## In this section
 
-| Page                                                            | Topics                                                     |
-| --------------------------------------------------------------- | ---------------------------------------------------------- |
-| [Dictionaries](/v0/infrastructure/i18n/dictionaries/)           | JSON shape, YAML authoring, serving from `public/`         |
-| [Delivery](/v0/infrastructure/i18n/delivery/)                   | Canonical, split-by-locale, custom areas                   |
-| [Codegen](/v0/infrastructure/i18n/codegen/)                     | ICU inference, generated files, single vs multi            |
-| [Runtime](/v0/infrastructure/i18n/runtime/)                     | Engine, scopes, builder, `scope.set()`, load deduplication |
-| [Locale fallback](/v0/infrastructure/i18n/locale-fallback/)     | Fallback chains, locale projection helpers                 |
-| [Lazy loading](/v0/infrastructure/i18n/lazy-loading/)           | `loadOnInit`, namespace loaders, builder `load()`          |
-| [External validation](/v0/infrastructure/i18n/validation/)      | CMS/API payloads before `scope.set()`                      |
-| [Configuration](/v0/infrastructure/i18n/configuration/)         | `i18n.codegen.json` reference                              |
-| [Errors & exports](/v0/infrastructure/i18n/errors-and-exports/) | Error prefixes, package exports                            |
+| Page                                                            | Topics                                                                      |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [Dictionaries](/v0/infrastructure/i18n/dictionaries/)           | JSON shape, YAML authoring, serving from `public/`                          |
+| [Delivery](/v0/infrastructure/i18n/delivery/)                   | Split-by-locale and custom areas                                            |
+| [Codegen](/v0/infrastructure/i18n/codegen/)                     | ICU inference, generated files, `runCodegen` vs `regenerateNamespaces`      |
+| [Runtime](/v0/infrastructure/i18n/runtime/)                     | Handle: `createI18n({ state?, fetchImpl? })`, `load` / `peek` / `serialize` |
+| [React](/v0/infrastructure/i18n/react/)                         | `@xndrjs/i18n-react`: `I18nRoot`, `withI18n`, `<I18n>`                      |
+| [Locale fallback](/v0/infrastructure/i18n/locale-fallback/)     | Fallback chains, locale projection helpers                                  |
+| [Lazy loading](/v0/infrastructure/i18n/lazy-loading/)           | Namespace loaders, `load({ namespaces, locale })`, fetch DI                 |
+| [External validation](/v0/infrastructure/i18n/validation/)      | CMS/API payloads before writing authoring files                             |
+| [Configuration](/v0/infrastructure/i18n/configuration/)         | `i18n.codegen.json` reference                                               |
+| [Errors & exports](/v0/infrastructure/i18n/errors-and-exports/) | Error prefixes, package exports                                             |
 
 ## Install
 
@@ -47,11 +49,13 @@ pnpm add @xndrjs/i18n zod
 pnpm add -D tsx
 ```
 
-| Dependency     | Role                                                                                                                                 |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `@xndrjs/i18n` | Runtime providers, validation helpers, codegen CLI (`xndrjs-i18n-codegen`), audit CLI (`xndrjs-i18n-audit`)                          |
-| `tsx`          | **Peer dependency** (dev) — codegen and audit CLIs run TypeScript directly                                                           |
-| `zod`          | **Peer dependency** — validates `i18n.codegen.json`; also powers `validateExternalDictionary()` when `dictionarySchemaOutput` is set |
+For React apps, also install `@xndrjs/i18n-react` (peer: `react` ≥ 19). See [React](/v0/infrastructure/i18n/react/).
+
+| Dependency     | Role                                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@xndrjs/i18n` | Runtime providers, validation helpers, codegen CLI (`xndrjs-i18n-codegen`), audit CLI (`xndrjs-i18n-audit`)                                |
+| `tsx`          | **Peer dependency** (dev) — codegen and audit CLIs run TypeScript directly                                                                 |
+| `zod`          | **Peer dependency** — validates `i18n.codegen.json`; also powers generated `validateExternal*` helpers in `dictionary-schema.generated.ts` |
 
 Production bundles depend on `@xndrjs/i18n` and `intl-messageformat` (pulled in by the package). Codegen runs at build time only.
 
@@ -60,26 +64,28 @@ Production bundles depend on `@xndrjs/i18n` and `intl-messageformat` (pulled in 
 ### Setup CLI
 
 ```bash
-pnpm --filter YourPackageOrAppName exec xndrjs-i18n-setup single . --project MyApp
+pnpm --filter YourPackageOrAppName exec xndrjs-i18n-setup multi .
 pnpm --filter YourPackageOrAppName exec xndrjs-i18n-setup multi apps/myapp --project MyApp
 ```
 
-This creates under the target directory (for example `i18n/` or `src/i18n/`):
+`multi` is optional (scaffolding is always multi-namespace). This creates under the target directory (for example `i18n/`):
 
 - `i18n.codegen.json`
 - starter translation files (JSON by default; YAML supported)
-- `index.ts` exporting `createI18n(dictionary)` and generated types
+- `index.ts` exporting `createI18n()` (and generated types)
 
-Pass `src` as the target when your app uses a `src/` layout.
+Pass a `src/` parent when your app uses a `src/` layout (for example `xndrjs-i18n-setup multi src`).
 
 ### Codegen script
 
-Add to `package.json`:
+Add to `package.json`. Prefer a single script that runs core codegen first, then React bindings when you use `@xndrjs/i18n-react`:
 
 ```json
 {
   "scripts": {
     "i18n:codegen": "xndrjs-i18n-codegen --config i18n/i18n.codegen.json",
+    "i18n:react-codegen": "xndrjs-i18n-react-codegen --config i18n/i18n.codegen.json",
+    "i18n:generate": "pnpm run i18n:codegen && pnpm run i18n:react-codegen",
     "i18n:audit": "xndrjs-i18n-audit --config i18n/i18n.codegen.json"
   }
 }
@@ -88,7 +94,7 @@ Add to `package.json`:
 Run after every change to translation files (JSON or YAML) — or wire into your build:
 
 ```bash
-pnpm --filter YourPackageOrAppName run i18n:codegen
+pnpm --filter YourPackageOrAppName run i18n:generate
 ```
 
 Default config path is `i18n/i18n.codegen.json`. Paths inside the config are relative to the directory containing that file.
@@ -124,7 +130,7 @@ When `localeFallback` is set in config, codegen enriches generated `LOCALE_FALLB
 
 ## See also
 
-- [Type-safe i18n and flexible delivery](/blog/type-safe-i18n-with-flexible-delivery/) — motivation, design, and delivery
+- [Type-safe i18n for TypeScript and React](/blog/type-safe-i18n-for-typescript-and-react/) — motivation and developer journey
 - [Package map](/v0/reference/package-map/) — where this package fits
-- [Demo app in the monorepo](https://github.com/xndrjs/toolkit/tree/main/apps/i18n-demo) — single and multi examples
+- [Demo app in the monorepo](https://github.com/xndrjs/toolkit/tree/main/apps/i18n-demo) — split-by-locale, custom areas, fetch / CMS refresh
 - [README in the monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/i18n) — full reference when working on the package itself

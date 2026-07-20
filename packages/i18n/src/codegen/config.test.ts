@@ -2,9 +2,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { codegenConfigKeys, resolveDictionaryOutputPath } from "./codegen-config-schema.js";
-import { loadConfig, resolveDeliveryOutputDir, resolveLoadOnInit } from "./config.js";
-import { resolveImportExtension } from "./paths.js";
+import { codegenConfigKeys, resolveCodegenPaths } from "./codegen-config-schema.js";
+import { loadConfig, resolveArtifactsPath } from "./config.js";
 
 function writeConfig(dir: string, config: Record<string, unknown>) {
   const configPath = join(dir, "i18n.codegen.json");
@@ -13,14 +12,11 @@ function writeConfig(dir: string, config: Record<string, unknown>) {
 }
 
 const validMultiConfig = {
+  projectName: "App",
   namespaces: {
     default: "translations/default.json",
   },
-  typesOutput: "generated/i18n-types.generated.ts",
-  dictionaryOutput: "generated/dictionary.generated.ts",
-  instanceOutput: "generated/instance.generated.ts",
-  paramsTypeName: "AppParams",
-  schemaTypeName: "AppSchema",
+  codegenPath: "generated",
 };
 
 describe("loadConfig", () => {
@@ -32,43 +28,52 @@ describe("loadConfig", () => {
     }
   });
 
-  it("accepts a valid multi-namespace config", () => {
+  it("accepts a valid multi-namespace config and defaults delivery to split-by-locale", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
     const configPath = writeConfig(tempDir, validMultiConfig);
 
     expect(loadConfig(configPath)).toEqual({
       ...validMultiConfig,
-      delivery: "canonical",
+      delivery: "split-by-locale",
+      loaderStrategy: "import",
     });
   });
 
-  it("accepts split-by-locale config without dictionaryOutput", () => {
+  it("accepts fetch loaderStrategy", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
-    const { dictionaryOutput: _dictionaryOutput, ...configWithoutDictionaryOutput } =
-      validMultiConfig;
     const configPath = writeConfig(tempDir, {
-      ...configWithoutDictionaryOutput,
-      delivery: "split-by-locale",
+      ...validMultiConfig,
+      loaderStrategy: "fetch",
     });
 
-    expect(loadConfig(configPath)).toEqual({
-      ...configWithoutDictionaryOutput,
-      delivery: "split-by-locale",
+    expect(loadConfig(configPath)).toMatchObject({
+      loaderStrategy: "fetch",
     });
   });
 
-  it("resolves dictionaryOutput next to typesOutput when omitted", () => {
-    expect(
-      resolveDictionaryOutputPath({
-        typesOutput: "generated/i18n-types.generated.ts",
-      })
-    ).toBe("generated/dictionary.generated.ts");
-    expect(
-      resolveDictionaryOutputPath({
-        typesOutput: "generated/i18n-types.generated.ts",
-        dictionaryOutput: "custom/dictionary.generated.ts",
-      })
-    ).toBe("custom/dictionary.generated.ts");
+  it("rejects unknown config keys", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      notARealKey: true,
+    });
+
+    expect(() => loadConfig(configPath)).toThrow();
+  });
+
+  it("resolves code paths and type names from projectName + codegenPath", () => {
+    expect(resolveCodegenPaths(validMultiConfig)).toMatchObject({
+      typesOutput: "generated/i18n-types.generated.ts",
+      instanceOutput: "generated/instance.generated.ts",
+      namespaceLoadersOutput: "generated/namespace-loaders.generated.ts",
+      dictionarySchemaOutput: "generated/dictionary-schema.generated.ts",
+      artifactsPath: "generated",
+      paramsTypeName: "AppParams",
+      schemaTypeName: "AppSchema",
+      localeTypeName: "AppLocale",
+      factoryName: "createI18n",
+      localeFallbackConstName: "LOCALE_FALLBACK",
+    });
   });
 
   it("throws on invalid config JSON", () => {
@@ -94,18 +99,6 @@ describe("loadConfig", () => {
     expect(act).toThrow(`Allowed keys: ${codegenConfigKeys.join(", ")}`);
   });
 
-  it("throws when both dictionary and namespaces are present", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
-    const configPath = writeConfig(tempDir, {
-      ...validMultiConfig,
-      dictionary: "translations/default.json",
-    });
-
-    expect(() => loadConfig(configPath)).toThrow(
-      'Specify exactly one of "dictionary" or "namespaces".'
-    );
-  });
-
   it("throws when required fields are missing", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
     const configPath = writeConfig(tempDir, {
@@ -113,8 +106,19 @@ describe("loadConfig", () => {
     });
 
     const act = () => loadConfig(configPath);
-    expect(act).toThrow("typesOutput");
+    expect(act).toThrow("projectName");
+    expect(act).toThrow("codegenPath");
     expect(act).toThrow("Allowed keys:");
+  });
+
+  it("throws when projectName is not PascalCase", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
+    const configPath = writeConfig(tempDir, {
+      ...validMultiConfig,
+      projectName: "my-app",
+    });
+
+    expect(() => loadConfig(configPath)).toThrow("projectName must be PascalCase");
   });
 
   it("throws when a namespace name is not a valid identifier", () => {
@@ -132,41 +136,29 @@ describe("loadConfig", () => {
     );
   });
 
-  it("throws when defaultNamespace is not a valid identifier", () => {
+  it("accepts artifactsPath for custom json artifact directory", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
     const configPath = writeConfig(tempDir, {
       ...validMultiConfig,
-      defaultNamespace: "1default",
-    });
-
-    expect(() => loadConfig(configPath)).toThrow(
-      'defaultNamespace: Invalid namespace name "1default"'
-    );
-  });
-
-  it("accepts deliveryOutput for custom json artifact directory", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
-    const configPath = writeConfig(tempDir, {
-      ...validMultiConfig,
-      deliveryOutput: "public/i18n",
+      artifactsPath: "public/i18n",
     });
 
     expect(loadConfig(configPath)).toMatchObject({
-      deliveryOutput: "public/i18n",
-      delivery: "canonical",
+      artifactsPath: "public/i18n",
+      delivery: "split-by-locale",
     });
   });
 
-  it("resolveDeliveryOutputDir defaults to dirname(typesOutput)", () => {
+  it("resolveArtifactsPath defaults to codegenPath", () => {
     expect(
-      resolveDeliveryOutputDir({
-        typesOutput: "generated/i18n-types.generated.ts",
+      resolveArtifactsPath({
+        codegenPath: "generated",
       })
     ).toBe("generated");
     expect(
-      resolveDeliveryOutputDir({
-        typesOutput: "generated/i18n-types.generated.ts",
-        deliveryOutput: "public/i18n",
+      resolveArtifactsPath({
+        codegenPath: "generated",
+        artifactsPath: "public/i18n",
       })
     ).toBe("public/i18n");
   });
@@ -235,85 +227,5 @@ describe("loadConfig", () => {
     });
 
     expect(() => loadConfig(configPath)).toThrow('Locale "fr" appears in both "eu" and "us"');
-  });
-
-  it("throws when loadOnInit is set for split-by-locale delivery", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
-    const configPath = writeConfig(tempDir, {
-      ...validMultiConfig,
-      delivery: "split-by-locale",
-      loadOnInit: ["default"],
-    });
-
-    expect(() => loadConfig(configPath)).toThrow(
-      'loadOnInit is only allowed when delivery is "canonical".'
-    );
-  });
-
-  it("throws when loadOnInit is set for custom delivery", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-config-"));
-    const configPath = writeConfig(tempDir, {
-      ...validMultiConfig,
-      delivery: "custom",
-      deliveryArtifacts: {
-        eu: ["it"],
-      },
-      loadOnInit: ["default"],
-    });
-
-    expect(() => loadConfig(configPath)).toThrow(
-      'loadOnInit is only allowed when delivery is "canonical".'
-    );
-  });
-});
-
-describe("resolveLoadOnInit", () => {
-  const entries = [
-    { namespace: "default", filePath: "translations/default.json" },
-    { namespace: "billing", filePath: "translations/billing.json" },
-  ];
-
-  it("throws when loadOnInit is used in single mode", () => {
-    const config = { ...validMultiConfig, delivery: "canonical" as const, loadOnInit: ["default"] };
-
-    expect(() => resolveLoadOnInit(config, entries, true)).toThrow(
-      '[Codegen Error] "loadOnInit" is only supported in multi mode (namespaces config).'
-    );
-  });
-
-  it("throws when loadOnInit references an unknown namespace", () => {
-    const config = { ...validMultiConfig, delivery: "canonical" as const, loadOnInit: ["missing"] };
-
-    expect(() => resolveLoadOnInit(config, entries, false)).toThrow(
-      '[Codegen Error] loadOnInit: namespace "missing" is not defined in namespaces config.'
-    );
-  });
-
-  it("treats all namespaces as lazy when delivery is split-by-locale", () => {
-    const config = { ...validMultiConfig, delivery: "split-by-locale" as const };
-
-    expect(resolveLoadOnInit(config, entries, false)).toEqual({
-      loadOnInitSet: new Set(),
-      lazyEntries: entries,
-      hasLazy: true,
-    });
-  });
-
-  it("treats all namespaces as lazy when delivery is custom", () => {
-    const config = { ...validMultiConfig, delivery: "custom" as const };
-
-    expect(resolveLoadOnInit(config, entries, false)).toEqual({
-      loadOnInitSet: new Set(),
-      lazyEntries: entries,
-      hasLazy: true,
-    });
-  });
-});
-
-describe("resolveImportExtension", () => {
-  it("throws on unsupported import extensions", () => {
-    expect(() => resolveImportExtension({ importExtension: ".mjs" as never })).toThrow(
-      '[Codegen Error] importExtension must be "none", ".ts", or ".js", got ".mjs".'
-    );
   });
 });

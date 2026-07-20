@@ -1,12 +1,26 @@
 {
   "extends": "../../tsconfig.repo.json",
   "compilerOptions": {
-    "noEmit": true
+    "jsx": "preserve",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "plugins": [{ "name": "next" }],
+    "allowJs": true,
+    "incremental": true
   },
   "include": [
-    "single/src/**/*.ts",
-    "multi/src/**/*.ts",
-    "areas/src/**/*.ts",
-    "programmatic/**/*.ts"
-  ]
+    "next-env.d.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "multi/**/*.ts",
+    "multi/**/*.tsx",
+    "areas/**/*.ts",
+    "areas/**/*.tsx",
+    "programmatic/**/*.ts",
+    "programmatic/**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
 }

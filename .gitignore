@@ -7,3 +7,6 @@ version_log.txt
 analysis
 
 .astro
+.next
+
+tsconfig.tsbuildinfo

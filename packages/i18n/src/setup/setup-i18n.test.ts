@@ -30,51 +30,40 @@ describe("setup-i18n", () => {
     }
   });
 
-  it("parses single and multi CLI args", () => {
-    expect(parseSetupArgs(["single", ".", "--project", "MyApp"])).toEqual({
-      mode: "single",
-      targetDir: ".",
-      project: "MyApp",
-      force: false,
-    });
+  it("accepts multi alias or positional targetDir", () => {
     expect(parseSetupArgs(["multi", "apps/myapp", "--project", "MyApp", "--force"])).toEqual({
-      mode: "multi",
       targetDir: "apps/myapp",
       project: "MyApp",
       force: true,
     });
+    expect(parseSetupArgs([".", "--project", "MyApp"])).toEqual({
+      targetDir: ".",
+      project: "MyApp",
+      force: false,
+    });
   });
 
-  it("scaffolds single mode with MyApp type names", () => {
+  it("scaffolds multi mode with projectName and codegenPath", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-setup-"));
-    const result = runSetup({ mode: "single", targetDir: tempDir, project: "MyApp" });
-
-    const config = JSON.parse(readFileSync(join(tempDir, "i18n/i18n.codegen.json"), "utf8"));
-    expect(config.dictionary).toBe("translations/translations.json");
-    expect(config.paramsTypeName).toBe("MyAppParams");
-    expect(config.schemaTypeName).toBe("MyAppSchema");
-    expect(config.localeTypeName).toBe("MyAppLocale");
-    expect(existsSync(join(tempDir, "i18n/translations/translations.json"))).toBe(true);
-    expect(existsSync(join(tempDir, "i18n/index.ts"))).toBe(true);
-    expect(existsSync(join(tempDir, "src"))).toBe(false);
-    expect(result.created).toContain("i18n/i18n.codegen.json");
-  });
-
-  it("scaffolds multi mode with default namespace only", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-setup-"));
-    runSetup({ mode: "multi", targetDir: tempDir, project: "MyApp" });
+    const result = runSetup({ targetDir: tempDir, project: "MyApp" });
 
     const config = JSON.parse(readFileSync(join(tempDir, "i18n/i18n.codegen.json"), "utf8"));
     expect(config.namespaces).toEqual({
       default: "translations/default.json",
     });
+    expect(config.projectName).toBe("MyApp");
+    expect(config.codegenPath).toBe("generated");
+    expect(config).not.toHaveProperty("paramsTypeName");
     expect(existsSync(join(tempDir, "i18n/translations/default.json"))).toBe(true);
+    expect(existsSync(join(tempDir, "i18n/index.ts"))).toBe(true);
+    expect(existsSync(join(tempDir, "src"))).toBe(false);
+    expect(result.created).toContain("i18n/i18n.codegen.json");
   });
 
   it("scaffolds under src/i18n when targetDir is src", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-setup-"));
     const srcDir = join(tempDir, "src");
-    runSetup({ mode: "single", targetDir: srcDir, project: "MyApp" });
+    runSetup({ targetDir: srcDir, project: "MyApp" });
 
     expect(existsSync(join(srcDir, "i18n/i18n.codegen.json"))).toBe(true);
     expect(existsSync(join(tempDir, "i18n"))).toBe(false);
@@ -82,15 +71,15 @@ describe("setup-i18n", () => {
 
   it("refuses to overwrite an existing config without --force", () => {
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-setup-"));
-    runSetup({ mode: "single", targetDir: tempDir, project: "MyApp" });
+    runSetup({ targetDir: tempDir, project: "MyApp" });
 
-    expect(() => runSetup({ mode: "single", targetDir: tempDir, project: "MyApp" })).toThrow(
-      "already exists"
-    );
+    expect(() => runSetup({ targetDir: tempDir, project: "MyApp" })).toThrow("already exists");
   });
 
-  it("buildCodegenConfig omits lazy and validation keys by default", () => {
-    expect(buildCodegenConfig("multi", "MyApp")).not.toHaveProperty("loadOnInit");
-    expect(buildCodegenConfig("multi", "MyApp")).not.toHaveProperty("dictionarySchemaOutput");
+  it("buildCodegenConfig defaults to split-by-locale", () => {
+    const config = buildCodegenConfig("MyApp");
+    expect(config.delivery).toBe("split-by-locale");
+    expect(config.codegenPath).toBe("generated");
+    expect(config.projectName).toBe("MyApp");
   });
 });

@@ -1,110 +1,63 @@
 ---
 title: Runtime
-description: Engine, scopes, fluent builder, load deduplication, and scope.set() for @xndrjs/i18n 0.7.
+description: Handle API — createI18n, load, peek, serialize — for @xndrjs/i18n.
 ---
 
-## Architecture (0.7)
+## Architecture
 
-| Layer                                                                       | Role                                                                                  |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| **Engine** (`IcuTranslationProviderSingle` / `IcuTranslationProviderMulti`) | Mutable dictionary, compiled-message cache, preload registry, `getAll()`, `toScope()` |
-| **Scope** (`I18nScopeSingle` / `I18nScopeMulti` and `*ForLocale`)           | Typed read projection over the engine; locale-bound scopes expose `set()`             |
-| **Builder** (`I18nBuilderSingle` / `I18nBuilderMulti`)                      | Fluent async loader: `withNamespaces` → `withLocale` or `withDeliveryArea` → `load()` |
+| Layer                                                | Role                                                                                     |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Engine** (`IcuTranslationProviderMulti`)           | Mutable dictionary, compiled-message cache, loaded-resource registry                     |
+| **Handle** (`I18nHandle` via generated `createI18n`) | `load` / `peek` / `serialize` — namespaces + locale; partition from `partitionForLocale` |
+| **Scope** (`I18nScopeMultiForLocale`)                | Typed `t(namespace, key, params?)` for a bound locale                                    |
 
-Codegen `createI18n(dictionary)` constructs an engine and returns either a scope (eager canonical single) or a builder (lazy multi split/custom).
+Generated `createI18n(options?)` builds the engine and returns a handle. Cold start: `createI18n()` or `createI18n({})`. Hydrate: `createI18n({ state })` where `state` is `{ dictionary, resources? }` from `serialize()`.
 
-### Builder `load()`
+With `loaderStrategy: "fetch"`, options **must** include `fetchImpl`:
 
-1. Requires `withNamespaces([...])` (multi) before `load()`.
-2. Partition key = `withLocale(locale)` or `withDeliveryArea(area)` (mutually exclusive on one chain).
-3. For each namespace, if `(namespace, partition)` was already loaded on this engine, **skip** (no loader call, no merge).
-4. Otherwise invoke `namespaceLoaders[ns](partition)` (or `dictionaryLoader(partition)` in single mode), deep-merge into the engine, mark the resource loaded.
-5. Return a scope — locale-bound when `withLocale` was used; unbound multi scope when `withDeliveryArea` was used (`forLocale` afterward).
+```ts
+createI18n({ fetchImpl, state? });
+```
 
-Different partitions on the same shared engine accumulate translations. Same partition reload preserves runtime `scope.set()` patches.
+### `load({ namespaces, locale })`
 
-### `scope.set()`
+1. Requires a non-empty `namespaces` array.
+2. Partition = `partitionForLocale(locale)` (identity for split-by-locale; `LOCALE_DELIVERY_AREA[locale]` for custom).
+3. For each namespace, if `(namespace, partition)` is already marked loaded, skip.
+4. Otherwise invoke `namespaceLoaders[ns](partition, { locale })`, merge into the engine, mark loaded.
+5. Return a locale-bound scope `{ t, locale, … }`.
 
-- Only on locale-bound scopes (`I18nScope*ForLocale`).
-- Requires the `(key, locale)` or `(namespace, key, locale)` triple to exist in the preload registry (from constructor seed or prior `load()`).
-- Re-validates ICU syntax and parameter compatibility against other locales for the same key.
-- Invalidates compiled cache for the patched key/locale.
+### `peek({ namespaces, locale })`
 
-### Delivery-area typing
+Sync counterpart of `load`: returns a scope when every requested resource is already loaded (e.g. after hydrate), otherwise `null`.
 
-When codegen configures `delivery: "custom"`, `withDeliveryArea(area)` returns `I18nBuilderMultiPartitioned` with `ActiveLocales` narrowed to `DELIVERY_ARTIFACTS[area]`. Unbound scopes from that chain expose `forLocale` only for those locales at compile time.
+### Serialize / hydrate
 
-### Removed in 0.7
+```ts
+const i18n = createI18n();
+const { t } = await i18n.load({ namespaces: ["billing"], locale: "en" });
+const state = i18n.serialize();
 
-- `I18nView*` → `I18nScope*`, `toView()` → `toScope()`
-- Public `setAll`, `mergeAll`, `setNamespace`, `mergeNamespace`
-- `hasNamespace()`, `loadedNamespaces`
-- Builder `withNamespaceData` / `withDictionaryData`
-- Generated `ensureNamespacesLoadedForLocale` / `ensureNamespacesLoadedForArea`
+// client (or another request)
+const client = createI18n({ state });
+client.peek({ namespaces: ["billing"], locale: "en" }); // scope without re-fetch
+```
+
+With fetch strategy: `createI18n({ state, fetchImpl })`.
 
 ## Usage
 
-Create an engine-backed scope with the generated factory. Pass the dictionary explicitly so `instance.generated.ts` does not import fallback JSON into your bundle:
-
 ```ts
 import { createI18n } from "./i18n/generated/instance.generated.js";
-import { defaultDictionary } from "./i18n/generated/dictionary.generated.js";
 
-export const i18n = createI18n(defaultDictionary); // eager canonical → scope
-// lazy split/custom:
-export const loadBilling = () => createI18n({}).withNamespaces(["billing"]).withLocale("en").load();
+const i18n = createI18n();
+const { t } = await i18n.load({
+  namespaces: ["default", "billing"],
+  locale: "en",
+});
+
+t("default", "welcome", { name: "Ada" });
+t("billing", "invoice_summary", { count: 3 });
 ```
 
-Or use the scaffolded singleton in `i18n/index.ts`:
-
-```ts
-import { createI18n } from "./generated/instance.generated.js";
-import { defaultDictionary } from "./generated/dictionary.generated.js";
-
-export * from "./generated/instance.generated.js";
-export * from "./generated/dictionary.generated.js";
-export * from "./generated/i18n-types.generated.js";
-
-export const i18n = createI18n(defaultDictionary);
-```
-
-### `forLocale`
-
-Bind a locale once and omit it on every `t()`:
-
-```ts
-const { t } = i18n.forLocale("en");
-
-t("login_button"); // single-file
-t("welcome", { name: "Ada" });
-
-const { t: tIt } = i18n.forLocale("it");
-tIt("default", "login_button"); // multi
-tIt("billing", "invoice_summary", { count: 3 });
-```
-
-The bound scope shares dictionary, cache, and fallback rules with the engine.
-
-## Scope and engine API
-
-| Surface             | Behavior                                                                                       |
-| ------------------- | ---------------------------------------------------------------------------------------------- |
-| `t(...)`            | Format a key for a locale; TypeScript enforces required params. Prefer `const { t } = scope`.  |
-| `forLocale(locale)` | Locale-bound scope with narrower `t()` signature — destructure `{ t, set }` from the result    |
-| `engine.getAll()`   | Deep-frozen snapshot of the current dictionary (via engine reference when needed)              |
-| `set(...)`          | Locale-bound only — patch one preloaded key; re-validates ICU and param compatibility          |
-| Builder `load()`    | Invoke lazy loaders once per namespace + partition; skipped if already loaded on shared engine |
-
-Compiled `IntlMessageFormat` instances are cached per locale (and per namespace in multi mode). `scope.set()` invalidates the affected key.
-
-Scope methods (`t`, `set`, `forLocale`) are **destructuring-safe** — they are bound at construction time, so `const { t } = await builder.load()` works without manual `.bind()`.
-
-Public merge/replace APIs (`setAll`, `mergeAll`, `setNamespace`, `mergeNamespace`) were removed in 0.7.0. Deep merge is internal to the first `load()` per resource; patches go through `scope.set()`.
-
-### `getAll()` for dynamic access
-
-Codegen types the happy path. For admin tools, diff views, or CMS previews, use `engine.getAll()` on the underlying provider when you hold an engine reference.
-
-Most apps use the **generated** `createI18n(dictionary)` factory rather than constructing providers manually.
-
-See also [Lazy loading](/v0/infrastructure/i18n/lazy-loading/) and [External validation](/v0/infrastructure/i18n/validation/).
+Pass `serialize()` output into React as `I18nRoot` `state` so client gates resolve via `peek` without reloading warm namespaces. See [React](/v0/infrastructure/i18n/react/), [Lazy loading](/v0/infrastructure/i18n/lazy-loading/), and [External validation](/v0/infrastructure/i18n/validation/).

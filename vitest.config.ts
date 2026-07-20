@@ -146,7 +146,25 @@ const workspaceAliases = collectWorkspaceAliases();
 
 export default defineBaseVitestConfig({
   test: {
-    include: ["**/*.test.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "node",
+          include: ["**/*.test.ts"],
+          exclude: ["packages/i18n-react/**", "**/node_modules/**"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "i18n-react",
+          root: path.join(dirname, "packages/i18n-react"),
+          include: ["**/*.test.{ts,tsx}"],
+          environment: "jsdom",
+        },
+      },
+    ],
   },
   resolve: {
     alias: {

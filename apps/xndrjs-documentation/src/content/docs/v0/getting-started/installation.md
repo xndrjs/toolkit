@@ -62,11 +62,13 @@ These packages are optional and solve problems outside the domain modeling core:
 ```bash
 pnpm add @xndrjs/tasks
 pnpm add @xndrjs/i18n
+pnpm add @xndrjs/i18n-react   # React apps
 pnpm add -D @xndrjs/contentful-to-zod zod
 ```
 
 - [Tasks](/v0/infrastructure/tasks/) — lazy async effects with retry
-- [i18n](/v0/infrastructure/i18n/) — type-safe ICU i18n with runtime overrides
+- [i18n](/v0/infrastructure/i18n/) — type-safe ICU i18n (codegen + lazy namespaces)
+- [i18n React](/v0/infrastructure/i18n/react/) — `I18nRoot`, `withI18n`, `<I18n>`
 - [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) — Contentful CMA to Zod codegen
 
 ## Runtime and TypeScript

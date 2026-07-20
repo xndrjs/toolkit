@@ -3,13 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
-import billingDictionary from "./fixtures/billing-namespace.json";
+import { afterEach, describe, expect, it } from "vitest";
 
 const codegenScript = fileURLToPath(new URL("./generate-i18n-types.ts", import.meta.url));
 const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
-
-type BillingNamespace = typeof billingDictionary;
 
 function runCodegen(cwd: string) {
   return spawnSync("tsx", [codegenScript, "--config", "i18n.codegen.json"], {
@@ -49,15 +46,12 @@ function setupMultiCodegenFixture(tempDir: string) {
   writeFileSync(
     join(tempDir, "i18n.codegen.json"),
     JSON.stringify({
+      projectName: "App",
       namespaces: {
         default: "src/i18n/translations/default.json",
         billing: "src/i18n/translations/billing.json",
       },
-      typesOutput: "src/i18n/i18n-types.generated.ts",
-      dictionaryOutput: "src/i18n/dictionary.generated.ts",
-      instanceOutput: "src/i18n/instance.generated.ts",
-      paramsTypeName: "AppParams",
-      schemaTypeName: "AppSchema",
+      codegenPath: "src/i18n",
       localeFallback: {
         en: null,
         it: "en",
@@ -85,6 +79,7 @@ function writeTscProject(tempDir: string) {
           skipLibCheck: true,
           paths: {
             "@xndrjs/i18n": [join(packageRoot, "src/index.ts")],
+            "@xndrjs/i18n/validation": [join(packageRoot, "src/validation/index.ts")],
           },
         },
         include: ["src/**/*.ts"],
@@ -95,82 +90,45 @@ function writeTscProject(tempDir: string) {
   );
 }
 
-describe("codegen projectNamespaceLocales + load + scope.set", () => {
-  describe("generated instance output", () => {
-    let tempDir: string;
+describe("codegen instance + load", () => {
+  let tempDir: string;
 
-    afterEach(() => {
-      if (tempDir) {
-        rmSync(tempDir, { recursive: true, force: true });
-      }
-    });
+  afterEach(() => {
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 
-    it("emits projectNamespaceLocales for multi mode with schema-typed namespace payloads", () => {
-      tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
-      setupMultiCodegenFixture(tempDir);
+  it("emits createI18n wired to namespaceLoaders", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
+    setupMultiCodegenFixture(tempDir);
 
-      const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
-      expect(factory).toContain('dictionary: AppSchema["billing"]');
-      expect(factory).toContain("export function projectNamespaceLocales(");
-      expect(factory).toContain(
-        "projectDictionaryLocalesCore(dictionary, locales, LOCALE_FALLBACK)"
-      );
-    });
+    const factory = readFileSync(join(tempDir, "src/i18n/instance.generated.ts"), "utf8");
+    expect(factory).toContain("export function createI18n(");
+    expect(factory).toContain("namespaceLoaders");
+  });
 
-    it("passes tsc when hydrating with projectNamespaceLocales via load() and scope.set()", () => {
-      tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
-      setupMultiCodegenFixture(tempDir);
+  it("passes tsc when loading via generated namespaceLoaders", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-i18n-project-locales-"));
+    setupMultiCodegenFixture(tempDir);
 
-      writeFileSync(
-        join(tempDir, "src/hydrate-billing.ts"),
-        [
-          `import { createI18nMultiBuilder, IcuTranslationProviderMulti } from "@xndrjs/i18n";`,
-          `import { projectNamespaceLocales } from "./i18n/instance.generated.js";`,
-          `import { defaultDictionary } from "./i18n/dictionary.generated.js";`,
-          `import type { AppSchema, AppParams } from "./i18n/i18n-types.generated.js";`,
-          `import billingDictionary from "./i18n/translations/billing.json";`,
-          ``,
-          `async function hydrateBilling() {`,
-          `  const billingEn = projectNamespaceLocales(billingDictionary, ["en"]);`,
-          `  const engine = new IcuTranslationProviderMulti<AppSchema, AppParams>(defaultDictionary);`,
-          `  const view = await createI18nMultiBuilder(engine, {`,
-          `    namespaceLoaders: {`,
-          `      billing: async () => billingEn,`,
-          `    },`,
-          `  })`,
-          `    .withNamespaces(["billing"])`,
-          `    .withLocale("en")`,
-          `    .load();`,
-          ``,
-          `  view.set(`,
-          `    "billing",`,
-          `    "invoice_summary",`,
-          `    "You have {count, plural, one {1 invoice} other {{count} invoices}}"`,
-          `  );`,
-          `  return view.t("billing", "invoice_summary", { count: 1 });`,
-          `}`,
-          ``,
-          `export { hydrateBilling };`,
-        ].join("\n")
-      );
+    writeFileSync(
+      join(tempDir, "src/hydrate-billing.ts"),
+      [
+        `import { createI18n } from "./i18n/instance.generated.js";`,
+        ``,
+        `async function hydrateBilling() {`,
+        `  const { t } = await createI18n().load({ namespaces: ["billing"], locale: "en" });`,
+        `  return t("billing", "invoice_summary", { count: 1 });`,
+        `}`,
+        ``,
+        `export { hydrateBilling };`,
+      ].join("\n")
+    );
 
-      writeTscProject(tempDir);
+    writeTscProject(tempDir);
 
-      const tsc = runTsc(join(tempDir, "tsconfig.json"));
-      expect(tsc.status, `${tsc.stdout}\n${tsc.stderr}`).toBe(0);
-    });
-
-    it("types projectNamespaceLocales result as the namespace schema", () => {
-      type AppSchema = {
-        billing: BillingNamespace;
-      };
-
-      type ProjectNamespaceLocalesBilling = (
-        dictionary: AppSchema["billing"],
-        locales: readonly ("en" | "it")[]
-      ) => AppSchema["billing"];
-
-      expectTypeOf<ReturnType<ProjectNamespaceLocalesBilling>>().toEqualTypeOf<BillingNamespace>();
-    });
+    const tsc = runTsc(join(tempDir, "tsconfig.json"));
+    expect(tsc.status, `${tsc.stdout}\n${tsc.stderr}`).toBe(0);
   });
 });

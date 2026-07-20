@@ -1,84 +1,28 @@
 # @xndrjs/i18n-demo
 
-Workshop app for `@xndrjs/i18n` with three consumer setups in one package:
+Next.js workshop for `@xndrjs/i18n` + `@xndrjs/i18n-react`.
 
-- **`single/`** — single-file dictionary mode (`single/src/i18n/i18n.codegen.json`)
-- **`multi/`** — multi-namespace mode with `delivery: "split-by-locale"` (`multi/src/i18n/i18n.codegen.json`)
-- **`areas/`** — multi-namespace mode with `delivery: "custom"`, delivery areas `eu` / `amer`, and delivery JSON under `areas/src/public/translations/` (`deliveryOutput: "../public"` in `areas/src/i18n/i18n.codegen.json`)
-- **`programmatic/`** — writes `i18n.codegen.json` via `@xndrjs/i18n/codegen` before running codegen (`programmatic/src/i18n/write-config.ts`)
+## Profiles
 
-## Split-by-locale (`multi/`)
+| Route           | Profile                                                                        |
+| --------------- | ------------------------------------------------------------------------------ |
+| `/multi`        | `split-by-locale` + lazy namespaces                                            |
+| `/areas`        | `custom` delivery + `loaderStrategy: "fetch"` + injectable `fetchImpl`         |
+| `/programmatic` | Config from TypeScript (`buildCodegenConfig`) + `regenerateNamespaces` example |
 
-All namespaces are lazy. Bootstrap with `createI18n({})` and use the builder to load what you need for a locale.
-
-```ts
-import { createI18nForLocale } from "./i18n";
-
-const { t } = await createI18nForLocale(activeLocale, ["default", "billing"]);
-t("billing", "invoice_summary", { count: 2 });
-```
-
-For external/CMS patches after validation, `load()` first (preload gate), then patch individual keys on the locale-bound scope:
+Every profile uses the same runtime API:
 
 ```ts
-const { t, set } = await createI18n({}).withNamespaces(["billing"]).withLocale(locale).load();
-
-const result = validateExternalKey("billing", "invoice_summary", rawLocales);
-if (result.ok) {
-  set("billing", "invoice_summary", result.data.invoice_summary[locale]!);
-}
+const i18n = createI18n();
+const { t } = await i18n.load({ namespaces: [...], locale });
 ```
 
-`createI18nForLocale(locale, namespaces?)` in `multi/src/i18n/index.ts` wraps the same pattern for per-request instances.
+Client trees use generated `I18nRoot` + `withI18n` / `I18n` gates (no Suspense).
 
-Run: `pnpm run demo:multi`
-
-## Custom delivery areas (`areas/`)
-
-Delivery JSON is grouped by area (`eu`, `amer`). Bootstrap with one shared `createI18n({})` builder and load each area explicitly:
-
-```ts
-import { createI18n } from "./i18n";
-
-const i18n = createI18n({});
-const { t } = await i18n.withNamespaces(["default", "billing"]).withDeliveryArea("eu").load();
-t("default", "some_key", "it");
-```
-
-Different locale partitions accumulate on the shared engine (`it` then `en`). Reloading the **same** namespace + delivery area is skipped — runtime `scope.set()` patches are preserved. For external hydration, `load()` first, then `forLocale(locale)` and `set()` per validated key (see `exampleExternalNamespacePatch` in `areas/src/index.ts`).
-
-Run: `pnpm run demo:areas`
-
-## Commands
-
-From the repo root:
+## Scripts
 
 ```bash
 pnpm --filter @xndrjs/i18n-demo i18n:codegen
-pnpm --filter @xndrjs/i18n-demo i18n:audit
-pnpm --filter @xndrjs/i18n-demo demo
-pnpm --filter @xndrjs/i18n-demo typecheck
-```
-
-Or from `apps/i18n-demo/`:
-
-```bash
-pnpm run i18n:codegen:single
-pnpm run i18n:codegen:multi
-pnpm run i18n:codegen:areas
-pnpm run i18n:write-config:programmatic
-pnpm run i18n:codegen:programmatic
-pnpm run i18n:audit:single
-pnpm run i18n:audit:multi
-pnpm run i18n:audit:areas
-pnpm run demo:single
-pnpm run demo:multi
-pnpm run demo:areas
-pnpm run demo:programmatic
-```
-
-Build `@xndrjs/i18n` before running demos if the package has not been built yet:
-
-```bash
-pnpm --filter @xndrjs/i18n build
+pnpm --filter @xndrjs/i18n-demo i18n:react-codegen
+pnpm --filter @xndrjs/i18n-demo dev
 ```

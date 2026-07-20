@@ -1,5 +1,55 @@
 # @xndrjs/i18n
 
+## 0.8.0
+
+### Minor Changes
+
+- ### Breaking Changes (0.8.0)
+  - **Multi-only runtime:** single-mode providers, scopes, and codegen paths are removed. Always use namespaced dictionaries.
+  - **Delivery modes:** only `split-by-locale` and `custom`. Canonical / eager dictionary embedding is gone — start with `createI18n()` (or `{ state }` / `{ fetchImpl }`) and `load()`.
+  - **Uniform handle API:** fluent builder typestate (`withNamespaces` → `withLocale` / `withDeliveryArea` → `load()`) is replaced by `I18nHandle.load({ namespaces, locale })`. `peek` / `serialize` live on the same handle.
+  - **Content updates without rebuild:** update authoring files outside the library, then `regenerateNamespaces([...])` from `@xndrjs/i18n/codegen` (delivery JSON only; same ICU contract) plus `loaderStrategy: "fetch"`. Contract changes still need `runCodegen` and an app release.
+  - **Codegen config:** `projectName` infers `*Params` / `*Schema` / `*Locale`; paths are `codegenPath` + optional `artifactsPath` (replaces older output / type-name knobs).
+  - **Fetch DI:** with `loaderStrategy: "fetch"`, pass `fetchImpl: FetchArtifact` into `createI18n({ fetchImpl })`. Codegen emits resource ids only — URL/filesystem mapping is an app concern.
+  - **Codegen output:** re-run `xndrjs-i18n-codegen` after upgrading.
+
+  ### Migration (0.7.x → 0.8.0)
+
+  | Before (0.7.x)                                    | After (0.8.0)                                                                |
+  | ------------------------------------------------- | ---------------------------------------------------------------------------- |
+  | `mode: "single"` / flat `t(key)`                  | multi only — `t(ns, key, …)` (or a thin app wrapper)                         |
+  | `delivery: "canonical"` + embedded dictionary     | `split-by-locale` or `custom` + `load()`                                     |
+  | `builder.withNamespaces([]).withLocale(l).load()` | `await handle.load({ namespaces, locale })`                                  |
+  | `scope.set(ns, key, template)` / merge APIs       | update authoring + `regenerateNamespaces([...])` + `loaderStrategy: "fetch"` |
+  | `ensureNamespacesLoaded*`                         | `handle.load({ … })`                                                         |
+
+  Install: `npm install @xndrjs/i18n`
+
+## 0.8.0-alpha.0
+
+### Minor Changes
+
+- c25c0f6: ### Breaking Changes (0.8.0)
+  - **Multi-only runtime:** single-mode providers, scopes, and codegen paths are removed. Always use namespaced dictionaries.
+  - **Delivery modes:** only `split-by-locale` and `custom`. Canonical / eager dictionary embedding is gone — start with `createI18n()` (or `{ state }` / `{ fetchImpl }`) and `load()`.
+  - **Uniform handle API:** fluent builder typestate (`withNamespaces` → `withLocale` / `withDeliveryArea` → `load()`) is replaced by `I18nHandle.load({ namespaces, locale })`. `peek` / `serialize` live on the same handle.
+  - **Content updates without rebuild:** update authoring files outside the library, then `regenerateNamespaces([...])` from `@xndrjs/i18n/codegen` (delivery JSON only; same ICU contract) plus `loaderStrategy: "fetch"`. Contract changes still need `runCodegen` and an app release.
+  - **Codegen config:** `projectName` infers `*Params` / `*Schema` / `*Locale`; paths are `codegenPath` + optional `artifactsPath` (replaces older output / type-name knobs).
+  - **Fetch DI:** with `loaderStrategy: "fetch"`, pass `fetchImpl: FetchArtifact` into `createI18n({ fetchImpl })`. Codegen emits resource ids only — URL/filesystem mapping is an app concern.
+  - **Codegen output:** re-run `xndrjs-i18n-codegen` after upgrading.
+
+  ### Migration (0.7.x → 0.8.0)
+
+  | Before (0.7.x)                                    | After (0.8.0)                                                                |
+  | ------------------------------------------------- | ---------------------------------------------------------------------------- |
+  | `mode: "single"` / flat `t(key)`                  | multi only — `t(ns, key, …)` (or a thin app wrapper)                         |
+  | `delivery: "canonical"` + embedded dictionary     | `split-by-locale` or `custom` + `load()`                                     |
+  | `builder.withNamespaces([]).withLocale(l).load()` | `await handle.load({ namespaces, locale })`                                  |
+  | `scope.set(ns, key, template)` / merge APIs       | update authoring + `regenerateNamespaces([...])` + `loaderStrategy: "fetch"` |
+  | `ensureNamespacesLoaded*`                         | `handle.load({ … })`                                                         |
+
+  Install (alpha): `npm install @xndrjs/i18n@alpha`
+
 ## 0.7.0
 
 ### Minor Changes
@@ -14,7 +64,7 @@
   - **Builder load deduplication:** repeated `load()` for the same `(namespace, partition)` on a shared engine is skipped; prior `scope.set()` patches are preserved.
   - **Delivery-area locale narrowing:** `withDeliveryArea(area)` narrows `ActiveLocales` from codegen `DELIVERY_ARTIFACTS`; unbound scopes expose `forLocale` only for those locales at compile time.
   - **Destructuring-safe scopes:** `t`, `set`, and `forLocale` are arrow-bound — `const { t } = scope` and `const { t, set } = await builder.load()` work without losing `this`.
-  - **Builder typestate (multi):** `createI18n({})` returns `I18nBuilderMultiInitial` with only `withNamespaces`; `withLocale`, `withDeliveryArea`, and `load()` require a non-empty `withNamespaces([...])` first (`I18nBuilderMultiReady`).
+  - **Builder typestate (multi):** `createI18n()` returns `I18nBuilderMultiInitial` with only `withNamespaces`; `withLocale`, `withDeliveryArea`, and `load()` require a non-empty `withNamespaces([...])` first (`I18nBuilderMultiReady`).
   - **Partial external validation:** codegen emits `validateExternalDictionaryPartial`, `validateExternalNamespacePartial`, and `validateExternalKey` (when `dictionarySchemaOutput` is configured) for CMS/webhook deltas.
   - **Codegen output:** re-run `xndrjs-i18n-codegen` — generated `createI18n` return types, validation helpers, and `instance.generated.ts` imports are updated (minimal package imports per config).
 
@@ -46,7 +96,7 @@
   - **Builder load deduplication:** repeated `load()` for the same `(namespace, partition)` on a shared engine is skipped; prior `scope.set()` patches are preserved.
   - **Delivery-area locale narrowing:** `withDeliveryArea(area)` narrows `ActiveLocales` from codegen `DELIVERY_ARTIFACTS`; unbound scopes expose `forLocale` only for those locales at compile time.
   - **Destructuring-safe scopes:** `t`, `set`, and `forLocale` are arrow-bound — `const { t } = scope` and `const { t, set } = await builder.load()` work without losing `this`.
-  - **Builder typestate (multi):** `createI18n({})` returns `I18nBuilderMultiInitial` with only `withNamespaces`; `withLocale`, `withDeliveryArea`, and `load()` require a non-empty `withNamespaces([...])` first (`I18nBuilderMultiReady`).
+  - **Builder typestate (multi):** `createI18n()` returns `I18nBuilderMultiInitial` with only `withNamespaces`; `withLocale`, `withDeliveryArea`, and `load()` require a non-empty `withNamespaces([...])` first (`I18nBuilderMultiReady`).
   - **Partial external validation:** codegen emits `validateExternalDictionaryPartial`, `validateExternalNamespacePartial`, and `validateExternalKey` (when `dictionarySchemaOutput` is configured) for CMS/webhook deltas.
   - **Codegen output:** re-run `xndrjs-i18n-codegen` — generated `createI18n` return types, validation helpers, and `instance.generated.ts` imports are updated (minimal package imports per config).
 
@@ -77,7 +127,7 @@
 ### Minor Changes
 
 - 2f6cdd7: ### Breaking Changes (codegen output — re-run `xndrjs-i18n-codegen` after upgrading)
-  - **Split-by-locale / custom (all lazy namespaces):** codegen no longer emits an empty `dictionary.generated.ts`. Start providers with `createI18n({})` and register namespaces via the generated helpers below. Remove `export * from "./dictionary.generated"` (or equivalent imports) when the file is omitted.
+  - **Split-by-locale / custom (all lazy namespaces):** codegen no longer emits an empty `dictionary.generated.ts`. Start providers with `createI18n()` and register namespaces via the generated helpers below. Remove `export * from "./dictionary.generated"` (or equivalent imports) when the file is omitted.
   - **`loadOnInit` is canonical-only:** configs with `delivery: "split-by-locale"` or `delivery: "custom"` must not set `loadOnInit`; codegen fails validation otherwise. Those modes always load namespaces through lazy loaders.
   - Generated `dictionary-schema.generated.ts` imports the validation helper as `validateExternalNamespaceCore` (was `validateExternalNamespaceImpl`). Public API remains `validateExternalNamespace`.
 
@@ -109,7 +159,7 @@
 ### Minor Changes
 
 - 2f6cdd7: ### Breaking Changes (codegen output — re-run `xndrjs-i18n-codegen` after upgrading)
-  - **Split-by-locale / custom (all lazy namespaces):** codegen no longer emits an empty `dictionary.generated.ts`. Start providers with `createI18n({})` and register namespaces via the generated helpers below. Remove `export * from "./dictionary.generated"` (or equivalent imports) when the file is omitted.
+  - **Split-by-locale / custom (all lazy namespaces):** codegen no longer emits an empty `dictionary.generated.ts`. Start providers with `createI18n()` and register namespaces via the generated helpers below. Remove `export * from "./dictionary.generated"` (or equivalent imports) when the file is omitted.
   - **`loadOnInit` is canonical-only:** configs with `delivery: "split-by-locale"` or `delivery: "custom"` must not set `loadOnInit`; codegen fails validation otherwise. Those modes always load namespaces through lazy loaders.
   - Generated `dictionary-schema.generated.ts` imports the validation helper as `validateExternalNamespaceCore` (was `validateExternalNamespaceImpl`). Public API remains `validateExternalNamespace`.
 
@@ -159,7 +209,7 @@
 
 - **Breaking (codegen output).** Generated `createI18n` no longer imports the fallback dictionary: the `dictionary` argument is required, so each call site chooses the data source (codegen fallback, lazy loaders, CMS, etc.) and `instance.generated.ts` does not pull JSON into the FE bundle by default.
 
-  Codegen now exports `defaultDictionary` (was `dictionary`) from `dictionary.generated.ts`. Re-run codegen and update `i18n/index.ts` (or your factory module) to pass `defaultDictionary` explicitly, e.g. `createI18n(defaultDictionary)`.
+  Codegen now exports `defaultDictionary` (was `dictionary`) from `dictionary.generated.ts`. Re-run codegen and update `i18n/index.ts` (or your factory module) to pass `defaultDictionary` explicitly, e.g. `createI18n({ dictionary: defaultDictionary })`.
 
   Setup scaffold (`xndrjs-i18n-setup`) emits the same pattern.
 

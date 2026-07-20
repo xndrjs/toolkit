@@ -6,33 +6,6 @@ const projectRoot = "/project";
 const loadersOutputPath = path.join(projectRoot, "src/i18n/namespace-loaders.generated.ts");
 
 describe("formatNamespaceLoadersFile", () => {
-  it("emits flat loaders in canonical mode", () => {
-    const output = formatNamespaceLoadersFile({
-      loadersOutputPath,
-      lazyEntries: [
-        {
-          namespace: "billing",
-          filePath: "src/i18n/translations/billing.json",
-          absolutePath: path.join(projectRoot, "src/i18n/translations/billing.json"),
-        },
-      ],
-      schemaTypeName: "AppSchema",
-      paramsTypeName: "AppParams",
-      localeTypeName: "AppLocale",
-      localeFallbackConstName: "LOCALE_FALLBACK",
-      hasLocaleFallback: false,
-      typesModule: "i18n-types.generated",
-      importExtension: "none",
-      projectRoot,
-      delivery: "canonical",
-    });
-
-    expect(output).toContain("[K in LazyNamespace]: () => Promise<AppSchema[K]>");
-    expect(output).toContain(
-      "billing: () => import('./translations/billing.json').then((m) => m.default),"
-    );
-  });
-
   it("emits ns(locale) loaders in split mode", () => {
     const output = formatNamespaceLoadersFile({
       loadersOutputPath,
@@ -54,14 +27,10 @@ describe("formatNamespaceLoadersFile", () => {
         },
       ],
       schemaTypeName: "AppSchema",
-      paramsTypeName: "AppParams",
       localeTypeName: "AppLocale",
-      localeFallbackConstName: "LOCALE_FALLBACK",
-      hasLocaleFallback: true,
       typesModule: "i18n-types.generated",
       importExtension: "none",
       projectRoot,
-      isSingle: false,
       delivery: "split-by-locale",
       requestLocales: ["en", "it", "de-CH"],
       splitPathsByNamespace: {
@@ -83,6 +52,9 @@ describe("formatNamespaceLoadersFile", () => {
       },
     });
 
+    expect(output).toContain(
+      "import type { AppSchema, LazyNamespace, AppLocale } from './i18n-types.generated';"
+    );
     expect(output).toContain("[K in LazyNamespace]: (locale: AppLocale) => Promise<AppSchema[K]>;");
     expect(output).toContain("billing: (locale) => {");
     expect(output).toContain('case "en":');
@@ -101,39 +73,6 @@ describe("formatNamespaceLoadersFile", () => {
     expect(output.match(/from '\.\/i18n-types\.generated'/g)?.length).toBe(1);
   });
 
-  it("emits locale-scoped loaders for single mode in split delivery", () => {
-    const output = formatNamespaceLoadersFile({
-      loadersOutputPath,
-      lazyEntries: [
-        {
-          namespace: "default",
-          filePath: "src/i18n/translations/translations.json",
-          absolutePath: path.join(projectRoot, "src/i18n/translations/translations.json"),
-        },
-      ],
-      schemaTypeName: "AppSchema",
-      paramsTypeName: "AppParams",
-      localeTypeName: "AppLocale",
-      localeFallbackConstName: "LOCALE_FALLBACK",
-      hasLocaleFallback: true,
-      typesModule: "i18n-types.generated",
-      importExtension: "none",
-      projectRoot,
-      isSingle: true,
-      delivery: "split-by-locale",
-      requestLocales: ["en", "it"],
-      splitPathsByNamespace: {
-        default: {
-          en: "src/i18n/generated/translations/translations.en.json",
-          it: "src/i18n/generated/translations/translations.it.json",
-        },
-      },
-    });
-
-    expect(output).toContain("[K in LazyNamespace]: (locale: AppLocale) => Promise<AppSchema>;");
-    expect(output).toContain('export const defaultLazyNamespaces = ["default"] as const;');
-  });
-
   it("throws when a split path is missing", () => {
     expect(() =>
       formatNamespaceLoadersFile({
@@ -146,10 +85,7 @@ describe("formatNamespaceLoadersFile", () => {
           },
         ],
         schemaTypeName: "AppSchema",
-        paramsTypeName: "AppParams",
         localeTypeName: "AppLocale",
-        localeFallbackConstName: "LOCALE_FALLBACK",
-        hasLocaleFallback: false,
         typesModule: "i18n-types.generated",
         importExtension: "none",
         projectRoot,
@@ -180,14 +116,10 @@ describe("formatNamespaceLoadersFile", () => {
         },
       ],
       schemaTypeName: "AppSchema",
-      paramsTypeName: "AppParams",
       localeTypeName: "AppLocale",
-      localeFallbackConstName: "LOCALE_FALLBACK",
-      hasLocaleFallback: true,
       typesModule: "i18n-types.generated",
       importExtension: "none",
       projectRoot,
-      isSingle: false,
       delivery: "custom",
       deliveryAreaTypeName: "AppDeliveryArea",
       deliveryAreaNames: ["eu", "us"],
@@ -203,6 +135,9 @@ describe("formatNamespaceLoadersFile", () => {
       },
     });
 
+    expect(output).toContain(
+      "import type { AppSchema, LazyNamespace, AppDeliveryArea } from './i18n-types.generated';"
+    );
     expect(output).toContain(
       "[K in LazyNamespace]: (area: AppDeliveryArea) => Promise<AppSchema[K]>;"
     );
@@ -232,10 +167,7 @@ describe("formatNamespaceLoadersFile", () => {
           },
         ],
         schemaTypeName: "AppSchema",
-        paramsTypeName: "AppParams",
         localeTypeName: "AppLocale",
-        localeFallbackConstName: "LOCALE_FALLBACK",
-        hasLocaleFallback: false,
         typesModule: "i18n-types.generated",
         importExtension: "none",
         projectRoot,
@@ -249,5 +181,71 @@ describe("formatNamespaceLoadersFile", () => {
         },
       })
     ).toThrow('[Codegen Error] Missing split path for namespace "billing", area "us".');
+  });
+
+  it("emits fetch loaders that pass a resource id to fetchImpl", () => {
+    const output = formatNamespaceLoadersFile({
+      loadersOutputPath,
+      lazyEntries: [
+        {
+          namespace: "billing",
+          filePath: "src/i18n/translations/billing.json",
+          absolutePath: path.join(projectRoot, "src/i18n/translations/billing.json"),
+        },
+      ],
+      schemaTypeName: "AppSchema",
+      localeTypeName: "AppLocale",
+      typesModule: "i18n-types.generated",
+      importExtension: "none",
+      projectRoot,
+      delivery: "split-by-locale",
+      requestLocales: ["en", "it"],
+      loaderStrategy: "fetch",
+      splitPathsByNamespace: {
+        billing: {
+          en: "src/i18n/generated/translations/billing.en.json",
+          it: "src/i18n/generated/translations/billing.it.json",
+        },
+      },
+    });
+
+    expect(output).toContain("export function createNamespaceLoaders");
+    expect(output).toContain("import type { FetchArtifact }");
+    expect(output).toContain(
+      'fetchImpl({ locale, namespace: "billing" }) as Promise<AppSchema["billing"]>'
+    );
+  });
+
+  it("emits custom-delivery fetch loaders with locale + area", () => {
+    const output = formatNamespaceLoadersFile({
+      loadersOutputPath,
+      lazyEntries: [
+        {
+          namespace: "billing",
+          filePath: "src/i18n/translations/billing.json",
+          absolutePath: path.join(projectRoot, "src/i18n/translations/billing.json"),
+        },
+      ],
+      schemaTypeName: "AppSchema",
+      localeTypeName: "AppLocale",
+      typesModule: "i18n-types.generated",
+      importExtension: "none",
+      projectRoot,
+      delivery: "custom",
+      deliveryAreaTypeName: "AppDeliveryArea",
+      deliveryAreaNames: ["eu", "us"],
+      loaderStrategy: "fetch",
+      splitPathsByNamespace: {
+        billing: {
+          eu: "src/i18n/generated/translations/billing.eu.json",
+          us: "src/i18n/generated/translations/billing.us.json",
+        },
+      },
+    });
+
+    expect(output).toContain("(area, { locale }) =>");
+    expect(output).toContain(
+      'fetchImpl({ locale, namespace: "billing", area }) as Promise<AppSchema["billing"]>'
+    );
   });
 });

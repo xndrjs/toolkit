@@ -1,44 +1,45 @@
 import { z } from "zod";
 import path from "node:path";
-import {
-  IDENTIFIER_NAME_PATTERN,
-  IDENTIFIER_NAME_REQUIREMENT,
-  SUPPORTED_IMPORT_EXTENSIONS,
-} from "./constants.js";
+import { IDENTIFIER_NAME_PATTERN, IDENTIFIER_NAME_REQUIREMENT } from "./constants.js";
 import { getDeliveryArtifactsStructureIssues } from "./delivery-artifacts.js";
+import { typeNamesForProject } from "../codegen-config/type-names.js";
 
 const localeFallbackSchema = z.record(z.string(), z.union([z.string(), z.null()]));
 const deliveryArtifactsSchema = z.record(z.string(), z.array(z.string().min(1)));
 
-export const DELIVERY_MODES = ["canonical", "split-by-locale", "custom"] as const;
+export const DELIVERY_MODES = ["split-by-locale", "custom"] as const;
 export type DeliveryMode = (typeof DELIVERY_MODES)[number];
 
+export const LOADER_STRATEGIES = ["import", "fetch"] as const;
+export type LoaderStrategy = (typeof LOADER_STRATEGIES)[number];
+
+const PROJECT_NAME_PATTERN = /^[A-Z][a-zA-Z0-9]*$/;
+
 const codegenConfigShape = {
-  dictionary: z.string().min(1).optional(),
-  namespaces: z.record(z.string(), z.string().min(1)).optional(),
-  defaultNamespace: z.string().min(1).optional(),
-  typesOutput: z.string().min(1),
-  dictionaryOutput: z
+  /** PascalCase project id — generates `{project}Params`, `{project}Schema`, `{project}Locale`. */
+  projectName: z
     .string()
     .min(1)
-    .optional()
-    .describe(
-      'Output path for dictionary.generated.ts when emitted (canonical, or split/custom with eager namespaces). Omitted in split/custom when every namespace is lazy — defaults to "{dirname(typesOutput)}/dictionary.generated.ts" for stale-file cleanup only.'
-    ),
-  instanceOutput: z.string().min(1),
-  dictionarySchemaOutput: z.string().min(1).optional(),
-  loadOnInit: z.array(z.string().min(1)).optional(),
-  namespaceLoadersOutput: z.string().min(1).optional(),
-  importExtension: z.enum(SUPPORTED_IMPORT_EXTENSIONS).optional(),
-  paramsTypeName: z.string().min(1),
-  schemaTypeName: z.string().min(1),
-  localeTypeName: z.string().min(1).optional(),
-  localeFallbackConstName: z.string().min(1).optional(),
+    .regex(PROJECT_NAME_PATTERN, 'projectName must be PascalCase (e.g. "MyApp")'),
+  namespaces: z.record(z.string(), z.string().min(1)),
+  /**
+   * Directory for generated TypeScript modules:
+   * `i18n-types.generated.ts`, `instance.generated.ts`,
+   * `namespace-loaders.generated.ts`, `dictionary-schema.generated.ts`.
+   */
+  codegenPath: z.string().min(1),
   localeFallback: localeFallbackSchema.optional(),
-  factoryName: z.string().min(1).optional(),
-  delivery: z.enum(DELIVERY_MODES).optional().default("canonical"),
+  delivery: z.enum(DELIVERY_MODES).optional().default("split-by-locale"),
   deliveryArtifacts: deliveryArtifactsSchema.optional(),
-  deliveryOutput: z.string().min(1).optional(),
+  /** Directory for delivery JSON (`translations/`). Defaults to {@link codegenPath}. */
+  artifactsPath: z.string().min(1).optional(),
+  /**
+   * How generated `namespaceLoaders` resolve artifacts.
+   * - `import` (default): dynamic `import()` — JSON is bundled; content updates need a rebuild.
+   * - `fetch`: runtime `fetchImpl({ locale, namespace, area? })` via required `createI18n({ fetchImpl })`.
+   *   Codegen does not know URLs — mapping id → transport is an application concern.
+   */
+  loaderStrategy: z.enum(LOADER_STRATEGIES).optional().default("import"),
 };
 
 export const codegenConfigKeys = Object.keys(
@@ -49,37 +50,14 @@ export const codegenConfigSchema = z
   .object(codegenConfigShape)
   .strict()
   .superRefine((config, ctx) => {
-    const hasDictionary = config.dictionary !== undefined;
-    const hasNamespaces = config.namespaces !== undefined;
-
-    if (hasDictionary === hasNamespaces) {
-      ctx.addIssue({
-        code: "custom",
-        message: 'Specify exactly one of "dictionary" or "namespaces".',
-      });
-    }
-
-    if (config.namespaces) {
-      for (const namespace of Object.keys(config.namespaces)) {
-        if (!IDENTIFIER_NAME_PATTERN.test(namespace)) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["namespaces", namespace],
-            message: `Invalid namespace name "${namespace}" (${IDENTIFIER_NAME_REQUIREMENT}).`,
-          });
-        }
+    for (const namespace of Object.keys(config.namespaces)) {
+      if (!IDENTIFIER_NAME_PATTERN.test(namespace)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["namespaces", namespace],
+          message: `Invalid namespace name "${namespace}" (${IDENTIFIER_NAME_REQUIREMENT}).`,
+        });
       }
-    }
-
-    if (
-      config.defaultNamespace !== undefined &&
-      !IDENTIFIER_NAME_PATTERN.test(config.defaultNamespace)
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["defaultNamespace"],
-        message: `Invalid namespace name "${config.defaultNamespace}" (${IDENTIFIER_NAME_REQUIREMENT}).`,
-      });
     }
 
     if (config.delivery === "custom") {
@@ -105,35 +83,62 @@ export const codegenConfigSchema = z
         message: 'deliveryArtifacts is only allowed when delivery is "custom".',
       });
     }
-
-    if (config.loadOnInit !== undefined && config.delivery !== "canonical") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["loadOnInit"],
-        message: 'loadOnInit is only allowed when delivery is "canonical".',
-      });
-    }
   });
 
 export type CodegenConfigInput = z.input<typeof codegenConfigSchema>;
 export type CodegenConfig = z.infer<typeof codegenConfigSchema>;
 
-export function resolveDeliveryOutputDir(
-  config: Pick<CodegenConfig, "typesOutput" | "deliveryOutput">
-): string {
-  return config.deliveryOutput ?? path.dirname(config.typesOutput);
+export const GENERATED_BASENAMES = {
+  types: "i18n-types.generated.ts",
+  instance: "instance.generated.ts",
+  namespaceLoaders: "namespace-loaders.generated.ts",
+  dictionarySchema: "dictionary-schema.generated.ts",
+} as const;
+
+export const DEFAULT_FACTORY_NAME = "createI18n";
+export const DEFAULT_LOCALE_FALLBACK_CONST_NAME = "LOCALE_FALLBACK";
+
+/** Derived paths and symbol names from `projectName` + `codegenPath`. */
+export interface ResolvedCodegenPaths {
+  codegenPath: string;
+  typesOutput: string;
+  instanceOutput: string;
+  namespaceLoadersOutput: string;
+  dictionarySchemaOutput: string;
+  artifactsPath: string;
+  paramsTypeName: string;
+  schemaTypeName: string;
+  localeTypeName: string;
+  localeFallbackConstName: string;
+  factoryName: string;
+  deliveryAreaTypeName: string;
 }
 
-const DEFAULT_DICTIONARY_BASENAME = "dictionary.generated.ts";
+export function resolveCodegenPaths(
+  config: Pick<CodegenConfig, "projectName" | "codegenPath" | "artifactsPath">
+): ResolvedCodegenPaths {
+  const typeNames = typeNamesForProject(config.projectName);
+  const codegenPath = config.codegenPath;
+  return {
+    codegenPath,
+    typesOutput: path.join(codegenPath, GENERATED_BASENAMES.types),
+    instanceOutput: path.join(codegenPath, GENERATED_BASENAMES.instance),
+    namespaceLoadersOutput: path.join(codegenPath, GENERATED_BASENAMES.namespaceLoaders),
+    dictionarySchemaOutput: path.join(codegenPath, GENERATED_BASENAMES.dictionarySchema),
+    artifactsPath: config.artifactsPath ?? codegenPath,
+    paramsTypeName: typeNames.paramsTypeName,
+    schemaTypeName: typeNames.schemaTypeName,
+    localeTypeName: typeNames.localeTypeName,
+    localeFallbackConstName: DEFAULT_LOCALE_FALLBACK_CONST_NAME,
+    factoryName: DEFAULT_FACTORY_NAME,
+    deliveryAreaTypeName: `${config.projectName}DeliveryArea`,
+  };
+}
 
-/** Resolved path for dictionary.generated.ts (explicit config or default next to typesOutput). */
-export function resolveDictionaryOutputPath(
-  config: Pick<CodegenConfig, "typesOutput" | "dictionaryOutput">
+export function resolveArtifactsPath(
+  config: Pick<CodegenConfig, "codegenPath" | "artifactsPath">
 ): string {
-  return (
-    config.dictionaryOutput ??
-    path.join(path.dirname(config.typesOutput), DEFAULT_DICTIONARY_BASENAME)
-  );
+  return config.artifactsPath ?? config.codegenPath;
 }
 
 export function formatCodegenConfigIssues(error: z.ZodError): string {
