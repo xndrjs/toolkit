@@ -141,7 +141,7 @@ import { formatIssues } from "@xndrjs/i18n/validation";
 ```
 
 - `createI18n(options?)` (generated): cold start with no args / `{}`; hydrate with `{ state }` from `serialize()`; with `loaderStrategy: "fetch"` require `{ fetchImpl, state? }`.
-- Handle: `load({ namespaces, locale })` / `peek(...)` / `serialize()` — returns a locale-bound scope with typed `t()`.
+- Handle: `load({ namespaces, locale })` / `peek(...)` / `serialize()` / `getLoadState()` — returns a locale-bound scope with typed `t()`.
 - `t(namespace, key, params?)` on the locale-bound scope — compile-time key and param checking; methods are destructuring-safe.
 - `namespaceLoaders` (generated): typed `import()` loaders, or `createNamespaceLoaders(fetchImpl)` when `loaderStrategy` is `"fetch"`.
 - `regenerateNamespaces` — content-only delivery JSON refresh (same ICU contract); `runCodegen` for contract changes.

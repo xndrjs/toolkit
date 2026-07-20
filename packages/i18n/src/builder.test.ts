@@ -257,4 +257,47 @@ describe("I18nHandle", () => {
       "You have 1 invoice for Ada"
     );
   });
+
+  it("getLoadState() tracks pending, loaded, and error resources", async () => {
+    let resolveBilling!: () => void;
+    const billingPending = new Promise<typeof billingEn>((resolve) => {
+      resolveBilling = () => resolve(billingEn);
+    });
+    const billingLoader = vi.fn(() => billingPending);
+    const failingLoader = vi.fn(async () => {
+      throw new Error("load failed");
+    });
+    const engine = new IcuTranslationProviderMulti<MultiSchema, TestMultiParams>({});
+    const handle = createI18nHandle(engine, {
+      namespaceLoaders: {
+        billing: billingLoader,
+        default: failingLoader,
+      },
+    });
+
+    expect(handle.getLoadState()).toEqual({ resources: [] });
+
+    const pending = handle.load({ namespaces: ["billing"], locale: "en" });
+    expect(handle.getLoadState()).toEqual({
+      resources: [{ namespace: "billing", partition: "en", status: "pending" }],
+    });
+
+    resolveBilling();
+    await pending;
+
+    expect(handle.getLoadState()).toEqual({
+      resources: [{ namespace: "billing", partition: "en", status: "loaded" }],
+    });
+
+    await expect(handle.load({ namespaces: ["default"], locale: "it" })).rejects.toThrow(
+      "load failed"
+    );
+
+    expect(handle.getLoadState()).toEqual({
+      resources: [
+        { namespace: "billing", partition: "en", status: "loaded" },
+        { namespace: "default", partition: "it", status: "error", error: expect.any(Error) },
+      ],
+    });
+  });
 });

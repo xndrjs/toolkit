@@ -127,8 +127,20 @@ export class IcuTranslationProviderMulti<
     return this.builderLoadRegistry.has(namespace, partition);
   }
 
+  markBuilderResourcePending(namespace: string, partition: string): void {
+    this.builderLoadRegistry.markPending(namespace, partition);
+  }
+
   markBuilderResourceLoaded(namespace: string, partition: string): void {
     this.builderLoadRegistry.mark(namespace, partition);
+  }
+
+  markBuilderResourceError(namespace: string, partition: string, error: unknown): void {
+    this.builderLoadRegistry.markError(namespace, partition, error);
+  }
+
+  getBuilderLoadState() {
+    return this.builderLoadRegistry.getLoadState();
   }
 
   seedBuilderResources(resources: readonly BuilderResourceEntry[]): void {

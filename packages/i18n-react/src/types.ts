@@ -72,8 +72,13 @@ export interface LoadCoordinator<Scope> {
   readonly revision: number;
   /** @deprecated Prefer {@link ensure}. */
   request(input: LoadCoordinatorRequest<Scope>): void;
-  /** Idempotent: start load if missing. Safe from getSnapshot. */
+  /** Idempotent: start load if missing. Safe from client getSnapshot. */
   ensure(input: LoadCoordinatorRequest<Scope>): void;
+  /**
+   * Idempotent: resolve from {@link LoadCoordinatorRequest.tryResolveSync} only.
+   * Never starts `load()` — use from SSR `getServerSnapshot`.
+   */
+  ensureSync(input: LoadCoordinatorRequest<Scope>): void;
   getEntry(key: LoadCoordinatorKey): LoadCoordinatorEntry<Scope>;
   getDisplayEntry(
     key: LoadCoordinatorKey,
@@ -114,6 +119,14 @@ export interface I18nHandleLike {
   serialize: () => {
     dictionary: unknown;
     resources: readonly (readonly [string, string])[];
+  };
+  getLoadState: () => {
+    resources: readonly {
+      namespace: string;
+      partition: string;
+      status: "pending" | "loaded" | "error";
+      error?: unknown;
+    }[];
   };
 }
 

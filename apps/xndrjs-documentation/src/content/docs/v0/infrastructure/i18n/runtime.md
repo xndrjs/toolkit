@@ -31,6 +31,17 @@ createI18n({ fetchImpl, state? });
 
 Sync counterpart of `load`: returns a scope when every requested resource is already loaded (e.g. after hydrate), otherwise `null`.
 
+### `getLoadState()`
+
+Returns a snapshot of builder resources this handle has attempted to load:
+
+```ts
+const state = i18n.getLoadState();
+// { resources: [{ namespace: "billing", partition: "en", status: "loaded" }, ...] }
+```
+
+Each entry is `namespace` + `partition` (locale or delivery area) with `status: "pending" | "loaded" | "error"`. Failed loads include `error`. Resources never touched by `load()` do not appear.
+
 ### Serialize / hydrate
 
 ```ts

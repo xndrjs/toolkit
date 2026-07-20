@@ -85,7 +85,7 @@ function BillingPanel({ invoiceCount }: { invoiceCount: number }) {
 }
 ```
 
-Missing namespaces show your fallback UI for **that gate only** — not a blank app.
+Missing namespaces show your fallback UI for **that gate only** while the load is pending — not a blank app. If a load fails and you omit `renderError`, the gate **throws** so a React error boundary (e.g. Next.js `error.tsx`) can handle it; `fallback` is not used for errors.
 
 ## Day-to-day loop
 

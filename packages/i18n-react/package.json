@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/i18n-react",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "React runtime primitives and codegen for @xndrjs/i18n client bindings.",
   "private": false,
   "license": "MIT",
@@ -40,7 +40,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.build.json"
   },
   "peerDependencies": {
-    "@xndrjs/i18n": "^0.8.0",
+    "@xndrjs/i18n": "^0.8.1",
     "react": ">=19",
     "tsx": ">=4",
     "zod": "^4.0.0"

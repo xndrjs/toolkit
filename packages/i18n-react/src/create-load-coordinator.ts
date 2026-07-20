@@ -95,6 +95,42 @@ export function createLoadCoordinator<Scope = ScopedScopeLike>(): LoadCoordinato
     notify();
   }
 
+  function markResolvedSync(key: string, syncScope: Scope): void {
+    const entrySnapshot: LoadCoordinatorEntry<Scope> = {
+      status: "resolved",
+      scope: syncScope,
+    };
+    entries.set(key, {
+      status: "resolved",
+      promise: Promise.resolve(syncScope),
+      resolvedScope: syncScope,
+      error: null,
+      requestId: ++nextRequestId,
+      entrySnapshot,
+    });
+  }
+
+  /**
+   * SSR / getServerSnapshot: hydrate from peek/state only — never kick `load()`.
+   */
+  function ensureSync(input: LoadCoordinatorRequest<Scope>): void {
+    const key = cacheKey(input.engineRef, input.partition, input.namespaces);
+    lastKey = key;
+
+    if (entries.has(key)) {
+      return;
+    }
+
+    if (input.tryResolveSync === undefined) {
+      return;
+    }
+
+    const syncScope = input.tryResolveSync();
+    if (syncScope !== null) {
+      markResolvedSync(key, syncScope);
+    }
+  }
+
   function ensure(input: LoadCoordinatorRequest<Scope>): void {
     const key = cacheKey(input.engineRef, input.partition, input.namespaces);
     lastKey = key;
@@ -107,18 +143,7 @@ export function createLoadCoordinator<Scope = ScopedScopeLike>(): LoadCoordinato
     if (input.tryResolveSync !== undefined) {
       const syncScope = input.tryResolveSync();
       if (syncScope !== null) {
-        const entrySnapshot: LoadCoordinatorEntry<Scope> = {
-          status: "resolved",
-          scope: syncScope,
-        };
-        entries.set(key, {
-          status: "resolved",
-          promise: Promise.resolve(syncScope),
-          resolvedScope: syncScope,
-          error: null,
-          requestId: ++nextRequestId,
-          entrySnapshot,
-        });
+        markResolvedSync(key, syncScope);
         return;
       }
     }
@@ -149,8 +174,10 @@ export function createLoadCoordinator<Scope = ScopedScopeLike>(): LoadCoordinato
         throw error;
       }
     );
-    // Mark rejection handled when only getEntry consumers attach (no getPromise).
-    void promise.catch(() => void null);
+    // Avoid unhandled rejection when only gate subscribers attach (no getPromise).
+    void promise.catch((error: unknown) => {
+      console.error("[i18n-react] namespace load failed:", error);
+    });
 
     entries.set(key, {
       status: "pending",
@@ -302,6 +329,7 @@ export function createLoadCoordinator<Scope = ScopedScopeLike>(): LoadCoordinato
     },
     request: ensure,
     ensure,
+    ensureSync,
     getEntry,
     getDisplayEntry,
     retry: retryKey,

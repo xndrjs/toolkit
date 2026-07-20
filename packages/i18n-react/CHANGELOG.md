@@ -1,5 +1,16 @@
 # @xndrjs/i18n-react
 
+## 0.8.1
+
+### Patch Changes
+
+- Fix load-gate error handling: failed namespace loads no longer appear as an endless `fallback` UI. When `renderError` is omitted, the gate throws so a React error boundary can handle the failure; the load coordinator logs rejections instead of swallowing them.
+
+  SSR `getServerSnapshot` no longer kicks client `load()` / fetch — only sync hydrate from `state` (`ensureSync` / peek). Async namespace loads start on the client only.
+
+- Updated dependencies
+  - @xndrjs/i18n@0.8.1
+
 ## 0.8.0
 
 ### Minor Changes
