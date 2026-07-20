@@ -237,6 +237,7 @@ If those are the pressures you feel, the stack is meant to feel small once the m
 
 ## Where to go next
 
+- Live demo: [xndrjs-i18n-demo.vercel.app](https://xndrjs-i18n-demo.vercel.app/) — multi, areas, and programmatic profiles with SSR and CSR examples
 - Package docs: [`@xndrjs/i18n`](/v0/infrastructure/i18n/) in this site’s documentation line
 - Source: [toolkit packages](https://github.com/xndrjs/toolkit/tree/main/packages)
-- Hands-on: the [`i18n-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/i18n-demo) app shows multi, areas (fetch), and programmatic config side by side
+- Hands-on source: the [`i18n-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/i18n-demo) app in the monorepo

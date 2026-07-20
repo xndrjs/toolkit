@@ -1,7 +1,8 @@
-import { act, useState } from "react";
+import { act, Component, type ReactNode, useState } from "react";
+import { renderToString } from "react-dom/server";
 import { createI18nHandle, IcuTranslationProviderMulti } from "@xndrjs/i18n";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createLoadCoordinator } from "./create-load-coordinator.js";
 import { createI18nLoadGate, useNamespaceLoad, type I18nLoadArgs } from "./namespace-load-gate.js";
 import type { ScopedScopeLike } from "./types.js";
@@ -14,6 +15,11 @@ type MultiParams = {
   default: { greeting: never };
   billing: { invoice: never };
 };
+type TestLocale = "en" | "it";
+
+function asScopedScope(scope: unknown): ScopedScopeLike {
+  return scope as ScopedScopeLike;
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -23,6 +29,24 @@ function deferred<T>() {
     reject = rej;
   });
   return { promise, resolve, reject };
+}
+
+class TestErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { error: Error | null }
+> {
+  override state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  override render() {
+    if (this.state.error !== null) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
 }
 
 function createTestHandle() {
@@ -41,7 +65,7 @@ function createTestHandle() {
 
 function createGateFixture(options?: {
   load?: (namespaces: readonly string[]) => Promise<ScopedScopeLike>;
-  locale?: string;
+  locale?: TestLocale;
   keepPreviousOnPartitionChange?: boolean;
 }) {
   const handle = createTestHandle();
@@ -50,7 +74,7 @@ function createGateFixture(options?: {
   const load =
     options?.load ??
     ((namespaces: readonly string[]) =>
-      handle.load({ namespaces: [...namespaces] as ["default"], locale: locale }));
+      handle.load({ namespaces: [...namespaces] as ["default"], locale }).then(asScopedScope));
 
   const { I18n, withI18n } = createI18nLoadGate({
     ...(options?.keepPreviousOnPartitionChange !== undefined
@@ -91,11 +115,57 @@ describe("useNamespaceLoad", () => {
 
     const scope = await handle.load({ namespaces: ["default"], locale: "it" });
     await act(async () => {
-      pending.resolve(scope);
+      pending.resolve(asScopedScope(scope));
       await pending.promise;
     });
 
     expect(screen.getByTestId("status").textContent).toBe("ready");
+  });
+
+  it("SSR getServerSnapshot does not call load without sync seed", () => {
+    const load = vi.fn(() => Promise.resolve(asScopedScope({ t: () => "" })));
+    const handle = createTestHandle();
+    const coordinator = createLoadCoordinator<ScopedScopeLike>();
+
+    function Probe() {
+      const entry = useNamespaceLoad({
+        coordinator,
+        engineRef: handle,
+        partition: "it",
+        namespaces: ["default"],
+        locale: "it",
+        load,
+      });
+      return <span>{entry.status}</span>;
+    }
+
+    const html = renderToString(<Probe />);
+    expect(html).toContain("pending");
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("SSR getServerSnapshot uses tryResolveSync without calling load", async () => {
+    const handle = createTestHandle();
+    await handle.load({ namespaces: ["default"], locale: "it" });
+    const load = vi.fn(() => Promise.reject(new Error("should not load")));
+    const coordinator = createLoadCoordinator<ScopedScopeLike>();
+
+    function Probe() {
+      const entry = useNamespaceLoad({
+        coordinator,
+        engineRef: handle,
+        partition: "it",
+        namespaces: ["default"],
+        locale: "it",
+        load,
+        tryResolveSync: () => asScopedScope(handle.peek({ namespaces: ["default"], locale: "it" })),
+      });
+      return <span>{entry.status}</span>;
+    }
+
+    const html = renderToString(<Probe />);
+    expect(html).toContain("ready");
+    expect(load).not.toHaveBeenCalled();
   });
 });
 
@@ -132,7 +202,7 @@ describe("createI18nLoadGate", () => {
     const handle = createTestHandle();
     const scope = await handle.load({ namespaces: ["default"], locale: "it" });
     await act(async () => {
-      pending.resolve(scope);
+      pending.resolve(asScopedScope(scope));
       await pending.promise;
     });
 
@@ -159,7 +229,7 @@ describe("createI18nLoadGate", () => {
     const handle = createTestHandle();
     const scope = await handle.load({ namespaces: ["default", "billing"], locale: "it" });
     await act(async () => {
-      pending.resolve(scope);
+      pending.resolve(asScopedScope(scope));
       await pending.promise;
     });
 
@@ -181,24 +251,30 @@ describe("createI18nLoadGate", () => {
     expect(container.textContent).toBe("");
   });
 
-  it("renders fallback on load error (no remount storm)", async () => {
+  it("throws to an error boundary when load fails without renderError", async () => {
     const pending = deferred<ScopedScopeLike>();
     const { I18n, coordinator, handle, locale } = createGateFixture({
       load: () => pending.promise,
     });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     render(
-      <I18n namespaces={["default"]} fallback={<span data-testid="fallback">err-or-pending</span>}>
-        {({ t }) => <span data-testid="greeting">{t("default", "greeting")}</span>}
-      </I18n>
+      <TestErrorBoundary fallback={<span data-testid="caught">caught</span>}>
+        <I18n namespaces={["default"]} fallback={<span data-testid="fallback">loading</span>}>
+          {({ t }) => <span data-testid="greeting">{t("default", "greeting")}</span>}
+        </I18n>
+      </TestErrorBoundary>
     );
+
+    expect(screen.getByTestId("fallback").textContent).toBe("loading");
 
     await act(async () => {
       pending.reject(new Error("load failed"));
       await pending.promise.catch(() => undefined);
     });
 
-    expect(screen.getByTestId("fallback").textContent).toBe("err-or-pending");
+    expect(screen.getByTestId("caught").textContent).toBe("caught");
+    expect(screen.queryByTestId("fallback")).toBeNull();
     expect(screen.queryByTestId("greeting")).toBeNull();
     expect(
       coordinator.getEntry({
@@ -207,6 +283,8 @@ describe("createI18nLoadGate", () => {
         namespaces: ["default"],
       })
     ).toEqual({ status: "error", error: expect.any(Error) });
+
+    consoleError.mockRestore();
   });
 
   it("renderError exposes retry for failed loads", async () => {
@@ -258,7 +336,7 @@ describe("createI18nLoadGate", () => {
 
     const scope = await handle.load({ namespaces: ["default"], locale: "it" });
     await act(async () => {
-      currentPromise.resolve(scope);
+      currentPromise.resolve(asScopedScope(scope));
       await currentPromise.promise;
     });
 
@@ -308,7 +386,7 @@ describe("createI18nLoadGate", () => {
     const handle = createTestHandle();
     const scope = await handle.load({ namespaces: ["default"], locale: "it" });
     await act(async () => {
-      pending.resolve(scope);
+      pending.resolve(asScopedScope(scope));
       await pending.promise;
     });
 
@@ -364,7 +442,7 @@ describe("createI18nLoadGate", () => {
     const handle = createTestHandle();
     const scope = await handle.load({ namespaces: ["default"], locale: "it" });
     await act(async () => {
-      pending.resolve(scope);
+      pending.resolve(asScopedScope(scope));
       await pending.promise;
     });
 
@@ -411,7 +489,7 @@ describe("createI18nLoadGate", () => {
 
     const scope = await handle.load({ namespaces: ["default"], locale: "en" });
     await act(async () => {
-      pending.resolve(scope);
+      pending.resolve(asScopedScope(scope));
       await pending.promise;
     });
 
@@ -424,8 +502,8 @@ describe("createI18nLoadGate ready path", () => {
   it("renders immediately when the coordinator entry is already resolved", async () => {
     const handle = createTestHandle();
     const coordinator = createLoadCoordinator<ScopedScopeLike>();
-    const locale = "it";
-    const scope = await handle.load({ namespaces: ["default"], locale: locale });
+    const locale: TestLocale = "it";
+    const scope = asScopedScope(await handle.load({ namespaces: ["default"], locale }));
 
     coordinator.request({
       engineRef: handle,
@@ -461,7 +539,7 @@ describe("createI18nLoadGate keep-then-switch", () => {
   it("keeps previous t across locale change until new partition resolves", async () => {
     const handle = createTestHandle();
     const coordinator = createLoadCoordinator<ScopedScopeLike>();
-    let activeLocale = "en";
+    let activeLocale: TestLocale = "en";
     const pendingIt = deferred<ScopedScopeLike>();
 
     const { I18n } = createI18nLoadGate({
@@ -475,12 +553,14 @@ describe("createI18nLoadGate keep-then-switch", () => {
           if (activeLocale === "it") {
             return pendingIt.promise;
           }
-          return handle.load({ namespaces: [...namespaces] as ["default"], locale: activeLocale });
+          return handle
+            .load({ namespaces: [...namespaces] as ["default"], locale: activeLocale })
+            .then(asScopedScope);
         },
       }),
     });
 
-    function App({ locale }: { locale: string }) {
+    function App({ locale }: { locale: TestLocale }) {
       activeLocale = locale;
       return (
         <I18n namespaces={["default"]} fallback={<span data-testid="fallback">loading</span>}>
@@ -500,7 +580,7 @@ describe("createI18nLoadGate keep-then-switch", () => {
     expect(screen.queryByTestId("fallback")).toBeNull();
     expect(screen.getByTestId("row").textContent).toBe("en:Hello:it");
 
-    const itScope = await handle.load({ namespaces: ["default"], locale: "it" });
+    const itScope = asScopedScope(await handle.load({ namespaces: ["default"], locale: "it" }));
     await act(async () => {
       pendingIt.resolve(itScope);
       await pendingIt.promise;

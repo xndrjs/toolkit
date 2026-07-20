@@ -8,3 +8,8 @@ export type {
   ScopeForLocale,
 } from "./i18n-handle.js";
 export { createI18nHandle } from "./i18n-handle.js";
+export type {
+  I18nLoadState,
+  I18nResourceLoadRecord,
+  I18nResourceLoadStatus,
+} from "./load-state.js";

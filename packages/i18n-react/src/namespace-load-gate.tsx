@@ -1,6 +1,6 @@
 /**
  * Manual (non-Suspense) i18n load gate: ensure + subscribe via the load
- * coordinator, then render fallback / keep-previous / error UI.
+ * coordinator, then render fallback / keep-previous / error UI / throw.
  */
 import {
   forwardRef,
@@ -33,7 +33,8 @@ export interface UseNamespaceLoadInput<Scope> {
 
 /**
  * Starts (or reuses) a coordinator load and re-renders when that entry settles.
- * Kick-off is idempotent inside the snapshot getter (safe with useSyncExternalStore).
+ * Client getSnapshot may kick `load()`; SSR getServerSnapshot only peeks sync
+ * (hydrated `state`) and never starts a client fetch during prerender.
  */
 export function useNamespaceLoad<Scope>(
   input: UseNamespaceLoadInput<Scope>
@@ -57,29 +58,21 @@ export function useNamespaceLoad<Scope>(
     ...(tryResolveSync !== undefined ? { tryResolveSync } : {}),
   };
 
+  const displayOptions = {
+    locale,
+    namespaces,
+    ...(keepPrevious !== undefined ? { keepPrevious } : {}),
+  };
+
   return useSyncExternalStore(
     coordinator.subscribe,
     () => {
       coordinator.ensure(request);
-      return coordinator.getDisplayEntry(
-        { engineRef, partition, namespaces },
-        {
-          locale,
-          namespaces,
-          ...(keepPrevious !== undefined ? { keepPrevious } : {}),
-        }
-      );
+      return coordinator.getDisplayEntry({ engineRef, partition, namespaces }, displayOptions);
     },
     () => {
-      coordinator.ensure(request);
-      return coordinator.getDisplayEntry(
-        { engineRef, partition, namespaces },
-        {
-          locale,
-          namespaces,
-          ...(keepPrevious !== undefined ? { keepPrevious } : {}),
-        }
-      );
+      coordinator.ensureSync(request);
+      return coordinator.getDisplayEntry({ engineRef, partition, namespaces }, displayOptions);
     }
   );
 }
@@ -116,8 +109,12 @@ export interface CreateI18nLoadGateOptions {
 
 export interface I18nGateProps {
   namespaces: readonly string[];
+  /** Shown only while the load is pending (not on error). */
   fallback?: ReactNode;
-  /** When set, called for error with no keep-previous display. */
+  /**
+   * When set, called for error with no keep-previous display.
+   * Otherwise the load error is thrown for a React error boundary.
+   */
   renderError?: (args: { error: unknown; retry: () => void }) => ReactNode;
   children: (value: I18nLoadGateValue) => ReactNode;
 }
@@ -145,6 +142,16 @@ function resolveNamespaces(namespaces: readonly string[] | undefined): readonly 
   return namespaces;
 }
 
+function toThrownError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  if (typeof error === "string") {
+    return new Error(error);
+  }
+  return new Error("i18n namespace load failed");
+}
+
 function renderDisplayEntry(
   entry: LoadDisplayEntry<ScopedScopeLike>,
   options: {
@@ -159,9 +166,9 @@ function renderDisplayEntry(
 
   if (entry.status === "error" && entry.t === null) {
     if (options.renderError) {
-      return options.renderError({ error: entry.error, retry: entry.retry });
+      return options.renderError({ error: entry.error, retry: entry.retry! });
     }
-    return options.fallback ?? null;
+    throw toThrownError(entry.error);
   }
 
   if (entry.t !== null && entry.display) {
@@ -230,7 +237,7 @@ export function createI18nLoadGate(options: CreateI18nLoadGateOptions): {
     const Outer = forwardRef<R, P>(function I18nHocOuter(props, ref) {
       const entry = useGateEntry(hocOptions.namespaces);
 
-      const needsFallback = entry.status !== "ready" && entry.t === null;
+      const needsFallback = entry.status === "pending" && entry.t === null;
       const resolvedFallback =
         !needsFallback || fallback === undefined
           ? undefined

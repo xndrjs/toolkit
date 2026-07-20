@@ -78,6 +78,44 @@ describe("createLoadCoordinator", () => {
     expect(coordinator.getEntry(key)).toEqual({ status: "resolved", scope: 42 });
   });
 
+  it("ensureSync resolves from tryResolveSync without calling load", () => {
+    const coordinator = createLoadCoordinator<string>();
+    const load = vi.fn(() => Promise.resolve("async"));
+    const tryResolveSync = vi.fn(() => "sync");
+    const engine = {};
+    const key = { engineRef: engine, partition: "en", namespaces: ["default"] as const };
+
+    coordinator.ensureSync({ ...key, load, tryResolveSync });
+
+    expect(tryResolveSync).toHaveBeenCalledTimes(1);
+    expect(load).not.toHaveBeenCalled();
+    expect(coordinator.getEntry(key)).toEqual({ status: "resolved", scope: "sync" });
+  });
+
+  it("ensureSync does nothing when tryResolveSync misses (no async kick)", () => {
+    const coordinator = createLoadCoordinator<string>();
+    const load = vi.fn(() => Promise.resolve("async"));
+    const engine = {};
+    const key = { engineRef: engine, partition: "en", namespaces: ["default"] as const };
+
+    coordinator.ensureSync({ ...key, load, tryResolveSync: () => null });
+
+    expect(load).not.toHaveBeenCalled();
+    expect(coordinator.getEntry(key)).toEqual({ status: "pending" });
+  });
+
+  it("ensureSync without tryResolveSync leaves entry absent", () => {
+    const coordinator = createLoadCoordinator<string>();
+    const load = vi.fn(() => Promise.resolve("async"));
+    const engine = {};
+    const key = { engineRef: engine, partition: "en", namespaces: ["default"] as const };
+
+    coordinator.ensureSync({ ...key, load });
+
+    expect(load).not.toHaveBeenCalled();
+    expect(coordinator.getEntry(key)).toEqual({ status: "pending" });
+  });
+
   it("resolves synchronously when tryResolveSync returns a scope", () => {
     const coordinator = createLoadCoordinator<string>();
     const load = vi.fn(() => Promise.resolve("async"));
@@ -222,6 +260,32 @@ describe("createLoadCoordinator", () => {
     other.resolve("other");
     await vi.waitFor(() => expect(coordinator.revision).toBe(2));
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs rejected loads when getPromise is not awaited", async () => {
+    const coordinator = createLoadCoordinator<string>();
+    const pending = deferred<string>();
+    const engine = {};
+    const key = {
+      engineRef: engine,
+      partition: "en",
+      namespaces: ["default"] as const,
+    };
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => void 0);
+
+    coordinator.ensure({ ...key, load: () => pending.promise });
+
+    pending.reject(new Error("load failed"));
+    await vi.waitFor(() => {
+      expect(coordinator.getEntry(key)).toEqual({ status: "error", error: expect.any(Error) });
+    });
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[i18n-react] namespace load failed:",
+      expect.any(Error)
+    );
+
+    consoleError.mockRestore();
   });
 
   it("keeps an error entry and notifies subscribers on reject", async () => {

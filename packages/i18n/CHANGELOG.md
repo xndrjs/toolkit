@@ -1,5 +1,11 @@
 # @xndrjs/i18n
 
+## 0.8.1
+
+### Patch Changes
+
+- Add `getLoadState()` on the i18n handle: a single snapshot of builder resource loads (`pending` / `loaded` / `error`) keyed by namespace and partition.
+
 ## 0.8.0
 
 ### Minor Changes

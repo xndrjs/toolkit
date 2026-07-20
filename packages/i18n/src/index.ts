@@ -20,6 +20,11 @@ export { createI18nHandle, invokeNamespaceLoader } from "./builder.js";
 export type { BuilderResourceEntry } from "./builder-load-registry.js";
 export type { I18nCreateInput, I18nSerializedState } from "./serialized-state.js";
 export { normalizeI18nCreateInput } from "./serialized-state.js";
+export type {
+  I18nLoadState,
+  I18nResourceLoadRecord,
+  I18nResourceLoadStatus,
+} from "./load-state.js";
 
 export { IcuTranslationProviderMulti } from "./IcuTranslationProviderMulti.js";
 

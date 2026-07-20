@@ -37,13 +37,21 @@ describe("builder-types", () => {
 });
 
 describe("I18nHandle typestate", () => {
-  it("exposes load / peek / serialize", () => {
+  it("exposes load / peek / serialize / getLoadState", () => {
     const engine = new IcuTranslationProviderMulti<TypestateSchema, TypestateParams>({});
     const handle = createI18nHandle(engine);
     expectTypeOf(handle).toMatchTypeOf<I18nHandle<TypestateSchema, TypestateParams>>();
     expectTypeOf(handle.serialize).returns.toEqualTypeOf<{
       dictionary: PartialMultiDictionary<TypestateSchema>;
       resources: readonly (readonly [string, string])[];
+    }>();
+    expectTypeOf(handle.getLoadState).returns.toEqualTypeOf<{
+      resources: readonly {
+        namespace: string;
+        partition: string;
+        status: "pending" | "loaded" | "error";
+        error?: unknown;
+      }[];
     }>();
   });
 });

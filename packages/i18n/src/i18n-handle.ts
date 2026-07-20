@@ -9,6 +9,7 @@ import type {
 } from "./types.js";
 import type { I18nScopeMultiForLocale } from "./scope-multi.js";
 import type { MultiParams, ParamsForNamespaces, SchemaForNamespaces } from "./scope-types.js";
+import type { I18nLoadState } from "./load-state.js";
 
 /** Engine handle accepted by {@link createI18nHandle} (with or without localeFallback). */
 type HandleEngine<
@@ -89,6 +90,9 @@ export interface I18nHandle<
     dictionary: PartialMultiDictionary<Schema, RequestLocales>;
     resources: readonly (readonly [string, string])[];
   };
+
+  /** Snapshot of resource loads attempted on this handle (pending / loaded / error). */
+  getLoadState(): I18nLoadState;
 }
 
 export class I18nHandleImpl<
@@ -126,6 +130,10 @@ export class I18nHandleImpl<
 
   serialize() {
     return this.engine.serialize();
+  }
+
+  getLoadState(): I18nLoadState {
+    return this.engine.getBuilderLoadState();
   }
 }
 
@@ -194,9 +202,15 @@ async function applyHandleLoad<
         return;
       }
 
-      const data = await invokeNamespaceLoader(loader, partition, { locale: input.locale });
-      engine.applyLoadMergeNamespace(namespace, data);
-      engine.markBuilderResourceLoaded(namespace, partition);
+      engine.markBuilderResourcePending(namespace, partition);
+      try {
+        const data = await invokeNamespaceLoader(loader, partition, { locale: input.locale });
+        engine.applyLoadMergeNamespace(namespace, data);
+        engine.markBuilderResourceLoaded(namespace, partition);
+      } catch (error) {
+        engine.markBuilderResourceError(namespace, partition, error);
+        throw error;
+      }
     })
   );
 }
