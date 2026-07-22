@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useState } from "react";
 import { createI18nHandle, IcuTranslationProviderMulti } from "@xndrjs/i18n";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
@@ -84,5 +84,36 @@ describe("runtime primitives", () => {
         </I18nRootProvider>
       )
     ).toThrow(/pass either `state` or `dictionary`/);
+  });
+
+  it("withI18n allows hooks in render when I18nRoot has no hydrated state", async () => {
+    const { withI18n } = createDefaultLoadGate();
+
+    const Child = withI18n<{ label: string }>(
+      {
+        namespaces: ["default"],
+        fallback: <span data-testid="fallback">loading</span>,
+      },
+      function Child({ label }, { t }) {
+        const [n] = useState(0);
+        return (
+          <span data-testid="child">
+            {label}:{t("default", "greeting")}:{n}
+          </span>
+        );
+      }
+    );
+
+    await act(async () => {
+      render(
+        <I18nRootProvider createI18n={createTestI18n} locale="it">
+          <Child label="x" />
+        </I18nRootProvider>
+      );
+    });
+
+    expect(await screen.findByTestId("child")).toBeTruthy();
+    expect(screen.getByTestId("child").textContent).toBe("x:Ciao:0");
+    expect(screen.queryByTestId("fallback")).toBeNull();
   });
 });

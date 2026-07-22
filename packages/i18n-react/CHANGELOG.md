@@ -1,5 +1,13 @@
 # @xndrjs/i18n-react
 
+## 0.8.2
+
+### Patch Changes
+
+- **Fix:** `withI18n` no longer violates the Rules of Hooks when the load gate starts in `pending` (for example `I18nRoot` without hydrated `state`) and later becomes `ready`.
+
+  Previously the HOC returned `fallback` without calling the render function, so hooks inside that render (e.g. `useState`) appeared only after resolve. The Outer now always invokes `render` (with a no-op `t` while pending), then chooses between `fallback` and the rendered output.
+
 ## 0.8.1
 
 ### Patch Changes

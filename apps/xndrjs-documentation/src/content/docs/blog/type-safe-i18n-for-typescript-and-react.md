@@ -66,11 +66,14 @@ Here are the decisions that got me to that result.
 
 **Compiler-first.** Dictionaries should live as ordinary files. Simple JSON is enough when labels are short. When you need line breaks — and especially when ICU gets dense (`zero`, `one`, `few`, `other`, nested selects) — editing that in JSON becomes painful. I added YAML as an authoring format specifically for those multiline, complex messages. A codegen step should read ICU from either format and produce exact TypeScript types, loaders, and delivery artifacts — so the contract you author is the contract the call site is allowed to see. If a key or parameter is wrong, that should fail at compile time, not in production.
 
-**One handle, one load method.** The core surface should stay small on purpose — roughly:
+**One load method.** The core surface should stay small on purpose — roughly:
 
 ```ts
 const i18n = createI18n();
-const { t } = await i18n.load({ namespaces: ["default", "billing"], locale: "en" });
+const { t } = await i18n.load({
+  namespaces: ["default", "billing"],
+  locale: "en",
+});
 ```
 
 That shape should cover the delivery stories that matter in production. You should be able to ship one artifact per locale so each visitor downloads only their language. Or group locales into geographic areas — for example Europe vs the Americas — and deliver one slice per area when several languages share the same content set. Either way you should still call `load` with namespaces and a locale; custom areas should be configuration, not a second API or a second mental model.

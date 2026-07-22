@@ -152,23 +152,12 @@ function toThrownError(error: unknown): Error {
   return new Error("i18n namespace load failed");
 }
 
-function renderDisplayEntry(
-  entry: LoadDisplayEntry<ScopedScopeLike>,
-  options: {
-    fallback?: ReactNode;
-    renderError?: (args: { error: unknown; retry: () => void }) => ReactNode;
-    children: (value: I18nLoadGateValue) => ReactNode;
-  }
-): ReactNode {
-  if (entry.status === "ready") {
-    return options.children({ t: entry.t, locale: entry.locale });
-  }
+const noopT: ScopedTranslateFn = () => "";
 
-  if (entry.status === "error" && entry.t === null) {
-    if (options.renderError) {
-      return options.renderError({ error: entry.error, retry: entry.retry! });
-    }
-    throw toThrownError(entry.error);
+/** Gate value for display, or `null` when only fallback / error UI should show. */
+function gateValueFromEntry(entry: LoadDisplayEntry<ScopedScopeLike>): I18nLoadGateValue | null {
+  if (entry.status === "ready") {
+    return { t: entry.t, locale: entry.locale };
   }
 
   if (entry.t !== null && entry.display) {
@@ -183,6 +172,29 @@ function renderDisplayEntry(
       value.error = entry.error;
       value.retry = entry.retry;
     }
+    return value;
+  }
+
+  return null;
+}
+
+function renderDisplayEntry(
+  entry: LoadDisplayEntry<ScopedScopeLike>,
+  options: {
+    fallback?: ReactNode;
+    renderError?: (args: { error: unknown; retry: () => void }) => ReactNode;
+    children: (value: I18nLoadGateValue) => ReactNode;
+  }
+): ReactNode {
+  if (entry.status === "error" && entry.t === null) {
+    if (options.renderError) {
+      return options.renderError({ error: entry.error, retry: entry.retry! });
+    }
+    throw toThrownError(entry.error);
+  }
+
+  const value = gateValueFromEntry(entry);
+  if (value !== null) {
     return options.children(value);
   }
 
@@ -203,10 +215,13 @@ export function createI18nLoadGate(options: CreateI18nLoadGateOptions): {
   const { useLoadArgs } = options;
   const keepPrevious = options.keepPreviousOnPartitionChange !== false;
 
-  function useGateEntry(namespaces: readonly string[]): LoadDisplayEntry<ScopedScopeLike> {
+  function useGateLoad(namespaces: readonly string[]): {
+    entry: LoadDisplayEntry<ScopedScopeLike>;
+    locale: string;
+  } {
     const resolved = resolveNamespaces(namespaces);
     const args = useLoadArgs();
-    return useNamespaceLoad({
+    const entry = useNamespaceLoad({
       coordinator: args.coordinator,
       engineRef: args.engineRef,
       partition: args.partition,
@@ -218,10 +233,11 @@ export function createI18nLoadGate(options: CreateI18nLoadGateOptions): {
         : {}),
       keepPrevious,
     });
+    return { entry, locale: args.locale };
   }
 
   function I18n({ namespaces, fallback, renderError, children }: I18nGateProps): ReactNode {
-    const entry = useGateEntry(namespaces);
+    const { entry } = useGateLoad(namespaces);
     return renderDisplayEntry(entry, {
       ...(fallback !== undefined ? { fallback } : {}),
       ...(renderError !== undefined ? { renderError } : {}),
@@ -235,25 +251,29 @@ export function createI18nLoadGate(options: CreateI18nLoadGateOptions): {
   ): ForwardRefExoticComponent<P & RefAttributes<R>> {
     const { fallback, renderError } = hocOptions;
     const Outer = forwardRef<R, P>(function I18nHocOuter(props, ref) {
-      const entry = useGateEntry(hocOptions.namespaces);
+      const { entry, locale } = useGateLoad(hocOptions.namespaces);
 
-      const needsFallback = entry.status === "pending" && entry.t === null;
-      const resolvedFallback =
-        !needsFallback || fallback === undefined
-          ? undefined
-          : typeof fallback === "function"
-            ? fallback(props as P)
-            : fallback;
+      // Always invoke `render` so hooks inside it are Outer hooks and stay
+      // unconditional across pending → ready (e.g. I18nRoot without hydrated state).
+      const displayValue = gateValueFromEntry(entry);
+      const value = displayValue ?? ({ t: noopT, locale } satisfies I18nLoadGateValue);
+      const rendered = render(props as P, value, ref);
 
-      return renderDisplayEntry(entry, {
-        ...(resolvedFallback !== undefined ? { fallback: resolvedFallback } : {}),
-        ...(renderError !== undefined
-          ? {
-              renderError: ({ error, retry }) => renderError({ error, retry, props: props as P }),
-            }
-          : {}),
-        children: (value) => render(props as P, value, ref),
-      });
+      if (entry.status === "error" && entry.t === null) {
+        if (renderError) {
+          return renderError({ error: entry.error, retry: entry.retry!, props: props as P });
+        }
+        throw toThrownError(entry.error);
+      }
+
+      if (displayValue !== null) {
+        return rendered;
+      }
+
+      if (fallback === undefined) {
+        return null;
+      }
+      return typeof fallback === "function" ? fallback(props as P) : fallback;
     });
 
     const displayName = render.name || "Component";
