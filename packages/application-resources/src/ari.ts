@@ -1,3 +1,4 @@
+import { normalizeKey } from "./normalize-key";
 import { stableStringifyResource } from "./stable-stringify";
 import type {
   ApplicationResourceIdentifier,
@@ -13,17 +14,21 @@ export function ari<const Type extends string, const Key extends ApplicationReso
   type: Type,
   key: Key & AssertValidApplicationResourceKey<Key>
 ): ApplicationResourceIdentifier<Type, Key> {
+  const frozenKey = normalizeKey(key);
+
   const resource: ApplicationResourceIdentifier<Type, Key> = {
     type,
-    key,
+    key: frozenKey,
     toArray() {
-      return [type, ...key] as readonly [Type, ...Key];
+      return [type, ...frozenKey] as readonly [Type, ...Key];
     },
     format(formatter) {
       return (formatter ?? defaultFormatter)(resource);
     },
     equals(other) {
-      return stableStringifyResource(type, key) === stableStringifyResource(other.type, other.key);
+      return (
+        stableStringifyResource(type, frozenKey) === stableStringifyResource(other.type, other.key)
+      );
     },
   };
 
