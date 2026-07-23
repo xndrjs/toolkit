@@ -11,9 +11,9 @@
   },
   "type": "module",
   "bin": {
-    "xndrjs-i18n-codegen": "./bin/codegen.mjs",
-    "xndrjs-i18n-setup": "./bin/setup.mjs",
-    "xndrjs-i18n-audit": "./bin/audit.mjs"
+    "xndrjs-i18n-codegen": "./dist/cli/codegen.js",
+    "xndrjs-i18n-setup": "./dist/cli/setup.js",
+    "xndrjs-i18n-audit": "./dist/cli/audit.js"
   },
   "types": "./dist/index.d.ts",
   "exports": {
@@ -34,9 +34,7 @@
     }
   },
   "files": [
-    "dist",
-    "bin",
-    "src"
+    "dist"
   ],
   "engines": {
     "node": ">=18"
@@ -47,7 +45,7 @@
     "prepublishOnly": "pnpm run build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest run",
+    "test": "pnpm run build && vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -56,7 +54,6 @@
     "yaml": "^2.8.1"
   },
   "peerDependencies": {
-    "tsx": ">=4",
     "zod": "^4.0.0"
   },
   "devDependencies": {

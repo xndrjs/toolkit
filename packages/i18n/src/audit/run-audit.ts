@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { CodegenConfig } from "../codegen/codegen-config-schema.js";
 import { loadConfig } from "../codegen/config.js";
 import { type FailOnCriterion, runAuditFromConfig } from "./audit-dictionaries.js";
@@ -89,6 +90,6 @@ async function main(): Promise<void> {
   process.exit(exitCode);
 }
 
-if (process.argv[1]?.endsWith("run-audit.ts")) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   void main();
 }

@@ -10,10 +10,9 @@ React bindings for [`@xndrjs/i18n`](../i18n): a shared root, colocated namespace
 
 ```bash
 npm install @xndrjs/i18n @xndrjs/i18n-react zod
-npm install -D tsx
 ```
 
-Peers: `@xndrjs/i18n` ^0.8, `react` ≥ 19, `zod`, `tsx` (codegen CLI).
+Peers: `@xndrjs/i18n` ^0.8, `react` ≥ 19, `zod`.
 
 ## Codegen
 

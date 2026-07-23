@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseAuditArgs, runAuditCli } from "./run-audit.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const auditBin = join(packageRoot, "bin/audit.mjs");
+const auditBin = join(packageRoot, "dist/cli/audit.js");
 
 describe("parseAuditArgs", () => {
   it("defaults to report-only mode without --fail-on", () => {

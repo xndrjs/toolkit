@@ -4,13 +4,12 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { spawnWithTsx } from "../test-utils/spawn-with-tsx.js";
+import { spawnCodegenCli } from "../test-utils/spawn-codegen-cli.js";
 
-const codegenScript = fileURLToPath(new URL("./generate-i18n-types.ts", import.meta.url));
 const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 function runCodegen(cwd: string) {
-  return spawnWithTsx(codegenScript, ["--config", "i18n.codegen.json"], {
+  return spawnCodegenCli(["--config", "i18n.codegen.json"], {
     cwd,
     encoding: "utf8",
     env: process.env,
