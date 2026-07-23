@@ -18,7 +18,12 @@ import { analyzeDictionaries } from "./icu-analysis.js";
 import { getDeliveryArtifactsIssues } from "./delivery-artifacts.js";
 import { collectRequestLocales, getCodegenLocaleFallbackIssues } from "./locale-fallback.js";
 import { enrichLocaleFallback } from "./locale-policy.js";
-import { DEFAULT_IMPORT_EXTENSION, reportCodegenIssues, toModuleBasename } from "./paths.js";
+import {
+  DEFAULT_IMPORT_EXTENSION,
+  relativePosixPath,
+  reportCodegenIssues,
+  toModuleBasename,
+} from "./paths.js";
 import { prepareDictionaryEntries } from "./read-dictionary.js";
 import { writeFileIfChanged } from "./write-file-if-changed.js";
 
@@ -201,8 +206,8 @@ export function runCodegen(input?: RunCodegenInput): RunCodegenResult {
   writeFileIfChanged(typesOutputPath, typesContent);
 
   const generatedFiles = [
-    path.relative(projectRoot, typesOutputPath),
-    path.relative(projectRoot, instanceOutputPath),
+    relativePosixPath(projectRoot, typesOutputPath),
+    relativePosixPath(projectRoot, instanceOutputPath),
   ];
 
   writeFileIfChanged(instanceOutputPath, instanceContent);
@@ -215,7 +220,7 @@ export function runCodegen(input?: RunCodegenInput): RunCodegenResult {
     importExtension
   );
   writeFileIfChanged(dictionarySchemaOutputPath, dictionarySchemaContent);
-  generatedFiles.push(path.relative(projectRoot, dictionarySchemaOutputPath));
+  generatedFiles.push(relativePosixPath(projectRoot, dictionarySchemaOutputPath));
 
   const lazyEntriesWithPaths = entries.map((entry) => ({
     ...entry,
@@ -239,7 +244,7 @@ export function runCodegen(input?: RunCodegenInput): RunCodegenResult {
   });
 
   writeFileIfChanged(namespaceLoadersOutputPath, namespaceLoadersContent);
-  generatedFiles.push(path.relative(projectRoot, namespaceLoadersOutputPath));
+  generatedFiles.push(relativePosixPath(projectRoot, namespaceLoadersOutputPath));
 
   if (log) {
     console.log(`✅ Generated: ${generatedFiles.join(", ")}`);

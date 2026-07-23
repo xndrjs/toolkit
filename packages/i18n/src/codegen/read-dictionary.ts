@@ -10,6 +10,7 @@ import {
 } from "../project-locales.js";
 import type { LocaleFallbackMap } from "../types.js";
 import type { DictionaryJson, NamespaceEntry } from "./types.js";
+import { relativePosixPath } from "./paths.js";
 import { writeFileIfChanged } from "./write-file-if-changed.js";
 
 /**
@@ -219,7 +220,7 @@ export function prepareDictionaryEntries(
 
         if (wroteFile) {
           compiledFiles.push(
-            `${path.relative(projectRoot, sourceAbsolutePath)} → ${splitRelativePath}`
+            `${relativePosixPath(projectRoot, sourceAbsolutePath)} → ${splitRelativePath}`
           );
         }
 
@@ -245,7 +246,7 @@ export function prepareDictionaryEntries(
 
       if (wroteFile) {
         compiledFiles.push(
-          `${path.relative(projectRoot, sourceAbsolutePath)} → ${areaRelativePath}`
+          `${relativePosixPath(projectRoot, sourceAbsolutePath)} → ${areaRelativePath}`
         );
       }
 
