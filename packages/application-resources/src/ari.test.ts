@@ -31,6 +31,52 @@ describe("ari", () => {
     >();
   });
 
+  describe("factory without as const", () => {
+    function taskPermissionsResource(params: { taskId: string; userId?: string }) {
+      return ari("task-permissions", [
+        {
+          taskId: params.taskId,
+          userId: params.userId ?? null,
+        },
+      ]);
+    }
+
+    it("builds a valid resource from factory parameters", () => {
+      const resource = taskPermissionsResource({
+        taskId: "task-123",
+        userId: "user-456",
+      });
+
+      expectTypeOf(resource.type).toEqualTypeOf<"task-permissions">();
+      expectTypeOf(resource.key[0]).toEqualTypeOf<{
+        readonly taskId: string;
+        readonly userId: string | null;
+      }>();
+
+      expect(resource.type).toBe("task-permissions");
+      expect(resource.key).toEqual([{ taskId: "task-123", userId: "user-456" }]);
+      expect(resource.toArray()).toEqual([
+        "task-permissions",
+        { taskId: "task-123", userId: "user-456" },
+      ]);
+      expect(resource.format()).toBe(
+        '"task-permissions":[{"taskId":"task-123","userId":"user-456"}]'
+      );
+
+      const sameScope = taskPermissionsResource({
+        taskId: "task-123",
+        userId: "user-456",
+      });
+      expect(resource.equals(sameScope)).toBe(true);
+    });
+
+    it("normalizes a missing userId to null", () => {
+      const resource = taskPermissionsResource({ taskId: "task-123" });
+
+      expect(resource.key).toEqual([{ taskId: "task-123", userId: null }]);
+    });
+  });
+
   it("returns [type, ...key] from toArray()", () => {
     const resource = ari("task-permissions", [
       {

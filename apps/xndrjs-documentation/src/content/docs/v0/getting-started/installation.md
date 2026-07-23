@@ -55,6 +55,14 @@ pnpm add @xndrjs/domain-ajv ajv ajv-formats
 import { domain, jsonSchemaToValidator, openApiComponentToValidator } from "@xndrjs/domain-ajv";
 ```
 
+## Application packages
+
+```bash
+pnpm add @xndrjs/application-resources
+```
+
+- [Application resources](/v0/application/application-resources/) — name invalidatable resources without cache coupling
+
 ## Infrastructure packages
 
 These packages are optional and solve problems outside the domain modeling core:

@@ -62,6 +62,15 @@ export default defineConfig({
               ],
             },
             {
+              label: "Application toolkit",
+              items: [
+                {
+                  label: "Application resources",
+                  slug: "v0/application/application-resources",
+                },
+              ],
+            },
+            {
               label: "Infrastructure toolkit",
               items: [
                 { label: "Tasks", slug: "v0/infrastructure/tasks" },
