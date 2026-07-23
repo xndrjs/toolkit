@@ -93,6 +93,34 @@ import {
 - `openApiComponentToValidator(bundle, componentName)`: compiles an OpenAPI component schema.
 - `createAjvDomainAdapter(options?)`: creates an adapter with custom AJV options.
 
+## @xndrjs/application-resources
+
+```ts
+import { ari } from "@xndrjs/application-resources";
+```
+
+```ts
+export const taskPermissionsResource = (params: { taskId: string; userId?: string }) =>
+  ari("task-permissions", [
+    {
+      taskId: params.taskId,
+      userId: params.userId ?? null,
+    },
+  ] as const);
+
+const resource = taskPermissionsResource({
+  taskId: "task-123",
+  userId: "user-456",
+});
+
+resource.type; // "task-permissions"
+resource.toArray(); // ["task-permissions", { taskId: "task-123", userId: "user-456" }]
+resource.format(); // stable string
+resource.equals(other);
+```
+
+Use in the application layer for resource factories and `ResourceInvalidator` ports. Adapters call `resource.toArray()` to map to cache keys. See [Application resources](/v0/application/application-resources/).
+
 ## @xndrjs/tasks
 
 ```ts
