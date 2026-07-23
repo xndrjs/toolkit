@@ -85,4 +85,35 @@ describe("ari", () => {
       "task-permissions:1"
     );
   });
+
+  it("clones the key so caller mutations do not affect the resource", () => {
+    const keyPart = { taskId: "task-123", userId: "user-456" as string | null };
+    const key = [keyPart] as const;
+
+    const resource = ari("task-permissions", key);
+
+    keyPart.taskId = "mutated";
+    keyPart.userId = "mutated";
+
+    expect(resource.key[0]).toEqual({ taskId: "task-123", userId: "user-456" });
+    expect(resource.key).not.toBe(key);
+    expect(resource.key[0]).not.toBe(keyPart);
+    expect(Object.isFrozen(key)).toBe(false);
+    expect(Object.isFrozen(keyPart)).toBe(false);
+  });
+
+  it("freezes the stored key array and object parts", () => {
+    const resource = ari("task-permissions", [{ taskId: "task-123" }, "scope"] as const);
+
+    expect(Object.isFrozen(resource.key)).toBe(true);
+    expect(Object.isFrozen(resource.key[0])).toBe(true);
+
+    expect(() => {
+      (resource.key[0] as { taskId: string }).taskId = "mutated";
+    }).toThrow(TypeError);
+
+    expect(() => {
+      (resource.key as unknown as string[]).push("extra");
+    }).toThrow(TypeError);
+  });
 });
