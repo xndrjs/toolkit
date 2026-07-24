@@ -449,6 +449,38 @@ describe("createI18nLoadGate", () => {
     expect(screen.getByTestId("child").textContent).toBe("x:Ciao");
   });
 
+  it("HOC render may use hooks across pending → ready (no hydrated state)", async () => {
+    const pending = deferred<ScopedScopeLike>();
+    const { withI18n } = createGateFixture({ load: () => pending.promise });
+
+    const Child = withI18n<{ label: string }>(
+      {
+        namespaces: ["default"],
+        fallback: <span data-testid="fallback">loading</span>,
+      },
+      function Child({ label }, { t }) {
+        const [n] = useState(0);
+        return (
+          <span data-testid="child">
+            {label}:{t("default", "greeting")}:{n}
+          </span>
+        );
+      }
+    );
+
+    render(<Child label="x" />);
+    expect(screen.getByTestId("fallback").textContent).toBe("loading");
+
+    const handle = createTestHandle();
+    const scope = await handle.load({ namespaces: ["default"], locale: "it" });
+    await act(async () => {
+      pending.resolve(asScopedScope(scope));
+      await pending.promise;
+    });
+
+    expect(screen.getByTestId("child").textContent).toBe("x:Ciao:0");
+  });
+
   it("dedupes loads across two gates sharing one coordinator", async () => {
     const handle = createTestHandle();
     const coordinator = createLoadCoordinator<ScopedScopeLike>();
