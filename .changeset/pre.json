@@ -20,6 +20,7 @@
     "@xndrjs/tasks": "0.2.0"
   },
   "changesets": [
-    "compiled-cli-windows-paths"
+    "compiled-cli-windows-paths",
+    "withi18n-hooks-pending-ready"
   ]
 }
