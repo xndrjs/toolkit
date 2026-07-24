@@ -288,18 +288,25 @@ export class HttpTaskPermissionsAdapter implements TaskPermissionsPort {
 Who implements `ResourceInvalidator`? Still **infrastructure** — for example, an adapter backed by TanStack Query:
 
 ```ts
+import { omitNullKeyFields } from "@xndrjs/application-resources";
+
 export class TanStackResourceInvalidator implements ResourceInvalidator {
   constructor(private readonly queryClient: QueryClient) {}
 
   async invalidate(resources: CoreResourceIdentifier[]) {
     await Promise.all(
       resources.map((resource) =>
-        this.queryClient.invalidateQueries({ queryKey: resource.toArray() })
+        this.queryClient.invalidateQueries({
+          // drop null fields so open dimensions match a wider cache scope
+          queryKey: omitNullKeyFields(resource.toArray()),
+        })
       )
     );
   }
 }
 ```
+
+Application resources keep a **canonical** shape — optional dimensions stay as `null`. Fetch keys usually use the full `toArray()`. Invalidation can project that array with `omitNullKeyFields` so an open dimension (for example `userId: null`) widens the match. That policy belongs in the adapter, not in the resource factory.
 
 TanStack Query is still there. It is just no longer the **vocabulary** of your whole application. It is an implementation detail behind a narrow seam.
 
@@ -314,6 +321,8 @@ The React mutation can become thin: call the use case, and let an infrastructure
 It gives you a consistent way to **define** resources in application code:
 
 ```ts
+import { omitNullKeyFields } from "@xndrjs/application-resources";
+
 const resource = taskPermissionsResource({
   taskId: "task-123",
   userId: "user-456",
@@ -321,6 +330,7 @@ const resource = taskPermissionsResource({
 
 resource.type; // "task-permissions"
 resource.toArray(); // adapter-friendly projection
+omitNullKeyFields(resource.toArray()); // drop null fields when an adapter needs a wider match
 resource.format(); // stable string for tags, logs, dedup keys
 resource.equals(other);
 ```

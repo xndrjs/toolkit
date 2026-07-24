@@ -96,7 +96,7 @@ import {
 ## @xndrjs/application-resources
 
 ```ts
-import { ari } from "@xndrjs/application-resources";
+import { ari, omitNullKeyFields } from "@xndrjs/application-resources";
 ```
 
 ```ts
@@ -115,11 +115,12 @@ const resource = taskPermissionsResource({
 
 resource.type; // "task-permissions"
 resource.toArray(); // ["task-permissions", { taskId: "task-123", userId: "user-456" }]
+omitNullKeyFields(resource.toArray()); // same projection with null object fields removed
 resource.format(); // stable string
 resource.equals(other);
 ```
 
-Use in the application layer for resource factories and `ResourceInvalidator` ports. Adapters call `resource.toArray()` to map to cache keys. See [Application resources](/v0/application/application-resources/).
+Use in the application layer for resource factories and `ResourceInvalidator` ports. Adapters call `resource.toArray()` (and optionally `omitNullKeyFields`) to map to cache keys. See [Application resources](/v0/application/application-resources/).
 
 ## @xndrjs/tasks
 

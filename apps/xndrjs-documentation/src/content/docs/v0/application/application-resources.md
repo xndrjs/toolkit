@@ -126,27 +126,34 @@ export class HttpTaskPermissionsAdapter implements TaskPermissions {
 }
 ```
 
-A separate adapter translates resources into whatever cache runtime you use:
+A separate adapter translates resources into whatever cache runtime you use. Keep the ARI canonical (optional dimensions as `null`); apply projections like `omitNullKeyFields` in the invalidator when the cache needs a wider match:
 
 ```ts
-export class ClientCacheResourceInvalidator implements ResourceInvalidator {
-  constructor(private readonly cache: CacheClient) {}
+import { omitNullKeyFields } from "@xndrjs/application-resources";
+
+export class TanStackResourceInvalidator implements ResourceInvalidator {
+  constructor(private readonly queryClient: QueryClient) {}
 
   async invalidate(resources: CoreResourceIdentifier[]) {
     await Promise.all(
-      resources.map((resource) => this.cache.invalidate({ key: resource.toArray() }))
+      resources.map((resource) =>
+        this.queryClient.invalidateQueries({
+          queryKey: omitNullKeyFields(resource.toArray()),
+        })
+      )
     );
   }
 }
 ```
 
-With TanStack Query, pass `resource.toArray()` directly as `queryKey` in `invalidateQueries` — the package does not depend on it.
+`omitNullKeyFields` works on `resource.toArray()`, not on the ARI itself — so factories stay `ari(...)` with explicit `null`, and stripping remains an adapter concern. The package does not depend on TanStack Query.
 
 ## API
 
 Exported symbols:
 
 - **`ari`**
+- **`omitNullKeyFields`**
 - **`ApplicationResourceIdentifier`**
 - **`ApplicationResourceKey`**
 - **`ApplicationResourceKeyPart`**

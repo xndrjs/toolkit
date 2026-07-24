@@ -69,20 +69,25 @@ resource.format();
 
 ## TanStack Query (external)
 
-This package does not depend on TanStack Query. In your infrastructure layer, pass `resource.toArray()` directly as the query key:
+This package does not depend on TanStack Query. Keep ARIs canonical (`null` for open dimensions). In an invalidation adapter, project with `omitNullKeyFields` when you want wider cache matching:
 
 ```ts
+import { omitNullKeyFields } from "@xndrjs/application-resources";
 import { QueryClient } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
 
 await queryClient.invalidateQueries({
-  queryKey: taskPermissionsResource({
-    taskId: command.taskId,
-    userId: command.userId,
-  }).toArray(),
+  queryKey: omitNullKeyFields(
+    taskPermissionsResource({
+      taskId: command.taskId,
+      userId: null,
+    }).toArray()
+  ),
 });
 ```
+
+For exact fetches, use `resource.toArray()` as-is.
 
 ## Clean Architecture
 
@@ -98,10 +103,10 @@ export interface ResourceInvalidator {
 }
 ```
 
-A driven adapter can receive `ResourceInvalidator` via dependency injection:
+A driven adapter can receive `ResourceInvalidator` via dependency injection and apply cache-specific projections there — not inside use cases or resource factories:
 
 ```ts
-export class HttpTaskPermissionRepository {
+export class HttpTaskPermissionsAdapter {
   constructor(
     private readonly httpClient: HttpClient,
     private readonly resourceInvalidator: ResourceInvalidator
@@ -127,6 +132,7 @@ export class HttpTaskPermissionRepository {
 Exported symbols:
 
 - **`ari`**
+- **`omitNullKeyFields`**
 - **`ApplicationResourceIdentifier`**
 - **`ApplicationResourceKey`**
 - **`ApplicationResourceKeyPart`**
