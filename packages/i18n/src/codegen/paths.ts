@@ -4,6 +4,10 @@ import type { ImportExtension } from "./types.js";
 export const GENERATED_FILE_BANNER = "// Automatically generated code. Do not edit manually.\n";
 export const DEFAULT_IMPORT_EXTENSION: ImportExtension = "none";
 
+export function relativePosixPath(from: string, to: string): string {
+  return path.relative(from, to).replace(/\\/g, "/");
+}
+
 export function reportCodegenIssues(issues: readonly { message: string }[]): void {
   for (const issue of issues) {
     console.error(`[Codegen Error] ${issue.message}`);

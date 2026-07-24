@@ -2,12 +2,9 @@
 > @xndrjs/toolkit@ changeset /home/runner/work/toolkit/toolkit
 > changeset "version"
 
-Package [36m"@xndrjs/i18n-react"[39m must depend on the current version of [36m"@xndrjs/i18n"[39m: [32m"0.7.0"[39m vs [31m"^0.8.0-alpha.0"[39m
-Package [36m"@xndrjs/i18n-react"[39m must depend on the current version of [36m"@xndrjs/i18n"[39m: [32m"0.7.0"[39m vs [31m"^0.8.0-alpha.0"[39m
 🦋  [33mwarn[39m [31m===============================IMPORTANT!===============================[39m
 🦋  [33mwarn[39m You are in prerelease mode
 🦋  [33mwarn[39m If you meant to do a normal release you should revert these changes and run `changeset pre exit`
 🦋  [33mwarn[39m You can then run `changeset version` again to do a normal release
 🦋  [33mwarn[39m [31m----------------------------------------------------------------------[39m
-Package [36m"@xndrjs/i18n-react"[39m must depend on the current version of [36m"@xndrjs/i18n"[39m: [32m"0.7.0"[39m vs [31m"^0.8.0-alpha.0"[39m
 🦋  All files have been updated. Review them and commit at your leisure

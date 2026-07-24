@@ -11,10 +11,9 @@ Compiler-first, type-safe ICU MessageFormat i18n for TypeScript apps.
 
 ```bash
 npm install @xndrjs/i18n zod
-npm install -D tsx
 ```
 
-Peer deps: `zod` (config + validation), `tsx` (CLI).
+Peer dep: `zod` (config + validation).
 
 ## Quick start
 

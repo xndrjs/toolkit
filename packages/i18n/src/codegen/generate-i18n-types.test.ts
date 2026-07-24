@@ -1,14 +1,11 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it, afterEach } from "vitest";
-
-const codegenScript = fileURLToPath(new URL("./generate-i18n-types.ts", import.meta.url));
+import { spawnCodegenCli } from "../test-utils/spawn-codegen-cli.js";
 
 function runCodegen(cwd: string, configFile = "i18n.codegen.json") {
-  return spawnSync("tsx", [codegenScript, "--config", configFile], {
+  return spawnCodegenCli(["--config", configFile], {
     cwd,
     encoding: "utf8",
     env: process.env,
