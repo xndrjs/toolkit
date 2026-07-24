@@ -1,6 +1,6 @@
 ---
-title: "Name your resources without leaking infrastructure"
-description: From TanStack Query mutations to a framework-agnostic idea of application resources — and why a resource identifier is more than a cache key.
+title: "From Query Keys to Application Resource Identifiers"
+description: How query key helpers lead to a framework-agnostic resource vocabulary — and why an application resource identifier is more than a cache key.
 date: 2026-07-23
 author: Fabio Fognani
 tags:
@@ -25,7 +25,7 @@ const mutation = useMutation({
 
 A component triggers a mutation. The mutation succeeds. Now you must refresh the stale UI — so you reach for `queryClient` and invalidate a few queries.
 
-This is the **common** path: infrastructure orchestration living inside a hook, on the **client**, tied to **React** and **TanStack Query**.
+This is the **common** path: infrastructure orchestration living inside a hook, tied to client-side **React** and **TanStack Query**.
 
 There's more. In the example above, the `queryKey` is assembled inline. The same tuple is likely repeated wherever that resource is read or invalidated — another mutation, another hook, another screen. TypeScript will not catch a drifted key: a renamed segment, a different object shape, or a stale prefix still type-checks, while `invalidateQueries` misses the cache entry that actually holds the data.
 
@@ -35,9 +35,9 @@ We need to do something about that...
 
 ## Step one: make query keys less painful
 
-The first improvement is usually about "DRY": extract a shared helper so every `useQuery` and `invalidateQueries` call projects the same key.
+The usual first step is to DRY this up: extract a shared helper so every `useQuery` and `invalidateQueries` projects the same key.
 
-Magic strings spread. The same tuple gets copy-pasted between `useQuery` and `invalidateQueries`. Someone mis-types `"task-permission"` in one place and debugging becomes archaeology.
+Magic strings tend to spread. The same tuple gets copy-pasted between `useQuery` and `invalidateQueries`. Someone mis-types `"task-permission"` in one place and debugging becomes archaeology.
 
 So you introduce helpers:
 

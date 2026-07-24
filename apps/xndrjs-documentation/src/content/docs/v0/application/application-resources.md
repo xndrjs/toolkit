@@ -9,7 +9,7 @@ Use them when different parts of the app need to refer to the same logical resou
 
 Every layer of the application should refer to the same resource using the same identifier.
 
-For motivation and layer boundaries, see [Name your resources without leaking infrastructure](/blog/application-resource-identifiers-without-infrastructure-coupling/).
+For motivation and layer boundaries, see [From Query Keys to Application Resource Identifiers](/blog/from-query-keys-to-application-resource-identifiers/).
 
 ## Where it fits
 
