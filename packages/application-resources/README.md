@@ -41,27 +41,27 @@ Normalize optional values to `null` or an explicit wildcard instead of leaving t
 ```ts
 import { ari } from "@xndrjs/application-resources";
 
-export const taskPermissionsResource = (params: { taskId: string; userId?: string }) =>
-  ari("task-permissions", [
+export const postCommentsResource = (params: { postId: string; authorId: string }) =>
+  ari("post-comments", [
     {
-      taskId: params.taskId,
-      userId: params.userId ?? null,
+      postId: params.postId,
+      authorId: params.authorId,
     },
   ] as const);
 
-const resource = taskPermissionsResource({
-  taskId: "task-123",
-  userId: "user-456",
+const resource = postCommentsResource({
+  postId: "post-123",
+  authorId: "author-456",
 });
 
 resource.type;
-// "task-permissions"
+// "post-comments"
 
 resource.key;
-// [{ taskId: "task-123", userId: "user-456" }]
+// [{ postId: "post-123", authorId: "author-456" }]
 
 resource.toArray();
-// ["task-permissions", { taskId: "task-123", userId: "user-456" }]
+// ["post-comments", { postId: "post-123", authorId: "author-456" }]
 
 resource.format();
 // stable string representation
@@ -69,7 +69,7 @@ resource.format();
 
 ## TanStack Query (external)
 
-This package does not depend on TanStack Query. Keep ARIs canonical (`null` for open dimensions). In an invalidation adapter, project with `omitNullKeyFields` when you want wider cache matching:
+This package does not depend on TanStack Query. Use `resource.toArray()` as the query key. When an adapter needs a wider cache match (open dimensions as `null` in a canonical key), project with `omitNullKeyFields`:
 
 ```ts
 import { omitNullKeyFields } from "@xndrjs/application-resources";
@@ -77,48 +77,51 @@ import { QueryClient } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
 
+const resource = postCommentsResource({
+  postId: command.postId,
+  authorId: command.authorId,
+});
+
 await queryClient.invalidateQueries({
-  queryKey: omitNullKeyFields(
-    taskPermissionsResource({
-      taskId: command.taskId,
-      userId: null,
-    }).toArray()
-  ),
+  queryKey: resource.toArray(),
+});
+
+// wider match when a key object contains null open dimensions:
+await queryClient.invalidateQueries({
+  queryKey: omitNullKeyFields(resource.toArray()),
 });
 ```
-
-For exact fetches, use `resource.toArray()` as-is.
 
 ## Clean Architecture
 
 Define resource factories in the core/application layer and type your invalidation port against their return types:
 
 ```ts
-export type TasksResourceIdentifier =
-  | ReturnType<typeof taskPermissionsResource>
-  | ReturnType<typeof taskResource>;
+export type PostsResourceIdentifier =
+  | ReturnType<typeof postCommentsResource>
+  | ReturnType<typeof postResource>;
 
 export interface ResourceInvalidator {
-  invalidate(resources: TasksResourceIdentifier[]): Promise<void>;
+  invalidate(resources: PostsResourceIdentifier[]): Promise<void>;
 }
 ```
 
 A driven adapter can receive `ResourceInvalidator` via dependency injection and apply cache-specific projections there — not inside use cases or resource factories:
 
 ```ts
-export class HttpTaskPermissionsAdapter {
+export class HttpPostCommentsAdapter {
   constructor(
     private readonly httpClient: HttpClient,
     private readonly resourceInvalidator: ResourceInvalidator
   ) {}
 
-  async updatePermission(command: UpdateTaskPermissionCommand) {
-    const result = await this.httpClient.post("/task-permissions", command);
+  async updateComment(command: UpdatePostCommentCommand) {
+    const result = await this.httpClient.post("/post-comments", command);
 
     await this.resourceInvalidator.invalidate([
-      taskPermissionsResource({
-        taskId: command.taskId,
-        userId: command.userId,
+      postCommentsResource({
+        postId: command.postId,
+        authorId: command.authorId,
       }),
     ]);
 

@@ -100,22 +100,22 @@ import { ari, omitNullKeyFields } from "@xndrjs/application-resources";
 ```
 
 ```ts
-export const taskPermissionsResource = (params: { taskId: string; userId?: string }) =>
-  ari("task-permissions", [
+export const postCommentsResource = (params: { postId: string; authorId: string }) =>
+  ari("post-comments", [
     {
-      taskId: params.taskId,
-      userId: params.userId ?? null,
+      postId: params.postId,
+      authorId: params.authorId,
     },
   ] as const);
 
-const resource = taskPermissionsResource({
-  taskId: "task-123",
-  userId: "user-456",
+const resource = postCommentsResource({
+  postId: "post-123",
+  authorId: "author-456",
 });
 
-resource.type; // "task-permissions"
-resource.toArray(); // ["task-permissions", { taskId: "task-123", userId: "user-456" }]
-omitNullKeyFields(resource.toArray()); // same projection with null object fields removed
+resource.type; // "post-comments"
+resource.toArray(); // ["post-comments", { postId: "post-123", authorId: "author-456" }]
+omitNullKeyFields(resource.toArray()); // drop null object fields when an adapter needs a wider match
 resource.format(); // stable string
 resource.equals(other);
 ```

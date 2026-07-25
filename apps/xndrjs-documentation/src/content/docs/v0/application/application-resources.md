@@ -30,7 +30,7 @@ pnpm add @xndrjs/application-resources
 
 An ARI has:
 
-- **`type`** — a stable string literal for the resource family (`"task-permissions"`, `"task-list"`, …);
+- **`type`** — a stable string literal for the resource family (`"post-comments"`, `"post-list"`, …);
 - **`key`** — a readonly array of structural parts that identify a specific instance or scope;
 - **`toArray()`** — returns `[type, ...key]` for adapters;
 - **`format(formatter?)`** — stable string representation (logging, debugging);
@@ -45,24 +45,24 @@ Use factory functions in application code and the `ari` helper:
 ```ts
 import { ari } from "@xndrjs/application-resources";
 
-export const taskPermissionsResource = (params: { taskId: string; userId?: string }) =>
-  ari("task-permissions", [
+export const postCommentsResource = (params: { postId: string; authorId: string }) =>
+  ari("post-comments", [
     {
-      taskId: params.taskId,
-      userId: params.userId ?? null,
+      postId: params.postId,
+      authorId: params.authorId,
     },
   ] as const);
 
-export const taskListResource = (params: { projectId: string }) =>
-  ari("task-list", [{ projectId: params.projectId }] as const);
+export const postListResource = (params: { blogId: string }) =>
+  ari("post-list", [{ blogId: params.blogId }] as const);
 ```
 
 Collect return types once for ports and invalidation:
 
 ```ts
 export type CoreResourceIdentifier =
-  | ReturnType<typeof taskPermissionsResource>
-  | ReturnType<typeof taskListResource>;
+  | ReturnType<typeof postCommentsResource>
+  | ReturnType<typeof postListResource>;
 ```
 
 ### Allowed key parts
@@ -85,19 +85,19 @@ export interface ResourceInvalidator {
   invalidate(resources: CoreResourceIdentifier[]): Promise<void>;
 }
 
-export interface TaskPermissions {
-  update(command: UpdateTaskPermissionCommand): Promise<void>;
+export interface PostCommentsPort {
+  update(command: UpdatePostCommentCommand): Promise<void>;
 }
 ```
 
 The use case stays focused on application logic:
 
 ```ts
-export class UpdateTaskPermission {
-  constructor(private readonly permissions: TaskPermissions) {}
+export class UpdatePostComment {
+  constructor(private readonly comments: PostCommentsPort) {}
 
-  async execute(command: UpdateTaskPermissionCommand) {
-    await this.permissions.update(command);
+  async execute(command: UpdatePostCommentCommand) {
+    await this.comments.update(command);
   }
 }
 ```
@@ -107,30 +107,28 @@ export class UpdateTaskPermission {
 An adapter performs the write and may invalidate affected resources — without the use case knowing how:
 
 ```ts
-export class HttpTaskPermissionsAdapter implements TaskPermissions {
+export class HttpPostCommentsAdapter implements PostCommentsPort {
   constructor(
     private readonly httpClient: HttpClient,
     private readonly invalidator: ResourceInvalidator
   ) {}
 
-  async update(command: UpdateTaskPermissionCommand) {
-    await this.httpClient.post("/task-permissions", command);
+  async update(command: UpdatePostCommentCommand) {
+    await this.httpClient.post("/post-comments", command);
 
     await this.invalidator.invalidate([
-      taskPermissionsResource({
-        taskId: command.taskId,
-        userId: command.userId,
+      postCommentsResource({
+        postId: command.postId,
+        authorId: command.authorId,
       }),
     ]);
   }
 }
 ```
 
-A separate adapter translates resources into whatever cache runtime you use. Keep the ARI canonical (optional dimensions as `null`); apply projections like `omitNullKeyFields` in the invalidator when the cache needs a wider match:
+A separate adapter translates resources into whatever cache runtime you use:
 
 ```ts
-import { omitNullKeyFields } from "@xndrjs/application-resources";
-
 export class TanStackResourceInvalidator implements ResourceInvalidator {
   constructor(private readonly queryClient: QueryClient) {}
 
@@ -138,7 +136,7 @@ export class TanStackResourceInvalidator implements ResourceInvalidator {
     await Promise.all(
       resources.map((resource) =>
         this.queryClient.invalidateQueries({
-          queryKey: omitNullKeyFields(resource.toArray()),
+          queryKey: resource.toArray(),
         })
       )
     );
@@ -146,7 +144,7 @@ export class TanStackResourceInvalidator implements ResourceInvalidator {
 }
 ```
 
-`omitNullKeyFields` works on `resource.toArray()`, not on the ARI itself — so factories stay `ari(...)` with explicit `null`, and stripping remains an adapter concern. The package does not depend on TanStack Query.
+When an adapter needs a wider cache match (for example an open dimension represented as `null` in a canonical key), project with `omitNullKeyFields(resource.toArray())` — that policy belongs in the adapter, not in the resource factory. The package does not depend on TanStack Query.
 
 ## API
 

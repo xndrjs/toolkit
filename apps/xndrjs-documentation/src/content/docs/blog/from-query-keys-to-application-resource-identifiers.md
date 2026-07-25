@@ -1,23 +1,22 @@
 ---
 title: "From Query Keys to Application Resource Identifiers"
-description: How query key helpers lead to a framework-agnostic resource vocabulary — and why an application resource identifier is more than a cache key.
-date: 2026-07-23
+description: How query key helpers lead to a framework-agnostic resource vocabulary — and why an Application Resource Identifier is more than a cache key.
+date: 2026-07-26
 author: Fabio Fognani
 tags:
   - architecture
   - typescript
-  - clean-architecture
-  - application-resources
+  - cache
 ---
 
 If you build React apps with TanStack Query, you have almost certainly written code like this:
 
 ```ts
 const mutation = useMutation({
-  mutationFn: updateTaskPermission,
+  mutationFn: updatePostComment,
   onSuccess: () => {
     queryClient.invalidateQueries({
-      queryKey: ["task-permissions", { taskId, userId }],
+      queryKey: ["post-comments", { postId, authorId }],
     });
   },
 });
@@ -37,13 +36,13 @@ We need to do something about that...
 
 The usual first step is to DRY this up: extract a shared helper so every `useQuery` and `invalidateQueries` projects the same key.
 
-Magic strings tend to spread. The same tuple gets copy-pasted between `useQuery` and `invalidateQueries`. Someone mis-types `"task-permission"` in one place and debugging becomes archaeology.
+Magic strings tend to spread. The same tuple gets copy-pasted between `useQuery` and `invalidateQueries`. Someone mis-types `"post-comment"` in one place and debugging becomes archaeology.
 
 So you introduce helpers:
 
 ```ts
-export const taskPermissionsQueryKey = (taskId: string, userId: string) => {
-  return ["task-permissions", { taskId, userId }];
+export const postCommentsQueryKey = (postId: string, authorId: string) => {
+  return ["post-comments", { postId, authorId }];
 };
 ```
 
@@ -51,7 +50,7 @@ Better. One source of truth. TypeScript can even keep the tuple honest.
 
 ```mermaid
 flowchart LR
-  A[useQuery] --> H[taskPermissionsQueryKey]
+  A[useQuery] --> H[postCommentsQueryKey]
   B[useMutation onSuccess] --> H
 ```
 
@@ -71,7 +70,7 @@ sequenceDiagram
   participant QC as queryClient
 
   C->>M: mutate(command)
-  M->>API: updateTaskPermission
+  M->>API: updatePostComment
   API-->>M: success
   M->>QC: invalidateQueries(queryKey)
 ```
@@ -107,7 +106,7 @@ Application code, surprisingly, often doesn't. It still reaches for scattered st
 
 That is almost paradoxical. The layers below the UI are precise about _what_ they point at. The application layer — where business meaning lives — is the vague one.
 
-The move is to name things at a higher level: not “the cache entry keyed like `['task-permissions', …]`”, but **the resource itself** — task permissions for this task and user.
+The move is to name things at a higher level: not “the cache entry keyed like `['post-comments', …]`”, but **the resource itself** — comments for this post and author.
 
 Call it an **Application Resource Identifier** (ARI).
 
@@ -116,18 +115,18 @@ Small factory, talking the application language:
 ```ts
 import { ari } from "@xndrjs/application-resources";
 
-export const taskPermissionsResource = (params: { taskId: string; userId?: string }) =>
-  ari("task-permissions", [
+export const postCommentsResource = (params: { postId: string; authorId: string }) =>
+  ari("post-comments", [
     {
-      taskId: params.taskId,
-      userId: params.userId ?? null,
+      postId: params.postId,
+      authorId: params.authorId,
     },
   ]);
 ```
 
 A resource has a **`type`** (the "family") and a **`key`** (the structural parts that identify an instance). That is application language. No React. No TanStack. No `queryClient`.
 
-The goal is a **shared language** across layers: every layer of the application should refer to the same resource using the same identifier. The mutation hook, the write adapter, the cache invalidator, and the logger all mean the same thing when they point at `taskPermissionsResource({ taskId, userId })` — not five slightly different tuples.
+The goal is a **shared language** across layers: every layer of the application should refer to the same resource using the same identifier. The mutation hook, the write adapter, the cache invalidator, and the logger all mean the same thing when they point at `postCommentsResource({ postId, authorId })` — not five slightly different tuples.
 
 ---
 
@@ -141,7 +140,7 @@ You _can_ derive a query key from it:
 
 ```ts
 queryClient.invalidateQueries({
-  queryKey: taskPermissionsResource({ taskId, userId }).toArray(),
+  queryKey: postCommentsResource({ postId, authorId }).toArray(),
 });
 ```
 
@@ -165,14 +164,14 @@ Once you stop equating “resource” with “query key”, other uses appear al
 
 ### Intelligent loaders
 
-A loader can accept a resource identifier and route the request: “this is task permissions, fetch accordingly” — without the caller knowing HTTP paths or cache layout.
+A loader can accept a resource identifier and route the request: “this is PostComments, fetch accordingly” — without the caller knowing HTTP paths or cache layout.
 
 ### Access control
 
 Describe what a role may do on which resources:
 
 ```ts
-canRead(role, taskPermissionsResource({ taskId, userId }));
+canRead(role, postCommentsResource({ postId, authorId }));
 ```
 
 The check is about **resources**, not about how data was cached on the client.
@@ -182,10 +181,10 @@ The check is about **resources**, not about how data was cached on the client.
 With [`@xndrjs/tasks`](/v0/infrastructure/tasks/), use a stable string form of the resource as a dedup key:
 
 ```ts
-const resource = taskPermissionsResource({ taskId, userId });
+const resource = postCommentsResource({ postId, authorId });
 
 return (
-  task(() => loadTaskPermissions(resource))
+  task(() => loadPostComments(resource))
     // concurrent callers share one in-flight promise until it settles
     .inflightDedup(Symbol.for(resource.format()))
 );
@@ -210,18 +209,18 @@ export function toCacheTag(resource: ApplicationResourceIdentifier) {
   return resource.format();
 }
 
-revalidateTag(toCacheTag(taskResource({ taskId })));
+revalidateTag(toCacheTag(postResource({ postId })));
 ```
 
 ### Application events
 
 ```ts
 const event = {
-  name: "task.permission.updated",
+  name: "post.comment.updated",
   occurredAt: new Date(),
   affectedResources: [
-    taskPermissionsResource({ taskId, userId }),
-    taskResource({ taskId }),
+    postCommentsResource({ postId, authorId }),
+    postResource({ postId }),
     // ...other resources...
   ],
 };
@@ -239,26 +238,26 @@ Instead of invalidating inside `onSuccess`, declare a port in the application la
 
 ```ts
 export type CoreResourceIdentifier =
-  | ReturnType<typeof taskPermissionsResource>
-  | ReturnType<typeof taskResource>;
+  | ReturnType<typeof postCommentsResource>
+  | ReturnType<typeof postResource>;
 
 export interface ResourceInvalidator {
   invalidate(resources: CoreResourceIdentifier[]): Promise<void>;
 }
 
-export interface TaskPermissionsPort {
-  update(command: UpdateTaskPermissionCommand): Promise<void>;
+export interface PostCommentsPort {
+  update(command: UpdatePostCommentCommand): Promise<void>;
 }
 ```
 
 The use case orchestrates application logic:
 
 ```ts
-export class UpdateTaskPermission {
-  constructor(private readonly permissions: TaskPermissionsPort) {}
+export class UpdatePostComment {
+  constructor(private readonly comments: PostCommentsPort) {}
 
-  async execute(command: UpdateTaskPermissionCommand) {
-    await this.permissions.update(command);
+  async execute(command: UpdatePostCommentCommand) {
+    await this.comments.update(command);
   }
 }
 ```
@@ -266,19 +265,19 @@ export class UpdateTaskPermission {
 Somewhere in **infrastructure**, an adapter performs the write and decides which resources to invalidate — without pushing that concern into the use case:
 
 ```ts
-export class HttpTaskPermissionsAdapter implements TaskPermissionsPort {
+export class HttpPostCommentsAdapter implements PostCommentsPort {
   constructor(
     private readonly httpClient: HttpClient,
     private readonly invalidator: ResourceInvalidator
   ) {}
 
-  async update(command: UpdateTaskPermissionCommand) {
-    await this.httpClient.post("/task-permissions", command);
+  async update(command: UpdatePostCommentCommand) {
+    await this.httpClient.post("/post-comments", command);
 
     await this.invalidator.invalidate([
-      taskPermissionsResource({
-        taskId: command.taskId,
-        userId: command.userId,
+      postCommentsResource({
+        postId: command.postId,
+        authorId: command.authorId,
       }),
     ]);
   }
@@ -288,8 +287,6 @@ export class HttpTaskPermissionsAdapter implements TaskPermissionsPort {
 Who implements `ResourceInvalidator`? Still **infrastructure** — for example, an adapter backed by TanStack Query:
 
 ```ts
-import { omitNullKeyFields } from "@xndrjs/application-resources";
-
 export class TanStackResourceInvalidator implements ResourceInvalidator {
   constructor(private readonly queryClient: QueryClient) {}
 
@@ -297,16 +294,13 @@ export class TanStackResourceInvalidator implements ResourceInvalidator {
     await Promise.all(
       resources.map((resource) =>
         this.queryClient.invalidateQueries({
-          // drop null fields so open dimensions match a wider cache scope
-          queryKey: omitNullKeyFields(resource.toArray()),
+          queryKey: resource.toArray(),
         })
       )
     );
   }
 }
 ```
-
-Application resources keep a **canonical** shape — optional dimensions stay as `null`. Fetch keys usually use the full `toArray()`. Invalidation can project that array with `omitNullKeyFields` so an open dimension (for example `userId: null`) widens the match. That policy belongs in the adapter, not in the resource factory.
 
 TanStack Query is still there. It is just no longer the **vocabulary** of your whole application. It is an implementation detail behind a narrow seam.
 
@@ -321,16 +315,13 @@ The React mutation can become thin: call the use case, and let an infrastructure
 It gives you a consistent way to **define** resources in application code:
 
 ```ts
-import { omitNullKeyFields } from "@xndrjs/application-resources";
-
-const resource = taskPermissionsResource({
-  taskId: "task-123",
-  userId: "user-456",
+const resource = postCommentsResource({
+  postId: "post-123",
+  authorId: "author-456",
 });
 
-resource.type; // "task-permissions"
+resource.type; // "post-comments"
 resource.toArray(); // adapter-friendly projection
-omitNullKeyFields(resource.toArray()); // drop null fields when an adapter needs a wider match
 resource.format(); // stable string for tags, logs, dedup keys
 resource.equals(other);
 ```
