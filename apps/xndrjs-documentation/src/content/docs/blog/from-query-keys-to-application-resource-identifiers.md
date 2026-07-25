@@ -130,6 +130,66 @@ The goal is a **shared language** across layers: every layer of the application 
 
 ---
 
+## What an Application Resource Identifier is (and isn't)
+
+An Application Resource Identifier (ARI) is an identifier for application resources.
+
+An application resource is not necessarily a single entity. It is an addressable scope the application can address — for loading, caching, invalidation, authorization, or orchestration. For example: invalidating “all products” names that scope; it does not imply those products were loaded as a unit.
+
+An ARI intentionally says nothing about how a resource is obtained or represented. It only identifies **what** the resource is.
+
+### An ARI is...
+
+- An identifier for one or more application resources.
+- Scoped, allowing arbitrary levels of granularity.
+
+For example:
+
+```ts
+// all post comments
+ari("post-comments", []);
+// all post comments by a specific author
+ari("post-comments", [{ authorId }]);
+// all post comments on a specific post
+ari("post-comments", [{ postId }]);
+// all post comments by a specific author on a specific post
+ari("post-comments", [{ authorId, postId }]);
+```
+
+The scoping is defined by the application, not by the domain.
+
+### An ARI is not...
+
+#### ...a domain reference
+
+Domain relationships belong to the domain model.
+
+```ts
+type Post = {
+  authorId: AuthorId;
+};
+```
+
+An ARI does not replace those references. It exists for application-level concerns such as loading, cache invalidation, authorization, logging, or event routing.
+
+#### ...a normalized data model
+
+An ARI identifies a resource, not its storage representation.
+
+Resolving a resource may produce:
+
+- a single entity,
+- multiple related entities,
+- a paginated slice,
+- an aggregate assembled from several services,
+- or any other representation required by the application.
+
+The resource is the concept. The returned data is just one possible projection.
+
+An ARI identifies **what** the application can talk about, not **how** that information is stored, fetched, or represented.
+
+---
+
 ## Why an ARI is not a query key
 
 A **query key** exists for one job: identify an entry in a **client-side memoization cache**. It is an implementation detail of a specific library.
