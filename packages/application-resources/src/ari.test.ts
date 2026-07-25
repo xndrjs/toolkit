@@ -4,18 +4,16 @@ import { ari } from "./ari";
 
 describe("ari", () => {
   it("preserves the literal type of type", () => {
-    const resource = ari("task-permissions", [{ taskId: "task-123" }] as const);
+    const resource = ari("task-permissions", { taskId: "task-123" });
 
     expectTypeOf(resource.type).toEqualTypeOf<"task-permissions">();
   });
 
-  it("preserves the tuple type of key when using as const", () => {
-    const resource = ari("task-permissions", [
-      {
-        taskId: "task-123",
-        userId: "user-456",
-      },
-    ]);
+  it("preserves the tuple type of key", () => {
+    const resource = ari("task-permissions", {
+      taskId: "task-123",
+      userId: "user-456",
+    });
 
     expectTypeOf(resource.key[0]).toEqualTypeOf<{
       readonly taskId: "task-123";
@@ -31,14 +29,12 @@ describe("ari", () => {
     >();
   });
 
-  describe("factory without as const", () => {
+  describe("resource factory", () => {
     function taskPermissionsResource(params: { taskId: string; userId?: string }) {
-      return ari("task-permissions", [
-        {
-          taskId: params.taskId,
-          userId: params.userId ?? null,
-        },
-      ]);
+      return ari("task-permissions", {
+        taskId: params.taskId,
+        userId: params.userId ?? null,
+      });
     }
 
     it("builds a valid resource from factory parameters", () => {
@@ -78,12 +74,10 @@ describe("ari", () => {
   });
 
   it("returns [type, ...key] from toArray()", () => {
-    const resource = ari("task-permissions", [
-      {
-        taskId: "task-123",
-        userId: "user-456",
-      },
-    ] as const);
+    const resource = ari("task-permissions", {
+      taskId: "task-123",
+      userId: "user-456",
+    });
 
     expect(resource.toArray()).toEqual([
       "task-permissions",
@@ -95,12 +89,10 @@ describe("ari", () => {
   });
 
   it("uses stable serialization in format()", () => {
-    const resource = ari("task-permissions", [
-      {
-        taskId: "task-123",
-        userId: "user-456",
-      },
-    ] as const);
+    const resource = ari("task-permissions", {
+      taskId: "task-123",
+      userId: "user-456",
+    });
 
     expect(resource.format()).toBe(
       '"task-permissions":[{"taskId":"task-123","userId":"user-456"}]'
@@ -108,24 +100,24 @@ describe("ari", () => {
   });
 
   it("produces the same format string when object keys are in different order", () => {
-    const left = ari("task-permissions", [{ b: 2, a: 1 }] as const);
-    const right = ari("task-permissions", [{ a: 1, b: 2 }] as const);
+    const left = ari("task-permissions", { b: 2, a: 1 });
+    const right = ari("task-permissions", { a: 1, b: 2 });
 
     expect(left.format()).toBe(right.format());
     expect(left.format()).toBe('"task-permissions":[{"a":1,"b":2}]');
   });
 
   it("compares equivalent resources with equals()", () => {
-    const left = ari("task-permissions", [{ taskId: "task-123", userId: null }] as const);
-    const right = ari("task-permissions", [{ userId: null, taskId: "task-123" }] as const);
-    const different = ari("task-permissions", [{ taskId: "task-999", userId: null }] as const);
+    const left = ari("task-permissions", { taskId: "task-123", userId: null });
+    const right = ari("task-permissions", { userId: null, taskId: "task-123" });
+    const different = ari("task-permissions", { taskId: "task-999", userId: null });
 
     expect(left.equals(right)).toBe(true);
     expect(left.equals(different)).toBe(false);
   });
 
   it("uses a custom formatter when provided", () => {
-    const resource = ari("task-permissions", [{ taskId: "task-123" }] as const);
+    const resource = ari("task-permissions", { taskId: "task-123" });
 
     expect(resource.format((value) => `${value.type}:${value.key.length}`)).toBe(
       "task-permissions:1"
@@ -134,22 +126,33 @@ describe("ari", () => {
 
   it("clones the key so caller mutations do not affect the resource", () => {
     const keyPart = { taskId: "task-123", userId: "user-456" as string | null };
-    const key = [keyPart] as const;
 
-    const resource = ari("task-permissions", key);
+    const resource = ari("task-permissions", keyPart);
 
     keyPart.taskId = "mutated";
     keyPart.userId = "mutated";
 
     expect(resource.key[0]).toEqual({ taskId: "task-123", userId: "user-456" });
-    expect(resource.key).not.toBe(key);
     expect(resource.key[0]).not.toBe(keyPart);
-    expect(Object.isFrozen(key)).toBe(false);
     expect(Object.isFrozen(keyPart)).toBe(false);
   });
 
+  it("accepts multiple key parts as rest arguments", () => {
+    const resource = ari("task-permissions", { taskId: "task-123" }, "scope");
+
+    expect(resource.key).toEqual([{ taskId: "task-123" }, "scope"]);
+    expect(resource.toArray()).toEqual(["task-permissions", { taskId: "task-123" }, "scope"]);
+  });
+
+  it("accepts an empty key via no rest arguments", () => {
+    const resource = ari("tasks");
+
+    expect(resource.key).toEqual([]);
+    expect(resource.toArray()).toEqual(["tasks"]);
+  });
+
   it("freezes the stored key array and object parts", () => {
-    const resource = ari("task-permissions", [{ taskId: "task-123" }, "scope"] as const);
+    const resource = ari("task-permissions", { taskId: "task-123" }, "scope");
 
     expect(Object.isFrozen(resource.key)).toBe(true);
     expect(Object.isFrozen(resource.key[0])).toBe(true);

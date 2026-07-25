@@ -12,9 +12,9 @@ const defaultFormatter: ApplicationResourceKeyFormatter = (resource) =>
 
 export function ari<const Type extends string, const Key extends ApplicationResourceKey>(
   type: Type,
-  key: Key & AssertValidApplicationResourceKey<Key>
+  ...keyParts: Key & AssertValidApplicationResourceKey<Key>
 ): ApplicationResourceIdentifier<Type, Key> {
-  const frozenKey = normalizeKey(key);
+  const frozenKey = normalizeKey(keyParts);
 
   const resource: ApplicationResourceIdentifier<Type, Key> = {
     type,

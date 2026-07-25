@@ -116,12 +116,10 @@ Small factory, talking the application language:
 import { ari } from "@xndrjs/application-resources";
 
 export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", [
-    {
-      postId: params.postId,
-      authorId: params.authorId,
-    },
-  ]);
+  ari("post-comments", {
+    postId: params.postId,
+    authorId: params.authorId,
+  });
 ```
 
 A resource has a **`type`** (the "family") and a **`key`** (the structural parts that identify an instance). That is application language. No React. No TanStack. No `queryClient`.
@@ -147,13 +145,13 @@ For example:
 
 ```ts
 // all post comments
-ari("post-comments", []);
+ari("post-comments");
 // all post comments by a specific author
-ari("post-comments", [{ authorId }]);
+ari("post-comments", { authorId });
 // all post comments on a specific post
-ari("post-comments", [{ postId }]);
+ari("post-comments", { postId });
 // all post comments by a specific author on a specific post
-ari("post-comments", [{ authorId, postId }]);
+ari("post-comments", { authorId, postId });
 ```
 
 The scoping is defined by the application, not by the domain.
@@ -185,13 +183,13 @@ The same underlying concept may have different ARIs in different applications.
 For example, one application may identify a `Project` as:
 
 ```ts
-ari("project", [{ projectId }]);
+ari("project", { projectId });
 ```
 
 while another application may address the same underlying data as:
 
 ```ts
-ari("organization-projects", [{ organizationId, projectId }]);
+ari("organization-projects", { organizationId, projectId });
 ```
 
 Neither is more correct. They represent different application models.
@@ -201,13 +199,13 @@ Another example:
 Application A may have:
 
 ```ts
-ari("customer-orders", [{ customerId }]);
+ari("customer-orders", { customerId });
 ```
 
 Application B may have:
 
 ```ts
-ari("sales-dashboard", [{ regionId }]);
+ari("sales-dashboard", { regionId });
 ```
 
 They may be composed from the same underlying domain data, but represent different resources in each application's model.

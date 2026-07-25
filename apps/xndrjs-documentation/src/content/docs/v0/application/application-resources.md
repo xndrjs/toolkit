@@ -36,7 +36,7 @@ An ARI has:
 - **`format(formatter?)`** — stable string representation (logging, debugging);
 - **`equals(other)`** — structural equality via the same stable serialization.
 
-`type` and `key` stay separate in the public model. The collapsed `[type, ...key]` shape is exposed only through `toArray()`.
+`type` and `key` stay separate in the public model. Create resources with `ari(type, ...keyParts)`; the collapsed `[type, ...key]` shape is exposed only through `toArray()`.
 
 ## Defining resources
 
@@ -46,15 +46,13 @@ Use factory functions in application code and the `ari` helper:
 import { ari } from "@xndrjs/application-resources";
 
 export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", [
-    {
-      postId: params.postId,
-      authorId: params.authorId,
-    },
-  ] as const);
+  ari("post-comments", {
+    postId: params.postId,
+    authorId: params.authorId,
+  });
 
 export const postListResource = (params: { blogId: string }) =>
-  ari("post-list", [{ blogId: params.blogId }] as const);
+  ari("post-list", { blogId: params.blogId });
 ```
 
 Collect return types once for ports and invalidation:

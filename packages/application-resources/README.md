@@ -18,7 +18,7 @@ An **Application Resource Identifier** (ARI) has:
 - **`format(formatter?)`** — returns a stable string representation;
 - **`equals(other)`** — compares two resources using the same stable serialization.
 
-`type` and `key` stay separate in the public model. The collapsed `[type, ...key]` shape is exposed only through `toArray()`.
+`type` and `key` stay separate in the public model. Create resources with `ari(type, ...keyParts)`; the collapsed `[type, ...key]` shape is exposed only through `toArray()`.
 
 ### Allowed key parts
 
@@ -42,12 +42,10 @@ Normalize optional values to `null` or an explicit wildcard instead of leaving t
 import { ari } from "@xndrjs/application-resources";
 
 export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", [
-    {
-      postId: params.postId,
-      authorId: params.authorId,
-    },
-  ] as const);
+  ari("post-comments", {
+    postId: params.postId,
+    authorId: params.authorId,
+  });
 
 const resource = postCommentsResource({
   postId: "post-123",

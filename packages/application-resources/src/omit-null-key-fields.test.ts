@@ -5,12 +5,10 @@ import { omitNullKeyFields } from "./omit-null-key-fields";
 
 describe("omitNullKeyFields", () => {
   it("removes null fields from object key parts in a toArray() projection", () => {
-    const resource = ari("task-permissions", [
-      {
-        taskId: "task-123",
-        userId: null,
-      },
-    ] as const);
+    const resource = ari("task-permissions", {
+      taskId: "task-123",
+      userId: null,
+    });
 
     const projected = omitNullKeyFields(resource.toArray());
 
@@ -26,14 +24,11 @@ describe("omitNullKeyFields", () => {
   });
 
   it("leaves non-null object fields and primitive key parts unchanged", () => {
-    const resource = ari("task-permissions", [
-      "scope",
-      {
-        taskId: "task-123",
-        userId: "user-456",
-        archived: false,
-      },
-    ] as const);
+    const resource = ari("task-permissions", "scope", {
+      taskId: "task-123",
+      userId: "user-456",
+      archived: false,
+    });
 
     expect(omitNullKeyFields(resource.toArray())).toEqual([
       "task-permissions",
@@ -47,12 +42,10 @@ describe("omitNullKeyFields", () => {
   });
 
   it("does not mutate the original toArray() projection", () => {
-    const resource = ari("task-permissions", [
-      {
-        taskId: "task-123",
-        userId: null,
-      },
-    ] as const);
+    const resource = ari("task-permissions", {
+      taskId: "task-123",
+      userId: null,
+    });
     const original = resource.toArray();
 
     const projected = omitNullKeyFields(original);
