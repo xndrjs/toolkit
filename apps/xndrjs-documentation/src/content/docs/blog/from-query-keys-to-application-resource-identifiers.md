@@ -134,13 +134,13 @@ The goal is a **shared language** across layers: every layer of the application 
 
 An Application Resource Identifier (ARI) is an identifier for application resources.
 
-An application resource is not necessarily a single entity. It is an addressable scope the application can address — for loading, caching, invalidation, authorization, or orchestration. For example: invalidating “all products” names that scope; it does not imply those products were loaded as a unit.
+An application resource is not necessarily a single entity. It is an addressable scope the application can reason about — for loading, caching, invalidation, authorization, or orchestration. For example: invalidating “all products” names that scope; it does not imply those products were loaded as a unit.
 
 An ARI intentionally says nothing about how a resource is obtained or represented. It only identifies **what** the resource is.
 
 ### An ARI is...
 
-- An identifier for one or more application resources.
+- An identifier for an application resource, which may represent a single item, a collection, or a broader scope.
 - Scoped, allowing arbitrary levels of granularity.
 
 For example:
@@ -172,19 +172,47 @@ type Post = {
 
 An ARI does not replace those references. It exists for application-level concerns such as loading, cache invalidation, authorization, logging, or event routing.
 
-#### ...a normalized data model
+#### ...a URI or URL
 
-An ARI identifies a resource, not its storage representation.
+An ARI is not a universal identifier.
 
-Resolving a resource may produce:
+A URI identifies a resource within a global addressing scheme. It is meant to be meaningful across systems and boundaries.
 
-- a single entity,
-- multiple related entities,
-- a paginated slice,
-- an aggregate assembled from several services,
-- or any other representation required by the application.
+An ARI exists inside a specific application. It identifies a resource according to that application's own vocabulary, use cases, and boundaries.
 
-The resource is the concept. The returned data is just one possible projection.
+The same underlying concept may have different ARIs in different applications.
+
+For example, one application may identify a `Project` as:
+
+```ts
+ari("project", [{ projectId }]);
+```
+
+while another application may address the same underlying data as:
+
+```ts
+ari("organization-projects", [{ organizationId, projectId }]);
+```
+
+Neither is more correct. They represent different application models.
+
+Another example:
+
+Application A may have:
+
+```ts
+ari("customer-orders", [{ customerId }]);
+```
+
+Application B may have:
+
+```ts
+ari("sales-dashboard", [{ regionId }]);
+```
+
+They may be composed from the same underlying domain data, but represent different resources in each application's model.
+
+An ARI is not a location. It does not tell you where data lives, which service owns it, or how to retrieve it. It only provides a stable way for an application to refer to something it can reason about.
 
 An ARI identifies **what** the application can talk about, not **how** that information is stored, fetched, or represented.
 
