@@ -1,5 +1,13 @@
 # @xndrjs/i18n
 
+## 0.8.2
+
+### Patch Changes
+
+- Ship compiled CLIs (`dist/cli/*`) instead of `tsx` launcher shims; remove the `tsx` peer dependency.
+
+- Fix Windows codegen output paths by normalizing generated file paths to POSIX separators.
+
 ## 0.8.2-alpha.1
 
 ### Patch Changes

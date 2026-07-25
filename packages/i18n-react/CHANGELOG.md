@@ -1,5 +1,16 @@
 # @xndrjs/i18n-react
 
+## 0.8.3
+
+### Patch Changes
+
+- Ship compiled CLI (`dist/cli/codegen.js`) instead of a `tsx` launcher shim; remove the `tsx` peer dependency.
+
+- Add package README documenting codegen, SSR hydration, and gate/HOC usage.
+
+- Updated dependencies
+  - @xndrjs/i18n@0.8.2
+
 ## 0.8.2
 
 ### Patch Changes
