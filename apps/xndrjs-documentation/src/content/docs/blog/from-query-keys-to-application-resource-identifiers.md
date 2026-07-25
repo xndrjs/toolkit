@@ -162,10 +162,6 @@ Once you stop equating “resource” with “query key”, other uses appear al
 
 ## The same idea, many adapters
 
-### Intelligent loaders
-
-A loader can accept a resource identifier and route the request: “this is PostComments, fetch accordingly” — without the caller knowing HTTP paths or cache layout.
-
 ### Access control
 
 Describe what a role may do on which resources:
@@ -205,11 +201,7 @@ logger.error("Failed to load resource", { resource: resource.format() });
 On the server, CDN, or Next.js, turn the resource into a tag:
 
 ```ts
-export function toCacheTag(resource: ApplicationResourceIdentifier) {
-  return resource.format();
-}
-
-revalidateTag(toCacheTag(postResource({ postId })));
+revalidateTag(postResource({ postId }).format());
 ```
 
 ### Application events

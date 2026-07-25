@@ -15,7 +15,7 @@ describe("ari", () => {
         taskId: "task-123",
         userId: "user-456",
       },
-    ] as const);
+    ]);
 
     expectTypeOf(resource.key[0]).toEqualTypeOf<{
       readonly taskId: "task-123";
