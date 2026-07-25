@@ -71,6 +71,28 @@ describe("ari", () => {
 
       expect(resource.key).toEqual([{ taskId: "task-123", userId: null }]);
     });
+
+    it("can force a custom format", () => {
+      function postCommentsResource(params: { postId: string; authorId: string }) {
+        const resource = ari("post-comments", params);
+        return {
+          ...resource,
+          format() {
+            const [{ postId, authorId }] = resource.key;
+            return `${resource.type}/${postId}/${authorId}`;
+          },
+        };
+      }
+
+      const resource = postCommentsResource({
+        postId: "post-123",
+        authorId: "author-456",
+      });
+      const plain = ari("post-comments", { postId: "post-123", authorId: "author-456" });
+
+      expect(resource.format()).toBe("post-comments/post-123/author-456");
+      expect(resource.format()).not.toBe(plain.format());
+    });
   });
 
   it("returns [type, ...key] from toArray()", () => {
