@@ -46,13 +46,9 @@ Use factory functions in application code and the `ari` helper:
 import { ari } from "@xndrjs/application-resources";
 
 export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", {
-    postId: params.postId,
-    authorId: params.authorId,
-  });
+  ari("post-comments", params);
 
-export const postListResource = (params: { blogId: string }) =>
-  ari("post-list", { blogId: params.blogId });
+export const postListResource = (params: { blogId: string }) => ari("post-list", params);
 ```
 
 Collect return types once for ports and invalidation:

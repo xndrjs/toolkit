@@ -101,10 +101,7 @@ import { ari, omitNullKeyFields } from "@xndrjs/application-resources";
 
 ```ts
 export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", {
-    postId: params.postId,
-    authorId: params.authorId,
-  });
+  ari("post-comments", params);
 
 const resource = postCommentsResource({
   postId: "post-123",

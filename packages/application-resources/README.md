@@ -42,10 +42,7 @@ Normalize optional values to `null` or an explicit wildcard instead of leaving t
 import { ari } from "@xndrjs/application-resources";
 
 export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", {
-    postId: params.postId,
-    authorId: params.authorId,
-  });
+  ari("post-comments", params);
 
 const resource = postCommentsResource({
   postId: "post-123",

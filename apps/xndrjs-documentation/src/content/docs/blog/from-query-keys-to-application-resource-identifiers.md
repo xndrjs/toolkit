@@ -116,10 +116,7 @@ Small factory, talking the application language:
 import { ari } from "@xndrjs/application-resources";
 
 export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", {
-    postId: params.postId,
-    authorId: params.authorId,
-  });
+  ari("post-comments", params);
 ```
 
 A resource has a **`type`** (the "family") and a **`key`** (the structural parts that identify an instance). That is application language. No React. No TanStack. No `queryClient`.
