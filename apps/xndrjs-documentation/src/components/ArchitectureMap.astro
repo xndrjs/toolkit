@@ -1,0 +1,192 @@
+---
+/**
+ * Graphic Clean Architecture map for the splash homepage.
+ * Core → edge (top → bottom): Modeling → Application → Infrastructure.
+ */
+const layers = [
+  {
+    id: "domain",
+    label: "Modeling",
+    blurb: "Domain core & validation adapters",
+    href: "/latest/domain/overview/",
+    packages: [
+      { name: "domain", href: "/latest/domain/overview/" },
+      { name: "domain-zod", href: "/latest/adapters/zod/" },
+      { name: "domain-valibot", href: "/latest/adapters/valibot/" },
+      { name: "domain-ajv", href: "/latest/adapters/ajv/" },
+    ],
+  },
+  {
+    id: "application",
+    label: "Application",
+    blurb: "Contracts shared across the app",
+    href: "/latest/application/application-resources/",
+    packages: [
+      { name: "application-resources", href: "/latest/application/application-resources/" },
+    ],
+  },
+  {
+    id: "infrastructure",
+    label: "Infrastructure",
+    blurb: "Effects & codegen at the edge",
+    href: "/latest/infrastructure/tasks/",
+    packages: [
+      { name: "tasks", href: "/latest/infrastructure/tasks/" },
+      { name: "contentful-to-zod", href: "/latest/infrastructure/contentful-to-zod/" },
+    ],
+  },
+] as const;
+---
+
+<figure class="arch-map not-content" aria-label="Clean Architecture package map">
+  <div class="arch-map__rings">
+    {
+      layers.map((layer) => (
+        <div class:list={["arch-map__ring", `arch-map__ring--${layer.id}`]}>
+          <div class="arch-map__ring-head">
+            <a class="arch-map__layer-link" href={layer.href}>
+              <span class="arch-map__layer-name">{layer.label}</span>
+              <span class="arch-map__layer-blurb">{layer.blurb}</span>
+            </a>
+          </div>
+          {/* div grid — avoid Starlight markdown `ul`/`li` spacing that misaligns the first item */}
+          <div class="arch-map__packages">
+            {layer.packages.map((pkg) => (
+              <a class="arch-map__package" href={pkg.href}>
+                <span class="arch-map__scope">@xndrjs/</span>
+                <span class="arch-map__pkg">{pkg.name}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</figure>
+
+<style>
+  .arch-map {
+    margin: 0;
+  }
+
+  .arch-map__rings {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .arch-map__ring {
+    position: relative;
+    border-radius: 0.5rem;
+    padding: 1rem 1.15rem 1.05rem;
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-bg-sidebar);
+    border-inline-start: 3px solid var(--ring-accent);
+    transition: border-color 0.15s ease;
+  }
+
+  .arch-map__ring:hover {
+    border-color: var(--sl-color-gray-2);
+    border-inline-start-color: var(--ring-accent);
+  }
+
+  .arch-map__ring--domain {
+    --ring-accent: var(--sl-color-green, #3dd68c);
+    margin-inline: clamp(1.5rem, 8vw, 4rem);
+  }
+
+  .arch-map__ring--application {
+    --ring-accent: var(--sl-color-orange, #f5a524);
+    margin-inline: clamp(0.75rem, 4vw, 2rem);
+  }
+
+  .arch-map__ring--infrastructure {
+    --ring-accent: var(--sl-color-accent-high, #7c9cff);
+    margin-inline: 0;
+  }
+
+  .arch-map__ring-head {
+    margin-bottom: 0.75rem;
+  }
+
+  .arch-map__layer-link {
+    display: grid;
+    gap: 0.15rem;
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+  }
+
+  .arch-map__layer-link:hover .arch-map__layer-name {
+    color: var(--ring-accent);
+  }
+
+  .arch-map__layer-name {
+    font-family: var(--xndr-brand-mono);
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    transition: color 0.15s ease;
+  }
+
+  .arch-map__layer-blurb {
+    color: var(--sl-color-gray-3);
+    font-size: 0.85rem;
+    line-height: 1.35;
+  }
+
+  .arch-map__packages {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
+    gap: 0.45rem;
+    align-items: stretch;
+  }
+
+  .arch-map__package {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    margin: 0;
+    width: 100%;
+    min-height: 2.25rem;
+    padding: 0.35rem 0.65rem;
+    box-sizing: border-box;
+    border-radius: 0.4rem;
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-bg);
+    color: var(--sl-color-white);
+    text-decoration: none;
+    font-family: var(--xndr-brand-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    transition: border-color 0.15s ease;
+  }
+
+  .arch-map__package:hover {
+    border-color: var(--sl-color-gray-2);
+  }
+
+  .arch-map__scope {
+    color: var(--sl-color-gray-3);
+    font-weight: 500;
+  }
+
+  .arch-map__pkg {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 50rem) {
+    .arch-map__ring--application,
+    .arch-map__ring--domain {
+      margin-inline: 0;
+    }
+
+    .arch-map__packages {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,106 +1,23 @@
 ---
 title: xndrjs
-description: A TypeScript toolkit for Clean Architecture, explicit domain boundaries, and pragmatic application design.
+description: A Clean Architecture toolkit for fullstack TypeScript — domain modeling, application resources, and infrastructure packages.
 template: splash
 hero:
-  tagline: A clean cut through complexity for scalable fullstack TypeScript.
+  tagline: Clean Architecture primitives for fullstack TypeScript.
   actions:
-    - text: Learn the concepts
+    - text: Start here
       link: /latest/getting-started/introduction/
       icon: right-arrow
-    - text: Build the first model
-      link: /latest/getting-started/first-model/
-      icon: open-book
-      variant: secondary
     - text: Read the blog
       link: /blog/
       icon: pencil
       variant: minimal
 ---
 
-import { Card, CardGrid } from "@astrojs/starlight/components";
+import ArchitectureMap from "../../components/ArchitectureMap.astro";
 
-## What is `xndrjs`
-
-`xndrjs` is a TypeScript toolkit for teams that want Clean Architecture without over-engineering their codebase from day one, while leaving room to evolve as complexity grows.
-
-It helps you keep the core of your system as independent as possible from React, Next.js, Angular, SvelteKit, backend frameworks, databases, queues, and other infrastructure details.
-
-Frameworks stay useful entry points. Your domain stays the place where meaning, rules, and correctness live.
+`xndrjs` is a toolkit for **fullstack TypeScript** projects organized by **Clean Architecture layers**. Packages are grouped the same way: modeling at the core, application contracts around it, infrastructure at the edge.
 
 <br />
 
-<CardGrid stagger>
-  <Card title="Architecture over frameworks" icon="seti:smarty">
-    Clean Architecture starts from a simple idea: the core of your application should not depend on delivery mechanisms.
-
-    UI frameworks, runtimes, databases, and external services are adapters. They should plug into your system, not shape it.
-
-    `xndrjs` gives TypeScript projects small primitives for making this separation explicit instead of relying on custom solutions and discipline alone.
-
-  </Card>
-
-  <Card title="Domain modeling first" icon="rocket">
-    The domain model is where `xndrjs` is most opinionated, because it is often the most under-modeled part of a TypeScript application.
-
-    When values, invariants, transitions, and guarantees are explicit, the rest of the architecture becomes easier to organize.
-
-    `xndrjs` focuses on APIs that are both correct by architectural standards and ergonomic enough to use every day.
-
-  </Card>
-
-  <Card title="Meaningful boundaries" icon="puzzle">
-    The toolkit defines orthogonal responsibilities that compose instead of getting tangled.
-
-    For example, domain modeling is split into:
-
-    - validation -> what data is allowed (`Validator`)
-    - representation -> what data can be trusted (`shape`, `primitive`)
-    - behavior -> how data evolves (`capabilities.forShape`, `capabilities.forPrimitive`)
-    - guarantees -> what additional conditions hold (`proof`)
-
-    This gives each concept a natural home and keeps business meaning out of controllers, components, handlers, and persistence code.
-
-  </Card>
-
-  <Card title="Correct by construction" icon="seti:lock">
-    Instead of scattering validation across the codebase, `xndrjs` makes it part of how data is created and transformed.
-
-    Once a value enters the system through a domain boundary, it is:
-
-    - validated
-    - immutable
-    - safe to use
-
-    This removes entire classes of bugs and eliminates uncertainty about data correctness.
-
-    If you can create/transform it, it's valid.
-
-  </Card>
-
-  <Card title="Adapters, not lock-in" icon="external">
-    `xndrjs` integrates with Zod, Valibot, AJV, OpenAPI, and other validation sources through adapters.
-
-    Your code depends on a small validation contract, not on a specific schema engine.
-
-    That lets each boundary use the tool that fits it best while the domain continues to speak in `Email`, `User`, `Order`, `VerifiedUser`, and named capabilities.
-
-  </Card>
-
-  <Card title="Beyond the domain" icon="open-book">
-    `xndrjs` is more than a set of domain utilities. It aims to define a shape-driven workflow for Clean Architecture: name the data at every boundary first, then let business logic and infrastructure code follow from those shapes.
-
-    The domain is the most fundamental layer, but not the only one. Transport payloads, use-case inputs, view models, and async tasks all cross boundaries that deserve an explicit contract.
-
-    The toolkit stays intentionally light on frameworks and infrastructure, while giving you primitives and a clear order of work — model the shape, map between layers, then write behavior.
-
-  </Card>
-</CardGrid>
-
-## Recommended path
-
-1. Read the [introduction](/latest/getting-started/introduction/) to see what `xndrjs` is and what it deliberately is not.
-2. Read the [mental model](/latest/getting-started/mental-model/) to understand how `xndrjs` thinks about trust boundaries.
-3. Build the [first model](/latest/getting-started/first-model/) to see primitive, shape, capability, and proof working together.
-4. Pick an adapter with [Choose an adapter](/latest/getting-started/choosing-adapter/).
-5. Use the [Domain overview](/latest/domain/overview/), [Application resources](/latest/application/application-resources/), and [Tasks](/latest/infrastructure/tasks/) to place the packages inside a Clean Architecture project.
+<ArchitectureMap />
