@@ -29,13 +29,7 @@ export default defineConfig({
             { label: "Version overview", slug: "v0" },
             {
               label: "Start here",
-              items: [
-                { label: "Introduction", slug: "v0/getting-started/introduction" },
-                { label: "Mental model", slug: "v0/getting-started/mental-model" },
-                { label: "Installation", slug: "v0/getting-started/installation" },
-                { label: "First model", slug: "v0/getting-started/first-model" },
-                { label: "Choose an adapter", slug: "v0/getting-started/choosing-adapter" },
-              ],
+              items: [{ label: "Introduction", slug: "v0/getting-started/introduction" }],
             },
             {
               label: "Domain toolkit",
@@ -44,6 +38,8 @@ export default defineConfig({
                   label: "Domain package",
                   items: [
                     { label: "Overview", slug: "v0/domain/overview" },
+                    { label: "Mental model", slug: "v0/domain/mental-model" },
+                    { label: "Choose an adapter", slug: "v0/domain/choosing-adapter" },
                     { label: "Validators and errors", slug: "v0/domain/validators-errors" },
                     { label: "Primitives and shapes", slug: "v0/domain/primitives-shapes" },
                     { label: "Capabilities", slug: "v0/domain/capabilities" },
@@ -54,7 +50,13 @@ export default defineConfig({
                 {
                   label: "Validation adapters",
                   items: [
-                    { label: "Zod", slug: "v0/adapters/zod" },
+                    {
+                      label: "Zod",
+                      items: [
+                        { label: "Overview", slug: "v0/adapters/zod" },
+                        { label: "First model", slug: "v0/adapters/first-model" },
+                      ],
+                    },
                     { label: "Valibot", slug: "v0/adapters/valibot" },
                     { label: "AJV", slug: "v0/adapters/ajv" },
                   ],
@@ -94,13 +96,6 @@ export default defineConfig({
                     },
                   ],
                 },
-              ],
-            },
-            {
-              label: "Reference",
-              items: [
-                { label: "API surface", slug: "v0/reference/api-surface" },
-                { label: "Package map", slug: "v0/reference/package-map" },
               ],
             },
           ],

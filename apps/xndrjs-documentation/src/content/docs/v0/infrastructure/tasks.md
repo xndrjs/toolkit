@@ -29,6 +29,12 @@ retry is easy to remember + retry is easy to configure
 
 By turning retry into a first-class primitive, tasks help ensure that resilience is not something you have to remember, but something built into how your system works.
 
+## Install
+
+```bash
+pnpm add @xndrjs/tasks
+```
+
 ## Working with tasks
 
 The fluent builder is optional: use **`task(fn)`** alone, add **`.retry(...)`**, add **`.inflightDedup(key, registry?)`**, or chain **`.retry` then `.inflightDedup`** when you need both (retry runs **inside** the deduplicated work—see Composition below).

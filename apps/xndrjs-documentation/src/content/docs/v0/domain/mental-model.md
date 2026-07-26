@@ -1,15 +1,15 @@
 ---
 title: Mental model
-description: The trust-boundary model behind xndrjs.
+description: The trust-boundary model behind @xndrjs/domain.
 ---
 
-`xndrjs` is built around one practical idea:
+`@xndrjs/domain` is built around one practical idea:
 
 ```text
 unknown data becomes useful only after it crosses an explicit trust boundary
 ```
 
-The toolkit does not replace your validation library or application framework. It gives you a small vocabulary for preserving trust as data moves through your system.
+The toolkit does not replace your validation library or application framework. `@xndrjs/domain` gives you a small vocabulary for preserving trust as data moves through your system.
 
 ## The flow
 

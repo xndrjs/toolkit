@@ -203,7 +203,7 @@ Views have shapes.
 
 Whenever data crosses a boundary, there should be a recognizable shape on each side.
 
-That idea is close to the [mental model](/v0/getting-started/mental-model/) behind `xndrjs`: external data starts as `unknown`, crosses a validation boundary once, and only then becomes something the rest of the system can treat as trustworthy.
+That idea is close to the [mental model](/v0/domain/mental-model/) behind `xndrjs`: external data starts as `unknown`, crosses a validation boundary once, and only then becomes something the rest of the system can treat as trustworthy.
 
 This idea of "Shape-Driven Design" generalizes that instinct beyond any single library — to every layer where a contract exists but nobody named it.
 
@@ -304,7 +304,7 @@ Each arrow is a named transformation between named shapes — not a `typeof` bra
 
 Make shape modeling an **explicit step** in your workflow — not something you hope will emerge from the implementation.
 
-Through skills, rules, or deliberate prompts, make your AI assistant name the shapes at every boundary and agree on the [mental model](/v0/getting-started/mental-model/) **before** it writes handlers, use cases, or components. Do not let it produce behavioral code while contracts are still implicit. When that order is reversed, parsing-slop happens: orchestration code fills up with inline `typeof` checks and ad hoc guards instead of calling named shapes.
+Through skills, rules, or deliberate prompts, make your AI assistant name the shapes at every boundary and agree on the [mental model](/v0/domain/mental-model/) **before** it writes handlers, use cases, or components. Do not let it produce behavioral code while contracts are still implicit. When that order is reversed, parsing-slop happens: orchestration code fills up with inline `typeof` checks and ad hoc guards instead of calling named shapes.
 
 You end up working at the wrong level of abstraction because of a foggy mental model.
 

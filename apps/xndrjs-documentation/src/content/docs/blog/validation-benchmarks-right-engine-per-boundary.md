@@ -140,7 +140,7 @@ Use Zod or Valibot when:
 - you want transforms and readable schema code at the call site;
 - throughput is dominated by network or UI, not validation.
 
-See [Choose an adapter](/v0/getting-started/choosing-adapter/) for mixing adapters in one model.
+See [Choose an adapter](/v0/domain/choosing-adapter/) for mixing adapters in one model.
 
 ### Core validators — hot server paths you control
 
@@ -198,7 +198,7 @@ const UserProfile = domain.shape(
 ## Decision checklist (when numbers matter)
 
 1. **Profile your boundary** — Use `bench:matrix` with the scenario closest to your workload (`fe-medium-form` vs `migration-batch`), same `mode` (`valid` / `invalid`), and pin `seed` / `input-size`.
-2. **If the gap is small in your scenario**, prefer maintainability and existing team skills ([choosing an adapter](/v0/getting-started/choosing-adapter/)).
+2. **If the gap is small in your scenario**, prefer maintainability and existing team skills ([choosing an adapter](/v0/domain/choosing-adapter/)).
 3. **If the gap is large on a hot path**, narrow optimization: one core `Validator`, or AJV for compiled external schemas—not a wholesale rewrite.
 4. **Do not optimize away validation** — `raw` throughput is misleading for correctness; use it only as a sanity bound.
 5. **Re-run on your runtime** — Node version, hardware, and error verbosity change absolute numbers; rankings here are from a fixed baseline in the monorepo.

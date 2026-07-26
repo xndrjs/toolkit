@@ -264,5 +264,4 @@ Entry/asset link objects and CMA validations (size, range, regex, etc.) are refl
 ## See also
 
 - [Your CMS schema is lying to TypeScript](/blog/your-cms-schema-is-lying-to-typescript/) — transport vs domain trust
-- [Package map](/v0/reference/package-map/) — where this package fits in the toolkit
 - [README in the monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/contentful-to-zod) — CLI details when working on the generator itself

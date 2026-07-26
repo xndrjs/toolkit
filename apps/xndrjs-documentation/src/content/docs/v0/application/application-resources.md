@@ -152,5 +152,3 @@ Exported symbols:
 - **`ApplicationResourcePrimitive`**
 - **`ApplicationResourceKeyObject`**
 - **`ApplicationResourceKeyFormatter`**
-
-See [API surface](/v0/reference/api-surface/#xndrjsapplication-resources) for a compact import map.

@@ -73,7 +73,7 @@ const layers = [
 
   .arch-map__rings {
     display: grid;
-    gap: 0.65rem;
+    gap: 1.25rem;
   }
 
   .arch-map__ring {
@@ -91,17 +91,14 @@ const layers = [
 
   .arch-map__ring--domain {
     --ring-accent: var(--sl-color-green, #3dd68c);
-    margin-inline: clamp(1.5rem, 8vw, 4rem);
   }
 
   .arch-map__ring--application {
     --ring-accent: var(--sl-color-orange, #f5a524);
-    margin-inline: clamp(0.75rem, 4vw, 2rem);
   }
 
   .arch-map__ring--infrastructure {
     --ring-accent: var(--sl-color-accent-high, #7c9cff);
-    margin-inline: 0;
   }
 
   .arch-map__ring-head {
@@ -180,11 +177,6 @@ const layers = [
   }
 
   @media (max-width: 50rem) {
-    .arch-map__ring--application,
-    .arch-map__ring--domain {
-      margin-inline: 0;
-    }
-
     .arch-map__packages {
       grid-template-columns: 1fr;
     }

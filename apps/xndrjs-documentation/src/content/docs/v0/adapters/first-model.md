@@ -1,6 +1,6 @@
 ---
 title: First model
-description: Build a small domain model with a primitive, shape, capability, and proof.
+description: Build a small domain model with @xndrjs/domain-zod — primitive, shape, capability, and proof.
 ---
 
 This guide builds a complete model in a few small steps.

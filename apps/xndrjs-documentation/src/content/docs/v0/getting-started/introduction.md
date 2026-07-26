@@ -3,7 +3,7 @@ title: Introduction
 description: What xndrjs is, what it is not, and how its packages fit together.
 ---
 
-`xndrjs` is a TypeScript toolkit for building Domain-Driven applications with explicit boundaries, composable semantics, and predictable data flow.
+`xndrjs` is a TypeScript toolkit for building fullstack applications with explicit boundaries, composable semantics, and predictable data flow.
 
 It is inspired by Clean Architecture and Domain-Driven Design, but it deliberately avoids turning those ideas into a heavy framework. The toolkit focuses on small, ergonomic libraries that make good architectural habits easier to apply under normal delivery pressure.
 
@@ -11,7 +11,7 @@ It is inspired by Clean Architecture and Domain-Driven Design, but it deliberate
 
 The name `xndrjs` comes from `xndr`, a compact abbreviation of "Alexander": a reference to Alexander the Great and the legend of the Gordian knot.
 
-Faced with an intricate knot, Alexander did not patiently untangle every loop. He cut through it. That image fits the project: `xndrjs` tries to give TypeScript systems a clean cut through complexity by separating layers clearly, making domain boundaries explicit, and choosing radical, original solutions wher more usual conventions tend to keep the knot in place.
+Faced with an intricate knot, Alexander did not patiently untangle every loop. He cut through it. That image fits the project: `xndrjs` tries to give TypeScript systems a clean cut through complexity by separating layers clearly, making boundaries explicit, and choosing radical, original solutions where more usual conventions tend to keep the knot in place.
 
 ## Not a framework
 
@@ -24,15 +24,12 @@ It does not:
 - impose lifecycle hooks or conventions
 - require you to “buy into” a specific way of building apps
 
-Instead, it is a **toolkit of architectural primitives**. It provides clear building blocks for:
+Instead, it is a **toolkit of architectural primitives** organized by Clean Architecture layer. Packages help you:
 
-- validating unknown data at explicit boundaries
-- giving meaningful domain names to values
-- keeping representations immutable
-- expressing allowed state transitions as functions
-- proving stronger semantic guarantees when a workflow needs them
-- segregating domain logic from the View layer
-- standardizing asynchronous work through explicit retry policies and inflight Promise deduplication
+- keep business meaning independent of UI frameworks and IO details
+- make trust boundaries explicit when data crosses processes, networks, forms, caches, or queues
+- share application-level contracts without leaking infrastructure
+- plug delivery concerns (async work, i18n, CMS codegen) in at the edge
 
 The main design goal is:
 
@@ -40,100 +37,72 @@ The main design goal is:
 
 ## Why it exists
 
-### Structuring Responsibility
+### Structuring responsibility
 
 A recurring challenge in application design is not _what_ to build, but _where_ to put it.
 
 As systems grow, responsibilities tend to blur:
 
-- validation logic leaks into UI code
-- business rules get mixed with data fetching
+- validation and business rules leak into UI code
+- use-case meaning gets mixed with cache keys, HTTP clients, and CMS details
 - transformations happen “where convenient” rather than where they belong
 
 Without clear boundaries, the codebase becomes harder to navigate and reason about.
 
-`xndrjs` exists to make responsibility **explicit and predictable**.
+`xndrjs` exists to make responsibility **explicit and predictable** across domain, application, and infrastructure — not by imposing a rigid folder layout, but by giving each concern a natural home and small APIs that fit that home.
 
-Instead of relying on conventions or discipline alone, it encourages a structure where:
+### Making good habits the easy path
 
-- domain modeling happens in one place
-- behavior is clearly separated from data
-- transformations follow explicit pipelines
-- each concept has a natural “home”
+Many practices are universally accepted as “good”:
 
-The goal is not to impose a rigid architecture, but to make the correct placement of logic obvious by design.
+- validate external input at boundaries
+- keep business rules out of delivery mechanisms
+- name shared application concepts once
+- handle transient failures consistently
 
-### Enforcing Best Practices
+They are also easy to apply inconsistently. `xndrjs` turns selected habits into ergonomic primitives so the correct approach is the one that feels natural under delivery pressure.
 
-Many practices in modern applications are universally accepted as “good”:
+### Layers that stay independent of frameworks
 
-- validating external input
-- enforcing invariants
-- normalizing data at boundaries
+Modern TypeScript apps span frontend, backend, server actions, edge runtimes, workers, and shared packages. Frameworks are useful entry points. They should not own your core meaning.
 
-However, these practices are often applied inconsistently.
+`xndrjs` packages are grouped so dependencies can point inward:
 
-In most codebases:
+- **Domain** — business meaning and trusted data
+- **Application** — use cases and app-level contracts
+- **Infrastructure** — frameworks, IO, and external systems
 
-- validation is sometimes forgotten
-- checks are duplicated or slightly different across modules
-- custom logic replaces standard patterns
-- implicit assumptions create hidden gaps
-
-Over time, this leads to uncertainty:
-
-- is this value really safe to use?
-- has this input been validated already?
-- are we missing edge cases somewhere?
-
-`xndrjs` exists to turn these best practices into guarantees.
-
-By providing highly ergonomic primitives
-
-- validation becomes part of creation and transformation, not an extra step to remember
-- trusted values are clearly distinguished from untrusted ones
-- semantic guarantees are explicit and composable
-- unsafe paths are harder to express than safe ones
-
-Instead of relying on discipline, the system makes the correct approach:
-
-> the easiest one to follow
-
-The result is a codebase where correctness is not something to remember, but something that emerges naturally from how the system is designed.
-
-### Formalizing _Trust_
-
-Modern TypeScript applications often run across frontend, backend, server actions, edge runtimes, workers, and shared packages. Types move easily across those layers, but _trust_ does not.
-
-A value that was type-safe inside a module becomes ordinary JSON when it crosses a network, form, cache, queue, storage, or process boundary. `xndrjs` makes those moments explicit:
-
-```ts
-const user = User.create(rawInput);
-const verified = VerifiedUser.assert(user);
-```
-
-The code tells you when data becomes trusted and when it earns a stronger guarantee, while keeping _trust policies_ in one place.
+See the map on the [homepage](/) for the full package layout.
 
 ## Package groups
 
-The toolkit is organized around a few responsibilities:
+**Domain (modeling)**
 
 - `@xndrjs/domain`: validator-agnostic domain modeling core.
 - `@xndrjs/domain-zod`: Zod adapter plus domain re-exports.
 - `@xndrjs/domain-valibot`: Valibot adapter plus domain re-exports.
 - `@xndrjs/domain-ajv`: AJV adapter for JSON Schema and OpenAPI component schemas.
-- `@xndrjs/tasks`: lazy async task helpers with retry support and inflight Promise deduplication.
 
-Start with the domain packages. They are the mental center of the toolkit.
+**Application**
+
+- `@xndrjs/application-resources`: application resource identifiers shared across use cases and adapters, without cache or UI coupling.
+
+**Infrastructure**
+
+- `@xndrjs/tasks`: lazy async task helpers with retry support and inflight Promise deduplication.
+- `@xndrjs/i18n`: type-safe ICU i18n with codegen, namespaces, and lazy loading.
+- `@xndrjs/i18n-react`: React root and namespace gates for translation readiness.
+- `@xndrjs/contentful-to-zod`: Contentful CMA to Zod 4 codegen.
+
+Domain modeling is often where teams start, because it is where meaning concentrates. Application and infrastructure packages extend the same boundary-first approach outward. Install each package from its own guide — there is no single toolkit install.
 
 ## The short version
 
 Use `xndrjs` when you want:
 
-- plain anemic data, not class-heavy models
-- behavior as named functions on domain kits
-- runtime validation and TypeScript guarantees working together
-- explicit trust boundaries instead of scattered validation
-- adapters that let your schema engine remain an implementation detail
+- Clean Architecture habits without a heavy framework
+- fullstack TypeScript with explicit layer boundaries
+- small libraries you can adopt one responsibility at a time
+- adapters and delivery tools that stay replaceable at the edge
 
-Next: [Mental model](/v0/getting-started/mental-model/).
+Next: explore the [homepage map](/), then dive into the layer that matches your need — [Domain overview](/v0/domain/overview/), [Application resources](/v0/application/application-resources/), or [Tasks](/v0/infrastructure/tasks/).

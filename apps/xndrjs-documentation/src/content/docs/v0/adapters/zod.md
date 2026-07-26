@@ -112,3 +112,7 @@ export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostFieldsSc
 ```
 
 Transport schemas describe what can arrive; domain rules define what you trust. See [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) for the full pipeline.
+
+## Next
+
+Build a complete kit with [First model](/v0/adapters/first-model/), or compare engines in [Choose an adapter](/v0/domain/choosing-adapter/).

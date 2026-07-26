@@ -17,6 +17,14 @@ It provides:
 
 Its job is not to be a schema engine. Its job is to turn validation into a stable domain boundary that the rest of your application can trust.
 
+## Install
+
+```bash
+pnpm add @xndrjs/domain
+```
+
+Most projects pair the core with an adapter. See [Choose an adapter](/v0/domain/choosing-adapter/).
+
 ## Semantics over structure
 
 ```text

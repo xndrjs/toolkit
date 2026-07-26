@@ -32,15 +32,26 @@ a.site-title span {
   letter-spacing: -0.04em;
 }
 
-/* Splash homepage: keep the post-hero content tight and centered on the map */
-.sl-markdown-content:has(.arch-map) {
-  max-width: 46rem;
-  margin-inline: auto;
+/* Hero without image: Starlight still uses 7fr/4fr — collapse to one column */
+html[data-has-hero] .hero:not(:has(> img, > .hero-html)) {
+  grid-template-columns: 1fr;
 }
 
-.sl-markdown-content:has(.arch-map) > p:first-of-type {
+html[data-has-hero] .hero:not(:has(> img, > .hero-html)) .stack,
+html[data-has-hero] .hero:not(:has(> img, > .hero-html)) .copy {
   text-align: center;
-  text-wrap: balance;
-  color: var(--sl-color-gray-2);
-  margin-bottom: 1.75rem;
+  align-items: center;
+}
+
+html[data-has-hero] .hero:not(:has(> img, > .hero-html)) .actions {
+  justify-content: center;
+}
+
+/* Homepage splash: one content column for hero + map */
+html[data-has-hero]:not([data-has-sidebar]) {
+  --sl-content-width: 42rem;
+}
+
+.sl-markdown-content:has(.arch-map) .arch-map {
+  margin-top: 2.75rem;
 }

@@ -131,6 +131,5 @@ When `localeFallback` is set in config, codegen enriches generated `LOCALE_FALLB
 ## See also
 
 - [Type-safe i18n for TypeScript and React](/blog/type-safe-i18n-for-typescript-and-react/) — motivation and developer journey
-- [Package map](/v0/reference/package-map/) — where this package fits
 - [Demo app in the monorepo](https://github.com/xndrjs/toolkit/tree/main/apps/i18n-demo) — split-by-locale, custom areas, fetch / CMS refresh
 - [README in the monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/i18n) — full reference when working on the package itself

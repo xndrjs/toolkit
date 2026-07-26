@@ -411,4 +411,4 @@ Zero runtime dependencies. Framework-agnostic. Boring on purpose — so the inte
 npm install @xndrjs/application-resources
 ```
 
-Package docs: [Application resources](/v0/application/application-resources/). API reference: [API surface](/v0/reference/api-surface/#xndrjsapplication-resources).
+Package docs: [Application resources](/v0/application/application-resources/).
