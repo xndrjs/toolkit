@@ -6,8 +6,8 @@
 const layers = [
   {
     id: "domain",
-    label: "Modeling",
-    blurb: "Domain core & validation adapters",
+    label: "Domain Layer",
+    blurb: "Business meaning, trusted data, and the rules that keep them correct",
     href: "/latest/domain/overview/",
     packages: [
       { name: "domain", href: "/latest/domain/overview/" },
@@ -18,8 +18,8 @@ const layers = [
   },
   {
     id: "application",
-    label: "Application",
-    blurb: "Contracts shared across the app",
+    label: "Application Layer",
+    blurb: "Application-level contracts, independent of UI and IO details",
     href: "/latest/application/application-resources/",
     packages: [
       { name: "application-resources", href: "/latest/application/application-resources/" },
@@ -27,11 +27,13 @@ const layers = [
   },
   {
     id: "infrastructure",
-    label: "Infrastructure",
-    blurb: "Effects & codegen at the edge",
+    label: "Infrastructure Layer",
+    blurb: "Frameworks, IO, and external systems that plug into the layers above",
     href: "/latest/infrastructure/tasks/",
     packages: [
       { name: "tasks", href: "/latest/infrastructure/tasks/" },
+      { name: "i18n", href: "/latest/infrastructure/i18n/" },
+      { name: "i18n-react", href: "/latest/infrastructure/i18n/react/" },
       { name: "contentful-to-zod", href: "/latest/infrastructure/contentful-to-zod/" },
     ],
   },
@@ -80,13 +82,11 @@ const layers = [
     padding: 1rem 1.15rem 1.05rem;
     border: 1px solid var(--sl-color-gray-5);
     background: var(--sl-color-bg-sidebar);
-    border-inline-start: 3px solid var(--ring-accent);
     transition: border-color 0.15s ease;
   }
 
   .arch-map__ring:hover {
-    border-color: var(--sl-color-gray-2);
-    border-inline-start-color: var(--ring-accent);
+    border-color: var(--ring-accent);
   }
 
   .arch-map__ring--domain {
@@ -116,7 +116,7 @@ const layers = [
     min-width: 0;
   }
 
-  .arch-map__layer-link:hover .arch-map__layer-name {
+  .arch-map__ring:hover .arch-map__layer-name {
     color: var(--ring-accent);
   }
 
