@@ -7,6 +7,8 @@ tags:
   - openapi
   - ajv
   - domain
+  - typescript
+  - validation
 ---
 
 In many TypeScript projects, the contract already exists.

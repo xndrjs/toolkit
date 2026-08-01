@@ -8,6 +8,8 @@ tags:
   - monorepo
   - clean-architecture
   - typescript
+  - domain
+  - ai
 ---
 
 Every fullstack TypeScript team eventually faces the same truth: **a greenfield app is easy; a greenfield _architecture_ is not**. Frameworks give you routes and components. Vendors give you SDKs and generated types. Neither tells you where business rules live, what may depend on what, or how to keep the next feature from dragging half the system into one pull request.

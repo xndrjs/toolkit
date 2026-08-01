@@ -7,6 +7,7 @@ tags:
   - architecture
   - typescript
   - cache
+  - react
 ---
 
 If you build React apps with TanStack Query, you have almost certainly written code like this:

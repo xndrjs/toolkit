@@ -6,6 +6,8 @@ author: Fabio Fognani
 tags:
   - domain
   - architecture
+  - typescript
+  - validation
 ---
 
 What does it mean to define a domain? At its core, it means creating **data structures** and **operations on those structures** so the code can represent business concepts — a `User`, an `Order`, a `Payment` — and the rules that govern how they may change.

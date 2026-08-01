@@ -7,6 +7,10 @@ tags:
   - benchmarks
   - performance
   - domain
+  - validation
+  - typescript
+  - zod
+  - ajv
 ---
 
 Choosing a validation library is often framed as a single project-wide decision: “we use Zod” or “we standardize on JSON Schema.” In practice, different boundaries have different constraints (OpenAPI contracts from another team, small form schemas on the client, bulk migration on the server) and **throughput is not the only variable**.

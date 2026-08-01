@@ -7,6 +7,8 @@ tags:
   - architecture
   - front-end
   - ai
+  - typescript
+  - domain
 ---
 
 A few years ago, being a frontend developer was a fairly well-defined job: you fetched data from a backend, rendered components, handled user interactions, and sent data back to the backend. Add a sprinkle of CSS, and that was pretty much it.

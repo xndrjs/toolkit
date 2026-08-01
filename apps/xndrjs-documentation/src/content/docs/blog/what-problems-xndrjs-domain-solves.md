@@ -7,6 +7,7 @@ tags:
   - domain
   - typescript
   - architecture
+  - validation
 ---
 
 Documentation and previous blog posts explain _how_ `xndrjs` works. A fair follow-up question is narrower and more urgent:

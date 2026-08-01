@@ -6,6 +6,8 @@ author: Fabio Fognani
 tags:
   - domain
   - architecture
+  - typescript
+  - validation
 ---
 
 ## Preface - Rich and anemic data models

@@ -8,6 +8,7 @@ tags:
   - typescript
   - react
   - icu
+  - codegen
 ---
 
 Every product that ships in more than one language eventually discovers the same truth: **i18n is not a dictionary lookup**. It is a system that sits between content, builds, servers, and UI — and it fails in quiet, expensive ways when you treat it as a bag of strings.

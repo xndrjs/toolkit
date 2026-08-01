@@ -8,6 +8,7 @@ tags:
   - architecture
   - domain
   - validation
+  - typescript
 ---
 
 Recently, while programming with AI assistants, I found myself repeating the same piece of feedback over and over again:

@@ -8,6 +8,8 @@ tags:
   - zod
   - cms
   - codegen
+  - typescript
+  - validation
 ---
 
 I have been working with Contentful for about three years now.
