@@ -306,14 +306,6 @@ Agent entrypoints (`AGENTS.md`, shared skills across Cursor, Claude, Codex, and 
 
 Generators reduce free-form invention. Instead of asking an agent to guess the shape of a new use case, port, or package, the repository provides the expected structure.
 
-```text
-You: Create a new invoice use case in @core/billing.
-
-Agent: Running `pnpm generate core-use-case`…
-       → create-invoice.use-case.ts
-       → create-invoice.use-case.test.ts
-```
-
 Lint rules enforce the boundaries that should not depend on memory or attention:
 
 - dependency rules prevent forbidden imports;
