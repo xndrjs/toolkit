@@ -298,7 +298,7 @@ And one last point, because it is easy to misread the weight of day one.
 
 If the first weeks feel dense — too many names, too many places, too many distinctions — that is not accidental ceremony. The structure is surfacing details that were always there, and it forces the questions you should be asking anyway: what is domain, what is adapter, what may depend on what.
 
-A layout that hides complexity does not remove it. It only postpones the bill — until the "cost of having hidden it" becomes obvious.
+A layout that hides complexity does not remove it. It only postpones the bill — until the **cost of hiding it** becomes obvious.
 
 ---
 
