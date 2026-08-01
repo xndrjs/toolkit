@@ -100,3 +100,66 @@ export function docIdToPathname(id: string): string {
       : (slug.endsWith("/index") ? slug.slice(0, -6) : slug).normalize();
   return param ? `/${String(param)}/` : `/`;
 }
+
+/** URL-safe slug for a blog tag label (display string stays as authored). */
+export function slugifyBlogTag(tag: string): string {
+  return tag
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9._-]/g, "");
+}
+
+export function blogTagPathname(tag: string): string {
+  return `/blog/tag/${slugifyBlogTag(tag)}/`;
+}
+
+export function getEntryBlogTags(entry: CollectionEntry<"docs">): string[] {
+  const tags = entry.data.tags;
+  if (!Array.isArray(tags)) return [];
+  return tags.filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+}
+
+export function entryHasBlogTagSlug(entry: CollectionEntry<"docs">, tagSlug: string): boolean {
+  return getEntryBlogTags(entry).some((tag) => slugifyBlogTag(tag) === tagSlug);
+}
+
+export type BlogTagSummary = {
+  label: string;
+  slug: string;
+  count: number;
+};
+
+/** Unique tags across posts, newest-label wins for casing; sorted by label. */
+export async function getAllBlogTags(): Promise<BlogTagSummary[]> {
+  const posts = await getBlogPostsSorted();
+  const bySlug = new Map<string, BlogTagSummary>();
+
+  for (const entry of posts) {
+    for (const label of getEntryBlogTags(entry)) {
+      const slug = slugifyBlogTag(label);
+      if (!slug) continue;
+      const existing = bySlug.get(slug);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        bySlug.set(slug, { label, slug, count: 1 });
+      }
+    }
+  }
+
+  return [...bySlug.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export async function getBlogPostsByTagSlug(
+  tagSlug: string
+): Promise<{ tag: BlogTagSummary | undefined; posts: CollectionEntry<"docs">[] }> {
+  const tags = await getAllBlogTags();
+  const tag = tags.find((t) => t.slug === tagSlug);
+  if (!tag) return { tag: undefined, posts: [] };
+  const posts = await getBlogPostsSorted();
+  return {
+    tag,
+    posts: posts.filter((entry) => entryHasBlogTagSlug(entry, tagSlug)),
+  };
+}

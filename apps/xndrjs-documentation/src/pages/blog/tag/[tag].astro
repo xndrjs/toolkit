@@ -1,0 +1,69 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import BlogIndex from "../../../components/BlogIndex.astro";
+import {
+  getAllBlogTags,
+  getBlogPostsByTagSlug,
+} from "../../../utils/blog-posts";
+
+export async function getStaticPaths() {
+  const tags = await getAllBlogTags();
+  return tags.map((tag) => ({
+    params: { tag: tag.slug },
+    props: { tagSlug: tag.slug },
+  }));
+}
+
+const { tagSlug } = Astro.props;
+const { tag, posts } = await getBlogPostsByTagSlug(tagSlug);
+
+if (!tag) {
+  return Astro.redirect("/blog/");
+}
+
+const title = `Tag: ${tag.label}`;
+const description =
+  posts.length === 1
+    ? `1 blog post tagged “${tag.label}”.`
+    : `${posts.length} blog posts tagged “${tag.label}”.`;
+---
+
+<StarlightPage
+  frontmatter={{
+    title,
+    description,
+    template: "doc",
+    tableOfContents: false,
+    prev: false,
+    next: false,
+  }}
+  hasSidebar={false}
+>
+  <p class="blog-tag-page__back">
+    <a href="/blog/">← All posts</a>
+  </p>
+  <p class="blog-tag-page__summary">{description}</p>
+  <BlogIndex posts={posts} emptyMessage={`No posts with the tag “${tag.label}”.`} />
+</StarlightPage>
+
+<style>
+  .blog-tag-page__back {
+    margin: 0 0 0.75rem;
+    font-size: var(--sl-text-sm);
+  }
+
+  .blog-tag-page__back a {
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+  }
+
+  .blog-tag-page__back a:hover {
+    text-decoration: underline;
+  }
+
+  .blog-tag-page__summary {
+    margin: 0 0 0.25rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+</style>

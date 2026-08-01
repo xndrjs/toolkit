@@ -1,12 +1,11 @@
 ---
 import type { CollectionEntry } from "astro:content";
 import {
+  blogTagPathname,
   docIdToPathname,
   formatBlogDate,
   getBlogPostsSorted,
 } from "../utils/blog-posts";
-
-const posts = await getBlogPostsSorted();
 
 type BlogData = CollectionEntry<"docs">["data"] & {
   description?: string;
@@ -14,11 +13,23 @@ type BlogData = CollectionEntry<"docs">["data"] & {
   author?: string;
   tags?: string[];
 };
+
+interface Props {
+  posts?: CollectionEntry<"docs">[];
+  emptyMessage?: string;
+}
+
+const {
+  posts: postsProp,
+  emptyMessage = "No posts yet.",
+} = Astro.props as Props;
+
+const posts = postsProp ?? (await getBlogPostsSorted());
 ---
 
 {
   posts.length === 0 ? (
-    <p>No posts yet.</p>
+    <p>{emptyMessage}</p>
   ) : (
     <ul class="blog-index-grid">
       {posts.map((entry) => {
@@ -62,7 +73,9 @@ type BlogData = CollectionEntry<"docs">["data"] & {
                 <ul class="blog-card__tags" aria-label="Tags">
                   {tags.map((tag) => (
                     <li>
-                      <span class="blog-card__tag">{tag}</span>
+                      <a class="blog-card__tag" href={blogTagPathname(tag)}>
+                        {tag}
+                      </a>
                     </li>
                   ))}
                 </ul>
@@ -188,17 +201,23 @@ type BlogData = CollectionEntry<"docs">["data"] & {
     flex-wrap: wrap;
     align-items: center;
     gap: 0.35rem;
-    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
   }
 
   .blog-card__tags li {
     margin: 0;
     display: flex;
     align-items: center;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .blog-card__tag {
     display: inline-block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     font-size: var(--sl-text-xs);
     font-weight: 500;
     padding: 0.2rem 0.5rem;
@@ -206,5 +225,14 @@ type BlogData = CollectionEntry<"docs">["data"] & {
     background: var(--sl-color-gray-6);
     color: var(--sl-color-text);
     border: 1px solid var(--sl-color-gray-5);
+    text-decoration: none;
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .blog-card__tag:hover {
+    border-color: var(--sl-color-gray-2);
+    background: var(--sl-color-gray-5);
   }
 </style>
