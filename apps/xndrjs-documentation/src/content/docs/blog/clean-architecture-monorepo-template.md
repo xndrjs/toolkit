@@ -131,6 +131,14 @@ The bet, described at length in [xndrjs Domain Algebra](/blog/xndrjs-domain-alge
 - **Correct by construction at the gates**: unknown input enters through validated shapes; invalid values are hard to represent by accident.
 - **Capabilities are armored transitions**: behavior lives _alongside_ the data, bound with an explicit `attach`. Updates go through `patch`, which re-validates. You do not mutate fields in place; you name the transition and get a new trusted value back.
 
+```ts
+// ❌ mutate in place — easy, and unsafe
+invoice.status = "paid";
+
+// ✅ named capability — returns a new trusted value
+const paid = Invoice.markPaid(invoice);
+```
+
 In short: mobility of anemic models, guarantees closer to rich models — without DTOs for every hop and without hoping every method author remembered to validate.
 
 This post will not re-argue the algebra. If you want the full design rationale, start with those two articles. What matters for the monorepo is the consequence: **core stays framework-free and vendor-free**, and operations stay segregated inside it — they do not leak into apps by accident, so business logic is not spread across the delivery layer.
@@ -143,17 +151,87 @@ This post will not re-argue the algebra. If you want the full design rationale, 
 
 Core packages cannot import React, Next, or infrastructure SDKs — ESLint `boundaries` and restricted imports make that a merge blocker, not a style preference. Ports are role-oriented (`CmsPort`, not `ContentfulClient`). Apps call public roots from composition (`getBillingRoot(ctx)`); they do not new up infrastructure in a page component.
 
+```ts
+// ✅ page/hook calls composition — not vendors
+const createInvoiceMutation = useMutation({
+  mutationFn: (input) => {
+    const { createInvoice } = getBillingRoot(ctx);
+    return createInvoice(input);
+  },
+});
+
+// ❌ orchestration buried in the hook — not portable across runtimes,
+//    and tied to a vendor HTTP shape
+const createInvoiceMutation = useMutation({
+  mutationFn: async (input) => {
+    const result = await fetch("https://api.stripe.com/…", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    // …map response, handle errors, encode business rules…
+    return result.json();
+  },
+});
+```
+
 Same use case, different runtimes: wire it once for the server composition file, once for the client if needed. The orchestration does not live inside a hook that cannot run on the server.
 
 ### Disorientation → generators and a stable vocabulary
 
 Plop scaffolds cores, ports, use cases, infrastructure packages, and composition roots with the filenames the lint rules expect (`*.use-case.ts`, `*.port.ts`, `*.composition.ts`, …). Agents get the same generators through an MCP server. The question “where does this go?” has a default answer before anyone invents a `utils` folder.
 
+Creating a new use case is not a matter of inventing filenames or folders:
+
+```bash
+pnpm generate core-use-case
+```
+
+The generator scaffolds the expected structure:
+
+```text
+packages/core-billing/
+└── use-cases/
+    ├── create-invoice.use-case.ts
+    ├── create-invoice.use-case.test.ts
+    └── index.ts
+```
+
+The filenames are not cosmetic. They match the repository’s architectural rules, so the generated code is immediately discoverable — and enforceable.
+
 Vertical slices and an explicit ban on catch-all cores reduce god packages. Infrastructure splits by vendor first, then by context when reuse appears — so `S3-the-SDK` and `S3-for-this-export-flow` do not have to be the same package forever.
 
 ### Folklore → executable architecture
 
 Architecture rules are only useful if they can survive pressure from daily development. A document saying “core must not import infrastructure” is a guideline; a build that fails when someone violates it is a constraint.
+
+Put a forbidden import in a core package and the repository refuses it:
+
+```ts
+// packages/core-billing/use-cases/create-invoice.use-case.ts
+import { S3Client } from "@infrastructure/s3"; // ❌
+```
+
+```text
+ESLint error
+
+Core packages must not import infrastructure packages
+'@infrastructure/s3' import is restricted from being
+used by a pattern (no-restricted-imports)
+```
+
+The same applies to frameworks (and to SDKs once they are on the core ban list):
+
+```ts
+import { useState } from "react"; // ❌ inside @core
+```
+
+```text
+ESLint error
+Framework and SDK imports are forbidden in core packages.
+Depend on ports instead. (no-restricted-imports)
+```
+
+That is the difference between documenting Clean Architecture and enforcing it.
 
 The template turns architectural decisions into executable checks:
 
@@ -227,6 +305,14 @@ The template treats AI agents like any other contributor: they need the same arc
 Agent entrypoints (`AGENTS.md`, shared skills across Cursor, Claude, Codex, and other tools) describe the topology of the repository: where features live, which boundaries exist, how new components should be created, and which workflows to follow.
 
 Generators reduce free-form invention. Instead of asking an agent to guess the shape of a new use case, port, or package, the repository provides the expected structure.
+
+```text
+You: Create a new invoice use case in @core/billing.
+
+Agent: Running `pnpm generate core-use-case`…
+       → create-invoice.use-case.ts
+       → create-invoice.use-case.test.ts
+```
 
 Lint rules enforce the boundaries that should not depend on memory or attention:
 
