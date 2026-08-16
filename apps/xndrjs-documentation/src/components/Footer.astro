@@ -9,6 +9,23 @@ import { isBlogPostRoute } from "../utils/blog-posts";
 
 const route = Astro.locals.starlightRoute;
 const showBlogPostPagination = isBlogPostRoute(route.id);
+
+const siteLinks = [
+  { href: "/latest/", label: "Docs" },
+  { href: "/blog/", label: "Blog" },
+  {
+    href: "https://github.com/xndrjs/toolkit",
+    label: "GitHub",
+    icon: "github" as const,
+    external: true,
+  },
+  {
+    href: "https://www.linkedin.com/in/fabio-fognani-ba461b51/",
+    label: "LinkedIn",
+    icon: "linkedin" as const,
+    external: true,
+  },
+];
 ---
 
 <footer class="sl-flex">
@@ -18,6 +35,26 @@ const showBlogPostPagination = isBlogPostRoute(route.id);
   </div>
   {showBlogPostPagination ? <BlogPostPagination /> : null}
   {!showBlogPostPagination ? <Pagination /> : null}
+
+  <nav class="site-footer" aria-label="Site">
+    <ul class="site-footer__links">
+      {
+        siteLinks.map((link) => (
+          <li>
+            <a
+              href={link.href}
+              {...(link.external
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
+            >
+              {"icon" in link && link.icon ? <Icon name={link.icon} /> : null}
+              {link.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
 
   {
     config.credits && (
@@ -44,6 +81,42 @@ const showBlogPostPagination = isBlogPostRoute(route.id);
     }
     .meta > :global(p:only-child) {
       margin-inline-start: auto;
+    }
+
+    .site-footer {
+      margin-top: 1rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--sl-color-gray-5);
+    }
+
+    .site-footer__links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem 1.5rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .site-footer__links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      font-size: var(--sl-text-sm);
+      font-weight: 600;
+      color: var(--sl-color-gray-2);
+      text-decoration: none;
+    }
+
+    .site-footer__links a:hover {
+      color: var(--sl-color-white);
+    }
+
+    .site-footer__links :global(svg) {
+      width: 1em;
+      height: 1em;
+      flex-shrink: 0;
     }
 
     .kudos {

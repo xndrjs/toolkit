@@ -12,7 +12,14 @@ export default defineConfig({
       title: "xndrjs",
       customCss: ["./src/styles/brand-typography.css", "./src/styles/blog-layout.css"],
       routeMiddleware: "./src/routeData.ts",
-      social: [{ icon: "github", label: "GitHub", href: "https://github.com/xndrjs/toolkit" }],
+      social: [
+        { icon: "github", label: "GitHub", href: "https://github.com/xndrjs/toolkit" },
+        {
+          icon: "linkedin",
+          label: "LinkedIn",
+          href: "https://www.linkedin.com/in/fabio-fognani-ba461b51/",
+        },
+      ],
       components: {
         Head: "./src/components/Head.astro",
         Header: "./src/components/Header.astro",
