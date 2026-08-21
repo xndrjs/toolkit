@@ -1,8 +1,7 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import {
   createExpansionPolicyChain,
-  type ExpansionContext,
-  type ExpansionPolicy,
+  defineExpansionPolicy,
   type ExpansionPort,
   type ExpansionResult,
 } from "@xndrjs/resource-graph-resolver";
@@ -98,48 +97,32 @@ function expandForContentType(
   return expand(entry);
 }
 
-function expandResolvedCmsEntry({
-  contentMap,
-  resource,
-}: ExpansionContext<DemoContentRegistry>): ExpansionResult {
-  if (cmsEntryAri.matches(resource)) {
-    const entry = contentMap.get(resource);
-    if (!entry) {
-      return EMPTY_EXPANSION;
-    }
-
-    const parsedId = ContentfulContentTypeIdSchema.safeParse(entry.sys.contentType.sys.id);
-    if (!parsedId.success) {
-      return EMPTY_EXPANSION;
-    }
-
-    return expandForContentType(parsedId.data, entry);
-  }
-  return EMPTY_EXPANSION;
-}
-
-/**
- * Demo expansion policies: match on source-qualified ARI type;
- * cms.entry children/islands come from resolved Contentful content-type.
- */
-export function createDemoExpansionPolicies(): ExpansionPolicy<DemoContentRegistry>[] {
-  return [
-    {
+/** ExpansionPort: first matching policy wins; policies authored inline with typed matches. */
+export function createDemoExpansionPort(): ExpansionPort<DemoContentRegistry> {
+  return createExpansionPolicyChain([
+    defineExpansionPolicy({
       matches: cmsEntryAri.matches,
-      expand: expandResolvedCmsEntry,
-    },
-    {
+      expand: ({ contentMap, resource }) => {
+        const entry = contentMap.get(resource);
+        if (!entry) {
+          return EMPTY_EXPANSION;
+        }
+
+        const parsedId = ContentfulContentTypeIdSchema.safeParse(entry.sys.contentType.sys.id);
+        if (!parsedId.success) {
+          return EMPTY_EXPANSION;
+        }
+
+        return expandForContentType(parsedId.data, entry);
+      },
+    }),
+    defineExpansionPolicy({
       matches: cmsAssetAri.matches,
       expand: () => EMPTY_EXPANSION,
-    },
-    {
+    }),
+    defineExpansionPolicy({
       matches: integrationProductAri.matches,
       expand: () => EMPTY_EXPANSION,
-    },
-  ];
-}
-
-/** ExpansionPort composed from {@link createDemoExpansionPolicies}. */
-export function createDemoExpansionPort(): ExpansionPort<DemoContentRegistry> {
-  return createExpansionPolicyChain(createDemoExpansionPolicies());
+    }),
+  ]);
 }

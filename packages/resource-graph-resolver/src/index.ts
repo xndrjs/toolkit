@@ -2,6 +2,7 @@ export { ContentMap } from "./content-map";
 export type { DataResolutionPort } from "./data-resolution-port";
 export {
   createExpansionPolicyChain,
+  defineExpansionPolicy,
   type ExpansionContext,
   type ExpansionPolicy,
   type ExpansionPort,

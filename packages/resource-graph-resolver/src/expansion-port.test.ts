@@ -1,9 +1,10 @@
 import { ari, type ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { ContentMap } from "./content-map";
 import {
   createExpansionPolicyChain,
+  defineExpansionPolicy,
   type ExpansionContext,
   type ExpansionPolicy,
 } from "./expansion-port";
@@ -74,5 +75,26 @@ describe("createExpansionPolicyChain", () => {
     const port = createExpansionPolicyChain([]);
 
     expect(port.expand(createContext())).toEqual({ resources: [] });
+  });
+});
+
+describe("defineExpansionPolicy", () => {
+  it("narrows resource in expand from a matches type predicate", () => {
+    const menuAri = ari("menu", { id: "M" });
+
+    const policy = defineExpansionPolicy({
+      matches: (resource): resource is typeof menuAri => resource.type === "menu",
+      expand: ({ resource }) => {
+        expectTypeOf(resource.type).toEqualTypeOf<"menu">();
+        expect(resource.type).toBe("menu");
+        return { resources: [], isIsland: true };
+      },
+    });
+
+    const port = createExpansionPolicyChain([policy]);
+    expect(port.expand(createContext(menuAri))).toEqual({
+      resources: [],
+      isIsland: true,
+    });
   });
 });

@@ -6,8 +6,9 @@ import type { ContentRegistry, IslandId } from "./types";
 export interface ExpansionContext<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
+  Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
 > {
-  resource: ApplicationResourceIdentifier;
+  resource: Resource;
   contentMap: ContentMap<R>;
   /**
    * Island inherited from the parent.
@@ -34,8 +35,8 @@ export interface ExpansionPort<
 }
 
 /**
- * Pure policy for expanding a matching resource type.
- * First `matches` wins when composed via {@link createExpansionPolicyChain}.
+ * Chain-erased policy: `matches` is a boolean gate; `expand` sees a wide resource.
+ * Prefer {@link defineExpansionPolicy} at authoring time so `expand` receives a narrowed resource.
  */
 export interface ExpansionPolicy<
   R extends ContentRegistry = ContentRegistry,
@@ -43,6 +44,32 @@ export interface ExpansionPolicy<
 > {
   matches(resource: ApplicationResourceIdentifier): boolean;
   expand(context: ExpansionContext<R, TExecutionContext>): ExpansionResult;
+}
+
+/**
+ * Author a policy whose `expand` context is narrowed by the `matches` type predicate.
+ * The returned value is erased to {@link ExpansionPolicy} for {@link createExpansionPolicyChain}.
+ */
+export function defineExpansionPolicy<
+  R extends ContentRegistry = ContentRegistry,
+  TExecutionContext = unknown,
+  Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
+>(policy: {
+  matches: (resource: ApplicationResourceIdentifier) => resource is Resource;
+  expand: (context: ExpansionContext<R, TExecutionContext, Resource>) => ExpansionResult;
+}): ExpansionPolicy<R, TExecutionContext>;
+export function defineExpansionPolicy<
+  R extends ContentRegistry = ContentRegistry,
+  TExecutionContext = unknown,
+>(policy: {
+  matches: (resource: ApplicationResourceIdentifier) => boolean;
+  expand: (context: ExpansionContext<R, TExecutionContext>) => ExpansionResult;
+}): ExpansionPolicy<R, TExecutionContext>;
+export function defineExpansionPolicy<R extends ContentRegistry, TExecutionContext>(policy: {
+  matches: (resource: ApplicationResourceIdentifier) => boolean;
+  expand: (context: ExpansionContext<R, TExecutionContext>) => ExpansionResult;
+}): ExpansionPolicy<R, TExecutionContext> {
+  return policy;
 }
 
 const EMPTY_EXPANSION: ExpansionResult = { resources: [] };
