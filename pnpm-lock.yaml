@@ -172,6 +172,31 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  apps/resource-graph-resolver-demo:
+    dependencies:
+      '@xndrjs/application-resources':
+        specifier: workspace:^
+        version: link:../../packages/application-resources
+      '@xndrjs/domain-zod':
+        specifier: workspace:^
+        version: link:../../packages/domain-zod
+      '@xndrjs/resource-graph-resolver':
+        specifier: workspace:^
+        version: link:../../packages/resource-graph-resolver
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@xndrjs/contentful-to-zod':
+        specifier: workspace:^
+        version: link:../../packages/contentful-to-zod
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@25.5.0)(jsdom@26.1.0)(vite@8.0.1(@types/node@25.5.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.5)(yaml@2.8.3))
+
   apps/xndrjs-documentation:
     dependencies:
       '@astrojs/starlight':

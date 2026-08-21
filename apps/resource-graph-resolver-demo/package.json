@@ -1,0 +1,22 @@
+{
+  "name": "@xndrjs/resource-graph-resolver-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "contentful:schema": "contentful-to-zod --config ./contentful-to-zod.config.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xndrjs/application-resources": "workspace:^",
+    "@xndrjs/domain-zod": "workspace:^",
+    "@xndrjs/resource-graph-resolver": "workspace:^",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@xndrjs/contentful-to-zod": "workspace:^",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.0"
+  },
+  "version": "0.0.1"
+}

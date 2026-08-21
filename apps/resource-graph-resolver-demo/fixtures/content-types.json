@@ -1,0 +1,183 @@
+[
+  {
+    "id": "page",
+    "name": "Page",
+    "displayField": "title",
+    "fields": [
+      {
+        "id": "title",
+        "name": "Title",
+        "type": "Symbol",
+        "required": true,
+        "localized": true
+      },
+      {
+        "id": "modules",
+        "name": "Modules",
+        "type": "Array",
+        "required": false,
+        "localized": false,
+        "items": { "type": "Link", "linkType": "Entry" },
+        "validations": [{ "linkContentType": ["tabs", "hero", "product"] }]
+      },
+      {
+        "id": "menu",
+        "name": "Menu",
+        "type": "Link",
+        "linkType": "Entry",
+        "required": false,
+        "localized": false,
+        "validations": [{ "linkContentType": ["menu"] }]
+      },
+      {
+        "id": "footer",
+        "name": "Footer",
+        "type": "Link",
+        "linkType": "Entry",
+        "required": false,
+        "localized": false,
+        "validations": [{ "linkContentType": ["footer"] }]
+      }
+    ]
+  },
+  {
+    "id": "tabs",
+    "name": "Tabs",
+    "displayField": "title",
+    "fields": [
+      {
+        "id": "title",
+        "name": "Title",
+        "type": "Symbol",
+        "required": false,
+        "localized": true
+      },
+      {
+        "id": "tabs",
+        "name": "Tabs",
+        "type": "Array",
+        "required": true,
+        "localized": false,
+        "items": { "type": "Link", "linkType": "Entry" },
+        "validations": [{ "linkContentType": ["tab"] }]
+      }
+    ]
+  },
+  {
+    "id": "tab",
+    "name": "Tab",
+    "displayField": "title",
+    "fields": [
+      {
+        "id": "title",
+        "name": "Title",
+        "type": "Symbol",
+        "required": true,
+        "localized": true
+      },
+      {
+        "id": "strips",
+        "name": "Strips",
+        "type": "Array",
+        "required": false,
+        "localized": false,
+        "items": { "type": "Link", "linkType": "Entry" },
+        "validations": [{ "linkContentType": ["hero", "product"] }]
+      }
+    ]
+  },
+  {
+    "id": "hero",
+    "name": "Hero",
+    "displayField": "title",
+    "fields": [
+      {
+        "id": "title",
+        "name": "Title",
+        "type": "Symbol",
+        "required": false,
+        "localized": true
+      },
+      {
+        "id": "image",
+        "name": "Image",
+        "type": "Link",
+        "linkType": "Asset",
+        "required": true,
+        "localized": false
+      }
+    ]
+  },
+  {
+    "id": "menu",
+    "name": "Menu",
+    "displayField": "title",
+    "fields": [
+      {
+        "id": "title",
+        "name": "Title",
+        "type": "Symbol",
+        "required": false,
+        "localized": false
+      },
+      {
+        "id": "logo",
+        "name": "Logo",
+        "type": "Link",
+        "linkType": "Asset",
+        "required": true,
+        "localized": false
+      }
+    ]
+  },
+  {
+    "id": "footer",
+    "name": "Footer",
+    "displayField": "title",
+    "fields": [
+      {
+        "id": "title",
+        "name": "Title",
+        "type": "Symbol",
+        "required": false,
+        "localized": false
+      },
+      {
+        "id": "logo",
+        "name": "Logo",
+        "type": "Link",
+        "linkType": "Asset",
+        "required": true,
+        "localized": false
+      }
+    ]
+  },
+  {
+    "id": "product",
+    "name": "Product",
+    "displayField": "title",
+    "fields": [
+      {
+        "id": "sku",
+        "name": "SKU",
+        "type": "Symbol",
+        "required": true,
+        "localized": false
+      },
+      {
+        "id": "title",
+        "name": "Title",
+        "type": "Symbol",
+        "required": true,
+        "localized": true
+      },
+      {
+        "id": "description",
+        "name": "Description",
+        "type": "Text",
+        "required": false,
+        "localized": true
+      }
+    ]
+  }
+]
