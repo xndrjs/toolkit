@@ -12,16 +12,17 @@ fixtures/
   locales.json            # en-US default, it-IT fallback
 contentful-to-zod.config.ts
 src/
-  generated/
-    contentful.schemas.ts # Zod schemas from contentful-to-zod (committed)
-  cms/                    # CMS source: ARIs, fixtures, Contentful-like batch adapter
-  integration/            # Integration source: ARIs, catalog, commercial batch adapter
-  data-resolution-adapter.ts  # shared adapter signature
-  demo-data-gateway.ts        # DataResolutionPort: routes cms.* / integration.* to adapters
-  content-registry.ts         # DemoContentRegistry = CMS ∪ integration slices
-  expansion-policies.ts       # expand by content-type; product → integration.product
-  aggregate-page-graph.ts     # ContentMap → domain-zod (no integration port)
   domain/                     # domain-zod shapes
+  infrastructure/
+    generated/
+      contentful.schemas.ts   # Zod schemas from contentful-to-zod (committed)
+    cms/                      # CMS source: ARIs, fixtures, Contentful-like batch adapter
+    integration/              # Integration source: ARIs, catalog, commercial batch adapter
+    data-resolution-adapter.ts
+    demo-data-gateway.ts      # DataResolutionPort: routes cms.* / integration.* to adapters
+    content-registry.ts       # DemoContentRegistry = CMS ∪ integration slices
+    expansion-policies.ts     # expand by content-type; product → integration.product
+    aggregate-page-graph.ts   # ContentMap → domain-zod (no integration port)
 ```
 
 ## Contentful schema codegen

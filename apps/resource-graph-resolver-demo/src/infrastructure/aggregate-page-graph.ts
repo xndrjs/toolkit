@@ -27,7 +27,7 @@ import {
   type Tab,
   type TabStrip,
   type Tabs,
-} from "./domain/index.js";
+} from "../domain/index.js";
 import {
   CONTENTFUL_DEFAULT_LOCALE,
   flattenFooterEntryFields,

@@ -10,7 +10,7 @@ import {
   pageEntryAri,
 } from "./cms/index.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
-import { AssetShape, HeroShape, PageShape, ProductShape, TabsShape } from "./domain/index.js";
+import { AssetShape, HeroShape, PageShape, ProductShape, TabsShape } from "../domain/index.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
 import {
   createIntegrationDataAdapter,

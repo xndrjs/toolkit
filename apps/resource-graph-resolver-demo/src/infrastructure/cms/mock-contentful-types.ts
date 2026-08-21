@@ -3,7 +3,7 @@
  *
  * These are hand-written stand-ins for CMS payloads — not generated schemas and
  * not production Contentful SDK types. Generated Zod lives in
- * `src/generated/contentful.schemas.ts`; use those for real parse/hydrate.
+ * `src/infrastructure/generated/contentful.schemas.ts`; use those for real parse/hydrate.
  */
 
 /**

@@ -9,7 +9,7 @@ export default defineConfig({
   fromSnapshot: true,
   snapshot: join(root, "fixtures/content-types.json"),
   snapshotLocales: join(root, "fixtures/locales.json"),
-  out: join(root, "src/generated/contentful.schemas.ts"),
+  out: join(root, "src/infrastructure/generated/contentful.schemas.ts"),
   locale: {
     mode: "both",
   },
