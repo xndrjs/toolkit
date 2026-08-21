@@ -1,4 +1,4 @@
-import type { IslandId, ResolveContentTreeOutput, ResourceKey, SerializedIsland } from "./types";
+import type { IslandId, ResolveContentGraphOutput, ResourceKey, SerializedIsland } from "./types";
 
 /**
  * Materializes one island for cache/JSON storage from membership + content values.
@@ -8,7 +8,7 @@ import type { IslandId, ResolveContentTreeOutput, ResourceKey, SerializedIsland 
  */
 export function serializeIsland(
   islandId: IslandId,
-  result: ResolveContentTreeOutput
+  result: ResolveContentGraphOutput
 ): SerializedIsland {
   const resourceKeys = result.islands.get(islandId);
 

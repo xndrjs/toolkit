@@ -23,13 +23,13 @@ export interface ResolutionError {
   inheritedIslandIds: readonly IslandId[];
 }
 
-export interface ResolveContentTreeInput<TExecutionContext = unknown> {
+export interface ResolveContentGraphInput<TExecutionContext = unknown> {
   root: ApplicationResourceIdentifier;
   context: TExecutionContext;
   missingResourceMode: MissingResourceMode;
 }
 
-export interface ResolveContentTreeOutput {
+export interface ResolveContentGraphOutput {
   contentMap: ContentMap;
   islands: IslandMap;
   islandDependencies: IslandDependencyMap;

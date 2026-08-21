@@ -9,14 +9,14 @@ export {
 } from "./expansion-port";
 export { IslandDependencyMap } from "./island-dependency-map";
 export { IslandMap } from "./island-map";
-export { ResolveContentTreeUseCase } from "./resolve-content-tree-use-case";
+export { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
 export { serializeIsland } from "./serialize-island";
 export type {
   IslandId,
   MissingResourceMode,
   ResolutionError,
-  ResolveContentTreeInput,
-  ResolveContentTreeOutput,
+  ResolveContentGraphInput,
+  ResolveContentGraphOutput,
   ResourceKey,
   SerializedIsland,
 } from "./types";

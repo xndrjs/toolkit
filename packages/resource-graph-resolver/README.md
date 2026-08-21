@@ -1,6 +1,6 @@
 # @xndrjs/resource-graph-resolver
 
-Application-layer resource graph resolution: content maps, islands, expansion ports, and tree resolution.
+Application-layer resource graph resolution: content maps, islands, expansion ports, and a reusable graph engine.
 
 ## Installation
 

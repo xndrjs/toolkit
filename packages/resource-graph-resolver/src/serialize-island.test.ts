@@ -5,7 +5,7 @@ import { ContentMap } from "./content-map";
 import { IslandDependencyMap } from "./island-dependency-map";
 import { IslandMap } from "./island-map";
 import { serializeIsland } from "./serialize-island";
-import type { ResolveContentTreeOutput } from "./types";
+import type { ResolveContentGraphOutput } from "./types";
 
 const page = ari("page", { id: "P" });
 const hero = ari("hero", { id: "H" });
@@ -17,7 +17,7 @@ const missing = ari("missing", { id: "X" });
 function createPageGraphOutput(options?: {
   omitMenu?: boolean;
   missingFromPage?: boolean;
-}): ResolveContentTreeOutput {
+}): ResolveContentGraphOutput {
   const contentMap = new ContentMap();
   contentMap.set(page, {
     title: "Homepage",

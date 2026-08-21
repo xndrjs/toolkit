@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DataResolutionPort } from "./data-resolution-port";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "./expansion-port";
-import { ResolveContentTreeUseCase } from "./resolve-content-tree-use-case";
+import { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
 import { serializeIsland } from "./serialize-island";
 
 const page = ari("page", { id: "P" });
@@ -71,15 +71,15 @@ function createPageGraphPolicies(): ExpansionPolicy[] {
   ];
 }
 
-describe("ResolveContentTreeUseCase", () => {
+describe("ResolveContentGraphEngine", () => {
   it("batches the data port per frontier, shares ContentMap keys, and isolates menu/footer islands", async () => {
     const dataPort = createInMemoryPort();
-    const useCase = new ResolveContentTreeUseCase(
+    const engine = new ResolveContentGraphEngine(
       dataPort,
       createExpansionPolicyChain(createPageGraphPolicies())
     );
 
-    const output = await useCase.execute({
+    const output = await engine.execute({
       root: page,
       context: {},
       missingResourceMode: "throw",
@@ -141,7 +141,7 @@ describe("ResolveContentTreeUseCase", () => {
       [b.format(), { next: a.format() }],
     ]);
     const dataPort = createInMemoryPort(store);
-    const useCase = new ResolveContentTreeUseCase(
+    const engine = new ResolveContentGraphEngine(
       dataPort,
       createExpansionPolicyChain([
         {
@@ -161,7 +161,7 @@ describe("ResolveContentTreeUseCase", () => {
       ])
     );
 
-    const output = await useCase.execute({
+    const output = await engine.execute({
       root: a,
       context: {},
       missingResourceMode: "throw",
@@ -176,12 +176,12 @@ describe("ResolveContentTreeUseCase", () => {
     store.delete(menu.format());
 
     const dataPort = createInMemoryPort(store);
-    const useCase = new ResolveContentTreeUseCase(
+    const engine = new ResolveContentGraphEngine(
       dataPort,
       createExpansionPolicyChain(createPageGraphPolicies())
     );
 
-    const output = await useCase.execute({
+    const output = await engine.execute({
       root: page,
       context: {},
       missingResourceMode: "collect",
@@ -213,13 +213,13 @@ describe("ResolveContentTreeUseCase", () => {
     store.delete(hero.format());
 
     const dataPort = createInMemoryPort(store);
-    const useCase = new ResolveContentTreeUseCase(
+    const engine = new ResolveContentGraphEngine(
       dataPort,
       createExpansionPolicyChain(createPageGraphPolicies())
     );
 
     await expect(
-      useCase.execute({
+      engine.execute({
         root: page,
         context: {},
         missingResourceMode: "throw",
@@ -236,7 +236,7 @@ describe("ResolveContentTreeUseCase", () => {
       [right.format(), {}],
     ]);
     const dataPort = createInMemoryPort(store);
-    const useCase = new ResolveContentTreeUseCase(
+    const engine = new ResolveContentGraphEngine(
       dataPort,
       createExpansionPolicyChain([
         {
@@ -250,7 +250,7 @@ describe("ResolveContentTreeUseCase", () => {
       ])
     );
 
-    const output = await useCase.execute({
+    const output = await engine.execute({
       root: page,
       context: {},
       missingResourceMode: "collect",

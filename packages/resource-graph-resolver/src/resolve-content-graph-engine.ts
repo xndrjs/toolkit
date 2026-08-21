@@ -8,8 +8,8 @@ import { IslandMap } from "./island-map";
 import type {
   IslandId,
   ResolutionError,
-  ResolveContentTreeInput,
-  ResolveContentTreeOutput,
+  ResolveContentGraphInput,
+  ResolveContentGraphOutput,
   ResourceKey,
 } from "./types";
 
@@ -50,16 +50,18 @@ function resourcesToResolve(
 /**
  * Resolves a content resource graph from a root ARI using frontier batching,
  * island ownership, and configurable missing-resource handling.
+ *
+ * Intended as a reusable engine inside project-specific application use cases.
  */
-export class ResolveContentTreeUseCase<TExecutionContext = unknown> {
+export class ResolveContentGraphEngine<TExecutionContext = unknown> {
   constructor(
     private readonly dataResolutionPort: DataResolutionPort,
     private readonly expansionPort: ExpansionPort<TExecutionContext>
   ) {}
 
   async execute(
-    input: ResolveContentTreeInput<TExecutionContext>
-  ): Promise<ResolveContentTreeOutput> {
+    input: ResolveContentGraphInput<TExecutionContext>
+  ): Promise<ResolveContentGraphOutput> {
     const contentMap = new ContentMap();
     const islands = new IslandMap();
     const islandDependencies = new IslandDependencyMap();
