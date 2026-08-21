@@ -2,7 +2,7 @@ import { ContentMap, ResolveContentGraphEngine } from "@xndrjs/resource-graph-re
 import { describe, expect, it } from "vitest";
 
 import {
-  createCmsDataAdapter,
+  createCmsDataLoader,
   demoCmsStore,
   demoIds,
   footerEntryAri,
@@ -18,7 +18,7 @@ import {
 import type { DemoContentRegistry } from "./content-registry.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
-import { createIntegrationDataAdapter, tshirtIntegrationAri } from "./integration/index.js";
+import { createIntegrationDataLoader, tshirtIntegrationAri } from "./integration/index.js";
 
 function expandEntry(resource: typeof pageEntryAri, entry: MockContentfulEntry) {
   const contentMap = new ContentMap<DemoContentRegistry>();
@@ -32,7 +32,7 @@ function expandEntry(resource: typeof pageEntryAri, entry: MockContentfulEntry) 
 }
 
 function createDemoGateway() {
-  return createDemoDataGateway(createCmsDataAdapter(demoCmsStore), createIntegrationDataAdapter());
+  return createDemoDataGateway(createCmsDataLoader(demoCmsStore), createIntegrationDataLoader());
 }
 
 describe("createDemoExpansionPort", () => {

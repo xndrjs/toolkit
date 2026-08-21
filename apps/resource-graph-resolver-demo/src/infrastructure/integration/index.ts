@@ -6,5 +6,5 @@ export {
   type ProductIntegrationSnapshot,
 } from "./catalog.js";
 export type { IntegrationContentRegistry } from "./content-registry.js";
-export { createIntegrationDataAdapter } from "./data-adapter.js";
+export { createIntegrationDataLoader, type IntegrationDataLoader } from "./data-adapter.js";
 export { tshirtIntegrationAri } from "./fixtures.js";

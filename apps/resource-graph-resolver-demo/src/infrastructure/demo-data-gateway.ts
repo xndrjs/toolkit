@@ -1,47 +1,39 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type { DataResolutionPort, ResourceKey } from "@xndrjs/resource-graph-resolver";
+import type {
+  DataResolutionPort,
+  DataResolutionPull,
+  ResourceKey,
+} from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri } from "./cms/ari.js";
-import type { CmsContentRegistry } from "./cms/content-registry.js";
+import type { CmsDataLoader } from "./cms/data-adapter.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import { integrationProductAri } from "./integration/ari.js";
-import type { IntegrationContentRegistry } from "./integration/content-registry.js";
+import type { IntegrationDataLoader } from "./integration/data-adapter.js";
+
+const CMS_BATCH_SIZE = 50;
+const INTEGRATION_BATCH_SIZE = 10;
 
 /**
- * Data gateway: partitions each resolve frontier by ARI source and delegates to
- * CMS / integration adapters injected at construction.
+ * Engine-facing {@link DataResolutionPort}: pulls from the frontier until per-source
+ * batch caps are saturated, then delegates to CMS / integration loaders.
  */
 export function createDemoDataGateway(
-  cms: DataResolutionPort<CmsContentRegistry>,
-  integration: DataResolutionPort<IntegrationContentRegistry>
+  cms: CmsDataLoader,
+  integration: IntegrationDataLoader
 ): DataResolutionPort<DemoContentRegistry> {
   return {
-    async resolve(resources) {
-      const cmsBatch: ApplicationResourceIdentifier[] = [];
-      const integrationBatch: ApplicationResourceIdentifier[] = [];
-
-      for (const resource of resources) {
-        if (cmsEntryAri.matches(resource) || cmsAssetAri.matches(resource)) {
-          cmsBatch.push(resource);
-        } else if (integrationProductAri.matches(resource)) {
-          integrationBatch.push(resource);
-        }
-      }
+    async process(pull) {
+      const cmsBatch = takeUpTo(pull, isCmsResource, CMS_BATCH_SIZE);
+      const integrationBatch = takeUpTo(
+        pull,
+        integrationProductAri.matches,
+        INTEGRATION_BATCH_SIZE
+      );
 
       const [cmsResult, integrationResult] = await Promise.all([
-        cmsBatch.length > 0
-          ? cms.resolve(cmsBatch)
-          : Promise.resolve(
-              new Map() as ReadonlyMap<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>
-            ),
-        integrationBatch.length > 0
-          ? integration.resolve(integrationBatch)
-          : Promise.resolve(
-              new Map() as ReadonlyMap<
-                ResourceKey,
-                IntegrationContentRegistry[keyof IntegrationContentRegistry]
-              >
-            ),
+        cms.load(cmsBatch),
+        integration.load(integrationBatch),
       ]);
 
       const merged = new Map<ResourceKey, DemoContentRegistry[keyof DemoContentRegistry]>();
@@ -54,4 +46,23 @@ export function createDemoDataGateway(
       return merged;
     },
   };
+}
+
+function isCmsResource(resource: ApplicationResourceIdentifier): boolean {
+  return cmsEntryAri.matches(resource) || cmsAssetAri.matches(resource);
+}
+
+function takeUpTo(
+  pull: DataResolutionPull,
+  accept: (resource: ApplicationResourceIdentifier) => boolean,
+  limit: number
+): ApplicationResourceIdentifier[] {
+  const batch: ApplicationResourceIdentifier[] = [];
+  for (const resource of pull.matching(accept)) {
+    batch.push(resource);
+    if (batch.length >= limit) {
+      break;
+    }
+  }
+  return batch;
 }

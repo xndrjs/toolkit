@@ -1,6 +1,6 @@
 export { cmsAssetAri, cmsEntryAri } from "./ari.js";
 export type { CmsContentRegistry } from "./content-registry.js";
-export { createCmsDataAdapter, type CmsFixtureStore } from "./data-adapter.js";
+export { createCmsDataLoader, type CmsDataLoader, type CmsFixtureStore } from "./data-adapter.js";
 export {
   demoCmsStore,
   demoIds,

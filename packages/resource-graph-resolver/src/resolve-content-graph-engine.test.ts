@@ -29,13 +29,19 @@ const values = new Map<string, unknown>([
   [asset.format(), { url: "https://cdn.example.com/logo.svg" }],
 ]);
 
-function createInMemoryPort(
-  store: ReadonlyMap<string, unknown> = values
-): DataResolutionPort & { resolve: ReturnType<typeof vi.fn> } {
+function createInMemoryPort(store: ReadonlyMap<string, unknown> = values): DataResolutionPort & {
+  process: ReturnType<typeof vi.fn>;
+  takenBatches: ApplicationResourceIdentifier[][];
+} {
+  const takenBatches: ApplicationResourceIdentifier[][] = [];
+
   return {
-    resolve: vi.fn(async (resources: readonly ApplicationResourceIdentifier[]) => {
+    takenBatches,
+    process: vi.fn(async (pull) => {
+      const taken = [...pull.matching(() => true)];
+      takenBatches.push(taken);
       const result = new Map<string, unknown>();
-      for (const resource of resources) {
+      for (const resource of taken) {
         const key = resource.format();
         if (store.has(key)) {
           result.set(key, store.get(key));
@@ -72,7 +78,7 @@ function createPageGraphPolicies(): ExpansionPolicy[] {
 }
 
 describe("ResolveContentGraphEngine", () => {
-  it("batches the data port per frontier, shares ContentMap keys, and isolates menu/footer islands", async () => {
+  it("pulls the data port per frontier round, shares ContentMap keys, and isolates menu/footer islands", async () => {
     const dataPort = createInMemoryPort();
     const engine = new ResolveContentGraphEngine(
       dataPort,
@@ -85,33 +91,25 @@ describe("ResolveContentGraphEngine", () => {
       missingResourceMode: "throw",
     });
 
-    // Port is called once per frontier batch, not per node
-    expect(dataPort.resolve).toHaveBeenCalledTimes(3);
-    expect(dataPort.resolve.mock.calls.map((call) => call[0])).toEqual([
-      [page],
-      [hero, menu, footer],
-      [asset],
-    ]);
+    // Eager port takes the whole frontier each round
+    expect(dataPort.process).toHaveBeenCalledTimes(3);
+    expect(dataPort.takenBatches).toEqual([[page], [hero, menu, footer], [asset]]);
 
-    // asset:A is requested only once even though it belongs to multiple islands
-    const assetRequestCount = dataPort.resolve.mock.calls.filter((call) =>
-      call[0].some((resource: ApplicationResourceIdentifier) => resource.equals(asset))
+    const assetRequestCount = dataPort.takenBatches.filter((batch) =>
+      batch.some((resource) => resource.equals(asset))
     ).length;
     expect(assetRequestCount).toBe(1);
 
-    // ContentMap keeps a single instance per resource key
     const assetValue = output.contentMap.get(asset);
     expect(assetValue).toEqual({ url: "https://cdn.example.com/logo.svg" });
     expect(output.contentMap.getByKey(asset.format())).toBe(assetValue);
 
-    // Islands share the same resource key (membership), not nested copies
     expect(output.islands.get(page.format())).toEqual(
       new Set([page.format(), hero.format(), asset.format()])
     );
     expect(output.islands.get(menu.format())).toEqual(new Set([menu.format(), asset.format()]));
     expect(output.islands.get(footer.format())).toEqual(new Set([footer.format(), asset.format()]));
 
-    // menu / footer with isIsland: true → autonomous islands + dependencies from page
     expect(output.islandDependencies.get(page.format())).toEqual(
       new Set([menu.format(), footer.format()])
     );
@@ -133,6 +131,54 @@ describe("ResolveContentGraphEngine", () => {
     );
   });
 
+  it("re-queues deferred resources so a capped port can saturate later rounds", async () => {
+    const store = values;
+    const takenBatches: ApplicationResourceIdentifier[][] = [];
+
+    const dataPort: DataResolutionPort = {
+      async process(pull) {
+        const taken: ApplicationResourceIdentifier[] = [];
+        for (const resource of pull.matching(() => true)) {
+          taken.push(resource);
+          if (taken.length >= 1) {
+            break;
+          }
+        }
+        takenBatches.push(taken);
+
+        const result = new Map<string, unknown>();
+        for (const resource of taken) {
+          const key = resource.format();
+          if (store.has(key)) {
+            result.set(key, store.get(key));
+          }
+        }
+        return result;
+      },
+    };
+
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain(createPageGraphPolicies())
+    );
+
+    const output = await engine.execute({
+      root: page,
+      context: {},
+      missingResourceMode: "throw",
+    });
+
+    // After page: hero/menu/footer are frontier; cap 1 takes hero, leaves menu/footer.
+    // Expanding hero enqueues asset → next rounds can mix leftovers with children.
+    expect(takenBatches[0]).toEqual([page]);
+    expect(takenBatches[1]).toEqual([hero]);
+    expect(takenBatches.some((batch) => batch.some((r) => r.equals(menu)))).toBe(true);
+    expect(takenBatches.some((batch) => batch.some((r) => r.equals(footer)))).toBe(true);
+    expect(takenBatches.some((batch) => batch.some((r) => r.equals(asset)))).toBe(true);
+    expect(output.contentMap.has(asset)).toBe(true);
+    expect(output.errors).toEqual([]);
+  });
+
   it("terminates graph cycles via visited (island, resource) pairs", async () => {
     type CycleRegistry = {
       node: { next: string };
@@ -144,10 +190,13 @@ describe("ResolveContentGraphEngine", () => {
       [a.format(), { next: b.format() }],
       [b.format(), { next: a.format() }],
     ]);
-    const dataPort: DataResolutionPort<CycleRegistry> & { resolve: ReturnType<typeof vi.fn> } = {
-      resolve: vi.fn(async (resources: readonly ApplicationResourceIdentifier[]) => {
+    const dataPort = {
+      takenBatches: [] as ApplicationResourceIdentifier[][],
+      process: vi.fn(async (pull) => {
+        const taken = [...pull.matching(() => true)];
+        dataPort.takenBatches.push(taken);
         const result = new Map<string, CycleRegistry["node"]>();
-        for (const resource of resources) {
+        for (const resource of taken) {
           const key = resource.format();
           if (store.has(key)) {
             result.set(key, store.get(key)!);
@@ -155,7 +204,11 @@ describe("ResolveContentGraphEngine", () => {
         }
         return result;
       }),
+    } satisfies DataResolutionPort<CycleRegistry> & {
+      takenBatches: ApplicationResourceIdentifier[][];
+      process: ReturnType<typeof vi.fn>;
     };
+
     const engine = new ResolveContentGraphEngine<CycleRegistry>(
       dataPort,
       createExpansionPolicyChain<CycleRegistry>([
@@ -183,7 +236,7 @@ describe("ResolveContentGraphEngine", () => {
     });
 
     expect(output.islands.get(a.format())).toEqual(new Set([a.format(), b.format()]));
-    expect(dataPort.resolve).toHaveBeenCalledTimes(2);
+    expect(dataPort.process).toHaveBeenCalledTimes(2);
   });
 
   it("collect mode does not throw, skips missing serialization, and marks islands partial", async () => {
@@ -277,13 +330,10 @@ describe("ResolveContentGraphEngine", () => {
       new Set([left.format(), right.format()])
     );
     expect(
-      dataPort.resolve.mock.calls.some((call) =>
-        call[0].some((resource: ApplicationResourceIdentifier) => resource.equals(missing))
-      )
+      dataPort.takenBatches.some((batch) => batch.some((resource) => resource.equals(missing)))
     ).toBe(true);
-    // Missing resource is not requested again after failure registration
-    const missingRequestCount = dataPort.resolve.mock.calls.filter((call) =>
-      call[0].some((resource: ApplicationResourceIdentifier) => resource.equals(missing))
+    const missingRequestCount = dataPort.takenBatches.filter((batch) =>
+      batch.some((resource) => resource.equals(missing))
     ).length;
     expect(missingRequestCount).toBe(1);
   });

@@ -1,5 +1,9 @@
 export { ContentMap } from "./content-map";
-export type { DataResolutionPort } from "./data-resolution-port";
+export {
+  createDataResolutionPull,
+  type DataResolutionPort,
+  type DataResolutionPull,
+} from "./data-resolution-port";
 export {
   createExpansionPolicyChain,
   defineExpansionPolicy,

@@ -3,17 +3,17 @@ import { describe, expect, it } from "vitest";
 
 import { aggregatePageGraph } from "./aggregate-page-graph.js";
 import {
-  createCmsDataAdapter,
+  createCmsDataLoader,
   demoCmsStore,
   demoIds,
   logoAssetAri,
   pageEntryAri,
 } from "./cms/index.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
-import { AssetShape, HeroShape, PageShape, ProductShape, TabsShape } from "../domain/index.js";
+import { AssetShape, PageShape, ProductShape, TabsShape } from "../domain/index.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
 import {
-  createIntegrationDataAdapter,
+  createIntegrationDataLoader,
   demoProductCatalog,
   tshirtIntegrationAri,
   type ProductIntegrationSnapshot,
@@ -23,8 +23,8 @@ function createDemoGateway(
   catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog
 ) {
   return createDemoDataGateway(
-    createCmsDataAdapter(demoCmsStore),
-    createIntegrationDataAdapter(catalog)
+    createCmsDataLoader(demoCmsStore),
+    createIntegrationDataLoader(catalog)
   );
 }
 

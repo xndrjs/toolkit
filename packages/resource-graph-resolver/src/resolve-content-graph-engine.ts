@@ -25,31 +25,17 @@ interface FailureAccumulator {
   inheritedIslandIds: Set<IslandId>;
 }
 
-/** Collects unique frontier resources that still need a data-port resolve. */
-function resourcesToResolve<R extends ContentRegistry>(
-  frontier: readonly QueueItem[],
+function isUnresolved<R extends ContentRegistry>(
+  resource: ApplicationResourceIdentifier,
   contentMap: ContentMap<R>,
   failuresByResource: ReadonlyMap<ResourceKey, FailureAccumulator>
-): ApplicationResourceIdentifier[] {
-  const missing: ApplicationResourceIdentifier[] = [];
-  const seen = new Set<ResourceKey>();
-
-  for (const { resource } of frontier) {
-    const key = resource.format();
-
-    if (seen.has(key) || contentMap.has(resource) || failuresByResource.has(key)) {
-      continue;
-    }
-
-    seen.add(key);
-    missing.push(resource);
-  }
-
-  return missing;
+): boolean {
+  const key = resource.format();
+  return !contentMap.has(resource) && !failuresByResource.has(key);
 }
 
 /**
- * Resolves a content resource graph from a root ARI using frontier batching,
+ * Resolves a content resource graph from a root ARI using frontier pulls,
  * island ownership, and configurable missing-resource handling.
  *
  * Intended as a reusable engine inside project-specific application use cases.
@@ -97,18 +83,46 @@ export class ResolveContentGraphEngine<
 
     while (queue.length > 0) {
       const frontier = queue.splice(0);
-      const missingResources = resourcesToResolve(frontier, contentMap, failuresByResource);
+      const taken: QueueItem[] = [];
+      const takenKeys = new Set<ResourceKey>();
 
-      if (missingResources.length > 0) {
-        const resolved = await this.dataResolutionPort.resolve(missingResources);
+      const needsResolve = frontier.some((item) =>
+        isUnresolved(item.resource, contentMap, failuresByResource)
+      );
 
-        for (const resource of missingResources) {
-          const resourceKey = resource.format();
+      if (needsResolve) {
+        const resolved = await this.dataResolutionPort.process({
+          *matching(accept: (resource: ApplicationResourceIdentifier) => boolean) {
+            for (let i = 0; i < frontier.length; ) {
+              const item = frontier[i]!;
+              if (
+                !accept(item.resource) ||
+                !isUnresolved(item.resource, contentMap, failuresByResource)
+              ) {
+                i++;
+                continue;
+              }
+
+              const key = item.resource.format();
+              if (takenKeys.has(key)) {
+                i++;
+                continue;
+              }
+
+              frontier.splice(i, 1);
+              taken.push(item);
+              takenKeys.add(key);
+              yield item.resource;
+            }
+          },
+        });
+
+        for (const item of taken) {
+          const resourceKey = item.resource.format();
 
           if (resolved.has(resourceKey)) {
-            // Trust boundary: the port returns heterogeneous batch values keyed by ResourceKey.
             contentMap.set(
-              resource as ApplicationResourceIdentifier<keyof R & string>,
+              item.resource as ApplicationResourceIdentifier<keyof R & string>,
               resolved.get(resourceKey) as R[keyof R & string]
             );
             continue;
@@ -120,12 +134,7 @@ export class ResolveContentGraphEngine<
         }
       }
 
-      for (const { resource, inheritedIslandId } of frontier) {
-        if (!contentMap.has(resource)) {
-          registerMissingResource(resource, inheritedIslandId);
-          continue;
-        }
-
+      const expandItem = ({ resource, inheritedIslandId }: QueueItem): void => {
         const resourceKey = resource.format();
 
         const expansion = this.expansionPort.expand({
@@ -142,7 +151,7 @@ export class ResolveContentGraphEngine<
         }
 
         if (islands.has(islandId, resource)) {
-          continue;
+          return;
         }
 
         islands.add(islandId, resource);
@@ -152,6 +161,26 @@ export class ResolveContentGraphEngine<
             resource: child,
             inheritedIslandId: islandId,
           });
+        }
+      };
+
+      for (const item of taken) {
+        if (!contentMap.has(item.resource)) {
+          registerMissingResource(item.resource, item.inheritedIslandId);
+          continue;
+        }
+        expandItem(item);
+      }
+
+      for (const item of frontier) {
+        if (contentMap.has(item.resource)) {
+          expandItem(item);
+        } else if (failuresByResource.has(item.resource.format())) {
+          // Duplicate queue entry for an already-failed resource — aggregate islands.
+          registerMissingResource(item.resource, item.inheritedIslandId);
+        } else {
+          // Deferred by the port (not pulled this round) — try again after expand.
+          queue.push(item);
         }
       }
     }

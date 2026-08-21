@@ -1,5 +1,5 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type { DataResolutionPort, ResourceKey } from "@xndrjs/resource-graph-resolver";
+import type { ResourceKey } from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri } from "./ari.js";
 import type { CmsContentRegistry } from "./content-registry.js";
@@ -10,53 +10,51 @@ export type CmsFixtureStore = {
   assets: ReadonlyMap<string, MockContentfulAsset>;
 };
 
+type CmsEntryResource = ReturnType<typeof cmsEntryAri>;
+type CmsAssetResource = ReturnType<typeof cmsAssetAri>;
+
 /**
- * In-memory CMS adapter that mimics Contentful Delivery batch fetches
- * (`sys.id[in]=…` for entries and assets) rather than one HTTP call per id.
+ * CMS batch loader — not a DataResolutionPort.
+ * Mimics Contentful Delivery `sys.id[in]=…` fetches for entries and assets.
  */
-export function createCmsDataAdapter(
-  store: CmsFixtureStore
-): DataResolutionPort<CmsContentRegistry> {
+export type CmsDataLoader = {
+  load(
+    resources: readonly ApplicationResourceIdentifier[]
+  ): Promise<ReadonlyMap<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>>;
+};
+
+export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
   return {
-    async resolve(resources) {
+    async load(resources) {
       const entryIds: string[] = [];
       const assetIds: string[] = [];
-      const entryAris: ApplicationResourceIdentifier<"cms.entry">[] = [];
-      const assetAris: ApplicationResourceIdentifier<"cms.asset">[] = [];
+      const entryAris: CmsEntryResource[] = [];
+      const assetAris: CmsAssetResource[] = [];
 
       for (const resource of resources) {
         if (cmsEntryAri.matches(resource)) {
-          const id = readIdKey(resource);
-          if (id !== undefined) {
-            entryIds.push(id);
-            entryAris.push(resource);
-          }
+          entryIds.push(resource.key[0].id);
+          entryAris.push(resource);
         } else if (cmsAssetAri.matches(resource)) {
-          const id = readIdKey(resource);
-          if (id !== undefined) {
-            assetIds.push(id);
-            assetAris.push(resource);
-          }
+          assetIds.push(resource.key[0].id);
+          assetAris.push(resource);
         }
       }
 
-      // Mimic one batched Entries query + one batched Assets query (Contentful-style).
       const fetchedEntries = await mockContentfulEntriesByIds(store.entries, entryIds);
       const fetchedAssets = await mockContentfulAssetsByIds(store.assets, assetIds);
 
       const result = new Map<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>();
 
       for (const resource of entryAris) {
-        const id = readIdKey(resource)!;
-        const entry = fetchedEntries.get(id);
+        const entry = fetchedEntries.get(resource.key[0].id);
         if (entry) {
           result.set(resource.format(), entry);
         }
       }
 
       for (const resource of assetAris) {
-        const id = readIdKey(resource)!;
-        const asset = fetchedAssets.get(id);
+        const asset = fetchedAssets.get(resource.key[0].id);
         if (asset) {
           result.set(resource.format(), asset);
         }
@@ -97,12 +95,4 @@ async function mockContentfulAssetsByIds(
     }
   }
   return found;
-}
-
-function readIdKey(resource: ApplicationResourceIdentifier): string | undefined {
-  const part = resource.key[0];
-  if (typeof part === "object" && part !== null && "id" in part && typeof part.id === "string") {
-    return part.id;
-  }
-  return undefined;
 }

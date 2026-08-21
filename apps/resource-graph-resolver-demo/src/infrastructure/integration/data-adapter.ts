@@ -1,34 +1,40 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type { DataResolutionPort, ResourceKey } from "@xndrjs/resource-graph-resolver";
+import type { ResourceKey } from "@xndrjs/resource-graph-resolver";
 
 import { integrationProductAri } from "./ari.js";
 import { demoProductCatalog, type ProductIntegrationSnapshot } from "./catalog.js";
 import type { IntegrationContentRegistry } from "./content-registry.js";
 
+type IntegrationProductResource = ReturnType<typeof integrationProductAri>;
+
 /**
- * In-memory integration adapter that mimics a dedicated commercial API
- * (e.g. `POST /products/by-sku { skus: [...] }`) rather than one call per SKU.
+ * Integration batch loader — not a DataResolutionPort.
+ * Mimics a dedicated commercial API (`POST /products/by-sku { skus: [...] }`).
  */
-export function createIntegrationDataAdapter(
+export type IntegrationDataLoader = {
+  load(
+    resources: readonly ApplicationResourceIdentifier[]
+  ): Promise<
+    ReadonlyMap<ResourceKey, IntegrationContentRegistry[keyof IntegrationContentRegistry]>
+  >;
+};
+
+export function createIntegrationDataLoader(
   catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog
-): DataResolutionPort<IntegrationContentRegistry> {
+): IntegrationDataLoader {
   return {
-    async resolve(resources) {
+    async load(resources) {
       const skus: string[] = [];
-      const productAris: ApplicationResourceIdentifier[] = [];
+      const productAris: IntegrationProductResource[] = [];
 
       for (const resource of resources) {
         if (!integrationProductAri.matches(resource)) {
           continue;
         }
-        const sku = readSkuKey(resource);
-        if (sku !== undefined) {
-          skus.push(sku);
-          productAris.push(resource);
-        }
+        skus.push(resource.key[0].sku);
+        productAris.push(resource);
       }
 
-      // Mimic one batched commercial lookup for the frontier's SKUs.
       const fetched = await mockProductsBySkus(catalog, skus);
 
       const result = new Map<
@@ -36,8 +42,7 @@ export function createIntegrationDataAdapter(
         IntegrationContentRegistry[keyof IntegrationContentRegistry]
       >();
       for (const resource of productAris) {
-        const sku = readSkuKey(resource)!;
-        const snapshot = fetched.get(sku);
+        const snapshot = fetched.get(resource.key[0].sku);
         if (snapshot) {
           result.set(resource.format(), snapshot);
         }
@@ -62,12 +67,4 @@ async function mockProductsBySkus(
     }
   }
   return found;
-}
-
-function readSkuKey(resource: ApplicationResourceIdentifier): string | undefined {
-  const part = resource.key[0];
-  if (typeof part === "object" && part !== null && "sku" in part && typeof part.sku === "string") {
-    return part.sku;
-  }
-  return undefined;
 }
