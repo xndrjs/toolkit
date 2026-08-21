@@ -1,6 +1,6 @@
 # @xndrjs/application-resources
 
-Framework-agnostic **Application Resource Identifiers** for the core/application layer: stable, structural resource IDs you can use for stale resources, invalidation, logging, or later conversion to cache/query keys — without depending on any infrastructure details.
+Framework-agnostic **Application Resource Identifiers**: stable, structural resource IDs you can use for stale resources, invalidation, logging, or later conversion to cache/query keys.
 
 ## Installation
 
@@ -18,7 +18,7 @@ An **Application Resource Identifier** (ARI) has:
 - **`format(formatter?)`** — returns a stable string representation;
 - **`equals(other)`** — compares two resources using the same stable serialization.
 
-`type` names the **resource family**; `key` holds the **coordinates** (instance id, filter, or empty family scope). Create resources with `ari(type, ...keyParts)` for ad-hoc keys, or **`defineAri(type, keySchema)`** when you want validated locators and `matches` for dispatch.
+`type` names the **resource family**; `key` holds the **coordinates** (instance id, filter, or empty family scope). Create resources with `ari(type, ...keyParts)` for ad-hoc keys, or **`defineAri(type, ...keyPartSchemas)`** when you want validated locators and `matches` for dispatch.
 
 ### Allowed key parts
 
@@ -43,7 +43,7 @@ import { defineAri, s } from "@xndrjs/application-resources";
 
 export const integrationProductAri = defineAri(
   "integration.product",
-  s.tuple([s.object({ sku: s.string() })])
+  s.object({ sku: s.string() })
 );
 
 const resource = integrationProductAri({ sku: "TSHIRT-1" });
@@ -52,7 +52,7 @@ integrationProductAri.matches(resource); // type + key shape
 integrationProductAri.type; // "integration.product"
 ```
 
-Key schema builders (`s`): `string`, `int`, `boolean`, `null`, `literal`, `enum`, `object` (flat), `tuple` (full key), `union` (locator alternatives). No Zod dependency — intentionally small.
+Key part schemas are wrapped in a tuple automatically (`defineAri("posts")` → empty key). Key schema builders (`s`): `string`, `int`, `boolean`, `nullable`, `optional`, `literal`, `enum`, `object` (flat), plus `tuple` / `union` when you need them explicitly. No Zod dependency — intentionally small.
 
 `ari()` remains available as a low-level constructor without a key schema.
 

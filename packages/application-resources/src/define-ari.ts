@@ -1,12 +1,17 @@
 import { ari } from "./ari";
-import { safeParse, type KeySchemaIssue, type TupleSchema } from "./key-schema";
+import {
+  s,
+  safeParse,
+  type InferKeySchema,
+  type KeyPartSchema,
+  type KeySchemaIssue,
+  type TupleSchema,
+} from "./key-schema";
 import { normalizeKey } from "./normalize-key";
 import type { ApplicationResourceIdentifier, ApplicationResourceKey } from "./types";
 
-/** Schemas that describe a full ARI `key` (tuple of parts, or union of those). */
-export type AriKeySchema =
-  | TupleSchema
-  | { readonly kind: "union"; readonly options: readonly TupleSchema[] };
+/** Full key schema produced by {@link defineAri} (parts wrapped in a tuple). */
+export type AriKeySchema = TupleSchema;
 
 export class AriKeySchemaError extends Error {
   readonly issues: readonly KeySchemaIssue[];
@@ -33,54 +38,32 @@ export type DefinedAri<
   ): candidate is ApplicationResourceIdentifier<Type, Key>;
 };
 
-type InferLeaf<S> = S extends { readonly kind: "string" }
-  ? string
-  : S extends { readonly kind: "int" }
-    ? number
-    : S extends { readonly kind: "boolean" }
-      ? boolean
-      : S extends { readonly kind: "null" }
-        ? null
-        : S extends { readonly kind: "literal"; readonly value: infer V }
-          ? V
-          : S extends {
-                readonly kind: "enum";
-                readonly values: infer Values extends readonly string[];
-              }
-            ? Values[number]
-            : never;
+/** Map key-part schemas to the ARI `key` tuple type. */
+type TupleKey<Parts extends readonly unknown[]> =
+  InferKeySchema<{
+    readonly kind: "tuple";
+    readonly items: Parts;
+  }> extends infer Mapped extends ApplicationResourceKey
+    ? Mapped
+    : ApplicationResourceKey;
 
-type InferPart<S> = S extends { readonly kind: "object"; readonly shape: infer Shape }
-  ? { readonly [K in keyof Shape]: InferLeaf<Shape[K]> }
-  : S extends { readonly kind: "union"; readonly options: readonly (infer Option)[] }
-    ? InferPart<Option>
-    : InferLeaf<S>;
-
-/** Map tuple item schemas to key part value types (preserves tuple shape). */
-type TupleKey<Items extends readonly unknown[]> = {
-  readonly [I in keyof Items]: InferPart<Items[I]>;
-} extends infer Mapped extends ApplicationResourceKey
-  ? Mapped
-  : ApplicationResourceKey;
-
-type DefineAriFn = {
-  <const Type extends string, const Items extends readonly unknown[]>(
-    type: Type,
-    keySchema: { readonly kind: "tuple"; readonly items: Items }
-  ): DefinedAri<Type, TupleKey<Items>, { readonly kind: "tuple"; readonly items: Items }>;
-  <const Type extends string>(
-    type: Type,
-    keySchema: { readonly kind: "union"; readonly options: readonly TupleSchema[] }
-  ): DefinedAri<Type, ApplicationResourceKey, typeof keySchema>;
-};
+type DefineAriFn = <const Type extends string, const Parts extends readonly KeyPartSchema[]>(
+  type: Type,
+  ...parts: Parts
+) => DefinedAri<Type, TupleKey<Parts>, TupleSchema<Parts>>;
 
 /**
  * Define a typed ARI factory for one locator shape on a resource family.
  *
+ * Key parts are passed as rest schemas and wrapped in a tuple automatically:
+ * `defineAri("x", s.object({ id: s.string() }))` ≡ key `[{ id }]`.
+ *
  * - **create** (`factory(...keyParts)`): normalize + validate key, then build via `ari`
  * - **matches**: `candidate.type === type` and key schema `safeParse` succeeds
  */
-export const defineAri: DefineAriFn = ((type: string, keySchema: AriKeySchema) => {
+export const defineAri: DefineAriFn = ((type: string, ...parts: KeyPartSchema[]) => {
+  const keySchema = s.tuple(parts);
+
   function create(...keyParts: ApplicationResourceKey) {
     const normalized = normalizeKey(keyParts);
     const parsed = safeParse(keySchema, normalized);

@@ -1,6 +1,6 @@
 /**
  * Minimal key-schema DSL for Application Resource Identifier coordinates.
- * Covers string/int/boolean/null/literal/enum, flat objects, tuples, and unions.
+ * Covers string/int/boolean/literal/enum/nullable/optional, flat objects, tuples, and unions.
  * Not a general validation library — no refine, transform, or nested objects.
  */
 
@@ -16,7 +16,6 @@ export type KeySchemaParseResult<T> =
 export type StringSchema = { readonly kind: "string" };
 export type IntSchema = { readonly kind: "int" };
 export type BooleanSchema = { readonly kind: "boolean" };
-export type NullSchema = { readonly kind: "null" };
 export type LiteralSchema<V extends string | number | boolean = string | number | boolean> = {
   readonly kind: "literal";
   readonly value: V;
@@ -26,14 +25,26 @@ export type EnumSchema<Values extends readonly string[] = readonly string[]> = {
   readonly values: Values;
 };
 
-/** Leaf schemas allowed as values inside flat key objects. */
-export type LeafSchema =
+/** Non-null leaf schemas (nullable / optional wrap these). */
+export type NonNullLeafSchema =
   | StringSchema
   | IntSchema
   | BooleanSchema
-  | NullSchema
   | LiteralSchema
   | EnumSchema;
+
+export type NullableSchema<Inner extends NonNullLeafSchema = NonNullLeafSchema> = {
+  readonly kind: "nullable";
+  readonly inner: Inner;
+};
+
+export type OptionalSchema<Inner extends NonNullLeafSchema = NonNullLeafSchema> = {
+  readonly kind: "optional";
+  readonly inner: Inner;
+};
+
+/** Leaf schemas allowed as values inside flat key objects. */
+export type LeafSchema = NonNullLeafSchema | NullableSchema | OptionalSchema;
 
 export type ObjectSchema<Shape extends Record<string, LeafSchema> = Record<string, LeafSchema>> = {
   readonly kind: "object";
@@ -59,25 +70,48 @@ export type AnyKeySchema =
   | TupleSchema
   | UnionSchema<readonly (KeyPartSchema | TupleSchema)[]>;
 
-type InferLeafSchema<S> = S extends { readonly kind: "string" }
+type InferNonNullLeafSchema<S> = S extends { readonly kind: "string" }
   ? string
   : S extends { readonly kind: "int" }
     ? number
     : S extends { readonly kind: "boolean" }
       ? boolean
-      : S extends { readonly kind: "null" }
-        ? null
-        : S extends { readonly kind: "literal"; readonly value: infer V }
-          ? V
-          : S extends {
-                readonly kind: "enum";
-                readonly values: infer Values extends readonly string[];
-              }
-            ? Values[number]
-            : never;
+      : S extends { readonly kind: "literal"; readonly value: infer V }
+        ? V
+        : S extends {
+              readonly kind: "enum";
+              readonly values: infer Values extends readonly string[];
+            }
+          ? Values[number]
+          : never;
 
-type InferObjectSchema<S> = S extends { readonly kind: "object"; readonly shape: infer Shape }
-  ? { readonly [K in keyof Shape]: InferLeafSchema<Shape[K]> }
+type InferLeafSchema<S> = S extends { readonly kind: "nullable"; readonly inner: infer Inner }
+  ? InferNonNullLeafSchema<Inner> | null
+  : S extends { readonly kind: "optional"; readonly inner: infer Inner }
+    ? InferNonNullLeafSchema<Inner> | undefined
+    : InferNonNullLeafSchema<S>;
+
+type OptionalShapeKeys<Shape> = {
+  [K in keyof Shape]: Shape[K] extends { readonly kind: "optional" } ? K : never;
+}[keyof Shape];
+
+type RequiredShapeKeys<Shape> = Exclude<keyof Shape, OptionalShapeKeys<Shape>>;
+
+type InferObjectSchema<S> = S extends {
+  readonly kind: "object";
+  readonly shape: infer Shape extends Record<string, unknown>;
+}
+  ? [OptionalShapeKeys<Shape>] extends [never]
+    ? { readonly [K in keyof Shape]: InferLeafSchema<Shape[K]> }
+    : Simplify<
+        {
+          readonly [K in RequiredShapeKeys<Shape>]: InferLeafSchema<Shape[K]>;
+        } & {
+          readonly [K in OptionalShapeKeys<Shape>]?: InferNonNullLeafSchema<
+            Shape[K] extends { readonly inner: infer Inner } ? Inner : never
+          >;
+        }
+      >
   : never;
 
 type InferPartSchema<S> = S extends { readonly kind: "object" }
@@ -86,13 +120,25 @@ type InferPartSchema<S> = S extends { readonly kind: "object" }
     ? InferPartSchema<Option>
     : InferLeafSchema<S>;
 
+type InferTupleSchema<Items extends readonly unknown[]> = Items extends readonly [
+  infer Head,
+  ...infer Tail,
+]
+  ? readonly [InferPartSchema<Head>, ...InferTupleSchema<Tail>]
+  : readonly [];
+
+type Simplify<T> = { [K in keyof T]: T[K] } & {};
+
 /** Infer the TypeScript type of values accepted by a key schema. */
-export type InferKeySchema<S> = S extends { readonly kind: "tuple"; readonly items: infer Items }
-  ? { readonly [I in keyof Items]: InferPartSchema<Items[I]> }
+export type InferKeySchema<S> = S extends {
+  readonly kind: "tuple";
+  readonly items: infer Items extends readonly unknown[];
+}
+  ? InferTupleSchema<Items>
   : S extends { readonly kind: "union"; readonly options: readonly (infer Option)[] }
     ? InferKeySchema<Option>
     : S extends { readonly kind: "object" }
-      ? InferObjectSchema<S>
+      ? Simplify<InferObjectSchema<S>>
       : InferLeafSchema<S>;
 
 function fail(path: readonly (string | number)[], message: string): KeySchemaParseResult<never> {
@@ -109,11 +155,11 @@ function prependPath(
   }));
 }
 
-function parseLeaf(
-  schema: LeafSchema,
+function parseNonNullLeaf(
+  schema: NonNullLeafSchema,
   input: unknown,
   path: readonly (string | number)[]
-): KeySchemaParseResult<string | number | boolean | null> {
+): KeySchemaParseResult<string | number | boolean> {
   switch (schema.kind) {
     case "string": {
       if (typeof input !== "string") {
@@ -133,12 +179,6 @@ function parseLeaf(
       }
       return { success: true, data: input };
     }
-    case "null": {
-      if (input !== null) {
-        return fail(path, "Expected null");
-      }
-      return { success: true, data: null };
-    }
     case "literal": {
       if (input !== schema.value) {
         return fail(path, `Expected literal ${JSON.stringify(schema.value)}`);
@@ -154,6 +194,29 @@ function parseLeaf(
       }
       return { success: true, data: input };
     }
+  }
+}
+
+function parseLeaf(
+  schema: LeafSchema,
+  input: unknown,
+  path: readonly (string | number)[]
+): KeySchemaParseResult<string | number | boolean | null | undefined> {
+  switch (schema.kind) {
+    case "nullable": {
+      if (input === null) {
+        return { success: true, data: null };
+      }
+      return parseNonNullLeaf(schema.inner, input, path);
+    }
+    case "optional": {
+      if (input === undefined) {
+        return { success: true, data: undefined };
+      }
+      return parseNonNullLeaf(schema.inner, input, path);
+    }
+    default:
+      return parseNonNullLeaf(schema, input, path);
   }
 }
 
@@ -177,12 +240,23 @@ function parseObject(
 
   const data: Record<string, unknown> = {};
   for (const key of shapeKeys) {
-    if (!Object.prototype.hasOwnProperty.call(record, key)) {
+    const fieldSchema = schema.shape[key]!;
+    const missing = !Object.prototype.hasOwnProperty.call(record, key);
+
+    if (fieldSchema.kind === "optional" && (missing || record[key] === undefined)) {
+      continue;
+    }
+
+    if (missing) {
       return fail([...path, key], "Missing key");
     }
-    const fieldResult = parseLeaf(schema.shape[key]!, record[key], [...path, key]);
+
+    const fieldResult = parseLeaf(fieldSchema, record[key], [...path, key]);
     if (!fieldResult.success) {
       return fieldResult;
+    }
+    if (fieldResult.data === undefined && fieldSchema.kind === "optional") {
+      continue;
     }
     data[key] = fieldResult.data;
   }
@@ -278,8 +352,13 @@ export const s = {
   boolean(): BooleanSchema {
     return { kind: "boolean" };
   },
-  null(): NullSchema {
-    return { kind: "null" };
+  /** Allow `null` alongside an inner leaf. Key must still be present on objects. */
+  nullable<const Inner extends NonNullLeafSchema>(inner: Inner): NullableSchema<Inner> {
+    return { kind: "nullable", inner };
+  },
+  /** Allow missing / `undefined` alongside an inner leaf. Omitted from object output when absent. */
+  optional<const Inner extends NonNullLeafSchema>(inner: Inner): OptionalSchema<Inner> {
+    return { kind: "optional", inner };
   },
   literal<const V extends string | number | boolean>(value: V): LiteralSchema<V> {
     return { kind: "literal", value };

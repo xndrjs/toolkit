@@ -5,10 +5,7 @@ import { AriKeySchemaError, defineAri } from "./define-ari";
 import { s } from "./key-schema";
 
 describe("defineAri", () => {
-  const integrationProductAri = defineAri(
-    "integration.product",
-    s.tuple([s.object({ sku: s.string() })])
-  );
+  const integrationProductAri = defineAri("integration.product", s.object({ sku: s.string() }));
 
   it("creates a typed ARI when the key matches the schema", () => {
     const resource = integrationProductAri({ sku: "TSHIRT-1" });
@@ -37,22 +34,19 @@ describe("defineAri", () => {
     }
   });
 
-  it("exposes type and keySchema", () => {
+  it("exposes type and keySchema as an auto-wrapped tuple", () => {
     expect(integrationProductAri.type).toBe("integration.product");
     expect(integrationProductAri.keySchema.kind).toBe("tuple");
+    expect(integrationProductAri.keySchema.items).toHaveLength(1);
   });
 
-  it("supports empty family keys and multi-locator unions", () => {
-    const postsById = defineAri("posts", s.tuple([s.object({ id: s.string() })]));
-    const postsAll = defineAri("posts", s.tuple([]));
-    const postsLocator = defineAri(
-      "posts",
-      s.union([s.tuple([s.object({ id: s.string() })]), s.tuple([])])
-    );
+  it("supports empty family keys and multi-part keys via rest schemas", () => {
+    const postsAll = defineAri("posts");
+    const postsById = defineAri("posts", s.object({ id: s.string() }));
+    const scoped = defineAri("scoped", s.object({ id: s.string() }), s.literal("v1"));
 
-    expect(postsById({ id: "1" }).key).toEqual([{ id: "1" }]);
     expect(postsAll().key).toEqual([]);
-    expect(postsLocator.matches(postsById({ id: "1" }))).toBe(true);
-    expect(postsLocator.matches(postsAll())).toBe(true);
+    expect(postsById({ id: "1" }).key).toEqual([{ id: "1" }]);
+    expect(scoped({ id: "1" }, "v1").key).toEqual([{ id: "1" }, "v1"]);
   });
 });
