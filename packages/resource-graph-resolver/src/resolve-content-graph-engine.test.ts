@@ -38,7 +38,7 @@ function createInMemoryPort(store: ReadonlyMap<string, unknown> = values): DataR
   return {
     takenBatches,
     process: vi.fn(async (pull) => {
-      const taken = [...pull.matching(() => true)];
+      const taken = pull.take(() => true);
       takenBatches.push(taken);
       const result = new Map<string, unknown>();
       for (const resource of taken) {
@@ -137,13 +137,7 @@ describe("ResolveContentGraphEngine", () => {
 
     const dataPort: DataResolutionPort = {
       async process(pull) {
-        const taken: ApplicationResourceIdentifier[] = [];
-        for (const resource of pull.matching(() => true)) {
-          taken.push(resource);
-          if (taken.length >= 1) {
-            break;
-          }
-        }
+        const taken = pull.take(() => true, 1);
         takenBatches.push(taken);
 
         const result = new Map<string, unknown>();
@@ -193,7 +187,7 @@ describe("ResolveContentGraphEngine", () => {
     const dataPort = {
       takenBatches: [] as ApplicationResourceIdentifier[][],
       process: vi.fn(async (pull) => {
-        const taken = [...pull.matching(() => true)];
+        const taken = pull.take(() => true);
         dataPort.takenBatches.push(taken);
         const result = new Map<string, CycleRegistry["node"]>();
         for (const resource of taken) {

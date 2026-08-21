@@ -92,8 +92,18 @@ export class ResolveContentGraphEngine<
 
       if (needsResolve) {
         const resolved = await this.dataResolutionPort.process({
-          *matching(accept: (resource: ApplicationResourceIdentifier) => boolean) {
+          take: (accept: (resource: ApplicationResourceIdentifier) => boolean, limit?: number) => {
+            const batch: ApplicationResourceIdentifier[] = [];
+            const max = limit === undefined ? Number.POSITIVE_INFINITY : limit;
+            if (max <= 0) {
+              return batch;
+            }
+
             for (let i = 0; i < frontier.length; ) {
+              if (batch.length >= max) {
+                break;
+              }
+
               const item = frontier[i]!;
               if (
                 !accept(item.resource) ||
@@ -112,8 +122,10 @@ export class ResolveContentGraphEngine<
               frontier.splice(i, 1);
               taken.push(item);
               takenKeys.add(key);
-              yield item.resource;
+              batch.push(item.resource);
             }
+
+            return batch;
           },
         });
 

@@ -1,4 +1,4 @@
-import { ari, type ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import { ari } from "@xndrjs/application-resources";
 import { describe, expect, it } from "vitest";
 
 import { createDataResolutionPull, type DataResolutionPort } from "./data-resolution-port";
@@ -12,7 +12,7 @@ describe("DataResolutionPort", () => {
     const port: DataResolutionPort = {
       async process(pull) {
         const values = new Map<string, unknown>();
-        for (const resource of pull.matching(() => true)) {
+        for (const resource of pull.take(() => true)) {
           if (resource.equals(missing)) {
             continue;
           }
@@ -32,18 +32,29 @@ describe("DataResolutionPort", () => {
     expect(result.has(missing.format())).toBe(false);
   });
 
-  it("matching leaves non-accepted resources for a later take", async () => {
+  it("take leaves non-accepted resources for a later call", async () => {
     const page = ari("page", { id: "P" });
     const asset = ari("asset", { id: "A" });
     const remaining = [page, asset];
     const pull = createDataResolutionPull(remaining);
 
-    const pages = [...pull.matching((resource) => resource.type === "page")];
-    expect(pages).toEqual([page]);
+    expect(pull.take((resource) => resource.type === "page")).toEqual([page]);
     expect(remaining).toEqual([asset]);
 
-    const assets = [...pull.matching((resource) => resource.type === "asset")];
-    expect(assets).toEqual([asset]);
+    expect(pull.take((resource) => resource.type === "asset")).toEqual([asset]);
     expect(remaining).toEqual([]);
+  });
+
+  it("take respects an optional limit", () => {
+    const a = ari("item", { id: "1" });
+    const b = ari("item", { id: "2" });
+    const c = ari("item", { id: "3" });
+    const remaining = [a, b, c];
+    const pull = createDataResolutionPull(remaining);
+
+    expect(pull.take(() => true, 2)).toEqual([a, b]);
+    expect(remaining).toEqual([c]);
+    expect(pull.take(() => true, 0)).toEqual([]);
+    expect(remaining).toEqual([c]);
   });
 });

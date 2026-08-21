@@ -6,15 +6,18 @@ import type { ContentRegistry, ResourceKey } from "./types";
  * Pull handle supplied by {@link import("./resolve-content-graph-engine").ResolveContentGraphEngine}
  * for one resolution round. Not a general-purpose ARI loading API.
  *
- * `matching` yields (and removes) resources in frontier order; leftovers stay for later.
+ * `take` removes matching resources in frontier order up to `limit` (omit = all).
+ * Leftovers stay for later rounds.
  */
 export interface DataResolutionPull {
-  matching<Resource extends ApplicationResourceIdentifier>(
-    accept: (resource: ApplicationResourceIdentifier) => resource is Resource
-  ): IterableIterator<Resource>;
-  matching(
-    accept: (resource: ApplicationResourceIdentifier) => boolean
-  ): IterableIterator<ApplicationResourceIdentifier>;
+  take<Resource extends ApplicationResourceIdentifier>(
+    accept: (resource: ApplicationResourceIdentifier) => resource is Resource,
+    limit?: number
+  ): Resource[];
+  take(
+    accept: (resource: ApplicationResourceIdentifier) => boolean,
+    limit?: number
+  ): ApplicationResourceIdentifier[];
 }
 
 /**
@@ -37,21 +40,31 @@ export interface DataResolutionPort<R extends ContentRegistry = ContentRegistry>
 
 /**
  * Build a {@link DataResolutionPull} over a mutable list (engine/port unit tests).
- * Yielded resources are removed from `resources` as they are taken.
+ * Taken resources are removed from `resources`.
  */
 export function createDataResolutionPull(
   resources: ApplicationResourceIdentifier[]
 ): DataResolutionPull {
   return {
-    *matching(accept: (resource: ApplicationResourceIdentifier) => boolean) {
+    take(accept: (resource: ApplicationResourceIdentifier) => boolean, limit?: number) {
+      const batch: ApplicationResourceIdentifier[] = [];
+      const max = limit === undefined ? Number.POSITIVE_INFINITY : limit;
+      if (max <= 0) {
+        return batch;
+      }
+
       for (let i = 0; i < resources.length; ) {
+        if (batch.length >= max) {
+          break;
+        }
         if (accept(resources[i]!)) {
           const [resource] = resources.splice(i, 1);
-          yield resource!;
+          batch.push(resource!);
         } else {
           i++;
         }
       }
+      return batch;
     },
   };
 }
