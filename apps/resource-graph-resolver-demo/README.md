@@ -18,7 +18,6 @@ src/
       contentful.schemas.ts   # Zod schemas from contentful-to-zod (committed)
     cms/                      # CMS source: ARIs, fixtures, Contentful-like batch adapter
     integration/              # Integration source: ARIs, catalog, commercial batch adapter
-    data-resolution-adapter.ts
     demo-data-gateway.ts      # DataResolutionPort: routes cms.* / integration.* to adapters
     content-registry.ts       # DemoContentRegistry = CMS ∪ integration slices
     expansion-policies.ts     # expand by content-type; product → integration.product

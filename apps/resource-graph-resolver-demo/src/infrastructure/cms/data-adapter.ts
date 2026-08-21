@@ -1,7 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type { ResourceKey } from "@xndrjs/resource-graph-resolver";
+import type { DataResolutionPort, ResourceKey } from "@xndrjs/resource-graph-resolver";
 
-import type { DataResolutionAdapter } from "../data-resolution-adapter.js";
 import { cmsAssetAri, cmsEntryAri } from "./ari.js";
 import type { CmsContentRegistry } from "./content-registry.js";
 import type { MockContentfulAsset, MockContentfulEntry } from "./mock-contentful-types.js";
@@ -17,7 +16,7 @@ export type CmsFixtureStore = {
  */
 export function createCmsDataAdapter(
   store: CmsFixtureStore
-): DataResolutionAdapter<CmsContentRegistry> {
+): DataResolutionPort<CmsContentRegistry> {
   return {
     async resolve(resources) {
       const entryIds: string[] = [];

@@ -1,7 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type { ResourceKey } from "@xndrjs/resource-graph-resolver";
+import type { DataResolutionPort, ResourceKey } from "@xndrjs/resource-graph-resolver";
 
-import type { DataResolutionAdapter } from "../data-resolution-adapter.js";
 import { integrationProductAri } from "./ari.js";
 import { demoProductCatalog, type ProductIntegrationSnapshot } from "./catalog.js";
 import type { IntegrationContentRegistry } from "./content-registry.js";
@@ -12,7 +11,7 @@ import type { IntegrationContentRegistry } from "./content-registry.js";
  */
 export function createIntegrationDataAdapter(
   catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog
-): DataResolutionAdapter<IntegrationContentRegistry> {
+): DataResolutionPort<IntegrationContentRegistry> {
   return {
     async resolve(resources) {
       const skus: string[] = [];

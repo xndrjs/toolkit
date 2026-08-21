@@ -3,7 +3,6 @@ import type { DataResolutionPort, ResourceKey } from "@xndrjs/resource-graph-res
 
 import { cmsAssetAri, cmsEntryAri } from "./cms/ari.js";
 import type { CmsContentRegistry } from "./cms/content-registry.js";
-import type { DataResolutionAdapter } from "./data-resolution-adapter.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import { integrationProductAri } from "./integration/ari.js";
 import type { IntegrationContentRegistry } from "./integration/content-registry.js";
@@ -13,8 +12,8 @@ import type { IntegrationContentRegistry } from "./integration/content-registry.
  * CMS / integration adapters injected at construction.
  */
 export function createDemoDataGateway(
-  cms: DataResolutionAdapter<CmsContentRegistry>,
-  integration: DataResolutionAdapter<IntegrationContentRegistry>
+  cms: DataResolutionPort<CmsContentRegistry>,
+  integration: DataResolutionPort<IntegrationContentRegistry>
 ): DataResolutionPort<DemoContentRegistry> {
   return {
     async resolve(resources) {
