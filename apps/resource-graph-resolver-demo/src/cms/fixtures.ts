@@ -1,11 +1,12 @@
-import { assetAri, entryAri } from "./ari.js";
-import type { DemoContentRegistry } from "./content-registry.js";
+import { cmsAssetAri, cmsEntryAri } from "./ari.js";
+import type { CmsFixtureStore } from "./data-adapter.js";
 import {
   mockAssetLink,
   mockAssetSys,
   mockEntryLink,
   mockEntrySys,
   type MockContentfulAsset,
+  type MockContentfulEntry,
 } from "./mock-contentful-types.js";
 
 /** Demo resource ids used by the in-memory CMS fixtures. */
@@ -14,28 +15,25 @@ export const demoIds = {
   tabs: "tabs-main",
   tab: "tab-1",
   hero: "hero-banner",
-  product: "product-widget",
+  product: "product-tshirt",
   menu: "menu-main",
   footer: "footer-main",
   logo: "asset-logo",
+  productSku: "TSHIRT-1",
 } as const;
 
-export const pageEntryAri = entryAri(demoIds.page);
-export const tabsEntryAri = entryAri(demoIds.tabs);
-export const tabEntryAri = entryAri(demoIds.tab);
-export const heroEntryAri = entryAri(demoIds.hero);
-export const productEntryAri = entryAri(demoIds.product);
-export const menuEntryAri = entryAri(demoIds.menu);
-export const footerEntryAri = entryAri(demoIds.footer);
-export const logoAssetAri = assetAri(demoIds.logo);
+export const pageEntryAri = cmsEntryAri(demoIds.page);
+export const tabsEntryAri = cmsEntryAri(demoIds.tabs);
+export const tabEntryAri = cmsEntryAri(demoIds.tab);
+export const heroEntryAri = cmsEntryAri(demoIds.hero);
+export const productEntryAri = cmsEntryAri(demoIds.product);
+export const menuEntryAri = cmsEntryAri(demoIds.menu);
+export const footerEntryAri = cmsEntryAri(demoIds.footer);
+export const logoAssetAri = cmsAssetAri(demoIds.logo);
 
-/**
- * In-memory CMS-like store keyed by `resource.format()`.
- * Values are MOCK Contentful Delivery payloads with Link stubs.
- */
-export const demoStore = new Map<string, DemoContentRegistry[keyof DemoContentRegistry]>([
+const demoCmsEntries = new Map<string, MockContentfulEntry>([
   [
-    pageEntryAri.format(),
+    demoIds.page,
     {
       sys: mockEntrySys(demoIds.page, "page"),
       fields: {
@@ -47,7 +45,7 @@ export const demoStore = new Map<string, DemoContentRegistry[keyof DemoContentRe
     },
   ],
   [
-    tabsEntryAri.format(),
+    demoIds.tabs,
     {
       sys: mockEntrySys(demoIds.tabs, "tabs"),
       fields: {
@@ -57,7 +55,7 @@ export const demoStore = new Map<string, DemoContentRegistry[keyof DemoContentRe
     },
   ],
   [
-    tabEntryAri.format(),
+    demoIds.tab,
     {
       sys: mockEntrySys(demoIds.tab, "tab"),
       fields: {
@@ -68,7 +66,7 @@ export const demoStore = new Map<string, DemoContentRegistry[keyof DemoContentRe
     },
   ],
   [
-    heroEntryAri.format(),
+    demoIds.hero,
     {
       sys: mockEntrySys(demoIds.hero, "hero"),
       fields: {
@@ -78,21 +76,21 @@ export const demoStore = new Map<string, DemoContentRegistry[keyof DemoContentRe
     },
   ],
   [
-    productEntryAri.format(),
+    demoIds.product,
     {
       sys: mockEntrySys(demoIds.product, "product"),
       fields: {
-        sku: "WIDGET-1",
-        title: { "en-US": "Widget", "it-IT": "Widget" },
+        sku: demoIds.productSku,
+        title: { "en-US": "T-Shirt", "it-IT": "Maglietta" },
         description: {
-          "en-US": "A demo product from CMS.",
-          "it-IT": "Un prodotto demo dal CMS.",
+          "en-US": "A demo t-shirt from CMS.",
+          "it-IT": "Una maglietta demo dal CMS.",
         },
       },
     },
   ],
   [
-    menuEntryAri.format(),
+    demoIds.menu,
     {
       sys: mockEntrySys(demoIds.menu, "menu"),
       fields: {
@@ -102,7 +100,7 @@ export const demoStore = new Map<string, DemoContentRegistry[keyof DemoContentRe
     },
   ],
   [
-    footerEntryAri.format(),
+    demoIds.footer,
     {
       sys: mockEntrySys(demoIds.footer, "footer"),
       fields: {
@@ -111,8 +109,11 @@ export const demoStore = new Map<string, DemoContentRegistry[keyof DemoContentRe
       },
     },
   ],
+]);
+
+const demoCmsAssets = new Map<string, MockContentfulAsset>([
   [
-    logoAssetAri.format(),
+    demoIds.logo,
     {
       sys: mockAssetSys(demoIds.logo),
       fields: {
@@ -123,6 +124,12 @@ export const demoStore = new Map<string, DemoContentRegistry[keyof DemoContentRe
           contentType: "image/svg+xml",
         },
       },
-    } satisfies MockContentfulAsset,
+    },
   ],
 ]);
+
+/** In-memory CMS fixture store (sys.id → Delivery-like payload). */
+export const demoCmsStore: CmsFixtureStore = {
+  entries: demoCmsEntries,
+  assets: demoCmsAssets,
+};

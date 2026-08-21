@@ -7,7 +7,8 @@ import {
   type ExpansionResult,
 } from "@xndrjs/resource-graph-resolver";
 
-import { assetAri, entryAri } from "./ari.js";
+import { cmsAssetAri, cmsEntryAri } from "./cms/ari.js";
+import { integrationProductAri } from "./integration/ari.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import {
   ContentfulContentTypeIdSchema,
@@ -27,16 +28,15 @@ function entryChildrenFromLinks(
   if (!links) {
     return [];
   }
-  // Opaque entry ARIs — target content-type is unknown until resolve.
-  return links.map((link) => entryAri(link.sys.id));
+  return links.map((link) => cmsEntryAri(link.sys.id));
 }
 
 function entryChildFromLink(link: EntryLink | null | undefined): ApplicationResourceIdentifier[] {
-  return link ? [entryAri(link.sys.id)] : [];
+  return link ? [cmsEntryAri(link.sys.id)] : [];
 }
 
 function assetChildFromLink(link: AssetLink | null | undefined): ApplicationResourceIdentifier[] {
-  return link ? [assetAri(link.sys.id)] : [];
+  return link ? [cmsAssetAri(link.sys.id)] : [];
 }
 
 type ExpandByContentType = {
@@ -45,8 +45,7 @@ type ExpandByContentType = {
 
 /**
  * Content-type → child Link extraction (generated Entry schemas as field contract).
- * Branching is on `sys.contentType.sys.id`, not on ARI `type` (always `"entry"`).
- * Required keys track {@link ContentfulContentTypeId} from codegen.
+ * Branching is on `sys.contentType.sys.id`, not on ARI `type` (always `"cms.entry"`).
  */
 const expandByContentType = {
   page(entry) {
@@ -62,7 +61,7 @@ const expandByContentType = {
     return { resources: entryChildrenFromLinks(entry.fields.tabs) };
   },
   tab(entry) {
-    // Polymorphic strips (hero | product): each Link → opaque entry ARI.
+    // Polymorphic strips (hero | product): each Link → opaque cms.entry ARI.
     return { resources: entryChildrenFromLinks(entry.fields.strips) };
   },
   hero(entry) {
@@ -80,8 +79,13 @@ const expandByContentType = {
       isIsland: true,
     };
   },
-  product(_entry) {
-    return EMPTY_EXPANSION;
+  product(entry) {
+    const sku = entry.fields.sku;
+    if (sku === null || sku.length === 0) {
+      return EMPTY_EXPANSION;
+    }
+    // Commercial data lives on the integration source, keyed by SKU.
+    return { resources: [integrationProductAri(sku)] };
   },
 } satisfies ExpandByContentType;
 
@@ -89,17 +93,16 @@ function expandForContentType(
   contentTypeId: ContentfulContentTypeId,
   raw: unknown
 ): ExpansionResult {
-  // Indexed access loses key→value correlation; re-assert after id narrowing + parse.
   const entry = ContentfulEntrySchemaByContentType[contentTypeId].parse(raw);
   const expand = expandByContentType[contentTypeId] as (value: typeof entry) => ExpansionResult;
   return expand(entry);
 }
 
-function expandResolvedEntry({
+function expandResolvedCmsEntry({
   contentMap,
   resource,
 }: ExpansionContext<DemoContentRegistry>): ExpansionResult {
-  const entry = contentMap.get(resource as ApplicationResourceIdentifier<"entry">);
+  const entry = contentMap.get(resource as ApplicationResourceIdentifier<"cms.entry">);
   if (!entry) {
     return EMPTY_EXPANSION;
   }
@@ -113,17 +116,21 @@ function expandResolvedEntry({
 }
 
 /**
- * Demo expansion policies: ARI `matches` only distinguishes entry vs asset;
- * entry children and islands come from the resolved Contentful content-type.
+ * Demo expansion policies: match on source-qualified ARI type;
+ * cms.entry children/islands come from resolved Contentful content-type.
  */
 export function createDemoExpansionPolicies(): ExpansionPolicy<DemoContentRegistry>[] {
   return [
     {
-      matches: (resource) => resource.type === "entry",
-      expand: expandResolvedEntry,
+      matches: (resource) => resource.type === "cms.entry",
+      expand: expandResolvedCmsEntry,
     },
     {
-      matches: (resource) => resource.type === "asset",
+      matches: (resource) => resource.type === "cms.asset",
+      expand: () => EMPTY_EXPANSION,
+    },
+    {
+      matches: (resource) => resource.type === "integration.product",
       expand: () => EMPTY_EXPANSION,
     },
   ];

@@ -2,7 +2,7 @@
 
 **Not published** — this app is `private` and listed in `.changeset/config.json` `ignore`, so it is excluded from Changesets versioning and from npm publish on both stable and alpha releases.
 
-Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, opaque `entry`/`asset` ARIs, content-type expansion policies, then (next) domain-zod aggregation.
+Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, source-qualified ARIs (`cms.*` / `integration.*`), content-type expansion policies, and domain-zod aggregation.
 
 ## Layout
 
@@ -14,12 +14,14 @@ contentful-to-zod.config.ts
 src/
   generated/
     contentful.schemas.ts # Zod schemas from contentful-to-zod (committed)
-  ari.ts                  # opaque entry/asset ARI factories
-  content-registry.ts     # weak ContentRegistry (entry/asset → mock CMS envelopes)
-  mock-contentful-types.ts # MOCK Contentful Delivery shapes + Link helpers (not generated)
-  demo-content-fixtures.ts # in-memory CMS store (ids, ARIs, payloads)
-  in-memory-data-port.ts  # DataResolutionPort over the store
-  expansion-policies.ts   # expand by content-type; menu/footer islands; opaque Link → ARI
+  cms/                    # CMS source: ARIs, fixtures, Contentful-like batch adapter
+  integration/            # Integration source: ARIs, catalog, commercial batch adapter
+  data-resolution-adapter.ts  # shared adapter signature
+  demo-data-gateway.ts        # DataResolutionPort: routes cms.* / integration.* to adapters
+  content-registry.ts         # DemoContentRegistry = CMS ∪ integration slices
+  expansion-policies.ts       # expand by content-type; product → integration.product
+  aggregate-page-graph.ts     # ContentMap → domain-zod (no integration port)
+  domain/                     # domain-zod shapes
 ```
 
 ## Contentful schema codegen
