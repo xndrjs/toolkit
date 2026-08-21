@@ -1,14 +1,22 @@
-import type { IslandId, ResolveContentGraphOutput, ResourceKey, SerializedIsland } from "./types";
+import type {
+  ContentRegistry,
+  IslandId,
+  ResolveContentGraphOutput,
+  ResourceKey,
+  SerializedIsland,
+} from "./types";
 
 /**
  * Materializes one island for cache/JSON storage from membership + content values.
  *
  * Island roots referenced only as dependencies are not included in `resources`
  * (Annotation 1: dependencies ≠ membership).
+ *
+ * Serialized payloads stay weakly typed ({@link ResourceKey} → unknown).
  */
-export function serializeIsland(
+export function serializeIsland<R extends ContentRegistry = ContentRegistry>(
   islandId: IslandId,
-  result: ResolveContentGraphOutput
+  result: ResolveContentGraphOutput<R>
 ): SerializedIsland {
   const resourceKeys = result.islands.get(islandId);
 

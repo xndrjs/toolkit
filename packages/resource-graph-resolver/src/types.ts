@@ -10,6 +10,12 @@ export type ResourceKey = string;
 /** Stable island identifier; equal to the root resource's {@link ResourceKey}. */
 export type IslandId = string;
 
+/**
+ * Project-level map from ARI `type` literal to resolved payload shape.
+ * The engine stays schema-agnostic; apps supply a concrete registry.
+ */
+export type ContentRegistry = Record<string, unknown>;
+
 export type MissingResourceMode = "throw" | "collect";
 
 export interface ResolutionError {
@@ -29,8 +35,8 @@ export interface ResolveContentGraphInput<TExecutionContext = unknown> {
   missingResourceMode: MissingResourceMode;
 }
 
-export interface ResolveContentGraphOutput {
-  contentMap: ContentMap;
+export interface ResolveContentGraphOutput<R extends ContentRegistry = ContentRegistry> {
+  contentMap: ContentMap<R>;
   islands: IslandMap;
   islandDependencies: IslandDependencyMap;
   errors: readonly ResolutionError[];

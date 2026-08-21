@@ -7,10 +7,11 @@ import {
   type ExpansionContext,
   type ExpansionPolicy,
 } from "./expansion-port";
+import type { ContentRegistry } from "./types";
 
 function createContext(
   resource: ApplicationResourceIdentifier = ari("page", { id: "P" })
-): ExpansionContext<{ locale: string }> {
+): ExpansionContext<ContentRegistry, { locale: string }> {
   return {
     resource,
     contentMap: new ContentMap(),

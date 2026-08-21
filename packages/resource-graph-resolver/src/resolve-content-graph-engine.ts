@@ -6,6 +6,7 @@ import type { ExpansionPort } from "./expansion-port";
 import { IslandDependencyMap } from "./island-dependency-map";
 import { IslandMap } from "./island-map";
 import type {
+  ContentRegistry,
   IslandId,
   ResolutionError,
   ResolveContentGraphInput,
@@ -25,9 +26,9 @@ interface FailureAccumulator {
 }
 
 /** Collects unique frontier resources that still need a data-port resolve. */
-function resourcesToResolve(
+function resourcesToResolve<R extends ContentRegistry>(
   frontier: readonly QueueItem[],
-  contentMap: ContentMap,
+  contentMap: ContentMap<R>,
   failuresByResource: ReadonlyMap<ResourceKey, FailureAccumulator>
 ): ApplicationResourceIdentifier[] {
   const missing: ApplicationResourceIdentifier[] = [];
@@ -52,17 +53,21 @@ function resourcesToResolve(
  * island ownership, and configurable missing-resource handling.
  *
  * Intended as a reusable engine inside project-specific application use cases.
+ * Supply a {@link ContentRegistry} so resolved values are typed by ARI `type`.
  */
-export class ResolveContentGraphEngine<TExecutionContext = unknown> {
+export class ResolveContentGraphEngine<
+  R extends ContentRegistry = ContentRegistry,
+  TExecutionContext = unknown,
+> {
   constructor(
-    private readonly dataResolutionPort: DataResolutionPort,
-    private readonly expansionPort: ExpansionPort<TExecutionContext>
+    private readonly dataResolutionPort: DataResolutionPort<R>,
+    private readonly expansionPort: ExpansionPort<R, TExecutionContext>
   ) {}
 
   async execute(
     input: ResolveContentGraphInput<TExecutionContext>
-  ): Promise<ResolveContentGraphOutput> {
-    const contentMap = new ContentMap();
+  ): Promise<ResolveContentGraphOutput<R>> {
+    const contentMap = new ContentMap<R>();
     const islands = new IslandMap();
     const islandDependencies = new IslandDependencyMap();
     const failuresByResource = new Map<ResourceKey, FailureAccumulator>();
@@ -101,7 +106,11 @@ export class ResolveContentGraphEngine<TExecutionContext = unknown> {
           const resourceKey = resource.format();
 
           if (resolved.has(resourceKey)) {
-            contentMap.set(resource, resolved.get(resourceKey));
+            // Trust boundary: the port returns heterogeneous batch values keyed by ResourceKey.
+            contentMap.set(
+              resource as ApplicationResourceIdentifier<keyof R & string>,
+              resolved.get(resourceKey) as R[keyof R & string]
+            );
             continue;
           }
 

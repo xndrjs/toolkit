@@ -1,12 +1,14 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ResourceKey } from "./types";
+import type { ContentRegistry, ResourceKey } from "./types";
 
 /**
  * Global, per-execution store of resolved resource values.
  * Each {@link ResourceKey} appears at most once; islands may share the same key.
+ *
+ * Parameterize with a project {@link ContentRegistry} so `get`/`set` follow `ari.type`.
  */
-export class ContentMap {
+export class ContentMap<R extends ContentRegistry = ContentRegistry> {
   private readonly resources = new Map<ResourceKey, unknown>();
 
   has(resource: ApplicationResourceIdentifier): boolean {
@@ -17,15 +19,16 @@ export class ContentMap {
     return this.resources.has(resourceKey);
   }
 
-  get<T>(resource: ApplicationResourceIdentifier): T | undefined {
-    return this.resources.get(resource.format()) as T | undefined;
+  get<T extends keyof R & string>(resource: ApplicationResourceIdentifier<T>): R[T] | undefined {
+    return this.resources.get(resource.format()) as R[T] | undefined;
   }
 
-  getByKey<T>(resourceKey: ResourceKey): T | undefined {
-    return this.resources.get(resourceKey) as T | undefined;
+  /** Opaque key lookup — prefer {@link get} when an ARI is available. */
+  getByKey(resourceKey: ResourceKey): R[keyof R] | undefined {
+    return this.resources.get(resourceKey) as R[keyof R] | undefined;
   }
 
-  set(resource: ApplicationResourceIdentifier, value: unknown): void {
+  set<T extends keyof R & string>(resource: ApplicationResourceIdentifier<T>, value: R[T]): void {
     this.resources.set(resource.format(), value);
   }
 }

@@ -134,20 +134,35 @@ describe("ResolveContentGraphEngine", () => {
   });
 
   it("terminates graph cycles via visited (island, resource) pairs", async () => {
+    type CycleRegistry = {
+      node: { next: string };
+    };
+
     const a = ari("node", { id: "A" });
     const b = ari("node", { id: "B" });
-    const store = new Map<string, unknown>([
+    const store = new Map<string, CycleRegistry["node"]>([
       [a.format(), { next: b.format() }],
       [b.format(), { next: a.format() }],
     ]);
-    const dataPort = createInMemoryPort(store);
-    const engine = new ResolveContentGraphEngine(
+    const dataPort: DataResolutionPort<CycleRegistry> & { resolve: ReturnType<typeof vi.fn> } = {
+      resolve: vi.fn(async (resources: readonly ApplicationResourceIdentifier[]) => {
+        const result = new Map<string, CycleRegistry["node"]>();
+        for (const resource of resources) {
+          const key = resource.format();
+          if (store.has(key)) {
+            result.set(key, store.get(key)!);
+          }
+        }
+        return result;
+      }),
+    };
+    const engine = new ResolveContentGraphEngine<CycleRegistry>(
       dataPort,
-      createExpansionPolicyChain([
+      createExpansionPolicyChain<CycleRegistry>([
         {
           matches: () => true,
           expand: ({ resource, contentMap }) => {
-            const value = contentMap.get<{ next: string }>(resource);
+            const value = contentMap.get(resource as ApplicationResourceIdentifier<"node">);
             const childKey = value?.next;
             if (childKey === b.format()) {
               return { resources: [b] };

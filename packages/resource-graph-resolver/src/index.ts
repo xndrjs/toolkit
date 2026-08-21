@@ -12,6 +12,7 @@ export { IslandMap } from "./island-map";
 export { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
 export { serializeIsland } from "./serialize-island";
 export type {
+  ContentRegistry,
   IslandId,
   MissingResourceMode,
   ResolutionError,
