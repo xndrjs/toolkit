@@ -357,6 +357,44 @@ export const ProductEntrySchema = z.object({
 
 export type ProductEntry = z.infer<typeof ProductEntrySchema>;
 
+/** @generated from content type snapshot */
+export const ContentfulContentTypeIdSchema = z.enum([
+  "page",
+  "tabs",
+  "tab",
+  "hero",
+  "menu",
+  "footer",
+  "product",
+]);
+export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
+
+export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
+
+/** Resolved Delivery/Preview entry type per content type id. */
+export type ContentfulEntryByContentType = {
+  page: PageEntry;
+  tabs: TabsEntry;
+  tab: TabEntry;
+  hero: HeroEntry;
+  menu: MenuEntry;
+  footer: FooterEntry;
+  product: ProductEntry;
+};
+
+/** Zod entry schema per content type id (for typed parse + dispatch). */
+export const ContentfulEntrySchemaByContentType = {
+  page: PageEntrySchema,
+  tabs: TabsEntrySchema,
+  tab: TabEntrySchema,
+  hero: HeroEntrySchema,
+  menu: MenuEntrySchema,
+  footer: FooterEntrySchema,
+  product: ProductEntrySchema,
+} as const satisfies {
+  [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;
+};
+
 /** Read one locale from a localized delivery field; missing locale or null input → `null`. */
 export function pickLocale<T>(
   value: Record<ContentfulLocaleCode, T> | null,

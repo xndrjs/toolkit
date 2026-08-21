@@ -2,7 +2,7 @@
 
 **Not published** — this app is `private` and listed in `.changeset/config.json` `ignore`, so it is excluded from Changesets versioning and from npm publish on both stable and alpha releases.
 
-Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, opaque `entry`/`asset` ARIs with an in-memory CMS store, then (next) content-type expansion and domain-zod aggregation.
+Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, opaque `entry`/`asset` ARIs, content-type expansion policies, then (next) domain-zod aggregation.
 
 ## Layout
 
@@ -19,6 +19,7 @@ src/
   mock-contentful-types.ts # MOCK Contentful Delivery shapes + Link helpers (not generated)
   demo-content-fixtures.ts # in-memory CMS store (ids, ARIs, payloads)
   in-memory-data-port.ts  # DataResolutionPort over the store
+  expansion-policies.ts   # expand by content-type; menu/footer islands; opaque Link → ARI
 ```
 
 ## Contentful schema codegen

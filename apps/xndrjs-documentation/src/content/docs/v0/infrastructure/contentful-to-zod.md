@@ -106,14 +106,16 @@ Rules:
 
 For a content type `blogPost`, expect:
 
-| Export                                                    | Role                                                      |
-| --------------------------------------------------------- | --------------------------------------------------------- |
-| `BlogPostFieldsSchema` / `BlogPostFields`                 | Flat / single-locale field shape                          |
-| `BlogPostDeliveryFieldsSchema` / `BlogPostDeliveryFields` | Delivery `fields` object                                  |
-| `BlogPostEntrySchema` / `BlogPostEntry`                   | Full entry wrapper for Delivery/Preview JSON              |
-| `flattenBlogPostEntryFields`                              | Map validated `entry.fields` → flat fields for one locale |
-| `pickLocale`                                              | Read one locale from a localized delivery field           |
-| `ContentfulLocaleCodeSchema`, `CONTENTFUL_DEFAULT_LOCALE` | Locale enum from your space snapshot                      |
+| Export                                                                | Role                                                                     |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `BlogPostFieldsSchema` / `BlogPostFields`                             | Flat / single-locale field shape                                         |
+| `BlogPostDeliveryFieldsSchema` / `BlogPostDeliveryFields`             | Delivery `fields` object                                                 |
+| `BlogPostEntrySchema` / `BlogPostEntry`                               | Full entry wrapper for Delivery/Preview JSON                             |
+| `flattenBlogPostEntryFields`                                          | Map validated `entry.fields` → flat fields for one locale                |
+| `pickLocale`                                                          | Read one locale from a localized delivery field                          |
+| `ContentfulLocaleCodeSchema`, `CONTENTFUL_DEFAULT_LOCALE`             | Locale enum from your space snapshot                                     |
+| `ContentfulContentTypeIdSchema`, `CONTENTFUL_CONTENT_TYPE_IDS`        | Closed set of content type ids from the snapshot                         |
+| `ContentfulEntryByContentType` / `ContentfulEntrySchemaByContentType` | Typed entry map + Zod schemas keyed by content type id (delivery/`both`) |
 
 The generator emits two names for the **same** normalization logic:
 

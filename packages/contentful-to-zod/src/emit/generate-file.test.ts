@@ -24,6 +24,9 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).toContain("export function transportField");
     expect(output).toContain('"title": flatField(z.string().max(256))');
     expect(output).toContain('"slug": transportField(z.string())');
+    expect(output).toContain("export const ContentfulContentTypeIdSchema");
+    expect(output).toContain("export type ContentfulEntryByContentType");
+    expect(output).toContain("export const ContentfulEntrySchemaByContentType");
   });
 
   it("mode cma emits only flat schemas without locale primitives or helpers", () => {
@@ -39,6 +42,9 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).not.toContain("export function flattenBlogPostEntryFields");
     expect(output).toContain("export function flatField");
     expect(output).not.toContain("export function transportField");
+    expect(output).toContain("export const ContentfulContentTypeIdSchema");
+    expect(output).not.toContain("ContentfulEntryByContentType");
+    expect(output).not.toContain("ContentfulEntrySchemaByContentType");
   });
 
   it("mode delivery emits delivery schemas and pickLocale without flatten helpers", () => {
@@ -54,6 +60,8 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).not.toContain("export function flattenBlogPostEntry");
     expect(output).not.toContain("export function flatField");
     expect(output).toContain("export function transportField");
+    expect(output).toContain("export const ContentfulContentTypeIdSchema");
+    expect(output).toContain("export type ContentfulEntryByContentType");
   });
 
   it("requires locales when delivery shape is included", () => {

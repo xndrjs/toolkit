@@ -128,6 +128,26 @@ export const BlogPostEntrySchema = z.object({
 export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>;
 
 
+/** @generated from content type snapshot */
+export const ContentfulContentTypeIdSchema = z.enum(["author", "blogPost"]);
+export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
+
+export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
+
+/** Resolved Delivery/Preview entry type per content type id. */
+export type ContentfulEntryByContentType = {
+  "author": AuthorEntry;
+  "blogPost": BlogPostEntry;
+};
+
+/** Zod entry schema per content type id (for typed parse + dispatch). */
+export const ContentfulEntrySchemaByContentType = {
+  "author": AuthorEntrySchema,
+  "blogPost": BlogPostEntrySchema,
+} as const satisfies {
+  [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;
+};
+
 /** Read one locale from a localized delivery field; missing locale or null input → \`null\`. */
 export function pickLocale<T>(
   value: Record<ContentfulLocaleCode, T> | null,
@@ -331,6 +351,13 @@ export const BlogPostFieldsSchema = z.object({
 });
 
 export type BlogPostFields = z.infer<typeof BlogPostFieldsSchema>;
+
+
+/** @generated from content type snapshot */
+export const ContentfulContentTypeIdSchema = z.enum(["author", "blogPost"]);
+export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
+
+export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
 "
 `;
 
@@ -437,6 +464,26 @@ export const BlogPostEntrySchema = z.object({
 
 export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>;
 
+
+/** @generated from content type snapshot */
+export const ContentfulContentTypeIdSchema = z.enum(["author", "blogPost"]);
+export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
+
+export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
+
+/** Resolved Delivery/Preview entry type per content type id. */
+export type ContentfulEntryByContentType = {
+  "author": AuthorEntry;
+  "blogPost": BlogPostEntry;
+};
+
+/** Zod entry schema per content type id (for typed parse + dispatch). */
+export const ContentfulEntrySchemaByContentType = {
+  "author": AuthorEntrySchema,
+  "blogPost": BlogPostEntrySchema,
+} as const satisfies {
+  [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;
+};
 
 /** Read one locale from a localized delivery field; missing locale or null input → \`null\`. */
 export function pickLocale<T>(

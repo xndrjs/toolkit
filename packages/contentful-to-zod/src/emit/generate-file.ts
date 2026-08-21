@@ -6,6 +6,7 @@ import {
 } from "../config/define-config";
 import type { ContentField, ContentType } from "../model/content-type";
 import type { Locale } from "../model/locale";
+import { emitContentTypeIdPrimitives } from "./content-type-id-primitives";
 import {
   deliveryFieldSource,
   fieldToZod,
@@ -185,6 +186,15 @@ export function generateZodSchemas(
         ...emitContentTypeEntrySchema(contentType)
       );
     }
+  }
+
+  if (selectedContentTypes.length > 0) {
+    sections.push(
+      "",
+      emitContentTypeIdPrimitives(selectedContentTypes, {
+        includeEntryMaps: includeDelivery,
+      })
+    );
   }
 
   const helpers = emitLocaleHelpers(selectedContentTypes, localeMode, config);

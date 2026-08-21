@@ -117,9 +117,9 @@ export default defineConfig({
 
 | `locale.mode`      | Generated exports                                                                          |
 | ------------------ | ------------------------------------------------------------------------------------------ |
-| `"cma"`            | Flat field schemas only (`BlogPostFieldsSchema`, `BlogPostFields`)                         |
-| `"delivery"`       | Delivery field schemas + entry wrappers + `pickLocale` + locale enum/constants             |
-| `"both"` (default) | Flat + delivery field schemas + entry wrappers + `pickLocale` + `flatten{Type}EntryFields` |
+| `"cma"`            | Flat field schemas + `ContentfulContentTypeIdSchema`                                       |
+| `"delivery"`       | Delivery field schemas + entry wrappers + content-type id/entry maps + `pickLocale`        |
+| `"both"` (default) | Flat + delivery + entry wrappers + content-type id/entry maps + `flatten{Type}EntryFields` |
 
 Rules:
 
@@ -140,6 +140,32 @@ export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
 export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 ```
+
+### Generated content-type id registry
+
+After per-type schemas, codegen emits a closed set of content type ids (and, in delivery/`both`, typed entry maps):
+
+```ts
+/** @generated from content type snapshot */
+export const ContentfulContentTypeIdSchema = z.enum(["author", "blogPost"]);
+export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
+
+export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
+
+export type ContentfulEntryByContentType = {
+  author: AuthorEntry;
+  blogPost: BlogPostEntry;
+};
+
+export const ContentfulEntrySchemaByContentType = {
+  author: AuthorEntrySchema,
+  blogPost: BlogPostEntrySchema,
+} as const satisfies {
+  [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;
+};
+```
+
+Use these to type dispatch tables (e.g. expansion policies) so adding a content type to the CMA snapshot fails typecheck until every branch is updated.
 
 ### Flat vs delivery example
 
