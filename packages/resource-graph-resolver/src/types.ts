@@ -35,3 +35,13 @@ export interface ResolveContentTreeOutput {
   islandDependencies: IslandDependencyMap;
   errors: readonly ResolutionError[];
 }
+
+/** Portable island payload for cache/JSON (schema v1). */
+export interface SerializedIsland {
+  schemaVersion: 1;
+  islandId: IslandId;
+  completeness: "complete" | "partial";
+  missingResources: ResourceKey[];
+  dependencies: IslandId[];
+  resources: Record<ResourceKey, unknown>;
+}

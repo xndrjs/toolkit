@@ -10,6 +10,7 @@ export {
 export { IslandDependencyMap } from "./island-dependency-map";
 export { IslandMap } from "./island-map";
 export { ResolveContentTreeUseCase } from "./resolve-content-tree-use-case";
+export { serializeIsland } from "./serialize-island";
 export type {
   IslandId,
   MissingResourceMode,
@@ -17,5 +18,6 @@ export type {
   ResolveContentTreeInput,
   ResolveContentTreeOutput,
   ResourceKey,
+  SerializedIsland,
 } from "./types";
 export type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
