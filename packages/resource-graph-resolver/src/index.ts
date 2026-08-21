@@ -9,6 +9,7 @@ export {
 } from "./expansion-port";
 export { IslandDependencyMap } from "./island-dependency-map";
 export { IslandMap } from "./island-map";
+export { ResolveContentTreeUseCase } from "./resolve-content-tree-use-case";
 export type {
   IslandId,
   MissingResourceMode,
