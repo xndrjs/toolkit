@@ -1,9 +1,11 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import type { DataResolutionPort, ResourceKey } from "@xndrjs/resource-graph-resolver";
 
+import { cmsAssetAri, cmsEntryAri } from "./cms/ari.js";
 import type { CmsContentRegistry } from "./cms/content-registry.js";
 import type { DataResolutionAdapter } from "./data-resolution-adapter.js";
 import type { DemoContentRegistry } from "./content-registry.js";
+import { integrationProductAri } from "./integration/ari.js";
 import type { IntegrationContentRegistry } from "./integration/content-registry.js";
 
 /**
@@ -20,9 +22,9 @@ export function createDemoDataGateway(
       const integrationBatch: ApplicationResourceIdentifier[] = [];
 
       for (const resource of resources) {
-        if (resource.type === "cms.entry" || resource.type === "cms.asset") {
+        if (cmsEntryAri.matches(resource) || cmsAssetAri.matches(resource)) {
           cmsBatch.push(resource);
-        } else if (resource.type === "integration.product") {
+        } else if (integrationProductAri.matches(resource)) {
           integrationBatch.push(resource);
         }
       }

@@ -2,6 +2,7 @@ import type { ApplicationResourceIdentifier } from "@xndrjs/application-resource
 import type { ResourceKey } from "@xndrjs/resource-graph-resolver";
 
 import type { DataResolutionAdapter } from "../data-resolution-adapter.js";
+import { integrationProductAri } from "./ari.js";
 import { demoProductCatalog, type ProductIntegrationSnapshot } from "./catalog.js";
 import type { IntegrationContentRegistry } from "./content-registry.js";
 
@@ -18,7 +19,7 @@ export function createIntegrationDataAdapter(
       const productAris: ApplicationResourceIdentifier[] = [];
 
       for (const resource of resources) {
-        if (resource.type !== "integration.product") {
+        if (!integrationProductAri.matches(resource)) {
           continue;
         }
         const sku = readSkuKey(resource);

@@ -22,14 +22,14 @@ export const demoIds = {
   productSku: "TSHIRT-1",
 } as const;
 
-export const pageEntryAri = cmsEntryAri(demoIds.page);
-export const tabsEntryAri = cmsEntryAri(demoIds.tabs);
-export const tabEntryAri = cmsEntryAri(demoIds.tab);
-export const heroEntryAri = cmsEntryAri(demoIds.hero);
-export const productEntryAri = cmsEntryAri(demoIds.product);
-export const menuEntryAri = cmsEntryAri(demoIds.menu);
-export const footerEntryAri = cmsEntryAri(demoIds.footer);
-export const logoAssetAri = cmsAssetAri(demoIds.logo);
+export const pageEntryAri = cmsEntryAri({ id: demoIds.page });
+export const tabsEntryAri = cmsEntryAri({ id: demoIds.tabs });
+export const tabEntryAri = cmsEntryAri({ id: demoIds.tab });
+export const heroEntryAri = cmsEntryAri({ id: demoIds.hero });
+export const productEntryAri = cmsEntryAri({ id: demoIds.product });
+export const menuEntryAri = cmsEntryAri({ id: demoIds.menu });
+export const footerEntryAri = cmsEntryAri({ id: demoIds.footer });
+export const logoAssetAri = cmsAssetAri({ id: demoIds.logo });
 
 const demoCmsEntries = new Map<string, MockContentfulEntry>([
   [

@@ -1,6 +1,7 @@
-import { ari } from "@xndrjs/application-resources";
+import { defineAri, s } from "@xndrjs/application-resources";
 
 /** Integration product commercial data, keyed by SKU. */
-export function integrationProductAri(sku: string) {
-  return ari("integration.product", { sku });
-}
+export const integrationProductAri = defineAri(
+  "integration.product",
+  s.tuple([s.object({ sku: s.string() })])
+);

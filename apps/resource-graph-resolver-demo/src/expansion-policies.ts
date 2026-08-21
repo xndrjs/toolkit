@@ -28,15 +28,15 @@ function entryChildrenFromLinks(
   if (!links) {
     return [];
   }
-  return links.map((link) => cmsEntryAri(link.sys.id));
+  return links.map((link) => cmsEntryAri({ id: link.sys.id }));
 }
 
 function entryChildFromLink(link: EntryLink | null | undefined): ApplicationResourceIdentifier[] {
-  return link ? [cmsEntryAri(link.sys.id)] : [];
+  return link ? [cmsEntryAri({ id: link.sys.id })] : [];
 }
 
 function assetChildFromLink(link: AssetLink | null | undefined): ApplicationResourceIdentifier[] {
-  return link ? [cmsAssetAri(link.sys.id)] : [];
+  return link ? [cmsAssetAri({ id: link.sys.id })] : [];
 }
 
 type ExpandByContentType = {
@@ -85,7 +85,7 @@ const expandByContentType = {
       return EMPTY_EXPANSION;
     }
     // Commercial data lives on the integration source, keyed by SKU.
-    return { resources: [integrationProductAri(sku)] };
+    return { resources: [integrationProductAri({ sku })] };
   },
 } satisfies ExpandByContentType;
 
@@ -102,17 +102,20 @@ function expandResolvedCmsEntry({
   contentMap,
   resource,
 }: ExpansionContext<DemoContentRegistry>): ExpansionResult {
-  const entry = contentMap.get(resource as ApplicationResourceIdentifier<"cms.entry">);
-  if (!entry) {
-    return EMPTY_EXPANSION;
-  }
+  if (cmsEntryAri.matches(resource)) {
+    const entry = contentMap.get(resource);
+    if (!entry) {
+      return EMPTY_EXPANSION;
+    }
 
-  const parsedId = ContentfulContentTypeIdSchema.safeParse(entry.sys.contentType.sys.id);
-  if (!parsedId.success) {
-    return EMPTY_EXPANSION;
-  }
+    const parsedId = ContentfulContentTypeIdSchema.safeParse(entry.sys.contentType.sys.id);
+    if (!parsedId.success) {
+      return EMPTY_EXPANSION;
+    }
 
-  return expandForContentType(parsedId.data, entry);
+    return expandForContentType(parsedId.data, entry);
+  }
+  return EMPTY_EXPANSION;
 }
 
 /**
@@ -122,15 +125,15 @@ function expandResolvedCmsEntry({
 export function createDemoExpansionPolicies(): ExpansionPolicy<DemoContentRegistry>[] {
   return [
     {
-      matches: (resource) => resource.type === "cms.entry",
+      matches: cmsEntryAri.matches,
       expand: expandResolvedCmsEntry,
     },
     {
-      matches: (resource) => resource.type === "cms.asset",
+      matches: cmsAssetAri.matches,
       expand: () => EMPTY_EXPANSION,
     },
     {
-      matches: (resource) => resource.type === "integration.product",
+      matches: integrationProductAri.matches,
       expand: () => EMPTY_EXPANSION,
     },
   ];

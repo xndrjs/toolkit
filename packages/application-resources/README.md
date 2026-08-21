@@ -18,7 +18,7 @@ An **Application Resource Identifier** (ARI) has:
 - **`format(formatter?)`** — returns a stable string representation;
 - **`equals(other)`** — compares two resources using the same stable serialization.
 
-`type` and `key` stay separate in the public model. Create resources with `ari(type, ...keyParts)`; the collapsed `[type, ...key]` shape is exposed only through `toArray()`.
+`type` names the **resource family**; `key` holds the **coordinates** (instance id, filter, or empty family scope). Create resources with `ari(type, ...keyParts)` for ad-hoc keys, or **`defineAri(type, keySchema)`** when you want validated locators and `matches` for dispatch.
 
 ### Allowed key parts
 
@@ -36,7 +36,27 @@ Not allowed:
 
 Normalize optional values to `null` or an explicit wildcard instead of leaving them `undefined`.
 
-## Example
+## `defineAri` (recommended for typed families)
+
+```ts
+import { defineAri, s } from "@xndrjs/application-resources";
+
+export const integrationProductAri = defineAri(
+  "integration.product",
+  s.tuple([s.object({ sku: s.string() })])
+);
+
+const resource = integrationProductAri({ sku: "TSHIRT-1" });
+
+integrationProductAri.matches(resource); // type + key shape
+integrationProductAri.type; // "integration.product"
+```
+
+Key schema builders (`s`): `string`, `int`, `boolean`, `null`, `literal`, `enum`, `object` (flat), `tuple` (full key), `union` (locator alternatives). No Zod dependency — intentionally small.
+
+`ari()` remains available as a low-level constructor without a key schema.
+
+## Example (`ari`)
 
 ```ts
 import { ari } from "@xndrjs/application-resources";
@@ -130,6 +150,8 @@ export class HttpPostCommentsAdapter {
 Exported symbols:
 
 - **`ari`**
+- **`defineAri`** / **`AriKeySchemaError`** / **`DefinedAri`**
+- **`s`** / **`safeParse`** / **`InferKeySchema`**
 - **`omitNullKeyFields`**
 - **`ApplicationResourceIdentifier`**
 - **`ApplicationResourceKey`**

@@ -79,7 +79,7 @@ describe("source-qualified ARI store + data gateway", () => {
       createCmsDataAdapter(demoCmsStore),
       createIntegrationDataAdapter()
     );
-    const missing = cmsEntryAri("missing-entry");
+    const missing = cmsEntryAri({ id: "missing-entry" });
 
     const result = await gateway.resolve([
       pageEntryAri,

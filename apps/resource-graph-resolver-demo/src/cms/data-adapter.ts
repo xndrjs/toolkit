@@ -2,6 +2,7 @@ import type { ApplicationResourceIdentifier } from "@xndrjs/application-resource
 import type { ResourceKey } from "@xndrjs/resource-graph-resolver";
 
 import type { DataResolutionAdapter } from "../data-resolution-adapter.js";
+import { cmsAssetAri, cmsEntryAri } from "./ari.js";
 import type { CmsContentRegistry } from "./content-registry.js";
 import type { MockContentfulAsset, MockContentfulEntry } from "./mock-contentful-types.js";
 
@@ -25,17 +26,17 @@ export function createCmsDataAdapter(
       const assetAris: ApplicationResourceIdentifier<"cms.asset">[] = [];
 
       for (const resource of resources) {
-        if (resource.type === "cms.entry") {
+        if (cmsEntryAri.matches(resource)) {
           const id = readIdKey(resource);
           if (id !== undefined) {
             entryIds.push(id);
-            entryAris.push(resource as ApplicationResourceIdentifier<"cms.entry">);
+            entryAris.push(resource);
           }
-        } else if (resource.type === "cms.asset") {
+        } else if (cmsAssetAri.matches(resource)) {
           const id = readIdKey(resource);
           if (id !== undefined) {
             assetIds.push(id);
-            assetAris.push(resource as ApplicationResourceIdentifier<"cms.asset">);
+            assetAris.push(resource);
           }
         }
       }

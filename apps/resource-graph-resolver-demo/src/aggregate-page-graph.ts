@@ -163,7 +163,7 @@ export class DemoContentGraphVisitor {
   }
 
   private hydratePageModule(link: EntryLink): PageModule {
-    const raw = this.requireCmsEntry(cmsEntryAri(link.sys.id));
+    const raw = this.requireCmsEntry(cmsEntryAri({ id: link.sys.id }));
     const entry = parseEntryAsLinkField("page", "modules", raw);
     const contentTypeId = entry.sys.contentType.sys.id;
     if (contentTypeId === "tabs") {
@@ -196,7 +196,7 @@ export class DemoContentGraphVisitor {
 
   private hydrateTabLink(link: EntryLink): Tab {
     return this.hydrateTab(
-      parseEntryAsLinkField("tabs", "tabs", this.requireCmsEntry(cmsEntryAri(link.sys.id)))
+      parseEntryAsLinkField("tabs", "tabs", this.requireCmsEntry(cmsEntryAri({ id: link.sys.id })))
     );
   }
 
@@ -221,7 +221,7 @@ export class DemoContentGraphVisitor {
   }
 
   private hydrateTabStrip(link: EntryLink): TabStrip {
-    const raw = this.requireCmsEntry(cmsEntryAri(link.sys.id));
+    const raw = this.requireCmsEntry(cmsEntryAri({ id: link.sys.id }));
     const entry = parseEntryAsLinkField("tab", "strips", raw);
     const contentTypeId = entry.sys.contentType.sys.id;
     if (contentTypeId === "hero") {
@@ -258,7 +258,7 @@ export class DemoContentGraphVisitor {
       throw new Error(`Product ${entry.sys.id} is missing a title for locale ${this.locale}`);
     }
 
-    const commercial = this.result.contentMap.get(integrationProductAri(fields.sku));
+    const commercial = this.result.contentMap.get(integrationProductAri({ sku: fields.sku }));
     if (!commercial) {
       throw new Error(
         `ContentMap is missing integration.product for sku ${fields.sku} (entry ${entry.sys.id})`
@@ -282,7 +282,7 @@ export class DemoContentGraphVisitor {
 
   private hydrateMenuLink(link: EntryLink): Menu {
     return this.hydrateMenu(
-      parseEntryAsLinkField("page", "menu", this.requireCmsEntry(cmsEntryAri(link.sys.id)))
+      parseEntryAsLinkField("page", "menu", this.requireCmsEntry(cmsEntryAri({ id: link.sys.id })))
     );
   }
 
@@ -303,7 +303,11 @@ export class DemoContentGraphVisitor {
 
   private hydrateFooterLink(link: EntryLink): Footer {
     return this.hydrateFooter(
-      parseEntryAsLinkField("page", "footer", this.requireCmsEntry(cmsEntryAri(link.sys.id)))
+      parseEntryAsLinkField(
+        "page",
+        "footer",
+        this.requireCmsEntry(cmsEntryAri({ id: link.sys.id }))
+      )
     );
   }
 
@@ -323,7 +327,7 @@ export class DemoContentGraphVisitor {
   }
 
   private hydrateAsset(link: AssetLink): Asset {
-    const raw = this.result.contentMap.get(cmsAssetAri(link.sys.id));
+    const raw = this.result.contentMap.get(cmsAssetAri({ id: link.sys.id }));
     if (!raw) {
       throw new Error(`ContentMap is missing cms.asset ${link.sys.id}`);
     }

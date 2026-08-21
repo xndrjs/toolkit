@@ -1,11 +1,7 @@
-import { ari } from "@xndrjs/application-resources";
+import { defineAri, s } from "@xndrjs/application-resources";
 
 /** CMS Entry ARI — content-type is known only after resolve. */
-export function cmsEntryAri(id: string) {
-  return ari("cms.entry", { id });
-}
+export const cmsEntryAri = defineAri("cms.entry", s.tuple([s.object({ id: s.string() })]));
 
 /** CMS Asset ARI. */
-export function cmsAssetAri(id: string) {
-  return ari("cms.asset", { id });
-}
+export const cmsAssetAri = defineAri("cms.asset", s.tuple([s.object({ id: s.string() })]));
