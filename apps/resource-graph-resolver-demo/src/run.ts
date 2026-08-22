@@ -1,22 +1,12 @@
 import { ResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
 
-import {
-  createCmsDataLoader,
-  demoCmsStore,
-  footerEntryAri,
-  heroEntryAri,
-  logoAssetAri,
-  menuEntryAri,
-  pageEntryAri,
-  productEntryAri,
-  tabEntryAri,
-  tabsEntryAri,
-} from "./infrastructure/cms/index.js";
+import { aggregatePageGraph } from "./infrastructure/aggregate-page-graph.js";
+import { createCmsDataLoader, demoCmsStore, pageEntryAri } from "./infrastructure/cms/index.js";
 import { createDemoDataGateway } from "./infrastructure/demo-data-gateway.js";
 import { createDemoExpansionPort } from "./infrastructure/expansion-policies.js";
 import {
   createIntegrationDataLoader,
-  tshirtIntegrationAri,
+  demoProductCatalog,
 } from "./infrastructure/integration/index.js";
 import {
   createConsoleResolveTrace,
@@ -43,21 +33,16 @@ const output = await engine.execute({
   missingResourceMode: "throw",
 });
 
-const resolvedCount = [
-  pageEntryAri,
-  tabsEntryAri,
-  tabEntryAri,
-  heroEntryAri,
-  productEntryAri,
-  menuEntryAri,
-  footerEntryAri,
-  logoAssetAri,
-  tshirtIntegrationAri,
-].filter((resource) => output.contentMap.has(resource)).length;
+const resolvedCount =
+  demoCmsStore.entries.size + demoCmsStore.assets.size + demoProductCatalog.size;
 
 trace.logSummary(resolvedCount, output.errors.length);
 
 if (output.errors.length > 0) {
   console.error(output.errors);
   process.exitCode = 1;
+} else {
+  const { page } = aggregatePageGraph({ result: output, root: pageEntryAri });
+  console.log("\nAggregated page graph:\n");
+  console.log(JSON.stringify(page, null, 2));
 }

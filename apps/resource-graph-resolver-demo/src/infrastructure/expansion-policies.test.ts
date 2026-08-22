@@ -2,6 +2,8 @@ import { ContentMap, ResolveContentGraphEngine } from "@xndrjs/resource-graph-re
 import { describe, expect, it } from "vitest";
 
 import {
+  cmsAssetAri,
+  cmsEntryAri,
   createCmsDataLoader,
   demoCmsStore,
   demoIds,
@@ -11,6 +13,7 @@ import {
   menuEntryAri,
   pageEntryAri,
   productEntryAri,
+  tabsSecondaryEntryAri,
   tabEntryAri,
   tabsEntryAri,
   type ContentfulResolvedEntry,
@@ -18,7 +21,11 @@ import {
 import type { DemoContentRegistry } from "./content-registry.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
-import { createIntegrationDataLoader, tshirtIntegrationAri } from "./integration/index.js";
+import {
+  createIntegrationDataLoader,
+  integrationProductAri,
+  tshirtIntegrationAri,
+} from "./integration/index.js";
 
 function expandEntry(resource: typeof pageEntryAri, entry: ContentfulResolvedEntry) {
   const contentMap = new ContentMap<DemoContentRegistry>();
@@ -43,7 +50,10 @@ describe("createDemoExpansionPort", () => {
     expect(result.isIsland).toBeUndefined();
     expect(result.resources.map((r) => r.format())).toEqual([
       tabsEntryAri.format(),
+      tabsSecondaryEntryAri.format(),
       productEntryAri.format(),
+      cmsEntryAri({ id: demoIds.productHoodie }).format(),
+      cmsEntryAri({ id: demoIds.productMug }).format(),
       menuEntryAri.format(),
       footerEntryAri.format(),
     ]);
@@ -56,7 +66,9 @@ describe("createDemoExpansionPort", () => {
 
     expect(result.resources.map((r) => r.format())).toEqual([
       heroEntryAri.format(),
+      cmsEntryAri({ id: demoIds.heroPromo }).format(),
       productEntryAri.format(),
+      cmsEntryAri({ id: demoIds.productHoodie }).format(),
     ]);
     expect(result.resources.every((r) => r.type === "cms.entry")).toBe(true);
   });
@@ -117,7 +129,7 @@ describe("createDemoExpansionPort", () => {
     ).toEqual({ resources: [] });
   });
 
-  it("resolves the demo page graph with menu/footer islands, shared asset, and integration product", async () => {
+  it("resolves the demo page graph with menu/footer islands, shared asset, and integration products", async () => {
     const engine = new ResolveContentGraphEngine(createDemoGateway(), createDemoExpansionPort());
 
     const output = await engine.execute({
@@ -126,27 +138,35 @@ describe("createDemoExpansionPort", () => {
       missingResourceMode: "throw",
     });
 
+    expect(output.errors).toEqual([]);
     expect(output.contentMap.has(pageEntryAri)).toBe(true);
     expect(output.contentMap.has(tabsEntryAri)).toBe(true);
+    expect(output.contentMap.has(tabsSecondaryEntryAri)).toBe(true);
     expect(output.contentMap.has(tabEntryAri)).toBe(true);
     expect(output.contentMap.has(heroEntryAri)).toBe(true);
     expect(output.contentMap.has(productEntryAri)).toBe(true);
     expect(output.contentMap.has(tshirtIntegrationAri)).toBe(true);
+    expect(output.contentMap.has(integrationProductAri({ sku: demoIds.productSkuHoodie }))).toBe(
+      true
+    );
     expect(output.contentMap.has(menuEntryAri)).toBe(true);
     expect(output.contentMap.has(footerEntryAri)).toBe(true);
     expect(output.contentMap.has(logoAssetAri)).toBe(true);
 
-    expect(output.islands.get(pageEntryAri.format())).toEqual(
-      new Set([
-        pageEntryAri.format(),
-        tabsEntryAri.format(),
-        productEntryAri.format(),
-        tabEntryAri.format(),
-        heroEntryAri.format(),
-        logoAssetAri.format(),
-        tshirtIntegrationAri.format(),
-      ])
-    );
+    for (const id of demoCmsStore.entries.keys()) {
+      expect(output.contentMap.has(cmsEntryAri({ id }))).toBe(true);
+    }
+    for (const id of demoCmsStore.assets.keys()) {
+      expect(output.contentMap.has(cmsAssetAri({ id }))).toBe(true);
+    }
+
+    const pageIsland = output.islands.get(pageEntryAri.format())!;
+    expect(pageIsland.has(pageEntryAri.format())).toBe(true);
+    expect(pageIsland.has(menuEntryAri.format())).toBe(false);
+    expect(pageIsland.has(footerEntryAri.format())).toBe(false);
+    expect(pageIsland.has(tshirtIntegrationAri.format())).toBe(true);
+    expect(pageIsland.has(logoAssetAri.format())).toBe(true);
+
     expect(output.islands.get(menuEntryAri.format())).toEqual(
       new Set([menuEntryAri.format(), logoAssetAri.format()])
     );
@@ -157,7 +177,6 @@ describe("createDemoExpansionPort", () => {
     expect(output.islandDependencies.get(pageEntryAri.format())).toEqual(
       new Set([menuEntryAri.format(), footerEntryAri.format()])
     );
-    expect(output.errors).toEqual([]);
 
     expect(output.contentMap.get(logoAssetAri)).toMatchObject({
       sys: { id: demoIds.logo, type: "Asset" },

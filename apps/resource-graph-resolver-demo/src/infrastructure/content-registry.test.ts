@@ -55,7 +55,10 @@ describe("source-qualified ARI store + data gateway", () => {
     });
     expect(page.fields.modules).toEqual([
       { sys: { type: "Link", linkType: "Entry", id: demoIds.tabs } },
+      { sys: { type: "Link", linkType: "Entry", id: demoIds.tabsSecondary } },
       { sys: { type: "Link", linkType: "Entry", id: demoIds.product } },
+      { sys: { type: "Link", linkType: "Entry", id: demoIds.productHoodie } },
+      { sys: { type: "Link", linkType: "Entry", id: demoIds.productMug } },
     ]);
     expect(JSON.stringify(page)).not.toContain("$ref");
   });
@@ -66,7 +69,9 @@ describe("source-qualified ARI store + data gateway", () => {
     });
     expect(TabEntrySchema.parse(demoCmsStore.entries.get(demoIds.tab)).fields.strips).toEqual([
       { sys: { type: "Link", linkType: "Entry", id: demoIds.hero } },
+      { sys: { type: "Link", linkType: "Entry", id: demoIds.heroPromo } },
       { sys: { type: "Link", linkType: "Entry", id: demoIds.product } },
+      { sys: { type: "Link", linkType: "Entry", id: demoIds.productHoodie } },
     ]);
     expect(HeroEntrySchema.parse(demoCmsStore.entries.get(demoIds.hero)).fields.image).toEqual({
       sys: { type: "Link", linkType: "Asset", id: demoIds.logo },

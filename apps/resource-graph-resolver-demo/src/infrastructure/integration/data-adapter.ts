@@ -5,7 +5,7 @@ import { integrationProductAri } from "./ari.js";
 import { demoProductCatalog, type ProductIntegrationSnapshot } from "./catalog.js";
 import type { IntegrationContentRegistry } from "./content-registry.js";
 
-export const INTEGRATION_BATCH_SIZE = 10;
+export const INTEGRATION_BATCH_SIZE = 1;
 
 type IntegrationProductResource = ReturnType<typeof integrationProductAri>;
 

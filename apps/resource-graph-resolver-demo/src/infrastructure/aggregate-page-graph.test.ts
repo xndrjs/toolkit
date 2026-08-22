@@ -56,11 +56,12 @@ describe("aggregatePageGraph", () => {
     expect(PageShape.is(page)).toBe(true);
     expect(page.id).toBe(demoIds.page);
     expect(page.title).toBe("Homepage");
-    expect(page.modules).toHaveLength(2);
+    expect(page.modules).toHaveLength(5);
 
-    const [tabs, productModule] = page.modules;
+    const [tabs, tabsSecondary, productModule, hoodieModule, mugModule] = page.modules;
     expect(TabsShape.is(tabs!)).toBe(true);
     expect(tabs!.type).toBe("Tabs");
+    expect(TabsShape.is(tabsSecondary!)).toBe(true);
     if (productModule?.type !== "Product") {
       throw new Error("expected Product page module");
     }
@@ -68,6 +69,8 @@ describe("aggregatePageGraph", () => {
     expect(productModule.price.amount).toBe(1999);
     expect(productModule.price.currency).toBe("EUR");
     expect(productModule.availability).toBe(true);
+    expect(hoodieModule?.type).toBe("Product");
+    expect(mugModule?.type).toBe("Product");
 
     expect(page.menu?.type).toBe("Menu");
     expect(page.footer?.type).toBe("Footer");
@@ -90,20 +93,22 @@ describe("aggregatePageGraph", () => {
       return;
     }
 
-    expect(tabs.tabs).toHaveLength(1);
+    expect(tabs.tabs).toHaveLength(4);
     const tab = tabs.tabs[0]!;
-    expect(tab.strips.map((s) => s.type)).toEqual(["Hero", "Product"]);
+    expect(tab.strips.map((s) => s.type)).toEqual(["Hero", "Hero", "Product", "Product"]);
 
-    const [hero, product] = tab.strips;
+    const [hero, heroPromo, product, productHoodie] = tab.strips;
     if (hero?.type !== "Hero") {
       throw new Error("expected Hero strip");
     }
     expect(hero.id).toBe(demoIds.hero);
     expect(hero.image.id).toBe(demoIds.logo);
+    expect(heroPromo?.type).toBe("Hero");
 
     expect(ProductShape.is(product!)).toBe(true);
     expect(product!.id).toBe(demoIds.product);
-    expect(page.modules[1]?.id).toBe(product!.id);
+    expect(ProductShape.is(productHoodie!)).toBe(true);
+    expect(page.modules[2]?.id).toBe(product!.id);
   });
 
   it("flattens localized fields for a non-default locale", async () => {
@@ -115,7 +120,7 @@ describe("aggregatePageGraph", () => {
     });
 
     expect(page.title).toBe("Pagina iniziale");
-    const product = page.modules[1]!;
+    const product = page.modules[2]!;
     expect(product.type).toBe("Product");
     if (product.type === "Product") {
       expect(product.title).toBe("Maglietta");

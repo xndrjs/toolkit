@@ -4,8 +4,8 @@ import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource 
 import type { CmsContentRegistry } from "./content-registry.js";
 import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
 
-const CMS_ENTRY_BATCH_SIZE = 50;
-const CMS_ASSET_BATCH_SIZE = 50;
+const CMS_ENTRY_BATCH_SIZE = 5;
+const CMS_ASSET_BATCH_SIZE = 5;
 
 export { CMS_ENTRY_BATCH_SIZE, CMS_ASSET_BATCH_SIZE };
 

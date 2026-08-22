@@ -15,11 +15,8 @@ export const demoProductSku = "TSHIRT-1" as const;
 
 /** Demo catalog keyed by SKU (feeds the in-memory integration adapter). */
 export const demoProductCatalog: ReadonlyMap<string, ProductIntegrationSnapshot> = new Map([
-  [
-    demoProductSku,
-    {
-      price: { amount: 1999, currency: "EUR" },
-      inStock: true,
-    },
-  ],
+  [demoProductSku, { price: { amount: 1999, currency: "EUR" }, inStock: true }],
+  ["HOODIE-1", { price: { amount: 4999, currency: "EUR" }, inStock: true }],
+  ["MUG-1", { price: { amount: 1299, currency: "EUR" }, inStock: false }],
+  ["CAP-1", { price: { amount: 2499, currency: "EUR" }, inStock: true }],
 ]);
