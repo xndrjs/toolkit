@@ -11,9 +11,8 @@ import {
   menuEntryAri,
   pageEntryAri,
   productEntryAri,
-  mockEntryLink,
-  type MockContentfulAsset,
-  type MockContentfulEntry,
+  type ContentfulAsset,
+  type ContentfulResolvedEntry,
 } from "./cms/index.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
@@ -22,7 +21,7 @@ import {
   PageEntrySchema,
   ProductEntrySchema,
   TabEntrySchema,
-} from "./generated/contentful.schemas.js";
+} from "./cms/generated/contentful.schemas.js";
 import {
   createIntegrationDataLoader,
   tshirtIntegrationAri,
@@ -40,20 +39,23 @@ describe("source-qualified ARI store + data gateway", () => {
   });
 
   it("types ContentRegistry by source-qualified ARI type", () => {
-    expectTypeOf<DemoContentRegistry["cms.entry"]>().toEqualTypeOf<MockContentfulEntry>();
-    expectTypeOf<DemoContentRegistry["cms.asset"]>().toEqualTypeOf<MockContentfulAsset>();
+    expectTypeOf<DemoContentRegistry["cms.entry"]>().toEqualTypeOf<ContentfulResolvedEntry>();
+    expectTypeOf<DemoContentRegistry["cms.asset"]>().toEqualTypeOf<ContentfulAsset>();
     expectTypeOf<
       DemoContentRegistry["integration.product"]
     >().toEqualTypeOf<ProductIntegrationSnapshot>();
   });
 
   it("stores CMS Link stubs instead of $ref ARI strings", () => {
-    const page = demoCmsStore.entries.get(demoIds.page)!;
+    const entry = demoCmsStore.entries.get(demoIds.page)!;
+    const page = PageEntrySchema.parse(entry);
 
-    expect(page.fields.menu).toEqual(mockEntryLink(demoIds.menu));
+    expect(page.fields.menu).toEqual({
+      sys: { type: "Link", linkType: "Entry", id: demoIds.menu },
+    });
     expect(page.fields.modules).toEqual([
-      mockEntryLink(demoIds.tabs),
-      mockEntryLink(demoIds.product),
+      { sys: { type: "Link", linkType: "Entry", id: demoIds.tabs } },
+      { sys: { type: "Link", linkType: "Entry", id: demoIds.product } },
     ]);
     expect(JSON.stringify(page)).not.toContain("$ref");
   });
@@ -63,8 +65,8 @@ describe("source-qualified ARI store + data gateway", () => {
       sys: { id: demoIds.page, contentType: { sys: { id: "page" } } },
     });
     expect(TabEntrySchema.parse(demoCmsStore.entries.get(demoIds.tab)).fields.strips).toEqual([
-      mockEntryLink(demoIds.hero),
-      mockEntryLink(demoIds.product),
+      { sys: { type: "Link", linkType: "Entry", id: demoIds.hero } },
+      { sys: { type: "Link", linkType: "Entry", id: demoIds.product } },
     ]);
     expect(HeroEntrySchema.parse(demoCmsStore.entries.get(demoIds.hero)).fields.image).toEqual({
       sys: { type: "Link", linkType: "Asset", id: demoIds.logo },
@@ -92,8 +94,8 @@ describe("source-qualified ARI store + data gateway", () => {
     expect(result.has(tshirtIntegrationAri.format())).toBe(true);
     expect(result.has(missing.format())).toBe(false);
 
-    const asset = result.get(logoAssetAri.format()) as MockContentfulAsset;
-    expect(asset.fields.file.url).toBe("https://cdn.example.com/logo.svg");
+    const asset = result.get(logoAssetAri.format()) as ContentfulAsset;
+    expect(asset.fields.file?.url).toBe("https://cdn.example.com/logo.svg");
 
     const commercial = result.get(tshirtIntegrationAri.format()) as ProductIntegrationSnapshot;
     expect(commercial).toEqual({

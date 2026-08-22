@@ -19,11 +19,14 @@ import { emitLocalePrimitives, requireLocalesForMode } from "./locale-primitives
 import { CONTENTFUL_PRIMITIVE_SCHEMA_NAMES, CONTENTFUL_PRIMITIVE_SCHEMAS } from "./primitives";
 import {
   deliveryFieldsSchemaExportName,
-  deliveryFieldsTypeName,
+  emitInferredType,
   fieldsSchemaExportName,
-  fieldsTypeName,
 } from "./schema-name";
-import { emitContentTypeEntrySchema, emitEntrySysPrimitives } from "./entry-to-source";
+import {
+  emitContentTypeEntrySchema,
+  emitAssetDeliverySchema,
+  emitEntrySysPrimitives,
+} from "./entry-to-source";
 import { emitLinkFieldParseHelpers } from "./emit-link-field-parse";
 import { emitLocaleHelpers } from "./helpers-to-source";
 import { collectLinkFieldTargets, validateLinkFieldTargets } from "./link-fields";
@@ -90,16 +93,12 @@ function emitContentTypeSchema(
   const exportName = options.delivery
     ? deliveryFieldsSchemaExportName(contentType.id)
     : fieldsSchemaExportName(contentType.id);
-  const typeName = options.delivery
-    ? deliveryFieldsTypeName(contentType.id)
-    : fieldsTypeName(contentType.id);
-
   return [
     `export const ${exportName} = z.object({`,
     ...shapeEntries,
     "});",
     "",
-    `export type ${typeName} = z.infer<typeof ${exportName}>;`,
+    emitInferredType(exportName),
     "",
   ];
 }
@@ -119,7 +118,7 @@ function emitFileHeader(): string {
 function emitSharedPrimitives(): string {
   const lines = CONTENTFUL_PRIMITIVE_SCHEMA_NAMES.flatMap((name) => {
     const schema = CONTENTFUL_PRIMITIVE_SCHEMAS[name];
-    return [`export const ${name} = ${zodToSource(schema)};`, ""];
+    return [`export const ${name} = ${zodToSource(schema)};`, emitInferredType(name), ""];
   });
 
   return lines.join("\n");
@@ -162,7 +161,7 @@ export function generateZodSchemas(
   }
 
   if (includeDelivery && locales) {
-    sections.push(emitEntrySysPrimitives(), "");
+    sections.push(emitEntrySysPrimitives(), "", emitAssetDeliverySchema(), "");
   }
 
   sections.push(emitSharedPrimitives());

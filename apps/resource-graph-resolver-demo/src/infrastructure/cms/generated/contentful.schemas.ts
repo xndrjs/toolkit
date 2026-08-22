@@ -62,15 +62,57 @@ export const ContentfulEntrySysSchema = z.looseObject({
   publishedVersion: z.number().optional(),
 });
 
+export type ContentfulResourceLink = z.infer<typeof ContentfulResourceLinkSchema>;
+export type ContentfulEntrySys = z.infer<typeof ContentfulEntrySysSchema>;
+
+/** Loose Delivery/Preview asset metadata; extra Contentful fields pass through. */
+export const ContentfulAssetSysSchema = z.looseObject({
+  id: z.string(),
+  type: z.literal("Asset"),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  revision: z.number(),
+  space: ContentfulResourceLinkSchema,
+  environment: ContentfulResourceLinkSchema,
+  locale: ContentfulLocaleCodeSchema.optional(),
+  publishedVersion: z.number().optional(),
+});
+
+export type ContentfulAssetSys = z.infer<typeof ContentfulAssetSysSchema>;
+
+export const ContentfulAssetDeliveryFieldsSchema = z.object({
+  title: transportField(z.string()),
+  file: transportField(
+    z.object({
+      url: z.string(),
+      fileName: z.string().optional(),
+      contentType: z.string().optional(),
+    })
+  ),
+});
+
+export type ContentfulAssetDeliveryFields = z.infer<typeof ContentfulAssetDeliveryFieldsSchema>;
+
+/** Resolved Delivery/Preview asset payload. */
+export const ContentfulAssetSchema = z.object({
+  sys: ContentfulAssetSysSchema,
+  fields: ContentfulAssetDeliveryFieldsSchema,
+});
+
+export type ContentfulAsset = z.infer<typeof ContentfulAssetSchema>;
+
 export const ContentfulLocationSchema = z.object({ lat: z.number(), lon: z.number() });
+export type ContentfulLocation = z.infer<typeof ContentfulLocationSchema>;
 
 export const ContentfulEntryLinkSchema = z.object({
   sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),
 });
+export type ContentfulEntryLink = z.infer<typeof ContentfulEntryLinkSchema>;
 
 export const ContentfulAssetLinkSchema = z.object({
   sys: z.object({ type: z.literal("Link"), linkType: z.literal("Asset"), id: z.string() }),
 });
+export type ContentfulAssetLink = z.infer<typeof ContentfulAssetLinkSchema>;
 
 export const PageFieldsSchema = z.object({
   title: flatField(z.string()),
@@ -394,6 +436,18 @@ export const ContentfulEntrySchemaByContentType = {
 } as const satisfies {
   [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;
 };
+
+/** Resolved Delivery/Preview entry (any content type in this snapshot). */
+export const ContentfulResolvedEntrySchema = z.union([
+  PageEntrySchema,
+  TabsEntrySchema,
+  TabEntrySchema,
+  HeroEntrySchema,
+  MenuEntrySchema,
+  FooterEntrySchema,
+  ProductEntrySchema,
+]);
+export type ContentfulResolvedEntry = z.infer<typeof ContentfulResolvedEntrySchema>;
 
 /** Read one locale from a localized delivery field; missing locale or null input → `null`. */
 export function pickLocale<T>(

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { Locale } from "../model/locale";
+import { emitInferredType } from "./schema-name";
 import { zodToSource } from "./zod-to-source";
 
 export function buildLocaleCodeSchema(
@@ -32,7 +33,7 @@ export function emitLocalePrimitives(locales: Locale[]): string {
   return [
     "/** @generated from space locales snapshot */",
     `export const ContentfulLocaleCodeSchema = ${schemaSource};`,
-    "export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;",
+    emitInferredType("ContentfulLocaleCodeSchema"),
     "",
     "export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;",
     `export const CONTENTFUL_DEFAULT_LOCALE = ${JSON.stringify(defaultLocale)} as const;`,

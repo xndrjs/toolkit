@@ -30,3 +30,18 @@ export function entrySchemaExportName(contentTypeId: string): string {
 export function entryTypeName(contentTypeId: string): string {
   return `${contentTypeIdToPascalCase(contentTypeId)}Entry`;
 }
+
+/** Strip the `Schema` suffix from a generated schema export name (`BlogPostFieldsSchema` → `BlogPostFields`). */
+export function schemaExportNameToTypeName(schemaExportName: string): string {
+  if (!schemaExportName.endsWith("Schema")) {
+    throw new Error(`Expected schema export name ending with "Schema", got "${schemaExportName}".`);
+  }
+
+  return schemaExportName.slice(0, -"Schema".length);
+}
+
+/** Emit `export type X = z.infer<typeof XSchema>;` for a generated schema const. */
+export function emitInferredType(schemaExportName: string): string {
+  const typeName = schemaExportNameToTypeName(schemaExportName);
+  return `export type ${typeName} = z.infer<typeof ${schemaExportName}>;`;
+}

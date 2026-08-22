@@ -45,11 +45,10 @@ import {
   ProductEntrySchema,
   TabEntrySchema,
   TabsEntrySchema,
+  type ContentfulAssetLink,
+  type ContentfulEntryLink,
   type ContentfulLocaleCode,
-} from "./generated/contentful.schemas.js";
-
-type EntryLink = { sys: { type: "Link"; linkType: "Entry"; id: string } };
-type AssetLink = { sys: { type: "Link"; linkType: "Asset"; id: string } };
+} from "./cms/generated/contentful.schemas.js";
 
 export type AggregatePageGraphInput = {
   /** Output of `ResolveContentGraphEngine.execute` (ContentMap + islands). */
@@ -162,7 +161,7 @@ export class DemoContentGraphVisitor {
     return serialized;
   }
 
-  private hydratePageModule(link: EntryLink): PageModule {
+  private hydratePageModule(link: ContentfulEntryLink): PageModule {
     const raw = this.requireCmsEntry(cmsEntryAri({ id: link.sys.id }));
     const entry = parseEntryAsLinkField("page", "modules", raw);
     const contentTypeId = entry.sys.contentType.sys.id;
@@ -194,7 +193,7 @@ export class DemoContentGraphVisitor {
     });
   }
 
-  private hydrateTabLink(link: EntryLink): Tab {
+  private hydrateTabLink(link: ContentfulEntryLink): Tab {
     return this.hydrateTab(
       parseEntryAsLinkField("tabs", "tabs", this.requireCmsEntry(cmsEntryAri({ id: link.sys.id })))
     );
@@ -220,7 +219,7 @@ export class DemoContentGraphVisitor {
     });
   }
 
-  private hydrateTabStrip(link: EntryLink): TabStrip {
+  private hydrateTabStrip(link: ContentfulEntryLink): TabStrip {
     const raw = this.requireCmsEntry(cmsEntryAri({ id: link.sys.id }));
     const entry = parseEntryAsLinkField("tab", "strips", raw);
     const contentTypeId = entry.sys.contentType.sys.id;
@@ -280,7 +279,7 @@ export class DemoContentGraphVisitor {
     });
   }
 
-  private hydrateMenuLink(link: EntryLink): Menu {
+  private hydrateMenuLink(link: ContentfulEntryLink): Menu {
     return this.hydrateMenu(
       parseEntryAsLinkField("page", "menu", this.requireCmsEntry(cmsEntryAri({ id: link.sys.id })))
     );
@@ -301,7 +300,7 @@ export class DemoContentGraphVisitor {
     });
   }
 
-  private hydrateFooterLink(link: EntryLink): Footer {
+  private hydrateFooterLink(link: ContentfulEntryLink): Footer {
     return this.hydrateFooter(
       parseEntryAsLinkField(
         "page",
@@ -326,16 +325,21 @@ export class DemoContentGraphVisitor {
     });
   }
 
-  private hydrateAsset(link: AssetLink): Asset {
+  private hydrateAsset(link: ContentfulAssetLink): Asset {
     const raw = this.result.contentMap.get(cmsAssetAri({ id: link.sys.id }));
     if (!raw) {
       throw new Error(`ContentMap is missing cms.asset ${link.sys.id}`);
     }
 
+    const file = raw.fields.file;
+    if (!file) {
+      throw new Error(`ContentMap cms.asset ${link.sys.id} is missing fields.file`);
+    }
+
     return AssetShape.create({
       type: "Asset",
       id: raw.sys.id,
-      url: raw.fields.file.url,
+      url: file.url,
       title: raw.fields.title ?? null,
     });
   }

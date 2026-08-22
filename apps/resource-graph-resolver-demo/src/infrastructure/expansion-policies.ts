@@ -12,17 +12,16 @@ import type { DemoContentRegistry } from "./content-registry.js";
 import {
   ContentfulContentTypeIdSchema,
   ContentfulEntrySchemaByContentType,
+  type ContentfulAssetLink,
   type ContentfulContentTypeId,
   type ContentfulEntryByContentType,
-} from "./generated/contentful.schemas.js";
-
-type EntryLink = { sys: { type: "Link"; linkType: "Entry"; id: string } };
-type AssetLink = { sys: { type: "Link"; linkType: "Asset"; id: string } };
+  type ContentfulEntryLink,
+} from "./cms/generated/contentful.schemas.js";
 
 const EMPTY_EXPANSION: ExpansionResult = { resources: [] };
 
 function entryChildrenFromLinks(
-  links: readonly EntryLink[] | null | undefined
+  links: readonly ContentfulEntryLink[] | null | undefined
 ): ApplicationResourceIdentifier[] {
   if (!links) {
     return [];
@@ -30,11 +29,15 @@ function entryChildrenFromLinks(
   return links.map((link) => cmsEntryAri({ id: link.sys.id }));
 }
 
-function entryChildFromLink(link: EntryLink | null | undefined): ApplicationResourceIdentifier[] {
+function entryChildFromLink(
+  link: ContentfulEntryLink | null | undefined
+): ApplicationResourceIdentifier[] {
   return link ? [cmsEntryAri({ id: link.sys.id })] : [];
 }
 
-function assetChildFromLink(link: AssetLink | null | undefined): ApplicationResourceIdentifier[] {
+function assetChildFromLink(
+  link: ContentfulAssetLink | null | undefined
+): ApplicationResourceIdentifier[] {
   return link ? [cmsAssetAri({ id: link.sys.id })] : [];
 }
 

@@ -1,17 +1,14 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import type { ResourceKey } from "@xndrjs/resource-graph-resolver";
 
-import { cmsAssetAri, cmsEntryAri } from "./ari.js";
+import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
 import type { CmsContentRegistry } from "./content-registry.js";
-import type { MockContentfulAsset, MockContentfulEntry } from "./mock-contentful-types.js";
+import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
 
 export type CmsFixtureStore = {
-  entries: ReadonlyMap<string, MockContentfulEntry>;
-  assets: ReadonlyMap<string, MockContentfulAsset>;
+  entries: ReadonlyMap<string, ContentfulResolvedEntry>;
+  assets: ReadonlyMap<string, ContentfulAsset>;
 };
-
-type CmsEntryResource = ReturnType<typeof cmsEntryAri>;
-type CmsAssetResource = ReturnType<typeof cmsAssetAri>;
 
 /**
  * CMS batch loader — not a DataResolutionPort.
@@ -67,11 +64,11 @@ export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
 
 /** Simulates `GET /entries?sys.id[in]=id1,id2,…` against an in-memory entry map. */
 async function mockContentfulEntriesByIds(
-  entries: ReadonlyMap<string, MockContentfulEntry>,
+  entries: ReadonlyMap<string, ContentfulResolvedEntry>,
   ids: readonly string[]
-): Promise<Map<string, MockContentfulEntry>> {
+): Promise<Map<string, ContentfulResolvedEntry>> {
   const unique = [...new Set(ids)];
-  const found = new Map<string, MockContentfulEntry>();
+  const found = new Map<string, ContentfulResolvedEntry>();
   for (const id of unique) {
     const entry = entries.get(id);
     if (entry) {
@@ -83,11 +80,11 @@ async function mockContentfulEntriesByIds(
 
 /** Simulates `GET /assets?sys.id[in]=id1,id2,…` against an in-memory asset map. */
 async function mockContentfulAssetsByIds(
-  assets: ReadonlyMap<string, MockContentfulAsset>,
+  assets: ReadonlyMap<string, ContentfulAsset>,
   ids: readonly string[]
-): Promise<Map<string, MockContentfulAsset>> {
+): Promise<Map<string, ContentfulAsset>> {
   const unique = [...new Set(ids)];
-  const found = new Map<string, MockContentfulAsset>();
+  const found = new Map<string, ContentfulAsset>();
   for (const id of unique) {
     const asset = assets.get(id);
     if (asset) {

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "contentful:schema": "contentful-to-zod --config ./contentful-to-zod.config.ts",
+    "contentful:schema": "contentful-to-zod --config ./src/infrastructure/cms/contentful-to-zod.config.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

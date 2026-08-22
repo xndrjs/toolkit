@@ -16,6 +16,13 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).toContain("export const BlogPostEntrySchema");
     expect(output).toContain("export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>");
     expect(output).toContain("export const ContentfulEntrySysSchema");
+    expect(output).toContain(
+      "export type ContentfulEntryLink = z.infer<typeof ContentfulEntryLinkSchema>"
+    );
+    expect(output).toContain("export const ContentfulAssetSchema");
+    expect(output).toContain(
+      "export type ContentfulResolvedEntry = z.infer<typeof ContentfulResolvedEntrySchema>"
+    );
     expect(output).toContain('id: z.literal("blogPost")');
     expect(output).toContain("export function pickLocale");
     expect(output).toContain("export function flattenBlogPostEntryFields");

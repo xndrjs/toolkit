@@ -10,13 +10,13 @@ Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content 
 fixtures/
   content-types.json      # normalized Contentful CMA snapshot (committed)
   locales.json            # en-US default, it-IT fallback
-contentful-to-zod.config.ts
 src/
   domain/                     # domain-zod shapes
   infrastructure/
-    generated/
-      contentful.schemas.ts   # Zod schemas from contentful-to-zod (committed)
     cms/                      # CMS source: ARIs, fixtures, Contentful-like batch loader
+      contentful-to-zod.config.ts
+      generated/
+        contentful.schemas.ts   # Zod schemas from contentful-to-zod (committed)
     integration/              # Integration source: ARIs, catalog, commercial batch loader
     demo-data-gateway.ts      # engine DataResolutionPort: pull per source → loaders
     content-registry.ts       # DemoContentRegistry = CMS ∪ integration slices

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { ContentType } from "../model/content-type";
-import { entrySchemaExportName, entryTypeName } from "./schema-name";
+import { emitInferredType, entrySchemaExportName, entryTypeName } from "./schema-name";
 import { zodToSource } from "./zod-to-source";
 
 function buildContentTypeIdSchema(
@@ -31,7 +31,7 @@ export function emitContentTypeIdPrimitives(
   const lines: string[] = [
     "/** @generated from content type snapshot */",
     `export const ContentfulContentTypeIdSchema = ${schemaSource};`,
-    "export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;",
+    emitInferredType("ContentfulContentTypeIdSchema"),
     "",
     "export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;",
   ];
@@ -39,6 +39,8 @@ export function emitContentTypeIdPrimitives(
   if (!options.includeEntryMaps) {
     return lines.join("\n");
   }
+
+  const entrySchemaNames = contentTypes.map((contentType) => entrySchemaExportName(contentType.id));
 
   const entryByTypeEntries = contentTypes.map((contentType) => {
     const id = JSON.stringify(contentType.id);
@@ -64,6 +66,22 @@ export function emitContentTypeIdPrimitives(
     "  [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;",
     "};"
   );
+
+  if (entrySchemaNames.length === 1) {
+    lines.push(
+      "",
+      "/** Resolved Delivery/Preview entry (any content type in this snapshot). */",
+      `export const ContentfulResolvedEntrySchema = ${entrySchemaNames[0]};`,
+      emitInferredType("ContentfulResolvedEntrySchema")
+    );
+  } else if (entrySchemaNames.length > 1) {
+    lines.push(
+      "",
+      "/** Resolved Delivery/Preview entry (any content type in this snapshot). */",
+      `export const ContentfulResolvedEntrySchema = z.union([${entrySchemaNames.join(", ")}]);`,
+      emitInferredType("ContentfulResolvedEntrySchema")
+    );
+  }
 
   return lines.join("\n");
 }

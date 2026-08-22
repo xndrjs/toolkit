@@ -13,14 +13,14 @@ import {
   productEntryAri,
   tabEntryAri,
   tabsEntryAri,
-  type MockContentfulEntry,
+  type ContentfulResolvedEntry,
 } from "./cms/index.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
 import { createIntegrationDataLoader, tshirtIntegrationAri } from "./integration/index.js";
 
-function expandEntry(resource: typeof pageEntryAri, entry: MockContentfulEntry) {
+function expandEntry(resource: typeof pageEntryAri, entry: ContentfulResolvedEntry) {
   const contentMap = new ContentMap<DemoContentRegistry>();
   contentMap.set(resource, entry);
   return createDemoExpansionPort().expand({
