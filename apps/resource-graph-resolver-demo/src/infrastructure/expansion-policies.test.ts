@@ -16,6 +16,8 @@ import {
   tabsSecondaryEntryAri,
   tabEntryAri,
   tabsEntryAri,
+  type CmsAssetResource,
+  type CmsEntryResource,
   type ContentfulResolvedEntry,
 } from "./cms/index.js";
 import type { DemoContentRegistry } from "./content-registry.js";
@@ -32,7 +34,7 @@ import {
 } from "./integration/index.js";
 
 function expandEntry(
-  resource: typeof pageEntryAri,
+  resource: CmsEntryResource,
   entry: ContentfulResolvedEntry,
   executionContext: DemoExecutionContext = createDefaultDemoExecutionContext()
 ) {
@@ -51,7 +53,7 @@ function createDemoGateway() {
 }
 
 describe("createDemoExpansionPort", () => {
-  it("expands page links as opaque cms.entry ARIs (modules + menu + footer)", () => {
+  it("expands page links as locale-scoped cms.entry ARIs (modules + menu + footer)", () => {
     const page = demoCmsStore.entries.get(demoIds.page)!;
     const result = expandEntry(pageEntryAri, page);
 
@@ -60,12 +62,20 @@ describe("createDemoExpansionPort", () => {
       tabsEntryAri.format(),
       tabsSecondaryEntryAri.format(),
       productEntryAri.format(),
-      cmsEntryAri({ id: demoIds.productHoodie }).format(),
-      cmsEntryAri({ id: demoIds.productMug }).format(),
+      cmsEntryAri({ id: demoIds.productHoodie, locale: "en-US" }).format(),
+      cmsEntryAri({ id: demoIds.productMug, locale: "en-US" }).format(),
       menuEntryAri.format(),
       footerEntryAri.format(),
     ]);
     expect(result.resources.every((r) => r.type === "cms.entry")).toBe(true);
+    expect(
+      result.resources.every((resource) => {
+        if (resource.type !== "cms.entry") {
+          return true;
+        }
+        return (resource as CmsEntryResource).key[0].locale === "en-US";
+      })
+    ).toBe(true);
   });
 
   it("expands polymorphic tab.strips without knowing target content-types", () => {
@@ -74,9 +84,9 @@ describe("createDemoExpansionPort", () => {
 
     expect(result.resources.map((r) => r.format())).toEqual([
       heroEntryAri.format(),
-      cmsEntryAri({ id: demoIds.heroPromo }).format(),
+      cmsEntryAri({ id: demoIds.heroPromo, locale: "en-US" }).format(),
       productEntryAri.format(),
-      cmsEntryAri({ id: demoIds.productHoodie }).format(),
+      cmsEntryAri({ id: demoIds.productHoodie, locale: "en-US" }).format(),
     ]);
     expect(result.resources.every((r) => r.type === "cms.entry")).toBe(true);
   });
@@ -91,6 +101,7 @@ describe("createDemoExpansionPort", () => {
     expect(menuResult.isIsland).toBe(true);
     expect(menuResult.resources.map((r) => r.format())).toEqual([logoAssetAri.format()]);
     expect(menuResult.resources[0]?.type).toBe("cms.asset");
+    expect((menuResult.resources[0] as CmsAssetResource).key[0].locale).toBe("en-US");
 
     expect(footerResult.isIsland).toBe(true);
     expect(footerResult.resources.map((r) => r.format())).toEqual([logoAssetAri.format()]);
@@ -109,28 +120,38 @@ describe("createDemoExpansionPort", () => {
     expect(expandEntry(productEntryAri, product).resources[0]?.type).toBe("integration.product");
   });
 
-  it("when refines product expansion using typed executionContext.locale", () => {
+  it("when requires executionContext.locale to match the cms.entry ARI locale", () => {
     const product = demoCmsStore.entries.get(demoIds.product)!;
     const contentMap = new ContentMap<DemoContentRegistry>();
     contentMap.set(productEntryAri, product);
 
-    const defaultLocaleResult = createDemoExpansionPort().expand({
+    const matched = createDemoExpansionPort().expand({
       resource: productEntryAri,
       contentMap,
       inheritedIslandId: productEntryAri.format(),
       executionContext: createDefaultDemoExecutionContext("en-US"),
     });
-    expect(defaultLocaleResult.resources.map((r) => r.format())).toEqual([
-      tshirtIntegrationAri.format(),
-    ]);
+    expect(matched.resources.map((r) => r.format())).toEqual([tshirtIntegrationAri.format()]);
 
-    const italianResult = createDemoExpansionPort().expand({
+    const localeMismatch = createDemoExpansionPort().expand({
       resource: productEntryAri,
       contentMap,
       inheritedIslandId: productEntryAri.format(),
       executionContext: createDefaultDemoExecutionContext("it-IT"),
     });
-    expect(italianResult.resources).toEqual([]);
+    expect(localeMismatch.resources).toEqual([]);
+
+    const italianProduct = cmsEntryAri({ id: demoIds.product, locale: "it-IT" });
+    contentMap.set(italianProduct, product);
+    const italianMatched = createDemoExpansionPort().expand({
+      resource: italianProduct,
+      contentMap,
+      inheritedIslandId: italianProduct.format(),
+      executionContext: createDefaultDemoExecutionContext("it-IT"),
+    });
+    expect(italianMatched.resources.map((r) => r.format())).toEqual([
+      integrationProductAri({ sku: "TSHIRT-1", locale: "it-IT" }).format(),
+    ]);
 
     expectTypeOf(createDefaultDemoExecutionContext().locale).toEqualTypeOf<"en-US" | "it-IT">();
   });
@@ -166,38 +187,46 @@ describe("createDemoExpansionPort", () => {
   });
 
   it("resolves the demo page graph with menu/footer islands, shared asset, and integration products", async () => {
+    const executionContext = createDefaultDemoExecutionContext();
+    const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
     const engine = new ResolveContentGraphEngine(createDemoGateway(), createDemoExpansionPort());
 
     const output = await engine.execute({
-      root: pageEntryAri,
-      executionContext: createDefaultDemoExecutionContext(),
+      root: pageRoot,
+      executionContext,
       missingResourceMode: "throw",
     });
 
     expect(output.errors).toEqual([]);
-    expect(output.contentMap.has(pageEntryAri)).toBe(true);
+    expect(output.contentMap.has(pageRoot)).toBe(true);
     expect(output.contentMap.has(tabsEntryAri)).toBe(true);
     expect(output.contentMap.has(tabsSecondaryEntryAri)).toBe(true);
     expect(output.contentMap.has(tabEntryAri)).toBe(true);
     expect(output.contentMap.has(heroEntryAri)).toBe(true);
     expect(output.contentMap.has(productEntryAri)).toBe(true);
     expect(output.contentMap.has(tshirtIntegrationAri)).toBe(true);
-    expect(output.contentMap.has(integrationProductAri({ sku: demoIds.productSkuHoodie }))).toBe(
-      true
-    );
+    expect(
+      output.contentMap.has(
+        integrationProductAri({ sku: demoIds.productSkuHoodie, locale: executionContext.locale })
+      )
+    ).toBe(true);
     expect(output.contentMap.has(menuEntryAri)).toBe(true);
     expect(output.contentMap.has(footerEntryAri)).toBe(true);
     expect(output.contentMap.has(logoAssetAri)).toBe(true);
 
     for (const id of demoCmsStore.entries.keys()) {
-      expect(output.contentMap.has(cmsEntryAri({ id }))).toBe(true);
+      expect(output.contentMap.has(cmsEntryAri({ id, locale: executionContext.locale }))).toBe(
+        true
+      );
     }
     for (const id of demoCmsStore.assets.keys()) {
-      expect(output.contentMap.has(cmsAssetAri({ id }))).toBe(true);
+      expect(output.contentMap.has(cmsAssetAri({ id, locale: executionContext.locale }))).toBe(
+        true
+      );
     }
 
-    const pageIsland = output.islands.get(pageEntryAri.format())!;
-    expect(pageIsland.has(pageEntryAri.format())).toBe(true);
+    const pageIsland = output.islands.get(pageRoot.format())!;
+    expect(pageIsland.has(pageRoot.format())).toBe(true);
     expect(pageIsland.has(menuEntryAri.format())).toBe(false);
     expect(pageIsland.has(footerEntryAri.format())).toBe(false);
     expect(pageIsland.has(tshirtIntegrationAri.format())).toBe(true);
@@ -210,7 +239,7 @@ describe("createDemoExpansionPort", () => {
       new Set([footerEntryAri.format(), logoAssetAri.format()])
     );
 
-    expect(output.islandDependencies.get(pageEntryAri.format())).toEqual(
+    expect(output.islandDependencies.get(pageRoot.format())).toEqual(
       new Set([menuEntryAri.format(), footerEntryAri.format()])
     );
 

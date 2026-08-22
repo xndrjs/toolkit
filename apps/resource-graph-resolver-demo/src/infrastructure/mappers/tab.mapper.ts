@@ -16,7 +16,7 @@ export function mapTabLink(context: MapperContext, link: ContentfulEntryLink): T
     parseEntryAsLinkField(
       "tabs",
       "tabs",
-      requireCmsEntry(context, cmsEntryAri({ id: link.sys.id }))
+      requireCmsEntry(context, cmsEntryAri({ id: link.sys.id, locale: context.locale }))
     )
   );
 }
@@ -42,7 +42,7 @@ export function mapTab(context: MapperContext, raw: unknown): Tab {
 }
 
 function mapTabStrip(context: MapperContext, link: ContentfulEntryLink): TabStrip {
-  const raw = requireCmsEntry(context, cmsEntryAri({ id: link.sys.id }));
+  const raw = requireCmsEntry(context, cmsEntryAri({ id: link.sys.id, locale: context.locale }));
   const entry = parseEntryAsLinkField("tab", "strips", raw);
   const contentTypeId = entry.sys.contentType.sys.id;
   if (contentTypeId === "hero") {

@@ -1,5 +1,6 @@
 import {
   CONTENTFUL_DEFAULT_LOCALE,
+  ContentfulLocaleCodeSchema,
   type ContentfulLocaleCode,
 } from "./cms/generated/contentful.schemas.js";
 
@@ -12,4 +13,10 @@ export function createDefaultDemoExecutionContext(
   locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): DemoExecutionContext {
   return { locale };
+}
+
+/** Parses a Next.js `[locale]` route segment into a supported Contentful locale. */
+export function parseDemoLocaleParam(value: string): ContentfulLocaleCode | null {
+  const parsed = ContentfulLocaleCodeSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }

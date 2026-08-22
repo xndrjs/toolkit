@@ -4,7 +4,9 @@ import type { ContentfulAssetLink } from "../cms/generated/contentful.schemas.js
 import type { MapperContext } from "./mapper-context.js";
 
 export function mapAsset(context: MapperContext, link: ContentfulAssetLink): Asset {
-  const raw = context.result.contentMap.get(cmsAssetAri({ id: link.sys.id }));
+  const raw = context.result.contentMap.get(
+    cmsAssetAri({ id: link.sys.id, locale: context.locale })
+  );
   if (!raw) {
     throw new Error(`ContentMap is missing cms.asset ${link.sys.id}`);
   }

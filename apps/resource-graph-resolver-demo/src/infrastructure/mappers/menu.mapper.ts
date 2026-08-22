@@ -15,7 +15,7 @@ export function mapMenuLink(context: MapperContext, link: ContentfulEntryLink): 
     parseEntryAsLinkField(
       "page",
       "menu",
-      requireCmsEntry(context, cmsEntryAri({ id: link.sys.id }))
+      requireCmsEntry(context, cmsEntryAri({ id: link.sys.id, locale: context.locale }))
     )
   );
 }

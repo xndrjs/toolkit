@@ -16,7 +16,9 @@ export function mapProduct(context: MapperContext, raw: unknown): Product {
     throw new Error(`Product ${entry.sys.id} is missing a title for locale ${context.locale}`);
   }
 
-  const commercial = context.result.contentMap.get(integrationProductAri({ sku: fields.sku }));
+  const commercial = context.result.contentMap.get(
+    integrationProductAri({ sku: fields.sku, locale: context.locale })
+  );
   if (!commercial) {
     throw new Error(
       `ContentMap is missing integration.product for sku ${fields.sku} (entry ${entry.sys.id})`

@@ -55,8 +55,33 @@ h1 {
 }
 
 .panel h2 {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-size: 1rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.copy-button {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  color: var(--text);
+  border-color: var(--muted);
 }
 
 .panel pre {
@@ -73,6 +98,44 @@ h1 {
 
 .error {
   color: #f87171;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+.locale-switcher {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.locale-link {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.locale-link:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.locale-link.active {
+  color: var(--text);
+  border-color: var(--text);
+  background: var(--surface);
 }
 
 @media (max-width: 900px) {

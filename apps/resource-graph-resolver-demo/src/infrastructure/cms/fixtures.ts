@@ -1,4 +1,5 @@
 import { cmsAssetAri, cmsEntryAri } from "./ari.js";
+import { CONTENTFUL_DEFAULT_LOCALE } from "./generated/contentful.schemas.js";
 import type { CmsFixtureStore } from "./data-adapter.js";
 import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
 import type {
@@ -57,15 +58,24 @@ export const demoIds = {
   productSkuCap: "CAP-1",
 } as const;
 
-export const pageEntryAri = cmsEntryAri({ id: demoIds.page });
-export const tabsEntryAri = cmsEntryAri({ id: demoIds.tabs });
-export const tabsSecondaryEntryAri = cmsEntryAri({ id: demoIds.tabsSecondary });
-export const tabEntryAri = cmsEntryAri({ id: demoIds.tab });
-export const heroEntryAri = cmsEntryAri({ id: demoIds.hero });
-export const productEntryAri = cmsEntryAri({ id: demoIds.product });
-export const menuEntryAri = cmsEntryAri({ id: demoIds.menu });
-export const footerEntryAri = cmsEntryAri({ id: demoIds.footer });
-export const logoAssetAri = cmsAssetAri({ id: demoIds.logo });
+export const pageEntryAri = cmsEntryAri({ id: demoIds.page, locale: CONTENTFUL_DEFAULT_LOCALE });
+export const tabsEntryAri = cmsEntryAri({ id: demoIds.tabs, locale: CONTENTFUL_DEFAULT_LOCALE });
+export const tabsSecondaryEntryAri = cmsEntryAri({
+  id: demoIds.tabsSecondary,
+  locale: CONTENTFUL_DEFAULT_LOCALE,
+});
+export const tabEntryAri = cmsEntryAri({ id: demoIds.tab, locale: CONTENTFUL_DEFAULT_LOCALE });
+export const heroEntryAri = cmsEntryAri({ id: demoIds.hero, locale: CONTENTFUL_DEFAULT_LOCALE });
+export const productEntryAri = cmsEntryAri({
+  id: demoIds.product,
+  locale: CONTENTFUL_DEFAULT_LOCALE,
+});
+export const menuEntryAri = cmsEntryAri({ id: demoIds.menu, locale: CONTENTFUL_DEFAULT_LOCALE });
+export const footerEntryAri = cmsEntryAri({
+  id: demoIds.footer,
+  locale: CONTENTFUL_DEFAULT_LOCALE,
+});
+export const logoAssetAri = cmsAssetAri({ id: demoIds.logo, locale: CONTENTFUL_DEFAULT_LOCALE });
 
 const demoTimestamp = "2026-01-01T00:00:00.000Z";
 const demoSpace = { sys: { type: "Link" as const, linkType: "Space", id: "demo-space" } };

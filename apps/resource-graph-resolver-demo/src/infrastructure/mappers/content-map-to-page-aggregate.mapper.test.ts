@@ -2,10 +2,19 @@ import { ResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
 import { describe, expect, it } from "vitest";
 
 import { mapContentMapToPageAggregate } from "./content-map-to-page-aggregate.mapper.js";
-import { createCmsDataLoader, demoCmsStore, demoIds, pageEntryAri } from "../cms/index.js";
+import {
+  cmsEntryAri,
+  createCmsDataLoader,
+  demoCmsStore,
+  demoIds,
+  pageEntryAri,
+} from "../cms/index.js";
 import { createDemoDataGateway } from "../demo-data-gateway.js";
 import { AssetShape, PageShape, ProductShape, TabsShape } from "../../domain/index.js";
-import { createDefaultDemoExecutionContext } from "../demo-execution-context.js";
+import {
+  createDefaultDemoExecutionContext,
+  type DemoExecutionContext,
+} from "../demo-execution-context.js";
 import { createDemoExpansionPort } from "../expansion-policies.js";
 import {
   createIntegrationDataLoader,
@@ -13,6 +22,7 @@ import {
   tshirtIntegrationAri,
   type ProductIntegrationSnapshot,
 } from "../integration/index.js";
+import type { ContentfulLocaleCode } from "../cms/generated/contentful.schemas.js";
 
 function createDemoGateway(
   catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog
@@ -24,16 +34,19 @@ function createDemoGateway(
 }
 
 async function resolveDemoPage(
-  catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog
+  catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog,
+  locale: ContentfulLocaleCode = "en-US"
 ) {
+  const executionContext: DemoExecutionContext = createDefaultDemoExecutionContext(locale);
+  const pageRoot = cmsEntryAri({ id: demoIds.page, locale });
   const engine = new ResolveContentGraphEngine(
     createDemoGateway(catalog),
     createDemoExpansionPort()
   );
 
   return engine.execute({
-    root: pageEntryAri,
-    executionContext: createDefaultDemoExecutionContext(),
+    root: pageRoot,
+    executionContext,
     missingResourceMode: "throw",
   });
 }
@@ -107,11 +120,13 @@ describe("mapContentMapToPageAggregate", () => {
   });
 
   it("flattens localized fields for a non-default locale", async () => {
-    const result = await resolveDemoPage();
+    const locale = "it-IT" as const;
+    const result = await resolveDemoPage(demoProductCatalog, locale);
+    const pageRoot = cmsEntryAri({ id: demoIds.page, locale });
     const page = mapContentMapToPageAggregate({
       result,
-      root: pageEntryAri,
-      locale: "it-IT",
+      root: pageRoot,
+      locale,
     });
 
     expect(page.title).toBe("Pagina iniziale");

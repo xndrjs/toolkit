@@ -1,7 +1,13 @@
 import { ResolveContentGraphEngine, serializeAllIslands } from "@xndrjs/resource-graph-resolver";
 import { describe, expect, it } from "vitest";
 
-import { createCmsDataLoader, demoCmsStore, logoAssetAri, pageEntryAri } from "./cms/index.js";
+import {
+  createCmsDataLoader,
+  cmsEntryAri,
+  demoCmsStore,
+  demoIds,
+  logoAssetAri,
+} from "./cms/index.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
 import { createDefaultDemoExecutionContext } from "./demo-execution-context.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
@@ -9,14 +15,17 @@ import { createIntegrationDataLoader, tshirtIntegrationAri } from "./integration
 
 describe("serializeAllIslands", () => {
   it("materializes every resolved island with cache-ready payloads", async () => {
+    const executionContext = createDefaultDemoExecutionContext();
+    const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
+
     const engine = new ResolveContentGraphEngine(
       createDemoDataGateway(createCmsDataLoader(demoCmsStore), createIntegrationDataLoader()),
       createDemoExpansionPort()
     );
 
     const result = await engine.execute({
-      root: pageEntryAri,
-      executionContext: createDefaultDemoExecutionContext(),
+      root: pageRoot,
+      executionContext,
       missingResourceMode: "throw",
     });
 
@@ -28,10 +37,8 @@ describe("serializeAllIslands", () => {
       true
     );
 
-    const pageIsland = serializedIslands.find(
-      (island) => island.islandId === pageEntryAri.format()
-    );
-    expect(pageIsland?.resources[pageEntryAri.format()]).toBeDefined();
+    const pageIsland = serializedIslands.find((island) => island.islandId === pageRoot.format());
+    expect(pageIsland?.resources[pageRoot.format()]).toBeDefined();
     expect(pageIsland?.resources[tshirtIntegrationAri.format()]).toBeDefined();
 
     const islandsWithLogo = serializedIslands.filter(

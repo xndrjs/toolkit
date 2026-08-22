@@ -15,7 +15,7 @@ export function mapFooterLink(context: MapperContext, link: ContentfulEntryLink)
     parseEntryAsLinkField(
       "page",
       "footer",
-      requireCmsEntry(context, cmsEntryAri({ id: link.sys.id }))
+      requireCmsEntry(context, cmsEntryAri({ id: link.sys.id, locale: context.locale }))
     )
   );
 }

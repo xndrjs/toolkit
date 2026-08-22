@@ -86,7 +86,7 @@ describe("source-qualified ARI store + data gateway", () => {
       createCmsDataLoader(demoCmsStore),
       createIntegrationDataLoader()
     );
-    const missing = cmsEntryAri({ id: "missing-entry" });
+    const missing = cmsEntryAri({ id: "missing-entry", locale: "en-US" });
     const remaining = [pageEntryAri, logoAssetAri, missing, menuEntryAri, tshirtIntegrationAri];
 
     const result = await gateway.process(createDataResolutionPull(remaining));

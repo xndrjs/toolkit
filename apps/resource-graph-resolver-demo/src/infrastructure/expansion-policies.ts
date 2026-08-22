@@ -12,44 +12,48 @@ import type { DemoExecutionContext } from "./demo-execution-context.js";
 import { integrationProductAri } from "./integration/ari.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import {
-  CONTENTFUL_DEFAULT_LOCALE,
   ContentfulEntrySchemaByContentType,
   ProductEntrySchema,
   type ContentfulContentTypeId,
+  type ContentfulLocaleCode,
   type ContentfulResolvedEntry,
 } from "./cms/generated/contentful.schemas.js";
 
 const EMPTY_EXPANSION: ExpansionResult = { resources: [] };
 
-function linkReferenceToAri(link: {
-  linkType: "Entry" | "Asset";
-  id: string;
-}): ApplicationResourceIdentifier {
-  return link.linkType === "Entry" // create ARI based on link type
-    ? cmsEntryAri({ id: link.id })
-    : cmsAssetAri({ id: link.id });
+function linkReferenceToAri(
+  link: { linkType: "Entry" | "Asset"; id: string },
+  locale: ContentfulLocaleCode
+): ApplicationResourceIdentifier {
+  return link.linkType === "Entry"
+    ? cmsEntryAri({ id: link.id, locale })
+    : cmsAssetAri({ id: link.id, locale });
 }
 
 function expandLinksFromGeneratedMetadata(
   contentTypeId: ContentfulContentTypeId,
-  entry: ContentfulResolvedEntry
+  entry: ContentfulResolvedEntry,
+  locale: ContentfulLocaleCode
 ): ExpansionResult {
   const parsed = ContentfulEntrySchemaByContentType[contentTypeId].parse(entry);
   const links = collectLinkReferencesFromEntryFields(contentTypeId, parsed.fields);
 
   return {
-    resources: links.map(linkReferenceToAri),
+    resources: links.map((link) => linkReferenceToAri(link, locale)),
   };
 }
 
-function expandProductEntry(entry: ContentfulResolvedEntry): ExpansionResult {
+function expandProductEntry(
+  entry: ContentfulResolvedEntry,
+  locale: ContentfulLocaleCode
+): ExpansionResult {
   const parsed = ProductEntrySchema.parse(entry);
   const sku = parsed.fields.sku;
   if (sku === null || sku.length === 0) {
     return EMPTY_EXPANSION;
   }
 
-  return { resources: [integrationProductAri({ sku })] };
+  return { resources: [integrationProductAri({ sku, locale })] };
 }
 
 /**
@@ -57,7 +61,7 @@ function expandProductEntry(entry: ContentfulResolvedEntry): ExpansionResult {
  * and cross-source rules (e.g. product SKU → integration API).
  */
 type ExpansionOverride = {
-  expand?: (entry: ContentfulResolvedEntry) => ExpansionResult;
+  expand?: (entry: ContentfulResolvedEntry, locale: ContentfulLocaleCode) => ExpansionResult;
   isIsland?: boolean;
 };
 
@@ -69,13 +73,14 @@ const expansionOverrides: Partial<Record<ContentfulContentTypeId, ExpansionOverr
 
 function expandForContentType(
   contentTypeId: ContentfulContentTypeId,
-  entry: ContentfulResolvedEntry
+  entry: ContentfulResolvedEntry,
+  locale: ContentfulLocaleCode
 ): ExpansionResult {
   const override = expansionOverrides[contentTypeId];
 
   const result = override?.expand
-    ? override.expand(entry)
-    : expandLinksFromGeneratedMetadata(contentTypeId, entry);
+    ? override.expand(entry, locale)
+    : expandLinksFromGeneratedMetadata(contentTypeId, entry, locale);
 
   return {
     ...result,
@@ -91,10 +96,11 @@ export function createDemoExpansionPort(): ExpansionPort<
   return createExpansionPolicyChain<DemoContentRegistry, DemoExecutionContext>([
     defineExpansionPolicy({
       for: cmsEntryAri,
-      expand: ({ contentMap, resource }) => {
+      when: ({ resource, executionContext }) => resource.key[0].locale === executionContext.locale,
+      expand: ({ contentMap, resource, executionContext }) => {
         const entry = contentMap.get(resource);
         if (entry) {
-          return expandForContentType(entry.sys.contentType.sys.id, entry);
+          return expandForContentType(entry.sys.contentType.sys.id, entry, executionContext.locale);
         }
 
         return EMPTY_EXPANSION;

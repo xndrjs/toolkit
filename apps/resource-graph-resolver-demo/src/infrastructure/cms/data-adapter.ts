@@ -2,7 +2,11 @@ import type { DataResolutionPull, ResourceKey } from "@xndrjs/resource-graph-res
 
 import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
 import type { CmsContentRegistry } from "./content-registry.js";
-import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
+import type {
+  ContentfulAsset,
+  ContentfulLocaleCode,
+  ContentfulResolvedEntry,
+} from "./generated/contentful.schemas.js";
 
 const CMS_ENTRY_BATCH_SIZE = 5;
 const CMS_ASSET_BATCH_SIZE = 5;
@@ -17,6 +21,7 @@ export type CmsFixtureStore = {
 /**
  * CMS batch loader — not a DataResolutionPort.
  * Mimics Contentful Delivery `sys.id[in]=…` fetches for entries and assets.
+ * Locale is part of the ARI key; the demo store still holds one payload per sys.id.
  */
 export type CmsDataLoader = {
   loadEntries(
@@ -58,7 +63,10 @@ export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
   };
 }
 
-type CmsResourceWithId = { format(): string; key: readonly [{ id: string }] };
+type CmsResourceWithId = {
+  format(): string;
+  key: readonly [{ id: string; locale: ContentfulLocaleCode }];
+};
 
 /** Demo helper: map in-memory store rows back to ARI keys. */
 function mapDemoCmsBatch<T>(

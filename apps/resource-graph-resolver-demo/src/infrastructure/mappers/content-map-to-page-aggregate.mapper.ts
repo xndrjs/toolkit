@@ -60,7 +60,7 @@ export function mapContentMapToPageAggregate(input: MapContentMapToPageAggregate
 }
 
 function mapPageModule(context: MapperContext, link: ContentfulEntryLink): PageModule {
-  const raw = requireCmsEntry(context, cmsEntryAri({ id: link.sys.id }));
+  const raw = requireCmsEntry(context, cmsEntryAri({ id: link.sys.id, locale: context.locale }));
   const entry = parseEntryAsLinkField("page", "modules", raw);
   const contentTypeId = entry.sys.contentType.sys.id;
   if (contentTypeId === "tabs") {
