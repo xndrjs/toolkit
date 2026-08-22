@@ -1,5 +1,5 @@
 import { ContentMap, ResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   cmsAssetAri,
@@ -19,6 +19,10 @@ import {
   type ContentfulResolvedEntry,
 } from "./cms/index.js";
 import type { DemoContentRegistry } from "./content-registry.js";
+import {
+  createDefaultDemoExecutionContext,
+  type DemoExecutionContext,
+} from "./demo-execution-context.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
 import {
@@ -27,14 +31,18 @@ import {
   tshirtIntegrationAri,
 } from "./integration/index.js";
 
-function expandEntry(resource: typeof pageEntryAri, entry: ContentfulResolvedEntry) {
+function expandEntry(
+  resource: typeof pageEntryAri,
+  entry: ContentfulResolvedEntry,
+  executionContext: DemoExecutionContext = createDefaultDemoExecutionContext()
+) {
   const contentMap = new ContentMap<DemoContentRegistry>();
   contentMap.set(resource, entry);
   return createDemoExpansionPort().expand({
     resource,
     contentMap,
     inheritedIslandId: resource.format(),
-    executionContext: undefined,
+    executionContext,
   });
 }
 
@@ -101,6 +109,32 @@ describe("createDemoExpansionPort", () => {
     expect(expandEntry(productEntryAri, product).resources[0]?.type).toBe("integration.product");
   });
 
+  it("when refines product expansion using typed executionContext.locale", () => {
+    const product = demoCmsStore.entries.get(demoIds.product)!;
+    const contentMap = new ContentMap<DemoContentRegistry>();
+    contentMap.set(productEntryAri, product);
+
+    const defaultLocaleResult = createDemoExpansionPort().expand({
+      resource: productEntryAri,
+      contentMap,
+      inheritedIslandId: productEntryAri.format(),
+      executionContext: createDefaultDemoExecutionContext("en-US"),
+    });
+    expect(defaultLocaleResult.resources.map((r) => r.format())).toEqual([
+      tshirtIntegrationAri.format(),
+    ]);
+
+    const italianResult = createDemoExpansionPort().expand({
+      resource: productEntryAri,
+      contentMap,
+      inheritedIslandId: productEntryAri.format(),
+      executionContext: createDefaultDemoExecutionContext("it-IT"),
+    });
+    expect(italianResult.resources).toEqual([]);
+
+    expectTypeOf(createDefaultDemoExecutionContext().locale).toEqualTypeOf<"en-US" | "it-IT">();
+  });
+
   it("returns no children for assets and integration products", () => {
     const contentMap = new ContentMap<DemoContentRegistry>();
     const asset = demoCmsStore.assets.get(demoIds.logo)!;
@@ -110,12 +144,14 @@ describe("createDemoExpansionPort", () => {
       inStock: true,
     });
 
+    const executionContext = createDefaultDemoExecutionContext();
+
     expect(
       createDemoExpansionPort().expand({
         resource: logoAssetAri,
         contentMap,
         inheritedIslandId: logoAssetAri.format(),
-        executionContext: undefined,
+        executionContext,
       })
     ).toEqual({ resources: [] });
 
@@ -124,7 +160,7 @@ describe("createDemoExpansionPort", () => {
         resource: tshirtIntegrationAri,
         contentMap,
         inheritedIslandId: tshirtIntegrationAri.format(),
-        executionContext: undefined,
+        executionContext,
       })
     ).toEqual({ resources: [] });
   });
@@ -134,7 +170,7 @@ describe("createDemoExpansionPort", () => {
 
     const output = await engine.execute({
       root: pageEntryAri,
-      context: undefined,
+      executionContext: createDefaultDemoExecutionContext(),
       missingResourceMode: "throw",
     });
 

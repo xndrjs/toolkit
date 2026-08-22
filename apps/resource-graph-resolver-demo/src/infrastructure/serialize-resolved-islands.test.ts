@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { createCmsDataLoader, demoCmsStore, logoAssetAri, pageEntryAri } from "./cms/index.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
+import { createDefaultDemoExecutionContext } from "./demo-execution-context.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
 import { createIntegrationDataLoader, tshirtIntegrationAri } from "./integration/index.js";
 
@@ -15,7 +16,7 @@ describe("serializeAllIslands", () => {
 
     const result = await engine.execute({
       root: pageEntryAri,
-      context: undefined,
+      executionContext: createDefaultDemoExecutionContext(),
       missingResourceMode: "throw",
     });
 

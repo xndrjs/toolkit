@@ -153,7 +153,7 @@ export class ResolveContentGraphEngine<
           resource,
           contentMap,
           inheritedIslandId,
-          executionContext: input.context,
+          executionContext: input.executionContext,
         });
 
         const islandId = expansion.isIsland ? resourceKey : inheritedIslandId;

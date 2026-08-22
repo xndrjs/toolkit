@@ -5,6 +5,7 @@ import { mapContentMapToPageAggregate } from "./content-map-to-page-aggregate.ma
 import { createCmsDataLoader, demoCmsStore, demoIds, pageEntryAri } from "../cms/index.js";
 import { createDemoDataGateway } from "../demo-data-gateway.js";
 import { AssetShape, PageShape, ProductShape, TabsShape } from "../../domain/index.js";
+import { createDefaultDemoExecutionContext } from "../demo-execution-context.js";
 import { createDemoExpansionPort } from "../expansion-policies.js";
 import {
   createIntegrationDataLoader,
@@ -32,7 +33,7 @@ async function resolveDemoPage(
 
   return engine.execute({
     root: pageEntryAri,
-    context: undefined,
+    executionContext: createDefaultDemoExecutionContext(),
     missingResourceMode: "throw",
   });
 }

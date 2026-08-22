@@ -12,6 +12,7 @@ import {
   CMS_ENTRY_BATCH_SIZE,
   type CmsDataLoader,
 } from "../cms/data-adapter.js";
+import type { DemoExecutionContext } from "../demo-execution-context.js";
 import type { DemoContentRegistry } from "../content-registry.js";
 import { integrationProductAri } from "../integration/ari.js";
 import { INTEGRATION_BATCH_SIZE, type IntegrationDataLoader } from "../integration/data-adapter.js";
@@ -124,9 +125,9 @@ export function withLoggingGateway(
 }
 
 export function withLoggingExpansionPort(
-  port: ExpansionPort<DemoContentRegistry>,
+  port: ExpansionPort<DemoContentRegistry, DemoExecutionContext>,
   trace: ResolveTrace
-): ExpansionPort<DemoContentRegistry> {
+): ExpansionPort<DemoContentRegistry, DemoExecutionContext> {
   return {
     expand(context) {
       const result = port.expand(context);

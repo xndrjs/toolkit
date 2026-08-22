@@ -10,6 +10,7 @@ export {
   type ExpansionContext,
   type ExpansionPolicy,
   type ExpansionPort,
+  type ExpansionResourceFor,
   type ExpansionResult,
 } from "./expansion-port";
 export { IslandDependencyMap } from "./island-dependency-map";

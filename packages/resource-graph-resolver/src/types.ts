@@ -31,7 +31,7 @@ export interface ResolutionError {
 
 export interface ResolveContentGraphInput<TExecutionContext = unknown> {
   root: ApplicationResourceIdentifier;
-  context: TExecutionContext;
+  executionContext: TExecutionContext;
   missingResourceMode: MissingResourceMode;
 }
 

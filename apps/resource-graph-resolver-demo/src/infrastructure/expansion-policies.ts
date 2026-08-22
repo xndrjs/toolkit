@@ -8,9 +8,11 @@ import {
 
 import { cmsAssetAri, cmsEntryAri } from "./cms/ari.js";
 import { collectLinkReferencesFromEntryFields } from "./cms/link-field-collector.js";
+import type { DemoExecutionContext } from "./demo-execution-context.js";
 import { integrationProductAri } from "./integration/ari.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import {
+  CONTENTFUL_DEFAULT_LOCALE,
   ContentfulEntrySchemaByContentType,
   ProductEntrySchema,
   type ContentfulContentTypeId,
@@ -81,11 +83,14 @@ function expandForContentType(
   };
 }
 
-/** ExpansionPort: first matching policy wins; policies authored inline with typed matches. */
-export function createDemoExpansionPort(): ExpansionPort<DemoContentRegistry> {
-  return createExpansionPolicyChain<DemoContentRegistry>([
+/** ExpansionPort: first matching policy wins; policies authored with `for` / optional `when` / `expand`. */
+export function createDemoExpansionPort(): ExpansionPort<
+  DemoContentRegistry,
+  DemoExecutionContext
+> {
+  return createExpansionPolicyChain<DemoContentRegistry, DemoExecutionContext>([
     defineExpansionPolicy({
-      matches: cmsEntryAri.matches,
+      for: cmsEntryAri,
       expand: ({ contentMap, resource }) => {
         const entry = contentMap.get(resource);
         if (entry) {

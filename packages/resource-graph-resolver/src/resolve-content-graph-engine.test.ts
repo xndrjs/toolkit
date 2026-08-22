@@ -55,23 +55,23 @@ function createInMemoryPort(store: ReadonlyMap<string, unknown> = values): DataR
 function createPageGraphPolicies(): ExpansionPolicy[] {
   return [
     {
-      matches: (resource) => resource.type === "page",
+      matches: ({ resource }) => resource.type === "page",
       expand: () => ({ resources: [hero, menu, footer] }),
     },
     {
-      matches: (resource) => resource.type === "hero",
+      matches: ({ resource }) => resource.type === "hero",
       expand: () => ({ resources: [asset] }),
     },
     {
-      matches: (resource) => resource.type === "menu",
+      matches: ({ resource }) => resource.type === "menu",
       expand: () => ({ resources: [asset], isIsland: true }),
     },
     {
-      matches: (resource) => resource.type === "footer",
+      matches: ({ resource }) => resource.type === "footer",
       expand: () => ({ resources: [asset], isIsland: true }),
     },
     {
-      matches: (resource) => resource.type === "asset",
+      matches: ({ resource }) => resource.type === "asset",
       expand: () => ({ resources: [] }),
     },
   ];
@@ -87,7 +87,7 @@ describe("ResolveContentGraphEngine", () => {
 
     const output = await engine.execute({
       root: page,
-      context: {},
+      executionContext: {},
       missingResourceMode: "throw",
     });
 
@@ -158,7 +158,7 @@ describe("ResolveContentGraphEngine", () => {
 
     const output = await engine.execute({
       root: page,
-      context: {},
+      executionContext: {},
       missingResourceMode: "throw",
     });
 
@@ -225,7 +225,7 @@ describe("ResolveContentGraphEngine", () => {
 
     const output = await engine.execute({
       root: a,
-      context: {},
+      executionContext: {},
       missingResourceMode: "throw",
     });
 
@@ -245,7 +245,7 @@ describe("ResolveContentGraphEngine", () => {
 
     const output = await engine.execute({
       root: page,
-      context: {},
+      executionContext: {},
       missingResourceMode: "collect",
     });
 
@@ -283,7 +283,7 @@ describe("ResolveContentGraphEngine", () => {
     await expect(
       engine.execute({
         root: page,
-        context: {},
+        executionContext: {},
         missingResourceMode: "throw",
       })
     ).rejects.toThrow(`Unable to resolve ${hero.format()}`);
@@ -302,11 +302,11 @@ describe("ResolveContentGraphEngine", () => {
       dataPort,
       createExpansionPolicyChain([
         {
-          matches: (resource) => resource.equals(page),
+          matches: ({ resource }) => resource.equals(page),
           expand: () => ({ resources: [left, right] }),
         },
         {
-          matches: (resource) => resource.type === "branch",
+          matches: ({ resource }) => resource.type === "branch",
           expand: () => ({ resources: [missing], isIsland: true }),
         },
       ])
@@ -314,7 +314,7 @@ describe("ResolveContentGraphEngine", () => {
 
     const output = await engine.execute({
       root: page,
-      context: {},
+      executionContext: {},
       missingResourceMode: "collect",
     });
 

@@ -21,7 +21,7 @@ type AppContentRegistry = {
 const engine = new ResolveContentGraphEngine<AppContentRegistry>(dataPort, expansionPort);
 const { contentMap } = await engine.execute({
   root: page,
-  context: {},
+  executionContext: {},
   missingResourceMode: "throw",
 });
 

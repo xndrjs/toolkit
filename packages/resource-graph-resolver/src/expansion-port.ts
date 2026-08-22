@@ -24,6 +24,15 @@ export interface ExpansionResult {
 }
 
 /**
+ * Resource matcher for {@link defineExpansionPolicy} `for` (e.g. a {@link import("@xndrjs/application-resources").DefinedAri}).
+ */
+export type ExpansionResourceFor<
+  Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
+> = {
+  matches(candidate: ApplicationResourceIdentifier): candidate is Resource;
+};
+
+/**
  * Application boundary that discovers child resources and island boundaries
  * for an already-resolved resource.
  */
@@ -35,41 +44,50 @@ export interface ExpansionPort<
 }
 
 /**
- * Chain-erased policy: `matches` is a boolean gate; `expand` sees a wide resource.
+ * Chain-erased policy: `matches` is a boolean gate (first match wins); `expand` runs only when matched.
+ * Both receive the same {@link ExpansionContext}, including {@link ExpansionContext.executionContext}.
  * Prefer {@link defineExpansionPolicy} at authoring time so `expand` receives a narrowed resource.
  */
 export interface ExpansionPolicy<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
 > {
-  matches(resource: ApplicationResourceIdentifier): boolean;
+  matches(context: ExpansionContext<R, TExecutionContext>): boolean;
   expand(context: ExpansionContext<R, TExecutionContext>): ExpansionResult;
 }
 
 /**
- * Author a policy whose `expand` context is narrowed by the `matches` type predicate.
- * The returned value is erased to {@link ExpansionPolicy} for {@link createExpansionPolicyChain}.
+ * Author an expansion policy:
+ * - `for` — initial resource filter + narrowing (e.g. `cmsEntryAri`)
+ * - `when` — optional refine on the full context (resource already narrowed by `for`)
+ * - `expand` — child discovery for matched resources
  */
 export function defineExpansionPolicy<
-  R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
+  R extends ContentRegistry = ContentRegistry,
   Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
 >(policy: {
-  matches: (resource: ApplicationResourceIdentifier) => resource is Resource;
+  for: ExpansionResourceFor<Resource>;
+  when?: (context: ExpansionContext<R, TExecutionContext, Resource>) => boolean;
   expand: (context: ExpansionContext<R, TExecutionContext, Resource>) => ExpansionResult;
-}): ExpansionPolicy<R, TExecutionContext>;
-export function defineExpansionPolicy<
-  R extends ContentRegistry = ContentRegistry,
-  TExecutionContext = unknown,
->(policy: {
-  matches: (resource: ApplicationResourceIdentifier) => boolean;
-  expand: (context: ExpansionContext<R, TExecutionContext>) => ExpansionResult;
-}): ExpansionPolicy<R, TExecutionContext>;
-export function defineExpansionPolicy<R extends ContentRegistry, TExecutionContext>(policy: {
-  matches: (resource: ApplicationResourceIdentifier) => boolean;
-  expand: (context: ExpansionContext<R, TExecutionContext>) => ExpansionResult;
 }): ExpansionPolicy<R, TExecutionContext> {
-  return policy;
+  const { for: forResource, when, expand } = policy;
+
+  return {
+    matches(
+      context: ExpansionContext<R, TExecutionContext>
+    ): context is ExpansionContext<R, TExecutionContext, Resource> {
+      if (!forResource.matches(context.resource)) {
+        return false;
+      }
+
+      const narrowed = context as ExpansionContext<R, TExecutionContext, Resource>;
+      return when ? when(narrowed) : true;
+    },
+    expand(context: ExpansionContext<R, TExecutionContext>) {
+      return expand(context as ExpansionContext<R, TExecutionContext, Resource>);
+    },
+  };
 }
 
 const EMPTY_EXPANSION: ExpansionResult = { resources: [] };
@@ -85,7 +103,7 @@ export function createExpansionPolicyChain<
   return {
     expand(context) {
       for (const policy of policies) {
-        if (policy.matches(context.resource)) {
+        if (policy.matches(context)) {
           return policy.expand(context);
         }
       }

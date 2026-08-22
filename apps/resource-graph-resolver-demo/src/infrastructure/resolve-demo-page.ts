@@ -6,8 +6,13 @@ import {
 
 import { mapContentMapToPageAggregate } from "./mappers/content-map-to-page-aggregate.mapper.js";
 import { createCmsDataLoader, demoCmsStore, pageEntryAri } from "./cms/index.js";
+import {
+  createDefaultDemoExecutionContext,
+  type DemoExecutionContext,
+} from "./demo-execution-context.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
+import type { DemoContentRegistry } from "./content-registry.js";
 import { createIntegrationDataLoader, demoProductCatalog } from "./integration/index.js";
 import {
   createConsoleResolveTrace,
@@ -35,18 +40,22 @@ export type ResolveDemoPageResult = ResolveDemoPageSuccess | ResolveDemoPageFail
 /** Runs the demo page-root resolution with console trace and domain aggregation. */
 export async function resolveDemoPage(): Promise<ResolveDemoPageResult> {
   const trace = createConsoleResolveTrace();
+  const executionContext = createDefaultDemoExecutionContext();
 
   const cms = withLoggingCmsLoader(createCmsDataLoader(demoCmsStore), trace);
   const integration = withLoggingIntegrationLoader(createIntegrationDataLoader(), trace);
   const gateway = withLoggingGateway(createDemoDataGateway(cms, integration), trace);
   const expansionPort = withLoggingExpansionPort(createDemoExpansionPort(), trace);
-  const engine = new ResolveContentGraphEngine(gateway, expansionPort);
+  const engine = new ResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
+    gateway,
+    expansionPort
+  );
 
-  console.log(`Resolve demo — root ${pageEntryAri.format()}`);
+  console.log(`Resolve demo — root ${pageEntryAri.format()}, locale ${executionContext.locale}`);
 
   const output = await engine.execute({
     root: pageEntryAri,
-    context: undefined,
+    executionContext,
     missingResourceMode: "throw",
   });
 
@@ -63,7 +72,11 @@ export async function resolveDemoPage(): Promise<ResolveDemoPageResult> {
     };
   }
 
-  const page = mapContentMapToPageAggregate({ result: output, root: pageEntryAri });
+  const page = mapContentMapToPageAggregate({
+    result: output,
+    root: pageEntryAri,
+    locale: executionContext.locale,
+  });
   const serializedIslands = serializeAllIslands(output);
 
   return {
