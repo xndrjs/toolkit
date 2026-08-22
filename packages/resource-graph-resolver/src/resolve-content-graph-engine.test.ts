@@ -289,6 +289,106 @@ describe("ResolveContentGraphEngine", () => {
     ).rejects.toThrow(`Unable to resolve ${hero.format()}`);
   });
 
+  it("promotes resolvedResourceCache hits into ContentMap and skips DataResolutionPort pulls", async () => {
+    const dataPort = createInMemoryPort();
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain(createPageGraphPolicies())
+    );
+
+    const cachedAsset = { url: "https://cdn.example.com/from-cache.svg" };
+    const resolvedResourceCache = new Map<string, unknown>([
+      [page.format(), values.get(page.format())],
+      [hero.format(), values.get(hero.format())],
+      [menu.format(), values.get(menu.format())],
+      [footer.format(), values.get(footer.format())],
+      [asset.format(), cachedAsset],
+    ]);
+
+    const output = await engine.execute({
+      root: page,
+      executionContext: {},
+      missingResourceMode: "throw",
+      resolvedResourceCache,
+    });
+
+    expect(dataPort.process).not.toHaveBeenCalled();
+    expect(dataPort.takenBatches).toEqual([]);
+    expect(output.contentMap.get(asset)).toEqual(cachedAsset);
+    expect(output.contentMap.has(page)).toBe(true);
+    expect(output.contentMap.has(hero)).toBe(true);
+    expect(output.contentMap.has(menu)).toBe(true);
+    expect(output.contentMap.has(footer)).toBe(true);
+    expect(resolvedResourceCache.size).toBe(0);
+    expect(output.errors).toEqual([]);
+  });
+
+  it("does not put unreached resolvedResourceCache entries into ContentMap", async () => {
+    const dataPort = createInMemoryPort();
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain(createPageGraphPolicies())
+    );
+
+    const orphan = ari("orphan", { id: "O" });
+    const orphanValue = { label: "never reached" };
+    const resolvedResourceCache = new Map<string, unknown>([[orphan.format(), orphanValue]]);
+
+    const output = await engine.execute({
+      root: page,
+      executionContext: {},
+      missingResourceMode: "throw",
+      resolvedResourceCache,
+    });
+
+    expect(output.contentMap.has(orphan)).toBe(false);
+    expect(output.contentMap.getByKey(orphan.format())).toBeUndefined();
+    expect(resolvedResourceCache.get(orphan.format())).toBe(orphanValue);
+    expect(output.contentMap.has(page)).toBe(true);
+    expect(output.contentMap.has(asset)).toBe(true);
+  });
+
+  it("deletes promoted keys from the caller-owned resolvedResourceCache map", async () => {
+    const dataPort = createInMemoryPort(new Map());
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain([
+        {
+          matches: ({ resource }) => resource.equals(page),
+          expand: () => ({ resources: [hero] }),
+        },
+        {
+          matches: ({ resource }) => resource.equals(hero),
+          expand: () => ({ resources: [] }),
+        },
+      ])
+    );
+
+    const pageValue = { title: "Cached page" };
+    const heroValue = { title: "Cached hero" };
+    const orphanKey = "orphan:O";
+    const resolvedResourceCache = new Map<string, unknown>([
+      [page.format(), pageValue],
+      [hero.format(), heroValue],
+      [orphanKey, { keep: true }],
+    ]);
+
+    const output = await engine.execute({
+      root: page,
+      executionContext: {},
+      missingResourceMode: "throw",
+      resolvedResourceCache,
+    });
+
+    expect(resolvedResourceCache.has(page.format())).toBe(false);
+    expect(resolvedResourceCache.has(hero.format())).toBe(false);
+    expect(resolvedResourceCache.get(orphanKey)).toEqual({ keep: true });
+    expect(resolvedResourceCache.size).toBe(1);
+    expect(output.contentMap.get(page)).toEqual(pageValue);
+    expect(output.contentMap.get(hero)).toEqual(heroValue);
+    expect(dataPort.process).not.toHaveBeenCalled();
+  });
+
   it("aggregates inherited islands for the same missing resource", async () => {
     const left = ari("branch", { id: "L" });
     const right = ari("branch", { id: "R" });

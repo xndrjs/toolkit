@@ -86,6 +86,27 @@ export class ResolveContentGraphEngine<
       const taken: QueueItem[] = [];
       const takenKeys = new Set<ResourceKey>();
 
+      // Promote backing hits into ContentMap before deciding whether to pull.
+      const resolvedResourceCache = input.resolvedResourceCache;
+      if (resolvedResourceCache !== undefined && resolvedResourceCache.size > 0) {
+        for (const item of frontier) {
+          if (!isUnresolved(item.resource, contentMap, failuresByResource)) {
+            continue;
+          }
+
+          const key = item.resource.format();
+          if (!resolvedResourceCache.has(key)) {
+            continue;
+          }
+
+          contentMap.set(
+            item.resource as ApplicationResourceIdentifier<keyof R & string>,
+            resolvedResourceCache.get(key) as R[keyof R & string]
+          );
+          resolvedResourceCache.delete(key);
+        }
+      }
+
       const needsResolve = frontier.some((item) =>
         isUnresolved(item.resource, contentMap, failuresByResource)
       );

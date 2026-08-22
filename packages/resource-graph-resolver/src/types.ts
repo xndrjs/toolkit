@@ -33,6 +33,12 @@ export interface ResolveContentGraphInput<TExecutionContext = unknown> {
   root: ApplicationResourceIdentifier;
   executionContext: TExecutionContext;
   missingResourceMode: MissingResourceMode;
+  /**
+   * Opaque payloads consulted before DataResolutionPort.
+   * Entries are promoted into ContentMap only when the frontier reaches them,
+   * then removed from this map (caller may pass a mutable Map).
+   */
+  resolvedResourceCache?: Map<ResourceKey, unknown>;
 }
 
 export interface ResolveContentGraphOutput<R extends ContentRegistry = ContentRegistry> {
