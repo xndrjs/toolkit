@@ -24,7 +24,15 @@ src/
     demo-data-gateway.ts      # engine DataResolutionPort: composes cms/integration process(pull)
     content-registry.ts       # DemoContentRegistry = CMS ∪ integration slices
     expansion-policies.ts     # expand by content-type; product → integration.product
-    aggregate-page-graph.ts   # ContentMap → domain-zod (no integration port)
+    mappers/                  # ContentMap → domain-zod (orchestrator + per-model mappers)
+      content-map-to-page-aggregate.mapper.ts
+      asset.mapper.ts
+      product.mapper.ts
+      hero.mapper.ts
+      tabs.mapper.ts
+      tab.mapper.ts
+      menu.mapper.ts
+      footer.mapper.ts
 ```
 
 ## Contentful schema codegen
@@ -43,4 +51,4 @@ pnpm --filter @xndrjs/resource-graph-resolver-demo typecheck
 pnpm --filter @xndrjs/resource-graph-resolver-demo test
 ```
 
-`dev` runs the Next.js app: aggregated page + serialized islands in a split view; batch rounds trace in the dev server terminal.
+`dev` runs the Next.js app: aggregated page + `serializeAllIslands` payloads in a split view; batch rounds trace in the dev server terminal.

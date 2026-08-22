@@ -1,6 +1,10 @@
-import { ResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
+import {
+  ResolveContentGraphEngine,
+  serializeAllIslands,
+  type SerializedIsland,
+} from "@xndrjs/resource-graph-resolver";
 
-import { aggregatePageGraph, type AggregatedSerializedIslands } from "./aggregate-page-graph.js";
+import { mapContentMapToPageAggregate } from "./mappers/content-map-to-page-aggregate.mapper.js";
 import { createCmsDataLoader, demoCmsStore, pageEntryAri } from "./cms/index.js";
 import { createDemoDataGateway } from "./demo-data-gateway.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
@@ -17,7 +21,7 @@ import type { Page } from "../domain/index.js";
 export type ResolveDemoPageSuccess = {
   ok: true;
   page: Page;
-  serializedIslands: AggregatedSerializedIslands;
+  serializedIslands: SerializedIsland[];
   resolvedCount: number;
 };
 
@@ -59,15 +63,8 @@ export async function resolveDemoPage(): Promise<ResolveDemoPageResult> {
     };
   }
 
-  const { page, serializedIslands } = aggregatePageGraph({
-    result: output,
-    root: pageEntryAri,
-    includeSerializedIslands: true,
-  });
-
-  if (!serializedIslands) {
-    throw new Error("Expected serialized islands from aggregatePageGraph");
-  }
+  const page = mapContentMapToPageAggregate({ result: output, root: pageEntryAri });
+  const serializedIslands = serializeAllIslands(output);
 
   return {
     ok: true,

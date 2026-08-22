@@ -33,4 +33,15 @@ describe("IslandMap", () => {
 
     expect(islands.get(ari("page", { id: "missing" }).format()).size).toBe(0);
   });
+
+  it("lists registered island root ids", () => {
+    const islands = new IslandMap();
+    const page = ari("page", { id: "P" });
+    const menu = ari("menu", { id: "M" });
+
+    islands.add(page.format(), page);
+    islands.add(menu.format(), menu);
+
+    expect(islands.islandIds()).toEqual([page.format(), menu.format()]);
+  });
 });

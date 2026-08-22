@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ContentMap } from "./content-map";
 import { IslandDependencyMap } from "./island-dependency-map";
 import { IslandMap } from "./island-map";
-import { serializeIsland } from "./serialize-island";
+import { serializeAllIslands, serializeIsland } from "./serialize-island";
 import type { ResolveContentGraphOutput } from "./types";
 
 const page = ari("page", { id: "P" });
@@ -134,5 +134,18 @@ describe("serializeIsland", () => {
     expect(() => serializeIsland(page.format(), result)).toThrow(
       `Island ${page.format()} references missing resource ${menu.format()}`
     );
+  });
+});
+
+describe("serializeAllIslands", () => {
+  it("serializes every registered island in stable islandId order", () => {
+    const result = createPageGraphOutput();
+    const serialized = serializeAllIslands(result);
+
+    expect(serialized.map((island) => island.islandId)).toEqual(
+      [footer.format(), menu.format(), page.format()].sort()
+    );
+    expect(serialized).toHaveLength(3);
+    expect(serialized.every((island) => island.completeness === "complete")).toBe(true);
   });
 });

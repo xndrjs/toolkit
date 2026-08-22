@@ -23,4 +23,8 @@ export class IslandMap {
   get(islandId: IslandId): ReadonlySet<ResourceKey> {
     return this.islands.get(islandId) ?? new Set<ResourceKey>();
   }
+
+  islandIds(): readonly IslandId[] {
+    return [...this.islands.keys()];
+  }
 }

@@ -15,7 +15,7 @@ export {
 export { IslandDependencyMap } from "./island-dependency-map";
 export { IslandMap } from "./island-map";
 export { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
-export { serializeIsland } from "./serialize-island";
+export { serializeAllIslands, serializeIsland } from "./serialize-island";
 export type {
   ContentRegistry,
   IslandId,

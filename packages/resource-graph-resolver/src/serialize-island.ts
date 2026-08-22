@@ -43,3 +43,14 @@ export function serializeIsland<R extends ContentRegistry = ContentRegistry>(
     resources,
   };
 }
+
+/** Materializes every registered island from a resolved content graph. */
+export function serializeAllIslands<R extends ContentRegistry = ContentRegistry>(
+  result: ResolveContentGraphOutput<R>
+): SerializedIsland[] {
+  return result.islands
+    .islandIds()
+    .slice()
+    .sort()
+    .map((islandId) => serializeIsland(islandId, result));
+}

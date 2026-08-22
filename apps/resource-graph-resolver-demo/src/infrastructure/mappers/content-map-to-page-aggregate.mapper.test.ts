@@ -1,23 +1,17 @@
 import { ResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
 import { describe, expect, it } from "vitest";
 
-import { aggregatePageGraph } from "./aggregate-page-graph.js";
-import {
-  createCmsDataLoader,
-  demoCmsStore,
-  demoIds,
-  logoAssetAri,
-  pageEntryAri,
-} from "./cms/index.js";
-import { createDemoDataGateway } from "./demo-data-gateway.js";
-import { AssetShape, PageShape, ProductShape, TabsShape } from "../domain/index.js";
-import { createDemoExpansionPort } from "./expansion-policies.js";
+import { mapContentMapToPageAggregate } from "./content-map-to-page-aggregate.mapper.js";
+import { createCmsDataLoader, demoCmsStore, demoIds, pageEntryAri } from "../cms/index.js";
+import { createDemoDataGateway } from "../demo-data-gateway.js";
+import { AssetShape, PageShape, ProductShape, TabsShape } from "../../domain/index.js";
+import { createDemoExpansionPort } from "../expansion-policies.js";
 import {
   createIntegrationDataLoader,
   demoProductCatalog,
   tshirtIntegrationAri,
   type ProductIntegrationSnapshot,
-} from "./integration/index.js";
+} from "../integration/index.js";
 
 function createDemoGateway(
   catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog
@@ -43,12 +37,12 @@ async function resolveDemoPage(
   });
 }
 
-describe("aggregatePageGraph", () => {
-  it("hydrates the page domain graph and merges product price/stock from ContentMap", async () => {
+describe("mapContentMapToPageAggregate", () => {
+  it("maps the page domain graph and merges product price/stock from ContentMap", async () => {
     const result = await resolveDemoPage();
     expect(result.contentMap.has(tshirtIntegrationAri)).toBe(true);
 
-    const { page } = aggregatePageGraph({
+    const page = mapContentMapToPageAggregate({
       result,
       root: pageEntryAri,
     });
@@ -82,7 +76,7 @@ describe("aggregatePageGraph", () => {
 
   it("resolves polymorphic tab strips as Hero | Product", async () => {
     const result = await resolveDemoPage();
-    const { page } = aggregatePageGraph({
+    const page = mapContentMapToPageAggregate({
       result,
       root: pageEntryAri,
     });
@@ -113,7 +107,7 @@ describe("aggregatePageGraph", () => {
 
   it("flattens localized fields for a non-default locale", async () => {
     const result = await resolveDemoPage();
-    const { page } = aggregatePageGraph({
+    const page = mapContentMapToPageAggregate({
       result,
       root: pageEntryAri,
       locale: "it-IT",
@@ -126,25 +120,6 @@ describe("aggregatePageGraph", () => {
       expect(product.title).toBe("Maglietta");
       expect(product.description).toBe("Una maglietta demo dal CMS.");
     }
-  });
-
-  it("optionally serializes raw CMS islands for invalidation", async () => {
-    const result = await resolveDemoPage();
-    const { page, serializedIslands } = aggregatePageGraph({
-      result,
-      root: pageEntryAri,
-      includeSerializedIslands: true,
-    });
-
-    expect(PageShape.is(page)).toBe(true);
-    expect(serializedIslands?.page.islandId).toBe(pageEntryAri.format());
-    expect(serializedIslands?.page.completeness).toBe("complete");
-    expect(serializedIslands?.page.resources[pageEntryAri.format()]).toBeDefined();
-    expect(serializedIslands?.page.resources[tshirtIntegrationAri.format()]).toBeDefined();
-
-    expect(serializedIslands?.menu?.islandId).toMatch(/menu/);
-    expect(serializedIslands?.footer?.islandId).toMatch(/footer/);
-    expect(serializedIslands?.menu?.resources[logoAssetAri.format()]).toBeDefined();
   });
 
   it("fails resolve when the integration catalog has no snapshot for the product sku", async () => {
