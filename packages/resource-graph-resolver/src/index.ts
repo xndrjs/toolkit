@@ -1,3 +1,7 @@
+export {
+  buildResolvedResourceCacheFromIslands,
+  type ResolvedResourceCacheIslandPolicy,
+} from "./build-resolved-resource-cache";
 export { ContentMap } from "./content-map";
 export {
   createDataResolutionPull,
