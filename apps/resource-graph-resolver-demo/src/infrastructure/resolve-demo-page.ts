@@ -4,6 +4,13 @@ import {
   type SerializedIsland,
 } from "@xndrjs/resource-graph-resolver";
 
+import {
+  loadBackingForRoot,
+  lruIslandCache,
+  persistResolvedIslands,
+  type CacheHitReport,
+  type IslandCacheSnapshot,
+} from "./cache/index.js";
 import { mapContentMapToPageAggregate } from "./mappers/content-map-to-page-aggregate.mapper.js";
 import {
   createCmsDataLoader,
@@ -34,6 +41,8 @@ export type ResolveDemoPageSuccess = {
   page: Page;
   serializedIslands: SerializedIsland[];
   resolvedCount: number;
+  cacheReport: CacheHitReport;
+  cacheSnapshot: IslandCacheSnapshot;
 };
 
 export type ResolveDemoPageFailure = {
@@ -42,6 +51,17 @@ export type ResolveDemoPageFailure = {
 };
 
 export type ResolveDemoPageResult = ResolveDemoPageSuccess | ResolveDemoPageFailure;
+
+function logCacheReport(report: CacheHitReport): void {
+  const deps =
+    report.islands.length === 0
+      ? "none"
+      : report.islands.map(({ islandId, status }) => `${islandId}:${status}`).join(", ");
+  console.log(
+    `Island cache — page ${report.pageIsland}; deps [${deps}]; ` +
+      `backing ${report.backingResourceCount}; promoted ${report.promotedResourceCount ?? 0}`
+  );
+}
 
 /** Runs the demo page-root resolution with console trace and domain aggregation. */
 export async function resolveDemoPage(
@@ -60,13 +80,22 @@ export async function resolveDemoPage(
     expansionPort
   );
 
+  const { resolvedResourceCache, report } = loadBackingForRoot(pageRoot, lruIslandCache);
+
   console.log(`Resolve demo — root ${pageRoot.format()}, locale ${executionContext.locale}`);
 
   const output = await engine.execute({
     root: pageRoot,
     executionContext,
     missingResourceMode: "throw",
+    resolvedResourceCache,
   });
+
+  const cacheReport: CacheHitReport = {
+    ...report,
+    promotedResourceCount: report.backingResourceCount - resolvedResourceCache.size,
+  };
+  logCacheReport(cacheReport);
 
   const resolvedCount =
     demoCmsStore.entries.size + demoCmsStore.assets.size + demoProductCatalog.size;
@@ -87,11 +116,14 @@ export async function resolveDemoPage(
     locale: executionContext.locale,
   });
   const serializedIslands = serializeAllIslands(output);
+  persistResolvedIslands(serializedIslands, lruIslandCache);
 
   return {
     ok: true,
     page,
     serializedIslands,
     resolvedCount,
+    cacheReport,
+    cacheSnapshot: lruIslandCache.snapshot(),
   };
 }

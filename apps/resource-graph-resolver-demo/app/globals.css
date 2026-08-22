@@ -138,8 +138,143 @@ h1 {
   background: var(--surface);
 }
 
+.cache-panel {
+  margin-bottom: 1rem;
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cache-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.cache-subtitle {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cache-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.cache-stats div {
+  margin: 0;
+}
+
+.cache-stats dt {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.cache-stats dd {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.cache-island-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cache-island-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cache-island-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.cache-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.cache-status {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cache-status-hit {
+  color: #86efac;
+  border-color: #166534;
+  background: #052e16;
+}
+
+.cache-status-miss {
+  color: #fcd34d;
+  border-color: #854d0e;
+  background: #1c1408;
+}
+
+.cache-status-incomplete {
+  color: #fda4af;
+  border-color: #9f1239;
+  background: #1f0a12;
+}
+
+.cache-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.cache-table th,
+.cache-table td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.cache-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.cache-table th:last-child,
+.cache-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
 @media (max-width: 900px) {
-  .split {
+  .split,
+  .cache-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cache-stats {
     grid-template-columns: 1fr;
   }
 }

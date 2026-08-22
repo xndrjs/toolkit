@@ -41,6 +41,9 @@ export default async function LocaleDemoPage({ params }: Props) {
 
   const pageJson = JSON.stringify(result.page, null, 2);
   const islandsJson = JSON.stringify(result.serializedIslands, null, 2);
+  const cacheReportJson = JSON.stringify(result.cacheReport, null, 2);
+  const cacheSnapshotJson = JSON.stringify(result.cacheSnapshot, null, 2);
+  const { cacheReport, cacheSnapshot } = result;
 
   return (
     <main>
@@ -52,6 +55,77 @@ export default async function LocaleDemoPage({ params }: Props) {
         Resolved {result.resolvedCount} resources for <strong>{locale}</strong>. Batch rounds are
         logged in the dev server terminal.
       </p>
+      <section className="panel cache-panel">
+        <div className="panel-header">
+          <h2>Island cache</h2>
+          <div className="panel-actions">
+            <CopyButton value={cacheReportJson} label="Copy report" />
+            <CopyButton value={cacheSnapshotJson} label="Copy snapshot" />
+          </div>
+        </div>
+        <div className="cache-grid">
+          <div>
+            <h3 className="cache-subtitle">Request report</h3>
+            <dl className="cache-stats">
+              <div>
+                <dt>Page island</dt>
+                <dd>
+                  <StatusBadge status={cacheReport.pageIsland} />
+                </dd>
+              </div>
+              <div>
+                <dt>Backing resources</dt>
+                <dd>{cacheReport.backingResourceCount}</dd>
+              </div>
+              <div>
+                <dt>Promoted</dt>
+                <dd>{cacheReport.promotedResourceCount ?? 0}</dd>
+              </div>
+            </dl>
+            {cacheReport.islands.length > 0 ? (
+              <ul className="cache-island-list">
+                {cacheReport.islands.map(({ islandId, status }) => (
+                  <li key={islandId}>
+                    <code className="cache-island-id">{islandId}</code>
+                    <StatusBadge status={status} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="cache-empty">No dependency islands looked up.</p>
+            )}
+          </div>
+          <div>
+            <h3 className="cache-subtitle">
+              LRU snapshot ({cacheSnapshot.size}/{cacheSnapshot.maxSize})
+            </h3>
+            {cacheSnapshot.entries.length > 0 ? (
+              <table className="cache-table">
+                <thead>
+                  <tr>
+                    <th>Island</th>
+                    <th>Expires</th>
+                    <th>Hits</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cacheSnapshot.entries.map((entry) => (
+                    <tr key={entry.islandId}>
+                      <td>
+                        <code className="cache-island-id">{entry.islandId}</code>
+                      </td>
+                      <td>{formatExpiresAt(entry.expiresAt)}</td>
+                      <td>{entry.hitCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="cache-empty">Cache empty.</p>
+            )}
+          </div>
+        </div>
+      </section>
       <div className="split">
         <section className="panel">
           <div className="panel-header">
@@ -74,6 +148,19 @@ export default async function LocaleDemoPage({ params }: Props) {
       </div>
     </main>
   );
+}
+
+function StatusBadge({ status }: { status: "hit" | "miss" | "incomplete" }) {
+  return <span className={`cache-status cache-status-${status}`}>{status}</span>;
+}
+
+function formatExpiresAt(expiresAt: number): string {
+  const remainingMs = expiresAt - Date.now();
+  if (remainingMs <= 0) {
+    return "expired";
+  }
+  const seconds = Math.ceil(remainingMs / 1000);
+  return `${seconds}s · ${new Date(expiresAt).toLocaleTimeString()}`;
 }
 
 function LocaleSwitcher({ activeLocale }: { activeLocale: string }) {
