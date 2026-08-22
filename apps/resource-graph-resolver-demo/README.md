@@ -7,9 +7,11 @@ Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content 
 ## Layout
 
 ```
+app/                          # Next.js UI (split view: aggregate | islands)
 src/
   domain/                     # domain-zod shapes
   infrastructure/
+    resolve-demo-page.ts      # shared resolution + trace + aggregation
     cms/                      # CMS source: ARIs, CMA snapshots, codegen, demo store, loader
       schema-fixtures/
         content-types.json    # normalized Contentful CMA snapshot (committed)
@@ -36,9 +38,9 @@ pnpm --filter @xndrjs/resource-graph-resolver-demo contentful:schema
 ## Run checks
 
 ```bash
-pnpm --filter @xndrjs/resource-graph-resolver-demo start
+pnpm --filter @xndrjs/resource-graph-resolver-demo dev
 pnpm --filter @xndrjs/resource-graph-resolver-demo typecheck
 pnpm --filter @xndrjs/resource-graph-resolver-demo test
 ```
 
-`start` runs the page-root resolution with console trace (pull batches + node expansions).
+`dev` runs the Next.js app: aggregated page + serialized islands in a split view; batch rounds trace in the dev server terminal.
