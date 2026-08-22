@@ -18,7 +18,7 @@ src/
       generated/
         contentful.schemas.ts   # Zod schemas from contentful-to-zod (committed)
     integration/              # Integration source: ARIs, catalog, commercial batch loader
-    demo-data-gateway.ts      # engine DataResolutionPort: pull per source → loaders
+    demo-data-gateway.ts      # engine DataResolutionPort: composes cms/integration process(pull)
     content-registry.ts       # DemoContentRegistry = CMS ∪ integration slices
     expansion-policies.ts     # expand by content-type; product → integration.product
     aggregate-page-graph.ts   # ContentMap → domain-zod (no integration port)

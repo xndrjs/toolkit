@@ -1,9 +1,11 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type { ResourceKey } from "@xndrjs/resource-graph-resolver";
+import type { DataResolutionPull, ResourceKey } from "@xndrjs/resource-graph-resolver";
 
 import { integrationProductAri } from "./ari.js";
 import { demoProductCatalog, type ProductIntegrationSnapshot } from "./catalog.js";
 import type { IntegrationContentRegistry } from "./content-registry.js";
+
+const INTEGRATION_BATCH_SIZE = 10;
 
 type IntegrationProductResource = ReturnType<typeof integrationProductAri>;
 
@@ -14,6 +16,11 @@ type IntegrationProductResource = ReturnType<typeof integrationProductAri>;
 export type IntegrationDataLoader = {
   load(
     resources: readonly ApplicationResourceIdentifier[]
+  ): Promise<
+    ReadonlyMap<ResourceKey, IntegrationContentRegistry[keyof IntegrationContentRegistry]>
+  >;
+  process(
+    pull: DataResolutionPull
   ): Promise<
     ReadonlyMap<ResourceKey, IntegrationContentRegistry[keyof IntegrationContentRegistry]>
   >;
@@ -49,6 +56,11 @@ export function createIntegrationDataLoader(
       }
 
       return result;
+    },
+
+    async process(pull) {
+      const batch = pull.take(integrationProductAri.matches, INTEGRATION_BATCH_SIZE);
+      return this.load(batch);
     },
   };
 }

@@ -104,11 +104,14 @@ describe("source-qualified ARI store + data gateway", () => {
     });
   });
 
-  it("cms loader batches entry and asset ids (Contentful-style)", async () => {
+  it("cms loader fetches entries and assets via separate batch APIs (Contentful-style)", async () => {
     const cms = createCmsDataLoader(demoCmsStore);
-    const result = await cms.load([pageEntryAri, heroEntryAri, logoAssetAri, productEntryAri]);
+    const [entries, assets] = await Promise.all([
+      cms.loadEntries([pageEntryAri, heroEntryAri, productEntryAri]),
+      cms.loadAssets([logoAssetAri]),
+    ]);
 
-    expect([...result.keys()].sort()).toEqual(
+    expect([...entries.keys(), ...assets.keys()].sort()).toEqual(
       [
         pageEntryAri.format(),
         heroEntryAri.format(),

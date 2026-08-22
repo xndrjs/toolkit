@@ -1,9 +1,11 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type { ResourceKey } from "@xndrjs/resource-graph-resolver";
+import type { DataResolutionPull, ResourceKey } from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
 import type { CmsContentRegistry } from "./content-registry.js";
 import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
+
+const CMS_ENTRY_BATCH_SIZE = 50;
+const CMS_ASSET_BATCH_SIZE = 50;
 
 export type CmsFixtureStore = {
   entries: ReadonlyMap<string, ContentfulResolvedEntry>;
@@ -15,51 +17,76 @@ export type CmsFixtureStore = {
  * Mimics Contentful Delivery `sys.id[in]=…` fetches for entries and assets.
  */
 export type CmsDataLoader = {
-  load(
-    resources: readonly ApplicationResourceIdentifier[]
+  loadEntries(
+    resources: readonly CmsEntryResource[]
+  ): Promise<ReadonlyMap<ResourceKey, ContentfulResolvedEntry>>;
+  loadAssets(
+    resources: readonly CmsAssetResource[]
+  ): Promise<ReadonlyMap<ResourceKey, ContentfulAsset>>;
+  process(
+    pull: DataResolutionPull
   ): Promise<ReadonlyMap<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>>;
 };
 
 export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
   return {
-    async load(resources) {
-      const entryIds: string[] = [];
-      const assetIds: string[] = [];
-      const entryAris: CmsEntryResource[] = [];
-      const assetAris: CmsAssetResource[] = [];
+    async loadEntries(resources) {
+      const ids = uniqueIds(resources);
+      const fetched = await mockContentfulEntriesByIds(store.entries, ids);
+      return mapDemoCmsBatch(resources, fetched);
+    },
 
-      for (const resource of resources) {
-        if (cmsEntryAri.matches(resource)) {
-          entryIds.push(resource.key[0].id);
-          entryAris.push(resource);
-        } else if (cmsAssetAri.matches(resource)) {
-          assetIds.push(resource.key[0].id);
-          assetAris.push(resource);
-        }
-      }
+    async loadAssets(resources) {
+      const ids = uniqueIds(resources);
+      const fetched = await mockContentfulAssetsByIds(store.assets, ids);
+      return mapDemoCmsBatch(resources, fetched);
+    },
 
-      const fetchedEntries = await mockContentfulEntriesByIds(store.entries, entryIds);
-      const fetchedAssets = await mockContentfulAssetsByIds(store.assets, assetIds);
+    async process(pull) {
+      const entryBatch = pull.take(cmsEntryAri.matches, CMS_ENTRY_BATCH_SIZE);
+      const assetBatch = pull.take(cmsAssetAri.matches, CMS_ASSET_BATCH_SIZE);
 
-      const result = new Map<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>();
+      const [entryResult, assetResult] = await Promise.all([
+        this.loadEntries(entryBatch),
+        this.loadAssets(assetBatch),
+      ]);
 
-      for (const resource of entryAris) {
-        const entry = fetchedEntries.get(resource.key[0].id);
-        if (entry) {
-          result.set(resource.format(), entry);
-        }
-      }
-
-      for (const resource of assetAris) {
-        const asset = fetchedAssets.get(resource.key[0].id);
-        if (asset) {
-          result.set(resource.format(), asset);
-        }
-      }
-
-      return result;
+      return mergeCmsResults(entryResult, assetResult);
     },
   };
+}
+
+type CmsResourceWithId = { format(): string; key: readonly [{ id: string }] };
+
+/** Demo helper: map in-memory store rows back to ARI keys. */
+function mapDemoCmsBatch<T>(
+  resources: readonly CmsResourceWithId[],
+  fetched: ReadonlyMap<string, T>
+): Map<ResourceKey, T> {
+  const result = new Map<ResourceKey, T>();
+  for (const resource of resources) {
+    const value = fetched.get(resource.key[0].id);
+    if (value) {
+      result.set(resource.format(), value);
+    }
+  }
+  return result;
+}
+
+function uniqueIds(resources: readonly CmsResourceWithId[]): string[] {
+  return [...new Set(resources.map((resource) => resource.key[0].id))];
+}
+
+function mergeCmsResults(
+  ...maps: ReadonlyMap<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>[]
+): Map<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]> {
+  const merged = new Map<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>();
+  for (const map of maps) {
+    for (const [key, value] of map) {
+      merged.set(key, value);
+    }
+  }
+  return merged;
 }
 
 /** Simulates `GET /entries?sys.id[in]=id1,id2,…` against an in-memory entry map. */
