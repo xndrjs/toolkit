@@ -11,7 +11,6 @@ import { collectLinkReferencesFromEntryFields } from "./cms/link-field-collector
 import { integrationProductAri } from "./integration/ari.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import {
-  ContentfulContentTypeIdSchema,
   ContentfulEntrySchemaByContentType,
   ProductEntrySchema,
   type ContentfulContentTypeId,
@@ -89,25 +88,12 @@ export function createDemoExpansionPort(): ExpansionPort<DemoContentRegistry> {
       matches: cmsEntryAri.matches,
       expand: ({ contentMap, resource }) => {
         const entry = contentMap.get(resource);
-        if (!entry) {
-          return EMPTY_EXPANSION;
+        if (entry) {
+          return expandForContentType(entry.sys.contentType.sys.id, entry);
         }
 
-        const parsedId = ContentfulContentTypeIdSchema.safeParse(entry.sys.contentType.sys.id);
-        if (!parsedId.success) {
-          return EMPTY_EXPANSION;
-        }
-
-        return expandForContentType(parsedId.data, entry);
+        return EMPTY_EXPANSION;
       },
-    }),
-    defineExpansionPolicy({
-      matches: cmsAssetAri.matches,
-      expand: () => EMPTY_EXPANSION,
-    }),
-    defineExpansionPolicy({
-      matches: integrationProductAri.matches,
-      expand: () => EMPTY_EXPANSION,
     }),
   ]);
 }
