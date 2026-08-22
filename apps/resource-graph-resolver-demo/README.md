@@ -7,16 +7,17 @@ Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content 
 ## Layout
 
 ```
-fixtures/
-  content-types.json      # normalized Contentful CMA snapshot (committed)
-  locales.json            # en-US default, it-IT fallback
 src/
   domain/                     # domain-zod shapes
   infrastructure/
-    cms/                      # CMS source: ARIs, fixtures, Contentful-like batch loader
+    cms/                      # CMS source: ARIs, CMA snapshots, codegen, demo store, loader
+      schema-fixtures/
+        content-types.json    # normalized Contentful CMA snapshot (committed)
+        locales.json          # en-US default, it-IT fallback
       contentful-to-zod.config.ts
       generated/
         contentful.schemas.ts   # Zod schemas from contentful-to-zod (committed)
+      fixtures.ts             # in-memory Delivery-like demo store
     integration/              # Integration source: ARIs, catalog, commercial batch loader
     demo-data-gateway.ts      # engine DataResolutionPort: composes cms/integration process(pull)
     content-registry.ts       # DemoContentRegistry = CMS ∪ integration slices
@@ -26,7 +27,7 @@ src/
 
 ## Contentful schema codegen
 
-Offline snapshot → Zod (no CMA). After editing `fixtures/content-types.json` or `fixtures/locales.json`:
+Offline snapshot → Zod (no CMA). After editing `src/infrastructure/cms/schema-fixtures/content-types.json` or `schema-fixtures/locales.json`:
 
 ```bash
 pnpm --filter @xndrjs/resource-graph-resolver-demo contentful:schema
