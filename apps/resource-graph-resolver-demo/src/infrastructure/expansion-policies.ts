@@ -102,7 +102,7 @@ function expandForContentType(
 
 /** ExpansionPort: first matching policy wins; policies authored inline with typed matches. */
 export function createDemoExpansionPort(): ExpansionPort<DemoContentRegistry> {
-  return createExpansionPolicyChain([
+  return createExpansionPolicyChain<DemoContentRegistry>([
     defineExpansionPolicy({
       matches: cmsEntryAri.matches,
       expand: ({ contentMap, resource }) => {

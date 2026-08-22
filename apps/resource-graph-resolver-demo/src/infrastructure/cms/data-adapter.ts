@@ -7,6 +7,8 @@ import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/conte
 const CMS_ENTRY_BATCH_SIZE = 50;
 const CMS_ASSET_BATCH_SIZE = 50;
 
+export { CMS_ENTRY_BATCH_SIZE, CMS_ASSET_BATCH_SIZE };
+
 export type CmsFixtureStore = {
   entries: ReadonlyMap<string, ContentfulResolvedEntry>;
   assets: ReadonlyMap<string, ContentfulAsset>;

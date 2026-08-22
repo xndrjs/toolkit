@@ -36,6 +36,9 @@ pnpm --filter @xndrjs/resource-graph-resolver-demo contentful:schema
 ## Run checks
 
 ```bash
+pnpm --filter @xndrjs/resource-graph-resolver-demo start
 pnpm --filter @xndrjs/resource-graph-resolver-demo typecheck
 pnpm --filter @xndrjs/resource-graph-resolver-demo test
 ```
+
+`start` runs the page-root resolution with console trace (pull batches + node expansions).

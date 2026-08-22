@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "contentful:schema": "contentful-to-zod --config ./src/infrastructure/cms/contentful-to-zod.config.ts",
+    "start": "tsx src/run.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -15,6 +16,7 @@
   },
   "devDependencies": {
     "@xndrjs/contentful-to-zod": "workspace:^",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vitest": "^4.1.0"
   },
