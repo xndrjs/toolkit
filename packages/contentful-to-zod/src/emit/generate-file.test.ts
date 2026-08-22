@@ -27,6 +27,8 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).toContain("export function pickLocale");
     expect(output).toContain("export function flattenBlogPostEntryFields");
     expect(output).toContain("export function parseEntryAsLinkField");
+    expect(output).toContain("export const LINK_FIELDS_BY_CONTENT_TYPE");
+    expect(output).not.toContain("collectExpansionLinksFromEntryFields");
     expect(output).toContain("export function flatField");
     expect(output).toContain("export function transportField");
     expect(output).toContain('"title": flatField(z.string().max(256))');

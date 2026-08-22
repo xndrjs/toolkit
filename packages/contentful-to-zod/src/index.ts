@@ -30,9 +30,11 @@ export type { Locale } from "./model/locale";
 
 export { generateZodSchemas, type GenerateZodSchemasOptions } from "./emit/generate-file";
 export {
+  collectLinkFields,
   collectLinkFieldTargets,
   linkContentTypeFromValidations,
   validateLinkFieldTargets,
+  type LinkFieldDescriptor,
   type LinkFieldTarget,
 } from "./emit/link-fields";
 export { fieldToZod, wrapForDelivery, validateObjectOverrides } from "./emit/field-to-zod";

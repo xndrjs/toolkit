@@ -357,6 +357,29 @@ export function parseEntryAsLinkField<
     }
   )[fieldName](entry);
 }
+
+
+export type LinkFieldDescriptor = {
+  fieldId: string;
+  linkType: "Entry" | "Asset";
+  cardinality: "one" | "many";
+};
+
+/**
+ * Entry/Asset link fields per content type (from CMA).
+ * Order follows the content model field order.
+ */
+export const LINK_FIELDS_BY_CONTENT_TYPE = {
+  "author": [
+  ],
+  "blogPost": [
+    {
+  fieldId: "author",
+  linkType: "Entry",
+  cardinality: "one",
+},
+  ],
+} as const satisfies Record<ContentfulContentTypeId, readonly LinkFieldDescriptor[]>;
 "
 `;
 
@@ -719,5 +742,28 @@ export function parseEntryAsLinkField<
     }
   )[fieldName](entry);
 }
+
+
+export type LinkFieldDescriptor = {
+  fieldId: string;
+  linkType: "Entry" | "Asset";
+  cardinality: "one" | "many";
+};
+
+/**
+ * Entry/Asset link fields per content type (from CMA).
+ * Order follows the content model field order.
+ */
+export const LINK_FIELDS_BY_CONTENT_TYPE = {
+  "author": [
+  ],
+  "blogPost": [
+    {
+  fieldId: "author",
+  linkType: "Entry",
+  cardinality: "one",
+},
+  ],
+} as const satisfies Record<ContentfulContentTypeId, readonly LinkFieldDescriptor[]>;
 "
 `;

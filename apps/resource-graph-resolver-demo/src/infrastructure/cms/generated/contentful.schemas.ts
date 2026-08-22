@@ -751,3 +751,69 @@ export function parseEntryAsLinkField<
     }
   )[fieldName](entry);
 }
+
+export type LinkFieldDescriptor = {
+  fieldId: string;
+  linkType: "Entry" | "Asset";
+  cardinality: "one" | "many";
+};
+
+/**
+ * Entry/Asset link fields per content type (from CMA).
+ * Order follows the content model field order.
+ */
+export const LINK_FIELDS_BY_CONTENT_TYPE = {
+  page: [
+    {
+      fieldId: "modules",
+      linkType: "Entry",
+      cardinality: "many",
+    },
+    {
+      fieldId: "menu",
+      linkType: "Entry",
+      cardinality: "one",
+    },
+    {
+      fieldId: "footer",
+      linkType: "Entry",
+      cardinality: "one",
+    },
+  ],
+  tabs: [
+    {
+      fieldId: "tabs",
+      linkType: "Entry",
+      cardinality: "many",
+    },
+  ],
+  tab: [
+    {
+      fieldId: "strips",
+      linkType: "Entry",
+      cardinality: "many",
+    },
+  ],
+  hero: [
+    {
+      fieldId: "image",
+      linkType: "Asset",
+      cardinality: "one",
+    },
+  ],
+  menu: [
+    {
+      fieldId: "logo",
+      linkType: "Asset",
+      cardinality: "one",
+    },
+  ],
+  footer: [
+    {
+      fieldId: "logo",
+      linkType: "Asset",
+      cardinality: "one",
+    },
+  ],
+  product: [],
+} as const satisfies Record<ContentfulContentTypeId, readonly LinkFieldDescriptor[]>;

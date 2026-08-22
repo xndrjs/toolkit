@@ -7,97 +7,79 @@ import {
 } from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri } from "./cms/ari.js";
+import { collectLinkReferencesFromEntryFields } from "./cms/link-field-collector.js";
 import { integrationProductAri } from "./integration/ari.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import {
   ContentfulContentTypeIdSchema,
   ContentfulEntrySchemaByContentType,
-  type ContentfulAssetLink,
+  ProductEntrySchema,
   type ContentfulContentTypeId,
-  type ContentfulEntryByContentType,
-  type ContentfulEntryLink,
+  type ContentfulResolvedEntry,
 } from "./cms/generated/contentful.schemas.js";
 
 const EMPTY_EXPANSION: ExpansionResult = { resources: [] };
 
-function entryChildrenFromLinks(
-  links: readonly ContentfulEntryLink[] | null | undefined
-): ApplicationResourceIdentifier[] {
-  if (!links) {
-    return [];
+function linkReferenceToAri(link: {
+  linkType: "Entry" | "Asset";
+  id: string;
+}): ApplicationResourceIdentifier {
+  return link.linkType === "Entry" // create ARI based on link type
+    ? cmsEntryAri({ id: link.id })
+    : cmsAssetAri({ id: link.id });
+}
+
+function expandLinksFromGeneratedMetadata(
+  contentTypeId: ContentfulContentTypeId,
+  entry: ContentfulResolvedEntry
+): ExpansionResult {
+  const parsed = ContentfulEntrySchemaByContentType[contentTypeId].parse(entry);
+  const links = collectLinkReferencesFromEntryFields(contentTypeId, parsed.fields);
+
+  return {
+    resources: links.map(linkReferenceToAri),
+  };
+}
+
+function expandProductEntry(entry: ContentfulResolvedEntry): ExpansionResult {
+  const parsed = ProductEntrySchema.parse(entry);
+  const sku = parsed.fields.sku;
+  if (sku === null || sku.length === 0) {
+    return EMPTY_EXPANSION;
   }
-  return links.map((link) => cmsEntryAri({ id: link.sys.id }));
-}
 
-function entryChildFromLink(
-  link: ContentfulEntryLink | null | undefined
-): ApplicationResourceIdentifier[] {
-  return link ? [cmsEntryAri({ id: link.sys.id })] : [];
+  return { resources: [integrationProductAri({ sku })] };
 }
-
-function assetChildFromLink(
-  link: ContentfulAssetLink | null | undefined
-): ApplicationResourceIdentifier[] {
-  return link ? [cmsAssetAri({ id: link.sys.id })] : [];
-}
-
-type ExpandByContentType = {
-  [K in ContentfulContentTypeId]: (entry: ContentfulEntryByContentType[K]) => ExpansionResult;
-};
 
 /**
- * Content-type → child Link extraction (generated Entry schemas as field contract).
- * Branching is on `sys.contentType.sys.id`, not on ARI `type` (always `"cms.entry"`).
+ * Default expansion follows generated link-field metadata; overrides handle islands
+ * and cross-source rules (e.g. product SKU → integration API).
  */
-const expandByContentType = {
-  page(entry) {
-    return {
-      resources: [
-        ...entryChildrenFromLinks(entry.fields.modules),
-        ...entryChildFromLink(entry.fields.menu),
-        ...entryChildFromLink(entry.fields.footer),
-      ],
-    };
-  },
-  tabs(entry) {
-    return { resources: entryChildrenFromLinks(entry.fields.tabs) };
-  },
-  tab(entry) {
-    // Polymorphic strips (hero | product): each Link → opaque cms.entry ARI.
-    return { resources: entryChildrenFromLinks(entry.fields.strips) };
-  },
-  hero(entry) {
-    return { resources: assetChildFromLink(entry.fields.image) };
-  },
-  menu(entry) {
-    return {
-      resources: assetChildFromLink(entry.fields.logo),
-      isIsland: true,
-    };
-  },
-  footer(entry) {
-    return {
-      resources: assetChildFromLink(entry.fields.logo),
-      isIsland: true,
-    };
-  },
-  product(entry) {
-    const sku = entry.fields.sku;
-    if (sku === null || sku.length === 0) {
-      return EMPTY_EXPANSION;
-    }
-    // Commercial data lives on the integration source, keyed by SKU.
-    return { resources: [integrationProductAri({ sku })] };
-  },
-} satisfies ExpandByContentType;
+type ExpansionOverride = {
+  expand?: (entry: ContentfulResolvedEntry) => ExpansionResult;
+  isIsland?: boolean;
+};
+
+const expansionOverrides: Partial<Record<ContentfulContentTypeId, ExpansionOverride>> = {
+  menu: { isIsland: true },
+  footer: { isIsland: true },
+  product: { expand: expandProductEntry },
+};
 
 function expandForContentType(
   contentTypeId: ContentfulContentTypeId,
-  raw: unknown
+  entry: ContentfulResolvedEntry
 ): ExpansionResult {
-  const entry = ContentfulEntrySchemaByContentType[contentTypeId].parse(raw);
-  const expand = expandByContentType[contentTypeId] as (value: typeof entry) => ExpansionResult;
-  return expand(entry);
+  const override = expansionOverrides[contentTypeId];
+
+  const result = override?.expand
+    ? override.expand(entry)
+    : expandLinksFromGeneratedMetadata(contentTypeId, entry);
+
+  return {
+    ...result,
+    isIsland: override?.isIsland ?? false,
+  };
 }
 
 /** ExpansionPort: first matching policy wins; policies authored inline with typed matches. */

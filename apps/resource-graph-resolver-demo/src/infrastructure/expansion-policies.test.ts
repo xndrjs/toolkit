@@ -47,7 +47,7 @@ describe("createDemoExpansionPort", () => {
     const page = demoCmsStore.entries.get(demoIds.page)!;
     const result = expandEntry(pageEntryAri, page);
 
-    expect(result.isIsland).toBeUndefined();
+    expect(result.isIsland).toBe(false);
     expect(result.resources.map((r) => r.format())).toEqual([
       tabsEntryAri.format(),
       tabsSecondaryEntryAri.format(),
