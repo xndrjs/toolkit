@@ -214,7 +214,7 @@ describe("ResolveContentGraphEngine", () => {
       createExpansionPolicyChain<CycleRegistry>([
         {
           matches: () => true,
-          expand: ({ resource, payload }) => {
+          expand: ({ payload }) => {
             const value = payload as CycleRegistry["node"];
             const childKey = value.next;
             if (childKey === b.toString()) {
