@@ -9,7 +9,7 @@ description: The @xndrjs/resource-graph-resolver package — typed content graph
 
 An **island** is a **subgraph of the resolution walk** that has its **own identity** in the graph — a unit you treat as distinct from the island that reached it. You declare that identity in your expansion policy with `isIsland: true` on a resolved resource. That resource’s ARI (`resource.toString()`) becomes the island **id**; every resource reached while expanding from that point — until the next `isIsland` boundary — **belongs** to the same island.
 
-Typical reasons to mark an island: a fragment with a **different lifecycle** than its parent (global header, shared footer, ...), a **reusable slice** referenced from multiple places, or a boundary where **membership** should not collapse into the parent’s aggregate.
+Typical reasons to mark an island: a fragment with a **different lifecycle** than its parent (global header, shared footer, …), a **reusable slice** referenced from multiple places, or a boundary where **membership** should not collapse into the parent’s aggregate.
 
 In practice:
 
@@ -26,7 +26,7 @@ In practice:
 
 Example: a page island may **depend on** `menu` and `footer` islands without **containing** their payloads. The page’s direct dependencies are only its immediate island children; `getFlatDependencies(page)` adds transitive ones when nested islands exist deeper in the graph.
 
-Islands let you **name and partition** a large graph by application meaning — what is “the page”, what is “the menu”, what is shared — before you decide how to cache, invalidate, or aggregate each part. The demo app shows one possible downstream use (tiered LRU + manifests); the engine only tracks identity, membership, and dependencies.
+Islands let you **name and partition** a large graph by application meaning — what is “the page”, what is “the menu”, what is shared — before you decide how to cache, invalidate, or aggregate each part. The demo app shows one possible downstream use (tiered LRU + manifests); the engine only tracks identity, membership, and dependencies. It does **not** invalidate caches for you.
 
 The engine is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), `DataResolutionPort`, and `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
@@ -94,6 +94,8 @@ const output = await engine.execute({
   root: pageRoot,
   executionContext: { locale: "en-US" },
   missingResourceMode: "throw", // or "collect"
+  // signal: AbortSignal.timeout(5_000),
+  // limits: { maxRounds: 50, maxResources: 2_000, maxDepth: 32 },
 });
 ```
 
@@ -106,17 +108,37 @@ const output = await engine.execute({
 | `islandDependencies` | Direct edges between islands (child island promoted by `isIsland`) |
 | `errors`             | Missing resources when `missingResourceMode: "collect"`            |
 
+### Missing resources and no-progress termination
+
+- Resources **taken** by the port but omitted from the result are missing (throw or collect).
+- Resources **not taken** while at least one peer was taken stay deferred for a later round after expand.
+- If the frontier still has unresolved work and **`take` accepted nothing** (`taken.length === 0`), that is **no-progress**: the engine throws or collects every unhandled ARI via `missingResourceMode`. It is not treated as deferral.
+
+### Cancellation and limits
+
+Optional operational budgets on `ResolveContentGraphInput`:
+
+| Option                | Semantics                                                        |
+| --------------------- | ---------------------------------------------------------------- |
+| `signal`              | Cooperative abort; checked before and after every data-port load |
+| `limits.maxRounds`    | Cap on frontier rounds processed (each outer-loop iteration)     |
+| `limits.maxResources` | Cap on distinct ARIs discovered (root counts as 1)               |
+| `limits.maxDepth`     | Cap on BFS depth from root (**root is depth 0**)                 |
+
+Abort throws `ResolveContentGraphAbortedError`. Exceeding a limit throws `ResolveContentGraphLimitExceededError`. Both are **independent** of `missingResourceMode`.
+
 ### Optional backing cache
 
 Pass `resolvedResourceCache: Map<ResourceKey, unknown>` to hydrate hits **before** the data port runs. The engine promotes matching frontier items into `ContentMap` and removes them from the map (pass a mutable `Map` when you want promotion counts). Use this for partial warm paths — for example dependency islands still valid while the page island expired.
 
 ## DataResolutionPort (pull model)
 
-Loaders implement `process({ take })`. The engine calls **`take(accept, limit?)`** to select unresolved frontier resources in order; your adapter batches fetches and returns `Map<ResourceKey, payload>`.
+Loaders implement `process({ take, signal? })`. The engine calls **`take(accept, limit?)`** to select unresolved frontier resources in order; your adapter batches fetches and returns correlated `{ resource, payload }` records.
 
 - **`accept`** — predicate (optionally a type guard via `cmsEntryAri.matches`).
 - **`limit`** (optional) — max resources to pull this round. Omit to take every match.
 - Resources **not** pulled stay on the frontier; the engine expands what it has and calls `process` again — they are not missing errors.
+- When **every** `take` in a `process` call returns empty, return `[]` immediately and **do not** perform IO.
 
 ```ts
 import type { DataResolutionPort } from "@xndrjs/resource-graph-resolver";
@@ -130,22 +152,28 @@ async process(pull) {
   const entryBatch = pull.take(cmsEntryAri.matches, CMS_ENTRY_BATCH_SIZE);
   const assetBatch = pull.take(cmsAssetAri.matches, CMS_ASSET_BATCH_SIZE);
 
+  if (entryBatch.length === 0 && assetBatch.length === 0) {
+    return [];
+  }
+
   const [entries, assets] = await Promise.all([
     fetchEntries(entryBatch),
     fetchAssets(assetBatch),
   ]);
 
-  return mergeMaps(entries, assets);
+  return [...entries, ...assets];
 }
 ```
 
 One `process` call can invoke `take` multiple times (per source or per resource family). Each `take` removes its batch from the frontier for that round only; if the frontier still has unresolved resources after expand, the engine schedules another round.
 
-Compose multiple sources (CMS + integration API) by merging pull results in one gateway — see the demo's `createDemoDataGateway` and `createCmsDataLoader`.
+Compose multiple sources (CMS + integration API) by merging pull results in one gateway — see the demo's `createDemoDataGateway` and `createCmsDataLoader`. Gateway composition is **barrier-based**: each round waits for all loaders before expand, so wall-clock time tracks the **slowest** backend in that wave.
 
 ## ExpansionPort and policies
 
 Expansion discovers **child ARIs** and optional **island boundaries** for an already-resolved resource.
+
+**Expansion = current resource + current payload + execution context.** Policies must not look up other nodes in a shared map and must not depend on which peers happened to land in the same batch.
 
 Author policies with `defineExpansionPolicy` and chain them with `createExpansionPolicyChain` (first match wins):
 
@@ -157,18 +185,17 @@ export const expansionPort = createExpansionPolicyChain([
   defineExpansionPolicy({
     for: cmsEntryAri,
     when: ({ resource, executionContext }) => resource.key[0].locale === executionContext.locale,
-    expand: ({ resource, contentMap }) => {
-      const entry = contentMap.get(resource);
-      if (!entry) return { resources: [] };
-
+    expand: ({ payload, executionContext }) => {
       return {
-        resources: collectChildArisFromEntry(entry),
-        isIsland: entry.sys.contentType.sys.id === "menu",
+        resources: collectChildArisFromEntry(payload, executionContext.locale),
+        isIsland: payload.sys.contentType.sys.id === "menu",
       };
     },
   }),
 ]);
 ```
+
+`defineExpansionPolicy({ for })` narrows **both** `resource` and `payload` to the matched ARI family. Because expansion never observes siblings, changing batch sizes does not change the edges a policy emits for a given node.
 
 When `isIsland: true`, the resource becomes a new island id (`resource.toString()`). The parent island records a **direct dependency** on that child island. Children discovered from the new island inherit its id until another `isIsland` boundary appears.
 
@@ -186,7 +213,7 @@ output.islandDependencies.getFlatDependencies(pageId); // transitive, deduped, s
 output.islandDependencies.dependencyMap; // snapshot ReadonlyMap of all direct edges
 ```
 
-Use `getFlatDependencies` when you need the full transitive dependency closure from a root island (for example a manifest of every dependency island reachable from a page).
+Use `getFlatDependencies` when you need the full transitive dependency closure from a root island (for example a manifest of every dependency island reachable from a page). The starting island is never included, even if dependency cycles point back to it.
 
 ## Serialization
 
@@ -214,7 +241,7 @@ Each `SerializedIsland` (schema v1) includes:
 2. **ContentRegistry** — union of resolved payload types.
 3. **DataResolutionPort** — per-source loaders composed into a gateway.
 4. **ExpansionPort** — content-type or resource-family policies; `isIsland` where a fragment has its own identity or lifecycle.
-5. **Orchestration** — load backing → `execute` → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
+5. **Orchestration** — load backing → `execute` (optional `signal` / `limits`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
 6. **Domain mappers** — stay outside this package; consume `ResolveContentGraphOutput`.
 
 ## API
@@ -225,10 +252,11 @@ Exported symbols:
 - **`ContentMap`**
 - **`IslandMap`** / **`IslandDependencyMap`**
 - **`createExpansionPolicyChain`** / **`defineExpansionPolicy`**
-- **`createDataResolutionPull`** / **`DataResolutionPort`**
+- **`createDataResolutionPull`** / **`DataResolutionPort`** / **`ResolvedResourceRecord`**
 - **`serializeIsland`** / **`serializeAllIslands`**
 - **`buildResolvedResourceCacheFromIslands`**
-- Types: **`ContentRegistry`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ResolveContentGraphInput`**, **`ResolveContentGraphOutput`**, **`ResourceKey`**, **`IslandId`**
+- **`ResolveContentGraphAbortedError`** / **`ResolveContentGraphLimitExceededError`**
+- Types: **`ContentRegistry`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolveContentGraphInput`**, **`ResolveContentGraphLimits`**, **`ResolveContentGraphOutput`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 
 ## See also
 

@@ -266,11 +266,13 @@ flowchart TD
 
 ### Expansion policies and execution context
 
-Expansion is **not** hard-coded per content type inside the engine. You author **policies** that depend on:
+Expansion is **not** hard-coded per content type inside the engine. You author **policies** that depend on exactly three inputs:
 
 - the **current resource**;
-- an **execution context** you define — for example an **A/B test** variant that selects alternative content, the **user's identity or role**, or any other **contextual input** the walk needs;
-- the **`ContentMap` built so far** — the set of payloads already resolved in this walk — when a policy needs to inspect what is present on other nodes before choosing the next ARIs (only when your rules call for it).
+- the **current payload** for that resource (typed by ARI `type` — not a lookup into other nodes);
+- an **execution context** you define — for example an **A/B test** variant that selects alternative content, the **user's identity or role**, or any other **contextual input** the walk needs.
+
+**Expansion = current resource + current payload + execution context.** Policies must not observe siblings or depend on which peers landed in the same batch. That keeps discovery deterministic: changing a loader’s batch size must not change the edges a policy emits for a given node.
 
 Each policy answers: _given this resolved node, which ARIs should we try to load next?_ A page entry policy might return linked module entries; a product module policy might return an `integration.product` ARI from a SKU field. Policies can mix **CMS**, **integration**, and future sources — the engine only sees ARIs and ports.
 
@@ -291,9 +293,12 @@ Instead it exposes a **pull API** — `take(accept, limit?)` — on each round:
 - the engine offers the current frontier;
 - each **adapter** accepts the ARIs it knows how to load (i.e. `cmsEntryAri.matches`, `integrationProductAri.matches`, …);
 - each adapter sets **`limit`** to fill its backend efficiently this round;
-- anything not taken stays on the frontier for a later round after expansion.
+- anything not taken stays on the frontier for a later round after expansion;
+- if every `take` in a `process` call is empty, the adapter should return immediately **without IO**.
 
 So adapters **maximize network saturation on their own terms** (batch ids, parallel sources, rate-limit-friendly chunk sizes) while orchestration never imports vendor constants. The engine walks and expands; infrastructure loaders pull what they can handle.
+
+`take` itself is a single-pass partition into `taken` / `remaining` (order-preserving). That matters when frontiers grow into the thousands: the cost of selecting a batch stays linear in frontier size per call, not quadratic from repeated mid-array removals.
 
 ---
 
@@ -311,11 +316,13 @@ export function createDemoDataGateway(cms, integration): DataResolutionPort {
         cms.process(pull),
         integration.process(pull),
       ]);
-      // merge into one ContentMap slice for this round
+      return [...cmsResult, ...integrationResult];
     },
   };
 }
 ```
+
+Composition is **barrier-based per wave**: the engine waits for the whole gateway `process` to finish before expanding. Inside that call, loaders may run in parallel, but wall-clock time for the round still tracks the **slowest** backend in the wave — not the sum of sequential CMS-then-integration trips, and not a speculative expand against half-loaded peers.
 
 Same orchestration, same expansion policies — whether two backends or five. That is the boundary Problem 4 was asking for: resolution logic that is not the React tree and not a single vendor SDK.
 
@@ -374,6 +381,14 @@ if (sku) {
 ```
 
 Transport correctness and graph discovery stay in infrastructure; the engine still only sees ARIs and policies. That is enough to connect the dots with the rest of the toolkit without turning this post into schema reference material.
+
+---
+
+## Islands partition cache — they do not invalidate it
+
+Marking `isIsland: true` gives you a **named slice** of membership and dependency edges. Downstream you can cache a menu island separately from a page island, warm dependency manifests, or expire one TTL without the other.
+
+The engine **does not** decide invalidation. Islands partition the graph so _your_ cache adapters have something coherent to key on; they do not automatically purge parents when a child changes, fan out webhooks, or reconcile stale backing maps. That policy stays in infrastructure — where editorial events and product TTLs already live.
 
 ---
 

@@ -2,7 +2,9 @@
 
 **Not published** — this app is `private` and listed in `.changeset/config.json` `ignore`, so it is excluded from Changesets versioning and from npm publish on both stable and alpha releases.
 
-Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, source-qualified ARIs (`cms.*` / `integration.*`), content-type expansion policies, and domain-zod aggregation.
+Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, source-qualified ARIs (`cms.*` / `integration.*`), content-type expansion policies (current resource + payload + execution context), correlated `{ resource, payload }` loaders, and domain-zod aggregation.
+
+`resolveDemoPage(locale, options?)` accepts optional `signal` and `limits` and forwards them to the engine. CMS/integration loaders short-circuit with an empty result when every `take()` is empty (no IO).
 
 ## Layout
 
