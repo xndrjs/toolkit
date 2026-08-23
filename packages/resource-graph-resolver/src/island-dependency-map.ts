@@ -29,21 +29,26 @@ export class IslandDependencyMap {
     );
   }
 
-  /** Transitive dependency island ids reachable from `islandId`, deduplicated and sorted. */
+  /**
+   * Transitive dependency island ids reachable from `islandId`, deduplicated and sorted.
+   * The starting island is never included, even when dependency cycles point back to it.
+   */
   getFlatDependencies(islandId: IslandId): readonly IslandId[] {
     const seen = new Set<IslandId>();
+    const stack: IslandId[] = [...this.get(islandId)];
 
-    const walk = (currentIslandId: IslandId): void => {
-      for (const dependencyId of this.get(currentIslandId)) {
-        if (seen.has(dependencyId)) {
-          continue;
-        }
-        seen.add(dependencyId);
-        walk(dependencyId);
+    while (stack.length > 0) {
+      const dependencyId = stack.pop()!;
+      if (dependencyId === islandId || seen.has(dependencyId)) {
+        continue;
       }
-    };
 
-    walk(islandId);
+      seen.add(dependencyId);
+      for (const next of this.get(dependencyId)) {
+        stack.push(next);
+      }
+    }
+
     return [...seen].sort();
   }
 }

@@ -120,32 +120,26 @@ export class ResolveContentGraphEngine<
               return batch;
             }
 
-            for (let i = 0; i < frontier.length; ) {
-              if (batch.length >= max) {
-                break;
-              }
-
-              const item = frontier[i]!;
-              if (
-                !accept(item.resource) ||
-                !isUnresolved(item.resource, contentMap, failuresByResource)
-              ) {
-                i++;
-                continue;
-              }
-
+            const remaining: QueueItem[] = [];
+            for (const item of frontier) {
               const key = item.resource.toString();
-              if (takenKeys.has(key)) {
-                i++;
-                continue;
-              }
+              const canTake =
+                batch.length < max &&
+                accept(item.resource) &&
+                isUnresolved(item.resource, contentMap, failuresByResource) &&
+                !takenKeys.has(key);
 
-              frontier.splice(i, 1);
-              taken.push(item);
-              takenKeys.add(key);
-              batch.push(item.resource);
+              if (canTake) {
+                taken.push(item);
+                takenKeys.add(key);
+                batch.push(item.resource);
+              } else {
+                remaining.push(item);
+              }
             }
 
+            frontier.length = 0;
+            frontier.push(...remaining);
             return batch;
           },
         });
@@ -163,6 +157,24 @@ export class ResolveContentGraphEngine<
 
           if (input.missingResourceMode === "throw") {
             throw new Error(`Unable to resolve ${resourceKey}`);
+          }
+        }
+
+        // Port accepted nothing while unresolved work remains — not the same as
+        // deferral after a non-empty take (those leftovers are re-queued below).
+        if (taken.length === 0) {
+          const unhandled = frontier.filter((item) =>
+            isUnresolved(item.resource, contentMap, failuresByResource)
+          );
+
+          if (unhandled.length > 0) {
+            if (input.missingResourceMode === "throw") {
+              throw new Error(`Unable to resolve ${unhandled[0]!.resource.toString()}`);
+            }
+
+            for (const item of unhandled) {
+              registerMissingResource(item.resource, item.inheritedIslandId);
+            }
           }
         }
       }

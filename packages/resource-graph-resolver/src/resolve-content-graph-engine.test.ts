@@ -436,4 +436,209 @@ describe("ResolveContentGraphEngine", () => {
     ).length;
     expect(missingRequestCount).toBe(1);
   });
+
+  it("throws when a port accepts no ARIs while unresolved work remains", async () => {
+    const process = vi.fn(async (pull) => {
+      expect(pull.take(() => false)).toEqual([]);
+      return new Map();
+    });
+
+    const engine = new ResolveContentGraphEngine(
+      { process },
+      createExpansionPolicyChain([
+        {
+          matches: () => true,
+          expand: () => ({ resources: [] }),
+        },
+      ])
+    );
+
+    await expect(
+      engine.execute({
+        root: page,
+        executionContext: {},
+        missingResourceMode: "throw",
+      })
+    ).rejects.toThrow(`Unable to resolve ${page.toString()}`);
+
+    expect(process).toHaveBeenCalledTimes(1);
+  });
+
+  it("collects all unhandled resources when a port accepts no ARIs", async () => {
+    const left = testAri("node", "L");
+    const right = testAri("node", "R");
+    const store = new Map<string, unknown>([[page.toString(), {}]]);
+    let round = 0;
+
+    const dataPort: DataResolutionPort = {
+      async process(pull) {
+        round += 1;
+        if (round === 1) {
+          const taken = pull.take(() => true);
+          const result = new Map<string, unknown>();
+          for (const resource of taken) {
+            const key = resource.toString();
+            if (store.has(key)) {
+              result.set(key, store.get(key));
+            }
+          }
+          return result;
+        }
+
+        expect(pull.take(() => false)).toEqual([]);
+        return new Map();
+      },
+    };
+
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain([
+        {
+          matches: ({ resource }) => resource.equals(page),
+          expand: () => ({ resources: [left, right] }),
+        },
+        {
+          matches: ({ resource }) => resource.type === "node",
+          expand: () => ({ resources: [] }),
+        },
+      ])
+    );
+
+    const output = await engine.execute({
+      root: page,
+      executionContext: {},
+      missingResourceMode: "collect",
+    });
+
+    expect(output.contentMap.has(page)).toBe(true);
+    expect(output.contentMap.has(left)).toBe(false);
+    expect(output.contentMap.has(right)).toBe(false);
+    expect(output.errors).toHaveLength(2);
+    expect(new Set(output.errors.map((error) => error.resourceKey))).toEqual(
+      new Set([left.toString(), right.toString()])
+    );
+  });
+
+  it("still defers leftovers when a capped port takes at least one resource", async () => {
+    const takenBatches: ApplicationResourceIdentifier[][] = [];
+    const store = new Map<string, unknown>([
+      [page.toString(), {}],
+      [hero.toString(), {}],
+      [menu.toString(), {}],
+    ]);
+
+    const dataPort: DataResolutionPort = {
+      async process(pull) {
+        const taken = pull.take(() => true, 1);
+        takenBatches.push(taken);
+        const result = new Map<string, unknown>();
+        for (const resource of taken) {
+          const key = resource.toString();
+          if (store.has(key)) {
+            result.set(key, store.get(key));
+          }
+        }
+        return result;
+      },
+    };
+
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain([
+        {
+          matches: ({ resource }) => resource.equals(page),
+          expand: () => ({ resources: [hero, menu] }),
+        },
+        {
+          matches: ({ resource }) => resource.type === "hero" || resource.type === "menu",
+          expand: () => ({ resources: [] }),
+        },
+      ])
+    );
+
+    const output = await engine.execute({
+      root: page,
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(takenBatches[0]).toEqual([page]);
+    expect(takenBatches[1]).toEqual([hero]);
+    expect(takenBatches[2]).toEqual([menu]);
+    expect(output.contentMap.has(hero)).toBe(true);
+    expect(output.contentMap.has(menu)).toBe(true);
+    expect(output.errors).toEqual([]);
+  });
+
+  it("resolves deep resource chains across many frontier rounds", async () => {
+    const depth = 100;
+    const nodes = Array.from({ length: depth }, (_, index) => testAri("node", String(index)));
+    const indexByKey = new Map(nodes.map((resource, index) => [resource.toString(), index]));
+    const store = new Map(nodes.map((resource) => [resource.toString(), {}] as const));
+
+    const dataPort = createInMemoryPort(store);
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain([
+        {
+          matches: ({ resource }) => resource.type === "node",
+          expand: ({ resource }) => {
+            const index = indexByKey.get(resource.toString());
+            const next = index === undefined ? undefined : nodes[index + 1];
+            return { resources: next === undefined ? [] : [next] };
+          },
+        },
+      ])
+    );
+
+    const output = await engine.execute({
+      root: nodes[0]!,
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.contentMap.has(nodes[0]!)).toBe(true);
+    expect(output.contentMap.has(nodes[depth - 1]!)).toBe(true);
+    expect(output.islands.get(nodes[0]!.toString()).size).toBe(depth);
+    expect(dataPort.process).toHaveBeenCalledTimes(depth);
+    expect(output.errors).toEqual([]);
+  });
+
+  it("records cyclic island dependencies without looping forever", async () => {
+    const a = testAri("island", "A");
+    const b = testAri("island", "B");
+    const store = new Map<string, unknown>([
+      [a.toString(), {}],
+      [b.toString(), {}],
+    ]);
+    const dataPort = createInMemoryPort(store);
+
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain([
+        {
+          matches: ({ resource }) => resource.equals(a),
+          expand: () => ({ resources: [b], isIsland: true }),
+        },
+        {
+          matches: ({ resource }) => resource.equals(b),
+          expand: () => ({ resources: [a], isIsland: true }),
+        },
+      ])
+    );
+
+    const output = await engine.execute({
+      root: a,
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.islandDependencies.get(a.toString())).toEqual(new Set([b.toString()]));
+    expect(output.islandDependencies.get(b.toString())).toEqual(new Set([a.toString()]));
+    expect(output.islandDependencies.getFlatDependencies(a.toString())).toEqual([b.toString()]);
+    expect(output.islandDependencies.getFlatDependencies(b.toString())).toEqual([a.toString()]);
+    expect(output.contentMap.has(a)).toBe(true);
+    expect(output.contentMap.has(b)).toBe(true);
+    expect(output.errors).toEqual([]);
+  });
 });

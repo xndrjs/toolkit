@@ -53,17 +53,17 @@ export function createDataResolutionPull(
         return batch;
       }
 
-      for (let i = 0; i < resources.length; ) {
-        if (batch.length >= max) {
-          break;
-        }
-        if (accept(resources[i]!)) {
-          const [resource] = resources.splice(i, 1);
-          batch.push(resource!);
+      const remaining: ApplicationResourceIdentifier[] = [];
+      for (const resource of resources) {
+        if (batch.length < max && accept(resource)) {
+          batch.push(resource);
         } else {
-          i++;
+          remaining.push(resource);
         }
       }
+
+      resources.length = 0;
+      resources.push(...remaining);
       return batch;
     },
   };
