@@ -1,36 +1,39 @@
 import { ResolveContentGraphEngine, serializeAllIslands } from "@xndrjs/resource-graph-resolver";
 
+import type { Page } from "../domain/index.js";
 import {
   loadBackingForRoot,
   lruIslandCache,
   persistResolvedIslands,
   type CacheHitReport,
   type IslandCacheSnapshot,
-} from "./cache/index.js";
-import { mapContentMapToPageAggregate } from "./mappers/content-map-to-page-aggregate.mapper.js";
+} from "../infrastructure/cache/index.js";
 import {
   createCmsDataLoader,
   cmsEntryAri,
   demoCmsStore,
   demoIds,
   type ContentfulLocaleCode,
-} from "./cms/index.js";
+} from "../infrastructure/cms/index.js";
+import type { DemoContentRegistry } from "../infrastructure/content-registry.js";
 import {
   createDefaultDemoExecutionContext,
   type DemoExecutionContext,
-} from "./demo-execution-context.js";
-import { createDemoDataGateway } from "./demo-data-gateway.js";
-import { createDemoExpansionPort } from "./expansion-policies.js";
-import type { DemoContentRegistry } from "./content-registry.js";
-import { createIntegrationDataLoader, demoProductCatalog } from "./integration/index.js";
+} from "../infrastructure/demo-execution-context.js";
+import { createDemoDataGateway } from "../infrastructure/demo-data-gateway.js";
+import { createDemoExpansionPort } from "../infrastructure/expansion-policies.js";
+import {
+  createIntegrationDataLoader,
+  demoProductCatalog,
+} from "../infrastructure/integration/index.js";
 import {
   createConsoleResolveTrace,
   withLoggingCmsLoader,
   withLoggingExpansionPort,
   withLoggingGateway,
   withLoggingIntegrationLoader,
-} from "./logging/resolve-trace.js";
-import type { Page } from "../domain/index.js";
+} from "../infrastructure/logging/resolve-trace.js";
+import { mapContentMapToPageAggregate } from "../infrastructure/mappers/content-map-to-page-aggregate.mapper.js";
 
 export type ResolveDemoPageSuccess = {
   ok: true;

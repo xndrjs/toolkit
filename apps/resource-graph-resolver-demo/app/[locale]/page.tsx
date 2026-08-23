@@ -6,7 +6,7 @@ import { CopyButton } from "../components/copy-button";
 import { CONTENTFUL_LOCALE_CODES } from "../../src/infrastructure/cms/generated/contentful.schemas";
 import { parseDemoLocaleParam } from "../../src/infrastructure/demo-execution-context";
 import type { IslandCacheSnapshotEntry } from "../../src/infrastructure/cache/index";
-import { resolveDemoPage } from "../../src/infrastructure/resolve-demo-page";
+import { resolveDemoPage } from "../../src/orchestration/resolve-demo-page";
 
 type Props = {
   params: Promise<{ locale: string }>;
