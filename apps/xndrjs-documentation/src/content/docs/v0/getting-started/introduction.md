@@ -89,6 +89,7 @@ See the map on the [homepage](/) for the full package layout.
 
 **Infrastructure**
 
+- `@xndrjs/resource-graph-resolver`: typed content graph resolution from multiple data sources.
 - `@xndrjs/tasks`: lazy async task helpers with retry support and inflight Promise deduplication.
 - `@xndrjs/i18n`: type-safe ICU i18n with codegen, namespaces, and lazy loading.
 - `@xndrjs/i18n-react`: React root and namespace gates for translation readiness.

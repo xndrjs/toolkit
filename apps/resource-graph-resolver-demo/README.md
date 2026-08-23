@@ -10,8 +10,9 @@ Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content 
 app/                          # Next.js UI (split view: aggregate | islands)
 src/
   domain/                     # domain-zod shapes
-  infrastructure/
+  orchestration/
     resolve-demo-page.ts      # shared resolution + trace + aggregation
+  infrastructure/
     cms/                      # CMS source: ARIs, CMA snapshots, codegen, demo store, loader
       schema-fixtures/
         content-types.json    # normalized Contentful CMA snapshot (committed)

@@ -20,6 +20,19 @@ An **Application Resource Identifier** (ARI) has:
 
 Define typed resource families with **`ari(type, ...keyPartSchemas)`** and the key-schema DSL **`s`**. Each factory validates keys on create, exposes **`matches`**, and can **`parseString`** / **`safeParseString`** round-trip instances from `toString()` output.
 
+### Stable identity string
+
+`toString()` returns `"<type>":<json-key-array>` — use it for map keys, cache, dedup, and logs:
+
+```ts
+postCommentsAri.parseString(resource.toString());
+postCommentsAri.safeParseString(wire); // { success, value } | { success, issues }
+```
+
+Untyped helpers: **`stableStringifyResource`**, **`parseStableStringifyResource`**, **`safeParseStableStringifyResource`**.
+
+**Migration:** `defineAri` → **`ari`**, **`format()`** → **`toString()`**.
+
 ### Allowed key parts
 
 Each key part may be:
@@ -122,9 +135,10 @@ export class HttpPostCommentsAdapter {
 
 Exported symbols:
 
-- **`ari`** / **`AriKeySchemaError`** / **`AriParseError`** / **`AriFactory`**
+- **`ari`** / **`AriFactory`** / **`AriKeySchemaError`** / **`AriParseError`**
 - **`s`** / **`safeParse`** / **`InferKeySchema`**
-- **`stableStringifyResource`** / **`parseStableStringifyResource`**
+- **`parseString`** / **`safeParseString`** on factories
+- **`stableStringifyResource`** / **`parseStableStringifyResource`** / **`safeParseStableStringifyResource`**
 - **`omitNullKeyFields`**
 - **`ApplicationResourceIdentifier`**
 - **`ApplicationResourceKey`**

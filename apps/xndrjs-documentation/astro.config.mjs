@@ -83,6 +83,10 @@ export default defineConfig({
               label: "Infrastructure toolkit",
               items: [
                 { label: "Tasks", slug: "v0/infrastructure/tasks" },
+                {
+                  label: "Resource graph resolver",
+                  slug: "v0/infrastructure/resource-graph-resolver",
+                },
                 { label: "Contentful to Zod", slug: "v0/infrastructure/contentful-to-zod" },
                 {
                   label: "i18n",

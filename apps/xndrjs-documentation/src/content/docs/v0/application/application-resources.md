@@ -62,7 +62,41 @@ export type CoreResourceIdentifier =
 Factory helpers:
 
 - **`matches(candidate)`** — type guard when dispatching on an untyped ARI;
-- **`parseString(formatted)`** / **`safeParseString(formatted)`** — rebuild from `toString()` output.
+- **`parseString(formatted)`** — rebuild from `toString()` output (throws on invalid input);
+- **`safeParseString(formatted)`** — same round-trip with structured `{ success, value }` or `{ success, issues }`.
+
+### Stable identity string
+
+`toString()` is the canonical wire form for map keys, cache entries, logs, and dedup. Format:
+
+```
+"<type>":<json-key-array>
+```
+
+Example:
+
+```ts
+const resource = postCommentsAri({ postId: "p1", authorId: "a1" });
+
+resource.toString();
+// "\"post-comments\":[{\"postId\":\"p1\",\"authorId\":\"a1\"}]"
+
+postCommentsAri.parseString(resource.toString()).equals(resource); // true
+
+const parsed = postCommentsAri.safeParseString(resource.toString());
+if (parsed.success) {
+  parsed.value; // ApplicationResourceIdentifier
+}
+```
+
+For untyped parse/build (for example log replay or generic caches), use **`parseStableStringifyResource`** / **`safeParseStableStringifyResource`** and **`stableStringifyResource`**.
+
+:::note[Migration from earlier previews]
+
+- **`defineAri`** → **`ari`**
+- **`format()`** → **`toString()`**
+- Low-level **`ari(type, ...keyParts)`** → **`ari(type, schema)(...keyParts)`**
+  :::
 
 ### Allowed key parts
 
@@ -149,9 +183,10 @@ When an adapter needs a wider cache match (for example an open dimension represe
 
 Exported symbols:
 
-- **`ari`** / **`AriKeySchemaError`** / **`AriParseError`** / **`AriFactory`**
-- **`s`** / **`safeParse`**
-- **`stableStringifyResource`** / **`parseStableStringifyResource`**
+- **`ari`** / **`AriFactory`** / **`AriKeySchemaError`** / **`AriParseError`**
+- **`s`** / **`safeParse`** / **`InferKeySchema`**
+- **`parseString`** / **`safeParseString`** on factories
+- **`stableStringifyResource`** / **`parseStableStringifyResource`** / **`safeParseStableStringifyResource`**
 - **`omitNullKeyFields`**
 - **`ApplicationResourceIdentifier`**
 - **`ApplicationResourceKey`**

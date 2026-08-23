@@ -116,6 +116,8 @@ For a content type `blogPost`, expect:
 | `ContentfulLocaleCodeSchema`, `CONTENTFUL_DEFAULT_LOCALE`             | Locale enum from your space snapshot                                     |
 | `ContentfulContentTypeIdSchema`, `CONTENTFUL_CONTENT_TYPE_IDS`        | Closed set of content type ids from the snapshot                         |
 | `ContentfulEntryByContentType` / `ContentfulEntrySchemaByContentType` | Typed entry map + Zod schemas keyed by content type id (delivery/`both`) |
+| `parseEntryAsLinkField`, `getAllowedEntryLinkContentTypes`            | Typed parse for resolved entry links when CMA declares `linkContentType` |
+| `LINK_FIELDS_BY_CONTENT_TYPE`                                         | Link-field metadata (field id, link type, cardinality) per content type  |
 
 The generator emits two names for the **same** normalization logic:
 
@@ -210,6 +212,47 @@ Overrides apply to the **base field type** `T`. Localized fields wrap `transport
 
 Overrides are inlined at codegen time — the config is not imported at runtime.
 
+## Resolved entry links (`linkContentType`)
+
+Contentful Delivery/Preview JSON exposes entry links as stubs — the target content type is **not** on the wire. The CMA field validation `linkContentType` is the source of truth; codegen reads it from your content-type snapshot (no duplicate config).
+
+When `locale.mode` includes delivery, the generated file exports **`parseEntryAsLinkField`** for fields that declare `linkContentType`:
+
+```ts
+import {
+  BlogPostEntrySchema,
+  parseEntryAsLinkField,
+  getAllowedEntryLinkContentTypes,
+} from "./generated/contentful.schemas";
+
+const post = BlogPostEntrySchema.parse(rawPost);
+const authorLink = post.fields.author; // unresolved link stub
+
+const allowed = getAllowedEntryLinkContentTypes("blogPost", "author");
+const resolvedAuthor = await contentfulClient.getEntry(authorLink!.sys.id);
+const author = parseEntryAsLinkField("blogPost", "author", resolvedAuthor);
+// typed as AuthorEntry when linkContentType is ["author"]
+```
+
+- **Single target** → return type is that `*Entry` type.
+- **Multiple targets** → union of allowed `*Entry` types; narrow with `entry.sys.contentType.sys.id`.
+- Wrong content type → **`LinkFieldTargetError`** with parent field id and allowed targets.
+- Target content types must be present in the same snapshot used for codegen.
+
+### Link-field metadata for expansion
+
+The generated **`LINK_FIELDS_BY_CONTENT_TYPE`** map lists every entry link field (field id, `Entry` vs `Asset`, single vs many). Use it to drive generic link collectors in graph expansion or data loaders without hand-maintaining field lists:
+
+```ts
+import { LINK_FIELDS_BY_CONTENT_TYPE } from "./generated/contentful.schemas";
+
+for (const linkField of LINK_FIELDS_BY_CONTENT_TYPE.menu ?? []) {
+  // { fieldId, linkType, cardinality }
+}
+```
+
+The package also exports **`collectLinkFields`** / **`collectLinkFieldTargets`** for programmatic codegen or tests.
+
 ## Programmatic API
 
 ```ts
@@ -266,4 +309,5 @@ Entry/asset link objects and CMA validations (size, range, regex, etc.) are refl
 ## See also
 
 - [Your CMS schema is lying to TypeScript](/blog/your-cms-schema-is-lying-to-typescript/) — transport vs domain trust
+- [Resource graph resolver](/v0/infrastructure/resource-graph-resolver/) — expansion policies often consume link-field metadata from generated schemas
 - [README in the monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/contentful-to-zod) — CLI details when working on the generator itself
