@@ -5,7 +5,7 @@ description: The @xndrjs/resource-graph-resolver package — typed content graph
 
 `@xndrjs/resource-graph-resolver` resolves a **content resource graph** from a root [Application Resource Identifier](/v0/application/application-resources/) (ARI). It walks child resources discovered by your expansion rules, loads payloads through a pull-based data port, tracks **island** membership and **dependencies**, and returns a typed `ContentMap` you can serialize for cache or map into domain aggregates.
 
-## What is an island?
+### What is an island?
 
 An **island** is a **subgraph of the resolution walk** that has its **own identity** in the graph — a unit you treat as distinct from the island that reached it. You declare that identity in your expansion policy with `isIsland: true` on a resolved resource. That resource’s ARI (`resource.toString()`) becomes the island **id**; every resource reached while expanding from that point — until the next `isIsland` boundary — **belongs** to the same island.
 
@@ -26,25 +26,6 @@ In practice:
 
 Example: a page island may **depend on** `menu` and `footer` islands without **containing** their payloads. The page’s direct dependencies are only its immediate island children; `getFlatDependencies(page)` adds transitive ones when nested islands exist deeper in the graph.
 
-```mermaid
-flowchart TD
-  subgraph pageIsland["page island"]
-    page[page entry]
-    tabs[tabs module]
-  end
-  subgraph menuIsland["menu island"]
-    menu[menu entry]
-    logo[logo asset]
-  end
-  subgraph footerIsland["footer island"]
-    footer[footer entry]
-  end
-  page -->|depends| menuIsland
-  page -->|depends| footerIsland
-  menu -.->|membership| menu
-  logo -.->|membership| logo
-```
-
 Islands let you **name and partition** a large graph by application meaning — what is “the page”, what is “the menu”, what is shared — before you decide how to cache, invalidate, or aggregate each part. The demo app shows one possible downstream use (tiered LRU + manifests); the engine only tracks identity, membership, and dependencies.
 
 The engine is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), `DataResolutionPort`, and `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
@@ -52,6 +33,7 @@ The engine is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` �
 For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app (`src/orchestration/resolve-demo-page.ts` composes loaders, expansion policies, island cache, and domain mappers).
 
 ```mermaid
+%%{init: {'flowchart': {'curve': 'stepAfter'}}}%%
 flowchart TD
   root[Root ARI] --> engine[ResolveContentGraphEngine]
   engine --> expand[ExpansionPort]
@@ -130,19 +112,36 @@ Pass `resolvedResourceCache: Map<ResourceKey, unknown>` to hydrate hits **before
 
 ## DataResolutionPort (pull model)
 
-Loaders implement `process({ take })`. The engine calls `take(accept, limit?)` to select unresolved frontier resources; your adapter batches fetches and returns `Map<ResourceKey, payload>`.
+Loaders implement `process({ take })`. The engine calls **`take(accept, limit?)`** to select unresolved frontier resources in order; your adapter batches fetches and returns `Map<ResourceKey, payload>`.
+
+- **`accept`** — predicate (optionally a type guard via `cmsEntryAri.matches`).
+- **`limit`** (optional) — max resources to pull this round. Omit to take every match.
+- Resources **not** pulled stay on the frontier; the engine expands what it has and calls `process` again — they are not missing errors.
 
 ```ts
-import { createDataResolutionPull, type DataResolutionPort } from "@xndrjs/resource-graph-resolver";
+import type { DataResolutionPort } from "@xndrjs/resource-graph-resolver";
+import { cmsAssetAri, cmsEntryAri } from "./cms/ari";
 
-// Inside your loader:
+const CMS_ENTRY_BATCH_SIZE = 10;
+const CMS_ASSET_BATCH_SIZE = 10;
+
+// Inside your CMS loader (same pattern as the demo):
 async process(pull) {
-  const batch = pull.take((resource) => cmsEntryAri.matches(resource));
-  // fetch batch, return Map<resourceKey, payload>
+  const entryBatch = pull.take(cmsEntryAri.matches, CMS_ENTRY_BATCH_SIZE);
+  const assetBatch = pull.take(cmsAssetAri.matches, CMS_ASSET_BATCH_SIZE);
+
+  const [entries, assets] = await Promise.all([
+    fetchEntries(entryBatch),
+    fetchAssets(assetBatch),
+  ]);
+
+  return mergeMaps(entries, assets);
 }
 ```
 
-Compose multiple sources (CMS + integration API) by merging pull results in one gateway — see the demo's `createDemoDataGateway`.
+One `process` call can invoke `take` multiple times (per source or per resource family). Each `take` removes its batch from the frontier for that round only; if the frontier still has unresolved resources after expand, the engine schedules another round.
+
+Compose multiple sources (CMS + integration API) by merging pull results in one gateway — see the demo's `createDemoDataGateway` and `createCmsDataLoader`.
 
 ## ExpansionPort and policies
 
@@ -173,7 +172,7 @@ export const expansionPort = createExpansionPolicyChain([
 
 When `isIsland: true`, the resource becomes a new island id (`resource.toString()`). The parent island records a **direct dependency** on that child island. Children discovered from the new island inherit its id until another `isIsland` boundary appears.
 
-**Dependencies ≠ membership.** A child island is a dependency of its parent, not necessarily a direct dependency of the page root — but nested islands appear in the transitive flat closure (below). Resources such as a `logo` asset resolved **inside** the menu island are **members** of that island, not separate islands, unless expansion marks them with `isIsland: true`.
+**Dependencies ≠ membership.** A child island is a dependency of its parent, not necessarily a direct dependency of the page root — but nested islands appear in the transitive flat closure (below). Resources resolved **inside** an island are **members** of that island, not separate islands, unless expansion marks them with `isIsland: true`.
 
 ## IslandDependencyMap
 
