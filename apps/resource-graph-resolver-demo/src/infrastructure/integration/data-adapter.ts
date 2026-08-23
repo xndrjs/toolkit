@@ -1,4 +1,4 @@
-import type { DataResolutionPull, ResourceKey } from "@xndrjs/resource-graph-resolver";
+import type { DataResolutionPull, ResolvedResourceRecord } from "@xndrjs/resource-graph-resolver";
 
 import { integrationProductAri, type IntegrationProductResource } from "./ari.js";
 import { demoProductCatalog, type ProductIntegrationSnapshot } from "./catalog.js";
@@ -14,14 +14,10 @@ export const INTEGRATION_BATCH_SIZE = 1;
 export type IntegrationDataLoader = {
   load(
     resources: readonly IntegrationProductResource[]
-  ): Promise<
-    ReadonlyMap<ResourceKey, IntegrationContentRegistry[keyof IntegrationContentRegistry]>
-  >;
+  ): Promise<readonly ResolvedResourceRecord<IntegrationContentRegistry>[]>;
   process(
     pull: DataResolutionPull
-  ): Promise<
-    ReadonlyMap<ResourceKey, IntegrationContentRegistry[keyof IntegrationContentRegistry]>
-  >;
+  ): Promise<readonly ResolvedResourceRecord<IntegrationContentRegistry>[]>;
 };
 
 export function createIntegrationDataLoader(
@@ -42,14 +38,11 @@ export function createIntegrationDataLoader(
 
       const fetched = await mockProductsBySkus(catalog, skus);
 
-      const result = new Map<
-        ResourceKey,
-        IntegrationContentRegistry[keyof IntegrationContentRegistry]
-      >();
+      const result: ResolvedResourceRecord<IntegrationContentRegistry>[] = [];
       for (const resource of productAris) {
         const snapshot = fetched.get(resource.key[0].sku);
         if (snapshot) {
-          result.set(resource.toString(), snapshot);
+          result.push({ resource, payload: snapshot });
         }
       }
 

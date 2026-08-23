@@ -94,16 +94,19 @@ export function createDemoExpansionPort(): ExpansionPort<
   DemoExecutionContext
 > {
   return createExpansionPolicyChain<DemoContentRegistry, DemoExecutionContext>([
-    defineExpansionPolicy({
+    defineExpansionPolicy<
+      ReturnType<typeof cmsEntryAri>,
+      DemoContentRegistry,
+      DemoExecutionContext
+    >({
       for: cmsEntryAri,
       when: ({ resource, executionContext }) => resource.key[0].locale === executionContext.locale,
-      expand: ({ contentMap, resource, executionContext }) => {
-        const entry = contentMap.get(resource);
-        if (entry) {
-          return expandForContentType(entry.sys.contentType.sys.id, entry, executionContext.locale);
-        }
-
-        return EMPTY_EXPANSION;
+      expand: ({ payload, executionContext }) => {
+        return expandForContentType(
+          payload.sys.contentType.sys.id,
+          payload,
+          executionContext.locale
+        );
       },
     }),
   ]);

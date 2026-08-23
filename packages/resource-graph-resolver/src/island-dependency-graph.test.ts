@@ -5,6 +5,7 @@ import { createExpansionPolicyChain, type ExpansionPolicy } from "./expansion-po
 import { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
 import { serializeIsland } from "./serialize-island";
 import { testAri } from "./test-fixtures.js";
+import type { ResolvedResourceRecord } from "./types";
 
 /** Minimal graph: page → menu/footer (islands); menu → logo (island). */
 const page = testAri("page", "P");
@@ -30,11 +31,11 @@ function createInMemoryPort(store: ReadonlyMap<string, unknown> = values): DataR
   return {
     process: vi.fn(async (pull) => {
       const taken = pull.take(() => true);
-      const result = new Map<string, unknown>();
+      const result: ResolvedResourceRecord<Record<string, unknown>>[] = [];
       for (const resource of taken) {
         const key = resource.toString();
         if (store.has(key)) {
-          result.set(key, store.get(key));
+          result.push({ resource, payload: store.get(key) });
         }
       }
       return result;

@@ -1,6 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentRegistry, ResourceKey } from "./types";
+import type { ContentRegistry, ResolvedResourceRecord } from "./types";
 
 /**
  * Pull handle supplied by {@link import("./resolve-content-graph-engine").ResolveContentGraphEngine}
@@ -31,11 +31,11 @@ export interface DataResolutionPull {
  * Omit a pulled resource from the result map after exhausting retries — the engine
  * treats that as a missing resource.
  *
- * Heterogeneous batches are keyed by {@link ResourceKey}; payload typing is
- * enforced when values are written into {@link import("./content-map").ContentMap}.
+ * Each returned record pairs an ARI with its typed payload so the engine can
+ * write into {@link import("./content-map").ContentMap} without unchecked casts.
  */
 export interface DataResolutionPort<R extends ContentRegistry = ContentRegistry> {
-  process(pull: DataResolutionPull): Promise<ReadonlyMap<ResourceKey, R[keyof R]>>;
+  process(pull: DataResolutionPull): Promise<readonly ResolvedResourceRecord<R>[]>;
 }
 
 /**

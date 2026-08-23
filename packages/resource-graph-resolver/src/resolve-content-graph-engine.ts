@@ -2,7 +2,7 @@ import type { ApplicationResourceIdentifier } from "@xndrjs/application-resource
 
 import { ContentMap } from "./content-map";
 import type { DataResolutionPort } from "./data-resolution-port";
-import type { ExpansionPort } from "./expansion-port";
+import type { ExpansionContext, ExpansionPort } from "./expansion-port";
 import { IslandDependencyMap } from "./island-dependency-map";
 import { IslandMap } from "./island-map";
 import type {
@@ -11,6 +11,7 @@ import type {
   ResolutionError,
   ResolveContentGraphInput,
   ResolveContentGraphOutput,
+  ResolvedResourceRecord,
   ResourceKey,
 } from "./types";
 
@@ -144,14 +145,17 @@ export class ResolveContentGraphEngine<
           },
         });
 
+        const resolvedByKey = new Map<ResourceKey, ResolvedResourceRecord<R>>();
+        for (const record of resolved) {
+          resolvedByKey.set(record.resource.toString(), record);
+        }
+
         for (const item of taken) {
           const resourceKey = item.resource.toString();
+          const record = resolvedByKey.get(resourceKey);
 
-          if (resolved.has(resourceKey)) {
-            contentMap.set(
-              item.resource as ApplicationResourceIdentifier<keyof R & string>,
-              resolved.get(resourceKey) as R[keyof R & string]
-            );
+          if (record !== undefined) {
+            contentMap.set(record.resource, record.payload);
             continue;
           }
 
@@ -184,10 +188,10 @@ export class ResolveContentGraphEngine<
 
         const expansion = this.expansionPort.expand({
           resource,
-          contentMap,
+          payload: contentMap.getByKey(resourceKey)!,
           inheritedIslandId,
           executionContext: input.executionContext,
-        });
+        } as ExpansionContext<R, TExecutionContext>);
 
         const islandId = expansion.isIsland ? resourceKey : inheritedIslandId;
 

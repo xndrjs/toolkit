@@ -1,12 +1,7 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type {
-  DataResolutionPort,
-  ExpansionPort,
-  ResourceKey,
-} from "@xndrjs/resource-graph-resolver";
+import type { DataResolutionPort, ExpansionPort } from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri } from "../cms/ari.js";
-import type { CmsContentRegistry } from "../cms/content-registry.js";
 import {
   CMS_ASSET_BATCH_SIZE,
   CMS_ENTRY_BATCH_SIZE,
@@ -86,10 +81,10 @@ export function withLoggingCmsLoader(loader: CmsDataLoader, trace: ResolveTrace)
         loader.loadAssets(assetBatch),
       ]);
 
-      trace.logLoad("cms.entries", entryBatch.length, entryResult.size);
-      trace.logLoad("cms.assets", assetBatch.length, assetResult.size);
+      trace.logLoad("cms.entries", entryBatch.length, entryResult.length);
+      trace.logLoad("cms.assets", assetBatch.length, assetResult.length);
 
-      return mergeCmsResults(entryResult, assetResult);
+      return [...entryResult, ...assetResult];
     },
   };
 }
@@ -106,7 +101,7 @@ export function withLoggingIntegrationLoader(
       trace.logPull("integration.products", batch, INTEGRATION_BATCH_SIZE);
 
       const result = await loader.load(batch);
-      trace.logLoad("integration.products", batch.length, result.size);
+      trace.logLoad("integration.products", batch.length, result.length);
       return result;
     },
   };
@@ -135,16 +130,4 @@ export function withLoggingExpansionPort(
       return result;
     },
   };
-}
-
-function mergeCmsResults(
-  ...maps: ReadonlyMap<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>[]
-): ReadonlyMap<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]> {
-  const merged = new Map<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>();
-  for (const map of maps) {
-    for (const [key, value] of map) {
-      merged.set(key, value);
-    }
-  }
-  return merged;
 }

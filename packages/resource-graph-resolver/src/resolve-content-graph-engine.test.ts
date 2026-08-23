@@ -6,6 +6,7 @@ import { createExpansionPolicyChain, type ExpansionPolicy } from "./expansion-po
 import { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
 import { serializeIsland } from "./serialize-island";
 import { testAri } from "./test-fixtures.js";
+import type { ResolvedResourceRecord } from "./types";
 
 const page = testAri("page", "P");
 const hero = testAri("hero", "H");
@@ -41,11 +42,11 @@ function createInMemoryPort(store: ReadonlyMap<string, unknown> = values): DataR
     process: vi.fn(async (pull) => {
       const taken = pull.take(() => true);
       takenBatches.push(taken);
-      const result = new Map<string, unknown>();
+      const result: ResolvedResourceRecord<Record<string, unknown>>[] = [];
       for (const resource of taken) {
         const key = resource.toString();
         if (store.has(key)) {
-          result.set(key, store.get(key));
+          result.push({ resource, payload: store.get(key) });
         }
       }
       return result;
@@ -145,11 +146,11 @@ describe("ResolveContentGraphEngine", () => {
         const taken = pull.take(() => true, 1);
         takenBatches.push(taken);
 
-        const result = new Map<string, unknown>();
+        const result: ResolvedResourceRecord<Record<string, unknown>>[] = [];
         for (const resource of taken) {
           const key = resource.toString();
           if (store.has(key)) {
-            result.set(key, store.get(key));
+            result.push({ resource, payload: store.get(key) });
           }
         }
         return result;
@@ -194,11 +195,11 @@ describe("ResolveContentGraphEngine", () => {
       process: vi.fn(async (pull) => {
         const taken = pull.take(() => true);
         dataPort.takenBatches.push(taken);
-        const result = new Map<string, CycleRegistry["node"]>();
+        const result: ResolvedResourceRecord<CycleRegistry>[] = [];
         for (const resource of taken) {
           const key = resource.toString();
           if (store.has(key)) {
-            result.set(key, store.get(key)!);
+            result.push({ resource, payload: store.get(key)! });
           }
         }
         return result;
@@ -213,9 +214,9 @@ describe("ResolveContentGraphEngine", () => {
       createExpansionPolicyChain<CycleRegistry>([
         {
           matches: () => true,
-          expand: ({ resource, contentMap }) => {
-            const value = contentMap.get(resource as ApplicationResourceIdentifier<"node">);
-            const childKey = value?.next;
+          expand: ({ resource, payload }) => {
+            const value = payload as CycleRegistry["node"];
+            const childKey = value.next;
             if (childKey === b.toString()) {
               return { resources: [b] };
             }
@@ -440,7 +441,7 @@ describe("ResolveContentGraphEngine", () => {
   it("throws when a port accepts no ARIs while unresolved work remains", async () => {
     const process = vi.fn(async (pull) => {
       expect(pull.take(() => false)).toEqual([]);
-      return new Map();
+      return [];
     });
 
     const engine = new ResolveContentGraphEngine(
@@ -475,18 +476,18 @@ describe("ResolveContentGraphEngine", () => {
         round += 1;
         if (round === 1) {
           const taken = pull.take(() => true);
-          const result = new Map<string, unknown>();
+          const result: ResolvedResourceRecord<Record<string, unknown>>[] = [];
           for (const resource of taken) {
             const key = resource.toString();
             if (store.has(key)) {
-              result.set(key, store.get(key));
+              result.push({ resource, payload: store.get(key) });
             }
           }
           return result;
         }
 
         expect(pull.take(() => false)).toEqual([]);
-        return new Map();
+        return [];
       },
     };
 
@@ -531,11 +532,11 @@ describe("ResolveContentGraphEngine", () => {
       async process(pull) {
         const taken = pull.take(() => true, 1);
         takenBatches.push(taken);
-        const result = new Map<string, unknown>();
+        const result: ResolvedResourceRecord<Record<string, unknown>>[] = [];
         for (const resource of taken) {
           const key = resource.toString();
           if (store.has(key)) {
-            result.set(key, store.get(key));
+            result.push({ resource, payload: store.get(key) });
           }
         }
         return result;

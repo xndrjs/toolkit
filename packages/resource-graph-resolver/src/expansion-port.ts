@@ -1,7 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentMap } from "./content-map";
-import type { ContentRegistry, IslandId } from "./types";
+import type { ContentRegistry, IslandId, RegistryPayloadFor } from "./types";
 
 export interface ExpansionContext<
   R extends ContentRegistry = ContentRegistry,
@@ -9,7 +8,8 @@ export interface ExpansionContext<
   Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
 > {
   resource: Resource;
-  contentMap: ContentMap<R>;
+  /** Resolved payload for {@link resource} — policies must not observe other nodes. */
+  payload: RegistryPayloadFor<R, Resource>;
   /**
    * Island inherited from the parent.
    * The resource's effective island may change when {@link ExpansionResult.isIsland} is true.
@@ -63,9 +63,9 @@ export interface ExpansionPolicy<
  * - `expand` — child discovery for matched resources
  */
 export function defineExpansionPolicy<
-  TExecutionContext = unknown,
+  Resource extends ApplicationResourceIdentifier,
   R extends ContentRegistry = ContentRegistry,
-  Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
+  TExecutionContext = unknown,
 >(policy: {
   for: ExpansionResourceFor<Resource>;
   when?: (context: ExpansionContext<R, TExecutionContext, Resource>) => boolean;

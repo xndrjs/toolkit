@@ -7,6 +7,20 @@ import type { IslandMap } from "./island-map";
 /** Stable string key for a resource, produced by `resource.toString()`. */
 export type ResourceKey = string;
 
+/** Payload shape for a narrowed ARI within a project {@link ContentRegistry}. */
+export type RegistryPayloadFor<
+  R extends ContentRegistry,
+  Resource extends ApplicationResourceIdentifier,
+> = Resource extends ApplicationResourceIdentifier<infer T extends keyof R & string> ? R[T] : never;
+
+/** One loaded resource with correlated ARI and payload — returned by {@link import("./data-resolution-port").DataResolutionPort}. */
+export type ResolvedResourceRecord<R extends ContentRegistry> = {
+  [T in keyof R & string]: {
+    resource: ApplicationResourceIdentifier<T>;
+    payload: R[T];
+  };
+}[keyof R & string];
+
 /** Stable island identifier; equal to the root resource's {@link ResourceKey}. */
 export type IslandId = string;
 

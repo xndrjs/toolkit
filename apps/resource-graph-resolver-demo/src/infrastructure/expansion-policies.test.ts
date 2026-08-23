@@ -1,4 +1,8 @@
-import { ContentMap, ResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
+import {
+  ResolveContentGraphEngine,
+  defineExpansionPolicy,
+  type ExpansionContext,
+} from "@xndrjs/resource-graph-resolver";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
@@ -32,20 +36,19 @@ import {
   integrationProductAri,
   tshirtIntegrationAri,
 } from "./integration/index.js";
+import type { IntegrationProductResource } from "./integration/ari.js";
 
 function expandEntry(
   resource: CmsEntryResource,
   entry: ContentfulResolvedEntry,
   executionContext: DemoExecutionContext = createDefaultDemoExecutionContext()
 ) {
-  const contentMap = new ContentMap<DemoContentRegistry>();
-  contentMap.set(resource, entry);
   return createDemoExpansionPort().expand({
     resource,
-    contentMap,
+    payload: entry,
     inheritedIslandId: resource.toString(),
     executionContext,
-  });
+  } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
 }
 
 function createDemoGateway() {
@@ -122,33 +125,30 @@ describe("createDemoExpansionPort", () => {
 
   it("when requires executionContext.locale to match the cms.entry ARI locale", () => {
     const product = demoCmsStore.entries.get(demoIds.product)!;
-    const contentMap = new ContentMap<DemoContentRegistry>();
-    contentMap.set(productEntryAri, product);
 
     const matched = createDemoExpansionPort().expand({
       resource: productEntryAri,
-      contentMap,
+      payload: product,
       inheritedIslandId: productEntryAri.toString(),
       executionContext: createDefaultDemoExecutionContext("en-US"),
-    });
+    } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
     expect(matched.resources.map((r) => r.toString())).toEqual([tshirtIntegrationAri.toString()]);
 
     const localeMismatch = createDemoExpansionPort().expand({
       resource: productEntryAri,
-      contentMap,
+      payload: product,
       inheritedIslandId: productEntryAri.toString(),
       executionContext: createDefaultDemoExecutionContext("it-IT"),
-    });
+    } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
     expect(localeMismatch.resources).toEqual([]);
 
     const italianProduct = cmsEntryAri({ id: demoIds.product, locale: "it-IT" });
-    contentMap.set(italianProduct, product);
     const italianMatched = createDemoExpansionPort().expand({
       resource: italianProduct,
-      contentMap,
+      payload: product,
       inheritedIslandId: italianProduct.toString(),
       executionContext: createDefaultDemoExecutionContext("it-IT"),
-    });
+    } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
     expect(italianMatched.resources.map((r) => r.toString())).toEqual([
       integrationProductAri({ sku: "TSHIRT-1", locale: "it-IT" }).toString(),
     ]);
@@ -157,32 +157,28 @@ describe("createDemoExpansionPort", () => {
   });
 
   it("returns no children for assets and integration products", () => {
-    const contentMap = new ContentMap<DemoContentRegistry>();
     const asset = demoCmsStore.assets.get(demoIds.logo)!;
-    contentMap.set(logoAssetAri, asset);
-    contentMap.set(tshirtIntegrationAri, {
-      price: { amount: 1999, currency: "EUR" },
-      inStock: true,
-    });
-
     const executionContext = createDefaultDemoExecutionContext();
 
     expect(
       createDemoExpansionPort().expand({
         resource: logoAssetAri,
-        contentMap,
+        payload: asset,
         inheritedIslandId: logoAssetAri.toString(),
         executionContext,
-      })
+      } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsAssetResource>)
     ).toEqual({ resources: [] });
 
     expect(
       createDemoExpansionPort().expand({
         resource: tshirtIntegrationAri,
-        contentMap,
+        payload: {
+          price: { amount: 1999, currency: "EUR" },
+          inStock: true,
+        },
         inheritedIslandId: tshirtIntegrationAri.toString(),
         executionContext,
-      })
+      } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, IntegrationProductResource>)
     ).toEqual({ resources: [] });
   });
 
@@ -190,6 +186,15 @@ describe("createDemoExpansionPort", () => {
     const executionContext = createDefaultDemoExecutionContext();
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
     const engine = new ResolveContentGraphEngine(createDemoGateway(), createDemoExpansionPort());
+
+    defineExpansionPolicy<ReturnType<typeof cmsEntryAri>, DemoContentRegistry>({
+      for: cmsEntryAri,
+      expand: ({ resource, payload }) => {
+        expectTypeOf(resource).toEqualTypeOf<CmsEntryResource>();
+        expectTypeOf(payload).toEqualTypeOf<ContentfulResolvedEntry>();
+        return { resources: [] };
+      },
+    });
 
     const output = await engine.execute({
       root: pageRoot,

@@ -1,24 +1,25 @@
-import { describe, expect, it } from "vitest";
-
 import { createDataResolutionPull, type DataResolutionPort } from "./data-resolution-port";
 import { testAri } from "./test-fixtures.js";
+import type { ResolvedResourceRecord } from "./types";
+import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 describe("DataResolutionPort", () => {
-  it("process pulls matching resources and returns a map keyed by resource.toString()", async () => {
+  it("process pulls matching resources and returns correlated records", async () => {
     const page = testAri("page", "P");
     const asset = testAri("asset", "A");
     const missing = testAri("menu", "M");
 
     const port: DataResolutionPort = {
       async process(pull) {
-        const values = new Map<string, unknown>();
+        const records: ResolvedResourceRecord<Record<string, unknown>>[] = [];
         for (const resource of pull.take(() => true)) {
           if (resource.equals(missing)) {
             continue;
           }
-          values.set(resource.toString(), { type: resource.type });
+          records.push({ resource, payload: { type: resource.type } });
         }
-        return values;
+        return records;
       },
     };
 
@@ -26,10 +27,23 @@ describe("DataResolutionPort", () => {
     const result = await port.process(createDataResolutionPull(remaining));
 
     expect(remaining).toEqual([]);
-    expect(result.size).toBe(2);
-    expect(result.get(page.toString())).toEqual({ type: "page" });
-    expect(result.get(asset.toString())).toEqual({ type: "asset" });
-    expect(result.has(missing.toString())).toBe(false);
+    expect(result).toHaveLength(2);
+    expect(result).toEqual(
+      expect.arrayContaining([
+        { resource: page, payload: { type: "page" } },
+        { resource: asset, payload: { type: "asset" } },
+      ])
+    );
+  });
+
+  it("types correlated records in port results", () => {
+    type TestRegistry = { page: { title: string }; asset: { url: string } };
+    type PageRecord = Extract<
+      ResolvedResourceRecord<TestRegistry>,
+      { resource: ApplicationResourceIdentifier<"page"> }
+    >;
+
+    expectTypeOf<PageRecord["payload"]>().toEqualTypeOf<{ title: string }>();
   });
 
   it("take leaves non-accepted resources for a later call", async () => {

@@ -92,17 +92,19 @@ describe("source-qualified ARI store + data gateway", () => {
     const result = await gateway.process(createDataResolutionPull(remaining));
 
     expect(remaining).toEqual([]);
-    expect(result.size).toBe(4);
-    expect(result.has(pageEntryAri.toString())).toBe(true);
-    expect(result.has(logoAssetAri.toString())).toBe(true);
-    expect(result.has(menuEntryAri.toString())).toBe(true);
-    expect(result.has(tshirtIntegrationAri.toString())).toBe(true);
-    expect(result.has(missing.toString())).toBe(false);
+    expect(result).toHaveLength(4);
+    expect(result.some((record) => record.resource.equals(pageEntryAri))).toBe(true);
+    expect(result.some((record) => record.resource.equals(logoAssetAri))).toBe(true);
+    expect(result.some((record) => record.resource.equals(menuEntryAri))).toBe(true);
+    expect(result.some((record) => record.resource.equals(tshirtIntegrationAri))).toBe(true);
+    expect(result.some((record) => record.resource.equals(missing))).toBe(false);
 
-    const asset = result.get(logoAssetAri.toString()) as ContentfulAsset;
-    expect(asset.fields.file?.url).toBe("https://cdn.example.com/logo.svg");
+    const asset = result.find((record) => record.resource.equals(logoAssetAri))?.payload;
+    expect((asset as ContentfulAsset).fields.file?.url).toBe("https://cdn.example.com/logo.svg");
 
-    const commercial = result.get(tshirtIntegrationAri.toString()) as ProductIntegrationSnapshot;
+    const commercial = result.find((record) =>
+      record.resource.equals(tshirtIntegrationAri)
+    )?.payload;
     expect(commercial).toEqual({
       price: { amount: 1999, currency: "EUR" },
       inStock: true,
@@ -116,7 +118,7 @@ describe("source-qualified ARI store + data gateway", () => {
       cms.loadAssets([logoAssetAri]),
     ]);
 
-    expect([...entries.keys(), ...assets.keys()].sort()).toEqual(
+    expect([...entries, ...assets].map((record) => record.resource.toString()).sort()).toEqual(
       [
         pageEntryAri.toString(),
         heroEntryAri.toString(),
@@ -130,7 +132,7 @@ describe("source-qualified ARI store + data gateway", () => {
     const integration = createIntegrationDataLoader();
     const result = await integration.load([tshirtIntegrationAri]);
 
-    expect(result.get(tshirtIntegrationAri.toString())).toEqual({
+    expect(result.find((record) => record.resource.equals(tshirtIntegrationAri))?.payload).toEqual({
       price: { amount: 1999, currency: "EUR" },
       inStock: true,
     });

@@ -1,12 +1,8 @@
-import type { DataResolutionPull, ResourceKey } from "@xndrjs/resource-graph-resolver";
+import type { DataResolutionPull, ResolvedResourceRecord } from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
 import type { CmsContentRegistry } from "./content-registry.js";
-import type {
-  ContentfulAsset,
-  ContentfulLocaleCode,
-  ContentfulResolvedEntry,
-} from "./generated/contentful.schemas.js";
+import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
 
 const CMS_ENTRY_BATCH_SIZE = 10;
 const CMS_ASSET_BATCH_SIZE = 10;
@@ -26,27 +22,25 @@ export type CmsFixtureStore = {
 export type CmsDataLoader = {
   loadEntries(
     resources: readonly CmsEntryResource[]
-  ): Promise<ReadonlyMap<ResourceKey, ContentfulResolvedEntry>>;
+  ): Promise<readonly ResolvedResourceRecord<CmsContentRegistry>[]>;
   loadAssets(
     resources: readonly CmsAssetResource[]
-  ): Promise<ReadonlyMap<ResourceKey, ContentfulAsset>>;
-  process(
-    pull: DataResolutionPull
-  ): Promise<ReadonlyMap<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>>;
+  ): Promise<readonly ResolvedResourceRecord<CmsContentRegistry>[]>;
+  process(pull: DataResolutionPull): Promise<readonly ResolvedResourceRecord<CmsContentRegistry>[]>;
 };
 
 export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
   return {
     async loadEntries(resources) {
-      const ids = uniqueIds(resources);
+      const ids = uniqueEntryIds(resources);
       const fetched = await mockContentfulEntriesByIds(store.entries, ids);
-      return mapDemoCmsBatch(resources, fetched);
+      return mapDemoEntryBatch(resources, fetched);
     },
 
     async loadAssets(resources) {
-      const ids = uniqueIds(resources);
+      const ids = uniqueAssetIds(resources);
       const fetched = await mockContentfulAssetsByIds(store.assets, ids);
-      return mapDemoCmsBatch(resources, fetched);
+      return mapDemoAssetBatch(resources, fetched);
     },
 
     async process(pull) {
@@ -58,45 +52,47 @@ export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
         this.loadAssets(assetBatch),
       ]);
 
-      return mergeCmsResults(entryResult, assetResult);
+      return [...entryResult, ...assetResult];
     },
   };
 }
 
-type CmsResourceWithId = {
-  toString(): string;
-  key: readonly [{ id: string; locale: ContentfulLocaleCode }];
-};
-
-/** Demo helper: map in-memory store rows back to ARI keys. */
-function mapDemoCmsBatch<T>(
-  resources: readonly CmsResourceWithId[],
-  fetched: ReadonlyMap<string, T>
-): Map<ResourceKey, T> {
-  const result = new Map<ResourceKey, T>();
+/** Demo helper: map in-memory store rows back to correlated cms.entry records. */
+function mapDemoEntryBatch(
+  resources: readonly CmsEntryResource[],
+  fetched: ReadonlyMap<string, ContentfulResolvedEntry>
+): ResolvedResourceRecord<CmsContentRegistry>[] {
+  const result: ResolvedResourceRecord<CmsContentRegistry>[] = [];
   for (const resource of resources) {
     const value = fetched.get(resource.key[0].id);
     if (value) {
-      result.set(resource.toString(), value);
+      result.push({ resource, payload: value });
     }
   }
   return result;
 }
 
-function uniqueIds(resources: readonly CmsResourceWithId[]): string[] {
+/** Demo helper: map in-memory store rows back to correlated cms.asset records. */
+function mapDemoAssetBatch(
+  resources: readonly CmsAssetResource[],
+  fetched: ReadonlyMap<string, ContentfulAsset>
+): ResolvedResourceRecord<CmsContentRegistry>[] {
+  const result: ResolvedResourceRecord<CmsContentRegistry>[] = [];
+  for (const resource of resources) {
+    const value = fetched.get(resource.key[0].id);
+    if (value) {
+      result.push({ resource, payload: value });
+    }
+  }
+  return result;
+}
+
+function uniqueEntryIds(resources: readonly CmsEntryResource[]): string[] {
   return [...new Set(resources.map((resource) => resource.key[0].id))];
 }
 
-function mergeCmsResults(
-  ...maps: ReadonlyMap<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>[]
-): Map<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]> {
-  const merged = new Map<ResourceKey, CmsContentRegistry[keyof CmsContentRegistry]>();
-  for (const map of maps) {
-    for (const [key, value] of map) {
-      merged.set(key, value);
-    }
-  }
-  return merged;
+function uniqueAssetIds(resources: readonly CmsAssetResource[]): string[] {
+  return [...new Set(resources.map((resource) => resource.key[0].id))];
 }
 
 /** Simulates `GET /entries?sys.id[in]=id1,id2,…` against an in-memory entry map. */

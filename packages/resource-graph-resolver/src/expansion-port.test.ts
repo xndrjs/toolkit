@@ -1,7 +1,6 @@
 import { ari, s, type ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { ContentMap } from "./content-map";
 import {
   createExpansionPolicyChain,
   defineExpansionPolicy,
@@ -13,12 +12,27 @@ import type { ContentRegistry } from "./types";
 
 const menuAri = ari("menu", s.object({ id: s.string() }));
 
+type MenuRegistry = ContentRegistry & { menu: { kind?: string } };
+
 function createContext(
-  resource: ApplicationResourceIdentifier = testAri("page", "P")
+  resource: ApplicationResourceIdentifier = testAri("page", "P"),
+  payload: unknown = {}
 ): ExpansionContext<ContentRegistry, { locale: string }> {
   return {
     resource,
-    contentMap: new ContentMap(),
+    payload: payload as ContentRegistry[keyof ContentRegistry],
+    inheritedIslandId: resource.toString(),
+    executionContext: { locale: "en" },
+  };
+}
+
+function createMenuContext(
+  resource: ReturnType<typeof menuAri>,
+  payload: MenuRegistry["menu"]
+): ExpansionContext<MenuRegistry, { locale: string }, ReturnType<typeof menuAri>> {
+  return {
+    resource,
+    payload,
     inheritedIslandId: resource.toString(),
     executionContext: { locale: "en" },
   };
@@ -82,18 +96,19 @@ describe("createExpansionPolicyChain", () => {
 });
 
 describe("defineExpansionPolicy", () => {
-  it("narrows resource in expand from `for`", () => {
-    const policy = defineExpansionPolicy({
+  it("narrows resource and payload in expand from `for`", () => {
+    const policy = defineExpansionPolicy<ReturnType<typeof menuAri>, MenuRegistry>({
       for: menuAri,
-      expand: ({ resource }) => {
+      expand: ({ resource, payload }) => {
         expectTypeOf(resource.type).toEqualTypeOf<"menu">();
+        expectTypeOf(payload).toEqualTypeOf<{ kind?: string }>();
         expect(resource.type).toBe("menu");
         return { resources: [], isIsland: true };
       },
     });
 
-    const port = createExpansionPolicyChain([policy]);
-    expect(port.expand(createContext(menuAri({ id: "M" })))).toEqual({
+    const port = createExpansionPolicyChain<MenuRegistry>([policy]);
+    expect(port.expand(createMenuContext(menuAri({ id: "M" }), { kind: "main" }))).toEqual({
       resources: [],
       isIsland: true,
     });
@@ -146,23 +161,14 @@ describe("defineExpansionPolicy", () => {
   });
 
   it("refines on narrowed resource payload in `when`", () => {
-    const contentMap = new ContentMap<ContentRegistry>();
-    contentMap.set(menuAri({ id: "M" }), { kind: "main" });
-
-    const policy = defineExpansionPolicy({
+    const policy = defineExpansionPolicy<ReturnType<typeof menuAri>, MenuRegistry>({
       for: menuAri,
-      when: ({ contentMap, resource }) =>
-        (contentMap.get(resource) as { kind?: string } | undefined)?.kind === "main",
+      when: ({ payload }) => payload.kind === "main",
       expand: () => ({ resources: [], isIsland: true }),
     });
 
-    const port = createExpansionPolicyChain([policy]);
-    expect(
-      port.expand({
-        ...createContext(menuAri({ id: "M" })),
-        contentMap,
-      })
-    ).toEqual({
+    const port = createExpansionPolicyChain<MenuRegistry>([policy]);
+    expect(port.expand(createMenuContext(menuAri({ id: "M" }), { kind: "main" }))).toEqual({
       resources: [],
       isIsland: true,
     });

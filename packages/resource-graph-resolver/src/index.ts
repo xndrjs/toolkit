@@ -25,9 +25,11 @@ export type {
   ContentRegistry,
   IslandId,
   MissingResourceMode,
+  RegistryPayloadFor,
   ResolutionError,
   ResolveContentGraphInput,
   ResolveContentGraphOutput,
+  ResolvedResourceRecord,
   ResourceKey,
   SerializedIsland,
 } from "./types";

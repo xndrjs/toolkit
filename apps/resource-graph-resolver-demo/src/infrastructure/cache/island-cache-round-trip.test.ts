@@ -25,7 +25,7 @@ function createCountingGateway(inner: DataResolutionPort<DemoContentRegistry>): 
     port: {
       async process(pull) {
         const result = await inner.process(pull);
-        pulledResourceCount += result.size;
+        pulledResourceCount += result.length;
         return result;
       },
     },
