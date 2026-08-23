@@ -8,8 +8,8 @@ import type {
   ContentfulResolvedEntry,
 } from "./generated/contentful.schemas.js";
 
-const CMS_ENTRY_BATCH_SIZE = 5;
-const CMS_ASSET_BATCH_SIZE = 5;
+const CMS_ENTRY_BATCH_SIZE = 10;
+const CMS_ASSET_BATCH_SIZE = 10;
 
 export { CMS_ENTRY_BATCH_SIZE, CMS_ASSET_BATCH_SIZE };
 

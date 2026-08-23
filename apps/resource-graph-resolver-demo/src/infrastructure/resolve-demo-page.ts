@@ -110,9 +110,11 @@ export async function resolveDemoPage(
     root: pageRoot,
     locale: executionContext.locale,
   });
+
   const serializedIslands = serializeAllIslands(output);
   persistResolvedIslands(serializedIslands, lruIslandCache, {
     rootIslandId: pageRoot.toString(),
+    islandDependencies: output.islandDependencies,
   });
 
   return {

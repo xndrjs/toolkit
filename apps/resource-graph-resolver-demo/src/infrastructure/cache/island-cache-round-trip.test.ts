@@ -61,6 +61,7 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
   const promotedResourceCount = backingResourceCount - resolvedResourceCache.size;
   persistResolvedIslands(serializeAllIslands(output), cache, {
     rootIslandId: pageRoot.toString(),
+    islandDependencies: output.islandDependencies,
   });
 
   return {

@@ -48,6 +48,7 @@ export function loadBackingForRoot(
     pageStatus === "hit" && pageIsland
       ? { dependencies: pageIsland.dependencies }
       : cache.getDependencyManifest(pageIslandId);
+
   const manifestHitStatus = manifestStatus(manifest);
 
   if (pageStatus !== "hit" && manifestHitStatus !== "hit") {

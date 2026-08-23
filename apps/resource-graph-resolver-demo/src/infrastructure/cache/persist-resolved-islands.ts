@@ -1,4 +1,8 @@
-import type { IslandId, SerializedIsland } from "@xndrjs/resource-graph-resolver";
+import type {
+  IslandDependencyMap,
+  IslandId,
+  SerializedIsland,
+} from "@xndrjs/resource-graph-resolver";
 
 import type { IslandCachePort } from "./island-cache-port.js";
 import {
@@ -9,6 +13,7 @@ import {
 
 export type PersistResolvedIslandsOptions = {
   rootIslandId: IslandId;
+  islandDependencies: IslandDependencyMap;
   pageTtlMs?: number;
   dependencyTtlMs?: number;
   manifestTtlMs?: number;
@@ -39,7 +44,7 @@ export function persistResolvedIslands(
         {
           schemaVersion: 1,
           islandId: island.islandId,
-          dependencies: [...island.dependencies],
+          dependencies: [...options.islandDependencies.getFlatDependencies(island.islandId)],
         },
         manifestTtlMs
       );

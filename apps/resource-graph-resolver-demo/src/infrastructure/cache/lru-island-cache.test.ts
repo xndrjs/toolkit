@@ -1,4 +1,5 @@
 import type { SerializedIsland } from "@xndrjs/resource-graph-resolver";
+import { IslandDependencyMap } from "@xndrjs/resource-graph-resolver";
 import { describe, expect, it } from "vitest";
 
 import { loadBackingForRoot } from "./load-backing-for-root.js";
@@ -26,6 +27,16 @@ function island(
     dependencies: options.dependencies ?? [],
     resources: options.resources ?? { [islandId]: { id: islandId } },
   };
+}
+
+function dependencyMap(entries: Record<string, readonly string[]>): IslandDependencyMap {
+  const map = new IslandDependencyMap();
+  for (const [islandId, dependencyIds] of Object.entries(entries)) {
+    for (const dependencyId of dependencyIds) {
+      map.add(islandId, dependencyId);
+    }
+  }
+  return map;
 }
 
 describe("LruIslandCache", () => {
@@ -115,7 +126,10 @@ describe("persistResolvedIslands", () => {
     persistResolvedIslands(
       [island("page", "complete", { dependencies: ["menu"] }), island("menu", "partial")],
       cache,
-      { rootIslandId: "page" }
+      {
+        rootIslandId: "page",
+        islandDependencies: dependencyMap({ page: ["menu"] }),
+      }
     );
 
     expect(cache.getIsland("page")).toBeDefined();
@@ -131,6 +145,35 @@ describe("persistResolvedIslands", () => {
     expect(cache.getDependencyManifest("page")).toBeDefined();
   });
 
+  it("stores flat transitive dependencies in the page manifest", () => {
+    const cache = new LruIslandCache();
+    const pageDeps = dependencyMap({
+      page: ["menu", "footer"],
+      menu: ["logo"],
+      footer: ["logo"],
+    });
+
+    persistResolvedIslands(
+      [
+        island("page", "complete", { dependencies: ["menu", "footer"] }),
+        island("menu", "complete"),
+        island("footer", "complete"),
+        island("logo", "complete"),
+      ],
+      cache,
+      {
+        rootIslandId: "page",
+        islandDependencies: pageDeps,
+      }
+    );
+
+    expect(cache.getDependencyManifest("page")).toEqual({
+      schemaVersion: 1,
+      islandId: "page",
+      dependencies: ["footer", "logo", "menu"],
+    });
+  });
+
   it("uses long TTL for non-root dependency islands", () => {
     let now = 0;
     const cache = new LruIslandCache({ now: () => now });
@@ -141,7 +184,10 @@ describe("persistResolvedIslands", () => {
         island("menu", "complete", { resources: { menu: { t: "menu" } } }),
       ],
       cache,
-      { rootIslandId: "page" }
+      {
+        rootIslandId: "page",
+        islandDependencies: dependencyMap({ page: ["menu"] }),
+      }
     );
 
     now = DEFAULT_PAGE_ISLAND_TTL_MS + 1;
@@ -229,7 +275,10 @@ describe("loadBackingForRoot", () => {
         island("menu", "complete", { resources: { menu: { t: "menu" } } }),
       ],
       cache,
-      { rootIslandId: "page" }
+      {
+        rootIslandId: "page",
+        islandDependencies: dependencyMap({ page: ["menu"] }),
+      }
     );
 
     now = DEFAULT_PAGE_ISLAND_TTL_MS + 1;
