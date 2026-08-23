@@ -214,17 +214,89 @@ The frontend framework is the **last** layer — not the place where the graph i
 
 ## Where we're heading
 
-What we need in this kind of projects is a **content graph resolver**:
+What we need in this kind of project is a **content graph resolver**:
 
 - walk from a root [Application Resource Identifier](/v0/application/application-resources/)
 - discover children via an **expansion port** (content-type rules, integration edges — your policy, not the framework's)
-- load through a **pull-based data port** (`take(accept, limit?)`) — the engine hands adapters the unresolved **frontier**; each adapter chooses how much to pull per round, because **batch size and rate limits belong to the service** (Contentful entry batching, asset batches, commerce API caps), not to a generic resolution engine. The engine walks and expands; infrastructure loaders saturate their backends on their own terms
-- partition the graph into **"islands"**: subgraphs of resources that have their own identity or lifecycle (i.e. page body vs. shared menu vs. reusable slice)
-- materialize a typed **`ContentMap`** and optional serialized islands for caching purposes
+- load through a **pull-based data port** so adapters can **saturate each backend per round** and keep round-trips low, without vendor batch limits leaking into orchestration
+- partition the graph into **islands** — subgraphs with their own identity or lifecycle (page body vs. shared menu vs. reusable slice)
+- materialize a typed **`ContentMap`** and optional serialized islands for caching
 
 That is [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/). The [demo app](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) wires Contentful-shaped fixtures, integration products, tiered island cache, and domain mapping — without putting the walk inside React.
 
-The sections that follow in this article go through that design in detail: expansion policies, batched pulls, islands vs. dependencies, and how the same orchestration runs whether the caller is a Next page, a CLI, or a future backend service.
+---
+
+## How the engine resolves a graph
+
+### Application Resource Identifiers — recap and how we use them here
+
+An [Application Resource Identifier](/v0/application/application-resources/) (ARI) names **one logical resource**: a stable `type` (for example `cms.entry`, `cms.asset`, `integration.product`) plus structural **key parts** (page id and locale, SKU, …). Instances expose a canonical `toString()` for map keys and cache entries.
+
+**Application** here means _a resource belonging to the app_ — not the Clean Architecture "application layer". The same mechanism — typed `type` plus key parts — can live in different layers with different rules:
+
+- **Infrastructure ARIs** name _where_ data lives: `cms.entry`, `integration.product`, a blob store, …. Source in the `type` is expected. This is low-level orchestration vocabulary, not business meaning.
+- **Application-layer ARIs** should stay **vendor- and storage-agnostic** and speak the **language of the business** — "this page aggregate", "this product listing scope", not "this Contentful entry id".
+
+Both are resource identifiers; each respects the constraints and vocabulary of the layer it belongs to: **infrastructure resources** vs **business resources**.
+
+Resolving data from multiple backends means **knowing the infrastructure split** long enough to load and walk the graph — then **mapping into domain models** that do not care whether news came from Contentful or an internal API. That is why the graph resolver works with ARIs that openly distinguish CMS from integration: so **domain can stay blind** to that low-level partition. The engine coordinates loading across sources; the domain layer receives **trusted aggregates** built from infrastructure-level shapes — not vendor entry ids, fetch URLs, or transport payloads.
+
+In the end, an ARI is a **value object** for an **addressable resource**: identity you can pass around, cache on, and compare — while the loading mechanics stay behind adapters.
+
+### The loop
+
+Conceptually the engine repeats four steps until there is nothing left to resolve:
+
+1. **Seed the frontier** with the root ARI (and optionally promote hits from a backing cache into the `ContentMap`).
+2. **Pull** — adapters load unresolved resources on the current frontier from CMS, integration APIs, and any other registered source.
+3. **Expand** — for each newly resolved resource, run **expansion policies** to discover which ARIs must be fetched next.
+4. **Enqueue** those ARIs on the frontier and go back to step 2.
+
+When the frontier is empty, every reachable resource has been loaded (or recorded as missing, depending on your error mode). You get a `ContentMap` of payloads keyed by ARI identity — ready for domain mapping, serialization, or cache writes.
+
+```mermaid
+%%{init: {'flowchart': {'curve': 'stepAfter'}}}%%
+flowchart TD
+  root[Root ARI] --> frontier[Frontier queue]
+  frontier --> pull[Data port: pull batch]
+  pull --> map[ContentMap grows]
+  map --> expand[Expansion policies]
+  expand -->|"new ARIs"| frontier
+  expand --> done[Frontier empty → done]
+```
+
+### Expansion policies and execution context
+
+Expansion is **not** hard-coded per content type inside the engine. You author **policies** that depend on:
+
+- the **current resource**;
+- an **execution context** you define — for example an **A/B test** variant that selects alternative content, the **user's identity or role**, or any other **contextual input** the walk needs;
+- the **`ContentMap` built so far** — the set of payloads already resolved in this walk — when a policy needs to inspect what is present on other nodes before choosing the next ARIs (only when your rules call for it).
+
+Each policy answers: _given this resolved node, which ARIs should we try to load next?_ A page entry policy might return linked module entries; a product module policy might return an `integration.product` ARI from a SKU field; a menu policy might mark an island boundary. Policies can mix **CMS**, **integration**, and future sources — the engine only sees ARIs and ports.
+
+That is how orchestration stays in the product code, while the engine stays a generic walker.
+
+### When infrastructure moves, policies move — not the engine
+
+> News lived in the CMS yesterday; tomorrow it is served by an internal API. You change **one expansion policy** to emit `integration.news` (or a new ARI family) instead of `cms.entry` for that branch. The walk, frontier loop, and `ContentMap` shape do not care which HTTP client fulfilled a given `type`.
+
+The same applies when a field moves the other way, when a vendor is replaced, or when a second consumer reuses the walk: stable ARIs and swappable adapters, not a rewrite of the render tree or a meg-query.
+
+### Why the data port is pull-based
+
+The resolver deliberately splits **walking the graph** from **talking to each backend**. The engine owns **when** the frontier advances and **which resources are still unresolved**. It does **not** own batch sizes, endpoints, or retry policy — those belong in adapters.
+
+Instead it exposes a **pull API** — `take(accept, limit?)` — on each round:
+
+- the engine offers the current frontier;
+- each **adapter** accepts the ARIs it knows how to load (i.e. `cmsEntryAri.matches`, `integrationProductAri.matches`, …);
+- each adapter sets **`limit`** to fill its backend efficiently this round;
+- anything not taken stays on the frontier for a later round after expansion.
+
+So adapters **maximize network saturation on their own terms** (batch ids, parallel sources, rate-limit-friendly chunk sizes) while orchestration never imports vendor constants. The engine walks and expands; infrastructure loaders pull what they can handle.
+
+Further sections below cover **islands**, dependency edges, batched pulls in the demo, and how the same orchestration runs from a Next page, a CLI, or a backend job.
 
 The lesson from those two large builds, stated plainly:
 
