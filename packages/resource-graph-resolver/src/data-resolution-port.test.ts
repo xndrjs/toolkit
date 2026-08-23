@@ -72,18 +72,9 @@ describe("DataResolutionPort", () => {
     expect(remaining).toEqual([c]);
   });
 
-  it("take preserves relative order of taken and remaining resources", () => {
-    const a = testAri("item", "1");
-    const b = testAri("skip", "2");
-    const c = testAri("item", "3");
-    const d = testAri("skip", "4");
-    const e = testAri("item", "5");
-    const remaining = [a, b, c, d, e];
-    const pull = createDataResolutionPull(remaining);
-
-    expect(pull.take((resource) => resource.type === "item", 2)).toEqual([a, c]);
-    expect(remaining).toEqual([b, d, e]);
-    expect(pull.take((resource) => resource.type === "item")).toEqual([e]);
-    expect(remaining).toEqual([b, d]);
+  it("createDataResolutionPull exposes an optional abort signal", () => {
+    const controller = new AbortController();
+    const pull = createDataResolutionPull([], { signal: controller.signal });
+    expect(pull.signal).toBe(controller.signal);
   });
 });

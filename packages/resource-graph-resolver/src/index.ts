@@ -9,6 +9,11 @@ export {
   type DataResolutionPull,
 } from "./data-resolution-port";
 export {
+  ResolveContentGraphAbortedError,
+  ResolveContentGraphLimitExceededError,
+  type ResolveContentGraphLimitKind,
+} from "./errors";
+export {
   createExpansionPolicyChain,
   defineExpansionPolicy,
   type ExpansionContext,
@@ -28,6 +33,7 @@ export type {
   RegistryPayloadFor,
   ResolutionError,
   ResolveContentGraphInput,
+  ResolveContentGraphLimits,
   ResolveContentGraphOutput,
   ResolvedResourceRecord,
   ResourceKey,

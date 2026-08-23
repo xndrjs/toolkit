@@ -8,8 +8,11 @@ import type { ContentRegistry, ResolvedResourceRecord } from "./types";
  *
  * `take` removes matching resources in frontier order up to `limit` (omit = all).
  * Leftovers stay for later rounds.
+ *
+ * `signal` mirrors the engine input abort signal for cooperative cancellation during IO.
  */
 export interface DataResolutionPull {
+  readonly signal?: AbortSignal;
   take<Resource extends ApplicationResourceIdentifier>(
     accept: (resource: ApplicationResourceIdentifier) => resource is Resource,
     limit?: number
@@ -43,9 +46,11 @@ export interface DataResolutionPort<R extends ContentRegistry = ContentRegistry>
  * Taken resources are removed from `resources`.
  */
 export function createDataResolutionPull(
-  resources: ApplicationResourceIdentifier[]
+  resources: ApplicationResourceIdentifier[],
+  options?: { signal?: AbortSignal }
 ): DataResolutionPull {
   return {
+    ...(options?.signal !== undefined ? { signal: options.signal } : {}),
     take(accept: (resource: ApplicationResourceIdentifier) => boolean, limit?: number) {
       const batch: ApplicationResourceIdentifier[] = [];
       const max = limit === undefined ? Number.POSITIVE_INFINITY : limit;

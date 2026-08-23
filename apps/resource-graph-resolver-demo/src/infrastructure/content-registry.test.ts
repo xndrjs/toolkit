@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { createDataResolutionPull } from "@xndrjs/resource-graph-resolver";
 
 import {
@@ -136,5 +136,39 @@ describe("source-qualified ARI store + data gateway", () => {
       price: { amount: 1999, currency: "EUR" },
       inStock: true,
     });
+  });
+
+  it("cms loader skips IO when both entry and asset takes are empty", async () => {
+    const cms = createCmsDataLoader(demoCmsStore);
+    const loadEntries = vi.spyOn(cms, "loadEntries");
+    const loadAssets = vi.spyOn(cms, "loadAssets");
+
+    const result = await cms.process(createDataResolutionPull([tshirtIntegrationAri]));
+
+    expect(result).toEqual([]);
+    expect(loadEntries).not.toHaveBeenCalled();
+    expect(loadAssets).not.toHaveBeenCalled();
+  });
+
+  it("cms loader skips only the empty batch side when the other take has work", async () => {
+    const cms = createCmsDataLoader(demoCmsStore);
+    const loadEntries = vi.spyOn(cms, "loadEntries");
+    const loadAssets = vi.spyOn(cms, "loadAssets");
+
+    const result = await cms.process(createDataResolutionPull([logoAssetAri]));
+
+    expect(result).toHaveLength(1);
+    expect(loadEntries).not.toHaveBeenCalled();
+    expect(loadAssets).toHaveBeenCalledTimes(1);
+  });
+
+  it("integration loader skips IO when take returns an empty batch", async () => {
+    const integration = createIntegrationDataLoader();
+    const load = vi.spyOn(integration, "load");
+
+    const result = await integration.process(createDataResolutionPull([pageEntryAri]));
+
+    expect(result).toEqual([]);
+    expect(load).not.toHaveBeenCalled();
   });
 });

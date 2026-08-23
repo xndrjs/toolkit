@@ -642,4 +642,149 @@ describe("ResolveContentGraphEngine", () => {
     expect(output.contentMap.has(b)).toBe(true);
     expect(output.errors).toEqual([]);
   });
+
+  it("propagates AbortSignal on the data-port pull and aborts independently of missingResourceMode", async () => {
+    const controller = new AbortController();
+    const process = vi.fn(async (pull) => {
+      expect(pull.signal).toBe(controller.signal);
+      controller.abort("stop");
+      return [];
+    });
+
+    const engine = new ResolveContentGraphEngine(
+      { process },
+      createExpansionPolicyChain([
+        {
+          matches: () => true,
+          expand: () => ({ resources: [] }),
+        },
+      ])
+    );
+
+    await expect(
+      engine.execute({
+        root: page,
+        executionContext: {},
+        missingResourceMode: "collect",
+        signal: controller.signal,
+      })
+    ).rejects.toMatchObject({
+      name: "ResolveContentGraphAbortedError",
+      cause: "stop",
+    });
+
+    expect(process).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws when already aborted before the first round", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const process = vi.fn(async () => []);
+
+    const engine = new ResolveContentGraphEngine(
+      { process },
+      createExpansionPolicyChain([
+        {
+          matches: () => true,
+          expand: () => ({ resources: [] }),
+        },
+      ])
+    );
+
+    await expect(
+      engine.execute({
+        root: page,
+        executionContext: {},
+        missingResourceMode: "collect",
+        signal: controller.signal,
+      })
+    ).rejects.toMatchObject({ name: "ResolveContentGraphAbortedError" });
+
+    expect(process).not.toHaveBeenCalled();
+  });
+
+  it("throws ResolveContentGraphLimitExceededError when maxRounds is exceeded", async () => {
+    const dataPort = createInMemoryPort();
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain(createPageGraphPolicies())
+    );
+
+    await expect(
+      engine.execute({
+        root: page,
+        executionContext: {},
+        missingResourceMode: "collect",
+        limits: { maxRounds: 1 },
+      })
+    ).rejects.toMatchObject({
+      name: "ResolveContentGraphLimitExceededError",
+      limit: "maxRounds",
+      value: 2,
+      max: 1,
+    });
+  });
+
+  it("throws ResolveContentGraphLimitExceededError when maxResources is exceeded", async () => {
+    const dataPort = createInMemoryPort();
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain(createPageGraphPolicies())
+    );
+
+    await expect(
+      engine.execute({
+        root: page,
+        executionContext: {},
+        missingResourceMode: "collect",
+        limits: { maxResources: 1 },
+      })
+    ).rejects.toMatchObject({
+      name: "ResolveContentGraphLimitExceededError",
+      limit: "maxResources",
+      value: 2,
+      max: 1,
+    });
+  });
+
+  it("throws ResolveContentGraphLimitExceededError when maxDepth is exceeded", async () => {
+    const dataPort = createInMemoryPort();
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain(createPageGraphPolicies())
+    );
+
+    // page (0) → hero (1) → asset (2). maxDepth 1 allows hero but not asset.
+    await expect(
+      engine.execute({
+        root: page,
+        executionContext: {},
+        missingResourceMode: "collect",
+        limits: { maxDepth: 1 },
+      })
+    ).rejects.toMatchObject({
+      name: "ResolveContentGraphLimitExceededError",
+      limit: "maxDepth",
+      value: 2,
+      max: 1,
+    });
+  });
+
+  it("resolves successfully when budgets are large enough for the graph", async () => {
+    const dataPort = createInMemoryPort();
+    const engine = new ResolveContentGraphEngine(
+      dataPort,
+      createExpansionPolicyChain(createPageGraphPolicies())
+    );
+
+    const output = await engine.execute({
+      root: page,
+      executionContext: {},
+      missingResourceMode: "throw",
+      limits: { maxRounds: 10, maxResources: 10, maxDepth: 10 },
+    });
+
+    expect(output.contentMap.has(asset)).toBe(true);
+    expect(output.errors).toEqual([]);
+  });
 });

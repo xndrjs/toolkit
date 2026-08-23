@@ -51,6 +51,9 @@ export function createIntegrationDataLoader(
 
     async process(pull) {
       const batch = pull.take(integrationProductAri.matches, INTEGRATION_BATCH_SIZE);
+      if (batch.length === 0) {
+        return [];
+      }
       return this.load(batch);
     },
   };

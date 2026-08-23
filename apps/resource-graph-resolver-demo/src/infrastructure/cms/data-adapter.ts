@@ -47,9 +47,13 @@ export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
       const entryBatch = pull.take(cmsEntryAri.matches, CMS_ENTRY_BATCH_SIZE);
       const assetBatch = pull.take(cmsAssetAri.matches, CMS_ASSET_BATCH_SIZE);
 
+      if (entryBatch.length === 0 && assetBatch.length === 0) {
+        return [];
+      }
+
       const [entryResult, assetResult] = await Promise.all([
-        this.loadEntries(entryBatch),
-        this.loadAssets(assetBatch),
+        entryBatch.length === 0 ? Promise.resolve([]) : this.loadEntries(entryBatch),
+        assetBatch.length === 0 ? Promise.resolve([]) : this.loadAssets(assetBatch),
       ]);
 
       return [...entryResult, ...assetResult];

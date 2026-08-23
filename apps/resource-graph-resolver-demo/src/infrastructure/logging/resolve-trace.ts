@@ -76,9 +76,13 @@ export function withLoggingCmsLoader(loader: CmsDataLoader, trace: ResolveTrace)
       const assetBatch = pull.take(cmsAssetAri.matches, CMS_ASSET_BATCH_SIZE);
       trace.logPull("cms.assets", assetBatch, CMS_ASSET_BATCH_SIZE);
 
+      if (entryBatch.length === 0 && assetBatch.length === 0) {
+        return [];
+      }
+
       const [entryResult, assetResult] = await Promise.all([
-        loader.loadEntries(entryBatch),
-        loader.loadAssets(assetBatch),
+        entryBatch.length === 0 ? Promise.resolve([]) : loader.loadEntries(entryBatch),
+        assetBatch.length === 0 ? Promise.resolve([]) : loader.loadAssets(assetBatch),
       ]);
 
       trace.logLoad("cms.entries", entryBatch.length, entryResult.length);
@@ -99,6 +103,10 @@ export function withLoggingIntegrationLoader(
     async process(pull) {
       const batch = pull.take(integrationProductAri.matches, INTEGRATION_BATCH_SIZE);
       trace.logPull("integration.products", batch, INTEGRATION_BATCH_SIZE);
+
+      if (batch.length === 0) {
+        return [];
+      }
 
       const result = await loader.load(batch);
       trace.logLoad("integration.products", batch.length, result.length);

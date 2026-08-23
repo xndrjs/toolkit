@@ -1,4 +1,8 @@
-import { ResolveContentGraphEngine, serializeAllIslands } from "@xndrjs/resource-graph-resolver";
+import {
+  ResolveContentGraphEngine,
+  serializeAllIslands,
+  type ResolveContentGraphLimits,
+} from "@xndrjs/resource-graph-resolver";
 
 import type { Page } from "../domain/index.js";
 import {
@@ -50,6 +54,11 @@ export type ResolveDemoPageFailure = {
 
 export type ResolveDemoPageResult = ResolveDemoPageSuccess | ResolveDemoPageFailure;
 
+export type ResolveDemoPageOptions = {
+  signal?: AbortSignal;
+  limits?: ResolveContentGraphLimits;
+};
+
 function logCacheReport(report: CacheHitReport): void {
   const deps =
     report.islands.length === 0
@@ -63,7 +72,8 @@ function logCacheReport(report: CacheHitReport): void {
 
 /** Runs the demo page-root resolution with console trace and domain aggregation. */
 export async function resolveDemoPage(
-  locale: ContentfulLocaleCode
+  locale: ContentfulLocaleCode,
+  options?: ResolveDemoPageOptions
 ): Promise<ResolveDemoPageResult> {
   const trace = createConsoleResolveTrace();
   const executionContext = createDefaultDemoExecutionContext(locale);
@@ -87,6 +97,8 @@ export async function resolveDemoPage(
     executionContext,
     missingResourceMode: "throw",
     resolvedResourceCache,
+    ...(options?.signal !== undefined ? { signal: options.signal } : {}),
+    ...(options?.limits !== undefined ? { limits: options.limits } : {}),
   });
 
   const cacheReport: CacheHitReport = {

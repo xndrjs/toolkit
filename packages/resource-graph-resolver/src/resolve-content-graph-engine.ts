@@ -1,7 +1,8 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
 import { ContentMap } from "./content-map";
-import type { DataResolutionPort } from "./data-resolution-port";
+import type { DataResolutionPort, DataResolutionPull } from "./data-resolution-port";
+import { ResolveContentGraphAbortedError, ResolveContentGraphLimitExceededError } from "./errors";
 import type { ExpansionContext, ExpansionPort } from "./expansion-port";
 import { IslandDependencyMap } from "./island-dependency-map";
 import { IslandMap } from "./island-map";
@@ -10,6 +11,7 @@ import type {
   IslandId,
   ResolutionError,
   ResolveContentGraphInput,
+  ResolveContentGraphLimits,
   ResolveContentGraphOutput,
   ResolvedResourceRecord,
   ResourceKey,
@@ -18,6 +20,8 @@ import type {
 interface QueueItem {
   resource: ApplicationResourceIdentifier;
   inheritedIslandId: IslandId;
+  /** BFS depth from the root (root is 0). */
+  depth: number;
 }
 
 interface FailureAccumulator {
@@ -33,6 +37,25 @@ function isUnresolved<R extends ContentRegistry>(
 ): boolean {
   const key = resource.toString();
   return !contentMap.has(resource) && !failuresByResource.has(key);
+}
+
+function assertNotAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) {
+    throw new ResolveContentGraphAbortedError("Content graph resolution was aborted", {
+      cause: signal.reason,
+    });
+  }
+}
+
+function assertWithinLimit(
+  limits: ResolveContentGraphLimits | undefined,
+  limit: keyof ResolveContentGraphLimits,
+  value: number
+): void {
+  const max = limits?.[limit];
+  if (max !== undefined && value > max) {
+    throw new ResolveContentGraphLimitExceededError(limit, value, max);
+  }
 }
 
 /**
@@ -58,6 +81,12 @@ export class ResolveContentGraphEngine<
     const islands = new IslandMap();
     const islandDependencies = new IslandDependencyMap();
     const failuresByResource = new Map<ResourceKey, FailureAccumulator>();
+    const discoveredKeys = new Set<ResourceKey>([input.root.toString()]);
+    let rounds = 0;
+
+    assertNotAborted(input.signal);
+    assertWithinLimit(input.limits, "maxResources", discoveredKeys.size);
+    assertWithinLimit(input.limits, "maxDepth", 0);
 
     const registerMissingResource = (
       resource: ApplicationResourceIdentifier,
@@ -75,14 +104,33 @@ export class ResolveContentGraphEngine<
       failuresByResource.set(resourceKey, failure);
     };
 
+    const discoverResource = (resource: ApplicationResourceIdentifier, depth: number): void => {
+      assertWithinLimit(input.limits, "maxDepth", depth);
+
+      const key = resource.toString();
+      if (discoveredKeys.has(key)) {
+        return;
+      }
+
+      const nextSize = discoveredKeys.size + 1;
+      assertWithinLimit(input.limits, "maxResources", nextSize);
+      discoveredKeys.add(key);
+    };
+
     const queue: QueueItem[] = [
       {
         resource: input.root,
         inheritedIslandId: input.root.toString(),
+        depth: 0,
       },
     ];
 
     while (queue.length > 0) {
+      assertNotAborted(input.signal);
+
+      rounds += 1;
+      assertWithinLimit(input.limits, "maxRounds", rounds);
+
       const frontier = queue.splice(0);
       const taken: QueueItem[] = [];
       const takenKeys = new Set<ResourceKey>();
@@ -113,7 +161,10 @@ export class ResolveContentGraphEngine<
       );
 
       if (needsResolve) {
-        const resolved = await this.dataResolutionPort.process({
+        assertNotAborted(input.signal);
+
+        const pull: DataResolutionPull = {
+          ...(input.signal !== undefined ? { signal: input.signal } : {}),
           take: (accept: (resource: ApplicationResourceIdentifier) => boolean, limit?: number) => {
             const batch: ApplicationResourceIdentifier[] = [];
             const max = limit === undefined ? Number.POSITIVE_INFINITY : limit;
@@ -143,7 +194,11 @@ export class ResolveContentGraphEngine<
             frontier.push(...remaining);
             return batch;
           },
-        });
+        };
+
+        const resolved = await this.dataResolutionPort.process(pull);
+
+        assertNotAborted(input.signal);
 
         const resolvedByKey = new Map<ResourceKey, ResolvedResourceRecord<R>>();
         for (const record of resolved) {
@@ -183,7 +238,7 @@ export class ResolveContentGraphEngine<
         }
       }
 
-      const expandItem = ({ resource, inheritedIslandId }: QueueItem): void => {
+      const expandItem = ({ resource, inheritedIslandId, depth }: QueueItem): void => {
         const resourceKey = resource.toString();
 
         const expansion = this.expansionPort.expand({
@@ -205,10 +260,13 @@ export class ResolveContentGraphEngine<
 
         islands.add(islandId, resource);
 
+        const childDepth = depth + 1;
         for (const child of expansion.resources) {
+          discoverResource(child, childDepth);
           queue.push({
             resource: child,
             inheritedIslandId: islandId,
+            depth: childDepth,
           });
         }
       };
@@ -233,6 +291,8 @@ export class ResolveContentGraphEngine<
         }
       }
     }
+
+    assertNotAborted(input.signal);
 
     const errors: ResolutionError[] = [...failuresByResource.values()].map((failure) => ({
       resourceKey: failure.resourceKey,
