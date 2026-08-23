@@ -219,10 +219,9 @@ What we need in this kind of project is a **content graph resolver**:
 - walk from a root [Application Resource Identifier](/v0/application/application-resources/)
 - discover children via an **expansion port** (content-type rules, integration edges — your policy, not the framework's)
 - load through a **pull-based data port** so adapters can **saturate each backend per round** and keep round-trips low, without vendor batch limits leaking into orchestration
-- partition the graph into **islands** — subgraphs with their own identity or lifecycle (page body vs. shared menu vs. reusable slice)
-- materialize a typed **`ContentMap`** and optional serialized islands for caching
+- materialize a typed **`ContentMap`** ready for domain mapping (and, when you need it, cache-friendly slices of the graph)
 
-That is [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/). The [demo app](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) wires Contentful-shaped fixtures, integration products, tiered island cache, and domain mapping — without putting the walk inside React.
+That is [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/). The sections below cover how the walk works, how multiple backends compose behind one gateway, and how resolved data becomes a domain aggregate your UI can trust — without owning the graph.
 
 ---
 
@@ -273,7 +272,7 @@ Expansion is **not** hard-coded per content type inside the engine. You author *
 - an **execution context** you define — for example an **A/B test** variant that selects alternative content, the **user's identity or role**, or any other **contextual input** the walk needs;
 - the **`ContentMap` built so far** — the set of payloads already resolved in this walk — when a policy needs to inspect what is present on other nodes before choosing the next ARIs (only when your rules call for it).
 
-Each policy answers: _given this resolved node, which ARIs should we try to load next?_ A page entry policy might return linked module entries; a product module policy might return an `integration.product` ARI from a SKU field; a menu policy might mark an island boundary. Policies can mix **CMS**, **integration**, and future sources — the engine only sees ARIs and ports.
+Each policy answers: _given this resolved node, which ARIs should we try to load next?_ A page entry policy might return linked module entries; a product module policy might return an `integration.product` ARI from a SKU field. Policies can mix **CMS**, **integration**, and future sources — the engine only sees ARIs and ports.
 
 That is how orchestration stays in the product code, while the engine stays a generic walker.
 
@@ -296,11 +295,95 @@ Instead it exposes a **pull API** — `take(accept, limit?)` — on each round:
 
 So adapters **maximize network saturation on their own terms** (batch ids, parallel sources, rate-limit-friendly chunk sizes) while orchestration never imports vendor constants. The engine walks and expands; infrastructure loaders pull what they can handle.
 
-Further sections below cover **islands**, dependency edges, batched pulls in the demo, and how the same orchestration runs from a Next page, a CLI, or a backend job.
+---
+
+## One gateway coordinates many adapters
+
+The engine works with **one** data port. In production you rarely have one backend — you have a CMS, one or more integration APIs, maybe a blob store tomorrow. You also **do not know upfront** how many actors will join: a new commercial API, a database, any external data source. A **gateway** that exposes a single shared interface is the necessary abstraction: it composes heterogeneous loaders behind one `DataResolutionPort`, so the engine stays source-agnostic while the product registers or removes adapters as the integration landscape changes.
+
+The product wires that gateway as a thin port that forwards each pull round to every registered loader and merges the results:
+
+```typescript
+export function createDemoDataGateway(cms, integration): DataResolutionPort {
+  return {
+    async process(pull) {
+      const [cmsResult, integrationResult] = await Promise.all([
+        cms.process(pull),
+        integration.process(pull),
+      ]);
+      // merge into one ContentMap slice for this round
+    },
+  };
+}
+```
+
+Same orchestration, same expansion policies — whether two backends or five. That is the boundary Problem 4 was asking for: resolution logic that is not the React tree and not a single vendor SDK.
+
+---
+
+## From resolved graph to a domain aggregate
+
+Have you ever modeled a page as a **deeply nested object** — modules, tabs, nested modules — only to discover that your **domain model had to bend** to how your infrastructure exposes relations? Flat link stubs, locale-specific field shapes, product data living in another API: the "page" you wanted to reason about and the "page" your infrastructure gives you dramatically diverge.
+
+The split we described in the layer table is deliberate:
+
+1. **Resolve** the infrastructure graph into a `ContentMap` (CMS entries, assets, integration payloads — keyed by ARI).
+2. **Map** that map into **domain aggregates** shaped for your product, not for the wire.
+
+You are free to define a `Page` with nested `modules`, polymorphic tab strips, embedded products with price and stock already merged — because the resolver already did the cross-source walk. Mappers read from the `ContentMap` and emit trusted shapes; they do not call HTTP.
+
+```typescript
+export const PageShape = domain.shape(
+  "Page",
+  zodToValidator(
+    z.object({
+      type: z.literal("Page"),
+      title: z.string().min(1),
+      modules: z.array(PageModuleSchema), // Tabs | Hero | Product
+      menu: zodFromKit(MenuShape).nullable(),
+      footer: zodFromKit(FooterShape).nullable(),
+    })
+  )
+);
+```
+
+For a page-builder product, a **nested aggregate** is not ceremony — it is what makes UI components **stupid** in the good sense: a `Tabs` module receives a `Tabs` value; a `Product` strip receives a `Product` with commercial fields already present. No loader, no `useEffect`, no "fetch SKU then merge". The framework renders; orchestration already finished upstream.
+
+---
+
+## Connecting the toolkit: contentful-to-zod
+
+[`contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) sits at the **adapter** boundary: parse what arrived on the wire before expansion or domain mapping trust it. Generated schemas know each content type's fields; generated **link metadata** tells expansion which references to follow — without hand-maintaining a matrix of two hundred content types.
+
+Default expansion in the demo parses the entry, walks `LINK_FIELDS_BY_CONTENT_TYPE`, and emits ARIs for linked entries and assets:
+
+```typescript
+const parsed = ContentfulEntrySchemaByContentType[contentTypeId].parse(entry);
+const links = collectLinkReferencesFromEntryFields(contentTypeId, parsed.fields);
+return { resources: links.map((link) => linkReferenceToAri(link, locale)) };
+```
+
+Cross-source rules stay **small overrides** — e.g. a product entry reads a SKU field and adds an `integration.product` ARI instead of stopping at CMS links:
+
+```typescript
+const parsed = ProductEntrySchema.parse(entry);
+const sku = parsed.fields.sku;
+if (sku) {
+  return { resources: [integrationProductAri({ sku, locale })] };
+}
+```
+
+Transport correctness and graph discovery stay in infrastructure; the engine still only sees ARIs and policies. That is enough to connect the dots with the rest of the toolkit without turning this post into schema reference material.
+
+---
+
+## Closing
 
 The lesson from those two large builds, stated plainly:
 
 > Deep CMS pages across many locales are not a rendering problem. They are a **graph resolution** problem. Treat them that way early — or pay in round-trips, rate limits, and rewrites when the infrastructure moves.
+
+[`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) is the engine for that walk. A [demo app](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) in the toolkit repo shows one possible wiring — Contentful-shaped fixtures, an integration catalog, gateway, expansion policies, domain mapping into a Next page. It is intentionally **small**: a workshop, not a production site, and it does **not** exercise the full layer discipline of the [Clean Architecture monorepo template](/blog/clean-architecture-monorepo-template/) (ports everywhere, governed boundaries, generators). Treat the demo as proof that the same orchestration can run outside React; treat the template as where a real team would harden the seams.
 
 ---
 
