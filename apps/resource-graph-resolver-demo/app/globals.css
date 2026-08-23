@@ -148,9 +148,10 @@ h1 {
   gap: 0.5rem;
 }
 
-.cache-grid {
+.cache-grid,
+.cache-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
   gap: 1.25rem;
 }
 
@@ -165,7 +166,7 @@ h1 {
 
 .cache-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   margin: 0 0 1rem;
 }
@@ -268,9 +269,110 @@ h1 {
   white-space: nowrap;
 }
 
+.cache-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cache-entry-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.cache-entry-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "id badges"
+    "meta meta";
+  gap: 0.35rem 0.75rem;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.cache-entry-summary::-webkit-details-marker {
+  display: none;
+}
+
+.cache-entry-summary::before {
+  content: "▸";
+  margin-right: 0.35rem;
+  color: var(--muted);
+}
+
+.cache-entry-card[open] .cache-entry-summary::before {
+  content: "▾";
+}
+
+.cache-entry-badges {
+  grid-area: badges;
+  display: flex;
+  gap: 0.35rem;
+  justify-self: end;
+}
+
+.cache-entry-meta {
+  grid-area: meta;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.cache-entry-payload {
+  margin: 0;
+  padding: 0 0.75rem 0.75rem;
+  overflow: auto;
+  max-height: 24rem;
+  border-top: 1px solid var(--border);
+}
+
+.cache-entry-payload code {
+  display: block;
+  padding-top: 0.75rem;
+}
+
+.cache-tier,
+.cache-kind {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cache-tier-page {
+  color: #fcd34d;
+  border-color: #854d0e;
+}
+
+.cache-tier-dependency {
+  color: #93c5fd;
+  border-color: #1d4ed8;
+}
+
+.cache-tier-manifest {
+  color: #c4b5fd;
+  border-color: #6d28d9;
+}
+
+.cache-kind-island {
+  color: var(--muted);
+}
+
+.cache-kind-manifest {
+  color: #d8b4fe;
+  border-color: #7e22ce;
+}
+
 @media (max-width: 900px) {
   .split,
-  .cache-grid {
+  .cache-grid,
+  .cache-layout {
     grid-template-columns: 1fr;
   }
 

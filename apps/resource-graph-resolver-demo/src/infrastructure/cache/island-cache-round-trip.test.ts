@@ -12,7 +12,7 @@ import { createDefaultDemoExecutionContext } from "../demo-execution-context.js"
 import { createDemoExpansionPort } from "../expansion-policies.js";
 import { createIntegrationDataLoader } from "../integration/index.js";
 import { loadBackingForRoot } from "./load-backing-for-root.js";
-import { LruIslandCache } from "./lru-island-cache.js";
+import { DEFAULT_PAGE_ISLAND_TTL_MS, LruIslandCache } from "./lru-island-cache.js";
 import { persistResolvedIslands } from "./persist-resolved-islands.js";
 
 function createCountingGateway(inner: DataResolutionPort<DemoContentRegistry>): {
@@ -34,6 +34,7 @@ function createCountingGateway(inner: DataResolutionPort<DemoContentRegistry>): 
 
 async function resolveWithCache(cache: LruIslandCache): Promise<{
   pageIslandStatus: string;
+  dependencyManifestStatus: string;
   backingResourceCount: number;
   promotedResourceCount: number;
   pulledResourceCount: number;
@@ -58,10 +59,13 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
   expect(output.errors).toEqual([]);
 
   const promotedResourceCount = backingResourceCount - resolvedResourceCache.size;
-  persistResolvedIslands(serializeAllIslands(output), cache);
+  persistResolvedIslands(serializeAllIslands(output), cache, {
+    rootIslandId: pageRoot.toString(),
+  });
 
   return {
     pageIslandStatus: report.pageIsland,
+    dependencyManifestStatus: report.dependencyManifest,
     backingResourceCount,
     promotedResourceCount,
     pulledResourceCount: counting.pulledResourceCount(),
@@ -74,16 +78,40 @@ describe("island cache cold/warm round-trip", () => {
 
     const cold = await resolveWithCache(cache);
     expect(cold.pageIslandStatus).toBe("miss");
+    expect(cold.dependencyManifestStatus).toBe("miss");
     expect(cold.backingResourceCount).toBe(0);
     expect(cold.promotedResourceCount).toBe(0);
     expect(cold.pulledResourceCount).toBeGreaterThan(0);
 
     const warm = await resolveWithCache(cache);
     expect(warm.pageIslandStatus).toBe("hit");
+    expect(warm.dependencyManifestStatus).toBe("hit");
     expect(warm.backingResourceCount).toBeGreaterThan(0);
     expect(warm.promotedResourceCount).toBeGreaterThan(0);
     expect(warm.pulledResourceCount).toBe(0);
     expect(warm.promotedResourceCount).toBe(warm.backingResourceCount);
+  });
+
+  it("reuses warm dependency islands when page TTL expired but manifest remains", async () => {
+    let now = 0;
+    const cache = new LruIslandCache({ now: () => now });
+
+    const cold = await resolveWithCache(cache);
+    expect(cold.pageIslandStatus).toBe("miss");
+    expect(cold.pulledResourceCount).toBeGreaterThan(0);
+
+    const warm = await resolveWithCache(cache);
+    expect(warm.pageIslandStatus).toBe("hit");
+    expect(warm.pulledResourceCount).toBe(0);
+
+    now = DEFAULT_PAGE_ISLAND_TTL_MS + 1;
+
+    const partial = await resolveWithCache(cache);
+    expect(partial.pageIslandStatus).toBe("miss");
+    expect(partial.dependencyManifestStatus).toBe("hit");
+    expect(partial.backingResourceCount).toBeGreaterThan(0);
+    expect(partial.pulledResourceCount).toBeGreaterThan(0);
+    expect(partial.pulledResourceCount).toBeLessThan(cold.pulledResourceCount);
   });
 
   it("does not place unreached backing (superset) keys into ContentMap", async () => {

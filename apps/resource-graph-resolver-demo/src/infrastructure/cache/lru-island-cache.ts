@@ -1,21 +1,59 @@
 import type { IslandId, SerializedIsland } from "@xndrjs/resource-graph-resolver";
 
-import type { IslandCachePort } from "./island-cache-port.js";
+import type {
+  IslandCachePort,
+  IslandCacheTier,
+  IslandDependencyManifest,
+} from "./island-cache-port.js";
 
+/** @deprecated Use DEFAULT_PAGE_ISLAND_TTL_MS for page roots. */
 export const DEFAULT_ISLAND_CACHE_TTL_MS = 60_000;
+
+export const DEFAULT_PAGE_ISLAND_TTL_MS = 60_000;
+export const DEFAULT_DEPENDENCY_ISLAND_TTL_MS = 3_600_000;
+export const DEFAULT_DEPENDENCY_MANIFEST_TTL_MS = 3_600_000;
 export const DEFAULT_ISLAND_CACHE_MAX_SIZE = 50;
 
-type CacheEntry = {
+type IslandCacheEntry = {
   island: SerializedIsland;
+  tier: IslandCacheTier;
   expiresAt: number;
   hitCount: number;
 };
 
-export type IslandCacheSnapshotEntry = {
-  islandId: IslandId;
+type ManifestCacheEntry = {
+  manifest: IslandDependencyManifest;
   expiresAt: number;
   hitCount: number;
 };
+
+export type IslandCacheSnapshotIslandEntry = {
+  kind: "island";
+  islandId: IslandId;
+  tier: IslandCacheTier;
+  expiresAt: number;
+  hitCount: number;
+  island: SerializedIsland;
+};
+
+export type IslandCacheSnapshotManifestEntry = {
+  kind: "manifest";
+  islandId: IslandId;
+  tier: "manifest";
+  expiresAt: number;
+  hitCount: number;
+  manifest: IslandDependencyManifest;
+};
+
+export type IslandCacheSnapshotEntry =
+  | IslandCacheSnapshotIslandEntry
+  | IslandCacheSnapshotManifestEntry;
+
+/** @deprecated Use IslandCacheSnapshotEntry. */
+export type IslandCacheSnapshotEntryMetadata = Pick<
+  IslandCacheSnapshotIslandEntry,
+  "islandId" | "expiresAt" | "hitCount"
+>;
 
 export type IslandCacheSnapshot = {
   entries: IslandCacheSnapshotEntry[];
@@ -34,7 +72,8 @@ export type LruIslandCacheOptions = {
  * Evicts the least-recently-used entry when `maxSize` is exceeded.
  */
 export class LruIslandCache implements IslandCachePort {
-  private readonly entries = new Map<IslandId, CacheEntry>();
+  private readonly islandEntries = new Map<IslandId, IslandCacheEntry>();
+  private readonly manifestEntries = new Map<IslandId, ManifestCacheEntry>();
   private readonly maxSize: number;
   private readonly now: () => number;
 
@@ -44,19 +83,19 @@ export class LruIslandCache implements IslandCachePort {
   }
 
   getIsland(islandId: IslandId): SerializedIsland | undefined {
-    const entry = this.entries.get(islandId);
+    const entry = this.islandEntries.get(islandId);
     if (!entry) {
       return undefined;
     }
 
     if (this.now() >= entry.expiresAt) {
-      this.entries.delete(islandId);
+      this.islandEntries.delete(islandId);
       return undefined;
     }
 
-    this.entries.delete(islandId);
+    this.islandEntries.delete(islandId);
     entry.hitCount += 1;
-    this.entries.set(islandId, entry);
+    this.islandEntries.set(islandId, entry);
     return entry.island;
   }
 
@@ -64,18 +103,47 @@ export class LruIslandCache implements IslandCachePort {
     return islandIds.map((islandId) => this.getIsland(islandId));
   }
 
-  setIsland(island: SerializedIsland, ttlMs: number): void {
-    const existing = this.entries.get(island.islandId);
+  setIsland(island: SerializedIsland, ttlMs: number, tier: IslandCacheTier = "dependency"): void {
+    const existing = this.islandEntries.get(island.islandId);
     const hitCount = existing?.hitCount ?? 0;
 
     if (existing) {
-      this.entries.delete(island.islandId);
+      this.islandEntries.delete(island.islandId);
     } else {
-      this.evictOldestWhileFull();
+      this.evictOldestIslandWhileFull();
     }
 
-    this.entries.set(island.islandId, {
+    this.islandEntries.set(island.islandId, {
       island,
+      tier,
+      expiresAt: this.now() + ttlMs,
+      hitCount,
+    });
+  }
+
+  getDependencyManifest(islandId: IslandId): IslandDependencyManifest | undefined {
+    const entry = this.manifestEntries.get(islandId);
+    if (!entry) {
+      return undefined;
+    }
+
+    if (this.now() >= entry.expiresAt) {
+      this.manifestEntries.delete(islandId);
+      return undefined;
+    }
+
+    this.manifestEntries.delete(islandId);
+    entry.hitCount += 1;
+    this.manifestEntries.set(islandId, entry);
+    return entry.manifest;
+  }
+
+  setDependencyManifest(manifest: IslandDependencyManifest, ttlMs: number): void {
+    const existing = this.manifestEntries.get(manifest.islandId);
+    const hitCount = existing?.hitCount ?? 0;
+
+    this.manifestEntries.set(manifest.islandId, {
+      manifest,
       expiresAt: this.now() + ttlMs,
       hitCount,
     });
@@ -85,37 +153,65 @@ export class LruIslandCache implements IslandCachePort {
   snapshot(): IslandCacheSnapshot {
     this.purgeExpired();
 
-    return {
-      entries: [...this.entries.entries()].map(([islandId, entry]) => ({
+    const islandEntries: IslandCacheSnapshotIslandEntry[] = [...this.islandEntries.entries()].map(
+      ([islandId, entry]) => ({
+        kind: "island",
         islandId,
+        tier: entry.tier,
         expiresAt: entry.expiresAt,
         hitCount: entry.hitCount,
-      })),
-      size: this.entries.size,
+        island: entry.island,
+      })
+    );
+
+    const manifestEntries: IslandCacheSnapshotManifestEntry[] = [
+      ...this.manifestEntries.entries(),
+    ].map(([islandId, entry]) => ({
+      kind: "manifest",
+      islandId,
+      tier: "manifest" as const,
+      expiresAt: entry.expiresAt,
+      hitCount: entry.hitCount,
+      manifest: entry.manifest,
+    }));
+
+    const entries = [...islandEntries, ...manifestEntries].sort((left, right) =>
+      left.islandId.localeCompare(right.islandId)
+    );
+
+    return {
+      entries,
+      size: this.islandEntries.size + this.manifestEntries.size,
       maxSize: this.maxSize,
     };
   }
 
   /** Drop all entries (demo “Clear cache” + tests). */
   clear(): void {
-    this.entries.clear();
+    this.islandEntries.clear();
+    this.manifestEntries.clear();
   }
 
-  private evictOldestWhileFull(): void {
-    while (this.entries.size >= this.maxSize) {
-      const oldestKey = this.entries.keys().next().value;
+  private evictOldestIslandWhileFull(): void {
+    while (this.islandEntries.size >= this.maxSize) {
+      const oldestKey = this.islandEntries.keys().next().value;
       if (oldestKey === undefined) {
         return;
       }
-      this.entries.delete(oldestKey);
+      this.islandEntries.delete(oldestKey);
     }
   }
 
   private purgeExpired(): void {
     const now = this.now();
-    for (const [islandId, entry] of this.entries) {
+    for (const [islandId, entry] of this.islandEntries) {
       if (now >= entry.expiresAt) {
-        this.entries.delete(islandId);
+        this.islandEntries.delete(islandId);
+      }
+    }
+    for (const [islandId, entry] of this.manifestEntries) {
+      if (now >= entry.expiresAt) {
+        this.manifestEntries.delete(islandId);
       }
     }
   }

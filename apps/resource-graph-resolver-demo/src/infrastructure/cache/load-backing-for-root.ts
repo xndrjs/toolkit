@@ -26,9 +26,15 @@ function lookupStatus(island: SerializedIsland | undefined): IslandCacheLookupSt
   return "hit";
 }
 
+function manifestStatus(
+  manifest: { dependencies: readonly string[] } | undefined
+): IslandCacheLookupStatus {
+  return manifest ? "hit" : "miss";
+}
+
 /**
- * Loads the page island, then its dependencies, and builds an opaque backing map
- * from complete islands only. Miss / incomplete page → empty backing.
+ * Loads the page island when available, otherwise falls back to the long-lived
+ * dependency manifest. Builds backing from complete page and/or dependency islands.
  */
 export function loadBackingForRoot(
   pageRoot: ApplicationResourceIdentifier,
@@ -38,21 +44,32 @@ export function loadBackingForRoot(
   const pageIsland = cache.getIsland(pageIslandId);
   const pageStatus = lookupStatus(pageIsland);
 
-  if (pageStatus !== "hit" || !pageIsland) {
+  const manifest =
+    pageStatus === "hit" && pageIsland
+      ? { dependencies: pageIsland.dependencies }
+      : cache.getDependencyManifest(pageIslandId);
+  const manifestHitStatus = manifestStatus(manifest);
+
+  if (pageStatus !== "hit" && manifestHitStatus !== "hit") {
     return {
       resolvedResourceCache: new Map(),
       report: {
         pageIsland: pageStatus,
+        dependencyManifest: manifestHitStatus,
         islands: [],
         backingResourceCount: 0,
       },
     };
   }
 
-  const dependencyIds = pageIsland.dependencies;
+  const dependencyIds = manifest?.dependencies ?? [];
   const dependencyIslands = cache.getIslands(dependencyIds);
 
-  const completeIslands: SerializedIsland[] = [pageIsland];
+  const completeIslands: SerializedIsland[] = [];
+  if (pageStatus === "hit" && pageIsland) {
+    completeIslands.push(pageIsland);
+  }
+
   const islands: CacheHitReport["islands"] = [];
 
   for (let index = 0; index < dependencyIds.length; index += 1) {
@@ -70,7 +87,8 @@ export function loadBackingForRoot(
   return {
     resolvedResourceCache,
     report: {
-      pageIsland: "hit",
+      pageIsland: pageStatus,
+      dependencyManifest: manifestHitStatus,
       islands,
       backingResourceCount: resolvedResourceCache.size,
     },

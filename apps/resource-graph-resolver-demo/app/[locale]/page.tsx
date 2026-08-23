@@ -5,6 +5,7 @@ import { ClearCacheButton } from "../components/clear-cache-button";
 import { CopyButton } from "../components/copy-button";
 import { CONTENTFUL_LOCALE_CODES } from "../../src/infrastructure/cms/generated/contentful.schemas";
 import { parseDemoLocaleParam } from "../../src/infrastructure/demo-execution-context";
+import type { IslandCacheSnapshotEntry } from "../../src/infrastructure/cache/index";
 import { resolveDemoPage } from "../../src/infrastructure/resolve-demo-page";
 
 type Props = {
@@ -41,7 +42,6 @@ export default async function LocaleDemoPage({ params }: Props) {
   }
 
   const pageJson = JSON.stringify(result.page, null, 2);
-  const islandsJson = JSON.stringify(result.serializedIslands, null, 2);
   const cacheReportJson = JSON.stringify(result.cacheReport, null, 2);
   const cacheSnapshotJson = JSON.stringify(result.cacheSnapshot, null, 2);
   const { cacheReport, cacheSnapshot } = result;
@@ -62,10 +62,10 @@ export default async function LocaleDemoPage({ params }: Props) {
           <div className="panel-actions">
             <ClearCacheButton />
             <CopyButton value={cacheReportJson} label="Copy report" />
-            <CopyButton value={cacheSnapshotJson} label="Copy snapshot" />
+            <CopyButton value={cacheSnapshotJson} label="Copy cache" />
           </div>
         </div>
-        <div className="cache-grid">
+        <div className="cache-layout">
           <div>
             <h3 className="cache-subtitle">Request report</h3>
             <dl className="cache-stats">
@@ -73,6 +73,12 @@ export default async function LocaleDemoPage({ params }: Props) {
                 <dt>Page island</dt>
                 <dd>
                   <StatusBadge status={cacheReport.pageIsland} />
+                </dd>
+              </div>
+              <div>
+                <dt>Dependency manifest</dt>
+                <dd>
+                  <StatusBadge status={cacheReport.dependencyManifest} />
                 </dd>
               </div>
               <div>
@@ -99,56 +105,56 @@ export default async function LocaleDemoPage({ params }: Props) {
           </div>
           <div>
             <h3 className="cache-subtitle">
-              LRU snapshot ({cacheSnapshot.size}/{cacheSnapshot.maxSize})
+              Cache entries ({cacheSnapshot.size}/{cacheSnapshot.maxSize})
             </h3>
             {cacheSnapshot.entries.length > 0 ? (
-              <table className="cache-table">
-                <thead>
-                  <tr>
-                    <th>Island</th>
-                    <th>Expires</th>
-                    <th>Hits</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cacheSnapshot.entries.map((entry) => (
-                    <tr key={entry.islandId}>
-                      <td>
-                        <code className="cache-island-id">{entry.islandId}</code>
-                      </td>
-                      <td>{formatExpiresAt(entry.expiresAt)}</td>
-                      <td>{entry.hitCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="cache-entry-list">
+                {cacheSnapshot.entries.map((entry) => (
+                  <CacheEntryCard key={`${entry.kind}:${entry.islandId}`} entry={entry} />
+                ))}
+              </div>
             ) : (
               <p className="cache-empty">Cache empty.</p>
             )}
           </div>
         </div>
       </section>
-      <div className="split">
-        <section className="panel">
-          <div className="panel-header">
-            <h2>Aggregated page</h2>
-            <CopyButton value={pageJson} />
-          </div>
-          <pre>
-            <code>{pageJson}</code>
-          </pre>
-        </section>
-        <section className="panel">
-          <div className="panel-header">
-            <h2>Serialized islands</h2>
-            <CopyButton value={islandsJson} />
-          </div>
-          <pre>
-            <code>{islandsJson}</code>
-          </pre>
-        </section>
-      </div>
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Aggregated page</h2>
+          <CopyButton value={pageJson} />
+        </div>
+        <pre>
+          <code>{pageJson}</code>
+        </pre>
+      </section>
     </main>
+  );
+}
+
+function CacheEntryCard({ entry }: { entry: IslandCacheSnapshotEntry }) {
+  const payload = entry.kind === "island" ? entry.island : entry.manifest;
+  const summary =
+    entry.kind === "island"
+      ? `${Object.keys(entry.island.resources).length} resources · ${entry.island.dependencies.length} deps`
+      : `${entry.manifest.dependencies.length} deps`;
+
+  return (
+    <details className="cache-entry-card">
+      <summary className="cache-entry-summary">
+        <code className="cache-island-id">{entry.islandId}</code>
+        <span className="cache-entry-badges">
+          <span className={`cache-tier cache-tier-${entry.tier}`}>{entry.tier}</span>
+          <span className={`cache-kind cache-kind-${entry.kind}`}>{entry.kind}</span>
+        </span>
+        <span className="cache-entry-meta">
+          {summary} · {formatExpiresAt(entry.expiresAt)} · {entry.hitCount} hits
+        </span>
+      </summary>
+      <pre className="cache-entry-payload">
+        <code>{JSON.stringify(payload, null, 2)}</code>
+      </pre>
+    </details>
   );
 }
 
@@ -162,6 +168,10 @@ function formatExpiresAt(expiresAt: number): string {
     return "expired";
   }
   const seconds = Math.ceil(remainingMs / 1000);
+  if (seconds >= 3600) {
+    const minutes = Math.ceil(seconds / 60);
+    return `${minutes}m · ${new Date(expiresAt).toLocaleTimeString()}`;
+  }
   return `${seconds}s · ${new Date(expiresAt).toLocaleTimeString()}`;
 }
 

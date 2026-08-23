@@ -1,8 +1,4 @@
-import {
-  ResolveContentGraphEngine,
-  serializeAllIslands,
-  type SerializedIsland,
-} from "@xndrjs/resource-graph-resolver";
+import { ResolveContentGraphEngine, serializeAllIslands } from "@xndrjs/resource-graph-resolver";
 
 import {
   loadBackingForRoot,
@@ -39,7 +35,6 @@ import type { Page } from "../domain/index.js";
 export type ResolveDemoPageSuccess = {
   ok: true;
   page: Page;
-  serializedIslands: SerializedIsland[];
   resolvedCount: number;
   cacheReport: CacheHitReport;
   cacheSnapshot: IslandCacheSnapshot;
@@ -58,7 +53,7 @@ function logCacheReport(report: CacheHitReport): void {
       ? "none"
       : report.islands.map(({ islandId, status }) => `${islandId}:${status}`).join(", ");
   console.log(
-    `Island cache — page ${report.pageIsland}; deps [${deps}]; ` +
+    `Island cache — page ${report.pageIsland}; manifest ${report.dependencyManifest}; deps [${deps}]; ` +
       `backing ${report.backingResourceCount}; promoted ${report.promotedResourceCount ?? 0}`
   );
 }
@@ -116,12 +111,13 @@ export async function resolveDemoPage(
     locale: executionContext.locale,
   });
   const serializedIslands = serializeAllIslands(output);
-  persistResolvedIslands(serializedIslands, lruIslandCache);
+  persistResolvedIslands(serializedIslands, lruIslandCache, {
+    rootIslandId: pageRoot.toString(),
+  });
 
   return {
     ok: true,
     page,
-    serializedIslands,
     resolvedCount,
     cacheReport,
     cacheSnapshot: lruIslandCache.snapshot(),
