@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ClearCacheButton } from "../components/clear-cache-button";
 import { CopyButton } from "../components/copy-button";
 import { CONTENTFUL_LOCALE_CODES } from "../../src/infrastructure/cms/generated/contentful.schemas";
 import { parseDemoLocaleParam } from "../../src/infrastructure/demo-execution-context";
@@ -59,6 +60,7 @@ export default async function LocaleDemoPage({ params }: Props) {
         <div className="panel-header">
           <h2>Island cache</h2>
           <div className="panel-actions">
+            <ClearCacheButton />
             <CopyButton value={cacheReportJson} label="Copy report" />
             <CopyButton value={cacheSnapshotJson} label="Copy snapshot" />
           </div>

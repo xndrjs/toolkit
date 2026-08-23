@@ -96,7 +96,7 @@ export class LruIslandCache implements IslandCachePort {
     };
   }
 
-  /** Test helper: drop all entries. */
+  /** Drop all entries (demo “Clear cache” + tests). */
   clear(): void {
     this.entries.clear();
   }
