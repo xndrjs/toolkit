@@ -33,31 +33,36 @@ An ARI has:
 - **`type`** — a stable string literal for the resource family (`"post-comments"`, `"post-list"`, …);
 - **`key`** — a readonly array of structural parts that identify a specific instance or scope;
 - **`toArray()`** — returns `[type, ...key]` for adapters;
-- **`format(formatter?)`** — stable string representation (logging, debugging);
+- **`toString()`** — canonical stable identity string (map keys, cache, dedup, logs);
 - **`equals(other)`** — structural equality via the same stable serialization.
 
-`type` and `key` stay separate in the public model. Create resources with `ari(type, ...keyParts)`; the collapsed `[type, ...key]` shape is exposed only through `toArray()`.
+`type` and `key` stay separate in the public model. Define a typed family with **`ari(type, ...schemas)`**; create instances with **`factory(...keyParts)`**.
 
 ## Defining resources
 
-Use factory functions in application code and the `ari` helper:
-
 ```ts
-import { ari } from "@xndrjs/application-resources";
+import { ari, s } from "@xndrjs/application-resources";
 
-export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", params);
+export const postCommentsAri = ari(
+  "post-comments",
+  s.object({ postId: s.string(), authorId: s.string() })
+);
 
-export const postListResource = (params: { blogId: string }) => ari("post-list", params);
+export const postListAri = ari("post-list", s.object({ blogId: s.string() }));
 ```
 
 Collect return types once for ports and invalidation:
 
 ```ts
 export type CoreResourceIdentifier =
-  | ReturnType<typeof postCommentsResource>
-  | ReturnType<typeof postListResource>;
+  | ReturnType<typeof postCommentsAri>
+  | ReturnType<typeof postListAri>;
 ```
+
+Factory helpers:
+
+- **`matches(candidate)`** — type guard when dispatching on an untyped ARI;
+- **`parseString(formatted)`** / **`safeParseString(formatted)`** — rebuild from `toString()` output.
 
 ### Allowed key parts
 
@@ -111,7 +116,7 @@ export class HttpPostCommentsAdapter implements PostCommentsPort {
     await this.httpClient.post("/post-comments", command);
 
     await this.invalidator.invalidate([
-      postCommentsResource({
+      postCommentsAri({
         postId: command.postId,
         authorId: command.authorId,
       }),
@@ -144,11 +149,12 @@ When an adapter needs a wider cache match (for example an open dimension represe
 
 Exported symbols:
 
-- **`ari`**
+- **`ari`** / **`AriKeySchemaError`** / **`AriParseError`** / **`AriFactory`**
+- **`s`** / **`safeParse`**
+- **`stableStringifyResource`** / **`parseStableStringifyResource`**
 - **`omitNullKeyFields`**
 - **`ApplicationResourceIdentifier`**
 - **`ApplicationResourceKey`**
 - **`ApplicationResourceKeyPart`**
 - **`ApplicationResourcePrimitive`**
 - **`ApplicationResourceKeyObject`**
-- **`ApplicationResourceKeyFormatter`**

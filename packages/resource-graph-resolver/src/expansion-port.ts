@@ -24,7 +24,7 @@ export interface ExpansionResult {
 }
 
 /**
- * Resource matcher for {@link defineExpansionPolicy} `for` (e.g. a {@link import("@xndrjs/application-resources").DefinedAri}).
+ * Resource matcher for {@link defineExpansionPolicy} `for` (e.g. an {@link import("@xndrjs/application-resources").AriFactory}).
  */
 export type ExpansionResourceFor<
   Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,

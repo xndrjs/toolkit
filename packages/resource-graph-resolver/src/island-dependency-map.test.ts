@@ -1,14 +1,14 @@
-import { ari } from "@xndrjs/application-resources";
 import { describe, expect, it } from "vitest";
 
 import { IslandDependencyMap } from "./island-dependency-map";
+import { testAri } from "./test-fixtures.js";
 
 describe("IslandDependencyMap", () => {
   it("records direct edges between distinct islands", () => {
     const deps = new IslandDependencyMap();
-    const pageId = ari("page", { id: "P" }).format();
-    const menuId = ari("menu", { id: "M" }).format();
-    const footerId = ari("footer", { id: "F" }).format();
+    const pageId = testAri("page", "P").toString();
+    const menuId = testAri("menu", "M").toString();
+    const footerId = testAri("footer", "F").toString();
 
     deps.add(pageId, menuId);
     deps.add(pageId, footerId);
@@ -19,7 +19,7 @@ describe("IslandDependencyMap", () => {
 
   it("ignores self-edges", () => {
     const deps = new IslandDependencyMap();
-    const pageId = ari("page", { id: "P" }).format();
+    const pageId = testAri("page", "P").toString();
 
     deps.add(pageId, pageId);
 

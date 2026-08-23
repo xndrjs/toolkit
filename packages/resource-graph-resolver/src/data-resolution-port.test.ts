@@ -1,13 +1,13 @@
-import { ari } from "@xndrjs/application-resources";
 import { describe, expect, it } from "vitest";
 
 import { createDataResolutionPull, type DataResolutionPort } from "./data-resolution-port";
+import { testAri } from "./test-fixtures.js";
 
 describe("DataResolutionPort", () => {
-  it("process pulls matching resources and returns a map keyed by resource.format()", async () => {
-    const page = ari("page", { id: "P" });
-    const asset = ari("asset", { id: "A" });
-    const missing = ari("menu", { id: "M" });
+  it("process pulls matching resources and returns a map keyed by resource.toString()", async () => {
+    const page = testAri("page", "P");
+    const asset = testAri("asset", "A");
+    const missing = testAri("menu", "M");
 
     const port: DataResolutionPort = {
       async process(pull) {
@@ -16,7 +16,7 @@ describe("DataResolutionPort", () => {
           if (resource.equals(missing)) {
             continue;
           }
-          values.set(resource.format(), { type: resource.type });
+          values.set(resource.toString(), { type: resource.type });
         }
         return values;
       },
@@ -27,14 +27,14 @@ describe("DataResolutionPort", () => {
 
     expect(remaining).toEqual([]);
     expect(result.size).toBe(2);
-    expect(result.get(page.format())).toEqual({ type: "page" });
-    expect(result.get(asset.format())).toEqual({ type: "asset" });
-    expect(result.has(missing.format())).toBe(false);
+    expect(result.get(page.toString())).toEqual({ type: "page" });
+    expect(result.get(asset.toString())).toEqual({ type: "asset" });
+    expect(result.has(missing.toString())).toBe(false);
   });
 
   it("take leaves non-accepted resources for a later call", async () => {
-    const page = ari("page", { id: "P" });
-    const asset = ari("asset", { id: "A" });
+    const page = testAri("page", "P");
+    const asset = testAri("asset", "A");
     const remaining = [page, asset];
     const pull = createDataResolutionPull(remaining);
 
@@ -46,9 +46,9 @@ describe("DataResolutionPort", () => {
   });
 
   it("take respects an optional limit", () => {
-    const a = ari("item", { id: "1" });
-    const b = ari("item", { id: "2" });
-    const c = ari("item", { id: "3" });
+    const a = testAri("item", "1");
+    const b = testAri("item", "2");
+    const c = testAri("item", "3");
     const remaining = [a, b, c];
     const pull = createDataResolutionPull(remaining);
 

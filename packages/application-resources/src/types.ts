@@ -17,14 +17,11 @@ export interface ApplicationResourceIdentifier<
 
   toArray(): readonly [Type, ...Key];
 
-  format(formatter?: ApplicationResourceKeyFormatter): string;
+  /** Canonical stable identity string (map keys, cache, dedup). */
+  toString(): string;
 
   equals(other: ApplicationResourceIdentifier): boolean;
 }
-
-export type ApplicationResourceKeyFormatter = (
-  resource: Pick<ApplicationResourceIdentifier, "type" | "key" | "toArray">
-) => string;
 
 type IsApplicationResourceKeyPart<T> = [T] extends [never]
   ? true

@@ -4,13 +4,15 @@
  * Not a general validation library — no refine, transform, or nested objects.
  */
 
+import type { ApplicationResourceKey } from "./types";
+
 export type KeySchemaIssue = {
   readonly path: readonly (string | number)[];
   readonly message: string;
 };
 
 export type KeySchemaParseResult<T> =
-  | { readonly success: true; readonly data: T }
+  | { readonly success: true; readonly value: T }
   | { readonly success: false; readonly issues: readonly KeySchemaIssue[] };
 
 export type StringSchema = { readonly kind: "string" };
@@ -64,11 +66,15 @@ export type TupleSchema<Items extends readonly KeyPartSchema[] = readonly KeyPar
   readonly items: Items;
 };
 
+/** Variable-length ARI key array (transport / wire shape). */
+export type WireKeySchema = { readonly kind: "wireKey" };
+
 /** Full key schema: typically a tuple, or a union of locator shapes. */
 export type AnyKeySchema =
   | KeyPartSchema
   | TupleSchema
-  | UnionSchema<readonly (KeyPartSchema | TupleSchema)[]>;
+  | UnionSchema<readonly (KeyPartSchema | TupleSchema)[]>
+  | WireKeySchema;
 
 type InferNonNullLeafSchema<S> = S extends { readonly kind: "string" }
   ? string
@@ -129,7 +135,6 @@ type InferTupleSchema<Items extends readonly unknown[]> = Items extends readonly
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
-/** Infer the TypeScript type of values accepted by a key schema. */
 export type InferKeySchema<S> = S extends {
   readonly kind: "tuple";
   readonly items: infer Items extends readonly unknown[];
@@ -139,7 +144,9 @@ export type InferKeySchema<S> = S extends {
     ? InferKeySchema<Option>
     : S extends { readonly kind: "object" }
       ? Simplify<InferObjectSchema<S>>
-      : InferLeafSchema<S>;
+      : S extends { readonly kind: "wireKey" }
+        ? ApplicationResourceKey
+        : InferLeafSchema<S>;
 
 function fail(path: readonly (string | number)[], message: string): KeySchemaParseResult<never> {
   return { success: false, issues: [{ path, message }] };
@@ -165,25 +172,25 @@ function parseNonNullLeaf(
       if (typeof input !== "string") {
         return fail(path, "Expected string");
       }
-      return { success: true, data: input };
+      return { success: true, value: input };
     }
     case "int": {
       if (typeof input !== "number" || !Number.isInteger(input) || !Number.isFinite(input)) {
         return fail(path, "Expected finite integer");
       }
-      return { success: true, data: input };
+      return { success: true, value: input };
     }
     case "boolean": {
       if (typeof input !== "boolean") {
         return fail(path, "Expected boolean");
       }
-      return { success: true, data: input };
+      return { success: true, value: input };
     }
     case "literal": {
       if (input !== schema.value) {
         return fail(path, `Expected literal ${JSON.stringify(schema.value)}`);
       }
-      return { success: true, data: schema.value };
+      return { success: true, value: schema.value };
     }
     case "enum": {
       if (typeof input !== "string" || !schema.values.includes(input)) {
@@ -192,7 +199,7 @@ function parseNonNullLeaf(
           `Expected one of: ${schema.values.map((v) => JSON.stringify(v)).join(", ")}`
         );
       }
-      return { success: true, data: input };
+      return { success: true, value: input };
     }
   }
 }
@@ -205,13 +212,13 @@ function parseLeaf(
   switch (schema.kind) {
     case "nullable": {
       if (input === null) {
-        return { success: true, data: null };
+        return { success: true, value: null };
       }
       return parseNonNullLeaf(schema.inner, input, path);
     }
     case "optional": {
       if (input === undefined) {
-        return { success: true, data: undefined };
+        return { success: true, value: undefined };
       }
       return parseNonNullLeaf(schema.inner, input, path);
     }
@@ -255,13 +262,13 @@ function parseObject(
     if (!fieldResult.success) {
       return fieldResult;
     }
-    if (fieldResult.data === undefined && fieldSchema.kind === "optional") {
+    if (fieldResult.value === undefined && fieldSchema.kind === "optional") {
       continue;
     }
-    data[key] = fieldResult.data;
+    data[key] = fieldResult.value;
   }
 
-  return { success: true, data };
+  return { success: true, value: data };
 }
 
 function parseKeyPart(
@@ -296,10 +303,10 @@ function parseTuple(
     if (!itemResult.success) {
       return itemResult;
     }
-    data.push(itemResult.data);
+    data.push(itemResult.value);
   }
 
-  return { success: true, data };
+  return { success: true, value: data };
 }
 
 function parseUnion(
@@ -310,7 +317,7 @@ function parseUnion(
   const allIssues: KeySchemaIssue[] = [];
 
   for (let i = 0; i < schema.options.length; i++) {
-    const optionResult = parseAny(schema.options[i] as AnyKeySchema, input);
+    const optionResult = parseAny(schema.options[i] as AnyKeySchema, input, path);
     if (optionResult.success) {
       return optionResult;
     }
@@ -323,8 +330,81 @@ function parseUnion(
   };
 }
 
-function parseAny(schema: AnyKeySchema, input: unknown): KeySchemaParseResult<unknown> {
-  const path: readonly (string | number)[] = [];
+function parseWirePrimitive(
+  input: unknown,
+  path: readonly (string | number)[]
+): KeySchemaParseResult<string | number | boolean | null> {
+  if (
+    input === null ||
+    typeof input === "string" ||
+    typeof input === "number" ||
+    typeof input === "boolean"
+  ) {
+    return { success: true, value: input };
+  }
+
+  return fail(path, "Expected string, number, boolean, or null");
+}
+
+function parseWireKeyObject(
+  input: unknown,
+  path: readonly (string | number)[]
+): KeySchemaParseResult<Record<string, string | number | boolean | null>> {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return fail(path, "Expected flat object");
+  }
+
+  const record = input as Record<string, unknown>;
+  const data: Record<string, string | number | boolean | null> = {};
+
+  for (const key of Object.keys(record)) {
+    const valueResult = parseWirePrimitive(record[key], [...path, key]);
+    if (!valueResult.success) {
+      return valueResult;
+    }
+    data[key] = valueResult.value;
+  }
+
+  return { success: true, value: data };
+}
+
+function parseWireKeyPart(
+  input: unknown,
+  path: readonly (string | number)[]
+): KeySchemaParseResult<ApplicationResourceKey[number]> {
+  const primitiveResult = parseWirePrimitive(input, path);
+  if (primitiveResult.success) {
+    return primitiveResult;
+  }
+
+  return parseWireKeyObject(input, path);
+}
+
+function parseWireKey(
+  input: unknown,
+  path: readonly (string | number)[]
+): KeySchemaParseResult<ApplicationResourceKey> {
+  if (!Array.isArray(input)) {
+    return fail(path, "Expected array");
+  }
+
+  const data: ApplicationResourceKey[number][] = [];
+  for (let index = 0; index < input.length; index += 1) {
+    const partResult = parseWireKeyPart(input[index], [...path, index]);
+    if (!partResult.success) {
+      return partResult;
+    }
+    data.push(partResult.value);
+  }
+
+  return { success: true, value: data };
+}
+
+function parseAny(
+  schema: AnyKeySchema,
+  input: unknown,
+  path: readonly (string | number)[] = []
+): KeySchemaParseResult<unknown> {
   switch (schema.kind) {
     case "tuple":
       return parseTuple(schema, input, path);
@@ -332,6 +412,8 @@ function parseAny(schema: AnyKeySchema, input: unknown): KeySchemaParseResult<un
       return parseUnion(schema, input, path);
     case "object":
       return parseObject(schema, input, path);
+    case "wireKey":
+      return parseWireKey(input, path);
     default:
       return parseKeyPart(schema, input, path);
   }
@@ -341,6 +423,9 @@ function parseAny(schema: AnyKeySchema, input: unknown): KeySchemaParseResult<un
 export function safeParse(schema: AnyKeySchema, input: unknown): KeySchemaParseResult<unknown> {
   return parseAny(schema, input);
 }
+
+/** Schema for the transport shape of any ARI key (`ApplicationResourceKey`). */
+export const applicationResourceKeySchema: WireKeySchema = { kind: "wireKey" };
 
 export const s = {
   string(): StringSchema {
@@ -376,5 +461,9 @@ export const s = {
     options: Options
   ): UnionSchema<Options> {
     return { kind: "union", options };
+  },
+  /** Variable-length ARI key array (transport / wire shape). */
+  wireKey(): WireKeySchema {
+    return applicationResourceKeySchema;
   },
 } as const;

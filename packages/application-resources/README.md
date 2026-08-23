@@ -1,6 +1,6 @@
 # @xndrjs/application-resources
 
-Framework-agnostic **Application Resource Identifiers**: stable, structural resource IDs you can use for stale resources, invalidation, logging, or later conversion to cache/query keys.
+Framework-agnostic **Application Resource Identifiers**: stable, structural resource IDs you can use for stale resources, invalidation, logging, cache keys, or later conversion to vendor-specific storage keys.
 
 ## Installation
 
@@ -15,10 +15,10 @@ An **Application Resource Identifier** (ARI) has:
 - **`type`** — a stable string literal naming the resource family;
 - **`key`** — a readonly array of structural parts that identify a specific instance/scope;
 - **`toArray()`** — returns `[type, ...key]` for external adapters (for example TanStack Query);
-- **`format(formatter?)`** — returns a stable string representation;
-- **`equals(other)`** — compares two resources using the same stable serialization.
+- **`toString()`** — canonical stable identity string (map keys, cache, dedup, logs);
+- **`equals(other)`** — structural equality via the same stable serialization.
 
-`type` names the **resource family**; `key` holds the **coordinates** (instance id, filter, or empty family scope). Create resources with `ari(type, ...keyParts)` for ad-hoc keys, or **`defineAri(type, ...keyPartSchemas)`** when you want validated locators and `matches` for dispatch.
+Define typed resource families with **`ari(type, ...keyPartSchemas)`** and the key-schema DSL **`s`**. Each factory validates keys on create, exposes **`matches`**, and can **`parseString`** / **`safeParseString`** round-trip instances from `toString()` output.
 
 ### Allowed key parts
 
@@ -36,51 +36,27 @@ Not allowed:
 
 Normalize optional values to `null` or an explicit wildcard instead of leaving them `undefined`.
 
-## `defineAri` (recommended for typed families)
+## Defining resources
 
 ```ts
-import { defineAri, s } from "@xndrjs/application-resources";
+import { ari, s } from "@xndrjs/application-resources";
 
-export const integrationProductAri = defineAri(
-  "integration.product",
-  s.object({ sku: s.string() })
+export const postCommentsAri = ari(
+  "post-comments",
+  s.object({ postId: s.string(), authorId: s.string() })
 );
 
-const resource = integrationProductAri({ sku: "TSHIRT-1" });
-
-integrationProductAri.matches(resource); // type + key shape
-integrationProductAri.type; // "integration.product"
-```
-
-Key part schemas are wrapped in a tuple automatically (`defineAri("posts")` → empty key). Key schema builders (`s`): `string`, `int`, `boolean`, `nullable`, `optional`, `literal`, `enum`, `object` (flat), plus `tuple` / `union` when you need them explicitly. No Zod dependency — intentionally small.
-
-`ari()` remains available as a low-level constructor without a key schema.
-
-## Example (`ari`)
-
-```ts
-import { ari } from "@xndrjs/application-resources";
-
-export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", params);
-
-const resource = postCommentsResource({
+const resource = postCommentsAri({
   postId: "post-123",
   authorId: "author-456",
 });
 
-resource.type;
-// "post-comments"
-
-resource.key;
-// [{ postId: "post-123", authorId: "author-456" }]
-
-resource.toArray();
-// ["post-comments", { postId: "post-123", authorId: "author-456" }]
-
-resource.format();
-// stable string representation
+postCommentsAri.matches(resource); // type + key shape
+postCommentsAri.parseString(resource.toString()); // round-trip
+resource.toString(); // canonical identity string
 ```
+
+Key part schemas are wrapped in a tuple automatically (`ari("posts")` → empty key). Key schema builders (`s`): `string`, `int`, `boolean`, `nullable`, `optional`, `literal`, `enum`, `object` (flat), plus `tuple` / `union` when you need them explicitly. No Zod dependency — intentionally small.
 
 ## TanStack Query (external)
 
@@ -92,7 +68,7 @@ import { QueryClient } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
 
-const resource = postCommentsResource({
+const resource = postCommentsAri({
   postId: command.postId,
   authorId: command.authorId,
 });
@@ -101,7 +77,6 @@ await queryClient.invalidateQueries({
   queryKey: resource.toArray(),
 });
 
-// wider match when a key object contains null open dimensions:
 await queryClient.invalidateQueries({
   queryKey: omitNullKeyFields(resource.toArray()),
 });
@@ -112,9 +87,7 @@ await queryClient.invalidateQueries({
 Define resource factories in the core/application layer and type your invalidation port against their return types:
 
 ```ts
-export type PostsResourceIdentifier =
-  | ReturnType<typeof postCommentsResource>
-  | ReturnType<typeof postResource>;
+export type PostsResourceIdentifier = ReturnType<typeof postCommentsAri>;
 
 export interface ResourceInvalidator {
   invalidate(resources: PostsResourceIdentifier[]): Promise<void>;
@@ -134,7 +107,7 @@ export class HttpPostCommentsAdapter {
     const result = await this.httpClient.post("/post-comments", command);
 
     await this.resourceInvalidator.invalidate([
-      postCommentsResource({
+      postCommentsAri({
         postId: command.postId,
         authorId: command.authorId,
       }),
@@ -149,16 +122,15 @@ export class HttpPostCommentsAdapter {
 
 Exported symbols:
 
-- **`ari`**
-- **`defineAri`** / **`AriKeySchemaError`** / **`DefinedAri`**
+- **`ari`** / **`AriKeySchemaError`** / **`AriParseError`** / **`AriFactory`**
 - **`s`** / **`safeParse`** / **`InferKeySchema`**
+- **`stableStringifyResource`** / **`parseStableStringifyResource`**
 - **`omitNullKeyFields`**
 - **`ApplicationResourceIdentifier`**
 - **`ApplicationResourceKey`**
 - **`ApplicationResourceKeyPart`**
 - **`ApplicationResourcePrimitive`**
 - **`ApplicationResourceKeyObject`**
-- **`ApplicationResourceKeyFormatter`**
 
 ## License
 

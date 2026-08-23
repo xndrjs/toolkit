@@ -1,7 +1,7 @@
-import { defineAri, s } from "@xndrjs/application-resources";
+import { ari, s } from "@xndrjs/application-resources";
 
 /** Integration product commercial data, keyed by SKU and locale. */
-export const integrationProductAri = defineAri(
+export const integrationProductAri = ari(
   "integration.product",
   s.object({ sku: s.string(), locale: s.string() })
 );

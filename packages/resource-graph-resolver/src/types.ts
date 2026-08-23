@@ -4,7 +4,7 @@ import type { ContentMap } from "./content-map";
 import type { IslandDependencyMap } from "./island-dependency-map";
 import type { IslandMap } from "./island-map";
 
-/** Stable string key for a resource, produced by `resource.format()`. */
+/** Stable string key for a resource, produced by `resource.toString()`. */
 export type ResourceKey = string;
 
 /** Stable island identifier; equal to the root resource's {@link ResourceKey}. */

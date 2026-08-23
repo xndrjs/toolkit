@@ -43,7 +43,7 @@ function expandEntry(
   return createDemoExpansionPort().expand({
     resource,
     contentMap,
-    inheritedIslandId: resource.format(),
+    inheritedIslandId: resource.toString(),
     executionContext,
   });
 }
@@ -58,14 +58,14 @@ describe("createDemoExpansionPort", () => {
     const result = expandEntry(pageEntryAri, page);
 
     expect(result.isIsland).toBe(false);
-    expect(result.resources.map((r) => r.format())).toEqual([
-      tabsEntryAri.format(),
-      tabsSecondaryEntryAri.format(),
-      productEntryAri.format(),
-      cmsEntryAri({ id: demoIds.productHoodie, locale: "en-US" }).format(),
-      cmsEntryAri({ id: demoIds.productMug, locale: "en-US" }).format(),
-      menuEntryAri.format(),
-      footerEntryAri.format(),
+    expect(result.resources.map((r) => r.toString())).toEqual([
+      tabsEntryAri.toString(),
+      tabsSecondaryEntryAri.toString(),
+      productEntryAri.toString(),
+      cmsEntryAri({ id: demoIds.productHoodie, locale: "en-US" }).toString(),
+      cmsEntryAri({ id: demoIds.productMug, locale: "en-US" }).toString(),
+      menuEntryAri.toString(),
+      footerEntryAri.toString(),
     ]);
     expect(result.resources.every((r) => r.type === "cms.entry")).toBe(true);
     expect(
@@ -82,11 +82,11 @@ describe("createDemoExpansionPort", () => {
     const tab = demoCmsStore.entries.get(demoIds.tab)!;
     const result = expandEntry(tabEntryAri, tab);
 
-    expect(result.resources.map((r) => r.format())).toEqual([
-      heroEntryAri.format(),
-      cmsEntryAri({ id: demoIds.heroPromo, locale: "en-US" }).format(),
-      productEntryAri.format(),
-      cmsEntryAri({ id: demoIds.productHoodie, locale: "en-US" }).format(),
+    expect(result.resources.map((r) => r.toString())).toEqual([
+      heroEntryAri.toString(),
+      cmsEntryAri({ id: demoIds.heroPromo, locale: "en-US" }).toString(),
+      productEntryAri.toString(),
+      cmsEntryAri({ id: demoIds.productHoodie, locale: "en-US" }).toString(),
     ]);
     expect(result.resources.every((r) => r.type === "cms.entry")).toBe(true);
   });
@@ -99,23 +99,23 @@ describe("createDemoExpansionPort", () => {
     const footerResult = expandEntry(footerEntryAri, footer);
 
     expect(menuResult.isIsland).toBe(true);
-    expect(menuResult.resources.map((r) => r.format())).toEqual([logoAssetAri.format()]);
+    expect(menuResult.resources.map((r) => r.toString())).toEqual([logoAssetAri.toString()]);
     expect(menuResult.resources[0]?.type).toBe("cms.asset");
     expect((menuResult.resources[0] as CmsAssetResource).key[0].locale).toBe("en-US");
 
     expect(footerResult.isIsland).toBe(true);
-    expect(footerResult.resources.map((r) => r.format())).toEqual([logoAssetAri.format()]);
+    expect(footerResult.resources.map((r) => r.toString())).toEqual([logoAssetAri.toString()]);
   });
 
   it("expands hero image to cms.asset and product to integration.product", () => {
     const hero = demoCmsStore.entries.get(demoIds.hero)!;
     const product = demoCmsStore.entries.get(demoIds.product)!;
 
-    expect(expandEntry(heroEntryAri, hero).resources.map((r) => r.format())).toEqual([
-      logoAssetAri.format(),
+    expect(expandEntry(heroEntryAri, hero).resources.map((r) => r.toString())).toEqual([
+      logoAssetAri.toString(),
     ]);
-    expect(expandEntry(productEntryAri, product).resources.map((r) => r.format())).toEqual([
-      tshirtIntegrationAri.format(),
+    expect(expandEntry(productEntryAri, product).resources.map((r) => r.toString())).toEqual([
+      tshirtIntegrationAri.toString(),
     ]);
     expect(expandEntry(productEntryAri, product).resources[0]?.type).toBe("integration.product");
   });
@@ -128,15 +128,15 @@ describe("createDemoExpansionPort", () => {
     const matched = createDemoExpansionPort().expand({
       resource: productEntryAri,
       contentMap,
-      inheritedIslandId: productEntryAri.format(),
+      inheritedIslandId: productEntryAri.toString(),
       executionContext: createDefaultDemoExecutionContext("en-US"),
     });
-    expect(matched.resources.map((r) => r.format())).toEqual([tshirtIntegrationAri.format()]);
+    expect(matched.resources.map((r) => r.toString())).toEqual([tshirtIntegrationAri.toString()]);
 
     const localeMismatch = createDemoExpansionPort().expand({
       resource: productEntryAri,
       contentMap,
-      inheritedIslandId: productEntryAri.format(),
+      inheritedIslandId: productEntryAri.toString(),
       executionContext: createDefaultDemoExecutionContext("it-IT"),
     });
     expect(localeMismatch.resources).toEqual([]);
@@ -146,11 +146,11 @@ describe("createDemoExpansionPort", () => {
     const italianMatched = createDemoExpansionPort().expand({
       resource: italianProduct,
       contentMap,
-      inheritedIslandId: italianProduct.format(),
+      inheritedIslandId: italianProduct.toString(),
       executionContext: createDefaultDemoExecutionContext("it-IT"),
     });
-    expect(italianMatched.resources.map((r) => r.format())).toEqual([
-      integrationProductAri({ sku: "TSHIRT-1", locale: "it-IT" }).format(),
+    expect(italianMatched.resources.map((r) => r.toString())).toEqual([
+      integrationProductAri({ sku: "TSHIRT-1", locale: "it-IT" }).toString(),
     ]);
 
     expectTypeOf(createDefaultDemoExecutionContext().locale).toEqualTypeOf<"en-US" | "it-IT">();
@@ -171,7 +171,7 @@ describe("createDemoExpansionPort", () => {
       createDemoExpansionPort().expand({
         resource: logoAssetAri,
         contentMap,
-        inheritedIslandId: logoAssetAri.format(),
+        inheritedIslandId: logoAssetAri.toString(),
         executionContext,
       })
     ).toEqual({ resources: [] });
@@ -180,7 +180,7 @@ describe("createDemoExpansionPort", () => {
       createDemoExpansionPort().expand({
         resource: tshirtIntegrationAri,
         contentMap,
-        inheritedIslandId: tshirtIntegrationAri.format(),
+        inheritedIslandId: tshirtIntegrationAri.toString(),
         executionContext,
       })
     ).toEqual({ resources: [] });
@@ -225,22 +225,22 @@ describe("createDemoExpansionPort", () => {
       );
     }
 
-    const pageIsland = output.islands.get(pageRoot.format())!;
-    expect(pageIsland.has(pageRoot.format())).toBe(true);
-    expect(pageIsland.has(menuEntryAri.format())).toBe(false);
-    expect(pageIsland.has(footerEntryAri.format())).toBe(false);
-    expect(pageIsland.has(tshirtIntegrationAri.format())).toBe(true);
-    expect(pageIsland.has(logoAssetAri.format())).toBe(true);
+    const pageIsland = output.islands.get(pageRoot.toString())!;
+    expect(pageIsland.has(pageRoot.toString())).toBe(true);
+    expect(pageIsland.has(menuEntryAri.toString())).toBe(false);
+    expect(pageIsland.has(footerEntryAri.toString())).toBe(false);
+    expect(pageIsland.has(tshirtIntegrationAri.toString())).toBe(true);
+    expect(pageIsland.has(logoAssetAri.toString())).toBe(true);
 
-    expect(output.islands.get(menuEntryAri.format())).toEqual(
-      new Set([menuEntryAri.format(), logoAssetAri.format()])
+    expect(output.islands.get(menuEntryAri.toString())).toEqual(
+      new Set([menuEntryAri.toString(), logoAssetAri.toString()])
     );
-    expect(output.islands.get(footerEntryAri.format())).toEqual(
-      new Set([footerEntryAri.format(), logoAssetAri.format()])
+    expect(output.islands.get(footerEntryAri.toString())).toEqual(
+      new Set([footerEntryAri.toString(), logoAssetAri.toString()])
     );
 
-    expect(output.islandDependencies.get(pageRoot.format())).toEqual(
-      new Set([menuEntryAri.format(), footerEntryAri.format()])
+    expect(output.islandDependencies.get(pageRoot.toString())).toEqual(
+      new Set([menuEntryAri.toString(), footerEntryAri.toString()])
     );
 
     expect(output.contentMap.get(logoAssetAri)).toMatchObject({

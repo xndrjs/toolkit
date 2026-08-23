@@ -34,7 +34,7 @@ export function loadBackingForRoot(
   pageRoot: ApplicationResourceIdentifier,
   cache: IslandCachePort
 ): LoadBackingForRootResult {
-  const pageIslandId = pageRoot.format();
+  const pageIslandId = pageRoot.toString();
   const pageIsland = cache.getIsland(pageIslandId);
   const pageStatus = lookupStatus(pageIsland);
 

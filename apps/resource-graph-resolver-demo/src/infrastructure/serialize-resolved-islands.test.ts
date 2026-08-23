@@ -37,12 +37,12 @@ describe("serializeAllIslands", () => {
       true
     );
 
-    const pageIsland = serializedIslands.find((island) => island.islandId === pageRoot.format());
-    expect(pageIsland?.resources[pageRoot.format()]).toBeDefined();
-    expect(pageIsland?.resources[tshirtIntegrationAri.format()]).toBeDefined();
+    const pageIsland = serializedIslands.find((island) => island.islandId === pageRoot.toString());
+    expect(pageIsland?.resources[pageRoot.toString()]).toBeDefined();
+    expect(pageIsland?.resources[tshirtIntegrationAri.toString()]).toBeDefined();
 
     const islandsWithLogo = serializedIslands.filter(
-      (island) => island.resources[logoAssetAri.format()] !== undefined
+      (island) => island.resources[logoAssetAri.toString()] !== undefined
     );
     expect(islandsWithLogo.length).toBeGreaterThanOrEqual(2);
   });

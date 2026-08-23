@@ -15,7 +15,7 @@ export function requireCmsEntry(
 ) {
   const raw = context.result.contentMap.get(resource);
   if (!raw) {
-    throw new Error(`ContentMap is missing cms.entry ${resource.format()}`);
+    throw new Error(`ContentMap is missing cms.entry ${resource.toString()}`);
   }
   return raw;
 }

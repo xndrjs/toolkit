@@ -4,13 +4,13 @@ import { s, safeParse, type InferKeySchema } from "./key-schema";
 
 describe("key schema DSL", () => {
   it("parses leaf schemas", () => {
-    expect(safeParse(s.string(), "ok")).toEqual({ success: true, data: "ok" });
-    expect(safeParse(s.int(), 3)).toEqual({ success: true, data: 3 });
-    expect(safeParse(s.boolean(), false)).toEqual({ success: true, data: false });
-    expect(safeParse(s.literal("a"), "a")).toEqual({ success: true, data: "a" });
+    expect(safeParse(s.string(), "ok")).toEqual({ success: true, value: "ok" });
+    expect(safeParse(s.int(), 3)).toEqual({ success: true, value: 3 });
+    expect(safeParse(s.boolean(), false)).toEqual({ success: true, value: false });
+    expect(safeParse(s.literal("a"), "a")).toEqual({ success: true, value: "a" });
     expect(safeParse(s.enum(["EUR", "USD"] as const), "EUR")).toEqual({
       success: true,
-      data: "EUR",
+      value: "EUR",
     });
 
     expect(safeParse(s.string(), 1).success).toBe(false);
@@ -20,29 +20,29 @@ describe("key schema DSL", () => {
 
   it("parses nullable leaves", () => {
     const schema = s.nullable(s.string());
-    expect(safeParse(schema, null)).toEqual({ success: true, data: null });
-    expect(safeParse(schema, "ok")).toEqual({ success: true, data: "ok" });
+    expect(safeParse(schema, null)).toEqual({ success: true, value: null });
+    expect(safeParse(schema, "ok")).toEqual({ success: true, value: "ok" });
     expect(safeParse(schema, 1).success).toBe(false);
   });
 
   it("parses optional leaves and omits absent object fields", () => {
     const leaf = s.optional(s.string());
-    expect(safeParse(leaf, undefined)).toEqual({ success: true, data: undefined });
-    expect(safeParse(leaf, "ok")).toEqual({ success: true, data: "ok" });
+    expect(safeParse(leaf, undefined)).toEqual({ success: true, value: undefined });
+    expect(safeParse(leaf, "ok")).toEqual({ success: true, value: "ok" });
     expect(safeParse(leaf, null).success).toBe(false);
 
     const schema = s.object({ id: s.string(), label: s.optional(s.string()) });
     expect(safeParse(schema, { id: "x" })).toEqual({
       success: true,
-      data: { id: "x" },
+      value: { id: "x" },
     });
     expect(safeParse(schema, { id: "x", label: undefined })).toEqual({
       success: true,
-      data: { id: "x" },
+      value: { id: "x" },
     });
     expect(safeParse(schema, { id: "x", label: "hi" })).toEqual({
       success: true,
-      data: { id: "x", label: "hi" },
+      value: { id: "x", label: "hi" },
     });
   });
 
@@ -50,11 +50,11 @@ describe("key schema DSL", () => {
     const schema = s.object({ id: s.string(), n: s.int(), userId: s.nullable(s.string()) });
     expect(safeParse(schema, { id: "x", n: 1, userId: null })).toEqual({
       success: true,
-      data: { id: "x", n: 1, userId: null },
+      value: { id: "x", n: 1, userId: null },
     });
     expect(safeParse(schema, { id: "x", n: 1, userId: "u" })).toEqual({
       success: true,
-      data: { id: "x", n: 1, userId: "u" },
+      value: { id: "x", n: 1, userId: "u" },
     });
     expect(safeParse(schema, { id: "x" }).success).toBe(false);
     expect(safeParse(schema, { id: "x", n: 1, extra: true }).success).toBe(false);
@@ -64,10 +64,22 @@ describe("key schema DSL", () => {
     const schema = s.tuple([s.object({ sku: s.string() })]);
     expect(safeParse(schema, [{ sku: "TSHIRT-1" }])).toEqual({
       success: true,
-      data: [{ sku: "TSHIRT-1" }],
+      value: [{ sku: "TSHIRT-1" }],
     });
     expect(safeParse(schema, []).success).toBe(false);
-    expect(safeParse(s.tuple([]), [])).toEqual({ success: true, data: [] });
+    expect(safeParse(s.tuple([]), [])).toEqual({ success: true, value: [] });
+  });
+
+  it("parses wire keys for transport shape", () => {
+    const schema = s.wireKey();
+    expect(safeParse(schema, [])).toEqual({ success: true, value: [] });
+    expect(safeParse(schema, [{ id: "1" }, "scope", 42, true, null])).toEqual({
+      success: true,
+      value: [{ id: "1" }, "scope", 42, true, null],
+    });
+    expect(safeParse(schema, [[1]]).success).toBe(false);
+    expect(safeParse(schema, [{ nested: { id: "1" } }]).success).toBe(false);
+    expect(safeParse(schema, "not-array").success).toBe(false);
   });
 
   it("parses unions first-success", () => {
@@ -79,13 +91,13 @@ describe("key schema DSL", () => {
 
     expect(safeParse(schema, [{ id: "1" }])).toEqual({
       success: true,
-      data: [{ id: "1" }],
+      value: [{ id: "1" }],
     });
     expect(safeParse(schema, [{ userId: "u" }])).toEqual({
       success: true,
-      data: [{ userId: "u" }],
+      value: [{ userId: "u" }],
     });
-    expect(safeParse(schema, [])).toEqual({ success: true, data: [] });
+    expect(safeParse(schema, [])).toEqual({ success: true, value: [] });
     expect(safeParse(schema, [{ other: "x" }]).success).toBe(false);
   });
 

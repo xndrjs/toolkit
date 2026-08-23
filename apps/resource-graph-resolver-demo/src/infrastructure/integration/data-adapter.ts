@@ -49,7 +49,7 @@ export function createIntegrationDataLoader(
       for (const resource of productAris) {
         const snapshot = fetched.get(resource.key[0].sku);
         if (snapshot) {
-          result.set(resource.format(), snapshot);
+          result.set(resource.toString(), snapshot);
         }
       }
 

@@ -1,11 +1,11 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { ari } from "./ari";
+import { createAri } from "./create-ari";
 import { omitNullKeyFields } from "./omit-null-key-fields";
 
 describe("omitNullKeyFields", () => {
   it("removes null fields from object key parts in a toArray() projection", () => {
-    const resource = ari("task-permissions", {
+    const resource = createAri("task-permissions", {
       taskId: "task-123",
       userId: null,
     });
@@ -24,7 +24,7 @@ describe("omitNullKeyFields", () => {
   });
 
   it("leaves non-null object fields and primitive key parts unchanged", () => {
-    const resource = ari("task-permissions", "scope", {
+    const resource = createAri("task-permissions", "scope", {
       taskId: "task-123",
       userId: "user-456",
       archived: false,
@@ -42,7 +42,7 @@ describe("omitNullKeyFields", () => {
   });
 
   it("does not mutate the original toArray() projection", () => {
-    const resource = ari("task-permissions", {
+    const resource = createAri("task-permissions", {
       taskId: "task-123",
       userId: null,
     });

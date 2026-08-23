@@ -10,13 +10,13 @@ export class IslandMap {
   private readonly islands = new Map<IslandId, Set<ResourceKey>>();
 
   has(islandId: IslandId, resource: ApplicationResourceIdentifier): boolean {
-    return this.islands.get(islandId)?.has(resource.format()) ?? false;
+    return this.islands.get(islandId)?.has(resource.toString()) ?? false;
   }
 
   add(islandId: IslandId, resource: ApplicationResourceIdentifier): void {
     const resources = this.islands.get(islandId) ?? new Set<ResourceKey>();
 
-    resources.add(resource.format());
+    resources.add(resource.toString());
     this.islands.set(islandId, resources);
   }
 

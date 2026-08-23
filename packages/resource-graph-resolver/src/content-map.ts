@@ -12,7 +12,7 @@ export class ContentMap<R extends ContentRegistry = ContentRegistry> {
   private readonly resources = new Map<ResourceKey, unknown>();
 
   has(resource: ApplicationResourceIdentifier): boolean {
-    return this.resources.has(resource.format());
+    return this.resources.has(resource.toString());
   }
 
   hasKey(resourceKey: ResourceKey): boolean {
@@ -20,7 +20,7 @@ export class ContentMap<R extends ContentRegistry = ContentRegistry> {
   }
 
   get<T extends keyof R & string>(resource: ApplicationResourceIdentifier<T>): R[T] | undefined {
-    return this.resources.get(resource.format()) as R[T] | undefined;
+    return this.resources.get(resource.toString()) as R[T] | undefined;
   }
 
   /** Opaque key lookup — prefer {@link get} when an ARI is available. */
@@ -29,6 +29,6 @@ export class ContentMap<R extends ContentRegistry = ContentRegistry> {
   }
 
   set<T extends keyof R & string>(resource: ApplicationResourceIdentifier<T>, value: R[T]): void {
-    this.resources.set(resource.format(), value);
+    this.resources.set(resource.toString(), value);
   }
 }

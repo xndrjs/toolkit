@@ -42,7 +42,7 @@ export function createConsoleResolveTrace(): ResolveTrace {
         return;
       }
       const cap = limit === undefined ? "∞" : String(limit);
-      const ids = resources.map((resource) => resource.format()).join(", ");
+      const ids = resources.map((resource) => resource.toString()).join(", ");
       console.log(`  PULL ${label} (cap ${cap}, took ${resources.length}): ${ids}`);
     },
 
@@ -54,13 +54,13 @@ export function createConsoleResolveTrace(): ResolveTrace {
     },
 
     logExpand(resource, result) {
-      const children = result.resources.map((child) => child.format()).join(", ");
+      const children = result.resources.map((child) => child.toString()).join(", ");
       const island = result.isIsland ? " [island]" : "";
       if (children.length === 0) {
-        console.log(`  EXPAND ${resource.format()} → ∅${island}`);
+        console.log(`  EXPAND ${resource.toString()} → ∅${island}`);
         return;
       }
-      console.log(`  EXPAND ${resource.format()} → ${children}${island}`);
+      console.log(`  EXPAND ${resource.toString()} → ${children}${island}`);
     },
 
     logSummary(contentMapSize, errorCount) {

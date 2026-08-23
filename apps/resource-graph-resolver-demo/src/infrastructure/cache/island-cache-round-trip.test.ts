@@ -102,7 +102,10 @@ describe("island cache cold/warm round-trip", () => {
     expect(report.pageIsland).toBe("hit");
     expect(resolvedResourceCache.size).toBeGreaterThan(0);
 
-    const orphanKey = "cms.entry:orphan-never-reached:en-US";
+    const orphanKey = cmsEntryAri({
+      id: "orphan-never-reached",
+      locale: executionContext.locale,
+    }).toString();
     const orphanValue = { fields: { title: "orphan" } };
     resolvedResourceCache.set(orphanKey, orphanValue);
 

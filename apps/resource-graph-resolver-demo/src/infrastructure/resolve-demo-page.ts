@@ -82,7 +82,7 @@ export async function resolveDemoPage(
 
   const { resolvedResourceCache, report } = loadBackingForRoot(pageRoot, lruIslandCache);
 
-  console.log(`Resolve demo — root ${pageRoot.format()}, locale ${executionContext.locale}`);
+  console.log(`Resolve demo — root ${pageRoot.toString()}, locale ${executionContext.locale}`);
 
   const output = await engine.execute({
     root: pageRoot,

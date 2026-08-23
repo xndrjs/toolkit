@@ -86,7 +86,7 @@ describe("persistResolvedIslands", () => {
 
 describe("loadBackingForRoot", () => {
   const pageRoot = {
-    format: () => "page",
+    toString: () => "page",
   } as Parameters<typeof loadBackingForRoot>[0];
 
   it("returns empty backing on page miss", () => {

@@ -1,5 +1,4 @@
-import { defineAri, s } from "@xndrjs/application-resources";
-import { ari, type ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import { ari, s, type ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { ContentMap } from "./content-map";
@@ -9,43 +8,44 @@ import {
   type ExpansionContext,
   type ExpansionPolicy,
 } from "./expansion-port";
+import { testAri } from "./test-fixtures.js";
 import type { ContentRegistry } from "./types";
 
-const menuAri = defineAri("menu", s.object({ id: s.string() }));
+const menuAri = ari("menu", s.object({ id: s.string() }));
 
 function createContext(
-  resource: ApplicationResourceIdentifier = ari("page", { id: "P" })
+  resource: ApplicationResourceIdentifier = testAri("page", "P")
 ): ExpansionContext<ContentRegistry, { locale: string }> {
   return {
     resource,
     contentMap: new ContentMap(),
-    inheritedIslandId: resource.format(),
+    inheritedIslandId: resource.toString(),
     executionContext: { locale: "en" },
   };
 }
 
 describe("createExpansionPolicyChain", () => {
   it("applies the first matching policy", () => {
-    const menuChild = ari("item", { id: "1" });
+    const menuChild = testAri("item", "1");
     const first: ExpansionPolicy = {
       matches: ({ resource }) => resource.type === "menu",
       expand: () => ({ resources: [menuChild], isIsland: true }),
     };
     const second: ExpansionPolicy = {
       matches: () => true,
-      expand: () => ({ resources: [ari("fallback", { id: "X" })] }),
+      expand: () => ({ resources: [testAri("fallback", "X")] }),
     };
     const expandSpy = vi.spyOn(second, "expand");
 
     const port = createExpansionPolicyChain([first, second]);
-    const result = port.expand(createContext(ari("menu", { id: "M" })));
+    const result = port.expand(createContext(testAri("menu", "M")));
 
     expect(result).toEqual({ resources: [menuChild], isIsland: true });
     expect(expandSpy).not.toHaveBeenCalled();
   });
 
   it("skips non-matching policies", () => {
-    const hero = ari("hero", { id: "H" });
+    const hero = testAri("hero", "H");
     const pagePolicy: ExpansionPolicy = {
       matches: ({ resource }) => resource.type === "page",
       expand: () => ({ resources: [hero] }),
@@ -56,7 +56,7 @@ describe("createExpansionPolicyChain", () => {
     };
 
     const port = createExpansionPolicyChain([menuPolicy, pagePolicy]);
-    const result = port.expand(createContext(ari("page", { id: "P" })));
+    const result = port.expand(createContext(testAri("page", "P")));
 
     expect(result).toEqual({ resources: [hero] });
   });
@@ -69,7 +69,7 @@ describe("createExpansionPolicyChain", () => {
       },
     ]);
 
-    expect(port.expand(createContext(ari("page", { id: "P" })))).toEqual({
+    expect(port.expand(createContext(testAri("page", "P")))).toEqual({
       resources: [],
     });
   });
@@ -126,7 +126,7 @@ describe("defineExpansionPolicy", () => {
   });
 
   it("skips the policy when `when` returns false", () => {
-    const expand = vi.fn(() => ({ resources: [ari("fallback", { id: "X" })] }));
+    const expand = vi.fn(() => ({ resources: [testAri("fallback", "X")] }));
 
     const port = createExpansionPolicyChain([
       defineExpansionPolicy({
@@ -151,7 +151,8 @@ describe("defineExpansionPolicy", () => {
 
     const policy = defineExpansionPolicy({
       for: menuAri,
-      when: ({ contentMap, resource }) => contentMap.get(resource)?.kind === "main",
+      when: ({ contentMap, resource }) =>
+        (contentMap.get(resource) as { kind?: string } | undefined)?.kind === "main",
       expand: () => ({ resources: [], isIsland: true }),
     });
 

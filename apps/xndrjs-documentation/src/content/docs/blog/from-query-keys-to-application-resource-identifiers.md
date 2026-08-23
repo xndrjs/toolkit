@@ -114,15 +114,17 @@ Call it an **Application Resource Identifier** (ARI).
 Small factory, talking the application language:
 
 ```ts
-import { ari } from "@xndrjs/application-resources";
+import { ari, s } from "@xndrjs/application-resources";
 
-export const postCommentsResource = (params: { postId: string; authorId: string }) =>
-  ari("post-comments", params);
+export const postCommentsAri = ari(
+  "post-comments",
+  s.object({ postId: s.string(), authorId: s.string() })
+);
 ```
 
-A resource has a **`type`** (the "family") and a **`key`** (the structural parts that identify an instance). That is application language. No React. No TanStack. No `queryClient`.
+Create an instance with `postCommentsAri({ postId, authorId })`. A resource has a **`type`** (the "family") and a **`key`** (the structural parts that identify an instance). That is application language. No React. No TanStack. No `queryClient`.
 
-The goal is a **shared language** across layers: every layer of the application should refer to the same resource using the same identifier. The mutation hook, the write adapter, the cache invalidator, and the logger all mean the same thing when they point at `postCommentsResource({ postId, authorId })` — not five slightly different tuples.
+The goal is a **shared language** across layers: every layer of the application should refer to the same resource using the same identifier. The mutation hook, the write adapter, the cache invalidator, and the logger all mean the same thing when they point at `postCommentsAri({ postId, authorId })` — not five slightly different tuples.
 
 ---
 
@@ -142,14 +144,16 @@ An ARI intentionally says nothing about how a resource is obtained or represente
 For example:
 
 ```ts
-// all post comments
+import { ari, s } from "@xndrjs/application-resources";
+
+// all post comments (empty key)
 ari("post-comments");
 // all post comments by a specific author
-ari("post-comments", { authorId });
+ari("post-comments", s.object({ authorId: s.string() }));
 // all post comments on a specific post
-ari("post-comments", { postId });
+ari("post-comments", s.object({ postId: s.string() }));
 // all post comments by a specific author on a specific post
-ari("post-comments", { authorId, postId });
+ari("post-comments", s.object({ authorId: s.string(), postId: s.string() }));
 ```
 
 The scoping is defined by the application, not by the domain.
@@ -181,13 +185,13 @@ The same underlying concept may have different ARIs in different applications.
 For example, one application may identify a `Project` as:
 
 ```ts
-ari("project", { projectId });
+ari("project", s.object({ projectId: s.string() }));
 ```
 
 while another application may address the same underlying data as:
 
 ```ts
-ari("organization-projects", { organizationId, projectId });
+ari("organization-projects", s.object({ organizationId: s.string(), projectId: s.string() }));
 ```
 
 Neither is more correct. They represent different application models.
@@ -197,13 +201,13 @@ Another example:
 Application A may have:
 
 ```ts
-ari("customer-orders", { customerId });
+ari("customer-orders", s.object({ customerId: s.string() }));
 ```
 
 Application B may have:
 
 ```ts
-ari("sales-dashboard", { regionId });
+ari("sales-dashboard", s.object({ regionId: s.string() }));
 ```
 
 They may be composed from the same underlying domain data, but represent different resources in each application's model.
@@ -224,7 +228,7 @@ You _can_ derive a query key from it:
 
 ```ts
 queryClient.invalidateQueries({
-  queryKey: postCommentsResource({ postId, authorId }).toArray(),
+  queryKey: postCommentsAri({ postId, authorId }).toArray(),
 });
 ```
 
@@ -251,7 +255,7 @@ Once you stop equating “resource” with “query key”, other uses appear al
 Describe what a role may do on which resources:
 
 ```ts
-canRead(role, postCommentsResource({ postId, authorId }));
+canRead(role, postCommentsAri({ postId, authorId }));
 ```
 
 The check is about **resources**, not about how data was cached on the client.
@@ -261,12 +265,12 @@ The check is about **resources**, not about how data was cached on the client.
 With [`@xndrjs/tasks`](/v0/infrastructure/tasks/), use a stable string form of the resource as a dedup key:
 
 ```ts
-const resource = postCommentsResource({ postId, authorId });
+const resource = postCommentsAri({ postId, authorId });
 
 return (
   task(() => loadPostComments(resource))
     // concurrent callers share one in-flight promise until it settles
-    .inflightDedup(Symbol.for(resource.format()))
+    .inflightDedup(Symbol.for(resource.toString()))
 );
 ```
 
@@ -277,7 +281,7 @@ Same resource, same promise — no accidental duplicate fetches.
 When something fails, log **which resource** was involved:
 
 ```ts
-logger.error("Failed to load resource", { resource: resource.format() });
+logger.error("Failed to load resource", { resource: resource.toString() });
 ```
 
 ### Server cache tags
@@ -285,7 +289,7 @@ logger.error("Failed to load resource", { resource: resource.format() });
 On the server, CDN, or Next.js, turn the resource into a tag:
 
 ```ts
-revalidateTag(postResource({ postId }).format());
+revalidateTag(postAri({ postId }).toString());
 ```
 
 ### Application events
@@ -295,8 +299,8 @@ const event = {
   name: "post.comment.updated",
   occurredAt: new Date(),
   affectedResources: [
-    postCommentsResource({ postId, authorId }),
-    postResource({ postId }),
+    postCommentsAri({ postId, authorId }),
+    postAri({ postId }),
     // ...other resources...
   ],
 };
@@ -314,8 +318,8 @@ Instead of invalidating inside `onSuccess`, declare a port in the application la
 
 ```ts
 export type CoreResourceIdentifier =
-  | ReturnType<typeof postCommentsResource>
-  | ReturnType<typeof postResource>;
+  | ReturnType<typeof postCommentsAri>
+  | ReturnType<typeof postAri>;
 
 export interface ResourceInvalidator {
   invalidate(resources: CoreResourceIdentifier[]): Promise<void>;
@@ -351,7 +355,7 @@ export class HttpPostCommentsAdapter implements PostCommentsPort {
     await this.httpClient.post("/post-comments", command);
 
     await this.invalidator.invalidate([
-      postCommentsResource({
+      postCommentsAri({
         postId: command.postId,
         authorId: command.authorId,
       }),
@@ -391,15 +395,16 @@ The React mutation can become thin: call the use case, and let an infrastructure
 It gives you a consistent way to **define** resources in application code:
 
 ```ts
-const resource = postCommentsResource({
+const resource = postCommentsAri({
   postId: "post-123",
   authorId: "author-456",
 });
 
 resource.type; // "post-comments"
 resource.toArray(); // adapter-friendly projection
-resource.format(); // stable string for tags, logs, dedup keys
+resource.toString(); // canonical stable identity (tags, logs, dedup keys)
 resource.equals(other);
+postCommentsAri.parseString(resource.toString()); // round-trip
 ```
 
 Zero runtime dependencies. Framework-agnostic. Boring on purpose — so the interesting part is the **architecture**, not the utility.

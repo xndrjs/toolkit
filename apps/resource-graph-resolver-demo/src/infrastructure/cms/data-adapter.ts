@@ -64,7 +64,7 @@ export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
 }
 
 type CmsResourceWithId = {
-  format(): string;
+  toString(): string;
   key: readonly [{ id: string; locale: ContentfulLocaleCode }];
 };
 
@@ -77,7 +77,7 @@ function mapDemoCmsBatch<T>(
   for (const resource of resources) {
     const value = fetched.get(resource.key[0].id);
     if (value) {
-      result.set(resource.format(), value);
+      result.set(resource.toString(), value);
     }
   }
   return result;

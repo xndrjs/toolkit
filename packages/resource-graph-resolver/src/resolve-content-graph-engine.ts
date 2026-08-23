@@ -30,7 +30,7 @@ function isUnresolved<R extends ContentRegistry>(
   contentMap: ContentMap<R>,
   failuresByResource: ReadonlyMap<ResourceKey, FailureAccumulator>
 ): boolean {
-  const key = resource.format();
+  const key = resource.toString();
   return !contentMap.has(resource) && !failuresByResource.has(key);
 }
 
@@ -62,7 +62,7 @@ export class ResolveContentGraphEngine<
       resource: ApplicationResourceIdentifier,
       inheritedIslandId: IslandId
     ): void => {
-      const resourceKey = resource.format();
+      const resourceKey = resource.toString();
 
       const failure = failuresByResource.get(resourceKey) ?? {
         resourceKey,
@@ -77,7 +77,7 @@ export class ResolveContentGraphEngine<
     const queue: QueueItem[] = [
       {
         resource: input.root,
-        inheritedIslandId: input.root.format(),
+        inheritedIslandId: input.root.toString(),
       },
     ];
 
@@ -94,7 +94,7 @@ export class ResolveContentGraphEngine<
             continue;
           }
 
-          const key = item.resource.format();
+          const key = item.resource.toString();
           if (!resolvedResourceCache.has(key)) {
             continue;
           }
@@ -134,7 +134,7 @@ export class ResolveContentGraphEngine<
                 continue;
               }
 
-              const key = item.resource.format();
+              const key = item.resource.toString();
               if (takenKeys.has(key)) {
                 i++;
                 continue;
@@ -151,7 +151,7 @@ export class ResolveContentGraphEngine<
         });
 
         for (const item of taken) {
-          const resourceKey = item.resource.format();
+          const resourceKey = item.resource.toString();
 
           if (resolved.has(resourceKey)) {
             contentMap.set(
@@ -168,7 +168,7 @@ export class ResolveContentGraphEngine<
       }
 
       const expandItem = ({ resource, inheritedIslandId }: QueueItem): void => {
-        const resourceKey = resource.format();
+        const resourceKey = resource.toString();
 
         const expansion = this.expansionPort.expand({
           resource,
@@ -208,7 +208,7 @@ export class ResolveContentGraphEngine<
       for (const item of frontier) {
         if (contentMap.has(item.resource)) {
           expandItem(item);
-        } else if (failuresByResource.has(item.resource.format())) {
+        } else if (failuresByResource.has(item.resource.toString())) {
           // Duplicate queue entry for an already-failed resource — aggregate islands.
           registerMissingResource(item.resource, item.inheritedIslandId);
         } else {

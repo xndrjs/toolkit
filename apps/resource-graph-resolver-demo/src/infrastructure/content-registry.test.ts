@@ -93,16 +93,16 @@ describe("source-qualified ARI store + data gateway", () => {
 
     expect(remaining).toEqual([]);
     expect(result.size).toBe(4);
-    expect(result.has(pageEntryAri.format())).toBe(true);
-    expect(result.has(logoAssetAri.format())).toBe(true);
-    expect(result.has(menuEntryAri.format())).toBe(true);
-    expect(result.has(tshirtIntegrationAri.format())).toBe(true);
-    expect(result.has(missing.format())).toBe(false);
+    expect(result.has(pageEntryAri.toString())).toBe(true);
+    expect(result.has(logoAssetAri.toString())).toBe(true);
+    expect(result.has(menuEntryAri.toString())).toBe(true);
+    expect(result.has(tshirtIntegrationAri.toString())).toBe(true);
+    expect(result.has(missing.toString())).toBe(false);
 
-    const asset = result.get(logoAssetAri.format()) as ContentfulAsset;
+    const asset = result.get(logoAssetAri.toString()) as ContentfulAsset;
     expect(asset.fields.file?.url).toBe("https://cdn.example.com/logo.svg");
 
-    const commercial = result.get(tshirtIntegrationAri.format()) as ProductIntegrationSnapshot;
+    const commercial = result.get(tshirtIntegrationAri.toString()) as ProductIntegrationSnapshot;
     expect(commercial).toEqual({
       price: { amount: 1999, currency: "EUR" },
       inStock: true,
@@ -118,10 +118,10 @@ describe("source-qualified ARI store + data gateway", () => {
 
     expect([...entries.keys(), ...assets.keys()].sort()).toEqual(
       [
-        pageEntryAri.format(),
-        heroEntryAri.format(),
-        logoAssetAri.format(),
-        productEntryAri.format(),
+        pageEntryAri.toString(),
+        heroEntryAri.toString(),
+        logoAssetAri.toString(),
+        productEntryAri.toString(),
       ].sort()
     );
   });
@@ -130,7 +130,7 @@ describe("source-qualified ARI store + data gateway", () => {
     const integration = createIntegrationDataLoader();
     const result = await integration.load([tshirtIntegrationAri]);
 
-    expect(result.get(tshirtIntegrationAri.format())).toEqual({
+    expect(result.get(tshirtIntegrationAri.toString())).toEqual({
       price: { amount: 1999, currency: "EUR" },
       inStock: true,
     });

@@ -1,32 +1,33 @@
-import { ari, type ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DataResolutionPort } from "./data-resolution-port";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "./expansion-port";
 import { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
 import { serializeIsland } from "./serialize-island";
+import { testAri } from "./test-fixtures.js";
 
-const page = ari("page", { id: "P" });
-const hero = ari("hero", { id: "H" });
-const menu = ari("menu", { id: "M" });
-const footer = ari("footer", { id: "F" });
-const asset = ari("asset", { id: "A" });
-const missing = ari("missing", { id: "X" });
+const page = testAri("page", "P");
+const hero = testAri("hero", "H");
+const menu = testAri("menu", "M");
+const footer = testAri("footer", "F");
+const asset = testAri("asset", "A");
+const missing = testAri("missing", "X");
 
 const values = new Map<string, unknown>([
   [
-    page.format(),
+    page.toString(),
     {
       title: "Homepage",
-      hero: { $ref: hero.format() },
-      menu: { $ref: menu.format() },
-      footer: { $ref: footer.format() },
+      hero: { $ref: hero.toString() },
+      menu: { $ref: menu.toString() },
+      footer: { $ref: footer.toString() },
     },
   ],
-  [hero.format(), { image: { $ref: asset.format() } }],
-  [menu.format(), { logo: { $ref: asset.format() } }],
-  [footer.format(), { logo: { $ref: asset.format() } }],
-  [asset.format(), { url: "https://cdn.example.com/logo.svg" }],
+  [hero.toString(), { image: { $ref: asset.toString() } }],
+  [menu.toString(), { logo: { $ref: asset.toString() } }],
+  [footer.toString(), { logo: { $ref: asset.toString() } }],
+  [asset.toString(), { url: "https://cdn.example.com/logo.svg" }],
 ]);
 
 function createInMemoryPort(store: ReadonlyMap<string, unknown> = values): DataResolutionPort & {
@@ -42,7 +43,7 @@ function createInMemoryPort(store: ReadonlyMap<string, unknown> = values): DataR
       takenBatches.push(taken);
       const result = new Map<string, unknown>();
       for (const resource of taken) {
-        const key = resource.format();
+        const key = resource.toString();
         if (store.has(key)) {
           result.set(key, store.get(key));
         }
@@ -102,32 +103,36 @@ describe("ResolveContentGraphEngine", () => {
 
     const assetValue = output.contentMap.get(asset);
     expect(assetValue).toEqual({ url: "https://cdn.example.com/logo.svg" });
-    expect(output.contentMap.getByKey(asset.format())).toBe(assetValue);
+    expect(output.contentMap.getByKey(asset.toString())).toBe(assetValue);
 
-    expect(output.islands.get(page.format())).toEqual(
-      new Set([page.format(), hero.format(), asset.format()])
+    expect(output.islands.get(page.toString())).toEqual(
+      new Set([page.toString(), hero.toString(), asset.toString()])
     );
-    expect(output.islands.get(menu.format())).toEqual(new Set([menu.format(), asset.format()]));
-    expect(output.islands.get(footer.format())).toEqual(new Set([footer.format(), asset.format()]));
+    expect(output.islands.get(menu.toString())).toEqual(
+      new Set([menu.toString(), asset.toString()])
+    );
+    expect(output.islands.get(footer.toString())).toEqual(
+      new Set([footer.toString(), asset.toString()])
+    );
 
-    expect(output.islandDependencies.get(page.format())).toEqual(
-      new Set([menu.format(), footer.format()])
+    expect(output.islandDependencies.get(page.toString())).toEqual(
+      new Set([menu.toString(), footer.toString()])
     );
-    expect(output.islandDependencies.get(menu.format()).size).toBe(0);
-    expect(output.islandDependencies.get(footer.format()).size).toBe(0);
+    expect(output.islandDependencies.get(menu.toString()).size).toBe(0);
+    expect(output.islandDependencies.get(footer.toString()).size).toBe(0);
     expect(output.errors).toEqual([]);
 
-    const pageSerialized = serializeIsland(page.format(), output);
-    const menuSerialized = serializeIsland(menu.format(), output);
-    const footerSerialized = serializeIsland(footer.format(), output);
+    const pageSerialized = serializeIsland(page.toString(), output);
+    const menuSerialized = serializeIsland(menu.toString(), output);
+    const footerSerialized = serializeIsland(footer.toString(), output);
 
-    expect(pageSerialized.resources[asset.format()]).toBe(assetValue);
-    expect(menuSerialized.resources[asset.format()]).toBe(assetValue);
-    expect(footerSerialized.resources[asset.format()]).toBe(assetValue);
-    expect(pageSerialized.resources[menu.format()]).toBeUndefined();
-    expect(pageSerialized.resources[footer.format()]).toBeUndefined();
+    expect(pageSerialized.resources[asset.toString()]).toBe(assetValue);
+    expect(menuSerialized.resources[asset.toString()]).toBe(assetValue);
+    expect(footerSerialized.resources[asset.toString()]).toBe(assetValue);
+    expect(pageSerialized.resources[menu.toString()]).toBeUndefined();
+    expect(pageSerialized.resources[footer.toString()]).toBeUndefined();
     expect(pageSerialized.dependencies).toEqual(
-      expect.arrayContaining([menu.format(), footer.format()])
+      expect.arrayContaining([menu.toString(), footer.toString()])
     );
   });
 
@@ -142,7 +147,7 @@ describe("ResolveContentGraphEngine", () => {
 
         const result = new Map<string, unknown>();
         for (const resource of taken) {
-          const key = resource.format();
+          const key = resource.toString();
           if (store.has(key)) {
             result.set(key, store.get(key));
           }
@@ -178,11 +183,11 @@ describe("ResolveContentGraphEngine", () => {
       node: { next: string };
     };
 
-    const a = ari("node", { id: "A" });
-    const b = ari("node", { id: "B" });
+    const a = testAri("node", "A");
+    const b = testAri("node", "B");
     const store = new Map<string, CycleRegistry["node"]>([
-      [a.format(), { next: b.format() }],
-      [b.format(), { next: a.format() }],
+      [a.toString(), { next: b.toString() }],
+      [b.toString(), { next: a.toString() }],
     ]);
     const dataPort = {
       takenBatches: [] as ApplicationResourceIdentifier[][],
@@ -191,7 +196,7 @@ describe("ResolveContentGraphEngine", () => {
         dataPort.takenBatches.push(taken);
         const result = new Map<string, CycleRegistry["node"]>();
         for (const resource of taken) {
-          const key = resource.format();
+          const key = resource.toString();
           if (store.has(key)) {
             result.set(key, store.get(key)!);
           }
@@ -211,10 +216,10 @@ describe("ResolveContentGraphEngine", () => {
           expand: ({ resource, contentMap }) => {
             const value = contentMap.get(resource as ApplicationResourceIdentifier<"node">);
             const childKey = value?.next;
-            if (childKey === b.format()) {
+            if (childKey === b.toString()) {
               return { resources: [b] };
             }
-            if (childKey === a.format()) {
+            if (childKey === a.toString()) {
               return { resources: [a] };
             }
             return { resources: [] };
@@ -229,13 +234,13 @@ describe("ResolveContentGraphEngine", () => {
       missingResourceMode: "throw",
     });
 
-    expect(output.islands.get(a.format())).toEqual(new Set([a.format(), b.format()]));
+    expect(output.islands.get(a.toString())).toEqual(new Set([a.toString(), b.toString()]));
     expect(dataPort.process).toHaveBeenCalledTimes(2);
   });
 
   it("collect mode does not throw, skips missing serialization, and marks islands partial", async () => {
     const store = new Map(values);
-    store.delete(menu.format());
+    store.delete(menu.toString());
 
     const dataPort = createInMemoryPort(store);
     const engine = new ResolveContentGraphEngine(
@@ -250,29 +255,29 @@ describe("ResolveContentGraphEngine", () => {
     });
 
     expect(output.contentMap.has(menu)).toBe(false);
-    expect(output.islands.get(menu.format()).size).toBe(0);
+    expect(output.islands.get(menu.toString()).size).toBe(0);
     expect(output.errors).toHaveLength(1);
-    expect(output.errors[0]?.resourceKey).toBe(menu.format());
-    expect(output.errors[0]?.inheritedIslandIds).toEqual([page.format()]);
-    expect(output.islands.get(page.format())).toEqual(
-      new Set([page.format(), hero.format(), asset.format()])
+    expect(output.errors[0]?.resourceKey).toBe(menu.toString());
+    expect(output.errors[0]?.inheritedIslandIds).toEqual([page.toString()]);
+    expect(output.islands.get(page.toString())).toEqual(
+      new Set([page.toString(), hero.toString(), asset.toString()])
     );
-    expect(output.islandDependencies.get(page.format())).toEqual(new Set([footer.format()]));
+    expect(output.islandDependencies.get(page.toString())).toEqual(new Set([footer.toString()]));
 
-    const pageSerialized = serializeIsland(page.format(), output);
+    const pageSerialized = serializeIsland(page.toString(), output);
     expect(pageSerialized.completeness).toBe("partial");
-    expect(pageSerialized.missingResources).toEqual([menu.format()]);
-    expect(pageSerialized.resources[menu.format()]).toBeUndefined();
-    expect(pageSerialized.dependencies).toEqual([footer.format()]);
+    expect(pageSerialized.missingResources).toEqual([menu.toString()]);
+    expect(pageSerialized.resources[menu.toString()]).toBeUndefined();
+    expect(pageSerialized.dependencies).toEqual([footer.toString()]);
 
-    const footerSerialized = serializeIsland(footer.format(), output);
+    const footerSerialized = serializeIsland(footer.toString(), output);
     expect(footerSerialized.completeness).toBe("complete");
     expect(footerSerialized.missingResources).toEqual([]);
   });
 
   it("throws on the first missing resource in throw mode", async () => {
     const store = new Map(values);
-    store.delete(hero.format());
+    store.delete(hero.toString());
 
     const dataPort = createInMemoryPort(store);
     const engine = new ResolveContentGraphEngine(
@@ -286,7 +291,7 @@ describe("ResolveContentGraphEngine", () => {
         executionContext: {},
         missingResourceMode: "throw",
       })
-    ).rejects.toThrow(`Unable to resolve ${hero.format()}`);
+    ).rejects.toThrow(`Unable to resolve ${hero.toString()}`);
   });
 
   it("promotes resolvedResourceCache hits into ContentMap and skips DataResolutionPort pulls", async () => {
@@ -298,11 +303,11 @@ describe("ResolveContentGraphEngine", () => {
 
     const cachedAsset = { url: "https://cdn.example.com/from-cache.svg" };
     const resolvedResourceCache = new Map<string, unknown>([
-      [page.format(), values.get(page.format())],
-      [hero.format(), values.get(hero.format())],
-      [menu.format(), values.get(menu.format())],
-      [footer.format(), values.get(footer.format())],
-      [asset.format(), cachedAsset],
+      [page.toString(), values.get(page.toString())],
+      [hero.toString(), values.get(hero.toString())],
+      [menu.toString(), values.get(menu.toString())],
+      [footer.toString(), values.get(footer.toString())],
+      [asset.toString(), cachedAsset],
     ]);
 
     const output = await engine.execute({
@@ -330,9 +335,9 @@ describe("ResolveContentGraphEngine", () => {
       createExpansionPolicyChain(createPageGraphPolicies())
     );
 
-    const orphan = ari("orphan", { id: "O" });
+    const orphan = testAri("orphan", "O");
     const orphanValue = { label: "never reached" };
-    const resolvedResourceCache = new Map<string, unknown>([[orphan.format(), orphanValue]]);
+    const resolvedResourceCache = new Map<string, unknown>([[orphan.toString(), orphanValue]]);
 
     const output = await engine.execute({
       root: page,
@@ -342,8 +347,8 @@ describe("ResolveContentGraphEngine", () => {
     });
 
     expect(output.contentMap.has(orphan)).toBe(false);
-    expect(output.contentMap.getByKey(orphan.format())).toBeUndefined();
-    expect(resolvedResourceCache.get(orphan.format())).toBe(orphanValue);
+    expect(output.contentMap.getByKey(orphan.toString())).toBeUndefined();
+    expect(resolvedResourceCache.get(orphan.toString())).toBe(orphanValue);
     expect(output.contentMap.has(page)).toBe(true);
     expect(output.contentMap.has(asset)).toBe(true);
   });
@@ -368,8 +373,8 @@ describe("ResolveContentGraphEngine", () => {
     const heroValue = { title: "Cached hero" };
     const orphanKey = "orphan:O";
     const resolvedResourceCache = new Map<string, unknown>([
-      [page.format(), pageValue],
-      [hero.format(), heroValue],
+      [page.toString(), pageValue],
+      [hero.toString(), heroValue],
       [orphanKey, { keep: true }],
     ]);
 
@@ -380,8 +385,8 @@ describe("ResolveContentGraphEngine", () => {
       resolvedResourceCache,
     });
 
-    expect(resolvedResourceCache.has(page.format())).toBe(false);
-    expect(resolvedResourceCache.has(hero.format())).toBe(false);
+    expect(resolvedResourceCache.has(page.toString())).toBe(false);
+    expect(resolvedResourceCache.has(hero.toString())).toBe(false);
     expect(resolvedResourceCache.get(orphanKey)).toEqual({ keep: true });
     expect(resolvedResourceCache.size).toBe(1);
     expect(output.contentMap.get(page)).toEqual(pageValue);
@@ -390,12 +395,12 @@ describe("ResolveContentGraphEngine", () => {
   });
 
   it("aggregates inherited islands for the same missing resource", async () => {
-    const left = ari("branch", { id: "L" });
-    const right = ari("branch", { id: "R" });
+    const left = testAri("branch", "L");
+    const right = testAri("branch", "R");
     const store = new Map<string, unknown>([
-      [page.format(), {}],
-      [left.format(), {}],
-      [right.format(), {}],
+      [page.toString(), {}],
+      [left.toString(), {}],
+      [right.toString(), {}],
     ]);
     const dataPort = createInMemoryPort(store);
     const engine = new ResolveContentGraphEngine(
@@ -419,9 +424,9 @@ describe("ResolveContentGraphEngine", () => {
     });
 
     expect(output.errors).toHaveLength(1);
-    expect(output.errors[0]?.resourceKey).toBe(missing.format());
+    expect(output.errors[0]?.resourceKey).toBe(missing.toString());
     expect(new Set(output.errors[0]?.inheritedIslandIds)).toEqual(
-      new Set([left.format(), right.format()])
+      new Set([left.toString(), right.toString()])
     );
     expect(
       dataPort.takenBatches.some((batch) => batch.some((resource) => resource.equals(missing)))

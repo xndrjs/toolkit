@@ -1,18 +1,18 @@
-import { ari } from "@xndrjs/application-resources";
 import { describe, expect, it } from "vitest";
 
 import { IslandMap } from "./island-map";
+import { testAri } from "./test-fixtures.js";
 
 describe("IslandMap", () => {
-  it("tracks membership per island using resource.format()", () => {
+  it("tracks membership per island using resource.toString()", () => {
     const islands = new IslandMap();
-    const page = ari("page", { id: "P" });
-    const hero = ari("hero", { id: "H" });
-    const asset = ari("asset", { id: "A" });
-    const menu = ari("menu", { id: "M" });
+    const page = testAri("page", "P");
+    const hero = testAri("hero", "H");
+    const asset = testAri("asset", "A");
+    const menu = testAri("menu", "M");
 
-    const pageIslandId = page.format();
-    const menuIslandId = menu.format();
+    const pageIslandId = page.toString();
+    const menuIslandId = menu.toString();
 
     islands.add(pageIslandId, page);
     islands.add(pageIslandId, hero);
@@ -24,24 +24,28 @@ describe("IslandMap", () => {
     expect(islands.has(menuIslandId, asset)).toBe(true);
     expect(islands.has(pageIslandId, menu)).toBe(false);
 
-    expect([...islands.get(pageIslandId)]).toEqual([page.format(), hero.format(), asset.format()]);
-    expect([...islands.get(menuIslandId)]).toEqual([menu.format(), asset.format()]);
+    expect([...islands.get(pageIslandId)]).toEqual([
+      page.toString(),
+      hero.toString(),
+      asset.toString(),
+    ]);
+    expect([...islands.get(menuIslandId)]).toEqual([menu.toString(), asset.toString()]);
   });
 
   it("returns an empty set for unknown islands", () => {
     const islands = new IslandMap();
 
-    expect(islands.get(ari("page", { id: "missing" }).format()).size).toBe(0);
+    expect(islands.get(testAri("page", "missing").toString()).size).toBe(0);
   });
 
   it("lists registered island root ids", () => {
     const islands = new IslandMap();
-    const page = ari("page", { id: "P" });
-    const menu = ari("menu", { id: "M" });
+    const page = testAri("page", "P");
+    const menu = testAri("menu", "M");
 
-    islands.add(page.format(), page);
-    islands.add(menu.format(), menu);
+    islands.add(page.toString(), page);
+    islands.add(menu.toString(), menu);
 
-    expect(islands.islandIds()).toEqual([page.format(), menu.format()]);
+    expect(islands.islandIds()).toEqual([page.toString(), menu.toString()]);
   });
 });
