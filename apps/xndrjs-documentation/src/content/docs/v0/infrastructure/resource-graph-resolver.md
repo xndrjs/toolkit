@@ -317,4 +317,4 @@ Exported symbols:
 
 - [Application resources](/v0/application/application-resources/) — ARI factories and `toString()` keys used throughout the engine
 - [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) — transport schemas and link-field metadata for expansion authoring
-- [Demo app README](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo)
+- [Demo app](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo)

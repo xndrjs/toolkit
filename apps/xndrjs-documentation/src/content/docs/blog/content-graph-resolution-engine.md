@@ -27,9 +27,7 @@ The idea behind the first "pagebuilder" I designed was naive:
 
 A page loads its modules. A module loads its children. A product module loads its product data. React renders everything as it becomes available.
 
-It's simple. It's also a surprisingly good way to discover that you don't actually have a rendering problem.
-
-You have a **graph resolution problem**.
+It's simple. It also taught me something I did not expect: the hard part of these sites is **graph resolution**, and rendering is only what happens once the graph has been resolved.
 
 That distinction is the reason I built [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/).
 
@@ -75,7 +73,7 @@ Once you see the problem this way, several common solutions start to look less a
 
 ---
 
-# The obvious solution: let components fetch
+## The obvious solution: let components fetch
 
 Suppose a Next.js application uses Server Components.
 
@@ -99,7 +97,7 @@ The problem appears when the graph gets large.
 
 ---
 
-## Problem #1: N+1 becomes a graph problem
+### Problem #1: N+1 becomes a graph problem
 
 Imagine a page with twenty modules. Some modules contain more modules, some of those modules reference assets. Some other reference products.
 
@@ -124,7 +122,7 @@ And that makes batching difficult.
 
 ---
 
-# Problem #2: fetching and rendering happen in waves
+### Problem #2: fetching and rendering happen in waves
 
 There is another, less obvious problem.
 
@@ -165,9 +163,7 @@ Render
   └── discover C ─────> another CMS request
 ```
 
-The problem is not that DataLoader, `Promise.all`, or HTTP caching are bad tools.
-
-The problem is **where the scheduling decision is being made**.
+DataLoader, `Promise.all`, and HTTP caching are all good tools. The difficulty is **where the scheduling decision is being made**: each of them can only batch what the current branch has already asked for.
 
 If discovery is scattered through rendering, the system has very little opportunity to orchestrate the whole graph.
 
@@ -175,7 +171,7 @@ So perhaps... should we move the whole thing into GraphQL? 🤔
 
 ---
 
-# "Just use GraphQL"
+## "Just use GraphQL"
 
 GraphQL seems almost purpose-built for this problem.
 
@@ -215,7 +211,7 @@ Those are not the same thing.
 
 ---
 
-## When the content model becomes highly polymorphic
+### When the content model becomes highly polymorphic
 
 A long-lived CMS can easily accumulate hundreds of content types.
 
@@ -235,7 +231,7 @@ The query is no longer describing _this page_, it is describing the **entire set
 
 At that point you have three unpleasant options.
 
-### One giant query
+#### One giant query
 
 Put every possible fragment in one operation.
 
@@ -243,7 +239,7 @@ The query grows with the entire polymorphic surface of the CMS rather than with 
 
 Eventually query size and Contentful's complexity limits become hard constraints.
 
-### One query per content-type family
+#### One query per content-type family
 
 Split the query into smaller operations.
 
@@ -251,7 +247,7 @@ Now you have traded query complexity for HTTP round-trips.
 
 The number of operations grows with the number of content types you need to support. It's not uncommon for a single page to have 20-30 distinct content-types: and it's already a pain.
 
-### Build queries dynamically
+#### Build queries dynamically
 
 Inspect the actual page and construct only the fragments you need.
 
@@ -275,7 +271,7 @@ It just doesn't need to define the architecture of the **whole** resolution proc
 
 ---
 
-# Then let's cache everything
+## Then let's cache everything
 
 Another natural reaction is to put a cache in front of the CMS: maybe Redis, or framework caching (i.e. Next.js built-in `fetch` cache).
 
@@ -309,7 +305,7 @@ You either try to reconstruct the dependency graph after the fact, or invalidate
 
 ---
 
-## The other extreme: build a "second CMS"
+### The other extreme: build a "second CMS"
 
 You can also copy the CMS into Redis:
 
@@ -339,7 +335,7 @@ The cache should accelerate resolution, not replace the system that owns the con
 
 ---
 
-# So what is the actual problem?
+## So what is the actual problem?
 
 At this point the requirements become clearer.
 
@@ -372,7 +368,7 @@ That is the problem [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resou
 
 ---
 
-# The architectural separation
+## The architectural separation
 
 The important part is not the algorithm itself: it is the boundary.
 
@@ -417,7 +413,7 @@ The application only needs a port that can provide the aggregate it needs.
 
 ---
 
-# A resource needs an identity
+## A resource needs an identity
 
 The graph needs a common language. That is where [Application Resource Identifiers](/v0/application/application-resources/) come in.
 
@@ -464,7 +460,7 @@ The domain should not have to know that.
 
 ---
 
-# Resolving the graph
+## Resolving the graph
 
 The resolver can now work with a very simple model.
 
@@ -565,7 +561,7 @@ That distinction is what turns a collection of component-level fetches into a re
 
 ---
 
-# Expansion is where product knowledge lives
+## Expansion is where product knowledge lives
 
 The engine itself must not contain rules such as:
 
@@ -582,6 +578,16 @@ expand(resource, payload) => [
   resourcesToResolve
 ]
 ```
+
+A policy depends on exactly three inputs:
+
+- the **current resource identifier**;
+- the **current resource payload**;
+- an **execution context** you define — locale, A/B variant, user role, preview mode.
+
+And, just as importantly, on nothing else. A policy must not inspect sibling nodes, read the `ContentMap` while it is being built, or depend on which peers happened to land in the same batch.
+
+That restriction is what keeps discovery **deterministic**: changing a loader's batch size must never change the edges a policy emits for a given node. When a rule genuinely needs to compare several resolved nodes with each other, it is **business logic** rather than expansion, and it belongs outside a single resolution run — applied to the resolved graph, not to the walk that produces it.
 
 For a CMS entry, a policy might discover linked entries:
 
@@ -610,7 +616,7 @@ This is one of the most important properties of the design:
 
 ---
 
-# The graph is resolved in infrastructure, not in React
+## The graph is resolved in infrastructure, not in React
 
 This gives us a very different rendering architecture.
 
@@ -665,7 +671,7 @@ It shouldn't have to discover what the application logic needs.
 
 ---
 
-# One graph, multiple backends
+## One graph, multiple backends
 
 The next problem is that a graph rarely belongs to one backend.
 
@@ -711,7 +717,7 @@ This is what allows infrastructure to change without rewriting the graph algorit
 
 ---
 
-# Batching is a scheduling problem
+## Batching is a scheduling problem
 
 This separation also gives us a better place to solve batching.
 
@@ -769,7 +775,7 @@ That keeps vendor-specific limits where they belong.
 
 ---
 
-# Different scheduling strategies
+## Different scheduling strategies
 
 There is another useful consequence of this separation.
 
@@ -805,17 +811,15 @@ Integration lane: ────────────────┐
                                   r1
 ```
 
-The graph semantics remain the same.
+The graph semantics remain the same. Only the scheduling strategy changes.
 
-Only the scheduling strategy changes.
+This is what the determinism rule above buys us: since no policy can observe siblings or batch composition, both strategies are obliged to produce the same graph, and scheduling stays an implementation choice instead of leaking into expansion policies or domain code.
 
-That distinction is important because it means scheduling is an implementation choice, not something that leaks into expansion policies or domain code.
-
-The library currently provides both strategies; the application chooses the one appropriate for its infrastructure.
+The library currently provides both strategies; the application chooses the one appropriate for its infrastructure. The wiring is the only difference: the barrier engine takes the gateway shown above, while the lane engine takes the same source adapters as an ordered chain, each declaring which resources it owns.
 
 ---
 
-# From infrastructure graph to domain aggregate
+## From infrastructure graph to domain aggregate
 
 The resolver doesn't exist to give your UI a giant `ContentMap`.
 
@@ -873,7 +877,7 @@ Keeping them separate prevents infrastructure shapes from leaking into the domai
 
 ---
 
-# Why not orchestrate all of this in the use case?
+## Why not orchestrate all of this in the use case?
 
 This is a tempting alternative.
 
@@ -906,7 +910,7 @@ This is the same architectural instinct behind the rest of `xndrjs`:
 
 ---
 
-# What happens when the infrastructure changes?
+## What happens when the infrastructure changes?
 
 Imagine that news currently lives in Contentful:
 
@@ -924,17 +928,13 @@ With a "component-driven" architecture, this kind of migration tends to spread t
 
 With the resolver architecture, the graph semantics can change at the infrastructure boundary.
 
-The engine does not care, the scheduler does not care, the domain aggregate does not care.
+The engine, the scheduler, and the domain aggregate are all unaffected. Only the **resource identifiers** and **expansion rules** involved in that specific branch need to change.
 
-Only the **resource identifiers** and **expansion rules** involved in that specific branch need to change.
-
-That is the real value of the abstraction.
-
-It's not about "less code": it's about **less knowledge leaking across boundaries**.
+That is the real value of the abstraction, and it is measured in **knowledge that stays behind a boundary** rather than in lines of code saved.
 
 ---
 
-# Contentful and generated expansion metadata
+## Contentful and generated expansion metadata
 
 This is where [`contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) becomes particularly useful if you're using Contentful REST API (Delivery).
 
@@ -975,7 +975,7 @@ The engine doesn't become a giant registry of CMS content types.
 
 ---
 
-# Caching the graph instead of guessing at requests
+## Caching the graph instead of guessing at requests
 
 Once the graph is explicit, caching becomes much more interesting.
 
@@ -1010,9 +1010,31 @@ The resolver simply gives the cache a meaningful dependency structure to work wi
 
 This is very different from trying to infer page dependencies from arbitrary component-level fetches.
 
+### The library will not resolve conflicts for you
+
+There is one decision the resolver deliberately refuses to make on your behalf.
+
+When you rebuild a starting point from several cached islands, the same ARI can appear in more than one slice — a shared logo asset belonging to both the menu island and the footer island, for example. Those two cached copies were written at different times, so they may disagree.
+
+The library does not pick a winner. Reconstituting backing resources requires a conflict callback:
+
+```typescript
+buildBackingResourcesFromIslands(cachedIslands, {
+  policy: "only-complete",
+  onResourceConflict: (conflict) => {
+    // keep one of the two payloads (conflict.existing / conflict.incoming),
+    // return null to drop the key and let the engine re-resolve it,
+    // or throw to reject the whole reconstruction
+    return conflict.incoming;
+  },
+});
+```
+
+Which of those is correct depends on what the payload means, how stale each island is, and how much the difference matters to the page — precisely the knowledge the resolver does not have and should not guess.
+
 ---
 
-# The resolver does not become your cache
+## The resolver does not become your cache
 
 There is an important distinction here.
 
@@ -1031,7 +1053,7 @@ The architecture remains the same. The cache is an optimization around resolutio
 
 ---
 
-# What the library actually gives you
+## What the library actually gives you
 
 At this point, the implementation details should be easier to understand.
 
@@ -1059,7 +1081,7 @@ Those decisions belong to the application. This is intentional: a generic librar
 
 ---
 
-# A minimal mental model
+## A minimal mental model
 
 Think about four things:
 
@@ -1109,11 +1131,9 @@ That's the whole architecture, the rest is optimization.
 
 ---
 
-# The bigger architectural lesson
+## The bigger architectural lesson
 
-The interesting part of this problem is not Contentful, GraphQL, or Next.js.
-
-And it is not even CMS-driven websites.
+Contentful, GraphQL, and Next.js are incidental here — and so, in the end, are CMS-driven websites.
 
 The same pattern appears whenever an application starts with one resource and discovers more resources recursively across multiple systems.
 
@@ -1129,7 +1149,7 @@ That is the point where a resolution engine starts making sense.
 
 ---
 
-# Where this fits in `xndrjs`
+## Where this fits in `xndrjs`
 
 This is also why the resource graph resolver is not an isolated utility in the toolkit.
 
@@ -1167,7 +1187,7 @@ The application should not be forced to understand the infrastructure simply bec
 
 ---
 
-# The lesson
+## The lesson
 
 Deep CMS pages across dozens of locales are not primarily a rendering problem.
 
@@ -1195,7 +1215,7 @@ It is intentionally small, as it is a workshop for the resolution model, not a p
 
 For a real application, the same idea belongs inside explicit infrastructure boundaries — ports, adapters, composition roots, and the rest of the architectural discipline described in the [Clean Architecture monorepo template](/blog/clean-architecture-monorepo-template/).
 
-The important thing is not to make the components smarter. The point is to remove infrastructure complexity from the process of obtaining the resources the application needs, by handling resolution independently from rendering, as a dedicated concern.
+Smarter components would not have solved this. What solved it was treating resolution as a dedicated concern, handled independently from rendering, so that obtaining the resources an application needs stops being a puzzle spread across the UI.
 
 That separation is the real goal. The application defines what it needs; infrastructure deals with how external systems must be orchestrated to provide it.
 
