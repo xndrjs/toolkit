@@ -65,7 +65,7 @@ function logCacheReport(report: CacheHitReport): void {
       ? "none"
       : report.islands.map(({ islandId, status }) => `${islandId}:${status}`).join(", ");
   console.log(
-    `Island cache — page ${report.pageIsland}; manifest ${report.dependencyManifest}; deps [${deps}]; ` +
+    `Island cache — root ${report.rootIslandStatus}; manifest ${report.dependencyManifest}; deps [${deps}]; ` +
       `backing ${report.backingResourceCount}; promoted ${report.promotedResourceCount ?? 0}`
   );
 }
@@ -88,7 +88,7 @@ export async function resolveDemoPage(
     expansionPort
   );
 
-  const { resolvedResourceCache, report } = loadBackingForRoot(pageRoot, lruIslandCache);
+  const { backingResources, report } = loadBackingForRoot(pageRoot, lruIslandCache);
 
   console.log(`Resolve demo — root ${pageRoot.toString()}, locale ${executionContext.locale}`);
 
@@ -96,14 +96,14 @@ export async function resolveDemoPage(
     root: pageRoot,
     executionContext,
     missingResourceMode: "throw",
-    resolvedResourceCache,
+    backingResources,
     ...(options?.signal !== undefined ? { signal: options.signal } : {}),
     ...(options?.limits !== undefined ? { limits: options.limits } : {}),
   });
 
   const cacheReport: CacheHitReport = {
     ...report,
-    promotedResourceCount: report.backingResourceCount - resolvedResourceCache.size,
+    promotedResourceCount: report.backingResourceCount - backingResources.size,
   };
   logCacheReport(cacheReport);
 

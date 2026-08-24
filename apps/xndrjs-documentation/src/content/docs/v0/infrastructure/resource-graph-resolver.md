@@ -127,9 +127,9 @@ Optional operational budgets on `ResolveContentGraphInput`:
 
 Abort throws `ResolveContentGraphAbortedError`. Exceeding a limit throws `ResolveContentGraphLimitExceededError`. Both are **independent** of `missingResourceMode`.
 
-### Optional backing cache
+### Optional backing resources
 
-Pass `resolvedResourceCache: Map<ResourceKey, unknown>` to hydrate hits **before** the data port runs. The engine promotes matching frontier items into `ContentMap` and removes them from the map (pass a mutable `Map` when you want promotion counts). Use this for partial warm paths — for example dependency islands still valid while the page island expired.
+Pass `backingResources: Map<ResourceKey, unknown>` to hydrate hits **before** the data port runs. The engine promotes matching frontier items into `ContentMap` and removes them from the map (pass a mutable `Map` when you want `backingResourceCount` / `promotedResourceCount`). Use this for partial warm paths — for example dependency islands still valid while the root island expired.
 
 ## DataResolutionPort (pull model)
 
@@ -233,7 +233,7 @@ Each `SerializedIsland` (schema v1) includes:
 - `completeness` — `"complete"` or `"partial"` when errors inherited this island
 - `missingResources` — unresolved keys attributed to this island
 
-`buildResolvedResourceCacheFromIslands` reverses complete islands back into a backing map for the next `execute` call.
+`buildBackingResourcesFromIslands` reverses complete islands back into backing resources for the next `execute` call.
 
 ## Typical project wiring
 
@@ -254,7 +254,7 @@ Exported symbols:
 - **`createExpansionPolicyChain`** / **`defineExpansionPolicy`**
 - **`createDataResolutionPull`** / **`DataResolutionPort`** / **`ResolvedResourceRecord`**
 - **`serializeIsland`** / **`serializeAllIslands`**
-- **`buildResolvedResourceCacheFromIslands`**
+- **`buildBackingResourcesFromIslands`**
 - **`ResolveContentGraphAbortedError`** / **`ResolveContentGraphLimitExceededError`**
 - Types: **`ContentRegistry`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolveContentGraphInput`**, **`ResolveContentGraphLimits`**, **`ResolveContentGraphOutput`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 

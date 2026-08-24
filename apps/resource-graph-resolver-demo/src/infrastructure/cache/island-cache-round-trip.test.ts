@@ -33,7 +33,7 @@ function createCountingGateway(inner: DataResolutionPort<DemoContentRegistry>): 
 }
 
 async function resolveWithCache(cache: LruIslandCache): Promise<{
-  pageIslandStatus: string;
+  rootIslandStatus: string;
   dependencyManifestStatus: string;
   backingResourceCount: number;
   promotedResourceCount: number;
@@ -46,26 +46,26 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
   );
   const engine = new ResolveContentGraphEngine(counting.port, createDemoExpansionPort());
 
-  const { resolvedResourceCache, report } = loadBackingForRoot(pageRoot, cache);
+  const { backingResources, report } = loadBackingForRoot(pageRoot, cache);
   const backingResourceCount = report.backingResourceCount;
 
   const output = await engine.execute({
     root: pageRoot,
     executionContext,
     missingResourceMode: "throw",
-    resolvedResourceCache,
+    backingResources,
   });
 
   expect(output.errors).toEqual([]);
 
-  const promotedResourceCount = backingResourceCount - resolvedResourceCache.size;
+  const promotedResourceCount = backingResourceCount - backingResources.size;
   persistResolvedIslands(serializeAllIslands(output), cache, {
     rootIslandId: pageRoot.toString(),
     islandDependencies: output.islandDependencies,
   });
 
   return {
-    pageIslandStatus: report.pageIsland,
+    rootIslandStatus: report.rootIslandStatus,
     dependencyManifestStatus: report.dependencyManifest,
     backingResourceCount,
     promotedResourceCount,
@@ -78,14 +78,14 @@ describe("island cache cold/warm round-trip", () => {
     const cache = new LruIslandCache();
 
     const cold = await resolveWithCache(cache);
-    expect(cold.pageIslandStatus).toBe("miss");
+    expect(cold.rootIslandStatus).toBe("miss");
     expect(cold.dependencyManifestStatus).toBe("miss");
     expect(cold.backingResourceCount).toBe(0);
     expect(cold.promotedResourceCount).toBe(0);
     expect(cold.pulledResourceCount).toBeGreaterThan(0);
 
     const warm = await resolveWithCache(cache);
-    expect(warm.pageIslandStatus).toBe("hit");
+    expect(warm.rootIslandStatus).toBe("hit");
     expect(warm.dependencyManifestStatus).toBe("hit");
     expect(warm.backingResourceCount).toBeGreaterThan(0);
     expect(warm.promotedResourceCount).toBeGreaterThan(0);
@@ -98,17 +98,17 @@ describe("island cache cold/warm round-trip", () => {
     const cache = new LruIslandCache({ now: () => now });
 
     const cold = await resolveWithCache(cache);
-    expect(cold.pageIslandStatus).toBe("miss");
+    expect(cold.rootIslandStatus).toBe("miss");
     expect(cold.pulledResourceCount).toBeGreaterThan(0);
 
     const warm = await resolveWithCache(cache);
-    expect(warm.pageIslandStatus).toBe("hit");
+    expect(warm.rootIslandStatus).toBe("hit");
     expect(warm.pulledResourceCount).toBe(0);
 
     now = DEFAULT_PAGE_ISLAND_TTL_MS + 1;
 
     const partial = await resolveWithCache(cache);
-    expect(partial.pageIslandStatus).toBe("miss");
+    expect(partial.rootIslandStatus).toBe("miss");
     expect(partial.dependencyManifestStatus).toBe("hit");
     expect(partial.backingResourceCount).toBeGreaterThan(0);
     expect(partial.pulledResourceCount).toBeGreaterThan(0);
@@ -127,27 +127,27 @@ describe("island cache cold/warm round-trip", () => {
     );
     const engine = new ResolveContentGraphEngine(gateway, createDemoExpansionPort());
 
-    const { resolvedResourceCache, report } = loadBackingForRoot(pageRoot, cache);
-    expect(report.pageIsland).toBe("hit");
-    expect(resolvedResourceCache.size).toBeGreaterThan(0);
+    const { backingResources, report } = loadBackingForRoot(pageRoot, cache);
+    expect(report.rootIslandStatus).toBe("hit");
+    expect(backingResources.size).toBeGreaterThan(0);
 
     const orphanKey = cmsEntryAri({
       id: "orphan-never-reached",
       locale: executionContext.locale,
     }).toString();
     const orphanValue = { fields: { title: "orphan" } };
-    resolvedResourceCache.set(orphanKey, orphanValue);
+    backingResources.set(orphanKey, orphanValue);
 
     const output = await engine.execute({
       root: pageRoot,
       executionContext,
       missingResourceMode: "throw",
-      resolvedResourceCache,
+      backingResources,
     });
 
     expect(output.errors).toEqual([]);
     expect(output.contentMap.hasKey(orphanKey)).toBe(false);
     expect(output.contentMap.getByKey(orphanKey)).toBeUndefined();
-    expect(resolvedResourceCache.get(orphanKey)).toEqual(orphanValue);
+    expect(backingResources.get(orphanKey)).toEqual(orphanValue);
   });
 });

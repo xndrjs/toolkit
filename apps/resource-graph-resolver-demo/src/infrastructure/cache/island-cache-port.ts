@@ -3,7 +3,7 @@ import type { IslandId, SerializedIsland } from "@xndrjs/resource-graph-resolver
 /** Status of one island lookup against the island cache. */
 export type IslandCacheLookupStatus = "hit" | "miss" | "incomplete";
 
-/** Long-lived index of dependency island ids for a page root. */
+/** Long-lived index of dependency island ids for a root island. */
 export type IslandDependencyManifest = {
   schemaVersion: 1;
   islandId: IslandId;
@@ -13,14 +13,14 @@ export type IslandDependencyManifest = {
 export type IslandCacheTier = "page" | "dependency";
 
 /**
- * Per-request report of how the page island and its dependencies resolved
+ * Per-request report of how the root island and its dependencies resolved
  * against the island cache before engine execute.
  */
 export type CacheHitReport = {
-  pageIsland: IslandCacheLookupStatus;
+  rootIslandStatus: IslandCacheLookupStatus;
   dependencyManifest: IslandCacheLookupStatus;
   islands: { islandId: IslandId; status: IslandCacheLookupStatus }[];
-  /** Size of the backing map immediately before execute. */
+  /** Size of backing resources immediately before execute. */
   backingResourceCount: number;
   /**
    * Resources promoted from backing during execute

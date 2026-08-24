@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildResolvedResourceCacheFromIslands } from "./build-resolved-resource-cache";
+import { buildBackingResourcesFromIslands } from "./build-backing-resources";
 import type { SerializedIsland } from "./types";
 
 function island(
@@ -18,9 +18,9 @@ function island(
   };
 }
 
-describe("buildResolvedResourceCacheFromIslands", () => {
+describe("buildBackingResourcesFromIslands", () => {
   it("merges resources from complete islands only by default", () => {
-    const cache = buildResolvedResourceCacheFromIslands([
+    const backingResources = buildBackingResourcesFromIslands([
       island("page:p", "complete", {
         "page:p": { title: "Home" },
         "hero:h": { name: "Hero" },
@@ -35,7 +35,7 @@ describe("buildResolvedResourceCacheFromIslands", () => {
       }),
     ]);
 
-    expect([...cache.entries()]).toEqual([
+    expect([...backingResources.entries()]).toEqual([
       ["page:p", { title: "Home" }],
       ["hero:h", { name: "Hero" }],
       ["footer:f", { copy: "©" }],
@@ -44,7 +44,7 @@ describe("buildResolvedResourceCacheFromIslands", () => {
   });
 
   it("includes partial islands when policy is all", () => {
-    const cache = buildResolvedResourceCacheFromIslands(
+    const backingResources = buildBackingResourcesFromIslands(
       [
         island("page:p", "complete", {
           "page:p": { title: "Home" },
@@ -57,7 +57,7 @@ describe("buildResolvedResourceCacheFromIslands", () => {
       "all"
     );
 
-    expect([...cache.entries()]).toEqual([
+    expect([...backingResources.entries()]).toEqual([
       ["page:p", { title: "Home" }],
       ["menu:m", { items: [] }],
       ["asset:a", { url: "/partial.png" }],
@@ -65,7 +65,7 @@ describe("buildResolvedResourceCacheFromIslands", () => {
   });
 
   it("uses last-write-wins for shared keys across included islands", () => {
-    const cache = buildResolvedResourceCacheFromIslands([
+    const backingResources = buildBackingResourcesFromIslands([
       island("menu:m", "complete", {
         "asset:a": { url: "/menu.png" },
       }),
@@ -74,15 +74,15 @@ describe("buildResolvedResourceCacheFromIslands", () => {
       }),
     ]);
 
-    expect(cache.get("asset:a")).toEqual({ url: "/footer.png" });
+    expect(backingResources.get("asset:a")).toEqual({ url: "/footer.png" });
   });
 
   it("returns an empty map when no complete islands match only-complete", () => {
-    const cache = buildResolvedResourceCacheFromIslands(
+    const backingResources = buildBackingResourcesFromIslands(
       [island("page:p", "partial", { "page:p": { title: "Home" } })],
       "only-complete"
     );
 
-    expect(cache.size).toBe(0);
+    expect(backingResources.size).toBe(0);
   });
 });

@@ -64,11 +64,11 @@ export interface ResolveContentGraphInput<TExecutionContext = unknown> {
   executionContext: TExecutionContext;
   missingResourceMode: MissingResourceMode;
   /**
-   * Opaque payloads consulted before DataResolutionPort.
+   * Opaque backing resources consulted before DataResolutionPort.
    * Entries are promoted into ContentMap only when the frontier reaches them,
    * then removed from this map (caller may pass a mutable Map).
    */
-  resolvedResourceCache?: Map<ResourceKey, unknown>;
+  backingResources?: Map<ResourceKey, unknown>;
   /** Cooperative cancellation; checked before and after every data-port load. */
   signal?: AbortSignal;
   /** Optional caps on rounds, discovered resources, and expansion depth. */

@@ -206,12 +206,12 @@ describe("loadBackingForRoot", () => {
     const result = loadBackingForRoot(pageRoot, cache);
 
     expect(result.report).toEqual({
-      pageIsland: "miss",
+      rootIslandStatus: "miss",
       dependencyManifest: "miss",
       islands: [],
       backingResourceCount: 0,
     });
-    expect(result.resolvedResourceCache.size).toBe(0);
+    expect(result.backingResources.size).toBe(0);
   });
 
   it("returns empty backing on incomplete page island without manifest fallback", () => {
@@ -224,10 +224,10 @@ describe("loadBackingForRoot", () => {
 
     const result = loadBackingForRoot(pageRoot, cache);
 
-    expect(result.report.pageIsland).toBe("incomplete");
+    expect(result.report.rootIslandStatus).toBe("incomplete");
     expect(result.report.dependencyManifest).toBe("miss");
     expect(result.report.islands).toEqual([]);
-    expect(result.resolvedResourceCache.size).toBe(0);
+    expect(result.backingResources.size).toBe(0);
   });
 
   it("merges complete page + dependency islands into backing", () => {
@@ -249,17 +249,17 @@ describe("loadBackingForRoot", () => {
 
     const result = loadBackingForRoot(pageRoot, cache);
 
-    expect(result.report.pageIsland).toBe("hit");
+    expect(result.report.rootIslandStatus).toBe("hit");
     expect(result.report.dependencyManifest).toBe("hit");
     expect(result.report.islands).toEqual([
       { islandId: "menu", status: "hit" },
       { islandId: "footer", status: "incomplete" },
     ]);
-    expect(result.resolvedResourceCache.get("page")).toEqual({ t: "page" });
-    expect(result.resolvedResourceCache.get("menu")).toEqual({ t: "menu" });
-    expect(result.resolvedResourceCache.get("shared")).toBe(2);
-    expect(result.resolvedResourceCache.has("footer")).toBe(false);
-    expect(result.report.backingResourceCount).toBe(result.resolvedResourceCache.size);
+    expect(result.backingResources.get("page")).toEqual({ t: "page" });
+    expect(result.backingResources.get("menu")).toEqual({ t: "menu" });
+    expect(result.backingResources.get("shared")).toBe(2);
+    expect(result.backingResources.has("footer")).toBe(false);
+    expect(result.report.backingResourceCount).toBe(result.backingResources.size);
   });
 
   it("loads dependency islands from manifest when page island expired", () => {
@@ -285,11 +285,11 @@ describe("loadBackingForRoot", () => {
 
     const result = loadBackingForRoot(pageRoot, cache);
 
-    expect(result.report.pageIsland).toBe("miss");
+    expect(result.report.rootIslandStatus).toBe("miss");
     expect(result.report.dependencyManifest).toBe("hit");
     expect(result.report.islands).toEqual([{ islandId: "menu", status: "hit" }]);
-    expect(result.resolvedResourceCache.has("page")).toBe(false);
-    expect(result.resolvedResourceCache.get("menu")).toEqual({ t: "menu" });
+    expect(result.backingResources.has("page")).toBe(false);
+    expect(result.backingResources.get("menu")).toEqual({ t: "menu" });
     expect(result.report.backingResourceCount).toBe(1);
   });
 });

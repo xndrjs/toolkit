@@ -295,7 +295,7 @@ describe("ResolveContentGraphEngine", () => {
     ).rejects.toThrow(`Unable to resolve ${hero.toString()}`);
   });
 
-  it("promotes resolvedResourceCache hits into ContentMap and skips DataResolutionPort pulls", async () => {
+  it("promotes backingResources hits into ContentMap and skips DataResolutionPort pulls", async () => {
     const dataPort = createInMemoryPort();
     const engine = new ResolveContentGraphEngine(
       dataPort,
@@ -303,7 +303,7 @@ describe("ResolveContentGraphEngine", () => {
     );
 
     const cachedAsset = { url: "https://cdn.example.com/from-cache.svg" };
-    const resolvedResourceCache = new Map<string, unknown>([
+    const backingResources = new Map<string, unknown>([
       [page.toString(), values.get(page.toString())],
       [hero.toString(), values.get(hero.toString())],
       [menu.toString(), values.get(menu.toString())],
@@ -315,7 +315,7 @@ describe("ResolveContentGraphEngine", () => {
       root: page,
       executionContext: {},
       missingResourceMode: "throw",
-      resolvedResourceCache,
+      backingResources,
     });
 
     expect(dataPort.process).not.toHaveBeenCalled();
@@ -325,11 +325,11 @@ describe("ResolveContentGraphEngine", () => {
     expect(output.contentMap.has(hero)).toBe(true);
     expect(output.contentMap.has(menu)).toBe(true);
     expect(output.contentMap.has(footer)).toBe(true);
-    expect(resolvedResourceCache.size).toBe(0);
+    expect(backingResources.size).toBe(0);
     expect(output.errors).toEqual([]);
   });
 
-  it("does not put unreached resolvedResourceCache entries into ContentMap", async () => {
+  it("does not put unreached backingResources entries into ContentMap", async () => {
     const dataPort = createInMemoryPort();
     const engine = new ResolveContentGraphEngine(
       dataPort,
@@ -338,23 +338,23 @@ describe("ResolveContentGraphEngine", () => {
 
     const orphan = testAri("orphan", "O");
     const orphanValue = { label: "never reached" };
-    const resolvedResourceCache = new Map<string, unknown>([[orphan.toString(), orphanValue]]);
+    const backingResources = new Map<string, unknown>([[orphan.toString(), orphanValue]]);
 
     const output = await engine.execute({
       root: page,
       executionContext: {},
       missingResourceMode: "throw",
-      resolvedResourceCache,
+      backingResources,
     });
 
     expect(output.contentMap.has(orphan)).toBe(false);
     expect(output.contentMap.getByKey(orphan.toString())).toBeUndefined();
-    expect(resolvedResourceCache.get(orphan.toString())).toBe(orphanValue);
+    expect(backingResources.get(orphan.toString())).toBe(orphanValue);
     expect(output.contentMap.has(page)).toBe(true);
     expect(output.contentMap.has(asset)).toBe(true);
   });
 
-  it("deletes promoted keys from the caller-owned resolvedResourceCache map", async () => {
+  it("deletes promoted keys from the caller-owned backingResources map", async () => {
     const dataPort = createInMemoryPort(new Map());
     const engine = new ResolveContentGraphEngine(
       dataPort,
@@ -373,7 +373,7 @@ describe("ResolveContentGraphEngine", () => {
     const pageValue = { title: "Cached page" };
     const heroValue = { title: "Cached hero" };
     const orphanKey = "orphan:O";
-    const resolvedResourceCache = new Map<string, unknown>([
+    const backingResources = new Map<string, unknown>([
       [page.toString(), pageValue],
       [hero.toString(), heroValue],
       [orphanKey, { keep: true }],
@@ -383,13 +383,13 @@ describe("ResolveContentGraphEngine", () => {
       root: page,
       executionContext: {},
       missingResourceMode: "throw",
-      resolvedResourceCache,
+      backingResources,
     });
 
-    expect(resolvedResourceCache.has(page.toString())).toBe(false);
-    expect(resolvedResourceCache.has(hero.toString())).toBe(false);
-    expect(resolvedResourceCache.get(orphanKey)).toEqual({ keep: true });
-    expect(resolvedResourceCache.size).toBe(1);
+    expect(backingResources.has(page.toString())).toBe(false);
+    expect(backingResources.has(hero.toString())).toBe(false);
+    expect(backingResources.get(orphanKey)).toEqual({ keep: true });
+    expect(backingResources.size).toBe(1);
     expect(output.contentMap.get(page)).toEqual(pageValue);
     expect(output.contentMap.get(hero)).toEqual(heroValue);
     expect(dataPort.process).not.toHaveBeenCalled();

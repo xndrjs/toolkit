@@ -1,21 +1,21 @@
 import type { ResourceKey, SerializedIsland } from "./types";
 
 /** Which serialized islands contribute resources to the backing map. */
-export type ResolvedResourceCacheIslandPolicy = "only-complete" | "all";
+export type BackingResourcesIslandPolicy = "only-complete" | "all";
 
 /**
- * Builds an opaque backing map from serialized islands for use as
- * `resolvedResourceCache` input to the resolve engine.
+ * Builds backing resources from serialized islands for use as
+ * `backingResources` input to the resolve engine.
  *
  * Shared resource keys across included islands are merged with last-write-wins
  * order. With `"only-complete"`, partial islands are skipped; with `"all"`,
  * every island contributes its `resources`.
  */
-export function buildResolvedResourceCacheFromIslands(
+export function buildBackingResourcesFromIslands(
   islands: readonly SerializedIsland[],
-  policy: ResolvedResourceCacheIslandPolicy = "only-complete"
+  policy: BackingResourcesIslandPolicy = "only-complete"
 ): Map<ResourceKey, unknown> {
-  const cache = new Map<ResourceKey, unknown>();
+  const backingResources = new Map<ResourceKey, unknown>();
 
   for (const island of islands) {
     if (policy === "only-complete" && island.completeness !== "complete") {
@@ -23,9 +23,9 @@ export function buildResolvedResourceCacheFromIslands(
     }
 
     for (const [resourceKey, value] of Object.entries(island.resources)) {
-      cache.set(resourceKey, value);
+      backingResources.set(resourceKey, value);
     }
   }
 
-  return cache;
+  return backingResources;
 }

@@ -1,6 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import {
-  buildResolvedResourceCacheFromIslands,
+  buildBackingResourcesFromIslands,
   type ResourceKey,
   type SerializedIsland,
 } from "@xndrjs/resource-graph-resolver";
@@ -12,7 +12,7 @@ import type {
 } from "./island-cache-port.js";
 
 export type LoadBackingForRootResult = {
-  resolvedResourceCache: Map<ResourceKey, unknown>;
+  backingResources: Map<ResourceKey, unknown>;
   report: CacheHitReport;
 };
 
@@ -33,29 +33,29 @@ function manifestStatus(
 }
 
 /**
- * Loads the page island when available, otherwise falls back to the long-lived
- * dependency manifest. Builds backing from complete page and/or dependency islands.
+ * Loads the root island when available, otherwise falls back to the long-lived
+ * dependency manifest. Builds backing resources from complete root and/or dependency islands.
  */
 export function loadBackingForRoot(
-  pageRoot: ApplicationResourceIdentifier,
+  root: ApplicationResourceIdentifier,
   cache: IslandCachePort
 ): LoadBackingForRootResult {
-  const pageIslandId = pageRoot.toString();
-  const pageIsland = cache.getIsland(pageIslandId);
-  const pageStatus = lookupStatus(pageIsland);
+  const rootIslandId = root.toString();
+  const rootIsland = cache.getIsland(rootIslandId);
+  const rootIslandStatus = lookupStatus(rootIsland);
 
   const manifest =
-    pageStatus === "hit" && pageIsland
-      ? { dependencies: pageIsland.dependencies }
-      : cache.getDependencyManifest(pageIslandId);
+    rootIslandStatus === "hit" && rootIsland
+      ? { dependencies: rootIsland.dependencies }
+      : cache.getDependencyManifest(rootIslandId);
 
   const manifestHitStatus = manifestStatus(manifest);
 
-  if (pageStatus !== "hit" && manifestHitStatus !== "hit") {
+  if (rootIslandStatus !== "hit" && manifestHitStatus !== "hit") {
     return {
-      resolvedResourceCache: new Map(),
+      backingResources: new Map(),
       report: {
-        pageIsland: pageStatus,
+        rootIslandStatus,
         dependencyManifest: manifestHitStatus,
         islands: [],
         backingResourceCount: 0,
@@ -67,8 +67,8 @@ export function loadBackingForRoot(
   const dependencyIslands = cache.getIslands(dependencyIds);
 
   const completeIslands: SerializedIsland[] = [];
-  if (pageStatus === "hit" && pageIsland) {
-    completeIslands.push(pageIsland);
+  if (rootIslandStatus === "hit" && rootIsland) {
+    completeIslands.push(rootIsland);
   }
 
   const islands: CacheHitReport["islands"] = [];
@@ -83,15 +83,15 @@ export function loadBackingForRoot(
     }
   }
 
-  const resolvedResourceCache = buildResolvedResourceCacheFromIslands(completeIslands);
+  const backingResources = buildBackingResourcesFromIslands(completeIslands);
 
   return {
-    resolvedResourceCache,
+    backingResources,
     report: {
-      pageIsland: pageStatus,
+      rootIslandStatus,
       dependencyManifest: manifestHitStatus,
       islands,
-      backingResourceCount: resolvedResourceCache.size,
+      backingResourceCount: backingResources.size,
     },
   };
 }

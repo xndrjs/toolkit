@@ -70,9 +70,9 @@ export default async function LocaleDemoPage({ params }: Props) {
             <h3 className="cache-subtitle">Request report</h3>
             <dl className="cache-stats">
               <div>
-                <dt>Page island</dt>
+                <dt>Root island</dt>
                 <dd>
-                  <StatusBadge status={cacheReport.pageIsland} />
+                  <StatusBadge status={cacheReport.rootIslandStatus} />
                 </dd>
               </div>
               <div>
@@ -86,7 +86,7 @@ export default async function LocaleDemoPage({ params }: Props) {
                 <dd>{cacheReport.backingResourceCount}</dd>
               </div>
               <div>
-                <dt>Promoted</dt>
+                <dt>Promoted resources</dt>
                 <dd>{cacheReport.promotedResourceCount ?? 0}</dd>
               </div>
             </dl>

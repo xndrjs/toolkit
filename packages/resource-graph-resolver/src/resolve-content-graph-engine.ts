@@ -136,23 +136,23 @@ export class ResolveContentGraphEngine<
       const takenKeys = new Set<ResourceKey>();
 
       // Promote backing hits into ContentMap before deciding whether to pull.
-      const resolvedResourceCache = input.resolvedResourceCache;
-      if (resolvedResourceCache !== undefined && resolvedResourceCache.size > 0) {
+      const backingResources = input.backingResources;
+      if (backingResources !== undefined && backingResources.size > 0) {
         for (const item of frontier) {
           if (!isUnresolved(item.resource, contentMap, failuresByResource)) {
             continue;
           }
 
           const key = item.resource.toString();
-          if (!resolvedResourceCache.has(key)) {
+          if (!backingResources.has(key)) {
             continue;
           }
 
           contentMap.set(
             item.resource as ApplicationResourceIdentifier<keyof R & string>,
-            resolvedResourceCache.get(key) as R[keyof R & string]
+            backingResources.get(key) as R[keyof R & string]
           );
-          resolvedResourceCache.delete(key);
+          backingResources.delete(key);
         }
       }
 

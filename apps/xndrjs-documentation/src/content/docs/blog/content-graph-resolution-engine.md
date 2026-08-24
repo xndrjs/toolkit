@@ -246,7 +246,7 @@ In the end, an ARI is a **value object** for an **addressable resource**: identi
 
 Conceptually the engine repeats four steps until there is nothing left to resolve:
 
-1. **Seed the frontier** with the root ARI (and optionally promote hits from a backing cache into the `ContentMap`).
+1. **Seed the frontier** with the root ARI (and optionally promote hits from backing resources into the `ContentMap`).
 2. **Pull** — adapters load unresolved resources on the current frontier from CMS, integration APIs, and any other registered source.
 3. **Expand** — for each newly resolved resource, run **expansion policies** to discover which ARIs must be fetched next.
 4. **Enqueue** those ARIs on the frontier and go back to step 2.
