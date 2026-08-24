@@ -4,7 +4,7 @@ import type {
   ResolveContentGraphOutput,
   ResourceKey,
   SerializedIsland,
-} from "./types";
+} from "../types";
 
 /**
  * Materializes one island for cache/JSON storage from membership + content values.

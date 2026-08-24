@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildBackingResourcesFromIslands } from "./build-backing-resources";
-import type { SerializedIsland } from "./types";
+import type { SerializedIsland } from "../types";
 
 function island(
   islandId: string,

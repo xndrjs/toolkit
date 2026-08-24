@@ -6,12 +6,12 @@ import {
   createDeferred,
   recordsFromStore,
   type Deferred,
-} from "./content-graph-engine-test-helpers";
+} from "../testing/content-graph-engine-test-helpers";
 import { DecoupledResolveContentGraphEngine } from "./decoupled-resolve-content-graph-engine";
-import { createExpansionPolicyChain } from "./expansion-port";
-import { serializeIsland } from "./serialize-island";
-import { testAri } from "./test-fixtures.js";
-import type { ResolveContentGraphOutput } from "./types";
+import { createExpansionPolicyChain } from "../ports/expansion-port";
+import { serializeIsland } from "../islands/serialize-island";
+import { testAri } from "../testing/test-fixtures.js";
+import type { ResolveContentGraphOutput } from "../types";
 
 const page = testAri("cms.page", "P");
 const cmsA = testAri("cms.block", "A");

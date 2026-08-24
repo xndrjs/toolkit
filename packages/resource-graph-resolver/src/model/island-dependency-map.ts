@@ -1,4 +1,4 @@
-import type { IslandId } from "./types";
+import type { IslandId } from "../types";
 
 /**
  * Direct edges between islands (dependencies ≠ membership).

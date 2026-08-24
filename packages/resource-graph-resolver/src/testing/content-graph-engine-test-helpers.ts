@@ -1,18 +1,18 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import { vi, type Mock } from "vitest";
 
-import type { DataResolutionPort, DataResolutionPull } from "./data-resolution-port";
-import { DecoupledResolveContentGraphEngine } from "./decoupled-resolve-content-graph-engine";
-import { createExpansionPolicyChain, type ExpansionPolicy } from "./expansion-port";
-import { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
-import type { ResourceLoader } from "./resource-loader";
+import type { DataResolutionPort, DataResolutionPull } from "../ports/data-resolution-port";
+import { DecoupledResolveContentGraphEngine } from "../engines/decoupled-resolve-content-graph-engine";
+import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
+import { ResolveContentGraphEngine } from "../engines/resolve-content-graph-engine";
+import type { ResourceLoader } from "../ports/resource-loader";
 import { testAri } from "./test-fixtures.js";
 import type {
   ContentRegistry,
   ResolveContentGraphInput,
   ResolveContentGraphOutput,
   ResolvedResourceRecord,
-} from "./types";
+} from "../types";
 
 export const page = testAri("page", "P");
 export const hero = testAri("hero", "H");

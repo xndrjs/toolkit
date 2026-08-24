@@ -1,9 +1,9 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { DataResolutionPull } from "./data-resolution-port";
-import type { ExpansionPort } from "./expansion-port";
+import type { DataResolutionPull } from "../ports/data-resolution-port";
+import type { ExpansionPort } from "../ports/expansion-port";
 import { GraphResolutionSession, type GraphWalkRef } from "./graph-resolution-session";
-import type { ResourceLoader } from "./resource-loader";
+import type { ResourceLoader } from "../ports/resource-loader";
 import type {
   ContentRegistry,
   IslandId,
@@ -11,7 +11,7 @@ import type {
   ResolveContentGraphOutput,
   ResolvedResourceRecord,
   ResourceKey,
-} from "./types";
+} from "../types";
 
 interface LaneState<R extends ContentRegistry> {
   readonly loader: ResourceLoader<R>;

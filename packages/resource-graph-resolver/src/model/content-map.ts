@@ -1,6 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentRegistry, ResourceKey } from "./types";
+import type { ContentRegistry, ResourceKey } from "../types";
 
 /**
  * Global, per-execution store of resolved resource values.

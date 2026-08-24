@@ -1,6 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentRegistry, IslandId, RegistryPayloadFor } from "./types";
+import type { ContentRegistry, IslandId, RegistryPayloadFor } from "../types";
 
 export interface ExpansionContext<
   R extends ContentRegistry = ContentRegistry,

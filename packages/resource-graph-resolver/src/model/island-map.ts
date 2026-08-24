@@ -1,6 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { IslandId, ResourceKey } from "./types";
+import type { IslandId, ResourceKey } from "../types";
 
 /**
  * Per-island membership of resource keys.

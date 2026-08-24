@@ -1,9 +1,9 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentRegistry, ResolvedResourceRecord } from "./types";
+import type { ContentRegistry, ResolvedResourceRecord } from "../types";
 
 /**
- * Pull handle supplied by {@link import("./resolve-content-graph-engine").ResolveContentGraphEngine}
+ * Pull handle supplied by {@link import("../engines/resolve-content-graph-engine").ResolveContentGraphEngine}
  * for one resolution round. Not a general-purpose ARI loading API.
  *
  * `take` removes matching resources in frontier order up to `limit` (omit = all).
@@ -24,7 +24,7 @@ export interface DataResolutionPull {
 }
 
 /**
- * Collaborator of {@link import("./resolve-content-graph-engine").ResolveContentGraphEngine} only.
+ * Collaborator of {@link import("../engines/resolve-content-graph-engine").ResolveContentGraphEngine} only.
  * Callers outside the engine should use their own loaders/gateways — not this port.
  *
  * Each {@link process} call should pull enough work to saturate backend batches
@@ -35,7 +35,7 @@ export interface DataResolutionPull {
  * treats that as a missing resource.
  *
  * Each returned record pairs an ARI with its typed payload so the engine can
- * write into {@link import("./content-map").ContentMap} without unchecked casts.
+ * write into {@link import("../model/content-map").ContentMap} without unchecked casts.
  */
 export interface DataResolutionPort<R extends ContentRegistry = ContentRegistry> {
   process(pull: DataResolutionPull): Promise<readonly ResolvedResourceRecord<R>[]>;

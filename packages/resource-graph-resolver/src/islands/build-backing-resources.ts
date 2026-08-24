@@ -1,4 +1,4 @@
-import type { IslandId, ResourceKey, SerializedIsland } from "./types";
+import type { IslandId, ResourceKey, SerializedIsland } from "../types";
 
 /** Which serialized islands contribute resources to the backing map. */
 export type BackingResourcesIslandPolicy = "only-complete" | "all";

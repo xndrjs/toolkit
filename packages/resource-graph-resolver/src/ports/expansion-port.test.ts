@@ -7,8 +7,8 @@ import {
   type ExpansionContext,
   type ExpansionPolicy,
 } from "./expansion-port";
-import { testAri } from "./test-fixtures.js";
-import type { ContentRegistry } from "./types";
+import { testAri } from "../testing/test-fixtures.js";
+import type { ContentRegistry } from "../types";
 
 const menuAri = ari("menu", s.object({ id: s.string() }));
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { IslandDependencyMap } from "./island-dependency-map";
-import { testAri } from "./test-fixtures.js";
+import { testAri } from "../testing/test-fixtures.js";
 
 describe("IslandDependencyMap", () => {
   it("records direct edges between distinct islands", () => {

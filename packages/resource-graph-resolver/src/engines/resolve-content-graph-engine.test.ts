@@ -11,10 +11,10 @@ import {
   page,
   pageGraphValues,
   type EngineKind,
-} from "./content-graph-engine-test-helpers";
-import { serializeIsland } from "./serialize-island";
-import { testAri } from "./test-fixtures.js";
-import type { ResolvedResourceRecord } from "./types";
+} from "../testing/content-graph-engine-test-helpers";
+import { serializeIsland } from "../islands/serialize-island";
+import { testAri } from "../testing/test-fixtures.js";
+import type { ResolvedResourceRecord } from "../types";
 
 const engineKinds: EngineKind[] = ["barrier", "decoupled"];
 

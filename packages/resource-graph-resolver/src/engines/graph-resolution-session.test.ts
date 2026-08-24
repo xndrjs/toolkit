@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { GraphResolutionSession } from "./graph-resolution-session";
-import { testAri } from "./test-fixtures.js";
-import type { ResolveContentGraphInput } from "./types";
+import { testAri } from "../testing/test-fixtures.js";
+import type { ResolveContentGraphInput } from "../types";
 
 const page = testAri("page", "P");
 const menu = testAri("menu", "M");

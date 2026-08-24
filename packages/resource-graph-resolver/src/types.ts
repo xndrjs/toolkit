@@ -1,8 +1,8 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentMap } from "./content-map";
-import type { IslandDependencyMap } from "./island-dependency-map";
-import type { IslandMap } from "./island-map";
+import type { ContentMap } from "./model/content-map";
+import type { IslandDependencyMap } from "./model/island-dependency-map";
+import type { IslandMap } from "./model/island-map";
 
 /** Stable string key for a resource, produced by `resource.toString()`. */
 export type ResourceKey = string;
@@ -13,7 +13,7 @@ export type RegistryPayloadFor<
   Resource extends ApplicationResourceIdentifier,
 > = Resource extends ApplicationResourceIdentifier<infer T extends keyof R & string> ? R[T] : never;
 
-/** One loaded resource with correlated ARI and payload — returned by {@link import("./data-resolution-port").DataResolutionPort}. */
+/** One loaded resource with correlated ARI and payload — returned by {@link import("./ports/data-resolution-port").DataResolutionPort}. */
 export type ResolvedResourceRecord<R extends ContentRegistry> = {
   [T in keyof R & string]: {
     resource: ApplicationResourceIdentifier<T>;

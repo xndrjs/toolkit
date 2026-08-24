@@ -1,10 +1,10 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import { ContentMap } from "./content-map";
-import { ResolveContentGraphAbortedError } from "./errors";
-import type { ExpansionContext, ExpansionPort } from "./expansion-port";
-import { IslandDependencyMap } from "./island-dependency-map";
-import { IslandMap } from "./island-map";
+import { ContentMap } from "../model/content-map";
+import { ResolveContentGraphAbortedError } from "../errors";
+import type { ExpansionContext, ExpansionPort } from "../ports/expansion-port";
+import { IslandDependencyMap } from "../model/island-dependency-map";
+import { IslandMap } from "../model/island-map";
 import type {
   ContentRegistry,
   IslandId,
@@ -13,7 +13,7 @@ import type {
   ResolveContentGraphOutput,
   ResolvedResourceRecord,
   ResourceKey,
-} from "./types";
+} from "../types";
 
 /** One walk step: a resource discovered in a specific island context. */
 export interface GraphWalkRef {

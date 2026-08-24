@@ -3,14 +3,14 @@ export {
   type BackingResourcesIslandPolicy,
   type BackingResourceConflict,
   type BackingResourcesFromIslandsOptions,
-} from "./build-backing-resources";
-export { ContentMap } from "./content-map";
+} from "./islands/build-backing-resources";
+export { ContentMap } from "./model/content-map";
 export {
   createDataResolutionPull,
   type DataResolutionPort,
   type DataResolutionPull,
-} from "./data-resolution-port";
-export { DecoupledResolveContentGraphEngine } from "./decoupled-resolve-content-graph-engine";
+} from "./ports/data-resolution-port";
+export { DecoupledResolveContentGraphEngine } from "./engines/decoupled-resolve-content-graph-engine";
 export { ResolveContentGraphAbortedError } from "./errors";
 export {
   createExpansionPolicyChain,
@@ -20,12 +20,12 @@ export {
   type ExpansionPort,
   type ExpansionResourceFor,
   type ExpansionResult,
-} from "./expansion-port";
-export { IslandDependencyMap } from "./island-dependency-map";
-export { IslandMap } from "./island-map";
-export { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
-export type { ResourceLoader } from "./resource-loader";
-export { serializeAllIslands, serializeIsland } from "./serialize-island";
+} from "./ports/expansion-port";
+export { IslandDependencyMap } from "./model/island-dependency-map";
+export { IslandMap } from "./model/island-map";
+export { ResolveContentGraphEngine } from "./engines/resolve-content-graph-engine";
+export type { ResourceLoader } from "./ports/resource-loader";
+export { serializeAllIslands, serializeIsland } from "./islands/serialize-island";
 export type {
   ContentRegistry,
   IslandId,

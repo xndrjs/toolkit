@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { IslandMap } from "./island-map";
-import { testAri } from "./test-fixtures.js";
+import { testAri } from "../testing/test-fixtures.js";
 
 describe("IslandMap", () => {
   it("tracks membership per island using resource.toString()", () => {

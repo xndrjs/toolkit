@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { ContentMap } from "./content-map";
-import { testAri } from "./test-fixtures.js";
+import { testAri } from "../testing/test-fixtures.js";
 
 type DemoRegistry = {
   asset: { url: string };

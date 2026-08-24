@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { ContentMap } from "./content-map";
-import { IslandDependencyMap } from "./island-dependency-map";
-import { IslandMap } from "./island-map";
+import { ContentMap } from "../model/content-map";
+import { IslandDependencyMap } from "../model/island-dependency-map";
+import { IslandMap } from "../model/island-map";
 import { serializeAllIslands, serializeIsland } from "./serialize-island";
-import { testAri } from "./test-fixtures.js";
-import type { ResolveContentGraphOutput } from "./types";
+import { testAri } from "../testing/test-fixtures.js";
+import type { ResolveContentGraphOutput } from "../types";
 
 const page = testAri("page", "P");
 const hero = testAri("hero", "H");

@@ -1,14 +1,14 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { DataResolutionPort, DataResolutionPull } from "./data-resolution-port";
-import type { ExpansionPort } from "./expansion-port";
+import type { DataResolutionPort, DataResolutionPull } from "../ports/data-resolution-port";
+import type { ExpansionPort } from "../ports/expansion-port";
 import { GraphResolutionSession, type GraphWalkRef } from "./graph-resolution-session";
 import type {
   ContentRegistry,
   ResolveContentGraphInput,
   ResolveContentGraphOutput,
   ResourceKey,
-} from "./types";
+} from "../types";
 
 /**
  * Resolves a content resource graph from a root ARI using frontier pulls,

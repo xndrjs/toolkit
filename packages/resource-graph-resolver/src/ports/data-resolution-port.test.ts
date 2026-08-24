@@ -1,6 +1,6 @@
 import { createDataResolutionPull, type DataResolutionPort } from "./data-resolution-port";
-import { testAri } from "./test-fixtures.js";
-import type { ResolvedResourceRecord } from "./types";
+import { testAri } from "../testing/test-fixtures.js";
+import type { ResolvedResourceRecord } from "../types";
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import { describe, expect, expectTypeOf, it } from "vitest";
 

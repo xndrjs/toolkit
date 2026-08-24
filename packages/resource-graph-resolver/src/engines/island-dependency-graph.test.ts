@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { DataResolutionPort } from "./data-resolution-port";
-import { createExpansionPolicyChain, type ExpansionPolicy } from "./expansion-port";
+import type { DataResolutionPort } from "../ports/data-resolution-port";
+import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
 import { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
-import { serializeIsland } from "./serialize-island";
-import { testAri } from "./test-fixtures.js";
-import type { ResolvedResourceRecord } from "./types";
+import { serializeIsland } from "../islands/serialize-island";
+import { testAri } from "../testing/test-fixtures.js";
+import type { ResolvedResourceRecord } from "../types";
 
 /** Minimal graph: page → menu/footer (islands); menu → logo (island). */
 const page = testAri("page", "P");

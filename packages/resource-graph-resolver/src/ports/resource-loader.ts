@@ -1,10 +1,10 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
 import type { DataResolutionPull } from "./data-resolution-port";
-import type { ContentRegistry, ResolvedResourceRecord } from "./types";
+import type { ContentRegistry, ResolvedResourceRecord } from "../types";
 
 /**
- * Source-owned loader for {@link import("./decoupled-resolve-content-graph-engine").DecoupledResolveContentGraphEngine}.
+ * Source-owned loader for {@link import("../engines/decoupled-resolve-content-graph-engine").DecoupledResolveContentGraphEngine}.
  *
  * Distinct from {@link import("./data-resolution-port").DataResolutionPort}: that port is the
  * barrier engine’s round collaborator. A loader adds {@link accepts} for chain-of-responsibility
