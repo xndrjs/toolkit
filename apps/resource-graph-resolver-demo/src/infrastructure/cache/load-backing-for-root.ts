@@ -83,7 +83,11 @@ export function loadBackingForRoot(
     }
   }
 
-  const backingResources = buildBackingResourcesFromIslands(completeIslands);
+  const backingResources = buildBackingResourcesFromIslands(completeIslands, {
+    policy: "only-complete",
+    // Default: discard on collision, forcing the next execute() to re-load via the port.
+    onResourceConflict: () => null,
+  });
 
   return {
     backingResources,

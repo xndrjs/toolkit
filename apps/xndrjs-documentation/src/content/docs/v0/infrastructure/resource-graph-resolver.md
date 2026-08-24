@@ -225,7 +225,24 @@ Each `SerializedIsland` (schema v1) includes:
 - `completeness` — `"complete"` or `"partial"` when errors inherited this island
 - `missingResources` — unresolved keys attributed to this island
 
-`buildBackingResourcesFromIslands` reverses complete islands back into backing resources for the next `execute` call.
+`buildBackingResourcesFromIslands` reverses complete islands back into backing resources for the next `execute` call:
+
+```ts
+buildBackingResourcesFromIslands(islands, { policy, onResourceConflict });
+```
+
+`policy` controls which islands contribute resources (`only-complete` or `all`).
+
+When multiple included islands provide the same `resourceKey`, `onResourceConflict` (required) is invoked with:
+
+- `existing` / `existingIslandId` (already in the map)
+- `incoming` / `incomingIslandId` (new island payload)
+
+Return values:
+
+- returning a value keeps that payload in `backingResources`
+- returning `null` or `undefined` discards the key (the engine will re-load it via the `DataResolutionPort`)
+- throwing rejects the whole backing build
 
 ## Typical project wiring
 

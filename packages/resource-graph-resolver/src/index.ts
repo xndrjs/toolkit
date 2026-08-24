@@ -1,6 +1,8 @@
 export {
   buildBackingResourcesFromIslands,
   type BackingResourcesIslandPolicy,
+  type BackingResourceConflict,
+  type BackingResourcesFromIslandsOptions,
 } from "./build-backing-resources";
 export { ContentMap } from "./content-map";
 export {
