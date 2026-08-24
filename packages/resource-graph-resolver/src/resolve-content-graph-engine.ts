@@ -63,6 +63,8 @@ export class ResolveContentGraphEngine<
   async execute(
     input: ResolveContentGraphInput<TExecutionContext>
   ): Promise<ResolveContentGraphOutput<R>> {
+    const sortedCopy = <T extends string>(values: Iterable<T>): T[] => [...values].sort();
+
     const contentMap = new ContentMap<R>();
     const islands = new IslandMap();
     const islandDependencies = new IslandDependencyMap();
@@ -256,11 +258,13 @@ export class ResolveContentGraphEngine<
 
     assertNotAborted(input.signal);
 
-    const errors: ResolutionError[] = [...failuresByResource.values()].map((failure) => ({
-      resourceKey: failure.resourceKey,
-      message: failure.message,
-      inheritedIslandIds: [...failure.inheritedIslandIds],
-    }));
+    const errors: ResolutionError[] = [...failuresByResource.values()]
+      .map((failure) => ({
+        resourceKey: failure.resourceKey,
+        message: failure.message,
+        inheritedIslandIds: sortedCopy(failure.inheritedIslandIds),
+      }))
+      .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey));
 
     return {
       contentMap,

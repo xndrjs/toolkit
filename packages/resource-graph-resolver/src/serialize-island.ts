@@ -21,13 +21,17 @@ export function serializeIsland<R extends ContentRegistry = ContentRegistry>(
   const resourceKeys = result.islands.get(islandId);
 
   const resources = Object.fromEntries(
-    [...resourceKeys].map((resourceKey) => {
-      if (!result.contentMap.hasKey(resourceKey)) {
-        throw new Error(`Island ${islandId} references missing resource ${resourceKey}`);
-      }
+    // Canonical ordering: JSON stringification depends on insertion order.
+    [...resourceKeys]
+      .slice()
+      .sort()
+      .map((resourceKey) => {
+        if (!result.contentMap.hasKey(resourceKey)) {
+          throw new Error(`Island ${islandId} references missing resource ${resourceKey}`);
+        }
 
-      return [resourceKey, result.contentMap.getByKey(resourceKey)];
-    })
+        return [resourceKey, result.contentMap.getByKey(resourceKey)];
+      })
   ) as Record<ResourceKey, unknown>;
 
   const missingResources = result.errors
@@ -38,8 +42,9 @@ export function serializeIsland<R extends ContentRegistry = ContentRegistry>(
     schemaVersion: 1,
     islandId,
     completeness: missingResources.length > 0 ? "partial" : "complete",
-    missingResources,
-    dependencies: [...result.islandDependencies.get(islandId)],
+    // Canonical ordering for cache/JSON stability.
+    missingResources: missingResources.sort(),
+    dependencies: [...result.islandDependencies.get(islandId)].sort(),
     resources,
   };
 }

@@ -17,6 +17,7 @@ const missing = testAri("missing", "X");
 function createPageGraphOutput(options?: {
   omitMenu?: boolean;
   missingFromPage?: boolean;
+  reverseInsertionOrder?: boolean;
 }): ResolveContentGraphOutput {
   const contentMap = new ContentMap();
   contentMap.set(page, {
@@ -33,21 +34,36 @@ function createPageGraphOutput(options?: {
   contentMap.set(asset, { url: "https://cdn.example.com/logo.svg" });
 
   const islands = new IslandMap();
-  islands.add(page.toString(), page);
-  islands.add(page.toString(), hero);
-  islands.add(page.toString(), asset);
-  if (!options?.omitMenu) {
-    islands.add(menu.toString(), menu);
-    islands.add(menu.toString(), asset);
+  const pageIslandResources = options?.reverseInsertionOrder
+    ? [asset, hero, page]
+    : [page, hero, asset];
+  for (const resource of pageIslandResources) {
+    islands.add(page.toString(), resource);
   }
-  islands.add(footer.toString(), footer);
-  islands.add(footer.toString(), asset);
+  if (!options?.omitMenu) {
+    const menuIslandResources = options?.reverseInsertionOrder ? [asset, menu] : [menu, asset];
+    for (const resource of menuIslandResources) {
+      islands.add(menu.toString(), resource);
+    }
+  }
+  const footerIslandResources = options?.reverseInsertionOrder ? [asset, footer] : [footer, asset];
+  for (const resource of footerIslandResources) {
+    islands.add(footer.toString(), resource);
+  }
 
   const islandDependencies = new IslandDependencyMap();
   if (!options?.omitMenu) {
-    islandDependencies.add(page.toString(), menu.toString());
+    if (options?.reverseInsertionOrder) {
+      islandDependencies.add(page.toString(), footer.toString());
+      islandDependencies.add(page.toString(), menu.toString());
+    } else {
+      islandDependencies.add(page.toString(), menu.toString());
+      islandDependencies.add(page.toString(), footer.toString());
+    }
   }
-  islandDependencies.add(page.toString(), footer.toString());
+  if (options?.omitMenu) {
+    islandDependencies.add(page.toString(), footer.toString());
+  }
 
   return {
     contentMap,
@@ -75,7 +91,7 @@ describe("serializeIsland", () => {
       islandId: page.toString(),
       completeness: "complete",
       missingResources: [],
-      dependencies: [menu.toString(), footer.toString()],
+      dependencies: [footer.toString(), menu.toString()],
       resources: {
         [page.toString()]: {
           title: "Homepage",
@@ -93,6 +109,22 @@ describe("serializeIsland", () => {
     });
     expect(serialized.resources[menu.toString()]).toBeUndefined();
     expect(serialized.resources[footer.toString()]).toBeUndefined();
+  });
+
+  it("produces stable JSON when IslandMap/Set insertion order is reversed", () => {
+    const normal = createPageGraphOutput();
+    const reversed = createPageGraphOutput({ reverseInsertionOrder: true });
+
+    const normalSerialized = serializeIsland(page.toString(), normal);
+    const reversedSerialized = serializeIsland(page.toString(), reversed);
+
+    // Object property order matters for canonical cache JSON.
+    expect(JSON.stringify(reversedSerialized)).toBe(JSON.stringify(normalSerialized));
+
+    expect(Object.keys(reversedSerialized.resources)).toEqual(
+      [asset.toString(), hero.toString(), page.toString()].sort()
+    );
+    expect(reversedSerialized.dependencies).toEqual([footer.toString(), menu.toString()].sort());
   });
 
   it("serializes a nested island with only its membership", () => {

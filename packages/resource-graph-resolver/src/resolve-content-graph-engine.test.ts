@@ -409,7 +409,8 @@ describe("ResolveContentGraphEngine", () => {
       createExpansionPolicyChain([
         {
           matches: ({ resource }) => resource.equals(page),
-          expand: () => ({ resources: [left, right] }),
+          // Intentionally inverted to prove engine sorts inherited island IDs.
+          expand: () => ({ resources: [right, left] }),
         },
         {
           matches: ({ resource }) => resource.type === "branch",
@@ -428,6 +429,9 @@ describe("ResolveContentGraphEngine", () => {
     expect(output.errors[0]?.resourceKey).toBe(missing.toString());
     expect(new Set(output.errors[0]?.inheritedIslandIds)).toEqual(
       new Set([left.toString(), right.toString()])
+    );
+    expect(output.errors[0]?.inheritedIslandIds).toEqual(
+      [left.toString(), right.toString()].sort()
     );
     expect(
       dataPort.takenBatches.some((batch) => batch.some((resource) => resource.equals(missing)))
@@ -517,6 +521,9 @@ describe("ResolveContentGraphEngine", () => {
     expect(output.errors).toHaveLength(2);
     expect(new Set(output.errors.map((error) => error.resourceKey))).toEqual(
       new Set([left.toString(), right.toString()])
+    );
+    expect(output.errors.map((error) => error.resourceKey)).toEqual(
+      [left.toString(), right.toString()].sort()
     );
   });
 
