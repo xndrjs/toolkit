@@ -271,21 +271,23 @@ describe("createLoadCoordinator", () => {
       partition: "en",
       namespaces: ["default"] as const,
     };
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => void 0);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    coordinator.ensure({ ...key, load: () => pending.promise });
+    try {
+      coordinator.ensure({ ...key, load: () => pending.promise });
 
-    pending.reject(new Error("load failed"));
-    await vi.waitFor(() => {
-      expect(coordinator.getEntry(key)).toEqual({ status: "error", error: expect.any(Error) });
-    });
+      pending.reject(new Error("load failed"));
+      await vi.waitFor(() => {
+        expect(coordinator.getEntry(key)).toEqual({ status: "error", error: expect.any(Error) });
+      });
 
-    expect(consoleError).toHaveBeenCalledWith(
-      "[i18n-react] namespace load failed:",
-      expect.any(Error)
-    );
-
-    consoleError.mockRestore();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[i18n-react] namespace load failed:",
+        expect.any(Error)
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("keeps an error entry and notifies subscribers on reject", async () => {
@@ -300,24 +302,30 @@ describe("createLoadCoordinator", () => {
     const load = vi.fn(() => pending.promise);
     const listener = vi.fn();
     const failure = new Error("load failed");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    coordinator.subscribe(listener);
-    coordinator.request({ ...key, load });
+    try {
+      coordinator.subscribe(listener);
+      coordinator.request({ ...key, load });
 
-    expect(coordinator.getEntry(key)).toEqual({ status: "pending" });
+      expect(coordinator.getEntry(key)).toEqual({ status: "pending" });
 
-    pending.reject(failure);
-    await expect(coordinator.getPromise()).rejects.toThrow("load failed");
+      pending.reject(failure);
+      await expect(coordinator.getPromise()).rejects.toThrow("load failed");
 
-    expect(listener).toHaveBeenCalledTimes(1);
-    expect(coordinator.revision).toBe(1);
-    expect(coordinator.getEntry(key)).toEqual({ status: "error", error: failure });
-    expect(coordinator.getResolvedScope()).toBeNull();
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(coordinator.revision).toBe(1);
+      expect(coordinator.getEntry(key)).toEqual({ status: "error", error: failure });
+      expect(coordinator.getResolvedScope()).toBeNull();
 
-    // Deduped: settled error entry is not retried until retry().
-    coordinator.request({ ...key, load });
-    expect(load).toHaveBeenCalledTimes(1);
-    expect(coordinator.getEntry(key)).toEqual({ status: "error", error: failure });
+      // Deduped: settled error entry is not retried until retry().
+      coordinator.request({ ...key, load });
+      expect(load).toHaveBeenCalledTimes(1);
+      expect(coordinator.getEntry(key)).toEqual({ status: "error", error: failure });
+      expect(consoleError).toHaveBeenCalledWith("[i18n-react] namespace load failed:", failure);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("retry() evicts an error entry so the next ensure reloads", async () => {
@@ -332,18 +340,27 @@ describe("createLoadCoordinator", () => {
       .fn()
       .mockImplementationOnce(() => Promise.reject(new Error("fail")))
       .mockImplementationOnce(() => Promise.resolve("ok"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    coordinator.request({ ...key, load });
-    await expect(coordinator.getPromise()).rejects.toThrow("fail");
-    expect(coordinator.getEntry(key).status).toBe("error");
+    try {
+      coordinator.request({ ...key, load });
+      await expect(coordinator.getPromise()).rejects.toThrow("fail");
+      expect(coordinator.getEntry(key).status).toBe("error");
+      expect(consoleError).toHaveBeenCalledWith(
+        "[i18n-react] namespace load failed:",
+        expect.any(Error)
+      );
 
-    coordinator.retry(key);
-    expect(coordinator.getEntry(key)).toEqual({ status: "pending" });
+      coordinator.retry(key);
+      expect(coordinator.getEntry(key)).toEqual({ status: "pending" });
 
-    coordinator.request({ ...key, load });
-    await expect(coordinator.getPromise()).resolves.toBe("ok");
-    expect(load).toHaveBeenCalledTimes(2);
-    expect(coordinator.getEntry(key)).toEqual({ status: "resolved", scope: "ok" });
+      coordinator.request({ ...key, load });
+      await expect(coordinator.getPromise()).resolves.toBe("ok");
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(coordinator.getEntry(key)).toEqual({ status: "resolved", scope: "ok" });
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("distinguishes different engineRef objects via WeakMap ids", async () => {

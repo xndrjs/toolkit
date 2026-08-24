@@ -292,56 +292,65 @@ describe("createI18nLoadGate", () => {
     const handle = createTestHandle();
     const coordinator = createLoadCoordinator<ScopedScopeLike>();
     let currentPromise = deferred<ScopedScopeLike>();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const { I18n } = createI18nLoadGate({
-      keepPreviousOnPartitionChange: false,
-      useLoadArgs: (): I18nLoadArgs => ({
-        coordinator,
-        engineRef: handle,
-        partition: "it",
-        locale: "it",
-        load: () => {
-          attempts += 1;
-          return currentPromise.promise;
-        },
-      }),
-    });
+    try {
+      const { I18n } = createI18nLoadGate({
+        keepPreviousOnPartitionChange: false,
+        useLoadArgs: (): I18nLoadArgs => ({
+          coordinator,
+          engineRef: handle,
+          partition: "it",
+          locale: "it",
+          load: () => {
+            attempts += 1;
+            return currentPromise.promise;
+          },
+        }),
+      });
 
-    render(
-      <I18n
-        namespaces={["default"]}
-        fallback={<span data-testid="fallback">loading</span>}
-        renderError={({ retry }) => (
-          <button type="button" data-testid="retry" onClick={retry}>
-            retry
-          </button>
-        )}
-      >
-        {({ t }) => <span data-testid="greeting">{t("default", "greeting")}</span>}
-      </I18n>
-    );
+      render(
+        <I18n
+          namespaces={["default"]}
+          fallback={<span data-testid="fallback">loading</span>}
+          renderError={({ retry }) => (
+            <button type="button" data-testid="retry" onClick={retry}>
+              retry
+            </button>
+          )}
+        >
+          {({ t }) => <span data-testid="greeting">{t("default", "greeting")}</span>}
+        </I18n>
+      );
 
-    await act(async () => {
-      currentPromise.reject(new Error("boom"));
-      await currentPromise.promise.catch(() => undefined);
-    });
+      await act(async () => {
+        currentPromise.reject(new Error("boom"));
+        await currentPromise.promise.catch(() => undefined);
+      });
 
-    expect(screen.getByTestId("retry")).toBeTruthy();
-    expect(attempts).toBe(1);
+      expect(screen.getByTestId("retry")).toBeTruthy();
+      expect(attempts).toBe(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        "[i18n-react] namespace load failed:",
+        expect.any(Error)
+      );
 
-    currentPromise = deferred<ScopedScopeLike>();
-    await act(async () => {
-      screen.getByTestId("retry").click();
-    });
+      currentPromise = deferred<ScopedScopeLike>();
+      await act(async () => {
+        screen.getByTestId("retry").click();
+      });
 
-    const scope = await handle.load({ namespaces: ["default"], locale: "it" });
-    await act(async () => {
-      currentPromise.resolve(asScopedScope(scope));
-      await currentPromise.promise;
-    });
+      const scope = await handle.load({ namespaces: ["default"], locale: "it" });
+      await act(async () => {
+        currentPromise.resolve(asScopedScope(scope));
+        await currentPromise.promise;
+      });
 
-    expect(attempts).toBe(2);
-    expect(screen.getByTestId("greeting").textContent).toBe("Ciao");
+      expect(attempts).toBe(2);
+      expect(screen.getByTestId("greeting").textContent).toBe("Ciao");
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("HOC Outer injects t when resolved and keeps parent state while pending", async () => {
