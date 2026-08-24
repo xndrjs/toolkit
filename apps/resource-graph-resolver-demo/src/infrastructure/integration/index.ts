@@ -9,6 +9,8 @@ export type { IntegrationContentRegistry } from "./content-registry.js";
 export {
   acceptsIntegrationResource,
   createIntegrationDataLoader,
+  INTEGRATION_BATCH_SIZE,
   type IntegrationDataLoader,
+  type IntegrationDataLoaderOptions,
 } from "./data-adapter.js";
 export { tshirtIntegrationAri } from "./fixtures.js";

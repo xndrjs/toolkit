@@ -1,18 +1,24 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import type { DataResolutionPull, ResolvedResourceRecord } from "@xndrjs/resource-graph-resolver";
 
+import { simulateNetworkLatency } from "../simulate-latency.js";
 import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
 import type { CmsContentRegistry } from "./content-registry.js";
 import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
 
-const CMS_ENTRY_BATCH_SIZE = 10;
-const CMS_ASSET_BATCH_SIZE = 10;
+const CMS_ENTRY_BATCH_SIZE = 100;
+const CMS_ASSET_BATCH_SIZE = 100;
 
 export { CMS_ENTRY_BATCH_SIZE, CMS_ASSET_BATCH_SIZE };
 
 export type CmsFixtureStore = {
   entries: ReadonlyMap<string, ContentfulResolvedEntry>;
   assets: ReadonlyMap<string, ContentfulAsset>;
+};
+
+export type CmsDataLoaderOptions = {
+  /** Simulated network latency (ms) applied to each entries/assets fetch. Default 0. */
+  latencyMs?: number;
 };
 
 /** Ownership predicate for CMS ARIs (`cms.entry` / `cms.asset`). */
@@ -37,19 +43,24 @@ export type CmsDataLoader = {
   process(pull: DataResolutionPull): Promise<readonly ResolvedResourceRecord<CmsContentRegistry>[]>;
 };
 
-export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
+export function createCmsDataLoader(
+  store: CmsFixtureStore,
+  options?: CmsDataLoaderOptions
+): CmsDataLoader {
+  const latencyMs = options?.latencyMs ?? 0;
+
   return {
     accepts: acceptsCmsResource,
 
     async loadEntries(resources) {
       const ids = uniqueEntryIds(resources);
-      const fetched = await mockContentfulEntriesByIds(store.entries, ids);
+      const fetched = await mockContentfulEntriesByIds(store.entries, ids, latencyMs);
       return mapDemoEntryBatch(resources, fetched);
     },
 
     async loadAssets(resources) {
       const ids = uniqueAssetIds(resources);
-      const fetched = await mockContentfulAssetsByIds(store.assets, ids);
+      const fetched = await mockContentfulAssetsByIds(store.assets, ids, latencyMs);
       return mapDemoAssetBatch(resources, fetched);
     },
 
@@ -112,8 +123,10 @@ function uniqueAssetIds(resources: readonly CmsAssetResource[]): string[] {
 /** Simulates `GET /entries?sys.id[in]=id1,id2,…` against an in-memory entry map. */
 async function mockContentfulEntriesByIds(
   entries: ReadonlyMap<string, ContentfulResolvedEntry>,
-  ids: readonly string[]
+  ids: readonly string[],
+  latencyMs: number
 ): Promise<Map<string, ContentfulResolvedEntry>> {
+  await simulateNetworkLatency(latencyMs);
   const unique = [...new Set(ids)];
   const found = new Map<string, ContentfulResolvedEntry>();
   for (const id of unique) {
@@ -128,8 +141,10 @@ async function mockContentfulEntriesByIds(
 /** Simulates `GET /assets?sys.id[in]=id1,id2,…` against an in-memory asset map. */
 async function mockContentfulAssetsByIds(
   assets: ReadonlyMap<string, ContentfulAsset>,
-  ids: readonly string[]
+  ids: readonly string[],
+  latencyMs: number
 ): Promise<Map<string, ContentfulAsset>> {
+  await simulateNetworkLatency(latencyMs);
   const unique = [...new Set(ids)];
   const found = new Map<string, ContentfulAsset>();
   for (const id of unique) {

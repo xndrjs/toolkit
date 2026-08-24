@@ -15,6 +15,23 @@ Two orchestration entry points: `resolveBarrierDemoPage` and `resolveLaneDemoPag
 
 Both produce the same island / `ContentMap` semantics. Prefer barrier for simple gateway composition and round traces; prefer lane when source latencies diverge and you want expand to proceed per lane. Terminal traces say “Barrier round” vs “Lane batch” so the two schedulers are not conflated.
 
+### Simulated network latency
+
+CMS and integration loaders accept `latencyMs` to delay each mock fetch. Orchestration resolves values as: `ResolveDemoPageOptions` → env → defaults (`0` under Vitest / `quiet`, otherwise CMS `80ms` and integration `350ms` so lane overlap is visible in the terminal).
+
+| Knob                   | Env                           | Effect                                      |
+| ---------------------- | ----------------------------- | ------------------------------------------- |
+| `cmsLatencyMs`         | `DEMO_CMS_LATENCY_MS`         | Delay per CMS entries/assets fetch          |
+| `integrationLatencyMs` | `DEMO_INTEGRATION_LATENCY_MS` | Delay per integration products-by-sku fetch |
+
+Example:
+
+```bash
+DEMO_CMS_LATENCY_MS=50 DEMO_INTEGRATION_LATENCY_MS=400 pnpm --filter @xndrjs/resource-graph-resolver-demo dev
+```
+
+Lane terminal traces include relative timestamps (`T+…ms`), `▶` / `◀` batch markers, and the current in-flight loader set so overlapping CMS vs integration batches are easy to spot.
+
 ## Layout
 
 ```

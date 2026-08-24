@@ -26,6 +26,7 @@ import {
 import {
   finalizeDemoResolve,
   isDemoResolveQuiet,
+  resolveDemoLoaderLatencies,
   type ResolveDemoPageOptions,
   type ResolveDemoPageResult,
 } from "./resolve-demo-shared.js";
@@ -43,11 +44,14 @@ export async function resolveBarrierDemoPage(
   options?: ResolveDemoPageOptions
 ): Promise<ResolveDemoPageResult> {
   const quiet = isDemoResolveQuiet(options);
+  const { cmsLatencyMs, integrationLatencyMs } = resolveDemoLoaderLatencies(options);
   const executionContext = createDefaultDemoExecutionContext(locale);
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
-  const cmsLoader = createCmsDataLoader(demoCmsStore);
-  const integrationLoader = createIntegrationDataLoader();
+  const cmsLoader = createCmsDataLoader(demoCmsStore, { latencyMs: cmsLatencyMs });
+  const integrationLoader = createIntegrationDataLoader(undefined, {
+    latencyMs: integrationLatencyMs,
+  });
   const expansion = createDemoExpansionPort();
 
   const trace = quiet ? undefined : createConsoleResolveTrace();
@@ -70,7 +74,7 @@ export async function resolveBarrierDemoPage(
 
   if (trace) {
     console.log(
-      `Resolve demo — strategy barrier, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}`
+      `Resolve demo — strategy barrier, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}, latency cms=${cmsLatencyMs}ms integration=${integrationLatencyMs}ms`
     );
   }
 

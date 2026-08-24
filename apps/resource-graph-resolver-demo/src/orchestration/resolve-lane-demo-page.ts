@@ -1,7 +1,4 @@
-import {
-  LaneResolveContentGraphEngine,
-  type ResourceLoader,
-} from "@xndrjs/resource-graph-resolver";
+import { LaneResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
 
 import { loadBackingForRoot, lruIslandCache } from "../infrastructure/cache/index.js";
 import {
@@ -27,6 +24,7 @@ import {
 import {
   finalizeDemoResolve,
   isDemoResolveQuiet,
+  resolveDemoLoaderLatencies,
   type ResolveDemoPageOptions,
   type ResolveDemoPageResult,
 } from "./resolve-demo-shared.js";
@@ -44,11 +42,14 @@ export async function resolveLaneDemoPage(
   options?: ResolveDemoPageOptions
 ): Promise<ResolveDemoPageResult> {
   const quiet = isDemoResolveQuiet(options);
+  const { cmsLatencyMs, integrationLatencyMs } = resolveDemoLoaderLatencies(options);
   const executionContext = createDefaultDemoExecutionContext(locale);
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
-  const cmsLoader = createCmsDataLoader(demoCmsStore);
-  const integrationLoader = createIntegrationDataLoader();
+  const cmsLoader = createCmsDataLoader(demoCmsStore, { latencyMs: cmsLatencyMs });
+  const integrationLoader = createIntegrationDataLoader(undefined, {
+    latencyMs: integrationLatencyMs,
+  });
   const expansion = createDemoExpansionPort();
 
   const trace = quiet ? undefined : createConsoleResolveTrace();
@@ -57,10 +58,9 @@ export async function resolveLaneDemoPage(
     ? withLoggingIntegrationLoader(integrationLoader, trace, "lane")
     : integrationLoader;
   const expansionPort = trace ? withLoggingExpansionPort(expansion, trace) : expansion;
-  const loaders: readonly ResourceLoader<DemoContentRegistry>[] = [cms, integration];
 
   const engine = new LaneResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
-    loaders,
+    [cms, integration],
     expansionPort
   );
 
@@ -69,7 +69,7 @@ export async function resolveLaneDemoPage(
 
   if (trace) {
     console.log(
-      `Resolve demo — strategy lane, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}`
+      `Resolve demo — strategy lane, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}, latency cms=${cmsLatencyMs}ms integration=${integrationLatencyMs}ms`
     );
   }
 

@@ -42,11 +42,49 @@ export type ResolveDemoPageOptions = {
    * Defaults to true under Vitest (`process.env.VITEST`).
    */
   quiet?: boolean;
+  /**
+   * Simulated CMS fetch latency in ms.
+   * Overrides `DEMO_CMS_LATENCY_MS`. Defaults to 0 when quiet, else 80.
+   */
+  cmsLatencyMs?: number;
+  /**
+   * Simulated integration fetch latency in ms.
+   * Overrides `DEMO_INTEGRATION_LATENCY_MS`. Defaults to 0 when quiet, else 350.
+   */
+  integrationLatencyMs?: number;
 };
 
 /** When true, resolve uses undecorated ports (no console trace wrappers). */
 export function isDemoResolveQuiet(options?: ResolveDemoPageOptions): boolean {
   return options?.quiet ?? process.env.VITEST !== undefined;
+}
+
+function readEnvLatencyMs(name: string): number | undefined {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+/** Resolve simulated network latencies for CMS / integration loaders. */
+export function resolveDemoLoaderLatencies(options?: ResolveDemoPageOptions): {
+  cmsLatencyMs: number;
+  integrationLatencyMs: number;
+} {
+  const quiet = isDemoResolveQuiet(options);
+  const demoCmsDefault = quiet ? 0 : 80;
+  const demoIntegrationDefault = quiet ? 0 : 350;
+
+  return {
+    cmsLatencyMs:
+      options?.cmsLatencyMs ?? readEnvLatencyMs("DEMO_CMS_LATENCY_MS") ?? demoCmsDefault,
+    integrationLatencyMs:
+      options?.integrationLatencyMs ??
+      readEnvLatencyMs("DEMO_INTEGRATION_LATENCY_MS") ??
+      demoIntegrationDefault,
+  };
 }
 
 export function logCacheReport(report: CacheHitReport): void {

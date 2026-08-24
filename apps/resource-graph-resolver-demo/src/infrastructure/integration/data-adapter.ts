@@ -1,11 +1,17 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import type { DataResolutionPull, ResolvedResourceRecord } from "@xndrjs/resource-graph-resolver";
 
+import { simulateNetworkLatency } from "../simulate-latency.js";
 import { integrationProductAri, type IntegrationProductResource } from "./ari.js";
 import { demoProductCatalog, type ProductIntegrationSnapshot } from "./catalog.js";
 import type { IntegrationContentRegistry } from "./content-registry.js";
 
 export const INTEGRATION_BATCH_SIZE = 1;
+
+export type IntegrationDataLoaderOptions = {
+  /** Simulated network latency (ms) applied to each products-by-sku fetch. Default 0. */
+  latencyMs?: number;
+};
 
 /** Ownership predicate for integration ARIs (`integration.product`). */
 export function acceptsIntegrationResource(resource: ApplicationResourceIdentifier): boolean {
@@ -29,8 +35,11 @@ export type IntegrationDataLoader = {
 };
 
 export function createIntegrationDataLoader(
-  catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog
+  catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog,
+  options?: IntegrationDataLoaderOptions
 ): IntegrationDataLoader {
+  const latencyMs = options?.latencyMs ?? 0;
+
   return {
     accepts: acceptsIntegrationResource,
 
@@ -46,7 +55,7 @@ export function createIntegrationDataLoader(
         productAris.push(resource);
       }
 
-      const fetched = await mockProductsBySkus(catalog, skus);
+      const fetched = await mockProductsBySkus(catalog, skus, latencyMs);
 
       const result: ResolvedResourceRecord<IntegrationContentRegistry>[] = [];
       for (const resource of productAris) {
@@ -72,8 +81,10 @@ export function createIntegrationDataLoader(
 /** Simulates `POST /products/by-sku` against an in-memory catalog. */
 async function mockProductsBySkus(
   catalog: ReadonlyMap<string, ProductIntegrationSnapshot>,
-  skus: readonly string[]
+  skus: readonly string[],
+  latencyMs: number
 ): Promise<Map<string, ProductIntegrationSnapshot>> {
+  await simulateNetworkLatency(latencyMs);
   const unique = [...new Set(skus)];
   const found = new Map<string, ProductIntegrationSnapshot>();
   for (const sku of unique) {

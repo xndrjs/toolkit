@@ -17,6 +17,8 @@ export type ResolveTrace = {
   beginBarrierRound(): void;
   /** Lane engine: one log section per serial loader lane batch. */
   beginLaneBatch(label: string): void;
+  /** Lane engine: mark the current loader batch as settled. */
+  endLaneBatch(label: string): void;
   logPull(label: string, resources: readonly ApplicationResourceIdentifier[], limit?: number): void;
   logLoad(label: string, requested: number, loaded: number): void;
   logExpand(
@@ -28,19 +30,48 @@ export type ResolveTrace = {
 
 export type LoaderTraceMode = "barrier" | "lane";
 
+function formatInFlight(inFlight: ReadonlySet<string>): string {
+  if (inFlight.size === 0) {
+    return "—";
+  }
+  return [...inFlight].join(", ");
+}
+
 export function createConsoleResolveTrace(): ResolveTrace {
   let barrierRound = 0;
   let laneBatch = 0;
+  const startedAt = Date.now();
+  const inFlight = new Set<string>();
+  const batchStartedAt = new Map<string, number>();
+
+  function stamp(): string {
+    const elapsed = Date.now() - startedAt;
+    return `T+${String(elapsed).padStart(4, " ")}ms`;
+  }
 
   return {
     beginBarrierRound() {
       barrierRound += 1;
-      console.log(`\n── Barrier round ${barrierRound} ──`);
+      console.log(`\n[${stamp()}] ── Barrier round ${barrierRound} ──`);
     },
 
     beginLaneBatch(label) {
       laneBatch += 1;
-      console.log(`\n── Lane batch ${laneBatch} (${label}) ──`);
+      inFlight.add(label);
+      batchStartedAt.set(label, Date.now());
+      console.log(
+        `\n[${stamp()}] ▶ Lane batch ${laneBatch} (${label}) · in-flight: ${formatInFlight(inFlight)}`
+      );
+    },
+
+    endLaneBatch(label) {
+      const started = batchStartedAt.get(label);
+      const duration = started === undefined ? "?" : `${Date.now() - started}ms`;
+      batchStartedAt.delete(label);
+      inFlight.delete(label);
+      console.log(
+        `[${stamp()}] ◀ Lane batch done (${label}, ${duration}) · in-flight: ${formatInFlight(inFlight)}`
+      );
     },
 
     logPull(label, resources, limit) {
@@ -49,28 +80,32 @@ export function createConsoleResolveTrace(): ResolveTrace {
       }
       const cap = limit === undefined ? "∞" : String(limit);
       const ids = resources.map((resource) => resource.toString()).join(", ");
-      console.log(`  PULL ${label} (cap ${cap}, took ${resources.length}): ${ids}`);
+      console.log(`[${stamp()}]   PULL ${label} (cap ${cap}, took ${resources.length}): ${ids}`);
     },
 
     logLoad(label, requested, loaded) {
       if (requested === 0) {
         return;
       }
-      console.log(`  LOAD ${label}: ${loaded}/${requested} resolved`);
+      console.log(`[${stamp()}]   LOAD ${label}: ${loaded}/${requested} resolved`);
     },
 
     logExpand(resource, result) {
-      const children = result.resources.map((child) => child.toString()).join(", ");
       const island = result.isIsland ? " [island]" : "";
-      if (children.length === 0) {
-        console.log(`  EXPAND ${resource.toString()} → ∅${island}`);
+      if (result.resources.length === 0) {
+        console.log(`[${stamp()}]     EXPAND ${resource.toString()} → ∅${island}`);
         return;
       }
-      console.log(`  EXPAND ${resource.toString()} → ${children}${island}`);
+      console.log(`[${stamp()}]     EXPAND ${resource.toString()} →${island}`);
+      for (const child of result.resources) {
+        console.log(`[${stamp()}]       · ${child.toString()}`);
+      }
     },
 
     logSummary(contentMapSize, errorCount) {
-      console.log(`\nDone: ${contentMapSize} resources in ContentMap, ${errorCount} errors`);
+      console.log(
+        `\n[${stamp()}] Done: ${contentMapSize} resources in ContentMap, ${errorCount} errors`
+      );
     },
   };
 }
@@ -90,25 +125,31 @@ export function withLoggingCmsLoader(
         trace.beginLaneBatch("cms");
       }
 
-      const entryBatch = pull.take(cmsEntryAri.matches, CMS_ENTRY_BATCH_SIZE);
-      trace.logPull("cms.entries", entryBatch, CMS_ENTRY_BATCH_SIZE);
+      try {
+        const entryBatch = pull.take(cmsEntryAri.matches, CMS_ENTRY_BATCH_SIZE);
+        trace.logPull("cms.entries", entryBatch, CMS_ENTRY_BATCH_SIZE);
 
-      const assetBatch = pull.take(cmsAssetAri.matches, CMS_ASSET_BATCH_SIZE);
-      trace.logPull("cms.assets", assetBatch, CMS_ASSET_BATCH_SIZE);
+        const assetBatch = pull.take(cmsAssetAri.matches, CMS_ASSET_BATCH_SIZE);
+        trace.logPull("cms.assets", assetBatch, CMS_ASSET_BATCH_SIZE);
 
-      if (entryBatch.length === 0 && assetBatch.length === 0) {
-        return [];
+        if (entryBatch.length === 0 && assetBatch.length === 0) {
+          return [];
+        }
+
+        const [entryResult, assetResult] = await Promise.all([
+          entryBatch.length === 0 ? Promise.resolve([]) : loader.loadEntries(entryBatch),
+          assetBatch.length === 0 ? Promise.resolve([]) : loader.loadAssets(assetBatch),
+        ]);
+
+        trace.logLoad("cms.entries", entryBatch.length, entryResult.length);
+        trace.logLoad("cms.assets", assetBatch.length, assetResult.length);
+
+        return [...entryResult, ...assetResult];
+      } finally {
+        if (mode === "lane") {
+          trace.endLaneBatch("cms");
+        }
       }
-
-      const [entryResult, assetResult] = await Promise.all([
-        entryBatch.length === 0 ? Promise.resolve([]) : loader.loadEntries(entryBatch),
-        assetBatch.length === 0 ? Promise.resolve([]) : loader.loadAssets(assetBatch),
-      ]);
-
-      trace.logLoad("cms.entries", entryBatch.length, entryResult.length);
-      trace.logLoad("cms.assets", assetBatch.length, assetResult.length);
-
-      return [...entryResult, ...assetResult];
     },
   };
 }
@@ -127,16 +168,22 @@ export function withLoggingIntegrationLoader(
         trace.beginLaneBatch("integration");
       }
 
-      const batch = pull.take(integrationProductAri.matches, INTEGRATION_BATCH_SIZE);
-      trace.logPull("integration.products", batch, INTEGRATION_BATCH_SIZE);
+      try {
+        const batch = pull.take(integrationProductAri.matches, INTEGRATION_BATCH_SIZE);
+        trace.logPull("integration.products", batch, INTEGRATION_BATCH_SIZE);
 
-      if (batch.length === 0) {
-        return [];
+        if (batch.length === 0) {
+          return [];
+        }
+
+        const result = await loader.load(batch);
+        trace.logLoad("integration.products", batch.length, result.length);
+        return result;
+      } finally {
+        if (mode === "lane") {
+          trace.endLaneBatch("integration");
+        }
       }
-
-      const result = await loader.load(batch);
-      trace.logLoad("integration.products", batch.length, result.length);
-      return result;
     },
   };
 }
