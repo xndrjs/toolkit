@@ -50,7 +50,7 @@ export function createDataResolutionPull(
   options?: { signal?: AbortSignal }
 ): DataResolutionPull {
   return {
-    ...(options?.signal !== undefined ? { signal: options.signal } : {}),
+    signal: options?.signal,
     take(accept: (resource: ApplicationResourceIdentifier) => boolean, limit?: number) {
       const batch: ApplicationResourceIdentifier[] = [];
       const max = limit === undefined ? Number.POSITIVE_INFINITY : limit;

@@ -1,3 +1,4 @@
+import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import type { DataResolutionPull, ResolvedResourceRecord } from "@xndrjs/resource-graph-resolver";
 
 import { integrationProductAri, type IntegrationProductResource } from "./ari.js";
@@ -6,12 +7,19 @@ import type { IntegrationContentRegistry } from "./content-registry.js";
 
 export const INTEGRATION_BATCH_SIZE = 1;
 
+/** Ownership predicate for integration ARIs (`integration.product`). */
+export function acceptsIntegrationResource(resource: ApplicationResourceIdentifier): boolean {
+  return integrationProductAri.matches(resource);
+}
+
 /**
  * Integration batch loader — not a DataResolutionPort.
  * Mimics a dedicated commercial API (`POST /products/by-sku { skus: [...] }`).
  * Locale is part of the ARI key; the demo catalog is still keyed by SKU only.
+ * `accepts` supports {@link import("@xndrjs/resource-graph-resolver").ResourceLoader} routing.
  */
 export type IntegrationDataLoader = {
+  accepts(resource: ApplicationResourceIdentifier): boolean;
   load(
     resources: readonly IntegrationProductResource[]
   ): Promise<readonly ResolvedResourceRecord<IntegrationContentRegistry>[]>;
@@ -24,6 +32,8 @@ export function createIntegrationDataLoader(
   catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog
 ): IntegrationDataLoader {
   return {
+    accepts: acceptsIntegrationResource,
+
     async load(resources) {
       const skus: string[] = [];
       const productAris: IntegrationProductResource[] = [];

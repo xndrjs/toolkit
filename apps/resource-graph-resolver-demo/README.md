@@ -4,16 +4,20 @@
 
 Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, source-qualified ARIs (`cms.*` / `integration.*`), content-type expansion policies (current resource + payload + execution context), correlated `{ resource, payload }` loaders, and domain-zod aggregation.
 
-`resolveDemoPage(locale, options?)` accepts optional `signal` and `limits` and forwards them to the engine. CMS/integration loaders short-circuit with an empty result when every `take()` is empty (no IO).
+Two orchestration entry points: `resolveBarrierDemoPage` and `resolveDecoupledDemoPage` (optional `signal`). Routes: `/[locale]/barrier` and `/[locale]/decoupled`. CMS/integration loaders short-circuit with an empty result when every `take()` is empty (no IO).
 
 ## Layout
 
 ```
-app/                          # Next.js UI (split view: aggregate | islands)
+app/                          # Next.js UI
+  [locale]/barrier/           # barrier walk page
+  [locale]/decoupled/         # decoupled walk page
 src/
   domain/                     # domain-zod shapes
   orchestration/
-    resolve-demo-page.ts      # shared resolution + trace + aggregation
+    resolve-barrier-demo-page.ts    # gateway + ResolveContentGraphEngine
+    resolve-decoupled-demo-page.ts  # loaders + DecoupledResolveContentGraphEngine
+    resolve-demo-shared.ts          # shared finalize (cache / aggregate)
   infrastructure/
     cms/                      # CMS source: ARIs, CMA snapshots, codegen, demo store, loader
       schema-fixtures/
@@ -54,4 +58,4 @@ pnpm --filter @xndrjs/resource-graph-resolver-demo typecheck
 pnpm --filter @xndrjs/resource-graph-resolver-demo test
 ```
 
-`dev` runs the Next.js app: aggregated page + `serializeAllIslands` payloads in a split view; batch rounds trace in the dev server terminal.
+`dev` runs the Next.js app: aggregated page + island cache in a split view; barrier rounds or decoupled lane batches are traced in the dev server terminal depending on the route.

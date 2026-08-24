@@ -1,3 +1,4 @@
+import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import type { DataResolutionPull, ResolvedResourceRecord } from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
@@ -14,12 +15,19 @@ export type CmsFixtureStore = {
   assets: ReadonlyMap<string, ContentfulAsset>;
 };
 
+/** Ownership predicate for CMS ARIs (`cms.entry` / `cms.asset`). */
+export function acceptsCmsResource(resource: ApplicationResourceIdentifier): boolean {
+  return cmsEntryAri.matches(resource) || cmsAssetAri.matches(resource);
+}
+
 /**
  * CMS batch loader — not a DataResolutionPort.
  * Mimics Contentful Delivery `sys.id[in]=…` fetches for entries and assets.
  * Locale is part of the ARI key; the demo store still holds one payload per sys.id.
+ * `accepts` supports {@link import("@xndrjs/resource-graph-resolver").ResourceLoader} routing.
  */
 export type CmsDataLoader = {
+  accepts(resource: ApplicationResourceIdentifier): boolean;
   loadEntries(
     resources: readonly CmsEntryResource[]
   ): Promise<readonly ResolvedResourceRecord<CmsContentRegistry>[]>;
@@ -31,6 +39,8 @@ export type CmsDataLoader = {
 
 export function createCmsDataLoader(store: CmsFixtureStore): CmsDataLoader {
   return {
+    accepts: acceptsCmsResource,
+
     async loadEntries(resources) {
       const ids = uniqueEntryIds(resources);
       const fetched = await mockContentfulEntriesByIds(store.entries, ids);

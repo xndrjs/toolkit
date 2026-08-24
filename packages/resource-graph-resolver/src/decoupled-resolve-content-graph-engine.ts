@@ -167,7 +167,7 @@ export class DecoupledResolveContentGraphEngine<
       const takenKeys = new Set<ResourceKey>();
 
       const pull: DataResolutionPull = {
-        ...(session.signal !== undefined ? { signal: session.signal } : {}),
+        signal: session.signal,
         take: (accept: (resource: ApplicationResourceIdentifier) => boolean, limit?: number) => {
           const batch: ApplicationResourceIdentifier[] = [];
           const max = limit === undefined ? Number.POSITIVE_INFINITY : limit;

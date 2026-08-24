@@ -65,6 +65,8 @@ export type LruIslandCacheOptions = {
   maxSize?: number;
   /** Injectable clock for tests (epoch ms). */
   now?: () => number;
+  /** Override identity (tests); otherwise a random id is assigned. */
+  instanceId?: string;
 };
 
 /**
@@ -72,12 +74,15 @@ export type LruIslandCacheOptions = {
  * Evicts the least-recently-used entry when `maxSize` is exceeded.
  */
 export class LruIslandCache implements IslandCachePort {
+  /** Stable identity for diagnosing Next.js module-duplication (two singletons). */
+  readonly instanceId: string;
   private readonly islandEntries = new Map<IslandId, IslandCacheEntry>();
   private readonly manifestEntries = new Map<IslandId, ManifestCacheEntry>();
   private readonly maxSize: number;
   private readonly now: () => number;
 
   constructor(options: LruIslandCacheOptions = {}) {
+    this.instanceId = options.instanceId ?? `lru-${Math.random().toString(36).slice(2, 10)}`;
     this.maxSize = options.maxSize ?? DEFAULT_ISLAND_CACHE_MAX_SIZE;
     this.now = options.now ?? Date.now;
   }
@@ -217,5 +222,14 @@ export class LruIslandCache implements IslandCachePort {
   }
 }
 
-/** Process-wide demo island cache (module singleton). */
-export const lruIslandCache = new LruIslandCache();
+/** Process-wide demo island cache (survives Next.js per-route module duplication). */
+const GLOBAL_LRU_KEY = "__xndrjs_demo_lru_island_cache__" as const;
+
+type GlobalLruHolder = typeof globalThis & {
+  [GLOBAL_LRU_KEY]?: LruIslandCache;
+};
+
+const globalLru = globalThis as GlobalLruHolder;
+
+export const lruIslandCache: LruIslandCache =
+  globalLru[GLOBAL_LRU_KEY] ?? (globalLru[GLOBAL_LRU_KEY] = new LruIslandCache());

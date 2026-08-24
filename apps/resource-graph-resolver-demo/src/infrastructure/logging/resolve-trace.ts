@@ -13,7 +13,10 @@ import { integrationProductAri } from "../integration/ari.js";
 import { INTEGRATION_BATCH_SIZE, type IntegrationDataLoader } from "../integration/data-adapter.js";
 
 export type ResolveTrace = {
-  beginRound(): void;
+  /** Barrier engine: one log section per gateway round. */
+  beginBarrierRound(): void;
+  /** Decoupled engine: one log section per serial loader lane batch. */
+  beginLaneBatch(label: string): void;
   logPull(label: string, resources: readonly ApplicationResourceIdentifier[], limit?: number): void;
   logLoad(label: string, requested: number, loaded: number): void;
   logExpand(
@@ -23,13 +26,21 @@ export type ResolveTrace = {
   logSummary(contentMapSize: number, errorCount: number): void;
 };
 
+export type LoaderTraceMode = "barrier" | "decoupled";
+
 export function createConsoleResolveTrace(): ResolveTrace {
-  let round = 0;
+  let barrierRound = 0;
+  let laneBatch = 0;
 
   return {
-    beginRound() {
-      round += 1;
-      console.log(`\n── Round ${round} ──`);
+    beginBarrierRound() {
+      barrierRound += 1;
+      console.log(`\n── Barrier round ${barrierRound} ──`);
+    },
+
+    beginLaneBatch(label) {
+      laneBatch += 1;
+      console.log(`\n── Lane batch ${laneBatch} (${label}) ──`);
     },
 
     logPull(label, resources, limit) {
@@ -64,12 +75,21 @@ export function createConsoleResolveTrace(): ResolveTrace {
   };
 }
 
-export function withLoggingCmsLoader(loader: CmsDataLoader, trace: ResolveTrace): CmsDataLoader {
+export function withLoggingCmsLoader(
+  loader: CmsDataLoader,
+  trace: ResolveTrace,
+  mode: LoaderTraceMode = "barrier"
+): CmsDataLoader {
   return {
+    accepts: (resource) => loader.accepts(resource),
     loadEntries: (resources) => loader.loadEntries(resources),
     loadAssets: (resources) => loader.loadAssets(resources),
 
     async process(pull) {
+      if (mode === "decoupled") {
+        trace.beginLaneBatch("cms");
+      }
+
       const entryBatch = pull.take(cmsEntryAri.matches, CMS_ENTRY_BATCH_SIZE);
       trace.logPull("cms.entries", entryBatch, CMS_ENTRY_BATCH_SIZE);
 
@@ -95,12 +115,18 @@ export function withLoggingCmsLoader(loader: CmsDataLoader, trace: ResolveTrace)
 
 export function withLoggingIntegrationLoader(
   loader: IntegrationDataLoader,
-  trace: ResolveTrace
+  trace: ResolveTrace,
+  mode: LoaderTraceMode = "barrier"
 ): IntegrationDataLoader {
   return {
+    accepts: (resource) => loader.accepts(resource),
     load: (resources) => loader.load(resources),
 
     async process(pull) {
+      if (mode === "decoupled") {
+        trace.beginLaneBatch("integration");
+      }
+
       const batch = pull.take(integrationProductAri.matches, INTEGRATION_BATCH_SIZE);
       trace.logPull("integration.products", batch, INTEGRATION_BATCH_SIZE);
 
@@ -121,7 +147,7 @@ export function withLoggingGateway(
 ): DataResolutionPort<DemoContentRegistry> {
   return {
     async process(pull) {
-      trace.beginRound();
+      trace.beginBarrierRound();
       return gateway.process(pull);
     },
   };

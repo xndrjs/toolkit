@@ -38,6 +38,18 @@ describe("source-qualified ARI store + data gateway", () => {
     expectTypeOf(tshirtIntegrationAri.type).toEqualTypeOf<"integration.product">();
   });
 
+  it("routes ARIs via source ownership accepts predicates", () => {
+    const cms = createCmsDataLoader(demoCmsStore);
+    const integration = createIntegrationDataLoader();
+
+    expect(cms.accepts(pageEntryAri)).toBe(true);
+    expect(cms.accepts(logoAssetAri)).toBe(true);
+    expect(cms.accepts(tshirtIntegrationAri)).toBe(false);
+
+    expect(integration.accepts(tshirtIntegrationAri)).toBe(true);
+    expect(integration.accepts(pageEntryAri)).toBe(false);
+  });
+
   it("types ContentRegistry by source-qualified ARI type", () => {
     expectTypeOf<DemoContentRegistry["cms.entry"]>().toEqualTypeOf<ContentfulResolvedEntry>();
     expectTypeOf<DemoContentRegistry["cms.asset"]>().toEqualTypeOf<ContentfulAsset>();
