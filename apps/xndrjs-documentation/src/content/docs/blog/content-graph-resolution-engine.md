@@ -12,377 +12,1194 @@ tags:
   - cache
 ---
 
-Over the last three years I had the chance to work on two large institutional websites. Same broad shape in both cases:
+Over the last three years I had the chance to work on two large institutional websites.
 
-- a headless CMS (Contentful)
-- an **integration layer** beside the CMS (product catalog, commercial data, news…)
-- **web pages** assembled from CMS modules - like hero, carousel, tabs, and so on - each module mapping to a content type
-- content localized across **roughly thirty locales**
+Different brands, different teams, similar architecture:
 
-Different brands, different teams, similar constraints. And in both projects, a naive approach to data loading stopped being credible long before the sites felt "finished".
+- a headless CMS, in both cases Contentful;
+- an integration layer for things such as product data, commercial information, and news;
+- pages assembled from CMS modules — hero, carousel, tabs, product strips, and so on;
+- content localized across roughly thirty locales.
 
-This experience is what led to [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/). This article walks through the kinds of problems that show up in products of this shape and scale, what I realized I needed, and how I chose to separate layers instead of pushing complexity into Next.js.
+The idea behind the first "pagebuilder" I designed was naive:
 
-The central question is: **how much of this can we abstract**, so the next similar project does not reinvent the wheel? How do we avoid a totally custom data-loading system — one that scales with complexity and can evolve with the product lifecycle — instead of a tangle of `if`s and special rules scattered across the codebase?
+> **Let each component load the data it needs.**
 
----
+A page loads its modules. A module loads its children. A product module loads its product data. React renders everything as it becomes available.
 
-## The naive mental model (and why it feels obvious)
+It's simple. It's also a surprisingly good way to discover that you don't actually have a rendering problem.
 
-Picture a **Next.js** app with SSR. A route resolves to a `pageId`, typically via a path-resolution step ("this pathname resolves to this page id"). You load the **top-level modules** attached to that page, for instance a hero, a carousel, some tabs and so on.
+You have a **graph resolution problem**.
 
-Control passes to React server components: one component per module type. Modules that embed other modules: that's where the **tabs** block referencing product strips, promos, o other editorial content calls a recursive render for its children.
+That distinction is the reason I built [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/).
 
-The fetch strategy that almost suggests itself: **each module loads whatever it needs, when it renders**.
+This article explains the problem first, the approaches that look reasonable but stop scaling, and the architectural model I ended up with.
 
-It mirrors how the UI is structured and it keeps concerns local. Why not? TypeScript and colocation make it feel disciplined. If you've built CMS-driven sites, you've probably been there — or watched a team be there on day one.
-
-On paper, GraphQL is the other obvious escape hatch: "one query, nested fragments, polymorphism where needed, done". The frontend stays declarative; the server returns a shaped tree.
-
-For a brochure site with shallow pages and a handful of locales, that can hold.
-
-For the projects I'm describing, it didn't.
+The goal is not to explain every implementation detail of the library. It is to explain the idea well enough that you can recognize the problem in your own system — and understand what the resolver is actually giving you.
 
 ---
 
-## Problem #1: N+1 at CMS scale
+## A page is not a tree of components
 
-Recursive server components that fetch on render produce classic **N+1** patterns.
+Consider a page like this:
 
-A page resolves its modules. A tabs module resolves _its_ modules. Each leaf may trigger another HTTP request. Depth multiplies calls. Shared references (same asset, same product teaser appearing in two tabs) may be fetched twice unless something deduplicates globally.
-
-On one project this stopped being a tuning issue and became a **throughput** issue. The CMS was the bottleneck. Not because Contentful is slow — because we were asking it hundreds of times per page in the worst paths.
-
-Batch endpoints help only if something **orchestrates** the batch up front. Component-local fetching doesn't naturally batch across sibling subtrees unless you bolt on a cache layer as an afterthought.
-
----
-
-## Problem #2: fetch and render take turns
-
-Component-driven loading is **fetch and render alternating in waves**.
-
-Each component `await`s, then more of the tree renders, then another fetch. By default, DataLoader batches within a single flush. Interleaving render with fetch **shrinks those windows** to whatever the current slice of the tree happened to request.
-
-Interleaving render and fetch means many `load()` calls start **after** a batch has already fired — from other parts of the tree. Even with a wider schedule, `Promise.all` and DataLoader do not see siblings that have not run yet.
-
-```mermaid
-sequenceDiagram
-  participant R as Render
-  participant CMS as CMS
-  participant API as Integration
-
-  R->>CMS: fetch what this slice requested
-  CMS-->>R: payloads
-  R->>R: resume render
-  R->>CMS: next slice (new DataLoader flush)
-  R->>API: fetch SKU only after child renders
+```text
+Home
+├── Hero
+├── Tabs
+│   ├── Product Strip
+│   │   ├── Product A
+│   │   └── Product B
+│   └── Editorial Promo
+├── Carousel
+└── Footer
 ```
 
+At the UI level, this looks like a component tree. At the data level, it is a **graph**.
+
+- the page references modules.
+- modules reference other modules.
+- some modules reference assets.
+- some reference products whose data lives outside the CMS.
+- some resources are shared by several branches.
+
+And all of them may have to be resolved for a particular locale and execution context.
+
+That graph can easily become much larger than the visible component tree suggests.
+
+This is the important shift:
+
+> **The UI is a representation of the resolved graph. It is not necessarily the right place to discover and resolve that graph.**
+
+Once you see the problem this way, several common solutions start to look less attractive.
+
 ---
 
-## Problem #3: GraphQL resolves in depth — until complexity says "stop"
+# The obvious solution: let components fetch
 
-GraphQL looks like the fix after component fetch: **one query, nested fragments, shaped tree**. The naive mapping from UI to GraphQL is familiar:
+Suppose a Next.js application uses Server Components.
+
+The route resolves a `pageId` and loads the page modules.
+
+Then each module takes care of itself:
+
+```tsx
+<Hero />
+<Tabs />
+<Carousel />
+```
+
+The `Tabs` component loads its children. A product strip loads its products. A product loads additional information from an integration API.
+
+This is attractive because the code follows the UI structure: every component is independently understandable, fetching and rendering are co-located, life is easy.
+
+For a small site, this can be the right solution.
+
+The problem appears when the graph gets large.
+
+---
+
+## Problem #1: N+1 becomes a graph problem
+
+Imagine a page with twenty modules. Some modules contain more modules, some of those modules reference assets. Some other reference products.
+
+A component-local fetching strategy can turn that into dozens or hundreds of requests.
+
+Worse, the same resource may be encountered more than once.
+
+Imagine the same item found in a "related products" section, in two different branches:
+
+```text
+Tab A ──> Product Strip ──> Product 123
+Tab B ──> Product Strip ──> Product 123
+```
+
+Without global coordination, `Product 123` will be requested twice.
+
+Caching individual requests can reduce the damage, but it does not change the fundamental problem: **the code that knows the graph is distributed across the rendering tree.**
+
+The system cannot easily see the **complete set of resources** that needs to be resolved.
+
+And that makes batching difficult.
+
+---
+
+# Problem #2: fetching and rendering happen in waves
+
+There is another, less obvious problem.
+
+When fetching happens while the tree renders, fetching and rendering become interleaved:
+
+```text
+render
+  ↓
+fetch
+  ↓
+render more
+  ↓
+discover more resources
+  ↓
+fetch again
+  ↓
+render more
+  ↓
+discover more resources
+```
+
+This matters because batching works best when resource discovery is centralized rather than distributed across branches that have no way to coordinate with each other.
+
+If each branch independently discovers the resources it needs, there is no shared view of the work still to be done. A resource discovered by one branch cannot naturally be batched with resources discovered by another branch, once that branch has already triggered its request.
+
+A simplified version looks like this:
+
+```text
+Render
+  │
+  ├── discover A ──┐
+  ├── discover B ──┤──> CMS batch
+  │                │
+  │                └──> response
+  │
+  ├── render A
+  │
+  └── discover C ─────> another CMS request
+```
+
+The problem is not that DataLoader, `Promise.all`, or HTTP caching are bad tools.
+
+The problem is **where the scheduling decision is being made**.
+
+If discovery is scattered through rendering, the system has very little opportunity to orchestrate the whole graph.
+
+So perhaps... should we move the whole thing into GraphQL? 🤔
+
+---
+
+# "Just use GraphQL"
+
+GraphQL seems almost purpose-built for this problem.
+
+Instead of letting components fetch recursively, describe the whole page as one query:
 
 ```graphql
-... on HeroModule {
-  ...HeroModuleData
+page {
+  modules {
+    ... on HeroModule {
+      ...
+    }
+
+    ... on TabsModule {
+      ...
+    }
+
+    ... on ProductStripModule {
+      ...
+    }
+  }
 }
-... on TabsModule {
-  ...TabsModuleData
-}
-... on ProductStripModule {
-  ...ProductStripModuleData
-}
-# one inline fragment per module/content-type the composer can handle
 ```
 
-Each module type owns a fragment. When a `tabs` entry can point at many different module types, GraphQL models those children as a union, and if you want to resolve specific data for each module type, the query must list an inline fragment (`... on HeroModule`, `... on ProductStripModule`, …) for every type the composer allows.
+One request. Nested data. No N+1 from the React tree. A nicely shaped response.
 
-At first it reads cleanly, but on a large space (**200+ content types** is possible on long-lived institutional builds), you hit a fork with no good branch:
+And for many applications, this is an excellent solution.
 
-| Approach                                                                         | What breaks                                                                                                                                                                                                                                                                                                                        |
-| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **One query** carrying every module fragment the page composer might ever embed  | **Query too big** — the document must account for the whole polymorphic composer surface (hundreds of inline fragments or equivalent), not just the twenty or thirty types on _this_ page. Payload size, selection breadth, and Contentful's **complexity score** blow up long before your mental model of "page depth" does       |
-| **Split queries** per content-type family                                        | Operations and documents **scale with how many content types your composer must handle**. You multiply CMS round-trips, rate limits bite, even **twenty or thirty types on one page** is painful                                                                                                                                   |
-| **Dynamically merge** a query from the content types present on _this_ page only | Better on paper; you still assemble large polymorphic selections at runtime, and **query complexity** failures remain frequent and unpredictable. You must implement retry logic by progressively splitting "too complex" sub-queries. So you risk ending up with many wasted round-trips which contribute to reaching rate limit. |
+But there is an important difference between:
 
-GraphQL **does** resolve in depth — but depth is **strongly capped by complexity**. The API enforces a budget on nested linked entries and field fan-out. Your page composer wants the full nested tree — and editors compose arbitrarily deep structures that keep pushing past that budget.
+> **GraphQL can represent a graph**
 
-So GraphQL is not "wrong" by default. What is wrong is assuming a **single query** can serve the whole page — or that a naive split (one query per content type) stays scalable and performant. You need a **content resolution strategy** that faces the real problem: you are resolving a **complex graph**. That is not a framework, library, or vendor problem. It is a **design and orchestration** problem.
+and:
 
----
+> **one GraphQL query can resolve the ENTIRE content graph**
 
-## Problem #4: Integration orchestration trapped in the frontend
-
-Both sites needed **CMS content to drive integration calls**. A product module stores a SKU or a reference key in Contentful; the sellable price, stock, or eligibility lives in another system.
-
-The naive approach wires that in React/Next:
-
-- server component renders
-- reads CMS fields
-- calls the integration API
-- merges in the component (or in a colocated function)
-
-That works in a single SSR app — until you need the **same resolution** elsewhere:
-
-- a backend job generating previews or exports
-- a second consumer on the same domain (i.e. an admin tool)
-- a migration from Next.js to some other framework
-
-If orchestration lives in components, every new runtime **reimplements the walk**. The integration layer isn't "beside" the CMS in architecture terms — it's beside the **React tree**. That's the wrong boundary.
-
-We wanted **data resolution independent of the UI framework**. The view should receive a resolved aggregate — not own the graph walk.
+Those are not the same thing.
 
 ---
 
-## Problem #5: rate limits vs. data volume
+## When the content model becomes highly polymorphic
 
-Contentful rate limits are real. So is Contentful's own CDN cache.
+A long-lived CMS can easily accumulate hundreds of content types.
 
-In theory you should rarely hit limits... in practice, **thirty locales**, deep pages, preview vs. delivery, and uncached private paths add up. Multiply by N+1 component fetching and by environments (preview vs delivery, development vs staging vs production). Limits become a **design constraint**, not a remote possibility.
+Now imagine that a `Tabs` entry can contain arbitrary modules.
 
-Obvious mitigations:
+The GraphQL query has to describe the possible types:
 
-- aggressive HTTP caching
-- copying "everything" into Redis
-
-Each is not optimal for different reasons:
-
-- **Full CMS mirrors** in Redis — entry by entry, asset by asset — drift from editorial truth and need per-content-type invalidation. Worse: the FE or BFF stops **querying the CMS** for linked entries, batch filters, and locale-scoped fetches; it assembles pages by running ad hoc lookups against Redis instead. You reimplement query semantics the CMS already owns. You are operating a brittle "second CMS".
-- **Fragmented caches** (per fetch key, per component) never materialize "the page" as one unit. An editorial change may touch dozens of HTTP keys — different TTLs, shared modules reused across routes, no dependency map from entry → page. "Invalidate this page" becomes a forensic exercise: guess which requests to purge, or over-invalidate and lose the benefit of caching. And while components own the "fetch walk" that _assembles_ the page, there is no simple, single entry point to **warm the page cache** from a backend job — short of hitting the frontend itself.
-
-What we wanted sounded simpler and harder than all of this at the same time: "give me **all contents for this page** — atomically, as one resolved unit — while **queries still hit the CMS** (and the integration layer) for fresh data — not a Redis reimplementation of the same work."
-
-Redis can stay as a **cache** layer; it must not become a **second CMS**. We want cache granularity that lets us invalidate **all contents of page X** quickly and without headaches.
-
-That implies a **resolution engine** that knows the graph, batches coherently, and emits **named slices** you can cache with explicit dependency — not ad hoc keys scattered through the component tree.
-
----
-
-## Problem #6: the infrastructure WILL change
-
-Institutional sites live for years. The stack **will** move:
-
-- CMS vendor (i.e. Contentful today; something else tomorrow)
-- integration APIs replaced or split
-- data that today comes from a commercial API, tomorrow stored in CMS — or the opposite
-- new consumers (i.e. a native app) on the same domain model
-
-If resolution logic is coupled to a specific frontend framework (i.e. Next), a specific transport shape (i.e. GraphQL documents), a specific split of data across services, and so on, the domain becomes increasingly defined by infrastructure concerns. The whole codebase gets filled with low-level detail you will struggle with. The application ends up "serving the infrastructure" — instead of the other way around.
-
-Good architecture here means **deferring implementation detail**: stable identifiers for resources, ports for expansion and loading, orchestration that doesn't live within React/Next.js API.
-
-That's the same instinct as elsewhere in `xndrjs` — [Application Resource Identifiers](/v0/application/application-resources/) for _what_ you're resolving, [transport-aware CMS schemas](/v0/infrastructure/contentful-to-zod/) for _what arrived on the wire_ — but applied to **graph resolution**, not single-entry parsing.
-
----
-
-## "Just use GraphQL" / "Next can handle it" misses the point
-
-Design problems like these often look like **technology picks**: "use GraphQL and resolve everything in one ad hoc query", "use Next's cache — it's built for this!". Those are technology choices. Alone, they do not solve a complex architectural problem. None of them, alone, answers:
-
-- Who **owns the walk** across CMS + integration?
-- How do you **batch** and respect **rate limits** under deep polymorphic pages?
-- What is the **unit of cache** when a page shares global modules with every other route?
-- How do we **swap vendors** without rewriting the orchestration logic?
-- How do we **reuse the same page-builder logic** elsewhere — a backend service, a script that finds unreferenced content, and so on?
-
-These are **scalability and boundary** questions. They don't appear on the first sprint. They appear when locales go live, when editors compose deeper pages, when integration joins the party, and when a second app needs the same data.
-
----
-
-## Where we're heading
-
-You don't improvise your way out of that with a better query or a smarter framework. You **calibrate layers**:
-
-- **App (consumer)** — needs a domain aggregate for a specific use case (show a page).
-- **Use case** — calls a port that can compose that specific aggregate.
-- **Adapter** — knows which services to hit to fetch the pieces of the aggregate.
-- **Loader** — knows a single service (e.g. Contentful REST).
-
-Why not orchestrate those service calls **in the use case**? That would force the core to know how data is split across CMS, integration, and the rest. In this product that split has **no business meaning** — it is an infrastructure concern. Teaching the core to resolve it means leaking low-level details a page builder does not need.
-
-Why not an **intermediate, vendor-agnostic representation** between each service's response and the domain aggregate? That is another mapping — another model that still may not survive an infrastructure change. What we want here is **orchestration in infrastructure**, because it is not business-rule orchestration; it is low-level composition of **one** domain aggregate. At the application layer there is only the choice of **which port** returns the right aggregate.
-
-The frontend framework is a **consumer** — not the place where the graph is discovered.
-
-So what we need at the adapter level is a **content graph resolver**:
-
-- walk from a root [Application Resource Identifier](/v0/application/application-resources/)
-- discover children via an **expansion port** — from a resolved resource identifier + payload, decide which resources to fetch next
-- load through a **pull-based data port** so adapters can **saturate each backend per round** and keep round-trips low, without vendor batch limits leaking into orchestration
-- materialize a typed Content Map (`ContentMap`) ready for domain mapping (and, when you need it, cache-friendly slices of the graph)
-
-That is [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/). The sections below cover how the walk works, how multiple backends compose behind one gateway, and how resolved data becomes a domain aggregate your UI can trust — without owning the graph.
-
----
-
-## How the engine resolves a graph
-
-### Application Resource Identifiers — recap and how we use them here
-
-An [Application Resource Identifier](/v0/application/application-resources/) (ARI) names **one logical resource**: a stable `type` (for example `cms.entry`, `cms.asset`, `integration.product`) plus structural **key parts** (page id and locale, SKU for products,etc.).
-
-**Application** here means _a resource belonging to an app_ — not the Clean Architecture "application layer". We might as well talk about "_Addressable_ Resource Identifiers" of a system, at any level:
-
-- **Infrastructure ARIs** know _where_ data lives: `cms.entry`, `cms.asset`, `integration.product`, etc.
-  Please note that `type` must be unique across sources. This is low-level orchestration vocabulary, not business meaning.
-- **Application-layer ARIs** should stay **vendor- and storage-agnostic** and speak the **language of the business** — "this page aggregate", "this product listing scope", not "this Contentful entry id".
-
-Both are resource identifiers; each respects the constraints and vocabulary of the layer it belongs to: **infrastructure resources** vs **business resources**.
-
-Resolving data from multiple backends means **knowing the infrastructure split** long enough to load and walk the graph — then **mapping into domain models** that do not care whether news came from Contentful or an internal API. That is why the graph resolver works with ARIs that openly distinguish CMS from integration: so **domain can stay blind** to that low-level partition. The engine coordinates loading across sources; the domain layer receives **trusted aggregates** built from infrastructure-level shapes — not vendor entry ids, fetch URLs, or transport payloads.
-
-In the end, an ARI is a **value object** for an **addressable resource**: identity you can pass around, cache on, and compare — while the loading mechanics stay behind adapters.
-
-### The loop
-
-Conceptually the engine repeats four steps until there is nothing left to resolve:
-
-1. **Seed the frontier** with the root ARI (and optionally promote hits from backing resources into the `ContentMap`).
-2. **Pull** — adapters load unresolved resources on the current frontier from CMS, integration APIs, and any other registered source.
-3. **Expand** — for each newly resolved resource, run **expansion policies** to discover which ARIs must be fetched next.
-4. **Enqueue** those ARIs on the frontier and go back to step 2.
-
-When the frontier is empty, every reachable resource has been loaded (or recorded as missing, depending on your error mode of choice). You get a `ContentMap` of payloads keyed by ARI identity — ready for domain mapping, serialization, or cache writes.
-
-```mermaid
-%%{init: {'flowchart': {'curve': 'stepAfter'}}}%%
-flowchart TD
-  root[Root ARI] --> frontier[Frontier queue]
-  frontier --> pull[Data port: pull batch]
-  pull --> map[ContentMap grows]
-  map --> expand[Expansion policies]
-  expand -->|"new ARIs"| frontier
-  expand --> done[Frontier empty → done]
+```graphql
+... on HeroModule { ... }
+... on CarouselModule { ... }
+... on ProductStripModule { ... }
+... on PromoModule { ... }
+... on EditorialTextModule { ... }
 ```
 
-### Expansion policies and execution context
+The query is no longer describing _this page_, it is describing the **entire set of things the page composer could theoretically contain**.
 
-Expansion is **not** hard-coded per content type inside the engine. You author **policies** that depend on exactly three inputs:
+At that point you have three unpleasant options.
 
-- the **current resource identifier**;
-- the **current resource payload**;
-- an **execution context** you define, for example an **A/B test** variant that selects alternative content, the **user's identity or role**, or any other **contextual input** the walk needs.
+### One giant query
 
-Policies must not observe siblings or depend on which peers landed in the same batch. That keeps discovery deterministic: changing a loader’s batch size must not change the edges a policy emits for a given node. Rules that depend on siblings or other nodes are **probably business logic**, and should be orchestrated **outside** a single graph-resolution run.
+Put every possible fragment in one operation.
 
-Each expansion policy answers: _given this resolved node, which ARIs should we try to load next?_ A page entry policy might return linked module entries; a product module policy might return an `integration.product` ARI from a SKU field. Policies can mix **CMS**, **integration**, and future sources — the engine only sees ARIs and ports. That is how orchestration stays in the product code, while the engine stays a generic walker.
+The query grows with the entire polymorphic surface of the CMS rather than with the actual page.
 
-### When infrastructure moves, policies move — not the engine
+Eventually query size and Contentful's complexity limits become hard constraints.
 
-News lived in the CMS yesterday; tomorrow it is served by an internal API. You change **one expansion policy** to emit `integration.news` (for example) instead of `cms.entry` for that branch. The walk, frontier loop, and `ContentMap` shape do not care which HTTP client fulfilled a given `type`.
+### One query per content-type family
 
-The same applies when a field moves the other way around, when a vendor is replaced, or when a second consumer reuses the walk: you change the **ARIs involved**, not the orchestration logic.
+Split the query into smaller operations.
 
-### Why the data port is pull-based
+Now you have traded query complexity for HTTP round-trips.
 
-The resolver deliberately splits **walking the graph** from **talking to each backend**. The engine owns **when** the frontier advances and **which resources are still unresolved**. It does **not** own batch sizes, endpoints, or retry policy — those belong in adapters.
+The number of operations grows with the number of content types you need to support. It's not uncommon for a single page to have 20-30 distinct content-types: and it's already a pain.
 
-Instead it exposes a **pull API** — `take(accept, limit?)` — on each round:
+### Build queries dynamically
 
-- the engine offers the current frontier;
-- each **adapter** accepts the ARIs it knows how to load (i.e. `cmsEntryAri.matches`, `integrationProductAri.matches`, …);
-- each adapter sets **`limit`** to fill its backend efficiently this round;
-- anything not taken stays on the frontier for a later round after expansion;
-- if every `take` in a `process` call is empty, the adapter should return immediately **without IO**.
+Inspect the actual page and construct only the fragments you need.
 
-So adapters **maximize network saturation on their own terms** (batch ids, parallel sources, rate-limit-friendly chunk sizes) while orchestration never imports vendor constants. The engine walks and expands; infrastructure loaders pull what they can handle.
+This is better.
+
+But now your application is implementing a runtime query planner.
+
+And when a generated query becomes too complex, you may need to split it again, retry, and potentially issue several requests for the same page.
+
+At that point the interesting problem is no longer:
+
+> "How do I write a better GraphQL query?"
+
+It is:
+
+> **"How do I resolve this graph efficiently?"**
+
+GraphQL can still be part of the infrastructure.
+
+It just doesn't need to define the architecture of the **whole** resolution process.
 
 ---
 
-## One gateway to load them all
+# Then let's cache everything
 
-The engine works with **one** data port. In production you rarely have one backend — you have a CMS, one or more integration APIs, maybe a blob store tomorrow. You also **do not know upfront** how many actors will join: a new commercial API, a database, any external data source. A **gateway** that exposes a single shared interface is the necessary abstraction: it composes heterogeneous loaders behind one `DataResolutionPort`, so the engine stays source-agnostic while the product registers or removes adapters as the integration landscape changes.
+Another natural reaction is to put a cache in front of the CMS: maybe Redis, or framework caching (i.e. Next.js built-in `fetch` cache).
 
-The product wires that gateway as a thin port that forwards each pull round to every registered loader and merges the results:
+The problem is that there are two very different things you can cache. You can cache **resources**. Or you can cache the **resolved graph**.
+
+Caching individual CMS responses can be useful, but it does not give you a coherent page-level unit.
+
+A page might depend on:
+
+```text
+Page
+ ├── Module A
+ ├── Module B
+ │    └── Asset X
+ ├── Module C
+ │    └── Product 123
+ └── Footer
+```
+
+An editorial change to `Module B` can affect several pages.
+
+A change to `Product 123` may affect hundreds.
+
+Now ask:
+
+> **What exactly do I invalidate?**
+
+If the cache consists of arbitrary HTTP requests made by arbitrary components, there is no obvious answer. We lack context.
+
+You either try to reconstruct the dependency graph after the fact, or invalidate aggressively. Neither is particularly pleasant.
+
+---
+
+## The other extreme: build a "second CMS"
+
+You can also copy the CMS into Redis:
+
+```text
+CMS
+ ↓
+Redis mirror
+ ↓
+Application
+```
+
+Now page rendering is fast, in theory. But your application has acquired another problem: **it now has to reproduce CMS semantics.**
+
+- linked entries
+- locale selection
+- filtering
+- batch loading
+- freshness
+- invalidation
+- preview vs delivery
+
+Eventually you are no longer using Redis as a cache, you are operating a second CMS.
+
+That is not what I wanted: the CMS should remain the source of truth. The application should still be able to query it.
+
+The cache should accelerate resolution, not replace the system that owns the content model.
+
+---
+
+# So what is the actual problem?
+
+At this point the requirements become clearer.
+
+We need something that can:
+
+- start from a "root" resource
+- discover the resources it references
+- resolve resources from multiple backends
+- batch requests coherently
+- avoid resolving the same resource repeatedly
+- respect backend-specific limits (i.e. rate limits and batch limits)
+- support arbitrarily deep graphs
+- keep CMS and integration details out of the domain
+- produce something that can be cached and invalidated as a coherent unit
+- run without React or Next.js
+
+In other words:
+
+> **we need a dedicated part of the system for resolving resource graphs.**
+
+Not a smarter UI component.
+
+Not a larger GraphQL query.
+
+Not a second CMS.
+
+A **graph resolution engine**.
+
+That is the problem [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) is designed to solve.
+
+---
+
+# The architectural separation
+
+The important part is not the algorithm itself: it is the boundary.
+
+I want three distinct responsibilities:
+
+```text
+             ┌─────────────────────┐
+             │     Application     │
+             │                     │
+             │ "Give me this Page" │
+             └──────────┬──────────┘
+                        │
+                        ▼
+             ┌─────────────────────┐
+             │   Domain mapping    │
+             │                     │
+             │  ContentMap → Page  │
+             └──────────┬──────────┘
+                        │
+                        ▼
+             ┌─────────────────────┐
+             │  Graph resolution   │
+             │                     │
+             │    walk + expand    │
+             └──────────┬──────────┘
+                        │
+              ┌─────────┴─────────┐
+              ▼                   ▼
+        ┌───────────┐       ┌─────────────┐
+        │  Content  │       │ Integration │
+        │    CMS    │       │     API     │
+        └───────────┘       └─────────────┘
+```
+
+Application and Domain should not care whether the page came from Contentful and product information came from a commercial API.
+
+And React should certainly not have to know how infrastructure calls are orchestrated to resolve that graph.
+
+The resolver sits in infrastructure because **the split between those external systems is an infrastructure concern**.
+
+The application only needs a port that can provide the aggregate it needs.
+
+---
+
+# A resource needs an identity
+
+The graph needs a common language. That is where [Application Resource Identifiers](/v0/application/application-resources/) come in.
+
+An ARI identifies one addressable resource.
+
+For example:
+
+```text
+"cms.entry":[{"id":"page-123","locale":"en-GB"}]
+"cms.asset":[{"id":"asset-456","locale":"en-GB"}]
+"integration.product":[{"locale":"en-GB","sku":"SKU-789"}]
+```
+
+The important thing is that the resolver does not need to understand what those resources _mean_.
+
+It only needs to know:
+
+> "This is a resource I can ask an adapter to resolve."
+
+This gives us a useful separation.
+
+Infrastructure can speak in infrastructure resources:
+
+```text
+cms.entry
+cms.asset
+integration.product
+integration.news
+```
+
+while the application can speak in application/domain resources:
+
+```text
+Page
+ProductListing
+Article
+```
+
+The lower layer knows where things live, the higher layer does not have to.
+
+That distinction is important because an infrastructure boundary is allowed to know that a product currently comes from an integration API.
+
+The domain should not have to know that.
+
+---
+
+# Resolving the graph
+
+The resolver can now work with a very simple model.
+
+Start with a root resource:
+
+```text
+Page 123
+```
+
+Load it.
+
+Inspect what it references.
+
+Discover more resources:
+
+```text
+Page 123
+ ├── Hero 456
+ ├── Tabs 789
+ └── Footer 321
+```
+
+Load those.
+
+Inspect them.
+
+Discover more:
+
+```text
+Tabs 789
+ ├── Product Strip 111
+ └── Promo 222
+
+Product Strip 111
+ ├── Product A
+ └── Product B
+```
+
+Continue until there is nothing left to resolve.
+
+Conceptually:
+
+```text
+          root
+            │
+            ▼
+         frontier
+            │
+            ▼
+          load
+            │
+            ▼
+        resolved
+            │
+            ▼
+         expand
+            │
+            └──────> new resources
+                         │
+                         ▼
+                      frontier
+```
+
+This is the central algorithm. The engine doesn't need to know what a "product strip" is, it doesn't need to know what Contentful is, it doesn't need to know what an SKU means.
+
+It only needs two capabilities:
+
+1. **load resources**
+2. **discover more resources from resolved resources**
+
+This may sound like exactly what a React component was already doing.
+
+The difference is where the responsibility lives and what the resolver knows about the work still to be done.
+
+In React, resource discovery is interleaved with rendering: a component renders, discovers what it needs, performs an infrastructure call, waits for it, and only then can more of the graph become visible.
+
+Here, the graph is resolved independently of rendering. The resolver has a shared view of the resources still to be resolved, so discovery and loading can be orchestrated across the whole graph rather than being fragmented across rendering branches.
+
+It is also framework-agnostic. The same resolution can run from a Next.js request, a backend job, a CLI, a migration script or any other consumer.
+
+And perhaps most importantly, expansion is not expressed as imperative fetching:
+
+```ts
+fetch(productUrl);
+```
+
+It is expressed declaratively:
+
+```ts
+return [integrationProductAri({ sku })];
+```
+
+The policy is not saying **how** to fetch the product. It is saying which resource this node requires next.
+
+The resolver takes care of the rest: scheduling the work, giving each loader the resources it can handle, loading them, and expanding the newly resolved nodes.
+
+That distinction is what turns a collection of component-level fetches into a resource resolution process.
+
+---
+
+# Expansion is where product knowledge lives
+
+The engine itself must not contain rules such as:
+
+> "When the content type is `ProductStrip`, read the SKU field."
+
+That would turn a generic graph walker into a product-specific piece of code.
+
+Instead, the application/infrastructure integration supplies **expansion policies**.
+
+Conceptually:
 
 ```typescript
-export function createDemoDataGateway(cms, integration): DataResolutionPort {
-  return {
-    async process(pull) {
-      const [cmsResult, integrationResult] = await Promise.all([
-        cms.process(pull),
-        integration.process(pull),
-      ]);
-      return [...cmsResult, ...integrationResult];
-    },
-  };
-}
+expand(resource, payload) => [
+  resourcesToResolve
+]
 ```
 
-Composition is **barrier-based per wave**: the engine waits for the whole gateway `process` to finish before expanding. Inside that call, loaders may run in parallel, but wall-clock time for the round still tracks the **slowest** backend in the wave — not the sum of sequential CMS-then-integration trips, and not a speculative expand against half-loaded peers.
+For a CMS entry, a policy might discover linked entries:
 
-That barrier walk is one of two schedulers (`BarrierResolveContentGraphEngine`). When source latencies diverge, prefer the **lane walk** (`LaneResolveContentGraphEngine`): pass an ordered `ResourceLoader` chain (each with `accepts` ownership) instead of a gateway. Each loader is a lane with **exactly one** in-flight `process`; different loaders may overlap, and a fast CMS lane can expand and batch again while a slow integration batch is still pending. Graph semantics stay the same — only the scheduler changes. See [Walk strategies](/v0/infrastructure/resource-graph-resolver/#walk-strategies) in the package guide.
+```text
+CMS entry
+   │
+   ├── linked entry → cms.entry
+   └── linked asset → cms.asset
+```
 
-Same orchestration shape, same expansion policies — whether two backends or five, barrier or lane. That is the boundary Problem #4 was asking for: resolution logic that is not the React tree and not a single vendor SDK.
+For a product module, another policy might discover an external product:
+
+```text
+CMS product module
+   │
+   └── SKU → integration.product
+```
+
+The engine doesn't care why the resource was discovered.
+
+It only puts the new ARI on the frontier.
+
+This is one of the most important properties of the design:
+
+> **The engine owns graph traversal. The product owns graph semantics.**
 
 ---
 
-## From resolved graph to a domain aggregate
+# The graph is resolved in infrastructure, not in React
 
-Have you ever modeled a page as a **deeply nested object** — modules, tabs, nested modules — only to discover that your **domain model had to bend** to how your infrastructure exposes relations? Flat link stubs, locale-specific field shapes, product data living in another API: the "page" you wanted to reason about and the "page" your infrastructure gives you dramatically diverge.
+This gives us a very different rendering architecture.
 
-The split we described here:
+Instead of:
 
-1. **Resolve** the infrastructure graph into a `ContentMap` (CMS entries, assets, integration payloads — keyed by ARI).
-2. **Map** that map into **domain aggregates** shaped for your product, not for the wire.
+```text
+React
+ └── Component
+      └── fetch
+           └── Component
+                └── fetch
+```
 
-You are free to define a `Page` with nested `modules`, polymorphic tab strips, embedded products with price and stock already merged — because the resolver already did the cross-source walk. Mappers read from the `ContentMap` and emit trusted shapes; they do not call HTTP.
+we have:
 
-For a page-builder product, a **nested aggregate** is not ceremony — it is what makes UI components **stupid** in the good sense. The framework renders, orchestration already finished upstream.
+```text
+Use case
+   │
+   ▼
+Resolution port
+   │
+   ▼
+Graph resolver
+   │
+   ├── CMS
+   ├── Integration API
+   └── other sources
+   │
+   ▼
+ContentMap
+   │
+   ▼
+Domain aggregate
+   │
+   ▼
+React
+```
+
+By the time React sees the page, the interesting work is already finished.
+
+A component can therefore be boring:
+
+```tsx
+<Page page={page} />
+```
+
+That is a feature.
+
+The UI should render the result of the application logic.
+
+It shouldn't have to discover what the application logic needs.
 
 ---
 
-## Connecting the toolkit: contentful-to-zod
+# One graph, multiple backends
 
-[`contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) sits at the **adapter** boundary: parse what arrived on the wire before expansion or domain mapping trust it. Generated schemas know each content type's fields; generated **link metadata** tells expansion which references to follow — without hand-maintaining a matrix of 200+ content types.
+The next problem is that a graph rarely belongs to one backend.
 
-Default expansion in the [demo app](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) parses the entry, walks `LINK_FIELDS_BY_CONTENT_TYPE`, and emits ARIs for linked entries and assets:
+A single page might require:
+
+```text
+Contentful
+    ├── page
+    ├── modules
+    └── assets
+
+Integration API
+    ├── products
+    └── prices
+```
+
+The resolver therefore works against a common data-resolution boundary.
+
+Each backend adapter decides which resources it understands and how to load them.
+
+Conceptually:
+
+```text
+                    Graph Resolver
+                          │
+                 current frontier
+                          │
+             ┌────────────┴────────────┐
+             ▼                         ▼
+       Contentful adapter       Integration adapter
+             │                         │
+             ▼                         ▼
+          CMS batch                Product batch
+```
+
+The important detail is that the resolver does **not** know the batch size of either backend: Contentful may want one max batch size, the product API may want another. A future service may not support batching at all.
+
+One service could support GraphQL, other may be REST. Those are adapter concerns.
+
+The resolver simply gives each adapter an opportunity to take the resources it knows how to handle.
+
+This is what allows infrastructure to change without rewriting the graph algorithm.
+
+---
+
+# Batching is a scheduling problem
+
+This separation also gives us a better place to solve batching.
+
+Suppose the frontier contains:
+
+```text
+"cms.entry":[{"id":"A","locale":"en-GB"}]
+"cms.entry":[{"id":"B","locale":"en-GB"}]
+"cms.asset":[{"id":"C","locale":"en-GB"}]
+"integration.product":[{"locale":"en-GB","sku":"X"}]
+"integration.product":[{"locale":"en-GB","sku":"Y"}]
+```
+
+The CMS adapter can take the CMS resources:
+
+```text
+"cms.entry":[{"id":"A","locale":"en-GB"}]
+"cms.entry":[{"id":"B","locale":"en-GB"}]
+"cms.asset":[{"id":"C","locale":"en-GB"}]
+```
+
+and issue one suitable request.
+
+The integration adapter can independently take:
+
+```text
+"integration.product":[{"locale":"en-GB","sku":"X"}]
+"integration.product":[{"locale":"en-GB","sku":"Y"}]
+```
+
+and issue its own batch.
+
+The resolver doesn't need to know whether those became:
+
+- one HTTP request;
+- three requests;
+- a GraphQL operation;
+- REST calls;
+- database queries;
+- or something else entirely.
+
+That is deliberately hidden behind the adapter.
+
+This is also why I chose a **pull-based** interface rather than making the resolver dictate batch sizes.
+
+The resolver says, in effect:
+
+> "Here are the resources currently waiting."
+
+The adapter answers:
+
+> "These are mine, and this is how many I can efficiently process right now."
+
+That keeps vendor-specific limits where they belong.
+
+---
+
+# Different scheduling strategies
+
+There is another useful consequence of this separation.
+
+Not every backend behaves the same way.
+
+If CMS and integration requests have similar latency, a **barrier-style walk** is simple and predictable:
+
+```text
+CMS ──────────┐
+              ├──> expand next wave
+API ──────────┘
+```
+
+The resolver waits for the current wave to finish before expanding the next one.
+
+But imagine the CMS is fast and the integration API is slow:
+
+```text
+CMS:         ─────
+Integration: ───────────────────
+```
+
+Waiting for the slow backend before allowing the fast backend to make progress may waste time.
+
+A **lane-style walk** can instead let each backend progress independently:
+
+```text
+CMS lane:          ────┐────┐────┐
+                       │    │    │
+                       r1   r2   r3
+Integration lane: ────────────────┐
+                                  │
+                                  r1
+```
+
+The graph semantics remain the same.
+
+Only the scheduling strategy changes.
+
+That distinction is important because it means scheduling is an implementation choice, not something that leaks into expansion policies or domain code.
+
+The library currently provides both strategies; the application chooses the one appropriate for its infrastructure.
+
+---
+
+# From infrastructure graph to domain aggregate
+
+The resolver doesn't exist to give your UI a giant `ContentMap`.
+
+The `ContentMap` is an intermediate representation of the resolved infrastructure graph. It is still expressed in terms of infrastructure resources and payloads — CMS entries, assets, integration responses, and their resource identifiers.
+
+Its job is to give us all the resolved infrastructure resources in one place:
+
+```text
+ContentMap
+
+"cms.entry":[{"id":"page-123","locale":"en-GB"}]
+"cms.asset":[{"id":"asset-456","locale":"en-GB"}]
+"integration.product":[{"locale":"en-GB","sku":"SKU-789"}]
+"integration.news":[{"id":"news-123","locale":"en-GB"}]
+```
+
+Now we must map that into the model the application actually wants.
+
+For example:
 
 ```typescript
-const parsed = ContentfulEntrySchemaByContentType[contentTypeId].parse(entry);
+type Page = {
+  title: string;
+  modules: Module[];
+};
 
-const links = collectLinkReferencesFromEntryFields(contentTypeId, parsed.fields);
-
-return { resources: links.map((link) => linkReferenceToAri(link, locale)) };
+type ProductModule = {
+  products: Product[];
+};
 ```
 
-Cross-source rules stay **small overrides** — e.g. a product entry reads a SKU field and adds an `integration.product` ARI instead of stopping at CMS links:
+The mapper can combine:
+
+```text
+CMS product module
+        +
+integration product data
+        ↓
+     Product
+```
+
+without performing any HTTP requests. This is a crucial boundary.
+
+**Resolution** answers this question:
+
+> What resources do I need, and how do I obtain them?
+
+while **Domain mapping** answers this question:
+
+> What does all this data mean to my application?
+
+Those are different problems.
+
+Keeping them separate prevents infrastructure shapes from leaking into the domain.
+
+---
+
+# Why not orchestrate all of this in the use case?
+
+This is a tempting alternative.
+
+The use case could call:
+
+```text
+CMS → get page
+CMS → get modules
+Integration → get products
+CMS → get assets
+```
+
+But then the application layer has learned how the product is physically assembled.
+
+What happens when:
+
+- the CMS changes;
+- products move into the CMS;
+- news moves into another service;
+- a new integration is introduced;
+- another consumer needs the same graph?
+
+The use case starts accumulating infrastructure knowledge. That is exactly what we are trying to avoid.
+
+The application should ask for the thing it needs, while the infrastructure should determine how that thing is assembled from external systems.
+
+This is the same architectural instinct behind the rest of `xndrjs`:
+
+> **Depend on stable concepts at the boundary, and defer infrastructure decisions to the edge.**
+
+---
+
+# What happens when the infrastructure changes?
+
+Imagine that news currently lives in Contentful:
+
+```text
+"cms.entry":[{"id":"news-123","locale":"en-GB"}]
+```
+
+Six months later, the organization moves news into an internal API:
+
+```text
+"integration.news":[{"id":"news-123","locale":"en-GB"}]
+```
+
+With a "component-driven" architecture, this kind of migration tends to spread through the codebase.
+
+With the resolver architecture, the graph semantics can change at the infrastructure boundary.
+
+The engine does not care, the scheduler does not care, the domain aggregate does not care.
+
+Only the **resource identifiers** and **expansion rules** involved in that specific branch need to change.
+
+That is the real value of the abstraction.
+
+It's not about "less code": it's about **less knowledge leaking across boundaries**.
+
+---
+
+# Contentful and generated expansion metadata
+
+This is where [`contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) becomes particularly useful if you're using Contentful REST API (Delivery).
+
+A large CMS integration has another problem:
+
+> If the CMS has 200+ content types, who maintains the knowledge of which fields contain links?
+
+That information should not be manually duplicated in the resolver.
+
+`contentful-to-zod` generates schemas for the Contentful content types and also exposes the metadata needed to discover linked resources.
+
+The resulting infrastructure code can therefore follow a generic pattern:
 
 ```typescript
-const parsed = ProductEntrySchema.parse(entry);
-const sku = parsed.fields.sku;
-if (sku) {
-  return {
-    resources: [integrationProductAri({ sku, locale })],
-  };
-}
+const entry = parseEntry(payload);
+
+const linkedResources = discoverLinks(entry);
+
+return linkedResources;
 ```
 
-Transport correctness and graph discovery stay in infrastructure; the engine still only sees ARIs and policies.
+The resolver doesn't need to know what fields Contentful uses: it simply receives the resulting ARIs.
+
+Cross-source rules can then be added where necessary, for example:
+
+```text
+Product entry
+     │
+     └── SKU
+          │
+          ▼
+integration.product
+```
+
+The important thing is that these rules remain **small policies around the generic walker**.
+
+The engine doesn't become a giant registry of CMS content types.
 
 ---
 
-## Using Islands to partition the Content Graph
+# Caching the graph instead of guessing at requests
 
-Marking `isIsland: true` gives you a **named slice** of membership and dependency edges. You can then cache the menu and footer independently of the rest of the page, keep a longer-lived dependency manifest, and expire one slice without touching the other.
+Once the graph is explicit, caching becomes much more interesting.
 
-The engine **does not** decide invalidation. Islands partition the graph so _your_ cache adapters have something coherent to key on; they do not automatically purge parents when a child changes, fan out webhooks, or reconcile stale backing maps. That policy stays in infrastructure — where editorial events and product TTLs already live.
+We can talk about the page as a set of resources and dependencies instead of a pile of unrelated HTTP requests.
 
-When you rebuild a backing map from several cached islands, the same ARI can appear in more than one slice, potentially with different payloads. The library does not pick a winner: reconstituting backing resources requires a conflict callback, so your adapter can compare the two versions, discard the key (reload fresh resources from the data port), keep one island’s copy, or fail the build.
+This is where the resolver's **islands** concept becomes useful. An island identifies a coherent slice of the graph.
+
+For example:
+
+```text
+Page
+├── Header       ← island
+├── Main content
+└── Footer       ← island
+```
+
+The cache can therefore treat those slices differently.
+
+The menu might be shared across hundreds of pages and have a longer lifetime.
+
+The main page content might be much more volatile.
+
+The footer might have its own invalidation rules.
+
+The resolver does not decide when anything becomes stale.
+
+That's deliberate.
+
+Invalidation policy belongs to the cache/infrastructure layer.
+
+The resolver simply gives the cache a meaningful dependency structure to work with.
+
+This is very different from trying to infer page dependencies from arbitrary component-level fetches.
 
 ---
 
-## Lessons to be learned
+# The resolver does not become your cache
 
-Deep CMS pages across many locales are not a rendering problem. They are a **graph resolution** problem. Treat them that way early — or pay in round-trips, rate limits, and infernal rewrites when the infrastructure moves.
+There is an important distinction here.
 
-[`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) is the engine for that walk.
+The resolver can produce a resolved graph that **can** be cached as a coherent unit.
 
-A [demo app](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) in the toolkit repo shows one possible wiring — Contentful-shaped fixtures, an integration catalog, gateway, expansion policies, domain mapping into a Next page. It is intentionally **small**: a workshop, not a production site, and it does **not** exercise the full layer discipline of the [Clean Architecture monorepo template](/blog/clean-architecture-monorepo-template/) (ports _everywhere_, governed boundaries, generators...).
+It does not require you to cache everything, and it certainly does not make assumptions on how you will cache/invalidate.
 
-Treat the demo as proof that the same orchestration can run outside React; treat the template as where a real team would harden the seams.
+You can use:
+
+- HTTP caching
+- Redis
+- database-backed snapshots
+- no cache at all
+
+The architecture remains the same. The cache is an optimization around resolution.
+
+---
+
+# What the library actually gives you
+
+At this point, the implementation details should be easier to understand.
+
+`@xndrjs/resource-graph-resolver` gives you a generic mechanism for:
+
+1. starting from a root resource;
+2. loading unresolved resources;
+3. discovering additional resources;
+4. deduplicating the graph;
+5. coordinating multiple loaders;
+6. controlling how the graph progresses;
+7. materializing the result as a `ContentMap`.
+
+The library does **not** decide:
+
+- what a page is
+- what a product is
+- which CMS you use
+- which API provides product information
+- how your domain models look
+- how your cache should be invalidated
+- how React should render the result
+
+Those decisions belong to the application. This is intentional: a generic library should abstract the **mechanism**, not pretend to know the **business** or make assumptions on the **infrastructure**.
+
+---
+
+# A minimal mental model
+
+Think about four things:
+
+### 1. Resources
+
+What things can the application address?
+
+```text
+Page
+CMS entry
+Asset
+Product
+News item
+```
+
+Give them stable unique identifiers.
+
+### 2. Loaders
+
+Who knows how to retrieve each resource?
+
+```text
+CMS loader
+Product API loader
+News loader
+```
+
+### 3. Expansion policies
+
+Once I have this resource, what other resources does it reference?
+
+```text
+Page → modules
+Module → assets
+Product module → product
+```
+
+### 4. Mapping
+
+Once everything is resolved, how does it become the model my application actually uses?
+
+```text
+ContentMap → Page
+```
+
+That's the whole architecture, the rest is optimization.
+
+---
+
+# The bigger architectural lesson
+
+The interesting part of this problem is not Contentful, GraphQL, or Next.js.
+
+And it is not even CMS-driven websites.
+
+The same pattern appears whenever an application starts with one resource and discovers more resources recursively across multiple systems.
+
+At small scale, local fetching is often perfectly reasonable.
+
+At larger scale, the system needs to know:
+
+> **What does this resource depend on, and how can I resolve those dependencies efficiently?**
+
+Once that becomes the dominant question, the graph deserves to become an explicit architectural concept.
+
+That is the point where a resolution engine starts making sense.
+
+---
+
+# Where this fits in `xndrjs`
+
+This is also why the resource graph resolver is not an isolated utility in the toolkit.
+
+It fits into a broader architectural model.
+
+[Application Resource Identifiers](/v0/application/application-resources/) provide stable identities for resources.
+
+[`contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) provides trustworthy transport parsing and generated link metadata, if you're using Contentful.
+
+[`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) provides the infrastructure-level graph traversal.
+
+The application maps the resulting infrastructure graph into domain aggregates.
+
+The framework consumes those aggregates.
+
+In other words:
+
+```text
+Transport
+   ↓
+Infrastructure resources
+   ↓
+Graph resolution
+   ↓
+Domain aggregate
+   ↓
+Application
+   ↓
+Framework
+```
+
+The dependency direction matters.
+
+The application should not be forced to understand the infrastructure simply because the infrastructure happens to be complicated.
+
+---
+
+# The lesson
+
+Deep CMS pages across dozens of locales are not primarily a rendering problem.
+
+They are a **resource resolution problem**.
+
+The moment your content graph becomes deep, polymorphic, cross-source, and expensive to resolve, the question stops being:
+
+> "Which component should fetch this?"
+
+and becomes:
+
+> **"How should the application resolve this graph?"**
+
+You can solve that problem with a growing collection of component-level caches, increasingly clever GraphQL queries, framework-specific loading conventions, and eventually a substantial amount of glue code.
+
+Or...
+
+You can make the graph explicit, give resources stable identities, separate graph discovery from loading. You can let each backend decide how to batch its own work, and resolve the whole graph before rendering. Then map the result into a domain aggregate that your application can easily reason about.
+
+That's what [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) is for.
+
+The [demo application](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) shows one possible wiring using Contentful-shaped fixtures, an integration catalog, multiple loaders, expansion policies, and a Next.js consumer.
+
+It is intentionally small, as it is a workshop for the resolution model, not a production architecture.
+
+For a real application, the same idea belongs inside explicit infrastructure boundaries — ports, adapters, composition roots, and the rest of the architectural discipline described in the [Clean Architecture monorepo template](/blog/clean-architecture-monorepo-template/).
+
+The important thing is not to make the components smarter. The point is to remove infrastructure complexity from the process of obtaining the resources the application needs, by handling resolution independently from rendering, as a dedicated concern.
+
+That separation is the real goal. The application defines what it needs; infrastructure deals with how external systems must be orchestrated to provide it.
+
+Infrastructure should serve the application, not the other way around.
 
 ---
 
