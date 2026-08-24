@@ -389,4 +389,4 @@ Treat the demo as proof that the same orchestration can run outside React; treat
 - [Resource graph resolver (docs)](/v0/infrastructure/resource-graph-resolver/)
 - [Application resources](/v0/application/application-resources/)
 - [Contentful to Zod](/v0/infrastructure/contentful-to-zod/)
-- [We're Not "Frontend Developers" Anymore](/blog/were-not-frontend-developers-anymore/) — orchestration complexity landing in the "frontend" runtime
+- [We're Not "Frontend Developers" Anymore](/blog/were-not-frontend-developers-anymore/)

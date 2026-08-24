@@ -1,48 +1,14 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import { ContentMap } from "./content-map";
 import type { DataResolutionPort, DataResolutionPull } from "./data-resolution-port";
-import { ResolveContentGraphAbortedError } from "./errors";
-import type { ExpansionContext, ExpansionPort } from "./expansion-port";
-import { IslandDependencyMap } from "./island-dependency-map";
-import { IslandMap } from "./island-map";
+import type { ExpansionPort } from "./expansion-port";
+import { GraphResolutionSession, type GraphWalkRef } from "./graph-resolution-session";
 import type {
   ContentRegistry,
-  IslandId,
-  ResolutionError,
   ResolveContentGraphInput,
   ResolveContentGraphOutput,
-  ResolvedResourceRecord,
   ResourceKey,
 } from "./types";
-
-interface QueueItem {
-  resource: ApplicationResourceIdentifier;
-  inheritedIslandId: IslandId;
-}
-
-interface FailureAccumulator {
-  resourceKey: ResourceKey;
-  message: string;
-  inheritedIslandIds: Set<IslandId>;
-}
-
-function isUnresolved<R extends ContentRegistry>(
-  resource: ApplicationResourceIdentifier,
-  contentMap: ContentMap<R>,
-  failuresByResource: ReadonlyMap<ResourceKey, FailureAccumulator>
-): boolean {
-  const key = resource.toString();
-  return !contentMap.has(resource) && !failuresByResource.has(key);
-}
-
-function assertNotAborted(signal: AbortSignal | undefined): void {
-  if (signal?.aborted) {
-    throw new ResolveContentGraphAbortedError("Content graph resolution was aborted", {
-      cause: signal.reason,
-    });
-  }
-}
 
 /**
  * Resolves a content resource graph from a root ARI using frontier pulls,
@@ -63,75 +29,33 @@ export class ResolveContentGraphEngine<
   async execute(
     input: ResolveContentGraphInput<TExecutionContext>
   ): Promise<ResolveContentGraphOutput<R>> {
-    const sortedCopy = <T extends string>(values: Iterable<T>): T[] => [...values].sort();
+    const session = new GraphResolutionSession(input, this.expansionPort);
 
-    const contentMap = new ContentMap<R>();
-    const islands = new IslandMap();
-    const islandDependencies = new IslandDependencyMap();
-    const failuresByResource = new Map<ResourceKey, FailureAccumulator>();
+    session.assertNotAborted();
 
-    assertNotAborted(input.signal);
-
-    const registerMissingResource = (
-      resource: ApplicationResourceIdentifier,
-      inheritedIslandId: IslandId
-    ): void => {
-      const resourceKey = resource.toString();
-
-      const failure = failuresByResource.get(resourceKey) ?? {
-        resourceKey,
-        message: `Unable to resolve ${resourceKey}`,
-        inheritedIslandIds: new Set<IslandId>(),
-      };
-
-      failure.inheritedIslandIds.add(inheritedIslandId);
-      failuresByResource.set(resourceKey, failure);
+    const rootRef: GraphWalkRef = {
+      resource: input.root,
+      inheritedIslandId: input.root.toString(),
     };
-
-    const queue: QueueItem[] = [
-      {
-        resource: input.root,
-        inheritedIslandId: input.root.toString(),
-      },
-    ];
+    session.rememberWaiter(rootRef);
+    const queue: GraphWalkRef[] = [rootRef];
 
     while (queue.length > 0) {
-      assertNotAborted(input.signal);
+      session.assertNotAborted();
 
       const frontier = queue.splice(0);
-      const taken: QueueItem[] = [];
+      const taken: GraphWalkRef[] = [];
       const takenKeys = new Set<ResourceKey>();
 
-      // Promote backing hits into ContentMap before deciding whether to pull.
-      const backingResources = input.backingResources;
-      if (backingResources !== undefined && backingResources.size > 0) {
-        for (const item of frontier) {
-          if (!isUnresolved(item.resource, contentMap, failuresByResource)) {
-            continue;
-          }
+      session.promoteBackingHits(frontier);
 
-          const key = item.resource.toString();
-          if (!backingResources.has(key)) {
-            continue;
-          }
-
-          contentMap.set(
-            item.resource as ApplicationResourceIdentifier<keyof R & string>,
-            backingResources.get(key) as R[keyof R & string]
-          );
-          backingResources.delete(key);
-        }
-      }
-
-      const needsResolve = frontier.some((item) =>
-        isUnresolved(item.resource, contentMap, failuresByResource)
-      );
+      const needsResolve = frontier.some((item) => session.isUnresolved(item.resource));
 
       if (needsResolve) {
-        assertNotAborted(input.signal);
+        session.assertNotAborted();
 
         const pull: DataResolutionPull = {
-          ...(input.signal !== undefined ? { signal: input.signal } : {}),
+          ...(session.signal !== undefined ? { signal: session.signal } : {}),
           take: (accept: (resource: ApplicationResourceIdentifier) => boolean, limit?: number) => {
             const batch: ApplicationResourceIdentifier[] = [];
             const max = limit === undefined ? Number.POSITIVE_INFINITY : limit;
@@ -139,18 +63,19 @@ export class ResolveContentGraphEngine<
               return batch;
             }
 
-            const remaining: QueueItem[] = [];
+            const remaining: GraphWalkRef[] = [];
             for (const item of frontier) {
               const key = item.resource.toString();
               const canTake =
                 batch.length < max &&
                 accept(item.resource) &&
-                isUnresolved(item.resource, contentMap, failuresByResource) &&
+                session.isUnresolved(item.resource) &&
                 !takenKeys.has(key);
 
               if (canTake) {
                 taken.push(item);
                 takenKeys.add(key);
+                session.markInFlight(item.resource);
                 batch.push(item.resource);
               } else {
                 remaining.push(item);
@@ -165,90 +90,40 @@ export class ResolveContentGraphEngine<
 
         const resolved = await this.dataResolutionPort.process(pull);
 
-        assertNotAborted(input.signal);
+        session.assertNotAborted();
 
-        const resolvedByKey = new Map<ResourceKey, ResolvedResourceRecord<R>>();
-        for (const record of resolved) {
-          resolvedByKey.set(record.resource.toString(), record);
-        }
+        const resolvedByKey = session.commitRecords(resolved);
 
         for (const item of taken) {
-          const resourceKey = item.resource.toString();
-          const record = resolvedByKey.get(resourceKey);
-
-          if (record !== undefined) {
-            contentMap.set(record.resource, record.payload);
+          if (resolvedByKey.has(item.resource.toString())) {
+            session.settle(item.resource);
             continue;
           }
 
-          if (input.missingResourceMode === "throw") {
-            throw new Error(`Unable to resolve ${resourceKey}`);
-          }
+          session.throwIfMissingTaken(item);
         }
 
         // Port accepted nothing while unresolved work remains — not the same as
         // deferral after a non-empty take (those leftovers are re-queued below).
         if (taken.length === 0) {
-          const unhandled = frontier.filter((item) =>
-            isUnresolved(item.resource, contentMap, failuresByResource)
-          );
-
-          if (unhandled.length > 0) {
-            if (input.missingResourceMode === "throw") {
-              throw new Error(`Unable to resolve ${unhandled[0]!.resource.toString()}`);
-            }
-
-            for (const item of unhandled) {
-              registerMissingResource(item.resource, item.inheritedIslandId);
-            }
-          }
+          session.failUnhandledIfEmptyTake(frontier);
         }
       }
 
-      const expandItem = ({ resource, inheritedIslandId }: QueueItem): void => {
-        const resourceKey = resource.toString();
-
-        const expansion = this.expansionPort.expand({
-          resource,
-          payload: contentMap.getByKey(resourceKey)!,
-          inheritedIslandId,
-          executionContext: input.executionContext,
-        } as ExpansionContext<R, TExecutionContext>);
-
-        const islandId = expansion.isIsland ? resourceKey : inheritedIslandId;
-
-        if (islandId !== inheritedIslandId) {
-          islandDependencies.add(inheritedIslandId, islandId);
-        }
-
-        if (islands.has(islandId, resource)) {
-          return;
-        }
-
-        islands.add(islandId, resource);
-
-        for (const child of expansion.resources) {
-          queue.push({
-            resource: child,
-            inheritedIslandId: islandId,
-          });
-        }
-      };
-
       for (const item of taken) {
-        if (!contentMap.has(item.resource)) {
-          registerMissingResource(item.resource, item.inheritedIslandId);
+        if (!session.contentMap.has(item.resource)) {
+          session.registerMissing(item);
           continue;
         }
-        expandItem(item);
+        queue.push(...session.expand(item));
       }
 
       for (const item of frontier) {
-        if (contentMap.has(item.resource)) {
-          expandItem(item);
-        } else if (failuresByResource.has(item.resource.toString())) {
+        if (session.contentMap.has(item.resource)) {
+          queue.push(...session.expand(item));
+        } else if (session.hasFailure(item.resource)) {
           // Duplicate queue entry for an already-failed resource — aggregate islands.
-          registerMissingResource(item.resource, item.inheritedIslandId);
+          session.registerMissing(item);
         } else {
           // Deferred by the port (not pulled this round) — try again after expand.
           queue.push(item);
@@ -256,21 +131,7 @@ export class ResolveContentGraphEngine<
       }
     }
 
-    assertNotAborted(input.signal);
-
-    const errors: ResolutionError[] = [...failuresByResource.values()]
-      .map((failure) => ({
-        resourceKey: failure.resourceKey,
-        message: failure.message,
-        inheritedIslandIds: sortedCopy(failure.inheritedIslandIds),
-      }))
-      .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey));
-
-    return {
-      contentMap,
-      islands,
-      islandDependencies,
-      errors,
-    };
+    session.assertNotAborted();
+    return session.toOutput();
   }
 }
