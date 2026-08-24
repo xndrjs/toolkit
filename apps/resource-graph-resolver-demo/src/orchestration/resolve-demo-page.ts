@@ -1,8 +1,4 @@
-import {
-  ResolveContentGraphEngine,
-  serializeAllIslands,
-  type ResolveContentGraphLimits,
-} from "@xndrjs/resource-graph-resolver";
+import { ResolveContentGraphEngine, serializeAllIslands } from "@xndrjs/resource-graph-resolver";
 
 import type { Page } from "../domain/index.js";
 import {
@@ -56,7 +52,6 @@ export type ResolveDemoPageResult = ResolveDemoPageSuccess | ResolveDemoPageFail
 
 export type ResolveDemoPageOptions = {
   signal?: AbortSignal;
-  limits?: ResolveContentGraphLimits;
 };
 
 function logCacheReport(report: CacheHitReport): void {
@@ -98,7 +93,6 @@ export async function resolveDemoPage(
     missingResourceMode: "throw",
     backingResources,
     ...(options?.signal !== undefined ? { signal: options.signal } : {}),
-    ...(options?.limits !== undefined ? { limits: options.limits } : {}),
   });
 
   const cacheReport: CacheHitReport = {

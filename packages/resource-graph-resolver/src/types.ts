@@ -43,22 +43,6 @@ export interface ResolutionError {
   inheritedIslandIds: readonly IslandId[];
 }
 
-/**
- * Optional safety budgets for {@link import("./resolve-content-graph-engine").ResolveContentGraphEngine}.
- *
- * - {@link maxRounds} — frontier rounds processed (each outer-loop iteration)
- * - {@link maxResources} — distinct ARIs discovered (root counts as 1)
- * - {@link maxDepth} — BFS depth from root (root is depth 0)
- *
- * Exceeding a limit throws {@link import("./errors").ResolveContentGraphLimitExceededError},
- * independent of {@link MissingResourceMode}.
- */
-export interface ResolveContentGraphLimits {
-  maxRounds?: number;
-  maxResources?: number;
-  maxDepth?: number;
-}
-
 export interface ResolveContentGraphInput<TExecutionContext = unknown> {
   root: ApplicationResourceIdentifier;
   executionContext: TExecutionContext;
@@ -71,8 +55,6 @@ export interface ResolveContentGraphInput<TExecutionContext = unknown> {
   backingResources?: Map<ResourceKey, unknown>;
   /** Cooperative cancellation; checked before and after every data-port load. */
   signal?: AbortSignal;
-  /** Optional caps on rounds, discovered resources, and expansion depth. */
-  limits?: ResolveContentGraphLimits;
 }
 
 export interface ResolveContentGraphOutput<R extends ContentRegistry = ContentRegistry> {

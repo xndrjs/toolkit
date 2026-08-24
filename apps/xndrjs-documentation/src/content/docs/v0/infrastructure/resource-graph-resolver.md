@@ -95,7 +95,6 @@ const output = await engine.execute({
   executionContext: { locale: "en-US" },
   missingResourceMode: "throw", // or "collect"
   // signal: AbortSignal.timeout(5_000),
-  // limits: { maxRounds: 50, maxResources: 2_000, maxDepth: 32 },
 });
 ```
 
@@ -114,18 +113,11 @@ const output = await engine.execute({
 - Resources **not taken** while at least one peer was taken stay deferred for a later round after expand.
 - If the frontier still has unresolved work and **`take` accepted nothing** (`taken.length === 0`), that is **no-progress**: the engine throws or collects every unhandled ARI via `missingResourceMode`. It is not treated as deferral.
 
-### Cancellation and limits
+### Cancellation
 
-Optional operational budgets on `ResolveContentGraphInput`:
+Pass `signal: AbortSignal` on `ResolveContentGraphInput` for cooperative cancellation; the engine checks the signal before and after every data-port load.
 
-| Option                | Semantics                                                        |
-| --------------------- | ---------------------------------------------------------------- |
-| `signal`              | Cooperative abort; checked before and after every data-port load |
-| `limits.maxRounds`    | Cap on frontier rounds processed (each outer-loop iteration)     |
-| `limits.maxResources` | Cap on distinct ARIs discovered (root counts as 1)               |
-| `limits.maxDepth`     | Cap on BFS depth from root (**root is depth 0**)                 |
-
-Abort throws `ResolveContentGraphAbortedError`. Exceeding a limit throws `ResolveContentGraphLimitExceededError`. Both are **independent** of `missingResourceMode`.
+Abort throws `ResolveContentGraphAbortedError`, independent of `missingResourceMode`.
 
 ### Optional backing resources
 
@@ -241,7 +233,7 @@ Each `SerializedIsland` (schema v1) includes:
 2. **ContentRegistry** — union of resolved payload types.
 3. **DataResolutionPort** — per-source loaders composed into a gateway.
 4. **ExpansionPort** — content-type or resource-family policies; `isIsland` where a fragment has its own identity or lifecycle.
-5. **Orchestration** — load backing → `execute` (optional `signal` / `limits`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
+5. **Orchestration** — load backing → `execute` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
 6. **Domain mappers** — stay outside this package; consume `ResolveContentGraphOutput`.
 
 ## API
@@ -255,8 +247,8 @@ Exported symbols:
 - **`createDataResolutionPull`** / **`DataResolutionPort`** / **`ResolvedResourceRecord`**
 - **`serializeIsland`** / **`serializeAllIslands`**
 - **`buildBackingResourcesFromIslands`**
-- **`ResolveContentGraphAbortedError`** / **`ResolveContentGraphLimitExceededError`**
-- Types: **`ContentRegistry`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolveContentGraphInput`**, **`ResolveContentGraphLimits`**, **`ResolveContentGraphOutput`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
+- **`ResolveContentGraphAbortedError`**
+- Types: **`ContentRegistry`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolveContentGraphInput`**, **`ResolveContentGraphOutput`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 
 ## See also
 
