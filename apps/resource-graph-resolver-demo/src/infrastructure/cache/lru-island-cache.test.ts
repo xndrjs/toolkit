@@ -257,7 +257,8 @@ describe("loadBackingForRoot", () => {
     ]);
     expect(result.backingResources.get("page")).toEqual({ t: "page" });
     expect(result.backingResources.get("menu")).toEqual({ t: "menu" });
-    expect(result.backingResources.get("shared")).toBe(2);
+    // Conflicting `shared` across page/menu is omitted so execute() reloads via the port.
+    expect(result.backingResources.has("shared")).toBe(false);
     expect(result.backingResources.has("footer")).toBe(false);
     expect(result.report.backingResourceCount).toBe(result.backingResources.size);
   });

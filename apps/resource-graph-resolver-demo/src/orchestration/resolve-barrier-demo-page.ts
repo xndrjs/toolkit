@@ -25,6 +25,7 @@ import {
 } from "../infrastructure/logging/resolve-trace.js";
 import {
   finalizeDemoResolve,
+  isDemoResolveQuiet,
   type ResolveDemoPageOptions,
   type ResolveDemoPageResult,
 } from "./resolve-demo-shared.js";
@@ -41,14 +42,24 @@ export async function resolveBarrierDemoPage(
   locale: ContentfulLocaleCode,
   options?: ResolveDemoPageOptions
 ): Promise<ResolveDemoPageResult> {
-  const trace = createConsoleResolveTrace();
+  const quiet = isDemoResolveQuiet(options);
   const executionContext = createDefaultDemoExecutionContext(locale);
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
-  const cms = withLoggingCmsLoader(createCmsDataLoader(demoCmsStore), trace);
-  const integration = withLoggingIntegrationLoader(createIntegrationDataLoader(), trace);
-  const gateway = withLoggingGateway(createDemoDataGateway(cms, integration), trace);
-  const expansionPort = withLoggingExpansionPort(createDemoExpansionPort(), trace);
+  const cmsLoader = createCmsDataLoader(demoCmsStore);
+  const integrationLoader = createIntegrationDataLoader();
+  const expansion = createDemoExpansionPort();
+
+  const trace = quiet ? undefined : createConsoleResolveTrace();
+  const cms = trace ? withLoggingCmsLoader(cmsLoader, trace) : cmsLoader;
+  const integration = trace
+    ? withLoggingIntegrationLoader(integrationLoader, trace)
+    : integrationLoader;
+  const gateway = trace
+    ? withLoggingGateway(createDemoDataGateway(cms, integration), trace)
+    : createDemoDataGateway(cms, integration);
+  const expansionPort = trace ? withLoggingExpansionPort(expansion, trace) : expansion;
+
   const engine = new ResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
     gateway,
     expansionPort
@@ -57,9 +68,11 @@ export async function resolveBarrierDemoPage(
   const { backingResources, report } = loadBackingForRoot(pageRoot, lruIslandCache);
   const backingResourceCountBeforePromote = report.backingResourceCount;
 
-  console.log(
-    `Resolve demo — strategy barrier, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}`
-  );
+  if (trace) {
+    console.log(
+      `Resolve demo — strategy barrier, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}`
+    );
+  }
 
   const output = await engine.execute({
     root: pageRoot,

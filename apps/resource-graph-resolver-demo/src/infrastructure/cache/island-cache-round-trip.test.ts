@@ -89,7 +89,9 @@ describe("island cache cold/warm round-trip", () => {
     expect(warm.dependencyManifestStatus).toBe("hit");
     expect(warm.backingResourceCount).toBeGreaterThan(0);
     expect(warm.promotedResourceCount).toBeGreaterThan(0);
-    expect(warm.pulledResourceCount).toBe(0);
+    // Shared logo is in both menu + footer islands → omitted from backing, re-pulled once.
+    expect(warm.pulledResourceCount).toBe(1);
+    expect(warm.pulledResourceCount).toBeLessThan(cold.pulledResourceCount);
     expect(warm.promotedResourceCount).toBe(warm.backingResourceCount);
   });
 
@@ -103,7 +105,7 @@ describe("island cache cold/warm round-trip", () => {
 
     const warm = await resolveWithCache(cache);
     expect(warm.rootIslandStatus).toBe("hit");
-    expect(warm.pulledResourceCount).toBe(0);
+    expect(warm.pulledResourceCount).toBe(1);
 
     now = DEFAULT_PAGE_ISLAND_TTL_MS + 1;
 

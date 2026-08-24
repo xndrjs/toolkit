@@ -69,13 +69,16 @@ describe("runAuditCli", () => {
       welcome: { en: "Welcome" },
     });
 
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const previousCwd = process.cwd();
     process.chdir(tempDir);
     try {
       const exitCode = await runAuditCli(["--config", "i18n/i18n.codegen.json"]);
       expect(exitCode).toBe(0);
+      expect(String(stdoutSpy.mock.calls[0]?.[0])).toContain('"missingDirect"');
     } finally {
       process.chdir(previousCwd);
+      stdoutSpy.mockRestore();
     }
   });
 
@@ -84,6 +87,7 @@ describe("runAuditCli", () => {
       login_button: { it: "Accedi" },
     });
 
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const previousCwd = process.cwd();
     process.chdir(tempDir);
     try {
@@ -94,8 +98,10 @@ describe("runAuditCli", () => {
         "effective",
       ]);
       expect(exitCode).toBe(1);
+      expect(String(stdoutSpy.mock.calls[0]?.[0])).toContain("login_button");
     } finally {
       process.chdir(previousCwd);
+      stdoutSpy.mockRestore();
     }
   });
 

@@ -37,7 +37,17 @@ export type ResolveDemoPageResult = ResolveDemoPageSuccess | ResolveDemoPageFail
 
 export type ResolveDemoPageOptions = {
   signal?: AbortSignal;
+  /**
+   * Skip logging decorators and console output.
+   * Defaults to true under Vitest (`process.env.VITEST`).
+   */
+  quiet?: boolean;
 };
+
+/** When true, resolve uses undecorated ports (no console trace wrappers). */
+export function isDemoResolveQuiet(options?: ResolveDemoPageOptions): boolean {
+  return options?.quiet ?? process.env.VITEST !== undefined;
+}
 
 export function logCacheReport(report: CacheHitReport): void {
   const deps =
@@ -62,7 +72,8 @@ export function finalizeDemoResolve(args: {
   backingResourceCountBeforePromote: number;
   backingResourcesSize: number;
   report: CacheHitReport;
-  trace: ResolveTrace;
+  /** Present only when logging decorators are enabled. */
+  trace?: ResolveTrace;
 }): ResolveDemoPageResult {
   const {
     output,
@@ -78,13 +89,16 @@ export function finalizeDemoResolve(args: {
     ...report,
     promotedResourceCount: backingResourceCountBeforePromote - backingResourcesSize,
   };
-  logCacheReport(cacheReport);
 
-  const resolvedCount = demoResolvedResourceCount();
-  trace.logSummary(resolvedCount, output.errors.length);
+  if (trace) {
+    logCacheReport(cacheReport);
+    trace.logSummary(demoResolvedResourceCount(), output.errors.length);
+  }
 
   if (output.errors.length > 0) {
-    console.error(output.errors);
+    if (trace) {
+      console.error(output.errors);
+    }
     return {
       ok: false,
       errors: output.errors.map(({ resourceKey, message }) => ({ resourceKey, message })),
@@ -106,7 +120,7 @@ export function finalizeDemoResolve(args: {
   return {
     ok: true,
     page,
-    resolvedCount,
+    resolvedCount: demoResolvedResourceCount(),
     cacheReport,
     cacheSnapshot: lruIslandCache.snapshot(),
   };
