@@ -4,19 +4,28 @@
 
 Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, source-qualified ARIs (`cms.*` / `integration.*`), content-type expansion policies (current resource + payload + execution context), correlated `{ resource, payload }` loaders, and domain-zod aggregation.
 
-Two orchestration entry points: `resolveBarrierDemoPage` and `resolveDecoupledDemoPage` (optional `signal`). Routes: `/[locale]/barrier` and `/[locale]/decoupled`. CMS/integration loaders short-circuit with an empty result when every `take()` is empty (no IO).
+Two orchestration entry points: `resolveBarrierDemoPage` and `resolveLaneDemoPage` (optional `signal`). Routes: `/[locale]/barrier` and `/[locale]/lane`. CMS/integration loaders short-circuit with an empty result when every `take()` is empty (no IO).
+
+### Walk strategies
+
+| Route               | Engine                             | Wiring                                                             | Behavior                                                                                                                                                 |
+| ------------------- | ---------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/[locale]/barrier` | `BarrierResolveContentGraphEngine` | `createDemoDataGateway` merges CMS + integration                   | One barrier round: wait for the gateway `process`, then expand. Wall-clock tracks the **slowest** source in that wave.                                   |
+| `/[locale]/lane`    | `LaneResolveContentGraphEngine`    | ordered `[cms, integration]` `ResourceLoader`s (`accepts` routing) | **Serial per loader** (at most one in-flight `process` per lane). Lanes may overlap; a fast CMS lane can batch again while integration is still pending. |
+
+Both produce the same island / `ContentMap` semantics. Prefer barrier for simple gateway composition and round traces; prefer lane when source latencies diverge and you want expand to proceed per lane. Terminal traces say “Barrier round” vs “Lane batch” so the two schedulers are not conflated.
 
 ## Layout
 
 ```
 app/                          # Next.js UI
   [locale]/barrier/           # barrier walk page
-  [locale]/decoupled/         # decoupled walk page
+  [locale]/lane/         # lane walk page
 src/
   domain/                     # domain-zod shapes
   orchestration/
-    resolve-barrier-demo-page.ts    # gateway + ResolveContentGraphEngine
-    resolve-decoupled-demo-page.ts  # loaders + DecoupledResolveContentGraphEngine
+    resolve-barrier-demo-page.ts    # gateway + BarrierResolveContentGraphEngine
+    resolve-lane-demo-page.ts  # loaders + LaneResolveContentGraphEngine
     resolve-demo-shared.ts          # shared finalize (cache / aggregate)
   infrastructure/
     cms/                      # CMS source: ARIs, CMA snapshots, codegen, demo store, loader
@@ -58,4 +67,4 @@ pnpm --filter @xndrjs/resource-graph-resolver-demo typecheck
 pnpm --filter @xndrjs/resource-graph-resolver-demo test
 ```
 
-`dev` runs the Next.js app: aggregated page + island cache in a split view; barrier rounds or decoupled lane batches are traced in the dev server terminal depending on the route.
+`dev` runs the Next.js app: aggregated page + island cache in a split view; barrier rounds or lane batches are traced in the dev server terminal depending on the route.

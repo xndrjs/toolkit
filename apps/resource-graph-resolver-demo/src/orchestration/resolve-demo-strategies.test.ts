@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { resolveBarrierDemoPage } from "./resolve-barrier-demo-page.js";
-import { resolveDecoupledDemoPage } from "./resolve-decoupled-demo-page.js";
+import { resolveLaneDemoPage } from "./resolve-lane-demo-page.js";
 
 describe("demo resolve strategies", () => {
   it("resolves with barrier gateway rounds", async () => {
@@ -13,8 +13,8 @@ describe("demo resolve strategies", () => {
     expect(result.page.type).toBe("Page");
   });
 
-  it("resolves with decoupled source loaders", async () => {
-    const result = await resolveDecoupledDemoPage("en-US");
+  it("resolves with lane source loaders", async () => {
+    const result = await resolveLaneDemoPage("en-US");
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;

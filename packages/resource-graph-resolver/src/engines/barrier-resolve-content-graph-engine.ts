@@ -11,13 +11,16 @@ import type {
 } from "../types";
 
 /**
- * Resolves a content resource graph from a root ARI using frontier pulls,
- * island ownership, and configurable missing-resource handling.
+ * Resolves a content resource graph from a root ARI with a barrier (round-based) scheduler.
+ *
+ * Each round calls {@link DataResolutionPort.process}, waits for the whole result, then expands.
+ * Prefer {@link import("./lane-resolve-content-graph-engine").LaneResolveContentGraphEngine} when
+ * source latencies diverge and loaders should advance on independent serial lanes.
  *
  * Intended as a reusable engine inside project-specific application use cases.
  * Supply a {@link ContentRegistry} so resolved values are typed by ARI `type`.
  */
-export class ResolveContentGraphEngine<
+export class BarrierResolveContentGraphEngine<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
 > {

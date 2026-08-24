@@ -7,7 +7,7 @@ import {
   recordsFromStore,
   type Deferred,
 } from "../testing/content-graph-engine-test-helpers";
-import { DecoupledResolveContentGraphEngine } from "./decoupled-resolve-content-graph-engine";
+import { LaneResolveContentGraphEngine } from "./lane-resolve-content-graph-engine";
 import { createExpansionPolicyChain } from "../ports/expansion-port";
 import { serializeIsland } from "../islands/serialize-island";
 import { testAri } from "../testing/test-fixtures.js";
@@ -83,7 +83,7 @@ function snapshotOutput(output: ResolveContentGraphOutput) {
   };
 }
 
-describe("DecoupledResolveContentGraphEngine concurrency", () => {
+describe("LaneResolveContentGraphEngine concurrency", () => {
   it("lets CMS run several serial batches while one integration batch stays pending", async () => {
     const store = new Map<string, unknown>([
       [page.toString(), {}],
@@ -116,7 +116,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
       gate: () => integrationGate.promise,
     });
 
-    const engine = new DecoupledResolveContentGraphEngine(
+    const engine = new LaneResolveContentGraphEngine(
       [cms, integration],
       createExpansionPolicyChain([
         {
@@ -208,7 +208,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
       },
     });
 
-    const engine = new DecoupledResolveContentGraphEngine(
+    const engine = new LaneResolveContentGraphEngine(
       [cms, integration],
       createExpansionPolicyChain([
         {
@@ -288,7 +288,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
         gate: integrationGates.gate,
       });
 
-      const engine = new DecoupledResolveContentGraphEngine(
+      const engine = new LaneResolveContentGraphEngine(
         [cms, integration],
         createExpansionPolicyChain([
           {
@@ -364,7 +364,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
       store,
     });
 
-    const engine = new DecoupledResolveContentGraphEngine(
+    const engine = new LaneResolveContentGraphEngine(
       [cms],
       createExpansionPolicyChain([
         {
@@ -426,7 +426,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
     ];
 
     await expect(
-      new DecoupledResolveContentGraphEngine(
+      new LaneResolveContentGraphEngine(
         [createControlledLoader({ label: "cms", accepts: isCms, store })],
         createExpansionPolicyChain(policies)
       ).execute({
@@ -436,7 +436,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
       })
     ).rejects.toThrow(`Unable to resolve ${unmatched.toString()}`);
 
-    const collected = await new DecoupledResolveContentGraphEngine(
+    const collected = await new LaneResolveContentGraphEngine(
       [createControlledLoader({ label: "cms", accepts: isCms, store })],
       createExpansionPolicyChain(policies)
     ).execute({
@@ -486,7 +486,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
     };
 
     await expect(
-      new DecoupledResolveContentGraphEngine(
+      new LaneResolveContentGraphEngine(
         [{ accepts: () => true, process: omitCmsA }],
         createExpansionPolicyChain(policies)
       ).execute({
@@ -496,7 +496,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
       })
     ).rejects.toThrow(`Unable to resolve ${cmsA.toString()}`);
 
-    const collected = await new DecoupledResolveContentGraphEngine(
+    const collected = await new LaneResolveContentGraphEngine(
       [{ accepts: () => true, process: omitCmsA }],
       createExpansionPolicyChain(policies)
     ).execute({
@@ -541,7 +541,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
       }
     });
 
-    const engine = new DecoupledResolveContentGraphEngine(
+    const engine = new LaneResolveContentGraphEngine(
       [cms, { accepts: isIntegration, process: integrationProcess }],
       createExpansionPolicyChain([
         {
@@ -592,7 +592,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
     });
 
     await expect(
-      new DecoupledResolveContentGraphEngine(
+      new LaneResolveContentGraphEngine(
         [loader],
         createExpansionPolicyChain([
           {
@@ -620,7 +620,7 @@ describe("DecoupledResolveContentGraphEngine concurrency", () => {
     });
 
     await expect(
-      new DecoupledResolveContentGraphEngine(
+      new LaneResolveContentGraphEngine(
         [idle],
         createExpansionPolicyChain([
           {

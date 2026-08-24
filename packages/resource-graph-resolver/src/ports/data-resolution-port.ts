@@ -3,7 +3,7 @@ import type { ApplicationResourceIdentifier } from "@xndrjs/application-resource
 import type { ContentRegistry, ResolvedResourceRecord } from "../types";
 
 /**
- * Pull handle supplied by {@link import("../engines/resolve-content-graph-engine").ResolveContentGraphEngine}
+ * Pull handle supplied by {@link import("../engines/barrier-resolve-content-graph-engine").BarrierResolveContentGraphEngine}
  * for one resolution round. Not a general-purpose ARI loading API.
  *
  * `take` removes matching resources in frontier order up to `limit` (omit = all).
@@ -24,7 +24,7 @@ export interface DataResolutionPull {
 }
 
 /**
- * Collaborator of {@link import("../engines/resolve-content-graph-engine").ResolveContentGraphEngine} only.
+ * Collaborator of {@link import("../engines/barrier-resolve-content-graph-engine").BarrierResolveContentGraphEngine} only.
  * Callers outside the engine should use their own loaders/gateways — not this port.
  *
  * Each {@link process} call should pull enough work to saturate backend batches

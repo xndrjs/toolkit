@@ -2,9 +2,9 @@ import type { ApplicationResourceIdentifier } from "@xndrjs/application-resource
 import { vi, type Mock } from "vitest";
 
 import type { DataResolutionPort, DataResolutionPull } from "../ports/data-resolution-port";
-import { DecoupledResolveContentGraphEngine } from "../engines/decoupled-resolve-content-graph-engine";
+import { LaneResolveContentGraphEngine } from "../engines/lane-resolve-content-graph-engine";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
-import { ResolveContentGraphEngine } from "../engines/resolve-content-graph-engine";
+import { BarrierResolveContentGraphEngine } from "../engines/barrier-resolve-content-graph-engine";
 import type { ResourceLoader } from "../ports/resource-loader";
 import { testAri } from "./test-fixtures.js";
 import type {
@@ -62,7 +62,7 @@ export function createPageGraphPolicies(): ExpansionPolicy[] {
   ];
 }
 
-export type EngineKind = "barrier" | "decoupled";
+export type EngineKind = "barrier" | "lane";
 
 export interface ContentGraphEngine {
   execute(input: ResolveContentGraphInput): Promise<ResolveContentGraphOutput>;
@@ -152,7 +152,7 @@ export function createSemanticHarness(
     const dataPort: DataResolutionPort = { process };
     return {
       kind,
-      engine: new ResolveContentGraphEngine(dataPort, expansion),
+      engine: new BarrierResolveContentGraphEngine(dataPort, expansion),
       process,
       takenBatches,
     };
@@ -161,7 +161,7 @@ export function createSemanticHarness(
   const loader: ResourceLoader = { accepts: accept, process };
   return {
     kind,
-    engine: new DecoupledResolveContentGraphEngine([loader], expansion),
+    engine: new LaneResolveContentGraphEngine([loader], expansion),
     process,
     takenBatches,
   };

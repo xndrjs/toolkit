@@ -1,4 +1,4 @@
-import { ResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
+import { BarrierResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
 
 import { loadBackingForRoot, lruIslandCache } from "../infrastructure/cache/index.js";
 import {
@@ -37,7 +37,7 @@ export type {
   ResolveDemoPageSuccess,
 } from "./resolve-demo-shared.js";
 
-/** Barrier walk: gateway + ResolveContentGraphEngine (round-based). */
+/** Barrier walk: gateway + BarrierResolveContentGraphEngine (round-based). */
 export async function resolveBarrierDemoPage(
   locale: ContentfulLocaleCode,
   options?: ResolveDemoPageOptions
@@ -60,7 +60,7 @@ export async function resolveBarrierDemoPage(
     : createDemoDataGateway(cms, integration);
   const expansionPort = trace ? withLoggingExpansionPort(expansion, trace) : expansion;
 
-  const engine = new ResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
+  const engine = new BarrierResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
     gateway,
     expansionPort
   );

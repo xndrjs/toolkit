@@ -10,7 +10,7 @@ export {
   type DataResolutionPort,
   type DataResolutionPull,
 } from "./ports/data-resolution-port";
-export { DecoupledResolveContentGraphEngine } from "./engines/decoupled-resolve-content-graph-engine";
+export { LaneResolveContentGraphEngine } from "./engines/lane-resolve-content-graph-engine";
 export { ResolveContentGraphAbortedError } from "./errors";
 export {
   createExpansionPolicyChain,
@@ -23,7 +23,7 @@ export {
 } from "./ports/expansion-port";
 export { IslandDependencyMap } from "./model/island-dependency-map";
 export { IslandMap } from "./model/island-map";
-export { ResolveContentGraphEngine } from "./engines/resolve-content-graph-engine";
+export { BarrierResolveContentGraphEngine } from "./engines/barrier-resolve-content-graph-engine";
 export type { ResourceLoader } from "./ports/resource-loader";
 export { serializeAllIslands, serializeIsland } from "./islands/serialize-island";
 export type {

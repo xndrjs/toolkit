@@ -16,7 +16,7 @@ import { serializeIsland } from "../islands/serialize-island";
 import { testAri } from "../testing/test-fixtures.js";
 import type { ResolvedResourceRecord } from "../types";
 
-const engineKinds: EngineKind[] = ["barrier", "decoupled"];
+const engineKinds: EngineKind[] = ["barrier", "lane"];
 
 describe.each(engineKinds)("content graph semantic contract (%s)", (kind) => {
   it("shares ContentMap keys and isolates menu/footer islands", async () => {

@@ -1,5 +1,5 @@
 import {
-  DecoupledResolveContentGraphEngine,
+  LaneResolveContentGraphEngine,
   type ResourceLoader,
 } from "@xndrjs/resource-graph-resolver";
 
@@ -38,8 +38,8 @@ export type {
   ResolveDemoPageSuccess,
 } from "./resolve-demo-shared.js";
 
-/** Decoupled walk: source loaders + DecoupledResolveContentGraphEngine (serial-per-lane). */
-export async function resolveDecoupledDemoPage(
+/** Lane walk: source loaders + LaneResolveContentGraphEngine (serial-per-lane). */
+export async function resolveLaneDemoPage(
   locale: ContentfulLocaleCode,
   options?: ResolveDemoPageOptions
 ): Promise<ResolveDemoPageResult> {
@@ -52,14 +52,14 @@ export async function resolveDecoupledDemoPage(
   const expansion = createDemoExpansionPort();
 
   const trace = quiet ? undefined : createConsoleResolveTrace();
-  const cms = trace ? withLoggingCmsLoader(cmsLoader, trace, "decoupled") : cmsLoader;
+  const cms = trace ? withLoggingCmsLoader(cmsLoader, trace, "lane") : cmsLoader;
   const integration = trace
-    ? withLoggingIntegrationLoader(integrationLoader, trace, "decoupled")
+    ? withLoggingIntegrationLoader(integrationLoader, trace, "lane")
     : integrationLoader;
   const expansionPort = trace ? withLoggingExpansionPort(expansion, trace) : expansion;
   const loaders: readonly ResourceLoader<DemoContentRegistry>[] = [cms, integration];
 
-  const engine = new DecoupledResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
+  const engine = new LaneResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
     loaders,
     expansionPort
   );
@@ -69,7 +69,7 @@ export async function resolveDecoupledDemoPage(
 
   if (trace) {
     console.log(
-      `Resolve demo — strategy decoupled, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}`
+      `Resolve demo — strategy lane, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}`
     );
   }
 

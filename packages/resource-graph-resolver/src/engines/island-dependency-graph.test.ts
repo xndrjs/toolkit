@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DataResolutionPort } from "../ports/data-resolution-port";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
-import { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
+import { BarrierResolveContentGraphEngine } from "./barrier-resolve-content-graph-engine";
 import { serializeIsland } from "../islands/serialize-island";
 import { testAri } from "../testing/test-fixtures.js";
 import type { ResolvedResourceRecord } from "../types";
@@ -66,7 +66,7 @@ function createNestedIslandPolicies(): ExpansionPolicy[] {
 
 describe("island dependency graph", () => {
   it("records direct island edges only — nested logo island is not a page dependency", async () => {
-    const engine = new ResolveContentGraphEngine(
+    const engine = new BarrierResolveContentGraphEngine(
       createInMemoryPort(),
       createExpansionPolicyChain(createNestedIslandPolicies())
     );

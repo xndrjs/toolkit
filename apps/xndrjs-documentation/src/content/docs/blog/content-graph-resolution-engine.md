@@ -313,7 +313,9 @@ export function createDemoDataGateway(cms, integration): DataResolutionPort {
 
 Composition is **barrier-based per wave**: the engine waits for the whole gateway `process` to finish before expanding. Inside that call, loaders may run in parallel, but wall-clock time for the round still tracks the **slowest** backend in the wave — not the sum of sequential CMS-then-integration trips, and not a speculative expand against half-loaded peers.
 
-Same orchestration, same expansion policies — whether two backends or five. That is the boundary Problem 4 was asking for: resolution logic that is not the React tree and not a single vendor SDK.
+That barrier walk is one of two schedulers (`BarrierResolveContentGraphEngine`). When source latencies diverge, prefer the **lane walk** (`LaneResolveContentGraphEngine`): pass an ordered `ResourceLoader` chain (each with `accepts` ownership) instead of a gateway. Each loader is a lane with **exactly one** in-flight `process`; different loaders may overlap, and a fast CMS lane can expand and batch again while a slow integration batch is still pending. Graph semantics stay the same — only the scheduler changes. See [Walk strategies](/v0/infrastructure/resource-graph-resolver/#walk-strategies) in the package guide.
+
+Same orchestration shape, same expansion policies — whether two backends or five, barrier or lane. That is the boundary Problem 4 was asking for: resolution logic that is not the React tree and not a single vendor SDK.
 
 ---
 

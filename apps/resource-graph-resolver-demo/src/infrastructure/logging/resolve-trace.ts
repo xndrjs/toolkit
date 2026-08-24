@@ -15,7 +15,7 @@ import { INTEGRATION_BATCH_SIZE, type IntegrationDataLoader } from "../integrati
 export type ResolveTrace = {
   /** Barrier engine: one log section per gateway round. */
   beginBarrierRound(): void;
-  /** Decoupled engine: one log section per serial loader lane batch. */
+  /** Lane engine: one log section per serial loader lane batch. */
   beginLaneBatch(label: string): void;
   logPull(label: string, resources: readonly ApplicationResourceIdentifier[], limit?: number): void;
   logLoad(label: string, requested: number, loaded: number): void;
@@ -26,7 +26,7 @@ export type ResolveTrace = {
   logSummary(contentMapSize: number, errorCount: number): void;
 };
 
-export type LoaderTraceMode = "barrier" | "decoupled";
+export type LoaderTraceMode = "barrier" | "lane";
 
 export function createConsoleResolveTrace(): ResolveTrace {
   let barrierRound = 0;
@@ -86,7 +86,7 @@ export function withLoggingCmsLoader(
     loadAssets: (resources) => loader.loadAssets(resources),
 
     async process(pull) {
-      if (mode === "decoupled") {
+      if (mode === "lane") {
         trace.beginLaneBatch("cms");
       }
 
@@ -123,7 +123,7 @@ export function withLoggingIntegrationLoader(
     load: (resources) => loader.load(resources),
 
     async process(pull) {
-      if (mode === "decoupled") {
+      if (mode === "lane") {
         trace.beginLaneBatch("integration");
       }
 

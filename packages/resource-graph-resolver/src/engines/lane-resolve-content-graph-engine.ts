@@ -41,10 +41,10 @@ type LaneCompletion<R extends ContentRegistry> =
  * call. Different loaders may overlap in time; a fast loader may start its next batch as soon as
  * its previous batch is committed and expanded.
  *
- * Same {@link ResolveContentGraphEngine.execute} contract as the barrier engine; construct from an
+ * Same {@link BarrierResolveContentGraphEngine.execute} contract as the barrier engine; construct from an
  * ordered loader chain plus {@link ExpansionPort}.
  */
-export class DecoupledResolveContentGraphEngine<
+export class LaneResolveContentGraphEngine<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
 > {

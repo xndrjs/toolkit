@@ -1,5 +1,5 @@
 import {
-  ResolveContentGraphEngine,
+  BarrierResolveContentGraphEngine,
   serializeAllIslands,
   type DataResolutionPort,
 } from "@xndrjs/resource-graph-resolver";
@@ -44,7 +44,7 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
   const counting = createCountingGateway(
     createDemoDataGateway(createCmsDataLoader(demoCmsStore), createIntegrationDataLoader())
   );
-  const engine = new ResolveContentGraphEngine(counting.port, createDemoExpansionPort());
+  const engine = new BarrierResolveContentGraphEngine(counting.port, createDemoExpansionPort());
 
   const { backingResources, report } = loadBackingForRoot(pageRoot, cache);
   const backingResourceCount = report.backingResourceCount;
@@ -127,7 +127,7 @@ describe("island cache cold/warm round-trip", () => {
       createCmsDataLoader(demoCmsStore),
       createIntegrationDataLoader()
     );
-    const engine = new ResolveContentGraphEngine(gateway, createDemoExpansionPort());
+    const engine = new BarrierResolveContentGraphEngine(gateway, createDemoExpansionPort());
 
     const { backingResources, report } = loadBackingForRoot(pageRoot, cache);
     expect(report.rootIslandStatus).toBe("hit");

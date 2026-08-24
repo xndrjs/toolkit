@@ -4,7 +4,7 @@ import {
   type ContentfulLocaleCode,
 } from "./cms/generated/contentful.schemas.js";
 
-/** Request-scoped input passed to `ResolveContentGraphEngine.execute`. */
+/** Request-scoped input passed to `BarrierResolveContentGraphEngine.execute`. */
 export type DemoExecutionContext = {
   locale: ContentfulLocaleCode;
 };

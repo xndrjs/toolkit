@@ -30,15 +30,15 @@ Islands let you **name and partition** a large graph by application meaning — 
 
 The engine is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), `DataResolutionPort`, and `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
-For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app (`src/orchestration/resolve-demo-page.ts` composes loaders, expansion policies, island cache, and domain mappers).
+For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app (`resolve-barrier-demo-page.ts` / `resolve-lane-demo-page.ts` compose loaders, expansion policies, island cache, and domain mappers).
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'stepAfter'}}}%%
 flowchart TD
-  root[Root ARI] --> engine[ResolveContentGraphEngine]
+  root[Root ARI] --> engine[Resolve engine barrier or lane]
   engine --> expand[ExpansionPort]
   expand --> queue[Frontier queue]
-  queue --> data[DataResolutionPort.process pull]
+  queue --> data[DataResolutionPort or ResourceLoader lanes]
   data --> contentMap[ContentMap]
   engine --> islands[IslandMap]
   engine --> deps[IslandDependencyMap]
@@ -78,14 +78,32 @@ type DemoContentRegistry = {
 
 `ContentMap<R>` keys entries by `resource.toString()` (canonical ARI identity). `get(resource)` narrows the return type from `resource.type`; `getByKey` stays weakly typed for cache and JSON paths.
 
-## ResolveContentGraphEngine
+## Walk strategies
 
-Construct the engine with two ports, then execute from a root ARI:
+The package ships two engines with the **same** `execute` contract and graph semantics (backing promotion, `ContentMap`, island membership/dependencies, cycles, missing resources, cancellation). They differ only in **how the frontier is scheduled** across sources.
+
+| Strategy    | Engine                             | Collaborator                                            | Scheduler                                                                                                                                                                                                                  |
+| ----------- | ---------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Barrier** | `BarrierResolveContentGraphEngine` | one `DataResolutionPort` (often a multi-source gateway) | Each round: call `process`, wait for the whole result, then expand. Inside a gateway, loaders may run in parallel, but the round still waits on the **slowest** peer.                                                      |
+| **Lane**    | `LaneResolveContentGraphEngine`    | ordered `ResourceLoader[]`                              | Each loader is a **lane** with **exactly one** in-flight `process`. Different loaders may overlap; expand runs as soon as a lane’s batch commits. A fast lane may start its next batch while a slow lane is still pending. |
+
+**Trade-offs**
+
+- Prefer **barrier** when sources have similar latency, you already compose behind a gateway, or you want round-shaped traces and the simplest multi-source wiring.
+- Prefer **lane** when one backend is routinely slower (for example CMS vs commercial API) and you want expand/enqueue to proceed per source instead of waiting on every wave’s slowest peer.
+- Lane routing is **chain-of-responsibility**: first `accepts(resource)` wins; callers guarantee exactly one loader owns each ARI. Unmatched ARIs follow `missingResourceMode`.
+- Do **not** overload `DataResolutionPort` for lane ownership — that port stays the barrier engine’s round collaborator. Use `ResourceLoader` (`accepts` + pull `process`) for lanes.
+
+The demo exposes both: `/[locale]/barrier` (gateway) and `/[locale]/lane` (source loaders). Terminal traces label barrier rounds vs lane batches separately.
+
+## BarrierResolveContentGraphEngine (barrier)
+
+Construct the barrier engine with a data port and expansion port, then execute from a root ARI:
 
 ```ts
-import { ResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
+import { BarrierResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
 
-const engine = new ResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
+const engine = new BarrierResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
   dataGateway,
   expansionPort
 );
@@ -98,7 +116,33 @@ const output = await engine.execute({
 });
 ```
 
-`execute` returns:
+## LaneResolveContentGraphEngine
+
+Pass an ordered loader chain (not a gateway) plus the same `ExpansionPort`:
+
+```ts
+import {
+  LaneResolveContentGraphEngine,
+  type ResourceLoader,
+} from "@xndrjs/resource-graph-resolver";
+
+const loaders: readonly ResourceLoader<DemoContentRegistry>[] = [cmsLoader, integrationLoader];
+
+const engine = new LaneResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
+  loaders,
+  expansionPort
+);
+
+const output = await engine.execute({
+  root: pageRoot,
+  executionContext: { locale: "en-US" },
+  missingResourceMode: "throw",
+});
+```
+
+Each loader implements `accepts` for ownership and `process(pull)` with the same `take` batching model as the barrier port. Internal multi-family batching remains the loader’s concern; the engine only guarantees serial `process` calls **per** loader.
+
+`execute` returns (both engines):
 
 | Field                | Role                                                               |
 | -------------------- | ------------------------------------------------------------------ |
@@ -109,19 +153,19 @@ const output = await engine.execute({
 
 ### Missing resources and no-progress termination
 
-- Resources **taken** by the port but omitted from the result are missing (throw or collect).
-- Resources **not taken** while at least one peer was taken stay deferred for a later round after expand.
-- If the frontier still has unresolved work and **`take` accepted nothing** (`taken.length === 0`), that is **no-progress**: the engine throws or collects every unhandled ARI via `missingResourceMode`. It is not treated as deferral.
+- Resources **taken** by a loader/port but omitted from the result are missing (throw or collect).
+- Resources **not taken** while at least one peer was taken stay deferred for a later round / lane pump after expand.
+- If unresolved work remains and no eligible take / idle lane makes progress (`taken.length === 0` on barrier; every idle eligible lane took nothing on the lane engine), that is **no-progress**: the engine throws or collects every unhandled ARI via `missingResourceMode`. It is not treated as deferral.
 
 ### Cancellation
 
-Pass `signal: AbortSignal` on `ResolveContentGraphInput` for cooperative cancellation; the engine checks the signal before and after every data-port load.
+Pass `signal: AbortSignal` on `ResolveContentGraphInput` for cooperative cancellation; the engine checks the signal before and after every load. Lane mode still observes in-flight lane outcomes when one loader fails or the signal aborts.
 
 Abort throws `ResolveContentGraphAbortedError`, independent of `missingResourceMode`.
 
 ### Optional backing resources
 
-Pass `backingResources: Map<ResourceKey, unknown>` to hydrate hits **before** the data port runs. The engine promotes matching frontier items into `ContentMap` and removes them from the map (pass a mutable `Map` when you want `backingResourceCount` / `promotedResourceCount`). Use this for partial warm paths — for example dependency islands still valid while the root island expired.
+Pass `backingResources: Map<ResourceKey, unknown>` to hydrate hits **before** loaders run. The engine promotes matching frontier items into `ContentMap` and removes them from the map (pass a mutable `Map` when you want `backingResourceCount` / `promotedResourceCount`). Use this for partial warm paths — for example dependency islands still valid while the root island expired.
 
 ## DataResolutionPort (pull model)
 
@@ -159,7 +203,9 @@ async process(pull) {
 
 One `process` call can invoke `take` multiple times (per source or per resource family). Each `take` removes its batch from the frontier for that round only; if the frontier still has unresolved resources after expand, the engine schedules another round.
 
-Compose multiple sources (CMS + integration API) by merging pull results in one gateway — see the demo's `createDemoDataGateway` and `createCmsDataLoader`. Gateway composition is **barrier-based**: each round waits for all loaders before expand, so wall-clock time tracks the **slowest** backend in that wave.
+Compose multiple sources (CMS + integration API) for the **barrier** engine by merging pull results in one gateway — see the demo's `createDemoDataGateway` and `createCmsDataLoader`. Gateway composition is **barrier-based**: each round waits for all loaders before expand, so wall-clock time tracks the **slowest** backend in that wave.
+
+For the **lane** engine, pass those same source adapters (with `accepts`) as an ordered `ResourceLoader` chain instead of wrapping them in a gateway — see [Walk strategies](#walk-strategies).
 
 ## ExpansionPort and policies
 
@@ -248,20 +294,20 @@ Return values:
 
 1. **ARIs** — one factory per source/type (`cms.entry`, `cms.asset`, …).
 2. **ContentRegistry** — union of resolved payload types.
-3. **DataResolutionPort** — per-source loaders composed into a gateway.
+3. **Loaders** — per-source adapters with pull `process` (and `accepts` for lane); compose into a gateway for barrier mode, or pass the ordered chain to the lane engine.
 4. **ExpansionPort** — content-type or resource-family policies; `isIsland` where a fragment has its own identity or lifecycle.
-5. **Orchestration** — load backing → `execute` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
+5. **Orchestration** — choose barrier or lane → load backing → `execute` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
 6. **Domain mappers** — stay outside this package; consume `ResolveContentGraphOutput`.
 
 ## API
 
 Exported symbols:
 
-- **`ResolveContentGraphEngine`**
+- **`BarrierResolveContentGraphEngine`** / **`LaneResolveContentGraphEngine`**
 - **`ContentMap`**
 - **`IslandMap`** / **`IslandDependencyMap`**
 - **`createExpansionPolicyChain`** / **`defineExpansionPolicy`**
-- **`createDataResolutionPull`** / **`DataResolutionPort`** / **`ResolvedResourceRecord`**
+- **`createDataResolutionPull`** / **`DataResolutionPort`** / **`ResourceLoader`** / **`ResolvedResourceRecord`**
 - **`serializeIsland`** / **`serializeAllIslands`**
 - **`buildBackingResourcesFromIslands`**
 - **`ResolveContentGraphAbortedError`**

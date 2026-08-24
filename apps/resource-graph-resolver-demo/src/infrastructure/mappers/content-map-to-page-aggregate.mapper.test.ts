@@ -1,4 +1,4 @@
-import { ResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
+import { BarrierResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
 import { describe, expect, it } from "vitest";
 
 import { mapContentMapToPageAggregate } from "./content-map-to-page-aggregate.mapper.js";
@@ -39,7 +39,7 @@ async function resolveDemoPage(
 ) {
   const executionContext: DemoExecutionContext = createDefaultDemoExecutionContext(locale);
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale });
-  const engine = new ResolveContentGraphEngine(
+  const engine = new BarrierResolveContentGraphEngine(
     createDemoGateway(catalog),
     createDemoExpansionPort()
   );

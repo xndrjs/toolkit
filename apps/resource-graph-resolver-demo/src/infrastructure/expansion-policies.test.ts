@@ -1,5 +1,5 @@
 import {
-  ResolveContentGraphEngine,
+  BarrierResolveContentGraphEngine,
   defineExpansionPolicy,
   type ExpansionContext,
 } from "@xndrjs/resource-graph-resolver";
@@ -185,7 +185,10 @@ describe("createDemoExpansionPort", () => {
   it("resolves the demo page graph with menu/footer islands, shared asset, and integration products", async () => {
     const executionContext = createDefaultDemoExecutionContext();
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
-    const engine = new ResolveContentGraphEngine(createDemoGateway(), createDemoExpansionPort());
+    const engine = new BarrierResolveContentGraphEngine(
+      createDemoGateway(),
+      createDemoExpansionPort()
+    );
 
     defineExpansionPolicy<ReturnType<typeof cmsEntryAri>, DemoContentRegistry>({
       for: cmsEntryAri,

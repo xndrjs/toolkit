@@ -6,7 +6,7 @@ import { CONTENTFUL_LOCALE_CODES } from "../../src/infrastructure/cms/generated/
 import type { IslandCacheSnapshotEntry } from "../../src/infrastructure/cache/index";
 import type { ResolveDemoPageResult } from "../../src/orchestration/resolve-demo-shared";
 
-export type DemoWalkStrategy = "barrier" | "decoupled";
+export type DemoWalkStrategy = "barrier" | "lane";
 
 type DemoResolveViewProps = {
   locale: string;
@@ -36,7 +36,7 @@ export function DemoResolveView({ locale, strategy, result }: DemoResolveViewPro
   const cacheSnapshotJson = JSON.stringify(result.cacheSnapshot, null, 2);
   const { cacheReport, cacheSnapshot } = result;
   const traceHint =
-    strategy === "decoupled"
+    strategy === "lane"
       ? "Lane batches are logged in the dev server terminal."
       : "Barrier rounds are logged in the dev server terminal.";
 
@@ -208,11 +208,11 @@ function StrategySwitcher({ locale, strategy }: { locale: string; strategy: Demo
         barrier
       </Link>
       <Link
-        href={strategyPath(locale, "decoupled")}
-        className={strategy === "decoupled" ? "locale-link active" : "locale-link"}
-        aria-current={strategy === "decoupled" ? "page" : undefined}
+        href={strategyPath(locale, "lane")}
+        className={strategy === "lane" ? "locale-link active" : "locale-link"}
+        aria-current={strategy === "lane" ? "page" : undefined}
       >
-        decoupled
+        lane
       </Link>
     </nav>
   );

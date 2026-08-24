@@ -1,4 +1,7 @@
-import { ResolveContentGraphEngine, serializeAllIslands } from "@xndrjs/resource-graph-resolver";
+import {
+  BarrierResolveContentGraphEngine,
+  serializeAllIslands,
+} from "@xndrjs/resource-graph-resolver";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -18,7 +21,7 @@ describe("serializeAllIslands", () => {
     const executionContext = createDefaultDemoExecutionContext();
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
-    const engine = new ResolveContentGraphEngine(
+    const engine = new BarrierResolveContentGraphEngine(
       createDemoDataGateway(createCmsDataLoader(demoCmsStore), createIntegrationDataLoader()),
       createDemoExpansionPort()
     );

@@ -4,7 +4,7 @@ import type { DataResolutionPull } from "./data-resolution-port";
 import type { ContentRegistry, ResolvedResourceRecord } from "../types";
 
 /**
- * Source-owned loader for {@link import("../engines/decoupled-resolve-content-graph-engine").DecoupledResolveContentGraphEngine}.
+ * Source-owned loader for {@link import("../engines/lane-resolve-content-graph-engine").LaneResolveContentGraphEngine}.
  *
  * Distinct from {@link import("./data-resolution-port").DataResolutionPort}: that port is the
  * barrier engine’s round collaborator. A loader adds {@link accepts} for chain-of-responsibility
