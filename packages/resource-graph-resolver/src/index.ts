@@ -10,6 +10,7 @@ export {
   type DataResolutionPort,
   type DataResolutionPull,
 } from "./data-resolution-port";
+export { DecoupledResolveContentGraphEngine } from "./decoupled-resolve-content-graph-engine";
 export { ResolveContentGraphAbortedError } from "./errors";
 export {
   createExpansionPolicyChain,
@@ -23,6 +24,7 @@ export {
 export { IslandDependencyMap } from "./island-dependency-map";
 export { IslandMap } from "./island-map";
 export { ResolveContentGraphEngine } from "./resolve-content-graph-engine";
+export type { ResourceLoader } from "./resource-loader";
 export { serializeAllIslands, serializeIsland } from "./serialize-island";
 export type {
   ContentRegistry,
