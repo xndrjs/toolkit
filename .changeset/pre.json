@@ -23,5 +23,9 @@
     "@xndrjs/resource-graph-resolver": "0.0.0",
     "@xndrjs/tasks": "0.2.0"
   },
-  "changesets": []
+  "changesets": [
+    "ari-identity-tostring",
+    "content-type-id-registry",
+    "resource-graph-resolver"
+  ]
 }
