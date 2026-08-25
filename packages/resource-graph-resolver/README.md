@@ -4,6 +4,8 @@ Application-layer **resource graph** resolution: typed `ContentMap`, island memb
 
 Full guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 
+Architecture diagrams (wiring, resolve loop, lane vs barrier, islands): [docs/architecture.md](./docs/architecture.md).
+
 ## Installation
 
 ```bash
