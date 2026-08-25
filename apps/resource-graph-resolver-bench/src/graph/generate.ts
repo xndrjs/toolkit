@@ -1,9 +1,14 @@
 import { benchNodeAri, type BenchNodeResource } from "./ari";
 
-/** Default CMS node cap; raise via `maxNodes` for arity ≥ 4 at depth 10. */
-export const DEFAULT_MAX_NODES = 50_000;
+/**
+ * Default CMS node cap (pagebuilder-scale benches stay well under this).
+ * Raise via `--max-nodes` for stress trees (e.g. depth 10 × arity 3 ≈ 29k CMS).
+ */
+export const DEFAULT_MAX_NODES = 10_000;
 
 export const BENCH_ROOT_ID = "n-0";
+
+export type GraphProfile = "tree" | "pagebuilder";
 
 export type BenchNodePayload = {
   readonly children: readonly string[];
@@ -36,8 +41,15 @@ export type BenchGraphCounts = {
 export type GeneratedBenchGraph = {
   readonly root: BenchNodeResource;
   readonly rootId: typeof BENCH_ROOT_ID;
+  readonly profile: GraphProfile;
+  /** Max CMS depth (tree: full height; pagebuilder: page nesting cap). */
   readonly depth: number;
+  /** Tree arity / pagebuilder section branch factor. */
   readonly arity: number;
+  /** Page root fan-out; `0` when `profile === "tree"`. */
+  readonly modules: number;
+  /** Early-product stride; `0` when `profile === "tree"`. */
+  readonly productStride: number;
   readonly cmsStore: ReadonlyMap<string, BenchNodePayload>;
   readonly productCatalog: ReadonlyMap<string, BenchProductPayload>;
   readonly counts: BenchGraphCounts;
@@ -87,7 +99,7 @@ export function expectedCmsNodeCount(depth: number, arity: number): number {
  * Builds an in-memory CMS tree plus one product per leaf.
  *
  * Naming is deterministic (`n-0`, `n-0-0`, …) so runs are reproducible without RNG.
- * Expansion never uses islands: leaves expand to products via {@link createBenchExpansionPort}.
+ * Expansion never uses islands: leaves expand to products via the shared expansion port.
  */
 export function generateBenchGraph(input: GenerateBenchGraphInput): GeneratedBenchGraph {
   const { depth, arity } = input;
@@ -137,8 +149,11 @@ export function generateBenchGraph(input: GenerateBenchGraphInput): GeneratedBen
   return {
     root: benchNodeAri({ id: BENCH_ROOT_ID }),
     rootId: BENCH_ROOT_ID,
+    profile: "tree",
     depth,
     arity,
+    modules: 0,
+    productStride: 0,
     cmsStore,
     productCatalog,
     counts: {

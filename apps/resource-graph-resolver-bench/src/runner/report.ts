@@ -84,8 +84,11 @@ export async function writeMarkdownReport(path: string, markdown: string): Promi
 /** Pairing key: all dimensions except strategy (for lane vs barrier deltas). */
 function pairKey(config: BenchCaseConfig): string {
   return [
+    config.profile,
+    config.modules,
     config.depth,
     config.arity,
+    config.productStride,
     config.cmsBatchSize,
     config.integrationBatchSize,
     config.cmsLatencyMs,
@@ -97,8 +100,11 @@ function pairKey(config: BenchCaseConfig): string {
 
 type StrategyPair = {
   readonly key: string;
+  readonly profile: string;
+  readonly modules: number;
   readonly depth: number;
   readonly arity: number;
+  readonly productStride: number;
   readonly cmsBatchSize: number;
   readonly integrationBatchSize: number;
   readonly cmsLatencyMs: number;
@@ -114,8 +120,11 @@ function groupStrategyPairs(cells: readonly BenchCaseResult[]): StrategyPair[] {
     const key = pairKey(cell.config);
     const existing = map.get(key) ?? {
       key,
+      profile: cell.config.profile,
+      modules: cell.config.modules,
       depth: cell.config.depth,
       arity: cell.config.arity,
+      productStride: cell.config.productStride,
       cmsBatchSize: cell.config.cmsBatchSize,
       integrationBatchSize: cell.config.integrationBatchSize,
       cmsLatencyMs: cell.config.cmsLatencyMs,
@@ -129,8 +138,11 @@ function groupStrategyPairs(cells: readonly BenchCaseResult[]): StrategyPair[] {
   }
 
   return [...map.values()].sort((a, b) => {
+    if (a.profile !== b.profile) return a.profile.localeCompare(b.profile);
+    if (a.modules !== b.modules) return a.modules - b.modules;
     if (a.depth !== b.depth) return a.depth - b.depth;
     if (a.arity !== b.arity) return a.arity - b.arity;
+    if (a.productStride !== b.productStride) return a.productStride - b.productStride;
     if (a.cmsBatchSize !== b.cmsBatchSize) return a.cmsBatchSize - b.cmsBatchSize;
     return a.integrationBatchSize - b.integrationBatchSize;
   });
@@ -192,6 +204,7 @@ export function renderComparisonMarkdown(cells: readonly BenchCaseResult[]): str
   lines.push("# Scheduler benchmark comparison");
   lines.push("");
   lines.push(`- Cells: \`${cells.length}\``);
+  lines.push(`- Profile (typical): \`${first.config.profile}\``);
   lines.push(`- Warmup: \`${first.config.warmup}\``);
   lines.push(`- Repeats: \`${first.config.repeats}\``);
   lines.push(
@@ -203,7 +216,9 @@ export function renderComparisonMarkdown(cells: readonly BenchCaseResult[]): str
   lines.push(
     "1. At the same graph and configured batch size, does **lane reduce wall clock** vs barrier when integration latency ≫ CMS latency?"
   );
-  lines.push("2. How do **batchCount and wall** scale as arity grows and `cmsBatchSize` changes?");
+  lines.push(
+    "2. How do **batchCount and wall** scale as page size (`modules`) / arity grows and `cmsBatchSize` changes?"
+  );
   lines.push(
     "3. At the same configured `cmsBatchSize` max, how do **effective** batch sizes differ between lane and barrier (mean / median / p95, and full vs under-filled share)?"
   );
@@ -217,24 +232,26 @@ export function renderComparisonMarkdown(cells: readonly BenchCaseResult[]): str
 
   lines.push("## Wall clock (median ms)");
   lines.push("");
-  lines.push("| depth | arity | cmsBatch | graph (cms+prod) | lane | barrier | Δ% |");
-  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push(
+    "| profile | modules | depth | arity | stride | cmsBatch | graph (cms+prod) | lane | barrier | Δ% |"
+  );
+  lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const pair of pairs) {
     const graph = pair.lane?.graph ?? pair.barrier?.graph;
     const graphLabel = graph ? `${graph.cmsNodeCount}+${graph.productCount}` : "—";
     lines.push(
-      `| ${pair.depth} | ${pair.arity} | ${pair.cmsBatchSize} | ${graphLabel} | ${medianOf(pair.lane, (c) => c.summary.wallMs.median)} | ${medianOf(pair.barrier, (c) => c.summary.wallMs.median)} | ${pctDelta(pair.lane?.summary.wallMs.median, pair.barrier?.summary.wallMs.median)} |`
+      `| ${pair.profile} | ${pair.modules} | ${pair.depth} | ${pair.arity} | ${pair.productStride} | ${pair.cmsBatchSize} | ${graphLabel} | ${medianOf(pair.lane, (c) => c.summary.wallMs.median)} | ${medianOf(pair.barrier, (c) => c.summary.wallMs.median)} | ${pctDelta(pair.lane?.summary.wallMs.median, pair.barrier?.summary.wallMs.median)} |`
     );
   }
   lines.push("");
 
   lines.push("## Batch count (median)");
   lines.push("");
-  lines.push("| depth | arity | cmsBatch | lane | barrier | Δ% |");
-  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| profile | modules | depth | arity | stride | cmsBatch | lane | barrier | Δ% |");
+  lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const pair of pairs) {
     lines.push(
-      `| ${pair.depth} | ${pair.arity} | ${pair.cmsBatchSize} | ${medianOf(pair.lane, (c) => c.summary.batchCount.median)} | ${medianOf(pair.barrier, (c) => c.summary.batchCount.median)} | ${pctDelta(pair.lane?.summary.batchCount.median, pair.barrier?.summary.batchCount.median)} |`
+      `| ${pair.profile} | ${pair.modules} | ${pair.depth} | ${pair.arity} | ${pair.productStride} | ${pair.cmsBatchSize} | ${medianOf(pair.lane, (c) => c.summary.batchCount.median)} | ${medianOf(pair.barrier, (c) => c.summary.batchCount.median)} | ${pctDelta(pair.lane?.summary.batchCount.median, pair.barrier?.summary.batchCount.median)} |`
     );
   }
   lines.push("");
@@ -246,12 +263,12 @@ export function renderComparisonMarkdown(cells: readonly BenchCaseResult[]): str
   );
   lines.push("");
   lines.push(
-    "| depth | arity | cmsBatch | lane mean | barrier mean | lane median | barrier median | lane p95 | barrier p95 |"
+    "| profile | modules | cmsBatch | lane mean | barrier mean | lane median | barrier median | lane p95 | barrier p95 |"
   );
-  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const pair of pairs) {
     lines.push(
-      `| ${pair.depth} | ${pair.arity} | ${pair.cmsBatchSize} | ${fmt(sourceEffective(pair.lane, CMS_SOURCE_ID, "effectiveBatchSizeMean") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, CMS_SOURCE_ID, "effectiveBatchSizeMean") ?? Number.NaN)} | ${fmt(sourceEffective(pair.lane, CMS_SOURCE_ID, "effectiveBatchSizeMedian") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, CMS_SOURCE_ID, "effectiveBatchSizeMedian") ?? Number.NaN)} | ${fmt(sourceEffective(pair.lane, CMS_SOURCE_ID, "effectiveBatchSizeP95") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, CMS_SOURCE_ID, "effectiveBatchSizeP95") ?? Number.NaN)} |`
+      `| ${pair.profile} | ${pair.modules} | ${pair.cmsBatchSize} | ${fmt(sourceEffective(pair.lane, CMS_SOURCE_ID, "effectiveBatchSizeMean") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, CMS_SOURCE_ID, "effectiveBatchSizeMean") ?? Number.NaN)} | ${fmt(sourceEffective(pair.lane, CMS_SOURCE_ID, "effectiveBatchSizeMedian") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, CMS_SOURCE_ID, "effectiveBatchSizeMedian") ?? Number.NaN)} | ${fmt(sourceEffective(pair.lane, CMS_SOURCE_ID, "effectiveBatchSizeP95") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, CMS_SOURCE_ID, "effectiveBatchSizeP95") ?? Number.NaN)} |`
     );
   }
   lines.push("");
@@ -259,12 +276,12 @@ export function renderComparisonMarkdown(cells: readonly BenchCaseResult[]): str
   lines.push("## Effective batch size — integration");
   lines.push("");
   lines.push(
-    "| depth | arity | cmsBatch | lane mean | barrier mean | lane median | barrier median | lane p95 | barrier p95 |"
+    "| profile | modules | cmsBatch | lane mean | barrier mean | lane median | barrier median | lane p95 | barrier p95 |"
   );
-  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const pair of pairs) {
     lines.push(
-      `| ${pair.depth} | ${pair.arity} | ${pair.cmsBatchSize} | ${fmt(sourceEffective(pair.lane, INTEGRATION_SOURCE_ID, "effectiveBatchSizeMean") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, INTEGRATION_SOURCE_ID, "effectiveBatchSizeMean") ?? Number.NaN)} | ${fmt(sourceEffective(pair.lane, INTEGRATION_SOURCE_ID, "effectiveBatchSizeMedian") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, INTEGRATION_SOURCE_ID, "effectiveBatchSizeMedian") ?? Number.NaN)} | ${fmt(sourceEffective(pair.lane, INTEGRATION_SOURCE_ID, "effectiveBatchSizeP95") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, INTEGRATION_SOURCE_ID, "effectiveBatchSizeP95") ?? Number.NaN)} |`
+      `| ${pair.profile} | ${pair.modules} | ${pair.cmsBatchSize} | ${fmt(sourceEffective(pair.lane, INTEGRATION_SOURCE_ID, "effectiveBatchSizeMean") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, INTEGRATION_SOURCE_ID, "effectiveBatchSizeMean") ?? Number.NaN)} | ${fmt(sourceEffective(pair.lane, INTEGRATION_SOURCE_ID, "effectiveBatchSizeMedian") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, INTEGRATION_SOURCE_ID, "effectiveBatchSizeMedian") ?? Number.NaN)} | ${fmt(sourceEffective(pair.lane, INTEGRATION_SOURCE_ID, "effectiveBatchSizeP95") ?? Number.NaN)} | ${fmt(sourceEffective(pair.barrier, INTEGRATION_SOURCE_ID, "effectiveBatchSizeP95") ?? Number.NaN)} |`
     );
   }
   lines.push("");
@@ -276,23 +293,23 @@ export function renderComparisonMarkdown(cells: readonly BenchCaseResult[]): str
   );
   lines.push("");
   lines.push(
-    "| depth | arity | cmsBatch | lane full% | barrier full% | lane eq1% | barrier eq1% | lane ≤50% | barrier ≤50% |"
+    "| profile | modules | cmsBatch | lane full% | barrier full% | lane eq1% | barrier eq1% | lane ≤50% | barrier ≤50% |"
   );
-  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const pair of pairs) {
     lines.push(
-      `| ${pair.depth} | ${pair.arity} | ${pair.cmsBatchSize} | ${fillShare(pair.lane, CMS_SOURCE_ID, "full")} | ${fillShare(pair.barrier, CMS_SOURCE_ID, "full")} | ${fillShare(pair.lane, CMS_SOURCE_ID, "eq1")} | ${fillShare(pair.barrier, CMS_SOURCE_ID, "eq1")} | ${fillShare(pair.lane, CMS_SOURCE_ID, "lteHalf")} | ${fillShare(pair.barrier, CMS_SOURCE_ID, "lteHalf")} |`
+      `| ${pair.profile} | ${pair.modules} | ${pair.cmsBatchSize} | ${fillShare(pair.lane, CMS_SOURCE_ID, "full")} | ${fillShare(pair.barrier, CMS_SOURCE_ID, "full")} | ${fillShare(pair.lane, CMS_SOURCE_ID, "eq1")} | ${fillShare(pair.barrier, CMS_SOURCE_ID, "eq1")} | ${fillShare(pair.lane, CMS_SOURCE_ID, "lteHalf")} | ${fillShare(pair.barrier, CMS_SOURCE_ID, "lteHalf")} |`
     );
   }
   lines.push("");
 
   lines.push("## Overlap (median ms with ≥2 batches in flight)");
   lines.push("");
-  lines.push("| depth | arity | cmsBatch | lane | barrier |");
-  lines.push("| ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| profile | modules | cmsBatch | lane | barrier |");
+  lines.push("| --- | ---: | ---: | ---: | ---: |");
   for (const pair of pairs) {
     lines.push(
-      `| ${pair.depth} | ${pair.arity} | ${pair.cmsBatchSize} | ${medianOf(pair.lane, (c) => c.summary.overlapMs.median)} | ${medianOf(pair.barrier, (c) => c.summary.overlapMs.median)} |`
+      `| ${pair.profile} | ${pair.modules} | ${pair.cmsBatchSize} | ${medianOf(pair.lane, (c) => c.summary.overlapMs.median)} | ${medianOf(pair.barrier, (c) => c.summary.overlapMs.median)} |`
     );
   }
   lines.push("");

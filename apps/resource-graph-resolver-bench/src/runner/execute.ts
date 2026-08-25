@@ -5,11 +5,30 @@ import {
 
 import { createBenchExpansionPort } from "../graph/expansion";
 import { generateBenchGraph, type GeneratedBenchGraph } from "../graph/generate";
+import { generatePagebuilderGraph } from "../graph/pagebuilder";
 import { createMetricsCollector, type ResolutionRunMetrics } from "../metrics/collect";
 import { summarizeRuns } from "../metrics/summarize";
 import { createCmsSource, CMS_SOURCE_ID } from "../sources/cms-source";
 import { createIntegrationSource, INTEGRATION_SOURCE_ID } from "../sources/integration-source";
 import type { BenchCaseConfig, BenchCaseResult } from "./types";
+
+function generateGraphForCase(config: BenchCaseConfig): GeneratedBenchGraph {
+  if (config.profile === "pagebuilder") {
+    return generatePagebuilderGraph({
+      modules: config.modules,
+      depth: config.depth,
+      arity: config.arity,
+      productStride: config.productStride,
+      maxNodes: config.maxNodes,
+    });
+  }
+
+  return generateBenchGraph({
+    depth: config.depth,
+    arity: config.arity,
+    maxNodes: config.maxNodes,
+  });
+}
 
 async function resolveOnce(
   graph: GeneratedBenchGraph,
@@ -54,11 +73,7 @@ async function resolveOnce(
  * measured repeats → summarized metrics.
  */
 export async function executeBenchCase(config: BenchCaseConfig): Promise<BenchCaseResult> {
-  const graph = generateBenchGraph({
-    depth: config.depth,
-    arity: config.arity,
-    maxNodes: config.maxNodes,
-  });
+  const graph = generateGraphForCase(config);
 
   for (let i = 0; i < config.warmup; i += 1) {
     await resolveOnce(graph, config);
@@ -79,8 +94,11 @@ export async function executeBenchCase(config: BenchCaseConfig): Promise<BenchCa
 
 /** Stable label for logging / `--list` (excludes warmup/repeats/maxNodes). */
 export function formatCaseLabel(config: {
+  readonly profile: string;
   readonly depth: number;
   readonly arity: number;
+  readonly modules: number;
+  readonly productStride: number;
   readonly strategy: ResolutionStrategy;
   readonly cmsBatchSize: number;
   readonly integrationBatchSize: number;
@@ -89,9 +107,13 @@ export function formatCaseLabel(config: {
   readonly cmsConcurrency: number;
   readonly integrationConcurrency: number;
 }): string {
+  const shape =
+    config.profile === "pagebuilder"
+      ? `profile=pagebuilder modules=${config.modules} depth=${config.depth} arity=${config.arity} stride=${config.productStride}`
+      : `profile=tree depth=${config.depth} arity=${config.arity}`;
+
   return [
-    `depth=${config.depth}`,
-    `arity=${config.arity}`,
+    shape,
     `strategy=${config.strategy}`,
     `cmsBatch=${config.cmsBatchSize}`,
     `intBatch=${config.integrationBatchSize}`,

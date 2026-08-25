@@ -1,13 +1,18 @@
 import type { ResolutionStrategy } from "@xndrjs/resource-graph-resolver";
 
-import type { BenchGraphCounts } from "../graph/generate";
+import type { BenchGraphCounts, GraphProfile } from "../graph/generate";
 import type { ResolutionRunMetrics } from "../metrics/collect";
 import type { RunsMetricsSummary } from "../metrics/summarize";
 
 /** One matrix cell / single-run configuration. */
 export type BenchCaseConfig = {
+  readonly profile: GraphProfile;
   readonly depth: number;
   readonly arity: number;
+  /** Page root fan-out; unused (`0`) for `tree`. */
+  readonly modules: number;
+  /** Early-product stride; unused (`0`) for `tree`. */
+  readonly productStride: number;
   readonly strategy: ResolutionStrategy;
   readonly cmsBatchSize: number;
   readonly integrationBatchSize: number;
@@ -24,8 +29,11 @@ export type BenchCaseConfig = {
 
 /** Dimensions that form the cartesian product for `--matrix` (before warmup/repeats). */
 export type MatrixDimensions = {
+  readonly profile: readonly GraphProfile[];
   readonly depth: readonly number[];
   readonly arity: readonly number[];
+  readonly modules: readonly number[];
+  readonly productStride: readonly number[];
   readonly strategy: readonly ResolutionStrategy[];
   readonly cmsBatchSize: readonly number[];
   readonly integrationBatchSize: readonly number[];
@@ -73,8 +81,11 @@ export type BenchSummaryOutput = {
 };
 
 export type RunnerCliArgs = {
+  readonly profile?: GraphProfile;
   readonly depth?: number;
   readonly arity?: number;
+  readonly modules?: number;
+  readonly productStride?: number;
   readonly strategy?: ResolutionStrategy;
   readonly cmsBatchSize?: number;
   readonly integrationBatchSize?: number;

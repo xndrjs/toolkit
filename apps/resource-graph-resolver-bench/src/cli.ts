@@ -2,7 +2,7 @@ import { join } from "node:path";
 
 import type { ResolutionStrategy } from "@xndrjs/resource-graph-resolver";
 
-import { DEFAULT_MAX_NODES } from "./graph/generate";
+import { DEFAULT_MAX_NODES, type GraphProfile } from "./graph/generate";
 import { executeBenchCase, formatCaseLabel } from "./runner/execute";
 import { casesFromArgs, DEFAULT_MATRIX_DIMENSIONS, DEFAULT_SINGLE_RUN } from "./runner/matrix";
 import { defaultResultDir, writeBenchArtifacts } from "./runner/report";
@@ -13,9 +13,16 @@ const HELP_TEXT = `Usage:
   pnpm --filter @xndrjs/resource-graph-resolver-bench bench -- [options]
   pnpm --filter @xndrjs/resource-graph-resolver-bench bench:matrix
 
+Profiles:
+  pagebuilder (default)  Wide page fan-out, shallow nesting, products at mixed depths
+  tree                   Regular synthetic tree (depth × arity); products only at leaves
+
 Options:
-  --depth <n>                   Tree depth (default single: ${DEFAULT_SINGLE_RUN.depth}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.depth.join(",")})
-  --arity <n>                   Children per CMS node (default single: ${DEFAULT_SINGLE_RUN.arity}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.arity.join(",")})
+  --profile <name>              Graph profile (default: ${DEFAULT_SINGLE_RUN.profile})
+  --modules <n>                 Page root fan-out (pagebuilder; default single: ${DEFAULT_SINGLE_RUN.modules}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.modules.join(",")})
+  --depth <n>                   Max CMS depth (default single: ${DEFAULT_SINGLE_RUN.depth}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.depth.join(",")})
+  --arity <n>                   Section/tree branch factor (default single: ${DEFAULT_SINGLE_RUN.arity}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.arity.join(",")})
+  --product-stride <n>          Early product every Nth sibling (pagebuilder; default: ${DEFAULT_SINGLE_RUN.productStride})
   --strategy <lane|barrier>     Scheduler strategy (default single: ${DEFAULT_SINGLE_RUN.strategy}; matrix: both)
   --cms-batch-size <n>          Max CMS batch size (default single: ${DEFAULT_SINGLE_RUN.cmsBatchSize}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.cmsBatchSize.join(",")})
   --integration-batch-size <n>  Max integration batch size (default: ${DEFAULT_SINGLE_RUN.integrationBatchSize})
@@ -98,8 +105,18 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerCliArgs {
     ["lane", "barrier"],
     "strategy"
   ) as ResolutionStrategy | undefined;
+  const profile = ensureEnum(
+    map.get("profile") as string | undefined,
+    ["pagebuilder", "tree"],
+    "profile"
+  ) as GraphProfile | undefined;
 
   return {
+    ...(profile ? { profile } : {}),
+    ...optionalNumberField(
+      "modules",
+      parseOptionalIntegerFlag(map.get("modules") as string | undefined, "--modules")
+    ),
     ...optionalNumberField(
       "depth",
       parseOptionalIntegerFlag(map.get("depth") as string | undefined, "--depth")
@@ -107,6 +124,10 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerCliArgs {
     ...optionalNumberField(
       "arity",
       parseOptionalIntegerFlag(map.get("arity") as string | undefined, "--arity")
+    ),
+    ...optionalNumberField(
+      "productStride",
+      parseOptionalIntegerFlag(map.get("product-stride") as string | undefined, "--product-stride")
     ),
     ...(strategy ? { strategy } : {}),
     ...optionalNumberField(
@@ -171,8 +192,10 @@ function assertRunnable(args: RunnerCliArgs): void {
   }
 
   const positiveFlags: [keyof RunnerCliArgs, string][] = [
+    ["modules", "--modules"],
     ["depth", "--depth"],
     ["arity", "--arity"],
+    ["productStride", "--product-stride"],
     ["cmsBatchSize", "--cms-batch-size"],
     ["integrationBatchSize", "--integration-batch-size"],
     ["cmsConcurrency", "--cms-concurrency"],

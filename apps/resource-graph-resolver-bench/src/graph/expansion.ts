@@ -8,8 +8,9 @@ import { benchNodeAri, benchProductAri } from "./ari";
 import type { BenchContentRegistry } from "./generate";
 
 /**
- * Cold-path expansion for generated trees: internal CMS nodes → child nodes;
- * CMS leaves → one `bench.product` with the same id as SKU.
+ * Cold-path expansion for generated graphs (regular tree or pagebuilder):
+ * internal CMS nodes → child nodes; CMS leaves (empty `children`) → one
+ * `bench.product` with the same id as SKU.
  *
  * Never sets `isIsland` (scheduler bench only; islands are out of scope).
  */
