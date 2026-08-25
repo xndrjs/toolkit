@@ -32,7 +32,7 @@ Islands are meant for **macro-grouping**. A resource reachable from many islands
 
 The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `ResourceSource` per backend, and an `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
-For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app (`demo-resolver.ts` declares the sources and policies once; the two orchestrations differ only by `strategy`).
+For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and expansion once; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_STRATEGY` in that file to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'stepAfter'}}}%%
@@ -175,7 +175,7 @@ Both strategies produce **identical** graph output — same `ContentMap`, island
 | `lane`    | Expand as soon as **any** batch commits; sources advance independently | Uneven backend latency: a fast CMS should not wait on a slow commercial API |
 | `barrier` | Wait for **every** in-flight batch, then expand together               | Reproducible rounds for tracing and tests; backends of similar latency      |
 
-Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave. The demo app defaults to `lane` (flip `DEMO_STRATEGY` in code to try `barrier`); timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
+Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave.
 
 When several sources declare the same ARI `type`, the first whose family `matches` the ARI wins; callers guarantee exactly one meaningful owner per ARI.
 
