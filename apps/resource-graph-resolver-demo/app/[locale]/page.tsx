@@ -1,7 +1,12 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
-import { parseDemoLocaleParam } from "../../src/infrastructure/demo-execution-context";
+import { DemoResolveView } from "../components/demo-resolve-view";
 import { CONTENTFUL_LOCALE_CODES } from "../../src/infrastructure/cms/generated/contentful.schemas";
+import { parseDemoLocaleParam } from "../../src/infrastructure/demo-execution-context";
+import { resolveDemoPage } from "../../src/orchestration/resolve-demo-page";
+
+/** Re-run resolve on every navigation so the shared LRU cache report stays live. */
+export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -11,9 +16,14 @@ export function generateStaticParams() {
   return CONTENTFUL_LOCALE_CODES.map((locale) => ({ locale }));
 }
 
-/** Default locale entry → barrier strategy page. */
-export default async function LocaleIndexPage({ params }: Props) {
+export default async function LocaleDemoPage({ params }: Props) {
   const { locale: localeParam } = await params;
   const locale = parseDemoLocaleParam(localeParam);
-  redirect(`/${locale ?? localeParam}/barrier`);
+
+  if (!locale) {
+    notFound();
+  }
+
+  const result = await resolveDemoPage(locale);
+  return <DemoResolveView locale={locale} result={result} />;
 }

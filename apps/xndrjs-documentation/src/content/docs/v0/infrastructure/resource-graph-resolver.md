@@ -175,7 +175,7 @@ Both strategies produce **identical** graph output — same `ContentMap`, island
 | `lane`    | Expand as soon as **any** batch commits; sources advance independently | Uneven backend latency: a fast CMS should not wait on a slow commercial API |
 | `barrier` | Wait for **every** in-flight batch, then expand together               | Reproducible rounds for tracing and tests; backends of similar latency      |
 
-Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave. The demo exposes both: `/[locale]/barrier` and `/[locale]/lane`, with a terminal trace that shows which batches overlap.
+Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave. The demo app defaults to `lane` (flip `DEMO_STRATEGY` in code to try `barrier`); timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
 When several sources declare the same ARI `type`, the first whose family `matches` the ARI wins; callers guarantee exactly one meaningful owner per ARI.
 

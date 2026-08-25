@@ -4,26 +4,22 @@ import { ClearCacheButton } from "./clear-cache-button";
 import { CopyButton } from "./copy-button";
 import { CONTENTFUL_LOCALE_CODES } from "../../src/infrastructure/cms/generated/contentful.schemas";
 import type { IslandCacheSnapshotEntry } from "../../src/infrastructure/cache/index";
-import type { ResolveDemoPageResult } from "../../src/orchestration/resolve-demo-shared";
-
-export type DemoWalkStrategy = "barrier" | "lane";
+import type { ResolveDemoPageResult } from "../../src/orchestration/resolve-demo-page";
 
 type DemoResolveViewProps = {
   locale: string;
-  strategy: DemoWalkStrategy;
   result: ResolveDemoPageResult;
 };
 
-export function DemoResolveView({ locale, strategy, result }: DemoResolveViewProps) {
+export function DemoResolveView({ locale, result }: DemoResolveViewProps) {
   if (!result.ok) {
     return (
       <main>
         <header className="page-header">
           <h1>Resource graph resolver demo</h1>
-          <LocaleSwitcher activeLocale={locale} strategy={strategy} />
+          <LocaleSwitcher activeLocale={locale} />
         </header>
-        <StrategySwitcher locale={locale} strategy={strategy} />
-        <p className="lead error">Resolution failed ({strategy}).</p>
+        <p className="lead error">Resolution failed ({result.strategy}).</p>
         <pre>
           <code>{JSON.stringify(result.errors, null, 2)}</code>
         </pre>
@@ -34,22 +30,17 @@ export function DemoResolveView({ locale, strategy, result }: DemoResolveViewPro
   const pageJson = JSON.stringify(result.page, null, 2);
   const cacheReportJson = JSON.stringify(result.cacheReport, null, 2);
   const cacheSnapshotJson = JSON.stringify(result.cacheSnapshot, null, 2);
-  const { cacheReport, cacheSnapshot } = result;
-  const traceHint =
-    strategy === "lane"
-      ? "Overlapping source batches are logged in the dev server terminal."
-      : "Batches awaited together are logged in the dev server terminal.";
+  const { cacheReport, cacheSnapshot, strategy } = result;
 
   return (
     <main>
       <header className="page-header">
         <h1>Resource graph resolver demo</h1>
-        <LocaleSwitcher activeLocale={locale} strategy={strategy} />
+        <LocaleSwitcher activeLocale={locale} />
       </header>
-      <StrategySwitcher locale={locale} strategy={strategy} />
       <p className="lead">
         Resolved {result.resolvedCount} resources for <strong>{locale}</strong> with{" "}
-        <strong>{strategy}</strong> strategy. {traceHint}
+        <strong>{strategy}</strong> strategy. Batch timing is logged in the dev server terminal.
       </p>
       <section className="panel cache-panel">
         <div className="panel-header">
@@ -170,50 +161,19 @@ function formatExpiresAt(expiresAt: number): string {
   return `${seconds}s · ${new Date(expiresAt).toLocaleTimeString()}`;
 }
 
-function strategyPath(locale: string, strategy: DemoWalkStrategy): string {
-  return `/${locale}/${strategy}`;
-}
-
-function LocaleSwitcher({
-  activeLocale,
-  strategy,
-}: {
-  activeLocale: string;
-  strategy: DemoWalkStrategy;
-}) {
+function LocaleSwitcher({ activeLocale }: { activeLocale: string }) {
   return (
     <nav className="locale-switcher" aria-label="Locale">
       {CONTENTFUL_LOCALE_CODES.map((locale) => (
         <Link
           key={locale}
-          href={strategyPath(locale, strategy)}
+          href={`/${locale}`}
           className={locale === activeLocale ? "locale-link active" : "locale-link"}
           aria-current={locale === activeLocale ? "page" : undefined}
         >
           {locale}
         </Link>
       ))}
-    </nav>
-  );
-}
-
-function StrategySwitcher({ locale, strategy }: { locale: string; strategy: DemoWalkStrategy }) {
-  return (
-    <nav className="locale-switcher" aria-label="Walk strategy">
-      <Link
-        href={strategyPath(locale, "barrier")}
-        className={strategy === "barrier" ? "locale-link active" : "locale-link"}
-        aria-current={strategy === "barrier" ? "page" : undefined}
-      >
-        barrier
-      </Link>
-      <Link
-        href={strategyPath(locale, "lane")}
-        className={strategy === "lane" ? "locale-link active" : "locale-link"}
-        aria-current={strategy === "lane" ? "page" : undefined}
-      >
-        lane
-      </Link>
     </nav>
   );
 }

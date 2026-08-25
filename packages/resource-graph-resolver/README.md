@@ -4,8 +4,6 @@ Application-layer **resource graph** resolution: typed `ContentMap`, island memb
 
 Full guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 
-Architecture diagrams (wiring, resolve loop, lane vs barrier, islands): [docs/architecture.md](./docs/architecture.md).
-
 ## Installation
 
 ```bash
@@ -99,7 +97,7 @@ Under `lane`, a fast source keeps walking its own subgraph while a slow peer's r
 
 ## Demo
 
-See [`apps/resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) for Contentful-shaped fixtures, tiered island cache, domain-zod aggregation, and side-by-side `/barrier` vs `/lane` routes.
+See [`apps/resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) for Contentful-shaped fixtures, tiered island cache, and domain-zod aggregation.
 
 ## License
 

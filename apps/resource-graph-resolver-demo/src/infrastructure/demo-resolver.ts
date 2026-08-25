@@ -13,7 +13,11 @@ import { createIntegrationSource, demoProductCatalog } from "./integration/index
 import type { ProductIntegrationSnapshot } from "./integration/catalog.js";
 
 export type DemoResolverOptions = {
-  strategy: ResolutionStrategy;
+  /**
+   * Walk strategy. Defaults to `"lane"`.
+   * Pass `"barrier"` only when comparing schedulers by hand.
+   */
+  strategy?: ResolutionStrategy;
   /** Simulated CMS fetch latency in ms. Default 0. */
   cmsLatencyMs?: number;
   /** Simulated integration fetch latency in ms. Default 0. */
@@ -24,13 +28,11 @@ export type DemoResolverOptions = {
 };
 
 /**
- * The demo's whole data topology in one place: two backends, the ARI families
- * each owns, and the expansion policies that discover children.
- *
- * Swapping `strategy` is the only difference between the two demo pages.
+ * Demo wiring in one place: two backends, the ARI families each owns, and the
+ * expansion policies that discover children.
  */
 export function createDemoResolver(
-  options: DemoResolverOptions
+  options: DemoResolverOptions = {}
 ): ResourceGraphResolver<DemoContentRegistry, DemoExecutionContext> {
   return createResourceGraphResolver<DemoContentRegistry, DemoExecutionContext>({
     sources: [
@@ -42,7 +44,7 @@ export function createDemoResolver(
       }),
     ],
     expansion: createDemoExpansionPort(),
-    strategy: options.strategy,
+    strategy: options.strategy ?? "lane",
     observer: options.observer,
   });
 }
