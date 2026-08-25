@@ -27,9 +27,9 @@ The idea behind the first "pagebuilder" I designed was naive:
 
 A page loads its modules. A module loads its children. A product module loads its product data. React renders everything as it becomes available.
 
-It's simple. It also taught me something I did not expect: the hard part of these sites is **graph resolution**, and rendering is only what happens once the graph has been resolved.
+It's simple. It's also the quickest way to discover that the hard part of these sites is **resource graph resolution**. Rendering is only what happens after.
 
-That distinction is the reason I built [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/).
+That realization is why I built [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/).
 
 This article explains the problem first, the approaches that look reasonable but stop scaling, and the architectural model I ended up with.
 
@@ -37,7 +37,7 @@ The goal is not to explain every implementation detail of the library. It is to 
 
 ---
 
-## A page is not a tree of components
+## A page is not just a tree of components
 
 Consider a page like this:
 
@@ -114,7 +114,7 @@ Tab B ──> Product Strip ──> Product 123
 
 Without global coordination, `Product 123` will be requested twice.
 
-Caching individual requests can reduce the damage, but it does not change the fundamental problem: **the code that knows the graph is distributed across the rendering tree.**
+Caching individual requests can reduce the damage, but it does not change the fundamental problem: **the code that knows how to resolve the graph is spread across the rendering tree.**
 
 The system cannot easily see the **complete set of resources** that needs to be resolved.
 
@@ -237,11 +237,29 @@ Put every possible fragment in one operation.
 
 The query grows with the entire polymorphic surface of the CMS rather than with the actual page.
 
-Eventually query size and Contentful's complexity limits become hard constraints.
+Query size and Contentful's complexity limits become hard constraints very soon. Not feasible.
 
 #### One query per content-type family
 
-Split the query into smaller operations.
+Split the query into smaller operations, batching per content-type. For example:
+
+```graphql
+query HeroesById($ids: [String!]!) {
+  heroModuleCollection(where: { sys: { id_in: $ids } }) {
+    items {
+      sys {
+        id
+      }
+      title
+      image {
+        url
+      }
+    }
+  }
+}
+```
+
+Repeat for all content-types.
 
 Now you have traded query complexity for HTTP round-trips.
 
@@ -249,7 +267,9 @@ The number of operations grows with the number of content types you need to supp
 
 #### Build queries dynamically
 
-Inspect the actual page and construct only the fragments you need.
+_"I know!"_ - says the senior dev - _"I'll compose a dynamic GraphQL query"_.
+
+First you fetch the page skeleton (ids and content-types of the linked modules). Then, at runtime, you generate a GraphQL document that includes **only** the `... on Type` fragments for types that actually appear on that page — not the whole polymorphic catalogue.
 
 This is better.
 
@@ -257,7 +277,7 @@ But now your application is implementing a runtime query planner.
 
 And when a generated query becomes too complex, you may need to split it again, retry, and potentially issue several requests for the same page.
 
-At that point the interesting problem is no longer:
+At that point you realize that the interesting problem is no longer:
 
 > "How do I write a better GraphQL query?"
 
@@ -265,9 +285,7 @@ It is:
 
 > **"How do I resolve this graph efficiently?"**
 
-GraphQL can still be part of the infrastructure.
-
-It just doesn't need to define the architecture of the **whole** resolution process.
+Which is a different matter. The problem is not GraphQL: it can still be part of the infrastructure. It just doesn't need to define the architecture of the **whole** resolution process.
 
 ---
 
@@ -341,26 +359,20 @@ At this point the requirements become clearer.
 
 We need something that can:
 
-- start from a "root" resource
-- discover the resources it references
+- start from a "root" resource and discover the resources it references
 - resolve resources from multiple backends
-- batch requests coherently
 - avoid resolving the same resource repeatedly
 - respect backend-specific limits (i.e. rate limits and batch limits)
 - support arbitrarily deep graphs
 - keep CMS and integration details out of the domain
-- produce something that can be cached and invalidated as a coherent unit
+- produce something that can be cached and invalidated as a coherent unit (or a small set of coherent units)
 - run without React or Next.js
 
 In other words:
 
 > **we need a dedicated part of the system for resolving resource graphs.**
 
-Not a smarter UI component.
-
-Not a larger GraphQL query.
-
-Not a second CMS.
+Not a smarter UI component. Not a larger GraphQL query. Not a second CMS.
 
 A **graph resolution engine**.
 
@@ -385,7 +397,7 @@ I want three distinct responsibilities:
              ┌─────────────────────┐
              │   Domain mapping    │
              │                     │
-             │  ContentMap → Page  │
+             │  Page ← ContentMap  │
              └──────────┬──────────┘
                         │
                         ▼
@@ -1159,7 +1171,7 @@ Product module → product
 Once everything is resolved, how does it become the model my application actually uses?
 
 ```text
-ContentMap → Page
+Page ← ContentMap
 ```
 
 That's the whole architecture, the rest is optimization.
