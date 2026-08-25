@@ -1,32 +1,22 @@
-import {
-  BarrierResolveContentGraphEngine,
-  serializeAllIslands,
-  type DataResolutionPort,
-} from "@xndrjs/resource-graph-resolver";
+import { serializeAllIslands, type ResolutionObserver } from "@xndrjs/resource-graph-resolver";
 import { describe, expect, it } from "vitest";
 
-import { createCmsDataLoader, cmsEntryAri, demoCmsStore, demoIds } from "../cms/index.js";
-import type { DemoContentRegistry } from "../content-registry.js";
-import { createDemoDataGateway } from "../demo-data-gateway.js";
+import { cmsEntryAri, demoIds } from "../cms/index.js";
 import { createDefaultDemoExecutionContext } from "../demo-execution-context.js";
-import { createDemoExpansionPort } from "../expansion-policies.js";
-import { createIntegrationDataLoader } from "../integration/index.js";
+import { createDemoResolver } from "../demo-resolver.js";
 import { loadBackingForRoot } from "./load-backing-for-root.js";
 import { DEFAULT_PAGE_ISLAND_TTL_MS, LruIslandCache } from "./lru-island-cache.js";
 import { persistResolvedIslands } from "./persist-resolved-islands.js";
 
-function createCountingGateway(inner: DataResolutionPort<DemoContentRegistry>): {
-  port: DataResolutionPort<DemoContentRegistry>;
-  pulledResourceCount: () => number;
-} {
-  let pulledResourceCount = 0;
+/** Counts resources the sources actually had to fetch, straight off the observer. */
+function createLoadCounter(): { observer: ResolutionObserver; loadedResourceCount: () => number } {
+  let loadedResourceCount = 0;
+
   return {
-    pulledResourceCount: () => pulledResourceCount,
-    port: {
-      async process(pull) {
-        const result = await inner.process(pull);
-        pulledResourceCount += result.length;
-        return result;
+    loadedResourceCount: () => loadedResourceCount,
+    observer: {
+      onBatchEnd({ resolvedCount }) {
+        loadedResourceCount += resolvedCount;
       },
     },
   };
@@ -37,19 +27,16 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
   dependencyManifestStatus: string;
   backingResourceCount: number;
   promotedResourceCount: number;
-  pulledResourceCount: number;
+  loadedResourceCount: number;
 }> {
   const executionContext = createDefaultDemoExecutionContext();
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
-  const counting = createCountingGateway(
-    createDemoDataGateway(createCmsDataLoader(demoCmsStore), createIntegrationDataLoader())
-  );
-  const engine = new BarrierResolveContentGraphEngine(counting.port, createDemoExpansionPort());
+  const counter = createLoadCounter();
+  const resolver = createDemoResolver({ strategy: "barrier", observer: counter.observer });
 
   const { backingResources, report } = loadBackingForRoot(pageRoot, cache);
-  const backingResourceCount = report.backingResourceCount;
 
-  const output = await engine.execute({
+  const output = await resolver.resolve({
     root: pageRoot,
     executionContext,
     missingResourceMode: "throw",
@@ -58,7 +45,6 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
 
   expect(output.errors).toEqual([]);
 
-  const promotedResourceCount = backingResourceCount - backingResources.size;
   persistResolvedIslands(serializeAllIslands(output), cache, {
     rootIslandId: pageRoot.toString(),
     islandDependencies: output.islandDependencies,
@@ -67,14 +53,14 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
   return {
     rootIslandStatus: report.rootIslandStatus,
     dependencyManifestStatus: report.dependencyManifest,
-    backingResourceCount,
-    promotedResourceCount,
-    pulledResourceCount: counting.pulledResourceCount(),
+    backingResourceCount: report.backingResourceCount,
+    promotedResourceCount: output.promotedResourceKeys.length,
+    loadedResourceCount: counter.loadedResourceCount(),
   };
 }
 
 describe("island cache cold/warm round-trip", () => {
-  it("cold resolve persists islands; warm resolve hits page backing with few/zero pulls", async () => {
+  it("cold resolve persists islands; warm resolve hits page backing with few/zero loads", async () => {
     const cache = new LruIslandCache();
 
     const cold = await resolveWithCache(cache);
@@ -82,16 +68,16 @@ describe("island cache cold/warm round-trip", () => {
     expect(cold.dependencyManifestStatus).toBe("miss");
     expect(cold.backingResourceCount).toBe(0);
     expect(cold.promotedResourceCount).toBe(0);
-    expect(cold.pulledResourceCount).toBeGreaterThan(0);
+    expect(cold.loadedResourceCount).toBeGreaterThan(0);
 
     const warm = await resolveWithCache(cache);
     expect(warm.rootIslandStatus).toBe("hit");
     expect(warm.dependencyManifestStatus).toBe("hit");
     expect(warm.backingResourceCount).toBeGreaterThan(0);
     expect(warm.promotedResourceCount).toBeGreaterThan(0);
-    // Shared logo is in both menu + footer islands → omitted from backing, re-pulled once.
-    expect(warm.pulledResourceCount).toBe(1);
-    expect(warm.pulledResourceCount).toBeLessThan(cold.pulledResourceCount);
+    // Shared logo is in both menu + footer islands → omitted from backing, re-fetched once.
+    expect(warm.loadedResourceCount).toBe(1);
+    expect(warm.loadedResourceCount).toBeLessThan(cold.loadedResourceCount);
     expect(warm.promotedResourceCount).toBe(warm.backingResourceCount);
   });
 
@@ -101,11 +87,11 @@ describe("island cache cold/warm round-trip", () => {
 
     const cold = await resolveWithCache(cache);
     expect(cold.rootIslandStatus).toBe("miss");
-    expect(cold.pulledResourceCount).toBeGreaterThan(0);
+    expect(cold.loadedResourceCount).toBeGreaterThan(0);
 
     const warm = await resolveWithCache(cache);
     expect(warm.rootIslandStatus).toBe("hit");
-    expect(warm.pulledResourceCount).toBe(1);
+    expect(warm.loadedResourceCount).toBe(1);
 
     now = DEFAULT_PAGE_ISLAND_TTL_MS + 1;
 
@@ -113,21 +99,17 @@ describe("island cache cold/warm round-trip", () => {
     expect(partial.rootIslandStatus).toBe("miss");
     expect(partial.dependencyManifestStatus).toBe("hit");
     expect(partial.backingResourceCount).toBeGreaterThan(0);
-    expect(partial.pulledResourceCount).toBeGreaterThan(0);
-    expect(partial.pulledResourceCount).toBeLessThan(cold.pulledResourceCount);
+    expect(partial.loadedResourceCount).toBeGreaterThan(0);
+    expect(partial.loadedResourceCount).toBeLessThan(cold.loadedResourceCount);
   });
 
-  it("does not place unreached backing (superset) keys into ContentMap", async () => {
+  it("leaves unreached backing (superset) keys out of ContentMap and out of promotions", async () => {
     const cache = new LruIslandCache();
     await resolveWithCache(cache);
 
     const executionContext = createDefaultDemoExecutionContext();
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
-    const gateway = createDemoDataGateway(
-      createCmsDataLoader(demoCmsStore),
-      createIntegrationDataLoader()
-    );
-    const engine = new BarrierResolveContentGraphEngine(gateway, createDemoExpansionPort());
+    const resolver = createDemoResolver({ strategy: "barrier" });
 
     const { backingResources, report } = loadBackingForRoot(pageRoot, cache);
     expect(report.rootIslandStatus).toBe("hit");
@@ -139,8 +121,9 @@ describe("island cache cold/warm round-trip", () => {
     }).toString();
     const orphanValue = { fields: { title: "orphan" } };
     backingResources.set(orphanKey, orphanValue);
+    const backingSizeBefore = backingResources.size;
 
-    const output = await engine.execute({
+    const output = await resolver.resolve({
       root: pageRoot,
       executionContext,
       missingResourceMode: "throw",
@@ -150,6 +133,10 @@ describe("island cache cold/warm round-trip", () => {
     expect(output.errors).toEqual([]);
     expect(output.contentMap.hasKey(orphanKey)).toBe(false);
     expect(output.contentMap.getByKey(orphanKey)).toBeUndefined();
+    expect(output.promotedResourceKeys).not.toContain(orphanKey);
+
+    // The resolver never mutates the caller's backing map.
+    expect(backingResources.size).toBe(backingSizeBefore);
     expect(backingResources.get(orphanKey)).toEqual(orphanValue);
   });
 });

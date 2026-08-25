@@ -31,4 +31,26 @@ export class ContentMap<R extends ContentRegistry = ContentRegistry> {
   set<T extends keyof R & string>(resource: ApplicationResourceIdentifier<T>, value: R[T]): void {
     this.resources.set(resource.toString(), value);
   }
+
+  get size(): number {
+    return this.resources.size;
+  }
+
+  keys(): IterableIterator<ResourceKey> {
+    return this.resources.keys();
+  }
+
+  /** Weakly typed pairs — the key is opaque, so the payload cannot be narrowed. */
+  entries(): IterableIterator<[ResourceKey, R[keyof R]]> {
+    return this.resources.entries() as IterableIterator<[ResourceKey, R[keyof R]]>;
+  }
+
+  [Symbol.iterator](): IterableIterator<[ResourceKey, R[keyof R]]> {
+    return this.entries();
+  }
+
+  /** Plain object snapshot for JSON, cache payloads, and debugging. */
+  toJSON(): Record<ResourceKey, unknown> {
+    return Object.fromEntries(this.resources);
+  }
 }

@@ -1,9 +1,9 @@
 ---
 title: Resource graph resolver
-description: The @xndrjs/resource-graph-resolver package — typed content graphs, islands, expansion policies, and a reusable resolution engine.
+description: The @xndrjs/resource-graph-resolver package — typed resource graphs, islands, expansion policies, declarative multi-backend sources, and a reusable resolver.
 ---
 
-`@xndrjs/resource-graph-resolver` resolves a **content resource graph** from a root [Application Resource Identifier](/v0/application/application-resources/) (ARI). It walks child resources discovered by your expansion rules, loads payloads through a pull-based data port, tracks **island** membership and **dependencies**, and returns a typed `ContentMap` you can serialize for cache or map into domain aggregates.
+`@xndrjs/resource-graph-resolver` resolves a **resource graph** from a root [Application Resource Identifier](/v0/application/application-resources/) (ARI). It walks child resources discovered by your expansion rules, loads payloads through the backends you declare, tracks **island** membership and **dependencies**, and returns a typed `ContentMap` you can serialize for cache or map into domain aggregates.
 
 ### What is an island?
 
@@ -26,22 +26,25 @@ In practice:
 
 Example: a page island may **depend on** `menu` and `footer` islands without **containing** their payloads. The page’s direct dependencies are only its immediate island children; `getFlatDependencies(page)` adds transitive ones when nested islands exist deeper in the graph.
 
-Islands let you **name and partition** a large graph by application meaning — what is “the page”, what is “the menu”, what is shared — before you decide how to cache, invalidate, or aggregate each part. The demo app shows one possible downstream use (tiered LRU + manifests); the engine only tracks identity, membership, and dependencies. It does **not** invalidate caches for you.
+Islands let you **name and partition** a large graph by application meaning — what is “the page”, what is “the menu”, what is shared — before you decide how to cache, invalidate, or aggregate each part. The demo app shows one possible downstream use (tiered LRU + manifests); the resolver only tracks identity, membership, and dependencies. It does **not** invalidate caches for you.
 
-The engine is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), `DataResolutionPort`, and `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
+Islands are meant for **macro-grouping**. A resource reachable from many islands is tracked in all of them, so marking hundreds of fine-grained islands over a shared subgraph multiplies membership entries — model islands around lifecycle boundaries, not around individual nodes.
 
-For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app (`resolve-barrier-demo-page.ts` / `resolve-lane-demo-page.ts` compose loaders, expansion policies, island cache, and domain mappers).
+The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `ResourceSource` per backend, and an `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
+
+For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app (`demo-resolver.ts` declares the sources and policies once; the two orchestrations differ only by `strategy`).
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'stepAfter'}}}%%
 flowchart TD
-  root[Root ARI] --> engine[Resolve engine barrier or lane]
-  engine --> expand[ExpansionPort]
-  expand --> queue[Frontier queue]
-  queue --> data[DataResolutionPort or ResourceLoader lanes]
-  data --> contentMap[ContentMap]
-  engine --> islands[IslandMap]
-  engine --> deps[IslandDependencyMap]
+  root[Root ARI] --> resolver[Resource graph resolver]
+  resolver --> expand[ExpansionPort]
+  expand --> route[Route by ARI type to a source family]
+  route --> batch[Chunk to batchSize, throttle to concurrency]
+  batch --> sources[ResourceSource load]
+  sources --> contentMap[ContentMap]
+  resolver --> islands[IslandMap]
+  resolver --> deps[IslandDependencyMap]
   contentMap --> serialize[serializeAllIslands]
   serialize --> cache[Island cache optional]
 ```
@@ -51,7 +54,7 @@ flowchart TD
 | Layer              | Responsibility                                                               |
 | ------------------ | ---------------------------------------------------------------------------- |
 | **Application**    | ARIs, use-case orchestration, domain mapping from `ContentMap`               |
-| **Infrastructure** | CMS/integration loaders, expansion policies, island cache adapters           |
+| **Infrastructure** | CMS/integration sources, expansion policies, island cache adapters           |
 | **This package**   | Reusable graph traversal, island semantics, serialization — no IO of its own |
 
 Pair with [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) for typed Contentful payloads and link-field metadata when authoring expansion policies.
@@ -67,151 +70,176 @@ pnpm add @xndrjs/resource-graph-resolver @xndrjs/application-resources
 Define which ARI `type` literals your project resolves and what each payload looks like:
 
 ```ts
-import type { ContentRegistry } from "@xndrjs/resource-graph-resolver";
-
-type DemoContentRegistry = {
+type CmsContentRegistry = {
   "cms.entry": ContentfulResolvedEntry;
   "cms.asset": ContentfulAsset;
+};
+
+type IntegrationContentRegistry = {
   "integration.product": ProductDto;
-} & ContentRegistry;
+};
 ```
 
-`ContentMap<R>` keys entries by `resource.toString()` (canonical ARI identity). `get(resource)` narrows the return type from `resource.type`; `getByKey` stays weakly typed for cache and JSON paths.
-
-## Walk strategies
-
-The package ships two engines with the **same** `execute` contract and graph semantics (backing promotion, `ContentMap`, island membership/dependencies, cycles, missing resources, cancellation). They differ only in **how the frontier is scheduled** across sources.
-
-| Strategy    | Engine                             | Collaborator                                            | Scheduler                                                                                                                                                                                                                  |
-| ----------- | ---------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Barrier** | `BarrierResolveContentGraphEngine` | one `DataResolutionPort` (often a multi-source gateway) | Each round: call `process`, wait for the whole result, then expand. Inside a gateway, loaders may run in parallel, but the round still waits on the **slowest** peer.                                                      |
-| **Lane**    | `LaneResolveContentGraphEngine`    | ordered `ResourceLoader[]`                              | Each loader is a **lane** with **exactly one** in-flight `process`. Different loaders may overlap; expand runs as soon as a lane’s batch commits. A fast lane may start its next batch while a slow lane is still pending. |
-
-**Trade-offs**
-
-- Prefer **barrier** when sources have similar latency, you already compose behind a gateway, or you want round-shaped traces and the simplest multi-source wiring.
-- Prefer **lane** when one backend is routinely slower (for example CMS vs commercial API) and you want expand/enqueue to proceed per source instead of waiting on every wave’s slowest peer.
-- Lane routing is **chain-of-responsibility**: first `accepts(resource)` wins; callers guarantee exactly one loader owns each ARI. Unmatched ARIs follow `missingResourceMode`.
-- Do **not** overload `DataResolutionPort` for lane ownership — that port stays the barrier engine’s round collaborator. Use `ResourceLoader` (`accepts` + pull `process`) for lanes.
-
-The demo exposes both: `/[locale]/barrier` (gateway) and `/[locale]/lane` (source loaders). Terminal traces label barrier rounds vs lane batches separately.
-
-## BarrierResolveContentGraphEngine (barrier)
-
-Construct the barrier engine with a data port and expansion port, then execute from a root ARI:
+Compose the project registry from per-source slices. Use `ComposeContentRegistry` so hovers and type errors show one flat object rather than a chain of intersections:
 
 ```ts
-import { BarrierResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
+import type { ComposeContentRegistry } from "@xndrjs/resource-graph-resolver";
 
-const engine = new BarrierResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
-  dataGateway,
-  expansionPort
-);
+type DemoContentRegistry = ComposeContentRegistry<[CmsContentRegistry, IntegrationContentRegistry]>;
+```
 
-const output = await engine.execute({
+Do **not** intersect with `ContentRegistry` itself (`{ ... } & ContentRegistry`): `ContentRegistry` is `Record<string, unknown>`, so intersecting widens `keyof` back to `string` and payload narrowing collapses. `ContentRegistry` is a **constraint**, not a base type to mix in.
+
+`ContentMap<R>` keys entries by `resource.toString()` (canonical ARI identity). `get(resource)` narrows the return type from `resource.type`; `getByKey` stays weakly typed for cache and JSON paths. It also exposes `size`, `keys()`, `entries()`, iteration, and `toJSON()`.
+
+## ResourceSource
+
+A **source** is one backend plus the ARI **families** it owns. It declares the families (which drive both routing and narrowing), the backend's per-family batch limit, and how many requests that backend tolerates in parallel:
+
+```ts
+import { defineResourceSourceFor } from "@xndrjs/resource-graph-resolver";
+
+const defineSource = defineResourceSourceFor<DemoContentRegistry, DemoExecutionContext>();
+
+export const cmsSource = defineSource({
+  id: "cms",
+  families: { entry: cmsEntryAri, asset: cmsAssetAri },
+  batchSize: { entry: 100, asset: 100 },
+  async load({ entry, asset }, { signal }) {
+    // entry: readonly CmsEntryResource[]
+    // asset: readonly CmsAssetResource[]
+    const [entries, assets] = await Promise.all([
+      fetchEntries(entry, signal),
+      fetchAssets(asset, signal),
+    ]);
+
+    return [...entries, ...assets];
+  },
+});
+```
+
+The definer is curried (`defineResourceSourceFor<R, Ctx>()` then the config) because TypeScript has no partial type-argument inference: currying keeps `families` inferred while the registry stays explicit.
+
+`R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `families` is what scopes a source to the ARI types it may be asked for and may return. Returning a record outside the declared families is a compile error.
+
+| Field         | Meaning                                                                   |
+| ------------- | ------------------------------------------------------------------------- |
+| `id`          | Stable identifier used in observer events and error messages              |
+| `families`    | ARI factories this source owns; each family covers exactly one ARI `type` |
+| `batchSize`   | Max ARIs per family in one `load`. Omit a family for “no limit”           |
+| `concurrency` | Loads this backend tolerates in parallel. Defaults to `1` (serial)        |
+| `load`        | Fetch one batch and return correlated `{ resource, payload }` records     |
+
+### Who owns what
+
+The resolver owns **routing** (by ARI `type`, then family `matches`), **chunking** to `batchSize`, **throttling** to `concurrency`, **scheduling**, deduplication and island bookkeeping. A source owns one backend's transport — and its retry/backoff policy: a source has at most `concurrency` loads in flight, so awaiting inside `load` throttles that backend and nothing else.
+
+A source signals “no data” by **omitting** an ARI from its result. Never throw for a single missing row: a rejected `load` fails the whole batch.
+
+### Cancellation inside a source
+
+`load` receives the resolution's `signal`. Forward it into `fetch` (or your client's equivalent) so an aborted resolution cancels in-flight IO instead of merely ignoring the result:
+
+```ts
+load: ({ product }, { signal }) =>
+  fetch(url, { method: "POST", body: JSON.stringify({ skus }), signal }),
+```
+
+## Resolver and strategies
+
+Build one resolver per source topology and reuse it across requests:
+
+```ts
+import { createResourceGraphResolver } from "@xndrjs/resource-graph-resolver";
+
+const resolver = createResourceGraphResolver<DemoContentRegistry, DemoExecutionContext>({
+  sources: [cmsSource, integrationSource],
+  expansion: expansionPort,
+  strategy: "lane", // or "barrier"
+  observer, // optional
+});
+
+const output = await resolver.resolve({
   root: pageRoot,
   executionContext: { locale: "en-US" },
   missingResourceMode: "throw", // or "collect"
+  // backingResources: cachedPayloadsByKey,
   // signal: AbortSignal.timeout(5_000),
 });
 ```
 
-## LaneResolveContentGraphEngine
+Both strategies produce **identical** graph output — same `ContentMap`, island membership, dependencies, promotions and errors. They differ only in when expansion runs relative to in-flight loads:
 
-Pass an ordered loader chain (not a gateway) plus the same `ExpansionPort`:
+| Strategy  | Scheduler                                                              | When to prefer                                                              |
+| --------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `lane`    | Expand as soon as **any** batch commits; sources advance independently | Uneven backend latency: a fast CMS should not wait on a slow commercial API |
+| `barrier` | Wait for **every** in-flight batch, then expand together               | Reproducible rounds for tracing and tests; backends of similar latency      |
 
-```ts
-import {
-  LaneResolveContentGraphEngine,
-  type ResourceLoader,
-} from "@xndrjs/resource-graph-resolver";
+Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave. The demo exposes both: `/[locale]/barrier` and `/[locale]/lane`, with a terminal trace that shows which batches overlap.
 
-const loaders: readonly ResourceLoader<DemoContentRegistry>[] = [cmsLoader, integrationLoader];
+When several sources declare the same ARI `type`, the first whose family `matches` the ARI wins; callers guarantee exactly one meaningful owner per ARI.
 
-const engine = new LaneResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
-  loaders,
-  expansionPort
-);
+`resolve` returns:
 
-const output = await engine.execute({
-  root: pageRoot,
-  executionContext: { locale: "en-US" },
-  missingResourceMode: "throw",
-});
-```
+| Field                  | Role                                                             |
+| ---------------------- | ---------------------------------------------------------------- |
+| `contentMap`           | Resolved payloads keyed by ARI                                   |
+| `islands`              | Per-island resource membership                                   |
+| `islandDependencies`   | Direct edges between islands (child island opened by `isIsland`) |
+| `errors`               | Missing resources when `missingResourceMode: "collect"`          |
+| `promotedResourceKeys` | Backing keys the walk actually reached, in promotion order       |
 
-Each loader implements `accepts` for ownership and `process(pull)` with the same `take` batching model as the barrier port. Internal multi-family batching remains the loader’s concern; the engine only guarantees serial `process` calls **per** loader.
+### Missing resources and termination
 
-`execute` returns (both engines):
+Because the resolver owns chunking, a batch always starts while work is pending and concurrency allows. So there is no ambiguous “no progress” state, and exactly three things can go wrong:
 
-| Field                | Role                                                               |
-| -------------------- | ------------------------------------------------------------------ |
-| `contentMap`         | Resolved payloads keyed by ARI                                     |
-| `islands`            | Per-island resource membership                                     |
-| `islandDependencies` | Direct edges between islands (child island promoted by `isIsland`) |
-| `errors`             | Missing resources when `missingResourceMode: "collect"`            |
+| Situation                                    | `"throw"`                 | `"collect"`                                                |
+| -------------------------------------------- | ------------------------- | ---------------------------------------------------------- |
+| A source omitted a requested ARI             | `MissingResourceError`    | Error entry attributed to every island that reached it     |
+| No source declares a family matching the ARI | `NoResourceSourceError`   | Error entry (this is a wiring bug, not missing data)       |
+| A source's `load` rejected                   | `ResourceLoadFailedError` | Error entries for that batch; other sources keep resolving |
 
-### Missing resources and no-progress termination
-
-- Resources **taken** by a loader/port but omitted from the result are missing (throw or collect).
-- Resources **not taken** while at least one peer was taken stay deferred for a later round / lane pump after expand.
-- If unresolved work remains and no eligible take / idle lane makes progress (`taken.length === 0` on barrier; every idle eligible lane took nothing on the lane engine), that is **no-progress**: the engine throws or collects every unhandled ARI via `missingResourceMode`. It is not treated as deferral.
+All of them extend `ResourceGraphError`. `ResourceLoadFailedError` carries `sourceId`, `resourceKeys` and the original rejection as `cause`.
 
 ### Cancellation
 
-Pass `signal: AbortSignal` on `ResolveContentGraphInput` for cooperative cancellation; the engine checks the signal before and after every load. Lane mode still observes in-flight lane outcomes when one loader fails or the signal aborts.
-
-Abort throws `ResolveContentGraphAbortedError`, independent of `missingResourceMode`.
+Pass `signal: AbortSignal` on the resolve input. The resolver checks it around every load and forwards it to sources. Abort throws `ResourceGraphAbortedError` independent of `missingResourceMode`, and outstanding loads are always observed first, so a cancellation never leaves unhandled rejections behind.
 
 ### Optional backing resources
 
-Pass `backingResources: Map<ResourceKey, unknown>` to hydrate hits **before** loaders run. The engine promotes matching frontier items into `ContentMap` and removes them from the map (pass a mutable `Map` when you want `backingResourceCount` / `promotedResourceCount`). Use this for partial warm paths — for example dependency islands still valid while the root island expired.
+Pass `backingResources: ReadonlyMap<ResourceKey, unknown>` to hydrate hits **before** any source is asked. A backing entry is promoted the moment the walk reaches that ARI, so unreached keys cost nothing. The map is **never mutated**; the keys actually promoted come back as `promotedResourceKeys`. Use this for partial warm paths — for example dependency islands still valid while the root island expired.
 
-## DataResolutionPort (pull model)
+## Observability
 
-Loaders implement `process({ take, signal? })`. The engine calls **`take(accept, limit?)`** to select unresolved frontier resources in order; your adapter batches fetches and returns correlated `{ resource, payload }` records.
-
-- **`accept`** — predicate (optionally a type guard via `cmsEntryAri.matches`).
-- **`limit`** (optional) — max resources to pull this round. Omit to take every match.
-- Resources **not** pulled stay on the frontier; the engine expands what it has and calls `process` again — they are not missing errors.
-- When **every** `take` in a `process` call returns empty, return `[]` immediately and **do not** perform IO.
+Pass an optional `observer` to trace batches, expansions and promotions without wrapping your sources or policies:
 
 ```ts
-import type { DataResolutionPort } from "@xndrjs/resource-graph-resolver";
-import { cmsAssetAri, cmsEntryAri } from "./cms/ari";
-
-const CMS_ENTRY_BATCH_SIZE = 10;
-const CMS_ASSET_BATCH_SIZE = 10;
-
-// Inside your CMS loader (same pattern as the demo):
-async process(pull) {
-  const entryBatch = pull.take(cmsEntryAri.matches, CMS_ENTRY_BATCH_SIZE);
-  const assetBatch = pull.take(cmsAssetAri.matches, CMS_ASSET_BATCH_SIZE);
-
-  if (entryBatch.length === 0 && assetBatch.length === 0) {
-    return [];
-  }
-
-  const [entries, assets] = await Promise.all([
-    fetchEntries(entryBatch),
-    fetchAssets(assetBatch),
-  ]);
-
-  return [...entries, ...assets];
-}
+const observer: ResolutionObserver = {
+  onBatchStart: ({ sourceId, batchNumber, resourceCount }) => {
+    /* … */
+  },
+  onBatchEnd: ({ sourceId, durationMs, resolvedCount }) => {
+    /* … */
+  },
+  onExpand: ({ resource, islandId, isIsland, children }) => {
+    /* … */
+  },
+  onBackingPromote: ({ resource, islandIds }) => {
+    /* … */
+  },
+  onMissingResource: ({ resourceKey, message }) => {
+    /* … */
+  },
+};
 ```
 
-One `process` call can invoke `take` multiple times (per source or per resource family). Each `take` removes its batch from the frontier for that round only; if the frontier still has unresolved resources after expand, the engine schedules another round.
-
-Compose multiple sources (CMS + integration API) for the **barrier** engine by merging pull results in one gateway — see the demo's `createDemoDataGateway` and `createCmsDataLoader`. Gateway composition is **barrier-based**: each round waits for all loaders before expand, so wall-clock time tracks the **slowest** backend in that wave.
-
-For the **lane** engine, pass those same source adapters (with `accepts`) as an ordered `ResourceLoader` chain instead of wrapping them in a gateway — see [Walk strategies](#walk-strategies).
+Every hook is optional, and a hook that throws never affects resolution — observers are diagnostics, so a logging bug cannot corrupt a walk.
 
 ## ExpansionPort and policies
 
 Expansion discovers **child ARIs** and optional **island boundaries** for an already-resolved resource.
 
-**Expansion = current resource + current payload + execution context.** Policies must not look up other nodes in a shared map and must not depend on which peers happened to land in the same batch.
+**Expansion = current resource + its own payload + execution context.** A policy cannot look up other nodes in a shared map, cannot see the island it was reached from, and must not depend on which peers happened to land in the same batch. That constraint is what keeps expansion deterministic: the edges of the graph depend on content, not on traversal order or batch sizes.
 
 Author policies with `defineExpansionPolicy` and chain them with `createExpansionPolicyChain` (first match wins):
 
@@ -233,11 +261,13 @@ export const expansionPort = createExpansionPolicyChain([
 ]);
 ```
 
-`defineExpansionPolicy({ for })` narrows **both** `resource` and `payload` to the matched ARI family. Because expansion never observes siblings, changing batch sizes does not change the edges a policy emits for a given node.
+`defineExpansionPolicy({ for })` narrows **both** `resource` and `payload` to the matched ARI family.
 
 When `isIsland: true`, the resource becomes a new island id (`resource.toString()`). The parent island records a **direct dependency** on that child island. Children discovered from the new island inherit its id until another `isIsland` boundary appears.
 
 **Dependencies ≠ membership.** A child island is a dependency of its parent, not necessarily a direct dependency of the page root — but nested islands appear in the transitive flat closure (below). Resources resolved **inside** an island are **members** of that island, not separate islands, unless expansion marks them with `isIsland: true`.
+
+A resource reachable from several islands is expanded once per island, so it joins the membership of all of them while being fetched only once.
 
 ## IslandDependencyMap
 
@@ -248,8 +278,10 @@ const pageId = pageRoot.toString();
 
 output.islandDependencies.get(pageId); // direct child islands only
 output.islandDependencies.getFlatDependencies(pageId); // transitive, deduped, sorted
-output.islandDependencies.dependencyMap; // snapshot ReadonlyMap of all direct edges
+output.islandDependencies.snapshot(); // copy of every direct edge
 ```
+
+`snapshot()` is a method, not a getter, because its cost is proportional to islands × edges.
 
 Use `getFlatDependencies` when you need the full transitive dependency closure from a root island (for example a manifest of every dependency island reachable from a page). The starting island is never included, even if dependency cycles point back to it.
 
@@ -271,7 +303,7 @@ Each `SerializedIsland` (schema v1) includes:
 - `completeness` — `"complete"` or `"partial"` when errors inherited this island
 - `missingResources` — unresolved keys attributed to this island
 
-`buildBackingResourcesFromIslands` reverses complete islands back into backing resources for the next `execute` call:
+`buildBackingResourcesFromIslands` reverses complete islands back into backing resources for the next `resolve` call:
 
 ```ts
 buildBackingResourcesFromIslands(islands, { policy, onResourceConflict });
@@ -279,7 +311,7 @@ buildBackingResourcesFromIslands(islands, { policy, onResourceConflict });
 
 `policy` controls which islands contribute resources (`only-complete` or `all`).
 
-When multiple included islands provide the same `resourceKey`, `onResourceConflict` (required) is invoked with:
+Two cached islands can legitimately hold the same `resourceKey` with **different** payloads — a shared logo cached at two different times, for example. The library does not pick a winner for you, because the right answer depends on your freshness model. `onResourceConflict` (required) is invoked with:
 
 - `existing` / `existingIslandId` (already in the map)
 - `incoming` / `incomingIslandId` (new island payload)
@@ -287,34 +319,34 @@ When multiple included islands provide the same `resourceKey`, `onResourceConfli
 Return values:
 
 - returning a value keeps that payload in `backingResources`
-- returning `null` or `undefined` discards the key (the engine will re-load it via the `DataResolutionPort`)
+- returning `null` or `undefined` discards the key, so the walk re-loads it from its source
 - throwing rejects the whole backing build
 
 ## Typical project wiring
 
 1. **ARIs** — one factory per source/type (`cms.entry`, `cms.asset`, …).
-2. **ContentRegistry** — union of resolved payload types.
-3. **Loaders** — per-source adapters with pull `process` (and `accepts` for lane); compose into a gateway for barrier mode, or pass the ordered chain to the lane engine.
+2. **ContentRegistry** — per-source slices composed with `ComposeContentRegistry`.
+3. **Sources** — one `ResourceSource` per backend: families it owns, batch limits, concurrency, `load`.
 4. **ExpansionPort** — content-type or resource-family policies; `isIsland` where a fragment has its own identity or lifecycle.
-5. **Orchestration** — choose barrier or lane → load backing → `execute` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
-6. **Domain mappers** — stay outside this package; consume `ResolveContentGraphOutput`.
+5. **Resolver** — one `createResourceGraphResolver` per topology, `strategy` chosen per route.
+6. **Orchestration** — load backing → `resolve` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
+7. **Domain mappers** — stay outside this package; consume `ResolveResourceGraphOutput`.
 
 ## API
 
 Exported symbols:
 
-- **`BarrierResolveContentGraphEngine`** / **`LaneResolveContentGraphEngine`**
-- **`ContentMap`**
-- **`IslandMap`** / **`IslandDependencyMap`**
+- **`createResourceGraphResolver`** — and types `ResourceGraphResolver`, `ResourceGraphResolverConfig`
+- **`defineResourceSourceFor`** — and types `ResourceSource`, `ResourceSourceDefinition`, `ResourceFamily`, `ResourceFamilyMap`, `ResourceOfFamily`, `PendingResourceBatch`, `SourceResourceRecord`, `ResourceBatchSizeMap`, `ResourceLoadContext`
+- **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`createExpansionPolicyChain`** / **`defineExpansionPolicy`**
-- **`createDataResolutionPull`** / **`DataResolutionPort`** / **`ResourceLoader`** / **`ResolvedResourceRecord`**
-- **`serializeIsland`** / **`serializeAllIslands`**
-- **`buildBackingResourcesFromIslands`**
-- **`ResolveContentGraphAbortedError`**
-- Types: **`ContentRegistry`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolveContentGraphInput`**, **`ResolveContentGraphOutput`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
+- **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**
+- Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoResourceSourceError`**, **`ResourceLoadFailedError`**, **`ResourceGraphAbortedError`**
+- Observability: **`ResolutionObserver`** and its event types
+- Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`ResolutionStrategy`**, **`ResolutionError`**, **`MissingResourceMode`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolvedResourceRecord`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 
 ## See also
 
-- [Application resources](/v0/application/application-resources/) — ARI factories and `toString()` keys used throughout the engine
+- [Application resources](/v0/application/application-resources/) — ARI factories and `toString()` keys used throughout the resolver
 - [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) — transport schemas and link-field metadata for expansion authoring
 - [Demo app](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo)

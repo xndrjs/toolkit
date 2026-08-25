@@ -1,37 +1,19 @@
-import { BarrierResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
 import { describe, expect, it } from "vitest";
 
 import { mapContentMapToPageAggregate } from "./content-map-to-page-aggregate.mapper.js";
-import {
-  cmsEntryAri,
-  createCmsDataLoader,
-  demoCmsStore,
-  demoIds,
-  pageEntryAri,
-} from "../cms/index.js";
-import { createDemoDataGateway } from "../demo-data-gateway.js";
+import { cmsEntryAri, demoIds, pageEntryAri } from "../cms/index.js";
 import { AssetShape, PageShape, ProductShape, TabsShape } from "../../domain/index.js";
 import {
   createDefaultDemoExecutionContext,
   type DemoExecutionContext,
 } from "../demo-execution-context.js";
-import { createDemoExpansionPort } from "../expansion-policies.js";
+import { createDemoResolver } from "../demo-resolver.js";
 import {
-  createIntegrationDataLoader,
   demoProductCatalog,
   tshirtIntegrationAri,
   type ProductIntegrationSnapshot,
 } from "../integration/index.js";
 import type { ContentfulLocaleCode } from "../cms/generated/contentful.schemas.js";
-
-function createDemoGateway(
-  catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog
-) {
-  return createDemoDataGateway(
-    createCmsDataLoader(demoCmsStore),
-    createIntegrationDataLoader(catalog)
-  );
-}
 
 async function resolveDemoPage(
   catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog,
@@ -39,12 +21,8 @@ async function resolveDemoPage(
 ) {
   const executionContext: DemoExecutionContext = createDefaultDemoExecutionContext(locale);
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale });
-  const engine = new BarrierResolveContentGraphEngine(
-    createDemoGateway(catalog),
-    createDemoExpansionPort()
-  );
 
-  return engine.execute({
+  return createDemoResolver({ strategy: "barrier", productCatalog: catalog }).resolve({
     root: pageRoot,
     executionContext,
     missingResourceMode: "throw",

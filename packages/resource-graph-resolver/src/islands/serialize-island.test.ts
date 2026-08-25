@@ -5,7 +5,7 @@ import { IslandDependencyMap } from "../model/island-dependency-map";
 import { IslandMap } from "../model/island-map";
 import { serializeAllIslands, serializeIsland } from "./serialize-island";
 import { testAri } from "../testing/test-fixtures.js";
-import type { ResolveContentGraphOutput } from "../types";
+import type { ResolveResourceGraphOutput } from "../types";
 
 const page = testAri("page", "P");
 const hero = testAri("hero", "H");
@@ -18,7 +18,7 @@ function createPageGraphOutput(options?: {
   omitMenu?: boolean;
   missingFromPage?: boolean;
   reverseInsertionOrder?: boolean;
-}): ResolveContentGraphOutput {
+}): ResolveResourceGraphOutput {
   const contentMap = new ContentMap();
   contentMap.set(page, {
     title: "Homepage",
@@ -78,6 +78,7 @@ function createPageGraphOutput(options?: {
           },
         ]
       : [],
+    promotedResourceKeys: [],
   };
 }
 

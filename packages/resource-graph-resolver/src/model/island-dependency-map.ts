@@ -22,11 +22,21 @@ export class IslandDependencyMap {
     return this.dependencies.get(islandId) ?? new Set<IslandId>();
   }
 
-  /** Snapshot of all direct island dependency edges. */
-  get dependencyMap(): ReadonlyMap<IslandId, ReadonlySet<IslandId>> {
-    return new Map(
-      [...this.dependencies.entries()].map(([islandId, deps]) => [islandId, new Set(deps)])
-    );
+  islandIds(): readonly IslandId[] {
+    return [...this.dependencies.keys()];
+  }
+
+  /**
+   * Copies all direct island dependency edges.
+   * A method, not a getter: the cost is proportional to islands x edges.
+   */
+  snapshot(): ReadonlyMap<IslandId, ReadonlySet<IslandId>> {
+    const copy = new Map<IslandId, ReadonlySet<IslandId>>();
+    for (const [islandId, dependencies] of this.dependencies) {
+      copy.set(islandId, new Set(dependencies));
+    }
+
+    return copy;
   }
 
   /**

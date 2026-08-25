@@ -1,6 +1,6 @@
 # @xndrjs/resource-graph-resolver
 
-Application-layer **content resource graph** resolution: typed `ContentMap`, island membership, expansion policies, pull-based data loading, and portable island serialization.
+Application-layer **resource graph** resolution: typed `ContentMap`, island membership, expansion policies, declarative multi-backend sources, and portable island serialization.
 
 Full guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 
@@ -12,68 +12,87 @@ npm install @xndrjs/resource-graph-resolver @xndrjs/application-resources
 
 ## Quick start
 
-Barrier walk (gateway + round barrier):
+Declare one source per backend. A source owns ARI **families**, declares the backend's per-family batch limits and how many requests it tolerates in parallel, then fetches a batch the resolver hands it:
 
 ```ts
-import { BarrierResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
+import { defineResourceSourceFor } from "@xndrjs/resource-graph-resolver";
 
-const engine = new BarrierResolveContentGraphEngine<AppContentRegistry, ExecutionContext>(
-  dataGateway,
-  expansionPort
-);
+const defineSource = defineResourceSourceFor<AppContentRegistry, ExecutionContext>();
 
-const output = await engine.execute({
+const cmsSource = defineSource({
+  id: "cms",
+  families: { entry: cmsEntryAri, asset: cmsAssetAri },
+  batchSize: { entry: 100, asset: 100 },
+  async load({ entry, asset }, { signal }) {
+    // entry: readonly CmsEntryResource[], asset: readonly CmsAssetResource[]
+    const [entries, assets] = await Promise.all([
+      fetchEntries(entry, signal),
+      fetchAssets(asset, signal),
+    ]);
+
+    return [...entries, ...assets];
+  },
+});
+
+const productSource = defineSource({
+  id: "products",
+  families: { product: productAri },
+  batchSize: { product: 1 },
+  concurrency: 4,
+  load: ({ product }, { signal }) => fetchProducts(product, signal),
+});
+```
+
+Then wire one resolver and reuse it per request:
+
+```ts
+import { createResourceGraphResolver } from "@xndrjs/resource-graph-resolver";
+
+const resolver = createResourceGraphResolver<AppContentRegistry, ExecutionContext>({
+  sources: [cmsSource, productSource],
+  expansion: expansionPort,
+  strategy: "lane",
+});
+
+const output = await resolver.resolve({
   root: pageRoot,
   executionContext: { locale: "en-US" },
   missingResourceMode: "throw",
   // optional:
+  // backingResources: cachedPayloadsByKey,
   // signal: AbortSignal.timeout(5_000),
-  // limits: { maxRounds: 50, maxResources: 2_000, maxDepth: 32 },
 });
 
 output.contentMap.get(pageRoot);
 output.islandDependencies.getFlatDependencies(pageRoot.toString());
 ```
 
-Lane walk (ordered source loaders, serial per lane):
+## Who owns what
 
-```ts
-import {
-  LaneResolveContentGraphEngine,
-  type ResourceLoader,
-} from "@xndrjs/resource-graph-resolver";
+The resolver owns routing (by ARI `type`, then family `matches`), chunking to `batchSize`, throttling to `concurrency`, scheduling, deduplication and island bookkeeping. A source owns one backend's transport, and its retry and backoff policy: a source has at most `concurrency` loads in flight, so awaiting inside `load` throttles that backend and nothing else.
 
-const loaders: readonly ResourceLoader<AppContentRegistry>[] = [cmsLoader, integrationLoader];
+A source signals "no data" by omitting an ARI from its result. The resolver then reports it through `missingResourceMode`, attributed to every island that reached it.
 
-const engine = new LaneResolveContentGraphEngine(loaders, expansionPort);
-const output = await engine.execute({
-  root: pageRoot,
-  executionContext,
-  missingResourceMode: "throw",
-});
-```
+## Strategies
 
-## Walk strategies
+Both strategies share identical graph semantics — same `ContentMap`, islands, dependencies, backing promotion and errors. They differ only in when expansion runs relative to in-flight loads.
 
-Both engines share the same `execute` contract and graph semantics (islands, backing promotion, missing resources, cycles, cancellation). Choose how the frontier advances:
+| Strategy  | Scheduler                                                          | When to prefer                                                              |
+| --------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `lane`    | Expand as soon as any batch commits; sources advance independently | Uneven backend latency; a fast CMS should not wait on a slow commercial API |
+| `barrier` | Wait for every in-flight batch, then expand together               | Reproducible rounds for tracing and tests; backends of similar latency      |
 
-| Strategy                                         | Construct from                                            | Scheduler                                                                                                              | When to prefer                                                    |
-| ------------------------------------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| **Barrier** (`BarrierResolveContentGraphEngine`) | one `DataResolutionPort` (usually a multi-source gateway) | Each round waits for the whole `process` before expand                                                                 | Simple composition; round traces; backends of similar latency     |
-| **Lane** (`LaneResolveContentGraphEngine`)       | ordered `ResourceLoader[]` + `ExpansionPort`              | Each loader is a lane with **exactly one** in-flight `process`; lanes may overlap; expand runs as each batch completes | Uneven source latency; fast sources should not wait on slow peers |
-
-**Trade-off:** barrier mode keeps multi-source IO behind one gateway round. Lane mode routes ARIs by chain-of-responsibility (`accepts` order; callers guarantee one owner per ARI). A fast CMS lane can start its next batch as soon as its previous batch is committed and expanded, while a slow integration batch stays pending — wall-clock no longer tracks the slowest peer in every wave.
-
-Do not overload `DataResolutionPort` for lane routing; use `ResourceLoader` (`accepts` + `process`).
+Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave.
 
 ## Concepts
 
-- **`ContentRegistry`** — map ARI `type` literals to payload shapes; `ContentMap.get` follows `resource.type`.
-- **`DataResolutionPort`** — barrier engine’s pull-based batch loading via `process({ take })`; returns `{ resource, payload }` records. Empty `take` batches should skip IO.
-- **`ResourceLoader`** — lane engine’s source-owned lane: `accepts(resource)` plus the same pull `process`; at most one in-flight call per loader.
-- **`ExpansionPort`** — discover child ARIs from **current resource + payload + execution context** only; `isIsland: true` starts a new island boundary.
-- **`IslandDependencyMap`** — direct edges between islands; `getFlatDependencies` for transitive cache manifests (cycles excluded from the start island).
-- **Termination** — unresolved work with no eligible take / idle lane progress is no-progress (throw or collect via `missingResourceMode`), distinct from intentional deferral after a non-empty take.
+- **`ContentRegistry`** — maps ARI `type` literals to payload shapes; `ContentMap.get` follows `resource.type`. Compose per-source slices with `ComposeContentRegistry`.
+- **`ResourceSource`** — one backend: the ARI families it owns, its batch limits, its concurrency budget, and `load`.
+- **`ExpansionPort`** — discovers child ARIs from **the current resource, its payload, and the execution context** only. A policy cannot see siblings, the island it was reached from, or what arrived in the same batch, which is what keeps expansion deterministic. `isIsland: true` opens a new island boundary.
+- **`IslandDependencyMap`** — direct edges between islands; `getFlatDependencies` builds transitive cache manifests (cycles excluded from the start island).
+- **`backingResources`** — pre-resolved payloads consulted before any source is asked. The map is never mutated; keys the walk actually reached come back as `promotedResourceKeys`.
+- **`ResolutionObserver`** — optional hooks for batches, expansions, promotions and misses. Observer failures never affect resolution.
+- **Errors** — `ResourceGraphError` base, plus `MissingResourceError`, `NoResourceSourceError` (no source declares a matching family — a wiring bug, not missing data), `ResourceLoadFailedError` (wraps a rejected `load`), and `ResourceGraphAbortedError`.
 - **`serializeAllIslands`** — cache-ready payloads (`SerializedIsland`, schema v1).
 
 ## Demo

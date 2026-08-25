@@ -21,7 +21,6 @@ function createContext(
   return {
     resource,
     payload: payload as ContentRegistry[keyof ContentRegistry],
-    inheritedIslandId: resource.toString(),
     executionContext: { locale: "en" },
   };
 }
@@ -33,7 +32,6 @@ function createMenuContext(
   return {
     resource,
     payload,
-    inheritedIslandId: resource.toString(),
     executionContext: { locale: "en" },
   };
 }

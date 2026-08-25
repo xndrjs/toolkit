@@ -1,7 +1,8 @@
+import { ResourceGraphError } from "../errors";
 import type {
   ContentRegistry,
   IslandId,
-  ResolveContentGraphOutput,
+  ResolveResourceGraphOutput,
   ResourceKey,
   SerializedIsland,
 } from "../types";
@@ -16,7 +17,7 @@ import type {
  */
 export function serializeIsland<R extends ContentRegistry = ContentRegistry>(
   islandId: IslandId,
-  result: ResolveContentGraphOutput<R>
+  result: ResolveResourceGraphOutput<R>
 ): SerializedIsland {
   const resourceKeys = result.islands.get(islandId);
 
@@ -27,7 +28,9 @@ export function serializeIsland<R extends ContentRegistry = ContentRegistry>(
       .sort()
       .map((resourceKey) => {
         if (!result.contentMap.hasKey(resourceKey)) {
-          throw new Error(`Island ${islandId} references missing resource ${resourceKey}`);
+          throw new ResourceGraphError(
+            `Island ${islandId} references missing resource ${resourceKey}`
+          );
         }
 
         return [resourceKey, result.contentMap.getByKey(resourceKey)];
@@ -49,9 +52,9 @@ export function serializeIsland<R extends ContentRegistry = ContentRegistry>(
   };
 }
 
-/** Materializes every registered island from a resolved content graph. */
+/** Materializes every registered island from a resolved resource graph. */
 export function serializeAllIslands<R extends ContentRegistry = ContentRegistry>(
-  result: ResolveContentGraphOutput<R>
+  result: ResolveResourceGraphOutput<R>
 ): SerializedIsland[] {
   return result.islands
     .islandIds()

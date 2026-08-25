@@ -1,6 +1,6 @@
 import {
   serializeAllIslands,
-  type ResolveContentGraphOutput,
+  type ResolveResourceGraphOutput,
 } from "@xndrjs/resource-graph-resolver";
 
 import type { Page } from "../domain/index.js";
@@ -102,30 +102,20 @@ export function demoResolvedResourceCount(): number {
   return demoCmsStore.entries.size + demoCmsStore.assets.size + demoProductCatalog.size;
 }
 
-/** Shared post-execute: cache report, aggregate, persist islands. */
+/** Shared post-resolve: cache report, aggregate, persist islands. */
 export function finalizeDemoResolve(args: {
-  output: ResolveContentGraphOutput<DemoContentRegistry>;
+  output: ResolveResourceGraphOutput<DemoContentRegistry>;
   pageRoot: ReturnType<typeof cmsEntryAri>;
   locale: ContentfulLocaleCode;
-  backingResourceCountBeforePromote: number;
-  backingResourcesSize: number;
   report: CacheHitReport;
-  /** Present only when logging decorators are enabled. */
+  /** Present only when console tracing is enabled. */
   trace?: ResolveTrace;
 }): ResolveDemoPageResult {
-  const {
-    output,
-    pageRoot,
-    locale,
-    backingResourceCountBeforePromote,
-    backingResourcesSize,
-    report,
-    trace,
-  } = args;
+  const { output, pageRoot, locale, report, trace } = args;
 
   const cacheReport: CacheHitReport = {
     ...report,
-    promotedResourceCount: backingResourceCountBeforePromote - backingResourcesSize,
+    promotedResourceCount: output.promotedResourceKeys.length,
   };
 
   if (trace) {

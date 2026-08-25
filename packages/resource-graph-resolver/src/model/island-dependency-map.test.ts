@@ -26,7 +26,7 @@ describe("IslandDependencyMap", () => {
     expect(deps.get(pageId).size).toBe(0);
   });
 
-  it("exposes a dependency map snapshot", () => {
+  it("copies all direct edges into a snapshot", () => {
     const deps = new IslandDependencyMap();
     const pageId = testAri("page", "P").toString();
     const menuId = testAri("menu", "M").toString();
@@ -35,8 +35,24 @@ describe("IslandDependencyMap", () => {
     deps.add(pageId, menuId);
     deps.add(pageId, footerId);
 
-    expect(deps.dependencyMap.get(pageId)).toEqual(new Set([menuId, footerId]));
-    expect(deps.dependencyMap.get(menuId)).toBeUndefined();
+    const snapshot = deps.snapshot();
+
+    expect(snapshot.get(pageId)).toEqual(new Set([menuId, footerId]));
+    expect(snapshot.get(menuId)).toBeUndefined();
+    expect(deps.islandIds()).toEqual([pageId]);
+  });
+
+  it("does not leak later edges into an existing snapshot", () => {
+    const deps = new IslandDependencyMap();
+    const pageId = testAri("page", "P").toString();
+    const menuId = testAri("menu", "M").toString();
+    const footerId = testAri("footer", "F").toString();
+
+    deps.add(pageId, menuId);
+    const snapshot = deps.snapshot();
+    deps.add(pageId, footerId);
+
+    expect(snapshot.get(pageId)).toEqual(new Set([menuId]));
   });
 
   it("returns flat deduplicated transitive dependencies from a root island", () => {

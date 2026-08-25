@@ -1,21 +1,21 @@
-import { describe, expect, expectTypeOf, it, vi } from "vitest";
-import { createDataResolutionPull } from "@xndrjs/resource-graph-resolver";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
-  cmsEntryAri,
-  createCmsDataLoader,
+  CMS_ASSET_BATCH_SIZE,
+  CMS_ENTRY_BATCH_SIZE,
+  createCmsSource,
   demoCmsStore,
   demoIds,
   heroEntryAri,
+  loadCmsAssets,
+  loadCmsEntries,
   logoAssetAri,
-  menuEntryAri,
   pageEntryAri,
   productEntryAri,
   type ContentfulAsset,
   type ContentfulResolvedEntry,
 } from "./cms/index.js";
 import type { DemoContentRegistry } from "./content-registry.js";
-import { createDemoDataGateway } from "./demo-data-gateway.js";
 import {
   HeroEntrySchema,
   PageEntrySchema,
@@ -23,12 +23,15 @@ import {
   TabEntrySchema,
 } from "./cms/generated/contentful.schemas.js";
 import {
-  createIntegrationDataLoader,
+  createIntegrationSource,
+  INTEGRATION_BATCH_SIZE,
+  loadIntegrationProducts,
+  demoProductCatalog,
   tshirtIntegrationAri,
   type ProductIntegrationSnapshot,
 } from "./integration/index.js";
 
-describe("source-qualified ARI store + data gateway", () => {
+describe("source-qualified ARI store", () => {
   it("uses cms.* and integration.* ARI types", () => {
     expect(pageEntryAri.type).toBe("cms.entry");
     expect(logoAssetAri.type).toBe("cms.asset");
@@ -36,18 +39,6 @@ describe("source-qualified ARI store + data gateway", () => {
     expectTypeOf(pageEntryAri.type).toEqualTypeOf<"cms.entry">();
     expectTypeOf(logoAssetAri.type).toEqualTypeOf<"cms.asset">();
     expectTypeOf(tshirtIntegrationAri.type).toEqualTypeOf<"integration.product">();
-  });
-
-  it("routes ARIs via source ownership accepts predicates", () => {
-    const cms = createCmsDataLoader(demoCmsStore);
-    const integration = createIntegrationDataLoader();
-
-    expect(cms.accepts(pageEntryAri)).toBe(true);
-    expect(cms.accepts(logoAssetAri)).toBe(true);
-    expect(cms.accepts(tshirtIntegrationAri)).toBe(false);
-
-    expect(integration.accepts(tshirtIntegrationAri)).toBe(true);
-    expect(integration.accepts(pageEntryAri)).toBe(false);
   });
 
   it("types ContentRegistry by source-qualified ARI type", () => {
@@ -92,45 +83,40 @@ describe("source-qualified ARI store + data gateway", () => {
       "TSHIRT-1"
     );
   });
+});
 
-  it("gateway routes cms and integration batches to the injected loaders", async () => {
-    const gateway = createDemoDataGateway(
-      createCmsDataLoader(demoCmsStore),
-      createIntegrationDataLoader()
-    );
-    const missing = cmsEntryAri({ id: "missing-entry", locale: "en-US" });
-    const remaining = [pageEntryAri, logoAssetAri, missing, menuEntryAri, tshirtIntegrationAri];
+describe("demo resource sources", () => {
+  it("declares the ARI families and backend batch limits each source owns", () => {
+    const cms = createCmsSource(demoCmsStore);
+    const integration = createIntegrationSource();
 
-    const result = await gateway.process(createDataResolutionPull(remaining));
-
-    expect(remaining).toEqual([]);
-    expect(result).toHaveLength(4);
-    expect(result.some((record) => record.resource.equals(pageEntryAri))).toBe(true);
-    expect(result.some((record) => record.resource.equals(logoAssetAri))).toBe(true);
-    expect(result.some((record) => record.resource.equals(menuEntryAri))).toBe(true);
-    expect(result.some((record) => record.resource.equals(tshirtIntegrationAri))).toBe(true);
-    expect(result.some((record) => record.resource.equals(missing))).toBe(false);
-
-    const asset = result.find((record) => record.resource.equals(logoAssetAri))?.payload;
-    expect((asset as ContentfulAsset).fields.file?.url).toBe("https://cdn.example.com/logo.svg");
-
-    const commercial = result.find((record) =>
-      record.resource.equals(tshirtIntegrationAri)
-    )?.payload;
-    expect(commercial).toEqual({
-      price: { amount: 1999, currency: "EUR" },
-      inStock: true,
+    expect(cms.id).toBe("cms");
+    expect(Object.keys(cms.families).sort()).toEqual(["asset", "entry"]);
+    expect(cms.families.entry?.type).toBe("cms.entry");
+    expect(cms.families.asset?.type).toBe("cms.asset");
+    expect(cms.batchSize).toEqual({
+      entry: CMS_ENTRY_BATCH_SIZE,
+      asset: CMS_ASSET_BATCH_SIZE,
     });
+
+    expect(integration.id).toBe("integration");
+    expect(Object.keys(integration.families)).toEqual(["product"]);
+    expect(integration.families.product?.type).toBe("integration.product");
+    expect(integration.batchSize).toEqual({ product: INTEGRATION_BATCH_SIZE });
   });
 
-  it("cms loader fetches entries and assets via separate batch APIs (Contentful-style)", async () => {
-    const cms = createCmsDataLoader(demoCmsStore);
-    const [entries, assets] = await Promise.all([
-      cms.loadEntries([pageEntryAri, heroEntryAri, productEntryAri]),
-      cms.loadAssets([logoAssetAri]),
-    ]);
+  it("fetches entries and assets concurrently within one CMS batch", async () => {
+    const cms = createCmsSource(demoCmsStore);
 
-    expect([...entries, ...assets].map((record) => record.resource.toString()).sort()).toEqual(
+    const records = await cms.load(
+      {
+        entry: [pageEntryAri, heroEntryAri, productEntryAri],
+        asset: [logoAssetAri],
+      },
+      { executionContext: { locale: "en-US" }, batchNumber: 1 }
+    );
+
+    expect(records.map((record) => record.resource.toString()).sort()).toEqual(
       [
         pageEntryAri.toString(),
         heroEntryAri.toString(),
@@ -140,47 +126,32 @@ describe("source-qualified ARI store + data gateway", () => {
     );
   });
 
-  it("integration loader batches product skus", async () => {
-    const integration = createIntegrationDataLoader();
-    const result = await integration.load([tshirtIntegrationAri]);
+  it("omits resources the CMS store does not hold, so the resolver reports them missing", async () => {
+    const missing = pageEntryAri;
+    const emptyStore = { entries: new Map(), assets: new Map() };
+    const cms = createCmsSource(emptyStore);
 
-    expect(result.find((record) => record.resource.equals(tshirtIntegrationAri))?.payload).toEqual({
+    const records = await cms.load(
+      { entry: [missing], asset: [] },
+      { executionContext: { locale: "en-US" }, batchNumber: 1 }
+    );
+
+    expect(records).toEqual([]);
+  });
+
+  it("resolves product snapshots by sku", async () => {
+    const records = await loadIntegrationProducts(demoProductCatalog, [tshirtIntegrationAri]);
+
+    expect(records).toHaveLength(1);
+    expect(records[0]?.payload).toEqual({
       price: { amount: 1999, currency: "EUR" },
       inStock: true,
     });
   });
 
-  it("cms loader skips IO when both entry and asset takes are empty", async () => {
-    const cms = createCmsDataLoader(demoCmsStore);
-    const loadEntries = vi.spyOn(cms, "loadEntries");
-    const loadAssets = vi.spyOn(cms, "loadAssets");
-
-    const result = await cms.process(createDataResolutionPull([tshirtIntegrationAri]));
-
-    expect(result).toEqual([]);
-    expect(loadEntries).not.toHaveBeenCalled();
-    expect(loadAssets).not.toHaveBeenCalled();
-  });
-
-  it("cms loader skips only the empty batch side when the other take has work", async () => {
-    const cms = createCmsDataLoader(demoCmsStore);
-    const loadEntries = vi.spyOn(cms, "loadEntries");
-    const loadAssets = vi.spyOn(cms, "loadAssets");
-
-    const result = await cms.process(createDataResolutionPull([logoAssetAri]));
-
-    expect(result).toHaveLength(1);
-    expect(loadEntries).not.toHaveBeenCalled();
-    expect(loadAssets).toHaveBeenCalledTimes(1);
-  });
-
-  it("integration loader skips IO when take returns an empty batch", async () => {
-    const integration = createIntegrationDataLoader();
-    const load = vi.spyOn(integration, "load");
-
-    const result = await integration.process(createDataResolutionPull([pageEntryAri]));
-
-    expect(result).toEqual([]);
-    expect(load).not.toHaveBeenCalled();
+  it("skips IO entirely for an empty family slice", async () => {
+    expect(await loadCmsEntries(demoCmsStore, [])).toEqual([]);
+    expect(await loadCmsAssets(demoCmsStore, [])).toEqual([]);
+    expect(await loadIntegrationProducts(demoProductCatalog, [])).toEqual([]);
   });
 });

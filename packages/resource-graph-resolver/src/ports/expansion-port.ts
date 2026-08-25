@@ -1,7 +1,17 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentRegistry, IslandId, RegistryPayloadFor } from "../types";
+import type { ContentRegistry, RegistryPayloadFor } from "../types";
 
+/**
+ * Everything a policy may observe: the resource, its own payload, and the
+ * execution context.
+ *
+ * Deliberately excludes the island the resource was reached from. A resource may
+ * be reached from several islands, and a policy that varied its output per island
+ * would make expansion non-deterministic: the edges of the graph would depend on
+ * traversal order rather than on content. The resolver still tracks full
+ * multi-island membership; policies just do not participate in it.
+ */
 export interface ExpansionContext<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
@@ -10,11 +20,6 @@ export interface ExpansionContext<
   resource: Resource;
   /** Resolved payload for {@link resource} — policies must not observe other nodes. */
   payload: RegistryPayloadFor<R, Resource>;
-  /**
-   * Island inherited from the parent.
-   * The resource's effective island may change when {@link ExpansionResult.isIsland} is true.
-   */
-  inheritedIslandId: IslandId;
   executionContext: TExecutionContext;
 }
 

@@ -1,32 +1,17 @@
-import {
-  BarrierResolveContentGraphEngine,
-  serializeAllIslands,
-} from "@xndrjs/resource-graph-resolver";
+import { serializeAllIslands } from "@xndrjs/resource-graph-resolver";
 import { describe, expect, it } from "vitest";
 
-import {
-  createCmsDataLoader,
-  cmsEntryAri,
-  demoCmsStore,
-  demoIds,
-  logoAssetAri,
-} from "./cms/index.js";
-import { createDemoDataGateway } from "./demo-data-gateway.js";
+import { cmsEntryAri, demoIds, logoAssetAri } from "./cms/index.js";
 import { createDefaultDemoExecutionContext } from "./demo-execution-context.js";
-import { createDemoExpansionPort } from "./expansion-policies.js";
-import { createIntegrationDataLoader, tshirtIntegrationAri } from "./integration/index.js";
+import { createDemoResolver } from "./demo-resolver.js";
+import { tshirtIntegrationAri } from "./integration/index.js";
 
 describe("serializeAllIslands", () => {
   it("materializes every resolved island with cache-ready payloads", async () => {
     const executionContext = createDefaultDemoExecutionContext();
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
-    const engine = new BarrierResolveContentGraphEngine(
-      createDemoDataGateway(createCmsDataLoader(demoCmsStore), createIntegrationDataLoader()),
-      createDemoExpansionPort()
-    );
-
-    const result = await engine.execute({
+    const result = await createDemoResolver({ strategy: "barrier" }).resolve({
       root: pageRoot,
       executionContext,
       missingResourceMode: "throw",

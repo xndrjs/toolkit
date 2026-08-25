@@ -6,12 +6,17 @@ export {
 } from "./islands/build-backing-resources";
 export { ContentMap } from "./model/content-map";
 export {
-  createDataResolutionPull,
-  type DataResolutionPort,
-  type DataResolutionPull,
-} from "./ports/data-resolution-port";
-export { LaneResolveContentGraphEngine } from "./engines/lane-resolve-content-graph-engine";
-export { ResolveContentGraphAbortedError } from "./errors";
+  createResourceGraphResolver,
+  type ResourceGraphResolver,
+  type ResourceGraphResolverConfig,
+} from "./engines/resource-graph-resolver";
+export {
+  MissingResourceError,
+  NoResourceSourceError,
+  ResourceGraphAbortedError,
+  ResourceGraphError,
+  ResourceLoadFailedError,
+} from "./errors";
 export {
   createExpansionPolicyChain,
   defineExpansionPolicy,
@@ -23,17 +28,40 @@ export {
 } from "./ports/expansion-port";
 export { IslandDependencyMap } from "./model/island-dependency-map";
 export { IslandMap } from "./model/island-map";
-export { BarrierResolveContentGraphEngine } from "./engines/barrier-resolve-content-graph-engine";
-export type { ResourceLoader } from "./ports/resource-loader";
+export type {
+  BackingPromoteEvent,
+  MissingResourceEvent,
+  ResolutionEndEvent,
+  ResolutionObserver,
+  ResolutionStartEvent,
+  ResourceBatchEndEvent,
+  ResourceBatchErrorEvent,
+  ResourceBatchStartEvent,
+  ResourceExpandEvent,
+} from "./observability/resolution-observer";
+export {
+  defineResourceSourceFor,
+  type PendingResourceBatch,
+  type ResourceBatchSizeMap,
+  type ResourceFamily,
+  type ResourceFamilyMap,
+  type ResourceLoadContext,
+  type ResourceOfFamily,
+  type ResourceSource,
+  type ResourceSourceDefinition,
+  type SourceResourceRecord,
+} from "./ports/resource-source";
 export { serializeAllIslands, serializeIsland } from "./islands/serialize-island";
 export type {
+  ComposeContentRegistry,
   ContentRegistry,
   IslandId,
   MissingResourceMode,
   RegistryPayloadFor,
   ResolutionError,
-  ResolveContentGraphInput,
-  ResolveContentGraphOutput,
+  ResolutionStrategy,
+  ResolveResourceGraphInput,
+  ResolveResourceGraphOutput,
   ResolvedResourceRecord,
   ResourceKey,
   SerializedIsland,

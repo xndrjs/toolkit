@@ -37,8 +37,8 @@ export function DemoResolveView({ locale, strategy, result }: DemoResolveViewPro
   const { cacheReport, cacheSnapshot } = result;
   const traceHint =
     strategy === "lane"
-      ? "Lane batches are logged in the dev server terminal."
-      : "Barrier rounds are logged in the dev server terminal.";
+      ? "Overlapping source batches are logged in the dev server terminal."
+      : "Batches awaited together are logged in the dev server terminal.";
 
   return (
     <main>

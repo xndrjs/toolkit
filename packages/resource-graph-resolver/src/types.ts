@@ -13,7 +13,7 @@ export type RegistryPayloadFor<
   Resource extends ApplicationResourceIdentifier,
 > = Resource extends ApplicationResourceIdentifier<infer T extends keyof R & string> ? R[T] : never;
 
-/** One loaded resource with correlated ARI and payload — returned by {@link import("./ports/data-resolution-port").DataResolutionPort}. */
+/** One loaded resource with correlated ARI and payload. */
 export type ResolvedResourceRecord<R extends ContentRegistry> = {
   [T in keyof R & string]: {
     resource: ApplicationResourceIdentifier<T>;
@@ -26,11 +26,39 @@ export type IslandId = string;
 
 /**
  * Project-level map from ARI `type` literal to resolved payload shape.
- * The engine stays schema-agnostic; apps supply a concrete registry.
+ * The resolver stays schema-agnostic; apps supply a concrete registry.
  */
 export type ContentRegistry = Record<string, unknown>;
 
+type UnionToIntersection<U> = (U extends unknown ? (value: U) => void : never) extends (
+  value: infer I
+) => void
+  ? I
+  : never;
+
+/**
+ * Flattens per-source registry slices into one project registry, so hovers and
+ * type errors show a single object instead of a chain of intersections.
+ *
+ * ```ts
+ * type AppRegistry = ComposeContentRegistry<[CmsRegistry, IntegrationRegistry]>;
+ * ```
+ */
+export type ComposeContentRegistry<Slices extends readonly ContentRegistry[]> = {
+  [K in keyof UnionToIntersection<Slices[number]>]: UnionToIntersection<Slices[number]>[K];
+};
+
 export type MissingResourceMode = "throw" | "collect";
+
+/**
+ * When expansion runs relative to in-flight loads.
+ *
+ * - `lane` — expand as soon as any source batch commits; a fast source never
+ *   waits on a slow peer.
+ * - `barrier` — wait for every in-flight batch, then expand together; rounds are
+ *   reproducible, but wall clock tracks the slowest source in each round.
+ */
+export type ResolutionStrategy = "lane" | "barrier";
 
 export interface ResolutionError {
   resourceKey: ResourceKey;
@@ -43,25 +71,27 @@ export interface ResolutionError {
   inheritedIslandIds: readonly IslandId[];
 }
 
-export interface ResolveContentGraphInput<TExecutionContext = unknown> {
+export interface ResolveResourceGraphInput<TExecutionContext = unknown> {
   root: ApplicationResourceIdentifier;
   executionContext: TExecutionContext;
   missingResourceMode: MissingResourceMode;
   /**
-   * Opaque backing resources consulted before DataResolutionPort.
-   * Entries are promoted into ContentMap only when the frontier reaches them,
-   * then removed from this map (caller may pass a mutable Map).
+   * Opaque pre-resolved payloads consulted before any source is asked.
+   * The map is never mutated; promoted keys are reported as
+   * {@link ResolveResourceGraphOutput.promotedResourceKeys}.
    */
-  backingResources?: Map<ResourceKey, unknown>;
-  /** Cooperative cancellation; checked before and after every data-port load. */
+  backingResources?: ReadonlyMap<ResourceKey, unknown>;
+  /** Cooperative cancellation; checked around every load and forwarded to sources. */
   signal?: AbortSignal;
 }
 
-export interface ResolveContentGraphOutput<R extends ContentRegistry = ContentRegistry> {
+export interface ResolveResourceGraphOutput<R extends ContentRegistry = ContentRegistry> {
   contentMap: ContentMap<R>;
   islands: IslandMap;
   islandDependencies: IslandDependencyMap;
   errors: readonly ResolutionError[];
+  /** Backing keys the walk actually reached, in promotion order. */
+  promotedResourceKeys: readonly ResourceKey[];
 }
 
 /** Portable island payload for cache/JSON (schema v1). */

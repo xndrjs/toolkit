@@ -1,5 +1,5 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type { ResolveContentGraphOutput } from "@xndrjs/resource-graph-resolver";
+import type { ResolveResourceGraphOutput } from "@xndrjs/resource-graph-resolver";
 
 import { cmsEntryAri } from "../cms/index.js";
 import type { DemoContentRegistry } from "../content-registry.js";
@@ -20,7 +20,7 @@ import { mapTabs } from "./tabs.mapper.js";
 import { requireCmsEntry, type MapperContext } from "./mapper-context.js";
 
 export type MapContentMapToPageAggregateInput = {
-  result: ResolveContentGraphOutput<DemoContentRegistry>;
+  result: ResolveResourceGraphOutput<DemoContentRegistry>;
   root: ApplicationResourceIdentifier<"cms.entry">;
   locale?: ContentfulLocaleCode;
 };
@@ -63,14 +63,14 @@ function mapPageModule(context: MapperContext, link: ContentfulEntryLink): PageM
   const raw = requireCmsEntry(context, cmsEntryAri({ id: link.sys.id, locale: context.locale }));
   const entry = parseEntryAsLinkField("page", "modules", raw);
   const contentTypeId = entry.sys.contentType.sys.id;
-  if (contentTypeId === "tabs") {
-    return mapTabs(context, entry);
+  switch (contentTypeId) {
+    case "tabs":
+      return mapTabs(context, entry);
+    case "hero":
+      return mapHero(context, entry);
+    case "product":
+      return mapProduct(context, entry);
+    default:
+      throw new Error(`Unsupported page module content type: ${String(contentTypeId)}`);
   }
-  if (contentTypeId === "hero") {
-    return mapHero(context, entry);
-  }
-  if (contentTypeId === "product") {
-    return mapProduct(context, entry);
-  }
-  throw new Error(`Unsupported page module content type: ${String(contentTypeId)}`);
 }

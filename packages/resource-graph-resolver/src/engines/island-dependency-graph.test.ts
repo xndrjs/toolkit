@@ -1,17 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import type { DataResolutionPort } from "../ports/data-resolution-port";
+import { createResourceGraphResolver } from "./resource-graph-resolver";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
-import { BarrierResolveContentGraphEngine } from "./barrier-resolve-content-graph-engine";
 import { serializeIsland } from "../islands/serialize-island";
-import { testAri } from "../testing/test-fixtures.js";
-import type { ResolvedResourceRecord } from "../types";
+import { createStoreSource } from "../testing/resolver-test-helpers";
+import { footerAri, menuAri, pageAri, testAriFactory } from "../testing/test-fixtures";
 
-/** Minimal graph: page → menu/footer (islands); menu → logo (island). */
-const page = testAri("page", "P");
-const menu = testAri("menu", "M");
-const footer = testAri("footer", "F");
-const logo = testAri("logo", "L");
+/** Minimal graph: page -> menu/footer (islands); menu -> logo (island). */
+const logoAri = testAriFactory("logo");
+
+const page = pageAri({ id: "P" });
+const menu = menuAri({ id: "M" });
+const footer = footerAri({ id: "F" });
+const logo = logoAri({ id: "L" });
 
 const values = new Map<string, unknown>([
   [
@@ -26,22 +27,6 @@ const values = new Map<string, unknown>([
   [footer.toString(), { label: "Footer" }],
   [logo.toString(), { url: "https://cdn.example.com/logo.svg" }],
 ]);
-
-function createInMemoryPort(store: ReadonlyMap<string, unknown> = values): DataResolutionPort {
-  return {
-    process: vi.fn(async (pull) => {
-      const taken = pull.take(() => true);
-      const result: ResolvedResourceRecord<Record<string, unknown>>[] = [];
-      for (const resource of taken) {
-        const key = resource.toString();
-        if (store.has(key)) {
-          result.push({ resource, payload: store.get(key) });
-        }
-      }
-      return result;
-    }),
-  };
-}
 
 function createNestedIslandPolicies(): ExpansionPolicy[] {
   return [
@@ -66,12 +51,18 @@ function createNestedIslandPolicies(): ExpansionPolicy[] {
 
 describe("island dependency graph", () => {
   it("records direct island edges only — nested logo island is not a page dependency", async () => {
-    const engine = new BarrierResolveContentGraphEngine(
-      createInMemoryPort(),
-      createExpansionPolicyChain(createNestedIslandPolicies())
-    );
+    const resolver = createResourceGraphResolver({
+      sources: [
+        createStoreSource({
+          families: { page: pageAri, menu: menuAri, footer: footerAri, logo: logoAri },
+          store: values,
+        }),
+      ],
+      expansion: createExpansionPolicyChain(createNestedIslandPolicies()),
+      strategy: "barrier",
+    });
 
-    const output = await engine.execute({
+    const output = await resolver.resolve({
       root: page,
       executionContext: {},
       missingResourceMode: "throw",

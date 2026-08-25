@@ -1,14 +1,9 @@
-import {
-  BarrierResolveContentGraphEngine,
-  defineExpansionPolicy,
-  type ExpansionContext,
-} from "@xndrjs/resource-graph-resolver";
+import { defineExpansionPolicy, type ExpansionContext } from "@xndrjs/resource-graph-resolver";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   cmsAssetAri,
   cmsEntryAri,
-  createCmsDataLoader,
   demoCmsStore,
   demoIds,
   footerEntryAri,
@@ -29,13 +24,9 @@ import {
   createDefaultDemoExecutionContext,
   type DemoExecutionContext,
 } from "./demo-execution-context.js";
-import { createDemoDataGateway } from "./demo-data-gateway.js";
+import { createDemoResolver } from "./demo-resolver.js";
 import { createDemoExpansionPort } from "./expansion-policies.js";
-import {
-  createIntegrationDataLoader,
-  integrationProductAri,
-  tshirtIntegrationAri,
-} from "./integration/index.js";
+import { integrationProductAri, tshirtIntegrationAri } from "./integration/index.js";
 import type { IntegrationProductResource } from "./integration/ari.js";
 
 function expandEntry(
@@ -46,13 +37,8 @@ function expandEntry(
   return createDemoExpansionPort().expand({
     resource,
     payload: entry,
-    inheritedIslandId: resource.toString(),
     executionContext,
   } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
-}
-
-function createDemoGateway() {
-  return createDemoDataGateway(createCmsDataLoader(demoCmsStore), createIntegrationDataLoader());
 }
 
 describe("createDemoExpansionPort", () => {
@@ -129,7 +115,6 @@ describe("createDemoExpansionPort", () => {
     const matched = createDemoExpansionPort().expand({
       resource: productEntryAri,
       payload: product,
-      inheritedIslandId: productEntryAri.toString(),
       executionContext: createDefaultDemoExecutionContext("en-US"),
     } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
     expect(matched.resources.map((r) => r.toString())).toEqual([tshirtIntegrationAri.toString()]);
@@ -137,7 +122,6 @@ describe("createDemoExpansionPort", () => {
     const localeMismatch = createDemoExpansionPort().expand({
       resource: productEntryAri,
       payload: product,
-      inheritedIslandId: productEntryAri.toString(),
       executionContext: createDefaultDemoExecutionContext("it-IT"),
     } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
     expect(localeMismatch.resources).toEqual([]);
@@ -146,7 +130,6 @@ describe("createDemoExpansionPort", () => {
     const italianMatched = createDemoExpansionPort().expand({
       resource: italianProduct,
       payload: product,
-      inheritedIslandId: italianProduct.toString(),
       executionContext: createDefaultDemoExecutionContext("it-IT"),
     } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
     expect(italianMatched.resources.map((r) => r.toString())).toEqual([
@@ -164,7 +147,6 @@ describe("createDemoExpansionPort", () => {
       createDemoExpansionPort().expand({
         resource: logoAssetAri,
         payload: asset,
-        inheritedIslandId: logoAssetAri.toString(),
         executionContext,
       } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsAssetResource>)
     ).toEqual({ resources: [] });
@@ -176,7 +158,6 @@ describe("createDemoExpansionPort", () => {
           price: { amount: 1999, currency: "EUR" },
           inStock: true,
         },
-        inheritedIslandId: tshirtIntegrationAri.toString(),
         executionContext,
       } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, IntegrationProductResource>)
     ).toEqual({ resources: [] });
@@ -185,10 +166,6 @@ describe("createDemoExpansionPort", () => {
   it("resolves the demo page graph with menu/footer islands, shared asset, and integration products", async () => {
     const executionContext = createDefaultDemoExecutionContext();
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
-    const engine = new BarrierResolveContentGraphEngine(
-      createDemoGateway(),
-      createDemoExpansionPort()
-    );
 
     defineExpansionPolicy<ReturnType<typeof cmsEntryAri>, DemoContentRegistry>({
       for: cmsEntryAri,
@@ -199,7 +176,7 @@ describe("createDemoExpansionPort", () => {
       },
     });
 
-    const output = await engine.execute({
+    const output = await createDemoResolver({ strategy: "barrier" }).resolve({
       root: pageRoot,
       executionContext,
       missingResourceMode: "throw",

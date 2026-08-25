@@ -7,10 +7,10 @@ export {
 } from "./catalog.js";
 export type { IntegrationContentRegistry } from "./content-registry.js";
 export {
-  acceptsIntegrationResource,
-  createIntegrationDataLoader,
+  createIntegrationSource,
+  loadIntegrationProducts,
   INTEGRATION_BATCH_SIZE,
-  type IntegrationDataLoader,
-  type IntegrationDataLoaderOptions,
+  INTEGRATION_SOURCE_ID,
+  type IntegrationSourceOptions,
 } from "./data-adapter.js";
 export { tshirtIntegrationAri } from "./fixtures.js";

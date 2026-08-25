@@ -4,7 +4,9 @@ import type { IslandId, ResourceKey } from "../types";
 
 /**
  * Per-island membership of resource keys.
- * Also acts as the visited set for `(islandId, resource)` pairs during traversal.
+ *
+ * Pure output: the resolver keeps its own traversal visited set, so reading or
+ * copying this map never influences a walk.
  */
 export class IslandMap {
   private readonly islands = new Map<IslandId, Set<ResourceKey>>();

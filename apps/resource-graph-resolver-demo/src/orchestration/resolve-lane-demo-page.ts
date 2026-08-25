@@ -1,26 +1,8 @@
-import { LaneResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
-
 import { loadBackingForRoot, lruIslandCache } from "../infrastructure/cache/index.js";
-import {
-  createCmsDataLoader,
-  cmsEntryAri,
-  demoCmsStore,
-  demoIds,
-  type ContentfulLocaleCode,
-} from "../infrastructure/cms/index.js";
-import type { DemoContentRegistry } from "../infrastructure/content-registry.js";
-import {
-  createDefaultDemoExecutionContext,
-  type DemoExecutionContext,
-} from "../infrastructure/demo-execution-context.js";
-import { createDemoExpansionPort } from "../infrastructure/expansion-policies.js";
-import { createIntegrationDataLoader } from "../infrastructure/integration/index.js";
-import {
-  createConsoleResolveTrace,
-  withLoggingCmsLoader,
-  withLoggingExpansionPort,
-  withLoggingIntegrationLoader,
-} from "../infrastructure/logging/resolve-trace.js";
+import { cmsEntryAri, demoIds, type ContentfulLocaleCode } from "../infrastructure/cms/index.js";
+import { createDefaultDemoExecutionContext } from "../infrastructure/demo-execution-context.js";
+import { createDemoResolver } from "../infrastructure/demo-resolver.js";
+import { createConsoleResolveTrace } from "../infrastructure/logging/resolve-trace.js";
 import {
   finalizeDemoResolve,
   isDemoResolveQuiet,
@@ -36,7 +18,7 @@ export type {
   ResolveDemoPageSuccess,
 } from "./resolve-demo-shared.js";
 
-/** Lane walk: source loaders + LaneResolveContentGraphEngine (serial-per-lane). */
+/** Lane walk: each source progresses on its own, expanding as soon as its batch lands. */
 export async function resolveLaneDemoPage(
   locale: ContentfulLocaleCode,
   options?: ResolveDemoPageOptions
@@ -46,34 +28,22 @@ export async function resolveLaneDemoPage(
   const executionContext = createDefaultDemoExecutionContext(locale);
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
-  const cmsLoader = createCmsDataLoader(demoCmsStore, { latencyMs: cmsLatencyMs });
-  const integrationLoader = createIntegrationDataLoader(undefined, {
-    latencyMs: integrationLatencyMs,
-  });
-  const expansion = createDemoExpansionPort();
-
   const trace = quiet ? undefined : createConsoleResolveTrace();
-  const cms = trace ? withLoggingCmsLoader(cmsLoader, trace, "lane") : cmsLoader;
-  const integration = trace
-    ? withLoggingIntegrationLoader(integrationLoader, trace, "lane")
-    : integrationLoader;
-  const expansionPort = trace ? withLoggingExpansionPort(expansion, trace) : expansion;
 
-  const engine = new LaneResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
-    [cms, integration],
-    expansionPort
-  );
+  const resolver = createDemoResolver({
+    strategy: "lane",
+    cmsLatencyMs,
+    integrationLatencyMs,
+    observer: trace?.observer,
+  });
 
   const { backingResources, report } = loadBackingForRoot(pageRoot, lruIslandCache);
-  const backingResourceCountBeforePromote = report.backingResourceCount;
 
-  if (trace) {
-    console.log(
-      `Resolve demo — strategy lane, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}, latency cms=${cmsLatencyMs}ms integration=${integrationLatencyMs}ms`
-    );
-  }
+  trace?.logLine(
+    `Resolve demo — strategy lane, cache ${lruIslandCache.instanceId}, locale ${executionContext.locale}, latency cms=${cmsLatencyMs}ms integration=${integrationLatencyMs}ms`
+  );
 
-  const output = await engine.execute({
+  const output = await resolver.resolve({
     root: pageRoot,
     executionContext,
     missingResourceMode: "throw",
@@ -85,8 +55,6 @@ export async function resolveLaneDemoPage(
     output,
     pageRoot,
     locale: executionContext.locale,
-    backingResourceCountBeforePromote,
-    backingResourcesSize: backingResources.size,
     report,
     trace,
   });

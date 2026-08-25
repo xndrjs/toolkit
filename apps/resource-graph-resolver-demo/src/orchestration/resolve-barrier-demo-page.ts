@@ -1,28 +1,8 @@
-import { BarrierResolveContentGraphEngine } from "@xndrjs/resource-graph-resolver";
-
 import { loadBackingForRoot, lruIslandCache } from "../infrastructure/cache/index.js";
-import {
-  createCmsDataLoader,
-  cmsEntryAri,
-  demoCmsStore,
-  demoIds,
-  type ContentfulLocaleCode,
-} from "../infrastructure/cms/index.js";
-import type { DemoContentRegistry } from "../infrastructure/content-registry.js";
-import {
-  createDefaultDemoExecutionContext,
-  type DemoExecutionContext,
-} from "../infrastructure/demo-execution-context.js";
-import { createDemoDataGateway } from "../infrastructure/demo-data-gateway.js";
-import { createDemoExpansionPort } from "../infrastructure/expansion-policies.js";
-import { createIntegrationDataLoader } from "../infrastructure/integration/index.js";
-import {
-  createConsoleResolveTrace,
-  withLoggingCmsLoader,
-  withLoggingExpansionPort,
-  withLoggingGateway,
-  withLoggingIntegrationLoader,
-} from "../infrastructure/logging/resolve-trace.js";
+import { cmsEntryAri, demoIds, type ContentfulLocaleCode } from "../infrastructure/cms/index.js";
+import { createDefaultDemoExecutionContext } from "../infrastructure/demo-execution-context.js";
+import { createDemoResolver } from "../infrastructure/demo-resolver.js";
+import { createConsoleResolveTrace } from "../infrastructure/logging/resolve-trace.js";
 import {
   finalizeDemoResolve,
   isDemoResolveQuiet,
@@ -38,7 +18,7 @@ export type {
   ResolveDemoPageSuccess,
 } from "./resolve-demo-shared.js";
 
-/** Barrier walk: gateway + BarrierResolveContentGraphEngine (round-based). */
+/** Barrier walk: every source in a round completes before the next expansion. */
 export async function resolveBarrierDemoPage(
   locale: ContentfulLocaleCode,
   options?: ResolveDemoPageOptions
@@ -48,37 +28,22 @@ export async function resolveBarrierDemoPage(
   const executionContext = createDefaultDemoExecutionContext(locale);
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
-  const cmsLoader = createCmsDataLoader(demoCmsStore, { latencyMs: cmsLatencyMs });
-  const integrationLoader = createIntegrationDataLoader(undefined, {
-    latencyMs: integrationLatencyMs,
-  });
-  const expansion = createDemoExpansionPort();
-
   const trace = quiet ? undefined : createConsoleResolveTrace();
-  const cms = trace ? withLoggingCmsLoader(cmsLoader, trace) : cmsLoader;
-  const integration = trace
-    ? withLoggingIntegrationLoader(integrationLoader, trace)
-    : integrationLoader;
-  const gateway = trace
-    ? withLoggingGateway(createDemoDataGateway(cms, integration), trace)
-    : createDemoDataGateway(cms, integration);
-  const expansionPort = trace ? withLoggingExpansionPort(expansion, trace) : expansion;
 
-  const engine = new BarrierResolveContentGraphEngine<DemoContentRegistry, DemoExecutionContext>(
-    gateway,
-    expansionPort
-  );
+  const resolver = createDemoResolver({
+    strategy: "barrier",
+    cmsLatencyMs,
+    integrationLatencyMs,
+    ...(trace ? { observer: trace.observer } : {}),
+  });
 
   const { backingResources, report } = loadBackingForRoot(pageRoot, lruIslandCache);
-  const backingResourceCountBeforePromote = report.backingResourceCount;
 
-  if (trace) {
-    console.log(
-      `Resolve demo — strategy barrier, cache ${lruIslandCache.instanceId}, root ${pageRoot.toString()}, locale ${executionContext.locale}, latency cms=${cmsLatencyMs}ms integration=${integrationLatencyMs}ms`
-    );
-  }
+  trace?.logLine(
+    `Resolve demo — strategy barrier, cache ${lruIslandCache.instanceId}, locale ${executionContext.locale}, latency cms=${cmsLatencyMs}ms integration=${integrationLatencyMs}ms`
+  );
 
-  const output = await engine.execute({
+  const output = await resolver.resolve({
     root: pageRoot,
     executionContext,
     missingResourceMode: "throw",
@@ -90,8 +55,6 @@ export async function resolveBarrierDemoPage(
     output,
     pageRoot,
     locale: executionContext.locale,
-    backingResourceCountBeforePromote,
-    backingResourcesSize: backingResources.size,
     report,
     trace,
   });

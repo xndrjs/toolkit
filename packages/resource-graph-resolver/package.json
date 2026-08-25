@@ -10,6 +10,7 @@
     "directory": "packages/resource-graph-resolver"
   },
   "type": "module",
+  "sideEffects": false,
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {

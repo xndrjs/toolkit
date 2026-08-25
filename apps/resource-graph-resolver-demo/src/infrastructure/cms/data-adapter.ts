@@ -1,157 +1,107 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import type { DataResolutionPull, ResolvedResourceRecord } from "@xndrjs/resource-graph-resolver";
+import { defineResourceSourceFor, type ResourceSource } from "@xndrjs/resource-graph-resolver";
 
+import type { DemoContentRegistry } from "../content-registry.js";
+import type { DemoExecutionContext } from "../demo-execution-context.js";
 import { simulateNetworkLatency } from "../simulate-latency.js";
 import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
-import type { CmsContentRegistry } from "./content-registry.js";
 import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
 
+/** Contentful Delivery caps `sys.id[in]` lists, so entries and assets chunk separately. */
 const CMS_ENTRY_BATCH_SIZE = 100;
 const CMS_ASSET_BATCH_SIZE = 100;
 
 export { CMS_ENTRY_BATCH_SIZE, CMS_ASSET_BATCH_SIZE };
+
+export const CMS_SOURCE_ID = "cms";
 
 export type CmsFixtureStore = {
   entries: ReadonlyMap<string, ContentfulResolvedEntry>;
   assets: ReadonlyMap<string, ContentfulAsset>;
 };
 
-export type CmsDataLoaderOptions = {
+export type CmsSourceOptions = {
   /** Simulated network latency (ms) applied to each entries/assets fetch. Default 0. */
   latencyMs?: number;
 };
 
-/** Ownership predicate for CMS ARIs (`cms.entry` / `cms.asset`). */
-export function acceptsCmsResource(resource: ApplicationResourceIdentifier): boolean {
-  return cmsEntryAri.matches(resource) || cmsAssetAri.matches(resource);
-}
+export type CmsEntryRecord = { resource: CmsEntryResource; payload: ContentfulResolvedEntry };
+export type CmsAssetRecord = { resource: CmsAssetResource; payload: ContentfulAsset };
+
+const defineCmsSource = defineResourceSourceFor<DemoContentRegistry, DemoExecutionContext>();
 
 /**
- * CMS batch loader — not a DataResolutionPort.
- * Mimics Contentful Delivery `sys.id[in]=…` fetches for entries and assets.
+ * CMS source: owns `cms.entry` and `cms.asset`.
+ *
+ * Mimics Contentful Delivery `sys.id[in]=…` fetches. Both families arrive in the
+ * same batch, so one round trip per family runs concurrently instead of
+ * serializing entries behind assets.
+ *
  * Locale is part of the ARI key; the demo store still holds one payload per sys.id.
- * `accepts` supports {@link import("@xndrjs/resource-graph-resolver").ResourceLoader} routing.
  */
-export type CmsDataLoader = {
-  accepts(resource: ApplicationResourceIdentifier): boolean;
-  loadEntries(
-    resources: readonly CmsEntryResource[]
-  ): Promise<readonly ResolvedResourceRecord<CmsContentRegistry>[]>;
-  loadAssets(
-    resources: readonly CmsAssetResource[]
-  ): Promise<readonly ResolvedResourceRecord<CmsContentRegistry>[]>;
-  process(pull: DataResolutionPull): Promise<readonly ResolvedResourceRecord<CmsContentRegistry>[]>;
-};
-
-export function createCmsDataLoader(
+export function createCmsSource(
   store: CmsFixtureStore,
-  options?: CmsDataLoaderOptions
-): CmsDataLoader {
+  options?: CmsSourceOptions
+): ResourceSource<DemoContentRegistry, DemoExecutionContext> {
   const latencyMs = options?.latencyMs ?? 0;
 
-  return {
-    accepts: acceptsCmsResource,
+  return defineCmsSource({
+    id: CMS_SOURCE_ID,
+    families: { entry: cmsEntryAri, asset: cmsAssetAri },
+    batchSize: { entry: CMS_ENTRY_BATCH_SIZE, asset: CMS_ASSET_BATCH_SIZE },
 
-    async loadEntries(resources) {
-      const ids = uniqueEntryIds(resources);
-      const fetched = await mockContentfulEntriesByIds(store.entries, ids, latencyMs);
-      return mapDemoEntryBatch(resources, fetched);
-    },
-
-    async loadAssets(resources) {
-      const ids = uniqueAssetIds(resources);
-      const fetched = await mockContentfulAssetsByIds(store.assets, ids, latencyMs);
-      return mapDemoAssetBatch(resources, fetched);
-    },
-
-    async process(pull) {
-      const entryBatch = pull.take(cmsEntryAri.matches, CMS_ENTRY_BATCH_SIZE);
-      const assetBatch = pull.take(cmsAssetAri.matches, CMS_ASSET_BATCH_SIZE);
-
-      if (entryBatch.length === 0 && assetBatch.length === 0) {
-        return [];
-      }
-
-      const [entryResult, assetResult] = await Promise.all([
-        entryBatch.length === 0 ? Promise.resolve([]) : this.loadEntries(entryBatch),
-        assetBatch.length === 0 ? Promise.resolve([]) : this.loadAssets(assetBatch),
+    async load({ entry, asset }) {
+      const [entries, assets] = await Promise.all([
+        loadCmsEntries(store, entry, latencyMs),
+        loadCmsAssets(store, asset, latencyMs),
       ]);
 
-      return [...entryResult, ...assetResult];
+      return [...entries, ...assets];
     },
-  };
+  });
 }
 
-/** Demo helper: map in-memory store rows back to correlated cms.entry records. */
-function mapDemoEntryBatch(
+/** Simulates `GET /entries?sys.id[in]=id1,id2,…` and correlates rows back to ARIs. */
+export async function loadCmsEntries(
+  store: CmsFixtureStore,
   resources: readonly CmsEntryResource[],
-  fetched: ReadonlyMap<string, ContentfulResolvedEntry>
-): ResolvedResourceRecord<CmsContentRegistry>[] {
-  const result: ResolvedResourceRecord<CmsContentRegistry>[] = [];
+  latencyMs = 0
+): Promise<CmsEntryRecord[]> {
+  if (resources.length === 0) {
+    return [];
+  }
+
+  await simulateNetworkLatency(latencyMs);
+
+  const records: CmsEntryRecord[] = [];
   for (const resource of resources) {
-    const value = fetched.get(resource.key[0].id);
-    if (value) {
-      result.push({ resource, payload: value });
+    const payload = store.entries.get(resource.key[0].id);
+    if (payload !== undefined) {
+      records.push({ resource, payload });
     }
   }
-  return result;
+
+  return records;
 }
 
-/** Demo helper: map in-memory store rows back to correlated cms.asset records. */
-function mapDemoAssetBatch(
+/** Simulates `GET /assets?sys.id[in]=id1,id2,…` and correlates rows back to ARIs. */
+export async function loadCmsAssets(
+  store: CmsFixtureStore,
   resources: readonly CmsAssetResource[],
-  fetched: ReadonlyMap<string, ContentfulAsset>
-): ResolvedResourceRecord<CmsContentRegistry>[] {
-  const result: ResolvedResourceRecord<CmsContentRegistry>[] = [];
+  latencyMs = 0
+): Promise<CmsAssetRecord[]> {
+  if (resources.length === 0) {
+    return [];
+  }
+
+  await simulateNetworkLatency(latencyMs);
+
+  const records: CmsAssetRecord[] = [];
   for (const resource of resources) {
-    const value = fetched.get(resource.key[0].id);
-    if (value) {
-      result.push({ resource, payload: value });
+    const payload = store.assets.get(resource.key[0].id);
+    if (payload !== undefined) {
+      records.push({ resource, payload });
     }
   }
-  return result;
-}
 
-function uniqueEntryIds(resources: readonly CmsEntryResource[]): string[] {
-  return [...new Set(resources.map((resource) => resource.key[0].id))];
-}
-
-function uniqueAssetIds(resources: readonly CmsAssetResource[]): string[] {
-  return [...new Set(resources.map((resource) => resource.key[0].id))];
-}
-
-/** Simulates `GET /entries?sys.id[in]=id1,id2,…` against an in-memory entry map. */
-async function mockContentfulEntriesByIds(
-  entries: ReadonlyMap<string, ContentfulResolvedEntry>,
-  ids: readonly string[],
-  latencyMs: number
-): Promise<Map<string, ContentfulResolvedEntry>> {
-  await simulateNetworkLatency(latencyMs);
-  const unique = [...new Set(ids)];
-  const found = new Map<string, ContentfulResolvedEntry>();
-  for (const id of unique) {
-    const entry = entries.get(id);
-    if (entry) {
-      found.set(id, entry);
-    }
-  }
-  return found;
-}
-
-/** Simulates `GET /assets?sys.id[in]=id1,id2,…` against an in-memory asset map. */
-async function mockContentfulAssetsByIds(
-  assets: ReadonlyMap<string, ContentfulAsset>,
-  ids: readonly string[],
-  latencyMs: number
-): Promise<Map<string, ContentfulAsset>> {
-  await simulateNetworkLatency(latencyMs);
-  const unique = [...new Set(ids)];
-  const found = new Map<string, ContentfulAsset>();
-  for (const id of unique) {
-    const asset = assets.get(id);
-    if (asset) {
-      found.set(id, asset);
-    }
-  }
-  return found;
+  return records;
 }

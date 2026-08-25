@@ -555,7 +555,7 @@ return [integrationProductAri({ sku })];
 
 The policy is not saying **how** to fetch the product. It is saying which resource this node requires next.
 
-The resolver takes care of the rest: scheduling the work, giving each loader the resources it can handle, loading them, and expanding the newly resolved nodes.
+The resolver takes care of the rest: scheduling the work, handing each source the resources it owns, loading them, and expanding the newly resolved nodes.
 
 That distinction is what turns a collection of component-level fetches into a resource resolution process.
 
@@ -587,7 +587,7 @@ A policy depends on exactly three inputs:
 
 And, just as importantly, on nothing else. A policy must not inspect sibling nodes, read the `ContentMap` while it is being built, or depend on which peers happened to land in the same batch.
 
-That restriction is what keeps discovery **deterministic**: changing a loader's batch size must never change the edges a policy emits for a given node. When a rule genuinely needs to compare several resolved nodes with each other, it is **business logic** rather than expansion, and it belongs outside a single resolution run — applied to the resolved graph, not to the walk that produces it.
+That restriction is what keeps discovery **deterministic**: changing a source's batch size must never change the edges a policy emits for a given node. When a rule genuinely needs to compare several resolved nodes with each other, it is **business logic** rather than expansion, and it belongs outside a single resolution run — applied to the resolved graph, not to the walk that produces it.
 
 For a CMS entry, a policy might discover linked entries:
 
@@ -688,9 +688,7 @@ Integration API
     └── prices
 ```
 
-The resolver therefore works against a common data-resolution boundary.
-
-Each backend adapter decides which resources it understands and how to load them.
+The resolver therefore works against a common data-resolution boundary: a **source**. Each source declares which resources it owns and how to load them.
 
 Conceptually:
 
@@ -701,19 +699,56 @@ Conceptually:
                           │
              ┌────────────┴────────────┐
              ▼                         ▼
-       Contentful adapter       Integration adapter
+        Contentful source       Integration source
              │                         │
              ▼                         ▼
           CMS batch                Product batch
 ```
 
-The important detail is that the resolver does **not** know the batch size of either backend: Contentful may want one max batch size, the product API may want another. A future service may not support batching at all.
+Concretely, a source is a small declaration: the resource families it owns, the batch limits its backend imposes, how many requests that backend tolerates in parallel, and a function that loads one batch.
 
-One service could support GraphQL, other may be REST. Those are adapter concerns.
+```typescript
+const defineSource = defineResourceSourceFor<AppContentRegistry, ExecutionContext>();
 
-The resolver simply gives each adapter an opportunity to take the resources it knows how to handle.
+const cmsSource = defineSource({
+  id: "cms",
+  families: { entry: cmsEntryAri, asset: cmsAssetAri },
+  batchSize: { entry: 100, asset: 100 },
+  async load({ entry, asset }, { signal }) {
+    // entry and asset are already narrowed to their own ARI types
+    const [entries, assets] = await Promise.all([
+      fetchEntries(entry, signal),
+      fetchAssets(asset, signal),
+    ]);
 
-This is what allows infrastructure to change without rewriting the graph algorithm.
+    return [...entries, ...assets];
+  },
+});
+
+const productSource = defineSource({
+  id: "products",
+  families: { product: integrationProductAri },
+  batchSize: { product: 1 },
+  concurrency: 4,
+  load: ({ product }, { signal }) => fetchProducts(product, signal),
+});
+```
+
+Composing two backends is then just listing them:
+
+```typescript
+const resolver = createResourceGraphResolver({
+  sources: [cmsSource, productSource],
+  expansion: expansionPort,
+  strategy: "lane",
+});
+```
+
+Note what each side owns. The CMS accepts a hundred ids in one `sys.id[in]` call; the product API accepts one SKU per call but tolerates four calls at a time. Neither of those facts is known to the resolver — they are declared by the source that has to live with them, in the units its vendor documentation uses.
+
+What the resolver does with those declarations is route each pending ARI to the source that owns it, cut the pending set into batches no larger than the declared size, and keep no more than the declared number of requests open per backend. What a source does inside `load` — one HTTP request, three, a GraphQL operation, a database query — stays entirely its own business.
+
+This is what allows infrastructure to change without rewriting the graph algorithm. Adding a third backend is adding a third element to an array.
 
 ---
 
@@ -731,7 +766,7 @@ Suppose the frontier contains:
 "integration.product":[{"locale":"en-GB","sku":"Y"}]
 ```
 
-The CMS adapter can take the CMS resources:
+The CMS source receives the CMS resources:
 
 ```text
 "cms.entry":[{"id":"A","locale":"en-GB"}]
@@ -739,16 +774,16 @@ The CMS adapter can take the CMS resources:
 "cms.asset":[{"id":"C","locale":"en-GB"}]
 ```
 
-and issue one suitable request.
+and issues one suitable request.
 
-The integration adapter can independently take:
+The integration source independently receives:
 
 ```text
 "integration.product":[{"locale":"en-GB","sku":"X"}]
 "integration.product":[{"locale":"en-GB","sku":"Y"}]
 ```
 
-and issue its own batch.
+and issues its own batch.
 
 The resolver doesn't need to know whether those became:
 
@@ -759,19 +794,13 @@ The resolver doesn't need to know whether those became:
 - database queries;
 - or something else entirely.
 
-That is deliberately hidden behind the adapter.
+That is deliberately hidden behind the source.
 
-This is also why I chose a **pull-based** interface rather than making the resolver dictate batch sizes.
+It is worth being precise about who decides what here, because it is easy to get backwards. My first version let each adapter reach into the pending set and pull out whatever it wanted, which sounds like maximum flexibility. In practice every adapter re-implemented the same two loops — filter the resources I own, slice off as many as my vendor allows — and each one had its own opportunity to get that wrong.
 
-The resolver says, in effect:
+Batch size is not really a decision. It is a **fact about a backend**: Contentful accepts a hundred ids per call, the product API accepts one. Facts should be declared once, not re-derived by imperative code on every round. So a source states its limits, and the resolver — which is the only party that can see the whole pending set anyway — does the filtering, the slicing and the throttling.
 
-> "Here are the resources currently waiting."
-
-The adapter answers:
-
-> "These are mine, and this is how many I can efficiently process right now."
-
-That keeps vendor-specific limits where they belong.
+That keeps vendor-specific limits where they belong, and keeps the scheduling logic in the one place that has the information to schedule.
 
 ---
 
@@ -815,7 +844,13 @@ The graph semantics remain the same. Only the scheduling strategy changes.
 
 This is what the determinism rule above buys us: since no policy can observe siblings or batch composition, both strategies are obliged to produce the same graph, and scheduling stays an implementation choice instead of leaking into expansion policies or domain code.
 
-The library currently provides both strategies; the application chooses the one appropriate for its infrastructure. The wiring is the only difference: the barrier engine takes the gateway shown above, while the lane engine takes the same source adapters as an ordered chain, each declaring which resources it owns.
+The library provides both strategies, and the application chooses the one appropriate for its infrastructure. Because the sources, the policies and the graph semantics are identical either way, the choice is a single field:
+
+```typescript
+strategy: "lane"; // or "barrier"
+```
+
+That is a deliberately small knob. If switching schedulers required rewiring the backends, the two strategies would not really be interchangeable, and the determinism rule above would be doing no work.
 
 ---
 
@@ -1063,7 +1098,7 @@ At this point, the implementation details should be easier to understand.
 2. loading unresolved resources;
 3. discovering additional resources;
 4. deduplicating the graph;
-5. coordinating multiple loaders;
+5. coordinating multiple sources, including their batch limits and parallelism;
 6. controlling how the graph progresses;
 7. materializing the result as a `ContentMap`.
 
@@ -1099,14 +1134,14 @@ News item
 
 Give them stable unique identifiers.
 
-### 2. Loaders
+### 2. Sources
 
-Who knows how to retrieve each resource?
+Who knows how to retrieve each resource, and under which limits?
 
 ```text
-CMS loader
-Product API loader
-News loader
+CMS source
+Product API source
+News source
 ```
 
 ### 3. Expansion policies
@@ -1209,7 +1244,7 @@ You can make the graph explicit, give resources stable identities, separate grap
 
 That's what [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) is for.
 
-The [demo application](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) shows one possible wiring using Contentful-shaped fixtures, an integration catalog, multiple loaders, expansion policies, and a Next.js consumer.
+The [demo application](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) shows one possible wiring using Contentful-shaped fixtures, an integration catalog, two sources with deliberately opposite batching shapes, expansion policies, and a Next.js consumer.
 
 It is intentionally small, as it is a workshop for the resolution model, not a production architecture.
 
