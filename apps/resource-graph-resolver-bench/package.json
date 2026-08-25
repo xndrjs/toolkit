@@ -1,0 +1,31 @@
+{
+  "name": "@xndrjs/resource-graph-resolver-bench",
+  "version": "0.0.1",
+  "description": "Internal CLI for benchmarking resource-graph-resolver scheduler strategies (lane vs barrier) on synthetic CMS trees.",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "apps/resource-graph-resolver-bench"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "bench:dev": "tsx src/index.ts",
+    "bench:prepare": "pnpm --filter @xndrjs/application-resources --filter @xndrjs/resource-graph-resolver --filter @xndrjs/resource-graph-resolver-bench run build",
+    "bench": "pnpm run bench:prepare && node dist/index.js",
+    "bench:matrix": "pnpm run bench:prepare && node dist/index.js --matrix",
+    "build": "tsup src/index.ts --dts --format esm",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xndrjs/application-resources": "workspace:^",
+    "@xndrjs/resource-graph-resolver": "workspace:^"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1"
+  }
+}

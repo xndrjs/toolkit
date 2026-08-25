@@ -172,6 +172,19 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  apps/resource-graph-resolver-bench:
+    dependencies:
+      '@xndrjs/application-resources':
+        specifier: workspace:^
+        version: link:../../packages/application-resources
+      '@xndrjs/resource-graph-resolver':
+        specifier: workspace:^
+        version: link:../../packages/resource-graph-resolver
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.8)(tsx@4.22.5)(typescript@5.9.3)(yaml@2.8.3)
+
   apps/resource-graph-resolver-demo:
     dependencies:
       '@xndrjs/application-resources':
@@ -208,9 +221,6 @@ importers:
       '@xndrjs/contentful-to-zod':
         specifier: workspace:^
         version: link:../../packages/contentful-to-zod
-      tsx:
-        specifier: ^4.21.0
-        version: 4.22.5
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

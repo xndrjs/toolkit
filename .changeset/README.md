@@ -10,6 +10,7 @@ Workspace packages listed in `ignore` in [`config.json`](./config.json) are excl
 
 - `@xndrjs/interop-demo` — mixed-validator domain example (Vitest only)
 - `@xndrjs/bench-perf` — validation engine benchmark CLI
+- `@xndrjs/resource-graph-resolver-bench` — resource-graph-resolver scheduler benchmark CLI
 - `@xndrjs/oas-core-validator-demo`
 - `@xndrjs/documentation`
 

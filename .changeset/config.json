@@ -20,6 +20,7 @@
     "@xndrjs/oas-core-validator-demo",
     "@xndrjs/interop-demo",
     "@xndrjs/i18n-demo",
-    "@xndrjs/resource-graph-resolver-demo"
+    "@xndrjs/resource-graph-resolver-demo",
+    "@xndrjs/resource-graph-resolver-bench"
   ]
 }
