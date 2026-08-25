@@ -1,7 +1,7 @@
 {
   "name": "@xndrjs/resource-graph-resolver",
   "version": "0.0.0",
-  "description": "Application-layer resource graph resolution with islands, expansion policies, and content maps.",
+  "description": "Infrastructure-layer resource graph resolution with islands, expansion policies, and content maps.",
   "private": false,
   "license": "MIT",
   "repository": {
