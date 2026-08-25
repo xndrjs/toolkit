@@ -1,4 +1,4 @@
-# xndrjs toolkit (monorepo)
+# xndrjs toolkit
 
 This repo is a **pnpm workspace** for **xndrjs**: TypeScript libraries that help you model domains with explicit validation boundaries, optional schema adapters (Zod, Valibot, AJV), and small helpers for async work.
 
