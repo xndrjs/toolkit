@@ -15,9 +15,9 @@ npm install @xndrjs/resource-graph-resolver @xndrjs/application-resources
 Declare one source per backend. A source owns ARI **families**, declares the backend's per-family batch limits and how many requests it tolerates in parallel, then fetches a batch the resolver hands it:
 
 ```ts
-import { defineResourceSourceFor } from "@xndrjs/resource-graph-resolver";
+import { defineDataSourceFor } from "@xndrjs/resource-graph-resolver";
 
-const defineSource = defineResourceSourceFor<AppContentRegistry, ExecutionContext>();
+const defineSource = defineDataSourceFor<AppContentRegistry, ExecutionContext>();
 
 const cmsSource = defineSource({
   id: "cms",
@@ -87,12 +87,12 @@ Under `lane`, a fast source keeps walking its own subgraph while a slow peer's r
 ## Concepts
 
 - **`ContentRegistry`** — maps ARI `type` literals to payload shapes; `ContentMap.get` follows `resource.type`. Compose per-source slices with `ComposeContentRegistry`.
-- **`ResourceSource`** — one backend: the ARI families it owns, its batch limits, its concurrency budget, and `load`.
+- **`DataSource`** — one backend: the ARI families it owns, its batch limits, its concurrency budget, and `load`.
 - **`ExpansionPort`** — discovers child ARIs from **the current resource, its payload, and the execution context** only. A policy cannot see siblings, the island it was reached from, or what arrived in the same batch, which is what keeps expansion deterministic. `isIsland: true` opens a new island boundary.
 - **`IslandDependencyMap`** — direct edges between islands; `getFlatDependencies` builds transitive cache manifests (cycles excluded from the start island).
 - **`backingResources`** — pre-resolved payloads consulted before any source is asked. The map is never mutated; keys the walk actually reached come back as `promotedResourceKeys`.
 - **`ResolutionObserver`** — optional hooks for batches, expansions, promotions and misses. Observer failures never affect resolution.
-- **Errors** — `ResourceGraphError` base, plus `MissingResourceError`, `NoResourceSourceError` (no source declares a matching family — a wiring bug, not missing data), `ResourceLoadFailedError` (wraps a rejected `load`), and `ResourceGraphAbortedError`.
+- **Errors** — `ResourceGraphError` base, plus `MissingResourceError`, `NoDataSourceError` (no source declares a matching family — a wiring bug, not missing data), `ResourceLoadFailedError` (wraps a rejected `load`), and `ResourceGraphAbortedError`.
 - **`serializeAllIslands`** — cache-ready payloads (`SerializedIsland`, schema v1).
 
 ## Demo

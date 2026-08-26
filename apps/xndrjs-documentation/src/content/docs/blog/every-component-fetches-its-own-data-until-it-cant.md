@@ -720,7 +720,7 @@ Conceptually:
 Concretely, a source is a small declaration: the resource families it owns, the batch limits its backend imposes, how many requests that backend tolerates in parallel, and a function that loads one batch.
 
 ```typescript
-const defineSource = defineResourceSourceFor<AppContentRegistry, ExecutionContext>();
+const defineSource = defineDataSourceFor<AppContentRegistry, ExecutionContext>();
 
 const cmsSource = defineSource({
   id: "cms",

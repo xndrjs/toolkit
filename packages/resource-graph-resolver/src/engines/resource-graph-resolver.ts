@@ -2,13 +2,13 @@ import type { ApplicationResourceIdentifier } from "@xndrjs/application-resource
 
 import {
   MissingResourceError,
-  NoResourceSourceError,
+  NoDataSourceError,
   ResourceLoadFailedError,
   type ResourceGraphError,
 } from "../errors";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
 import type { ExpansionPort } from "../ports/expansion-port";
-import type { ResourceFamily, ResourceSource } from "../ports/resource-source";
+import type { ResourceFamily, DataSource } from "../ports/data-source";
 import { ResolutionSession, type GraphWalkRef } from "./resolution-session";
 import type {
   ContentRegistry,
@@ -21,7 +21,7 @@ import type {
 
 /** Per-source scheduling state: work waiting per family, plus in-flight accounting. */
 interface SourceLane<R extends ContentRegistry, TExecutionContext> {
-  readonly source: ResourceSource<R, TExecutionContext>;
+  readonly source: DataSource<R, TExecutionContext>;
   readonly familyKeys: readonly string[];
   readonly pending: Map<string, GraphWalkRef[]>;
   pendingCount: number;
@@ -59,7 +59,7 @@ export interface ResourceGraphResolverConfig<
    * Routing is by ARI `type`; when several sources declare the same type, the
    * first whose family `matches` the ARI wins.
    */
-  readonly sources: readonly ResourceSource<R, TExecutionContext>[];
+  readonly sources: readonly DataSource<R, TExecutionContext>[];
   readonly expansion: ExpansionPort<R, TExecutionContext>;
   /** Defaults to `"lane"`. */
   readonly strategy?: ResolutionStrategy;
@@ -209,7 +209,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
     const route = routeOf(ref.resource);
     if (route === undefined) {
-      failResource(ref, new NoResourceSourceError(ref.resource.toString()));
+      failResource(ref, new NoDataSourceError(ref.resource.toString()));
       return;
     }
 

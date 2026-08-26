@@ -12,7 +12,7 @@ export {
 } from "./engines/resource-graph-resolver";
 export {
   MissingResourceError,
-  NoResourceSourceError,
+  NoDataSourceError,
   ResourceGraphAbortedError,
   ResourceGraphError,
   ResourceLoadFailedError,
@@ -40,17 +40,17 @@ export type {
   ResourceExpandEvent,
 } from "./observability/resolution-observer";
 export {
-  defineResourceSourceFor,
+  defineDataSourceFor,
   type PendingResourceBatch,
   type ResourceBatchSizeMap,
   type ResourceFamily,
   type ResourceFamilyMap,
   type ResourceLoadContext,
   type ResourceOfFamily,
-  type ResourceSource,
-  type ResourceSourceDefinition,
+  type DataSource,
+  type DataSourceDefinition,
   type SourceResourceRecord,
-} from "./ports/resource-source";
+} from "./ports/data-source";
 export { serializeAllIslands, serializeIsland } from "./islands/serialize-island";
 export type {
   ComposeContentRegistry,

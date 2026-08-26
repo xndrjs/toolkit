@@ -1,4 +1,4 @@
-import { defineResourceSourceFor, type ResourceSource } from "@xndrjs/resource-graph-resolver";
+import { defineDataSourceFor, type DataSource } from "@xndrjs/resource-graph-resolver";
 
 import type { DemoContentRegistry } from "../content-registry.js";
 import type { DemoExecutionContext } from "../demo-execution-context.js";
@@ -27,7 +27,7 @@ export type CmsSourceOptions = {
 export type CmsEntryRecord = { resource: CmsEntryResource; payload: ContentfulResolvedEntry };
 export type CmsAssetRecord = { resource: CmsAssetResource; payload: ContentfulAsset };
 
-const defineCmsSource = defineResourceSourceFor<DemoContentRegistry, DemoExecutionContext>();
+const defineCmsSource = defineDataSourceFor<DemoContentRegistry, DemoExecutionContext>();
 
 /**
  * CMS source: owns `cms.entry` and `cms.asset`.
@@ -41,7 +41,7 @@ const defineCmsSource = defineResourceSourceFor<DemoContentRegistry, DemoExecuti
 export function createCmsSource(
   store: CmsFixtureStore,
   options?: CmsSourceOptions
-): ResourceSource<DemoContentRegistry, DemoExecutionContext> {
+): DataSource<DemoContentRegistry, DemoExecutionContext> {
   const latencyMs = options?.latencyMs ?? 0;
 
   return defineCmsSource({

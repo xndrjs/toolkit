@@ -51,20 +51,20 @@ export class MissingResourceError extends ResourceGraphError {
 }
 
 /**
- * No configured source declares a family matching this ARI, so the resolver has
+ * No configured data source declares a family matching this ARI, so the resolver has
  * nowhere to route it. Almost always a wiring mistake rather than missing data.
  */
-export class NoResourceSourceError extends ResourceGraphError {
+export class NoDataSourceError extends ResourceGraphError {
   readonly resourceKey: ResourceKey;
 
   constructor(resourceKey: ResourceKey) {
-    super(`No resource source declares a family matching ${resourceKey}`);
-    this.name = "NoResourceSourceError";
+    super(`No data source declares a family matching ${resourceKey}`);
+    this.name = "NoDataSourceError";
     this.resourceKey = resourceKey;
   }
 }
 
-/** A source's `load` rejected. `cause` carries the original rejection. */
+/** A data source's `load` rejected. `cause` carries the original rejection. */
 export class ResourceLoadFailedError extends ResourceGraphError {
   readonly sourceId: string;
   readonly resourceKeys: readonly ResourceKey[];
@@ -75,7 +75,7 @@ export class ResourceLoadFailedError extends ResourceGraphError {
     options?: { cause?: unknown }
   ) {
     super(
-      `Resource source "${sourceId}" failed to load ${resourceKeys.length} resource(s): ${summarizeKeys(resourceKeys)}`,
+      `Data source "${sourceId}" failed to load ${resourceKeys.length} resource(s): ${summarizeKeys(resourceKeys)}`,
       options
     );
     this.name = "ResourceLoadFailedError";

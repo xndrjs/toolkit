@@ -30,7 +30,7 @@ Islands let you **name and partition** a large graph by application meaning — 
 
 Islands are meant for **macro-grouping**. A resource reachable from many islands is tracked in all of them, so marking hundreds of fine-grained islands over a shared subgraph multiplies membership entries — model islands around lifecycle boundaries, not around individual nodes.
 
-The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `ResourceSource` per backend, and an `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
+The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per backend, and an `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
 For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and expansion once; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_STRATEGY` in that file to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
@@ -41,7 +41,7 @@ flowchart TD
   resolver --> expand[ExpansionPort]
   expand --> route[Route by ARI type to a source family]
   route --> batch[Chunk to batchSize, throttle to concurrency]
-  batch --> sources[ResourceSource load]
+  batch --> sources[DataSource load]
   sources --> contentMap[ContentMap]
   resolver --> islands[IslandMap]
   resolver --> deps[IslandDependencyMap]
@@ -102,14 +102,14 @@ Do **not** intersect with `ContentRegistry` itself (`{ ... } & ContentRegistry`)
 
 `ContentMap<R>` keys entries by `resource.toString()` (canonical ARI identity). `get(resource)` narrows the return type from `resource.type`; `getByKey` stays weakly typed for cache and JSON paths. It also exposes `size`, `keys()`, `entries()`, iteration, and `toJSON()`.
 
-## ResourceSource
+## DataSource
 
 A **source** is one backend plus the ARI **families** it owns. It declares the families (which drive both routing and narrowing), the backend's per-family batch limit, and how many requests that backend tolerates in parallel:
 
 ```ts
-import { defineResourceSourceFor } from "@xndrjs/resource-graph-resolver";
+import { defineDataSourceFor } from "@xndrjs/resource-graph-resolver";
 
-const defineSource = defineResourceSourceFor<DemoContentRegistry, DemoExecutionContext>();
+const defineSource = defineDataSourceFor<DemoContentRegistry, DemoExecutionContext>();
 
 export const cmsSource = defineSource({
   id: "cms",
@@ -128,7 +128,7 @@ export const cmsSource = defineSource({
 });
 ```
 
-The definer is curried (`defineResourceSourceFor<R, Ctx>()` then the config) because TypeScript has no partial type-argument inference: currying keeps `families` inferred while the registry stays explicit.
+The definer is curried (`defineDataSourceFor<R, Ctx>()` then the config) because TypeScript has no partial type-argument inference: currying keeps `families` inferred while the registry stays explicit.
 
 `R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `families` is what scopes a source to the ARI types it may be asked for and may return. Returning a record outside the declared families is a compile error.
 
@@ -206,7 +206,7 @@ Because the resolver owns chunking, a batch always starts while work is pending 
 | Situation                                    | `"throw"`                 | `"collect"`                                                |
 | -------------------------------------------- | ------------------------- | ---------------------------------------------------------- |
 | A source omitted a requested ARI             | `MissingResourceError`    | Error entry attributed to every island that reached it     |
-| No source declares a family matching the ARI | `NoResourceSourceError`   | Error entry (this is a wiring bug, not missing data)       |
+| No source declares a family matching the ARI | `NoDataSourceError`       | Error entry (this is a wiring bug, not missing data)       |
 | A source's `load` rejected                   | `ResourceLoadFailedError` | Error entries for that batch; other sources keep resolving |
 
 All of them extend `ResourceGraphError`. `ResourceLoadFailedError` carries `sourceId`, `resourceKeys` and the original rejection as `cause`.
@@ -336,7 +336,7 @@ Return values:
 
 1. **Infrastructure ARIs** — one factory per backend/type (`cms.entry`, `cms.asset`, `integration.product`, …), next to the sources that own them.
 2. **ContentRegistry** — per-source slices composed with `ComposeContentRegistry`.
-3. **Sources** — one `ResourceSource` per backend: families it owns, batch limits, concurrency, `load`.
+3. **Sources** — one `DataSource` per backend: families it owns, batch limits, concurrency, `load`.
 4. **ExpansionPort** — content-type or resource-family policies; `isIsland` where a fragment has its own identity or lifecycle.
 5. **Resolver** — one `createResourceGraphResolver` per topology, `strategy` chosen per route (or fixed to `lane`).
 6. **Orchestration** — load backing → `resolve` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
@@ -347,11 +347,11 @@ Return values:
 Exported symbols:
 
 - **`createResourceGraphResolver`** — and types `ResourceGraphResolver`, `ResourceGraphResolverConfig`
-- **`defineResourceSourceFor`** — and types `ResourceSource`, `ResourceSourceDefinition`, `ResourceFamily`, `ResourceFamilyMap`, `ResourceOfFamily`, `PendingResourceBatch`, `SourceResourceRecord`, `ResourceBatchSizeMap`, `ResourceLoadContext`
+- **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceFamilyMap`, `ResourceOfFamily`, `PendingResourceBatch`, `SourceResourceRecord`, `ResourceBatchSizeMap`, `ResourceLoadContext`
 - **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`createExpansionPolicyChain`** / **`defineExpansionPolicy`**
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**
-- Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoResourceSourceError`**, **`ResourceLoadFailedError`**, **`ResourceGraphAbortedError`**
+- Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceGraphAbortedError`**
 - Observability: **`ResolutionObserver`** and its event types
 - Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`ResolutionStrategy`**, **`ResolutionError`**, **`MissingResourceMode`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolvedResourceRecord`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 
