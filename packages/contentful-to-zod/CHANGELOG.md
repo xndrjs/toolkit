@@ -1,5 +1,13 @@
 # @xndrjs/contentful-to-zod
 
+## 0.3.1
+
+### Patch Changes
+
+- bcd8b50: Additive codegen exports for typed content-type dispatch and link discovery:
+  - Emit `ContentfulContentTypeId` (+ entry schema maps in delivery modes).
+  - Emit `LINK_FIELDS_BY_CONTENT_TYPE` metadata (Entry/Asset link fields per content type from CMA).
+
 ## 0.3.1-alpha.0
 
 ### Patch Changes
