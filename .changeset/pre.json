@@ -26,6 +26,7 @@
   "changesets": [
     "ari-identity-tostring",
     "content-type-id-registry",
+    "data-source-rename",
     "resource-graph-resolver"
   ]
 }

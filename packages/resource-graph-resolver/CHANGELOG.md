@@ -1,5 +1,11 @@
 # @xndrjs/resource-graph-resolver
 
+## 0.1.0-alpha.1
+
+### Patch Changes
+
+- 592d077: Rename `ResourceSource` → `DataSource` (`defineDataSourceFor`, `DataSourceDefinition`, `NoDataSourceError`) and align package docs with infrastructure-layer ARI placement.
+
 ## 0.1.0-alpha.0
 
 ### Minor Changes
