@@ -51,11 +51,21 @@ flowchart TD
 
 ## Where it fits
 
-| Layer              | Responsibility                                                               |
-| ------------------ | ---------------------------------------------------------------------------- |
-| **Application**    | ARIs, use-case orchestration, domain mapping from `ContentMap`               |
-| **Infrastructure** | CMS/integration sources, expansion policies, island cache adapters           |
-| **This package**   | Reusable graph traversal, island semantics, serialization — no IO of its own |
+The resolver sits in **infrastructure** because the split between external systems (CMS, commercial API, …) is an infrastructure concern. The application asks for a domain aggregate; it should not have to know how that aggregate is assembled from backends.
+
+[Application Resource Identifiers](/v0/application/application-resources/) still provide the identity vocabulary — but the ARIs that name nodes in **this** graph (`cms.entry`, `integration.product`, …) are **infrastructure resources**. Infrastructure may know where a product lives today; the domain should not. Mapping from the resolved `ContentMap` into domain shapes happens above this package:
+
+```text
+Transport
+   ↓
+Infrastructure resources (ARIs)
+   ↓
+Graph resolution (this package)
+   ↓
+Domain aggregate
+   ↓
+UI / framework
+```
 
 Pair with [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) for typed Contentful payloads and link-field metadata when authoring expansion policies.
 
@@ -324,11 +334,11 @@ Return values:
 
 ## Typical project wiring
 
-1. **ARIs** — one factory per source/type (`cms.entry`, `cms.asset`, …).
+1. **Infrastructure ARIs** — one factory per backend/type (`cms.entry`, `cms.asset`, `integration.product`, …), next to the sources that own them.
 2. **ContentRegistry** — per-source slices composed with `ComposeContentRegistry`.
 3. **Sources** — one `ResourceSource` per backend: families it owns, batch limits, concurrency, `load`.
 4. **ExpansionPort** — content-type or resource-family policies; `isIsland` where a fragment has its own identity or lifecycle.
-5. **Resolver** — one `createResourceGraphResolver` per topology, `strategy` chosen per route.
+5. **Resolver** — one `createResourceGraphResolver` per topology, `strategy` chosen per route (or fixed to `lane`).
 6. **Orchestration** — load backing → `resolve` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
 7. **Domain mappers** — stay outside this package; consume `ResolveResourceGraphOutput`.
 
@@ -347,6 +357,6 @@ Exported symbols:
 
 ## See also
 
-- [Application resources](/v0/application/application-resources/) — ARI factories and `toString()` keys used throughout the resolver
+- [Application resources](/v0/application/application-resources/) — identity vocabulary (`toString()` keys); graph ARIs for this package are infrastructure-scoped factories
 - [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) — transport schemas and link-field metadata for expansion authoring
 - [Demo app](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo)
