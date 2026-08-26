@@ -1,4 +1,4 @@
-import { defineResourceSourceFor, type ResourceSource } from "@xndrjs/resource-graph-resolver";
+import { defineDataSourceFor, type DataSource } from "@xndrjs/resource-graph-resolver";
 
 import { benchProductAri, type BenchProductResource } from "../graph/ari";
 import type { BenchContentRegistry, BenchProductPayload } from "../graph/generate";
@@ -20,7 +20,7 @@ export type IntegrationProductRecord = {
   payload: BenchProductPayload;
 };
 
-const defineIntegrationSource = defineResourceSourceFor<BenchContentRegistry>();
+const defineIntegrationSource = defineDataSourceFor<BenchContentRegistry>();
 
 /**
  * Integration source: owns `bench.product`.
@@ -31,7 +31,7 @@ const defineIntegrationSource = defineResourceSourceFor<BenchContentRegistry>();
 export function createIntegrationSource(
   catalog: ReadonlyMap<string, BenchProductPayload>,
   options: IntegrationSourceOptions
-): ResourceSource<BenchContentRegistry> {
+): DataSource<BenchContentRegistry> {
   const latencyMs = options.latencyMs ?? 0;
 
   return defineIntegrationSource({

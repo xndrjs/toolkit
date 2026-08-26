@@ -64,7 +64,7 @@ export interface ResourceLoadContext<TExecutionContext = unknown> {
  * are a project-wide contract, and {@link families} is what scopes a source to
  * the ARI types it may be asked for and may return.
  */
-export interface ResourceSourceDefinition<
+export interface DataSourceDefinition<
   R extends ContentRegistry,
   F extends ResourceFamilyMap,
   TExecutionContext = unknown,
@@ -85,8 +85,8 @@ export interface ResourceSourceDefinition<
   ): Promise<readonly SourceResourceRecord<R, F>[]>;
 }
 
-/** Family-erased source consumed by the resolver. Build one with {@link defineResourceSourceFor}. */
-export interface ResourceSource<
+/** Family-erased source consumed by the resolver. Build one with {@link defineDataSourceFor}. */
+export interface DataSource<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
 > {
@@ -105,19 +105,19 @@ export interface ResourceSource<
  * (TypeScript has no partial type-argument inference).
  *
  * ```ts
- * const defineSource = defineResourceSourceFor<AppRegistry, ExecutionContext>();
+ * const defineSource = defineDataSourceFor<AppRegistry, ExecutionContext>();
  * const cmsSource = defineSource({ id: "cms", families: { entry: cmsEntryAri }, load });
  * ```
  */
-export function defineResourceSourceFor<R extends ContentRegistry, TExecutionContext = unknown>(): <
+export function defineDataSourceFor<R extends ContentRegistry, TExecutionContext = unknown>(): <
   F extends ResourceFamilyMap,
 >(
-  definition: ResourceSourceDefinition<R, F, TExecutionContext>
-) => ResourceSource<R, TExecutionContext> {
+  definition: DataSourceDefinition<R, F, TExecutionContext>
+) => DataSource<R, TExecutionContext> {
   return <F extends ResourceFamilyMap>(
-    definition: ResourceSourceDefinition<R, F, TExecutionContext>
-  ): ResourceSource<R, TExecutionContext> => {
-    const load = definition.load.bind(definition) as ResourceSource<R, TExecutionContext>["load"];
+    definition: DataSourceDefinition<R, F, TExecutionContext>
+  ): DataSource<R, TExecutionContext> => {
+    const load = definition.load.bind(definition) as DataSource<R, TExecutionContext>["load"];
 
     return {
       id: definition.id,

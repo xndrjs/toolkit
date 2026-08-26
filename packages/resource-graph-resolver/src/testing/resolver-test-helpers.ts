@@ -3,11 +3,7 @@ import { vi, type Mock } from "vitest";
 
 import { createResourceGraphResolver } from "../engines/resource-graph-resolver";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
-import type {
-  ResourceFamilyMap,
-  ResourceLoadContext,
-  ResourceSource,
-} from "../ports/resource-source";
+import type { ResourceFamilyMap, ResourceLoadContext, DataSource } from "../ports/data-source";
 import { assetAri, footerAri, heroAri, menuAri, pageAri, productAri } from "./test-fixtures";
 import type {
   ContentRegistry,
@@ -115,9 +111,9 @@ export interface StoreSourceOptions {
   readonly omit?: readonly ApplicationResourceIdentifier[];
 }
 
-export interface StoreSource extends ResourceSource {
+export interface StoreSource extends DataSource {
   readonly batches: ApplicationResourceIdentifier[][];
-  readonly load: Mock<ResourceSource["load"]>;
+  readonly load: Mock<DataSource["load"]>;
   readonly inFlightPeak: { value: number };
 }
 
@@ -182,7 +178,7 @@ export async function resolvePageGraph(
   strategy: ResolutionStrategy,
   options: {
     source?: StoreSource;
-    sources?: readonly ResourceSource[];
+    sources?: readonly DataSource[];
     policies?: ExpansionPolicy[];
     missingResourceMode?: "throw" | "collect";
     backingResources?: ReadonlyMap<string, unknown>;

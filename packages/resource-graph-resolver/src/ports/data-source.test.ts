@@ -2,10 +2,10 @@ import { ari, s } from "@xndrjs/application-resources";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
-  defineResourceSourceFor,
+  defineDataSourceFor,
   type PendingResourceBatch,
   type ResourceOfFamily,
-} from "./resource-source";
+} from "./data-source";
 
 const cmsEntryAri = ari("cms.entry", s.object({ id: s.string(), locale: s.string() }));
 const cmsAssetAri = ari("cms.asset", s.object({ id: s.string(), locale: s.string() }));
@@ -18,7 +18,7 @@ type CmsRegistry = {
   "cms.asset": { url: string };
 };
 
-const defineCmsSource = defineResourceSourceFor<CmsRegistry>();
+const defineCmsSource = defineDataSourceFor<CmsRegistry>();
 
 const families = { entry: cmsEntryAri, asset: cmsAssetAri };
 
@@ -36,7 +36,7 @@ describe("resource family typing", () => {
   });
 });
 
-describe("defineResourceSourceFor", () => {
+describe("defineDataSourceFor", () => {
   it("narrows the batch per family and the payload per ARI type inside load", async () => {
     const source = defineCmsSource({
       id: "cms",

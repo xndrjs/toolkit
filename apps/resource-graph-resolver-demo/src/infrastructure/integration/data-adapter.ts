@@ -1,4 +1,4 @@
-import { defineResourceSourceFor, type ResourceSource } from "@xndrjs/resource-graph-resolver";
+import { defineDataSourceFor, type DataSource } from "@xndrjs/resource-graph-resolver";
 
 import type { DemoContentRegistry } from "../content-registry.js";
 import type { DemoExecutionContext } from "../demo-execution-context.js";
@@ -23,10 +23,7 @@ export type IntegrationProductRecord = {
   payload: ProductIntegrationSnapshot;
 };
 
-const defineIntegrationSource = defineResourceSourceFor<
-  DemoContentRegistry,
-  DemoExecutionContext
->();
+const defineIntegrationSource = defineDataSourceFor<DemoContentRegistry, DemoExecutionContext>();
 
 /**
  * Integration source: owns `integration.product`.
@@ -37,7 +34,7 @@ const defineIntegrationSource = defineResourceSourceFor<
 export function createIntegrationSource(
   catalog: ReadonlyMap<string, ProductIntegrationSnapshot> = demoProductCatalog,
   options?: IntegrationSourceOptions
-): ResourceSource<DemoContentRegistry, DemoExecutionContext> {
+): DataSource<DemoContentRegistry, DemoExecutionContext> {
   const latencyMs = options?.latencyMs ?? 0;
 
   return defineIntegrationSource({

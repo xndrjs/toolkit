@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createResourceGraphResolver } from "./resource-graph-resolver";
 import {
   MissingResourceError,
-  NoResourceSourceError,
+  NoDataSourceError,
   ResourceGraphAbortedError,
   ResourceLoadFailedError,
 } from "../errors";
@@ -99,13 +99,13 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
       },
     ];
 
-    await expect(resolvePageGraph(strategy, { policies })).rejects.toThrow(NoResourceSourceError);
+    await expect(resolvePageGraph(strategy, { policies })).rejects.toThrow(NoDataSourceError);
 
     const output = await resolvePageGraph(strategy, { policies, missingResourceMode: "collect" });
 
     expect(output.errors).toHaveLength(1);
     expect(output.errors[0]?.resourceKey).toBe(orphan.toString());
-    expect(output.errors[0]?.message).toContain("No resource source declares a family matching");
+    expect(output.errors[0]?.message).toContain("No data source declares a family matching");
   });
 
   it("promotes backing resources without fetching them and never mutates the input map", async () => {
@@ -309,7 +309,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
     expect(output.contentMap.has(menu)).toBe(true);
     expect(output.errors).toHaveLength(1);
     expect(output.errors[0]?.resourceKey).toBe(hero.toString());
-    expect(output.errors[0]?.message).toContain('Resource source "hero-api" failed to load');
+    expect(output.errors[0]?.message).toContain('Data source "hero-api" failed to load');
     expect(output.errors[0]?.inheritedIslandIds).toEqual([page.toString()]);
   });
 });

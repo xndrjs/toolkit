@@ -1,4 +1,4 @@
-import { defineResourceSourceFor, type ResourceSource } from "@xndrjs/resource-graph-resolver";
+import { defineDataSourceFor, type DataSource } from "@xndrjs/resource-graph-resolver";
 
 import { benchNodeAri, type BenchNodeResource } from "../graph/ari";
 import type { BenchContentRegistry, BenchNodePayload } from "../graph/generate";
@@ -20,7 +20,7 @@ export type CmsNodeRecord = {
   payload: BenchNodePayload;
 };
 
-const defineCmsSource = defineResourceSourceFor<BenchContentRegistry>();
+const defineCmsSource = defineDataSourceFor<BenchContentRegistry>();
 
 /**
  * CMS source: owns `bench.node`.
@@ -31,7 +31,7 @@ const defineCmsSource = defineResourceSourceFor<BenchContentRegistry>();
 export function createCmsSource(
   store: ReadonlyMap<string, BenchNodePayload>,
   options: CmsSourceOptions
-): ResourceSource<BenchContentRegistry> {
+): DataSource<BenchContentRegistry> {
   const latencyMs = options.latencyMs ?? 0;
 
   return defineCmsSource({

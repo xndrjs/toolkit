@@ -2,7 +2,7 @@
 
 **Not published** — this app is `private` and listed in `.changeset/config.json` `ignore`, so it is excluded from Changesets versioning and from npm publish on both stable and alpha releases.
 
-Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, source-qualified ARIs (`cms.*` / `integration.*`), content-type expansion policies, declarative `ResourceSource` backends, island cache, and domain-zod aggregation.
+Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, source-qualified ARIs (`cms.*` / `integration.*`), content-type expansion policies, declarative `DataSource` backends, island cache, and domain-zod aggregation.
 
 One orchestration entry point: `resolveDemoPage` (route `/[locale]`). It defaults to **`lane`**. To try barrier, flip `DEMO_STRATEGY` at the top of `src/orchestration/resolve-demo-page.ts`. Scheduler comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 

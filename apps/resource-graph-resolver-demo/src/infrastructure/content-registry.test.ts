@@ -85,7 +85,7 @@ describe("source-qualified ARI store", () => {
   });
 });
 
-describe("demo resource sources", () => {
+describe("demo data sources", () => {
   it("declares the ARI families and backend batch limits each source owns", () => {
     const cms = createCmsSource(demoCmsStore);
     const integration = createIntegrationSource();

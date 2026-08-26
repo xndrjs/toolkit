@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createResourceGraphResolver } from "./resource-graph-resolver";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
 import type { ResolutionObserver } from "../observability/resolution-observer";
-import type { ResourceSource } from "../ports/resource-source";
+import type { DataSource } from "../ports/data-source";
 import { createDeferred, createStoreSource } from "../testing/resolver-test-helpers";
 import { idOf, testAriFactory } from "../testing/test-fixtures";
 import type { ResolutionStrategy } from "../types";
@@ -297,7 +297,7 @@ describe("unrequested records", () => {
     });
 
     // Returns `volunteered` alongside the root, before the slow source is asked.
-    const eager: ResourceSource = {
+    const eager: DataSource = {
       ...chainSource,
       load: async (batch, context) => {
         const records = await chainSource.load(batch, context);
