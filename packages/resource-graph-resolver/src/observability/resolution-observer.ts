@@ -18,8 +18,8 @@ export interface ResolutionEndEvent {
 export interface ResourceBatchStartEvent {
   sourceId: string;
   batchNumber: number;
-  /** Grouped exactly as handed to the source. */
-  resourcesByFamily: Readonly<Record<string, readonly ApplicationResourceIdentifier[]>>;
+  /** Flat batch exactly as handed to the source. */
+  resources: readonly ApplicationResourceIdentifier[];
   resourceCount: number;
 }
 

@@ -104,7 +104,7 @@ Do **not** intersect with `ContentRegistry` itself (`{ ... } & ContentRegistry`)
 
 ## DataSource
 
-A **source** is one backend plus the ARI **families** it owns. It declares the families (which drive both routing and narrowing), the backend's per-family batch limit, and how many requests that backend tolerates in parallel:
+A **source** is one backend **transport channel**. It declares which ARI types it handles (`for`), the channel's batch limit, how many requests it tolerates in parallel, and how to fetch one batch:
 
 ```ts
 import { defineDataSourceFor } from "@xndrjs/resource-graph-resolver";
@@ -113,36 +113,35 @@ const defineSource = defineDataSourceFor<DemoContentRegistry, DemoExecutionConte
 
 export const cmsSource = defineSource({
   id: "cms",
-  families: { entry: cmsEntryAri, asset: cmsAssetAri },
-  batchSize: { entry: 100, asset: 100 },
-  async load({ entry, asset }, { signal }) {
-    // entry: readonly CmsEntryResource[]
-    // asset: readonly CmsAssetResource[]
-    const [entries, assets] = await Promise.all([
-      fetchEntries(entry, signal),
-      fetchAssets(asset, signal),
-    ]);
-
-    return [...entries, ...assets];
+  for: [cmsEntryAri, cmsAssetAri],
+  batchSize: 100,
+  async load(batch, { signal }) {
+    // batch: readonly (CmsEntryResource | CmsAssetResource)[]
+    return contentfulDelivery.fetchBatch(batch, { signal });
   },
 });
 ```
 
-The definer is curried (`defineDataSourceFor<R, Ctx>()` then the config) because TypeScript has no partial type-argument inference: currying keeps `families` inferred while the registry stays explicit.
+The definer is curried (`defineDataSourceFor<R, Ctx>()` then the config) because TypeScript has no partial type-argument inference: currying keeps `for` inferred while the registry stays explicit.
 
-`R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `families` is what scopes a source to the ARI types it may be asked for and may return. Returning a record outside the declared families is a compile error.
+`R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `for` is what scopes a source to the ARI types it may be asked for and may return. Returning a record outside the declared families is a compile error.
 
-| Field         | Meaning                                                                   |
-| ------------- | ------------------------------------------------------------------------- |
-| `id`          | Stable identifier used in observer events and error messages              |
-| `families`    | ARI factories this source owns; each family covers exactly one ARI `type` |
-| `batchSize`   | Max ARIs per family in one `load`. Omit a family for “no limit”           |
-| `concurrency` | Loads this backend tolerates in parallel. Defaults to `1` (serial)        |
-| `load`        | Fetch one batch and return correlated `{ resource, payload }` records     |
+| Field         | Meaning                                                                          |
+| ------------- | -------------------------------------------------------------------------------- |
+| `id`          | Stable identifier used in observer events and error messages                     |
+| `for`         | ARI factories this transport channel handles; each covers one ARI `type`         |
+| `batchSize`   | Max ARIs per `load`. Omit for no limit                                           |
+| `concurrency` | Loads this backend tolerates in parallel. Defaults to `1` (serial)               |
+| `when`        | Optional routing predicate (rare). Evaluated before `for` matching               |
+| `load`        | Fetch one heterogeneous batch; return correlated `{ resource, payload }` records |
+
+### Routing
+
+The resolver walks `sources` in order. For each ARI, the **first** source whose optional `when` passes and whose `for` list contains a matching family wins. Overlapping sources are not detected — declare one owner per ARI type.
 
 ### Who owns what
 
-The resolver owns **routing** (by ARI `type`, then family `matches`), **chunking** to `batchSize`, **throttling** to `concurrency`, **scheduling**, deduplication and island bookkeeping. A source owns one backend's transport — and its retry/backoff policy: a source has at most `concurrency` loads in flight, so awaiting inside `load` throttles that backend and nothing else.
+The resolver owns **routing**, **chunking** to `batchSize`, **throttling** to `concurrency`, **scheduling**, deduplication and island bookkeeping. A source owns one backend's transport — and its retry/backoff policy: a source has at most `concurrency` loads in flight, so awaiting inside `load` throttles that backend and nothing else.
 
 A source signals “no data” by **omitting** an ARI from its result. Never throw for a single missing row: a rejected `load` fails the whole batch.
 
@@ -356,7 +355,7 @@ Return values:
 
 1. **Infrastructure ARIs** — one factory per backend/type (`cms.entry`, `cms.asset`, `integration.product`, …), next to the sources that own them.
 2. **ContentRegistry** — per-source slices composed with `ComposeContentRegistry`.
-3. **Sources** — one `DataSource` per backend: families it owns, batch limits, concurrency, `load`.
+3. **Sources** — one `DataSource` per transport channel: `for`, batch limit, concurrency, `load`.
 4. **Graph resolution strategy** — `createGraphResolutionStrategy()` with `.expansion` and `.islands` actions for child discovery and island boundaries.
 5. **Resolver** — one `createResourceGraphResolver` per topology, `schedulingMode` chosen per route (or fixed to `lane`).
 6. **Orchestration** — load backing → `resolve` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
@@ -368,7 +367,7 @@ Exported symbols:
 
 - **`createResourceGraphResolver`** — and types `ResourceGraphResolver`, `ResourceGraphResolverConfig`
 - **`createGraphResolutionStrategy`** — and type `GraphResolutionStrategy`
-- **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceFamilyMap`, `ResourceOfFamily`, `PendingResourceBatch`, `SourceResourceRecord`, `ResourceBatchSizeMap`, `ResourceLoadContext`
+- **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceOfFamily`, `ResourceUnionFromFamilies`, `SourceResourceRecord`, `ResourceLoadContext`, `SourceRouteContext`
 - **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**
 - Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceGraphAbortedError`**

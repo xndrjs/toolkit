@@ -39,12 +39,11 @@ export type {
 } from "./observability/resolution-observer";
 export {
   defineDataSourceFor,
-  type PendingResourceBatch,
-  type ResourceBatchSizeMap,
   type ResourceFamily,
-  type ResourceFamilyMap,
   type ResourceLoadContext,
   type ResourceOfFamily,
+  type ResourceUnionFromFamilies,
+  type SourceRouteContext,
   type DataSource,
   type DataSourceDefinition,
   type SourceResourceRecord,

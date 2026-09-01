@@ -41,7 +41,7 @@ const schedulingModes: readonly SchedulingMode[] = ["lane", "barrier"];
 
 describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (schedulingMode) => {
   it("resolves the whole graph and loads a shared resource once", async () => {
-    const source = createStoreSource({ families: pageGraphFamilies });
+    const source = createStoreSource({ for: pageGraphFamilies });
     const output = await resolvePageGraph(schedulingMode, { source });
 
     expect(output.errors).toEqual([]);
@@ -76,7 +76,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
   });
 
   it("throws MissingResourceError when a source omits a requested resource", async () => {
-    const source = createStoreSource({ families: pageGraphFamilies, omit: [asset] });
+    const source = createStoreSource({ for: pageGraphFamilies, omit: [asset] });
 
     await expect(resolvePageGraph(schedulingMode, { source })).rejects.toThrow(
       MissingResourceError
@@ -84,7 +84,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
   });
 
   it("collects a missing resource once, attributed to every island that reached it", async () => {
-    const source = createStoreSource({ families: pageGraphFamilies, omit: [asset] });
+    const source = createStoreSource({ for: pageGraphFamilies, omit: [asset] });
     const output = await resolvePageGraph(schedulingMode, {
       source,
       missingResourceMode: "collect",
@@ -126,7 +126,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
       [asset.toString(), { url: "https://cdn.example.com/logo.svg" }],
       [unreached.toString(), { ignored: true }],
     ]);
-    const source = createStoreSource({ families: pageGraphFamilies });
+    const source = createStoreSource({ for: pageGraphFamilies });
 
     const output = await resolvePageGraph(schedulingMode, { source, backingResources });
 
@@ -160,7 +160,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     const resolver = createResourceGraphResolver({
       sources: [
         createStoreSource({
-          families: { cycle: cycleAri },
+          for: [cycleAri],
           store: new Map<string, unknown>([
             [first.toString(), { next: second.toString() }],
             [second.toString(), { next: first.toString() }],
@@ -217,7 +217,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     let loadCompleted = false;
 
     const source = createStoreSource({
-      families: pageGraphFamilies,
+      for: pageGraphFamilies,
       gate: async () => {
         controller.abort();
         await gate.promise;
@@ -240,8 +240,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
       sources: [
         {
           id: "probe",
-          families: { page: pageAri },
-          batchSize: {},
+          for: [pageAri],
           concurrency: 1,
           load: async (_batch, context) => {
             seenSignal = context.signal;
@@ -269,8 +268,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
       sources: [
         {
           id: "flaky",
-          families: { page: pageAri },
-          batchSize: {},
+          for: [pageAri],
           concurrency: 1,
           load: async () => {
             throw cause;
@@ -299,13 +297,12 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
       sources: [
         createStoreSource({
           id: "cms",
-          families: { page: pageAri, menu: menuAri },
+          for: [pageAri, menuAri],
           store: pageGraphValues,
         }),
         {
           id: "hero-api",
-          families: { hero: heroAri },
-          batchSize: {},
+          for: [heroAri],
           concurrency: 1,
           load: async () => {
             throw new Error("hero API down");
@@ -364,7 +361,7 @@ describe("scheduling mode parity", () => {
     };
   }
 
-  /** Two sources with diverging latency plus per-family chunking, so schedules differ. */
+  /** Two sources with diverging latency plus small batch size, so schedules differ. */
   async function resolveWithSplitSources(
     schedulingMode: SchedulingMode
   ): Promise<ResolveResourceGraphOutput> {
@@ -372,13 +369,13 @@ describe("scheduling mode parity", () => {
       sources: [
         createStoreSource({
           id: "fast",
-          families: { page: pageAri, hero: heroAri, menu: menuAri, footer: footerAri },
+          for: [pageAri, heroAri, menuAri, footerAri],
           store: pageGraphValues,
-          batchSize: { menu: 1, footer: 1 },
+          batchSize: 1,
         }),
         createStoreSource({
           id: "slow",
-          families: { asset: assetAri },
+          for: [assetAri],
           store: pageGraphValues,
           delayMs: 5,
         }),

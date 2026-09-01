@@ -41,7 +41,7 @@ export function createConsoleResolveTrace(): ResolveTrace {
       );
     },
 
-    onBatchStart({ sourceId, batchNumber, resourcesByFamily, resourceCount }) {
+    onBatchStart({ sourceId, batchNumber, resources, resourceCount }) {
       batchCount += 1;
       const label = `${sourceId}#${batchNumber}`;
       inFlight.add(label);
@@ -50,12 +50,16 @@ export function createConsoleResolveTrace(): ResolveTrace {
         `\n[${stamp()}] ▶ Batch ${batchCount} (${label}, ${resourceCount} resources) · in-flight: ${formatInFlight(inFlight)}`
       );
 
-      for (const [family, resources] of Object.entries(resourcesByFamily)) {
-        if (resources.length === 0) {
-          continue;
-        }
-        log(`  REQUEST ${sourceId}.${family} (${resources.length})`);
-        for (const resource of resources) {
+      const byType = new Map<string, typeof resources>();
+      for (const resource of resources) {
+        const group = byType.get(resource.type) ?? [];
+        group.push(resource);
+        byType.set(resource.type, group);
+      }
+
+      for (const [type, group] of byType) {
+        log(`  REQUEST ${sourceId}.${type} (${group.length})`);
+        for (const resource of group) {
           log(`    · ${resource.toString()}`);
         }
       }
