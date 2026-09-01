@@ -740,26 +740,12 @@ const productSource = defineSource({
 });
 ```
 
-Composing two backends and a strategy is then just listing them:
+Composing two (or more) backends is then just listing them as data sources on a resolver:
 
 ```typescript
-function createPageStrategy() {
-  const s = createGraphResolutionStrategy<ExecutionContext, AppContentRegistry>();
-
-  s.expansion.on(cmsEntryAri).expand(({ payload }) => ({ resources: discoverLinks(payload) }));
-
-  s.islands
-    .on(cmsEntryAri)
-    .when(({ payload }) => payload.sys.contentType.sys.id === "menu")
-    .startIsland();
-
-  return s.build();
-}
-
 const resolver = createResourceGraphResolver({
   sources: [cmsSource, productSource],
-  strategy: createPageStrategy(),
-  schedulingMode: "lane",
+  strategy: pageStrategy,
 });
 ```
 
