@@ -12,7 +12,7 @@ import type { BenchContentRegistry } from "./generate";
  * internal CMS nodes → child nodes; CMS leaves (empty `children`) → one
  * `bench.product` with the same id as SKU.
  *
- * Never sets `isIsland` (scheduler bench only; islands are out of scope).
+ * Never declares island boundaries (scheduler bench only; islands are out of scope).
  */
 export function createBenchExpansionPort(): ExpansionPort<BenchContentRegistry> {
   return createExpansionPolicyChain<BenchContentRegistry>([

@@ -3,6 +3,7 @@ import { vi, type Mock } from "vitest";
 
 import { createResourceGraphResolver } from "../engines/resource-graph-resolver";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
+import { createIslandPolicyChain, type IslandPolicy } from "../ports/island-port";
 import type { ResourceFamilyMap, ResourceLoadContext, DataSource } from "../ports/data-source";
 import { assetAri, footerAri, heroAri, menuAri, pageAri, productAri } from "./test-fixtures";
 import type {
@@ -48,11 +49,24 @@ export function createPageGraphPolicies(): ExpansionPolicy[] {
     },
     {
       matches: ({ resource }) => resource.type === "menu",
-      expand: () => ({ resources: [asset], isIsland: true }),
+      expand: () => ({ resources: [asset] }),
     },
     {
       matches: ({ resource }) => resource.type === "footer",
-      expand: () => ({ resources: [asset], isIsland: true }),
+      expand: () => ({ resources: [asset] }),
+    },
+  ];
+}
+
+export function createPageGraphIslandPolicies(): IslandPolicy[] {
+  return [
+    {
+      matches: ({ resource }) => resource.type === "menu",
+      resolve: () => ({ startIsland: true }),
+    },
+    {
+      matches: ({ resource }) => resource.type === "footer",
+      resolve: () => ({ startIsland: true }),
     },
   ];
 }
@@ -180,6 +194,7 @@ export async function resolvePageGraph(
     source?: StoreSource;
     sources?: readonly DataSource[];
     policies?: ExpansionPolicy[];
+    islandPolicies?: IslandPolicy[];
     missingResourceMode?: "throw" | "collect";
     backingResources?: ReadonlyMap<string, unknown>;
     signal?: AbortSignal;
@@ -192,6 +207,7 @@ export async function resolvePageGraph(
   const resolver = createResourceGraphResolver({
     sources,
     expansion: createExpansionPolicyChain(options.policies ?? createPageGraphPolicies()),
+    islands: createIslandPolicyChain(options.islandPolicies ?? createPageGraphIslandPolicies()),
     schedulingMode,
   });
 

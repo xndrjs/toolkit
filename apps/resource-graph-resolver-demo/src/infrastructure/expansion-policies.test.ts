@@ -1,4 +1,8 @@
-import { defineExpansionPolicy, type ExpansionContext } from "@xndrjs/resource-graph-resolver";
+import {
+  defineExpansionPolicy,
+  type ExpansionContext,
+  type IslandContext,
+} from "@xndrjs/resource-graph-resolver";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
@@ -25,7 +29,7 @@ import {
   type DemoExecutionContext,
 } from "./demo-execution-context.js";
 import { createDemoResolver } from "./demo-resolver.js";
-import { createDemoExpansionPort } from "./expansion-policies.js";
+import { createDemoExpansionPort, createDemoIslandPort } from "./expansion-policies.js";
 import { integrationProductAri, tshirtIntegrationAri } from "./integration/index.js";
 import type { IntegrationProductResource } from "./integration/ari.js";
 
@@ -41,12 +45,23 @@ function expandEntry(
   } as ExpansionContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
 }
 
+function resolveIslandEntry(
+  resource: CmsEntryResource,
+  entry: ContentfulResolvedEntry,
+  executionContext: DemoExecutionContext = createDefaultDemoExecutionContext()
+) {
+  return createDemoIslandPort().resolve({
+    resource,
+    payload: entry,
+    executionContext,
+  } as IslandContext<DemoContentRegistry, DemoExecutionContext, CmsEntryResource>);
+}
+
 describe("createDemoExpansionPort", () => {
   it("expands page links as locale-scoped cms.entry ARIs (modules + menu + footer)", () => {
     const page = demoCmsStore.entries.get(demoIds.page)!;
     const result = expandEntry(pageEntryAri, page);
 
-    expect(result.isIsland).toBe(false);
     expect(result.resources.map((r) => r.toString())).toEqual([
       tabsEntryAri.toString(),
       tabsSecondaryEntryAri.toString(),
@@ -84,16 +99,16 @@ describe("createDemoExpansionPort", () => {
     const menu = demoCmsStore.entries.get(demoIds.menu)!;
     const footer = demoCmsStore.entries.get(demoIds.footer)!;
 
-    const menuResult = expandEntry(menuEntryAri, menu);
-    const footerResult = expandEntry(footerEntryAri, footer);
+    const menuExpansion = expandEntry(menuEntryAri, menu);
+    const footerExpansion = expandEntry(footerEntryAri, footer);
 
-    expect(menuResult.isIsland).toBe(true);
-    expect(menuResult.resources.map((r) => r.toString())).toEqual([logoAssetAri.toString()]);
-    expect(menuResult.resources[0]?.type).toBe("cms.asset");
-    expect((menuResult.resources[0] as CmsAssetResource).key[0].locale).toBe("en-US");
+    expect(resolveIslandEntry(menuEntryAri, menu)).toEqual({ startIsland: true });
+    expect(menuExpansion.resources.map((r) => r.toString())).toEqual([logoAssetAri.toString()]);
+    expect(menuExpansion.resources[0]?.type).toBe("cms.asset");
+    expect((menuExpansion.resources[0] as CmsAssetResource).key[0].locale).toBe("en-US");
 
-    expect(footerResult.isIsland).toBe(true);
-    expect(footerResult.resources.map((r) => r.toString())).toEqual([logoAssetAri.toString()]);
+    expect(resolveIslandEntry(footerEntryAri, footer)).toEqual({ startIsland: true });
+    expect(footerExpansion.resources.map((r) => r.toString())).toEqual([logoAssetAri.toString()]);
   });
 
   it("expands hero image to cms.asset and product to integration.product", () => {

@@ -8,10 +8,12 @@ import {
   ResourceLoadFailedError,
 } from "../errors";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
+import { createIslandPolicyChain } from "../ports/island-port";
 import { serializeAllIslands } from "../islands/serialize-island";
 import {
   asset,
   createDeferred,
+  createPageGraphIslandPolicies,
   createPageGraphPolicies,
   createStoreSource,
   footer,
@@ -167,11 +169,21 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
       expansion: createExpansionPolicyChain([
         {
           matches: ({ resource }) => resource.equals(first),
-          expand: () => ({ resources: [second], isIsland: true }),
+          expand: () => ({ resources: [second] }),
         },
         {
           matches: ({ resource }) => resource.equals(second),
-          expand: () => ({ resources: [first], isIsland: true }),
+          expand: () => ({ resources: [first] }),
+        },
+      ]),
+      islands: createIslandPolicyChain([
+        {
+          matches: ({ resource }) => resource.equals(first),
+          resolve: () => ({ startIsland: true }),
+        },
+        {
+          matches: ({ resource }) => resource.equals(second),
+          resolve: () => ({ startIsland: true }),
         },
       ]),
       schedulingMode,
@@ -235,6 +247,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
         },
       ],
       expansion: createExpansionPolicyChain([]),
+      islands: createIslandPolicyChain([]),
       schedulingMode,
     });
 
@@ -263,6 +276,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
         },
       ],
       expansion: createExpansionPolicyChain(createPageGraphPolicies()),
+      islands: createIslandPolicyChain(createPageGraphIslandPolicies()),
       schedulingMode,
     });
 
@@ -301,7 +315,13 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
         },
         {
           matches: ({ resource }) => resource.type === "menu",
-          expand: () => ({ resources: [], isIsland: true }),
+          expand: () => ({ resources: [] }),
+        },
+      ]),
+      islands: createIslandPolicyChain([
+        {
+          matches: ({ resource }) => resource.type === "menu",
+          resolve: () => ({ startIsland: true }),
         },
       ]),
       schedulingMode,
@@ -358,6 +378,7 @@ describe("scheduling mode parity", () => {
         }),
       ],
       expansion: createExpansionPolicyChain(createPageGraphPolicies()),
+      islands: createIslandPolicyChain(createPageGraphIslandPolicies()),
       schedulingMode,
     });
 

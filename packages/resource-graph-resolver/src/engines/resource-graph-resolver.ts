@@ -8,6 +8,7 @@ import {
 } from "../errors";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
 import type { ExpansionPort } from "../ports/expansion-port";
+import type { IslandPort } from "../ports/island-port";
 import type { ResourceFamily, DataSource } from "../ports/data-source";
 import { ResolutionSession, type GraphWalkRef } from "./resolution-session";
 import type {
@@ -61,6 +62,7 @@ export interface ResourceGraphResolverConfig<
    */
   readonly sources: readonly DataSource<R, TExecutionContext>[];
   readonly expansion: ExpansionPort<R, TExecutionContext>;
+  readonly islands: IslandPort<R, TExecutionContext>;
   /** Defaults to `"lane"`. */
   readonly schedulingMode?: SchedulingMode;
   readonly observer?: ResolutionObserver;
@@ -100,7 +102,12 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   input: ResolveResourceGraphInput<TExecutionContext>
 ): Promise<ResolveResourceGraphOutput<R>> {
   const observer = config.observer;
-  const session = new ResolutionSession<R, TExecutionContext>(input, config.expansion, observer);
+  const session = new ResolutionSession<R, TExecutionContext>(
+    input,
+    config.expansion,
+    config.islands,
+    observer
+  );
   const resolutionStartedAt = Date.now();
 
   session.assertNotAborted();

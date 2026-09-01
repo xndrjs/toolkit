@@ -25,7 +25,6 @@ export interface ExpansionContext<
 
 export interface ExpansionResult {
   resources: readonly ApplicationResourceIdentifier[];
-  isIsland?: boolean;
 }
 
 /**
@@ -38,8 +37,7 @@ export type ExpansionResourceFor<
 };
 
 /**
- * Application boundary that discovers child resources and island boundaries
- * for an already-resolved resource.
+ * Application boundary that discovers child resources for an already-resolved resource.
  */
 export interface ExpansionPort<
   R extends ContentRegistry = ContentRegistry,
