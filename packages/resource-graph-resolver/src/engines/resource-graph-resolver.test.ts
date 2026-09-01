@@ -32,14 +32,14 @@ import {
   testAri,
   testAriFactory,
 } from "../testing/test-fixtures";
-import type { ResolutionStrategy, ResolveResourceGraphOutput } from "../types";
+import type { SchedulingMode, ResolveResourceGraphOutput } from "../types";
 
-const strategies: readonly ResolutionStrategy[] = ["lane", "barrier"];
+const schedulingModes: readonly SchedulingMode[] = ["lane", "barrier"];
 
-describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
+describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (schedulingMode) => {
   it("resolves the whole graph and loads a shared resource once", async () => {
     const source = createStoreSource({ families: pageGraphFamilies });
-    const output = await resolvePageGraph(strategy, { source });
+    const output = await resolvePageGraph(schedulingMode, { source });
 
     expect(output.errors).toEqual([]);
     expect(output.contentMap.size).toBe(5);
@@ -52,7 +52,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
   });
 
   it("assigns a resource reached from several islands to all of them", async () => {
-    const output = await resolvePageGraph(strategy);
+    const output = await resolvePageGraph(schedulingMode);
 
     expect(output.islands.get(page.toString())).toEqual(
       new Set([page.toString(), hero.toString(), asset.toString()])
@@ -75,12 +75,17 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
   it("throws MissingResourceError when a source omits a requested resource", async () => {
     const source = createStoreSource({ families: pageGraphFamilies, omit: [asset] });
 
-    await expect(resolvePageGraph(strategy, { source })).rejects.toThrow(MissingResourceError);
+    await expect(resolvePageGraph(schedulingMode, { source })).rejects.toThrow(
+      MissingResourceError
+    );
   });
 
   it("collects a missing resource once, attributed to every island that reached it", async () => {
     const source = createStoreSource({ families: pageGraphFamilies, omit: [asset] });
-    const output = await resolvePageGraph(strategy, { source, missingResourceMode: "collect" });
+    const output = await resolvePageGraph(schedulingMode, {
+      source,
+      missingResourceMode: "collect",
+    });
 
     expect(output.errors).toHaveLength(1);
     expect(output.errors[0]?.resourceKey).toBe(asset.toString());
@@ -99,9 +104,12 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
       },
     ];
 
-    await expect(resolvePageGraph(strategy, { policies })).rejects.toThrow(NoDataSourceError);
+    await expect(resolvePageGraph(schedulingMode, { policies })).rejects.toThrow(NoDataSourceError);
 
-    const output = await resolvePageGraph(strategy, { policies, missingResourceMode: "collect" });
+    const output = await resolvePageGraph(schedulingMode, {
+      policies,
+      missingResourceMode: "collect",
+    });
 
     expect(output.errors).toHaveLength(1);
     expect(output.errors[0]?.resourceKey).toBe(orphan.toString());
@@ -117,7 +125,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
     ]);
     const source = createStoreSource({ families: pageGraphFamilies });
 
-    const output = await resolvePageGraph(strategy, { source, backingResources });
+    const output = await resolvePageGraph(schedulingMode, { source, backingResources });
 
     expect(backingResources.size).toBe(3);
     expect([...output.promotedResourceKeys].sort()).toEqual(
@@ -166,7 +174,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
           expand: () => ({ resources: [first], isIsland: true }),
         },
       ]),
-      strategy,
+      schedulingMode,
     });
 
     const output = await resolver.resolve({
@@ -183,7 +191,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
   });
 
   it("throws ResourceGraphAbortedError when the signal is already aborted", async () => {
-    await expect(resolvePageGraph(strategy, { signal: AbortSignal.abort() })).rejects.toThrow(
+    await expect(resolvePageGraph(schedulingMode, { signal: AbortSignal.abort() })).rejects.toThrow(
       ResourceGraphAbortedError
     );
   });
@@ -202,7 +210,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
       },
     });
 
-    const resolution = resolvePageGraph(strategy, { source, signal: controller.signal });
+    const resolution = resolvePageGraph(schedulingMode, { source, signal: controller.signal });
     gate.resolve();
 
     await expect(resolution).rejects.toThrow(ResourceGraphAbortedError);
@@ -227,7 +235,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
         },
       ],
       expansion: createExpansionPolicyChain([]),
-      strategy,
+      schedulingMode,
     });
 
     await resolver.resolve({
@@ -255,7 +263,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
         },
       ],
       expansion: createExpansionPolicyChain(createPageGraphPolicies()),
-      strategy,
+      schedulingMode,
     });
 
     const failure = await resolver
@@ -296,7 +304,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
           expand: () => ({ resources: [], isIsland: true }),
         },
       ]),
-      strategy,
+      schedulingMode,
     });
 
     const output = await resolver.resolve({
@@ -314,7 +322,7 @@ describe.each(strategies)("resolver semantics (%s strategy)", (strategy) => {
   });
 });
 
-describe("strategy parity", () => {
+describe("scheduling mode parity", () => {
   function projectGraph(output: ResolveResourceGraphOutput) {
     const islandIds = [...output.islands.islandIds()].sort();
 
@@ -332,7 +340,7 @@ describe("strategy parity", () => {
 
   /** Two sources with diverging latency plus per-family chunking, so schedules differ. */
   async function resolveWithSplitSources(
-    strategy: ResolutionStrategy
+    schedulingMode: SchedulingMode
   ): Promise<ResolveResourceGraphOutput> {
     const resolver = createResourceGraphResolver({
       sources: [
@@ -350,7 +358,7 @@ describe("strategy parity", () => {
         }),
       ],
       expansion: createExpansionPolicyChain(createPageGraphPolicies()),
-      strategy,
+      schedulingMode,
     });
 
     return resolver.resolve({

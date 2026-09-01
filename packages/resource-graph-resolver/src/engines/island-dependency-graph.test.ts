@@ -59,7 +59,7 @@ describe("island dependency graph", () => {
         }),
       ],
       expansion: createExpansionPolicyChain(createNestedIslandPolicies()),
-      strategy: "barrier",
+      schedulingMode: "barrier",
     });
 
     const output = await resolver.resolve({

@@ -32,7 +32,7 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
   const executionContext = createDefaultDemoExecutionContext();
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
   const counter = createLoadCounter();
-  const resolver = createDemoResolver({ strategy: "barrier", observer: counter.observer });
+  const resolver = createDemoResolver({ schedulingMode: "barrier", observer: counter.observer });
 
   const { backingResources, report } = loadBackingForRoot(pageRoot, cache);
 
@@ -109,7 +109,7 @@ describe("island cache cold/warm round-trip", () => {
 
     const executionContext = createDefaultDemoExecutionContext();
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
-    const resolver = createDemoResolver({ strategy: "barrier" });
+    const resolver = createDemoResolver({ schedulingMode: "barrier" });
 
     const { backingResources, report } = loadBackingForRoot(pageRoot, cache);
     expect(report.rootIslandStatus).toBe("hit");

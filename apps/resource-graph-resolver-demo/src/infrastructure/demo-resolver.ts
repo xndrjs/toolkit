@@ -1,7 +1,7 @@
 import {
   createResourceGraphResolver,
   type ResolutionObserver,
-  type ResolutionStrategy,
+  type SchedulingMode,
   type ResourceGraphResolver,
 } from "@xndrjs/resource-graph-resolver";
 
@@ -14,10 +14,10 @@ import type { ProductIntegrationSnapshot } from "./integration/catalog.js";
 
 export type DemoResolverOptions = {
   /**
-   * Walk strategy. Defaults to `"lane"`.
+   * Walk scheduling mode. Defaults to `"lane"`.
    * Pass `"barrier"` only when comparing schedulers by hand.
    */
-  strategy?: ResolutionStrategy;
+  schedulingMode?: SchedulingMode;
   /** Simulated CMS fetch latency in ms. Default 0. */
   cmsLatencyMs?: number;
   /** Simulated integration fetch latency in ms. Default 0. */
@@ -44,7 +44,7 @@ export function createDemoResolver(
       }),
     ],
     expansion: createDemoExpansionPort(),
-    strategy: options.strategy ?? "lane",
+    schedulingMode: options.schedulingMode ?? "lane",
     observer: options.observer,
   });
 }

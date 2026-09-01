@@ -58,7 +58,7 @@ export type MissingResourceMode = "throw" | "collect";
  * - `barrier` — wait for every in-flight batch, then expand together; rounds are
  *   reproducible, but wall clock tracks the slowest source in each round.
  */
-export type ResolutionStrategy = "lane" | "barrier";
+export type SchedulingMode = "lane" | "barrier";
 
 export interface ResolutionError {
   resourceKey: ResourceKey;

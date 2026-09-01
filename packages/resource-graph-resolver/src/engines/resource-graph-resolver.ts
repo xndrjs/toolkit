@@ -13,7 +13,7 @@ import { ResolutionSession, type GraphWalkRef } from "./resolution-session";
 import type {
   ContentRegistry,
   IslandId,
-  ResolutionStrategy,
+  SchedulingMode,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
   ResolvedResourceRecord,
@@ -62,7 +62,7 @@ export interface ResourceGraphResolverConfig<
   readonly sources: readonly DataSource<R, TExecutionContext>[];
   readonly expansion: ExpansionPort<R, TExecutionContext>;
   /** Defaults to `"lane"`. */
-  readonly strategy?: ResolutionStrategy;
+  readonly schedulingMode?: SchedulingMode;
   readonly observer?: ResolutionObserver;
 }
 
@@ -87,16 +87,16 @@ export function createResourceGraphResolver<
 >(
   config: ResourceGraphResolverConfig<R, TExecutionContext>
 ): ResourceGraphResolver<R, TExecutionContext> {
-  const strategy = config.strategy ?? "lane";
+  const schedulingMode = config.schedulingMode ?? "lane";
 
   return {
-    resolve: (input) => resolveResourceGraph(config, strategy, input),
+    resolve: (input) => resolveResourceGraph(config, schedulingMode, input),
   };
 }
 
 async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext>(
   config: ResourceGraphResolverConfig<R, TExecutionContext>,
-  strategy: ResolutionStrategy,
+  schedulingMode: SchedulingMode,
   input: ResolveResourceGraphInput<TExecutionContext>
 ): Promise<ResolveResourceGraphOutput<R>> {
   const observer = config.observer;
@@ -130,7 +130,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
   notifyObserver(observer, "onResolutionStart", () => ({
     root: input.root,
-    strategy,
+    schedulingMode,
     sourceIds: config.sources.map((source) => source.id),
   }));
 
@@ -419,7 +419,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
         break;
       }
 
-      if (strategy === "barrier") {
+      if (schedulingMode === "barrier") {
         const round = [...inFlight.values()];
         inFlight.clear();
         for (const completion of await Promise.all(round)) {

@@ -51,7 +51,7 @@ import { createResourceGraphResolver } from "@xndrjs/resource-graph-resolver";
 const resolver = createResourceGraphResolver<AppContentRegistry, ExecutionContext>({
   sources: [cmsSource, productSource],
   expansion: expansionPort,
-  strategy: "lane",
+  schedulingMode: "lane",
 });
 
 const output = await resolver.resolve({
@@ -73,14 +73,14 @@ The resolver owns routing (by ARI `type`, then family `matches`), chunking to `b
 
 A source signals "no data" by omitting an ARI from its result. The resolver then reports it through `missingResourceMode`, attributed to every island that reached it.
 
-## Strategies
+## Scheduling modes
 
-Both strategies share identical graph semantics — same `ContentMap`, islands, dependencies, backing promotion and errors. They differ only in when expansion runs relative to in-flight loads.
+Both scheduling modes share identical graph semantics — same `ContentMap`, islands, dependencies, backing promotion and errors. They differ only in when expansion runs relative to in-flight loads.
 
-| Strategy  | Scheduler                                                          | When to prefer                                                              |
-| --------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| `lane`    | Expand as soon as any batch commits; sources advance independently | Uneven backend latency; a fast CMS should not wait on a slow commercial API |
-| `barrier` | Wait for every in-flight batch, then expand together               | Reproducible rounds for tracing and tests; backends of similar latency      |
+| Scheduling mode | Scheduler                                                          | When to prefer                                                              |
+| --------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `lane`          | Expand as soon as any batch commits; sources advance independently | Uneven backend latency; a fast CMS should not wait on a slow commercial API |
+| `barrier`       | Wait for every in-flight batch, then expand together               | Reproducible rounds for tracing and tests; backends of similar latency      |
 
 Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave.
 

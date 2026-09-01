@@ -48,7 +48,7 @@ export type SourceRunMetrics = {
 };
 
 export type ResolutionRunMetrics = {
-  readonly strategy: string | undefined;
+  readonly schedulingMode: string | undefined;
   readonly wallMs: number;
   readonly resolvedCount: number;
   readonly errorCount: number;
@@ -165,7 +165,7 @@ function buildSourceMetrics(
 export function createMetricsCollector(options: MetricsCollectorOptions = {}): MetricsCollector {
   const configuredBatchSizeBySource = options.configuredBatchSizeBySource ?? {};
 
-  let strategy: string | undefined;
+  let schedulingMode: string | undefined;
   let wallMs = 0;
   let resolvedCount = 0;
   let errorCount = 0;
@@ -176,7 +176,7 @@ export function createMetricsCollector(options: MetricsCollectorOptions = {}): M
   const batches: BatchInterval[] = [];
 
   const reset = (): void => {
-    strategy = undefined;
+    schedulingMode = undefined;
     wallMs = 0;
     resolvedCount = 0;
     errorCount = 0;
@@ -215,7 +215,7 @@ export function createMetricsCollector(options: MetricsCollectorOptions = {}): M
 
   const observer: ResolutionObserver = {
     onResolutionStart(event: ResolutionStartEvent): void {
-      strategy = event.strategy;
+      schedulingMode = event.schedulingMode;
     },
 
     onResolutionEnd(event: ResolutionEndEvent): void {
@@ -270,7 +270,7 @@ export function createMetricsCollector(options: MetricsCollectorOptions = {}): M
     }
 
     return {
-      strategy,
+      schedulingMode,
       wallMs,
       resolvedCount,
       errorCount,

@@ -11,7 +11,7 @@ describe("serializeAllIslands", () => {
     const executionContext = createDefaultDemoExecutionContext();
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
-    const result = await createDemoResolver({ strategy: "barrier" }).resolve({
+    const result = await createDemoResolver({ schedulingMode: "barrier" }).resolve({
       root: pageRoot,
       executionContext,
       missingResourceMode: "throw",

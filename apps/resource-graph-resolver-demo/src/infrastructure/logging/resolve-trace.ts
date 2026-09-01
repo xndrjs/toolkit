@@ -35,8 +35,10 @@ export function createConsoleResolveTrace(): ResolveTrace {
   }
 
   const observer: ResolutionObserver = {
-    onResolutionStart({ root, strategy, sourceIds }) {
-      log(`── Resolve ${root.toString()} · strategy ${strategy} · sources ${sourceIds.join(", ")}`);
+    onResolutionStart({ root, schedulingMode, sourceIds }) {
+      log(
+        `── Resolve ${root.toString()} · scheduling ${schedulingMode} · sources ${sourceIds.join(", ")}`
+      );
     },
 
     onBatchStart({ sourceId, batchNumber, resourcesByFamily, resourceCount }) {

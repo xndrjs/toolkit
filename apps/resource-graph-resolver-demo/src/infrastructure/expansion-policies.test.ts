@@ -176,7 +176,7 @@ describe("createDemoExpansionPort", () => {
       },
     });
 
-    const output = await createDemoResolver({ strategy: "barrier" }).resolve({
+    const output = await createDemoResolver({ schedulingMode: "barrier" }).resolve({
       root: pageRoot,
       executionContext,
       missingResourceMode: "throw",
