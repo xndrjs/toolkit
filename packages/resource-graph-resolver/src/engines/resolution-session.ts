@@ -6,6 +6,7 @@ import { IslandMap } from "../model/island-map";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
 import { ResourceGraphAbortedError } from "../errors";
 import type { ExpansionContext, ExpansionPort } from "../ports/expansion-port";
+import type { IslandPort } from "../ports/island-port";
 import type {
   ContentRegistry,
   IslandId,
@@ -74,6 +75,7 @@ export class ResolutionSession<
   constructor(
     private readonly input: ResolveResourceGraphInput<TExecutionContext>,
     private readonly expansionPort: ExpansionPort<R, TExecutionContext>,
+    private readonly islandPort: IslandPort<R, TExecutionContext>,
     private readonly observer?: ResolutionObserver
   ) {
     // Copied so the caller's map is never mutated; promotions are reported instead.
@@ -231,9 +233,11 @@ export class ResolutionSession<
    */
   expand(ref: GraphWalkRef): GraphWalkRef[] {
     const resourceKey = ref.resource.toString();
-    const expansion = this.expansionOf(resourceKey, ref.resource);
-    const isIsland = expansion.isIsland === true;
-    const islandId = isIsland ? resourceKey : ref.inheritedIslandId;
+    const policyContext = this.policyContextOf(resourceKey, ref.resource);
+    const expansion = this.expansionPort.expand(policyContext);
+    const islandBoundary = this.islandPort.resolve(policyContext);
+    const isIsland = islandBoundary.startIsland;
+    const islandId = isIsland ? (islandBoundary.islandId ?? resourceKey) : ref.inheritedIslandId;
 
     if (islandId !== ref.inheritedIslandId) {
       this.islandDependencies.add(ref.inheritedIslandId, islandId);
@@ -262,17 +266,17 @@ export class ResolutionSession<
   }
 
   /**
-   * Single call site for the expansion port.
-   *
-   * Policies are deterministic per resource, so results are cacheable here; left
-   * uncached until measurements justify the memory.
+   * Shared context for expansion and island policies on one resolved resource.
    */
-  private expansionOf(resourceKey: ResourceKey, resource: ApplicationResourceIdentifier) {
-    return this.expansionPort.expand({
+  private policyContextOf(
+    resourceKey: ResourceKey,
+    resource: ApplicationResourceIdentifier
+  ): ExpansionContext<R, TExecutionContext> {
+    return {
       resource,
       payload: this.contentMap.getByKey(resourceKey)!,
       executionContext: this.input.executionContext,
-    } as ExpansionContext<R, TExecutionContext>);
+    } as ExpansionContext<R, TExecutionContext>;
   }
 
   toOutput(): ResolveResourceGraphOutput<R> {

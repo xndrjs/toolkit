@@ -7,22 +7,22 @@ description: The @xndrjs/resource-graph-resolver package — typed resource grap
 
 ### What is an island?
 
-An **island** is a **subgraph of the resolution walk** that has its **own identity** in the graph — a unit you treat as distinct from the island that reached it. You declare that identity in your expansion policy with `isIsland: true` on a resolved resource. That resource’s ARI (`resource.toString()`) becomes the island **id**; every resource reached while expanding from that point — until the next `isIsland` boundary — **belongs** to the same island.
+An **island** is a **subgraph of the resolution walk** that has its **own identity** in the graph — a unit you treat as distinct from the island that reached it. You declare that identity with an **island policy** (`startIsland`) on a resolved resource. That resource’s ARI (`resource.toString()`) becomes the island **id** unless you supply a custom id; every resource reached while expanding from that point — until the next island boundary — **belongs** to the same island.
 
 Typical reasons to mark an island: a fragment with a **different lifecycle** than its parent (global header, shared footer, …), a **reusable slice** referenced from multiple places, or a boundary where **membership** should not collapse into the parent’s aggregate.
 
 In practice:
 
 - The **root** of a resolve starts as an island (its own id).
-- When expansion returns `isIsland: true`, traversal **forks**: the resource starts a new island; its parent records a **dependency** on it.
+- When an island policy returns `startIsland: true`, traversal **forks**: the resource starts a new island; its parent records a **dependency** on it.
 - Each island is a first-class node in the output (`IslandMap`, `SerializedIsland`) — cache TTL, warm paths, and invalidation are **downstream** concerns your infrastructure may attach to that model; they are not what defines an island.
 
 **Membership** (which resources live inside an island) and **dependencies** (which other islands one island needs) are separate:
 
-| Concept        | Meaning                                                                |
-| -------------- | ---------------------------------------------------------------------- |
-| **Membership** | Resources assigned to this island during traversal                     |
-| **Dependency** | Direct edge to a child island created by `isIsland: true` on expansion |
+| Concept        | Meaning                                                  |
+| -------------- | -------------------------------------------------------- |
+| **Membership** | Resources assigned to this island during traversal       |
+| **Dependency** | Direct edge to a child island opened by an island policy |
 
 Example: a page island may **depend on** `menu` and `footer` islands without **containing** their payloads. The page’s direct dependencies are only its immediate island children; `getFlatDependencies(page)` adds transitive ones when nested islands exist deeper in the graph.
 
@@ -30,7 +30,7 @@ Islands let you **name and partition** a large graph by application meaning — 
 
 Islands are meant for **macro-grouping**. A resource reachable from many islands is tracked in all of them, so marking hundreds of fine-grained islands over a shared subgraph multiplies membership entries — model islands around lifecycle boundaries, not around individual nodes.
 
-The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per backend, and an `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
+The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per backend, an `ExpansionPort`, and an `IslandPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
 For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and expansion once; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_SCHEDULING_MODE` in that file to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
@@ -165,6 +165,7 @@ import { createResourceGraphResolver } from "@xndrjs/resource-graph-resolver";
 const resolver = createResourceGraphResolver<DemoContentRegistry, DemoExecutionContext>({
   sources: [cmsSource, integrationSource],
   expansion: expansionPort,
+  islands: islandPort,
   schedulingMode: "lane", // or "barrier"
   observer, // optional
 });
@@ -191,13 +192,13 @@ When several sources declare the same ARI `type`, the first whose family `matche
 
 `resolve` returns:
 
-| Field                  | Role                                                             |
-| ---------------------- | ---------------------------------------------------------------- |
-| `contentMap`           | Resolved payloads keyed by ARI                                   |
-| `islands`              | Per-island resource membership                                   |
-| `islandDependencies`   | Direct edges between islands (child island opened by `isIsland`) |
-| `errors`               | Missing resources when `missingResourceMode: "collect"`          |
-| `promotedResourceKeys` | Backing keys the walk actually reached, in promotion order       |
+| Field                  | Role                                                                   |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `contentMap`           | Resolved payloads keyed by ARI                                         |
+| `islands`              | Per-island resource membership                                         |
+| `islandDependencies`   | Direct edges between islands (child island opened by an island policy) |
+| `errors`               | Missing resources when `missingResourceMode: "collect"`                |
+| `promotedResourceKeys` | Backing keys the walk actually reached, in promotion order             |
 
 ### Missing resources and termination
 
@@ -247,7 +248,7 @@ Every hook is optional, and a hook that throws never affects resolution — obse
 
 ## ExpansionPort and policies
 
-Expansion discovers **child ARIs** and optional **island boundaries** for an already-resolved resource.
+Expansion discovers **child ARIs** for an already-resolved resource. Island boundaries are declared separately via {@link IslandPort} (see below).
 
 **Expansion = current resource + its own payload + execution context.** A policy cannot look up other nodes in a shared map, cannot see the island it was reached from, and must not depend on which peers happened to land in the same batch. That constraint is what keeps expansion deterministic: the edges of the graph depend on content, not on traversal order or batch sizes.
 
@@ -261,23 +262,41 @@ export const expansionPort = createExpansionPolicyChain([
   defineExpansionPolicy({
     for: cmsEntryAri,
     when: ({ resource, executionContext }) => resource.key[0].locale === executionContext.locale,
-    expand: ({ payload, executionContext }) => {
-      return {
-        resources: collectChildArisFromEntry(payload, executionContext.locale),
-        isIsland: payload.sys.contentType.sys.id === "menu",
-      };
-    },
+    expand: ({ payload, executionContext }) => ({
+      resources: collectChildArisFromEntry(payload, executionContext.locale),
+    }),
   }),
 ]);
 ```
 
 `defineExpansionPolicy({ for })` narrows **both** `resource` and `payload` to the matched ARI family.
 
-When `isIsland: true`, the resource becomes a new island id (`resource.toString()`). The parent island records a **direct dependency** on that child island. Children discovered from the new island inherit its id until another `isIsland` boundary appears.
-
-**Dependencies ≠ membership.** A child island is a dependency of its parent, not necessarily a direct dependency of the page root — but nested islands appear in the transitive flat closure (below). Resources resolved **inside** an island are **members** of that island, not separate islands, unless expansion marks them with `isIsland: true`.
-
 A resource reachable from several islands is expanded once per island, so it joins the membership of all of them while being fetched only once.
+
+## IslandPort and policies
+
+Island policies decide whether a resolved resource **opens a new island boundary**. They observe the same scoped context as expansion policies.
+
+Author policies with `defineIslandPolicy` and OR-combine them with `createIslandPolicyChain` (any matching policy may open a boundary):
+
+```ts
+import { createIslandPolicyChain, defineIslandPolicy } from "@xndrjs/resource-graph-resolver";
+import { cmsEntryAri } from "./cms/ari";
+
+const islandContentTypes = ["menu", "footer"] as const;
+
+export const islandPort = createIslandPolicyChain([
+  defineIslandPolicy({
+    for: cmsEntryAri,
+    when: ({ payload }) => islandContentTypes.includes(payload.sys.contentType.sys.id),
+    startIsland: () => true,
+  }),
+]);
+```
+
+When `startIsland` resolves to a boundary, the resource becomes a new island id (`resource.toString()` unless you return a custom id). The parent island records a **direct dependency** on that child island. Children discovered from the new island inherit its id until another island boundary appears.
+
+**Dependencies ≠ membership.** A child island is a dependency of its parent, not necessarily a direct dependency of the page root — but nested islands appear in the transitive flat closure (below). Resources resolved **inside** an island are **members** of that island, not separate islands, unless an island policy opens another boundary.
 
 ## IslandDependencyMap
 
@@ -337,10 +356,11 @@ Return values:
 1. **Infrastructure ARIs** — one factory per backend/type (`cms.entry`, `cms.asset`, `integration.product`, …), next to the sources that own them.
 2. **ContentRegistry** — per-source slices composed with `ComposeContentRegistry`.
 3. **Sources** — one `DataSource` per backend: families it owns, batch limits, concurrency, `load`.
-4. **ExpansionPort** — content-type or resource-family policies; `isIsland` where a fragment has its own identity or lifecycle.
-5. **Resolver** — one `createResourceGraphResolver` per topology, `schedulingMode` chosen per route (or fixed to `lane`).
-6. **Orchestration** — load backing → `resolve` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
-7. **Domain mappers** — stay outside this package; consume `ResolveResourceGraphOutput`.
+4. **ExpansionPort** — content-type or resource-family policies for child discovery.
+5. **IslandPort** — island boundary policies where a fragment has its own identity or lifecycle.
+6. **Resolver** — one `createResourceGraphResolver` per topology, `schedulingMode` chosen per route (or fixed to `lane`).
+7. **Orchestration** — load backing → `resolve` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
+8. **Domain mappers** — stay outside this package; consume `ResolveResourceGraphOutput`.
 
 ## API
 
@@ -350,10 +370,11 @@ Exported symbols:
 - **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceFamilyMap`, `ResourceOfFamily`, `PendingResourceBatch`, `SourceResourceRecord`, `ResourceBatchSizeMap`, `ResourceLoadContext`
 - **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`createExpansionPolicyChain`** / **`defineExpansionPolicy`**
+- **`createIslandPolicyChain`** / **`defineIslandPolicy`**
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**
 - Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceGraphAbortedError`**
 - Observability: **`ResolutionObserver`** and its event types
-- Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`SchedulingMode`**, **`ResolutionError`**, **`MissingResourceMode`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolvedResourceRecord`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
+- Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`SchedulingMode`**, **`ResolutionError`**, **`MissingResourceMode`**, **`SerializedIsland`**, **`ExpansionPort`**, **`IslandPort`**, **`ExpansionResult`**, **`IslandResult`**, **`ExpansionContext`**, **`IslandContext`**, **`ResolvedResourceRecord`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 
 ## See also
 

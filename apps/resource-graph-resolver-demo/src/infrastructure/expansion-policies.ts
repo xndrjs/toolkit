@@ -1,9 +1,12 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import {
   createExpansionPolicyChain,
+  createIslandPolicyChain,
   defineExpansionPolicy,
+  defineIslandPolicy,
   type ExpansionPort,
   type ExpansionResult,
+  type IslandPort,
 } from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri } from "./cms/ari.js";
@@ -20,6 +23,11 @@ import {
 } from "./cms/generated/contentful.schemas.js";
 
 const EMPTY_EXPANSION: ExpansionResult = { resources: [] };
+
+const ISLAND_CONTENT_TYPES = [
+  "menu",
+  "footer",
+] as const satisfies readonly ContentfulContentTypeId[];
 
 function linkReferenceToAri(
   link: { linkType: "Entry" | "Asset"; id: string },
@@ -56,18 +64,11 @@ function expandProductEntry(
   return { resources: [integrationProductAri({ sku, locale })] };
 }
 
-/**
- * Default expansion follows generated link-field metadata; overrides handle islands
- * and cross-source rules (e.g. product SKU → integration API).
- */
 type ExpansionOverride = {
-  expand?: (entry: ContentfulResolvedEntry, locale: ContentfulLocaleCode) => ExpansionResult;
-  isIsland?: boolean;
+  expand: (entry: ContentfulResolvedEntry, locale: ContentfulLocaleCode) => ExpansionResult;
 };
 
 const expansionOverrides: Partial<Record<ContentfulContentTypeId, ExpansionOverride>> = {
-  menu: { isIsland: true },
-  footer: { isIsland: true },
   product: { expand: expandProductEntry },
 };
 
@@ -78,14 +79,9 @@ function expandForContentType(
 ): ExpansionResult {
   const override = expansionOverrides[contentTypeId];
 
-  const result = override?.expand
+  return override?.expand
     ? override.expand(entry, locale)
     : expandLinksFromGeneratedMetadata(contentTypeId, entry, locale);
-
-  return {
-    ...result,
-    isIsland: override?.isIsland ?? false,
-  };
 }
 
 /** ExpansionPort: first matching policy wins; policies authored with `for` / optional `when` / `expand`. */
@@ -108,6 +104,19 @@ export function createDemoExpansionPort(): ExpansionPort<
           executionContext.locale
         );
       },
+    }),
+  ]);
+}
+
+/** IslandPort: menu and footer open island boundaries with the same locale gate as expansion. */
+export function createDemoIslandPort(): IslandPort<DemoContentRegistry, DemoExecutionContext> {
+  return createIslandPolicyChain<DemoContentRegistry, DemoExecutionContext>([
+    defineIslandPolicy<ReturnType<typeof cmsEntryAri>, DemoContentRegistry, DemoExecutionContext>({
+      for: cmsEntryAri,
+      when: ({ resource, payload, executionContext }) =>
+        resource.key[0].locale === executionContext.locale &&
+        (ISLAND_CONTENT_TYPES as readonly string[]).includes(payload.sys.contentType.sys.id),
+      startIsland: () => true,
     }),
   ]);
 }

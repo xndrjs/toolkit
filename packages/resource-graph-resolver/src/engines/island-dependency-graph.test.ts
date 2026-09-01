@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createResourceGraphResolver } from "./resource-graph-resolver";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
+import { createIslandPolicyChain, type IslandPolicy } from "../ports/island-port";
 import { serializeIsland } from "../islands/serialize-island";
 import { createStoreSource } from "../testing/resolver-test-helpers";
 import { footerAri, menuAri, pageAri, testAriFactory } from "../testing/test-fixtures";
@@ -28,7 +29,7 @@ const values = new Map<string, unknown>([
   [logo.toString(), { url: "https://cdn.example.com/logo.svg" }],
 ]);
 
-function createNestedIslandPolicies(): ExpansionPolicy[] {
+function createNestedIslandExpansionPolicies(): ExpansionPolicy[] {
   return [
     {
       matches: ({ resource }) => resource.type === "page",
@@ -36,15 +37,32 @@ function createNestedIslandPolicies(): ExpansionPolicy[] {
     },
     {
       matches: ({ resource }) => resource.type === "menu",
-      expand: () => ({ resources: [logo], isIsland: true }),
+      expand: () => ({ resources: [logo] }),
     },
     {
       matches: ({ resource }) => resource.type === "footer",
-      expand: () => ({ resources: [], isIsland: true }),
+      expand: () => ({ resources: [] }),
     },
     {
       matches: ({ resource }) => resource.type === "logo",
-      expand: () => ({ resources: [], isIsland: true }),
+      expand: () => ({ resources: [] }),
+    },
+  ];
+}
+
+function createNestedIslandPolicies(): IslandPolicy[] {
+  return [
+    {
+      matches: ({ resource }) => resource.type === "menu",
+      resolve: () => ({ startIsland: true }),
+    },
+    {
+      matches: ({ resource }) => resource.type === "footer",
+      resolve: () => ({ startIsland: true }),
+    },
+    {
+      matches: ({ resource }) => resource.type === "logo",
+      resolve: () => ({ startIsland: true }),
     },
   ];
 }
@@ -58,7 +76,8 @@ describe("island dependency graph", () => {
           store: values,
         }),
       ],
-      expansion: createExpansionPolicyChain(createNestedIslandPolicies()),
+      expansion: createExpansionPolicyChain(createNestedIslandExpansionPolicies()),
+      islands: createIslandPolicyChain(createNestedIslandPolicies()),
       schedulingMode: "barrier",
     });
 

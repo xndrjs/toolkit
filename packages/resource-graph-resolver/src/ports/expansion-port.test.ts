@@ -41,7 +41,7 @@ describe("createExpansionPolicyChain", () => {
     const menuChild = testAri("item", "1");
     const first: ExpansionPolicy = {
       matches: ({ resource }) => resource.type === "menu",
-      expand: () => ({ resources: [menuChild], isIsland: true }),
+      expand: () => ({ resources: [menuChild] }),
     };
     const second: ExpansionPolicy = {
       matches: () => true,
@@ -52,7 +52,7 @@ describe("createExpansionPolicyChain", () => {
     const port = createExpansionPolicyChain([first, second]);
     const result = port.expand(createContext(testAri("menu", "M")));
 
-    expect(result).toEqual({ resources: [menuChild], isIsland: true });
+    expect(result).toEqual({ resources: [menuChild] });
     expect(expandSpy).not.toHaveBeenCalled();
   });
 
@@ -64,7 +64,7 @@ describe("createExpansionPolicyChain", () => {
     };
     const menuPolicy: ExpansionPolicy = {
       matches: ({ resource }) => resource.type === "menu",
-      expand: () => ({ resources: [], isIsland: true }),
+      expand: () => ({ resources: [] }),
     };
 
     const port = createExpansionPolicyChain([menuPolicy, pagePolicy]);
@@ -77,7 +77,7 @@ describe("createExpansionPolicyChain", () => {
     const port = createExpansionPolicyChain([
       {
         matches: ({ resource }) => resource.type === "menu",
-        expand: () => ({ resources: [], isIsland: true }),
+        expand: () => ({ resources: [] }),
       },
     ]);
 
@@ -101,14 +101,13 @@ describe("defineExpansionPolicy", () => {
         expectTypeOf(resource.type).toEqualTypeOf<"menu">();
         expectTypeOf(payload).toEqualTypeOf<{ kind?: string }>();
         expect(resource.type).toBe("menu");
-        return { resources: [], isIsland: true };
+        return { resources: [] };
       },
     });
 
     const port = createExpansionPolicyChain<MenuRegistry>([policy]);
     expect(port.expand(createMenuContext(menuAri({ id: "M" }), { kind: "main" }))).toEqual({
       resources: [],
-      isIsland: true,
     });
   });
 
@@ -126,7 +125,7 @@ describe("defineExpansionPolicy", () => {
     const policy = defineExpansionPolicy({
       for: menuAri,
       when,
-      expand: () => ({ resources: [], isIsland: true }),
+      expand: () => ({ resources: [] }),
     });
 
     const port = createExpansionPolicyChain([policy]);
@@ -145,7 +144,7 @@ describe("defineExpansionPolicy", () => {
       defineExpansionPolicy({
         for: menuAri,
         when: () => false,
-        expand: () => ({ resources: [], isIsland: true }),
+        expand: () => ({ resources: [] }),
       }),
       {
         matches: () => true,
@@ -162,13 +161,12 @@ describe("defineExpansionPolicy", () => {
     const policy = defineExpansionPolicy<ReturnType<typeof menuAri>, MenuRegistry>({
       for: menuAri,
       when: ({ payload }) => payload.kind === "main",
-      expand: () => ({ resources: [], isIsland: true }),
+      expand: () => ({ resources: [] }),
     });
 
     const port = createExpansionPolicyChain<MenuRegistry>([policy]);
     expect(port.expand(createMenuContext(menuAri({ id: "M" }), { kind: "main" }))).toEqual({
       resources: [],
-      isIsland: true,
     });
   });
 });

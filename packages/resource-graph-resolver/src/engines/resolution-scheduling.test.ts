@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { createResourceGraphResolver } from "./resource-graph-resolver";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
+import { createIslandPolicyChain } from "../ports/island-port";
 import type { ResolutionObserver } from "../observability/resolution-observer";
 import type { DataSource } from "../ports/data-source";
 import { createDeferred, createStoreSource } from "../testing/resolver-test-helpers";
@@ -77,6 +78,7 @@ describe("lane versus barrier scheduling", () => {
     const resolver = createResourceGraphResolver({
       sources: [fast, slow],
       expansion: createExpansionPolicyChain(policies),
+      islands: createIslandPolicyChain([]),
       schedulingMode,
     });
 
@@ -139,6 +141,7 @@ describe("batching and concurrency", () => {
     const resolver = createResourceGraphResolver({
       sources: [source],
       expansion: createExpansionPolicyChain(policies),
+      islands: createIslandPolicyChain([]),
       schedulingMode: "lane",
     });
 
@@ -225,7 +228,13 @@ describe("observer", () => {
         },
         {
           matches: ({ resource }) => resource.equals(promoted),
-          expand: () => ({ resources: [], isIsland: true }),
+          expand: () => ({ resources: [] }),
+        },
+      ]),
+      islands: createIslandPolicyChain([
+        {
+          matches: ({ resource }) => resource.equals(promoted),
+          resolve: () => ({ startIsland: true }),
         },
       ]),
       observer,
@@ -259,6 +268,7 @@ describe("observer", () => {
     const resolver = createResourceGraphResolver({
       sources: [createStoreSource({ id: "chain", families: { chain: chainAri }, store })],
       expansion: createExpansionPolicyChain([]),
+      islands: createIslandPolicyChain([]),
       observer: {
         onBatchStart: () => {
           throw new Error("observer is broken");
@@ -324,7 +334,13 @@ describe("unrequested records", () => {
         },
         {
           matches: ({ resource }) => resource.equals(volunteered),
-          expand: () => ({ resources: [grandchild], isIsland: true }),
+          expand: () => ({ resources: [grandchild] }),
+        },
+      ]),
+      islands: createIslandPolicyChain([
+        {
+          matches: ({ resource }) => resource.equals(volunteered),
+          resolve: () => ({ startIsland: true }),
         },
       ]),
       schedulingMode: "barrier",

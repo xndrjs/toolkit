@@ -8,7 +8,7 @@ import {
 import { createCmsSource, demoCmsStore, type CmsFixtureStore } from "./cms/index.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import type { DemoExecutionContext } from "./demo-execution-context.js";
-import { createDemoExpansionPort } from "./expansion-policies.js";
+import { createDemoExpansionPort, createDemoIslandPort } from "./expansion-policies.js";
 import { createIntegrationSource, demoProductCatalog } from "./integration/index.js";
 import type { ProductIntegrationSnapshot } from "./integration/catalog.js";
 
@@ -44,6 +44,7 @@ export function createDemoResolver(
       }),
     ],
     expansion: createDemoExpansionPort(),
+    islands: createDemoIslandPort(),
     schedulingMode: options.schedulingMode ?? "lane",
     observer: options.observer,
   });
