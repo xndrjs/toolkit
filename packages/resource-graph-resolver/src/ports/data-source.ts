@@ -14,32 +14,24 @@ export interface ResourceFamily<
   matches(candidate: ApplicationResourceIdentifier): candidate is Resource;
 }
 
-/** Families a source owns, keyed by a local name used in batches and batch sizes. */
-export type ResourceFamilyMap = Record<string, ResourceFamily>;
-
 /** The narrowed ARI type behind a {@link ResourceFamily}. */
 export type ResourceOfFamily<F> = F extends ResourceFamily<infer Resource> ? Resource : never;
 
-/** One load's work, grouped by family and narrowed per family. */
-export type PendingResourceBatch<F extends ResourceFamilyMap> = {
-  readonly [K in keyof F]: readonly ResourceOfFamily<F[K]>[];
-};
+/** Union of ARI types handled by a source's `for` list. */
+export type ResourceUnionFromFamilies<F extends readonly ResourceFamily[]> = ResourceOfFamily<
+  F[number]
+>;
 
 /**
- * Records a source may return: only its own families, each paired with the
+ * Records a source may return: only its own `for` families, each paired with the
  * payload its ARI type maps to in the registry.
  */
-export type SourceResourceRecord<R extends ContentRegistry, F extends ResourceFamilyMap> = {
+export type SourceResourceRecord<R extends ContentRegistry, F extends readonly ResourceFamily[]> = {
   [K in keyof F]: {
     resource: ResourceOfFamily<F[K]>;
     payload: RegistryPayloadFor<R, ResourceOfFamily<F[K]>>;
   };
-}[keyof F];
-
-/** Maximum ARIs per family in a single load. Omit a family for "no limit". */
-export type ResourceBatchSizeMap<F extends ResourceFamilyMap> = {
-  readonly [K in keyof F]?: number;
-};
+}[number];
 
 export interface ResourceLoadContext<TExecutionContext = unknown> {
   /**
@@ -52,35 +44,51 @@ export interface ResourceLoadContext<TExecutionContext = unknown> {
   readonly batchNumber: number;
 }
 
+export interface SourceRouteContext<TExecutionContext = unknown> {
+  readonly resource: ApplicationResourceIdentifier;
+  readonly executionContext: TExecutionContext;
+}
+
 /**
- * Definition of one backend and the ARI families it owns.
+ * Definition of one backend transport channel and the ARI families it handles.
  *
  * The resolver owns routing, chunking, throttling and scheduling; a source only
- * declares what it owns and how to fetch it. Retry and backoff belong inside
- * {@link load} — a source has at most {@link concurrency} loads in flight, so
- * awaiting there throttles that backend only.
+ * declares what it handles and how to fetch a batch. Retry and backoff belong
+ * inside {@link load} — a source has at most {@link concurrency} loads in
+ * flight, so awaiting there throttles that backend only.
  *
  * `R` is the whole project registry, not the source's own slice: payload shapes
- * are a project-wide contract, and {@link families} is what scopes a source to
- * the ARI types it may be asked for and may return.
+ * are a project-wide contract, and {@link for} is what scopes a source to the
+ * ARI types it may be asked for and may return.
+ *
+ * When several sources can handle the same ARI, the resolver picks the first
+ * match in `sources` order whose optional {@link when} predicate passes.
  */
 export interface DataSourceDefinition<
   R extends ContentRegistry,
-  F extends ResourceFamilyMap,
+  F extends readonly ResourceFamily[],
   TExecutionContext = unknown,
 > {
   /** Stable identifier used in observer events and error messages. */
   readonly id: string;
-  readonly families: F;
-  readonly batchSize?: ResourceBatchSizeMap<F>;
+  /** ARI factories this transport channel handles. */
+  readonly for: F;
+  /** Maximum ARIs per load. Omit for no limit. */
+  readonly batchSize?: number;
   /** Loads this backend tolerates in parallel. Defaults to 1 (serial). */
   readonly concurrency?: number;
   /**
-   * Fetch one batch. Omit a requested ARI from the result once retries are
-   * exhausted — the resolver treats it as a missing resource.
+   * Optional routing predicate evaluated before `for` matching. Use only to pick
+   * among transport channels — not for expansion, islands, or business logic.
+   */
+  readonly when?: (context: SourceRouteContext<TExecutionContext>) => boolean;
+  /**
+   * Fetch one batch. Heterogeneous ARIs from `for` travel together in one call.
+   * Omit a requested ARI from the result once retries are exhausted — the
+   * resolver treats it as a missing resource.
    */
   load(
-    batch: PendingResourceBatch<F>,
+    batch: readonly ResourceUnionFromFamilies<F>[],
     context: ResourceLoadContext<TExecutionContext>
   ): Promise<readonly SourceResourceRecord<R, F>[]>;
 }
@@ -91,39 +99,46 @@ export interface DataSource<
   TExecutionContext = unknown,
 > {
   readonly id: string;
-  readonly families: ResourceFamilyMap;
-  readonly batchSize: Readonly<Record<string, number | undefined>>;
+  readonly for: readonly ResourceFamily[];
+  readonly batchSize: number | undefined;
   readonly concurrency: number;
+  readonly when?: (context: SourceRouteContext<TExecutionContext>) => boolean;
   load(
-    batch: Readonly<Record<string, readonly ApplicationResourceIdentifier[]>>,
+    batch: readonly ApplicationResourceIdentifier[],
     context: ResourceLoadContext<TExecutionContext>
   ): Promise<readonly ResolvedResourceRecord<R>[]>;
 }
 
 /**
- * Curried so `families` is inferred while the registry stays explicit
+ * Curried so `for` is inferred while the registry stays explicit
  * (TypeScript has no partial type-argument inference).
  *
  * ```ts
  * const defineSource = defineDataSourceFor<AppRegistry, ExecutionContext>();
- * const cmsSource = defineSource({ id: "cms", families: { entry: cmsEntryAri }, load });
+ * const cmsSource = defineSource({
+ *   id: "cms",
+ *   for: [cmsEntryAri, cmsAssetAri],
+ *   batchSize: 100,
+ *   load(batch, { signal }) { ... },
+ * });
  * ```
  */
 export function defineDataSourceFor<R extends ContentRegistry, TExecutionContext = unknown>(): <
-  F extends ResourceFamilyMap,
+  const F extends readonly ResourceFamily[],
 >(
   definition: DataSourceDefinition<R, F, TExecutionContext>
 ) => DataSource<R, TExecutionContext> {
-  return <F extends ResourceFamilyMap>(
+  return <const F extends readonly ResourceFamily[]>(
     definition: DataSourceDefinition<R, F, TExecutionContext>
   ): DataSource<R, TExecutionContext> => {
     const load = definition.load.bind(definition) as DataSource<R, TExecutionContext>["load"];
 
     return {
       id: definition.id,
-      families: definition.families,
-      batchSize: definition.batchSize ?? {},
+      for: definition.for,
+      batchSize: definition.batchSize,
       concurrency: Math.max(1, Math.trunc(definition.concurrency ?? 1)),
+      ...(definition.when !== undefined ? { when: definition.when } : {}),
       load,
     };
   };

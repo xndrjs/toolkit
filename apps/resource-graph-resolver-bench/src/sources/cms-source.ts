@@ -36,10 +36,10 @@ export function createCmsSource(
 
   return defineCmsSource({
     id: CMS_SOURCE_ID,
-    families: { node: benchNodeAri },
-    batchSize: { node: options.batchSize },
+    for: [benchNodeAri],
+    batchSize: options.batchSize,
     concurrency: options.concurrency,
-    load: ({ node }) => loadCmsNodes(store, node, latencyMs),
+    load: (batch) => loadCmsNodes(store, batch, latencyMs),
   });
 }
 

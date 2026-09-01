@@ -36,10 +36,10 @@ export function createIntegrationSource(
 
   return defineIntegrationSource({
     id: INTEGRATION_SOURCE_ID,
-    families: { product: benchProductAri },
-    batchSize: { product: options.batchSize },
+    for: [benchProductAri],
+    batchSize: options.batchSize,
     concurrency: options.concurrency,
-    load: ({ product }) => loadIntegrationProducts(catalog, product, latencyMs),
+    load: (batch) => loadIntegrationProducts(catalog, batch, latencyMs),
   });
 }
 

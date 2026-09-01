@@ -91,30 +91,21 @@ describe("demo data sources", () => {
     const integration = createIntegrationSource();
 
     expect(cms.id).toBe("cms");
-    expect(Object.keys(cms.families).sort()).toEqual(["asset", "entry"]);
-    expect(cms.families.entry?.type).toBe("cms.entry");
-    expect(cms.families.asset?.type).toBe("cms.asset");
-    expect(cms.batchSize).toEqual({
-      entry: CMS_ENTRY_BATCH_SIZE,
-      asset: CMS_ASSET_BATCH_SIZE,
-    });
+    expect(cms.for.map((family) => family.type).sort()).toEqual(["cms.asset", "cms.entry"]);
+    expect(cms.batchSize).toBe(CMS_ENTRY_BATCH_SIZE);
 
     expect(integration.id).toBe("integration");
-    expect(Object.keys(integration.families)).toEqual(["product"]);
-    expect(integration.families.product?.type).toBe("integration.product");
-    expect(integration.batchSize).toEqual({ product: INTEGRATION_BATCH_SIZE });
+    expect(integration.for.map((family) => family.type)).toEqual(["integration.product"]);
+    expect(integration.batchSize).toBe(INTEGRATION_BATCH_SIZE);
   });
 
-  it("fetches entries and assets concurrently within one CMS batch", async () => {
+  it("loads heterogeneous entries and assets in one CMS batch", async () => {
     const cms = createCmsSource(demoCmsStore);
 
-    const records = await cms.load(
-      {
-        entry: [pageEntryAri, heroEntryAri, productEntryAri],
-        asset: [logoAssetAri],
-      },
-      { executionContext: { locale: "en-US" }, batchNumber: 1 }
-    );
+    const records = await cms.load([pageEntryAri, heroEntryAri, productEntryAri, logoAssetAri], {
+      executionContext: { locale: "en-US" },
+      batchNumber: 1,
+    });
 
     expect(records.map((record) => record.resource.toString()).sort()).toEqual(
       [
@@ -131,10 +122,10 @@ describe("demo data sources", () => {
     const emptyStore = { entries: new Map(), assets: new Map() };
     const cms = createCmsSource(emptyStore);
 
-    const records = await cms.load(
-      { entry: [missing], asset: [] },
-      { executionContext: { locale: "en-US" }, batchNumber: 1 }
-    );
+    const records = await cms.load([missing], {
+      executionContext: { locale: "en-US" },
+      batchNumber: 1,
+    });
 
     expect(records).toEqual([]);
   });
@@ -149,7 +140,7 @@ describe("demo data sources", () => {
     });
   });
 
-  it("skips IO entirely for an empty family slice", async () => {
+  it("skips IO entirely for an empty batch", async () => {
     expect(await loadCmsEntries(demoCmsStore, [])).toEqual([]);
     expect(await loadCmsAssets(demoCmsStore, [])).toEqual([]);
     expect(await loadIntegrationProducts(demoProductCatalog, [])).toEqual([]);

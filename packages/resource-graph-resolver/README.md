@@ -12,7 +12,7 @@ npm install @xndrjs/resource-graph-resolver @xndrjs/application-resources
 
 ## Quick start
 
-Declare one source per backend. A source owns ARI **families**, declares the backend's per-family batch limits and how many requests it tolerates in parallel, then fetches a batch the resolver hands it:
+Declare one source per transport channel. A source lists the ARI types it handles, declares the channel's batch limit and how many requests it tolerates in parallel, then fetches one heterogeneous batch the resolver hands it:
 
 ```ts
 import { defineDataSourceFor } from "@xndrjs/resource-graph-resolver";
@@ -21,25 +21,19 @@ const defineSource = defineDataSourceFor<AppContentRegistry, ExecutionContext>()
 
 const cmsSource = defineSource({
   id: "cms",
-  families: { entry: cmsEntryAri, asset: cmsAssetAri },
-  batchSize: { entry: 100, asset: 100 },
-  async load({ entry, asset }, { signal }) {
-    // entry: readonly CmsEntryResource[], asset: readonly CmsAssetResource[]
-    const [entries, assets] = await Promise.all([
-      fetchEntries(entry, signal),
-      fetchAssets(asset, signal),
-    ]);
-
-    return [...entries, ...assets];
+  for: [cmsEntryAri, cmsAssetAri],
+  batchSize: 100,
+  async load(batch, { signal }) {
+    return contentfulDelivery.fetchBatch(batch, { signal });
   },
 });
 
 const productSource = defineSource({
   id: "products",
-  families: { product: productAri },
-  batchSize: { product: 1 },
+  for: [productAri],
+  batchSize: 1,
   concurrency: 4,
-  load: ({ product }, { signal }) => fetchProducts(product, signal),
+  load: (batch, { signal }) => fetchProducts(batch, signal),
 });
 ```
 
@@ -51,47 +45,21 @@ import {
   createGraphResolutionStrategy,
 } from "@xndrjs/resource-graph-resolver";
 
-function createAppStrategy() {
-  const s = createGraphResolutionStrategy<ExecutionContext, AppContentRegistry>();
+const strategy = createGraphResolutionStrategy().expansion(/* ... */).islands(/* ... */).build();
 
-  s.expansion.on(cmsEntryAri).expand(({ payload }) => ({ resources: collectChildAris(payload) }));
-
-  s.islands
-    .on(cmsEntryAri)
-    .when(({ payload }) => payload.sys.contentType.sys.id === "menu")
-    .startIsland();
-
-  return s.build();
-}
-
-const resolver = createResourceGraphResolver<AppContentRegistry, ExecutionContext>({
+const resolver = createResourceGraphResolver({
   sources: [cmsSource, productSource],
-  strategy: createAppStrategy(),
+  strategy,
   schedulingMode: "lane",
 });
 
 const output = await resolver.resolve({
-  root: pageRoot,
+  root: pageAri({ id: "home", locale: "en-US" }),
   executionContext: { locale: "en-US" },
-  missingResourceMode: "throw",
-  // optional:
-  // backingResources: cachedPayloadsByKey,
-  // signal: AbortSignal.timeout(5_000),
 });
-
-output.contentMap.get(pageRoot);
-output.islandDependencies.getFlatDependencies(pageRoot.toString());
 ```
 
-## Who owns what
-
-The resolver owns routing (by ARI `type`, then family `matches`), chunking to `batchSize`, throttling to `concurrency`, scheduling, deduplication and island bookkeeping. A source owns one backend's transport, and its retry and backoff policy: a source has at most `concurrency` loads in flight, so awaiting inside `load` throttles that backend and nothing else.
-
-A source signals "no data" by omitting an ARI from its result. The resolver then reports it through `missingResourceMode`, attributed to every island that reached it.
-
 ## Scheduling modes
-
-Both scheduling modes share identical graph semantics — same `ContentMap`, islands, dependencies, backing promotion and errors. They differ only in when expansion runs relative to in-flight loads.
 
 | Scheduling mode | Scheduler                                                          | When to prefer                                                              |
 | --------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
@@ -103,7 +71,7 @@ Under `lane`, a fast source keeps walking its own subgraph while a slow peer's r
 ## Concepts
 
 - **`ContentRegistry`** — maps ARI `type` literals to payload shapes; `ContentMap.get` follows `resource.type`. Compose per-source slices with `ComposeContentRegistry`.
-- **`DataSource`** — one backend: the ARI families it owns, its batch limits, its concurrency budget, and `load`.
+- **`DataSource`** — one transport channel: the ARI types in `for`, its batch limit, its concurrency budget, and `load(batch)`.
 - **`createGraphResolutionStrategy()`** — fluent builder for expansion and island policies; `.build()` returns a `GraphResolutionStrategy` for the resolver.
 - **`IslandDependencyMap`** — direct edges between islands; `getFlatDependencies` builds transitive cache manifests (cycles excluded from the start island).
 - **`backingResources`** — pre-resolved payloads consulted before any source is asked. The map is never mutated; keys the walk actually reached come back as `promotedResourceKeys`.

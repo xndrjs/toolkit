@@ -32,8 +32,8 @@ export type BatchInterval = {
   readonly resourceCount: number;
   readonly durationMs: number;
   readonly ok: boolean;
-  /** Family → ARI count as handed to the source. */
-  readonly resourcesByFamily: Readonly<Record<string, number>>;
+  /** ARI type → count as handed to the source. */
+  readonly resourcesByType: Readonly<Record<string, number>>;
 };
 
 export type SourceRunMetrics = {
@@ -78,19 +78,19 @@ type OpenBatch = {
   readonly batchNumber: number;
   readonly startedAt: number;
   readonly resourceCount: number;
-  readonly resourcesByFamily: Readonly<Record<string, number>>;
+  readonly resourcesByType: Readonly<Record<string, number>>;
 };
 
 function batchKey(sourceId: string, batchNumber: number): string {
   return `${sourceId}#${batchNumber}`;
 }
 
-function familyCounts(
-  resourcesByFamily: Readonly<Record<string, readonly unknown[]>>
+function resourceTypeCounts(
+  resources: readonly { readonly type: string }[]
 ): Readonly<Record<string, number>> {
   const counts: Record<string, number> = {};
-  for (const [family, resources] of Object.entries(resourcesByFamily)) {
-    counts[family] = resources.length;
+  for (const resource of resources) {
+    counts[resource.type] = (counts[resource.type] ?? 0) + 1;
   }
   return counts;
 }
@@ -199,7 +199,7 @@ export function createMetricsCollector(options: MetricsCollectorOptions = {}): M
     const endedAt = performance.now();
     const startedAt = started?.startedAt ?? endedAt - event.durationMs;
     const resourceCount = started?.resourceCount ?? event.requestedCount;
-    const resourcesByFamily = started?.resourcesByFamily ?? {};
+    const resourcesByType = started?.resourcesByType ?? {};
 
     batches.push({
       sourceId: event.sourceId,
@@ -209,7 +209,7 @@ export function createMetricsCollector(options: MetricsCollectorOptions = {}): M
       resourceCount,
       durationMs: event.durationMs,
       ok,
-      resourcesByFamily,
+      resourcesByType,
     });
   };
 
@@ -232,7 +232,7 @@ export function createMetricsCollector(options: MetricsCollectorOptions = {}): M
         batchNumber: event.batchNumber,
         startedAt: performance.now(),
         resourceCount: event.resourceCount,
-        resourcesByFamily: familyCounts(event.resourcesByFamily),
+        resourcesByType: resourceTypeCounts(event.resources),
       });
       inFlight += 1;
       if (inFlight > maxInFlightBatches) {

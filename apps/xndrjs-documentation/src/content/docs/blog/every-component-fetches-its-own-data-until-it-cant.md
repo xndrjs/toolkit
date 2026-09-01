@@ -717,32 +717,26 @@ Conceptually:
           CMS batch                Product batch
 ```
 
-Concretely, a source is a small declaration: the resource families it owns, the batch limits its backend imposes, how many requests that backend tolerates in parallel, and a function that loads one batch.
+Concretely, a source is a small declaration: the ARI types its transport channel handles, the batch limit its backend imposes, how many requests that backend tolerates in parallel, and a function that loads one batch.
 
 ```typescript
 const defineSource = defineDataSourceFor<AppContentRegistry, ExecutionContext>();
 
 const cmsSource = defineSource({
   id: "cms",
-  families: { entry: cmsEntryAri, asset: cmsAssetAri },
-  batchSize: { entry: 100, asset: 100 },
-  async load({ entry, asset }, { signal }) {
-    // entry and asset are already narrowed to their own ARI types
-    const [entries, assets] = await Promise.all([
-      fetchEntries(entry, signal),
-      fetchAssets(asset, signal),
-    ]);
-
-    return [...entries, ...assets];
+  for: [cmsEntryAri, cmsAssetAri],
+  batchSize: 100,
+  async load(batch, { signal }) {
+    return contentfulDelivery.fetchBatch(batch, { signal });
   },
 });
 
 const productSource = defineSource({
   id: "products",
-  families: { product: integrationProductAri },
-  batchSize: { product: 1 },
+  for: [integrationProductAri],
+  batchSize: 1,
   concurrency: 4,
-  load: ({ product }, { signal }) => fetchProducts(product, signal),
+  load: (batch, { signal }) => fetchProducts(batch, signal),
 });
 ```
 

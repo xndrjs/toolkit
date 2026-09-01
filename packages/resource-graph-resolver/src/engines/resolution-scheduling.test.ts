@@ -67,10 +67,10 @@ describe("lane versus barrier scheduling", () => {
     const { root, store, policies } = createChainGraph();
     const gate = createDeferred<void>();
 
-    const fast = createStoreSource({ id: "fast", families: { chain: chainAri }, store });
+    const fast = createStoreSource({ id: "fast", for: [chainAri], store });
     const slow = createStoreSource({
       id: "slow",
-      families: { slow: slowAri },
+      for: [slowAri],
       store,
       gate: () => gate.promise,
     });
@@ -130,9 +130,9 @@ describe("batching and concurrency", () => {
   async function resolveItems(options: { batchSize?: number; concurrency?: number }) {
     const source = createStoreSource({
       id: "items",
-      families: { item: itemAri },
+      for: [itemAri],
       store,
-      ...(options.batchSize !== undefined ? { batchSize: { item: options.batchSize } } : {}),
+      ...(options.batchSize !== undefined ? { batchSize: options.batchSize } : {}),
       ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
       delayMs: 1,
     });
@@ -188,7 +188,7 @@ describe("observer", () => {
     ]);
 
     const events: string[] = [];
-    const batchStarts: { sourceId: string; families: string[] }[] = [];
+    const batchStarts: { sourceId: string; types: string[] }[] = [];
     const observer: ResolutionObserver = {
       onResolutionStart: (event) => {
         events.push(`start:${event.schedulingMode}:${event.sourceIds.join("+")}`);
@@ -197,7 +197,7 @@ describe("observer", () => {
         events.push(`batchStart:${event.sourceId}#${event.batchNumber}:${event.resourceCount}`);
         batchStarts.push({
           sourceId: event.sourceId,
-          families: Object.keys(event.resourcesByFamily),
+          types: [...new Set(event.resources.map((resource) => resource.type))].sort(),
         });
       },
       onBatchEnd: (event) => {
@@ -216,8 +216,8 @@ describe("observer", () => {
 
     const resolver = createResourceGraphResolver({
       sources: [
-        createStoreSource({ id: "chain", families: { chain: chainAri }, store }),
-        createStoreSource({ id: "slow", families: { slow: slowAri }, store }),
+        createStoreSource({ id: "chain", for: [chainAri], store }),
+        createStoreSource({ id: "slow", for: [slowAri], store }),
       ],
       strategy: graphStrategy(
         createExpansionPolicyChain([
@@ -258,7 +258,7 @@ describe("observer", () => {
 
     // The slow source is never asked for anything: its only ARI came from backing.
     expect(batchStarts.every((batch) => batch.sourceId === "chain")).toBe(true);
-    expect(batchStarts[0]?.families).toEqual(["chain"]);
+    expect(batchStarts[0]?.types).toEqual(["chain"]);
   });
 
   it("never lets an observer failure affect resolution", async () => {
@@ -266,7 +266,7 @@ describe("observer", () => {
     const store = new Map<string, unknown>([[root.toString(), {}]]);
 
     const resolver = createResourceGraphResolver({
-      sources: [createStoreSource({ id: "chain", families: { chain: chainAri }, store })],
+      sources: [createStoreSource({ id: "chain", for: [chainAri], store })],
       strategy: graphStrategy(createExpansionPolicyChain([]), createIslandPolicyChain([])),
       observer: {
         onBatchStart: () => {
@@ -298,7 +298,7 @@ describe("unrequested records", () => {
 
     const chainSource = createStoreSource({
       id: "chain",
-      families: { chain: chainAri },
+      for: [chainAri],
       store: new Map<string, unknown>([
         [root.toString(), {}],
         [grandchild.toString(), {}],
@@ -310,7 +310,7 @@ describe("unrequested records", () => {
       ...chainSource,
       load: async (batch, context) => {
         const records = await chainSource.load(batch, context);
-        const askedForRoot = (batch.chain ?? []).some((resource: ApplicationResourceIdentifier) =>
+        const askedForRoot = batch.some((resource: ApplicationResourceIdentifier) =>
           resource.equals(root)
         );
 
@@ -320,7 +320,7 @@ describe("unrequested records", () => {
 
     const slowSource = createStoreSource({
       id: "slow",
-      families: { slow: slowAri },
+      for: [slowAri],
       store: new Map<string, unknown>(),
     });
 

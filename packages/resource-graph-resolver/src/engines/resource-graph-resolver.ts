@@ -8,7 +8,7 @@ import {
 } from "../errors";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
 import type { GraphResolutionStrategy } from "../strategy/create-graph-resolution-strategy";
-import type { ResourceFamily, DataSource } from "../ports/data-source";
+import type { DataSource } from "../ports/data-source";
 import { ResolutionSession, type GraphWalkRef } from "./resolution-session";
 import type {
   ContentRegistry,
@@ -19,23 +19,14 @@ import type {
   ResolvedResourceRecord,
 } from "../types";
 
-/** Per-source scheduling state: work waiting per family, plus in-flight accounting. */
+/** Per-source scheduling state: one pending queue plus in-flight accounting. */
 interface SourceLane<R extends ContentRegistry, TExecutionContext> {
   readonly source: DataSource<R, TExecutionContext>;
-  readonly familyKeys: readonly string[];
-  readonly pending: Map<string, GraphWalkRef[]>;
+  readonly pending: GraphWalkRef[];
   pendingCount: number;
   inFlight: number;
   batchNumber: number;
 }
-
-interface RouteCandidate<R extends ContentRegistry, TExecutionContext> {
-  readonly lane: SourceLane<R, TExecutionContext>;
-  readonly familyKey: string;
-  readonly family: ResourceFamily;
-}
-
-type ResourcesByFamily = Readonly<Record<string, readonly ApplicationResourceIdentifier[]>>;
 
 type LoadCompletion<R extends ContentRegistry, TExecutionContext> = {
   readonly loadId: number;
@@ -43,7 +34,7 @@ type LoadCompletion<R extends ContentRegistry, TExecutionContext> = {
   readonly refs: readonly GraphWalkRef[];
   readonly batchNumber: number;
   readonly startedAt: number;
-  readonly resourcesByFamily: ResourcesByFamily;
+  readonly resources: readonly ApplicationResourceIdentifier[];
 } & (
   | { readonly ok: true; readonly records: readonly ResolvedResourceRecord<R>[] }
   | { readonly ok: false; readonly error: unknown }
@@ -56,8 +47,10 @@ export interface ResourceGraphResolverConfig<
   /**
    * Backends that own the ARI families in this graph.
    *
-   * Routing is by ARI `type`; when several sources declare the same type, the
-   * first whose family `matches` the ARI wins.
+   * Routing walks `sources` in order. For each ARI, the first source whose
+   * optional `when` predicate passes and whose `for` list contains a matching
+   * family wins. Overlapping sources are not detected — declare one owner per
+   * ARI type.
    */
   readonly sources: readonly DataSource<R, TExecutionContext>[];
   readonly strategy: GraphResolutionStrategy<R, TExecutionContext>;
@@ -79,7 +72,7 @@ export interface ResourceGraphResolver<
  * Builds a reusable resolver for one set of sources and expansion policies.
  *
  * The resolver owns routing, batching, per-source concurrency, scheduling and
- * island bookkeeping; sources only declare what they own and how to fetch it.
+ * island bookkeeping; sources only declare what they handle and how to fetch it.
  */
 export function createResourceGraphResolver<
   R extends ContentRegistry = ContentRegistry,
@@ -110,28 +103,13 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
   session.assertNotAborted();
 
-  const lanes: SourceLane<R, TExecutionContext>[] = config.sources.map((source) => {
-    const familyKeys = Object.keys(source.families);
-
-    return {
-      source,
-      familyKeys,
-      pending: new Map(familyKeys.map((familyKey) => [familyKey, [] as GraphWalkRef[]])),
-      pendingCount: 0,
-      inFlight: 0,
-      batchNumber: 0,
-    };
-  });
-
-  const routesByAriType = new Map<string, RouteCandidate<R, TExecutionContext>[]>();
-  for (const lane of lanes) {
-    for (const familyKey of lane.familyKeys) {
-      const family = lane.source.families[familyKey]!;
-      const candidates = routesByAriType.get(family.type) ?? [];
-      candidates.push({ lane, familyKey, family });
-      routesByAriType.set(family.type, candidates);
-    }
-  }
+  const lanes: SourceLane<R, TExecutionContext>[] = config.sources.map((source) => ({
+    source,
+    pending: [],
+    pendingCount: 0,
+    inFlight: 0,
+    batchNumber: 0,
+  }));
 
   notifyObserver(observer, "onResolutionStart", () => ({
     root: input.root,
@@ -174,15 +152,21 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
   const routeOf = (
     resource: ApplicationResourceIdentifier
-  ): RouteCandidate<R, TExecutionContext> | undefined => {
-    const candidates = routesByAriType.get(resource.type);
-    if (candidates === undefined) {
-      return undefined;
-    }
+  ): SourceLane<R, TExecutionContext> | undefined => {
+    for (const lane of lanes) {
+      const source = lane.source;
 
-    for (const candidate of candidates) {
-      if (candidate.family.matches(resource)) {
-        return candidate;
+      if (
+        source.when !== undefined &&
+        !source.when({ resource, executionContext: input.executionContext })
+      ) {
+        continue;
+      }
+
+      for (const family of source.for) {
+        if (family.matches(resource)) {
+          return lane;
+        }
       }
     }
 
@@ -212,14 +196,14 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       return;
     }
 
-    const route = routeOf(ref.resource);
-    if (route === undefined) {
+    const lane = routeOf(ref.resource);
+    if (lane === undefined) {
       failResource(ref, new NoDataSourceError(ref.resource.toString()));
       return;
     }
 
-    route.lane.pending.get(route.familyKey)!.push(ref);
-    route.lane.pendingCount += 1;
+    lane.pending.push(ref);
+    lane.pendingCount += 1;
   };
 
   const drain = (): void => {
@@ -233,36 +217,31 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   };
 
   const startLoad = (lane: SourceLane<R, TExecutionContext>): void => {
+    const configured = lane.source.batchSize;
+    const limit =
+      configured === undefined ? lane.pending.length : Math.max(1, Math.trunc(configured));
+    const slice = lane.pending.splice(0, Math.min(limit, lane.pending.length));
+    lane.pendingCount -= slice.length;
+
     const refs: GraphWalkRef[] = [];
-    const resourcesByFamily: Record<string, readonly ApplicationResourceIdentifier[]> = {};
+    const resources: ApplicationResourceIdentifier[] = [];
 
-    for (const familyKey of lane.familyKeys) {
-      const queue = lane.pending.get(familyKey)!;
-      const configured = lane.source.batchSize[familyKey];
-      const limit = configured === undefined ? queue.length : Math.max(1, Math.trunc(configured));
-      const slice = queue.splice(0, Math.min(limit, queue.length));
-      lane.pendingCount -= slice.length;
-
-      const resources: ApplicationResourceIdentifier[] = [];
-      for (const ref of slice) {
-        // A source may return records it was never asked for, resolving an ARI
-        // that is still queued elsewhere. Expand it instead of fetching again.
-        if (session.isResolved(ref.resource)) {
-          const islandIds = islandsWaitingOn(ref);
-          session.settle(ref.resource);
-          expandInto(ref.resource, islandIds);
-          continue;
-        }
-
-        if (session.hasFailure(ref.resource)) {
-          continue;
-        }
-
-        refs.push(ref);
-        resources.push(ref.resource);
+    for (const ref of slice) {
+      // A source may return records it was never asked for, resolving an ARI
+      // that is still queued elsewhere. Expand it instead of fetching again.
+      if (session.isResolved(ref.resource)) {
+        const islandIds = islandsWaitingOn(ref);
+        session.settle(ref.resource);
+        expandInto(ref.resource, islandIds);
+        continue;
       }
 
-      resourcesByFamily[familyKey] = resources;
+      if (session.hasFailure(ref.resource)) {
+        continue;
+      }
+
+      refs.push(ref);
+      resources.push(ref.resource);
     }
 
     if (refs.length === 0) {
@@ -280,12 +259,12 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     notifyObserver(observer, "onBatchStart", () => ({
       sourceId: lane.source.id,
       batchNumber,
-      resourcesByFamily,
+      resources,
       resourceCount: refs.length,
     }));
 
     const completion = lane.source
-      .load(resourcesByFamily, {
+      .load(resources, {
         signal: input.signal,
         executionContext: input.executionContext,
         batchNumber,
@@ -298,7 +277,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
           refs,
           batchNumber,
           startedAt,
-          resourcesByFamily,
+          resources,
           records,
         }),
         (error: unknown): LoadCompletion<R, TExecutionContext> => ({
@@ -308,7 +287,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
           refs,
           batchNumber,
           startedAt,
-          resourcesByFamily,
+          resources,
           error,
         })
       );

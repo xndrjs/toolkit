@@ -7,7 +7,7 @@ import { createIslandPolicyChain, type IslandPolicy } from "../ports/island-port
 import type { GraphResolutionStrategy } from "../strategy/create-graph-resolution-strategy";
 import type { ExpansionPort } from "../ports/expansion-port";
 import type { IslandPort } from "../ports/island-port";
-import type { ResourceFamilyMap, ResourceLoadContext, DataSource } from "../ports/data-source";
+import type { ResourceFamily, ResourceLoadContext, DataSource } from "../ports/data-source";
 import { assetAri, footerAri, heroAri, menuAri, pageAri, productAri } from "./test-fixtures";
 import type {
   ContentRegistry,
@@ -81,13 +81,13 @@ export function createPageGraphIslandPolicies(): IslandPolicy[] {
   ];
 }
 
-export const pageGraphFamilies: ResourceFamilyMap = {
-  page: pageAri,
-  hero: heroAri,
-  menu: menuAri,
-  footer: footerAri,
-  asset: assetAri,
-};
+export const pageGraphFamilies: readonly ResourceFamily[] = [
+  pageAri,
+  heroAri,
+  menuAri,
+  footerAri,
+  assetAri,
+];
 
 export interface Deferred<T> {
   readonly promise: Promise<T>;
@@ -123,9 +123,9 @@ export function recordsFromStore(
 
 export interface StoreSourceOptions {
   readonly id?: string;
-  readonly families: ResourceFamilyMap;
+  readonly for: readonly ResourceFamily[];
   readonly store?: ReadonlyMap<string, unknown>;
-  readonly batchSize?: Readonly<Record<string, number>>;
+  readonly batchSize?: number;
   readonly concurrency?: number;
   /** Awaited before returning records; use to control completion ordering. */
   readonly gate?: () => Promise<void>;
@@ -150,16 +150,8 @@ export function createStoreSource(options: StoreSourceOptions): StoreSource {
   let inFlight = 0;
 
   const load = vi.fn(
-    async (
-      batch: Readonly<Record<string, readonly ApplicationResourceIdentifier[]>>,
-      _context: ResourceLoadContext
-    ) => {
-      const requested: ApplicationResourceIdentifier[] = [];
-      for (const familyKey of Object.keys(batch)) {
-        for (const resource of batch[familyKey] ?? []) {
-          requested.push(resource);
-        }
-      }
+    async (batch: readonly ApplicationResourceIdentifier[], _context: ResourceLoadContext) => {
+      const requested = [...batch];
       batches.push(requested);
 
       inFlight += 1;
@@ -188,8 +180,8 @@ export function createStoreSource(options: StoreSourceOptions): StoreSource {
 
   return {
     id: options.id ?? "store",
-    families: options.families,
-    batchSize: options.batchSize ?? {},
+    for: options.for,
+    batchSize: options.batchSize,
     concurrency: Math.max(1, options.concurrency ?? 1),
     load,
     batches,
@@ -211,7 +203,7 @@ export async function resolvePageGraph(
   } = {}
 ): Promise<ResolveResourceGraphOutput<ContentRegistry>> {
   const sources = options.sources ?? [
-    options.source ?? createStoreSource({ families: pageGraphFamilies }),
+    options.source ?? createStoreSource({ for: pageGraphFamilies }),
   ];
 
   const resolver = createResourceGraphResolver({

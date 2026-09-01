@@ -72,7 +72,7 @@ describe("island dependency graph", () => {
     const resolver = createResourceGraphResolver({
       sources: [
         createStoreSource({
-          families: { page: pageAri, menu: menuAri, footer: footerAri, logo: logoAri },
+          for: [pageAri, menuAri, footerAri, logoAri],
           store: values,
         }),
       ],

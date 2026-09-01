@@ -6,11 +6,10 @@ import { simulateNetworkLatency } from "../simulate-latency.js";
 import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
 import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
 
-/** Contentful Delivery caps `sys.id[in]` lists, so entries and assets chunk separately. */
-const CMS_ENTRY_BATCH_SIZE = 100;
-const CMS_ASSET_BATCH_SIZE = 100;
+/** Contentful Delivery caps `sys.id[in]` lists per transport call. */
+export const CMS_BATCH_SIZE = 100;
 
-export { CMS_ENTRY_BATCH_SIZE, CMS_ASSET_BATCH_SIZE };
+export { CMS_BATCH_SIZE as CMS_ENTRY_BATCH_SIZE, CMS_BATCH_SIZE as CMS_ASSET_BATCH_SIZE };
 
 export const CMS_SOURCE_ID = "cms";
 
@@ -20,7 +19,7 @@ export type CmsFixtureStore = {
 };
 
 export type CmsSourceOptions = {
-  /** Simulated network latency (ms) applied to each entries/assets fetch. Default 0. */
+  /** Simulated network latency (ms) applied to each batch fetch. Default 0. */
   latencyMs?: number;
 };
 
@@ -30,11 +29,10 @@ export type CmsAssetRecord = { resource: CmsAssetResource; payload: ContentfulAs
 const defineCmsSource = defineDataSourceFor<DemoContentRegistry, DemoExecutionContext>();
 
 /**
- * CMS source: owns `cms.entry` and `cms.asset`.
+ * CMS source: owns `cms.entry` and `cms.asset` on one Delivery transport channel.
  *
- * Mimics Contentful Delivery `sys.id[in]=…` fetches. Both families arrive in the
- * same batch, so one round trip per family runs concurrently instead of
- * serializing entries behind assets.
+ * Mimics Contentful Delivery `sys.id[in]=…` fetches. Entries and assets in the
+ * same batch travel in one `load` call — one round trip per batch.
  *
  * Locale is part of the ARI key; the demo store still holds one payload per sys.id.
  */
@@ -46,16 +44,33 @@ export function createCmsSource(
 
   return defineCmsSource({
     id: CMS_SOURCE_ID,
-    families: { entry: cmsEntryAri, asset: cmsAssetAri },
-    batchSize: { entry: CMS_ENTRY_BATCH_SIZE, asset: CMS_ASSET_BATCH_SIZE },
+    for: [cmsEntryAri, cmsAssetAri],
+    batchSize: CMS_BATCH_SIZE,
 
-    async load({ entry, asset }) {
-      const [entries, assets] = await Promise.all([
-        loadCmsEntries(store, entry, latencyMs),
-        loadCmsAssets(store, asset, latencyMs),
-      ]);
+    async load(batch) {
+      if (batch.length === 0) {
+        return [];
+      }
 
-      return [...entries, ...assets];
+      await simulateNetworkLatency(latencyMs);
+
+      const records: (CmsEntryRecord | CmsAssetRecord)[] = [];
+      for (const resource of batch) {
+        if (cmsEntryAri.matches(resource)) {
+          const payload = store.entries.get(resource.key[0].id);
+          if (payload !== undefined) {
+            records.push({ resource, payload });
+          }
+          continue;
+        }
+
+        const payload = store.assets.get(resource.key[0].id);
+        if (payload !== undefined) {
+          records.push({ resource, payload });
+        }
+      }
+
+      return records;
     },
   });
 }
