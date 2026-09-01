@@ -1,13 +1,5 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import {
-  createExpansionPolicyChain,
-  createIslandPolicyChain,
-  defineExpansionPolicy,
-  defineIslandPolicy,
-  type ExpansionPort,
-  type ExpansionResult,
-  type IslandPort,
-} from "@xndrjs/resource-graph-resolver";
+import { createStrategy, type GraphStrategy } from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri } from "./cms/ari.js";
 import { collectLinkReferencesFromEntryFields } from "./cms/link-field-collector.js";
@@ -22,7 +14,7 @@ import {
   type ContentfulResolvedEntry,
 } from "./cms/generated/contentful.schemas.js";
 
-const EMPTY_EXPANSION: ExpansionResult = { resources: [] };
+const EMPTY_EXPANSION = { resources: [] as const };
 
 const ISLAND_CONTENT_TYPES = [
   "menu",
@@ -42,7 +34,7 @@ function expandLinksFromGeneratedMetadata(
   contentTypeId: ContentfulContentTypeId,
   entry: ContentfulResolvedEntry,
   locale: ContentfulLocaleCode
-): ExpansionResult {
+) {
   const parsed = ContentfulEntrySchemaByContentType[contentTypeId].parse(entry);
   const links = collectLinkReferencesFromEntryFields(contentTypeId, parsed.fields);
 
@@ -51,10 +43,7 @@ function expandLinksFromGeneratedMetadata(
   };
 }
 
-function expandProductEntry(
-  entry: ContentfulResolvedEntry,
-  locale: ContentfulLocaleCode
-): ExpansionResult {
+function expandProductEntry(entry: ContentfulResolvedEntry, locale: ContentfulLocaleCode) {
   const parsed = ProductEntrySchema.parse(entry);
   const sku = parsed.fields.sku;
   if (sku === null || sku.length === 0) {
@@ -65,7 +54,10 @@ function expandProductEntry(
 }
 
 type ExpansionOverride = {
-  expand: (entry: ContentfulResolvedEntry, locale: ContentfulLocaleCode) => ExpansionResult;
+  expand: (
+    entry: ContentfulResolvedEntry,
+    locale: ContentfulLocaleCode
+  ) => typeof EMPTY_EXPANSION | { resources: ApplicationResourceIdentifier[] };
 };
 
 const expansionOverrides: Partial<Record<ContentfulContentTypeId, ExpansionOverride>> = {
@@ -76,7 +68,7 @@ function expandForContentType(
   contentTypeId: ContentfulContentTypeId,
   entry: ContentfulResolvedEntry,
   locale: ContentfulLocaleCode
-): ExpansionResult {
+) {
   const override = expansionOverrides[contentTypeId];
 
   return override?.expand
@@ -84,39 +76,24 @@ function expandForContentType(
     : expandLinksFromGeneratedMetadata(contentTypeId, entry, locale);
 }
 
-/** ExpansionPort: merges every matching policy; policies authored with `for` / optional `when` / `expand`. */
-export function createDemoExpansionPort(): ExpansionPort<
-  DemoContentRegistry,
-  DemoExecutionContext
-> {
-  return createExpansionPolicyChain<DemoContentRegistry, DemoExecutionContext>([
-    defineExpansionPolicy<
-      ReturnType<typeof cmsEntryAri>,
-      DemoContentRegistry,
-      DemoExecutionContext
-    >({
-      for: cmsEntryAri,
-      when: ({ resource, executionContext }) => resource.key[0].locale === executionContext.locale,
-      expand: ({ payload, executionContext }) => {
-        return expandForContentType(
-          payload.sys.contentType.sys.id,
-          payload,
-          executionContext.locale
-        );
-      },
-    }),
-  ]);
-}
+export function createDemoStrategy(): GraphStrategy<DemoContentRegistry, DemoExecutionContext> {
+  const s = createStrategy<DemoExecutionContext, DemoContentRegistry>();
 
-/** IslandPort: menu and footer open island boundaries with the same locale gate as expansion. */
-export function createDemoIslandPort(): IslandPort<DemoContentRegistry, DemoExecutionContext> {
-  return createIslandPolicyChain<DemoContentRegistry, DemoExecutionContext>([
-    defineIslandPolicy<ReturnType<typeof cmsEntryAri>, DemoContentRegistry, DemoExecutionContext>({
-      for: cmsEntryAri,
-      when: ({ resource, payload, executionContext }) =>
+  s.expansion
+    .on(cmsEntryAri)
+    .when(({ resource, executionContext }) => resource.key[0].locale === executionContext.locale)
+    .expand(({ payload, executionContext }) =>
+      expandForContentType(payload.sys.contentType.sys.id, payload, executionContext.locale)
+    );
+
+  s.islands
+    .on(cmsEntryAri)
+    .when(
+      ({ resource, payload, executionContext }) =>
         resource.key[0].locale === executionContext.locale &&
-        (ISLAND_CONTENT_TYPES as readonly string[]).includes(payload.sys.contentType.sys.id),
-      startIsland: () => true,
-    }),
-  ]);
+        (ISLAND_CONTENT_TYPES as readonly string[]).includes(payload.sys.contentType.sys.id)
+    )
+    .startIsland();
+
+  return s.build();
 }

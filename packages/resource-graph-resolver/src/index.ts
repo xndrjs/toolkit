@@ -17,24 +17,9 @@ export {
   ResourceGraphError,
   ResourceLoadFailedError,
 } from "./errors";
-export {
-  createExpansionPolicyChain,
-  defineExpansionPolicy,
-  type ExpansionContext,
-  type ExpansionPolicy,
-  type ExpansionPort,
-  type ExpansionResourceFor,
-  type ExpansionResult,
-} from "./ports/expansion-port";
-export {
-  createIslandPolicyChain,
-  defineIslandPolicy,
-  type IslandBoundary,
-  type IslandContext,
-  type IslandPolicy,
-  type IslandPort,
-  type IslandResult,
-} from "./ports/island-port";
+export { createStrategy, type GraphStrategy } from "./strategy/create-strategy";
+export type { ExpansionContext, ExpansionResult } from "./ports/expansion-port";
+export type { IslandContext, IslandResult } from "./ports/island-port";
 export { IslandDependencyMap } from "./model/island-dependency-map";
 export { IslandMap } from "./model/island-map";
 export type {

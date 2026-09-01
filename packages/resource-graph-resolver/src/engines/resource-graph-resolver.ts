@@ -7,8 +7,7 @@ import {
   type ResourceGraphError,
 } from "../errors";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
-import type { ExpansionPort } from "../ports/expansion-port";
-import type { IslandPort } from "../ports/island-port";
+import type { GraphStrategy } from "../strategy/create-strategy";
 import type { ResourceFamily, DataSource } from "../ports/data-source";
 import { ResolutionSession, type GraphWalkRef } from "./resolution-session";
 import type {
@@ -61,8 +60,7 @@ export interface ResourceGraphResolverConfig<
    * first whose family `matches` the ARI wins.
    */
   readonly sources: readonly DataSource<R, TExecutionContext>[];
-  readonly expansion: ExpansionPort<R, TExecutionContext>;
-  readonly islands: IslandPort<R, TExecutionContext>;
+  readonly strategy: GraphStrategy<R, TExecutionContext>;
   /** Defaults to `"lane"`. */
   readonly schedulingMode?: SchedulingMode;
   readonly observer?: ResolutionObserver;
@@ -104,8 +102,8 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   const observer = config.observer;
   const session = new ResolutionSession<R, TExecutionContext>(
     input,
-    config.expansion,
-    config.islands,
+    config.strategy.expansion,
+    config.strategy.islands,
     observer
   );
   const resolutionStartedAt = Date.now();

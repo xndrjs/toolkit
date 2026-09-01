@@ -1,7 +1,6 @@
 import { createResourceGraphResolver, type SchedulingMode } from "@xndrjs/resource-graph-resolver";
 
-import { createBenchExpansionPort } from "../graph/expansion";
-import { createIslandPolicyChain } from "@xndrjs/resource-graph-resolver";
+import { createBenchStrategy } from "../graph/expansion";
 import { generateBenchGraph, type GeneratedBenchGraph } from "../graph/generate";
 import { generatePagebuilderGraph } from "../graph/pagebuilder";
 import { createMetricsCollector, type ResolutionRunMetrics } from "../metrics/collect";
@@ -52,8 +51,7 @@ async function resolveOnce(
         concurrency: config.integrationConcurrency,
       }),
     ],
-    expansion: createBenchExpansionPort(),
-    islands: createIslandPolicyChain([]),
+    strategy: createBenchStrategy(),
     schedulingMode: config.schedulingMode,
     observer: collector.observer,
   });

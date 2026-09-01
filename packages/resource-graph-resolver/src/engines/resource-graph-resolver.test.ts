@@ -15,6 +15,7 @@ import {
   createDeferred,
   createPageGraphIslandPolicies,
   createPageGraphPolicies,
+  graphStrategy,
   createStoreSource,
   footer,
   hero,
@@ -166,26 +167,28 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
           ]),
         }),
       ],
-      expansion: createExpansionPolicyChain([
-        {
-          matches: ({ resource }) => resource.equals(first),
-          expand: () => ({ resources: [second] }),
-        },
-        {
-          matches: ({ resource }) => resource.equals(second),
-          expand: () => ({ resources: [first] }),
-        },
-      ]),
-      islands: createIslandPolicyChain([
-        {
-          matches: ({ resource }) => resource.equals(first),
-          resolve: () => ({ startIsland: true }),
-        },
-        {
-          matches: ({ resource }) => resource.equals(second),
-          resolve: () => ({ startIsland: true }),
-        },
-      ]),
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.equals(first),
+            expand: () => ({ resources: [second] }),
+          },
+          {
+            matches: ({ resource }) => resource.equals(second),
+            expand: () => ({ resources: [first] }),
+          },
+        ]),
+        createIslandPolicyChain([
+          {
+            matches: ({ resource }) => resource.equals(first),
+            resolve: () => ({ startIsland: true }),
+          },
+          {
+            matches: ({ resource }) => resource.equals(second),
+            resolve: () => ({ startIsland: true }),
+          },
+        ])
+      ),
       schedulingMode,
     });
 
@@ -246,8 +249,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
           },
         },
       ],
-      expansion: createExpansionPolicyChain([]),
-      islands: createIslandPolicyChain([]),
+      strategy: graphStrategy(createExpansionPolicyChain([]), createIslandPolicyChain([])),
       schedulingMode,
     });
 
@@ -275,8 +277,10 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
           },
         },
       ],
-      expansion: createExpansionPolicyChain(createPageGraphPolicies()),
-      islands: createIslandPolicyChain(createPageGraphIslandPolicies()),
+      strategy: graphStrategy(
+        createExpansionPolicyChain(createPageGraphPolicies()),
+        createIslandPolicyChain(createPageGraphIslandPolicies())
+      ),
       schedulingMode,
     });
 
@@ -308,22 +312,24 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
           },
         },
       ],
-      expansion: createExpansionPolicyChain([
-        {
-          matches: ({ resource }) => resource.type === "page",
-          expand: () => ({ resources: [hero, menu] }),
-        },
-        {
-          matches: ({ resource }) => resource.type === "menu",
-          expand: () => ({ resources: [] }),
-        },
-      ]),
-      islands: createIslandPolicyChain([
-        {
-          matches: ({ resource }) => resource.type === "menu",
-          resolve: () => ({ startIsland: true }),
-        },
-      ]),
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.type === "page",
+            expand: () => ({ resources: [hero, menu] }),
+          },
+          {
+            matches: ({ resource }) => resource.type === "menu",
+            expand: () => ({ resources: [] }),
+          },
+        ]),
+        createIslandPolicyChain([
+          {
+            matches: ({ resource }) => resource.type === "menu",
+            resolve: () => ({ startIsland: true }),
+          },
+        ])
+      ),
       schedulingMode,
     });
 
@@ -377,8 +383,10 @@ describe("scheduling mode parity", () => {
           delayMs: 5,
         }),
       ],
-      expansion: createExpansionPolicyChain(createPageGraphPolicies()),
-      islands: createIslandPolicyChain(createPageGraphIslandPolicies()),
+      strategy: graphStrategy(
+        createExpansionPolicyChain(createPageGraphPolicies()),
+        createIslandPolicyChain(createPageGraphIslandPolicies())
+      ),
       schedulingMode,
     });
 
