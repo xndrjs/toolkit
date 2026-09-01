@@ -4,7 +4,7 @@
 
 Workshop for `@xndrjs/resource-graph-resolver` with a Contentful-shaped content model: offline CMA snapshots, `contentful-to-zod` schemas, source-qualified ARIs (`cms.*` / `integration.*`), content-type expansion policies, declarative `DataSource` backends, island cache, and domain-zod aggregation.
 
-One orchestration entry point: `resolveDemoPage` (route `/[locale]`). It defaults to **`lane`**. To try barrier, flip `DEMO_STRATEGY` at the top of `src/orchestration/resolve-demo-page.ts`. Scheduler comparisons live in `@xndrjs/resource-graph-resolver-bench`.
+One orchestration entry point: `resolveDemoPage` (route `/[locale]`). It defaults to **`lane`**. To try barrier, flip `DEMO_SCHEDULING_MODE` at the top of `src/orchestration/resolve-demo-page.ts`. Scheduler comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
 ### Integration path
 
@@ -12,7 +12,7 @@ One orchestration entry point: `resolveDemoPage` (route `/[locale]`). It default
 app/[locale]/page.tsx
   → resolveDemoPage(locale)
       → loadBackingForRoot (island cache)
-      → createDemoResolver({ strategy, sources, expansion })
+      → createDemoResolver({ schedulingMode, sources, expansion })
       → resolver.resolve({ root, backingResources })
       → mapContentMapToPageAggregate
       → persistResolvedIslands
@@ -49,9 +49,9 @@ app/                          # Next.js UI — /[locale]
 src/
   domain/                     # domain-zod shapes (unchanged)
   orchestration/
-    resolve-demo-page.ts      # single integration path (strategy flip at top)
+    resolve-demo-page.ts      # single integration path (scheduling mode flip at top)
   infrastructure/
-    demo-resolver.ts          # sources + expansion + strategy
+    demo-resolver.ts          # sources + expansion + scheduling mode
     logging/resolve-trace.ts  # ResolutionObserver → terminal trace
     cms/                      # CMS ARIs, fixtures, codegen, source
     integration/              # product ARIs, catalog, source

@@ -1,7 +1,4 @@
-import {
-  createResourceGraphResolver,
-  type ResolutionStrategy,
-} from "@xndrjs/resource-graph-resolver";
+import { createResourceGraphResolver, type SchedulingMode } from "@xndrjs/resource-graph-resolver";
 
 import { createBenchExpansionPort } from "../graph/expansion";
 import { generateBenchGraph, type GeneratedBenchGraph } from "../graph/generate";
@@ -55,7 +52,7 @@ async function resolveOnce(
       }),
     ],
     expansion: createBenchExpansionPort(),
-    strategy: config.strategy,
+    schedulingMode: config.schedulingMode,
     observer: collector.observer,
   });
 
@@ -99,7 +96,7 @@ export function formatCaseLabel(config: {
   readonly arity: number;
   readonly modules: number;
   readonly productStride: number;
-  readonly strategy: ResolutionStrategy;
+  readonly schedulingMode: SchedulingMode;
   readonly cmsBatchSize: number;
   readonly integrationBatchSize: number;
   readonly cmsLatencyMs: number;
@@ -114,7 +111,7 @@ export function formatCaseLabel(config: {
 
   return [
     shape,
-    `strategy=${config.strategy}`,
+    `schedulingMode=${config.schedulingMode}`,
     `cmsBatch=${config.cmsBatchSize}`,
     `intBatch=${config.integrationBatchSize}`,
     `cmsLat=${config.cmsLatencyMs}ms`,

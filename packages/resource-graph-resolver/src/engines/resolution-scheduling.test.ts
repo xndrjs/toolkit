@@ -7,7 +7,7 @@ import type { ResolutionObserver } from "../observability/resolution-observer";
 import type { DataSource } from "../ports/data-source";
 import { createDeferred, createStoreSource } from "../testing/resolver-test-helpers";
 import { idOf, testAriFactory } from "../testing/test-fixtures";
-import type { ResolutionStrategy } from "../types";
+import type { SchedulingMode } from "../types";
 
 const chainAri = testAriFactory("chain");
 const slowAri = testAriFactory("slow");
@@ -61,7 +61,7 @@ describe("lane versus barrier scheduling", () => {
   }
 
   async function countFastBatchesWhileSlowIsPending(
-    strategy: ResolutionStrategy
+    schedulingMode: SchedulingMode
   ): Promise<{ beforeGate: number; total: number }> {
     const { root, store, policies } = createChainGraph();
     const gate = createDeferred<void>();
@@ -77,7 +77,7 @@ describe("lane versus barrier scheduling", () => {
     const resolver = createResourceGraphResolver({
       sources: [fast, slow],
       expansion: createExpansionPolicyChain(policies),
-      strategy,
+      schedulingMode,
     });
 
     const resolution = resolver.resolve({
@@ -139,7 +139,7 @@ describe("batching and concurrency", () => {
     const resolver = createResourceGraphResolver({
       sources: [source],
       expansion: createExpansionPolicyChain(policies),
-      strategy: "lane",
+      schedulingMode: "lane",
     });
 
     const output = await resolver.resolve({
@@ -190,7 +190,7 @@ describe("observer", () => {
     const batchStarts: { sourceId: string; families: string[] }[] = [];
     const observer: ResolutionObserver = {
       onResolutionStart: (event) => {
-        events.push(`start:${event.strategy}:${event.sourceIds.join("+")}`);
+        events.push(`start:${event.schedulingMode}:${event.sourceIds.join("+")}`);
       },
       onBatchStart: (event) => {
         events.push(`batchStart:${event.sourceId}#${event.batchNumber}:${event.resourceCount}`);
@@ -229,7 +229,7 @@ describe("observer", () => {
         },
       ]),
       observer,
-      strategy: "lane",
+      schedulingMode: "lane",
     });
 
     await resolver.resolve({
@@ -267,7 +267,7 @@ describe("observer", () => {
           throw new Error("observer is broken");
         },
       },
-      strategy: "lane",
+      schedulingMode: "lane",
     });
 
     const output = await resolver.resolve({
@@ -327,7 +327,7 @@ describe("unrequested records", () => {
           expand: () => ({ resources: [grandchild], isIsland: true }),
         },
       ]),
-      strategy: "barrier",
+      schedulingMode: "barrier",
     });
 
     const output = await resolver.resolve({

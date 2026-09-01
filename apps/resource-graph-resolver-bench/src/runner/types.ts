@@ -1,4 +1,4 @@
-import type { ResolutionStrategy } from "@xndrjs/resource-graph-resolver";
+import type { SchedulingMode } from "@xndrjs/resource-graph-resolver";
 
 import type { BenchGraphCounts, GraphProfile } from "../graph/generate";
 import type { ResolutionRunMetrics } from "../metrics/collect";
@@ -13,7 +13,7 @@ export type BenchCaseConfig = {
   readonly modules: number;
   /** Early-product stride; unused (`0`) for `tree`. */
   readonly productStride: number;
-  readonly strategy: ResolutionStrategy;
+  readonly schedulingMode: SchedulingMode;
   readonly cmsBatchSize: number;
   readonly integrationBatchSize: number;
   readonly cmsLatencyMs: number;
@@ -34,7 +34,7 @@ export type MatrixDimensions = {
   readonly arity: readonly number[];
   readonly modules: readonly number[];
   readonly productStride: readonly number[];
-  readonly strategy: readonly ResolutionStrategy[];
+  readonly schedulingMode: readonly SchedulingMode[];
   readonly cmsBatchSize: readonly number[];
   readonly integrationBatchSize: readonly number[];
   readonly cmsLatencyMs: readonly number[];
@@ -86,7 +86,7 @@ export type RunnerCliArgs = {
   readonly arity?: number;
   readonly modules?: number;
   readonly productStride?: number;
-  readonly strategy?: ResolutionStrategy;
+  readonly schedulingMode?: SchedulingMode;
   readonly cmsBatchSize?: number;
   readonly integrationBatchSize?: number;
   readonly cmsLatencyMs?: number;

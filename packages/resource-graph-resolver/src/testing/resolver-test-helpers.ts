@@ -7,7 +7,7 @@ import type { ResourceFamilyMap, ResourceLoadContext, DataSource } from "../port
 import { assetAri, footerAri, heroAri, menuAri, pageAri, productAri } from "./test-fixtures";
 import type {
   ContentRegistry,
-  ResolutionStrategy,
+  SchedulingMode,
   ResolveResourceGraphOutput,
   ResolvedResourceRecord,
 } from "../types";
@@ -173,9 +173,9 @@ export function createStoreSource(options: StoreSourceOptions): StoreSource {
   };
 }
 
-/** Resolves the shared page graph through one strategy with a single store source. */
+/** Resolves the shared page graph through one scheduling mode with a single store source. */
 export async function resolvePageGraph(
-  strategy: ResolutionStrategy,
+  schedulingMode: SchedulingMode,
   options: {
     source?: StoreSource;
     sources?: readonly DataSource[];
@@ -192,7 +192,7 @@ export async function resolvePageGraph(
   const resolver = createResourceGraphResolver({
     sources,
     expansion: createExpansionPolicyChain(options.policies ?? createPageGraphPolicies()),
-    strategy,
+    schedulingMode,
   });
 
   return resolver.resolve({

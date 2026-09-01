@@ -752,7 +752,7 @@ Composing two backends is then just listing them:
 const resolver = createResourceGraphResolver({
   sources: [cmsSource, productSource],
   expansion: expansionPort,
-  strategy: "lane",
+  schedulingMode: "lane",
 });
 ```
 
@@ -859,7 +859,7 @@ This is what the determinism rule above buys us: since no policy can observe sib
 The library provides both strategies, and the application chooses the one appropriate for its infrastructure. Because the sources, the policies and the graph semantics are identical either way, the choice is a single field:
 
 ```typescript
-strategy: "lane"; // or "barrier"
+schedulingMode: "lane"; // or "barrier"
 ```
 
 That is a deliberately small knob. If switching schedulers required rewiring the backends, the two strategies would not really be interchangeable, and the determinism rule above would be doing no work.

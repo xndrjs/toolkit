@@ -19,7 +19,7 @@ export function DemoResolveView({ locale, result }: DemoResolveViewProps) {
           <h1>Resource graph resolver demo</h1>
           <LocaleSwitcher activeLocale={locale} />
         </header>
-        <p className="lead error">Resolution failed ({result.strategy}).</p>
+        <p className="lead error">Resolution failed ({result.schedulingMode}).</p>
         <pre>
           <code>{JSON.stringify(result.errors, null, 2)}</code>
         </pre>
@@ -30,7 +30,7 @@ export function DemoResolveView({ locale, result }: DemoResolveViewProps) {
   const pageJson = JSON.stringify(result.page, null, 2);
   const cacheReportJson = JSON.stringify(result.cacheReport, null, 2);
   const cacheSnapshotJson = JSON.stringify(result.cacheSnapshot, null, 2);
-  const { cacheReport, cacheSnapshot, strategy } = result;
+  const { cacheReport, cacheSnapshot, schedulingMode } = result;
 
   return (
     <main>
@@ -40,7 +40,8 @@ export function DemoResolveView({ locale, result }: DemoResolveViewProps) {
       </header>
       <p className="lead">
         Resolved {result.resolvedCount} resources for <strong>{locale}</strong> with{" "}
-        <strong>{strategy}</strong> strategy. Batch timing is logged in the dev server terminal.
+        <strong>{schedulingMode}</strong> scheduling mode. Batch timing is logged in the dev server
+        terminal.
       </p>
       <section className="panel cache-panel">
         <div className="panel-header">

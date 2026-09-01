@@ -1,6 +1,6 @@
 import {
   serializeAllIslands,
-  type ResolutionStrategy,
+  type SchedulingMode,
   type ResolveResourceGraphOutput,
 } from "@xndrjs/resource-graph-resolver";
 
@@ -29,16 +29,16 @@ import {
 import { mapContentMapToPageAggregate } from "../infrastructure/mappers/content-map-to-page-aggregate.mapper.js";
 
 /**
- * Demo walk strategy. Defaults to lane (the production-shaped path).
+ * Demo walk scheduling mode. Defaults to lane (the production-shaped path).
  * Flip to `"barrier"` here when you want to compare schedulers by hand —
  * scheduler comparison lives in `@xndrjs/resource-graph-resolver-bench`.
  */
-const DEMO_STRATEGY: ResolutionStrategy = "lane";
+const DEMO_SCHEDULING_MODE: SchedulingMode = "lane";
 
 export type ResolveDemoPageSuccess = {
   ok: true;
   page: Page;
-  strategy: ResolutionStrategy;
+  schedulingMode: SchedulingMode;
   resolvedCount: number;
   cacheReport: CacheHitReport;
   cacheSnapshot: IslandCacheSnapshot;
@@ -46,7 +46,7 @@ export type ResolveDemoPageSuccess = {
 
 export type ResolveDemoPageFailure = {
   ok: false;
-  strategy: ResolutionStrategy;
+  schedulingMode: SchedulingMode;
   errors: readonly { resourceKey: string; message: string }[];
 };
 
@@ -66,7 +66,7 @@ export type ResolveDemoPageOptions = {
  * Integration path for the demo page:
  * 1. root ARI + execution context
  * 2. warm `backingResources` from the island cache
- * 3. `createDemoResolver` (sources + expansion + strategy)
+ * 3. `createDemoResolver` (sources + expansion + scheduling mode)
  * 4. `resolve` → ContentMap / islands
  * 5. map to domain `Page`, persist islands
  */
@@ -78,11 +78,11 @@ export async function resolveDemoPage(
   const { cmsLatencyMs, integrationLatencyMs } = resolveLatencies(options);
   const executionContext = createDefaultDemoExecutionContext(locale);
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
-  const strategy = DEMO_STRATEGY;
+  const schedulingMode = DEMO_SCHEDULING_MODE;
 
   const trace = quiet ? undefined : createConsoleResolveTrace();
   const resolver = createDemoResolver({
-    strategy,
+    schedulingMode,
     cmsLatencyMs,
     integrationLatencyMs,
     observer: trace?.observer,
@@ -91,7 +91,7 @@ export async function resolveDemoPage(
   const { backingResources, report } = loadBackingForRoot(pageRoot, lruIslandCache);
 
   trace?.logLine(
-    `Resolve demo — strategy ${strategy}, cache ${lruIslandCache.instanceId}, locale ${executionContext.locale}, latency cms=${cmsLatencyMs}ms integration=${integrationLatencyMs}ms`
+    `Resolve demo — scheduling ${schedulingMode}, cache ${lruIslandCache.instanceId}, locale ${executionContext.locale}, latency cms=${cmsLatencyMs}ms integration=${integrationLatencyMs}ms`
   );
 
   const output = await resolver.resolve({
@@ -106,7 +106,7 @@ export async function resolveDemoPage(
     output,
     pageRoot,
     locale: executionContext.locale,
-    strategy,
+    schedulingMode,
     report,
     trace,
   });
@@ -148,11 +148,11 @@ function finalize(args: {
   output: ResolveResourceGraphOutput<DemoContentRegistry>;
   pageRoot: ReturnType<typeof cmsEntryAri>;
   locale: ContentfulLocaleCode;
-  strategy: ResolutionStrategy;
+  schedulingMode: SchedulingMode;
   report: CacheHitReport;
   trace?: ResolveTrace;
 }): ResolveDemoPageResult {
-  const { output, pageRoot, locale, strategy, report, trace } = args;
+  const { output, pageRoot, locale, schedulingMode, report, trace } = args;
 
   const cacheReport: CacheHitReport = {
     ...report,
@@ -177,7 +177,7 @@ function finalize(args: {
     }
     return {
       ok: false,
-      strategy,
+      schedulingMode,
       errors: output.errors.map(({ resourceKey, message }) => ({ resourceKey, message })),
     };
   }
@@ -196,7 +196,7 @@ function finalize(args: {
   return {
     ok: true,
     page,
-    strategy,
+    schedulingMode,
     resolvedCount: demoResolvedResourceCount(),
     cacheReport,
     cacheSnapshot: lruIslandCache.snapshot(),

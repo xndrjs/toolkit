@@ -22,7 +22,7 @@ async function resolveDemoPage(
   const executionContext: DemoExecutionContext = createDefaultDemoExecutionContext(locale);
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale });
 
-  return createDemoResolver({ strategy: "barrier", productCatalog: catalog }).resolve({
+  return createDemoResolver({ schedulingMode: "barrier", productCatalog: catalog }).resolve({
     root: pageRoot,
     executionContext,
     missingResourceMode: "throw",

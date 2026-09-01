@@ -1,4 +1,4 @@
-import type { ResolutionStrategy } from "@xndrjs/resource-graph-resolver";
+import type { SchedulingMode } from "@xndrjs/resource-graph-resolver";
 
 import { DEFAULT_MAX_NODES, type GraphProfile } from "../graph/generate";
 import type { BenchCaseConfig, MatrixDimensions, RunnerCliArgs } from "./types";
@@ -13,7 +13,7 @@ export const DEFAULT_MATRIX_DIMENSIONS: MatrixDimensions = {
   depth: [5],
   arity: [3],
   productStride: [3],
-  strategy: ["lane", "barrier"],
+  schedulingMode: ["lane", "barrier"],
   cmsBatchSize: [50, 100, 200],
   integrationBatchSize: [100],
   cmsLatencyMs: [20],
@@ -28,7 +28,7 @@ export const TREE_MATRIX_DIMENSIONS: Omit<MatrixDimensions, "profile"> = {
   depth: [7],
   arity: [1, 2, 3],
   productStride: [0],
-  strategy: ["lane", "barrier"],
+  schedulingMode: ["lane", "barrier"],
   cmsBatchSize: [50, 100, 200],
   integrationBatchSize: [100],
   cmsLatencyMs: [20],
@@ -38,15 +38,15 @@ export const TREE_MATRIX_DIMENSIONS: Omit<MatrixDimensions, "profile"> = {
 };
 
 /** Defaults for a single-run (non-matrix) pagebuilder invocation — ~1.2k total. */
-export const DEFAULT_SINGLE_RUN: Omit<BenchCaseConfig, "strategy"> & {
-  readonly strategy: ResolutionStrategy;
+export const DEFAULT_SINGLE_RUN: Omit<BenchCaseConfig, "schedulingMode"> & {
+  readonly schedulingMode: SchedulingMode;
 } = {
   profile: "pagebuilder",
   modules: 48,
   depth: 5,
   arity: 3,
   productStride: 3,
-  strategy: "lane",
+  schedulingMode: "lane",
   cmsBatchSize: 100,
   integrationBatchSize: 100,
   cmsLatencyMs: 20,
@@ -94,7 +94,7 @@ export function resolveMatrixDimensions(args: RunnerCliArgs): MatrixDimensions {
     depth: singletonOrDefault(args.depth, base.depth),
     arity: singletonOrDefault(args.arity, base.arity),
     productStride: singletonOrDefault(args.productStride, base.productStride),
-    strategy: singletonOrDefault(args.strategy, base.strategy),
+    schedulingMode: singletonOrDefault(args.schedulingMode, base.schedulingMode),
     cmsBatchSize: singletonOrDefault(args.cmsBatchSize, base.cmsBatchSize),
     integrationBatchSize: singletonOrDefault(args.integrationBatchSize, base.integrationBatchSize),
     cmsLatencyMs: singletonOrDefault(args.cmsLatencyMs, base.cmsLatencyMs),
@@ -123,7 +123,7 @@ export function expandMatrix(
       for (const depth of dimensions.depth) {
         for (const arity of dimensions.arity) {
           for (const productStride of dimensions.productStride) {
-            for (const strategy of dimensions.strategy) {
+            for (const schedulingMode of dimensions.schedulingMode) {
               for (const cmsBatchSize of dimensions.cmsBatchSize) {
                 for (const integrationBatchSize of dimensions.integrationBatchSize) {
                   for (const cmsLatencyMs of dimensions.cmsLatencyMs) {
@@ -136,7 +136,7 @@ export function expandMatrix(
                             depth,
                             arity,
                             productStride,
-                            strategy,
+                            schedulingMode,
                             cmsBatchSize,
                             integrationBatchSize,
                             cmsLatencyMs,
@@ -175,7 +175,7 @@ export function singleRunConfig(args: RunnerCliArgs): BenchCaseConfig {
     arity: args.arity ?? treeDefaults?.arity ?? DEFAULT_SINGLE_RUN.arity,
     productStride:
       args.productStride ?? treeDefaults?.productStride ?? DEFAULT_SINGLE_RUN.productStride,
-    strategy: args.strategy ?? DEFAULT_SINGLE_RUN.strategy,
+    schedulingMode: args.schedulingMode ?? DEFAULT_SINGLE_RUN.schedulingMode,
     cmsBatchSize: args.cmsBatchSize ?? DEFAULT_SINGLE_RUN.cmsBatchSize,
     integrationBatchSize: args.integrationBatchSize ?? DEFAULT_SINGLE_RUN.integrationBatchSize,
     cmsLatencyMs: args.cmsLatencyMs ?? DEFAULT_SINGLE_RUN.cmsLatencyMs,

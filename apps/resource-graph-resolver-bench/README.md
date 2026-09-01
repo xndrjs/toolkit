@@ -44,13 +44,13 @@ Regular `tree` sizes (for `--profile tree`): depth 7 × arity 3 ≈ 1.8k total; 
 ### Fast local iteration from source
 
 ```bash
-pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --strategy lane --repeats 1
+pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --scheduling-mode lane --repeats 1
 ```
 
 ### Built artifacts (recommended for comparable runs)
 
 ```bash
-pnpm --filter @xndrjs/resource-graph-resolver-bench bench -- --modules 32 --strategy lane --repeats 1
+pnpm --filter @xndrjs/resource-graph-resolver-bench bench -- --modules 32 --scheduling-mode lane --repeats 1
 ```
 
 `bench` builds `@xndrjs/application-resources`, `@xndrjs/resource-graph-resolver`, and this app, then runs `dist/index.js`.
@@ -70,7 +70,7 @@ Baseline `--matrix` uses **pagebuilder** with `modules ∈ {32,48,64}` (~0.8–1
 | `depth`                | `5`                |
 | `arity`                | `3`                |
 | `productStride`        | `3`                |
-| `strategy`             | `lane`, `barrier`  |
+| `schedulingMode`       | `lane`, `barrier`  |
 | `cmsBatchSize`         | `50`, `100`, `200` |
 | `integrationBatchSize` | `100`              |
 | `cmsLatencyMs`         | `20`               |
@@ -92,7 +92,7 @@ pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --matrix --prof
 
 ### Single-run flags
 
-`--profile`, `--modules`, `--depth`, `--arity`, `--product-stride`, `--strategy`, `--cms-batch-size`, `--integration-batch-size`, `--cms-latency-ms`, `--integration-latency-ms`, `--warmup` (default 1), `--repeats` (default 5), `--max-nodes`, `--output-dir`.
+`--profile`, `--modules`, `--depth`, `--arity`, `--product-stride`, `--scheduling-mode`, `--cms-batch-size`, `--integration-batch-size`, `--cms-latency-ms`, `--integration-latency-ms`, `--warmup` (default 1), `--repeats` (default 5), `--max-nodes`, `--output-dir`.
 
 `--list` lists matrix cells without running them.
 
@@ -123,5 +123,5 @@ Effective size is `onBatchStart.resourceCount` (the real load size), not the con
 
 ```bash
 pnpm --filter @xndrjs/resource-graph-resolver-bench typecheck
-pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --strategy lane --repeats 1 --warmup 0
+pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --scheduling-mode lane --repeats 1 --warmup 0
 ```

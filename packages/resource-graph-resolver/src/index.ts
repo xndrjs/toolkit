@@ -59,7 +59,7 @@ export type {
   MissingResourceMode,
   RegistryPayloadFor,
   ResolutionError,
-  ResolutionStrategy,
+  SchedulingMode,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
   ResolvedResourceRecord,

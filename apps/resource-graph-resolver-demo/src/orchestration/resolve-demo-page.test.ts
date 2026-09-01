@@ -9,7 +9,7 @@ describe("resolveDemoPage", () => {
     if (!result.ok) {
       return;
     }
-    expect(result.strategy).toBe("lane");
+    expect(result.schedulingMode).toBe("lane");
     expect(result.page.type).toBe("Page");
   });
 });

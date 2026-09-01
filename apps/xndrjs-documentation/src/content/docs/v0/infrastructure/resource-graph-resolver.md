@@ -32,7 +32,7 @@ Islands are meant for **macro-grouping**. A resource reachable from many islands
 
 The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per backend, and an `ExpansionPort`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
-For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and expansion once; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_STRATEGY` in that file to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
+For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and expansion once; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_SCHEDULING_MODE` in that file to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'stepAfter'}}}%%
@@ -155,7 +155,7 @@ load: ({ product }, { signal }) =>
   fetch(url, { method: "POST", body: JSON.stringify({ skus }), signal }),
 ```
 
-## Resolver and strategies
+## Resolver and scheduling modes
 
 Build one resolver per source topology and reuse it across requests:
 
@@ -165,7 +165,7 @@ import { createResourceGraphResolver } from "@xndrjs/resource-graph-resolver";
 const resolver = createResourceGraphResolver<DemoContentRegistry, DemoExecutionContext>({
   sources: [cmsSource, integrationSource],
   expansion: expansionPort,
-  strategy: "lane", // or "barrier"
+  schedulingMode: "lane", // or "barrier"
   observer, // optional
 });
 
@@ -178,12 +178,12 @@ const output = await resolver.resolve({
 });
 ```
 
-Both strategies produce **identical** graph output — same `ContentMap`, island membership, dependencies, promotions and errors. They differ only in when expansion runs relative to in-flight loads:
+Both scheduling modes produce **identical** graph output — same `ContentMap`, island membership, dependencies, promotions and errors. They differ only in when expansion runs relative to in-flight loads:
 
-| Strategy  | Scheduler                                                              | When to prefer                                                              |
-| --------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `lane`    | Expand as soon as **any** batch commits; sources advance independently | Uneven backend latency: a fast CMS should not wait on a slow commercial API |
-| `barrier` | Wait for **every** in-flight batch, then expand together               | Reproducible rounds for tracing and tests; backends of similar latency      |
+| Scheduling mode | Scheduler                                                              | When to prefer                                                              |
+| --------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `lane`          | Expand as soon as **any** batch commits; sources advance independently | Uneven backend latency: a fast CMS should not wait on a slow commercial API |
+| `barrier`       | Wait for **every** in-flight batch, then expand together               | Reproducible rounds for tracing and tests; backends of similar latency      |
 
 Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave.
 
@@ -338,7 +338,7 @@ Return values:
 2. **ContentRegistry** — per-source slices composed with `ComposeContentRegistry`.
 3. **Sources** — one `DataSource` per backend: families it owns, batch limits, concurrency, `load`.
 4. **ExpansionPort** — content-type or resource-family policies; `isIsland` where a fragment has its own identity or lifecycle.
-5. **Resolver** — one `createResourceGraphResolver` per topology, `strategy` chosen per route (or fixed to `lane`).
+5. **Resolver** — one `createResourceGraphResolver` per topology, `schedulingMode` chosen per route (or fixed to `lane`).
 6. **Orchestration** — load backing → `resolve` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
 7. **Domain mappers** — stay outside this package; consume `ResolveResourceGraphOutput`.
 
@@ -353,7 +353,7 @@ Exported symbols:
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**
 - Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceGraphAbortedError`**
 - Observability: **`ResolutionObserver`** and its event types
-- Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`ResolutionStrategy`**, **`ResolutionError`**, **`MissingResourceMode`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolvedResourceRecord`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
+- Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`SchedulingMode`**, **`ResolutionError`**, **`MissingResourceMode`**, **`SerializedIsland`**, **`ExpansionPort`**, **`ExpansionResult`**, **`ExpansionContext`**, **`ResolvedResourceRecord`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 
 ## See also
 

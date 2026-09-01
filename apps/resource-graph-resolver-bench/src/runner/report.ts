@@ -81,7 +81,7 @@ export async function writeMarkdownReport(path: string, markdown: string): Promi
   await writeFile(path, markdown, "utf8");
 }
 
-/** Pairing key: all dimensions except strategy (for lane vs barrier deltas). */
+/** Pairing key: all dimensions except scheduling mode (for lane vs barrier deltas). */
 function pairKey(config: BenchCaseConfig): string {
   return [
     config.profile,
@@ -130,7 +130,7 @@ function groupStrategyPairs(cells: readonly BenchCaseResult[]): StrategyPair[] {
       cmsLatencyMs: cell.config.cmsLatencyMs,
       integrationLatencyMs: cell.config.integrationLatencyMs,
     };
-    if (cell.config.strategy === "lane") {
+    if (cell.config.schedulingMode === "lane") {
       map.set(key, { ...existing, lane: cell });
     } else {
       map.set(key, { ...existing, barrier: cell });

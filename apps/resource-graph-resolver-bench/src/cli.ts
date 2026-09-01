@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import type { ResolutionStrategy } from "@xndrjs/resource-graph-resolver";
+import type { SchedulingMode } from "@xndrjs/resource-graph-resolver";
 
 import { DEFAULT_MAX_NODES, type GraphProfile } from "./graph/generate";
 import { executeBenchCase, formatCaseLabel } from "./runner/execute";
@@ -23,7 +23,7 @@ Options:
   --depth <n>                   Max CMS depth (default single: ${DEFAULT_SINGLE_RUN.depth}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.depth.join(",")})
   --arity <n>                   Section/tree branch factor (default single: ${DEFAULT_SINGLE_RUN.arity}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.arity.join(",")})
   --product-stride <n>          Early product every Nth sibling (pagebuilder; default: ${DEFAULT_SINGLE_RUN.productStride})
-  --strategy <lane|barrier>     Scheduler strategy (default single: ${DEFAULT_SINGLE_RUN.strategy}; matrix: both)
+  --scheduling-mode <lane|barrier>  Walk scheduling mode (default single: ${DEFAULT_SINGLE_RUN.schedulingMode}; matrix: both)
   --cms-batch-size <n>          Max CMS batch size (default single: ${DEFAULT_SINGLE_RUN.cmsBatchSize}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.cmsBatchSize.join(",")})
   --integration-batch-size <n>  Max integration batch size (default: ${DEFAULT_SINGLE_RUN.integrationBatchSize})
   --cms-latency-ms <n>          Simulated CMS RTT per load (default: ${DEFAULT_SINGLE_RUN.cmsLatencyMs})
@@ -100,11 +100,11 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerCliArgs {
   }
 
   const outputDirValue = map.get("output-dir");
-  const strategy = ensureEnum(
-    map.get("strategy") as string | undefined,
+  const schedulingMode = ensureEnum(
+    map.get("scheduling-mode") as string | undefined,
     ["lane", "barrier"],
-    "strategy"
-  ) as ResolutionStrategy | undefined;
+    "scheduling-mode"
+  ) as SchedulingMode | undefined;
   const profile = ensureEnum(
     map.get("profile") as string | undefined,
     ["pagebuilder", "tree"],
@@ -129,7 +129,7 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerCliArgs {
       "productStride",
       parseOptionalIntegerFlag(map.get("product-stride") as string | undefined, "--product-stride")
     ),
-    ...(strategy ? { strategy } : {}),
+    ...(schedulingMode ? { schedulingMode } : {}),
     ...optionalNumberField(
       "cmsBatchSize",
       parseOptionalIntegerFlag(map.get("cms-batch-size") as string | undefined, "--cms-batch-size")
