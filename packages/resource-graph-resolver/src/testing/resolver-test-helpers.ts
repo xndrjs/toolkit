@@ -4,6 +4,9 @@ import { vi, type Mock } from "vitest";
 import { createResourceGraphResolver } from "../engines/resource-graph-resolver";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
 import { createIslandPolicyChain, type IslandPolicy } from "../ports/island-port";
+import type { GraphResolutionStrategy } from "../strategy/create-graph-resolution-strategy";
+import type { ExpansionPort } from "../ports/expansion-port";
+import type { IslandPort } from "../ports/island-port";
 import type { ResourceFamilyMap, ResourceLoadContext, DataSource } from "../ports/data-source";
 import { assetAri, footerAri, heroAri, menuAri, pageAri, productAri } from "./test-fixtures";
 import type {
@@ -36,6 +39,13 @@ export const pageGraphValues: ReadonlyMap<string, unknown> = new Map<string, unk
   [footer.toString(), { logo: { $ref: asset.toString() } }],
   [asset.toString(), { url: "https://cdn.example.com/logo.svg" }],
 ]);
+
+export function graphStrategy<R extends ContentRegistry, TExecutionContext>(
+  expansion: ExpansionPort<R, TExecutionContext>,
+  islands: IslandPort<R, TExecutionContext>
+): GraphResolutionStrategy<R, TExecutionContext> {
+  return { expansion, islands };
+}
 
 export function createPageGraphPolicies(): ExpansionPolicy[] {
   return [
@@ -206,8 +216,10 @@ export async function resolvePageGraph(
 
   const resolver = createResourceGraphResolver({
     sources,
-    expansion: createExpansionPolicyChain(options.policies ?? createPageGraphPolicies()),
-    islands: createIslandPolicyChain(options.islandPolicies ?? createPageGraphIslandPolicies()),
+    strategy: graphStrategy(
+      createExpansionPolicyChain(options.policies ?? createPageGraphPolicies()),
+      createIslandPolicyChain(options.islandPolicies ?? createPageGraphIslandPolicies())
+    ),
     schedulingMode,
   });
 

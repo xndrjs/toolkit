@@ -8,7 +8,7 @@ import {
 import { createCmsSource, demoCmsStore, type CmsFixtureStore } from "./cms/index.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import type { DemoExecutionContext } from "./demo-execution-context.js";
-import { createDemoExpansionPort, createDemoIslandPort } from "./expansion-policies.js";
+import { createDemoStrategy } from "./demo-strategy.js";
 import { createIntegrationSource, demoProductCatalog } from "./integration/index.js";
 import type { ProductIntegrationSnapshot } from "./integration/catalog.js";
 
@@ -29,7 +29,7 @@ export type DemoResolverOptions = {
 
 /**
  * Demo wiring in one place: two backends, the ARI families each owns, and the
- * expansion policies that discover children.
+ * graph resolution strategy for expansion and island boundaries.
  */
 export function createDemoResolver(
   options: DemoResolverOptions = {}
@@ -43,8 +43,7 @@ export function createDemoResolver(
         latencyMs: options.integrationLatencyMs ?? 0,
       }),
     ],
-    expansion: createDemoExpansionPort(),
-    islands: createDemoIslandPort(),
+    strategy: createDemoStrategy(),
     schedulingMode: options.schedulingMode ?? "lane",
     observer: options.observer,
   });

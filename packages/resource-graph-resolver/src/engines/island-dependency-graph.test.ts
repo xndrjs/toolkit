@@ -4,7 +4,7 @@ import { createResourceGraphResolver } from "./resource-graph-resolver";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
 import { createIslandPolicyChain, type IslandPolicy } from "../ports/island-port";
 import { serializeIsland } from "../islands/serialize-island";
-import { createStoreSource } from "../testing/resolver-test-helpers";
+import { createStoreSource, graphStrategy } from "../testing/resolver-test-helpers";
 import { footerAri, menuAri, pageAri, testAriFactory } from "../testing/test-fixtures";
 
 /** Minimal graph: page -> menu/footer (islands); menu -> logo (island). */
@@ -76,8 +76,10 @@ describe("island dependency graph", () => {
           store: values,
         }),
       ],
-      expansion: createExpansionPolicyChain(createNestedIslandExpansionPolicies()),
-      islands: createIslandPolicyChain(createNestedIslandPolicies()),
+      strategy: graphStrategy(
+        createExpansionPolicyChain(createNestedIslandExpansionPolicies()),
+        createIslandPolicyChain(createNestedIslandPolicies())
+      ),
       schedulingMode: "barrier",
     });
 

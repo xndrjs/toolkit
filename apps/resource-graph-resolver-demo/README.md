@@ -51,12 +51,12 @@ src/
   orchestration/
     resolve-demo-page.ts      # single integration path (scheduling mode flip at top)
   infrastructure/
-    demo-resolver.ts          # sources + expansion + scheduling mode
+    demo-resolver.ts          # sources + strategy + scheduling mode
     logging/resolve-trace.ts  # ResolutionObserver → terminal trace
     cms/                      # CMS ARIs, fixtures, codegen, source
     integration/              # product ARIs, catalog, source
     content-registry.ts       # DemoContentRegistry = CMS ∪ integration
-    expansion-policies.ts     # expand by content-type; product → integration.product
+    demo-strategy.ts            # graph resolution strategy (expansion + islands)
     cache/                    # island LRU + backing warm + persist
     mappers/                  # ContentMap → domain-zod
 ```

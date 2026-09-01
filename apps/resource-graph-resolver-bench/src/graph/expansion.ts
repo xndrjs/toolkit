@@ -1,7 +1,6 @@
 import {
-  createExpansionPolicyChain,
-  defineExpansionPolicy,
-  type ExpansionPort,
+  createGraphResolutionStrategy,
+  type GraphResolutionStrategy,
 } from "@xndrjs/resource-graph-resolver";
 
 import { benchNodeAri, benchProductAri } from "./ari";
@@ -14,21 +13,20 @@ import type { BenchContentRegistry } from "./generate";
  *
  * Never declares island boundaries (scheduler bench only; islands are out of scope).
  */
-export function createBenchExpansionPort(): ExpansionPort<BenchContentRegistry> {
-  return createExpansionPolicyChain<BenchContentRegistry>([
-    defineExpansionPolicy<ReturnType<typeof benchNodeAri>, BenchContentRegistry>({
-      for: benchNodeAri,
-      expand: ({ resource, payload }) => {
-        if (payload.children.length > 0) {
-          return {
-            resources: payload.children.map((id) => benchNodeAri({ id })),
-          };
-        }
+export function createBenchStrategy(): GraphResolutionStrategy<BenchContentRegistry> {
+  const s = createGraphResolutionStrategy<unknown, BenchContentRegistry>();
 
-        return {
-          resources: [benchProductAri({ sku: resource.key[0].id })],
-        };
-      },
-    }),
-  ]);
+  s.expansion.on(benchNodeAri).expand(({ resource, payload }) => {
+    if (payload.children.length > 0) {
+      return {
+        resources: payload.children.map((id) => benchNodeAri({ id })),
+      };
+    }
+
+    return {
+      resources: [benchProductAri({ sku: resource.key[0].id })],
+    };
+  });
+
+  return s.build();
 }
