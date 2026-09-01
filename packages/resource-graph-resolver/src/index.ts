@@ -17,7 +17,10 @@ export {
   ResourceGraphError,
   ResourceLoadFailedError,
 } from "./errors";
-export { createStrategy, type GraphStrategy } from "./strategy/create-strategy";
+export {
+  createGraphResolutionStrategy,
+  type GraphResolutionStrategy,
+} from "./strategy/create-graph-resolution-strategy";
 export type { ExpansionContext, ExpansionResult } from "./ports/expansion-port";
 export type { IslandContext, IslandResult } from "./ports/island-port";
 export { IslandDependencyMap } from "./model/island-dependency-map";

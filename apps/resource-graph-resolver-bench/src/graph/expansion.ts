@@ -1,4 +1,7 @@
-import { createStrategy, type GraphStrategy } from "@xndrjs/resource-graph-resolver";
+import {
+  createGraphResolutionStrategy,
+  type GraphResolutionStrategy,
+} from "@xndrjs/resource-graph-resolver";
 
 import { benchNodeAri, benchProductAri } from "./ari";
 import type { BenchContentRegistry } from "./generate";
@@ -10,8 +13,8 @@ import type { BenchContentRegistry } from "./generate";
  *
  * Never declares island boundaries (scheduler bench only; islands are out of scope).
  */
-export function createBenchStrategy(): GraphStrategy<BenchContentRegistry> {
-  const s = createStrategy<unknown, BenchContentRegistry>();
+export function createBenchStrategy(): GraphResolutionStrategy<BenchContentRegistry> {
+  const s = createGraphResolutionStrategy<unknown, BenchContentRegistry>();
 
   s.expansion.on(benchNodeAri).expand(({ resource, payload }) => {
     if (payload.children.length > 0) {

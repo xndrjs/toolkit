@@ -19,7 +19,7 @@ import {
 } from "../ports/island-port";
 import type { ContentRegistry } from "../types";
 
-export interface GraphStrategy<
+export interface GraphResolutionStrategy<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
 > {
@@ -130,7 +130,7 @@ class StrategyBuilder<R extends ContentRegistry, TExecutionContext> {
     this.islandPolicies.push(policy);
   }
 
-  build(): GraphStrategy<R, TExecutionContext> {
+  build(): GraphResolutionStrategy<R, TExecutionContext> {
     return {
       expansion: createExpansionPolicyChain(this.expansionPolicies),
       islands: createIslandPolicyChain(this.islandPolicies),
@@ -139,10 +139,10 @@ class StrategyBuilder<R extends ContentRegistry, TExecutionContext> {
 }
 
 /**
- * Starts a graph strategy with separate `expansion` and `islands` namespaces.
+ * Starts a graph resolution strategy with separate `expansion` and `islands` namespaces.
  * Each `.expand()` / `.startIsland()` registers one policy and returns the builder.
  */
-export function createStrategy<
+export function createGraphResolutionStrategy<
   TExecutionContext = unknown,
   R extends ContentRegistry = ContentRegistry,
 >(): StrategyBuilder<R, TExecutionContext> {

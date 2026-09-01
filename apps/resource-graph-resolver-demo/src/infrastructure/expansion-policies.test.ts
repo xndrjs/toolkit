@@ -1,5 +1,5 @@
 import {
-  createStrategy,
+  createGraphResolutionStrategy,
   type ExpansionContext,
   type IslandContext,
 } from "@xndrjs/resource-graph-resolver";
@@ -186,7 +186,7 @@ describe("createDemoStrategy", () => {
     const executionContext = createDefaultDemoExecutionContext();
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
-    createStrategy<DemoExecutionContext, DemoContentRegistry>()
+    createGraphResolutionStrategy<DemoExecutionContext, DemoContentRegistry>()
       .expansion.on(cmsEntryAri)
       .expand(({ resource, payload }) => {
         expectTypeOf(resource).toEqualTypeOf<CmsEntryResource>();

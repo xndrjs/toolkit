@@ -7,7 +7,7 @@ import {
   type ResourceGraphError,
 } from "../errors";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
-import type { GraphStrategy } from "../strategy/create-strategy";
+import type { GraphResolutionStrategy } from "../strategy/create-graph-resolution-strategy";
 import type { ResourceFamily, DataSource } from "../ports/data-source";
 import { ResolutionSession, type GraphWalkRef } from "./resolution-session";
 import type {
@@ -60,7 +60,7 @@ export interface ResourceGraphResolverConfig<
    * first whose family `matches` the ARI wins.
    */
   readonly sources: readonly DataSource<R, TExecutionContext>[];
-  readonly strategy: GraphStrategy<R, TExecutionContext>;
+  readonly strategy: GraphResolutionStrategy<R, TExecutionContext>;
   /** Defaults to `"lane"`. */
   readonly schedulingMode?: SchedulingMode;
   readonly observer?: ResolutionObserver;

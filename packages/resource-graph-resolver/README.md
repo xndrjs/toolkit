@@ -46,10 +46,13 @@ const productSource = defineSource({
 Then wire one resolver and reuse it per request:
 
 ```ts
-import { createResourceGraphResolver, createStrategy } from "@xndrjs/resource-graph-resolver";
+import {
+  createResourceGraphResolver,
+  createGraphResolutionStrategy,
+} from "@xndrjs/resource-graph-resolver";
 
 function createAppStrategy() {
-  const s = createStrategy<ExecutionContext, AppContentRegistry>();
+  const s = createGraphResolutionStrategy<ExecutionContext, AppContentRegistry>();
 
   s.expansion.on(cmsEntryAri).expand(({ payload }) => ({ resources: collectChildAris(payload) }));
 
@@ -101,7 +104,7 @@ Under `lane`, a fast source keeps walking its own subgraph while a slow peer's r
 
 - **`ContentRegistry`** — maps ARI `type` literals to payload shapes; `ContentMap.get` follows `resource.type`. Compose per-source slices with `ComposeContentRegistry`.
 - **`DataSource`** — one backend: the ARI families it owns, its batch limits, its concurrency budget, and `load`.
-- **`createStrategy()`** — fluent builder for expansion and island policies; `.build()` returns a `GraphStrategy` for the resolver.
+- **`createGraphResolutionStrategy()`** — fluent builder for expansion and island policies; `.build()` returns a `GraphResolutionStrategy` for the resolver.
 - **`IslandDependencyMap`** — direct edges between islands; `getFlatDependencies` builds transitive cache manifests (cycles excluded from the start island).
 - **`backingResources`** — pre-resolved payloads consulted before any source is asked. The map is never mutated; keys the walk actually reached come back as `promotedResourceKeys`.
 - **`ResolutionObserver`** — optional hooks for batches, expansions, promotions and misses. Observer failures never affect resolution.

@@ -1,5 +1,8 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
-import { createStrategy, type GraphStrategy } from "@xndrjs/resource-graph-resolver";
+import {
+  createGraphResolutionStrategy,
+  type GraphResolutionStrategy,
+} from "@xndrjs/resource-graph-resolver";
 
 import { cmsAssetAri, cmsEntryAri } from "./cms/ari.js";
 import { collectLinkReferencesFromEntryFields } from "./cms/link-field-collector.js";
@@ -76,8 +79,11 @@ function expandForContentType(
     : expandLinksFromGeneratedMetadata(contentTypeId, entry, locale);
 }
 
-export function createDemoStrategy(): GraphStrategy<DemoContentRegistry, DemoExecutionContext> {
-  const s = createStrategy<DemoExecutionContext, DemoContentRegistry>();
+export function createDemoStrategy(): GraphResolutionStrategy<
+  DemoContentRegistry,
+  DemoExecutionContext
+> {
+  const s = createGraphResolutionStrategy<DemoExecutionContext, DemoContentRegistry>();
 
   s.expansion
     .on(cmsEntryAri)

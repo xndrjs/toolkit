@@ -30,7 +30,7 @@ Islands let you **name and partition** a large graph by application meaning — 
 
 Islands are meant for **macro-grouping**. A resource reachable from many islands is tracked in all of them, so marking hundreds of fine-grained islands over a shared subgraph multiplies membership entries — model islands around lifecycle boundaries, not around individual nodes.
 
-The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per backend, and a `GraphStrategy` built with `createStrategy()`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
+The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per backend, and a `GraphResolutionStrategy` built with `createGraphResolutionStrategy()`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
 For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and expansion once; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_SCHEDULING_MODE` in that file to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
@@ -245,18 +245,18 @@ const observer: ResolutionObserver = {
 
 Every hook is optional, and a hook that throws never affects resolution — observers are diagnostics, so a logging bug cannot corrupt a walk.
 
-## Graph strategy (`createStrategy`)
+## Graph resolution strategy (`createGraphResolutionStrategy`)
 
-A **graph strategy** bundles expansion and island policies into one object you pass to the resolver. Author it with the fluent `createStrategy()` builder: each `.expand()` or `.startIsland()` registers one policy and returns the builder so you can chain further actions.
+A **graph resolution strategy** bundles expansion and island policies into one object you pass to the resolver. Author it with the fluent `createGraphResolutionStrategy()` builder: each `.expand()` or `.startIsland()` registers one policy and returns the builder so you can chain further actions.
 
 ```ts
-import { createStrategy } from "@xndrjs/resource-graph-resolver";
+import { createGraphResolutionStrategy } from "@xndrjs/resource-graph-resolver";
 import { cmsEntryAri } from "./cms/ari";
 
 const islandContentTypes = ["menu", "footer"] as const;
 
 export function createDemoStrategy() {
-  const s = createStrategy<DemoExecutionContext, DemoContentRegistry>();
+  const s = createGraphResolutionStrategy<DemoExecutionContext, DemoContentRegistry>();
 
   s.expansion
     .on(cmsEntryAri)
@@ -274,7 +274,7 @@ export function createDemoStrategy() {
 }
 ```
 
-`createStrategy<ExecutionContext, ContentRegistry>()` returns a builder with two namespaces:
+`createGraphResolutionStrategy<ExecutionContext, ContentRegistry>()` returns a builder with two namespaces:
 
 | Namespace    | Chain                             | Semantics                                                                 |
 | ------------ | --------------------------------- | ------------------------------------------------------------------------- |
@@ -357,7 +357,7 @@ Return values:
 1. **Infrastructure ARIs** — one factory per backend/type (`cms.entry`, `cms.asset`, `integration.product`, …), next to the sources that own them.
 2. **ContentRegistry** — per-source slices composed with `ComposeContentRegistry`.
 3. **Sources** — one `DataSource` per backend: families it owns, batch limits, concurrency, `load`.
-4. **Graph strategy** — `createStrategy()` with `.expansion` and `.islands` actions for child discovery and island boundaries.
+4. **Graph resolution strategy** — `createGraphResolutionStrategy()` with `.expansion` and `.islands` actions for child discovery and island boundaries.
 5. **Resolver** — one `createResourceGraphResolver` per topology, `schedulingMode` chosen per route (or fixed to `lane`).
 6. **Orchestration** — load backing → `resolve` (optional `signal`) → map `ContentMap` to domain → `serializeAllIslands` → persist to cache.
 7. **Domain mappers** — stay outside this package; consume `ResolveResourceGraphOutput`.
@@ -367,7 +367,7 @@ Return values:
 Exported symbols:
 
 - **`createResourceGraphResolver`** — and types `ResourceGraphResolver`, `ResourceGraphResolverConfig`
-- **`createStrategy`** — and type `GraphStrategy`
+- **`createGraphResolutionStrategy`** — and type `GraphResolutionStrategy`
 - **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceFamilyMap`, `ResourceOfFamily`, `PendingResourceBatch`, `SourceResourceRecord`, `ResourceBatchSizeMap`, `ResourceLoadContext`
 - **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**

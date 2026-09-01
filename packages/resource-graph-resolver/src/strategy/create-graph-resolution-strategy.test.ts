@@ -1,7 +1,7 @@
 import { ari, s } from "@xndrjs/application-resources";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { createStrategy } from "./create-strategy";
+import { createGraphResolutionStrategy } from "./create-graph-resolution-strategy";
 import { testAri } from "../testing/test-fixtures.js";
 import type { ContentRegistry } from "../types";
 
@@ -9,11 +9,11 @@ const menuAri = ari("menu", s.object({ id: s.string() }));
 
 type MenuRegistry = ContentRegistry & { menu: { kind?: string } };
 
-describe("createStrategy", () => {
+describe("createGraphResolutionStrategy", () => {
   it("builds separate expansion and island ports", () => {
     const child = testAri("item", "1");
 
-    const strategy = createStrategy<{ locale: string }, MenuRegistry>()
+    const strategy = createGraphResolutionStrategy<{ locale: string }, MenuRegistry>()
       .expansion.on(menuAri)
       .expand(() => ({ resources: [child] }))
       .islands.on(menuAri)
@@ -35,7 +35,7 @@ describe("createStrategy", () => {
     const first = testAri("item", "1");
     const second = testAri("item", "2");
 
-    const strategy = createStrategy()
+    const strategy = createGraphResolutionStrategy()
       .expansion.on(menuAri)
       .expand(() => ({ resources: [first] }))
       .expansion.on(menuAri)
@@ -52,7 +52,7 @@ describe("createStrategy", () => {
   });
 
   it("narrows resource and payload in expansion actions", () => {
-    createStrategy<{ locale: string }, MenuRegistry>()
+    createGraphResolutionStrategy<{ locale: string }, MenuRegistry>()
       .expansion.on(menuAri)
       .expand(({ resource, payload }) => {
         expectTypeOf(resource.type).toEqualTypeOf<"menu">();

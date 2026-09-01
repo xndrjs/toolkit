@@ -4,7 +4,7 @@ import { vi, type Mock } from "vitest";
 import { createResourceGraphResolver } from "../engines/resource-graph-resolver";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
 import { createIslandPolicyChain, type IslandPolicy } from "../ports/island-port";
-import type { GraphStrategy } from "../strategy/create-strategy";
+import type { GraphResolutionStrategy } from "../strategy/create-graph-resolution-strategy";
 import type { ExpansionPort } from "../ports/expansion-port";
 import type { IslandPort } from "../ports/island-port";
 import type { ResourceFamilyMap, ResourceLoadContext, DataSource } from "../ports/data-source";
@@ -43,7 +43,7 @@ export const pageGraphValues: ReadonlyMap<string, unknown> = new Map<string, unk
 export function graphStrategy<R extends ContentRegistry, TExecutionContext>(
   expansion: ExpansionPort<R, TExecutionContext>,
   islands: IslandPort<R, TExecutionContext>
-): GraphStrategy<R, TExecutionContext> {
+): GraphResolutionStrategy<R, TExecutionContext> {
   return { expansion, islands };
 }
 
