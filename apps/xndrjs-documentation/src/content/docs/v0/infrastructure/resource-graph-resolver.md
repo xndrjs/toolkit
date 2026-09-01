@@ -32,13 +32,15 @@ Islands are meant for **macro-grouping**. A resource reachable from many islands
 
 The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per backend, and a `GraphResolutionStrategy` built with `createGraphResolutionStrategy()`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
-For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and expansion once; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_SCHEDULING_MODE` in that file to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
+For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and `demo-strategy.ts` defines the graph resolution strategy; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_SCHEDULING_MODE` in `demo-resolver.ts` to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'stepAfter'}}}%%
 flowchart TD
   root[Root ARI] --> resolver[Resource graph resolver]
-  resolver --> expand[ExpansionPort]
+  resolver --> strategy[GraphResolutionStrategy]
+  strategy --> expand[Expansion policies]
+  strategy --> islandPolicies[Island policies]
   expand --> route[Route by ARI type to a source family]
   route --> batch[Chunk to batchSize, throttle to concurrency]
   batch --> sources[DataSource load]
@@ -67,7 +69,7 @@ Domain aggregate
 UI / framework
 ```
 
-Pair with [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) for typed Contentful payloads and link-field metadata when authoring expansion policies.
+Pair with [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) for typed Contentful payloads and link-field metadata when authoring graph resolution strategies.
 
 ## Install
 
@@ -124,7 +126,7 @@ export const cmsSource = defineSource({
 
 The definer is curried (`defineDataSourceFor<R, Ctx>()` then the config) because TypeScript has no partial type-argument inference: currying keeps `for` inferred while the registry stays explicit.
 
-`R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `for` is what scopes a source to the ARI types it may be asked for and may return. Returning a record outside the declared families is a compile error.
+`R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `for` is what scopes a source to the ARI types it may be asked for and may return. Returning a record outside the declared `for` list is a compile error.
 
 | Field         | Meaning                                                                          |
 | ------------- | -------------------------------------------------------------------------------- |
@@ -150,8 +152,8 @@ A source signals “no data” by **omitting** an ARI from its result. Never thr
 `load` receives the resolution's `signal`. Forward it into `fetch` (or your client's equivalent) so an aborted resolution cancels in-flight IO instead of merely ignoring the result:
 
 ```ts
-load: ({ product }, { signal }) =>
-  fetch(url, { method: "POST", body: JSON.stringify({ skus }), signal }),
+load: (batch, { signal }) =>
+  fetch(url, { method: "POST", body: JSON.stringify({ skus: batch.map((r) => r.key[0].sku) }), signal }),
 ```
 
 ## Resolver and scheduling modes
@@ -159,7 +161,10 @@ load: ({ product }, { signal }) =>
 Build one resolver per source topology and reuse it across requests:
 
 ```ts
-import { createResourceGraphResolver } from "@xndrjs/resource-graph-resolver";
+import {
+  createGraphResolutionStrategy,
+  createResourceGraphResolver,
+} from "@xndrjs/resource-graph-resolver";
 
 const resolver = createResourceGraphResolver<DemoContentRegistry, DemoExecutionContext>({
   sources: [cmsSource, integrationSource],
@@ -186,7 +191,7 @@ Both scheduling modes produce **identical** graph output — same `ContentMap`, 
 
 Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave.
 
-When several sources declare the same ARI `type`, the first whose family `matches` the ARI wins; callers guarantee exactly one meaningful owner per ARI.
+When several sources can handle the same ARI `type`, the **first** match in `sources` order wins; declare one owner per type.
 
 `resolve` returns:
 
@@ -205,7 +210,7 @@ Because the resolver owns chunking, a batch always starts while work is pending 
 | Situation                                    | `"throw"`                 | `"collect"`                                                |
 | -------------------------------------------- | ------------------------- | ---------------------------------------------------------- |
 | A source omitted a requested ARI             | `MissingResourceError`    | Error entry attributed to every island that reached it     |
-| No source declares a family matching the ARI | `NoDataSourceError`       | Error entry (this is a wiring bug, not missing data)       |
+| No source's `for` list matches the ARI          | `NoDataSourceError`       | Error entry (this is a wiring bug, not missing data)       |
 | A source's `load` rejected                   | `ResourceLoadFailedError` | Error entries for that batch; other sources keep resolving |
 
 All of them extend `ResourceGraphError`. `ResourceLoadFailedError` carries `sourceId`, `resourceKeys` and the original rejection as `cause`.
@@ -366,7 +371,7 @@ Return values:
 Exported symbols:
 
 - **`createResourceGraphResolver`** — and types `ResourceGraphResolver`, `ResourceGraphResolverConfig`
-- **`createGraphResolutionStrategy`** — and type `GraphResolutionStrategy`
+- **`createGraphResolutionStrategy`** — and types `GraphResolutionStrategy`, `GraphResolutionStrategyBuilder`
 - **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceOfFamily`, `ResourceUnionFromFamilies`, `SourceResourceRecord`, `ResourceLoadContext`, `SourceRouteContext`
 - **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**

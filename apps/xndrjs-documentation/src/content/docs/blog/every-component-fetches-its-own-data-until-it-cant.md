@@ -581,7 +581,7 @@ The engine itself must not contain rules such as:
 
 That would turn a generic graph walker into a product-specific piece of code.
 
-Instead, the application/infrastructure integration supplies **expansion policies**.
+Instead, the application/infrastructure integration supplies a **graph resolution strategy**: expansion rules discover child resources; island rules declare which resolved nodes open a new island boundary. Both live in one `GraphResolutionStrategy` you author with `createGraphResolutionStrategy()`.
 
 Conceptually:
 
@@ -740,12 +740,25 @@ const productSource = defineSource({
 });
 ```
 
-Composing two backends is then just listing them:
+Composing two backends and a strategy is then just listing them:
 
 ```typescript
+function createPageStrategy() {
+  const s = createGraphResolutionStrategy<ExecutionContext, AppContentRegistry>();
+
+  s.expansion.on(cmsEntryAri).expand(({ payload }) => ({ resources: discoverLinks(payload) }));
+
+  s.islands
+    .on(cmsEntryAri)
+    .when(({ payload }) => payload.sys.contentType.sys.id === "menu")
+    .startIsland();
+
+  return s.build();
+}
+
 const resolver = createResourceGraphResolver({
   sources: [cmsSource, productSource],
-  expansion: expansionPort,
+  strategy: createPageStrategy(),
   schedulingMode: "lane",
 });
 ```
@@ -848,7 +861,7 @@ Integration lane: ────────────────┐
 
 The graph semantics remain the same. Only the scheduling strategy changes.
 
-This is what the determinism rule above buys us: since no policy can observe siblings or batch composition, both strategies are obliged to produce the same graph, and scheduling stays an implementation choice instead of leaking into expansion policies or domain code.
+This is what the determinism rule above buys us: since no policy can observe siblings or batch composition, both strategies are obliged to produce the same graph, and scheduling stays an implementation choice instead of leaking into the graph resolution strategy or domain code.
 
 The library provides both strategies, and the application chooses the one appropriate for its infrastructure. Because the sources, the policies and the graph semantics are identical either way, the choice is a single field:
 
@@ -969,7 +982,7 @@ With a "component-driven" architecture, this kind of migration tends to spread t
 
 With the resolver architecture, the graph semantics can change at the infrastructure boundary.
 
-The engine, the scheduler, and the domain aggregate are all unaffected. Only the **resource identifiers** and **expansion rules** involved in that specific branch need to change.
+The engine, the scheduler, and the domain aggregate are all unaffected. Only the **resource identifiers** and **graph resolution strategy** involved in that specific branch need to change.
 
 That is the real value of the abstraction, and it is measured in **knowledge that stays behind a boundary** rather than in lines of code saved.
 
@@ -1150,14 +1163,15 @@ Product API source
 News source
 ```
 
-### 3. Expansion policies
+### 3. Graph resolution strategy
 
-Once I have this resource, what other resources does it reference?
+Once I have this resource, what other resources does it reference — and which slices should become islands?
 
 ```text
-Page → modules
-Module → assets
-Product module → product
+Page → modules          (expansion)
+Menu → island boundary  (islands)
+Module → assets         (expansion)
+Product module → product (expansion)
 ```
 
 ### 4. Mapping
@@ -1250,7 +1264,7 @@ You can make the graph explicit, give resources stable identities, separate grap
 
 That's what [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) is for.
 
-The [demo application](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) shows one possible wiring using Contentful-shaped fixtures, an integration catalog, two sources with deliberately opposite batching shapes, expansion policies, and a Next.js consumer.
+The [demo application](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) shows one possible wiring using Contentful-shaped fixtures, an integration catalog, two sources with deliberately opposite batching shapes, a graph resolution strategy, and a Next.js consumer.
 
 It is intentionally small, as it is a workshop for the resolution model, not a production architecture.
 
