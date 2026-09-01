@@ -28,7 +28,8 @@ export interface ExpansionResult {
 }
 
 /**
- * Resource matcher for {@link defineExpansionPolicy} `for` (e.g. an {@link import("@xndrjs/application-resources").AriFactory}).
+ * Resource matcher for `createGraphResolutionStrategy().expansion.on(ari)` /
+ * `.islands.on(ari)` (e.g. an {@link import("@xndrjs/application-resources").AriFactory}).
  */
 export type ExpansionResourceFor<
   Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
@@ -47,10 +48,8 @@ export interface ExpansionPort<
 }
 
 /**
- * Chain-erased policy: `matches` is a boolean gate; every matching policy may
- * contribute children when composed with {@link createExpansionPolicyChain}.
- * Both receive the same {@link ExpansionContext}, including {@link ExpansionContext.executionContext}.
- * Prefer {@link defineExpansionPolicy} at authoring time so `expand` receives a narrowed resource.
+ * Internal policy shape used by `createGraphResolutionStrategy()`.
+ * Every matching policy may contribute children; duplicates are removed by resource key.
  */
 export interface ExpansionPolicy<
   R extends ContentRegistry = ContentRegistry,
