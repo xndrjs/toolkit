@@ -30,7 +30,7 @@ Islands let you **name and partition** a large graph by application meaning — 
 
 Islands are meant for **macro-grouping**. A resource reachable from many islands is tracked in all of them, so marking hundreds of fine-grained islands over a shared subgraph multiplies membership entries — model islands around lifecycle boundaries, not around individual nodes.
 
-The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per backend, and a `GraphResolutionStrategy` built with `createGraphResolutionStrategy()`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
+The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per transport channel, and a `GraphResolutionStrategy` built with `createGraphResolutionStrategy()`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
 For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and `demo-strategy.ts` defines the graph resolution strategy; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_SCHEDULING_MODE` in `demo-resolver.ts` to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
@@ -41,9 +41,9 @@ flowchart TD
   resolver --> strategy[GraphResolutionStrategy]
   strategy --> expand[Expansion policies]
   strategy --> islandPolicies[Island policies]
-  expand --> route[Route by ARI type to a source family]
-  route --> batch[Chunk to batchSize, throttle to concurrency]
-  batch --> sources[DataSource load]
+  expand --> route[Route ARI to first matching source]
+  route --> batch[Chunk each source queue to batchSize, throttle to concurrency]
+  batch --> sources[DataSource load batch]
   sources --> contentMap[ContentMap]
   resolver --> islands[IslandMap]
   resolver --> deps[IslandDependencyMap]
@@ -207,11 +207,11 @@ When several sources can handle the same ARI `type`, the **first** match in `sou
 
 Because the resolver owns chunking, a batch always starts while work is pending and concurrency allows. So there is no ambiguous “no progress” state, and exactly three things can go wrong:
 
-| Situation                                    | `"throw"`                 | `"collect"`                                                |
-| -------------------------------------------- | ------------------------- | ---------------------------------------------------------- |
-| A source omitted a requested ARI             | `MissingResourceError`    | Error entry attributed to every island that reached it     |
-| No source's `for` list matches the ARI          | `NoDataSourceError`       | Error entry (this is a wiring bug, not missing data)       |
-| A source's `load` rejected                   | `ResourceLoadFailedError` | Error entries for that batch; other sources keep resolving |
+| Situation                              | `"throw"`                 | `"collect"`                                                |
+| -------------------------------------- | ------------------------- | ---------------------------------------------------------- |
+| A source omitted a requested ARI       | `MissingResourceError`    | Error entry attributed to every island that reached it     |
+| No source's `for` list matches the ARI | `NoDataSourceError`       | Error entry (this is a wiring bug, not missing data)       |
+| A source's `load` rejected             | `ResourceLoadFailedError` | Error entries for that batch; other sources keep resolving |
 
 All of them extend `ResourceGraphError`. `ResourceLoadFailedError` carries `sourceId`, `resourceKeys` and the original rejection as `cause`.
 
@@ -229,8 +229,8 @@ Pass an optional `observer` to trace batches, expansions and promotions without 
 
 ```ts
 const observer: ResolutionObserver = {
-  onBatchStart: ({ sourceId, batchNumber, resourceCount }) => {
-    /* … */
+  onBatchStart: ({ sourceId, batchNumber, resources, resourceCount }) => {
+    /* resources is the flat batch handed to load */
   },
   onBatchEnd: ({ sourceId, durationMs, resolvedCount }) => {
     /* … */

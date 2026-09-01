@@ -700,7 +700,7 @@ Integration API
     └── prices
 ```
 
-The resolver therefore works against a common data-resolution boundary: a **source**. Each source declares which resources it owns and how to load them.
+The resolver therefore works against a common data-resolution boundary: a **source** (one transport channel). Each source declares which ARI types it handles and how to load one batch.
 
 Conceptually:
 
@@ -751,7 +751,7 @@ const resolver = createResourceGraphResolver({
 
 Note what each side owns. The CMS accepts a hundred ids in one `sys.id[in]` call; the product API accepts one SKU per call but tolerates four calls at a time. Neither of those facts is known to the resolver — they are declared by the source that has to live with them, in the units its vendor documentation uses.
 
-What the resolver does with those declarations is route each pending ARI to the source that owns it, cut the pending set into batches no larger than the declared size, and keep no more than the declared number of requests open per backend. What a source does inside `load` — one HTTP request, three, a GraphQL operation, a database query — stays entirely its own business.
+What the resolver does with those declarations is route each pending ARI to the **first** source whose channel handles it, cut that source's queue into batches no larger than the declared size, and keep no more than the declared number of requests open per channel. What a source does inside `load` — one HTTP request, a GraphQL operation, a database query — is one transport call per batch; the resolver does not co-pack families or fan out with `Promise.all` on your behalf.
 
 This is what allows infrastructure to change without rewriting the graph algorithm. Adding a third backend is adding a third element to an array.
 
@@ -779,7 +779,7 @@ The CMS source receives the CMS resources:
 "cms.asset":[{"id":"C","locale":"en-GB"}]
 ```
 
-and issues one suitable request.
+and issues one transport call for the whole batch — entries and assets together.
 
 The integration source independently receives:
 
@@ -801,9 +801,9 @@ The resolver doesn't need to know whether those became:
 
 That is deliberately hidden behind the source.
 
-It is worth being precise about who decides what here, because it is easy to get backwards. My first version let each adapter reach into the pending set and pull out whatever it wanted, which sounds like maximum flexibility. In practice every adapter re-implemented the same two loops — filter the resources I own, slice off as many as my vendor allows — and each one had its own opportunity to get that wrong.
+It is worth being precise about who decides what here, because it is easy to get backwards. My first version let each adapter reach into the pending set and pull out whatever it wanted, which sounds like maximum flexibility. A later shape grouped work by family and encouraged parallel fetches inside `load` — scheduling logic dressed up as transport. In practice every adapter re-implemented the same two loops — filter the resources I own, slice off as many as my vendor allows — and each one had its own opportunity to get that wrong.
 
-Batch size is not really a decision. It is a **fact about a backend**: Contentful accepts a hundred ids per call, the product API accepts one. Facts should be declared once, not re-derived by imperative code on every round. So a source states its limits, and the resolver — which is the only party that can see the whole pending set anyway — does the filtering, the slicing and the throttling.
+Batch size is not really a decision. It is a **fact about a backend**: Contentful accepts a hundred ids per call, the product API accepts one. Facts should be declared once, not re-derived by imperative code on every round. So a source states its limits on one queue, and the resolver — which is the only party that can see the whole pending set anyway — does the routing, the slicing and the throttling.
 
 That keeps vendor-specific limits where they belong, and keeps the scheduling logic in the one place that has the information to schedule.
 
