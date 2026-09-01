@@ -581,7 +581,7 @@ The engine itself must not contain rules such as:
 
 That would turn a generic graph walker into a product-specific piece of code.
 
-Instead, the application/infrastructure integration supplies a **graph resolution strategy**: expansion rules discover child resources; island rules declare which resolved nodes open a new island boundary. Both live in one `GraphResolutionStrategy` you author with `createGraphResolutionStrategy()`.
+Instead, a **graph resolution strategy** is provided. **Expansion** rules describe how the graph grows: for each resolved node they name the resource identities that must appear next — no imperative fetching, only declarations the engine can schedule. **Island** rules are optional; they mark where the walk should carve the graph into smaller, self-contained slices — useful when you want cache boundaries without baking invalidation into the resolver itself.
 
 Conceptually:
 
