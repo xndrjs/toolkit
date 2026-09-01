@@ -106,23 +106,44 @@ Do **not** intersect with `ContentRegistry` itself (`{ ... } & ContentRegistry`)
 
 ## DataSource
 
-A **source** is one backend **transport channel**. It declares which ARI types it handles (`for`), the channel's batch limit, how many requests it tolerates in parallel, and how to fetch one batch:
+A **source** is one backend **transport channel**. It declares which ARI types it handles (`for`), the channel's batch limit, how many requests it tolerates in parallel, and how to fetch one batch.
+
+With **Contentful Delivery**, entries and assets travel on separate endpoints, so they are usually **two sources**:
 
 ```ts
 import { defineDataSourceFor } from "@xndrjs/resource-graph-resolver";
 
 const defineSource = defineDataSourceFor<DemoContentRegistry, DemoExecutionContext>();
 
+export const cmsEntrySource = defineSource({
+  id: "cms-entries",
+  for: [cmsEntryAri],
+  batchSize: 50, // ids per GET /entries — your client chunk size, not a resolver default
+  load: (batch, { signal }) => deliveryClient.getEntries({ "sys.id[in]": idsFrom(batch), signal }),
+});
+
+export const cmsAssetSource = defineSource({
+  id: "cms-assets",
+  for: [cmsAssetAri],
+  batchSize: 50,
+  load: (batch, { signal }) => deliveryClient.getAssets({ "sys.id[in]": idsFrom(batch), signal }),
+});
+```
+
+If a CMS exposed one batch API for mixed types, a single source is enough:
+
+```ts
 export const cmsSource = defineSource({
   id: "cms",
   for: [cmsEntryAri, cmsAssetAri],
   batchSize: 100,
   async load(batch, { signal }) {
-    // batch: readonly (CmsEntryResource | CmsAssetResource)[]
-    return contentfulDelivery.fetchBatch(batch, { signal });
+    return cmsClient.fetchBatch(batch, { signal });
   },
 });
 ```
+
+The demo app uses this second shape: Contentful-shaped payloads, but one in-memory channel for the workshop.
 
 The definer is curried (`defineDataSourceFor<R, Ctx>()` then the config) because TypeScript has no partial type-argument inference: currying keeps `for` inferred while the registry stays explicit.
 
@@ -167,7 +188,7 @@ import {
 } from "@xndrjs/resource-graph-resolver";
 
 const resolver = createResourceGraphResolver<DemoContentRegistry, DemoExecutionContext>({
-  sources: [cmsSource, integrationSource],
+  sources: [cmsEntrySource, cmsAssetSource, integrationSource],
   strategy: createDemoStrategy(),
   schedulingMode: "lane", // or "barrier"
   observer, // optional

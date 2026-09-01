@@ -709,26 +709,33 @@ Conceptually:
                           │
                  current frontier
                           │
-             ┌────────────┴────────────┐
-             ▼                         ▼
-        Contentful source       Integration source
-             │                         │
-             ▼                         ▼
-          CMS batch                Product batch
+        ┌─────────────────┼─────────────────┐
+        ▼                 ▼                 ▼
+   CMS entries       CMS assets      Integration
+        │                 │                 │
+        ▼                 ▼                 ▼
+   /entries batch    /assets batch    Product batch
 ```
 
-Concretely, a source is a small declaration: the ARI types its transport channel handles, the batch limit its backend imposes, how many requests that backend tolerates in parallel, and a function that loads one batch.
+Concretely, a source is a small declaration: the ARI types its transport channel handles, the batch limit its channel imposes, how many requests that channel tolerates in parallel, and a function that loads one batch.
+
+With **Contentful Delivery**, entries and assets are different endpoints (`GET /entries` vs `GET /assets`), so they are naturally **two sources** — two transport channels, two queues, two `batchSize` values:
 
 ```typescript
 const defineSource = defineDataSourceFor<AppContentRegistry, ExecutionContext>();
 
-const cmsSource = defineSource({
-  id: "cms",
-  for: [cmsEntryAri, cmsAssetAri],
-  batchSize: 100,
-  async load(batch, { signal }) {
-    return contentfulDelivery.fetchBatch(batch, { signal });
-  },
+const cmsEntrySource = defineSource({
+  id: "cms-entries",
+  for: [cmsEntryAri],
+  batchSize: 50, // how many sys.id values you put in one /entries request — your client limit
+  load: (batch, { signal }) => deliveryClient.getEntries({ "sys.id[in]": idsFrom(batch), signal }),
+});
+
+const cmsAssetSource = defineSource({
+  id: "cms-assets",
+  for: [cmsAssetAri],
+  batchSize: 50,
+  load: (batch, { signal }) => deliveryClient.getAssets({ "sys.id[in]": idsFrom(batch), signal }),
 });
 
 const productSource = defineSource({
@@ -740,18 +747,20 @@ const productSource = defineSource({
 });
 ```
 
-Composing two (or more) backends is then just listing them as data sources on a resolver:
+Composing backends is then listing every channel on the resolver:
 
 ```typescript
 const resolver = createResourceGraphResolver({
-  sources: [cmsSource, productSource],
+  sources: [cmsEntrySource, cmsAssetSource, productSource],
   strategy: pageStrategy,
 });
 ```
 
-Note what each side owns. The CMS accepts a hundred ids in one `sys.id[in]` call; the product API accepts one SKU per call but tolerates four calls at a time. Neither of those facts is known to the resolver — they are declared by the source that has to live with them, in the units its vendor documentation uses.
+If your CMS exposed **one** batch API that accepted mixed entry and asset ids, you would declare a single source with `for: [cmsEntryAri, cmsAssetAri]` and one `load(batch)` — one transport call per batch. Our [demo application](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) does exactly that: Contentful-shaped fixtures, but a toy in-memory store with no separate HTTP endpoints, so one `cms` source is enough for the workshop.
 
-What the resolver does with those declarations is route each pending ARI to the **first** source whose channel handles it, cut that source's queue into batches no larger than the declared size, and keep no more than the declared number of requests open per channel. What a source does inside `load` — one HTTP request, a GraphQL operation, a database query — is one transport call per batch; the resolver does not co-pack families or fan out with `Promise.all` on your behalf.
+Note what each side owns. The product API in this example accepts one SKU per call but tolerates four in parallel. Each CMS source declares how many ids it will pack into one Delivery request — a limit **you** choose when building the client (chunk size, query complexity, timeouts), not a number the resolver guesses. The resolver only sees declared `batchSize` and `concurrency`; it does not know whether `load` becomes one HTTP call, a SDK wrapper, or something else.
+
+What the resolver does with those declarations is route each pending ARI to the **first** source whose channel handles it, cut that source's queue into batches no larger than the declared size, and keep no more than the declared number of requests open per channel. Each `load` is one transport call for **that channel's** batch — the resolver does not co-pack unrelated endpoints or fan out with `Promise.all` on your behalf.
 
 This is what allows infrastructure to change without rewriting the graph algorithm. Adding a third backend is adding a third element to an array.
 
@@ -771,15 +780,22 @@ Suppose the frontier contains:
 "integration.product":[{"locale":"en-GB","sku":"Y"}]
 ```
 
-The CMS source receives the CMS resources:
+The entry source receives:
 
 ```text
 "cms.entry":[{"id":"A","locale":"en-GB"}]
 "cms.entry":[{"id":"B","locale":"en-GB"}]
+```
+
+and issues one `/entries` request (or as many as `batchSize` requires).
+
+The asset source independently receives:
+
+```text
 "cms.asset":[{"id":"C","locale":"en-GB"}]
 ```
 
-and issues one transport call for the whole batch — entries and assets together.
+and issues one `/assets` request.
 
 The integration source independently receives:
 
@@ -803,7 +819,7 @@ That is deliberately hidden behind the source.
 
 It is worth being precise about who decides what here, because it is easy to get backwards. My first version let each adapter reach into the pending set and pull out whatever it wanted, which sounds like maximum flexibility. A later shape grouped work by family and encouraged parallel fetches inside `load` — scheduling logic dressed up as transport. In practice every adapter re-implemented the same two loops — filter the resources I own, slice off as many as my vendor allows — and each one had its own opportunity to get that wrong.
 
-Batch size is not really a decision. It is a **fact about a backend**: Contentful accepts a hundred ids per call, the product API accepts one. Facts should be declared once, not re-derived by imperative code on every round. So a source states its limits on one queue, and the resolver — which is the only party that can see the whole pending set anyway — does the routing, the slicing and the throttling.
+Batch size is not really a decision. It is a **fact about your transport channel**: how many ARIs you dare put in one `/entries` query before complexity or payload size hurts you; how many SKUs the product API accepts per call. Those limits belong in the source declaration. The resolver — the only party that can see each channel's pending queue — does the routing, the slicing and the throttling.
 
 That keeps vendor-specific limits where they belong, and keeps the scheduling logic in the one place that has the information to schedule.
 
@@ -1141,10 +1157,11 @@ Give them stable unique identifiers.
 
 ### 2. Sources
 
-Who knows how to retrieve each resource, and under which limits?
+Who knows how to retrieve each resource, and under which limits? Often **one transport channel per endpoint** (Contentful `/entries` and `/assets` are separate):
 
 ```text
-CMS source
+CMS entry source
+CMS asset source
 Product API source
 News source
 ```
@@ -1250,7 +1267,7 @@ You can make the graph explicit, give resources stable identities, separate grap
 
 That's what [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) is for.
 
-The [demo application](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) shows one possible wiring using Contentful-shaped fixtures, an integration catalog, two sources with deliberately opposite batching shapes, a graph resolution strategy, and a Next.js consumer.
+The [demo application](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) shows one possible wiring using Contentful-shaped fixtures, an integration catalog, a single toy CMS channel (entries and assets merged), a product source with the opposite batching shape, a graph resolution strategy, and a Next.js consumer.
 
 It is intentionally small, as it is a workshop for the resolution model, not a production architecture.
 
