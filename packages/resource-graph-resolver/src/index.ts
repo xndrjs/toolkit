@@ -20,6 +20,7 @@ export {
 export {
   createGraphResolutionStrategy,
   type GraphResolutionStrategy,
+  type GraphResolutionStrategyBuilder,
 } from "./strategy/create-graph-resolution-strategy";
 export type { ExpansionContext, ExpansionResult } from "./ports/expansion-port";
 export type { IslandContext, IslandResult } from "./ports/island-port";

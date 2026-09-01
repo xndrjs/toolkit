@@ -27,6 +27,15 @@ export interface GraphResolutionStrategy<
   readonly islands: IslandPort<R, TExecutionContext>;
 }
 
+export interface GraphResolutionStrategyBuilder<
+  R extends ContentRegistry = ContentRegistry,
+  TExecutionContext = unknown,
+> {
+  readonly expansion: ExpansionActions<R, TExecutionContext>;
+  readonly islands: IslandActions<R, TExecutionContext>;
+  build(): GraphResolutionStrategy<R, TExecutionContext>;
+}
+
 class ExpansionClauseBuilder<
   R extends ContentRegistry,
   TExecutionContext,
@@ -35,7 +44,8 @@ class ExpansionClauseBuilder<
   private whenPredicate?: (context: ExpansionContext<R, TExecutionContext, Resource>) => boolean;
 
   constructor(
-    private readonly strategy: StrategyBuilder<R, TExecutionContext>,
+    private readonly registerPolicy: (policy: ExpansionPolicy<R, TExecutionContext>) => void,
+    private readonly getBuilder: () => GraphResolutionStrategyBuilder<R, TExecutionContext>,
     private readonly forResource: ExpansionResourceFor<Resource>
   ) {}
 
@@ -46,8 +56,8 @@ class ExpansionClauseBuilder<
 
   expand(
     expand: (context: ExpansionContext<R, TExecutionContext, Resource>) => ExpansionResult
-  ): StrategyBuilder<R, TExecutionContext> {
-    this.strategy.addExpansionPolicy(
+  ): GraphResolutionStrategyBuilder<R, TExecutionContext> {
+    this.registerPolicy(
       defineExpansionPolicy({
         for: this.forResource,
         ...(this.whenPredicate === undefined ? {} : { when: this.whenPredicate }),
@@ -55,7 +65,7 @@ class ExpansionClauseBuilder<
       })
     );
 
-    return this.strategy;
+    return this.getBuilder();
   }
 }
 
@@ -67,7 +77,8 @@ class IslandClauseBuilder<
   private whenPredicate?: (context: IslandContext<R, TExecutionContext, Resource>) => boolean;
 
   constructor(
-    private readonly strategy: StrategyBuilder<R, TExecutionContext>,
+    private readonly registerPolicy: (policy: IslandPolicy<R, TExecutionContext>) => void,
+    private readonly getBuilder: () => GraphResolutionStrategyBuilder<R, TExecutionContext>,
     private readonly forResource: ExpansionResourceFor<Resource>
   ) {}
 
@@ -80,10 +91,10 @@ class IslandClauseBuilder<
     boundary:
       | IslandBoundary
       | ((context: IslandContext<R, TExecutionContext, Resource>) => IslandBoundary) = true
-  ): StrategyBuilder<R, TExecutionContext> {
+  ): GraphResolutionStrategyBuilder<R, TExecutionContext> {
     const resolveBoundary = typeof boundary === "function" ? boundary : () => boundary;
 
-    this.strategy.addIslandPolicy(
+    this.registerPolicy(
       defineIslandPolicy({
         for: this.forResource,
         ...(this.whenPredicate === undefined ? {} : { when: this.whenPredicate }),
@@ -91,50 +102,33 @@ class IslandClauseBuilder<
       })
     );
 
-    return this.strategy;
+    return this.getBuilder();
   }
 }
 
 class ExpansionActions<R extends ContentRegistry, TExecutionContext> {
-  constructor(private readonly strategy: StrategyBuilder<R, TExecutionContext>) {}
+  constructor(
+    private readonly registerPolicy: (policy: ExpansionPolicy<R, TExecutionContext>) => void,
+    private readonly getBuilder: () => GraphResolutionStrategyBuilder<R, TExecutionContext>
+  ) {}
 
   on<Resource extends ApplicationResourceIdentifier>(
     forResource: ExpansionResourceFor<Resource>
   ): ExpansionClauseBuilder<R, TExecutionContext, Resource> {
-    return new ExpansionClauseBuilder(this.strategy, forResource);
+    return new ExpansionClauseBuilder(this.registerPolicy, this.getBuilder, forResource);
   }
 }
 
 class IslandActions<R extends ContentRegistry, TExecutionContext> {
-  constructor(private readonly strategy: StrategyBuilder<R, TExecutionContext>) {}
+  constructor(
+    private readonly registerPolicy: (policy: IslandPolicy<R, TExecutionContext>) => void,
+    private readonly getBuilder: () => GraphResolutionStrategyBuilder<R, TExecutionContext>
+  ) {}
 
   on<Resource extends ApplicationResourceIdentifier>(
     forResource: ExpansionResourceFor<Resource>
   ): IslandClauseBuilder<R, TExecutionContext, Resource> {
-    return new IslandClauseBuilder(this.strategy, forResource);
-  }
-}
-
-class StrategyBuilder<R extends ContentRegistry, TExecutionContext> {
-  private readonly expansionPolicies: ExpansionPolicy<R, TExecutionContext>[] = [];
-  private readonly islandPolicies: IslandPolicy<R, TExecutionContext>[] = [];
-
-  readonly expansion = new ExpansionActions(this);
-  readonly islands = new IslandActions(this);
-
-  addExpansionPolicy(policy: ExpansionPolicy<R, TExecutionContext>): void {
-    this.expansionPolicies.push(policy);
-  }
-
-  addIslandPolicy(policy: IslandPolicy<R, TExecutionContext>): void {
-    this.islandPolicies.push(policy);
-  }
-
-  build(): GraphResolutionStrategy<R, TExecutionContext> {
-    return {
-      expansion: createExpansionPolicyChain(this.expansionPolicies),
-      islands: createIslandPolicyChain(this.islandPolicies),
-    };
+    return new IslandClauseBuilder(this.registerPolicy, this.getBuilder, forResource);
   }
 }
 
@@ -145,6 +139,32 @@ class StrategyBuilder<R extends ContentRegistry, TExecutionContext> {
 export function createGraphResolutionStrategy<
   TExecutionContext = unknown,
   R extends ContentRegistry = ContentRegistry,
->(): StrategyBuilder<R, TExecutionContext> {
-  return new StrategyBuilder<R, TExecutionContext>();
+>(): GraphResolutionStrategyBuilder<R, TExecutionContext> {
+  const expansionPolicies: ExpansionPolicy<R, TExecutionContext>[] = [];
+  const islandPolicies: IslandPolicy<R, TExecutionContext>[] = [];
+
+  const owner = {} as GraphResolutionStrategyBuilder<R, TExecutionContext>;
+
+  Object.assign(owner, {
+    expansion: new ExpansionActions(
+      (policy) => {
+        expansionPolicies.push(policy);
+      },
+      () => owner
+    ),
+    islands: new IslandActions(
+      (policy) => {
+        islandPolicies.push(policy);
+      },
+      () => owner
+    ),
+    build() {
+      return {
+        expansion: createExpansionPolicyChain(expansionPolicies),
+        islands: createIslandPolicyChain(islandPolicies),
+      };
+    },
+  } satisfies GraphResolutionStrategyBuilder<R, TExecutionContext>);
+
+  return owner;
 }
