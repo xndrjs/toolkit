@@ -84,7 +84,7 @@ function expandForContentType(
     : expandLinksFromGeneratedMetadata(contentTypeId, entry, locale);
 }
 
-/** ExpansionPort: first matching policy wins; policies authored with `for` / optional `when` / `expand`. */
+/** ExpansionPort: merges every matching policy; policies authored with `for` / optional `when` / `expand`. */
 export function createDemoExpansionPort(): ExpansionPort<
   DemoContentRegistry,
   DemoExecutionContext

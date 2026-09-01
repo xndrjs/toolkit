@@ -47,7 +47,8 @@ export interface ExpansionPort<
 }
 
 /**
- * Chain-erased policy: `matches` is a boolean gate (first match wins); `expand` runs only when matched.
+ * Chain-erased policy: `matches` is a boolean gate; every matching policy may
+ * contribute children when composed with {@link createExpansionPolicyChain}.
  * Both receive the same {@link ExpansionContext}, including {@link ExpansionContext.executionContext}.
  * Prefer {@link defineExpansionPolicy} at authoring time so `expand` receives a narrowed resource.
  */
@@ -96,7 +97,8 @@ export function defineExpansionPolicy<
 const EMPTY_EXPANSION: ExpansionResult = { resources: [] };
 
 /**
- * Builds an {@link ExpansionPort} that applies the first matching policy.
+ * Builds an {@link ExpansionPort} that merges every matching policy.
+ * Children are concatenated in policy order and deduplicated by `resource.toString()`.
  * When no policy matches, returns `{ resources: [] }`.
  */
 export function createExpansionPolicyChain<
@@ -105,13 +107,26 @@ export function createExpansionPolicyChain<
 >(policies: readonly ExpansionPolicy<R, TExecutionContext>[]): ExpansionPort<R, TExecutionContext> {
   return {
     expand(context) {
+      const merged: ApplicationResourceIdentifier[] = [];
+      const seen = new Set<string>();
+
       for (const policy of policies) {
-        if (policy.matches(context)) {
-          return policy.expand(context);
+        if (!policy.matches(context)) {
+          continue;
+        }
+
+        for (const resource of policy.expand(context).resources) {
+          const key = resource.toString();
+          if (seen.has(key)) {
+            continue;
+          }
+
+          seen.add(key);
+          merged.push(resource);
         }
       }
 
-      return EMPTY_EXPANSION;
+      return merged.length === 0 ? EMPTY_EXPANSION : { resources: merged };
     },
   };
 }

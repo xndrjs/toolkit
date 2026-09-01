@@ -252,7 +252,7 @@ Expansion discovers **child ARIs** for an already-resolved resource. Island boun
 
 **Expansion = current resource + its own payload + execution context.** A policy cannot look up other nodes in a shared map, cannot see the island it was reached from, and must not depend on which peers happened to land in the same batch. That constraint is what keeps expansion deterministic: the edges of the graph depend on content, not on traversal order or batch sizes.
 
-Author policies with `defineExpansionPolicy` and chain them with `createExpansionPolicyChain` (first match wins):
+Author policies with `defineExpansionPolicy` and combine them with `createExpansionPolicyChain` (every matching policy contributes children; duplicates are removed by resource key):
 
 ```ts
 import { createExpansionPolicyChain, defineExpansionPolicy } from "@xndrjs/resource-graph-resolver";
