@@ -37,23 +37,43 @@ function createMenuContext(
 }
 
 describe("createExpansionPolicyChain", () => {
-  it("applies the first matching policy", () => {
+  it("merges all matching policies", () => {
     const menuChild = testAri("item", "1");
+    const fallback = testAri("fallback", "X");
     const first: ExpansionPolicy = {
       matches: ({ resource }) => resource.type === "menu",
       expand: () => ({ resources: [menuChild] }),
     };
     const second: ExpansionPolicy = {
       matches: () => true,
-      expand: () => ({ resources: [testAri("fallback", "X")] }),
+      expand: () => ({ resources: [fallback] }),
     };
     const expandSpy = vi.spyOn(second, "expand");
 
     const port = createExpansionPolicyChain([first, second]);
     const result = port.expand(createContext(testAri("menu", "M")));
 
-    expect(result).toEqual({ resources: [menuChild] });
-    expect(expandSpy).not.toHaveBeenCalled();
+    expect(result).toEqual({ resources: [menuChild, fallback] });
+    expect(expandSpy).toHaveBeenCalledOnce();
+  });
+
+  it("deduplicates children by resource key, keeping the first occurrence", () => {
+    const shared = testAri("item", "1");
+    const unique = testAri("item", "2");
+    const third = testAri("item", "3");
+
+    const port = createExpansionPolicyChain([
+      {
+        matches: () => true,
+        expand: () => ({ resources: [shared, unique] }),
+      },
+      {
+        matches: () => true,
+        expand: () => ({ resources: [shared, third] }),
+      },
+    ]);
+
+    expect(port.expand(createContext())).toEqual({ resources: [shared, unique, third] });
   });
 
   it("skips non-matching policies", () => {
