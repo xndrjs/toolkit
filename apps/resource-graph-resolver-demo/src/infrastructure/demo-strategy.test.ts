@@ -29,7 +29,7 @@ import {
   type DemoExecutionContext,
 } from "./demo-execution-context.js";
 import { createDemoResolver } from "./demo-resolver.js";
-import { createDemoStrategy } from "./expansion-policies.js";
+import { createDemoStrategy } from "./demo-strategy.js";
 import { integrationProductAri, tshirtIntegrationAri } from "./integration/index.js";
 import type { IntegrationProductResource } from "./integration/ari.js";
 
