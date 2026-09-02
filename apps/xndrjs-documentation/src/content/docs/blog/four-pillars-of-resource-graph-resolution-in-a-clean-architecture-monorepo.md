@@ -1,6 +1,6 @@
 ---
 title: "The four pillars of resource graph resolution in a Clean Architecture monorepo"
-description: Where resources, data sources, graph strategy, and domain mapping belong in a governed Clean Architecture monorepo.
+description: Where resource identities, data sources, graph strategy, and domain mapping belong in a governed Clean Architecture monorepo.
 date: 2026-09-02
 author: Fabio Fognani
 tags:
@@ -48,7 +48,7 @@ The resolver library implements the walk. The monorepo decides **who owns each p
 
 <!-- TODO: refine — ARIs vs resources; infrastructure vocabulary, not domain IDs -->
 
-When you build a domain aggregate through graph resolution, the walk does not start from domain entities. It starts from **resource identities**: typed addresses for infrastructure resources that backends already expose — CMS entries and assets, integration snapshots, database records, REST or GraphQL responses, and similar pieces of data.
+When you build a domain aggregate through graph resolution, the walk starts from **resource identities**: typed addresses for infrastructure resources that backends already expose — CMS entries and assets, integration snapshots, database records, REST or GraphQL responses, and similar pieces of data.
 
 The **resource** is the payload itself. The **identity** is how the graph names and addresses it — typically an Application Resource Identifier (ARI). Confusing the two is how discussions slip into “everything is a resource” without saying whether we mean the data or the handle.
 
