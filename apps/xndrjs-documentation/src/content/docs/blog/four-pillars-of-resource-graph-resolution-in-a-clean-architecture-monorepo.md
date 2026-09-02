@@ -29,7 +29,7 @@ Here we only connect the two: **how the four pillars map into a governed monorep
 
 ---
 
-## Four pillars, one walk
+## The four pillars
 
 <!-- TODO: refine — one paragraph per pillar, no API names -->
 
