@@ -1,6 +1,6 @@
 ---
-title: "Where resource graphs live in a Clean Architecture monorepo"
-description: After the resolution engine comes the harder question — where each pillar belongs in a governed monorepo, what stays infrastructure, and why graph strategy is a repository invariant rather than composition wiring.
+title: "The four pillars of resource graph resolution in a Clean Architecture monorepo"
+description: Where resources, sources, graph strategy, and domain mapping belong in a governed monorepo — and why graph topology is an infrastructure invariant, not composition wiring.
 date: 2026-09-02
 author: Fabio Fognani
 tags:
