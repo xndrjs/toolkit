@@ -1,6 +1,6 @@
 ---
 title: "The four pillars of resource graph resolution in a Clean Architecture monorepo"
-description: Where resource identities, data sources, graph strategy, and domain mapping belong in a governed Clean Architecture monorepo.
+description: Where resource identities, data sources, graph strategies, and domain mapping belong when resolving complex aggregates across multiple backends.
 date: 2026-09-02
 author: Fabio Fognani
 tags:
@@ -11,179 +11,816 @@ tags:
   - typescript
 ---
 
-The previous post on [resource graph resolution](/blog/every-component-fetches-its-own-data-until-it-cant/) was about how to resolve complex domain aggregates across multiple backends, via a unified resource graph resolver.
+In the previous post, I started from a deceptively simple problem:
 
-Once you accept that model, the next question is: **where in the repository should resource identities, data sources, mappers, and the rest live — while still respecting Clean Architecture on a complex project?**
+> What happens when a component tree stops being a good place to resolve the data it needs?
 
-The answer I use in production-shaped workspaces built from the [xndrjs monorepo template](https://github.com/xndrjs/monorepo) rests on four pillars. They are the same four ideas sketched at the end of the earlier article; here we treat them as **architectural commitments** with a home in the file tree.
+For a small application, letting components fetch their own data is often perfectly reasonable.
+
+For a large CMS-driven application, it eventually becomes something else: a distributed graph resolution process hidden inside the rendering tree.
+
+The solution I described was to make that graph explicit and resolve it independently from rendering.
+
+That gives us a generic [resource graph resolver](/blog/every-component-fetches-its-own-data-until-it-cant/): start from a root resource, discover its dependencies, route them to the appropriate data sources, batch what can be batched, and continue until the graph is resolved.
+
+But solving the graph traversal problem raises a second question:
+
+> Where does all the knowledge required to resolve that graph actually belong?
+
+A real application may have:
+
+- Contentful entries and assets;
+- product data from an integration API;
+- news from another service;
+- several locales;
+- different batching and concurrency constraints;
+- a domain model that looks nothing like any of those APIs.
+
+The resolver can orchestrate the work, but it should not own that knowledge.
+
+Something has to define the resources. Something has to know how to load them. Something has to describe how they relate to one another. And something has to turn the resulting infrastructure graph into the domain aggregate the application actually wants.
+
+Those are four different responsibilities.
+
+The interesting architectural question is therefore not merely what they are, but who owns each one.
 
 ---
 
-## What this post does not repeat
+## From graph traversal to architectural boundaries
 
-<!-- TODO: refine — keep short, link out -->
+Suppose an application needs to resolve a localized page.
 
-Scheduling modes, island semantics, and the DataSource contract belong in the [resource graph resolver guide](/v0/infrastructure/resource-graph-resolver/). Domain algebra and package boundaries belong in the [Clean Architecture monorepo template](/blog/clean-architecture-monorepo-template/) post.
+At the domain level, it wants something simple:
 
-Here we only connect the two: **how the four pillars map into a governed monorepo**, and why strategy and mapping belong together in a **repository package** — not in composition.
+```text
+Page
+├── title
+├── hero
+├── modules
+│   ├── editorial content
+│   ├── products
+│   └── promotions
+└── footer
+```
+
+But that object may actually be assembled from several systems:
+
+```text
+Contentful
+├── page
+├── modules
+└── assets
+
+Product API
+├── products
+└── prices
+
+News API
+└── articles
+```
+
+The domain should not have to know any of this.
+
+The UI certainly should not have to know any of this.
+
+But the infrastructure does.
+
+So we need to answer four questions:
+
+1. What are the things in this graph?
+2. Who can load each thing?
+3. How do things reveal other things?
+4. How does the resolved graph become a domain object?
+
+These questions give us the four pillars.
 
 ---
 
 ## The four pillars
 
-<!-- TODO: refine — one paragraph per pillar, no API names -->
+Think of aggregate resolution as four separable decisions.
 
-Think of an aggregate resolution as four separable decisions:
+### 1. Resource identities
 
-1. **Resource identities** — stable addresses for the infrastructure resources that participate in the graph.
-2. **Data sources** — which transport channels know how to load which identities, under which batching and concurrency limits.
-3. **Graph resolution strategy** — how a resolved node reveals further identities, and how the complete graph should be split for caching purposes.
-4. **Mapping** — how the resolved infrastructure graph becomes the model the application actually reasons about.
+What things can participate in the graph?
 
-The resolver library implements the walk. The monorepo decides **who owns each pillar** and **which layer may import which**.
+Resource identities give infrastructure resources a stable, typed address.
 
----
+An identity might represent a CMS entry, a CMS asset, a product, a news item, or any other resource that can be addressed and resolved.
 
-## Pillar 1 — Resource identities
+The payload is the resource itself.
 
-<!-- TODO: refine — ARIs vs resources; infrastructure vocabulary, not domain IDs -->
+The identity — typically an Application Resource Identifier (ARI) — is how the graph refers to it.
 
-When you build a domain aggregate through graph resolution, the walk starts from **resource identities**: typed addresses for infrastructure resources that backends already expose — CMS entries and assets, integration snapshots, database records, REST or GraphQL responses, and similar pieces of data.
+The important distinction is that these are infrastructure resources, not domain objects.
 
-The **resource** is the payload itself. The **identity** is how the graph names and addresses it — typically an Application Resource Identifier (ARI).
+A product API may expose a product by SKU. A CMS may expose an entry by ID and locale. Those identities describe how the infrastructure addresses things.
 
-In a Clean Architecture workspace those identities live at the **outer, vendor-facing edge**: declared next to the adapters that understand those backends, not inside core packages. Apps should use a **domain aggregate** — the result of a use case — not a partial vendor-specific payload and the knowledge of how to walk the graph to reconstruct that aggregate themselves.
+The domain can later decide that several of those resources together constitute a Product, Page, or some other aggregate.
 
-The point is separation of vocabulary. Infrastructure speaks in resource identities and payloads; domain speaks in business concepts. Conflating the two is how “fetch the hero” ends up inside a React hook, forcing you to rewrite your components when the CMS changes.
+This keeps infrastructure vocabulary separate from domain vocabulary.
 
 ---
 
-## Pillar 2 — Data sources (transport channels)
+### 2. Loaders
 
-<!-- TODO: refine — one channel per endpoint, limits as facts, thin loaders -->
+How can a resource be loaded from its vendor?
 
-A **data source** is one transport channel: the identities it accepts, how large a batch it tolerates, how many batches it runs in parallel, and the function that performs one load.
+A loader is the vendor-specific mechanism that knows how to communicate with an external system and turn its response into typed infrastructure resources.
 
-Real CMS integrations often need **more than one data source per vendor** — entries and assets on separate HTTP surfaces are the common case. The resolver routes each pending identity to the first matching channel.
+It knows things such as:
 
-Data sources belong in **infrastructure packages** alongside the client that actually talks to the vendor. They fetch and correlate; they do not encode product rules about what an aggregate “is”. Retry, backoff, and vendor-specific query shaping stay inside the channel, where they can evolve without touching core.
+- how to authenticate with the vendor;
+- which API or SDK to call;
+- how to encode resource identities into vendor requests;
+- how to decode and validate vendor responses;
+- how to translate vendor errors into the loader’s contract.
 
----
+A loader is feature-agnostic.
 
-## Pillar 3 — Graph resolution strategy (topology)
+A Contentful loader should not know whether an entry is being loaded for a page, a product detail view, or an editorial workflow.
 
-<!-- TODO: refine — repository package assembles; vendor packages may export expansion slices -->
+It only knows how to load the resource types supported by its vendor integration.
 
-The **graph resolution strategy** answers a different question from transport: _given this resolved payload, which identities must appear next — and how should the complete graph be split for caching purposes?_
+The loader is therefore where vendor protocol knowledge lives.
 
-That knowledge is shaped by your **content model and the contracts between systems**. A CMS module that carries a product SKU implies a link into the integration graph; a news reference may imply another backend. The strategy is where those cross-system relationships become explicit — not in React, not in a hook.
-
-This is not fully vendor-agnostic in practice. A change of CMS or integration vendor will almost certainly force you to revisit expansion rules: payload shapes, link metadata, and field names may not be totally interchangeable unless the resource graph looks exactly the same. The repository will tend to carry **some shared knowledge** across the services involved — and that is expected.
-
-Vendor infrastructure packages can still **externalize** the expansion knowledge they own: a Contentful package exports policies that know how its entries and assets link outward; an integration package exports policies for product references. The **repository package** starts from a product-level skeleton and **enriches** it with those vendor contributions — the same place that will later map the resolved graph into domain shapes.
-
-Strategy does **not** pass through composition. Mapping does not either: neither should be redefined from one runtime or app entrypoint to another — that is repository work, not composition-root work. Composition binds runtime; it does not redefine graph topology or how aggregates are projected into domain shapes.
+It does not know why the application needs the resource.
 
 ---
 
-## Pillar 4 — Mapping (into domain)
+### 3. Data sources
 
-<!-- TODO: refine — ContentMap as IR, repository package, cross-vendor by necessity -->
+Which loader should the resolver use, and under which operational constraints?
 
-The resolver’s output is an intermediate representation: a map of resolved resources and payloads, plus island membership and dependencies when you need them. That is still **infrastructure dialect**.
+A data source adapts one loader to the resource graph resolver.
 
-**Mapping** is the step that turns that graph into domain-trusted shapes — the aggregate your application exposes to UI and policies. Unlike expansion rules, which a vendor package can largely own for _its_ payloads, mapping **must** know how each vendor’s resolved data fits the aggregate you are building. A page mapper that hydrates a product strip cannot stay ignorant of the integration payload shape. Mapping inevitably **crosses vendor boundaries**.
+It declares which resource identities it accepts and configures how those resources should be loaded.
 
-That is why mapping lives in the **repository package** alongside the graph strategy — the module that owns “resolve this aggregate for this product” end to end. It does not belong in composition: it must not be redefined between runtimes or apps. Core stays free of CMS SDKs and free of graph-walking rules. Apps call a use case that delegates to the repository layer; they do not assemble partial payloads or rediscover graph edges themselves.
+It knows things such as:
 
----
+- which resource identities it accepts;
+- which loader performs the operation;
+- how many resources can be loaded in one batch;
+- how many batches can run concurrently;
+- which retry, timeout, or scheduling options apply.
 
-## Where each pillar lives in the monorepo
+A data source is vendor-specific and feature-agnostic.
 
-<!-- TODO: refine — table or prose mapping pillar → @infrastructure / @core / apps -->
+For example, a CMS integration may expose separate data sources for entries and assets because they use different endpoints, response shapes, or operational limits:
 
-| Pillar                    | Typical home                                                                 | Depends inward on                              |
-| ------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------- |
-| Resource identities       | Infrastructure packages (ARI factories + registry slices)                    | Application resource primitives only           |
-| Data sources              | Infrastructure adapters (one package per vendor or channel)                  | Resources, vendor clients                      |
-| Graph resolution strategy | Repository package (may import expansion/island slices from vendor packages) | Resources, link metadata, vendor graph modules |
-| Mapping                   | Repository package (same module as strategy — cross-vendor by necessity)     | Core domain shapes, resolver output            |
+```text
+Contentful entry data source
+Contentful asset data source
+```
 
-Apps and UI consume **use cases** that delegate to the repository package — not raw resolver types or vendor payloads scattered in components.
+Both can use vendor-specific loaders, but neither should know whether the resources are needed by a page, a campaign, or another feature.
 
----
+The resolver does not need to know any of those vendor details.
 
-## The repository package: strategy, resolve, map
+It simply has a collection of data sources and routes each pending resource to the matching one.
 
-<!-- TODO: refine — single ownership module, vendor slices imported -->
-
-In a production monorepo, the **repository package** is the home for aggregate resolution: it assembles the graph strategy (enriched from vendor packages where helpful), wires data sources into the resolver, and maps the resulting content graph into domain shapes.
-
-That module is rebuilt when backends or the content graph change. Runtime dependencies (which store, which credentials, which observer) still flow in through factories at the edge, but the **topology and the mapping** stay here. Keeping strategy and mapping together reflects a simple rule: anything that must understand the full multi-vendor graph belongs in one reviewed place, not split across composition roots and UI.
+The data source is therefore where loader configuration and vendor-specific transport capability meet the generic resolver.
 
 ---
 
-## Composition: runtime wiring only
+### 4. Graph resolution strategy
 
-<!-- TODO: refine — contrast with ports/adapters, what composition actually binds -->
+Once I have this resource, what do I need next?
 
-The composition root’s job remains what Clean Architecture always said: choose concrete implementations for ports, inject context, expose narrow façades to delivery mechanisms.
+This is where the application-specific knowledge of the graph lives.
 
-For resource graphs that means composition binds **runtime** — authenticated clients, environment, catalogs, optional observers — and hands delivery code a **use case** backed by the repository package. It does **not** assemble graph strategy or mappers. Those already encode how this product’s aggregates are resolved and projected; composition only decides _which instances_ run today.
+A strategy must understand both sides of the relationship it is expanding:
+
+- the vendor-specific shape of the resource;
+- the feature-specific need to resolve another resource in order to build part of an aggregate.
+
+A CMS module containing a product SKU creates a relationship with a product resource.
+
+A page containing modules creates relationships with those modules.
+
+A module containing an asset creates another relationship.
+
+To define those relationships, the strategy needs to know how the vendor represents fields, links, references, and identifiers.
+
+But it also needs to know why the feature requires those relationships.
+
+The strategy is therefore vendor-specific and feature-specific.
+
+It is not merely a generic description of links in a payload.
+
+It expresses the graph required by a particular feature, using the shapes and references exposed by particular vendors.
+
+The strategy describes the graph topology:
+
+> given this resource, under this context and these conditions, which other resources should be resolved?
+
+This is also where graph-specific caching boundaries can be described through islands.
+
+Expansion and islands are deliberately separate concepts.
+
+Expansion answers:
+
+> What else do I need?
+
+An island answers:
+
+> Which part of this graph should be treated as a coherent unit for caching and lifecycle purposes?
+
+Keeping them separate matters. A resource can participate in several expansion relationships without those relationships having to dictate its cache boundaries.
+
+The resolver owns the traversal mechanism.
+
+The strategy owns the knowledge of why the graph expands and how vendor resources expose those relationships.
 
 ---
 
-## End-to-end: one aggregate request
+### 5. Mapping
 
-<!-- TODO: refine — narrative walkthrough, monorepo paths at high level only -->
+What does the resolved graph mean to the application?
 
-At a high level, resolving a domain aggregate — a localized page is the familiar example — flows like this:
+After the resolver has finished, we have a collection of resolved infrastructure resources.
 
-1. Delivery (route, server action, or equivalent) asks the application for the aggregate.
-2. An orchestrating use case delegates to the **repository package** with a root resource identity and execution context (locale, preview flags, and similar).
-3. The repository runs the resolver walk — data sources load, the assembled strategy expands, islands accumulate.
-4. The same module maps the content graph into domain shapes the core understands.
-5. UI renders from domain shapes, not from vendor JSON.
+That is useful, but it is not yet the domain model.
 
-No step in the delivery layer discovers new resources on its own. Discovery already happened in the walk.
+The application does not want:
+
+```text
+cms.entry
+cms.asset
+integration.product
+integration.news
+```
+
+It wants something like:
+
+```text
+Page
+├── Hero
+├── ProductModule
+│   └── Product[]
+└── NewsModule
+    └── Article[]
+```
+
+Mapping is the step that performs that transformation.
+
+A mapper must understand both the vendor-specific resource formats and the feature-specific domain aggregate.
+
+It may need to know how a Contentful entry represents a module, how a product API represents a product, and how those resources together become a ProductModule inside a Page.
+
+Mapping is therefore vendor-specific and feature-specific.
+
+Unlike the generic resolver, it cannot be vendor-agnostic.
+
+Unlike a loader, it cannot be feature-agnostic.
+
+It belongs at the point where the complete aggregate is understood and where infrastructure representations are translated into domain meaning.
 
 ---
 
-## Islands, cache, and backing (downstream concerns)
+## Where should these things live?
 
-<!-- TODO: refine — optional section, serializer as app/infrastructure policy -->
+Once the responsibilities are clear, the package boundaries become much less arbitrary.
 
-Islands name subgraphs with their own identity — useful when different slices have different lifetimes or cache policies. The resolver tracks membership and dependencies; **invalidation strategy** remains an application concern.
+The resource graph itself may cross several vendors.
 
-Serialization, tiered cache, and promoting backing resources are patterns you may adopt around the walk. They are not part of the four pillars; they consume the resolver’s output after the graph is known.
+The aggregate, however, belongs to a particular feature or bounded context.
+
+That gives us two different axes:
+
+```text
+                    Feature-specific
+                           ↑
+                           │
+              Strategy     │    Mapping
+                           │
+Vendor-agnostic ───────────┼─────────── Vendor-specific
+                           │
+              Resources    │    Data sources
+                           │
+                           ↓
+                    Feature-agnostic
+```
+
+More concretely:
+
+| Responsibility     | Vendor          | Feature  | Typical home                    |
+| ------------------ | --------------- | -------- | ------------------------------- |
+| Resource identity  | mostly agnostic | specific | infrastructure resource package |
+| Loader             | specific        | agnostic | vendor infrastructure           |
+| Data source        | specific        | agnostic | vendor infrastructure           |
+| Expansion strategy | specific        | specific | feature repository              |
+| Domain mapping     | specific        | specific | feature repository              |
+
+There is an important nuance here.
+
+Expansion strategy is both feature-specific and vendor-specific.
+
+If a Contentful entry has a field containing a product SKU, the strategy must know how that field is represented and how to turn it into the corresponding product resource identity.
+
+At the same time, it must know that the feature needs that product in order to build a particular part of its aggregate.
+
+This knowledge can be authored close to the feature repository, possibly by composing reusable vendor-specific expansion helpers.
+
+The key point is that the aggregate-level strategy has a single home.
+
+The same applies to mapping: it belongs to the feature because it knows the aggregate, and it belongs close to the vendor-shaped resources because it must interpret their formats.
 
 ---
 
-## What the resolver deliberately does not decide
+## The repository: where the aggregate comes together
 
-<!-- TODO: refine — mirror “library does not decide” from first post, monorepo angle -->
+This leads to the fourth package in the architecture: the feature-specific repository.
 
-The engine does not define what a page or product **means**, which vendor you use, how aggressively to cache, or how React should render. The monorepo template enforces the same boundary structurally: core packages must not import infrastructure SDKs, and graph-walking rules must not hide inside hooks.
+Imagine:
 
-That restraint is what keeps the mechanism reusable across products while still letting each product commit to its own graph in one repository module — reviewed when content types, vendors, or aggregate shapes change.
+```text
+@infrastructure/
+  pagebuilder-graph-resolver/
+```
+
+Its responsibility is conceptually simple:
+
+> Given the inputs required by the application, resolve the Page aggregate.
+
+It knows:
+
+- which root resource represents a page;
+- which expansion strategy builds that page’s graph;
+- which data sources are required;
+- how the resulting graph maps into the domain aggregate.
+
+So the flow becomes:
+
+```text
+Application
+     │
+     │ "give me Page X"
+     ▼
+Page Repository
+     │
+     ├── Strategy
+     │
+     ├── Data sources
+     │
+     └── Graph resolver
+              │
+       ┌──────┼──────┐
+       ▼      ▼      ▼
+      CMS   Product  News
+       │      │      │
+       └──────┼──────┘
+              ▼
+         Resolved graph
+              │
+              ▼
+          Domain Page
+```
+
+The repository is therefore not just an arbitrary wrapper around the resolver.
+
+It is the place where the infrastructure graph becomes a specific application capability.
+
+That distinction is important.
+
+The generic resolver should not know what a page is.
+
+The Contentful loader should not know what a page is.
+
+The product loader should not know what a page is.
+
+But something must know how all three contribute to a Page.
+
+That something is the repository.
 
 ---
 
-## Workshop demo vs production monorepo
+## Why strategy and mapping belong together
 
-<!-- TODO: refine — demo integrates for teaching; monorepo separates for shipping -->
+There is a useful symmetry here.
 
-The toolkit demo application collapses wiring to minimize the amount of code and keep it simple and stupid. But such a demo will never have to scale or suddenly change infrastructure. A production workspace from the monorepo template separates the same ideas into packages, ports, and enforceable import rules.
+The strategy says:
 
-The mental model is identical; the **seams** are sharper. This post describes the production-shaped layout.
+> To build this aggregate, these are the resources I need.
+
+The mapper says:
+
+> Now that I have those resources, this is what they mean.
+
+Both require knowledge of the same feature.
+
+Both must understand the aggregate being built.
+
+Both may need to change when the feature’s content model changes.
+
+Both also need to understand the vendor-specific resource contracts they consume.
+
+That is why I prefer them to live together in the repository package.
+
+This also gives us a useful failure model.
+
+If a CMS resource changes shape, the expansion policy that accesses that field should fail type checking.
+
+If the identity of a resource changes — for example from “product by SKU” to “product by ID” — the corresponding ARI and policies should fail.
+
+If the domain aggregate changes, the mapper should fail.
+
+If the CMS changes while preserving the resource contract, only the vendor-specific loader and, where necessary, the vendor-specific data source configuration should need to change.
+
+If the vendor resource contract changes, the affected strategies and mappers should fail explicitly because they own knowledge of that shape.
+
+Those are exactly the boundaries we want.
+
+---
+
+## Composition is not where the graph is defined
+
+This distinction becomes particularly important in a Clean Architecture monorepo.
+
+A composition root answers:
+
+> Which concrete implementations should run in this application/runtime?
+
+It wires things together.
+
+For example:
+
+```text
+production runtime
+    │
+    ├── authenticated Contentful client
+    ├── product API client
+    ├── cache
+    └── repository implementation
+```
+
+But composition should not answer:
+
+> What is a page?
+
+or:
+
+> Which resources does a page require?
+
+or:
+
+> How do those resources map into the domain?
+
+Those are architectural decisions, not runtime wiring.
+
+The composition root chooses instances.
+
+The repository defines aggregate resolution.
+
+That means the strategy and mapper do not need to be reconstructed differently by every application entrypoint, runtime, or deployment.
+
+Composition binds runtime.
+
+The repository owns the feature.
+
+---
+
+## The monorepo makes these boundaries enforceable
+
+This is where a governed monorepo becomes more than a convenient directory structure.
+
+The point is not merely to create folders named domain, application, and infrastructure.
+
+The point is to make the dependency rules mechanically enforceable.
+
+A possible workspace might look roughly like:
+
+```text
+packages/
+├── domain/
+├── application/
+│
+├── infrastructure/
+│   ├── contentful/
+│   ├── product-api/
+│   ├── pagebuilder-resources/
+│   └── pagebuilder-graph-resolver/
+│
+└── composition/
+```
+
+The exact structure is less important than the dependency direction.
+
+The domain must not import Contentful.
+
+The application must not know how Contentful batches requests.
+
+A UI component must not know how to discover the product resources required by a page.
+
+The generic resolver must not know what a page means.
+
+And the composition root must not become the place where all of those concepts are manually orchestrated.
+
+The repository becomes the explicit seam between feature knowledge and infrastructure mechanism.
+
+---
+
+## One request, end to end
+
+Let’s follow a single request.
+
+The delivery layer asks the application for a localized page.
+
+The application invokes its use case.
+
+The use case delegates to the page repository with the root identity and runtime context.
+
+The repository starts the graph resolver with the page strategy and its configured data sources.
+
+The strategy resolves the first wave of dependencies.
+
+The resolver routes those identities to their matching data sources.
+
+The CMS entry data source batches CMS entry resources through its configured loader.
+
+The CMS asset data source batches CMS asset resources through its configured loader.
+
+The product data source batches product resources.
+
+If one backend is slow, the scheduler can allow another lane to continue making progress.
+
+As resources arrive, the strategy discovers further resources.
+
+The resolver continues until the graph is complete.
+
+Islands identify coherent portions of that graph when caching requires different lifecycles.
+
+Finally, the repository maps the resolved infrastructure graph into the domain Page.
+
+Only then does the application hand the aggregate to the delivery layer.
+
+The UI receives:
+
+> a Page
+
+not:
+
+> a Contentful entry, plus some product JSON, plus a list of IDs it still needs to resolve.
+
+The component represents the object.
+
+It does not construct it.
+
+---
+
+## This is what “smart aggregates, dumb components” means
+
+There is a temptation in frontend architecture to push complexity toward the component because it feels local and therefore manageable.
+
+The component knows what it renders, so perhaps it should also know what to fetch.
+
+That works until the component becomes responsible for:
+
+- discovering dependencies;
+- coordinating requests;
+- deduplicating resources;
+- handling different backends;
+- understanding vendor-specific limits;
+- managing cache boundaries;
+- combining transport models;
+- reconstructing domain objects.
+
+At that point the component is no longer merely rendering.
+
+It has become an orchestration layer.
+
+The alternative is not to make the component “dumber” by removing useful knowledge.
+
+It is to move the knowledge to a place where it can be explicit, typed, reusable, and governed.
+
+The result is:
+
+> Smart aggregates, dumb components.
+
+A component represents an object.
+
+It should not have to construct the object by reverse-engineering the infrastructure graph.
+
+---
+
+## What happens when things change?
+
+This architecture becomes particularly useful when the system evolves.
+
+### The resource shape changes
+
+A field used by an expansion policy disappears.
+
+The policy should fail at compile time.
+
+The graph contract changed, so the code that depended on it should be forced to acknowledge the change.
+
+### The resource identity changes
+
+Suppose a product used to be addressed by SKU and is now addressed by ID.
+
+That is not merely a payload change.
+
+The identity of the resource changed.
+
+The ARI must change, and anything depending on that identity should be exposed by the type system.
+
+This is a different class of migration and should be visible as such.
+
+### The vendor changes
+
+Suppose the application moves from one CMS to another while preserving the resource contract.
+
+The vendor-specific loader changes.
+
+The rest of the graph can remain intact.
+
+If the new vendor exposes a materially different resource model, the relevant resource, data source, expansion, and mapping contracts will force the necessary changes.
+
+### The domain aggregate changes
+
+Suppose Page changes.
+
+The mapper breaks.
+
+Again, this is exactly where we want the compiler to point us.
+
+The architecture therefore gives us a useful rule:
+
+> Changes should break the code that owns the changed knowledge — not arbitrary consumers downstream.
+
+---
+
+## Why this is different from “just use a repository”
+
+A traditional repository abstraction often hides a relatively simple persistence operation:
+
+> find this entity.
+
+A graph repository is doing something more interesting.
+
+It is the boundary between:
+
+```text
+application intent
+        ↓
+domain aggregate
+```
+
+and:
+
+```text
+multiple infrastructure resources
+        ↓
+graph resolution
+        ↓
+vendor-specific transports
+```
+
+The repository therefore becomes the feature-level interpreter of the resource graph.
+
+The generic resolver supplies the mechanism.
+
+The repository supplies the meaning.
+
+That distinction allows the same resolver to work for completely different domains without knowing anything about them.
+
+---
+
+## The four pillars, in one picture
+
+Putting everything together:
+
+```text
+                         APPLICATION
+                              │
+                              ▼
+                     ┌─────────────────┐
+                     │   Repository    │
+                     │                 │
+                     │ Strategy        │
+                     │       +         │
+                     │ Mapping         │
+                     └────────┬────────┘
+                              │
+                              ▼
+                     ┌─────────────────┐
+                     │ Graph Resolver  │
+                     │                 │
+                     │ traversal       │
+                     │ routing         │
+                     │ batching        │
+                     │ scheduling      │
+                     └────────┬────────┘
+                              │
+                 ┌────────────┼────────────┐
+                 ▼            ▼            ▼
+             DataSource   DataSource   DataSource
+                 │            │            │
+                 ▼            ▼            ▼
+              Loader       Loader       Loader
+                 │            │            │
+                 ▼            ▼            ▼
+               CMS        Product API    News API
+
+Resource identities ─────── vocabulary of the graph
+Loaders ─────────────────── vendor protocols
+Data sources ────────────── loader configuration and transport capability
+Expansion strategy ──────── feature graph topology over vendor resources
+Mapping ─────────────────── vendor resources into domain meaning
+```
+
+Each layer answers a different question.
+
+And that is the real architectural value.
+
+---
+
+## The important separation
+
+The resource graph resolver does not try to own all four pillars.
+
+It only provides the generic mechanism for walking and resolving the graph.
+
+The infrastructure defines how resources are addressed and loaded.
+
+The vendor integrations define how external APIs are called and configured as data sources.
+
+The feature defines how those resources relate to one another and which relationships are required by the aggregate.
+
+The repository defines how the resolved graph becomes an aggregate.
+
+The application consumes that aggregate.
+
+The framework renders it.
+
+This gives us a clean dependency direction:
+
+```text
+Vendor loaders
+    ↓
+Vendor data sources
+    ↓
+Infrastructure resources
+    ↓
+Feature expansion strategy
+    ↓
+Graph resolution
+    ↓
+Feature mapping
+    ↓
+Domain aggregate
+    ↓
+Application
+    ↓
+Framework
+```
+
+The framework is at the end of the chain, not at the center of it.
+
+That distinction becomes increasingly important as the frontend itself starts taking on more orchestration responsibility.
+
+---
+
+## The bigger lesson
+
+The interesting thing about resource graph resolution is not really the resolver.
+
+The resolver is a mechanism.
+
+The more important architectural decision is to recognize that resource identity, vendor protocols, loader configuration, graph topology, and domain meaning are different kinds of knowledge.
+
+Once those kinds of knowledge are separated, the monorepo stops being a collection of packages and becomes a map of responsibilities.
+
+A CMS adapter can change without teaching React about Contentful.
+
+A product API can change without teaching the application how to batch HTTP requests.
+
+A page aggregate can change without rewriting the graph traversal algorithm.
+
+And a new runtime can compose the same feature without redefining how that feature is resolved.
+
+That is what a governed architecture should buy us:
+
+not fewer abstractions, but fewer places where unrelated knowledge can become entangled.
+
+The graph is explicit.
+
+The transports are replaceable.
+
+The aggregate is meaningful.
+
+And the component can finally do the thing it was supposed to do in the first place:
+
+represent the object, rather than construct it.
 
 ---
 
 ## Further reading
 
-- [Every component fetches its own data, until it can't](/blog/every-component-fetches-its-own-data-until-it-cant/) — the resolution problem and mechanism
-- [Resource graph resolver (docs)](/v0/infrastructure/resource-graph-resolver/) — API and scheduling reference
-- [A Clean Architecture monorepo template](/blog/clean-architecture-monorepo-template/) — workspace governance and layers
+- [Every component fetches its own data, until it can't](/blog/every-component-fetches-its-own-data-until-it-cant/) — the resolution problem and the generic graph resolver
+- [Resource graph resolver](/v0/infrastructure/resource-graph-resolver/) — API and scheduling reference
 - [From Query Keys to Application Resource Identifiers](/blog/from-query-keys-to-application-resource-identifiers/) — why infrastructure identities exist
-- [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) — transport schemas and link metadata for expansion authoring
-- Monorepo template: [github.com/xndrjs/monorepo](https://github.com/xndrjs/monorepo)
+- [A Clean Architecture monorepo template](/blog/clean-architecture-monorepo-template/) — workspace governance and dependency boundaries
+- [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) — transport schemas and generated link metadata
+- [xndrjs monorepo](https://github.com/xndrjs/monorepo) — the production-shaped workspace template
