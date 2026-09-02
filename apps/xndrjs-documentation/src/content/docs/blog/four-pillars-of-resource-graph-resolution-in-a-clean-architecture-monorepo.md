@@ -50,9 +50,9 @@ The resolver library implements the walk. The monorepo decides **who owns each p
 
 Resources are not “database rows” and not domain entities. They are **infrastructure identities**: typed handles for things your backends already expose — CMS entries, assets, integration snapshots, and similar.
 
-In a Clean Architecture workspace they live at the **outer, vendor-facing edge**: declared next to the adapters that understand those backends, not inside core packages. Apps should ask for a **domain aggregate** — the result of a use case — not for a partial vendor-specific payload and the knowledge of how to walk the graph to reconstruct that aggregate themselves.
+In a Clean Architecture workspace they live at the **outer, vendor-facing edge**: declared next to the adapters that understand those backends, not inside core packages. Apps should use a **domain aggregate** — the result of a use case — not a partial vendor-specific payload and the knowledge of how to walk the graph to reconstruct that aggregate themselves.
 
-The point is separation of vocabulary. Infrastructure speaks in resources and payloads; domain speaks in business concepts. Conflating the two is how “fetch the hero” ends up inside a React hook — and forces you to rewrite your components when the CMS changes.
+The point is separation of vocabulary. Infrastructure speaks in resources and payloads; domain speaks in business concepts. Conflating the two is how “fetch the hero” ends up inside a React hook, forcing you to rewrite your components when the CMS changes.
 
 ---
 
@@ -62,7 +62,7 @@ The point is separation of vocabulary. Infrastructure speaks in resources and pa
 
 A **data source** is one transport channel: the identities it accepts, how large a batch it tolerates, how many batches it runs in parallel, and the function that performs one load.
 
-Real CMS integrations often need **more than one data source per vendor** — entries and assets on separate HTTP surfaces are the common case. The resolver routes each pending identity to the first matching channel; it does not merge unrelated endpoints on your behalf.
+Real CMS integrations often need **more than one data source per vendor** — entries and assets on separate HTTP surfaces are the common case. The resolver routes each pending identity to the first matching channel.
 
 Data sources belong in **infrastructure packages** alongside the client that actually talks to the vendor. They fetch and correlate; they do not encode product rules about what an aggregate “is”. Retry, backoff, and vendor-specific query shaping stay inside the channel, where they can evolve without touching core.
 
@@ -74,13 +74,13 @@ Data sources belong in **infrastructure packages** alongside the client that act
 
 The **graph resolution strategy** answers a different question from transport: _given this resolved payload, which identities must appear next — and how should the complete graph be split for caching purposes?_
 
-That knowledge is shaped by your **content model and the contracts between systems**. A CMS module that carries a product SKU implies a link into the integration graph; a news reference implies another backend. The strategy is where those cross-system relationships become explicit — not in React, not in a hook.
+That knowledge is shaped by your **content model and the contracts between systems**. A CMS module that carries a product SKU implies a link into the integration graph; a news reference may imply another backend. The strategy is where those cross-system relationships become explicit — not in React, not in a hook.
 
-This is not fully vendor-agnostic in practice. A change of CMS or integration vendor will almost certainly force you to revisit expansion rules: payload shapes, link metadata, and field names are not interchangeable even when the business graph looks the same. The repository will tend to carry **some shared knowledge** across the services involved — and that is expected.
+This is not fully vendor-agnostic in practice. A change of CMS or integration vendor will almost certainly force you to revisit expansion rules: payload shapes, link metadata, and field names may not be totally interchangeable unless the resource graph looks exactly the same. The repository will tend to carry **some shared knowledge** across the services involved — and that is expected.
 
 Vendor infrastructure packages can still **externalize** the expansion knowledge they own: a Contentful package exports policies that know how its entries and assets link outward; an integration package exports policies for product references. The **repository package** starts from a product-level skeleton and **enriches** it with those vendor contributions — the same place that will later map the resolved graph into domain shapes.
 
-Strategy does **not** pass through composition. If mapping cannot live in composition — because mapping must understand every vendor payload involved in the aggregate — then strategy belongs beside mapping in the repository package. Composition binds runtime; it does not redefine graph topology per app entrypoint.
+Strategy does **not** pass through composition. Mapping does not either: neither should be redefined from one runtime or app entrypoint to another — that is repository work, not composition-root work. Composition binds runtime; it does not redefine graph topology or how aggregates are projected into domain shapes.
 
 ---
 
@@ -92,7 +92,7 @@ The resolver’s output is an intermediate representation: a map of resolved res
 
 **Mapping** is the step that turns that graph into domain-trusted shapes — the aggregate your application exposes to UI and policies. Unlike expansion rules, which a vendor package can largely own for _its_ payloads, mapping **must** know how each vendor’s resolved data fits the aggregate you are building. A page mapper that hydrates a product strip cannot stay ignorant of the integration payload shape. Mapping inevitably **crosses vendor boundaries**.
 
-For that reason mapping lives in the **repository package** alongside the graph strategy — the module that owns “resolve this aggregate for this product” end to end. Core stays free of CMS SDKs and free of graph-walking rules. Apps call a use case that delegates to the repository layer; they do not assemble partial payloads or rediscover graph edges themselves.
+That is why mapping lives in the **repository package** alongside the graph strategy — the module that owns “resolve this aggregate for this product” end to end. It does not belong in composition: it must not be redefined between runtimes or apps. Core stays free of CMS SDKs and free of graph-walking rules. Apps call a use case that delegates to the repository layer; they do not assemble partial payloads or rediscover graph edges themselves.
 
 ---
 
@@ -117,7 +117,7 @@ Apps and UI consume **use cases** that delegate to the repository package — no
 
 In a production monorepo, the **repository package** is the home for aggregate resolution: it assembles the graph strategy (enriched from vendor packages where helpful), wires data sources into the resolver, and maps the resulting content graph into domain shapes.
 
-That module is rebuilt when backends or the content graph change — not on every request. Runtime dependencies (which store, which credentials, which observer) still flow in through factories at the edge, but the **topology and the mapping** stay here. Keeping strategy and mapping together reflects a simple rule: anything that must understand the full multi-vendor graph belongs in one reviewed place, not split across composition roots and UI.
+That module is rebuilt when backends or the content graph change. Runtime dependencies (which store, which credentials, which observer) still flow in through factories at the edge, but the **topology and the mapping** stay here. Keeping strategy and mapping together reflects a simple rule: anything that must understand the full multi-vendor graph belongs in one reviewed place, not split across composition roots and UI.
 
 ---
 
@@ -125,7 +125,7 @@ That module is rebuilt when backends or the content graph change — not on ever
 
 <!-- TODO: refine — contrast with ports/adapters, what composition actually binds -->
 
-The composition root’s job remains what Clean Architecture always said: choose concrete implementations for ports, inject context, expose narrow facades to delivery mechanisms.
+The composition root’s job remains what Clean Architecture always said: choose concrete implementations for ports, inject context, expose narrow façades to delivery mechanisms.
 
 For resource graphs that means composition binds **runtime** — authenticated clients, environment, catalogs, optional observers — and hands delivery code a **use case** backed by the repository package. It does **not** assemble graph strategy or mappers. Those already encode how this product’s aggregates are resolved and projected; composition only decides _which instances_ run today.
 
@@ -171,7 +171,7 @@ That restraint is what keeps the mechanism reusable across products while still 
 
 <!-- TODO: refine — demo integrates for teaching; monorepo separates for shipping -->
 
-The toolkit demo application collapses wiring to stay readable in a workshop. A production workspace from the monorepo template separates the same ideas into packages, ports, and enforceable import rules.
+The toolkit demo application collapses wiring to minimize the amount of code and keep it simple and stupid. But such a demo will never have to scale or suddenly change infrastructure. A production workspace from the monorepo template separates the same ideas into packages, ports, and enforceable import rules.
 
 The mental model is identical; the **seams** are sharper. This post describes the production-shaped layout.
 
