@@ -50,7 +50,7 @@ The resolver library implements the walk. The monorepo decides **who owns each p
 
 When you build a domain aggregate through graph resolution, the walk starts from **resource identities**: typed addresses for infrastructure resources that backends already expose — CMS entries and assets, integration snapshots, database records, REST or GraphQL responses, and similar pieces of data.
 
-The **resource** is the payload itself. The **identity** is how the graph names and addresses it — typically an Application Resource Identifier (ARI). Confusing the two is how discussions slip into “everything is a resource” without saying whether we mean the data or the handle.
+The **resource** is the payload itself. The **identity** is how the graph names and addresses it — typically an Application Resource Identifier (ARI).
 
 In a Clean Architecture workspace those identities live at the **outer, vendor-facing edge**: declared next to the adapters that understand those backends, not inside core packages. Apps should use a **domain aggregate** — the result of a use case — not a partial vendor-specific payload and the knowledge of how to walk the graph to reconstruct that aggregate themselves.
 
