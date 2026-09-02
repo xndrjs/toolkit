@@ -1,6 +1,6 @@
 ---
-title: "The four pillars of resource graph resolution in a Clean Architecture monorepo"
-description: Where resource identities, data sources, graph strategies, and domain mapping belong when resolving complex aggregates across multiple backends.
+title: "The five elements of resource graph resolution in a Clean Architecture monorepo"
+description: Where resource identities, loaders, data sources, graph strategies, and domain mapping belong when resolving complex aggregates across multiple backends.
 date: 2026-09-02
 author: Fabio Fognani
 tags:
@@ -38,9 +38,9 @@ A real application may have:
 
 The resolver can orchestrate the work, but it should not own that knowledge.
 
-Something has to define the resources. Something has to know how to load them. Something has to describe how they relate to one another. And something has to turn the resulting infrastructure graph into the domain aggregate the application actually wants.
+Something has to define the resources. Something has to know how to talk to each vendor. Something has to turn that vendor mechanism into an operational channel — how many resources per call, how many calls in parallel. Something has to describe how resources reveal other resources. And something has to turn the resulting infrastructure graph into the domain aggregate the application actually wants.
 
-Those are four different responsibilities.
+Those are five different responsibilities.
 
 The interesting architectural question is therefore not merely what they are, but who owns each one.
 
@@ -85,20 +85,21 @@ The UI certainly should not have to know any of this.
 
 But the infrastructure does.
 
-So we need to answer four questions:
+So we need to answer five questions:
 
 1. What are the things in this graph?
-2. Who can load each thing?
-3. How do things reveal other things?
-4. How does the resolved graph become a domain object?
+2. Who knows how to load each thing from its vendor?
+3. Under which operational constraints should it be loaded?
+4. How do things reveal other things?
+5. How does the resolved graph become a domain object?
 
-These questions give us the four pillars.
+These questions give us the five elements.
 
 ---
 
-## The four pillars
+## The five elements
 
-Think of aggregate resolution as four separable decisions.
+Think of aggregate resolution as five separable decisions.
 
 ### 1. Resource identities
 
@@ -332,14 +333,9 @@ The same applies to mapping: it belongs to the feature because it knows the aggr
 
 ## The repository: where the aggregate comes together
 
-This leads to the fourth package in the architecture: the feature-specific repository.
+This leads to the next package in the architecture: the feature-specific repository.
 
-Imagine:
-
-```text
-@infrastructure/
-  pagebuilder-graph-resolver/
-```
+Imagine a package named `@infrastructure/pagebuilder-graph-resolver`.
 
 Its responsibility is conceptually simple:
 
@@ -486,24 +482,27 @@ The repository owns the feature.
 
 This is where a governed monorepo becomes more than a convenient directory structure.
 
-The point is not merely to create folders named domain, application, and infrastructure.
+The point is not merely to create folders named `core`, `infrastructure`, and `apps`.
 
 The point is to make the dependency rules mechanically enforceable.
 
-A possible workspace might look roughly like:
+Following the same convention as the rest of the workspace — `@core/<feature>` for domain and use cases, `@infrastructure/<name>` for adapters, `apps/*/composition` for wiring — a possible layout might look roughly like:
 
 ```text
 packages/
-├── domain/
-├── application/
+├── core-pagebuilder/
+│   ├── models/
+│   ├── ports/
+│   └── use-cases/
 │
-├── infrastructure/
-│   ├── contentful/
-│   ├── product-api/
-│   ├── pagebuilder-resources/
-│   └── pagebuilder-graph-resolver/
-│
-└── composition/
+├── infrastructure-contentful/
+├── infrastructure-product-api/
+├── infrastructure-pagebuilder-resources/
+└── infrastructure-pagebuilder-graph-resolver/
+
+apps/
+└── storefront/
+    └── composition/
 ```
 
 The exact structure is less important than the dependency direction.
@@ -689,7 +688,7 @@ That distinction allows the same resolver to work for completely different domai
 
 ---
 
-## The four pillars, in one picture
+## The five elements, in one picture
 
 Putting everything together:
 
@@ -740,7 +739,7 @@ And that is the real architectural value.
 
 ## The important separation
 
-The resource graph resolver does not try to own all four pillars.
+The resource graph resolver does not try to own all five elements.
 
 It only provides the generic mechanism for walking and resolving the graph.
 
