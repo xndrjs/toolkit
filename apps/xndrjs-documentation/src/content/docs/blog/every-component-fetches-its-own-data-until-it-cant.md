@@ -717,7 +717,7 @@ Conceptually:
    /entries batch    /assets batch    Product batch
 ```
 
-Concretely, a source is a small declaration: the ARI types its transport channel handles, the batch limit its channel imposes, how many requests that channel tolerates in parallel, and a function that loads one batch.
+Concretely, a source is a small declaration: which ARI types its transport channel handles, and how to load one batch. It also declares how large each batch may be and how many batches that channel can run in parallel.
 
 With **Contentful Delivery**, entries and assets are different endpoints (`GET /entries` vs `GET /assets`), so they are naturally **two sources** — two transport channels, two queues, two `batchSize` values:
 
