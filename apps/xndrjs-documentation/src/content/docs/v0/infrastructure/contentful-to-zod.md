@@ -309,5 +309,5 @@ Entry/asset link objects and CMA validations (size, range, regex, etc.) are refl
 ## See also
 
 - [Your CMS schema is lying to TypeScript](/blog/your-cms-schema-is-lying-to-typescript/) — transport vs domain trust
-- [Resource graph resolver](/v0/infrastructure/resource-graph-resolver/) — expansion policies often consume link-field metadata from generated schemas
+- [Resource graph resolver](/v0/infrastructure/resource-graph-resolver/) — graph resolution strategies often consume link-field metadata from generated schemas
 - [README in the monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/contentful-to-zod) — CLI details when working on the generator itself

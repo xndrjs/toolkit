@@ -20,10 +20,10 @@ app/[locale]/page.tsx
 
 ### Sources
 
-| Source        | Families                 | Batch size              | Backend it mimics                                         |
-| ------------- | ------------------------ | ----------------------- | --------------------------------------------------------- |
-| `cms`         | `cms.entry`, `cms.asset` | 100 entries, 100 assets | Contentful Delivery, `sys.id[in]=…` bulk fetch per family |
-| `integration` | `integration.product`    | 1 product               | Commercial API accepting one SKU per call                 |
+| Source        | Channel                  | Batch size | Notes                                                                                                    |
+| ------------- | ------------------------ | ---------- | -------------------------------------------------------------------------------------------------------- |
+| `cms`         | `cms.entry`, `cms.asset` | 100        | **Toy**: one in-memory channel. Real Contentful Delivery uses separate `/entries` and `/assets` sources. |
+| `integration` | `integration.product`    | 1          | Commercial API accepting one SKU per call                                                                |
 
 Both sources are serial (default `concurrency: 1`). Uneven latency (fast CMS, slow integration) is what makes lane interesting in the terminal trace.
 

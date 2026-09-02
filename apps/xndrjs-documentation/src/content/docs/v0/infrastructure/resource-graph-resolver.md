@@ -30,18 +30,20 @@ Islands let you **name and partition** a large graph by application meaning — 
 
 Islands are meant for **macro-grouping**. A resource reachable from many islands is tracked in all of them, so marking hundreds of fine-grained islands over a shared subgraph multiplies membership entries — model islands around lifecycle boundaries, not around individual nodes.
 
-The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per backend, and a `GraphResolutionStrategy` built with `createGraphResolutionStrategy()`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
+The resolver is **schema-agnostic**: you supply a `ContentRegistry` (ARI `type` → payload shape), one `DataSource` per transport channel, and a `GraphResolutionStrategy` built with `createGraphResolutionStrategy()`. Frameworks, CMS clients, and cache stores stay in your infrastructure layer.
 
-For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and expansion once; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_SCHEDULING_MODE` in that file to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
+For a full wiring example, see the [`resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) app: `demo-resolver.ts` wires sources and `demo-strategy.ts` defines the graph resolution strategy; `resolveDemoPage` is the single integration path (defaults to `lane`; flip `DEMO_SCHEDULING_MODE` in `demo-resolver.ts` to try `barrier`). Timed lane-vs-barrier comparisons live in `@xndrjs/resource-graph-resolver-bench`.
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'stepAfter'}}}%%
 flowchart TD
   root[Root ARI] --> resolver[Resource graph resolver]
-  resolver --> expand[ExpansionPort]
-  expand --> route[Route by ARI type to a source family]
-  route --> batch[Chunk to batchSize, throttle to concurrency]
-  batch --> sources[DataSource load]
+  resolver --> strategy[GraphResolutionStrategy]
+  strategy --> expand[Expansion policies]
+  strategy --> islandPolicies[Island policies]
+  expand --> route[Route ARI to first matching source]
+  route --> batch[Chunk each source queue to batchSize, throttle to concurrency]
+  batch --> sources[DataSource load batch]
   sources --> contentMap[ContentMap]
   resolver --> islands[IslandMap]
   resolver --> deps[IslandDependencyMap]
@@ -67,7 +69,7 @@ Domain aggregate
 UI / framework
 ```
 
-Pair with [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) for typed Contentful payloads and link-field metadata when authoring expansion policies.
+Pair with [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) for typed Contentful payloads and link-field metadata when authoring graph resolution strategies.
 
 ## Install
 
@@ -104,27 +106,48 @@ Do **not** intersect with `ContentRegistry` itself (`{ ... } & ContentRegistry`)
 
 ## DataSource
 
-A **source** is one backend **transport channel**. It declares which ARI types it handles (`for`), the channel's batch limit, how many requests it tolerates in parallel, and how to fetch one batch:
+A **source** is one backend **transport channel**. It declares which ARI types it handles (`for`), the channel's batch limit, how many requests it tolerates in parallel, and how to fetch one batch.
+
+With **Contentful Delivery**, entries and assets travel on separate endpoints, so they are usually **two sources**:
 
 ```ts
 import { defineDataSourceFor } from "@xndrjs/resource-graph-resolver";
 
 const defineSource = defineDataSourceFor<DemoContentRegistry, DemoExecutionContext>();
 
+export const cmsEntrySource = defineSource({
+  id: "cms-entries",
+  for: [cmsEntryAri],
+  batchSize: 50, // ids per GET /entries — your client chunk size, not a resolver default
+  load: (batch, { signal }) => deliveryClient.getEntries({ "sys.id[in]": idsFrom(batch), signal }),
+});
+
+export const cmsAssetSource = defineSource({
+  id: "cms-assets",
+  for: [cmsAssetAri],
+  batchSize: 50,
+  load: (batch, { signal }) => deliveryClient.getAssets({ "sys.id[in]": idsFrom(batch), signal }),
+});
+```
+
+If a CMS exposed one batch API for mixed types, a single source is enough:
+
+```ts
 export const cmsSource = defineSource({
   id: "cms",
   for: [cmsEntryAri, cmsAssetAri],
   batchSize: 100,
   async load(batch, { signal }) {
-    // batch: readonly (CmsEntryResource | CmsAssetResource)[]
-    return contentfulDelivery.fetchBatch(batch, { signal });
+    return cmsClient.fetchBatch(batch, { signal });
   },
 });
 ```
 
+The demo app uses this second shape: Contentful-shaped payloads, but one in-memory channel for the workshop.
+
 The definer is curried (`defineDataSourceFor<R, Ctx>()` then the config) because TypeScript has no partial type-argument inference: currying keeps `for` inferred while the registry stays explicit.
 
-`R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `for` is what scopes a source to the ARI types it may be asked for and may return. Returning a record outside the declared families is a compile error.
+`R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `for` is what scopes a source to the ARI types it may be asked for and may return. Returning a record outside the declared `for` list is a compile error.
 
 | Field         | Meaning                                                                          |
 | ------------- | -------------------------------------------------------------------------------- |
@@ -150,8 +173,8 @@ A source signals “no data” by **omitting** an ARI from its result. Never thr
 `load` receives the resolution's `signal`. Forward it into `fetch` (or your client's equivalent) so an aborted resolution cancels in-flight IO instead of merely ignoring the result:
 
 ```ts
-load: ({ product }, { signal }) =>
-  fetch(url, { method: "POST", body: JSON.stringify({ skus }), signal }),
+load: (batch, { signal }) =>
+  fetch(url, { method: "POST", body: JSON.stringify({ skus: batch.map((r) => r.key[0].sku) }), signal }),
 ```
 
 ## Resolver and scheduling modes
@@ -159,10 +182,13 @@ load: ({ product }, { signal }) =>
 Build one resolver per source topology and reuse it across requests:
 
 ```ts
-import { createResourceGraphResolver } from "@xndrjs/resource-graph-resolver";
+import {
+  createGraphResolutionStrategy,
+  createResourceGraphResolver,
+} from "@xndrjs/resource-graph-resolver";
 
 const resolver = createResourceGraphResolver<DemoContentRegistry, DemoExecutionContext>({
-  sources: [cmsSource, integrationSource],
+  sources: [cmsEntrySource, cmsAssetSource, integrationSource],
   strategy: createDemoStrategy(),
   schedulingMode: "lane", // or "barrier"
   observer, // optional
@@ -186,7 +212,7 @@ Both scheduling modes produce **identical** graph output — same `ContentMap`, 
 
 Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave.
 
-When several sources declare the same ARI `type`, the first whose family `matches` the ARI wins; callers guarantee exactly one meaningful owner per ARI.
+When several sources can handle the same ARI `type`, the **first** match in `sources` order wins; declare one owner per type.
 
 `resolve` returns:
 
@@ -202,11 +228,11 @@ When several sources declare the same ARI `type`, the first whose family `matche
 
 Because the resolver owns chunking, a batch always starts while work is pending and concurrency allows. So there is no ambiguous “no progress” state, and exactly three things can go wrong:
 
-| Situation                                    | `"throw"`                 | `"collect"`                                                |
-| -------------------------------------------- | ------------------------- | ---------------------------------------------------------- |
-| A source omitted a requested ARI             | `MissingResourceError`    | Error entry attributed to every island that reached it     |
-| No source declares a family matching the ARI | `NoDataSourceError`       | Error entry (this is a wiring bug, not missing data)       |
-| A source's `load` rejected                   | `ResourceLoadFailedError` | Error entries for that batch; other sources keep resolving |
+| Situation                              | `"throw"`                 | `"collect"`                                                |
+| -------------------------------------- | ------------------------- | ---------------------------------------------------------- |
+| A source omitted a requested ARI       | `MissingResourceError`    | Error entry attributed to every island that reached it     |
+| No source's `for` list matches the ARI | `NoDataSourceError`       | Error entry (this is a wiring bug, not missing data)       |
+| A source's `load` rejected             | `ResourceLoadFailedError` | Error entries for that batch; other sources keep resolving |
 
 All of them extend `ResourceGraphError`. `ResourceLoadFailedError` carries `sourceId`, `resourceKeys` and the original rejection as `cause`.
 
@@ -224,8 +250,8 @@ Pass an optional `observer` to trace batches, expansions and promotions without 
 
 ```ts
 const observer: ResolutionObserver = {
-  onBatchStart: ({ sourceId, batchNumber, resourceCount }) => {
-    /* … */
+  onBatchStart: ({ sourceId, batchNumber, resources, resourceCount }) => {
+    /* resources is the flat batch handed to load */
   },
   onBatchEnd: ({ sourceId, durationMs, resolvedCount }) => {
     /* … */
@@ -366,7 +392,7 @@ Return values:
 Exported symbols:
 
 - **`createResourceGraphResolver`** — and types `ResourceGraphResolver`, `ResourceGraphResolverConfig`
-- **`createGraphResolutionStrategy`** — and type `GraphResolutionStrategy`
+- **`createGraphResolutionStrategy`** — and types `GraphResolutionStrategy`, `GraphResolutionStrategyBuilder`
 - **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceOfFamily`, `ResourceUnionFromFamilies`, `SourceResourceRecord`, `ResourceLoadContext`, `SourceRouteContext`
 - **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**

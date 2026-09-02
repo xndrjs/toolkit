@@ -6,7 +6,7 @@ import { simulateNetworkLatency } from "../simulate-latency.js";
 import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
 import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
 
-/** Contentful Delivery caps `sys.id[in]` lists per transport call. */
+/** Demo chunk size for batched id-in fetches (client choice, not a Contentful API constant). */
 export const CMS_BATCH_SIZE = 100;
 
 export { CMS_BATCH_SIZE as CMS_ENTRY_BATCH_SIZE, CMS_BATCH_SIZE as CMS_ASSET_BATCH_SIZE };
@@ -31,8 +31,8 @@ const defineCmsSource = defineDataSourceFor<DemoContentRegistry, DemoExecutionCo
 /**
  * CMS source: owns `cms.entry` and `cms.asset` on one Delivery transport channel.
  *
- * Mimics Contentful Delivery `sys.id[in]=…` fetches. Entries and assets in the
- * same batch travel in one `load` call — one round trip per batch.
+ * Mimics batched Delivery fetches. Entries and assets share one toy channel here;
+ * a real Contentful integration would typically use two sources (separate endpoints).
  *
  * Locale is part of the ARI key; the demo store still holds one payload per sys.id.
  */
