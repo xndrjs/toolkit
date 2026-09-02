@@ -292,11 +292,13 @@ That gives us two different axes:
                     Feature-specific
                            ↑
                            │
-              Strategy     │    Mapping
+         Resource          │    Expansion strategy
+         identities        │    Mapping
                            │
 Vendor-agnostic ───────────┼─────────── Vendor-specific
                            │
-              Resources    │    Data sources
+                           │    Loaders
+                           │    Data sources
                            │
                            ↓
                     Feature-agnostic
