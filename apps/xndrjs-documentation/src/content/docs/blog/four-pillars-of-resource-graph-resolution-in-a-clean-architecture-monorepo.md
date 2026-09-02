@@ -35,7 +35,7 @@ Here we only connect the two: **how the four pillars map into a governed monorep
 
 Think of an aggregate resolution as four separable decisions:
 
-1. **Resources** — what can be addressed at all (stable identities for nodes in the graph).
+1. **Resource identities** — stable addresses for the infrastructure resources that participate in the graph.
 2. **Data sources** — which transport channels know how to load which identities, under which batching and concurrency limits.
 3. **Graph resolution strategy** — how a resolved node reveals further identities, and how the complete graph should be split for caching purposes.
 4. **Mapping** — how the resolved infrastructure graph becomes the model the application actually reasons about.
@@ -44,15 +44,17 @@ The resolver library implements the walk. The monorepo decides **who owns each p
 
 ---
 
-## Pillar 1 — Resources (identities)
+## Pillar 1 — Resource identities
 
-<!-- TODO: refine — ARIs as infrastructure vocabulary, not domain IDs -->
+<!-- TODO: refine — ARIs vs resources; infrastructure vocabulary, not domain IDs -->
 
-Resources are not “database rows” and not domain entities. They are **infrastructure identities**: typed handles for things your backends already expose — CMS entries, assets, integration snapshots, and similar.
+When you build a domain aggregate through graph resolution, the walk does not start from domain entities. It starts from **resource identities**: typed addresses for infrastructure resources that backends already expose — CMS entries and assets, integration snapshots, database records, REST or GraphQL responses, and similar pieces of data.
 
-In a Clean Architecture workspace they live at the **outer, vendor-facing edge**: declared next to the adapters that understand those backends, not inside core packages. Apps should use a **domain aggregate** — the result of a use case — not a partial vendor-specific payload and the knowledge of how to walk the graph to reconstruct that aggregate themselves.
+The **resource** is the payload itself. The **identity** is how the graph names and addresses it — typically an Application Resource Identifier (ARI). Confusing the two is how discussions slip into “everything is a resource” without saying whether we mean the data or the handle.
 
-The point is separation of vocabulary. Infrastructure speaks in resources and payloads; domain speaks in business concepts. Conflating the two is how “fetch the hero” ends up inside a React hook, forcing you to rewrite your components when the CMS changes.
+In a Clean Architecture workspace those identities live at the **outer, vendor-facing edge**: declared next to the adapters that understand those backends, not inside core packages. Apps should use a **domain aggregate** — the result of a use case — not a partial vendor-specific payload and the knowledge of how to walk the graph to reconstruct that aggregate themselves.
+
+The point is separation of vocabulary. Infrastructure speaks in resource identities and payloads; domain speaks in business concepts. Conflating the two is how “fetch the hero” ends up inside a React hook, forcing you to rewrite your components when the CMS changes.
 
 ---
 
@@ -102,7 +104,7 @@ That is why mapping lives in the **repository package** alongside the graph stra
 
 | Pillar                    | Typical home                                                                 | Depends inward on                              |
 | ------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------- |
-| Resources                 | Infrastructure packages (identities + registry slices)                       | Application resource primitives only           |
+| Resource identities       | Infrastructure packages (ARI factories + registry slices)                    | Application resource primitives only           |
 | Data sources              | Infrastructure adapters (one package per vendor or channel)                  | Resources, vendor clients                      |
 | Graph resolution strategy | Repository package (may import expansion/island slices from vendor packages) | Resources, link metadata, vendor graph modules |
 | Mapping                   | Repository package (same module as strategy — cross-vendor by necessity)     | Core domain shapes, resolver output            |
