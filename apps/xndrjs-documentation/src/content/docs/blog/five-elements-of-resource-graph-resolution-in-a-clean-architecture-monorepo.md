@@ -415,7 +415,11 @@ Both also need to understand the vendor-specific resource contracts they consume
 
 That is why I prefer them to live together in the repository package.
 
-This also gives us a useful failure model.
+---
+
+## A failure model that matches the boundaries
+
+The boundaries described so far do not all live in the same package. Resource identities live in an infrastructure resource package, loaders and data sources live in vendor infrastructure, and the strategy and mapper live in the feature repository. That split is only worth having if a change in one place actually breaks the code that depends on it — and nowhere else.
 
 If a CMS resource changes shape, the expansion policy that accesses that field should fail type checking.
 
