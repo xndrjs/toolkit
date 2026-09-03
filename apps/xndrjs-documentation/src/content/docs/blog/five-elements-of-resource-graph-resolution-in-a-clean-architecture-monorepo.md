@@ -809,9 +809,7 @@ A page aggregate can change without rewriting the graph traversal algorithm.
 
 And a new runtime can compose the same feature without redefining how that feature is resolved.
 
-That is what a governed architecture should buy us:
-
-not fewer abstractions, but fewer places where unrelated knowledge can become entangled.
+That is what a governed architecture should buy us: not fewer abstractions, but fewer places where unrelated knowledge can become entangled.
 
 The graph is explicit.
 
@@ -819,9 +817,7 @@ The transports are replaceable.
 
 The aggregate is meaningful.
 
-And the component can finally do the thing it was supposed to do in the first place:
-
-represent the object, rather than construct it.
+And the component can finally do the thing it was supposed to do in the first place: represent the object, rather than construct it.
 
 ---
 
