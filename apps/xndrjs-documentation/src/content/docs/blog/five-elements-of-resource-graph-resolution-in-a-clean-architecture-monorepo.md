@@ -29,7 +29,7 @@ But solving the graph traversal problem raises a second question:
 
 A real application may have:
 
-- Contentful entries and assets;
+- CMS entries and assets;
 - product data from an integration API;
 - news from another service;
 - several locales;
