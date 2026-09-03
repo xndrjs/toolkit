@@ -100,7 +100,7 @@ export interface DataSource<
 > {
   readonly id: string;
   readonly for: readonly ResourceFamily[];
-  readonly batchSize: number | undefined;
+  readonly batchSize?: number;
   readonly concurrency: number;
   readonly when?: (context: SourceRouteContext<TExecutionContext>) => boolean;
   load(
