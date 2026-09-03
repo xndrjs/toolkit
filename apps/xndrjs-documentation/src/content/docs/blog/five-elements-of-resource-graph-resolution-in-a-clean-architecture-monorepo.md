@@ -417,24 +417,6 @@ That is why I prefer them to live together in the repository package.
 
 ---
 
-## A failure model that matches the boundaries
-
-The boundaries described so far do not all live in the same package. Resource identities live in an infrastructure resource package, loaders and data sources live in vendor infrastructure, and the strategy and mapper live in the feature repository. That split is only worth having if a change in one place actually breaks the code that depends on it — and nowhere else.
-
-If a CMS resource changes shape, the expansion policy that accesses that field should fail type checking.
-
-If the identity of a resource changes — for example from “product by SKU” to “product by ID” — the corresponding ARI and policies should fail.
-
-If the domain aggregate changes, the mapper should fail.
-
-If the CMS changes while preserving the resource contract, only the vendor-specific loader and, where necessary, the vendor-specific data source configuration should need to change.
-
-If the vendor resource contract changes, the affected strategies and mappers should fail explicitly because they own knowledge of that shape.
-
-Those are exactly the boundaries we want.
-
----
-
 ## Composition is not where the graph is defined
 
 This distinction becomes particularly important in a Clean Architecture monorepo.
@@ -612,6 +594,8 @@ It should not have to construct the object by reverse-engineering the infrastruc
 
 This architecture becomes particularly useful when the system evolves.
 
+The boundaries described so far do not all live in the same package — resource identities live in an infrastructure resource package, loaders and data sources live in vendor infrastructure, and the strategy and mapper live in the feature repository. That split is only worth having if a change in one place actually breaks the code that depends on it, and does not force change everywhere else.
+
 ### The resource shape changes
 
 A field used by an expansion policy disappears.
@@ -636,7 +620,7 @@ This is a different class of migration and should be visible as such.
 
 Suppose the application moves from one CMS to another while preserving the resource contract.
 
-The vendor-specific loader changes.
+The vendor-specific loader changes. The vendor-specific data source configuration may change too, where necessary — a different batch limit, a different concurrency ceiling, a different endpoint split.
 
 The rest of the graph can remain intact.
 
