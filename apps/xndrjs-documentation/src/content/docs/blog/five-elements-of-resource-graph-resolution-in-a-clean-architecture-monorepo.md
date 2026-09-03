@@ -600,7 +600,7 @@ The boundaries described so far do not all live in the same package — resource
 
 A field used by an expansion policy disappears.
 
-The policy should fail at compile time.
+The expansion policy should fail to compile. The mapper should fail too, if it reads the same field.
 
 The graph contract changed, so the code that depended on it should be forced to acknowledge the change.
 
