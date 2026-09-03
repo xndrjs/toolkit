@@ -111,7 +111,7 @@ An identity might represent a CMS entry, a CMS asset, a product, a news item, or
 
 The payload is the resource itself.
 
-The identity — typically an Application Resource Identifier (ARI) — is how the graph refers to it.
+The identity — an Application Resource Identifier (ARI) — is how the graph refers to it.
 
 The important distinction is that these are infrastructure resources, not domain objects.
 
