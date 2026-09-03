@@ -640,6 +640,26 @@ The architecture therefore gives us a useful rule:
 
 ---
 
+## Migrating gradually, not all at once
+
+Because each of these five elements can change independently, migrations rarely have to be a single cutover.
+
+**Consolidating vendor instances.** Markets that historically lived on separate Contentful spaces can be merged into one shared space. The resource identity does not change — it is still “CMS entry by ID and locale.” Only the data sources change: a `when` predicate that used to route each market to its own space now routes everyone to the same one. Strategy and mapping are untouched.
+
+**Moving a resource off the CMS.** When a resource is pulled out of the CMS entirely — say, product data moves from Contentful entries to a dedicated product service — the identity itself usually changes too, since a CMS entry ID is not a product-service ID. This is a bigger migration: identity, loader, and data source move together, and the strategy or mapping around that resource may follow if the new backend exposes relationships differently.
+
+Even that bigger migration does not have to be a big bang. As long as the new loader normalizes its response into the payload shape the mapper already expects, a `when` predicate can route some resources to the old data source and others to the new one — based on a migration flag or a rollout percentage — cutting resources over one at a time instead of switching the whole vendor atomically.
+
+The same pattern shows up elsewhere:
+
+- **Splitting one vendor endpoint into several, or merging several into one** — as with Contentful’s separate entry and asset endpoints. Only the data sources change.
+- **Fronting a vendor with a cache or CDN** to cut latency or load. The loader changes; identity, strategy, and mapping do not.
+- **Splitting a monolithic API into microservices** — pricing moving out of the product payload into its own service, for example. If pricing was already its own resource identity, this is a data source change. If it was not, it becomes a resource identity change, scoped to pricing alone.
+
+The architecture does not remove the cost of these migrations. It localizes it: the number of elements that have to move tells you how big the migration really is, and nothing forces you to move all of them, for every resource, on the same day.
+
+---
+
 ## Why this is different from “just use a repository”
 
 A traditional repository abstraction often hides a relatively simple persistence operation:
