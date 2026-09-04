@@ -1,6 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentRegistry, IslandId, RegistryPayloadFor } from "../types";
+import type { ContentRegistry, IslandId } from "../types";
 import type { ExpansionContext, ExpansionResourceFor } from "./expansion-port";
 
 /**
