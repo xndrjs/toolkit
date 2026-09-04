@@ -1,7 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
-  CMS_ASSET_BATCH_SIZE,
   CMS_ENTRY_BATCH_SIZE,
   createCmsSource,
   demoCmsStore,
