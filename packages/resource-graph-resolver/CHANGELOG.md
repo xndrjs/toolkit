@@ -1,5 +1,29 @@
 # @xndrjs/resource-graph-resolver
 
+## 0.2.0-alpha.0
+
+### Minor Changes
+
+- cdbf303: ### Scheduling
+  - Rename `ResolutionStrategy` to `SchedulingMode`. Resolver config field is now `schedulingMode` (was `strategy`).
+  - `ResolutionStartEvent` reports `schedulingMode`.
+
+  ### Islands
+  - Island boundaries are separate from expansion via `GraphResolutionStrategy.islands` (removed `isIsland` from `ExpansionResult`).
+
+  ### Expansion
+  - Matching expansion policies are merged: children are concatenated in policy order and deduplicated by `resource.toString()`.
+
+  ### Strategy DSL
+  - Add `createGraphResolutionStrategy()` fluent builder with `.expansion` and `.islands` namespaces.
+  - `createResourceGraphResolver` takes `strategy: GraphResolutionStrategy` instead of separate `expansion` and `islands` ports.
+  - Low-level `createExpansionPolicyChain`, `defineExpansionPolicy`, `createIslandPolicyChain`, and `defineIslandPolicy` are no longer part of the public API.
+
+  ### DataSource
+  - Redesign around transport channels: `for` replaces per-family `families`, `batchSize` is a single channel limit, and `load(batch)` receives a flat heterogeneous batch instead of a per-family record.
+  - Resolver routing uses first-match source order; overlapping sources are not validated.
+  - `DataSource.batchSize` is optional, matching `DataSourceDefinition`. Hand-written `DataSource` objects (bypassing `defineDataSourceFor`) no longer need to spell out `batchSize: undefined`.
+
 ## 0.1.0
 
 ### Minor Changes

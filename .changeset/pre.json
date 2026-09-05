@@ -23,5 +23,7 @@
     "@xndrjs/resource-graph-resolver": "0.1.0",
     "@xndrjs/tasks": "0.2.0"
   },
-  "changesets": []
+  "changesets": [
+    "resource-graph-resolver-strategy-dsl"
+  ]
 }
