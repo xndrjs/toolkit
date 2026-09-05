@@ -20,3 +20,9 @@
 - Add `createGraphResolutionStrategy()` fluent builder with `.expansion` and `.islands` namespaces.
 - `createResourceGraphResolver` takes `strategy: GraphResolutionStrategy` instead of separate `expansion` and `islands` ports.
 - Low-level `createExpansionPolicyChain`, `defineExpansionPolicy`, `createIslandPolicyChain`, and `defineIslandPolicy` are no longer part of the public API.
+
+### DataSource
+
+- Redesign around transport channels: `for` replaces per-family `families`, `batchSize` is a single channel limit, and `load(batch)` receives a flat heterogeneous batch instead of a per-family record.
+- Resolver routing uses first-match source order; overlapping sources are not validated.
+- `DataSource.batchSize` is optional, matching `DataSourceDefinition`. Hand-written `DataSource` objects (bypassing `defineDataSourceFor`) no longer need to spell out `batchSize: undefined`.
