@@ -215,7 +215,7 @@ The strategy describes the graph topology:
 
 > given this resource, under this context and these conditions, which other resources should be resolved?
 
-This is also where graph-specific caching boundaries can be described through islands.
+This is also where graph-specific caching boundaries can be described through what we call "islands".
 
 Expansion and islands are deliberately separate concepts.
 
@@ -283,9 +283,7 @@ It belongs at the point where the complete aggregate is understood and where inf
 
 Once the responsibilities are clear, the package boundaries become much less arbitrary.
 
-The resource graph itself may cross several vendors.
-
-The aggregate, however, belongs to a particular feature or bounded context.
+The resource graph itself may cross several vendors; the aggregate, however, belongs to a particular feature or bounded context.
 
 That gives us two different axes:
 
@@ -305,7 +303,7 @@ Vendor-agnostic ───────────┼─────────�
                     Feature-agnostic
 ```
 
-More concretely:
+More concretely, we draw package boundaries so we can say where each of these things lives — not just what it knows:
 
 | Responsibility     | Vendor          | Feature  | Typical home                    |
 | ------------------ | --------------- | -------- | ------------------------------- |
@@ -314,20 +312,6 @@ More concretely:
 | Data source        | specific        | agnostic | vendor infrastructure           |
 | Expansion strategy | specific        | specific | feature repository              |
 | Domain mapping     | specific        | specific | feature repository              |
-
-There is an important nuance here.
-
-Expansion strategy is both feature-specific and vendor-specific.
-
-If a Contentful entry has a field containing a product SKU, the strategy must know how that field is represented and how to turn it into the corresponding product resource identity.
-
-At the same time, it must know that the feature needs that product in order to build a particular part of its aggregate.
-
-This knowledge can be authored close to the feature repository, possibly by composing reusable vendor-specific expansion helpers.
-
-The key point is that the aggregate-level strategy has a single home.
-
-The same applies to mapping: it belongs to the feature because it knows the aggregate, and it belongs close to the vendor-shaped resources because it must interpret their formats.
 
 ---
 
@@ -379,17 +363,9 @@ The repository is therefore not just an arbitrary wrapper around the resolver.
 
 It is the place where the infrastructure graph becomes a specific application capability.
 
-That distinction is important.
+That distinction is important: the generic resolver, the Contentful loader and the product loader should not know what a page is.
 
-The generic resolver should not know what a page is.
-
-The Contentful loader should not know what a page is.
-
-The product loader should not know what a page is.
-
-But something must know how all three contribute to a Page.
-
-That something is the repository.
+But something must know how all three contribute to a Page. That something is the repository.
 
 ---
 
@@ -487,7 +463,7 @@ packages/
 └── infrastructure-pagebuilder-graph-resolver/
 
 apps/
-└── storefront/
+└── website-name/
     └── composition/
 ```
 
@@ -759,16 +735,16 @@ The feature defines how those resources relate to one another and which relation
 
 The repository defines how the resolved graph becomes an aggregate.
 
-The application consumes that aggregate.
+The application layer consumes that aggregate.
 
-The framework renders it.
+The framework (i.e. a Next.js app) renders it.
 
 This gives us a clean dependency direction:
 
 ```text
-Vendor loaders
+Vendor-specific loaders
     ↓
-Vendor data sources
+Vendor-specific data sources
     ↓
 Infrastructure resources
     ↓
@@ -780,12 +756,12 @@ Feature mapping
     ↓
 Domain aggregate
     ↓
-Application
+Application layer
     ↓
-Framework
+Framework (app)
 ```
 
-The framework is at the end of the chain, not at the center of it.
+The framework is at the end of the chain, it does not "own it all".
 
 That distinction becomes increasingly important as the frontend itself starts taking on more orchestration responsibility.
 
@@ -793,29 +769,17 @@ That distinction becomes increasingly important as the frontend itself starts ta
 
 ## The bigger lesson
 
-The interesting thing about resource graph resolution is not really the resolver.
-
-The resolver is a mechanism.
+The interesting thing about resource graph resolution is not really the resolver: that is just a mechanism.
 
 The more important architectural decision is to recognize that resource identity, vendor protocols, loader configuration, graph topology, and domain meaning are different kinds of knowledge.
 
-Once those kinds of knowledge are separated, the monorepo stops being a collection of packages and becomes a map of responsibilities.
+Once those kinds of knowledge are cleanly separated, the monorepo stops being a "collection of packages" and becomes a map of responsibilities.
 
-A CMS adapter can change without teaching React about Contentful.
-
-A product API can change without teaching the application how to batch HTTP requests.
-
-A page aggregate can change without rewriting the graph traversal algorithm.
-
-And a new runtime can compose the same feature without redefining how that feature is resolved.
+A CMS adapter can change without teaching React about Contentful. A product API can change without teaching the application how to batch HTTP requests. A page aggregate can change without rewriting the graph traversal algorithm. And a new runtime can compose the same feature without redefining how that feature is resolved.
 
 That is what a governed architecture should buy us: not fewer abstractions, but fewer places where unrelated knowledge can become entangled.
 
-The graph is explicit.
-
-The transports are replaceable.
-
-The aggregate is meaningful.
+The graph is explicit, the transports are replaceable, the aggregate is meaningful.
 
 And the component can finally do the thing it was supposed to do in the first place: represent the object, rather than construct it.
 
