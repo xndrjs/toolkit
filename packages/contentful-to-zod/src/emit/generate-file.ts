@@ -1,6 +1,7 @@
 import {
   defineConfig,
   resolveLocaleMode,
+  resolveLocaleStar,
   type ContentfulToZodConfig,
   type LocaleMode,
 } from "../config/define-config";
@@ -44,6 +45,8 @@ export interface GenerateZodSchemasOptions {
   contentTypeIds?: string[] | undefined;
   locales?: Locale[] | undefined;
   localeMode?: LocaleMode | undefined;
+  /** Emit `locale=*` field shapes. Only valid when mode is `delivery` or `both`. Default: `false`. */
+  localeStar?: boolean | undefined;
   config?: ContentfulToZodConfig | undefined;
 }
 
@@ -136,6 +139,12 @@ export function generateZodSchemas(
 ): string {
   const config = options.config ? defineConfig(options.config) : undefined;
   const localeMode = resolveLocaleMode({ localeMode: options.localeMode, config });
+  // Validated now; emission of localeStar shapes lands in a follow-up.
+  void resolveLocaleStar({
+    localeStar: options.localeStar,
+    localeMode: options.localeMode,
+    config,
+  });
   const locales = requireLocalesForMode(localeMode, options.locales);
   const selectedContentTypes = filterContentTypes(contentTypes, options.contentTypeIds);
 

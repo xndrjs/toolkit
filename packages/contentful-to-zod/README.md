@@ -86,7 +86,7 @@ const source = generateZodSchemas(contentTypes, {
 await writeFile("./src/generated/contentful.schemas.ts", source, "utf8");
 ```
 
-`generateZodSchemas` options: `contentTypeIds`, `locales` (required when mode is `delivery` or `both`), `localeMode`, `config`.
+`generateZodSchemas` options: `contentTypeIds`, `locales` (required when mode is `delivery` or `both`), `localeMode`, `localeStar`, `config`.
 
 ## Locale mode
 
@@ -99,9 +99,13 @@ export default defineConfig({
   locale: {
     /** Default: "both" */
     mode: "both", // "cma" | "delivery" | "both"
+    /** Only with "delivery" | "both". Default: false */
+    localeStar: false,
   },
 });
 ```
+
+`locale` is a discriminated union: `localeStar` is typed only on `"delivery"` and `"both"`. Passing `localeStar: true` with `"cma"` throws at runtime.
 
 Fields marked `disabled`, `omitted`, or `deleted` in the CMA blueprint are **excluded** from generated schemas and flatten helpers unless you opt in:
 
@@ -115,11 +119,12 @@ export default defineConfig({
 });
 ```
 
-| `locale.mode`      | Generated exports                                                                          |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| `"cma"`            | Flat field schemas + `ContentfulContentTypeIdSchema`                                       |
-| `"delivery"`       | Delivery field schemas + entry wrappers + content-type id/entry maps + `pickLocale`        |
-| `"both"` (default) | Flat + delivery + entry wrappers + content-type id/entry maps + `flatten{Type}EntryFields` |
+| Setting                            | Generated exports                                                                            |
+| ---------------------------------- | -------------------------------------------------------------------------------------------- |
+| `mode: "cma"`                      | Flat field schemas + `ContentfulContentTypeIdSchema`                                         |
+| `mode: "delivery"`                 | Delivery field schemas + entry wrappers + content-type id/entry maps + `pickLocale`          |
+| `mode: "both"` (default)           | Flat + delivery + entry wrappers + content-type id/entry maps + `flatten{Type}EntryFields`   |
+| `localeStar: true` (delivery/both) | Adds `*LocaleStarFieldsSchema` / `*LocaleStarEntrySchema` for Contentful `locale=*` payloads |
 
 Rules:
 

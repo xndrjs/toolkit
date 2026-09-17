@@ -1,7 +1,10 @@
 export {
+  assertLocaleStarAllowed,
   defineConfig,
   resolveLocaleMode,
+  resolveLocaleStar,
   type ContentfulToZodConfig,
+  type LocaleConfig,
   type LocaleMode,
 } from "./config/define-config";
 
