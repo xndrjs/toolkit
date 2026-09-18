@@ -121,16 +121,36 @@ export const ContentfulAssetLinkSchema = z.object({
 });
 export type ContentfulAssetLink = z.infer<typeof ContentfulAssetLinkSchema>;
 
+/** @generated from field validations.in */
+export const AUTHOR_ROLES = ["writer", "editor", "guest"] as const;
+export type AuthorRole = (typeof AUTHOR_ROLES)[number];
+export const AuthorRoleSchema = z.enum(AUTHOR_ROLES);
+
+/** @generated from field validations.in */
+export const ARTICLE_STATUSES = ["draft", "review", "published"] as const;
+export type ArticleStatus = (typeof ARTICLE_STATUSES)[number];
+export const ArticleStatusSchema = z.enum(ARTICLE_STATUSES);
+
+/** @generated from field validations.in */
+export const ARTICLE_PRIORITIES = [1, 2, 3] as const;
+export type ArticlePriority = (typeof ARTICLE_PRIORITIES)[number];
+export const ArticlePrioritySchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
+
+/** @generated from field validations.in */
+export const ARTICLE_TAGS = ["news", "guide", "opinion"] as const;
+export type ArticleTags = (typeof ARTICLE_TAGS)[number];
+export const ArticleTagsSchema = z.enum(ARTICLE_TAGS);
+
 export const AuthorFieldsSchema = z.object({
   name: flatField(z.string()),
-  role: flatField(z.enum(["writer", "editor", "guest"])),
+  role: flatField(AuthorRoleSchema),
 });
 
 export type AuthorFields = z.infer<typeof AuthorFieldsSchema>;
 
 export const AuthorLocalizedFieldsSchema = z.object({
   name: transportField(z.string()),
-  role: transportField(z.enum(["writer", "editor", "guest"])),
+  role: transportField(AuthorRoleSchema),
 });
 
 export type AuthorLocalizedFields = z.infer<typeof AuthorLocalizedFieldsSchema>;
@@ -150,12 +170,34 @@ export const AuthorLocalizedEntrySchema = z.object({
 
 export type AuthorLocalizedEntry = z.infer<typeof AuthorLocalizedEntrySchema>;
 
+export const AuthorLocaleStarFieldsSchema = z.object({
+  name: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
+  role: transportField(z.record(ContentfulLocaleCodeSchema, AuthorRoleSchema)),
+});
+
+export type AuthorLocaleStarFields = z.infer<typeof AuthorLocaleStarFieldsSchema>;
+
+export const AuthorLocaleStarEntrySchema = z.object({
+  sys: ContentfulEntrySysSchema.extend({
+    contentType: z.object({
+      sys: z.object({
+        type: z.literal("Link"),
+        linkType: z.literal("ContentType"),
+        id: z.literal("author"),
+      }),
+    }),
+  }),
+  fields: AuthorLocaleStarFieldsSchema,
+});
+
+export type AuthorLocaleStarEntry = z.infer<typeof AuthorLocaleStarEntrySchema>;
+
 export const ArticleFieldsSchema = z.object({
   title: flatField(z.string().max(200)),
   slug: flatField(z.string()),
-  status: flatField(z.enum(["draft", "review", "published"])),
-  priority: flatField(z.union([z.literal(1), z.literal(2), z.literal(3)])),
-  tags: flatField(z.array(z.enum(["news", "guide", "opinion"]))),
+  status: flatField(ArticleStatusSchema),
+  priority: flatField(ArticlePrioritySchema),
+  tags: flatField(z.array(ArticleTagsSchema)),
   author: flatField(
     z.object({
       sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),
@@ -170,9 +212,9 @@ export type ArticleFields = z.infer<typeof ArticleFieldsSchema>;
 export const ArticleLocalizedFieldsSchema = z.object({
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(200))),
   slug: transportField(z.string()),
-  status: transportField(z.enum(["draft", "review", "published"])),
-  priority: transportField(z.union([z.literal(1), z.literal(2), z.literal(3)])),
-  tags: transportField(z.array(z.enum(["news", "guide", "opinion"]))),
+  status: transportField(ArticleStatusSchema),
+  priority: transportField(ArticlePrioritySchema),
+  tags: transportField(z.array(ArticleTagsSchema)),
   author: transportField(
     z.object({
       sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),
@@ -204,6 +246,46 @@ export const ArticleLocalizedEntrySchema = z.object({
 
 export type ArticleLocalizedEntry = z.infer<typeof ArticleLocalizedEntrySchema>;
 
+export const ArticleLocaleStarFieldsSchema = z.object({
+  title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(200))),
+  slug: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
+  status: transportField(z.record(ContentfulLocaleCodeSchema, ArticleStatusSchema)),
+  priority: transportField(z.record(ContentfulLocaleCodeSchema, ArticlePrioritySchema)),
+  tags: transportField(z.record(ContentfulLocaleCodeSchema, z.array(ArticleTagsSchema))),
+  author: transportField(
+    z.record(
+      ContentfulLocaleCodeSchema,
+      z.object({
+        sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),
+      })
+    )
+  ),
+  body: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
+  seo: transportField(
+    z.record(
+      ContentfulLocaleCodeSchema,
+      z.object({ seoTitle: z.string(), noIndex: z.boolean().optional() })
+    )
+  ),
+});
+
+export type ArticleLocaleStarFields = z.infer<typeof ArticleLocaleStarFieldsSchema>;
+
+export const ArticleLocaleStarEntrySchema = z.object({
+  sys: ContentfulEntrySysSchema.extend({
+    contentType: z.object({
+      sys: z.object({
+        type: z.literal("Link"),
+        linkType: z.literal("ContentType"),
+        id: z.literal("article"),
+      }),
+    }),
+  }),
+  fields: ArticleLocaleStarFieldsSchema,
+});
+
+export type ArticleLocaleStarEntry = z.infer<typeof ArticleLocaleStarEntrySchema>;
+
 /** @generated from content type snapshot */
 export const CONTENTFUL_CONTENT_TYPE_IDS = ["author", "article"] as const;
 export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];
@@ -230,6 +312,29 @@ export const ContentfulResolvedLocalizedEntrySchema = z.union([
 ]);
 export type ContentfulResolvedLocalizedEntry = z.infer<
   typeof ContentfulResolvedLocalizedEntrySchema
+>;
+
+/** Locale-star (`locale=*`) entry type per content type id. */
+export type ContentfulLocaleStarEntryByContentType = {
+  author: AuthorLocaleStarEntry;
+  article: ArticleLocaleStarEntry;
+};
+
+/** Zod locale-star entry schema per content type id (for typed parse + dispatch). */
+export const ContentfulLocaleStarEntrySchemaByContentType = {
+  author: AuthorLocaleStarEntrySchema,
+  article: ArticleLocaleStarEntrySchema,
+} as const satisfies {
+  [K in ContentfulContentTypeId]: z.ZodType<ContentfulLocaleStarEntryByContentType[K]>;
+};
+
+/** Locale-star entry (any content type in this snapshot). */
+export const ContentfulResolvedLocaleStarEntrySchema = z.union([
+  AuthorLocaleStarEntrySchema,
+  ArticleLocaleStarEntrySchema,
+]);
+export type ContentfulResolvedLocaleStarEntry = z.infer<
+  typeof ContentfulResolvedLocaleStarEntrySchema
 >;
 
 /** Read one locale from a localized field map; missing locale or null input → `null`. */
@@ -266,6 +371,48 @@ export function flattenArticleLocalizedFields(
     priority: fields.priority ?? null,
     tags: fields.tags ?? null,
     author: fields.author ?? null,
+    body: pickLocale(fields.body ?? null, _locale),
+    seo: pickLocale(fields.seo ?? null, _locale),
+  };
+}
+
+/** Flatten validated `AuthorLocaleStarFields` (from `locale=*` `entry.fields`) to `AuthorFields` for a single locale. */
+export function flattenAuthorLocaleStarEntryFields(
+  fields: AuthorLocaleStarFields,
+  _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
+): AuthorFields {
+  return {
+    name:
+      pickLocale(fields.name ?? null, _locale) ??
+      pickLocale(fields.name ?? null, CONTENTFUL_DEFAULT_LOCALE),
+    role:
+      pickLocale(fields.role ?? null, _locale) ??
+      pickLocale(fields.role ?? null, CONTENTFUL_DEFAULT_LOCALE),
+  };
+}
+
+/** Flatten validated `ArticleLocaleStarFields` (from `locale=*` `entry.fields`) to `ArticleFields` for a single locale. */
+export function flattenArticleLocaleStarEntryFields(
+  fields: ArticleLocaleStarFields,
+  _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
+): ArticleFields {
+  return {
+    title: pickLocale(fields.title ?? null, _locale),
+    slug:
+      pickLocale(fields.slug ?? null, _locale) ??
+      pickLocale(fields.slug ?? null, CONTENTFUL_DEFAULT_LOCALE),
+    status:
+      pickLocale(fields.status ?? null, _locale) ??
+      pickLocale(fields.status ?? null, CONTENTFUL_DEFAULT_LOCALE),
+    priority:
+      pickLocale(fields.priority ?? null, _locale) ??
+      pickLocale(fields.priority ?? null, CONTENTFUL_DEFAULT_LOCALE),
+    tags:
+      pickLocale(fields.tags ?? null, _locale) ??
+      pickLocale(fields.tags ?? null, CONTENTFUL_DEFAULT_LOCALE),
+    author:
+      pickLocale(fields.author ?? null, _locale) ??
+      pickLocale(fields.author ?? null, CONTENTFUL_DEFAULT_LOCALE),
     body: pickLocale(fields.body ?? null, _locale),
     seo: pickLocale(fields.seo ?? null, _locale),
   };

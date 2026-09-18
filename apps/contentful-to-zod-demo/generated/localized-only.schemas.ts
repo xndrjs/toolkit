@@ -110,9 +110,29 @@ export const ContentfulAssetLinkSchema = z.object({
 });
 export type ContentfulAssetLink = z.infer<typeof ContentfulAssetLinkSchema>;
 
+/** @generated from field validations.in */
+export const AUTHOR_ROLES = ["writer", "editor", "guest"] as const;
+export type AuthorRole = (typeof AUTHOR_ROLES)[number];
+export const AuthorRoleSchema = z.enum(AUTHOR_ROLES);
+
+/** @generated from field validations.in */
+export const ARTICLE_STATUSES = ["draft", "review", "published"] as const;
+export type ArticleStatus = (typeof ARTICLE_STATUSES)[number];
+export const ArticleStatusSchema = z.enum(ARTICLE_STATUSES);
+
+/** @generated from field validations.in */
+export const ARTICLE_PRIORITIES = [1, 2, 3] as const;
+export type ArticlePriority = (typeof ARTICLE_PRIORITIES)[number];
+export const ArticlePrioritySchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
+
+/** @generated from field validations.in */
+export const ARTICLE_TAGS = ["news", "guide", "opinion"] as const;
+export type ArticleTags = (typeof ARTICLE_TAGS)[number];
+export const ArticleTagsSchema = z.enum(ARTICLE_TAGS);
+
 export const AuthorLocalizedFieldsSchema = z.object({
   name: transportField(z.string()),
-  role: transportField(z.enum(["writer", "editor", "guest"])),
+  role: transportField(AuthorRoleSchema),
 });
 
 export type AuthorLocalizedFields = z.infer<typeof AuthorLocalizedFieldsSchema>;
@@ -135,9 +155,9 @@ export type AuthorLocalizedEntry = z.infer<typeof AuthorLocalizedEntrySchema>;
 export const ArticleLocalizedFieldsSchema = z.object({
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(200))),
   slug: transportField(z.string()),
-  status: transportField(z.enum(["draft", "review", "published"])),
-  priority: transportField(z.union([z.literal(1), z.literal(2), z.literal(3)])),
-  tags: transportField(z.array(z.enum(["news", "guide", "opinion"]))),
+  status: transportField(ArticleStatusSchema),
+  priority: transportField(ArticlePrioritySchema),
+  tags: transportField(z.array(ArticleTagsSchema)),
   author: transportField(
     z.object({
       sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),

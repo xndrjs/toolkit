@@ -85,4 +85,70 @@ describe("generateZodSchemas locale modes", () => {
       generateZodSchemas(contentTypes, { localeModes: ["flat", "localized-only"] })
     ).toThrow('Locales are required when locale.modes includes "localized-only" or "all"');
   });
+
+  it("mode all emits LocaleStar fields/entry schemas wrapping every field", () => {
+    const output = generateZodSchemas(contentTypes, {
+      locales,
+      localeModes: ["all"],
+    });
+
+    expect(output).toMatchSnapshot();
+    expect(output).not.toContain("export const BlogPostFieldsSchema");
+    expect(output).not.toContain("BlogPostLocalizedFieldsSchema");
+    expect(output).toContain("export const BlogPostLocaleStarFieldsSchema");
+    expect(output).toContain("export const BlogPostLocaleStarEntrySchema");
+    expect(output).toContain("ContentfulLocaleCodeSchema");
+    expect(output).toContain("ContentfulEntrySysSchema");
+    expect(output).toContain("export function transportField");
+    expect(output).toContain(
+      '"slug": transportField(z.record(ContentfulLocaleCodeSchema, z.string()))'
+    );
+    expect(output).toContain(
+      '"title": transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256)))'
+    );
+    expect(output).toContain(
+      '"status": transportField(z.record(ContentfulLocaleCodeSchema, BlogPostStatusSchema))'
+    );
+    expect(output).toContain("ContentfulLocaleStarEntrySchemaByContentType");
+    expect(output).toContain("ContentfulResolvedLocaleStarEntrySchema");
+    expect(output).not.toContain("ContentfulLocalizedEntrySchemaByContentType");
+    expect(output).not.toContain("flattenBlogPostLocalizedFields");
+    expect(output).not.toContain("flattenBlogPostLocaleStarEntryFields");
+    expect(output).not.toContain("parseEntryAsLinkField");
+  });
+
+  it("modes flat + all emit LocaleStar flatten helpers with default-locale fallback", () => {
+    const output = generateZodSchemas(contentTypes, {
+      locales,
+      localeModes: ["flat", "all"],
+    });
+
+    expect(output).toMatchSnapshot();
+    expect(output).toContain("export const BlogPostFieldsSchema");
+    expect(output).toContain("export const BlogPostLocaleStarFieldsSchema");
+    expect(output).not.toContain("BlogPostLocalizedFieldsSchema");
+    expect(output).toContain("export function flattenBlogPostLocaleStarEntryFields");
+    expect(output).not.toContain("flattenBlogPostLocalizedFields");
+    expect(output).toContain(
+      '"slug": pickLocale(fields.slug ?? null, _locale) ?? pickLocale(fields.slug ?? null, CONTENTFUL_DEFAULT_LOCALE),'
+    );
+    expect(output).toContain('"title": pickLocale(fields.title ?? null, _locale),');
+  });
+
+  it("modes including all keep localized-only shapes distinct from LocaleStar", () => {
+    const output = generateZodSchemas(contentTypes, {
+      locales,
+      localeModes: ["flat", "localized-only", "all"],
+    });
+
+    expect(output).toContain("export const BlogPostFieldsSchema");
+    expect(output).toContain("export const BlogPostLocalizedFieldsSchema");
+    expect(output).toContain("export const BlogPostLocaleStarFieldsSchema");
+    expect(output).toContain("export function flattenBlogPostLocalizedFields");
+    expect(output).toContain("export function flattenBlogPostLocaleStarEntryFields");
+    expect(output).toContain('"slug": transportField(z.string())');
+    expect(output).toContain(
+      '"slug": transportField(z.record(ContentfulLocaleCodeSchema, z.string()))'
+    );
+  });
 });

@@ -115,6 +115,8 @@ export interface ResolvedFieldLocalizationFlags {
   includePickLocale: boolean;
   /** Emit flatten helpers (`localized-only` → `flat`). */
   includeFlatten: boolean;
+  /** Emit flatten helpers (`all` / locale=* → `flat`). */
+  includeFlattenLocaleStar: boolean;
 }
 
 export function resolveFieldLocalizationFlags(options: {
@@ -135,5 +137,6 @@ export function resolveFieldLocalizationFlags(options: {
     needsLocales,
     includePickLocale: needsLocales,
     includeFlatten: includeFlat && includeLocalizedOnly,
+    includeFlattenLocaleStar: includeFlat && includeAll,
   };
 }

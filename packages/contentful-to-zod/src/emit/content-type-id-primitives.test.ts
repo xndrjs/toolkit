@@ -50,6 +50,22 @@ describe("emitContentTypeIdPrimitives", () => {
     expect(output).toContain(
       "} as const satisfies {\n  [K in ContentfulContentTypeId]: z.ZodType<ContentfulLocalizedEntryByContentType[K]>;"
     );
+    expect(output).not.toContain("ContentfulLocaleStarEntryByContentType");
+  });
+
+  it("emits locale-star entry maps when requested", () => {
+    const output = emitContentTypeIdPrimitives([author, blogPost], {
+      includeLocaleStarEntryMaps: true,
+    });
+
+    expect(output).toContain("export type ContentfulLocaleStarEntryByContentType = {");
+    expect(output).toContain('  "author": AuthorLocaleStarEntry;');
+    expect(output).toContain('  "blogPost": BlogPostLocaleStarEntry;');
+    expect(output).toContain("export const ContentfulLocaleStarEntrySchemaByContentType = {");
+    expect(output).toContain('  "author": AuthorLocaleStarEntrySchema,');
+    expect(output).toContain('  "blogPost": BlogPostLocaleStarEntrySchema,');
+    expect(output).toContain("ContentfulResolvedLocaleStarEntrySchema");
+    expect(output).not.toContain("ContentfulLocalizedEntryByContentType");
   });
 
   it("throws when there are no content types", () => {

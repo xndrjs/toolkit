@@ -99,6 +99,77 @@ describe("generated locale helpers", () => {
     expect(flat.author).toBeNull();
   });
 
+  it("flattenBlogPostLocaleStarEntryFields picks locale and falls back to default for non-localized", async () => {
+    const source = generateZodSchemas(contentTypes, {
+      locales,
+      localeModes: ["flat", "all"],
+    });
+    const mod = await importGeneratedModule<{
+      flattenBlogPostLocaleStarEntryFields: (
+        fields: {
+          title: Record<"en-US" | "it-IT", string> | null;
+          slug: Record<"en-US" | "it-IT", string> | null;
+          status?: Record<"en-US" | "it-IT", string> | null;
+          excerpt?: Record<"en-US" | "it-IT", string> | null;
+        },
+        locale?: "en-US" | "it-IT"
+      ) => {
+        title: string | null;
+        slug: string | null;
+        status: string | null;
+        excerpt: string | null;
+      };
+    }>(source);
+
+    const flat = mod.flattenBlogPostLocaleStarEntryFields(
+      {
+        title: { "en-US": "Hello", "it-IT": "Titolo" },
+        // Non-localized under locale=* typically only has the default locale key
+        slug: { "en-US": "my-post" } as Record<"en-US" | "it-IT", string>,
+        status: { "en-US": "published" } as Record<"en-US" | "it-IT", string>,
+        excerpt: { "en-US": "Summary", "it-IT": "Riassunto" },
+      },
+      "it-IT"
+    );
+
+    expect(flat).toEqual({
+      title: "Titolo",
+      slug: "my-post",
+      status: "published",
+      priority: null,
+      tags: null,
+      author: null,
+      excerpt: "Riassunto",
+      metadata: null,
+    });
+  });
+
+  it("flattenBlogPostLocaleStarEntryFields prefers requested locale over default for non-localized", async () => {
+    const source = generateZodSchemas(contentTypes, {
+      locales,
+      localeModes: ["flat", "all"],
+    });
+    const mod = await importGeneratedModule<{
+      flattenBlogPostLocaleStarEntryFields: (
+        fields: {
+          title: Record<"en-US" | "it-IT", string> | null;
+          slug: Record<"en-US" | "it-IT", string> | null;
+        },
+        locale?: "en-US" | "it-IT"
+      ) => { title: string | null; slug: string | null };
+    }>(source);
+
+    const flat = mod.flattenBlogPostLocaleStarEntryFields(
+      {
+        title: { "en-US": "Hello", "it-IT": "Titolo" },
+        slug: { "en-US": "en-slug", "it-IT": "it-slug" },
+      },
+      "it-IT"
+    );
+
+    expect(flat.slug).toBe("it-slug");
+  });
+
   it("BlogPostFieldsSchema normalizes undefined flat values to null", async () => {
     const source = generateZodSchemas(contentTypes, {
       locales,

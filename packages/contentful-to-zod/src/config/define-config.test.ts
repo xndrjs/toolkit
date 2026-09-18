@@ -78,7 +78,7 @@ describe("resolveFieldLocalizationModes", () => {
 });
 
 describe("resolveFieldLocalizationFlags", () => {
-  it("sets flatten only when both none and localized-only are present", () => {
+  it("sets flatten only when both flat and localized-only are present", () => {
     expect(
       resolveFieldLocalizationFlags({ localeModes: ["flat", "localized-only"] })
     ).toMatchObject({
@@ -88,16 +88,19 @@ describe("resolveFieldLocalizationFlags", () => {
       needsLocales: true,
       includePickLocale: true,
       includeFlatten: true,
+      includeFlattenLocaleStar: false,
     });
 
     expect(resolveFieldLocalizationFlags({ localeModes: ["localized-only"] })).toMatchObject({
       includeFlatten: false,
+      includeFlattenLocaleStar: false,
       includePickLocale: true,
       needsLocales: true,
     });
 
     expect(resolveFieldLocalizationFlags({ localeModes: ["flat"] })).toMatchObject({
       includeFlatten: false,
+      includeFlattenLocaleStar: false,
       includePickLocale: false,
       needsLocales: false,
     });
@@ -109,6 +112,22 @@ describe("resolveFieldLocalizationFlags", () => {
       needsLocales: true,
       includePickLocale: true,
       includeFlatten: false,
+      includeFlattenLocaleStar: false,
+    });
+  });
+
+  it("sets localeStar flatten when both flat and all are present", () => {
+    expect(resolveFieldLocalizationFlags({ localeModes: ["flat", "all"] })).toMatchObject({
+      includeFlatten: false,
+      includeFlattenLocaleStar: true,
+      includePickLocale: true,
+    });
+
+    expect(
+      resolveFieldLocalizationFlags({ localeModes: ["flat", "localized-only", "all"] })
+    ).toMatchObject({
+      includeFlatten: true,
+      includeFlattenLocaleStar: true,
     });
   });
 });

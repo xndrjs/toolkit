@@ -1,6 +1,8 @@
 import type { ContentType } from "../model/content-type";
 import {
   emitInferredType,
+  localeStarEntrySchemaExportName,
+  localeStarFieldsSchemaExportName,
   localizedEntrySchemaExportName,
   localizedFieldsSchemaExportName,
 } from "./schema-name";
@@ -90,10 +92,11 @@ export function emitAssetDeliverySchema(): string {
   ].join("\n");
 }
 
-/** Emit `{ContentType}LocalizedEntrySchema` wrapping typed `sys` and localized-only `fields`. */
-export function emitContentTypeLocalizedEntrySchema(contentType: ContentType): string[] {
-  const entryName = localizedEntrySchemaExportName(contentType.id);
-  const fieldsSchema = localizedFieldsSchemaExportName(contentType.id);
+function emitContentTypeEntrySchema(
+  contentType: ContentType,
+  entryName: string,
+  fieldsSchema: string
+): string[] {
   const contentTypeId = JSON.stringify(contentType.id);
 
   return [
@@ -113,4 +116,22 @@ export function emitContentTypeLocalizedEntrySchema(contentType: ContentType): s
     emitInferredType(entryName),
     "",
   ];
+}
+
+/** Emit `{ContentType}LocalizedEntrySchema` wrapping typed `sys` and localized-only `fields`. */
+export function emitContentTypeLocalizedEntrySchema(contentType: ContentType): string[] {
+  return emitContentTypeEntrySchema(
+    contentType,
+    localizedEntrySchemaExportName(contentType.id),
+    localizedFieldsSchemaExportName(contentType.id)
+  );
+}
+
+/** Emit `{ContentType}LocaleStarEntrySchema` wrapping typed `sys` and `locale=*` `fields`. */
+export function emitContentTypeLocaleStarEntrySchema(contentType: ContentType): string[] {
+  return emitContentTypeEntrySchema(
+    contentType,
+    localeStarEntrySchemaExportName(contentType.id),
+    localeStarFieldsSchemaExportName(contentType.id)
+  );
 }

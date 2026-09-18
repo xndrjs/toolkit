@@ -321,6 +321,28 @@ export function localizedFieldSource(flat: FieldZodResult, field: ContentField):
   return `transportField(${baseSource})`;
 }
 
+/**
+ * Emit Zod source for a `locale=*` field: every field is a locale record
+ * (ignores `field.localized`).
+ */
+export function localeStarFieldSource(flat: FieldZodResult, _field: ContentField): string {
+  const innerSource = fieldInnerSource(flat);
+  return `transportField(z.record(ContentfulLocaleCodeSchema, ${innerSource}))`;
+}
+
+/** Wrap a flat field schema for `locale=*` shape (always a locale record + transport). */
+export function wrapForLocaleStar(
+  result: FieldZodResult,
+  localeCodeSchema: z.ZodEnum<Readonly<Record<string, string>>>
+): FieldZodResult {
+  const { inner } = unwrapOptionalSchema(result.schema);
+
+  return {
+    schema: wrapAbsentToNullField(z.record(localeCodeSchema as z.ZodType<string>, inner)),
+    sourceSuffix: result.sourceSuffix,
+  };
+}
+
 /** Validate config object overrides against content types (fail-fast). */
 export function validateObjectOverrides(
   contentTypes: { id: string; fields: ContentField[] }[],

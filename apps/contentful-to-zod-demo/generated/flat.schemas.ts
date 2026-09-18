@@ -29,9 +29,29 @@ export const ContentfulAssetLinkSchema = z.object({
 });
 export type ContentfulAssetLink = z.infer<typeof ContentfulAssetLinkSchema>;
 
+/** @generated from field validations.in */
+export const AUTHOR_ROLES = ["writer", "editor", "guest"] as const;
+export type AuthorRole = (typeof AUTHOR_ROLES)[number];
+export const AuthorRoleSchema = z.enum(AUTHOR_ROLES);
+
+/** @generated from field validations.in */
+export const ARTICLE_STATUSES = ["draft", "review", "published"] as const;
+export type ArticleStatus = (typeof ARTICLE_STATUSES)[number];
+export const ArticleStatusSchema = z.enum(ARTICLE_STATUSES);
+
+/** @generated from field validations.in */
+export const ARTICLE_PRIORITIES = [1, 2, 3] as const;
+export type ArticlePriority = (typeof ARTICLE_PRIORITIES)[number];
+export const ArticlePrioritySchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
+
+/** @generated from field validations.in */
+export const ARTICLE_TAGS = ["news", "guide", "opinion"] as const;
+export type ArticleTags = (typeof ARTICLE_TAGS)[number];
+export const ArticleTagsSchema = z.enum(ARTICLE_TAGS);
+
 export const AuthorFieldsSchema = z.object({
   name: flatField(z.string()),
-  role: flatField(z.enum(["writer", "editor", "guest"])),
+  role: flatField(AuthorRoleSchema),
 });
 
 export type AuthorFields = z.infer<typeof AuthorFieldsSchema>;
@@ -39,9 +59,9 @@ export type AuthorFields = z.infer<typeof AuthorFieldsSchema>;
 export const ArticleFieldsSchema = z.object({
   title: flatField(z.string().max(200)),
   slug: flatField(z.string()),
-  status: flatField(z.enum(["draft", "review", "published"])),
-  priority: flatField(z.union([z.literal(1), z.literal(2), z.literal(3)])),
-  tags: flatField(z.array(z.enum(["news", "guide", "opinion"]))),
+  status: flatField(ArticleStatusSchema),
+  priority: flatField(ArticlePrioritySchema),
+  tags: flatField(z.array(ArticleTagsSchema)),
   author: flatField(
     z.object({
       sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),

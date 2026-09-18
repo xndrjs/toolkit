@@ -6,8 +6,10 @@ import { collectFieldEnums, fieldEnumDescriptorMap } from "./field-enum-primitiv
 import { buildLocaleCodeSchema } from "./locale-primitives";
 import {
   fieldToZod,
+  localeStarFieldSource,
   localizedFieldSource,
   flatFieldSource,
+  wrapForLocaleStar,
   wrapForLocalized,
 } from "./field-to-zod";
 
@@ -99,6 +101,31 @@ describe("localizedFieldSource", () => {
   });
 });
 
+describe("localeStarFieldSource", () => {
+  it("wraps every field in a locale record, including non-localized", () => {
+    const title = fieldById("title");
+    const titleFlat = fieldToZodWithEnums(title);
+    expect(localeStarFieldSource(titleFlat, title)).toBe(
+      "transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256)))"
+    );
+
+    const slug = fieldById("slug");
+    const slugFlat = fieldToZodWithEnums(slug);
+    expect(localeStarFieldSource(slugFlat, slug)).toBe(
+      "transportField(z.record(ContentfulLocaleCodeSchema, z.string()))"
+    );
+  });
+
+  it("references named field enums inside the locale record", () => {
+    const status = fieldById("status");
+    const flat = fieldToZodWithEnums(status);
+
+    expect(localeStarFieldSource(flat, status)).toBe(
+      "transportField(z.record(ContentfulLocaleCodeSchema, BlogPostStatusSchema))"
+    );
+  });
+});
+
 describe("wrapForLocalized", () => {
   it("parses absent, null, and present delivery values", () => {
     const title = fieldById("title");
@@ -124,5 +151,21 @@ describe("wrapForLocalized", () => {
     expect(slugDelivery.schema.parse(undefined)).toBeNull();
     expect(slugDelivery.schema.parse(null)).toBeNull();
     expect(slugDelivery.schema.parse("my-post")).toBe("my-post");
+  });
+});
+
+describe("wrapForLocaleStar", () => {
+  it("always expects a locale record, even for non-localized fields", () => {
+    const slug = fieldById("slug");
+    const flat = fieldToZodWithEnums(slug);
+    const localeStar = wrapForLocaleStar(flat, localeCodeSchema);
+
+    expect(localeStar.schema.parse(undefined)).toBeNull();
+    expect(localeStar.schema.parse(null)).toBeNull();
+    expect(localeStar.schema.parse({ "en-US": "my-post", "it-IT": "mio-post" })).toEqual({
+      "en-US": "my-post",
+      "it-IT": "mio-post",
+    });
+    expect(localeStar.schema.safeParse("my-post").success).toBe(false);
   });
 });

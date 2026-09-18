@@ -122,12 +122,15 @@ export default defineConfig({
 | `"flat"`                                | Flat `*FieldsSchema`                                                                      |
 | `"localized-only"`                      | `*LocalizedFieldsSchema`, `*LocalizedEntrySchema`, entry maps, `pickLocale`, link helpers |
 | `"flat"` + `"localized-only"` (default) | Above + `flatten*LocalizedFields`                                                         |
-| `"all"`                                 | `*LocaleStar*` shapes for `locale=*` (emission follow-up; flag accepted now)              |
+| `"all"`                                 | `*LocaleStarFieldsSchema`, `*LocaleStarEntrySchema`, locale-star entry maps, `pickLocale` |
+| `"flat"` + `"all"`                      | Flat + locale-star shapes + `flatten*LocaleStarEntryFields`                               |
+| `"flat"` + `"localized-only"` + `"all"` | All of the above                                                                          |
 
 Rules:
 
 - **`flat`** (`*FieldsSchema`) — one value per field; wrap with **`flatField()`**. Use for CDA `locale=<code>` or after flatten.
 - **`localized-only`** (`*LocalizedFieldsSchema`, `*LocalizedEntrySchema`) — wrap with **`transportField()`**; only `localized: true` fields become `z.record(ContentfulLocaleCodeSchema, T)`.
+- **`all`** (`*LocaleStarFieldsSchema`, `*LocaleStarEntrySchema`) — wrap with **`transportField()`**; **every** field is `z.record(ContentfulLocaleCodeSchema, T)` (CDA/CPA `locale=*`), ignoring `field.localized`.
 - **`disabled` / `omitted` / `deleted`** fields are excluded by default. Opt in via config: `fields.includeDisabled`, `fields.includeOmitted`, `fields.includeDeleted`.
 
 ### Generated locale primitives
@@ -146,7 +149,7 @@ Locale (and content-type id) constants are **values-first**: the `as const` arra
 
 ### Generated content-type id registry
 
-After per-type schemas, codegen emits a closed set of content type ids (and, in delivery/`both`, typed entry maps):
+After per-type schemas, codegen emits a closed set of content type ids (and, when `localized-only` / `all` is enabled, typed entry maps):
 
 ```ts
 /** @generated from content type snapshot */
@@ -169,7 +172,7 @@ export const ContentfulLocalizedEntrySchemaByContentType = {
 
 Use these to type dispatch tables (e.g. expansion policies) so adding a content type to the CMA snapshot fails typecheck until every branch is updated.
 
-In delivery/`both` mode, codegen also emits a structural gate before CT-specific parse:
+When `localized-only` or `all` is enabled, codegen also emits a structural gate before CT-specific parse:
 
 ```ts
 /** Structural Delivery/Preview entry envelope (any content type); fields are untyped. */
@@ -179,11 +182,11 @@ export const ContentfulEntryEnvelopeSchema = z.object({
 });
 ```
 
-Use it to accept mixed entry arrays (`includes.Entry`, batch loads), then dispatch with `sys.contentType.sys.id` into `ContentfulLocalizedEntrySchemaByContentType`. It is **not** the same as `ContentfulResolvedLocalizedEntrySchema` (closed union of known typed entries).
+Use it to accept mixed entry arrays (`includes.Entry`, batch loads), then dispatch with `sys.contentType.sys.id` into `ContentfulLocalizedEntrySchemaByContentType` (or the LocaleStar map). It is **not** the same as `ContentfulResolvedLocalizedEntrySchema` (closed union of known typed entries).
 
 ### Named field enums (`validations.in`)
 
-When a Symbol/Text/Integer/Number field (or Array **items**) has `validations.in`, codegen lifts a values-first named enum **before** the object field schemas and references it in flat and localized-only shapes:
+When a Symbol/Text/Integer/Number field (or Array **items**) has `validations.in`, codegen lifts a values-first named enum **before** the object field schemas and references it in flat, localized-only, and locale-star shapes:
 
 ```ts
 /** @generated from field validations.in */
@@ -202,10 +205,10 @@ export const BlogPostFieldsSchema = z.object({
 - Array item `in` uses the **field** name (`z.array(BlogPostTagsSchema)`).
 - No cross-field dedup in v1.
 
-### Flat vs delivery example
+### Flat vs localized-only vs locale=\* example
 
 ```ts
-// flat / CMA — single value per field, normalized by flatField()
+// flat — single value per field, normalized by flatField()
 export const BlogPostFieldsSchema = z.object({
   title: flatField(z.string().max(256)),
   slug: flatField(z.string()),
@@ -222,6 +225,15 @@ export const BlogPostLocalizedFieldsSchema = z.object({
 });
 
 export type BlogPostLocalizedFields = z.infer<typeof BlogPostLocalizedFieldsSchema>;
+
+// all (locale=*) — every field is a locale map, ignoring field.localized
+export const BlogPostLocaleStarFieldsSchema = z.object({
+  title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
+  slug: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
+  author: transportField(z.record(ContentfulLocaleCodeSchema, ContentfulEntryLinkSchema)),
+});
+
+export type BlogPostLocaleStarFields = z.infer<typeof BlogPostLocaleStarFieldsSchema>;
 ```
 
 ## Generated helpers
@@ -232,16 +244,17 @@ Helpers are pure functions in the same output file. They **do not validate** —
 import {
   BlogPostLocalizedEntrySchema,
   BlogPostFieldsSchema,
-  flattenBlogPostLocalizedEntryFields,
+  flattenBlogPostLocalizedFields,
 } from "./generated/contentful.schemas";
 
 const entry = BlogPostLocalizedEntrySchema.parse(rawFromContentful);
-const flat = flattenBlogPostLocalizedEntryFields(entry.fields, "it-IT");
+const flat = flattenBlogPostLocalizedFields(entry.fields, "it-IT");
 const post = BlogPostFieldsSchema.parse(flat);
 ```
 
-- **`pickLocale`** — read one locale from a localized delivery field (`Record<ContentfulLocaleCode, T> | null`); missing locale or `null` input → `null`. Default locale parameter is `CONTENTFUL_DEFAULT_LOCALE`.
-- **`flatten{ContentType}LocalizedFields`** — map validated `*LocalizedFields` from `entry.fields` → flat `*Fields` for one locale (one per content type when both `none` and `localized-only` are enabled). Passes `null` through for absent localized values.
+- **`pickLocale`** — read one locale from a localized field map (`Record<ContentfulLocaleCode, T> | null`); missing locale or `null` input → `null`. Default locale parameter is `CONTENTFUL_DEFAULT_LOCALE`.
+- **`flatten{ContentType}LocalizedFields`** — map validated `*LocalizedFields` from `entry.fields` → flat `*Fields` for one locale (when both `flat` and `localized-only` are enabled). Localized fields use `pickLocale`; non-localized fields pass through (`?? null`).
+- **`flatten{ContentType}LocaleStarEntryFields`** — map validated `*LocaleStarFields` (`locale=*`) → flat `*Fields` (when both `flat` and `all` are enabled). Localized fields: `pickLocale(map, locale)`. Non-localized fields: `pickLocale(map, locale) ?? pickLocale(map, CONTENTFUL_DEFAULT_LOCALE)` (under `locale=*`, non-localized values typically exist only on the default locale).
 
 There is no runtime dependency on `@xndrjs/contentful-to-zod` in production — only the generated file and `zod`.
 
@@ -262,23 +275,23 @@ export default defineConfig({
 });
 ```
 
-Overrides apply to the **base field type** `T`. In delivery mode, localized fields wrap `z.record(ContentfulLocaleCodeSchema, T).nullable()` around that base (plus `.optional()` when applicable).
+Overrides apply to the **base field type** `T`. In localized-only / locale-star modes, localized (or all) fields wrap `z.record(ContentfulLocaleCodeSchema, T)` around that base via `transportField()`.
 
 Overrides are inlined at codegen time — the config is not imported at runtime.
 
 ## Mapping Delivery / REST data
 
-1. Parse raw entries with `*EntrySchema.parse(...)`.
-2. Flatten validated `entry.fields` with `flatten*LocalizedFields(...)` when both `none` and `localized-only` are enabled.
+1. Parse raw entries with `*LocalizedEntrySchema` or `*LocaleStarEntrySchema`.
+2. Flatten validated `entry.fields` with `flatten*LocalizedFields(...)` (localized-only) or `flatten*LocaleStarEntryFields(...)` (`locale=*`) when `flat` is also enabled.
 3. Validate the flat shape with `*FieldsSchema.parse(...)`.
 
-Entry/asset link objects and CMA validations (size, range, regex, etc.) are reflected in the generated Zod chains.
+Entry/asset link objects and CMA validations (size, range, regex, `in`, etc.) are reflected in the generated Zod chains.
 
 ## Resolved entry links (`linkContentType`)
 
 Contentful REST does not include the target content type on unresolved link stubs. The CMA field validation `linkContentType` is the source of truth — the codegen reads it from your content-type snapshot (no extra config).
 
-When `locale.mode` includes delivery, the generated file also exports `parseEntryAsLinkField` for fields that declare `linkContentType`:
+When `locale.modes` includes `localized-only`, the generated file also exports `parseEntryAsLinkField` for fields that declare `linkContentType`:
 
 ```ts
 import {
@@ -321,15 +334,15 @@ Use `SupportedLocale` (or your own name) wherever application code should accept
 
 ## CMA field mapping (summary)
 
-| CMA `type`   | Zod base                                               |
-| ------------ | ------------------------------------------------------ |
-| Symbol, Text | `z.string()` + validations                             |
-| Integer      | `z.number().int()`                                     |
-| Number       | `z.number()`                                           |
-| Boolean      | `z.boolean()`                                          |
-| Date         | `z.string()` / `z.iso.datetime()`                      |
-| Location     | `z.object({ lat, lon })`                               |
-| Object       | `z.record(z.string(), z.unknown())` or config override |
-| Link         | Contentful link object                                 |
-| Array        | `z.array(itemSchema)`                                  |
-| Rich Text    | `z.looseObject({ nodeType: z.literal("document") })`   |
+| CMA `type`   | Zod base                                                    |
+| ------------ | ----------------------------------------------------------- |
+| Symbol, Text | `z.string()` + validations (incl. named enums from `in`)    |
+| Integer      | `z.number().int()` (+ named enum / literal union from `in`) |
+| Number       | `z.number()` (+ named enum / literal union from `in`)       |
+| Boolean      | `z.boolean()`                                               |
+| Date         | `z.string()` / `z.iso.datetime()`                           |
+| Location     | `z.object({ lat, lon })`                                    |
+| Object       | `z.record(z.string(), z.unknown())` or config override      |
+| Link         | Contentful link object                                      |
+| Array        | `z.array(itemSchema)`                                       |
+| Rich Text    | `z.looseObject({ nodeType: z.literal("document") })`        |

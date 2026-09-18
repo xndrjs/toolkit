@@ -45,7 +45,9 @@ export {
 export {
   fieldToZod,
   wrapForLocalized,
+  wrapForLocaleStar,
   localizedFieldSource,
+  localeStarFieldSource,
   validateObjectOverrides,
 } from "./emit/field-to-zod";
 export {
@@ -60,13 +62,16 @@ export {
   resolveDefaultLocale,
 } from "./emit/locale-primitives";
 export {
+  emitContentTypeLocaleStarEntrySchema,
   emitContentTypeLocalizedEntrySchema,
   emitEntrySysPrimitives,
 } from "./emit/entry-to-source";
 export {
   emitFlattenHelper,
+  emitFlattenLocaleStarHelper,
   emitLocaleHelpers,
   emitPickLocale,
+  flattenLocaleStarEntryFieldsFnName,
   flattenLocalizedFieldsFnName,
 } from "./emit/helpers-to-source";
 export { zodToSource } from "./emit/zod-to-source";

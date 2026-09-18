@@ -16,6 +16,7 @@ import {
 import {
   fieldToZod,
   flatFieldSource,
+  localeStarFieldSource,
   localizedFieldSource,
   validateObjectOverrides,
   type FieldZodResult,
@@ -26,10 +27,12 @@ import { CONTENTFUL_PRIMITIVE_SCHEMA_NAMES, CONTENTFUL_PRIMITIVE_SCHEMAS } from 
 import {
   fieldsSchemaExportName,
   emitInferredType,
+  localeStarFieldsSchemaExportName,
   localizedFieldsSchemaExportName,
 } from "./schema-name";
 import {
   emitAssetDeliverySchema,
+  emitContentTypeLocaleStarEntrySchema,
   emitContentTypeLocalizedEntrySchema,
   emitEntrySysPrimitives,
 } from "./entry-to-source";
@@ -77,19 +80,36 @@ function filterContentTypes(
 function fieldSource(
   flat: FieldZodResult,
   field: ContentField,
-  localization: "flat" | "localized-only"
+  localization: FieldLocalizationMode
 ): string {
   if (localization === "flat") {
     return flatFieldSource(flat, field);
   }
 
+  if (localization === "all") {
+    return localeStarFieldSource(flat, field);
+  }
+
   return localizedFieldSource(flat, field);
+}
+
+function fieldsExportNameForMode(
+  contentTypeId: string,
+  localization: FieldLocalizationMode
+): string {
+  if (localization === "localized-only") {
+    return localizedFieldsSchemaExportName(contentTypeId);
+  }
+  if (localization === "all") {
+    return localeStarFieldsSchemaExportName(contentTypeId);
+  }
+  return fieldsSchemaExportName(contentTypeId);
 }
 
 function emitContentTypeSchema(
   contentType: ContentType,
   options: {
-    localization: "flat" | "localized-only";
+    localization: FieldLocalizationMode;
     config?: ContentfulToZodConfig | undefined;
     fieldEnums?: ReadonlyMap<string, FieldEnumDescriptor> | undefined;
   }
@@ -108,10 +128,7 @@ function emitContentTypeSchema(
     );
   }
 
-  const exportName =
-    options.localization === "localized-only"
-      ? localizedFieldsSchemaExportName(contentType.id)
-      : fieldsSchemaExportName(contentType.id);
+  const exportName = fieldsExportNameForMode(contentType.id, options.localization);
   return [
     `export const ${exportName} = z.object({`,
     ...shapeEntries,
@@ -153,11 +170,10 @@ export function generateZodSchemas(
     localeModes: options.localeModes,
     config,
   });
-  // `all` (`locale=*`) shape emission lands in a follow-up; flag is accepted/validated now.
-  void flags.includeAll;
 
   const locales = requireLocalesForModes(flags.needsLocales, options.locales);
   const selectedContentTypes = filterContentTypes(contentTypes, options.contentTypeIds);
+  const needsTransportShapes = flags.includeLocalizedOnly || flags.includeAll;
 
   validateObjectOverrides(selectedContentTypes, config);
 
@@ -176,14 +192,14 @@ export function generateZodSchemas(
   if (flags.includeFlat) {
     fieldHelpers.push(emitFlatFieldHelper());
   }
-  if (flags.includeLocalizedOnly && locales) {
+  if (needsTransportShapes && locales) {
     fieldHelpers.push(emitTransportFieldHelper());
   }
   if (fieldHelpers.length > 0) {
     sections.push(fieldHelpers.join("\n\n"), "");
   }
 
-  if (flags.includeLocalizedOnly && locales) {
+  if (needsTransportShapes && locales) {
     sections.push(emitEntrySysPrimitives(), "", emitAssetDeliverySchema(), "");
   }
 
@@ -216,6 +232,17 @@ export function generateZodSchemas(
         ...emitContentTypeLocalizedEntrySchema(contentType)
       );
     }
+
+    if (flags.includeAll) {
+      sections.push(
+        ...emitContentTypeSchema(contentType, {
+          localization: "all",
+          config,
+          fieldEnums: fieldEnumMap,
+        }),
+        ...emitContentTypeLocaleStarEntrySchema(contentType)
+      );
+    }
   }
 
   if (selectedContentTypes.length > 0) {
@@ -223,6 +250,7 @@ export function generateZodSchemas(
       "",
       emitContentTypeIdPrimitives(selectedContentTypes, {
         includeEntryMaps: flags.includeLocalizedOnly,
+        includeLocaleStarEntryMaps: flags.includeAll,
       })
     );
   }
