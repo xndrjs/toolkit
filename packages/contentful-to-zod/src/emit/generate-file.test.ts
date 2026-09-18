@@ -36,6 +36,14 @@ describe("generateZodSchemas locale modes", () => {
     );
     expect(output).toContain("export const ContentfulLocalizedEntrySchemaByContentType");
     expect(output).toContain("export const LINK_FIELDS_BY_CONTENT_TYPE");
+    expect(output).toContain('export const BLOG_POST_STATUSES = ["draft", "published"] as const');
+    expect(output).toContain("export const BlogPostStatusSchema = z.enum(BLOG_POST_STATUSES)");
+    expect(output).toContain('"status": flatField(BlogPostStatusSchema)');
+    expect(output).toContain('"status": transportField(BlogPostStatusSchema)');
+    expect(output).toContain(
+      "export const BlogPostPrioritySchema = z.union([z.literal(1), z.literal(2), z.literal(3)])"
+    );
+    expect(output).toContain('"tags": flatField(z.array(BlogPostTagsSchema).max(5))');
   });
 
   it("mode flat emits flat schemas without localized/locale primitives", () => {

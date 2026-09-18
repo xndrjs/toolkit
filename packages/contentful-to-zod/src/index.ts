@@ -49,6 +49,11 @@ export {
   validateObjectOverrides,
 } from "./emit/field-to-zod";
 export {
+  collectFieldEnums,
+  emitFieldEnumPrimitives,
+  type FieldEnumDescriptor,
+} from "./emit/field-enum-primitives";
+export {
   buildLocaleCodeSchema,
   emitLocalePrimitives,
   requireLocalesForModes,

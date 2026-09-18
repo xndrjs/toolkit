@@ -121,6 +121,21 @@ export const ContentfulAssetLinkSchema = z.object({
 });
 export type ContentfulAssetLink = z.infer<typeof ContentfulAssetLinkSchema>;
 
+/** @generated from field validations.in */
+export const BLOG_POST_STATUSES = ["draft", "published"] as const;
+export type BlogPostStatus = (typeof BLOG_POST_STATUSES)[number];
+export const BlogPostStatusSchema = z.enum(BLOG_POST_STATUSES);
+
+/** @generated from field validations.in */
+export const BLOG_POST_PRIORITIES = [1, 2, 3] as const;
+export type BlogPostPriority = (typeof BLOG_POST_PRIORITIES)[number];
+export const BlogPostPrioritySchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
+
+/** @generated from field validations.in */
+export const BLOG_POST_TAGS = ["news", "product"] as const;
+export type BlogPostTags = (typeof BLOG_POST_TAGS)[number];
+export const BlogPostTagsSchema = z.enum(BLOG_POST_TAGS);
+
 export const AuthorFieldsSchema = z.object({
   name: flatField(z.string()),
 });
@@ -151,6 +166,9 @@ export type AuthorLocalizedEntry = z.infer<typeof AuthorLocalizedEntrySchema>;
 export const BlogPostFieldsSchema = z.object({
   title: flatField(z.string().max(256)),
   slug: flatField(z.string()),
+  status: flatField(BlogPostStatusSchema),
+  priority: flatField(BlogPostPrioritySchema),
+  tags: flatField(z.array(BlogPostTagsSchema).max(5)),
   author: flatField(
     z.object({
       sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),
@@ -165,6 +183,9 @@ export type BlogPostFields = z.infer<typeof BlogPostFieldsSchema>;
 export const BlogPostLocalizedFieldsSchema = z.object({
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
   slug: transportField(z.string()),
+  status: transportField(BlogPostStatusSchema),
+  priority: transportField(BlogPostPrioritySchema),
+  tags: transportField(z.array(BlogPostTagsSchema).max(5)),
   author: transportField(
     z.object({
       sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),
@@ -253,6 +274,9 @@ export function flattenBlogPostLocalizedFields(
   return {
     title: pickLocale(fields.title ?? null, _locale),
     slug: fields.slug ?? null,
+    status: fields.status ?? null,
+    priority: fields.priority ?? null,
+    tags: fields.tags ?? null,
     author: fields.author ?? null,
     excerpt: pickLocale(fields.excerpt ?? null, _locale),
     metadata: pickLocale(fields.metadata ?? null, _locale),

@@ -34,6 +34,34 @@
         "localized": false
       },
       {
+        "id": "status",
+        "name": "Status",
+        "type": "Symbol",
+        "required": true,
+        "localized": false,
+        "validations": [{ "in": ["draft", "published"] }]
+      },
+      {
+        "id": "priority",
+        "name": "Priority",
+        "type": "Integer",
+        "required": false,
+        "localized": false,
+        "validations": [{ "in": [1, 2, 3] }]
+      },
+      {
+        "id": "tags",
+        "name": "Tags",
+        "type": "Array",
+        "required": false,
+        "localized": false,
+        "items": {
+          "type": "Symbol",
+          "validations": [{ "in": ["news", "product"] }]
+        },
+        "validations": [{ "size": { "max": 5 } }]
+      },
+      {
         "id": "author",
         "name": "Author",
         "type": "Link",

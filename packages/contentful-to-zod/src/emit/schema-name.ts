@@ -7,6 +7,65 @@ export function contentTypeIdToPascalCase(id: string): string {
     .join("");
 }
 
+/** PascalCase → SCREAMING_SNAKE_CASE (`BlogPostStatus` → `BLOG_POST_STATUS`). */
+export function pascalToScreamingSnake(pascal: string): string {
+  return pascal
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
+    .toUpperCase();
+}
+
+function isVowel(char: string): boolean {
+  return "aeiou".includes(char.toLowerCase());
+}
+
+/**
+ * Pluralize a camelCase / lowercase field id for const names.
+ * Keeps likely-already-plural ids (`tags`); turns `status` → `statuses`.
+ */
+export function pluralizeFieldId(fieldId: string): string {
+  const lower = fieldId.toLowerCase();
+  if (
+    lower.endsWith("s") &&
+    !lower.endsWith("us") &&
+    !lower.endsWith("ss") &&
+    !lower.endsWith("is")
+  ) {
+    return fieldId;
+  }
+
+  if (fieldId.length > 1 && fieldId.endsWith("y") && !isVowel(fieldId.charAt(fieldId.length - 2))) {
+    return `${fieldId.slice(0, -1)}ies`;
+  }
+
+  if (/(?:s|x|z|ch|sh)$/i.test(fieldId)) {
+    return `${fieldId}es`;
+  }
+
+  return `${fieldId}s`;
+}
+
+function fieldEnumPascalName(contentTypeId: string, fieldId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}${contentTypeIdToPascalCase(fieldId)}`;
+}
+
+/** Named field enum schema: `blogPost` + `status` → `BlogPostStatusSchema`. */
+export function fieldEnumSchemaExportName(contentTypeId: string, fieldId: string): string {
+  return `${fieldEnumPascalName(contentTypeId, fieldId)}Schema`;
+}
+
+/** Named field enum type: `blogPost` + `status` → `BlogPostStatus`. */
+export function fieldEnumTypeName(contentTypeId: string, fieldId: string): string {
+  return fieldEnumPascalName(contentTypeId, fieldId);
+}
+
+/** Named field enum const: `blogPost` + `status` → `BLOG_POST_STATUSES`. */
+export function fieldEnumConstName(contentTypeId: string, fieldId: string): string {
+  const contentTypeSnake = pascalToScreamingSnake(contentTypeIdToPascalCase(contentTypeId));
+  const fieldSnake = pascalToScreamingSnake(contentTypeIdToPascalCase(pluralizeFieldId(fieldId)));
+  return `${contentTypeSnake}_${fieldSnake}`;
+}
+
 /** `flat` — single-locale / single-locale fields. */
 export function fieldsSchemaExportName(contentTypeId: string): string {
   return `${contentTypeIdToPascalCase(contentTypeId)}FieldsSchema`;

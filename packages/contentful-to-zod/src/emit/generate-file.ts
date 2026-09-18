@@ -8,6 +8,12 @@ import type { ContentField, ContentType } from "../model/content-type";
 import type { Locale } from "../model/locale";
 import { emitContentTypeIdPrimitives } from "./content-type-id-primitives";
 import {
+  collectFieldEnums,
+  fieldEnumDescriptorMap,
+  emitFieldEnumPrimitives,
+  type FieldEnumDescriptor,
+} from "./field-enum-primitives";
+import {
   fieldToZod,
   flatFieldSource,
   localizedFieldSource,
@@ -85,6 +91,7 @@ function emitContentTypeSchema(
   options: {
     localization: "flat" | "localized-only";
     config?: ContentfulToZodConfig | undefined;
+    fieldEnums?: ReadonlyMap<string, FieldEnumDescriptor> | undefined;
   }
 ): string[] {
   const shapeEntries: string[] = [];
@@ -93,6 +100,7 @@ function emitContentTypeSchema(
     const flat = fieldToZod(field, {
       contentTypeId: contentType.id,
       config: options.config,
+      fieldEnums: options.fieldEnums,
     });
 
     shapeEntries.push(
@@ -181,12 +189,19 @@ export function generateZodSchemas(
 
   sections.push(emitSharedPrimitives());
 
+  const fieldEnums = collectFieldEnums(selectedContentTypes, config);
+  const fieldEnumMap = fieldEnumDescriptorMap(fieldEnums);
+  if (fieldEnums.length > 0) {
+    sections.push(emitFieldEnumPrimitives(fieldEnums), "");
+  }
+
   for (const contentType of selectedContentTypes) {
     if (flags.includeFlat) {
       sections.push(
         ...emitContentTypeSchema(contentType, {
           localization: "flat",
           config,
+          fieldEnums: fieldEnumMap,
         })
       );
     }
@@ -196,6 +211,7 @@ export function generateZodSchemas(
         ...emitContentTypeSchema(contentType, {
           localization: "localized-only",
           config,
+          fieldEnums: fieldEnumMap,
         }),
         ...emitContentTypeLocalizedEntrySchema(contentType)
       );

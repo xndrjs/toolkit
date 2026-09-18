@@ -181,6 +181,27 @@ export const ContentfulEntryEnvelopeSchema = z.object({
 
 Use it to accept mixed entry arrays (`includes.Entry`, batch loads), then dispatch with `sys.contentType.sys.id` into `ContentfulLocalizedEntrySchemaByContentType`. It is **not** the same as `ContentfulResolvedLocalizedEntrySchema` (closed union of known typed entries).
 
+### Named field enums (`validations.in`)
+
+When a Symbol/Text/Integer/Number field (or Array **items**) has `validations.in`, codegen lifts a values-first named enum **before** the object field schemas and references it in flat and localized-only shapes:
+
+```ts
+/** @generated from field validations.in */
+export const BLOG_POST_STATUSES = ["draft", "published"] as const;
+export type BlogPostStatus = (typeof BLOG_POST_STATUSES)[number];
+export const BlogPostStatusSchema = z.enum(BLOG_POST_STATUSES);
+
+export const BlogPostFieldsSchema = z.object({
+  status: flatField(BlogPostStatusSchema),
+  // …
+});
+```
+
+- Naming: `{ContentType}{Field}Schema` / type without `Schema` / `SCREAMING_SNAKE` plural const (`BlogPostStatusSchema`, `BLOG_POST_STATUSES`).
+- All-string `in` → `z.enum(CONST)`; numeric or mixed → `z.union([z.literal(...)])`.
+- Array item `in` uses the **field** name (`z.array(BlogPostTagsSchema)`).
+- No cross-field dedup in v1.
+
 ### Flat vs delivery example
 
 ```ts

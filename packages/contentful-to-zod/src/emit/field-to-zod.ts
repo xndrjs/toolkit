@@ -2,6 +2,11 @@ import { z } from "zod";
 
 import type { ContentfulToZodConfig } from "../config/define-config";
 import type { ContentField, ContentFieldItem, ContentFieldValidation } from "../model/content-type";
+import {
+  fieldEnumValueSource,
+  lookupFieldEnum,
+  type FieldEnumDescriptor,
+} from "./field-enum-primitives";
 import { fieldsForCodegen } from "./filter-fields";
 import {
   ContentfulAssetLinkSchema,
@@ -16,12 +21,19 @@ type MappableFieldItem = ContentFieldItem & { items?: ContentFieldItem };
 export interface FieldToZodContext {
   contentTypeId: string;
   config?: ContentfulToZodConfig | undefined;
+  /** Named `validations.in` enums for this content type snapshot. */
+  fieldEnums?: ReadonlyMap<string, FieldEnumDescriptor> | undefined;
 }
 
 export interface FieldZodResult {
   schema: z.ZodType;
   /** Extra source appended after `zodToSource(schema)` (e.g. prohibitRegexp refine). */
   sourceSuffix?: string | undefined;
+  /**
+   * When set, used instead of `zodToSource(inner)` for emitted field shapes
+   * (named field enum refs such as `BlogPostStatusSchema`).
+   */
+  sourceRef?: string | undefined;
 }
 
 function objectOverrideKey(contentTypeId: string, fieldId: string): string {
@@ -240,7 +252,17 @@ export function fieldToZod(field: ContentField, ctx: FieldToZodContext): FieldZo
     schema = schema.optional();
   }
 
-  return sourceSuffix ? { schema, sourceSuffix } : { schema };
+  const fieldEnum = lookupFieldEnum(ctx.fieldEnums, ctx.contentTypeId, field.id);
+  const sourceRef = fieldEnum ? fieldEnumValueSource(field, fieldEnum) : undefined;
+
+  const result: FieldZodResult = { schema };
+  if (sourceSuffix) {
+    result.sourceSuffix = sourceSuffix;
+  }
+  if (sourceRef) {
+    result.sourceRef = sourceRef;
+  }
+  return result;
 }
 
 function unwrapOptionalSchema(schema: z.ZodType): { inner: z.ZodType; wasOptional: boolean } {
@@ -258,11 +280,18 @@ function emitFlatFieldSource(baseSource: string): string {
   return `flatField(${baseSource})`;
 }
 
+function fieldInnerSource(flat: FieldZodResult): string {
+  if (flat.sourceRef) {
+    return `${flat.sourceRef}${flat.sourceSuffix ?? ""}`;
+  }
+
+  const { inner } = unwrapOptionalSchema(flat.schema);
+  return zodToSource(inner, flat.sourceSuffix ?? "");
+}
+
 /** Emit Zod source for a flat/CMA field (`flatField` normalizes absent values to `null`). */
 export function flatFieldSource(flat: FieldZodResult, _field: ContentField): string {
-  const { inner } = unwrapOptionalSchema(flat.schema);
-  const innerSource = zodToSource(inner, flat.sourceSuffix ?? "");
-  return emitFlatFieldSource(innerSource);
+  return emitFlatFieldSource(fieldInnerSource(flat));
 }
 
 /** Wrap a flat field schema for delivery API shape (locale record + transport nullability). */
@@ -283,8 +312,7 @@ export function wrapForLocalized(
 
 /** Emit Zod source for a localized-only field (transport wrapper; localized → locale record). */
 export function localizedFieldSource(flat: FieldZodResult, field: ContentField): string {
-  const { inner } = unwrapOptionalSchema(flat.schema);
-  const innerSource = zodToSource(inner, flat.sourceSuffix ?? "");
+  const innerSource = fieldInnerSource(flat);
 
   const baseSource = field.localized
     ? `z.record(ContentfulLocaleCodeSchema, ${innerSource})`

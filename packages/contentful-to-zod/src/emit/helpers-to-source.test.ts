@@ -65,6 +65,9 @@ describe("generated locale helpers", () => {
     expect(flat).toEqual({
       title: "Titolo",
       slug: "my-post",
+      status: null,
+      priority: null,
+      tags: null,
       author: null,
       excerpt: "Riassunto",
       metadata: null,
@@ -115,6 +118,9 @@ describe("generated locale helpers", () => {
     ).toEqual({
       title: null,
       slug: null,
+      status: null,
+      priority: null,
+      tags: null,
       author: null,
       excerpt: null,
       metadata: null,
@@ -160,6 +166,9 @@ describe("generated locale helpers", () => {
     expect(mod.BlogPostFieldsSchema.parse(flat)).toEqual({
       title: null,
       slug: "draft-without-title",
+      status: null,
+      priority: null,
+      tags: null,
       author: null,
       excerpt: null,
       metadata: null,
