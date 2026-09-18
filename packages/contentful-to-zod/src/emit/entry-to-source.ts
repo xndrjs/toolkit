@@ -38,6 +38,14 @@ export function emitEntrySysPrimitives(): string {
     "",
     emitInferredType("ContentfulResourceLinkSchema"),
     emitInferredType("ContentfulEntrySysSchema"),
+    "",
+    "/** Structural Delivery/Preview entry envelope (any content type); fields are untyped. */",
+    "export const ContentfulEntryEnvelopeSchema = z.object({",
+    "  sys: ContentfulEntrySysSchema,",
+    "  fields: z.record(z.string(), z.unknown()),",
+    "});",
+    "",
+    emitInferredType("ContentfulEntryEnvelopeSchema"),
   ].join("\n");
 }
 

@@ -64,6 +64,14 @@ export const ContentfulEntrySysSchema = z.looseObject({
 export type ContentfulResourceLink = z.infer<typeof ContentfulResourceLinkSchema>;
 export type ContentfulEntrySys = z.infer<typeof ContentfulEntrySysSchema>;
 
+/** Structural Delivery/Preview entry envelope (any content type); fields are untyped. */
+export const ContentfulEntryEnvelopeSchema = z.object({
+  sys: ContentfulEntrySysSchema,
+  fields: z.record(z.string(), z.unknown()),
+});
+
+export type ContentfulEntryEnvelope = z.infer<typeof ContentfulEntryEnvelopeSchema>;
+
 /** Loose Delivery/Preview asset metadata; extra Contentful fields pass through. */
 export const ContentfulAssetSysSchema = z.looseObject({
   id: z.string(),

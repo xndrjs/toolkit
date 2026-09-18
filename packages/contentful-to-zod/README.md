@@ -172,6 +172,18 @@ export const ContentfulEntrySchemaByContentType = {
 
 Use these to type dispatch tables (e.g. expansion policies) so adding a content type to the CMA snapshot fails typecheck until every branch is updated.
 
+In delivery/`both` mode, codegen also emits a structural gate before CT-specific parse:
+
+```ts
+/** Structural Delivery/Preview entry envelope (any content type); fields are untyped. */
+export const ContentfulEntryEnvelopeSchema = z.object({
+  sys: ContentfulEntrySysSchema,
+  fields: z.record(z.string(), z.unknown()),
+});
+```
+
+Use it to accept mixed entry arrays (`includes.Entry`, batch loads), then dispatch with `sys.contentType.sys.id` into `ContentfulEntrySchemaByContentType`. It is **not** the same as `ContentfulResolvedEntrySchema` (closed union of known typed entries).
+
 ### Flat vs delivery example
 
 ```ts

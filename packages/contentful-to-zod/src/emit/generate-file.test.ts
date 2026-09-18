@@ -19,6 +19,7 @@ describe("generateZodSchemas locale modes", () => {
     expect(output).toContain(
       "export type ContentfulEntryLink = z.infer<typeof ContentfulEntryLinkSchema>"
     );
+    expect(output).toContain("export const ContentfulEntryEnvelopeSchema");
     expect(output).toContain("export const ContentfulAssetSchema");
     expect(output).toContain(
       "export type ContentfulResolvedEntry = z.infer<typeof ContentfulResolvedEntrySchema>"

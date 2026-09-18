@@ -8,6 +8,13 @@ const contentTypes = loadFixtureContentTypes();
 const locales = loadFixtureLocales();
 
 interface GeneratedEntryHelpers {
+  ContentfulEntryEnvelopeSchema: {
+    parse: (value: unknown) => {
+      sys: { id: string; type: "Entry"; contentType: { sys: { id: string } } };
+      fields: Record<string, unknown>;
+    };
+    safeParse: (value: unknown) => { success: boolean };
+  };
   BlogPostEntrySchema: {
     parse: (value: unknown) => {
       sys: { id: string; contentType: { sys: { id: string } } };
@@ -32,6 +39,41 @@ async function loadEntryModule() {
 }
 
 describe("generated entry schemas", () => {
+  it("ContentfulEntryEnvelopeSchema accepts any content type with untyped fields", async () => {
+    const { ContentfulEntryEnvelopeSchema } = await loadEntryModule();
+
+    const parsed = ContentfulEntryEnvelopeSchema.parse({
+      sys: {
+        id: "entry-1",
+        type: "Entry",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        revision: 1,
+        contentType: {
+          sys: { type: "Link", linkType: "ContentType", id: "unknownType" },
+        },
+        space: { sys: { type: "Link", linkType: "Space", id: "space-1" } },
+        environment: { sys: { type: "Link", linkType: "Environment", id: "master" } },
+      },
+      fields: {
+        title: { "en-US": "Hello" },
+        anything: 42,
+      },
+    });
+
+    expect(parsed.sys.contentType.sys.id).toBe("unknownType");
+    expect(parsed.fields.anything).toBe(42);
+  });
+
+  it("ContentfulEntryEnvelopeSchema rejects non-entry payloads", async () => {
+    const { ContentfulEntryEnvelopeSchema } = await loadEntryModule();
+
+    expect(
+      ContentfulEntryEnvelopeSchema.safeParse({ sys: { type: "Asset" }, fields: {} }).success
+    ).toBe(false);
+    expect(ContentfulEntryEnvelopeSchema.safeParse({ fields: {} }).success).toBe(false);
+  });
+
   it("BlogPostEntrySchema parses delivery entries with loose sys passthrough", async () => {
     const { BlogPostEntrySchema } = await loadEntryModule();
 

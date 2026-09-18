@@ -61,6 +61,17 @@ export const ContentfulEntrySysSchema = z.looseObject({
   publishedVersion: z.number().optional(),
 });
 
+export type ContentfulResourceLink = z.infer<typeof ContentfulResourceLinkSchema>;
+export type ContentfulEntrySys = z.infer<typeof ContentfulEntrySysSchema>;
+
+/** Structural Delivery/Preview entry envelope (any content type); fields are untyped. */
+export const ContentfulEntryEnvelopeSchema = z.object({
+  sys: ContentfulEntrySysSchema,
+  fields: z.record(z.string(), z.unknown()),
+});
+
+export type ContentfulEntryEnvelope = z.infer<typeof ContentfulEntryEnvelopeSchema>;
+
 export const ContentfulLocationSchema = z.object({ lat: z.number(), lon: z.number() });
 
 export const ContentfulEntryLinkSchema = z.object({

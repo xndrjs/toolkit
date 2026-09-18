@@ -27,6 +27,7 @@ describe("contentful-to-zod demo codegen outputs", () => {
     const source = readGenerated("both.schemas.ts");
 
     expect(source).toContain("export const CONTENTFUL_LOCALE_CODES");
+    expect(source).toContain("export const ContentfulEntryEnvelopeSchema");
     expect(source).toContain("export const ArticleFieldsSchema");
     expect(source).toContain("export const ArticleDeliveryFieldsSchema");
     expect(source).toContain("export const ArticleEntrySchema");
@@ -39,6 +40,7 @@ describe("contentful-to-zod demo codegen outputs", () => {
     const source = readGenerated("delivery-locale-star.schemas.ts");
 
     expect(source).toContain("export const CONTENTFUL_LOCALE_CODES");
+    expect(source).toContain("export const ContentfulEntryEnvelopeSchema");
     expect(source).toContain("export const ArticleDeliveryFieldsSchema");
     expect(source).toContain("export const ArticleEntrySchema");
     expect(source).not.toContain("ArticleFieldsSchema");
