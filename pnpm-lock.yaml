@@ -85,6 +85,25 @@ importers:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.8)(tsx@4.22.5)(typescript@5.9.3)(yaml@2.8.3)
 
+  apps/contentful-to-zod-demo:
+    dependencies:
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.29
+        version: 22.20.1
+      '@xndrjs/contentful-to-zod':
+        specifier: workspace:^
+        version: link:../../packages/contentful-to-zod
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@22.20.1)(jsdom@26.1.0)(vite@8.0.1(@types/node@22.20.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.5)(yaml@2.8.3))
+
   apps/i18n-demo:
     dependencies:
       '@xndrjs/i18n':

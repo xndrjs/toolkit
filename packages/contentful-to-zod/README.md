@@ -139,12 +139,13 @@ When delivery or both mode is active, the file starts with:
 
 ```ts
 /** @generated from space locales snapshot */
-export const ContentfulLocaleCodeSchema = z.enum(["en-US", "it-IT"]);
-export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
-
-export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
+export const CONTENTFUL_LOCALE_CODES = ["en-US", "it-IT"] as const;
+export type ContentfulLocaleCode = (typeof CONTENTFUL_LOCALE_CODES)[number];
+export const ContentfulLocaleCodeSchema = z.enum(CONTENTFUL_LOCALE_CODES);
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 ```
+
+Locale (and content-type id) constants are **values-first**: the `as const` array is the source of truth, then the type and `z.enum(...)` are derived from it. This is a minor breaking change if you relied on `CONTENTFUL_LOCALE_CODES = Schema.options` (runtime values remain equivalent).
 
 ### Generated content-type id registry
 
@@ -152,10 +153,9 @@ After per-type schemas, codegen emits a closed set of content type ids (and, in 
 
 ```ts
 /** @generated from content type snapshot */
-export const ContentfulContentTypeIdSchema = z.enum(["author", "blogPost"]);
-export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
-
-export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
+export const CONTENTFUL_CONTENT_TYPE_IDS = ["author", "blogPost"] as const;
+export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];
+export const ContentfulContentTypeIdSchema = z.enum(CONTENTFUL_CONTENT_TYPE_IDS);
 
 export type ContentfulEntryByContentType = {
   author: AuthorEntry;

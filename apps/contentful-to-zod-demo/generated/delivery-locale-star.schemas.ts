@@ -12,17 +12,6 @@ export const ContentfulLocaleCodeSchema = z.enum(CONTENTFUL_LOCALE_CODES);
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 
 /**
- * Flat/CMA field wrapper: omitted keys and explicit null both normalize to `null`.
- * Use after `flatten*` or when parsing a normalized flat shape.
- */
-export function flatField<T extends z.ZodType>(schema: T) {
-  return schema
-    .nullable()
-    .optional()
-    .transform((value) => value ?? null);
-}
-
-/**
  * Delivery/Preview field wrapper: omitted keys and explicit null both normalize to `null`.
  * CMA `required` does not apply at the transport boundary.
  */
@@ -61,24 +50,61 @@ export const ContentfulEntrySysSchema = z.looseObject({
   publishedVersion: z.number().optional(),
 });
 
+export type ContentfulResourceLink = z.infer<typeof ContentfulResourceLinkSchema>;
+export type ContentfulEntrySys = z.infer<typeof ContentfulEntrySysSchema>;
+
+/** Loose Delivery/Preview asset metadata; extra Contentful fields pass through. */
+export const ContentfulAssetSysSchema = z.looseObject({
+  id: z.string(),
+  type: z.literal("Asset"),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  revision: z.number(),
+  space: ContentfulResourceLinkSchema,
+  environment: ContentfulResourceLinkSchema,
+  locale: ContentfulLocaleCodeSchema.optional(),
+  publishedVersion: z.number().optional(),
+});
+
+export type ContentfulAssetSys = z.infer<typeof ContentfulAssetSysSchema>;
+
+export const ContentfulAssetDeliveryFieldsSchema = z.object({
+  title: transportField(z.string()),
+  file: transportField(
+    z.object({
+      url: z.string(),
+      fileName: z.string().optional(),
+      contentType: z.string().optional(),
+    })
+  ),
+});
+
+export type ContentfulAssetDeliveryFields = z.infer<typeof ContentfulAssetDeliveryFieldsSchema>;
+
+/** Resolved Delivery/Preview asset payload. */
+export const ContentfulAssetSchema = z.object({
+  sys: ContentfulAssetSysSchema,
+  fields: ContentfulAssetDeliveryFieldsSchema,
+});
+
+export type ContentfulAsset = z.infer<typeof ContentfulAssetSchema>;
+
 export const ContentfulLocationSchema = z.object({ lat: z.number(), lon: z.number() });
+export type ContentfulLocation = z.infer<typeof ContentfulLocationSchema>;
 
 export const ContentfulEntryLinkSchema = z.object({
   sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),
 });
+export type ContentfulEntryLink = z.infer<typeof ContentfulEntryLinkSchema>;
 
 export const ContentfulAssetLinkSchema = z.object({
   sys: z.object({ type: z.literal("Link"), linkType: z.literal("Asset"), id: z.string() }),
 });
-
-export const AuthorFieldsSchema = z.object({
-  name: flatField(z.string()),
-});
-
-export type AuthorFields = z.infer<typeof AuthorFieldsSchema>;
+export type ContentfulAssetLink = z.infer<typeof ContentfulAssetLinkSchema>;
 
 export const AuthorDeliveryFieldsSchema = z.object({
   name: transportField(z.string()),
+  role: transportField(z.enum(["writer", "editor", "guest"])),
 });
 
 export type AuthorDeliveryFields = z.infer<typeof AuthorDeliveryFieldsSchema>;
@@ -98,30 +124,19 @@ export const AuthorEntrySchema = z.object({
 
 export type AuthorEntry = z.infer<typeof AuthorEntrySchema>;
 
-export const BlogPostFieldsSchema = z.object({
-  title: flatField(z.string().max(256)),
-  slug: flatField(z.string()),
-  author: flatField(
-    z.object({
-      sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),
-    })
-  ),
-  excerpt: flatField(z.string()),
-  metadata: flatField(z.object({ seoTitle: z.string(), noIndex: z.boolean().optional() })),
-});
-
-export type BlogPostFields = z.infer<typeof BlogPostFieldsSchema>;
-
-export const BlogPostDeliveryFieldsSchema = z.object({
-  title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
+export const ArticleDeliveryFieldsSchema = z.object({
+  title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(200))),
   slug: transportField(z.string()),
+  status: transportField(z.enum(["draft", "review", "published"])),
+  priority: transportField(z.union([z.literal(1), z.literal(2), z.literal(3)])),
+  tags: transportField(z.array(z.enum(["news", "guide", "opinion"]))),
   author: transportField(
     z.object({
       sys: z.object({ type: z.literal("Link"), linkType: z.literal("Entry"), id: z.string() }),
     })
   ),
-  excerpt: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
-  metadata: transportField(
+  body: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
+  seo: transportField(
     z.record(
       ContentfulLocaleCodeSchema,
       z.object({ seoTitle: z.string(), noIndex: z.boolean().optional() })
@@ -129,41 +144,45 @@ export const BlogPostDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type BlogPostDeliveryFields = z.infer<typeof BlogPostDeliveryFieldsSchema>;
+export type ArticleDeliveryFields = z.infer<typeof ArticleDeliveryFieldsSchema>;
 
-export const BlogPostEntrySchema = z.object({
+export const ArticleEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
         type: z.literal("Link"),
         linkType: z.literal("ContentType"),
-        id: z.literal("blogPost"),
+        id: z.literal("article"),
       }),
     }),
   }),
-  fields: BlogPostDeliveryFieldsSchema,
+  fields: ArticleDeliveryFieldsSchema,
 });
 
-export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>;
+export type ArticleEntry = z.infer<typeof ArticleEntrySchema>;
 
 /** @generated from content type snapshot */
-export const CONTENTFUL_CONTENT_TYPE_IDS = ["author", "blogPost"] as const;
+export const CONTENTFUL_CONTENT_TYPE_IDS = ["author", "article"] as const;
 export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];
 export const ContentfulContentTypeIdSchema = z.enum(CONTENTFUL_CONTENT_TYPE_IDS);
 
 /** Resolved Delivery/Preview entry type per content type id. */
 export type ContentfulEntryByContentType = {
   author: AuthorEntry;
-  blogPost: BlogPostEntry;
+  article: ArticleEntry;
 };
 
 /** Zod entry schema per content type id (for typed parse + dispatch). */
 export const ContentfulEntrySchemaByContentType = {
   author: AuthorEntrySchema,
-  blogPost: BlogPostEntrySchema,
+  article: ArticleEntrySchema,
 } as const satisfies {
   [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;
 };
+
+/** Resolved Delivery/Preview entry (any content type in this snapshot). */
+export const ContentfulResolvedEntrySchema = z.union([AuthorEntrySchema, ArticleEntrySchema]);
+export type ContentfulResolvedEntry = z.infer<typeof ContentfulResolvedEntrySchema>;
 
 /** Read one locale from a localized delivery field; missing locale or null input → `null`. */
 export function pickLocale<T>(
@@ -174,30 +193,6 @@ export function pickLocale<T>(
     return null;
   }
   return value[locale] ?? null;
-}
-
-/** Flatten validated `AuthorDeliveryFields` (from `entry.fields`) to `AuthorFields` for a single locale. */
-export function flattenAuthorEntryFields(
-  fields: AuthorDeliveryFields,
-  _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
-): AuthorFields {
-  return {
-    name: fields.name ?? null,
-  };
-}
-
-/** Flatten validated `BlogPostDeliveryFields` (from `entry.fields`) to `BlogPostFields` for a single locale. */
-export function flattenBlogPostEntryFields(
-  fields: BlogPostDeliveryFields,
-  _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
-): BlogPostFields {
-  return {
-    title: pickLocale(fields.title ?? null, _locale),
-    slug: fields.slug ?? null,
-    author: fields.author ?? null,
-    excerpt: pickLocale(fields.excerpt ?? null, _locale),
-    metadata: pickLocale(fields.metadata ?? null, _locale),
-  };
 }
 
 /** Error when a resolved entry's content type is not allowed for a link field (from CMA `linkContentType`). */
@@ -239,13 +234,13 @@ function readResolvedEntryContentTypeId(entry: unknown): string {
 }
 
 export interface ResolvedEntryForLinkFieldMap {
-  blogPost: {
+  article: {
     author: AuthorEntry;
   };
 }
 
 export interface LinkFieldHandlersMap {
-  blogPost: {
+  article: {
     author: (entry: unknown) => AuthorEntry;
   };
 }
@@ -261,7 +256,7 @@ export type ResolvedEntryForLinkField<
 > = ResolvedEntryForLinkFieldMap[CType][Field];
 
 export interface LinkFieldAllowedContentTypesMap {
-  blogPost: {
+  article: {
     author: readonly ["author"];
   };
 }
@@ -273,15 +268,15 @@ export type LinkFieldAllowedContentTypes<
 
 /** Allowed resolved entry content type ids per link field (`linkContentType` from CMA). */
 export const LINK_FIELD_ALLOWED_CONTENT_TYPES = {
-  blogPost: {
+  article: {
     author: ["author"] as const,
   },
 } as const;
 
 const LINK_FIELD_HANDLERS = {
-  blogPost: {
+  article: {
     author: (entry: unknown) => {
-      const parentContentTypeId = "blogPost";
+      const parentContentTypeId = "article";
       const fieldId = "author";
       const allowed = LINK_FIELD_ALLOWED_CONTENT_TYPES[parentContentTypeId][fieldId];
       const resolvedId = readResolvedEntryContentTypeId(entry);
@@ -321,3 +316,24 @@ export function parseEntryAsLinkField<
     }
   )[fieldName](entry);
 }
+
+export type LinkFieldDescriptor = {
+  fieldId: string;
+  linkType: "Entry" | "Asset";
+  cardinality: "one" | "many";
+};
+
+/**
+ * Entry/Asset link fields per content type (from CMA).
+ * Order follows the content model field order.
+ */
+export const LINK_FIELDS_BY_CONTENT_TYPE = {
+  author: [],
+  article: [
+    {
+      fieldId: "author",
+      linkType: "Entry",
+      cardinality: "one",
+    },
+  ],
+} as const satisfies Record<ContentfulContentTypeId, readonly LinkFieldDescriptor[]>;

@@ -9,10 +9,9 @@ exports[`generateZodSchemas locale modes > mode both emits flat and delivery sch
 import { z } from "zod";
 
 /** @generated from space locales snapshot */
-export const ContentfulLocaleCodeSchema = z.enum(["en-US", "it-IT"]);
-export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
-
-export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
+export const CONTENTFUL_LOCALE_CODES = ["en-US", "it-IT"] as const;
+export type ContentfulLocaleCode = (typeof CONTENTFUL_LOCALE_CODES)[number];
+export const ContentfulLocaleCodeSchema = z.enum(CONTENTFUL_LOCALE_CODES);
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 
 /**
@@ -171,10 +170,9 @@ export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>;
 
 
 /** @generated from content type snapshot */
-export const ContentfulContentTypeIdSchema = z.enum(["author", "blogPost"]);
-export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
-
-export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
+export const CONTENTFUL_CONTENT_TYPE_IDS = ["author", "blogPost"] as const;
+export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];
+export const ContentfulContentTypeIdSchema = z.enum(CONTENTFUL_CONTENT_TYPE_IDS);
 
 /** Resolved Delivery/Preview entry type per content type id. */
 export type ContentfulEntryByContentType = {
@@ -426,10 +424,9 @@ export type BlogPostFields = z.infer<typeof BlogPostFieldsSchema>;
 
 
 /** @generated from content type snapshot */
-export const ContentfulContentTypeIdSchema = z.enum(["author", "blogPost"]);
-export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
-
-export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
+export const CONTENTFUL_CONTENT_TYPE_IDS = ["author", "blogPost"] as const;
+export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];
+export const ContentfulContentTypeIdSchema = z.enum(CONTENTFUL_CONTENT_TYPE_IDS);
 "
 `;
 
@@ -442,10 +439,9 @@ exports[`generateZodSchemas locale modes > mode delivery emits delivery schemas 
 import { z } from "zod";
 
 /** @generated from space locales snapshot */
-export const ContentfulLocaleCodeSchema = z.enum(["en-US", "it-IT"]);
-export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
-
-export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
+export const CONTENTFUL_LOCALE_CODES = ["en-US", "it-IT"] as const;
+export type ContentfulLocaleCode = (typeof CONTENTFUL_LOCALE_CODES)[number];
+export const ContentfulLocaleCodeSchema = z.enum(CONTENTFUL_LOCALE_CODES);
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 
 /**
@@ -580,10 +576,9 @@ export type BlogPostEntry = z.infer<typeof BlogPostEntrySchema>;
 
 
 /** @generated from content type snapshot */
-export const ContentfulContentTypeIdSchema = z.enum(["author", "blogPost"]);
-export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
-
-export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
+export const CONTENTFUL_CONTENT_TYPE_IDS = ["author", "blogPost"] as const;
+export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];
+export const ContentfulContentTypeIdSchema = z.enum(CONTENTFUL_CONTENT_TYPE_IDS);
 
 /** Resolved Delivery/Preview entry type per content type id. */
 export type ContentfulEntryByContentType = {

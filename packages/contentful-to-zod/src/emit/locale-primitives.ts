@@ -1,8 +1,10 @@
 import { z } from "zod";
 
 import type { Locale } from "../model/locale";
-import { emitInferredType } from "./schema-name";
-import { zodToSource } from "./zod-to-source";
+
+function serializeConstStringArray(values: readonly string[]): string {
+  return `[${values.map((value) => JSON.stringify(value)).join(", ")}]`;
+}
 
 export function buildLocaleCodeSchema(
   locales: Locale[]
@@ -26,16 +28,18 @@ export function resolveDefaultLocale(locales: Locale[]): string {
 
 /** Emit locale primitive exports for the top of a generated file. */
 export function emitLocalePrimitives(locales: Locale[]): string {
-  const localeCodeSchema = buildLocaleCodeSchema(locales);
+  const codes = locales.map((locale) => locale.code);
+  if (codes.length === 0) {
+    throw new Error("At least one locale is required to build ContentfulLocaleCodeSchema.");
+  }
+
   const defaultLocale = resolveDefaultLocale(locales);
-  const schemaSource = zodToSource(localeCodeSchema);
 
   return [
     "/** @generated from space locales snapshot */",
-    `export const ContentfulLocaleCodeSchema = ${schemaSource};`,
-    emitInferredType("ContentfulLocaleCodeSchema"),
-    "",
-    "export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;",
+    `export const CONTENTFUL_LOCALE_CODES = ${serializeConstStringArray(codes)} as const;`,
+    "export type ContentfulLocaleCode = (typeof CONTENTFUL_LOCALE_CODES)[number];",
+    "export const ContentfulLocaleCodeSchema = z.enum(CONTENTFUL_LOCALE_CODES);",
     `export const CONTENTFUL_DEFAULT_LOCALE = ${JSON.stringify(defaultLocale)} as const;`,
   ].join("\n");
 }

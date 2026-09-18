@@ -22,14 +22,16 @@ describe("emitContentTypeIdPrimitives", () => {
     });
 
     expect(output).toContain(
-      'export const ContentfulContentTypeIdSchema = z.enum(["author", "blogPost"])'
+      'export const CONTENTFUL_CONTENT_TYPE_IDS = ["author", "blogPost"] as const;'
     );
     expect(output).toContain(
-      "export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;"
+      "export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];"
     );
     expect(output).toContain(
-      "export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;"
+      "export const ContentfulContentTypeIdSchema = z.enum(CONTENTFUL_CONTENT_TYPE_IDS);"
     );
+    expect(output).not.toContain("ContentfulContentTypeIdSchema.options");
+    expect(output).not.toContain("z.infer<typeof ContentfulContentTypeIdSchema>");
     expect(output).not.toContain("ContentfulEntryByContentType");
     expect(output).not.toContain("ContentfulEntrySchemaByContentType");
   });

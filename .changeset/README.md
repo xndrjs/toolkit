@@ -9,6 +9,7 @@ To add a release note: `pnpm changeset` from the repository root.
 Workspace packages listed in `ignore` in [`config.json`](./config.json) are excluded from versioning and from `changeset publish` on both **main** and **alpha**. That includes all `apps/*` demos and tooling, for example:
 
 - `@xndrjs/interop-demo` — mixed-validator domain example (Vitest only)
+- `@xndrjs/contentful-to-zod-demo` — side-by-side contentful-to-zod codegen modes
 - `@xndrjs/bench-perf` — validation engine benchmark CLI
 - `@xndrjs/resource-graph-resolver-bench` — resource-graph-resolver scheduler benchmark CLI
 - `@xndrjs/oas-core-validator-demo`

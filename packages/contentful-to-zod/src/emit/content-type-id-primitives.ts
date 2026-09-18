@@ -1,20 +1,8 @@
-import { z } from "zod";
-
 import type { ContentType } from "../model/content-type";
 import { emitInferredType, entrySchemaExportName, entryTypeName } from "./schema-name";
-import { zodToSource } from "./zod-to-source";
 
-function buildContentTypeIdSchema(
-  contentTypeIds: readonly string[]
-): z.ZodEnum<Readonly<Record<string, string>>> {
-  if (contentTypeIds.length === 0) {
-    throw new Error(
-      "At least one content type is required to build ContentfulContentTypeIdSchema."
-    );
-  }
-
-  const [first, ...rest] = contentTypeIds as [string, ...string[]];
-  return z.enum([first, ...rest]);
+function serializeConstStringArray(values: readonly string[]): string {
+  return `[${values.map((value) => JSON.stringify(value)).join(", ")}]`;
 }
 
 /**
@@ -26,14 +14,17 @@ export function emitContentTypeIdPrimitives(
   options: { includeEntryMaps: boolean }
 ): string {
   const ids = contentTypes.map((contentType) => contentType.id);
-  const schemaSource = zodToSource(buildContentTypeIdSchema(ids));
+  if (ids.length === 0) {
+    throw new Error(
+      "At least one content type is required to build ContentfulContentTypeIdSchema."
+    );
+  }
 
   const lines: string[] = [
     "/** @generated from content type snapshot */",
-    `export const ContentfulContentTypeIdSchema = ${schemaSource};`,
-    emitInferredType("ContentfulContentTypeIdSchema"),
-    "",
-    "export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;",
+    `export const CONTENTFUL_CONTENT_TYPE_IDS = ${serializeConstStringArray(ids)} as const;`,
+    "export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];",
+    "export const ContentfulContentTypeIdSchema = z.enum(CONTENTFUL_CONTENT_TYPE_IDS);",
   ];
 
   if (!options.includeEntryMaps) {

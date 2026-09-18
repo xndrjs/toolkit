@@ -1,0 +1,24 @@
+{
+  "name": "@xndrjs/contentful-to-zod-demo",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "codegen:cma": "contentful-to-zod --config ./configs/cma.config.ts",
+    "codegen:both": "contentful-to-zod --config ./configs/both.config.ts",
+    "codegen:delivery-locale-star": "contentful-to-zod --config ./configs/delivery-locale-star.config.ts",
+    "codegen:both-locale-star": "contentful-to-zod --config ./configs/both-locale-star.config.ts",
+    "codegen": "pnpm run codegen:cma && pnpm run codegen:both && pnpm run codegen:delivery-locale-star && pnpm run codegen:both-locale-star",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "@xndrjs/contentful-to-zod": "workspace:^",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.0"
+  }
+}
