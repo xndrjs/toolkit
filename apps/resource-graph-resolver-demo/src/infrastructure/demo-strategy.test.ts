@@ -21,7 +21,7 @@ import {
   tabsEntryAri,
   type CmsAssetResource,
   type CmsEntryResource,
-  type ContentfulResolvedEntry,
+  type ContentfulResolvedLocalizedEntry,
 } from "./cms/index.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import {
@@ -39,7 +39,7 @@ function demoStrategy() {
 
 function expandEntry(
   resource: CmsEntryResource,
-  entry: ContentfulResolvedEntry,
+  entry: ContentfulResolvedLocalizedEntry,
   executionContext: DemoExecutionContext = createDefaultDemoExecutionContext()
 ) {
   return demoStrategy().expansion.expand({
@@ -51,7 +51,7 @@ function expandEntry(
 
 function resolveIslandEntry(
   resource: CmsEntryResource,
-  entry: ContentfulResolvedEntry,
+  entry: ContentfulResolvedLocalizedEntry,
   executionContext: DemoExecutionContext = createDefaultDemoExecutionContext()
 ) {
   return demoStrategy().islands.resolve({
@@ -190,7 +190,7 @@ describe("createDemoStrategy", () => {
       .expansion.on(cmsEntryAri)
       .expand(({ resource, payload }) => {
         expectTypeOf(resource).toEqualTypeOf<CmsEntryResource>();
-        expectTypeOf(payload).toEqualTypeOf<ContentfulResolvedEntry>();
+        expectTypeOf(payload).toEqualTypeOf<ContentfulResolvedLocalizedEntry>();
         return { resources: [] };
       })
       .build();

@@ -1,11 +1,13 @@
 export {
-  assertLocaleStarAllowed,
   defineConfig,
-  resolveLocaleMode,
-  resolveLocaleStar,
+  normalizeFieldLocalizationModes,
+  resolveFieldLocalizationFlags,
+  resolveFieldLocalizationModes,
+  DEFAULT_FIELD_LOCALIZATION_MODES,
   type ContentfulToZodConfig,
+  type FieldLocalizationMode,
   type LocaleConfig,
-  type LocaleMode,
+  type ResolvedFieldLocalizationFlags,
 } from "./config/define-config";
 
 export { DEFAULT_ENVIRONMENT_ID } from "./client/cma-params";
@@ -40,19 +42,26 @@ export {
   type LinkFieldDescriptor,
   type LinkFieldTarget,
 } from "./emit/link-fields";
-export { fieldToZod, wrapForDelivery, validateObjectOverrides } from "./emit/field-to-zod";
+export {
+  fieldToZod,
+  wrapForLocalized,
+  localizedFieldSource,
+  validateObjectOverrides,
+} from "./emit/field-to-zod";
 export {
   buildLocaleCodeSchema,
   emitLocalePrimitives,
-  requireLocalesForMode,
+  requireLocalesForModes,
   resolveDefaultLocale,
 } from "./emit/locale-primitives";
-export { emitContentTypeEntrySchema, emitEntrySysPrimitives } from "./emit/entry-to-source";
+export {
+  emitContentTypeLocalizedEntrySchema,
+  emitEntrySysPrimitives,
+} from "./emit/entry-to-source";
 export {
   emitFlattenHelper,
   emitLocaleHelpers,
   emitPickLocale,
-  flattenEntryFieldsFnName,
-  flattenFieldsFnName,
+  flattenLocalizedFieldsFnName,
 } from "./emit/helpers-to-source";
 export { zodToSource } from "./emit/zod-to-source";

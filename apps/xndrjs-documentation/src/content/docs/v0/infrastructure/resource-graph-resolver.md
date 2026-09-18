@@ -83,7 +83,7 @@ Define which ARI `type` literals your project resolves and what each payload loo
 
 ```ts
 type CmsContentRegistry = {
-  "cms.entry": ContentfulResolvedEntry;
+  "cms.entry": ContentfulResolvedLocalizedEntry;
   "cms.asset": ContentfulAsset;
 };
 

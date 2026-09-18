@@ -20,17 +20,20 @@ interface GeneratedLinkParse {
     resolved: string,
     allowed: readonly string[]
   ) => Error;
-  AuthorEntrySchema: { parse: (value: unknown) => unknown };
+  AuthorLocalizedEntrySchema: { parse: (value: unknown) => unknown };
 }
 
 async function loadGenerated() {
-  const source = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
+  const source = generateZodSchemas(contentTypes, {
+    locales,
+    localeModes: ["flat", "localized-only"],
+  });
   expect(source).toContain("export function parseEntryAsLinkField");
   return importGeneratedModule<GeneratedLinkParse>(source);
 }
 
 describe("parseEntryAsLinkField", () => {
-  const resolvedAuthorEntry = {
+  const resolvedAuthorLocalizedEntry = {
     sys: {
       id: "author-1",
       type: "Entry",
@@ -56,10 +59,10 @@ describe("parseEntryAsLinkField", () => {
 
   it("parses a resolved entry when content type matches linkContentType", async () => {
     const mod = await loadGenerated();
-    const parsed = mod.parseEntryAsLinkField("blogPost", "author", resolvedAuthorEntry);
+    const parsed = mod.parseEntryAsLinkField("blogPost", "author", resolvedAuthorLocalizedEntry);
 
     expect(parsed.sys.contentType.sys.id).toBe("author");
-    expect(mod.AuthorEntrySchema.parse(parsed)).toEqual(parsed);
+    expect(mod.AuthorLocalizedEntrySchema.parse(parsed)).toEqual(parsed);
   });
 
   it("throws LinkFieldTargetError when resolved content type is not allowed", async () => {
@@ -67,9 +70,9 @@ describe("parseEntryAsLinkField", () => {
 
     expect(() =>
       mod.parseEntryAsLinkField("blogPost", "author", {
-        ...resolvedAuthorEntry,
+        ...resolvedAuthorLocalizedEntry,
         sys: {
-          ...resolvedAuthorEntry.sys,
+          ...resolvedAuthorLocalizedEntry.sys,
           contentType: {
             sys: { type: "Link", linkType: "ContentType", id: "blogPost" },
           },

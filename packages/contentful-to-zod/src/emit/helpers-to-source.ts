@@ -1,19 +1,17 @@
 import type { ContentType } from "../model/content-type";
 import type { ContentfulToZodConfig } from "../config/define-config";
+import type { ResolvedFieldLocalizationFlags } from "../config/define-config";
 import { fieldsForCodegen } from "./filter-fields";
-import { contentTypeIdToPascalCase, deliveryFieldsTypeName, fieldsTypeName } from "./schema-name";
+import { contentTypeIdToPascalCase, fieldsTypeName, localizedFieldsTypeName } from "./schema-name";
 
-export function flattenEntryFieldsFnName(contentTypeId: string): string {
-  return `flatten${contentTypeIdToPascalCase(contentTypeId)}EntryFields`;
+export function flattenLocalizedFieldsFnName(contentTypeId: string): string {
+  return `flatten${contentTypeIdToPascalCase(contentTypeId)}LocalizedFields`;
 }
 
-/** @deprecated Renamed to `flattenEntryFieldsFnName`. */
-export const flattenFieldsFnName = flattenEntryFieldsFnName;
-
-/** Emit shared `pickLocale` helper for delivery-shaped localized values. */
+/** Emit shared `pickLocale` helper for localized field maps. */
 export function emitPickLocale(): string {
   return [
-    "/** Read one locale from a localized delivery field; missing locale or null input → `null`. */",
+    "/** Read one locale from a localized field map; missing locale or null input → `null`. */",
     "export function pickLocale<T>(",
     "  value: Record<ContentfulLocaleCode, T> | null,",
     "  locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,",
@@ -26,13 +24,13 @@ export function emitPickLocale(): string {
   ].join("\n");
 }
 
-/** Emit `flatten{ContentType}EntryFields` mapping delivery `fields` to flat/CMA fields. */
+/** Emit `flatten{ContentType}LocalizedFields` mapping localized-only `fields` to flat fields. */
 export function emitFlattenHelper(
   contentType: ContentType,
   config?: ContentfulToZodConfig | undefined
 ): string {
-  const fnName = flattenEntryFieldsFnName(contentType.id);
-  const deliveryType = deliveryFieldsTypeName(contentType.id);
+  const fnName = flattenLocalizedFieldsFnName(contentType.id);
+  const localizedType = localizedFieldsTypeName(contentType.id);
   const flatType = fieldsTypeName(contentType.id);
 
   const entries = fieldsForCodegen(contentType.fields, config).map((field) => {
@@ -44,9 +42,9 @@ export function emitFlattenHelper(
   });
 
   return [
-    `/** Flatten validated \`${deliveryType}\` (from \`entry.fields\`) to \`${flatType}\` for a single locale. */`,
+    `/** Flatten validated \`${localizedType}\` (from \`entry.fields\`) to \`${flatType}\` for a single locale. */`,
     `export function ${fnName}(`,
-    `  fields: ${deliveryType},`,
+    `  fields: ${localizedType},`,
     `  _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE,`,
     `): ${flatType} {`,
     "  return {",
@@ -58,19 +56,16 @@ export function emitFlattenHelper(
 
 export function emitLocaleHelpers(
   contentTypes: ContentType[],
-  localeMode: "cma" | "delivery" | "both",
+  flags: Pick<ResolvedFieldLocalizationFlags, "includePickLocale" | "includeFlatten">,
   config?: ContentfulToZodConfig | undefined
 ): string {
-  const includePickLocale = localeMode === "delivery" || localeMode === "both";
-  const includeFlatten = localeMode === "both";
-
-  if (!includePickLocale) {
+  if (!flags.includePickLocale) {
     return "";
   }
 
   const sections: string[] = [emitPickLocale()];
 
-  if (includeFlatten) {
+  if (flags.includeFlatten) {
     for (const contentType of contentTypes) {
       sections.push("", emitFlattenHelper(contentType, config));
     }

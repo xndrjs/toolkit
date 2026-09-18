@@ -10,48 +10,48 @@ function readGenerated(name: string): string {
 }
 
 describe("contentful-to-zod demo codegen outputs", () => {
-  it("cma emits flat fields and enums, without delivery/locale primitives", () => {
-    const source = readGenerated("cma.schemas.ts");
+  it("flat emits flat fields and enums, without localized/locale primitives", () => {
+    const source = readGenerated("flat.schemas.ts");
 
     expect(source).toContain("export const ArticleFieldsSchema");
     expect(source).toContain("export const AuthorFieldsSchema");
     expect(source).toContain('z.enum(["draft", "review", "published"])');
     expect(source).toContain("z.union([z.literal(1), z.literal(2), z.literal(3)])");
     expect(source).toContain('z.enum(["news", "guide", "opinion"])');
-    expect(source).not.toContain("ArticleDeliveryFieldsSchema");
+    expect(source).not.toContain("ArticleLocalizedFieldsSchema");
     expect(source).not.toContain("CONTENTFUL_LOCALE_CODES");
-    expect(source).not.toContain("flattenArticleEntryFields");
+    expect(source).not.toContain("flattenArticleLocalizedFields");
   });
 
-  it("both (localeStar false) emits flat + delivery + flatten helpers", () => {
-    const source = readGenerated("both.schemas.ts");
+  it("flat + localized-only emits flat + localized + flatten helpers", () => {
+    const source = readGenerated("flat-localized.schemas.ts");
 
     expect(source).toContain("export const CONTENTFUL_LOCALE_CODES");
     expect(source).toContain("export const ContentfulEntryEnvelopeSchema");
     expect(source).toContain("export const ArticleFieldsSchema");
-    expect(source).toContain("export const ArticleDeliveryFieldsSchema");
-    expect(source).toContain("export const ArticleEntrySchema");
-    expect(source).toContain("export function flattenArticleEntryFields");
+    expect(source).toContain("export const ArticleLocalizedFieldsSchema");
+    expect(source).toContain("export const ArticleLocalizedEntrySchema");
+    expect(source).toContain("export function flattenArticleLocalizedFields");
     expect(source).toContain("pickLocale");
     expect(source).not.toContain("LocaleStar");
   });
 
-  it("delivery + localeStar accepts config and emits delivery entry schemas", () => {
-    const source = readGenerated("delivery-locale-star.schemas.ts");
+  it("localized-only emits localized entry schemas without flat/flatten", () => {
+    const source = readGenerated("localized-only.schemas.ts");
 
     expect(source).toContain("export const CONTENTFUL_LOCALE_CODES");
     expect(source).toContain("export const ContentfulEntryEnvelopeSchema");
-    expect(source).toContain("export const ArticleDeliveryFieldsSchema");
-    expect(source).toContain("export const ArticleEntrySchema");
+    expect(source).toContain("export const ArticleLocalizedFieldsSchema");
+    expect(source).toContain("export const ArticleLocalizedEntrySchema");
     expect(source).not.toContain("ArticleFieldsSchema");
-    expect(source).not.toContain("flattenArticleEntryFields");
+    expect(source).not.toContain("flattenArticleLocalizedFields");
   });
 
-  it("both + localeStar emits flat + delivery like both mode", () => {
-    const source = readGenerated("both-locale-star.schemas.ts");
+  it("all modes still emit flat + localized-only until LocaleStar emission lands", () => {
+    const source = readGenerated("all-modes.schemas.ts");
 
     expect(source).toContain("export const ArticleFieldsSchema");
-    expect(source).toContain("export const ArticleDeliveryFieldsSchema");
-    expect(source).toContain("export function flattenArticleEntryFields");
+    expect(source).toContain("export const ArticleLocalizedFieldsSchema");
+    expect(source).toContain("export function flattenArticleLocalizedFields");
   });
 });

@@ -266,7 +266,7 @@ export function flatFieldSource(flat: FieldZodResult, _field: ContentField): str
 }
 
 /** Wrap a flat field schema for delivery API shape (locale record + transport nullability). */
-export function wrapForDelivery(
+export function wrapForLocalized(
   result: FieldZodResult,
   field: ContentField,
   localeCodeSchema: z.ZodEnum<Readonly<Record<string, string>>>
@@ -281,8 +281,8 @@ export function wrapForDelivery(
   };
 }
 
-/** Emit Zod source for a delivery API field (transport wrapper; localized → locale record). */
-export function deliveryFieldSource(flat: FieldZodResult, field: ContentField): string {
+/** Emit Zod source for a localized-only field (transport wrapper; localized → locale record). */
+export function localizedFieldSource(flat: FieldZodResult, field: ContentField): string {
   const { inner } = unwrapOptionalSchema(flat.schema);
   const innerSource = zodToSource(inner, flat.sourceSuffix ?? "");
 

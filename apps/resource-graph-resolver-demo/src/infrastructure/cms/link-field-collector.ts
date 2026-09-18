@@ -1,7 +1,7 @@
 import {
   LINK_FIELDS_BY_CONTENT_TYPE,
   type ContentfulContentTypeId,
-  type ContentfulEntryByContentType,
+  type ContentfulLocalizedEntryByContentType,
   type LinkFieldDescriptor,
 } from "./generated/contentful.schemas.js";
 
@@ -10,7 +10,7 @@ export type ResolvedLinkReference = {
   id: string;
 };
 
-/** Delivery link stub — shape already validated by `ContentfulEntrySchemaByContentType`. */
+/** Delivery link stub — shape already validated by `ContentfulLocalizedEntrySchemaByContentType`. */
 type LinkStub = { sys: { id: string } };
 
 /**
@@ -19,7 +19,7 @@ type LinkStub = { sys: { id: string } };
  */
 export function collectLinkReferencesFromEntryFields<T extends ContentfulContentTypeId>(
   contentTypeId: T,
-  fields: ContentfulEntryByContentType[T]["fields"]
+  fields: ContentfulLocalizedEntryByContentType[T]["fields"]
 ): ResolvedLinkReference[] {
   const descriptors = LINK_FIELDS_BY_CONTENT_TYPE[contentTypeId];
   const links: ResolvedLinkReference[] = [];

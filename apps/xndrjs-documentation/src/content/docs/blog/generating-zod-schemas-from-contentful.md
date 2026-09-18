@@ -97,7 +97,7 @@ For a `blogPost` content type with a localized `title` and an optional `author` 
 
 ```ts
 // Transport shape — what comes over the wire
-export const BlogPostDeliveryFieldsSchema = z.object({
+export const BlogPostLocalizedFieldsSchema = z.object({
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(256))),
   slug: transportField(z.string()),
   author: transportField(ContentfulEntryLinkSchema),
@@ -129,12 +129,12 @@ They look identical _today_, but the semantic distinction matters: one marks a C
 ### At the boundary
 
 ```ts
-const entry = BlogPostEntrySchema.parse(rawFromContentful);
-const flat = flattenBlogPostEntryFields(entry.fields, "it-IT");
+const entry = BlogPostLocalizedEntrySchema.parse(rawFromContentful);
+const flat = flattenBlogPostLocalizedFields(entry.fields, "it-IT");
 const post = BlogPostFieldsSchema.parse(flat);
 ```
 
-The `flatten*` helper is also generated — one per content type when using `locale.mode: "both"` (the default). No more hand-written glue per content type. No more `isRecord` utils to guess if some value is localized or not (this was actually the solution AI kept suggesting me before I decided to design a more structured solution, and it **gave me the shivers**).
+The `flatten*` helper is also generated — one per content type when using `locale.modes: ["flat", "localized-only"]` (the default). No more hand-written glue per content type. No more `isRecord` utils to guess if some value is localized or not (this was actually the solution AI kept suggesting me before I decided to design a more structured solution, and it **gave me the shivers**).
 
 Domain rules stay separate:
 
@@ -153,8 +153,8 @@ Having explicit transport and flat schemas also made another pattern cleaner: fe
 
 ```
 ?locale=* → cache raw multi-locale entry
-→ flattenBlogPostEntryFields(fields, "it-IT") for /it/...
-→ flattenBlogPostEntryFields(fields, "en-US") for /en/...
+→ flattenBlogPostLocalizedFields(fields, "it-IT") for /it/...
+→ flattenBlogPostLocalizedFields(fields, "en-US") for /en/...
 ```
 
 Same cached entry, different flat object per locale. **Worth noting** that payload size grows with locale count — this makes more sense for subsets of content than for everything in your space, please keep it in mind!
@@ -191,14 +191,17 @@ Inlined at codegen time — no runtime dependency on the config.
 Once you have the **resolved** entry, validation moves to the right boundary. The generated helper `parseEntryAsLinkField` ties parent content type + field name to the allowed targets and parses with the matching `*EntrySchema`:
 
 ```ts
-import { BlogPostEntrySchema, parseEntryAsLinkField } from "./generated/contentful.schemas";
+import {
+  BlogPostLocalizedEntrySchema,
+  parseEntryAsLinkField,
+} from "./generated/contentful.schemas";
 
-const post = BlogPostEntrySchema.parse(rawPost);
+const post = BlogPostLocalizedEntrySchema.parse(rawPost);
 const authorLink = post.fields.author;
 
 const resolvedAuthor = await client.getEntry(authorLink!.sys.id);
 const author = parseEntryAsLinkField("blogPost", "author", resolvedAuthor);
-// `author` is `AuthorEntry` when the CMA allows only `author`
+// `author` is `AuthorLocalizedEntry` when the CMA allows only `author`
 ```
 
 **Single allowed content type** — the return type is that entry type directly. No second ceremony.
@@ -210,10 +213,10 @@ const linked = parseEntryAsLinkField("blogPost", "related", resolved);
 
 switch (linked.sys.contentType.sys.id) {
   case "author":
-    // linked is AuthorEntry
+    // linked is AuthorLocalizedEntry
     break;
   case "blogPost":
-    // linked is BlogPostEntry
+    // linked is BlogPostLocalizedEntry
     break;
 }
 ```

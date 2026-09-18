@@ -10,10 +10,9 @@ export default defineConfig({
   fromSnapshot: true,
   snapshot: join(appDir, "schema-fixtures/content-types.json"),
   snapshotLocales: join(appDir, "schema-fixtures/locales.json"),
-  out: join(appDir, "generated/both.schemas.ts"),
+  out: join(appDir, "generated/flat-localized.schemas.ts"),
   locale: {
-    mode: "both",
-    localeStar: false,
+    modes: ["flat", "localized-only"],
   },
   objects: {
     "article.seo": z.object({

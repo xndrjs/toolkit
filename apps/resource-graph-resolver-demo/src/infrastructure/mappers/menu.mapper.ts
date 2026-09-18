@@ -1,8 +1,8 @@
 import { cmsEntryAri } from "../cms/index.js";
 import { MenuShape, type Menu } from "../../domain/index.js";
 import {
-  flattenMenuEntryFields,
-  MenuEntrySchema,
+  flattenMenuLocalizedFields,
+  MenuLocalizedEntrySchema,
   parseEntryAsLinkField,
   type ContentfulEntryLink,
 } from "../cms/generated/contentful.schemas.js";
@@ -21,8 +21,8 @@ export function mapMenuLink(context: MapperContext, link: ContentfulEntryLink): 
 }
 
 export function mapMenu(context: MapperContext, raw: unknown): Menu {
-  const entry = MenuEntrySchema.parse(raw);
-  const fields = flattenMenuEntryFields(entry.fields, context.locale);
+  const entry = MenuLocalizedEntrySchema.parse(raw);
+  const fields = flattenMenuLocalizedFields(entry.fields, context.locale);
   if (!fields.logo) {
     throw new Error(`Menu ${entry.sys.id} is missing a required logo link`);
   }

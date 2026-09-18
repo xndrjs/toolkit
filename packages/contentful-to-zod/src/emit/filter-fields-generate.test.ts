@@ -56,7 +56,7 @@ describe("generateZodSchemas blueprint field filtering", () => {
   it("omits disabled, omitted, and deleted fields from output by default", () => {
     const output = generateZodSchemas([blogPostWithBlueprintFields], {
       locales,
-      localeMode: "both",
+      localeModes: ["flat", "localized-only"],
     });
 
     expect(output).toContain('"title":');
@@ -71,7 +71,7 @@ describe("generateZodSchemas blueprint field filtering", () => {
   it("includes blueprint fields when config flags are enabled", () => {
     const output = generateZodSchemas([blogPostWithBlueprintFields], {
       locales,
-      localeMode: "both",
+      localeModes: ["flat", "localized-only"],
       config: {
         fields: {
           includeOmitted: true,

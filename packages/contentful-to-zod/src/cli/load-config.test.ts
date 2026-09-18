@@ -14,8 +14,6 @@ describe("loadConfigFile", () => {
     await writeFile(
       configPath,
       `
-const mode: "cma" = "cma";
-
 export default {
   cma: {
     spaceId: process.env.CONTENTFUL_BLOG_SPACE_ID,
@@ -26,7 +24,7 @@ export default {
   snapshot: "./content-types.json",
   snapshotLocales: "./locales.json",
   contentTypeIds: ["blogPost"],
-  locale: { mode },
+  locale: { modes: ["flat"] },
   fields: { includeDisabled: true },
 };
 `,
@@ -43,7 +41,7 @@ export default {
       snapshot: "./content-types.json",
       snapshotLocales: "./locales.json",
       contentTypeIds: ["blogPost"],
-      locale: { mode: "cma" },
+      locale: { modes: ["flat"] },
       fields: { includeDisabled: true },
     });
   });

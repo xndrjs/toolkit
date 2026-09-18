@@ -1,8 +1,7 @@
 import { parseArgs } from "node:util";
 
 import { DEFAULT_ENVIRONMENT_ID } from "../client/cma-params";
-import { resolveLocaleMode } from "../config/define-config";
-import type { ContentfulToZodConfig } from "../config/define-config";
+import { resolveFieldLocalizationFlags, type ContentfulToZodConfig } from "../config/define-config";
 
 export interface CliOptions {
   spaceId: string | undefined;
@@ -160,16 +159,16 @@ export function resolveCliOptions(
 }
 
 export function requireLocalesSnapshot(
-  localeMode: ReturnType<typeof resolveLocaleMode>,
+  needsLocales: boolean,
   snapshotLocales: string | undefined
 ): void {
-  if (localeMode === "cma") {
+  if (!needsLocales) {
     return;
   }
 
   if (!snapshotLocales) {
     throw new Error(
-      `--snapshot-locales is required when locale mode is "${localeMode}" (set in config or default "both").`
+      '--snapshot-locales is required when locale.modes includes "localized-only" or "all" (default includes both with "flat").'
     );
   }
 }
@@ -178,7 +177,7 @@ export function validateCliOptions(
   options: ResolvedCliOptions,
   config: ContentfulToZodConfig | undefined
 ): void {
-  const localeMode = resolveLocaleMode({ config });
+  const flags = resolveFieldLocalizationFlags({ config });
 
   if (options.help) {
     return;
@@ -192,7 +191,7 @@ export function validateCliOptions(
     if (!options.snapshot) {
       throw new Error("--snapshot is required when using --from-snapshot.");
     }
-    requireLocalesSnapshot(localeMode, options.snapshotLocales);
+    requireLocalesSnapshot(flags.needsLocales, options.snapshotLocales);
     return;
   }
 
@@ -202,9 +201,5 @@ export function validateCliOptions(
 
   if (!options.managementToken) {
     throw new Error("--management-token is required when not set in config cma.managementToken.");
-  }
-
-  if (options.snapshotLocales && localeMode === "cma") {
-    // Locales snapshot path is only used for delivery/both; warn is noisy — skip.
   }
 }

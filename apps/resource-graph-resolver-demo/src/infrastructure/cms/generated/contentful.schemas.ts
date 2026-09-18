@@ -6,10 +6,9 @@
 import { z } from "zod";
 
 /** @generated from space locales snapshot */
-export const ContentfulLocaleCodeSchema = z.enum(["en-US", "it-IT"]);
-export type ContentfulLocaleCode = z.infer<typeof ContentfulLocaleCodeSchema>;
-
-export const CONTENTFUL_LOCALE_CODES = ContentfulLocaleCodeSchema.options;
+export const CONTENTFUL_LOCALE_CODES = ["en-US", "it-IT"] as const;
+export type ContentfulLocaleCode = (typeof CONTENTFUL_LOCALE_CODES)[number];
+export const ContentfulLocaleCodeSchema = z.enum(CONTENTFUL_LOCALE_CODES);
 export const CONTENTFUL_DEFAULT_LOCALE = "en-US" as const;
 
 /**
@@ -65,6 +64,14 @@ export const ContentfulEntrySysSchema = z.looseObject({
 export type ContentfulResourceLink = z.infer<typeof ContentfulResourceLinkSchema>;
 export type ContentfulEntrySys = z.infer<typeof ContentfulEntrySysSchema>;
 
+/** Structural Delivery/Preview entry envelope (any content type); fields are untyped. */
+export const ContentfulEntryEnvelopeSchema = z.object({
+  sys: ContentfulEntrySysSchema,
+  fields: z.record(z.string(), z.unknown()),
+});
+
+export type ContentfulEntryEnvelope = z.infer<typeof ContentfulEntryEnvelopeSchema>;
+
 /** Loose Delivery/Preview asset metadata; extra Contentful fields pass through. */
 export const ContentfulAssetSysSchema = z.looseObject({
   id: z.string(),
@@ -80,7 +87,7 @@ export const ContentfulAssetSysSchema = z.looseObject({
 
 export type ContentfulAssetSys = z.infer<typeof ContentfulAssetSysSchema>;
 
-export const ContentfulAssetDeliveryFieldsSchema = z.object({
+export const ContentfulAssetFieldsSchema = z.object({
   title: transportField(z.string()),
   file: transportField(
     z.object({
@@ -91,12 +98,12 @@ export const ContentfulAssetDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type ContentfulAssetDeliveryFields = z.infer<typeof ContentfulAssetDeliveryFieldsSchema>;
+export type ContentfulAssetFields = z.infer<typeof ContentfulAssetFieldsSchema>;
 
 /** Resolved Delivery/Preview asset payload. */
 export const ContentfulAssetSchema = z.object({
   sys: ContentfulAssetSysSchema,
-  fields: ContentfulAssetDeliveryFieldsSchema,
+  fields: ContentfulAssetFieldsSchema,
 });
 
 export type ContentfulAsset = z.infer<typeof ContentfulAssetSchema>;
@@ -137,7 +144,7 @@ export const PageFieldsSchema = z.object({
 
 export type PageFields = z.infer<typeof PageFieldsSchema>;
 
-export const PageDeliveryFieldsSchema = z.object({
+export const PageLocalizedFieldsSchema = z.object({
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
   modules: transportField(
     z.array(
@@ -158,9 +165,9 @@ export const PageDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type PageDeliveryFields = z.infer<typeof PageDeliveryFieldsSchema>;
+export type PageLocalizedFields = z.infer<typeof PageLocalizedFieldsSchema>;
 
-export const PageEntrySchema = z.object({
+export const PageLocalizedEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
@@ -170,10 +177,10 @@ export const PageEntrySchema = z.object({
       }),
     }),
   }),
-  fields: PageDeliveryFieldsSchema,
+  fields: PageLocalizedFieldsSchema,
 });
 
-export type PageEntry = z.infer<typeof PageEntrySchema>;
+export type PageLocalizedEntry = z.infer<typeof PageLocalizedEntrySchema>;
 
 export const TabsFieldsSchema = z.object({
   title: flatField(z.string()),
@@ -188,7 +195,7 @@ export const TabsFieldsSchema = z.object({
 
 export type TabsFields = z.infer<typeof TabsFieldsSchema>;
 
-export const TabsDeliveryFieldsSchema = z.object({
+export const TabsLocalizedFieldsSchema = z.object({
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
   tabs: transportField(
     z.array(
@@ -199,9 +206,9 @@ export const TabsDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type TabsDeliveryFields = z.infer<typeof TabsDeliveryFieldsSchema>;
+export type TabsLocalizedFields = z.infer<typeof TabsLocalizedFieldsSchema>;
 
-export const TabsEntrySchema = z.object({
+export const TabsLocalizedEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
@@ -211,10 +218,10 @@ export const TabsEntrySchema = z.object({
       }),
     }),
   }),
-  fields: TabsDeliveryFieldsSchema,
+  fields: TabsLocalizedFieldsSchema,
 });
 
-export type TabsEntry = z.infer<typeof TabsEntrySchema>;
+export type TabsLocalizedEntry = z.infer<typeof TabsLocalizedEntrySchema>;
 
 export const TabFieldsSchema = z.object({
   title: flatField(z.string()),
@@ -229,7 +236,7 @@ export const TabFieldsSchema = z.object({
 
 export type TabFields = z.infer<typeof TabFieldsSchema>;
 
-export const TabDeliveryFieldsSchema = z.object({
+export const TabLocalizedFieldsSchema = z.object({
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
   strips: transportField(
     z.array(
@@ -240,9 +247,9 @@ export const TabDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type TabDeliveryFields = z.infer<typeof TabDeliveryFieldsSchema>;
+export type TabLocalizedFields = z.infer<typeof TabLocalizedFieldsSchema>;
 
-export const TabEntrySchema = z.object({
+export const TabLocalizedEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
@@ -252,10 +259,10 @@ export const TabEntrySchema = z.object({
       }),
     }),
   }),
-  fields: TabDeliveryFieldsSchema,
+  fields: TabLocalizedFieldsSchema,
 });
 
-export type TabEntry = z.infer<typeof TabEntrySchema>;
+export type TabLocalizedEntry = z.infer<typeof TabLocalizedEntrySchema>;
 
 export const HeroFieldsSchema = z.object({
   title: flatField(z.string()),
@@ -268,7 +275,7 @@ export const HeroFieldsSchema = z.object({
 
 export type HeroFields = z.infer<typeof HeroFieldsSchema>;
 
-export const HeroDeliveryFieldsSchema = z.object({
+export const HeroLocalizedFieldsSchema = z.object({
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
   image: transportField(
     z.object({
@@ -277,9 +284,9 @@ export const HeroDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type HeroDeliveryFields = z.infer<typeof HeroDeliveryFieldsSchema>;
+export type HeroLocalizedFields = z.infer<typeof HeroLocalizedFieldsSchema>;
 
-export const HeroEntrySchema = z.object({
+export const HeroLocalizedEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
@@ -289,10 +296,10 @@ export const HeroEntrySchema = z.object({
       }),
     }),
   }),
-  fields: HeroDeliveryFieldsSchema,
+  fields: HeroLocalizedFieldsSchema,
 });
 
-export type HeroEntry = z.infer<typeof HeroEntrySchema>;
+export type HeroLocalizedEntry = z.infer<typeof HeroLocalizedEntrySchema>;
 
 export const MenuFieldsSchema = z.object({
   title: flatField(z.string()),
@@ -305,7 +312,7 @@ export const MenuFieldsSchema = z.object({
 
 export type MenuFields = z.infer<typeof MenuFieldsSchema>;
 
-export const MenuDeliveryFieldsSchema = z.object({
+export const MenuLocalizedFieldsSchema = z.object({
   title: transportField(z.string()),
   logo: transportField(
     z.object({
@@ -314,9 +321,9 @@ export const MenuDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type MenuDeliveryFields = z.infer<typeof MenuDeliveryFieldsSchema>;
+export type MenuLocalizedFields = z.infer<typeof MenuLocalizedFieldsSchema>;
 
-export const MenuEntrySchema = z.object({
+export const MenuLocalizedEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
@@ -326,10 +333,10 @@ export const MenuEntrySchema = z.object({
       }),
     }),
   }),
-  fields: MenuDeliveryFieldsSchema,
+  fields: MenuLocalizedFieldsSchema,
 });
 
-export type MenuEntry = z.infer<typeof MenuEntrySchema>;
+export type MenuLocalizedEntry = z.infer<typeof MenuLocalizedEntrySchema>;
 
 export const FooterFieldsSchema = z.object({
   title: flatField(z.string()),
@@ -342,7 +349,7 @@ export const FooterFieldsSchema = z.object({
 
 export type FooterFields = z.infer<typeof FooterFieldsSchema>;
 
-export const FooterDeliveryFieldsSchema = z.object({
+export const FooterLocalizedFieldsSchema = z.object({
   title: transportField(z.string()),
   logo: transportField(
     z.object({
@@ -351,9 +358,9 @@ export const FooterDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type FooterDeliveryFields = z.infer<typeof FooterDeliveryFieldsSchema>;
+export type FooterLocalizedFields = z.infer<typeof FooterLocalizedFieldsSchema>;
 
-export const FooterEntrySchema = z.object({
+export const FooterLocalizedEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
@@ -363,10 +370,10 @@ export const FooterEntrySchema = z.object({
       }),
     }),
   }),
-  fields: FooterDeliveryFieldsSchema,
+  fields: FooterLocalizedFieldsSchema,
 });
 
-export type FooterEntry = z.infer<typeof FooterEntrySchema>;
+export type FooterLocalizedEntry = z.infer<typeof FooterLocalizedEntrySchema>;
 
 export const ProductFieldsSchema = z.object({
   sku: flatField(z.string()),
@@ -376,15 +383,15 @@ export const ProductFieldsSchema = z.object({
 
 export type ProductFields = z.infer<typeof ProductFieldsSchema>;
 
-export const ProductDeliveryFieldsSchema = z.object({
+export const ProductLocalizedFieldsSchema = z.object({
   sku: transportField(z.string()),
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
   description: transportField(z.record(ContentfulLocaleCodeSchema, z.string())),
 });
 
-export type ProductDeliveryFields = z.infer<typeof ProductDeliveryFieldsSchema>;
+export type ProductLocalizedFields = z.infer<typeof ProductLocalizedFieldsSchema>;
 
-export const ProductEntrySchema = z.object({
+export const ProductLocalizedEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
@@ -394,13 +401,13 @@ export const ProductEntrySchema = z.object({
       }),
     }),
   }),
-  fields: ProductDeliveryFieldsSchema,
+  fields: ProductLocalizedFieldsSchema,
 });
 
-export type ProductEntry = z.infer<typeof ProductEntrySchema>;
+export type ProductLocalizedEntry = z.infer<typeof ProductLocalizedEntrySchema>;
 
 /** @generated from content type snapshot */
-export const ContentfulContentTypeIdSchema = z.enum([
+export const CONTENTFUL_CONTENT_TYPE_IDS = [
   "page",
   "tabs",
   "tab",
@@ -408,48 +415,49 @@ export const ContentfulContentTypeIdSchema = z.enum([
   "menu",
   "footer",
   "product",
-]);
-export type ContentfulContentTypeId = z.infer<typeof ContentfulContentTypeIdSchema>;
+] as const;
+export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];
+export const ContentfulContentTypeIdSchema = z.enum(CONTENTFUL_CONTENT_TYPE_IDS);
 
-export const CONTENTFUL_CONTENT_TYPE_IDS = ContentfulContentTypeIdSchema.options;
-
-/** Resolved Delivery/Preview entry type per content type id. */
-export type ContentfulEntryByContentType = {
-  page: PageEntry;
-  tabs: TabsEntry;
-  tab: TabEntry;
-  hero: HeroEntry;
-  menu: MenuEntry;
-  footer: FooterEntry;
-  product: ProductEntry;
+/** Localized-only entry type per content type id. */
+export type ContentfulLocalizedEntryByContentType = {
+  page: PageLocalizedEntry;
+  tabs: TabsLocalizedEntry;
+  tab: TabLocalizedEntry;
+  hero: HeroLocalizedEntry;
+  menu: MenuLocalizedEntry;
+  footer: FooterLocalizedEntry;
+  product: ProductLocalizedEntry;
 };
 
-/** Zod entry schema per content type id (for typed parse + dispatch). */
-export const ContentfulEntrySchemaByContentType = {
-  page: PageEntrySchema,
-  tabs: TabsEntrySchema,
-  tab: TabEntrySchema,
-  hero: HeroEntrySchema,
-  menu: MenuEntrySchema,
-  footer: FooterEntrySchema,
-  product: ProductEntrySchema,
+/** Zod localized entry schema per content type id (for typed parse + dispatch). */
+export const ContentfulLocalizedEntrySchemaByContentType = {
+  page: PageLocalizedEntrySchema,
+  tabs: TabsLocalizedEntrySchema,
+  tab: TabLocalizedEntrySchema,
+  hero: HeroLocalizedEntrySchema,
+  menu: MenuLocalizedEntrySchema,
+  footer: FooterLocalizedEntrySchema,
+  product: ProductLocalizedEntrySchema,
 } as const satisfies {
-  [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;
+  [K in ContentfulContentTypeId]: z.ZodType<ContentfulLocalizedEntryByContentType[K]>;
 };
 
-/** Resolved Delivery/Preview entry (any content type in this snapshot). */
-export const ContentfulResolvedEntrySchema = z.union([
-  PageEntrySchema,
-  TabsEntrySchema,
-  TabEntrySchema,
-  HeroEntrySchema,
-  MenuEntrySchema,
-  FooterEntrySchema,
-  ProductEntrySchema,
+/** Localized-only entry (any content type in this snapshot). */
+export const ContentfulResolvedLocalizedEntrySchema = z.union([
+  PageLocalizedEntrySchema,
+  TabsLocalizedEntrySchema,
+  TabLocalizedEntrySchema,
+  HeroLocalizedEntrySchema,
+  MenuLocalizedEntrySchema,
+  FooterLocalizedEntrySchema,
+  ProductLocalizedEntrySchema,
 ]);
-export type ContentfulResolvedEntry = z.infer<typeof ContentfulResolvedEntrySchema>;
+export type ContentfulResolvedLocalizedEntry = z.infer<
+  typeof ContentfulResolvedLocalizedEntrySchema
+>;
 
-/** Read one locale from a localized delivery field; missing locale or null input → `null`. */
+/** Read one locale from a localized field map; missing locale or null input → `null`. */
 export function pickLocale<T>(
   value: Record<ContentfulLocaleCode, T> | null,
   locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
@@ -460,9 +468,9 @@ export function pickLocale<T>(
   return value[locale] ?? null;
 }
 
-/** Flatten validated `PageDeliveryFields` (from `entry.fields`) to `PageFields` for a single locale. */
-export function flattenPageEntryFields(
-  fields: PageDeliveryFields,
+/** Flatten validated `PageLocalizedFields` (from `entry.fields`) to `PageFields` for a single locale. */
+export function flattenPageLocalizedFields(
+  fields: PageLocalizedFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): PageFields {
   return {
@@ -473,9 +481,9 @@ export function flattenPageEntryFields(
   };
 }
 
-/** Flatten validated `TabsDeliveryFields` (from `entry.fields`) to `TabsFields` for a single locale. */
-export function flattenTabsEntryFields(
-  fields: TabsDeliveryFields,
+/** Flatten validated `TabsLocalizedFields` (from `entry.fields`) to `TabsFields` for a single locale. */
+export function flattenTabsLocalizedFields(
+  fields: TabsLocalizedFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): TabsFields {
   return {
@@ -484,9 +492,9 @@ export function flattenTabsEntryFields(
   };
 }
 
-/** Flatten validated `TabDeliveryFields` (from `entry.fields`) to `TabFields` for a single locale. */
-export function flattenTabEntryFields(
-  fields: TabDeliveryFields,
+/** Flatten validated `TabLocalizedFields` (from `entry.fields`) to `TabFields` for a single locale. */
+export function flattenTabLocalizedFields(
+  fields: TabLocalizedFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): TabFields {
   return {
@@ -495,9 +503,9 @@ export function flattenTabEntryFields(
   };
 }
 
-/** Flatten validated `HeroDeliveryFields` (from `entry.fields`) to `HeroFields` for a single locale. */
-export function flattenHeroEntryFields(
-  fields: HeroDeliveryFields,
+/** Flatten validated `HeroLocalizedFields` (from `entry.fields`) to `HeroFields` for a single locale. */
+export function flattenHeroLocalizedFields(
+  fields: HeroLocalizedFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): HeroFields {
   return {
@@ -506,9 +514,9 @@ export function flattenHeroEntryFields(
   };
 }
 
-/** Flatten validated `MenuDeliveryFields` (from `entry.fields`) to `MenuFields` for a single locale. */
-export function flattenMenuEntryFields(
-  fields: MenuDeliveryFields,
+/** Flatten validated `MenuLocalizedFields` (from `entry.fields`) to `MenuFields` for a single locale. */
+export function flattenMenuLocalizedFields(
+  fields: MenuLocalizedFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): MenuFields {
   return {
@@ -517,9 +525,9 @@ export function flattenMenuEntryFields(
   };
 }
 
-/** Flatten validated `FooterDeliveryFields` (from `entry.fields`) to `FooterFields` for a single locale. */
-export function flattenFooterEntryFields(
-  fields: FooterDeliveryFields,
+/** Flatten validated `FooterLocalizedFields` (from `entry.fields`) to `FooterFields` for a single locale. */
+export function flattenFooterLocalizedFields(
+  fields: FooterLocalizedFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): FooterFields {
   return {
@@ -528,9 +536,9 @@ export function flattenFooterEntryFields(
   };
 }
 
-/** Flatten validated `ProductDeliveryFields` (from `entry.fields`) to `ProductFields` for a single locale. */
-export function flattenProductEntryFields(
-  fields: ProductDeliveryFields,
+/** Flatten validated `ProductLocalizedFields` (from `entry.fields`) to `ProductFields` for a single locale. */
+export function flattenProductLocalizedFields(
+  fields: ProductLocalizedFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): ProductFields {
   return {
@@ -580,29 +588,29 @@ function readResolvedEntryContentTypeId(entry: unknown): string {
 
 export interface ResolvedEntryForLinkFieldMap {
   page: {
-    modules: TabsEntry | HeroEntry | ProductEntry;
-    menu: MenuEntry;
-    footer: FooterEntry;
+    modules: TabsLocalizedEntry | HeroLocalizedEntry | ProductLocalizedEntry;
+    menu: MenuLocalizedEntry;
+    footer: FooterLocalizedEntry;
   };
   tabs: {
-    tabs: TabEntry;
+    tabs: TabLocalizedEntry;
   };
   tab: {
-    strips: HeroEntry | ProductEntry;
+    strips: HeroLocalizedEntry | ProductLocalizedEntry;
   };
 }
 
 export interface LinkFieldHandlersMap {
   page: {
-    modules: (entry: unknown) => TabsEntry | HeroEntry | ProductEntry;
-    menu: (entry: unknown) => MenuEntry;
-    footer: (entry: unknown) => FooterEntry;
+    modules: (entry: unknown) => TabsLocalizedEntry | HeroLocalizedEntry | ProductLocalizedEntry;
+    menu: (entry: unknown) => MenuLocalizedEntry;
+    footer: (entry: unknown) => FooterLocalizedEntry;
   };
   tabs: {
-    tabs: (entry: unknown) => TabEntry;
+    tabs: (entry: unknown) => TabLocalizedEntry;
   };
   tab: {
-    strips: (entry: unknown) => HeroEntry | ProductEntry;
+    strips: (entry: unknown) => HeroLocalizedEntry | ProductLocalizedEntry;
   };
 }
 
@@ -659,11 +667,11 @@ const LINK_FIELD_HANDLERS = {
       const resolvedId = readResolvedEntryContentTypeId(entry);
       switch (resolvedId) {
         case "tabs":
-          return TabsEntrySchema.parse(entry);
+          return TabsLocalizedEntrySchema.parse(entry);
         case "hero":
-          return HeroEntrySchema.parse(entry);
+          return HeroLocalizedEntrySchema.parse(entry);
         case "product":
-          return ProductEntrySchema.parse(entry);
+          return ProductLocalizedEntrySchema.parse(entry);
         default:
           throw new LinkFieldTargetError(parentContentTypeId, fieldId, resolvedId, allowed);
       }
@@ -675,7 +683,7 @@ const LINK_FIELD_HANDLERS = {
       const resolvedId = readResolvedEntryContentTypeId(entry);
       switch (resolvedId) {
         case "menu":
-          return MenuEntrySchema.parse(entry);
+          return MenuLocalizedEntrySchema.parse(entry);
         default:
           throw new LinkFieldTargetError(parentContentTypeId, fieldId, resolvedId, allowed);
       }
@@ -687,7 +695,7 @@ const LINK_FIELD_HANDLERS = {
       const resolvedId = readResolvedEntryContentTypeId(entry);
       switch (resolvedId) {
         case "footer":
-          return FooterEntrySchema.parse(entry);
+          return FooterLocalizedEntrySchema.parse(entry);
         default:
           throw new LinkFieldTargetError(parentContentTypeId, fieldId, resolvedId, allowed);
       }
@@ -701,7 +709,7 @@ const LINK_FIELD_HANDLERS = {
       const resolvedId = readResolvedEntryContentTypeId(entry);
       switch (resolvedId) {
         case "tab":
-          return TabEntrySchema.parse(entry);
+          return TabLocalizedEntrySchema.parse(entry);
         default:
           throw new LinkFieldTargetError(parentContentTypeId, fieldId, resolvedId, allowed);
       }
@@ -715,9 +723,9 @@ const LINK_FIELD_HANDLERS = {
       const resolvedId = readResolvedEntryContentTypeId(entry);
       switch (resolvedId) {
         case "hero":
-          return HeroEntrySchema.parse(entry);
+          return HeroLocalizedEntrySchema.parse(entry);
         case "product":
-          return ProductEntrySchema.parse(entry);
+          return ProductLocalizedEntrySchema.parse(entry);
         default:
           throw new LinkFieldTargetError(parentContentTypeId, fieldId, resolvedId, allowed);
       }

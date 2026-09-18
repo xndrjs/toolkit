@@ -1,31 +1,30 @@
 import {
   defineConfig,
-  resolveLocaleMode,
-  resolveLocaleStar,
+  resolveFieldLocalizationFlags,
   type ContentfulToZodConfig,
-  type LocaleMode,
+  type FieldLocalizationMode,
 } from "../config/define-config";
 import type { ContentField, ContentType } from "../model/content-type";
 import type { Locale } from "../model/locale";
 import { emitContentTypeIdPrimitives } from "./content-type-id-primitives";
 import {
-  deliveryFieldSource,
   fieldToZod,
   flatFieldSource,
+  localizedFieldSource,
   validateObjectOverrides,
   type FieldZodResult,
 } from "./field-to-zod";
 import { fieldsForCodegen } from "./filter-fields";
-import { emitLocalePrimitives, requireLocalesForMode } from "./locale-primitives";
+import { emitLocalePrimitives, requireLocalesForModes } from "./locale-primitives";
 import { CONTENTFUL_PRIMITIVE_SCHEMA_NAMES, CONTENTFUL_PRIMITIVE_SCHEMAS } from "./primitives";
 import {
-  deliveryFieldsSchemaExportName,
-  emitInferredType,
   fieldsSchemaExportName,
+  emitInferredType,
+  localizedFieldsSchemaExportName,
 } from "./schema-name";
 import {
-  emitContentTypeEntrySchema,
   emitAssetDeliverySchema,
+  emitContentTypeLocalizedEntrySchema,
   emitEntrySysPrimitives,
 } from "./entry-to-source";
 import { emitLinkFieldParseHelpers } from "./emit-link-field-parse";
@@ -39,14 +38,13 @@ import {
 import { emitFlatFieldHelper, emitTransportFieldHelper } from "./transport-primitives";
 import { zodToSource } from "./zod-to-source";
 
-export type { LocaleMode };
+export type { FieldLocalizationMode };
 
 export interface GenerateZodSchemasOptions {
   contentTypeIds?: string[] | undefined;
   locales?: Locale[] | undefined;
-  localeMode?: LocaleMode | undefined;
-  /** Emit `locale=*` field shapes. Only valid when mode is `delivery` or `both`. Default: `false`. */
-  localeStar?: boolean | undefined;
+  /** Which field-localization shapes to emit. Default from config or `["flat", "localized-only"]`. */
+  localeModes?: readonly FieldLocalizationMode[] | undefined;
   config?: ContentfulToZodConfig | undefined;
 }
 
@@ -70,18 +68,22 @@ function filterContentTypes(
   return filtered;
 }
 
-function fieldSource(flat: FieldZodResult, field: ContentField, delivery: boolean): string {
-  if (!delivery) {
+function fieldSource(
+  flat: FieldZodResult,
+  field: ContentField,
+  localization: "flat" | "localized-only"
+): string {
+  if (localization === "flat") {
     return flatFieldSource(flat, field);
   }
 
-  return deliveryFieldSource(flat, field);
+  return localizedFieldSource(flat, field);
 }
 
 function emitContentTypeSchema(
   contentType: ContentType,
   options: {
-    delivery: boolean;
+    localization: "flat" | "localized-only";
     config?: ContentfulToZodConfig | undefined;
   }
 ): string[] {
@@ -94,13 +96,14 @@ function emitContentTypeSchema(
     });
 
     shapeEntries.push(
-      `  ${JSON.stringify(field.id)}: ${fieldSource(flat, field, options.delivery)},`
+      `  ${JSON.stringify(field.id)}: ${fieldSource(flat, field, options.localization)},`
     );
   }
 
-  const exportName = options.delivery
-    ? deliveryFieldsSchemaExportName(contentType.id)
-    : fieldsSchemaExportName(contentType.id);
+  const exportName =
+    options.localization === "localized-only"
+      ? localizedFieldsSchemaExportName(contentType.id)
+      : fieldsSchemaExportName(contentType.id);
   return [
     `export const ${exportName} = z.object({`,
     ...shapeEntries,
@@ -138,14 +141,14 @@ export function generateZodSchemas(
   options: GenerateZodSchemasOptions = {}
 ): string {
   const config = options.config ? defineConfig(options.config) : undefined;
-  const localeMode = resolveLocaleMode({ localeMode: options.localeMode, config });
-  // Validated now; emission of localeStar shapes lands in a follow-up.
-  void resolveLocaleStar({
-    localeStar: options.localeStar,
-    localeMode: options.localeMode,
+  const flags = resolveFieldLocalizationFlags({
+    localeModes: options.localeModes,
     config,
   });
-  const locales = requireLocalesForMode(localeMode, options.locales);
+  // `all` (`locale=*`) shape emission lands in a follow-up; flag is accepted/validated now.
+  void flags.includeAll;
+
+  const locales = requireLocalesForModes(flags.needsLocales, options.locales);
   const selectedContentTypes = filterContentTypes(contentTypes, options.contentTypeIds);
 
   validateObjectOverrides(selectedContentTypes, config);
@@ -157,47 +160,44 @@ export function generateZodSchemas(
 
   const sections: string[] = [emitFileHeader()];
 
-  const includeDelivery = localeMode === "delivery" || localeMode === "both";
-  const includeCma = localeMode === "cma" || localeMode === "both";
-
-  if (includeDelivery && locales) {
+  if (flags.needsLocales && locales) {
     sections.push(emitLocalePrimitives(locales), "");
   }
 
   const fieldHelpers: string[] = [];
-  if (includeCma) {
+  if (flags.includeFlat) {
     fieldHelpers.push(emitFlatFieldHelper());
   }
-  if (includeDelivery && locales) {
+  if (flags.includeLocalizedOnly && locales) {
     fieldHelpers.push(emitTransportFieldHelper());
   }
   if (fieldHelpers.length > 0) {
     sections.push(fieldHelpers.join("\n\n"), "");
   }
 
-  if (includeDelivery && locales) {
+  if (flags.includeLocalizedOnly && locales) {
     sections.push(emitEntrySysPrimitives(), "", emitAssetDeliverySchema(), "");
   }
 
   sections.push(emitSharedPrimitives());
 
   for (const contentType of selectedContentTypes) {
-    if (includeCma) {
+    if (flags.includeFlat) {
       sections.push(
         ...emitContentTypeSchema(contentType, {
-          delivery: false,
+          localization: "flat",
           config,
         })
       );
     }
 
-    if (includeDelivery) {
+    if (flags.includeLocalizedOnly) {
       sections.push(
         ...emitContentTypeSchema(contentType, {
-          delivery: true,
+          localization: "localized-only",
           config,
         }),
-        ...emitContentTypeEntrySchema(contentType)
+        ...emitContentTypeLocalizedEntrySchema(contentType)
       );
     }
   }
@@ -206,24 +206,24 @@ export function generateZodSchemas(
     sections.push(
       "",
       emitContentTypeIdPrimitives(selectedContentTypes, {
-        includeEntryMaps: includeDelivery,
+        includeEntryMaps: flags.includeLocalizedOnly,
       })
     );
   }
 
-  const helpers = emitLocaleHelpers(selectedContentTypes, localeMode, config);
+  const helpers = emitLocaleHelpers(selectedContentTypes, flags, config);
   if (helpers) {
     sections.push("", helpers);
   }
 
-  if (includeDelivery && linkFieldTargets.length > 0) {
+  if (flags.includeLocalizedOnly && linkFieldTargets.length > 0) {
     const linkHelpers = emitLinkFieldParseHelpers(linkFieldTargets);
     if (linkHelpers) {
       sections.push("", linkHelpers);
     }
   }
 
-  if (includeDelivery && selectedContentTypes.length > 0) {
+  if (flags.includeLocalizedOnly && selectedContentTypes.length > 0) {
     sections.push("", emitLinkFieldMetadata(selectedContentTypes, linkFields));
   }
 

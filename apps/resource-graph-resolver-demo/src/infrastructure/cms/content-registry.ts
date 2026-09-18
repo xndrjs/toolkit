@@ -1,7 +1,10 @@
-import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
+import type {
+  ContentfulAsset,
+  ContentfulResolvedLocalizedEntry,
+} from "./generated/contentful.schemas.js";
 
 /** ContentRegistry slice owned by the CMS source adapter. */
 export type CmsContentRegistry = {
-  "cms.entry": ContentfulResolvedEntry;
+  "cms.entry": ContentfulResolvedLocalizedEntry;
   "cms.asset": ContentfulAsset;
 };

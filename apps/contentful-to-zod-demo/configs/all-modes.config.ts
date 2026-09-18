@@ -9,9 +9,10 @@ const appDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 export default defineConfig({
   fromSnapshot: true,
   snapshot: join(appDir, "schema-fixtures/content-types.json"),
-  out: join(appDir, "generated/cma.schemas.ts"),
+  snapshotLocales: join(appDir, "schema-fixtures/locales.json"),
+  out: join(appDir, "generated/all-modes.schemas.ts"),
   locale: {
-    mode: "cma",
+    modes: ["flat", "localized-only", "all"],
   },
   objects: {
     "article.seo": z.object({

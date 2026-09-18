@@ -1,7 +1,13 @@
 ---
-"@xndrjs/contentful-to-zod": patch
+"@xndrjs/contentful-to-zod": minor
 ---
 
-Emit `CONTENTFUL_LOCALE_CODES` and `CONTENTFUL_CONTENT_TYPE_IDS` as values-first `as const` arrays; types and `z.enum(...)` schemas are derived from those arrays (no longer `Schema.options`).
+Rename field-localization config and generated exports for clarity (breaking):
 
-Emit `ContentfulEntryEnvelopeSchema` (`sys` + untyped `fields`) as a structural Delivery/Preview entry gate before content-type-specific parse.
+- Config: `locale.modes: ("flat" | "localized-only" | "all")[]` replaces `locale.mode` (`cma`/`delivery`/`both`) and `localeStar`.
+- Default modes: `["flat", "localized-only"]` (former `both`).
+- Exports: `*DeliveryFields*` → `*LocalizedFields*`, `*Entry*` → `*LocalizedEntry*`, flatten helpers → `flatten*LocalizedFields`.
+- Registry: `ContentfulLocalizedEntrySchemaByContentType`, `ContentfulResolvedLocalizedEntrySchema`.
+- Asset fields: `ContentfulAssetFieldsSchema`.
+- Emit `ContentfulEntryEnvelopeSchema` as a structural entry gate.
+- Locale/content-type id constants remain values-first `as const` arrays.

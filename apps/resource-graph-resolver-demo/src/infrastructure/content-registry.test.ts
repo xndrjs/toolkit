@@ -12,14 +12,14 @@ import {
   pageEntryAri,
   productEntryAri,
   type ContentfulAsset,
-  type ContentfulResolvedEntry,
+  type ContentfulResolvedLocalizedEntry,
 } from "./cms/index.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import {
-  HeroEntrySchema,
-  PageEntrySchema,
-  ProductEntrySchema,
-  TabEntrySchema,
+  HeroLocalizedEntrySchema,
+  PageLocalizedEntrySchema,
+  ProductLocalizedEntrySchema,
+  TabLocalizedEntrySchema,
 } from "./cms/generated/contentful.schemas.js";
 import {
   createIntegrationSource,
@@ -41,7 +41,9 @@ describe("source-qualified ARI store", () => {
   });
 
   it("types ContentRegistry by source-qualified ARI type", () => {
-    expectTypeOf<DemoContentRegistry["cms.entry"]>().toEqualTypeOf<ContentfulResolvedEntry>();
+    expectTypeOf<
+      DemoContentRegistry["cms.entry"]
+    >().toEqualTypeOf<ContentfulResolvedLocalizedEntry>();
     expectTypeOf<DemoContentRegistry["cms.asset"]>().toEqualTypeOf<ContentfulAsset>();
     expectTypeOf<
       DemoContentRegistry["integration.product"]
@@ -50,7 +52,7 @@ describe("source-qualified ARI store", () => {
 
   it("stores CMS Link stubs instead of $ref ARI strings", () => {
     const entry = demoCmsStore.entries.get(demoIds.page)!;
-    const page = PageEntrySchema.parse(entry);
+    const page = PageLocalizedEntrySchema.parse(entry);
 
     expect(page.fields.menu).toEqual({
       sys: { type: "Link", linkType: "Entry", id: demoIds.menu },
@@ -66,21 +68,25 @@ describe("source-qualified ARI store", () => {
   });
 
   it("keeps delivery-shaped entries parseable by generated schemas", () => {
-    expect(PageEntrySchema.parse(demoCmsStore.entries.get(demoIds.page))).toMatchObject({
+    expect(PageLocalizedEntrySchema.parse(demoCmsStore.entries.get(demoIds.page))).toMatchObject({
       sys: { id: demoIds.page, contentType: { sys: { id: "page" } } },
     });
-    expect(TabEntrySchema.parse(demoCmsStore.entries.get(demoIds.tab)).fields.strips).toEqual([
+    expect(
+      TabLocalizedEntrySchema.parse(demoCmsStore.entries.get(demoIds.tab)).fields.strips
+    ).toEqual([
       { sys: { type: "Link", linkType: "Entry", id: demoIds.hero } },
       { sys: { type: "Link", linkType: "Entry", id: demoIds.heroPromo } },
       { sys: { type: "Link", linkType: "Entry", id: demoIds.product } },
       { sys: { type: "Link", linkType: "Entry", id: demoIds.productHoodie } },
     ]);
-    expect(HeroEntrySchema.parse(demoCmsStore.entries.get(demoIds.hero)).fields.image).toEqual({
+    expect(
+      HeroLocalizedEntrySchema.parse(demoCmsStore.entries.get(demoIds.hero)).fields.image
+    ).toEqual({
       sys: { type: "Link", linkType: "Asset", id: demoIds.logo },
     });
-    expect(ProductEntrySchema.parse(demoCmsStore.entries.get(demoIds.product)).fields.sku).toBe(
-      "TSHIRT-1"
-    );
+    expect(
+      ProductLocalizedEntrySchema.parse(demoCmsStore.entries.get(demoIds.product)).fields.sku
+    ).toBe("TSHIRT-1");
   });
 });
 

@@ -4,7 +4,10 @@ import type { DemoContentRegistry } from "../content-registry.js";
 import type { DemoExecutionContext } from "../demo-execution-context.js";
 import { simulateNetworkLatency } from "../simulate-latency.js";
 import { cmsAssetAri, cmsEntryAri, type CmsAssetResource, type CmsEntryResource } from "./ari.js";
-import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
+import type {
+  ContentfulAsset,
+  ContentfulResolvedLocalizedEntry,
+} from "./generated/contentful.schemas.js";
 
 /** Demo chunk size for batched id-in fetches (client choice, not a Contentful API constant). */
 export const CMS_BATCH_SIZE = 100;
@@ -14,7 +17,7 @@ export { CMS_BATCH_SIZE as CMS_ENTRY_BATCH_SIZE, CMS_BATCH_SIZE as CMS_ASSET_BAT
 export const CMS_SOURCE_ID = "cms";
 
 export type CmsFixtureStore = {
-  entries: ReadonlyMap<string, ContentfulResolvedEntry>;
+  entries: ReadonlyMap<string, ContentfulResolvedLocalizedEntry>;
   assets: ReadonlyMap<string, ContentfulAsset>;
 };
 
@@ -23,7 +26,10 @@ export type CmsSourceOptions = {
   latencyMs?: number;
 };
 
-export type CmsEntryRecord = { resource: CmsEntryResource; payload: ContentfulResolvedEntry };
+export type CmsEntryRecord = {
+  resource: CmsEntryResource;
+  payload: ContentfulResolvedLocalizedEntry;
+};
 export type CmsAssetRecord = { resource: CmsAssetResource; payload: ContentfulAsset };
 
 const defineCmsSource = defineDataSourceFor<DemoContentRegistry, DemoExecutionContext>();

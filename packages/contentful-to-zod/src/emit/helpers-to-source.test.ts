@@ -12,7 +12,7 @@ interface GeneratedHelpers {
     value: Record<"en-US" | "it-IT", T> | null,
     locale?: "en-US" | "it-IT"
   ) => T | null;
-  flattenBlogPostEntryFields: (
+  flattenBlogPostLocalizedFields: (
     fields: {
       title: Record<"en-US" | "it-IT", string> | null;
       slug: string | null;
@@ -30,7 +30,10 @@ interface GeneratedHelpers {
 }
 
 async function loadHelpers() {
-  const source = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
+  const source = generateZodSchemas(contentTypes, {
+    locales,
+    localeModes: ["flat", "localized-only"],
+  });
   return importGeneratedModule<GeneratedHelpers>(source);
 }
 
@@ -47,10 +50,10 @@ describe("generated locale helpers", () => {
     expect(pickLocale(null)).toBeNull();
   });
 
-  it("flattenBlogPostEntryFields maps delivery fields to flat shape for a locale", async () => {
-    const { flattenBlogPostEntryFields } = await loadHelpers();
+  it("flattenBlogPostLocalizedFields maps delivery fields to flat shape for a locale", async () => {
+    const { flattenBlogPostLocalizedFields } = await loadHelpers();
 
-    const flat = flattenBlogPostEntryFields(
+    const flat = flattenBlogPostLocalizedFields(
       {
         title: { "en-US": "Hello", "it-IT": "Titolo" },
         slug: "my-post",
@@ -68,12 +71,12 @@ describe("generated locale helpers", () => {
     });
   });
 
-  it("flattenBlogPostEntryFields falls back to CONTENTFUL_DEFAULT_LOCALE when locale is omitted", async () => {
-    const { flattenBlogPostEntryFields, CONTENTFUL_DEFAULT_LOCALE } = await loadHelpers();
+  it("flattenBlogPostLocalizedFields falls back to CONTENTFUL_DEFAULT_LOCALE when locale is omitted", async () => {
+    const { flattenBlogPostLocalizedFields, CONTENTFUL_DEFAULT_LOCALE } = await loadHelpers();
 
     expect(CONTENTFUL_DEFAULT_LOCALE).toBe("en-US");
 
-    const flat = flattenBlogPostEntryFields({
+    const flat = flattenBlogPostLocalizedFields({
       title: { "en-US": "Hello", "it-IT": "Ciao" },
       slug: "my-post",
     });
@@ -81,11 +84,11 @@ describe("generated locale helpers", () => {
     expect(flat.title).toBe("Hello");
   });
 
-  it("flattenBlogPostEntryFields coalesces absent non-localized fields to null", async () => {
-    const { flattenBlogPostEntryFields } = await loadHelpers();
+  it("flattenBlogPostLocalizedFields coalesces absent non-localized fields to null", async () => {
+    const { flattenBlogPostLocalizedFields } = await loadHelpers();
 
     // @ts-expect-error partial fields — flatten coalesces absent keys with ?? null at runtime
-    const flat = flattenBlogPostEntryFields({
+    const flat = flattenBlogPostLocalizedFields({
       title: { "en-US": "Hello", "it-IT": "Ciao" },
     });
 
@@ -94,7 +97,10 @@ describe("generated locale helpers", () => {
   });
 
   it("BlogPostFieldsSchema normalizes undefined flat values to null", async () => {
-    const source = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
+    const source = generateZodSchemas(contentTypes, {
+      locales,
+      localeModes: ["flat", "localized-only"],
+    });
     const mod = await importGeneratedModule<{
       BlogPostFieldsSchema: { parse: (value: unknown) => Record<string, unknown> };
     }>(source);
@@ -115,19 +121,22 @@ describe("generated locale helpers", () => {
     });
   });
 
-  it("BlogPostEntrySchema accepts omitted required transport fields", async () => {
-    const source = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
+  it("BlogPostLocalizedEntrySchema accepts omitted required transport fields", async () => {
+    const source = generateZodSchemas(contentTypes, {
+      locales,
+      localeModes: ["flat", "localized-only"],
+    });
     const mod = await importGeneratedModule<{
-      BlogPostEntrySchema: {
+      BlogPostLocalizedEntrySchema: {
         parse: (value: unknown) => {
           fields: { title: unknown; slug: unknown };
         };
       };
       BlogPostFieldsSchema: { parse: (value: unknown) => unknown };
-      flattenBlogPostEntryFields: (fields: unknown, locale?: string) => unknown;
+      flattenBlogPostLocalizedFields: (fields: unknown, locale?: string) => unknown;
     }>(source);
 
-    const entry = mod.BlogPostEntrySchema.parse({
+    const entry = mod.BlogPostLocalizedEntrySchema.parse({
       sys: {
         id: "entry-1",
         type: "Entry",
@@ -147,7 +156,7 @@ describe("generated locale helpers", () => {
 
     expect(entry.fields.title).toBeNull();
 
-    const flat = mod.flattenBlogPostEntryFields(entry.fields, "en-US");
+    const flat = mod.flattenBlogPostLocalizedFields(entry.fields, "en-US");
     expect(mod.BlogPostFieldsSchema.parse(flat)).toEqual({
       title: null,
       slug: "draft-without-title",

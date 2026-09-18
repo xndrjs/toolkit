@@ -1,15 +1,26 @@
 import type { z } from "zod";
 
-export type LocaleMode = "cma" | "delivery" | "both";
-
 /**
- * Locale codegen settings.
- * `localeStar` is only valid with `"delivery"` or `"both"` (default `false`).
+ * How field values are localized in generated Zod shapes:
+ * - `flat` — every field is a single value (CDA/CPA `locale=<code>`, or after flatten)
+ * - `localized-only` — only `localized: true` fields are `Record<locale, T>` (CMA entry fields)
+ * - `all` — every field is `Record<locale, T>` (CDA/CPA `locale=*`)
  */
-export type LocaleConfig =
-  | { mode: "cma" }
-  | { mode: "delivery"; localeStar?: boolean }
-  | { mode: "both"; localeStar?: boolean };
+export type FieldLocalizationMode = "flat" | "localized-only" | "all";
+
+export const DEFAULT_FIELD_LOCALIZATION_MODES: readonly FieldLocalizationMode[] = [
+  "flat",
+  "localized-only",
+] as const;
+
+/** Locale / field-localization codegen settings (multi-mode in one output file). */
+export interface LocaleConfig {
+  /**
+   * Which field-localization shapes to emit.
+   * Default: `["flat", "localized-only"]`.
+   */
+  modes?: FieldLocalizationMode[];
+}
 
 /** Override map for Contentful `Object` fields keyed as `{contentTypeId}.{fieldId}`. */
 export interface ContentfulToZodConfig {
@@ -23,7 +34,7 @@ export interface ContentfulToZodConfig {
   snapshotLocales?: string;
   fromSnapshot?: boolean;
   contentTypeIds?: string[];
-  /** Default mode: `"both"`. */
+  /** Default modes: `["flat", "localized-only"]`. */
   locale?: LocaleConfig;
   /** Control which CMA blueprint fields are emitted (default: active fields only). */
   fields?: {
@@ -37,65 +48,92 @@ export interface ContentfulToZodConfig {
   objects?: Record<string, z.ZodType>;
 }
 
-const LOCALE_STAR_CMA_ERROR =
-  'locale.localeStar cannot be enabled when locale.mode is "cma". Use mode "delivery" or "both".';
+const EMPTY_MODES_ERROR =
+  'locale.modes must include at least one of "flat", "localized-only", or "all".';
 
-/** Runtime check for untyped configs that set `localeStar` with CMA mode. */
-export function assertLocaleStarAllowed(mode: LocaleMode, localeStar: boolean | undefined): void {
-  if (mode === "cma" && localeStar === true) {
-    throw new Error(LOCALE_STAR_CMA_ERROR);
+const UNKNOWN_MODE_ERROR = (mode: string) =>
+  `Unknown field localization mode "${mode}". Expected "flat", "localized-only", or "all".`;
+
+const VALID_MODES = new Set<FieldLocalizationMode>(["flat", "localized-only", "all"]);
+
+/** Normalize and validate a modes list (dedupe, preserve order). */
+export function normalizeFieldLocalizationModes(
+  modes: readonly FieldLocalizationMode[] | undefined
+): FieldLocalizationMode[] {
+  if (!modes?.length) {
+    return [...DEFAULT_FIELD_LOCALIZATION_MODES];
   }
-}
 
-function localeStarFromConfig(config: ContentfulToZodConfig | undefined): boolean | undefined {
-  const locale = config?.locale as { localeStar?: boolean } | undefined;
-  return locale?.localeStar;
+  const seen = new Set<FieldLocalizationMode>();
+  const result: FieldLocalizationMode[] = [];
+
+  for (const mode of modes) {
+    if (!VALID_MODES.has(mode)) {
+      throw new Error(UNKNOWN_MODE_ERROR(String(mode)));
+    }
+    if (!seen.has(mode)) {
+      seen.add(mode);
+      result.push(mode);
+    }
+  }
+
+  if (result.length === 0) {
+    throw new Error(EMPTY_MODES_ERROR);
+  }
+
+  return result;
 }
 
 export function defineConfig(config: ContentfulToZodConfig): ContentfulToZodConfig {
-  const mode = config.locale?.mode ?? "both";
-  const localeStar = localeStarFromConfig(config);
-  assertLocaleStarAllowed(mode, localeStar);
-
-  if (mode === "cma") {
-    return {
-      ...config,
-      locale: { mode: "cma" },
-    };
-  }
-
   return {
     ...config,
     locale: {
-      mode,
-      localeStar: localeStar ?? false,
+      modes: normalizeFieldLocalizationModes(config.locale?.modes),
     },
   };
 }
 
-/** Resolve locale mode from codegen options and optional config defaults. */
-export function resolveLocaleMode(options: {
-  localeMode?: LocaleMode | undefined;
+/** Resolved field-localization modes from options and/or config. */
+export function resolveFieldLocalizationModes(options: {
+  localeModes?: readonly FieldLocalizationMode[] | undefined;
   config?: ContentfulToZodConfig | undefined;
-}): LocaleMode {
-  return options.localeMode ?? options.config?.locale?.mode ?? "both";
+}): FieldLocalizationMode[] {
+  if (options.localeModes !== undefined) {
+    return normalizeFieldLocalizationModes(options.localeModes);
+  }
+  return normalizeFieldLocalizationModes(options.config?.locale?.modes);
 }
 
-/**
- * Resolve whether to emit `locale=*` (localeStar) schemas.
- * Explicit `localeStar` option wins over config; default `false`.
- * Throws when enabled under CMA mode.
- */
-export function resolveLocaleStar(options: {
-  localeStar?: boolean | undefined;
-  localeMode?: LocaleMode | undefined;
+export interface ResolvedFieldLocalizationFlags {
+  modes: FieldLocalizationMode[];
+  includeFlat: boolean;
+  includeLocalizedOnly: boolean;
+  includeAll: boolean;
+  /** Locales snapshot / enum required. */
+  needsLocales: boolean;
+  /** Emit `pickLocale`. */
+  includePickLocale: boolean;
+  /** Emit flatten helpers (`localized-only` → `flat`). */
+  includeFlatten: boolean;
+}
+
+export function resolveFieldLocalizationFlags(options: {
+  localeModes?: readonly FieldLocalizationMode[] | undefined;
   config?: ContentfulToZodConfig | undefined;
-}): boolean {
-  const mode = resolveLocaleMode({
-    localeMode: options.localeMode,
-    config: options.config,
-  });
-  const localeStar = options.localeStar ?? localeStarFromConfig(options.config) ?? false;
-  assertLocaleStarAllowed(mode, localeStar);
-  return mode === "cma" ? false : localeStar;
+}): ResolvedFieldLocalizationFlags {
+  const modes = resolveFieldLocalizationModes(options);
+  const includeFlat = modes.includes("flat");
+  const includeLocalizedOnly = modes.includes("localized-only");
+  const includeAll = modes.includes("all");
+  const needsLocales = includeLocalizedOnly || includeAll;
+
+  return {
+    modes,
+    includeFlat,
+    includeLocalizedOnly,
+    includeAll,
+    needsLocales,
+    includePickLocale: needsLocales,
+    includeFlatten: includeFlat && includeLocalizedOnly,
+  };
 }

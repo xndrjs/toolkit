@@ -1,9 +1,9 @@
 import { cmsEntryAri } from "../cms/index.js";
 import { TabShape, type Tab, type TabStrip } from "../../domain/index.js";
 import {
-  flattenTabEntryFields,
+  flattenTabLocalizedFields,
   parseEntryAsLinkField,
-  TabEntrySchema,
+  TabLocalizedEntrySchema,
   type ContentfulEntryLink,
 } from "../cms/generated/contentful.schemas.js";
 import { mapHero } from "./hero.mapper.js";
@@ -22,8 +22,8 @@ export function mapTabLink(context: MapperContext, link: ContentfulEntryLink): T
 }
 
 export function mapTab(context: MapperContext, raw: unknown): Tab {
-  const entry = TabEntrySchema.parse(raw);
-  const fields = flattenTabEntryFields(entry.fields, context.locale);
+  const entry = TabLocalizedEntrySchema.parse(raw);
+  const fields = flattenTabLocalizedFields(entry.fields, context.locale);
   if (fields.title === null || fields.title.length === 0) {
     throw new Error(`Tab ${entry.sys.id} is missing a title for locale ${context.locale}`);
   }

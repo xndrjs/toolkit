@@ -156,14 +156,14 @@ describe("validateCliOptions", () => {
     ).toThrow(/snapshot-locales/);
   });
 
-  it("allows from-snapshot without locales when mode is cma", () => {
+  it("allows from-snapshot without locales when modes is flat-only", () => {
     expect(() =>
       validateCliOptions(
         resolveCliOptions(
           parseCliArgs(["--from-snapshot", "--snapshot", "./types.json", "--out", "./out.ts"]),
-          { locale: { mode: "cma" } }
+          { locale: { modes: ["flat"] } }
         ),
-        { locale: { mode: "cma" } }
+        { locale: { modes: ["flat"] } }
       )
     ).not.toThrow();
   });
@@ -194,6 +194,6 @@ describe("validateCliOptions", () => {
 
 describe("requireLocalesSnapshot", () => {
   it("skips check for cma mode", () => {
-    expect(() => requireLocalesSnapshot("cma", undefined)).not.toThrow();
+    expect(() => requireLocalesSnapshot(false, undefined)).not.toThrow();
   });
 });

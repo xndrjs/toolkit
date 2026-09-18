@@ -1,12 +1,16 @@
 import type { ContentType } from "../model/content-type";
-import { emitInferredType, entrySchemaExportName, entryTypeName } from "./schema-name";
+import {
+  emitInferredType,
+  localizedEntrySchemaExportName,
+  localizedEntryTypeName,
+} from "./schema-name";
 
 function serializeConstStringArray(values: readonly string[]): string {
   return `[${values.map((value) => JSON.stringify(value)).join(", ")}]`;
 }
 
 /**
- * Emit content-type id enum/constants (always useful) and, when Entry schemas exist,
+ * Emit content-type id enum/constants (always useful) and, when localized entry schemas exist,
  * typed entry maps keyed by content type id.
  */
 export function emitContentTypeIdPrimitives(
@@ -31,46 +35,48 @@ export function emitContentTypeIdPrimitives(
     return lines.join("\n");
   }
 
-  const entrySchemaNames = contentTypes.map((contentType) => entrySchemaExportName(contentType.id));
+  const entrySchemaNames = contentTypes.map((contentType) =>
+    localizedEntrySchemaExportName(contentType.id)
+  );
 
   const entryByTypeEntries = contentTypes.map((contentType) => {
     const id = JSON.stringify(contentType.id);
-    return `  ${id}: ${entryTypeName(contentType.id)};`;
+    return `  ${id}: ${localizedEntryTypeName(contentType.id)};`;
   });
 
   const schemaByTypeEntries = contentTypes.map((contentType) => {
     const id = JSON.stringify(contentType.id);
-    return `  ${id}: ${entrySchemaExportName(contentType.id)},`;
+    return `  ${id}: ${localizedEntrySchemaExportName(contentType.id)},`;
   });
 
   lines.push(
     "",
-    "/** Resolved Delivery/Preview entry type per content type id. */",
-    "export type ContentfulEntryByContentType = {",
+    "/** Localized-only entry type per content type id. */",
+    "export type ContentfulLocalizedEntryByContentType = {",
     ...entryByTypeEntries,
     "};",
     "",
-    "/** Zod entry schema per content type id (for typed parse + dispatch). */",
-    "export const ContentfulEntrySchemaByContentType = {",
+    "/** Zod localized entry schema per content type id (for typed parse + dispatch). */",
+    "export const ContentfulLocalizedEntrySchemaByContentType = {",
     ...schemaByTypeEntries,
     "} as const satisfies {",
-    "  [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;",
+    "  [K in ContentfulContentTypeId]: z.ZodType<ContentfulLocalizedEntryByContentType[K]>;",
     "};"
   );
 
   if (entrySchemaNames.length === 1) {
     lines.push(
       "",
-      "/** Resolved Delivery/Preview entry (any content type in this snapshot). */",
-      `export const ContentfulResolvedEntrySchema = ${entrySchemaNames[0]};`,
-      emitInferredType("ContentfulResolvedEntrySchema")
+      "/** Localized-only entry (any content type in this snapshot). */",
+      `export const ContentfulResolvedLocalizedEntrySchema = ${entrySchemaNames[0]};`,
+      emitInferredType("ContentfulResolvedLocalizedEntrySchema")
     );
   } else if (entrySchemaNames.length > 1) {
     lines.push(
       "",
-      "/** Resolved Delivery/Preview entry (any content type in this snapshot). */",
-      `export const ContentfulResolvedEntrySchema = z.union([${entrySchemaNames.join(", ")}]);`,
-      emitInferredType("ContentfulResolvedEntrySchema")
+      "/** Localized-only entry (any content type in this snapshot). */",
+      `export const ContentfulResolvedLocalizedEntrySchema = z.union([${entrySchemaNames.join(", ")}]);`,
+      emitInferredType("ContentfulResolvedLocalizedEntrySchema")
     );
   }
 

@@ -6,8 +6,8 @@ import type { DemoContentRegistry } from "../content-registry.js";
 import { PageShape, type Page, type PageModule } from "../../domain/index.js";
 import {
   CONTENTFUL_DEFAULT_LOCALE,
-  flattenPageEntryFields,
-  PageEntrySchema,
+  flattenPageLocalizedFields,
+  PageLocalizedEntrySchema,
   parseEntryAsLinkField,
   type ContentfulEntryLink,
   type ContentfulLocaleCode,
@@ -37,8 +37,8 @@ export function mapContentMapToPageAggregate(input: MapContentMapToPageAggregate
   };
 
   const raw = requireCmsEntry(context, input.root);
-  const entry = PageEntrySchema.parse(raw);
-  const fields = flattenPageEntryFields(entry.fields, context.locale);
+  const entry = PageLocalizedEntrySchema.parse(raw);
+  const fields = flattenPageLocalizedFields(entry.fields, context.locale);
 
   if (fields.title === null || fields.title.length === 0) {
     throw new Error(`Page ${entry.sys.id} is missing a title for locale ${context.locale}`);

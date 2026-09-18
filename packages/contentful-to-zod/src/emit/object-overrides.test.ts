@@ -92,16 +92,16 @@ describe("object overrides", () => {
     );
     expect(output).toContain('"settings": flatField(z.object({ "featured": z.boolean() }))');
     expect(output).toContain('"settings": transportField(z.object({ "featured": z.boolean() }))');
-    expect(output).toContain("export function flattenBlogPostEntryFields");
+    expect(output).toContain("export function flattenBlogPostLocalizedFields");
   });
 
   it("respects locale.mode from config when localeMode option is omitted", () => {
     const cmaOnly = generateZodSchemas([blogPost], {
-      config: { ...config, locale: { mode: "cma" } },
+      config: { ...config, locale: { modes: ["flat"] } },
     });
 
     expect(cmaOnly).toContain("export const BlogPostFieldsSchema");
-    expect(cmaOnly).not.toContain("BlogPostDeliveryFieldsSchema");
+    expect(cmaOnly).not.toContain("BlogPostLocalizedFieldsSchema");
     expect(cmaOnly).not.toContain("export function pickLocale");
   });
 });

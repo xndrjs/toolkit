@@ -4,11 +4,11 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "codegen:cma": "contentful-to-zod --config ./configs/cma.config.ts",
-    "codegen:both": "contentful-to-zod --config ./configs/both.config.ts",
-    "codegen:delivery-locale-star": "contentful-to-zod --config ./configs/delivery-locale-star.config.ts",
-    "codegen:both-locale-star": "contentful-to-zod --config ./configs/both-locale-star.config.ts",
-    "codegen": "pnpm run codegen:cma && pnpm run codegen:both && pnpm run codegen:delivery-locale-star && pnpm run codegen:both-locale-star",
+    "codegen:flat": "contentful-to-zod --config ./configs/flat.config.ts",
+    "codegen:flat-localized": "contentful-to-zod --config ./configs/flat-localized.config.ts",
+    "codegen:localized-only": "contentful-to-zod --config ./configs/localized-only.config.ts",
+    "codegen:all-modes": "contentful-to-zod --config ./configs/all-modes.config.ts",
+    "codegen": "pnpm run codegen:flat && pnpm run codegen:flat-localized && pnpm run codegen:localized-only && pnpm run codegen:all-modes",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

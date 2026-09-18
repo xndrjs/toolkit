@@ -1,5 +1,5 @@
 import type { LinkFieldTarget } from "./link-fields";
-import { entrySchemaExportName, entryTypeName } from "./schema-name";
+import { localizedEntrySchemaExportName, localizedEntryTypeName } from "./schema-name";
 
 function groupLinkFieldTargetsByParent(targets: LinkFieldTarget[]): Map<string, LinkFieldTarget[]> {
   const byParent = new Map<string, LinkFieldTarget[]>();
@@ -12,7 +12,7 @@ function groupLinkFieldTargetsByParent(targets: LinkFieldTarget[]): Map<string, 
 }
 
 function entryTypeUnionForTargets(targetContentTypeIds: readonly string[]): string {
-  const entryTypes = targetContentTypeIds.map((id) => entryTypeName(id));
+  const entryTypes = targetContentTypeIds.map((id) => localizedEntryTypeName(id));
   return entryTypes.length === 1 ? entryTypes[0]! : entryTypes.join(" | ");
 }
 
@@ -48,7 +48,7 @@ function emitHandlerSwitchCases(targetContentTypeIds: readonly string[]): string
   const lines: string[] = [];
   for (const id of targetContentTypeIds) {
     lines.push(`    case ${JSON.stringify(id)}:`);
-    lines.push(`      return ${entrySchemaExportName(id)}.parse(entry);`);
+    lines.push(`      return ${localizedEntrySchemaExportName(id)}.parse(entry);`);
   }
   lines.push("    default:");
   lines.push(

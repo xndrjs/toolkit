@@ -1,8 +1,8 @@
 import type { ContentType } from "../model/content-type";
 import {
-  deliveryFieldsSchemaExportName,
   emitInferredType,
-  entrySchemaExportName,
+  localizedEntrySchemaExportName,
+  localizedFieldsSchemaExportName,
 } from "./schema-name";
 
 /** Emit shared Delivery/Preview entry `sys` primitives (after locale enum). */
@@ -67,7 +67,7 @@ export function emitAssetDeliverySchema(): string {
     "",
     emitInferredType("ContentfulAssetSysSchema"),
     "",
-    "export const ContentfulAssetDeliveryFieldsSchema = z.object({",
+    "export const ContentfulAssetFieldsSchema = z.object({",
     "  title: transportField(z.string()),",
     "  file: transportField(",
     "    z.object({",
@@ -78,22 +78,22 @@ export function emitAssetDeliverySchema(): string {
     "  ),",
     "});",
     "",
-    emitInferredType("ContentfulAssetDeliveryFieldsSchema"),
+    emitInferredType("ContentfulAssetFieldsSchema"),
     "",
     "/** Resolved Delivery/Preview asset payload. */",
     "export const ContentfulAssetSchema = z.object({",
     "  sys: ContentfulAssetSysSchema,",
-    "  fields: ContentfulAssetDeliveryFieldsSchema,",
+    "  fields: ContentfulAssetFieldsSchema,",
     "});",
     "",
     emitInferredType("ContentfulAssetSchema"),
   ].join("\n");
 }
 
-/** Emit `{ContentType}EntrySchema` wrapping typed `sys` and delivery `fields`. */
-export function emitContentTypeEntrySchema(contentType: ContentType): string[] {
-  const entryName = entrySchemaExportName(contentType.id);
-  const fieldsSchema = deliveryFieldsSchemaExportName(contentType.id);
+/** Emit `{ContentType}LocalizedEntrySchema` wrapping typed `sys` and localized-only `fields`. */
+export function emitContentTypeLocalizedEntrySchema(contentType: ContentType): string[] {
+  const entryName = localizedEntrySchemaExportName(contentType.id);
+  const fieldsSchema = localizedFieldsSchemaExportName(contentType.id);
   const contentTypeId = JSON.stringify(contentType.id);
 
   return [

@@ -13,7 +13,7 @@ export default defineConfig({
   out: join(fixtureDir, "contentful.schemas.ts"),
   contentTypeIds: ["blogPost", "author"],
   locale: {
-    mode: "both",
+    modes: ["flat", "localized-only"],
   },
   objects: {
     "blogPost.metadata": z.object({

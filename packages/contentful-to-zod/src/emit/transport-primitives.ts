@@ -8,9 +8,6 @@ export function wrapAbsentToNullField(schema: z.ZodType): z.ZodType {
     .transform((value) => value ?? null);
 }
 
-/** @deprecated Use wrapAbsentToNullField */
-export const wrapTransportField = wrapAbsentToNullField;
-
 /** Emit shared `flatField` helper for flat/CMA field schemas. */
 export function emitFlatFieldHelper(): string {
   return [

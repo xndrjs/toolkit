@@ -1,8 +1,8 @@
 import { cmsEntryAri } from "../cms/index.js";
 import { FooterShape, type Footer } from "../../domain/index.js";
 import {
-  flattenFooterEntryFields,
-  FooterEntrySchema,
+  flattenFooterLocalizedFields,
+  FooterLocalizedEntrySchema,
   parseEntryAsLinkField,
   type ContentfulEntryLink,
 } from "../cms/generated/contentful.schemas.js";
@@ -21,8 +21,8 @@ export function mapFooterLink(context: MapperContext, link: ContentfulEntryLink)
 }
 
 export function mapFooter(context: MapperContext, raw: unknown): Footer {
-  const entry = FooterEntrySchema.parse(raw);
-  const fields = flattenFooterEntryFields(entry.fields, context.locale);
+  const entry = FooterLocalizedEntrySchema.parse(raw);
+  const fields = flattenFooterLocalizedFields(entry.fields, context.locale);
   if (!fields.logo) {
     throw new Error(`Footer ${entry.sys.id} is missing a required logo link`);
   }

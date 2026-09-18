@@ -15,13 +15,13 @@ interface GeneratedEntryHelpers {
     };
     safeParse: (value: unknown) => { success: boolean };
   };
-  BlogPostEntrySchema: {
+  BlogPostLocalizedEntrySchema: {
     parse: (value: unknown) => {
       sys: { id: string; contentType: { sys: { id: string } } };
       fields: { title: Record<string, string> | null; slug: string | null };
     };
   };
-  flattenBlogPostEntryFields: (
+  flattenBlogPostLocalizedFields: (
     fields: {
       title: Record<"en-US" | "it-IT", string> | null;
       slug: string | null;
@@ -34,7 +34,10 @@ interface GeneratedEntryHelpers {
 }
 
 async function loadEntryModule() {
-  const source = generateZodSchemas(contentTypes, { locales, localeMode: "both" });
+  const source = generateZodSchemas(contentTypes, {
+    locales,
+    localeModes: ["flat", "localized-only"],
+  });
   return importGeneratedModule<GeneratedEntryHelpers>(source);
 }
 
@@ -74,10 +77,10 @@ describe("generated entry schemas", () => {
     expect(ContentfulEntryEnvelopeSchema.safeParse({ fields: {} }).success).toBe(false);
   });
 
-  it("BlogPostEntrySchema parses delivery entries with loose sys passthrough", async () => {
-    const { BlogPostEntrySchema } = await loadEntryModule();
+  it("BlogPostLocalizedEntrySchema parses delivery entries with loose sys passthrough", async () => {
+    const { BlogPostLocalizedEntrySchema } = await loadEntryModule();
 
-    const parsed = BlogPostEntrySchema.parse({
+    const parsed = BlogPostLocalizedEntrySchema.parse({
       sys: {
         id: "entry-1",
         type: "Entry",
@@ -104,11 +107,11 @@ describe("generated entry schemas", () => {
     expect((parsed.sys as { customField?: string }).customField).toBe("preserved");
   });
 
-  it("BlogPostEntrySchema rejects wrong content type id", async () => {
-    const { BlogPostEntrySchema } = await loadEntryModule();
+  it("BlogPostLocalizedEntrySchema rejects wrong content type id", async () => {
+    const { BlogPostLocalizedEntrySchema } = await loadEntryModule();
 
     expect(() =>
-      BlogPostEntrySchema.parse({
+      BlogPostLocalizedEntrySchema.parse({
         sys: {
           id: "entry-1",
           type: "Entry",
@@ -126,10 +129,10 @@ describe("generated entry schemas", () => {
     ).toThrow();
   });
 
-  it("flattenBlogPostEntryFields maps delivery fields to flat shape", async () => {
-    const { flattenBlogPostEntryFields } = await loadEntryModule();
+  it("flattenBlogPostLocalizedFields maps delivery fields to flat shape", async () => {
+    const { flattenBlogPostLocalizedFields } = await loadEntryModule();
 
-    const flat = flattenBlogPostEntryFields(
+    const flat = flattenBlogPostLocalizedFields(
       {
         title: { "en-US": "Hello", "it-IT": "Ciao" },
         slug: "hello",

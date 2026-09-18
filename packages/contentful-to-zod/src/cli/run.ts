@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { fetchContentTypes } from "../client/fetch-content-types";
 import { fetchLocales } from "../client/fetch-locales";
 import type { ContentfulToZodConfig } from "../config/define-config";
-import { resolveLocaleMode } from "../config/define-config";
+import { resolveFieldLocalizationFlags } from "../config/define-config";
 import { generateZodSchemas } from "../emit/generate-file";
 import {
   parseCliArgs,
@@ -27,8 +27,8 @@ async function loadFromSnapshots(
   config: ContentfulToZodConfig | undefined
 ) {
   const contentTypes = await readContentTypesSnapshot(options.snapshot!);
-  const localeMode = resolveLocaleMode({ config });
-  requireLocalesSnapshot(localeMode, options.snapshotLocales);
+  const flags = resolveFieldLocalizationFlags({ config });
+  requireLocalesSnapshot(flags.needsLocales, options.snapshotLocales);
 
   const locales = options.snapshotLocales
     ? await readLocalesSnapshot(options.snapshotLocales)
@@ -47,12 +47,11 @@ async function fetchFromCma(
     environmentId: options.environmentId,
   };
 
-  const localeMode = resolveLocaleMode({ config });
-  const needsLocales = localeMode === "delivery" || localeMode === "both";
+  const flags = resolveFieldLocalizationFlags({ config });
 
   const [contentTypes, locales] = await Promise.all([
     fetchContentTypes(cma),
-    needsLocales ? fetchLocales(cma) : Promise.resolve(undefined),
+    flags.needsLocales ? fetchLocales(cma) : Promise.resolve(undefined),
   ]);
 
   if (options.snapshot) {

@@ -87,7 +87,7 @@ export const ContentfulAssetSysSchema = z.looseObject({
 
 export type ContentfulAssetSys = z.infer<typeof ContentfulAssetSysSchema>;
 
-export const ContentfulAssetDeliveryFieldsSchema = z.object({
+export const ContentfulAssetFieldsSchema = z.object({
   title: transportField(z.string()),
   file: transportField(
     z.object({
@@ -98,12 +98,12 @@ export const ContentfulAssetDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type ContentfulAssetDeliveryFields = z.infer<typeof ContentfulAssetDeliveryFieldsSchema>;
+export type ContentfulAssetFields = z.infer<typeof ContentfulAssetFieldsSchema>;
 
 /** Resolved Delivery/Preview asset payload. */
 export const ContentfulAssetSchema = z.object({
   sys: ContentfulAssetSysSchema,
-  fields: ContentfulAssetDeliveryFieldsSchema,
+  fields: ContentfulAssetFieldsSchema,
 });
 
 export type ContentfulAsset = z.infer<typeof ContentfulAssetSchema>;
@@ -128,14 +128,14 @@ export const AuthorFieldsSchema = z.object({
 
 export type AuthorFields = z.infer<typeof AuthorFieldsSchema>;
 
-export const AuthorDeliveryFieldsSchema = z.object({
+export const AuthorLocalizedFieldsSchema = z.object({
   name: transportField(z.string()),
   role: transportField(z.enum(["writer", "editor", "guest"])),
 });
 
-export type AuthorDeliveryFields = z.infer<typeof AuthorDeliveryFieldsSchema>;
+export type AuthorLocalizedFields = z.infer<typeof AuthorLocalizedFieldsSchema>;
 
-export const AuthorEntrySchema = z.object({
+export const AuthorLocalizedEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
@@ -145,10 +145,10 @@ export const AuthorEntrySchema = z.object({
       }),
     }),
   }),
-  fields: AuthorDeliveryFieldsSchema,
+  fields: AuthorLocalizedFieldsSchema,
 });
 
-export type AuthorEntry = z.infer<typeof AuthorEntrySchema>;
+export type AuthorLocalizedEntry = z.infer<typeof AuthorLocalizedEntrySchema>;
 
 export const ArticleFieldsSchema = z.object({
   title: flatField(z.string().max(200)),
@@ -167,7 +167,7 @@ export const ArticleFieldsSchema = z.object({
 
 export type ArticleFields = z.infer<typeof ArticleFieldsSchema>;
 
-export const ArticleDeliveryFieldsSchema = z.object({
+export const ArticleLocalizedFieldsSchema = z.object({
   title: transportField(z.record(ContentfulLocaleCodeSchema, z.string().max(200))),
   slug: transportField(z.string()),
   status: transportField(z.enum(["draft", "review", "published"])),
@@ -187,9 +187,9 @@ export const ArticleDeliveryFieldsSchema = z.object({
   ),
 });
 
-export type ArticleDeliveryFields = z.infer<typeof ArticleDeliveryFieldsSchema>;
+export type ArticleLocalizedFields = z.infer<typeof ArticleLocalizedFieldsSchema>;
 
-export const ArticleEntrySchema = z.object({
+export const ArticleLocalizedEntrySchema = z.object({
   sys: ContentfulEntrySysSchema.extend({
     contentType: z.object({
       sys: z.object({
@@ -199,35 +199,40 @@ export const ArticleEntrySchema = z.object({
       }),
     }),
   }),
-  fields: ArticleDeliveryFieldsSchema,
+  fields: ArticleLocalizedFieldsSchema,
 });
 
-export type ArticleEntry = z.infer<typeof ArticleEntrySchema>;
+export type ArticleLocalizedEntry = z.infer<typeof ArticleLocalizedEntrySchema>;
 
 /** @generated from content type snapshot */
 export const CONTENTFUL_CONTENT_TYPE_IDS = ["author", "article"] as const;
 export type ContentfulContentTypeId = (typeof CONTENTFUL_CONTENT_TYPE_IDS)[number];
 export const ContentfulContentTypeIdSchema = z.enum(CONTENTFUL_CONTENT_TYPE_IDS);
 
-/** Resolved Delivery/Preview entry type per content type id. */
-export type ContentfulEntryByContentType = {
-  author: AuthorEntry;
-  article: ArticleEntry;
+/** Localized-only entry type per content type id. */
+export type ContentfulLocalizedEntryByContentType = {
+  author: AuthorLocalizedEntry;
+  article: ArticleLocalizedEntry;
 };
 
-/** Zod entry schema per content type id (for typed parse + dispatch). */
-export const ContentfulEntrySchemaByContentType = {
-  author: AuthorEntrySchema,
-  article: ArticleEntrySchema,
+/** Zod localized entry schema per content type id (for typed parse + dispatch). */
+export const ContentfulLocalizedEntrySchemaByContentType = {
+  author: AuthorLocalizedEntrySchema,
+  article: ArticleLocalizedEntrySchema,
 } as const satisfies {
-  [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;
+  [K in ContentfulContentTypeId]: z.ZodType<ContentfulLocalizedEntryByContentType[K]>;
 };
 
-/** Resolved Delivery/Preview entry (any content type in this snapshot). */
-export const ContentfulResolvedEntrySchema = z.union([AuthorEntrySchema, ArticleEntrySchema]);
-export type ContentfulResolvedEntry = z.infer<typeof ContentfulResolvedEntrySchema>;
+/** Localized-only entry (any content type in this snapshot). */
+export const ContentfulResolvedLocalizedEntrySchema = z.union([
+  AuthorLocalizedEntrySchema,
+  ArticleLocalizedEntrySchema,
+]);
+export type ContentfulResolvedLocalizedEntry = z.infer<
+  typeof ContentfulResolvedLocalizedEntrySchema
+>;
 
-/** Read one locale from a localized delivery field; missing locale or null input → `null`. */
+/** Read one locale from a localized field map; missing locale or null input → `null`. */
 export function pickLocale<T>(
   value: Record<ContentfulLocaleCode, T> | null,
   locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
@@ -238,9 +243,9 @@ export function pickLocale<T>(
   return value[locale] ?? null;
 }
 
-/** Flatten validated `AuthorDeliveryFields` (from `entry.fields`) to `AuthorFields` for a single locale. */
-export function flattenAuthorEntryFields(
-  fields: AuthorDeliveryFields,
+/** Flatten validated `AuthorLocalizedFields` (from `entry.fields`) to `AuthorFields` for a single locale. */
+export function flattenAuthorLocalizedFields(
+  fields: AuthorLocalizedFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): AuthorFields {
   return {
@@ -249,9 +254,9 @@ export function flattenAuthorEntryFields(
   };
 }
 
-/** Flatten validated `ArticleDeliveryFields` (from `entry.fields`) to `ArticleFields` for a single locale. */
-export function flattenArticleEntryFields(
-  fields: ArticleDeliveryFields,
+/** Flatten validated `ArticleLocalizedFields` (from `entry.fields`) to `ArticleFields` for a single locale. */
+export function flattenArticleLocalizedFields(
+  fields: ArticleLocalizedFields,
   _locale: ContentfulLocaleCode = CONTENTFUL_DEFAULT_LOCALE
 ): ArticleFields {
   return {
@@ -306,13 +311,13 @@ function readResolvedEntryContentTypeId(entry: unknown): string {
 
 export interface ResolvedEntryForLinkFieldMap {
   article: {
-    author: AuthorEntry;
+    author: AuthorLocalizedEntry;
   };
 }
 
 export interface LinkFieldHandlersMap {
   article: {
-    author: (entry: unknown) => AuthorEntry;
+    author: (entry: unknown) => AuthorLocalizedEntry;
   };
 }
 
@@ -353,7 +358,7 @@ const LINK_FIELD_HANDLERS = {
       const resolvedId = readResolvedEntryContentTypeId(entry);
       switch (resolvedId) {
         case "author":
-          return AuthorEntrySchema.parse(entry);
+          return AuthorLocalizedEntrySchema.parse(entry);
         default:
           throw new LinkFieldTargetError(parentContentTypeId, fieldId, resolvedId, allowed);
       }

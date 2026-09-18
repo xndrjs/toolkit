@@ -32,8 +32,8 @@ describe("emitContentTypeIdPrimitives", () => {
     );
     expect(output).not.toContain("ContentfulContentTypeIdSchema.options");
     expect(output).not.toContain("z.infer<typeof ContentfulContentTypeIdSchema>");
-    expect(output).not.toContain("ContentfulEntryByContentType");
-    expect(output).not.toContain("ContentfulEntrySchemaByContentType");
+    expect(output).not.toContain("ContentfulLocalizedEntryByContentType");
+    expect(output).not.toContain("ContentfulLocalizedEntrySchemaByContentType");
   });
 
   it("emits typed entry maps when delivery entry schemas are included", () => {
@@ -41,14 +41,14 @@ describe("emitContentTypeIdPrimitives", () => {
       includeEntryMaps: true,
     });
 
-    expect(output).toContain("export type ContentfulEntryByContentType = {");
-    expect(output).toContain('  "author": AuthorEntry;');
-    expect(output).toContain('  "blogPost": BlogPostEntry;');
-    expect(output).toContain("export const ContentfulEntrySchemaByContentType = {");
-    expect(output).toContain('  "author": AuthorEntrySchema,');
-    expect(output).toContain('  "blogPost": BlogPostEntrySchema,');
+    expect(output).toContain("export type ContentfulLocalizedEntryByContentType = {");
+    expect(output).toContain('  "author": AuthorLocalizedEntry;');
+    expect(output).toContain('  "blogPost": BlogPostLocalizedEntry;');
+    expect(output).toContain("export const ContentfulLocalizedEntrySchemaByContentType = {");
+    expect(output).toContain('  "author": AuthorLocalizedEntrySchema,');
+    expect(output).toContain('  "blogPost": BlogPostLocalizedEntrySchema,');
     expect(output).toContain(
-      "} as const satisfies {\n  [K in ContentfulContentTypeId]: z.ZodType<ContentfulEntryByContentType[K]>;"
+      "} as const satisfies {\n  [K in ContentfulContentTypeId]: z.ZodType<ContentfulLocalizedEntryByContentType[K]>;"
     );
   });
 

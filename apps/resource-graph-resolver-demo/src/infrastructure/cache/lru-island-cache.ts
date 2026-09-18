@@ -6,9 +6,6 @@ import type {
   IslandDependencyManifest,
 } from "./island-cache-port.js";
 
-/** @deprecated Use DEFAULT_PAGE_ISLAND_TTL_MS for page roots. */
-export const DEFAULT_ISLAND_CACHE_TTL_MS = 60_000;
-
 export const DEFAULT_PAGE_ISLAND_TTL_MS = 60_000;
 export const DEFAULT_DEPENDENCY_ISLAND_TTL_MS = 3_600_000;
 export const DEFAULT_DEPENDENCY_MANIFEST_TTL_MS = 3_600_000;
@@ -48,12 +45,6 @@ export type IslandCacheSnapshotManifestEntry = {
 export type IslandCacheSnapshotEntry =
   | IslandCacheSnapshotIslandEntry
   | IslandCacheSnapshotManifestEntry;
-
-/** @deprecated Use IslandCacheSnapshotEntry. */
-export type IslandCacheSnapshotEntryMetadata = Pick<
-  IslandCacheSnapshotIslandEntry,
-  "islandId" | "expiresAt" | "hitCount"
->;
 
 export type IslandCacheSnapshot = {
   entries: IslandCacheSnapshotEntry[];

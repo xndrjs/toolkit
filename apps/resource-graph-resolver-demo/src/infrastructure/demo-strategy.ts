@@ -10,11 +10,11 @@ import type { DemoExecutionContext } from "./demo-execution-context.js";
 import { integrationProductAri } from "./integration/ari.js";
 import type { DemoContentRegistry } from "./content-registry.js";
 import {
-  ContentfulEntrySchemaByContentType,
-  ProductEntrySchema,
+  ContentfulLocalizedEntrySchemaByContentType,
+  ProductLocalizedEntrySchema,
   type ContentfulContentTypeId,
   type ContentfulLocaleCode,
-  type ContentfulResolvedEntry,
+  type ContentfulResolvedLocalizedEntry,
 } from "./cms/generated/contentful.schemas.js";
 
 const EMPTY_EXPANSION = { resources: [] as const };
@@ -35,10 +35,10 @@ function linkReferenceToAri(
 
 function expandLinksFromGeneratedMetadata(
   contentTypeId: ContentfulContentTypeId,
-  entry: ContentfulResolvedEntry,
+  entry: ContentfulResolvedLocalizedEntry,
   locale: ContentfulLocaleCode
 ) {
-  const parsed = ContentfulEntrySchemaByContentType[contentTypeId].parse(entry);
+  const parsed = ContentfulLocalizedEntrySchemaByContentType[contentTypeId].parse(entry);
   const links = collectLinkReferencesFromEntryFields(contentTypeId, parsed.fields);
 
   return {
@@ -46,8 +46,11 @@ function expandLinksFromGeneratedMetadata(
   };
 }
 
-function expandProductEntry(entry: ContentfulResolvedEntry, locale: ContentfulLocaleCode) {
-  const parsed = ProductEntrySchema.parse(entry);
+function expandProductLocalizedEntry(
+  entry: ContentfulResolvedLocalizedEntry,
+  locale: ContentfulLocaleCode
+) {
+  const parsed = ProductLocalizedEntrySchema.parse(entry);
   const sku = parsed.fields.sku;
   if (sku === null || sku.length === 0) {
     return EMPTY_EXPANSION;
@@ -58,18 +61,18 @@ function expandProductEntry(entry: ContentfulResolvedEntry, locale: ContentfulLo
 
 type ExpansionOverride = {
   expand: (
-    entry: ContentfulResolvedEntry,
+    entry: ContentfulResolvedLocalizedEntry,
     locale: ContentfulLocaleCode
   ) => typeof EMPTY_EXPANSION | { resources: ApplicationResourceIdentifier[] };
 };
 
 const expansionOverrides: Partial<Record<ContentfulContentTypeId, ExpansionOverride>> = {
-  product: { expand: expandProductEntry },
+  product: { expand: expandProductLocalizedEntry },
 };
 
 function expandForContentType(
   contentTypeId: ContentfulContentTypeId,
-  entry: ContentfulResolvedEntry,
+  entry: ContentfulResolvedLocalizedEntry,
   locale: ContentfulLocaleCode
 ) {
   const override = expansionOverrides[contentTypeId];

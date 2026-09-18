@@ -7,31 +7,50 @@ export function contentTypeIdToPascalCase(id: string): string {
     .join("");
 }
 
+/** `flat` — single-locale / single-locale fields. */
 export function fieldsSchemaExportName(contentTypeId: string): string {
   return `${contentTypeIdToPascalCase(contentTypeId)}FieldsSchema`;
-}
-
-export function deliveryFieldsSchemaExportName(contentTypeId: string): string {
-  return `${contentTypeIdToPascalCase(contentTypeId)}DeliveryFieldsSchema`;
 }
 
 export function fieldsTypeName(contentTypeId: string): string {
   return `${contentTypeIdToPascalCase(contentTypeId)}Fields`;
 }
 
-export function deliveryFieldsTypeName(contentTypeId: string): string {
-  return `${contentTypeIdToPascalCase(contentTypeId)}DeliveryFields`;
+/** `localized-only` — maps on `localized: true` fields only. */
+export function localizedFieldsSchemaExportName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}LocalizedFieldsSchema`;
 }
 
-export function entrySchemaExportName(contentTypeId: string): string {
-  return `${contentTypeIdToPascalCase(contentTypeId)}EntrySchema`;
+export function localizedFieldsTypeName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}LocalizedFields`;
 }
 
-export function entryTypeName(contentTypeId: string): string {
-  return `${contentTypeIdToPascalCase(contentTypeId)}Entry`;
+export function localizedEntrySchemaExportName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}LocalizedEntrySchema`;
 }
 
-/** Strip the `Schema` suffix from a generated schema export name (`BlogPostFieldsSchema` → `BlogPostFields`). */
+export function localizedEntryTypeName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}LocalizedEntry`;
+}
+
+/** `all` — every field is a locale map (`locale=*`). */
+export function localeStarFieldsSchemaExportName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}LocaleStarFieldsSchema`;
+}
+
+export function localeStarFieldsTypeName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}LocaleStarFields`;
+}
+
+export function localeStarEntrySchemaExportName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}LocaleStarEntrySchema`;
+}
+
+export function localeStarEntryTypeName(contentTypeId: string): string {
+  return `${contentTypeIdToPascalCase(contentTypeId)}LocaleStarEntry`;
+}
+
+/** Strip the `Schema` suffix from a generated schema export name. */
 export function schemaExportNameToTypeName(schemaExportName: string): string {
   if (!schemaExportName.endsWith("Schema")) {
     throw new Error(`Expected schema export name ending with "Schema", got "${schemaExportName}".`);

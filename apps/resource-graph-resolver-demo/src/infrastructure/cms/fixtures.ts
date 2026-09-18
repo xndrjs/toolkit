@@ -1,15 +1,18 @@
 import { cmsAssetAri, cmsEntryAri } from "./ari.js";
 import { CONTENTFUL_DEFAULT_LOCALE } from "./generated/contentful.schemas.js";
 import type { CmsFixtureStore } from "./data-adapter.js";
-import type { ContentfulAsset, ContentfulResolvedEntry } from "./generated/contentful.schemas.js";
 import type {
-  FooterEntry,
-  HeroEntry,
-  MenuEntry,
-  PageEntry,
-  ProductEntry,
-  TabEntry,
-  TabsEntry,
+  ContentfulAsset,
+  ContentfulResolvedLocalizedEntry,
+} from "./generated/contentful.schemas.js";
+import type {
+  FooterLocalizedEntry,
+  HeroLocalizedEntry,
+  MenuLocalizedEntry,
+  PageLocalizedEntry,
+  ProductLocalizedEntry,
+  TabLocalizedEntry,
+  TabsLocalizedEntry,
 } from "./generated/contentful.schemas.js";
 
 /** Demo resource ids used by the in-memory CMS fixtures. */
@@ -106,7 +109,7 @@ const pageEntry = {
     menu: { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.menu } },
     footer: { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.footer } },
   },
-} satisfies PageEntry;
+} satisfies PageLocalizedEntry;
 
 const tabsFeaturedEntry = {
   sys: {
@@ -130,7 +133,7 @@ const tabsFeaturedEntry = {
       { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.tabPromo } },
     ],
   },
-} satisfies TabsEntry;
+} satisfies TabsLocalizedEntry;
 
 const tabsSecondaryEntry = {
   sys: {
@@ -153,7 +156,7 @@ const tabsSecondaryEntry = {
       { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.tabBestsellers } },
     ],
   },
-} satisfies TabsEntry;
+} satisfies TabsLocalizedEntry;
 
 const tabOverviewEntry = {
   sys: {
@@ -177,7 +180,7 @@ const tabOverviewEntry = {
       { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.productHoodie } },
     ],
   },
-} satisfies TabEntry;
+} satisfies TabLocalizedEntry;
 
 const tabShopEntry = {
   sys: {
@@ -201,7 +204,7 @@ const tabShopEntry = {
       { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.product } },
     ],
   },
-} satisfies TabEntry;
+} satisfies TabLocalizedEntry;
 
 const tabAboutEntry = {
   sys: {
@@ -224,7 +227,7 @@ const tabAboutEntry = {
       { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.heroValues } },
     ],
   },
-} satisfies TabEntry;
+} satisfies TabLocalizedEntry;
 
 const tabPromoEntry = {
   sys: {
@@ -247,7 +250,7 @@ const tabPromoEntry = {
       { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.productCap } },
     ],
   },
-} satisfies TabEntry;
+} satisfies TabLocalizedEntry;
 
 const tabNewEntry = {
   sys: {
@@ -270,7 +273,7 @@ const tabNewEntry = {
       { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.heroTeaser } },
     ],
   },
-} satisfies TabEntry;
+} satisfies TabLocalizedEntry;
 
 const tabSaleEntry = {
   sys: {
@@ -293,7 +296,7 @@ const tabSaleEntry = {
       { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.heroDiscount } },
     ],
   },
-} satisfies TabEntry;
+} satisfies TabLocalizedEntry;
 
 const tabBestsellersEntry = {
   sys: {
@@ -317,7 +320,7 @@ const tabBestsellersEntry = {
       { sys: { type: "Link" as const, linkType: "Entry" as const, id: demoIds.productCap } },
     ],
   },
-} satisfies TabEntry;
+} satisfies TabLocalizedEntry;
 
 const heroWelcomeEntry = {
   sys: {
@@ -336,7 +339,7 @@ const heroWelcomeEntry = {
     title: { "en-US": "Welcome", "it-IT": "Benvenuti" },
     image: { sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.logo } },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroPromoEntry = {
   sys: {
@@ -357,7 +360,7 @@ const heroPromoEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroPromo },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroSaleEntry = {
   sys: {
@@ -378,7 +381,7 @@ const heroSaleEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroSale },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroTeamEntry = {
   sys: {
@@ -399,7 +402,7 @@ const heroTeamEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroTeam },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroOfficeEntry = {
   sys: {
@@ -420,7 +423,7 @@ const heroOfficeEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroOffice },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroValuesEntry = {
   sys: {
@@ -441,7 +444,7 @@ const heroValuesEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroValues },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroFlashEntry = {
   sys: {
@@ -462,7 +465,7 @@ const heroFlashEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroFlash },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroLaunchEntry = {
   sys: {
@@ -483,7 +486,7 @@ const heroLaunchEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroLaunch },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroPreviewEntry = {
   sys: {
@@ -504,7 +507,7 @@ const heroPreviewEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroPreview },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroTeaserEntry = {
   sys: {
@@ -525,7 +528,7 @@ const heroTeaserEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroTeaser },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const heroDiscountEntry = {
   sys: {
@@ -546,7 +549,7 @@ const heroDiscountEntry = {
       sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.assetHeroDiscount },
     },
   },
-} satisfies HeroEntry;
+} satisfies HeroLocalizedEntry;
 
 const productTshirtEntry = {
   sys: {
@@ -569,7 +572,7 @@ const productTshirtEntry = {
       "it-IT": "Una maglietta demo dal CMS.",
     },
   },
-} satisfies ProductEntry;
+} satisfies ProductLocalizedEntry;
 
 const productHoodieEntry = {
   sys: {
@@ -592,7 +595,7 @@ const productHoodieEntry = {
       "it-IT": "Una felpa demo comoda.",
     },
   },
-} satisfies ProductEntry;
+} satisfies ProductLocalizedEntry;
 
 const productMugEntry = {
   sys: {
@@ -615,7 +618,7 @@ const productMugEntry = {
       "it-IT": "Una tazza demo per il caffè.",
     },
   },
-} satisfies ProductEntry;
+} satisfies ProductLocalizedEntry;
 
 const productCapEntry = {
   sys: {
@@ -638,7 +641,7 @@ const productCapEntry = {
       "it-IT": "Un cappellino demo per le giornate di sole.",
     },
   },
-} satisfies ProductEntry;
+} satisfies ProductLocalizedEntry;
 
 const menuEntry = {
   sys: {
@@ -657,7 +660,7 @@ const menuEntry = {
     title: "Main menu",
     logo: { sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.logo } },
   },
-} satisfies MenuEntry;
+} satisfies MenuLocalizedEntry;
 
 const footerEntry = {
   sys: {
@@ -676,7 +679,7 @@ const footerEntry = {
     title: "Footer",
     logo: { sys: { type: "Link" as const, linkType: "Asset" as const, id: demoIds.logo } },
   },
-} satisfies FooterEntry;
+} satisfies FooterLocalizedEntry;
 
 const logoAsset = {
   sys: {
@@ -898,7 +901,7 @@ const heroDiscountAsset = {
   },
 } satisfies ContentfulAsset;
 
-const demoCmsEntries = new Map<string, ContentfulResolvedEntry>([
+const demoCmsEntries = new Map<string, ContentfulResolvedLocalizedEntry>([
   [demoIds.page, pageEntry],
   [demoIds.tabs, tabsFeaturedEntry],
   [demoIds.tabsSecondary, tabsSecondaryEntry],

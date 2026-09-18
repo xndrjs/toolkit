@@ -1,14 +1,14 @@
 import { integrationProductAri } from "../integration/index.js";
 import { ProductShape, type Product } from "../../domain/index.js";
 import {
-  flattenProductEntryFields,
-  ProductEntrySchema,
+  flattenProductLocalizedFields,
+  ProductLocalizedEntrySchema,
 } from "../cms/generated/contentful.schemas.js";
 import type { MapperContext } from "./mapper-context.js";
 
 export function mapProduct(context: MapperContext, raw: unknown): Product {
-  const entry = ProductEntrySchema.parse(raw);
-  const fields = flattenProductEntryFields(entry.fields, context.locale);
+  const entry = ProductLocalizedEntrySchema.parse(raw);
+  const fields = flattenProductLocalizedFields(entry.fields, context.locale);
   if (fields.sku === null || fields.sku.length === 0) {
     throw new Error(`Product ${entry.sys.id} is missing sku`);
   }

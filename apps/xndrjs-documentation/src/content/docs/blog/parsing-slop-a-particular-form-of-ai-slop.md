@@ -273,7 +273,7 @@ The fix is not "never use `typeof`". It is **"name the shape once at the boundar
 
 When the contract comes from an external system, do not let every consumer rediscover it.
 
-- **Contentful** — [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) generates separate transport and flat schemas from your content model, including the single-locale vs multi-locale split from earlier. Parse with `BlogPostEntrySchema`, flatten with the generated helper, and move on. The [Contentful codegen post](/blog/generating-zod-schemas-from-contentful/) walks through the full pattern.
+- **Contentful** — [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) generates separate transport and flat schemas from your content model, including the single-locale vs multi-locale split from earlier. Parse with `BlogPostLocalizedEntrySchema`, flatten with the generated helper, and move on. The [Contentful codegen post](/blog/generating-zod-schemas-from-contentful/) walks through the full pattern.
 - **OpenAPI / JSON Schema** — [`@xndrjs/domain-ajv`](/v0/adapters/ajv/) fits ingress boundaries where the contract is already JSON Schema. The [OAS walkthrough](/blog/oas-jsonschema-ajv-domain/) shows compile-once validation without hand-written parsers.
 - **Everything else at the boundary** — pick the adapter that matches the tool already at that edge: [`@xndrjs/domain-zod`](/v0/adapters/zod/) or [`@xndrjs/domain-valibot`](/v0/adapters/valibot/). Not because one engine wins everywhere, but because the schema should **exist once** and live next to the boundary it protects.
 

@@ -11,6 +11,6 @@ export default defineConfig({
   snapshotLocales: join(cmsDir, "schema-fixtures/locales.json"),
   out: join(cmsDir, "generated/contentful.schemas.ts"),
   locale: {
-    mode: "both",
+    modes: ["flat", "localized-only"],
   },
 });

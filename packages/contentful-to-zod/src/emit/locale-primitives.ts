@@ -44,17 +44,17 @@ export function emitLocalePrimitives(locales: Locale[]): string {
   ].join("\n");
 }
 
-export function requireLocalesForMode(
-  localeMode: "cma" | "delivery" | "both",
+export function requireLocalesForModes(
+  needsLocales: boolean,
   locales: Locale[] | undefined
 ): Locale[] | undefined {
-  if (localeMode === "cma") {
+  if (!needsLocales) {
     return locales;
   }
 
   if (!locales?.length) {
     throw new Error(
-      `Locales are required when locale mode is "${localeMode}". Provide locales in generateZodSchemas options.`
+      'Locales are required when locale.modes includes "localized-only" or "all". Provide locales in generateZodSchemas options.'
     );
   }
 

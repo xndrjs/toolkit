@@ -2,133 +2,113 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import {
-  assertLocaleStarAllowed,
   defineConfig,
-  resolveLocaleMode,
-  resolveLocaleStar,
-  type ContentfulToZodConfig,
+  normalizeFieldLocalizationModes,
+  resolveFieldLocalizationFlags,
+  resolveFieldLocalizationModes,
 } from "./define-config";
 
 describe("defineConfig", () => {
-  it("defaults locale.mode to both and localeStar to false", () => {
+  it("defaults locale.modes to flat + localized-only", () => {
     expect(defineConfig({})).toEqual({
-      locale: { mode: "both", localeStar: false },
+      locale: { modes: ["flat", "localized-only"] },
     });
   });
 
-  it("preserves explicit locale.mode and objects", () => {
+  it("preserves explicit locale.modes and objects", () => {
     const metadataSchema = z.object({ title: z.string() });
 
     expect(
       defineConfig({
-        locale: { mode: "cma" },
+        locale: { modes: ["flat"] },
         objects: { "blogPost.metadata": metadataSchema },
       })
     ).toEqual({
-      locale: { mode: "cma" },
+      locale: { modes: ["flat"] },
       objects: { "blogPost.metadata": metadataSchema },
     });
   });
 
-  it("preserves localeStar on delivery and both", () => {
-    expect(defineConfig({ locale: { mode: "delivery", localeStar: true } })).toEqual({
-      locale: { mode: "delivery", localeStar: true },
-    });
-    expect(defineConfig({ locale: { mode: "both", localeStar: true } })).toEqual({
-      locale: { mode: "both", localeStar: true },
+  it("dedupes modes and preserves order", () => {
+    expect(
+      defineConfig({
+        locale: { modes: ["all", "flat", "all", "localized-only"] },
+      })
+    ).toEqual({
+      locale: { modes: ["all", "flat", "localized-only"] },
     });
   });
 
-  it("rejects localeStar with cma mode at runtime", () => {
+  it("rejects unknown modes", () => {
     expect(() =>
       defineConfig({
-        // Untyped JS may pass this combination; assert at runtime.
-        locale: { mode: "cma", localeStar: true } as ContentfulToZodConfig["locale"],
+        locale: { modes: ["delivery" as "flat"] },
       })
-    ).toThrow(/locale\.localeStar cannot be enabled when locale\.mode is "cma"/);
+    ).toThrow(/Unknown field localization mode "delivery"/);
   });
 });
 
-describe("resolveLocaleMode", () => {
-  it("prefers explicit localeMode over config", () => {
-    expect(
-      resolveLocaleMode({
-        localeMode: "delivery",
-        config: defineConfig({ locale: { mode: "cma" } }),
-      })
-    ).toBe("delivery");
-  });
-
-  it("falls back to config locale.mode", () => {
-    expect(
-      resolveLocaleMode({
-        config: defineConfig({ locale: { mode: "delivery" } }),
-      })
-    ).toBe("delivery");
-  });
-
-  it("defaults to both when unset", () => {
-    expect(resolveLocaleMode({})).toBe("both");
+describe("normalizeFieldLocalizationModes", () => {
+  it("defaults when undefined or empty", () => {
+    expect(normalizeFieldLocalizationModes(undefined)).toEqual(["flat", "localized-only"]);
   });
 });
 
-describe("resolveLocaleStar", () => {
-  it("defaults to false", () => {
-    expect(resolveLocaleStar({})).toBe(false);
-  });
-
-  it("prefers explicit localeStar over config", () => {
+describe("resolveFieldLocalizationModes", () => {
+  it("prefers explicit localeModes over config", () => {
     expect(
-      resolveLocaleStar({
-        localeStar: false,
-        config: defineConfig({ locale: { mode: "both", localeStar: true } }),
+      resolveFieldLocalizationModes({
+        localeModes: ["all"],
+        config: defineConfig({ locale: { modes: ["flat"] } }),
       })
-    ).toBe(false);
+    ).toEqual(["all"]);
+  });
+
+  it("falls back to config locale.modes", () => {
     expect(
-      resolveLocaleStar({
-        localeStar: true,
-        config: defineConfig({ locale: { mode: "both", localeStar: false } }),
+      resolveFieldLocalizationModes({
+        config: defineConfig({ locale: { modes: ["localized-only"] } }),
       })
-    ).toBe(true);
+    ).toEqual(["localized-only"]);
   });
 
-  it("falls back to config locale.localeStar", () => {
-    expect(
-      resolveLocaleStar({
-        config: defineConfig({ locale: { mode: "delivery", localeStar: true } }),
-      })
-    ).toBe(true);
-  });
-
-  it("rejects localeStar when resolved mode is cma", () => {
-    expect(() =>
-      resolveLocaleStar({
-        localeStar: true,
-        localeMode: "cma",
-      })
-    ).toThrow(/locale\.localeStar cannot be enabled when locale\.mode is "cma"/);
-
-    expect(() =>
-      resolveLocaleStar({
-        localeStar: true,
-        config: { locale: { mode: "cma" } },
-      })
-    ).toThrow(/locale\.localeStar cannot be enabled when locale\.mode is "cma"/);
-  });
-
-  it("returns false for cma when localeStar is unset", () => {
-    expect(resolveLocaleStar({ localeMode: "cma" })).toBe(false);
+  it("defaults when unset", () => {
+    expect(resolveFieldLocalizationModes({})).toEqual(["flat", "localized-only"]);
   });
 });
 
-describe("assertLocaleStarAllowed", () => {
-  it("allows localeStar under delivery and both", () => {
-    expect(() => assertLocaleStarAllowed("delivery", true)).not.toThrow();
-    expect(() => assertLocaleStarAllowed("both", true)).not.toThrow();
+describe("resolveFieldLocalizationFlags", () => {
+  it("sets flatten only when both none and localized-only are present", () => {
+    expect(
+      resolveFieldLocalizationFlags({ localeModes: ["flat", "localized-only"] })
+    ).toMatchObject({
+      includeFlat: true,
+      includeLocalizedOnly: true,
+      includeAll: false,
+      needsLocales: true,
+      includePickLocale: true,
+      includeFlatten: true,
+    });
+
+    expect(resolveFieldLocalizationFlags({ localeModes: ["localized-only"] })).toMatchObject({
+      includeFlatten: false,
+      includePickLocale: true,
+      needsLocales: true,
+    });
+
+    expect(resolveFieldLocalizationFlags({ localeModes: ["flat"] })).toMatchObject({
+      includeFlatten: false,
+      includePickLocale: false,
+      needsLocales: false,
+    });
   });
 
-  it("allows unset or false under cma", () => {
-    expect(() => assertLocaleStarAllowed("cma", undefined)).not.toThrow();
-    expect(() => assertLocaleStarAllowed("cma", false)).not.toThrow();
+  it("needs locales when all is selected", () => {
+    expect(resolveFieldLocalizationFlags({ localeModes: ["all"] })).toMatchObject({
+      includeAll: true,
+      needsLocales: true,
+      includePickLocale: true,
+      includeFlatten: false,
+    });
   });
 });
