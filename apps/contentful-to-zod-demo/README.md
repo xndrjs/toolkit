@@ -22,7 +22,7 @@ src/codegen.test.ts
 | `codegen:localized-only` | `["localized-only"]`                   | `generated/localized-only.schemas.ts` |
 | `codegen:all-modes`      | `["flat", "localized-only", "all"]`    | `generated/all-modes.schemas.ts`      |
 
-`all` (`locale=*`) is accepted in config; dedicated `*LocaleStar*` schema emission lands in a package follow-up.
+Mode `"all"` emits `*LocaleStar*` schemas (`locale=*`) plus `flatten*LocaleStarEntryFields` when `flat` is also selected.
 
 ## Commands
 

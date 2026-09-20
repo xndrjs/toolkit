@@ -10,14 +10,20 @@ function readGenerated(name: string): string {
 }
 
 describe("contentful-to-zod demo codegen outputs", () => {
-  it("flat emits flat fields and enums, without localized/locale primitives", () => {
+  it("flat emits flat fields and named enums, without localized/locale primitives", () => {
     const source = readGenerated("flat.schemas.ts");
 
     expect(source).toContain("export const ArticleFieldsSchema");
     expect(source).toContain("export const AuthorFieldsSchema");
-    expect(source).toContain('z.enum(["draft", "review", "published"])');
-    expect(source).toContain("z.union([z.literal(1), z.literal(2), z.literal(3)])");
-    expect(source).toContain('z.enum(["news", "guide", "opinion"])');
+    expect(source).toContain(
+      'export const ARTICLE_STATUSES = ["draft", "review", "published"] as const'
+    );
+    expect(source).toContain("export const ArticleStatusSchema = z.enum(ARTICLE_STATUSES)");
+    expect(source).toContain(
+      "export const ArticlePrioritySchema = z.union([z.literal(1), z.literal(2), z.literal(3)])"
+    );
+    expect(source).toContain('export const ARTICLE_TAGS = ["news", "guide", "opinion"] as const');
+    expect(source).toContain("status: flatField(ArticleStatusSchema)");
     expect(source).not.toContain("ArticleLocalizedFieldsSchema");
     expect(source).not.toContain("CONTENTFUL_LOCALE_CODES");
     expect(source).not.toContain("flattenArticleLocalizedFields");
@@ -47,11 +53,15 @@ describe("contentful-to-zod demo codegen outputs", () => {
     expect(source).not.toContain("flattenArticleLocalizedFields");
   });
 
-  it("all modes still emit flat + localized-only until LocaleStar emission lands", () => {
+  it("all modes emit flat + localized-only + LocaleStar + both flatten helpers", () => {
     const source = readGenerated("all-modes.schemas.ts");
 
     expect(source).toContain("export const ArticleFieldsSchema");
     expect(source).toContain("export const ArticleLocalizedFieldsSchema");
+    expect(source).toContain("export const ArticleLocaleStarFieldsSchema");
+    expect(source).toContain("export const ArticleLocaleStarEntrySchema");
     expect(source).toContain("export function flattenArticleLocalizedFields");
+    expect(source).toContain("export function flattenArticleLocaleStarEntryFields");
+    expect(source).toContain("ContentfulLocaleStarEntrySchemaByContentType");
   });
 });
