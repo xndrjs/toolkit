@@ -1,11 +1,19 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { parseAndCheck } from "../parse-and-check";
 import { buildResources } from "./build-resources";
+import { composeGeneratedModule } from "./compose-generated-module";
 import { generateResources } from "./generate-resources";
+
+const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../fixtures");
+
+function loadFixture(name: string): string {
+  return readFileSync(join(fixturesDir, name), "utf8");
+}
 
 describe("buildResources", () => {
   let tempDir: string;
@@ -106,7 +114,7 @@ resource User(id: UserId): {
     );
   });
 
-  it("forwards importFrom and registryTypeName to generateResources", () => {
+  it("forwards importFrom and registryTypeName to composeGeneratedModule", () => {
     const root = setupRoot();
     writeFileSync(
       join(root, "post.naviql"),
@@ -122,6 +130,29 @@ resource User(id: UserId): {
     expect(result.diagnostics).toEqual([]);
     expect(result.code).toContain('from "@acme/naviql-runtime"');
     expect(result.code).toContain("export type DemoRegistry");
+  });
+
+  it("composes resources and strategies for post-detail (postAri + createPostDetailStrategy)", () => {
+    const root = setupRoot();
+    writeFileSync(join(root, "post-detail.naviql"), loadFixture("post-detail.naviql"));
+
+    const result = buildResources({ root });
+    const expected = composeGeneratedModule(
+      parseAndCheck(loadFixture("post-detail.naviql")).program
+    ).code;
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.code).toBe(expected);
+    expect(result.code).toContain("export const postAri");
+    expect(result.code).toContain("export function createPostDetailStrategy");
+    expect(result.code).toContain(
+      'import { ari, s, createGraphResolutionStrategy } from "@xndrjs/naviql";'
+    );
+    expect(result.code).not.toMatch(/from ["'][^"']*\/compile["']/);
+    // Resource-only generateResources still ignores queries.
+    expect(
+      generateResources(parseAndCheck(loadFixture("post-detail.naviql")).program).code
+    ).not.toContain("createPostDetailStrategy");
   });
 
   it("returns empty emit for no matching files", () => {

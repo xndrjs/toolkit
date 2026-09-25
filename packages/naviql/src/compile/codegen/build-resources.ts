@@ -13,9 +13,12 @@ import {
 } from "../collect/collect-naviql-files";
 import { mergePrograms } from "../merge-programs";
 import { parseAndCheck } from "../parse-and-check";
-import { generateResources, type GenerateResourcesOptions } from "./generate-resources";
+import {
+  composeGeneratedModule,
+  type ComposeGeneratedModuleOptions,
+} from "./compose-generated-module";
 
-export type BuildResourcesOptions = CollectNaviQlFilesOptions & GenerateResourcesOptions;
+export type BuildResourcesOptions = CollectNaviQlFilesOptions & ComposeGeneratedModuleOptions;
 
 export type BuildResourcesResult = {
   /** Generated TypeScript; empty when diagnostics are non-empty. */
@@ -33,7 +36,8 @@ function withFileUri(diagnostic: Diagnostic, uri: string): Diagnostic {
 }
 
 /**
- * Collect `.naviql` files, parse/lower each, merge IR, check once, then emit.
+ * Collect `.naviql` files, parse/lower each, merge IR, check once, then emit
+ * a single module (resources + strategy builders when queries exist).
  *
  * Per-file semantic diagnostics from `parseAndCheck` are ignored — only
  * `SYNTAX_ERROR` is kept from that phase so cross-file references work.
@@ -73,6 +77,6 @@ export function buildResources(options: BuildResourcesOptions = {}): BuildResour
     return { code: "", diagnostics, files };
   }
 
-  const { code } = generateResources(merged, { importFrom, registryTypeName });
+  const { code } = composeGeneratedModule(merged, { importFrom, registryTypeName });
   return { code, diagnostics: [], files };
 }
