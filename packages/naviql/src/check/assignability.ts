@@ -16,14 +16,28 @@ export function literalKind(value: string | number | boolean | null): PrimitiveT
 /**
  * Strict nominal equality of semantic types.
  * Scalars compare by name only — representation is never a substitute.
+ * Unions compare as unordered member sets.
  */
 export function typesSemanticallyEqual(a: TypeExpr, b: TypeExpr): boolean {
+  if (a.kind === "union" || b.kind === "union") {
+    if (a.kind !== "union" || b.kind !== "union") return false;
+    if (a.members.length !== b.members.length) return false;
+    const unmatched = [...b.members];
+    for (const member of a.members) {
+      const idx = unmatched.findIndex((other) => typesSemanticallyEqual(member, other));
+      if (idx < 0) return false;
+      unmatched.splice(idx, 1);
+    }
+    return true;
+  }
   if (a.kind !== b.kind) return false;
   switch (a.kind) {
     case "primitive":
       return b.kind === "primitive" && a.name === b.name;
     case "scalarRef":
       return b.kind === "scalarRef" && a.name === b.name;
+    case "stringLiteral":
+      return b.kind === "stringLiteral" && a.value === b.value;
     case "nullable":
       return b.kind === "nullable" && typesSemanticallyEqual(a.of, b.of);
     case "array":
@@ -48,6 +62,7 @@ export function typesSemanticallyEqual(a: TypeExpr, b: TypeExpr): boolean {
  * - Nominal scalars: same name only
  * - No scalar ↔ primitive conversion
  * - T is assignable to nullable T
+ * - Unions: source → target if every source member fits some target (distributive)
  */
 export function isAssignable(source: TypeExpr, target: TypeExpr): boolean {
   if (target.kind === "nullable") {
@@ -59,11 +74,24 @@ export function isAssignable(source: TypeExpr, target: TypeExpr): boolean {
   if (source.kind === "nullable") {
     return false;
   }
+  if (target.kind === "union") {
+    return target.members.some((member) => isAssignable(source, member));
+  }
+  if (source.kind === "union") {
+    return source.members.every((member) => isAssignable(member, target));
+  }
   if (source.kind === "primitive" && target.kind === "primitive") {
     return source.name === target.name;
   }
   if (source.kind === "scalarRef" && target.kind === "scalarRef") {
     return source.name === target.name;
+  }
+  if (source.kind === "stringLiteral" && target.kind === "stringLiteral") {
+    return source.value === target.value;
+  }
+  // Narrow string literals are assignable to wide `string`.
+  if (source.kind === "stringLiteral" && target.kind === "primitive" && target.name === "string") {
+    return true;
   }
   if (source.kind === "array" && target.kind === "array") {
     return isAssignable(source.of, target.of);
@@ -77,6 +105,7 @@ export function isAssignable(source: TypeExpr, target: TypeExpr): boolean {
 /**
  * Literals may inhabit a scalar when `kind(literal) === representation`.
  * `null` inhabits nullable targets (and only those).
+ * String literals inhabit exact `stringLiteral` types and (via union) their members.
  */
 export function literalInhabits(
   value: string | number | boolean | null,
@@ -87,7 +116,14 @@ export function literalInhabits(
     if (value === null) return true;
     return literalInhabits(value, target.of, scalarRepresentation);
   }
+  if (target.kind === "union") {
+    return target.members.some((member) => literalInhabits(value, member, scalarRepresentation));
+  }
   if (value === null) return false;
+
+  if (target.kind === "stringLiteral") {
+    return typeof value === "string" && value === target.value;
+  }
 
   const kind = literalKind(value);
   if (kind === "null") return false;
@@ -108,11 +144,17 @@ export function formatType(type: TypeExpr): string {
       return type.name;
     case "scalarRef":
       return type.name;
+    case "stringLiteral":
+      return JSON.stringify(type.value);
     case "nullable":
       return `${formatType(type.of)}?`;
-    case "array":
-      return `${formatType(type.of)}[]`;
+    case "array": {
+      const inner = formatType(type.of);
+      return type.of.kind === "union" ? `(${inner})[]` : `${inner}[]`;
+    }
     case "object":
       return `{ ${type.fields.map((f) => `${f.name}: ${formatType(f.type)}`).join(", ")} }`;
+    case "union":
+      return type.members.map(formatType).join(" | ");
   }
 }

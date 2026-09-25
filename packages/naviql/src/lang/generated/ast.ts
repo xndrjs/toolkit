@@ -41,16 +41,13 @@ export type NaviQlKeywordNames =
   | "string"
   | "true"
   | "{"
+  | "|"
   | "}";
 
 export type NaviQlTokenNames = NaviQlTerminalNames | NaviQlKeywordNames;
 
-/**
- * Types: primitives, scalar refs, inline objects, and postfix arrays.
- * `string[]`, `{ name: string; }[]`, nested objects — left-associative `[]`.
- */
 export interface ArrayTypeExpr extends langium.AstNode {
-  readonly $container: PayloadField | TypedField;
+  readonly $container: GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
   readonly $type: "ArrayTypeExpr";
   of: AtomicTypeExpr;
 }
@@ -64,7 +61,12 @@ export function isArrayTypeExpr(item: unknown): item is ArrayTypeExpr {
   return reflection.isInstance(item, ArrayTypeExpr.$type);
 }
 
-export type AtomicTypeExpr = ObjectTypeExpr | PrimitiveTypeExpr | ScalarTypeExpr;
+export type AtomicTypeExpr =
+  | GroupedTypeExpr
+  | ObjectTypeExpr
+  | PrimitiveTypeExpr
+  | ScalarTypeExpr
+  | StringLiteralTypeExpr;
 
 export const AtomicTypeExpr = {
   $type: "AtomicTypeExpr",
@@ -156,6 +158,21 @@ export function isExpression(item: unknown): item is Expression {
   return reflection.isInstance(item, Expression.$type);
 }
 
+export interface GroupedTypeExpr extends langium.AstNode {
+  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
+  readonly $type: "GroupedTypeExpr";
+  type: TypeExpr;
+}
+
+export const GroupedTypeExpr = {
+  $type: "GroupedTypeExpr",
+  type: "type",
+} as const;
+
+export function isGroupedTypeExpr(item: unknown): item is GroupedTypeExpr {
+  return reflection.isInstance(item, GroupedTypeExpr.$type);
+}
+
 export interface IdentityRef extends langium.AstNode {
   readonly $container: NamedArg;
   readonly $type: "IdentityRef";
@@ -242,9 +259,9 @@ export function isNumberLiteral(item: unknown): item is NumberLiteral {
   return reflection.isInstance(item, NumberLiteral.$type);
 }
 
-/** Inline structural object; optional `;` after each field (TS-like). */
+/** Inline structural object; optional `;` or `,` after each field (TS-like). */
 export interface ObjectTypeExpr extends langium.AstNode {
-  readonly $container: ArrayTypeExpr | PayloadField | TypedField;
+  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
   readonly $type: "ObjectTypeExpr";
   fields: Array<TypedField>;
 }
@@ -298,7 +315,7 @@ export function isPrimitiveName(item: unknown): item is PrimitiveName {
 }
 
 export interface PrimitiveTypeExpr extends langium.AstNode {
-  readonly $container: ArrayTypeExpr | PayloadField | TypedField;
+  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
   readonly $type: "PrimitiveTypeExpr";
   name: PrimitiveName;
 }
@@ -425,7 +442,7 @@ export function isScalarDeclaration(item: unknown): item is ScalarDeclaration {
 }
 
 export interface ScalarTypeExpr extends langium.AstNode {
-  readonly $container: ArrayTypeExpr | PayloadField | TypedField;
+  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
   readonly $type: "ScalarTypeExpr";
   name: string;
 }
@@ -454,6 +471,21 @@ export function isStringLiteral(item: unknown): item is StringLiteral {
   return reflection.isInstance(item, StringLiteral.$type);
 }
 
+export interface StringLiteralTypeExpr extends langium.AstNode {
+  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
+  readonly $type: "StringLiteralTypeExpr";
+  value: string;
+}
+
+export const StringLiteralTypeExpr = {
+  $type: "StringLiteralTypeExpr",
+  value: "value",
+} as const;
+
+export function isStringLiteralTypeExpr(item: unknown): item is StringLiteralTypeExpr {
+  return reflection.isInstance(item, StringLiteralTypeExpr.$type);
+}
+
 export interface TypedField extends langium.AstNode {
   readonly $container: ContextBlock | ObjectTypeExpr | QueryDeclaration | ResourceDeclaration;
   readonly $type: "TypedField";
@@ -472,10 +504,10 @@ export function isTypedField(item: unknown): item is TypedField {
 }
 
 /**
- * Types: primitives, scalar refs, inline objects, and postfix arrays.
- * `string[]`, `{ name: string; }[]`, nested objects — left-associative `[]`.
+ * Type precedence (tight → loose): atomic / `[]` / `|`.
+ * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
  */
-export type TypeExpr = ArrayTypeExpr | AtomicTypeExpr;
+export type TypeExpr = UnionMember | UnionTypeExpr;
 
 export const TypeExpr = {
   $type: "TypeExpr",
@@ -483,6 +515,35 @@ export const TypeExpr = {
 
 export function isTypeExpr(item: unknown): item is TypeExpr {
   return reflection.isInstance(item, TypeExpr.$type);
+}
+
+export type UnionMember = ArrayTypeExpr | AtomicTypeExpr;
+
+export const UnionMember = {
+  $type: "UnionMember",
+} as const;
+
+export function isUnionMember(item: unknown): item is UnionMember {
+  return reflection.isInstance(item, UnionMember.$type);
+}
+
+/**
+ * Type precedence (tight → loose): atomic / `[]` / `|`.
+ * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
+ */
+export interface UnionTypeExpr extends langium.AstNode {
+  readonly $container: GroupedTypeExpr | PayloadField | TypedField;
+  readonly $type: "UnionTypeExpr";
+  members: Array<UnionMember>;
+}
+
+export const UnionTypeExpr = {
+  $type: "UnionTypeExpr",
+  members: "members",
+} as const;
+
+export function isUnionTypeExpr(item: unknown): item is UnionTypeExpr {
+  return reflection.isInstance(item, UnionTypeExpr.$type);
 }
 
 export type NaviQlAstType = {
@@ -494,6 +555,7 @@ export type NaviQlAstType = {
   Declaration: Declaration;
   Expansion: Expansion;
   Expression: Expression;
+  GroupedTypeExpr: GroupedTypeExpr;
   IdentityRef: IdentityRef;
   Literal: Literal;
   Model: Model;
@@ -512,8 +574,11 @@ export type NaviQlAstType = {
   ScalarDeclaration: ScalarDeclaration;
   ScalarTypeExpr: ScalarTypeExpr;
   StringLiteral: StringLiteral;
+  StringLiteralTypeExpr: StringLiteralTypeExpr;
   TypeExpr: TypeExpr;
   TypedField: TypedField;
+  UnionMember: UnionMember;
+  UnionTypeExpr: UnionTypeExpr;
 };
 
 export class NaviQlAstReflection extends langium.AbstractAstReflection {
@@ -525,12 +590,12 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           name: ArrayTypeExpr.of,
         },
       },
-      superTypes: [TypeExpr.$type],
+      superTypes: [UnionMember.$type],
     },
     AtomicTypeExpr: {
       name: AtomicTypeExpr.$type,
       properties: {},
-      superTypes: [TypeExpr.$type],
+      superTypes: [UnionMember.$type],
     },
     BooleanLiteral: {
       name: BooleanLiteral.$type,
@@ -583,6 +648,15 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       name: Expression.$type,
       properties: {},
       superTypes: [],
+    },
+    GroupedTypeExpr: {
+      name: GroupedTypeExpr.$type,
+      properties: {
+        type: {
+          name: GroupedTypeExpr.type,
+        },
+      },
+      superTypes: [AtomicTypeExpr.$type],
     },
     IdentityRef: {
       name: IdentityRef.$type,
@@ -803,6 +877,15 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       },
       superTypes: [Literal.$type],
     },
+    StringLiteralTypeExpr: {
+      name: StringLiteralTypeExpr.$type,
+      properties: {
+        value: {
+          name: StringLiteralTypeExpr.value,
+        },
+      },
+      superTypes: [AtomicTypeExpr.$type],
+    },
     TypeExpr: {
       name: TypeExpr.$type,
       properties: {},
@@ -819,6 +902,21 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [],
+    },
+    UnionMember: {
+      name: UnionMember.$type,
+      properties: {},
+      superTypes: [TypeExpr.$type],
+    },
+    UnionTypeExpr: {
+      name: UnionTypeExpr.$type,
+      properties: {
+        members: {
+          name: UnionTypeExpr.members,
+          defaultValue: [],
+        },
+      },
+      superTypes: [TypeExpr.$type],
     },
   } as const satisfies langium.AstMetaData;
 }

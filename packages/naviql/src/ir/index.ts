@@ -2,8 +2,8 @@
  * NaviQL semantic IR — parser-independent types.
  *
  * Phase 1 surface (checker needs only). Omitted for now: comprehensions,
- * islands, unions, `when` on projections, binary/unary exprs, resourceRef,
- * scalar bodies/codecs, scalar-on-scalar, object-backed scalars.
+ * islands, `when` on projections, binary/unary exprs, resourceRef,
+ * scalar bodies/codecs, scalar-on-scalar, object-backed scalars, named enums.
  *
  * Presence/absence that affects meaning or diagnostics is never optional:
  * use `null` (or required `boolean`) so producers must choose explicitly.
@@ -35,9 +35,11 @@ export type ScalarDefinition = {
 export type TypeExpr =
   | { kind: "primitive"; name: PrimitiveTypeName; span: SourceSpan | null }
   | { kind: "scalarRef"; name: string; span: SourceSpan | null }
+  | { kind: "stringLiteral"; value: string; span: SourceSpan | null }
   | { kind: "nullable"; of: TypeExpr; span: SourceSpan | null }
   | { kind: "array"; of: TypeExpr; span: SourceSpan | null }
-  | { kind: "object"; fields: FieldDecl[]; span: SourceSpan | null };
+  | { kind: "object"; fields: FieldDecl[]; span: SourceSpan | null }
+  | { kind: "union"; members: TypeExpr[]; span: SourceSpan | null };
 
 export type FieldDecl = {
   name: string;

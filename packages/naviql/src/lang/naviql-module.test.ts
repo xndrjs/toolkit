@@ -167,4 +167,39 @@ describe("NaviQl MVP grammar", () => {
       expect(tags.of.$type).toBe("PrimitiveTypeExpr");
     }
   });
+
+  it("parses string literal types and discriminated unions", () => {
+    const model = parseSource(`
+      scalar HeroId on string;
+      scalar ProductId on string;
+      scalar TabId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale) {
+        id
+        strips: (
+          { type: "Hero", id: HeroId }
+          | { type: "Product", id: ProductId }
+        )[]
+        kind: "Hero" | "Product"
+      }
+    `);
+
+    const tab = model.declarations.find(isResourceDeclaration) as ResourceDeclaration;
+    const strips = tab.payload.find((p) => p.name === "strips")?.type;
+    expect(strips?.$type).toBe("ArrayTypeExpr");
+    if (strips?.$type === "ArrayTypeExpr") {
+      expect(strips.of.$type).toBe("GroupedTypeExpr");
+      if (strips.of.$type === "GroupedTypeExpr") {
+        expect(strips.of.type.$type).toBe("UnionTypeExpr");
+      }
+    }
+
+    const kind = tab.payload.find((p) => p.name === "kind")?.type;
+    expect(kind?.$type).toBe("UnionTypeExpr");
+    if (kind?.$type === "UnionTypeExpr") {
+      expect(kind.members).toHaveLength(2);
+      expect(kind.members.every((m) => m.$type === "StringLiteralTypeExpr")).toBe(true);
+    }
+  });
 });
