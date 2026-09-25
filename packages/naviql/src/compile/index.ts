@@ -26,6 +26,11 @@ export {
   type GenerateStrategiesResult,
 } from "./codegen/generate-strategies";
 export {
+  generateProjections,
+  type GenerateProjectionsOptions,
+  type GenerateProjectionsResult,
+} from "./codegen/generate-projections";
+export {
   buildResources,
   type BuildResourcesOptions,
   type BuildResourcesResult,
