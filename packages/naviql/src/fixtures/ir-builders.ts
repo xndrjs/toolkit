@@ -1,0 +1,99 @@
+import type {
+  Expr,
+  Expansion,
+  FieldDecl,
+  NamedArg,
+  PrimitiveTypeName,
+  QueryDefinition,
+  ResourceConstruction,
+  ResourceDefinition,
+  ResourceProjection,
+  ScalarDefinition,
+  TypeExpr,
+} from "../ir";
+
+export const span = null;
+
+export function prim(name: PrimitiveTypeName): TypeExpr {
+  return { kind: "primitive", name, span };
+}
+
+export function scalarRef(name: string): TypeExpr {
+  return { kind: "scalarRef", name, span };
+}
+
+export function field(name: string, type: TypeExpr, inheritedFromIdentity = false): FieldDecl {
+  return { name, type, inheritedFromIdentity, span };
+}
+
+export function defScalar(name: string, representation: PrimitiveTypeName): ScalarDefinition {
+  return { name, representation, metadata: null, span };
+}
+
+export function resource(
+  name: string,
+  identity: FieldDecl[],
+  payload: FieldDecl[]
+): ResourceDefinition {
+  return {
+    name,
+    ariType: name,
+    identity: { fields: identity },
+    payload: { fields: payload },
+    span,
+  };
+}
+
+export function arg(name: string, value: Expr): NamedArg {
+  return { name, value, span };
+}
+
+export function construct(resourceName: string, args: NamedArg[]): ResourceConstruction {
+  return { resource: resourceName, args, span };
+}
+
+export function expand(alias: string, target: ResourceConstruction): Expansion {
+  return { alias, target, multiplicity: "one", span };
+}
+
+export function projection(
+  resourceName: string,
+  binding: string,
+  selectedFields: string[],
+  expansions: Expansion[] = []
+): ResourceProjection {
+  return {
+    resource: resourceName,
+    binding,
+    selectedFields,
+    expansions,
+    span,
+  };
+}
+
+export function query(
+  name: string,
+  partial: Omit<QueryDefinition, "name" | "span">
+): QueryDefinition {
+  return { name, span, ...partial };
+}
+
+export function lit(value: string | number | boolean | null): Expr {
+  return { kind: "literal", value, span };
+}
+
+export function param(name: string): Expr {
+  return { kind: "param", name, span };
+}
+
+export function ctx(...path: string[]): Expr {
+  return { kind: "context", path, span };
+}
+
+export function payload(binding: string, ...path: string[]): Expr {
+  return { kind: "payloadRef", binding, path, span };
+}
+
+export function identity(binding: string, ...path: string[]): Expr {
+  return { kind: "identityRef", binding, path, span };
+}
