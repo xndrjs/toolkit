@@ -1,0 +1,125 @@
+scalar Locale on string;
+scalar PageId on string;
+scalar HeroId on string;
+scalar MenuId on string;
+scalar FooterId on string;
+scalar AssetId on string;
+scalar TabsId on string;
+scalar TabId on string;
+scalar ProductId on string;
+scalar Sku on string;
+
+resource Page(id: PageId, locale: Locale) {
+  id
+  title: string
+  heroId: HeroId
+  menuId: MenuId
+  footerId: FooterId
+  featuredTabsId: TabsId
+}
+
+resource Hero(id: HeroId, locale: Locale) {
+  id
+  title: string
+  imageId: AssetId
+}
+
+resource Menu(id: MenuId, locale: Locale) {
+  id
+  title: string
+  logoId: AssetId
+}
+
+resource Footer(id: FooterId, locale: Locale) {
+  id
+  title: string
+  logoId: AssetId
+}
+
+resource Asset(id: AssetId, locale: Locale) {
+  id
+  url: string
+  title: string
+}
+
+resource Tabs(id: TabsId, locale: Locale) {
+  id
+  title: string
+  firstTabId: TabId
+}
+
+resource Tab(id: TabId, locale: Locale) {
+  id
+  title: string
+  stripHeroId: HeroId
+  stripProductId: ProductId
+}
+
+resource Product(id: ProductId, locale: Locale) {
+  id
+  sku: Sku
+  title: string
+}
+
+query PageDetail(pageId: PageId) {
+  context {
+    locale: Locale
+  }
+
+  root Page(
+    id: pageId,
+    locale: context.locale
+  )
+
+  on Page p {
+    id
+    title
+    expand hero: Hero(id: p.heroId, locale: context.locale)
+    expand menu: Menu(id: p.menuId, locale: context.locale)
+    expand footer: Footer(id: p.footerId, locale: context.locale)
+    expand featuredTabs: Tabs(id: p.featuredTabsId, locale: context.locale)
+  }
+
+  on Hero h {
+    id
+    title
+    expand image: Asset(id: h.imageId, locale: context.locale)
+  }
+
+  on Menu m {
+    id
+    title
+    expand logo: Asset(id: m.logoId, locale: context.locale)
+  }
+
+  on Footer f {
+    id
+    title
+    expand logo: Asset(id: f.logoId, locale: context.locale)
+  }
+
+  on Asset a {
+    id
+    url
+    title
+  }
+
+  on Tabs t {
+    id
+    title
+    expand firstTab: Tab(id: t.firstTabId, locale: context.locale)
+  }
+
+  on Tab tab {
+    id
+    title
+    expand stripHero: Hero(id: tab.stripHeroId, locale: context.locale)
+    expand stripProduct: Product(id: tab.stripProductId, locale: context.locale)
+  }
+
+  on Product prod {
+    id
+    sku
+    title
+  }
+}

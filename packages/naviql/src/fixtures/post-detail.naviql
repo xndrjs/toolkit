@@ -1,0 +1,38 @@
+scalar PostId on string;
+scalar UserId on string;
+scalar Locale on string;
+
+resource Post(id: PostId, locale: Locale) {
+  id
+  title: string
+  content: string
+  authorId: UserId
+}
+
+resource User(id: UserId) {
+  id
+  username: string
+}
+
+query PostDetail(postId: PostId) {
+  context {
+    locale: Locale
+  }
+
+  root Post(
+    id: postId,
+    locale: context.locale
+  )
+
+  on Post p {
+    id
+    title
+    content
+    expand author: User(id: p.authorId)
+  }
+
+  on User u {
+    id
+    username
+  }
+}

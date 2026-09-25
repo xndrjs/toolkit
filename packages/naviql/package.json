@@ -47,6 +47,7 @@
     "langium": "~4.4.0"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "langium-cli": "~4.4.0",
     "tsup": "^8.5.1",
     "vitest": "^4.1.0"
