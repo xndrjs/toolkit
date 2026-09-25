@@ -56,6 +56,8 @@ export function typesSemanticallyEqual(a: TypeExpr, b: TypeExpr): boolean {
       }
       return true;
     }
+    case "typeProjection":
+      return b.kind === "typeProjection" && a.resource === b.resource && a.field === b.field;
   }
 }
 
@@ -103,6 +105,7 @@ export function isAssignable(source: TypeExpr, target: TypeExpr): boolean {
   if (source.kind === "object" && target.kind === "object") {
     return typesSemanticallyEqual(source, target);
   }
+  // Unresolved projections are not assignable; callers should resolve first.
   return false;
 }
 
@@ -124,8 +127,13 @@ export function literalInhabits(
     return typeof value === "string" && value === target.value;
   }
 
-  // Resource instances are not inhabited by raw literals.
-  if (target.kind === "resourceRef" || target.kind === "array" || target.kind === "object") {
+  // Resource instances / structures / unresolved projections are not inhabited by raw literals.
+  if (
+    target.kind === "resourceRef" ||
+    target.kind === "array" ||
+    target.kind === "object" ||
+    target.kind === "typeProjection"
+  ) {
     return false;
   }
 
@@ -161,6 +169,8 @@ export function formatType(type: TypeExpr): string {
       return `{ ${type.fields.map((f) => `${f.name}: ${formatType(f.type)}`).join(", ")} }`;
     case "union":
       return type.members.map(formatType).join(" | ");
+    case "typeProjection":
+      return `${type.resource}.${type.field}`;
   }
 }
 

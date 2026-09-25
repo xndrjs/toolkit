@@ -1,11 +1,9 @@
 /**
  * Page-graph IR fixture inspired by the resource-graph-resolver demo.
  *
- * - `Page.strips` / `Tab.strips` share the same polymorphic union and expand
- *   once via list comprehension into `EditorialModule` (Tabs | Hero | Product),
- *   so Tabs can nest recursively through Tab → strips → Tabs → …
- * - Duplicate expansion aliases are errors.
- * - `Page.menu` / `Page.footer`: singular expands (demo islands; island policy later).
+ * - `Page.strips` / `Tab.strips` use `EditorialModule.type` type projection for
+ *   the discriminant (resolves to `"Tabs" | "Hero" | "Product"`).
+ * - Strips expand once via list comprehension into `EditorialModule`.
  */
 import type { Program } from "../compile";
 
@@ -29,6 +27,7 @@ import {
   scalarRef,
   span,
   strLit,
+  typeProj,
   union,
 } from "./ir-builders";
 
@@ -45,7 +44,7 @@ const Sku = scalarRef("Sku");
 const EditorialModuleId = scalarRef("EditorialModuleId");
 
 const ModuleStrip = objectType(
-  field("type", union(strLit("Tabs"), strLit("Hero"), strLit("Product"))),
+  field("type", typeProj("EditorialModule", "type")),
   field("id", EditorialModuleId)
 );
 
@@ -81,6 +80,7 @@ export function pageDetailProgram(): Program {
         "Hero",
         [field("id", HeroId), field("locale", Locale)],
         objectType(
+          field("type", strLit("Hero")),
           field("id", HeroId, true),
           field("title", prim("string")),
           field("imageId", AssetId)
@@ -117,7 +117,11 @@ export function pageDetailProgram(): Program {
       resource(
         "Tabs",
         [field("id", TabsId), field("locale", Locale)],
-        objectType(field("id", TabsId, true), field("title", prim("string")))
+        objectType(
+          field("type", strLit("Tabs")),
+          field("id", TabsId, true),
+          field("title", prim("string"))
+        )
       ),
       resource(
         "Tab",
@@ -136,7 +140,12 @@ export function pageDetailProgram(): Program {
       resource(
         "Product",
         [field("id", ProductId), field("locale", Locale)],
-        objectType(field("id", ProductId, true), field("sku", Sku), field("title", prim("string")))
+        objectType(
+          field("type", strLit("Product")),
+          field("id", ProductId, true),
+          field("sku", Sku),
+          field("title", prim("string"))
+        )
       ),
       resource(
         "EditorialModule",

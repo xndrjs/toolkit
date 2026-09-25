@@ -1,7 +1,13 @@
 import type { FieldDecl, Program, TypeExpr } from "../ir";
 import { formatType, objectPayloadFields, typesSemanticallyEqual } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
-import { checkTypeExpr, checkUniqueFields, type ResourceTable, type ScalarTable } from "./symbols";
+import {
+  checkTypeExpr,
+  checkUniqueFields,
+  concreteType,
+  type ResourceTable,
+  type ScalarTable,
+} from "./symbols";
 import { isPrimitiveTypeName } from "./assignability";
 
 export function collectScalars(program: Program, sink: DiagnosticSink): ScalarTable {
@@ -86,7 +92,15 @@ export function collectResources(
       sink
     );
 
-    checkObjectPayloadShorthand(payloadFields, identity, resource.name, path, sink);
+    checkObjectPayloadShorthand(
+      payloadFields,
+      identity,
+      resource.name,
+      path,
+      scalars,
+      resources,
+      sink
+    );
 
     resources.set(resource.name, {
       identity,
@@ -141,6 +155,8 @@ function checkObjectPayloadShorthand(
   identity: Map<string, FieldDecl>,
   resourceName: string,
   path: string,
+  scalars: ScalarTable,
+  resources: ResourceTable,
   sink: DiagnosticSink
 ): void {
   for (const field of payloadFields) {
@@ -153,19 +169,27 @@ function checkObjectPayloadShorthand(
           message: `Payload shorthand '${field.name}' has no matching identity field on '${resourceName}'`,
           path: fieldPath,
         });
-      } else if (!typesSemanticallyEqual(field.type, identityField.type)) {
+      } else {
+        const left = concreteType(field.type, fieldPath, scalars, resources, sink);
+        const right = concreteType(identityField.type, fieldPath, scalars, resources, sink);
+        if (left && right && !typesSemanticallyEqual(left, right)) {
+          sink.push({
+            code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
+            message: `Payload shorthand '${field.name}' type ${formatType(field.type)} is incompatible with identity type ${formatType(identityField.type)}`,
+            path: fieldPath,
+          });
+        }
+      }
+    } else if (identityField) {
+      const left = concreteType(field.type, fieldPath, scalars, resources, sink);
+      const right = concreteType(identityField.type, fieldPath, scalars, resources, sink);
+      if (left && right && !typesSemanticallyEqual(left, right)) {
         sink.push({
           code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
-          message: `Payload shorthand '${field.name}' type ${formatType(field.type)} is incompatible with identity type ${formatType(identityField.type)}`,
+          message: `Identity and payload field '${field.name}' have incompatible types (${formatType(identityField.type)} vs ${formatType(field.type)})`,
           path: fieldPath,
         });
       }
-    } else if (identityField && !typesSemanticallyEqual(field.type, identityField.type)) {
-      sink.push({
-        code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
-        message: `Identity and payload field '${field.name}' have incompatible types (${formatType(identityField.type)} vs ${formatType(field.type)})`,
-        path: fieldPath,
-      });
     }
   }
 }
