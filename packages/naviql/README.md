@@ -10,6 +10,8 @@
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
+**Vertical-slice example:** [`apps/demo-naviql`](../../apps/demo-naviql) — `.naviql` → codegen → strategy `.build()` → multi-DataSource `resolve` → `projectPageDetail` (in-memory cms / catalog / cdn; no islands).
+
 Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 
 ## Installation
