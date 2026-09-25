@@ -224,33 +224,33 @@ describe("type projection Resource.field", () => {
     expect(diagnostics).toEqual([]);
   });
 
-  it("integrates EditorialModule.type in pageDetailProgram", () => {
+  it("integrates discriminated strip stubs in pageDetailProgram", () => {
     expect(checkProgram(pageDetailProgram())).toEqual([]);
 
-    const sink = createDiagnosticSink();
-    const scalars = collectScalars(pageDetailProgram(), sink);
-    const resources = collectResources(pageDetailProgram(), scalars, sink);
-    const resolved = resolveTypeExpr(
-      typeProj("EditorialModule", "type"),
-      "EditorialModule.type",
-      scalars,
-      resources,
-      sink
-    );
-    expect(sink.diagnostics).toEqual([]);
-    expect(resolved).toEqual(union(strLit("Tabs"), strLit("Hero"), strLit("Product")));
+    const page = pageDetailProgram().resources.find((r) => r.name === "Page");
+    expect(page?.payloadType.kind).toBe("object");
+    if (page?.payloadType.kind !== "object") return;
+    const strips = page.payloadType.fields.find((f) => f.name === "strips")?.type;
+    expect(strips?.kind).toBe("array");
+    if (strips?.kind !== "array") return;
+    expect(strips.of.kind).toBe("union");
   });
 
-  it("parses and typechecks page-detail.naviql with EditorialModule.type", () => {
+  it("parses and typechecks page-detail.naviql with discriminated strip stubs", () => {
     const source = `
       scalar Locale on string;
       scalar PageId on string;
       scalar HeroId on string;
-      scalar EditorialModuleId on string;
+      scalar TabsId on string;
+      scalar ProductId on string;
 
       resource Page(id: PageId, locale: Locale): {
         id
-        strips: { type: EditorialModule.type, id: EditorialModuleId }[]
+        strips: (
+          { type: "Hero", id: HeroId } |
+          { type: "Tabs", id: TabsId } |
+          { type: "Product", id: ProductId }
+        )[]
       }
 
       resource Hero(id: HeroId, locale: Locale): {
@@ -258,46 +258,40 @@ describe("type projection Resource.field", () => {
         id
       }
 
-      resource Tabs(id: HeroId, locale: Locale): {
+      resource Tabs(id: TabsId, locale: Locale): {
         type: "Tabs"
         id
       }
 
-      resource Product(id: HeroId, locale: Locale): {
+      resource Product(id: ProductId, locale: Locale): {
         type: "Product"
         id
       }
-
-      resource EditorialModule(id: EditorialModuleId, locale: Locale): Tabs | Hero | Product
 
       query Q(pageId: PageId) {
         context { locale: Locale }
         root Page(id: pageId, locale: context.locale)
         on Page p {
           id
-          expand strips: [EditorialModule(id: s.id, locale: context.locale) for s in p.strips]
+          expand strips: each s in p.strips (
+            Hero(id: s.id, locale: context.locale) when s.type == "Hero",
+            Tabs(id: s.id, locale: context.locale) when s.type == "Tabs",
+            Product(id: s.id, locale: context.locale) when s.type == "Product"
+          )
         }
+        on Hero h { id }
+        on Tabs t { id }
+        on Product prod { id }
       }
     `;
-    // Tabs uses HeroId only to keep the snippet tiny — still valid nominally.
     const { diagnostics, program } = parseAndCheck(source);
     expect(diagnostics).toEqual([]);
     const page = program.resources.find((r) => r.name === "Page");
     expect(page?.payloadType.kind).toBe("object");
     if (page?.payloadType.kind !== "object") return;
     const strips = page.payloadType.fields.find((f) => f.name === "strips")?.type;
-    expect(strips).toMatchObject({
-      kind: "array",
-      of: {
-        kind: "object",
-        fields: [
-          {
-            name: "type",
-            type: { kind: "typeProjection", resource: "EditorialModule", field: "type" },
-          },
-          { name: "id", type: { kind: "scalarRef", name: "EditorialModuleId" } },
-        ],
-      },
-    });
+    expect(strips?.kind).toBe("array");
+    if (strips?.kind !== "array") return;
+    expect(strips.of.kind).toBe("union");
   });
 });

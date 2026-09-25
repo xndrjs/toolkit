@@ -77,13 +77,13 @@ export type PostDetailResult = PostDetail_Post;
     const code = emitProjectionTypes(program);
 
     expect(code).toContain(`$type: "Page";`);
-    expect(code).toContain("strips: (PageDetail_Tabs | PageDetail_Hero | PageDetail_Product)[];");
+    expect(code).toContain("strips: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[];");
     expect(code).toContain("tabs: PageDetail_Tab[];");
     expect(code).toContain("menu: PageDetail_Menu;");
     expect(code).toContain("image: PageDetail_Asset;");
     expect(code).toContain(`kind: "image" | "video" | "document";`);
     expect(code).toContain("export type PageDetailResult = PageDetail_Page;");
-    // No on EditorialModule / TabCollection — those are stripped at the alias.
+    // No on TabCollection — collection is stripped at the alias.
     expect(code).not.toContain("PageDetail_EditorialModule");
     expect(code).not.toContain("PageDetail_TabCollection");
   });
@@ -122,7 +122,7 @@ describe("printExpansionAliasType", () => {
     const page = query.projections.find((p) => p.resource === "Page")!;
     const strips = page.expansions.find((e) => e.alias === "strips")!;
     expect(printExpansionAliasType("PageDetail", strips, resources, projected)).toBe(
-      "(PageDetail_Tabs | PageDetail_Hero | PageDetail_Product)[]"
+      "(PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[]"
     );
 
     const tabs = query.projections.find((p) => p.resource === "Tabs")!;

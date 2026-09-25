@@ -98,7 +98,7 @@ const result = buildResources({ root: process.cwd() });
 
 `generateResources` emits branded scalar types, ARI factories (`postAri`), payload types (`PostPayload`), and a `ContentRegistry` slice from a checked `Program`. Queries are ignored.
 
-`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`). Aliases are stripped to ARI lists; the factory returns the builder **without** `.build()`, so apps can attach island policies / `.when` by hand before calling `.build()`. Islands and auto-`.when` are not emitted.
+`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`). Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`); collection expand targets fan out member ARIs. The factory returns the builder **without** `.build()`, so apps can attach island policies / `.when` by hand before calling `.build()`. Islands and auto-`.when` are not emitted.
 
 `generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …) with `$type` discriminators. Apps pass a resolved `ContentMap` (and `root` ARI); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/naviql` only — no extra runtime helper.
 

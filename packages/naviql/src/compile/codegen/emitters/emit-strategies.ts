@@ -1,13 +1,17 @@
 /**
  * Emit open `createGraphResolutionStrategy` builders from checked queries.
  * Local expansions only — no islands, `.when()`, root helpers, or `.build()`.
+ * Collection expand targets get an auto member-ARI fan-out `.on(collectionAri)`.
  */
 import type {
+  ExpandArm,
   Expansion,
   FieldDecl,
   Program,
   QueryDefinition,
+  ResourceDefinition,
   ResourceProjection,
+  TypeExpr,
 } from "../../../ir";
 import { emitConstruction } from "./emit-construction";
 import { emitExpr } from "./emit-expr";
@@ -24,10 +28,33 @@ function emitObjectTypeAlias(name: string, fields: FieldDecl[]): string {
   return `export type ${name} = ${body};`;
 }
 
+function emitArmManyExpr(sourceExpr: string, itemBinding: string, arm: ExpandArm): string {
+  const construction = emitConstruction(arm.target);
+  const mapFn = `(${itemBinding}: any) => ${construction}`;
+  if (arm.when !== null) {
+    return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when)}).map(${mapFn})`;
+  }
+  return `${sourceExpr}.map(${mapFn})`;
+}
+
+/** Multi-arm `each`: flatMap so source order is preserved (not concat-by-arm). */
+function emitMultiArmFlatMap(sourceExpr: string, itemBinding: string, arms: ExpandArm[]): string {
+  const branches = arms.map((arm) => {
+    const construction = emitConstruction(arm.target);
+    if (arm.when !== null) {
+      return `if (${emitExpr(arm.when)}) return [${construction}];`;
+    }
+    return `return [${construction}];`;
+  });
+  // Trailing empty return covers non-matching items when every arm has `when`.
+  const body = [...branches, `return [];`].join("\n          ");
+  return `${sourceExpr}.flatMap((${itemBinding}: any): any[] => {\n          ${body}\n        })`;
+}
+
 /**
  * One expansion contribution to the `resources` array.
  * - `one` → single ARI construction
- * - `many` → `...source[.filter].map` (spread into the array)
+ * - `many` → `source[.filter].map` or order-preserving multi-arm `flatMap`
  */
 function emitManyExpr(expansion: Expansion): string {
   const comprehension = expansion.comprehension;
@@ -35,20 +62,19 @@ function emitManyExpr(expansion: Expansion): string {
     throw new Error("emitStrategies: many expansion missing comprehension");
   }
 
-  const construction = emitConstruction(expansion.target);
-  const { itemBinding, source, filter } = comprehension;
+  const { itemBinding, source, arms } = comprehension;
   const sourceExpr = emitExpr(source);
-  const mapFn = `(${itemBinding}: any) => ${construction}`;
-
-  if (filter !== null) {
-    return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(filter)}).map(${mapFn})`;
+  if (arms.length === 1) {
+    return emitArmManyExpr(sourceExpr, itemBinding, arms[0]!);
   }
-
-  return `${sourceExpr}.map(${mapFn})`;
+  return emitMultiArmFlatMap(sourceExpr, itemBinding, arms);
 }
 
 function emitExpansionContribution(expansion: Expansion): string {
   if (expansion.multiplicity === "one" || expansion.comprehension === null) {
+    if (expansion.target === null) {
+      throw new Error("emitStrategies: one-expand missing target");
+    }
     return emitConstruction(expansion.target);
   }
 
@@ -61,6 +87,9 @@ function emitResourcesArray(expansions: Expansion[]): string {
     // A lone `many` already yields an array — avoid `[...xs.map(...)]`.
     if (only.multiplicity === "many" && only.comprehension !== null) {
       return emitManyExpr(only);
+    }
+    if (only.target === null) {
+      throw new Error("emitStrategies: one-expand missing target");
     }
     return `[${emitConstruction(only.target)}]`;
   }
@@ -82,7 +111,79 @@ function emitProjectionExpansion(projection: ResourceProjection): string {
   ].join("\n");
 }
 
-function emitQueryStrategy(query: QueryDefinition, registryTypeName: string): string {
+/** Collection resource (`TabCollection: Tab[]`) → element resource name. */
+function collectionElement(payload: TypeExpr): string | null {
+  if (payload.kind === "array" && payload.of.kind === "resourceRef") {
+    return payload.of.name;
+  }
+  return null;
+}
+
+/**
+ * After expanding a collection ARI, enqueue member ARIs so `on Member` runs.
+ * Identity args: payload field when present on the element resource identity name,
+ * else `executionContext.<name>` when the query declares that context field.
+ */
+function emitCollectionFanOut(
+  collection: ResourceDefinition,
+  element: ResourceDefinition,
+  contextFields: FieldDecl[]
+): string {
+  const collectionAri = ariFactoryName(collection.name);
+  const elementAri = ariFactoryName(element.name);
+  const contextNames = new Set(contextFields.map((f) => f.name));
+
+  const argParts = element.identity.fields.map((field) => {
+    if (contextNames.has(field.name)) {
+      return `${field.name}: executionContext.${field.name}`;
+    }
+    return `${field.name}: item.${field.name}`;
+  });
+
+  return [
+    `  strategy.expansion`,
+    `    .on(${collectionAri})`,
+    `    .expand(({ payload, executionContext }) => ({`,
+    `      resources: payload.map((item: any) => ${elementAri}({ ${argParts.join(", ")} })),`,
+    `    }));`,
+  ].join("\n");
+}
+
+function collectCollectionFanOuts(
+  query: QueryDefinition,
+  resourceIndex: Map<string, ResourceDefinition>
+): string[] {
+  const seen = new Set<string>();
+  const blocks: string[] = [];
+
+  for (const projection of query.projections) {
+    for (const expansion of projection.expansions) {
+      if (expansion.multiplicity !== "one" || expansion.target === null) continue;
+      const collection = resourceIndex.get(expansion.target.resource);
+      if (!collection) continue;
+      const elementName = collectionElement(collection.payloadType);
+      if (elementName === null) continue;
+      if (seen.has(collection.name)) continue;
+      seen.add(collection.name);
+
+      const element = resourceIndex.get(elementName);
+      if (!element) {
+        throw new Error(
+          `emitStrategies: collection '${collection.name}' element '${elementName}' is unknown`
+        );
+      }
+      blocks.push(emitCollectionFanOut(collection, element, query.context));
+    }
+  }
+
+  return blocks;
+}
+
+function emitQueryStrategy(
+  query: QueryDefinition,
+  registryTypeName: string,
+  resourceIndex: Map<string, ResourceDefinition>
+): string {
   const factory = strategyFactoryName(query.name);
   const paramsName = paramsTypeName(query.name);
   const contextName = executionContextTypeName(query.name);
@@ -107,6 +208,8 @@ function emitQueryStrategy(query: QueryDefinition, registryTypeName: string): st
     .filter((p) => p.expansions.length > 0)
     .map(emitProjectionExpansion);
 
+  const fanOutBlocks = collectCollectionFanOuts(query, resourceIndex);
+
   const bodyLines: string[] = [
     `  const strategy = createGraphResolutionStrategy<`,
     `    ${executionContextType},`,
@@ -114,9 +217,9 @@ function emitQueryStrategy(query: QueryDefinition, registryTypeName: string): st
     `  >();`,
   ];
 
-  if (expansionBlocks.length > 0) {
+  if (expansionBlocks.length > 0 || fanOutBlocks.length > 0) {
     bodyLines.push("");
-    bodyLines.push(expansionBlocks.join("\n\n"));
+    bodyLines.push([...expansionBlocks, ...fanOutBlocks].join("\n\n"));
   }
 
   bodyLines.push("");
@@ -138,5 +241,8 @@ export function emitStrategies(program: Program, registryTypeName = "ContentRegi
     return "";
   }
 
-  return program.queries.map((query) => emitQueryStrategy(query, registryTypeName)).join("\n\n");
+  const resourceIndex = new Map(program.resources.map((r) => [r.name, r]));
+  return program.queries
+    .map((query) => emitQueryStrategy(query, registryTypeName, resourceIndex))
+    .join("\n\n");
 }

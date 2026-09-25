@@ -7,7 +7,9 @@ import {
   arg,
   construct,
   ctx,
+  eq,
   expand,
+  expandEach,
   field,
   item,
   lit,
@@ -86,7 +88,7 @@ describe("emitStrategies", () => {
     expect(code).toMatch(/return strategy;\s*}/);
   });
 
-  it("emits many-comprehension map and optional filter", () => {
+  it("emits each-arm filter+map and multi-arm concat", () => {
     const program: Program = {
       ...emptyProgram(),
       queries: [
@@ -100,24 +102,15 @@ describe("emitStrategies", () => {
               "p",
               ["id"],
               [
-                expand(
-                  "strips",
-                  construct("EditorialModule", [
-                    arg("id", item("s", "id")),
-                    arg("locale", ctx("locale")),
-                  ]),
+                expandEach("strips", "s", payload("p", "strips"), [
                   {
-                    itemBinding: "s",
-                    source: payload("p", "strips"),
-                    filter: {
-                      kind: "binary",
-                      op: "==",
-                      left: item("s", "type"),
-                      right: lit("Hero"),
-                      span: null,
-                    },
-                  }
-                ),
+                    target: construct("Hero", [
+                      arg("id", item("s", "id")),
+                      arg("locale", ctx("locale")),
+                    ]),
+                    when: eq(item("s", "type"), lit("Hero")),
+                  },
+                ]),
               ]
             ),
           ],
@@ -129,7 +122,7 @@ describe("emitStrategies", () => {
 
     expect(code).toContain("export function createPageDetailStrategy()");
     expect(code).toContain(
-      'payload.strips.filter((s: any) => s.type == "Hero").map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale }))'
+      'payload.strips.filter((s: any) => s.type == "Hero").map((s: any) => heroAri({ id: s.id, locale: executionContext.locale }))'
     );
   });
 });
@@ -149,7 +142,7 @@ describe("generateStrategies", () => {
     expect(code).not.toContain(".build()");
   });
 
-  it("emits multi-on expansions and strips map for page-detail", () => {
+  it("emits multi-arm each strips, collection fan-out, and concrete on blocks for page-detail", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("page-detail.naviql"));
     expect(diagnostics).toEqual([]);
 
@@ -158,15 +151,27 @@ describe("generateStrategies", () => {
     expect(code).toContain(".on(pageAri)");
     expect(code).toContain("menuAri({ id: payload.menuId, locale: executionContext.locale })");
     expect(code).toContain("footerAri({ id: payload.footerId, locale: executionContext.locale })");
+    expect(code).toContain("payload.strips.flatMap((s: any): any[] =>");
     expect(code).toContain(
-      "...payload.strips.map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale }))"
+      'if (s.type == "Hero") return [heroAri({ id: s.id, locale: executionContext.locale })];'
+    );
+    expect(code).toContain(
+      'if (s.type == "Tabs") return [tabsAri({ id: s.id, locale: executionContext.locale })];'
+    );
+    expect(code).toContain(
+      'if (s.type == "Product") return [productAri({ id: s.id, locale: executionContext.locale })];'
     );
     expect(code).toContain(".on(heroAri)");
     expect(code).toContain(".on(tabsAri)");
     expect(code).toContain(
       "tabCollectionAri({ tabsId: payload.id, locale: executionContext.locale })"
     );
+    expect(code).toContain(".on(tabCollectionAri)");
+    expect(code).toContain(
+      "payload.map((item: any) => tabAri({ id: item.id, locale: executionContext.locale }))"
+    );
     expect(code).toContain(".on(tabAri)");
+    expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain(".build()");
     expect(code).not.toContain("islands");
   });

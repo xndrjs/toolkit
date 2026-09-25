@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   assetAri,
-  editorialModuleAri,
   footerAri,
   heroAri,
   menuAri,
@@ -23,7 +22,6 @@ describe("createCmsSource", () => {
     const source = createCmsSource();
     expect(source.id).toBe(CMS_SOURCE_ID);
     expect(source.for.map((family) => family.type).sort()).toEqual([
-      "EditorialModule",
       "Footer",
       "Hero",
       "Menu",
@@ -43,11 +41,10 @@ describe("createCmsSource", () => {
     const tabs = tabsAri({ id: demoIds.tabs, locale });
     const tab = tabAri({ id: demoIds.tabOverview, locale });
     const tabCollection = tabCollectionAri({ tabsId: demoIds.tabs, locale });
-    const editorial = editorialModuleAri({ id: demoIds.heroWelcome, locale });
     const unknownPage = pageAri({ id: "missing-page", locale });
 
     const records = await source.load(
-      [page, hero, menu, footer, tabs, tab, tabCollection, editorial, unknownPage],
+      [page, hero, menu, footer, tabs, tab, tabCollection, unknownPage],
       loadContext
     );
 
@@ -60,7 +57,6 @@ describe("createCmsSource", () => {
         tabs.toString(),
         tab.toString(),
         tabCollection.toString(),
-        editorial.toString(),
       ].sort()
     );
     expect(records.some((r) => r.resource.toString() === unknownPage.toString())).toBe(false);

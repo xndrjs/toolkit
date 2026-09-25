@@ -81,11 +81,43 @@ export function expand(
   target: ResourceConstruction,
   comprehension: Expansion["comprehension"] = null
 ): Expansion {
+  if (comprehension) {
+    return {
+      alias,
+      target: null,
+      multiplicity: "many",
+      comprehension,
+      span,
+    };
+  }
   return {
     alias,
     target,
-    multiplicity: comprehension ? "many" : "one",
-    comprehension,
+    multiplicity: "one",
+    comprehension: null,
+    span,
+  };
+}
+
+/** Many-expand helper: `each item in source ( arms )`. */
+export function expandEach(
+  alias: string,
+  itemBinding: string,
+  source: Expr,
+  arms: { target: ResourceConstruction; when?: Expr | null }[]
+): Expansion {
+  return {
+    alias,
+    target: null,
+    multiplicity: "many",
+    comprehension: {
+      itemBinding,
+      source,
+      arms: arms.map((arm) => ({
+        target: arm.target,
+        when: arm.when ?? null,
+      })),
+    },
     span,
   };
 }
@@ -118,6 +150,14 @@ export function query(
 
 export function lit(value: string | number | boolean | null): Expr {
   return { kind: "literal", value, span };
+}
+
+export function eq(left: Expr, right: Expr): Expr {
+  return { kind: "binary", op: "==", left, right, span };
+}
+
+export function ne(left: Expr, right: Expr): Expr {
+  return { kind: "binary", op: "!=", left, right, span };
 }
 
 export function param(name: string): Expr {

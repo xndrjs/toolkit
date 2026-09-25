@@ -46,8 +46,28 @@ function menuExpand(program: Program) {
 }
 
 describe("checkProgram — pageDetail happy path", () => {
-  it("typechecks the Page / strips comprehension / Menu / Footer / Tabs / Tab graph", () => {
+  it("typechecks the Page / strips each-expand / Menu / Footer / Tabs / Tab graph", () => {
     expect(checkProgram(pageDetailProgram())).toEqual([]);
+  });
+});
+
+describe("checkProgram — each-expand exhaustiveness", () => {
+  it("errors when arms omit a closed type discriminant", () => {
+    const program = withMutatedPageDetail((p) => {
+      const strips = pageProjection(p).expansions.find((e) => e.alias === "strips")!;
+      expect(strips.comprehension).not.toBeNull();
+      // Drop the Product arm.
+      strips.comprehension!.arms = strips.comprehension!.arms.filter(
+        (arm) => arm.target.resource !== "Product"
+      );
+    });
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({
+        code: "INEXHAUSTIVE_EXPAND_ARMS",
+        message: expect.stringContaining('"Product"'),
+      })
+    );
   });
 });
 

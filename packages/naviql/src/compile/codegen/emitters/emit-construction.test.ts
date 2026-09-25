@@ -37,8 +37,8 @@ describe("emitConstruction", () => {
 
     expect(
       emitConstruction(
-        construct("EditorialModule", [arg("id", item("s", "id")), arg("locale", ctx("locale"))])
+        construct("Hero", [arg("id", item("s", "id")), arg("locale", ctx("locale"))])
       )
-    ).toBe("editorialModuleAri({ id: s.id, locale: executionContext.locale })");
+    ).toBe("heroAri({ id: s.id, locale: executionContext.locale })");
   });
 });

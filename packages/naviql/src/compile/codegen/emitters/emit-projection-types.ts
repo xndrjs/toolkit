@@ -79,7 +79,7 @@ function resourceRefsFromPayload(payload: TypeExpr): string[] | null {
  * - ordinary resource → `Query_Resource`
  * - union resource → `Query_A | Query_B | …` (member projections)
  * - collection (`R[]`) → `Query_R[]`
- * - `many` wraps the above in an array (parenthesizing unions)
+ * - `many` / multi-arm → union of arm targets, wrapped in an array
  */
 export function printExpansionAliasType(
   queryName: string,
@@ -87,7 +87,33 @@ export function printExpansionAliasType(
   resources: ResourceTable,
   projected: Set<string>
 ): string {
-  const targetName = expansion.target.resource;
+  if (expansion.multiplicity === "many" && expansion.comprehension !== null) {
+    const armTypes = expansion.comprehension.arms.map((arm) =>
+      printTargetAliasType(queryName, arm.target.resource, resources, projected)
+    );
+    // Deduplicate while preserving order.
+    const unique: string[] = [];
+    for (const t of armTypes) {
+      if (!unique.includes(t)) unique.push(t);
+    }
+    const base = unique.join(" | ");
+    return base.includes("|") ? `(${base})[]` : `${base}[]`;
+  }
+
+  if (expansion.target === null) {
+    throw new Error(`emitProjectionTypes: one-expand missing target in query '${queryName}'`);
+  }
+
+  const base = printTargetAliasType(queryName, expansion.target.resource, resources, projected);
+  return base;
+}
+
+function printTargetAliasType(
+  queryName: string,
+  targetName: string,
+  resources: ResourceTable,
+  projected: Set<string>
+): string {
   const target = resources.get(targetName);
   if (!target) {
     throw new Error(
@@ -96,37 +122,29 @@ export function printExpansionAliasType(
   }
 
   const payload = target.payloadType;
-  let base: string;
 
   if (payload.kind === "array" && payload.of.kind === "resourceRef") {
     const element = payload.of.name;
     requireProjected(queryName, element, projected, `collection element of '${targetName}'`);
-    base = `${projectionTypeName(queryName, element)}[]`;
-  } else {
-    const unionMembers = resourceRefsFromPayload(payload);
-    if (unionMembers !== null && (payload.kind === "union" || unionMembers.length > 1)) {
-      // Union resource (EditorialModule: Tabs | Hero | Product) — strip to members.
-      for (const member of unionMembers) {
-        requireProjected(queryName, member, projected, `union member of '${targetName}'`);
-      }
-      base = unionMembers.map((m) => projectionTypeName(queryName, m)).join(" | ");
-    } else if (payload.kind === "object" || (unionMembers !== null && unionMembers.length === 1)) {
-      // Concrete object resource (or degenerate single resourceRef payload).
-      const concrete = payload.kind === "object" ? targetName : unionMembers![0]!;
-      requireProjected(queryName, concrete, projected, `expansion target '${targetName}'`);
-      base = projectionTypeName(queryName, concrete);
-    } else {
-      throw new Error(
-        `emitProjectionTypes: unsupported payload shape for expansion target '${targetName}' in query '${queryName}'`
-      );
+    return `${projectionTypeName(queryName, element)}[]`;
+  }
+
+  const unionMembers = resourceRefsFromPayload(payload);
+  if (unionMembers !== null && (payload.kind === "union" || unionMembers.length > 1)) {
+    for (const member of unionMembers) {
+      requireProjected(queryName, member, projected, `union member of '${targetName}'`);
     }
+    return unionMembers.map((m) => projectionTypeName(queryName, m)).join(" | ");
+  }
+  if (payload.kind === "object" || (unionMembers !== null && unionMembers.length === 1)) {
+    const concrete = payload.kind === "object" ? targetName : unionMembers![0]!;
+    requireProjected(queryName, concrete, projected, `expansion target '${targetName}'`);
+    return projectionTypeName(queryName, concrete);
   }
 
-  if (expansion.multiplicity === "many") {
-    return base.includes("|") ? `(${base})[]` : `${base}[]`;
-  }
-
-  return base;
+  throw new Error(
+    `emitProjectionTypes: unsupported payload shape for expansion target '${targetName}' in query '${queryName}'`
+  );
 }
 
 function requireProjected(

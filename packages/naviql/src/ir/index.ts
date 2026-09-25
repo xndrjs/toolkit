@@ -1,9 +1,8 @@
 /**
  * NaviQL semantic IR — parser-independent types.
  *
- * Phase 1–2 surface. Omitted for now: comprehensions, islands, `when` on
- * projections, binary/unary exprs, scalar bodies/codecs, scalar-on-scalar,
- * object-backed scalars, named enums.
+ * Phase 1–5+ surface. Omitted for now: islands, `when` on projections,
+ * scalar bodies/codecs, scalar-on-scalar, object-backed scalars, named enums.
  *
  * Presence/absence that affects meaning or diagnostics is never optional:
  * use `null` (or required `boolean`) so producers must choose explicitly.
@@ -88,9 +87,9 @@ export type ResourceDefinition = {
 };
 
 /**
- * Expression nodes used in constructor args and comprehension filters.
+ * Expression nodes used in constructor args and `each` arm `when` filters.
  * `payloadRef` vs `identityRef` stay distinct through typecheck and codegen.
- * `itemRef` is only valid inside a comprehension (binding = itemBinding).
+ * `itemRef` is only valid inside an `each` comprehension (binding = itemBinding).
  */
 export type Expr =
   | { kind: "literal"; value: string | number | boolean | null; span: SourceSpan | null }
@@ -120,26 +119,32 @@ export type ResourceConstruction = {
   span: SourceSpan | null;
 };
 
+/** One arm of an `each` many-expand: construction + optional `when` filter. */
+export type ExpandArm = {
+  target: ResourceConstruction;
+  when: Expr | null;
+};
+
 /**
  * Local expansion edge.
- * - `"one"`: single target ARI (no comprehension).
- * - `"many"`: comprehension over a source array (`for item in source if …`).
- * Multiple `"many"` expansions may share an alias (polymorphic union arms).
+ * - `"one"`: single target ARI (`target` set; `comprehension` null).
+ * - `"many"`: `each item in source ( arms )` — polymorphic constructions.
  * Expanding a collection resource (`TabCollection` → `Tab[]`) is still one `"one"`
- * edge to that resource; members are ordinary `Tab` instances for `on Tab`.
+ * edge to that resource; strategy codegen fans out member ARIs so `on Tab` runs.
  */
 export type Expansion = {
   alias: string;
-  target: ResourceConstruction;
+  /** Non-null iff `multiplicity === "one"`. */
+  target: ResourceConstruction | null;
   multiplicity: "one" | "many";
   /**
    * Present iff `multiplicity === "many"`.
-   * `filter` is `null` when the `if` clause is omitted.
+   * `when` is `null` when the arm has no filter.
    */
   comprehension: {
     itemBinding: string;
     source: Expr;
-    filter: Expr | null;
+    arms: ExpandArm[];
   } | null;
   span: SourceSpan | null;
 };
