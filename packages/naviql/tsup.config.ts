@@ -17,5 +17,6 @@ export default defineConfig({
     "@xndrjs/resource-graph-resolver",
     "langium",
     /^langium\//,
+    "tinyglobby",
   ],
 });
