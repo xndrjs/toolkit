@@ -132,7 +132,7 @@ resource User(id: UserId): {
     expect(result.code).toContain("export type DemoRegistry");
   });
 
-  it("composes resources and strategies for post-detail (postAri + createPostDetailStrategy)", () => {
+  it("composes resources, strategies, and projections for post-detail", () => {
     const root = setupRoot();
     writeFileSync(join(root, "post-detail.naviql"), loadFixture("post-detail.naviql"));
 
@@ -145,8 +145,9 @@ resource User(id: UserId): {
     expect(result.code).toBe(expected);
     expect(result.code).toContain("export const postAri");
     expect(result.code).toContain("export function createPostDetailStrategy");
+    expect(result.code).toContain("export function projectPostDetail");
     expect(result.code).toContain(
-      'import { ari, s, createGraphResolutionStrategy } from "@xndrjs/naviql";'
+      'import { ari, s, createGraphResolutionStrategy, type ContentMap } from "@xndrjs/naviql";'
     );
     expect(result.code).not.toMatch(/from ["'][^"']*\/compile["']/);
     // Resource-only generateResources still ignores queries.
