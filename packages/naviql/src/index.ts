@@ -31,3 +31,5 @@ export {
   type ApplicationResourcePrimitive,
 } from "@xndrjs/application-resources";
 // `ApplicationResourceIdentifier` is already re-exported by resource-graph-resolver.
+
+export * from "./ir";
