@@ -1,0 +1,158 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+import {
+  arrayOf,
+  defScalar,
+  field,
+  objectType,
+  pageDetailProgram,
+  prim,
+  resource,
+  resourceRef,
+  scalarRef,
+  span,
+  strLit,
+  typeProj,
+  union,
+} from "../../fixtures";
+import type { Program, TypeExpr } from "../../ir";
+import { parseAndCheck } from "../parse-and-check";
+import { emitPayloadTypes, printTypeExpr } from "./emit-types";
+import { generateResources } from "./generate-resources";
+
+const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../fixtures");
+
+function loadFixture(name: string): string {
+  return readFileSync(join(fixturesDir, name), "utf8");
+}
+
+function normalizeWhitespace(code: string): string {
+  return code.trim().replace(/\n{3,}/g, "\n\n");
+}
+
+function nullable(of: TypeExpr): TypeExpr {
+  return { kind: "nullable", of, span };
+}
+
+describe("printTypeExpr", () => {
+  it("maps primitives, scalars, literals, nullable, array, union", () => {
+    expect(printTypeExpr(prim("string"))).toBe("string");
+    expect(printTypeExpr(scalarRef("PostId"))).toBe("PostId");
+    expect(printTypeExpr(strLit("Hero"))).toBe('"Hero"');
+    expect(printTypeExpr(nullable(prim("string")))).toBe("string | null");
+    expect(printTypeExpr(arrayOf(prim("number")))).toBe("number[]");
+    expect(printTypeExpr(union(strLit("a"), strLit("b")))).toBe('"a" | "b"');
+    expect(printTypeExpr(resourceRef("Tab"))).toBe("TabPayload");
+  });
+
+  it("parenthesizes union / nullable inside arrays", () => {
+    expect(printTypeExpr(arrayOf(union(strLit("a"), strLit("b"))))).toBe('("a" | "b")[]');
+    expect(printTypeExpr(arrayOf(nullable(prim("string"))))).toBe("(string | null)[]");
+  });
+});
+
+describe("emitPayloadTypes", () => {
+  it("returns empty string when there are no resources", () => {
+    const program: Program = {
+      scalars: [],
+      resources: [],
+      queries: [],
+      span,
+    };
+    expect(emitPayloadTypes(program)).toBe("");
+  });
+
+  it("emits object payloads for Post + User from post-detail.naviql", () => {
+    const { program, diagnostics } = parseAndCheck(
+      loadFixture("post-detail.naviql"),
+      "file:///fixtures/post-detail.naviql"
+    );
+    expect(diagnostics).toEqual([]);
+
+    expect(normalizeWhitespace(emitPayloadTypes(program))).toBe(
+      normalizeWhitespace(`
+export type PostPayload = {
+  id: PostId;
+  title: string;
+  content: string;
+  authorId: UserId;
+};
+
+export type UserPayload = {
+  id: UserId;
+  username: string;
+};
+`)
+    );
+  });
+
+  it("emits resourceRef, unions, and resolved typeProjection from page-detail", () => {
+    const program = pageDetailProgram();
+    const code = emitPayloadTypes(program);
+
+    expect(code).toContain("export type TabCollectionPayload = TabPayload[];");
+    expect(code).toContain(
+      "export type EditorialModulePayload = TabsPayload | HeroPayload | ProductPayload;"
+    );
+    expect(code).toContain(`type: "Tabs" | "Hero" | "Product";`);
+    expect(code).toContain("export type AssetPayload = {");
+    expect(code).toContain(`kind: "image" | "video" | "document";`);
+    expect(code).not.toContain("EditorialModule.type");
+    expect(code).not.toContain("typeProjection");
+  });
+
+  it("emits Page strips with resolved EditorialModule.type projection", () => {
+    const { program, diagnostics } = parseAndCheck(
+      loadFixture("page-detail.naviql"),
+      "file:///fixtures/page-detail.naviql"
+    );
+    expect(diagnostics).toEqual([]);
+
+    const code = emitPayloadTypes(program);
+    expect(code).toContain(`export type PagePayload = {
+  id: PageId;
+  title: string;
+  menuId: MenuId;
+  footerId: FooterId;
+  strips: {
+    type: "Tabs" | "Hero" | "Product";
+    id: EditorialModuleId;
+  }[];
+};`);
+  });
+
+  it("throws on unresolved typeProjection when the target resource is missing", () => {
+    const program: Program = {
+      scalars: [defScalar("Id", "string")],
+      resources: [
+        resource(
+          "Broken",
+          [field("id", scalarRef("Id"))],
+          objectType(field("kind", typeProj("Missing", "type")))
+        ),
+      ],
+      queries: [],
+      span,
+    };
+
+    expect(() => emitPayloadTypes(program)).toThrow(/failed to resolve/);
+  });
+});
+
+describe("generateResources — payload types", () => {
+  it("includes Post/User payloads for post-detail", () => {
+    const { program, diagnostics } = parseAndCheck(
+      loadFixture("post-detail.naviql"),
+      "file:///fixtures/post-detail.naviql"
+    );
+    expect(diagnostics).toEqual([]);
+
+    const { code } = generateResources(program);
+    expect(code).toContain("export type PostPayload = {");
+    expect(code).toContain("export type UserPayload = {");
+    expect(code).toContain("authorId: UserId;");
+  });
+});
