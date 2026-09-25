@@ -91,7 +91,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
       resources: [
         menuAri({ id: payload.menuId, locale: executionContext.locale }),
         footerAri({ id: payload.footerId, locale: executionContext.locale }),
-        ...payload.strips.map((s) => editorialModuleAri({ id: s.id, locale: executionContext.locale })),
+        ...payload.strips.map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale })),
       ],
     }));
 
@@ -122,7 +122,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   strategy.expansion
     .on(tabAri)
     .expand(({ resource, payload, executionContext }) => ({
-      resources: payload.strips.map((s) => editorialModuleAri({ id: s.id, locale: executionContext.locale })),
+      resources: payload.strips.map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale })),
     }));
 
   return strategy;
@@ -167,7 +167,7 @@ describe("generateStrategies golden", () => {
     expect(code).toContain(".on(tabsAri)");
     expect(code).toContain(".on(tabAri)");
     expect(code).toContain(
-      "...payload.strips.map((s) => editorialModuleAri({ id: s.id, locale: executionContext.locale }))"
+      "...payload.strips.map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale }))"
     );
     expect(code).not.toContain(".on(assetAri)");
     expect(code).not.toContain(".on(productAri)");

@@ -38,10 +38,10 @@ function emitManyExpr(expansion: Expansion): string {
   const construction = emitConstruction(expansion.target);
   const { itemBinding, source, filter } = comprehension;
   const sourceExpr = emitExpr(source);
-  const mapFn = `(${itemBinding}) => ${construction}`;
+  const mapFn = `(${itemBinding}: any) => ${construction}`;
 
   if (filter !== null) {
-    return `${sourceExpr}.filter((${itemBinding}) => ${emitExpr(filter)}).map(${mapFn})`;
+    return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(filter)}).map(${mapFn})`;
   }
 
   return `${sourceExpr}.map(${mapFn})`;

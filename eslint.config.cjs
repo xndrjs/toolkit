@@ -24,7 +24,15 @@ const baseConfig = require("@config/eslint").default;
 
 module.exports = [
   // Ignore generated artifacts from package builds.
-  { ignores: ["**/dist/**", "**/.astro/**", "**/.next/**", "**/i18n/generated/**"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/.astro/**",
+      "**/.next/**",
+      "**/i18n/generated/**",
+      "**/src/generated/**",
+    ],
+  },
   ...baseConfig,
   {
     rules: {
