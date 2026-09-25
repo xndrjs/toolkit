@@ -16,6 +16,12 @@ resource Page(id: PageId, locale: Locale) {
   menuId: MenuId
   footerId: FooterId
   featuredTabsId: TabsId
+  // Discriminated union array (demo Page.modules: Tabs | Hero | Product).
+  strips: (
+    { type: "Tabs", id: TabsId }
+    | { type: "Hero", id: HeroId }
+    | { type: "Product", id: ProductId }
+  )[]
 }
 
 resource Hero(id: HeroId, locale: Locale) {
@@ -45,14 +51,18 @@ resource Asset(id: AssetId, locale: Locale) {
 resource Tabs(id: TabsId, locale: Locale) {
   id
   title: string
-  firstTabId: TabId
 }
 
 resource Tab(id: TabId, locale: Locale) {
   id
   title: string
-  stripHeroId: HeroId
-  stripProductId: ProductId
+  tabsId: TabsId
+  // Same polymorphic union as Page.strips (stress: Tab → Tabs nesting).
+  strips: (
+    { type: "Tabs", id: TabsId }
+    | { type: "Hero", id: HeroId }
+    | { type: "Product", id: ProductId }
+  )[]
 }
 
 resource Product(id: ProductId, locale: Locale) {
@@ -74,6 +84,7 @@ query PageDetail(pageId: PageId) {
   on Page p {
     id
     title
+    strips
     expand hero: Hero(id: p.heroId, locale: context.locale)
     expand menu: Menu(id: p.menuId, locale: context.locale)
     expand footer: Footer(id: p.footerId, locale: context.locale)
@@ -107,14 +118,13 @@ query PageDetail(pageId: PageId) {
   on Tabs t {
     id
     title
-    expand firstTab: Tab(id: t.firstTabId, locale: context.locale)
   }
 
   on Tab tab {
     id
     title
-    expand stripHero: Hero(id: tab.stripHeroId, locale: context.locale)
-    expand stripProduct: Product(id: tab.stripProductId, locale: context.locale)
+    strips
+    expand parentTabs: Tabs(id: tab.tabsId, locale: context.locale)
   }
 
   on Product prod {

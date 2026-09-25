@@ -27,6 +27,7 @@ import {
   isArrayTypeExpr,
   isBooleanLiteral,
   isContextRef,
+  isGroupedTypeExpr,
   isIdentityRef,
   isNullLiteral,
   isNumberLiteral,
@@ -38,6 +39,8 @@ import {
   isScalarDeclaration,
   isScalarTypeExpr,
   isStringLiteral,
+  isStringLiteralTypeExpr,
+  isUnionTypeExpr,
   type Expansion as AstExpansion,
   type Expression as AstExpression,
   type Model,
@@ -139,6 +142,17 @@ function lowerPayloadField(field: AstPayloadField, identityFields: FieldDecl[]):
 }
 
 function lowerTypeExpr(type: AstTypeExpr): TypeExpr {
+  if (isUnionTypeExpr(type)) {
+    const members = type.members.flatMap((member) => {
+      const lowered = lowerTypeExpr(member as AstTypeExpr);
+      return lowered.kind === "union" ? lowered.members : [lowered];
+    });
+    return {
+      kind: "union",
+      members,
+      span: spanOf(type),
+    };
+  }
   if (isArrayTypeExpr(type)) {
     // Generated typings narrow `of` to AtomicTypeExpr; nested `T[][]` is ArrayTypeExpr at runtime.
     return {
@@ -147,10 +161,20 @@ function lowerTypeExpr(type: AstTypeExpr): TypeExpr {
       span: spanOf(type),
     };
   }
+  if (isGroupedTypeExpr(type)) {
+    return lowerTypeExpr(type.type);
+  }
   if (isObjectTypeExpr(type)) {
     return {
       kind: "object",
       fields: type.fields.map(lowerTypedField),
+      span: spanOf(type),
+    };
+  }
+  if (isStringLiteralTypeExpr(type)) {
+    return {
+      kind: "stringLiteral",
+      value: type.value,
       span: spanOf(type),
     };
   }
@@ -257,6 +281,8 @@ function cloneTypeExpr(type: TypeExpr): TypeExpr {
       return { kind: "primitive", name: type.name, span: type.span };
     case "scalarRef":
       return { kind: "scalarRef", name: type.name, span: type.span };
+    case "stringLiteral":
+      return { kind: "stringLiteral", value: type.value, span: type.span };
     case "nullable":
       return { kind: "nullable", of: cloneTypeExpr(type.of), span: type.span };
     case "array":
@@ -270,6 +296,12 @@ function cloneTypeExpr(type: TypeExpr): TypeExpr {
           inheritedFromIdentity: f.inheritedFromIdentity,
           span: f.span,
         })),
+        span: type.span,
+      };
+    case "union":
+      return {
+        kind: "union",
+        members: type.members.map(cloneTypeExpr),
         span: type.span,
       };
   }

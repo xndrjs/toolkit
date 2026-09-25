@@ -1,7 +1,7 @@
 grammar NaviQl
 
 // MVP surface matching Phase 1 IR / analysis PostDetail + page-detail.
-// No comprehensions, islands, filters, unions, or when-clauses.
+// No comprehensions, islands, filters, or when-clauses.
 
 entry Model:
     declarations+=Declaration*;
@@ -34,14 +34,17 @@ PayloadField:
     name=ID (':' type=TypeExpr)?;
 
 /**
- * Types: primitives, scalar refs, inline objects, and postfix arrays.
- * `string[]`, `{ name: string; }[]`, nested objects — left-associative `[]`.
+ * Type precedence (tight → loose): atomic / `[]` / `|`.
+ * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
  */
 TypeExpr:
+    UnionMember ({infer UnionTypeExpr.members+=current} '|' members+=UnionMember)*;
+
+UnionMember:
     AtomicTypeExpr ({infer ArrayTypeExpr.of=current} '[' ']')*;
 
 AtomicTypeExpr:
-    PrimitiveTypeExpr | ScalarTypeExpr | ObjectTypeExpr;
+    PrimitiveTypeExpr | ScalarTypeExpr | ObjectTypeExpr | StringLiteralTypeExpr | GroupedTypeExpr;
 
 PrimitiveTypeExpr:
     name=PrimitiveName;
@@ -49,9 +52,15 @@ PrimitiveTypeExpr:
 ScalarTypeExpr:
     name=ID;
 
-/** Inline structural object; optional `;` after each field (TS-like). */
+/** Inline structural object; optional `;` or `,` after each field (TS-like). */
 ObjectTypeExpr:
-    '{' (fields+=TypedField ';'?)* '}';
+    '{' (fields+=TypedField (';'|',')?)* '}';
+
+StringLiteralTypeExpr:
+    value=STRING;
+
+GroupedTypeExpr:
+    '(' type=TypeExpr ')';
 
 // --- Queries -----------------------------------------------------------------
 
