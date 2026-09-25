@@ -22,6 +22,7 @@
     "@xndrjs/i18n-demo",
     "@xndrjs/contentful-to-zod-demo",
     "@xndrjs/resource-graph-resolver-demo",
-    "@xndrjs/resource-graph-resolver-bench"
+    "@xndrjs/resource-graph-resolver-bench",
+    "@xndrjs/demo-naviql"
   ]
 }
