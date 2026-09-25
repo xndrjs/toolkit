@@ -119,7 +119,7 @@ export type PageDetail_Page = {
   title: string;
   menu: PageDetail_Menu;
   footer: PageDetail_Footer;
-  strips: (PageDetail_Tabs | PageDetail_Hero | PageDetail_Product)[];
+  strips: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[];
 };
 
 export type PageDetail_Hero = {
@@ -162,7 +162,7 @@ export type PageDetail_Tab = {
   $type: "Tab";
   id: TabId;
   title: string;
-  strips: (PageDetail_Tabs | PageDetail_Hero | PageDetail_Product)[];
+  strips: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[];
 };
 
 export type PageDetail_Product = {
@@ -192,7 +192,12 @@ export function projectPageDetail(
     shell.title = payload.title;
     shell.menu = projectNode(menuAri({ id: payload.menuId, locale: executionContext.locale }));
     shell.footer = projectNode(footerAri({ id: payload.footerId, locale: executionContext.locale }));
-    shell.strips = payload.strips.map((s: any) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })));
+    shell.strips = payload.strips.flatMap((s: any): any[] => {
+            if (s.type == "Hero") return [projectNode(heroAri({ id: s.id, locale: executionContext.locale }))];
+            if (s.type == "Tabs") return [projectNode(tabsAri({ id: s.id, locale: executionContext.locale }))];
+            if (s.type == "Product") return [projectNode(productAri({ id: s.id, locale: executionContext.locale }))];
+            return [];
+          });
     return shell;
   };
 
@@ -252,7 +257,12 @@ export function projectPageDetail(
     memo.set(resource.toString(), shell);
     shell.id = payload.id;
     shell.title = payload.title;
-    shell.strips = payload.strips.map((s: any) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })));
+    shell.strips = payload.strips.flatMap((s: any): any[] => {
+            if (s.type == "Hero") return [projectNode(heroAri({ id: s.id, locale: executionContext.locale }))];
+            if (s.type == "Tabs") return [projectNode(tabsAri({ id: s.id, locale: executionContext.locale }))];
+            if (s.type == "Product") return [projectNode(productAri({ id: s.id, locale: executionContext.locale }))];
+            return [];
+          });
     return shell;
   };
 
@@ -260,7 +270,12 @@ export function projectPageDetail(
     const shell: any = { $type: "Tab" };
     shell.id = payload.id;
     shell.title = payload.title;
-    shell.strips = payload.strips.map((s: any) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })));
+    shell.strips = payload.strips.flatMap((s: any): any[] => {
+            if (s.type == "Hero") return [projectNode(heroAri({ id: s.id, locale: executionContext.locale }))];
+            if (s.type == "Tabs") return [projectNode(tabsAri({ id: s.id, locale: executionContext.locale }))];
+            if (s.type == "Product") return [projectNode(productAri({ id: s.id, locale: executionContext.locale }))];
+            return [];
+          });
     return shell;
   };
 
@@ -295,22 +310,6 @@ export function projectPageDetail(
         return projectOnTab(ari, payload);
       case "Product":
         return projectOnProduct(ari, payload);
-      case "EditorialModule": {
-        switch ((payload as any).type) {
-          case "Tabs":
-            return projectOnTabs(ari, payload);
-          case "Hero":
-            return projectOnHero(ari, payload);
-          case "Product":
-            return projectOnProduct(ari, payload);
-          default:
-            throw new Error(
-              "projectPageDetail: cannot discriminate EditorialModule payload (type=" +
-                JSON.stringify((payload as any).type) +
-                ")"
-            );
-        }
-      }
       default:
         throw new Error(
           "projectPageDetail: unexpected resource type " + JSON.stringify(ari.type)
@@ -355,9 +354,10 @@ describe("generateProjections golden", () => {
     expectOnlyNaviqlRuntimeImport(code);
     expect(normalizeWhitespace(code)).toBe(normalizeWhitespace(PAGE_DETAIL_PROJECTION_GOLDEN));
 
-    expect(code).toContain("strips: (PageDetail_Tabs | PageDetail_Hero | PageDetail_Product)[];");
+    expect(code).toContain("strips: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[];");
     expect(code).toContain("tabs: PageDetail_Tab[];");
-    expect(code).toContain('case "EditorialModule":');
+    expect(code).not.toContain('case "EditorialModule":');
+    expect(code).toContain("payload.strips.flatMap((s: any): any[] =>");
     expect(code).toContain("projectOnTabFromPayload");
     expect(code).toContain(
       "const __collectionPayload = contentMap.get(__collectionAri as never) as any;"

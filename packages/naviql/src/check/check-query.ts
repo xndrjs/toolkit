@@ -1,4 +1,4 @@
-import type { Expansion, Expr, QueryDefinition, TypeExpr } from "../ir";
+import type { ExpandArm, Expansion, Expr, QueryDefinition, TypeExpr } from "../ir";
 import { checkConstruction } from "./construction";
 import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
@@ -119,6 +119,14 @@ export function checkQuery(
             path: expPath,
           });
         }
+        if (expansion.target === null) {
+          sink.push({
+            code: "INVALID_COMPREHENSION",
+            message: `Expansion '${expansion.alias}' has multiplicity "one" but no target`,
+            path: expPath,
+          });
+          continue;
+        }
         checkConstruction(expansion.target, expPath, scope, scalars, resources, sink);
       }
     }
@@ -140,7 +148,15 @@ function checkManyExpansion(
       message: `Expansion '${expansion.alias}' has multiplicity "many" but no comprehension`,
       path: expPath,
     });
-    checkConstruction(expansion.target, expPath, scope, scalars, resources, sink);
+    return;
+  }
+
+  if (comprehension.arms.length === 0) {
+    sink.push({
+      code: "INVALID_COMPREHENSION",
+      message: `Expansion '${expansion.alias}' each-comprehension has no arms`,
+      path: expPath,
+    });
     return;
   }
 
@@ -165,34 +181,52 @@ function checkManyExpansion(
     return;
   }
 
-  let itemType = unwrapped.of;
-  if (comprehension.filter) {
-    const narrowed = narrowItemTypeByFilter(
-      itemType,
-      comprehension.filter,
-      comprehension.itemBinding
-    );
-    const filterScope: QueryScope = {
-      ...scope,
-      items: new Map([[comprehension.itemBinding, unwrapped.of]]),
-    };
-    const filterType = inferExprType(
-      comprehension.filter,
-      `${expPath}.filter`,
-      filterScope,
+  const elementType = unwrapped.of;
+
+  for (let i = 0; i < comprehension.arms.length; i++) {
+    checkExpandArm(
+      comprehension.arms[i]!,
+      `${expPath}.arms.${i}`,
+      comprehension.itemBinding,
+      elementType,
+      scope,
+      scalars,
       resources,
       sink
     );
-    if (filterType) {
-      const prim = unwrapNullable(filterType);
+  }
+
+  checkArmExhaustiveness(elementType, comprehension.arms, comprehension.itemBinding, expPath, sink);
+}
+
+function checkExpandArm(
+  arm: ExpandArm,
+  armPath: string,
+  itemBinding: string,
+  elementType: TypeExpr,
+  scope: QueryScope,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  let itemType = elementType;
+  if (arm.when) {
+    const whenScope: QueryScope = {
+      ...scope,
+      items: new Map([[itemBinding, elementType]]),
+    };
+    const whenType = inferExprType(arm.when, `${armPath}.when`, whenScope, resources, sink);
+    if (whenType) {
+      const prim = unwrapNullable(whenType);
       if (prim.kind !== "primitive" || prim.name !== "boolean") {
         sink.push({
           code: "TYPE_MISMATCH",
-          message: `Comprehension filter must be boolean, got ${formatType(filterType)}`,
-          path: `${expPath}.filter`,
+          message: `Arm when-clause must be boolean, got ${formatType(whenType)}`,
+          path: `${armPath}.when`,
         });
       }
     }
+    const narrowed = narrowItemTypeByFilter(elementType, arm.when, itemBinding);
     if (narrowed) {
       itemType = narrowed;
     }
@@ -200,9 +234,65 @@ function checkManyExpansion(
 
   const bodyScope: QueryScope = {
     ...scope,
-    items: new Map([[comprehension.itemBinding, itemType]]),
+    items: new Map([[itemBinding, itemType]]),
   };
-  checkConstruction(expansion.target, expPath, bodyScope, scalars, resources, sink);
+  checkConstruction(arm.target, armPath, bodyScope, scalars, resources, sink);
+}
+
+/**
+ * Closed union of objects with `type: "Lit"` discriminants must be covered by
+ * at least one `when item.type == "Lit"` arm.
+ */
+function checkArmExhaustiveness(
+  elementType: TypeExpr,
+  arms: ExpandArm[],
+  itemBinding: string,
+  expPath: string,
+  sink: DiagnosticSink
+): void {
+  const required = closedTypeDiscriminants(elementType);
+  if (required === null || required.size === 0) {
+    return;
+  }
+
+  const covered = new Set<string>();
+  for (const arm of arms) {
+    if (!arm.when) continue;
+    const disc =
+      arm.when.kind === "binary" ? discriminantLiteral(arm.when, itemBinding) : undefined;
+    if (disc && arm.when.op === "==") {
+      covered.add(disc.value);
+    }
+  }
+
+  const missing = [...required].filter((v) => !covered.has(v)).sort();
+  if (missing.length > 0) {
+    sink.push({
+      code: "INEXHAUSTIVE_EXPAND_ARMS",
+      message: `each-expand arms do not cover discriminant(s): ${missing.map((v) => JSON.stringify(v)).join(", ")}`,
+      path: expPath,
+    });
+  }
+}
+
+/** Returns the set of `type` literal values when element is a closed disc. union; else null. */
+function closedTypeDiscriminants(elementType: TypeExpr): Set<string> | null {
+  const members =
+    elementType.kind === "union"
+      ? elementType.members
+      : elementType.kind === "object"
+        ? [elementType]
+        : null;
+  if (!members || members.length === 0) return null;
+
+  const values = new Set<string>();
+  for (const member of members) {
+    if (member.kind !== "object") return null;
+    const typeField = member.fields.find((f) => f.name === "type");
+    if (!typeField || typeField.type.kind !== "stringLiteral") return null;
+    values.add(typeField.type.value);
+  }
+  return values;
 }
 
 /**

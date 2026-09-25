@@ -1,7 +1,7 @@
 grammar NaviQl
 
 // MVP surface: scalars, resources (`Name(identity): payloadType`), queries,
-// expansions with optional comprehensions (`for … in … if …`).
+// expansions with `each` many-arms (`when` per arm).
 // No islands or projection `when`-clauses.
 
 entry Model:
@@ -100,13 +100,17 @@ ProjectionClause:
 
 Expansion:
     'expand' alias=ID ':' (
-        '[' target=ResourceConstruction comprehension=ComprehensionTail ']'
+        each=EachComprehension
       | target=ResourceConstruction
     );
 
-/** `for item in source if filter` — used inside `[ … ]` many-expansions. */
-ComprehensionTail:
-    'for' itemBinding=ID 'in' source=Expression ('if' filter=Expression)?;
+/** `each item in source ( Constr when …, … )` — polymorphic many-expand. */
+EachComprehension:
+    'each' itemBinding=ID 'in' source=Expression
+        '(' arms+=ExpandArm (',' arms+=ExpandArm)* ')';
+
+ExpandArm:
+    target=ResourceConstruction ('when' when=Expression)?;
 
 ResourceConstruction:
     resource=ID '(' (args+=NamedArg (',' args+=NamedArg)*)? ')';
@@ -117,7 +121,7 @@ NamedArg:
 // --- Expressions -------------------------------------------------------------
 // Path shapes are classified during lowering (param / payloadRef / itemRef).
 // `context.path` and `@binding[.path]` are dedicated forms (context is a keyword).
-// Equality is only needed for comprehension filters (`s.type == "Hero"`).
+// Equality is only needed for `each` arm `when` filters (`s.type == "Hero"`).
 
 Expression:
     Atom ({infer BinaryExpr.left=current} op=('==' | '!=') right=Atom)?;

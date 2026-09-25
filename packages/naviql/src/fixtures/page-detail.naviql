@@ -8,18 +8,18 @@ scalar TabsId on string;
 scalar TabId on string;
 scalar ProductId on string;
 scalar Sku on string;
-scalar EditorialModuleId on string;
 
 resource Page(id: PageId, locale: Locale): {
   id
   title: string
   menuId: MenuId
   footerId: FooterId
-  // Polymorphic modules — discriminant projected from EditorialModule.
-  strips: {
-    type: EditorialModule.type
-    id: EditorialModuleId
-  }[]
+  // Polymorphic module stubs — discriminant + branded id per arm.
+  strips: (
+    { type: "Hero", id: HeroId } |
+    { type: "Tabs", id: TabsId } |
+    { type: "Product", id: ProductId }
+  )[]
 }
 
 resource Hero(id: HeroId, locale: Locale): {
@@ -57,11 +57,12 @@ resource Tabs(id: TabsId, locale: Locale): {
 resource Tab(id: TabId, locale: Locale): {
   id
   title: string
-  // Same polymorphic union as Page.strips (Tabs nesting / recursion).
-  strips: {
-    type: EditorialModule.type
-    id: EditorialModuleId
-  }[]
+  // Same polymorphic stubs as Page.strips (Tabs nesting / recursion).
+  strips: (
+    { type: "Hero", id: HeroId } |
+    { type: "Tabs", id: TabsId } |
+    { type: "Product", id: ProductId }
+  )[]
 }
 
 /** Collection resource: resolves to Tab instances (normalized into the graph). */
@@ -73,9 +74,6 @@ resource Product(id: ProductId, locale: Locale): {
   sku: Sku
   title: string
 }
-
-/** Union resource: one strip resolves to Tabs | Hero | Product (Page and Tab). */
-resource EditorialModule(id: EditorialModuleId, locale: Locale): Tabs | Hero | Product
 
 query PageDetail(pageId: PageId) {
   context {
@@ -92,7 +90,11 @@ query PageDetail(pageId: PageId) {
     title
     expand menu: Menu(id: p.menuId, locale: context.locale)
     expand footer: Footer(id: p.footerId, locale: context.locale)
-    expand strips: [EditorialModule(id: s.id, locale: context.locale) for s in p.strips]
+    expand strips: each s in p.strips (
+      Hero(id: s.id, locale: context.locale) when s.type == "Hero",
+      Tabs(id: s.id, locale: context.locale) when s.type == "Tabs",
+      Product(id: s.id, locale: context.locale) when s.type == "Product"
+    )
   }
 
   on Hero h {
@@ -129,7 +131,11 @@ query PageDetail(pageId: PageId) {
   on Tab tab {
     id
     title
-    expand strips: [EditorialModule(id: s.id, locale: context.locale) for s in tab.strips]
+    expand strips: each s in tab.strips (
+      Hero(id: s.id, locale: context.locale) when s.type == "Hero",
+      Tabs(id: s.id, locale: context.locale) when s.type == "Tabs",
+      Product(id: s.id, locale: context.locale) when s.type == "Product"
+    )
   }
 
   on Product prod {

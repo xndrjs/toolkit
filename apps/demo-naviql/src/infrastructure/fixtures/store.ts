@@ -1,6 +1,5 @@
 import {
   assetAri,
-  editorialModuleAri,
   footerAri,
   heroAri,
   menuAri,
@@ -11,7 +10,6 @@ import {
   tabsAri,
   type AssetId,
   type AssetPayload,
-  type EditorialModuleId,
   type FooterId,
   type FooterPayload,
   type HeroId,
@@ -74,9 +72,6 @@ function productId(id: string): ProductId {
 function assetId(id: string): AssetId {
   return id as AssetId;
 }
-function moduleId(id: string): EditorialModuleId {
-  return id as EditorialModuleId;
-}
 function sku(value: string): Sku {
   return value as Sku;
 }
@@ -89,9 +84,9 @@ const pagePayload: PagePayload = {
   menuId: menuId(demoIds.menu),
   footerId: footerId(demoIds.footer),
   strips: [
-    { type: "Tabs", id: moduleId(demoIds.tabs) },
-    { type: "Hero", id: moduleId(demoIds.heroWelcome) },
-    { type: "Product", id: moduleId(demoIds.productTshirt) },
+    { type: "Tabs", id: tabsId(demoIds.tabs) },
+    { type: "Hero", id: heroId(demoIds.heroWelcome) },
+    { type: "Product", id: productId(demoIds.productTshirt) },
   ],
 };
 
@@ -131,8 +126,8 @@ const tabOverviewPayload: TabPayload = {
   id: tabId(demoIds.tabOverview),
   title: "Overview",
   strips: [
-    { type: "Hero", id: moduleId(demoIds.heroNested) },
-    { type: "Product", id: moduleId(demoIds.productHoodie) },
+    { type: "Hero", id: heroId(demoIds.heroNested) },
+    { type: "Product", id: productId(demoIds.productHoodie) },
   ],
 };
 
@@ -177,12 +172,9 @@ const assetHeroNestedPayload: AssetPayload = {
  * In-memory payloads keyed by `ari.toString()`.
  *
  * Ownership (which DataSource may return the key) follows the Phase 6 split:
- * - cms: Page / Hero / Menu / Footer / Tabs / Tab / TabCollection / EditorialModule
+ * - cms: Page / Hero / Menu / Footer / Tabs / Tab / TabCollection
  * - catalog: Product
  * - cdn: Asset
- *
- * EditorialModule keys reuse the concrete Hero / Tabs / Product payloads so
- * union strips project via `$type` discrimination.
  */
 export const demoFixtureStore: ReadonlyMap<string, unknown> = new Map<string, unknown>([
   [pageAri({ id: demoIds.page, locale }).toString(), pagePayload],
@@ -193,11 +185,6 @@ export const demoFixtureStore: ReadonlyMap<string, unknown> = new Map<string, un
   [tabsAri({ id: demoIds.tabs, locale }).toString(), tabsPayload],
   [tabAri({ id: demoIds.tabOverview, locale }).toString(), tabOverviewPayload],
   [tabCollectionAri({ tabsId: demoIds.tabs, locale }).toString(), tabCollectionPayload],
-  [editorialModuleAri({ id: demoIds.tabs, locale }).toString(), tabsPayload],
-  [editorialModuleAri({ id: demoIds.heroWelcome, locale }).toString(), heroWelcomePayload],
-  [editorialModuleAri({ id: demoIds.heroNested, locale }).toString(), heroNestedPayload],
-  [editorialModuleAri({ id: demoIds.productTshirt, locale }).toString(), productTshirtPayload],
-  [editorialModuleAri({ id: demoIds.productHoodie, locale }).toString(), productHoodiePayload],
   [productAri({ id: demoIds.productTshirt, locale }).toString(), productTshirtPayload],
   [productAri({ id: demoIds.productHoodie, locale }).toString(), productHoodiePayload],
   [assetAri({ id: demoIds.assetLogo, locale }).toString(), assetLogoPayload],

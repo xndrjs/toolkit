@@ -58,21 +58,28 @@ describe("emitProjections", () => {
     expect(code).toContain("return projectNode(root) as PostDetailResult;");
   });
 
-  it("emits union discrimination and collection map for page-detail", () => {
+  it("emits multi-arm each strips and collection map for page-detail", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("page-detail.naviql"));
     expect(diagnostics).toEqual([]);
 
     const code = emitProjections(program!);
 
     expect(code).toContain("export function projectPageDetail(");
+    expect(code).toContain("payload.strips.flatMap((s: any): any[] =>");
     expect(code).toContain(
-      "payload.strips.map((s: any) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })))"
+      'if (s.type == "Hero") return [projectNode(heroAri({ id: s.id, locale: executionContext.locale }))];'
     );
-    expect(code).toContain('case "EditorialModule":');
+    expect(code).toContain(
+      'if (s.type == "Tabs") return [projectNode(tabsAri({ id: s.id, locale: executionContext.locale }))];'
+    );
+    expect(code).toContain(
+      'if (s.type == "Product") return [projectNode(productAri({ id: s.id, locale: executionContext.locale }))];'
+    );
+    expect(code).not.toContain("editorialModuleAri");
+    expect(code).not.toContain('case "EditorialModule":');
     expect(code).toContain('case "Hero":');
     expect(code).toContain('case "Tabs":');
     expect(code).toContain('case "Product":');
-    expect(code).toContain("cannot discriminate EditorialModule payload");
     expect(code).toContain(
       "tabCollectionAri({ tabsId: payload.id, locale: executionContext.locale })"
     );

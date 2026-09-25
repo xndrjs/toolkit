@@ -110,8 +110,6 @@ export type ProductId = Branded<"ProductId", string>;
 
 export type Sku = Branded<"Sku", string>;
 
-export type EditorialModuleId = Branded<"EditorialModuleId", string>;
-
 export const pageAri = ari(
   "Page",
   s.object({ id: s.string(), locale: s.string() }),
@@ -166,21 +164,21 @@ export const productAri = ari(
 );
 export type ProductResource = ReturnType<typeof productAri>;
 
-export const editorialModuleAri = ari(
-  "EditorialModule",
-  s.object({ id: s.string(), locale: s.string() }),
-);
-export type EditorialModuleResource = ReturnType<typeof editorialModuleAri>;
-
 export type PagePayload = {
   id: PageId;
   title: string;
   menuId: MenuId;
   footerId: FooterId;
-  strips: {
-    type: "Tabs" | "Hero" | "Product";
-    id: EditorialModuleId;
-  }[];
+  strips: ({
+    type: "Hero";
+    id: HeroId;
+  } | {
+    type: "Tabs";
+    id: TabsId;
+  } | {
+    type: "Product";
+    id: ProductId;
+  })[];
 };
 
 export type HeroPayload = {
@@ -218,10 +216,16 @@ export type TabsPayload = {
 export type TabPayload = {
   id: TabId;
   title: string;
-  strips: {
-    type: "Tabs" | "Hero" | "Product";
-    id: EditorialModuleId;
-  }[];
+  strips: ({
+    type: "Hero";
+    id: HeroId;
+  } | {
+    type: "Tabs";
+    id: TabsId;
+  } | {
+    type: "Product";
+    id: ProductId;
+  })[];
 };
 
 export type TabCollectionPayload = TabPayload[];
@@ -233,8 +237,6 @@ export type ProductPayload = {
   title: string;
 };
 
-export type EditorialModulePayload = TabsPayload | HeroPayload | ProductPayload;
-
 export type ContentRegistry = {
   Page: PagePayload;
   Hero: HeroPayload;
@@ -245,7 +247,6 @@ export type ContentRegistry = {
   Tab: TabPayload;
   TabCollection: TabCollectionPayload;
   Product: ProductPayload;
-  EditorialModule: EditorialModulePayload;
 };
 `;
 
@@ -275,10 +276,11 @@ describe("generateResources golden", () => {
 
     // Spot-check cases the golden must cover.
     expect(code).toContain("export type TabCollectionPayload = TabPayload[];");
-    expect(code).toContain(
-      "export type EditorialModulePayload = TabsPayload | HeroPayload | ProductPayload;"
-    );
-    expect(code).toContain(`type: "Tabs" | "Hero" | "Product";`);
+    expect(code).not.toContain("EditorialModulePayload");
+    expect(code).not.toContain("editorialModuleAri");
+    expect(code).toContain(`type: "Hero"`);
+    expect(code).toContain(`type: "Tabs"`);
+    expect(code).toContain(`type: "Product"`);
     expect(code).not.toContain("EditorialModule.type");
     expect(code).not.toContain("typeProjection");
   });

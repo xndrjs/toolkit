@@ -79,23 +79,7 @@ export function inferExprType(
       if (expr.path.length === 0) {
         return itemType;
       }
-      const inner = unwrapNullable(itemType);
-      if (inner.kind !== "object") {
-        sink.push({
-          code: "UNKNOWN_ITEM_PATH",
-          message: `Cannot access path on non-object item type ${formatType(itemType)}`,
-          path,
-        });
-        return undefined;
-      }
-      return resolvePathOnFields(
-        expr.path,
-        new Map(inner.fields.map((f) => [f.name, f])),
-        path,
-        "UNKNOWN_ITEM_PATH",
-        "item",
-        sink
-      );
+      return resolvePathOnItemType(expr.path, itemType, path, sink);
     }
     case "binary": {
       const left = inferExprType(expr.left, `${path}.left`, scope, resources, sink);
@@ -229,4 +213,54 @@ function resolvePathOnFields(
   }
 
   return currentType;
+}
+
+/**
+ * Resolve a path on an item type, including unions of objects that share the
+ * field (discriminated stubs: `{ type: "Hero", id: HeroId } | …`).
+ */
+function resolvePathOnItemType(
+  pathSegments: string[],
+  itemType: TypeExpr,
+  diagPath: string,
+  sink: DiagnosticSink
+): TypeExpr | undefined {
+  const inner = unwrapNullable(itemType);
+  if (inner.kind === "object") {
+    return resolvePathOnFields(
+      pathSegments,
+      new Map(inner.fields.map((f) => [f.name, f])),
+      diagPath,
+      "UNKNOWN_ITEM_PATH",
+      "item",
+      sink
+    );
+  }
+
+  if (inner.kind === "union") {
+    const memberTypes: TypeExpr[] = [];
+    for (const member of inner.members) {
+      const resolved = resolvePathOnItemType(pathSegments, member, diagPath, sink);
+      if (!resolved) {
+        return undefined;
+      }
+      memberTypes.push(resolved);
+    }
+    // Collapse identical types; otherwise keep a union (e.g. HeroId | TabsId | ProductId).
+    const unique: TypeExpr[] = [];
+    for (const t of memberTypes) {
+      if (!unique.some((u) => formatType(u) === formatType(t))) {
+        unique.push(t);
+      }
+    }
+    if (unique.length === 1) return unique[0];
+    return { kind: "union", members: unique, span: null };
+  }
+
+  sink.push({
+    code: "UNKNOWN_ITEM_PATH",
+    message: `Cannot access path on non-object item type ${formatType(itemType)}`,
+    path: diagPath,
+  });
+  return undefined;
 }

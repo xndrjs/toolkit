@@ -1,7 +1,6 @@
 import { defineDataSourceFor, type DataSource } from "@xndrjs/naviql";
 
 import {
-  editorialModuleAri,
   footerAri,
   heroAri,
   menuAri,
@@ -10,8 +9,6 @@ import {
   tabCollectionAri,
   tabsAri,
   type ContentRegistry,
-  type EditorialModulePayload,
-  type EditorialModuleResource,
   type FooterPayload,
   type FooterResource,
   type HeroPayload,
@@ -39,30 +36,20 @@ type CmsRecord =
   | { resource: FooterResource; payload: FooterPayload }
   | { resource: TabsResource; payload: TabsPayload }
   | { resource: TabResource; payload: TabPayload }
-  | { resource: TabCollectionResource; payload: TabCollectionPayload }
-  | { resource: EditorialModuleResource; payload: EditorialModulePayload };
+  | { resource: TabCollectionResource; payload: TabCollectionPayload };
 
 const defineCmsSource = defineDataSourceFor<ContentRegistry, PageDetailExecutionContext>();
 
 /**
  * Editorial graph source: owns Page / Hero / Menu / Footer / Tabs / Tab /
- * TabCollection / EditorialModule.
+ * TabCollection.
  */
 export function createCmsSource(
   store: ReadonlyMap<string, unknown> = demoFixtureStore
 ): DataSource<ContentRegistry, PageDetailExecutionContext> {
   return defineCmsSource({
     id: CMS_SOURCE_ID,
-    for: [
-      pageAri,
-      heroAri,
-      menuAri,
-      footerAri,
-      tabsAri,
-      tabAri,
-      tabCollectionAri,
-      editorialModuleAri,
-    ],
+    for: [pageAri, heroAri, menuAri, footerAri, tabsAri, tabAri, tabCollectionAri],
     async load(batch) {
       const records: CmsRecord[] = [];
 
@@ -98,10 +85,6 @@ export function createCmsSource(
         }
         if (tabCollectionAri.matches(resource)) {
           records.push({ resource, payload: payload as TabCollectionPayload });
-          continue;
-        }
-        if (editorialModuleAri.matches(resource)) {
-          records.push({ resource, payload: payload as EditorialModulePayload });
         }
       }
 
