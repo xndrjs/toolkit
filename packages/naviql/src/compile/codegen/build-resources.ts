@@ -37,7 +37,7 @@ function withFileUri(diagnostic: Diagnostic, uri: string): Diagnostic {
 
 /**
  * Collect `.naviql` files, parse/lower each, merge IR, check once, then emit
- * a single module (resources + strategy builders when queries exist).
+ * a single module (resources + strategy builders + projectors when queries exist).
  *
  * Per-file semantic diagnostics from `parseAndCheck` are ignored — only
  * `SYNTAX_ERROR` is kept from that phase so cross-file references work.
