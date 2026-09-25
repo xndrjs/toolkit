@@ -9,17 +9,86 @@ import * as langium from "langium";
 export const NaviQlTerminals = {
   WS: /\s+/,
   ID: /[_a-zA-Z][\w_]*/,
+  STRING: /"(\\.|[^"\\])*"|'(\\.|[^'\\])*'/,
+  NUMBER: /-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?/,
   ML_COMMENT: /\/\*[\s\S]*?\*\//,
   SL_COMMENT: /\/\/[^\n\r]*/,
 };
 
 export type NaviQlTerminalNames = keyof typeof NaviQlTerminals;
 
-export type NaviQlKeywordNames = ";" | "placeholder";
+export type NaviQlKeywordNames =
+  | "("
+  | ")"
+  | ","
+  | "."
+  | ":"
+  | ";"
+  | "@"
+  | "boolean"
+  | "context"
+  | "expand"
+  | "false"
+  | "null"
+  | "number"
+  | "on"
+  | "query"
+  | "resource"
+  | "root"
+  | "scalar"
+  | "string"
+  | "true"
+  | "{"
+  | "}";
 
 export type NaviQlTokenNames = NaviQlTerminalNames | NaviQlKeywordNames;
 
-export type Declaration = Placeholder;
+export interface BooleanLiteral extends langium.AstNode {
+  readonly $container: NamedArg;
+  readonly $type: "BooleanLiteral";
+  value: "false" | "true";
+}
+
+export const BooleanLiteral = {
+  $type: "BooleanLiteral",
+  value: "value",
+} as const;
+
+export function isBooleanLiteral(item: unknown): item is BooleanLiteral {
+  return reflection.isInstance(item, BooleanLiteral.$type);
+}
+
+export interface ContextBlock extends langium.AstNode {
+  readonly $container: QueryDeclaration;
+  readonly $type: "ContextBlock";
+  fields: Array<TypedField>;
+}
+
+export const ContextBlock = {
+  $type: "ContextBlock",
+  fields: "fields",
+} as const;
+
+export function isContextBlock(item: unknown): item is ContextBlock {
+  return reflection.isInstance(item, ContextBlock.$type);
+}
+
+export interface ContextRef extends langium.AstNode {
+  readonly $container: NamedArg;
+  readonly $type: "ContextRef";
+  path: Array<string>;
+}
+
+export const ContextRef = {
+  $type: "ContextRef",
+  path: "path",
+} as const;
+
+export function isContextRef(item: unknown): item is ContextRef {
+  return reflection.isInstance(item, ContextRef.$type);
+}
+
+export type Declaration = QueryDeclaration | ResourceDeclaration | ScalarDeclaration;
 
 export const Declaration = {
   $type: "Declaration",
@@ -27,6 +96,60 @@ export const Declaration = {
 
 export function isDeclaration(item: unknown): item is Declaration {
   return reflection.isInstance(item, Declaration.$type);
+}
+
+export interface Expansion extends langium.AstNode {
+  readonly $container: ProjectionClause;
+  readonly $type: "Expansion";
+  alias: string;
+  target: ResourceConstruction;
+}
+
+export const Expansion = {
+  $type: "Expansion",
+  alias: "alias",
+  target: "target",
+} as const;
+
+export function isExpansion(item: unknown): item is Expansion {
+  return reflection.isInstance(item, Expansion.$type);
+}
+
+export type Expression = ContextRef | IdentityRef | Literal | PathRef;
+
+export const Expression = {
+  $type: "Expression",
+} as const;
+
+export function isExpression(item: unknown): item is Expression {
+  return reflection.isInstance(item, Expression.$type);
+}
+
+export interface IdentityRef extends langium.AstNode {
+  readonly $container: NamedArg;
+  readonly $type: "IdentityRef";
+  binding: string;
+  path: Array<string>;
+}
+
+export const IdentityRef = {
+  $type: "IdentityRef",
+  binding: "binding",
+  path: "path",
+} as const;
+
+export function isIdentityRef(item: unknown): item is IdentityRef {
+  return reflection.isInstance(item, IdentityRef.$type);
+}
+
+export type Literal = BooleanLiteral | NullLiteral | NumberLiteral | StringLiteral;
+
+export const Literal = {
+  $type: "Literal",
+} as const;
+
+export function isLiteral(item: unknown): item is Literal {
+  return reflection.isInstance(item, Literal.$type);
 }
 
 export interface Model extends langium.AstNode {
@@ -43,33 +166,374 @@ export function isModel(item: unknown): item is Model {
   return reflection.isInstance(item, Model.$type);
 }
 
-export interface Placeholder extends langium.AstNode {
-  readonly $container: Model;
-  readonly $type: "Placeholder";
+export interface NamedArg extends langium.AstNode {
+  readonly $container: ResourceConstruction;
+  readonly $type: "NamedArg";
   name: string;
+  value: Expression;
 }
 
-export const Placeholder = {
-  $type: "Placeholder",
+export const NamedArg = {
+  $type: "NamedArg",
+  name: "name",
+  value: "value",
+} as const;
+
+export function isNamedArg(item: unknown): item is NamedArg {
+  return reflection.isInstance(item, NamedArg.$type);
+}
+
+export interface NullLiteral extends langium.AstNode {
+  readonly $container: NamedArg;
+  readonly $type: "NullLiteral";
+}
+
+export const NullLiteral = {
+  $type: "NullLiteral",
+} as const;
+
+export function isNullLiteral(item: unknown): item is NullLiteral {
+  return reflection.isInstance(item, NullLiteral.$type);
+}
+
+export interface NumberLiteral extends langium.AstNode {
+  readonly $container: NamedArg;
+  readonly $type: "NumberLiteral";
+  value: string;
+}
+
+export const NumberLiteral = {
+  $type: "NumberLiteral",
+  value: "value",
+} as const;
+
+export function isNumberLiteral(item: unknown): item is NumberLiteral {
+  return reflection.isInstance(item, NumberLiteral.$type);
+}
+
+export interface PathRef extends langium.AstNode {
+  readonly $container: NamedArg;
+  readonly $type: "PathRef";
+  segments: Array<string>;
+}
+
+export const PathRef = {
+  $type: "PathRef",
+  segments: "segments",
+} as const;
+
+export function isPathRef(item: unknown): item is PathRef {
+  return reflection.isInstance(item, PathRef.$type);
+}
+
+/** Bare `id` inherits identity type; `title: string` is an explicit type. */
+export interface PayloadField extends langium.AstNode {
+  readonly $container: ResourceDeclaration;
+  readonly $type: "PayloadField";
+  name: string;
+  type?: TypeExpr;
+}
+
+export const PayloadField = {
+  $type: "PayloadField",
+  name: "name",
+  type: "type",
+} as const;
+
+export function isPayloadField(item: unknown): item is PayloadField {
+  return reflection.isInstance(item, PayloadField.$type);
+}
+
+export type PrimitiveName = "boolean" | "number" | "string";
+
+export function isPrimitiveName(item: unknown): item is PrimitiveName {
+  return item === "string" || item === "number" || item === "boolean";
+}
+
+export interface PrimitiveTypeExpr extends langium.AstNode {
+  readonly $container: PayloadField | TypedField;
+  readonly $type: "PrimitiveTypeExpr";
+  name: PrimitiveName;
+}
+
+export const PrimitiveTypeExpr = {
+  $type: "PrimitiveTypeExpr",
   name: "name",
 } as const;
 
-export function isPlaceholder(item: unknown): item is Placeholder {
-  return reflection.isInstance(item, Placeholder.$type);
+export function isPrimitiveTypeExpr(item: unknown): item is PrimitiveTypeExpr {
+  return reflection.isInstance(item, PrimitiveTypeExpr.$type);
+}
+
+export interface ProjectionClause extends langium.AstNode {
+  readonly $container: QueryDeclaration;
+  readonly $type: "ProjectionClause";
+  binding: string;
+  expansions: Array<Expansion>;
+  resource: string;
+  selectedFields: Array<string>;
+}
+
+export const ProjectionClause = {
+  $type: "ProjectionClause",
+  binding: "binding",
+  expansions: "expansions",
+  resource: "resource",
+  selectedFields: "selectedFields",
+} as const;
+
+export function isProjectionClause(item: unknown): item is ProjectionClause {
+  return reflection.isInstance(item, ProjectionClause.$type);
+}
+
+export interface QueryDeclaration extends langium.AstNode {
+  readonly $container: Model;
+  readonly $type: "QueryDeclaration";
+  context?: ContextBlock;
+  name: string;
+  parameters: Array<TypedField>;
+  projections: Array<ProjectionClause>;
+  root: RootClause;
+}
+
+export const QueryDeclaration = {
+  $type: "QueryDeclaration",
+  context: "context",
+  name: "name",
+  parameters: "parameters",
+  projections: "projections",
+  root: "root",
+} as const;
+
+export function isQueryDeclaration(item: unknown): item is QueryDeclaration {
+  return reflection.isInstance(item, QueryDeclaration.$type);
+}
+
+export interface ResourceConstruction extends langium.AstNode {
+  readonly $container: Expansion | RootClause;
+  readonly $type: "ResourceConstruction";
+  args: Array<NamedArg>;
+  resource: string;
+}
+
+export const ResourceConstruction = {
+  $type: "ResourceConstruction",
+  args: "args",
+  resource: "resource",
+} as const;
+
+export function isResourceConstruction(item: unknown): item is ResourceConstruction {
+  return reflection.isInstance(item, ResourceConstruction.$type);
+}
+
+export interface ResourceDeclaration extends langium.AstNode {
+  readonly $container: Model;
+  readonly $type: "ResourceDeclaration";
+  identity: Array<TypedField>;
+  name: string;
+  payload: Array<PayloadField>;
+}
+
+export const ResourceDeclaration = {
+  $type: "ResourceDeclaration",
+  identity: "identity",
+  name: "name",
+  payload: "payload",
+} as const;
+
+export function isResourceDeclaration(item: unknown): item is ResourceDeclaration {
+  return reflection.isInstance(item, ResourceDeclaration.$type);
+}
+
+export interface RootClause extends langium.AstNode {
+  readonly $container: QueryDeclaration;
+  readonly $type: "RootClause";
+  construction: ResourceConstruction;
+}
+
+export const RootClause = {
+  $type: "RootClause",
+  construction: "construction",
+} as const;
+
+export function isRootClause(item: unknown): item is RootClause {
+  return reflection.isInstance(item, RootClause.$type);
+}
+
+export interface ScalarDeclaration extends langium.AstNode {
+  readonly $container: Model;
+  readonly $type: "ScalarDeclaration";
+  name: string;
+  representation: PrimitiveName;
+}
+
+export const ScalarDeclaration = {
+  $type: "ScalarDeclaration",
+  name: "name",
+  representation: "representation",
+} as const;
+
+export function isScalarDeclaration(item: unknown): item is ScalarDeclaration {
+  return reflection.isInstance(item, ScalarDeclaration.$type);
+}
+
+export interface ScalarTypeExpr extends langium.AstNode {
+  readonly $container: PayloadField | TypedField;
+  readonly $type: "ScalarTypeExpr";
+  name: string;
+}
+
+export const ScalarTypeExpr = {
+  $type: "ScalarTypeExpr",
+  name: "name",
+} as const;
+
+export function isScalarTypeExpr(item: unknown): item is ScalarTypeExpr {
+  return reflection.isInstance(item, ScalarTypeExpr.$type);
+}
+
+export interface StringLiteral extends langium.AstNode {
+  readonly $container: NamedArg;
+  readonly $type: "StringLiteral";
+  value: string;
+}
+
+export const StringLiteral = {
+  $type: "StringLiteral",
+  value: "value",
+} as const;
+
+export function isStringLiteral(item: unknown): item is StringLiteral {
+  return reflection.isInstance(item, StringLiteral.$type);
+}
+
+export interface TypedField extends langium.AstNode {
+  readonly $container: ContextBlock | QueryDeclaration | ResourceDeclaration;
+  readonly $type: "TypedField";
+  name: string;
+  type: TypeExpr;
+}
+
+export const TypedField = {
+  $type: "TypedField",
+  name: "name",
+  type: "type",
+} as const;
+
+export function isTypedField(item: unknown): item is TypedField {
+  return reflection.isInstance(item, TypedField.$type);
+}
+
+export type TypeExpr = PrimitiveTypeExpr | ScalarTypeExpr;
+
+export const TypeExpr = {
+  $type: "TypeExpr",
+} as const;
+
+export function isTypeExpr(item: unknown): item is TypeExpr {
+  return reflection.isInstance(item, TypeExpr.$type);
 }
 
 export type NaviQlAstType = {
+  BooleanLiteral: BooleanLiteral;
+  ContextBlock: ContextBlock;
+  ContextRef: ContextRef;
   Declaration: Declaration;
+  Expansion: Expansion;
+  Expression: Expression;
+  IdentityRef: IdentityRef;
+  Literal: Literal;
   Model: Model;
-  Placeholder: Placeholder;
+  NamedArg: NamedArg;
+  NullLiteral: NullLiteral;
+  NumberLiteral: NumberLiteral;
+  PathRef: PathRef;
+  PayloadField: PayloadField;
+  PrimitiveTypeExpr: PrimitiveTypeExpr;
+  ProjectionClause: ProjectionClause;
+  QueryDeclaration: QueryDeclaration;
+  ResourceConstruction: ResourceConstruction;
+  ResourceDeclaration: ResourceDeclaration;
+  RootClause: RootClause;
+  ScalarDeclaration: ScalarDeclaration;
+  ScalarTypeExpr: ScalarTypeExpr;
+  StringLiteral: StringLiteral;
+  TypeExpr: TypeExpr;
+  TypedField: TypedField;
 };
 
 export class NaviQlAstReflection extends langium.AbstractAstReflection {
   override readonly types = {
+    BooleanLiteral: {
+      name: BooleanLiteral.$type,
+      properties: {
+        value: {
+          name: BooleanLiteral.value,
+        },
+      },
+      superTypes: [Literal.$type],
+    },
+    ContextBlock: {
+      name: ContextBlock.$type,
+      properties: {
+        fields: {
+          name: ContextBlock.fields,
+          defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [],
+    },
+    ContextRef: {
+      name: ContextRef.$type,
+      properties: {
+        path: {
+          name: ContextRef.path,
+          defaultValue: [],
+        },
+      },
+      superTypes: [Expression.$type],
+    },
     Declaration: {
       name: Declaration.$type,
       properties: {},
       superTypes: [],
+    },
+    Expansion: {
+      name: Expansion.$type,
+      properties: {
+        alias: {
+          name: Expansion.alias,
+        },
+        target: {
+          name: Expansion.target,
+        },
+      },
+      superTypes: [],
+    },
+    Expression: {
+      name: Expression.$type,
+      properties: {},
+      superTypes: [],
+    },
+    IdentityRef: {
+      name: IdentityRef.$type,
+      properties: {
+        binding: {
+          name: IdentityRef.binding,
+        },
+        path: {
+          name: IdentityRef.path,
+          defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [Expression.$type],
+    },
+    Literal: {
+      name: Literal.$type,
+      properties: {},
+      superTypes: [Expression.$type],
     },
     Model: {
       name: Model.$type,
@@ -82,14 +546,200 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       },
       superTypes: [],
     },
-    Placeholder: {
-      name: Placeholder.$type,
+    NamedArg: {
+      name: NamedArg.$type,
       properties: {
         name: {
-          name: Placeholder.name,
+          name: NamedArg.name,
+        },
+        value: {
+          name: NamedArg.value,
+        },
+      },
+      superTypes: [],
+    },
+    NullLiteral: {
+      name: NullLiteral.$type,
+      properties: {},
+      superTypes: [Literal.$type],
+    },
+    NumberLiteral: {
+      name: NumberLiteral.$type,
+      properties: {
+        value: {
+          name: NumberLiteral.value,
+        },
+      },
+      superTypes: [Literal.$type],
+    },
+    PathRef: {
+      name: PathRef.$type,
+      properties: {
+        segments: {
+          name: PathRef.segments,
+          defaultValue: [],
+        },
+      },
+      superTypes: [Expression.$type],
+    },
+    PayloadField: {
+      name: PayloadField.$type,
+      properties: {
+        name: {
+          name: PayloadField.name,
+        },
+        type: {
+          name: PayloadField.type,
+          optional: true,
+        },
+      },
+      superTypes: [],
+    },
+    PrimitiveTypeExpr: {
+      name: PrimitiveTypeExpr.$type,
+      properties: {
+        name: {
+          name: PrimitiveTypeExpr.name,
+        },
+      },
+      superTypes: [TypeExpr.$type],
+    },
+    ProjectionClause: {
+      name: ProjectionClause.$type,
+      properties: {
+        binding: {
+          name: ProjectionClause.binding,
+        },
+        expansions: {
+          name: ProjectionClause.expansions,
+          defaultValue: [],
+          optional: true,
+        },
+        resource: {
+          name: ProjectionClause.resource,
+        },
+        selectedFields: {
+          name: ProjectionClause.selectedFields,
+          defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [],
+    },
+    QueryDeclaration: {
+      name: QueryDeclaration.$type,
+      properties: {
+        context: {
+          name: QueryDeclaration.context,
+          optional: true,
+        },
+        name: {
+          name: QueryDeclaration.name,
+        },
+        parameters: {
+          name: QueryDeclaration.parameters,
+          defaultValue: [],
+          optional: true,
+        },
+        projections: {
+          name: QueryDeclaration.projections,
+          defaultValue: [],
+          optional: true,
+        },
+        root: {
+          name: QueryDeclaration.root,
         },
       },
       superTypes: [Declaration.$type],
+    },
+    ResourceConstruction: {
+      name: ResourceConstruction.$type,
+      properties: {
+        args: {
+          name: ResourceConstruction.args,
+          defaultValue: [],
+          optional: true,
+        },
+        resource: {
+          name: ResourceConstruction.resource,
+        },
+      },
+      superTypes: [],
+    },
+    ResourceDeclaration: {
+      name: ResourceDeclaration.$type,
+      properties: {
+        identity: {
+          name: ResourceDeclaration.identity,
+          defaultValue: [],
+          optional: true,
+        },
+        name: {
+          name: ResourceDeclaration.name,
+        },
+        payload: {
+          name: ResourceDeclaration.payload,
+          defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [Declaration.$type],
+    },
+    RootClause: {
+      name: RootClause.$type,
+      properties: {
+        construction: {
+          name: RootClause.construction,
+        },
+      },
+      superTypes: [],
+    },
+    ScalarDeclaration: {
+      name: ScalarDeclaration.$type,
+      properties: {
+        name: {
+          name: ScalarDeclaration.name,
+        },
+        representation: {
+          name: ScalarDeclaration.representation,
+        },
+      },
+      superTypes: [Declaration.$type],
+    },
+    ScalarTypeExpr: {
+      name: ScalarTypeExpr.$type,
+      properties: {
+        name: {
+          name: ScalarTypeExpr.name,
+        },
+      },
+      superTypes: [TypeExpr.$type],
+    },
+    StringLiteral: {
+      name: StringLiteral.$type,
+      properties: {
+        value: {
+          name: StringLiteral.value,
+        },
+      },
+      superTypes: [Literal.$type],
+    },
+    TypeExpr: {
+      name: TypeExpr.$type,
+      properties: {},
+      superTypes: [],
+    },
+    TypedField: {
+      name: TypedField.$type,
+      properties: {
+        name: {
+          name: TypedField.name,
+        },
+        type: {
+          name: TypedField.type,
+        },
+      },
+      superTypes: [],
     },
   } as const satisfies langium.AstMetaData;
 }
