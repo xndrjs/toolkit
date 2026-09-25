@@ -18,12 +18,14 @@ export const NaviQlTerminals = {
 export type NaviQlTerminalNames = keyof typeof NaviQlTerminals;
 
 export type NaviQlKeywordNames =
+  | "!="
   | "("
   | ")"
   | ","
   | "."
   | ":"
   | ";"
+  | "=="
   | "@"
   | "["
   | "]"
@@ -31,6 +33,9 @@ export type NaviQlKeywordNames =
   | "context"
   | "expand"
   | "false"
+  | "for"
+  | "if"
+  | "in"
   | "null"
   | "number"
   | "on"
@@ -66,6 +71,16 @@ export function isArrayTypeExpr(item: unknown): item is ArrayTypeExpr {
   return reflection.isInstance(item, ArrayTypeExpr.$type);
 }
 
+export type Atom = ContextRef | IdentityRef | Literal | PathRef;
+
+export const Atom = {
+  $type: "Atom",
+} as const;
+
+export function isAtom(item: unknown): item is Atom {
+  return reflection.isInstance(item, Atom.$type);
+}
+
 export type AtomicTypeExpr =
   | GroupedTypeExpr
   | NamedTypeExpr
@@ -81,8 +96,27 @@ export function isAtomicTypeExpr(item: unknown): item is AtomicTypeExpr {
   return reflection.isInstance(item, AtomicTypeExpr.$type);
 }
 
+export interface BinaryExpr extends langium.AstNode {
+  readonly $container: ComprehensionTail | NamedArg;
+  readonly $type: "BinaryExpr";
+  left: Atom;
+  op: "!=" | "==";
+  right: Atom;
+}
+
+export const BinaryExpr = {
+  $type: "BinaryExpr",
+  left: "left",
+  op: "op",
+  right: "right",
+} as const;
+
+export function isBinaryExpr(item: unknown): item is BinaryExpr {
+  return reflection.isInstance(item, BinaryExpr.$type);
+}
+
 export interface BooleanLiteral extends langium.AstNode {
-  readonly $container: NamedArg;
+  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
   readonly $type: "BooleanLiteral";
   value: "false" | "true";
 }
@@ -94,6 +128,26 @@ export const BooleanLiteral = {
 
 export function isBooleanLiteral(item: unknown): item is BooleanLiteral {
   return reflection.isInstance(item, BooleanLiteral.$type);
+}
+
+/** `for item in source if filter` — used inside `[ … ]` many-expansions. */
+export interface ComprehensionTail extends langium.AstNode {
+  readonly $container: Expansion;
+  readonly $type: "ComprehensionTail";
+  filter?: Expression;
+  itemBinding: string;
+  source: Expression;
+}
+
+export const ComprehensionTail = {
+  $type: "ComprehensionTail",
+  filter: "filter",
+  itemBinding: "itemBinding",
+  source: "source",
+} as const;
+
+export function isComprehensionTail(item: unknown): item is ComprehensionTail {
+  return reflection.isInstance(item, ComprehensionTail.$type);
 }
 
 export interface ContextBlock extends langium.AstNode {
@@ -112,7 +166,7 @@ export function isContextBlock(item: unknown): item is ContextBlock {
 }
 
 export interface ContextRef extends langium.AstNode {
-  readonly $container: NamedArg;
+  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
   readonly $type: "ContextRef";
   path: Array<string>;
 }
@@ -140,12 +194,14 @@ export interface Expansion extends langium.AstNode {
   readonly $container: ProjectionClause;
   readonly $type: "Expansion";
   alias: string;
+  comprehension?: ComprehensionTail;
   target: ResourceConstruction;
 }
 
 export const Expansion = {
   $type: "Expansion",
   alias: "alias",
+  comprehension: "comprehension",
   target: "target",
 } as const;
 
@@ -153,7 +209,7 @@ export function isExpansion(item: unknown): item is Expansion {
   return reflection.isInstance(item, Expansion.$type);
 }
 
-export type Expression = ContextRef | IdentityRef | Literal | PathRef;
+export type Expression = Atom | BinaryExpr;
 
 export const Expression = {
   $type: "Expression",
@@ -185,7 +241,7 @@ export function isGroupedTypeExpr(item: unknown): item is GroupedTypeExpr {
 }
 
 export interface IdentityRef extends langium.AstNode {
-  readonly $container: NamedArg;
+  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
   readonly $type: "IdentityRef";
   binding: string;
   path: Array<string>;
@@ -265,7 +321,7 @@ export function isNamedTypeExpr(item: unknown): item is NamedTypeExpr {
 }
 
 export interface NullLiteral extends langium.AstNode {
-  readonly $container: NamedArg;
+  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
   readonly $type: "NullLiteral";
 }
 
@@ -278,7 +334,7 @@ export function isNullLiteral(item: unknown): item is NullLiteral {
 }
 
 export interface NumberLiteral extends langium.AstNode {
-  readonly $container: NamedArg;
+  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
   readonly $type: "NumberLiteral";
   value: string;
 }
@@ -336,7 +392,7 @@ export function isObjectTypeExpr(item: unknown): item is ObjectTypeExpr {
 }
 
 export interface PathRef extends langium.AstNode {
-  readonly $container: NamedArg;
+  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
   readonly $type: "PathRef";
   segments: Array<string>;
 }
@@ -490,7 +546,7 @@ export function isScalarDeclaration(item: unknown): item is ScalarDeclaration {
 }
 
 export interface StringLiteral extends langium.AstNode {
-  readonly $container: NamedArg;
+  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
   readonly $type: "StringLiteral";
   value: string;
 }
@@ -589,8 +645,11 @@ export function isUnionTypeExpr(item: unknown): item is UnionTypeExpr {
 
 export type NaviQlAstType = {
   ArrayTypeExpr: ArrayTypeExpr;
+  Atom: Atom;
   AtomicTypeExpr: AtomicTypeExpr;
+  BinaryExpr: BinaryExpr;
   BooleanLiteral: BooleanLiteral;
+  ComprehensionTail: ComprehensionTail;
   ContextBlock: ContextBlock;
   ContextRef: ContextRef;
   Declaration: Declaration;
@@ -633,10 +692,30 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       },
       superTypes: [UnionMember.$type],
     },
+    Atom: {
+      name: Atom.$type,
+      properties: {},
+      superTypes: [Expression.$type],
+    },
     AtomicTypeExpr: {
       name: AtomicTypeExpr.$type,
       properties: {},
       superTypes: [UnionMember.$type],
+    },
+    BinaryExpr: {
+      name: BinaryExpr.$type,
+      properties: {
+        left: {
+          name: BinaryExpr.left,
+        },
+        op: {
+          name: BinaryExpr.op,
+        },
+        right: {
+          name: BinaryExpr.right,
+        },
+      },
+      superTypes: [Expression.$type],
     },
     BooleanLiteral: {
       name: BooleanLiteral.$type,
@@ -646,6 +725,22 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [Literal.$type],
+    },
+    ComprehensionTail: {
+      name: ComprehensionTail.$type,
+      properties: {
+        filter: {
+          name: ComprehensionTail.filter,
+          optional: true,
+        },
+        itemBinding: {
+          name: ComprehensionTail.itemBinding,
+        },
+        source: {
+          name: ComprehensionTail.source,
+        },
+      },
+      superTypes: [],
     },
     ContextBlock: {
       name: ContextBlock.$type,
@@ -666,7 +761,7 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           defaultValue: [],
         },
       },
-      superTypes: [Expression.$type],
+      superTypes: [Atom.$type],
     },
     Declaration: {
       name: Declaration.$type,
@@ -678,6 +773,10 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       properties: {
         alias: {
           name: Expansion.alias,
+        },
+        comprehension: {
+          name: Expansion.comprehension,
+          optional: true,
         },
         target: {
           name: Expansion.target,
@@ -711,12 +810,12 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           optional: true,
         },
       },
-      superTypes: [Expression.$type],
+      superTypes: [Atom.$type],
     },
     Literal: {
       name: Literal.$type,
       properties: {},
-      superTypes: [Expression.$type],
+      superTypes: [Atom.$type],
     },
     Model: {
       name: Model.$type,
@@ -796,7 +895,7 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           defaultValue: [],
         },
       },
-      superTypes: [Expression.$type],
+      superTypes: [Atom.$type],
     },
     PrimitiveTypeExpr: {
       name: PrimitiveTypeExpr.$type,

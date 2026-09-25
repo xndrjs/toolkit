@@ -196,37 +196,55 @@ describe("lowerProgram", () => {
     });
   });
 
-  it("lowers TabCollection(...): Tab[] as array of resourceRef (not object)", () => {
+  it("lowers list comprehension expand into multiplicity many + itemRef", () => {
     const program = lowerProgram(
       parseSource(`
-        scalar TabId on string;
-        scalar TabsId on string;
+        scalar PageId on string;
         scalar Locale on string;
+        scalar EditorialModuleId on string;
         scalar HeroId on string;
-        scalar ProductId on string;
 
-        resource Tab(id: TabId, locale: Locale): {
+        resource Page(id: PageId, locale: Locale): {
           id
-          title: string
-          stripHeroId: HeroId
-          stripProductId: ProductId
+          strips: { type: "Hero", id: EditorialModuleId }[]
         }
 
-        resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+        resource Hero(id: HeroId, locale: Locale): { id }
 
-        query TabsDetail(tabsId: TabsId) {
+        resource EditorialModule(id: EditorialModuleId, locale: Locale): Hero
+
+        query Q(pageId: PageId) {
           context { locale: Locale }
-          root TabCollection(tabsId: tabsId, locale: context.locale)
+          root Page(id: pageId, locale: context.locale)
+          on Page p {
+            id
+            expand strips: [EditorialModule(id: s.id, locale: context.locale) for s in p.strips]
+          }
         }
       `)
     );
 
     expect(checkProgram(program)).toEqual([]);
-
-    const collection = program.resources.find((r) => r.name === "TabCollection");
-    expect(collection?.payloadType).toMatchObject({
-      kind: "array",
-      of: { kind: "resourceRef", name: "Tab" },
+    const strips = program.queries[0]!.projections[0]!.expansions[0]!;
+    expect(strips).toMatchObject({
+      alias: "strips",
+      multiplicity: "many",
+      comprehension: {
+        itemBinding: "s",
+        filter: null,
+        source: { kind: "payloadRef", binding: "p", path: ["strips"] },
+      },
+      target: {
+        resource: "EditorialModule",
+        args: [
+          { name: "id", value: { kind: "itemRef", binding: "s", path: ["id"] } },
+          { name: "locale", value: { kind: "context", path: ["locale"] } },
+        ],
+      },
+    });
+    expect(program.resources.find((r) => r.name === "EditorialModule")?.payloadType).toMatchObject({
+      kind: "resourceRef",
+      name: "Hero",
     });
   });
 });

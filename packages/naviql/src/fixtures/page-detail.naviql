@@ -8,20 +8,18 @@ scalar TabsId on string;
 scalar TabId on string;
 scalar ProductId on string;
 scalar Sku on string;
+scalar EditorialModuleId on string;
 
 resource Page(id: PageId, locale: Locale): {
   id
   title: string
-  heroId: HeroId
   menuId: MenuId
   footerId: FooterId
-  featuredTabsId: TabsId
-  // Discriminated union array (demo Page.modules: Tabs | Hero | Product).
-  strips: (
-    { type: "Tabs", id: TabsId }
-    | { type: "Hero", id: HeroId }
-    | { type: "Product", id: ProductId }
-  )[]
+  // Polymorphic modules (demo Page.modules). Expanded as EditorialModule[].
+  strips: {
+    type: "Tabs" | "Hero" | "Product"
+    id: EditorialModuleId
+  }[]
 }
 
 resource Hero(id: HeroId, locale: Locale): {
@@ -46,7 +44,6 @@ resource Asset(id: AssetId, locale: Locale): {
   id
   url: string
   title: string
-  // Example string-literal union (closed set of values).
   kind: "image" | "video" | "document"
 }
 
@@ -58,14 +55,11 @@ resource Tabs(id: TabsId, locale: Locale): {
 resource Tab(id: TabId, locale: Locale): {
   id
   title: string
-  stripHeroId: HeroId
-  stripProductId: ProductId
-  // Same polymorphic union as Page.strips (stress: Tab → Tabs nesting).
-  strips: (
-    { type: "Tabs", id: TabsId }
-    | { type: "Hero", id: HeroId }
-    | { type: "Product", id: ProductId }
-  )[]
+  // Same polymorphic union as Page.strips (Tabs nesting / recursion).
+  strips: {
+    type: "Tabs" | "Hero" | "Product"
+    id: EditorialModuleId
+  }[]
 }
 
 /** Collection resource: resolves to Tab instances (normalized into the graph). */
@@ -76,6 +70,9 @@ resource Product(id: ProductId, locale: Locale): {
   sku: Sku
   title: string
 }
+
+/** Union resource: one strip resolves to Tabs | Hero | Product (Page and Tab). */
+resource EditorialModule(id: EditorialModuleId, locale: Locale): Tabs | Hero | Product
 
 query PageDetail(pageId: PageId) {
   context {
@@ -90,11 +87,9 @@ query PageDetail(pageId: PageId) {
   on Page p {
     id
     title
-    strips
-    expand hero: Hero(id: p.heroId, locale: context.locale)
     expand menu: Menu(id: p.menuId, locale: context.locale)
     expand footer: Footer(id: p.footerId, locale: context.locale)
-    expand featuredTabs: Tabs(id: p.featuredTabsId, locale: context.locale)
+    expand strips: [EditorialModule(id: s.id, locale: context.locale) for s in p.strips]
   }
 
   on Hero h {
@@ -131,9 +126,7 @@ query PageDetail(pageId: PageId) {
   on Tab tab {
     id
     title
-    strips
-    expand stripHero: Hero(id: tab.stripHeroId, locale: context.locale)
-    expand stripProduct: Product(id: tab.stripProductId, locale: context.locale)
+    expand strips: [EditorialModule(id: s.id, locale: context.locale) for s in tab.strips]
   }
 
   on Product prod {

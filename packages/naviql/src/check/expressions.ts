@@ -30,12 +30,11 @@ export function inferExprType(
           span: null,
         };
       }
-      const name =
-        typeof expr.value === "string"
-          ? "string"
-          : typeof expr.value === "number"
-            ? "number"
-            : "boolean";
+      if (typeof expr.value === "string") {
+        // Prefer stringLiteral so filters can narrow unions via `s.type == "Hero"`.
+        return { kind: "stringLiteral", value: expr.value, span: null };
+      }
+      const name = typeof expr.value === "number" ? "number" : "boolean";
       return { kind: "primitive", name, span: null };
     }
     case "param": {
@@ -65,6 +64,45 @@ export function inferExprType(
     }
     case "identityRef": {
       return resolveBindingPath(expr.binding, expr.path, "identity", path, scope, resources, sink);
+    }
+    case "itemRef": {
+      const itemType = scope.items.get(expr.binding);
+      if (!itemType) {
+        sink.push({
+          code: "UNKNOWN_ITEM_BINDING",
+          message: `Unknown comprehension item '${expr.binding}'`,
+          path,
+        });
+        return undefined;
+      }
+      if (expr.path.length === 0) {
+        return itemType;
+      }
+      const inner = unwrapNullable(itemType);
+      if (inner.kind !== "object") {
+        sink.push({
+          code: "UNKNOWN_ITEM_PATH",
+          message: `Cannot access path on non-object item type ${formatType(itemType)}`,
+          path,
+        });
+        return undefined;
+      }
+      return resolvePathOnFields(
+        expr.path,
+        new Map(inner.fields.map((f) => [f.name, f])),
+        path,
+        "UNKNOWN_ITEM_PATH",
+        "item",
+        sink
+      );
+    }
+    case "binary": {
+      const left = inferExprType(expr.left, `${path}.left`, scope, resources, sink);
+      const right = inferExprType(expr.right, `${path}.right`, scope, resources, sink);
+      if (!left || !right) return undefined;
+      // Equality is always boolean; assignability of operands is not required
+      // (discriminant filters compare stringLiteral to stringLiteral / scalar).
+      return { kind: "primitive", name: "boolean", span: null };
     }
   }
 }
