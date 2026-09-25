@@ -125,6 +125,46 @@ describe("emitProjections", () => {
     expect(code).toContain("shell.author = projectNode(userAri({ id: payload.authorId }));");
     expect(code).toContain("shell.username = payload.username;");
   });
+
+  it("memoizes shell before walking edges (cycle-safe early return)", () => {
+    const program: Program = {
+      ...emptyProgram(),
+      resources: [
+        resource("Node", [field("id", scalarRef("NodeId"))], {
+          kind: "object",
+          fields: [field("nextId", scalarRef("NodeId"))],
+          span: null,
+        }),
+      ],
+      queries: [
+        query("Cycle", {
+          parameters: [field("nodeId", scalarRef("NodeId"))],
+          context: [],
+          root: construct("Node", [arg("id", param("nodeId"))]),
+          projections: [
+            projection(
+              "Node",
+              "n",
+              ["id"],
+              [expand("next", construct("Node", [arg("id", payload("n", "nextId"))]))]
+            ),
+          ],
+        }),
+      ],
+    };
+
+    const code = emitProjections(program);
+    const onNode = code.slice(
+      code.indexOf("const projectOnNode"),
+      code.indexOf("const projectNode")
+    );
+
+    expect(code).toContain("if (memo.has(key)) return memo.get(key);");
+    expect(onNode.indexOf("memo.set(resource.toString(), shell);")).toBeLessThan(
+      onNode.indexOf("shell.next = projectNode(")
+    );
+    expect(onNode).toContain("shell.next = projectNode(nodeAri({ id: payload.nextId }));");
+  });
 });
 
 describe("generateProjections", () => {
