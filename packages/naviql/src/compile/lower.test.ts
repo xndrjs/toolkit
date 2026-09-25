@@ -196,30 +196,30 @@ describe("lowerProgram", () => {
     });
   });
 
-  it("lowers list comprehension expand into multiplicity many + itemRef", () => {
+  it("lowers each-expand into multiplicity many + arms + itemRef", () => {
     const program = lowerProgram(
       parseSource(`
         scalar PageId on string;
         scalar Locale on string;
-        scalar EditorialModuleId on string;
         scalar HeroId on string;
 
         resource Page(id: PageId, locale: Locale): {
           id
-          strips: { type: "Hero", id: EditorialModuleId }[]
+          strips: { type: "Hero", id: HeroId }[]
         }
 
-        resource Hero(id: HeroId, locale: Locale): { id }
-
-        resource EditorialModule(id: EditorialModuleId, locale: Locale): Hero
+        resource Hero(id: HeroId, locale: Locale): { type: "Hero", id }
 
         query Q(pageId: PageId) {
           context { locale: Locale }
           root Page(id: pageId, locale: context.locale)
           on Page p {
             id
-            expand strips: [EditorialModule(id: s.id, locale: context.locale) for s in p.strips]
+            expand strips: each s in p.strips (
+              Hero(id: s.id, locale: context.locale) when s.type == "Hero"
+            )
           }
+          on Hero h { id }
         }
       `)
     );
@@ -229,22 +229,28 @@ describe("lowerProgram", () => {
     expect(strips).toMatchObject({
       alias: "strips",
       multiplicity: "many",
+      target: null,
       comprehension: {
         itemBinding: "s",
-        filter: null,
         source: { kind: "payloadRef", binding: "p", path: ["strips"] },
-      },
-      target: {
-        resource: "EditorialModule",
-        args: [
-          { name: "id", value: { kind: "itemRef", binding: "s", path: ["id"] } },
-          { name: "locale", value: { kind: "context", path: ["locale"] } },
+        arms: [
+          {
+            when: {
+              kind: "binary",
+              op: "==",
+              left: { kind: "itemRef", binding: "s", path: ["type"] },
+              right: { kind: "literal", value: "Hero" },
+            },
+            target: {
+              resource: "Hero",
+              args: [
+                { name: "id", value: { kind: "itemRef", binding: "s", path: ["id"] } },
+                { name: "locale", value: { kind: "context", path: ["locale"] } },
+              ],
+            },
+          },
         ],
       },
-    });
-    expect(program.resources.find((r) => r.name === "EditorialModule")?.payloadType).toMatchObject({
-      kind: "resourceRef",
-      name: "Hero",
     });
   });
 });

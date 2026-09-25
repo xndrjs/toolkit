@@ -31,10 +31,9 @@ export type NaviQlKeywordNames =
   | "]"
   | "boolean"
   | "context"
+  | "each"
   | "expand"
   | "false"
-  | "for"
-  | "if"
   | "in"
   | "null"
   | "number"
@@ -45,6 +44,7 @@ export type NaviQlKeywordNames =
   | "scalar"
   | "string"
   | "true"
+  | "when"
   | "{"
   | "|"
   | "}";
@@ -98,7 +98,7 @@ export function isAtomicTypeExpr(item: unknown): item is AtomicTypeExpr {
 }
 
 export interface BinaryExpr extends langium.AstNode {
-  readonly $container: ComprehensionTail | NamedArg;
+  readonly $container: EachComprehension | ExpandArm | NamedArg;
   readonly $type: "BinaryExpr";
   left: Atom;
   op: "!=" | "==";
@@ -117,7 +117,7 @@ export function isBinaryExpr(item: unknown): item is BinaryExpr {
 }
 
 export interface BooleanLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
   readonly $type: "BooleanLiteral";
   value: "false" | "true";
 }
@@ -129,26 +129,6 @@ export const BooleanLiteral = {
 
 export function isBooleanLiteral(item: unknown): item is BooleanLiteral {
   return reflection.isInstance(item, BooleanLiteral.$type);
-}
-
-/** `for item in source if filter` — used inside `[ … ]` many-expansions. */
-export interface ComprehensionTail extends langium.AstNode {
-  readonly $container: Expansion;
-  readonly $type: "ComprehensionTail";
-  filter?: Expression;
-  itemBinding: string;
-  source: Expression;
-}
-
-export const ComprehensionTail = {
-  $type: "ComprehensionTail",
-  filter: "filter",
-  itemBinding: "itemBinding",
-  source: "source",
-} as const;
-
-export function isComprehensionTail(item: unknown): item is ComprehensionTail {
-  return reflection.isInstance(item, ComprehensionTail.$type);
 }
 
 export interface ContextBlock extends langium.AstNode {
@@ -167,7 +147,7 @@ export function isContextBlock(item: unknown): item is ContextBlock {
 }
 
 export interface ContextRef extends langium.AstNode {
-  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
   readonly $type: "ContextRef";
   path: Array<string>;
 }
@@ -191,18 +171,55 @@ export function isDeclaration(item: unknown): item is Declaration {
   return reflection.isInstance(item, Declaration.$type);
 }
 
+/** `each item in source ( Constr when …, … )` — polymorphic many-expand. */
+export interface EachComprehension extends langium.AstNode {
+  readonly $container: Expansion;
+  readonly $type: "EachComprehension";
+  arms: Array<ExpandArm>;
+  itemBinding: string;
+  source: Expression;
+}
+
+export const EachComprehension = {
+  $type: "EachComprehension",
+  arms: "arms",
+  itemBinding: "itemBinding",
+  source: "source",
+} as const;
+
+export function isEachComprehension(item: unknown): item is EachComprehension {
+  return reflection.isInstance(item, EachComprehension.$type);
+}
+
+export interface ExpandArm extends langium.AstNode {
+  readonly $container: EachComprehension;
+  readonly $type: "ExpandArm";
+  target: ResourceConstruction;
+  when?: Expression;
+}
+
+export const ExpandArm = {
+  $type: "ExpandArm",
+  target: "target",
+  when: "when",
+} as const;
+
+export function isExpandArm(item: unknown): item is ExpandArm {
+  return reflection.isInstance(item, ExpandArm.$type);
+}
+
 export interface Expansion extends langium.AstNode {
   readonly $container: ProjectionClause;
   readonly $type: "Expansion";
   alias: string;
-  comprehension?: ComprehensionTail;
-  target: ResourceConstruction;
+  each?: EachComprehension;
+  target?: ResourceConstruction;
 }
 
 export const Expansion = {
   $type: "Expansion",
   alias: "alias",
-  comprehension: "comprehension",
+  each: "each",
   target: "target",
 } as const;
 
@@ -242,7 +259,7 @@ export function isGroupedTypeExpr(item: unknown): item is GroupedTypeExpr {
 }
 
 export interface IdentityRef extends langium.AstNode {
-  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
   readonly $type: "IdentityRef";
   binding: string;
   path: Array<string>;
@@ -322,7 +339,7 @@ export function isNamedTypeExpr(item: unknown): item is NamedTypeExpr {
 }
 
 export interface NullLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
   readonly $type: "NullLiteral";
 }
 
@@ -335,7 +352,7 @@ export function isNullLiteral(item: unknown): item is NullLiteral {
 }
 
 export interface NumberLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
   readonly $type: "NumberLiteral";
   value: string;
 }
@@ -393,7 +410,7 @@ export function isObjectTypeExpr(item: unknown): item is ObjectTypeExpr {
 }
 
 export interface PathRef extends langium.AstNode {
-  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
   readonly $type: "PathRef";
   segments: Array<string>;
 }
@@ -479,7 +496,7 @@ export function isQueryDeclaration(item: unknown): item is QueryDeclaration {
 }
 
 export interface ResourceConstruction extends langium.AstNode {
-  readonly $container: Expansion | RootClause;
+  readonly $container: ExpandArm | Expansion | RootClause;
   readonly $type: "ResourceConstruction";
   args: Array<NamedArg>;
   resource: string;
@@ -547,7 +564,7 @@ export function isScalarDeclaration(item: unknown): item is ScalarDeclaration {
 }
 
 export interface StringLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | ComprehensionTail | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
   readonly $type: "StringLiteral";
   value: string;
 }
@@ -678,10 +695,11 @@ export type NaviQlAstType = {
   AtomicTypeExpr: AtomicTypeExpr;
   BinaryExpr: BinaryExpr;
   BooleanLiteral: BooleanLiteral;
-  ComprehensionTail: ComprehensionTail;
   ContextBlock: ContextBlock;
   ContextRef: ContextRef;
   Declaration: Declaration;
+  EachComprehension: EachComprehension;
+  ExpandArm: ExpandArm;
   Expansion: Expansion;
   Expression: Expression;
   GroupedTypeExpr: GroupedTypeExpr;
@@ -756,22 +774,6 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       },
       superTypes: [Literal.$type],
     },
-    ComprehensionTail: {
-      name: ComprehensionTail.$type,
-      properties: {
-        filter: {
-          name: ComprehensionTail.filter,
-          optional: true,
-        },
-        itemBinding: {
-          name: ComprehensionTail.itemBinding,
-        },
-        source: {
-          name: ComprehensionTail.source,
-        },
-      },
-      superTypes: [],
-    },
     ContextBlock: {
       name: ContextBlock.$type,
       properties: {
@@ -798,18 +800,48 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       properties: {},
       superTypes: [],
     },
+    EachComprehension: {
+      name: EachComprehension.$type,
+      properties: {
+        arms: {
+          name: EachComprehension.arms,
+          defaultValue: [],
+        },
+        itemBinding: {
+          name: EachComprehension.itemBinding,
+        },
+        source: {
+          name: EachComprehension.source,
+        },
+      },
+      superTypes: [],
+    },
+    ExpandArm: {
+      name: ExpandArm.$type,
+      properties: {
+        target: {
+          name: ExpandArm.target,
+        },
+        when: {
+          name: ExpandArm.when,
+          optional: true,
+        },
+      },
+      superTypes: [],
+    },
     Expansion: {
       name: Expansion.$type,
       properties: {
         alias: {
           name: Expansion.alias,
         },
-        comprehension: {
-          name: Expansion.comprehension,
+        each: {
+          name: Expansion.each,
           optional: true,
         },
         target: {
           name: Expansion.target,
+          optional: true,
         },
       },
       superTypes: [],

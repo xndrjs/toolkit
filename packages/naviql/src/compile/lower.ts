@@ -2,8 +2,8 @@
  * Lower Langium AST → semantic Program IR.
  *
  * Defaults: `ariType = name`, object-payload shorthand sets
- * `inheritedFromIdentity`, expansions without `[…]` are multiplicity `"one"`,
- * bracketed `for` comprehensions are `"many"`, scalar `metadata: null`.
+ * `inheritedFromIdentity`, expansions without `each` are multiplicity `"one"`,
+ * `each … ( arms )` are `"many"`, scalar `metadata: null`.
  * PathRef is classified here as `param` / `payloadRef` / `itemRef`.
  * Named types resolve to `resourceRef` or `scalarRef` using declaration tables.
  * Do not collapse `scalarRef` / `resourceRef` to structural types.
@@ -239,20 +239,26 @@ function lowerProjection(clause: AstProjectionClause): ResourceProjection {
 }
 
 function lowerExpansion(expansion: AstExpansion): Expansion {
-  const comprehension = expansion.comprehension;
-  if (comprehension) {
-    const itemBindings = new Set([comprehension.itemBinding]);
+  const each = expansion.each;
+  if (each) {
+    const itemBindings = new Set([each.itemBinding]);
     return {
       alias: expansion.alias,
-      target: lowerConstruction(expansion.target, itemBindings),
+      target: null,
       multiplicity: "many",
       comprehension: {
-        itemBinding: comprehension.itemBinding,
-        source: lowerExpr(comprehension.source, /* itemBindings */ new Set()),
-        filter: comprehension.filter ? lowerExpr(comprehension.filter, itemBindings) : null,
+        itemBinding: each.itemBinding,
+        source: lowerExpr(each.source, /* itemBindings */ new Set()),
+        arms: each.arms.map((arm) => ({
+          target: lowerConstruction(arm.target, itemBindings),
+          when: arm.when ? lowerExpr(arm.when, itemBindings) : null,
+        })),
       },
       span: spanOf(expansion),
     };
+  }
+  if (!expansion.target) {
+    throw new Error("lowerExpansion: one-expand missing target construction");
   }
   return {
     alias: expansion.alias,

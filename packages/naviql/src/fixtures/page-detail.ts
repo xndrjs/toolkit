@@ -1,9 +1,8 @@
 /**
  * Page-graph IR fixture inspired by the resource-graph-resolver demo.
  *
- * - `Page.strips` / `Tab.strips` use `EditorialModule.type` type projection for
- *   the discriminant (resolves to `"Tabs" | "Hero" | "Product"`).
- * - Strips expand once via list comprehension into `EditorialModule`.
+ * - `Page.strips` / `Tab.strips` are discriminated stubs (`Hero` / `Tabs` / `Product`).
+ * - Strips expand via polymorphic `each` into concrete resource ARIs.
  */
 import type { Program } from "../compile";
 
@@ -13,9 +12,12 @@ import {
   construct,
   ctx,
   defScalar,
+  eq,
   expand,
+  expandEach,
   field,
   item,
+  lit,
   objectType,
   param,
   payload,
@@ -27,7 +29,6 @@ import {
   scalarRef,
   span,
   strLit,
-  typeProj,
   union,
 } from "./ir-builders";
 
@@ -41,12 +42,29 @@ const TabsId = scalarRef("TabsId");
 const TabId = scalarRef("TabId");
 const ProductId = scalarRef("ProductId");
 const Sku = scalarRef("Sku");
-const EditorialModuleId = scalarRef("EditorialModuleId");
 
-const ModuleStrip = objectType(
-  field("type", typeProj("EditorialModule", "type")),
-  field("id", EditorialModuleId)
+const ModuleStrip = union(
+  objectType(field("type", strLit("Hero")), field("id", HeroId)),
+  objectType(field("type", strLit("Tabs")), field("id", TabsId)),
+  objectType(field("type", strLit("Product")), field("id", ProductId))
 );
+
+function stripsEach(sourceBinding: string, sourceField: string) {
+  return expandEach("strips", "s", payload(sourceBinding, sourceField), [
+    {
+      target: construct("Hero", [arg("id", item("s", "id")), arg("locale", ctx("locale"))]),
+      when: eq(item("s", "type"), lit("Hero")),
+    },
+    {
+      target: construct("Tabs", [arg("id", item("s", "id")), arg("locale", ctx("locale"))]),
+      when: eq(item("s", "type"), lit("Tabs")),
+    },
+    {
+      target: construct("Product", [arg("id", item("s", "id")), arg("locale", ctx("locale"))]),
+      when: eq(item("s", "type"), lit("Product")),
+    },
+  ]);
+}
 
 export function pageDetailProgram(): Program {
   return {
@@ -62,7 +80,6 @@ export function pageDetailProgram(): Program {
       defScalar("TabId", "string"),
       defScalar("ProductId", "string"),
       defScalar("Sku", "string"),
-      defScalar("EditorialModuleId", "string"),
     ],
     resources: [
       resource(
@@ -147,11 +164,6 @@ export function pageDetailProgram(): Program {
           field("title", prim("string"))
         )
       ),
-      resource(
-        "EditorialModule",
-        [field("id", EditorialModuleId), field("locale", Locale)],
-        union(resourceRef("Tabs"), resourceRef("Hero"), resourceRef("Product"))
-      ),
     ],
     queries: [
       query("PageDetail", {
@@ -175,18 +187,7 @@ export function pageDetailProgram(): Program {
                   arg("locale", ctx("locale")),
                 ])
               ),
-              expand(
-                "strips",
-                construct("EditorialModule", [
-                  arg("id", item("s", "id")),
-                  arg("locale", ctx("locale")),
-                ]),
-                {
-                  itemBinding: "s",
-                  source: payload("p", "strips"),
-                  filter: null,
-                }
-              ),
+              stripsEach("p", "strips"),
             ]
           ),
           projection(
@@ -246,25 +247,7 @@ export function pageDetailProgram(): Program {
               ),
             ]
           ),
-          projection(
-            "Tab",
-            "tab",
-            ["id", "title"],
-            [
-              expand(
-                "strips",
-                construct("EditorialModule", [
-                  arg("id", item("s", "id")),
-                  arg("locale", ctx("locale")),
-                ]),
-                {
-                  itemBinding: "s",
-                  source: payload("tab", "strips"),
-                  filter: null,
-                }
-              ),
-            ]
-          ),
+          projection("Tab", "tab", ["id", "title"], [stripsEach("tab", "strips")]),
           projection("Product", "prod", ["id", "sku", "title"]),
         ],
       }),

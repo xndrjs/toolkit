@@ -76,7 +76,7 @@ function projectOnFromPayloadFnName(resourceName: string): string {
 }
 
 /**
- * Project a `many` comprehension: same ARI list as strategy emit, then map
+ * Project a `many` each-comprehension: same ARI list as strategy emit, then map
  * each ARI through `projectNode`.
  */
 function emitManyProject(expansion: Expansion): string {
@@ -85,29 +85,50 @@ function emitManyProject(expansion: Expansion): string {
     throw new Error("emitProjections: many expansion missing comprehension");
   }
 
-  const construction = emitConstruction(expansion.target);
-  const { itemBinding, source, filter } = comprehension;
+  const { itemBinding, source, arms } = comprehension;
   const sourceExpr = emitExpr(source);
-  const mapFn = `(${itemBinding}: any) => projectNode(${construction})`;
 
-  if (filter !== null) {
-    return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(filter)}).map(${mapFn})`;
+  if (arms.length === 1) {
+    const arm = arms[0]!;
+    const construction = emitConstruction(arm.target);
+    const mapFn = `(${itemBinding}: any) => projectNode(${construction})`;
+    if (arm.when !== null) {
+      return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when)}).map(${mapFn})`;
+    }
+    return `${sourceExpr}.map(${mapFn})`;
   }
 
-  return `${sourceExpr}.map(${mapFn})`;
+  // Multi-arm: flatMap preserves source order (same as strategy emit).
+  const branches = arms.map((arm) => {
+    const construction = emitConstruction(arm.target);
+    if (arm.when !== null) {
+      return `if (${emitExpr(arm.when)}) return [projectNode(${construction})];`;
+    }
+    return `return [projectNode(${construction})];`;
+  });
+  const body = [...branches, `return [];`].join("\n        ");
+  return `${sourceExpr}.flatMap((${itemBinding}: any): any[] => {\n        ${body}\n      })`;
 }
 
 /**
  * Expression that yields the projected value for one expansion alias.
  * - ordinary / union target → `projectNode(ari)` (union discriminated inside)
  * - collection target → lookup collection payload, `.map` embedded member plan
- * - `many` → comprehension map of the above
+ * - `many` → each-comprehension map of the above
  */
 function emitExpansionValue(
   expansion: Expansion,
   resources: ResourceIndex,
   queryName: string
 ): string {
+  if (expansion.multiplicity === "many" && expansion.comprehension !== null) {
+    return emitManyProject(expansion);
+  }
+
+  if (expansion.target === null) {
+    throw new Error(`emitProjections: one-expand missing target in query '${queryName}'`);
+  }
+
   const targetName = expansion.target.resource;
   const target = resources.get(targetName);
   if (!target) {
@@ -118,11 +139,6 @@ function emitExpansionValue(
 
   const element = collectionElement(target.payloadType);
   if (element !== null) {
-    if (expansion.multiplicity === "many") {
-      throw new Error(
-        `emitProjections: collection target '${targetName}' cannot be a 'many' expansion in query '${queryName}'`
-      );
-    }
     const construction = emitConstruction(expansion.target);
     const fromPayload = projectOnFromPayloadFnName(element);
     // IIFE keeps temporaries out of the shell scope.
@@ -134,10 +150,6 @@ function emitExpansionValue(
       `  return __collectionPayload.map((item: any) => ${fromPayload}(item));`,
       `})()`,
     ].join("\n");
-  }
-
-  if (expansion.multiplicity === "many" && expansion.comprehension !== null) {
-    return emitManyProject(expansion);
   }
 
   return `projectNode(${emitConstruction(expansion.target)})`;
@@ -211,6 +223,7 @@ function collectionElementResources(query: QueryDefinition, resources: ResourceI
   const out = new Set<string>();
   for (const projection of query.projections) {
     for (const expansion of projection.expansions) {
+      if (expansion.target === null) continue;
       const target = resources.get(expansion.target.resource);
       if (!target) continue;
       const element = collectionElement(target.payloadType);
@@ -233,11 +246,19 @@ function unionTargetResources(
   const out = new Map<string, string[]>();
   for (const projection of query.projections) {
     for (const expansion of projection.expansions) {
-      const target = resources.get(expansion.target.resource);
-      if (!target) continue;
-      const members = unionMembers(target.payloadType);
-      if (members !== null) {
-        out.set(target.name, members);
+      const targets =
+        expansion.multiplicity === "many" && expansion.comprehension !== null
+          ? expansion.comprehension.arms.map((a) => a.target.resource)
+          : expansion.target !== null
+            ? [expansion.target.resource]
+            : [];
+      for (const targetName of targets) {
+        const target = resources.get(targetName);
+        if (!target) continue;
+        const members = unionMembers(target.payloadType);
+        if (members !== null) {
+          out.set(target.name, members);
+        }
       }
     }
   }

@@ -91,7 +91,12 @@ export function createPageDetailStrategy(params: PageDetailParams) {
       resources: [
         menuAri({ id: payload.menuId, locale: executionContext.locale }),
         footerAri({ id: payload.footerId, locale: executionContext.locale }),
-        ...payload.strips.map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale })),
+        ...payload.strips.flatMap((s: any): any[] => {
+          if (s.type == "Hero") return [heroAri({ id: s.id, locale: executionContext.locale })];
+          if (s.type == "Tabs") return [tabsAri({ id: s.id, locale: executionContext.locale })];
+          if (s.type == "Product") return [productAri({ id: s.id, locale: executionContext.locale })];
+          return [];
+        }),
       ],
     }));
 
@@ -122,7 +127,18 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   strategy.expansion
     .on(tabAri)
     .expand(({ resource, payload, executionContext }) => ({
-      resources: payload.strips.map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale })),
+      resources: payload.strips.flatMap((s: any): any[] => {
+          if (s.type == "Hero") return [heroAri({ id: s.id, locale: executionContext.locale })];
+          if (s.type == "Tabs") return [tabsAri({ id: s.id, locale: executionContext.locale })];
+          if (s.type == "Product") return [productAri({ id: s.id, locale: executionContext.locale })];
+          return [];
+        }),
+    }));
+
+  strategy.expansion
+    .on(tabCollectionAri)
+    .expand(({ payload, executionContext }) => ({
+      resources: payload.map((item: any) => tabAri({ id: item.id, locale: executionContext.locale })),
     }));
 
   return strategy;
@@ -166,11 +182,10 @@ describe("generateStrategies golden", () => {
     expect(code).toContain(".on(footerAri)");
     expect(code).toContain(".on(tabsAri)");
     expect(code).toContain(".on(tabAri)");
-    expect(code).toContain(
-      "...payload.strips.map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale }))"
-    );
+    expect(code).toContain(".on(tabCollectionAri)");
+    expect(code).toContain("payload.strips.flatMap((s: any): any[] =>");
+    expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain(".on(assetAri)");
-    expect(code).not.toContain(".on(productAri)");
     expect(code).not.toContain(".build()");
     expect(code).not.toContain("islands");
   });

@@ -13,7 +13,11 @@ query PageDetail(pageId: PageId) {
     title
     expand menu: Menu(id: p.menuId, locale: context.locale)
     expand footer: Footer(id: p.footerId, locale: context.locale)
-    expand strips: [EditorialModule(id: s.id, locale: context.locale) for s in p.strips]
+    expand strips: each s in p.strips (
+      Hero(id: s.id, locale: context.locale) when s.type == "Hero",
+      Tabs(id: s.id, locale: context.locale) when s.type == "Tabs",
+      Product(id: s.id, locale: context.locale) when s.type == "Product"
+    )
   }
 
   on Hero h {
@@ -50,7 +54,11 @@ query PageDetail(pageId: PageId) {
   on Tab tab {
     id
     title
-    expand strips: [EditorialModule(id: s.id, locale: context.locale) for s in tab.strips]
+    expand strips: each s in tab.strips (
+      Hero(id: s.id, locale: context.locale) when s.type == "Hero",
+      Tabs(id: s.id, locale: context.locale) when s.type == "Tabs",
+      Product(id: s.id, locale: context.locale) when s.type == "Product"
+    )
   }
 
   on Product prod {
