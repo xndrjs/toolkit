@@ -18,6 +18,7 @@ import {
   projection,
   query,
   resource,
+  objectType,
   scalarRef,
   span,
 } from "../fixtures";
@@ -65,7 +66,9 @@ describe("checkProgram — negative diagnostics", () => {
   it("rejects identity/payload semantic conflict on the same field name", () => {
     const program = withMutatedPageDetail((p) => {
       const page = p.resources.find((r) => r.name === "Page")!;
-      const idPayload = page.payload.fields.find((f) => f.name === "id")!;
+      expect(page.payloadType.kind).toBe("object");
+      if (page.payloadType.kind !== "object") return;
+      const idPayload = page.payloadType.fields.find((f) => f.name === "id")!;
       idPayload.type = scalarRef("HeroId");
       idPayload.inheritedFromIdentity = false;
     });
@@ -78,7 +81,9 @@ describe("checkProgram — negative diagnostics", () => {
   it("rejects payload shorthand without a matching identity field", () => {
     const program = withMutatedPageDetail((p) => {
       const page = p.resources.find((r) => r.name === "Page")!;
-      page.payload.fields.push(field("orphan", scalarRef("PageId"), true));
+      expect(page.payloadType.kind).toBe("object");
+      if (page.payloadType.kind !== "object") return;
+      page.payloadType.fields.push(field("orphan", scalarRef("PageId"), true));
     });
 
     expect(checkProgram(program)).toContainEqual(
@@ -165,7 +170,9 @@ describe("checkProgram — negative diagnostics", () => {
   it("rejects unknown scalar ref", () => {
     const program = withMutatedPageDetail((p) => {
       const page = p.resources.find((r) => r.name === "Page")!;
-      page.payload.fields.push(field("weird", scalarRef("NotAScalar")));
+      expect(page.payloadType.kind).toBe("object");
+      if (page.payloadType.kind !== "object") return;
+      page.payloadType.fields.push(field("weird", scalarRef("NotAScalar")));
     });
 
     expect(checkProgram(program)).toContainEqual(
@@ -233,7 +240,11 @@ describe("checkProgram — scalar / resource name clash", () => {
       span,
       scalars: [defScalar("Page", "string")],
       resources: [
-        resource("Page", [field("id", scalarRef("Page"))], [field("id", scalarRef("Page"), true)]),
+        resource(
+          "Page",
+          [field("id", scalarRef("Page"))],
+          objectType(field("id", scalarRef("Page"), true))
+        ),
       ],
       queries: [
         query("Q", {

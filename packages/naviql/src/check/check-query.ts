@@ -32,10 +32,10 @@ export function checkQuery(
   );
 
   for (const field of query.parameters) {
-    checkTypeExpr(field.type, `${path}.parameters.${field.name}`, scalars, sink);
+    checkTypeExpr(field.type, `${path}.parameters.${field.name}`, scalars, resources, sink);
   }
   for (const field of query.context) {
-    checkTypeExpr(field.type, `${path}.context.${field.name}`, scalars, sink);
+    checkTypeExpr(field.type, `${path}.context.${field.name}`, scalars, resources, sink);
   }
 
   const bindings = new Map<string, string>();
@@ -77,7 +77,13 @@ export function checkQuery(
     }
 
     for (const fieldName of projection.selectedFields) {
-      if (!resource.payload.has(fieldName)) {
+      if (resource.payloadType.kind !== "object") {
+        sink.push({
+          code: "UNKNOWN_SELECTED_FIELD",
+          message: `Cannot select field '${fieldName}' on non-object payload of '${projection.resource}'`,
+          path: `${projPath}.selectedFields.${fieldName}`,
+        });
+      } else if (!resource.payload.has(fieldName)) {
         sink.push({
           code: "UNKNOWN_SELECTED_FIELD",
           message: `Selected field '${fieldName}' is not on payload of '${projection.resource}'`,

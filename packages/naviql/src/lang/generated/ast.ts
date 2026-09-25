@@ -47,7 +47,12 @@ export type NaviQlKeywordNames =
 export type NaviQlTokenNames = NaviQlTerminalNames | NaviQlKeywordNames;
 
 export interface ArrayTypeExpr extends langium.AstNode {
-  readonly $container: GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
+  readonly $container:
+    | GroupedTypeExpr
+    | ObjectField
+    | ResourceDeclaration
+    | TypedField
+    | UnionTypeExpr;
   readonly $type: "ArrayTypeExpr";
   of: AtomicTypeExpr;
 }
@@ -63,9 +68,9 @@ export function isArrayTypeExpr(item: unknown): item is ArrayTypeExpr {
 
 export type AtomicTypeExpr =
   | GroupedTypeExpr
+  | NamedTypeExpr
   | ObjectTypeExpr
   | PrimitiveTypeExpr
-  | ScalarTypeExpr
   | StringLiteralTypeExpr;
 
 export const AtomicTypeExpr = {
@@ -159,7 +164,13 @@ export function isExpression(item: unknown): item is Expression {
 }
 
 export interface GroupedTypeExpr extends langium.AstNode {
-  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
+  readonly $container:
+    | ArrayTypeExpr
+    | GroupedTypeExpr
+    | ObjectField
+    | ResourceDeclaration
+    | TypedField
+    | UnionTypeExpr;
   readonly $type: "GroupedTypeExpr";
   type: TypeExpr;
 }
@@ -231,6 +242,28 @@ export function isNamedArg(item: unknown): item is NamedArg {
   return reflection.isInstance(item, NamedArg.$type);
 }
 
+/** Scalar or resource name; resolved in lowering against declaration tables. */
+export interface NamedTypeExpr extends langium.AstNode {
+  readonly $container:
+    | ArrayTypeExpr
+    | GroupedTypeExpr
+    | ObjectField
+    | ResourceDeclaration
+    | TypedField
+    | UnionTypeExpr;
+  readonly $type: "NamedTypeExpr";
+  name: string;
+}
+
+export const NamedTypeExpr = {
+  $type: "NamedTypeExpr",
+  name: "name",
+} as const;
+
+export function isNamedTypeExpr(item: unknown): item is NamedTypeExpr {
+  return reflection.isInstance(item, NamedTypeExpr.$type);
+}
+
 export interface NullLiteral extends langium.AstNode {
   readonly $container: NamedArg;
   readonly $type: "NullLiteral";
@@ -259,11 +292,38 @@ export function isNumberLiteral(item: unknown): item is NumberLiteral {
   return reflection.isInstance(item, NumberLiteral.$type);
 }
 
+/**
+ * Object field: bare `id` (payload shorthand) or `title: string`.
+ * Used inside object type expressions (including resource object payloads).
+ */
+export interface ObjectField extends langium.AstNode {
+  readonly $container: ObjectTypeExpr;
+  readonly $type: "ObjectField";
+  name: string;
+  type?: TypeExpr;
+}
+
+export const ObjectField = {
+  $type: "ObjectField",
+  name: "name",
+  type: "type",
+} as const;
+
+export function isObjectField(item: unknown): item is ObjectField {
+  return reflection.isInstance(item, ObjectField.$type);
+}
+
 /** Inline structural object; optional `;` or `,` after each field (TS-like). */
 export interface ObjectTypeExpr extends langium.AstNode {
-  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
+  readonly $container:
+    | ArrayTypeExpr
+    | GroupedTypeExpr
+    | ObjectField
+    | ResourceDeclaration
+    | TypedField
+    | UnionTypeExpr;
   readonly $type: "ObjectTypeExpr";
-  fields: Array<TypedField>;
+  fields: Array<ObjectField>;
 }
 
 export const ObjectTypeExpr = {
@@ -290,24 +350,6 @@ export function isPathRef(item: unknown): item is PathRef {
   return reflection.isInstance(item, PathRef.$type);
 }
 
-/** Bare `id` inherits identity type; `title: string` is an explicit type. */
-export interface PayloadField extends langium.AstNode {
-  readonly $container: ResourceDeclaration;
-  readonly $type: "PayloadField";
-  name: string;
-  type?: TypeExpr;
-}
-
-export const PayloadField = {
-  $type: "PayloadField",
-  name: "name",
-  type: "type",
-} as const;
-
-export function isPayloadField(item: unknown): item is PayloadField {
-  return reflection.isInstance(item, PayloadField.$type);
-}
-
 export type PrimitiveName = "boolean" | "number" | "string";
 
 export function isPrimitiveName(item: unknown): item is PrimitiveName {
@@ -315,7 +357,13 @@ export function isPrimitiveName(item: unknown): item is PrimitiveName {
 }
 
 export interface PrimitiveTypeExpr extends langium.AstNode {
-  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
+  readonly $container:
+    | ArrayTypeExpr
+    | GroupedTypeExpr
+    | ObjectField
+    | ResourceDeclaration
+    | TypedField
+    | UnionTypeExpr;
   readonly $type: "PrimitiveTypeExpr";
   name: PrimitiveName;
 }
@@ -395,14 +443,14 @@ export interface ResourceDeclaration extends langium.AstNode {
   readonly $type: "ResourceDeclaration";
   identity: Array<TypedField>;
   name: string;
-  payload: Array<PayloadField>;
+  payloadType: TypeExpr;
 }
 
 export const ResourceDeclaration = {
   $type: "ResourceDeclaration",
   identity: "identity",
   name: "name",
-  payload: "payload",
+  payloadType: "payloadType",
 } as const;
 
 export function isResourceDeclaration(item: unknown): item is ResourceDeclaration {
@@ -441,21 +489,6 @@ export function isScalarDeclaration(item: unknown): item is ScalarDeclaration {
   return reflection.isInstance(item, ScalarDeclaration.$type);
 }
 
-export interface ScalarTypeExpr extends langium.AstNode {
-  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
-  readonly $type: "ScalarTypeExpr";
-  name: string;
-}
-
-export const ScalarTypeExpr = {
-  $type: "ScalarTypeExpr",
-  name: "name",
-} as const;
-
-export function isScalarTypeExpr(item: unknown): item is ScalarTypeExpr {
-  return reflection.isInstance(item, ScalarTypeExpr.$type);
-}
-
 export interface StringLiteral extends langium.AstNode {
   readonly $container: NamedArg;
   readonly $type: "StringLiteral";
@@ -472,7 +505,13 @@ export function isStringLiteral(item: unknown): item is StringLiteral {
 }
 
 export interface StringLiteralTypeExpr extends langium.AstNode {
-  readonly $container: ArrayTypeExpr | GroupedTypeExpr | PayloadField | TypedField | UnionTypeExpr;
+  readonly $container:
+    | ArrayTypeExpr
+    | GroupedTypeExpr
+    | ObjectField
+    | ResourceDeclaration
+    | TypedField
+    | UnionTypeExpr;
   readonly $type: "StringLiteralTypeExpr";
   value: string;
 }
@@ -487,7 +526,7 @@ export function isStringLiteralTypeExpr(item: unknown): item is StringLiteralTyp
 }
 
 export interface TypedField extends langium.AstNode {
-  readonly $container: ContextBlock | ObjectTypeExpr | QueryDeclaration | ResourceDeclaration;
+  readonly $container: ContextBlock | QueryDeclaration | ResourceDeclaration;
   readonly $type: "TypedField";
   name: string;
   type: TypeExpr;
@@ -506,6 +545,7 @@ export function isTypedField(item: unknown): item is TypedField {
 /**
  * Type precedence (tight → loose): atomic / `[]` / `|`.
  * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
+ * Bare ID is scalar or resource — classified during lowering.
  */
 export type TypeExpr = UnionMember | UnionTypeExpr;
 
@@ -530,9 +570,10 @@ export function isUnionMember(item: unknown): item is UnionMember {
 /**
  * Type precedence (tight → loose): atomic / `[]` / `|`.
  * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
+ * Bare ID is scalar or resource — classified during lowering.
  */
 export interface UnionTypeExpr extends langium.AstNode {
-  readonly $container: GroupedTypeExpr | PayloadField | TypedField;
+  readonly $container: GroupedTypeExpr | ObjectField | ResourceDeclaration | TypedField;
   readonly $type: "UnionTypeExpr";
   members: Array<UnionMember>;
 }
@@ -560,11 +601,12 @@ export type NaviQlAstType = {
   Literal: Literal;
   Model: Model;
   NamedArg: NamedArg;
+  NamedTypeExpr: NamedTypeExpr;
   NullLiteral: NullLiteral;
   NumberLiteral: NumberLiteral;
+  ObjectField: ObjectField;
   ObjectTypeExpr: ObjectTypeExpr;
   PathRef: PathRef;
-  PayloadField: PayloadField;
   PrimitiveTypeExpr: PrimitiveTypeExpr;
   ProjectionClause: ProjectionClause;
   QueryDeclaration: QueryDeclaration;
@@ -572,7 +614,6 @@ export type NaviQlAstType = {
   ResourceDeclaration: ResourceDeclaration;
   RootClause: RootClause;
   ScalarDeclaration: ScalarDeclaration;
-  ScalarTypeExpr: ScalarTypeExpr;
   StringLiteral: StringLiteral;
   StringLiteralTypeExpr: StringLiteralTypeExpr;
   TypeExpr: TypeExpr;
@@ -700,6 +741,15 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       },
       superTypes: [],
     },
+    NamedTypeExpr: {
+      name: NamedTypeExpr.$type,
+      properties: {
+        name: {
+          name: NamedTypeExpr.name,
+        },
+      },
+      superTypes: [AtomicTypeExpr.$type],
+    },
     NullLiteral: {
       name: NullLiteral.$type,
       properties: {},
@@ -713,6 +763,19 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [Literal.$type],
+    },
+    ObjectField: {
+      name: ObjectField.$type,
+      properties: {
+        name: {
+          name: ObjectField.name,
+        },
+        type: {
+          name: ObjectField.type,
+          optional: true,
+        },
+      },
+      superTypes: [],
     },
     ObjectTypeExpr: {
       name: ObjectTypeExpr.$type,
@@ -734,19 +797,6 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [Expression.$type],
-    },
-    PayloadField: {
-      name: PayloadField.$type,
-      properties: {
-        name: {
-          name: PayloadField.name,
-        },
-        type: {
-          name: PayloadField.type,
-          optional: true,
-        },
-      },
-      superTypes: [],
     },
     PrimitiveTypeExpr: {
       name: PrimitiveTypeExpr.$type,
@@ -830,10 +880,8 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         name: {
           name: ResourceDeclaration.name,
         },
-        payload: {
-          name: ResourceDeclaration.payload,
-          defaultValue: [],
-          optional: true,
+        payloadType: {
+          name: ResourceDeclaration.payloadType,
         },
       },
       superTypes: [Declaration.$type],
@@ -858,15 +906,6 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [Declaration.$type],
-    },
-    ScalarTypeExpr: {
-      name: ScalarTypeExpr.$type,
-      properties: {
-        name: {
-          name: ScalarTypeExpr.name,
-        },
-      },
-      superTypes: [AtomicTypeExpr.$type],
     },
     StringLiteral: {
       name: StringLiteral.$type,

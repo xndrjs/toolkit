@@ -9,7 +9,7 @@ scalar TabId on string;
 scalar ProductId on string;
 scalar Sku on string;
 
-resource Page(id: PageId, locale: Locale) {
+resource Page(id: PageId, locale: Locale): {
   id
   title: string
   heroId: HeroId
@@ -24,39 +24,42 @@ resource Page(id: PageId, locale: Locale) {
   )[]
 }
 
-resource Hero(id: HeroId, locale: Locale) {
+resource Hero(id: HeroId, locale: Locale): {
   id
   title: string
   imageId: AssetId
 }
 
-resource Menu(id: MenuId, locale: Locale) {
+resource Menu(id: MenuId, locale: Locale): {
   id
   title: string
   logoId: AssetId
 }
 
-resource Footer(id: FooterId, locale: Locale) {
+resource Footer(id: FooterId, locale: Locale): {
   id
   title: string
   logoId: AssetId
 }
 
-resource Asset(id: AssetId, locale: Locale) {
+resource Asset(id: AssetId, locale: Locale): {
   id
   url: string
   title: string
+  // Example string-literal union (closed set of values).
+  kind: "image" | "video" | "document"
 }
 
-resource Tabs(id: TabsId, locale: Locale) {
+resource Tabs(id: TabsId, locale: Locale): {
   id
   title: string
 }
 
-resource Tab(id: TabId, locale: Locale) {
+resource Tab(id: TabId, locale: Locale): {
   id
   title: string
-  tabsId: TabsId
+  stripHeroId: HeroId
+  stripProductId: ProductId
   // Same polymorphic union as Page.strips (stress: Tab → Tabs nesting).
   strips: (
     { type: "Tabs", id: TabsId }
@@ -65,7 +68,10 @@ resource Tab(id: TabId, locale: Locale) {
   )[]
 }
 
-resource Product(id: ProductId, locale: Locale) {
+/** Collection resource: resolves to Tab instances (normalized into the graph). */
+resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+
+resource Product(id: ProductId, locale: Locale): {
   id
   sku: Sku
   title: string
@@ -113,18 +119,21 @@ query PageDetail(pageId: PageId) {
     id
     url
     title
+    kind
   }
 
   on Tabs t {
     id
     title
+    expand tabs: TabCollection(tabsId: t.id, locale: context.locale)
   }
 
   on Tab tab {
     id
     title
     strips
-    expand parentTabs: Tabs(id: tab.tabsId, locale: context.locale)
+    expand stripHero: Hero(id: tab.stripHeroId, locale: context.locale)
+    expand stripProduct: Product(id: tab.stripProductId, locale: context.locale)
   }
 
   on Product prod {

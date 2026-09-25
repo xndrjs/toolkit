@@ -22,6 +22,10 @@ export function scalarRef(name: string): TypeExpr {
   return { kind: "scalarRef", name, span };
 }
 
+export function resourceRef(name: string): TypeExpr {
+  return { kind: "resourceRef", name, span };
+}
+
 export function strLit(value: string): TypeExpr {
   return { kind: "stringLiteral", value, span };
 }
@@ -49,13 +53,13 @@ export function defScalar(name: string, representation: PrimitiveTypeName): Scal
 export function resource(
   name: string,
   identity: FieldDecl[],
-  payload: FieldDecl[]
+  payloadType: TypeExpr
 ): ResourceDefinition {
   return {
     name,
     ariType: name,
     identity: { fields: identity },
-    payload: { fields: payload },
+    payloadType,
     span,
   };
 }
