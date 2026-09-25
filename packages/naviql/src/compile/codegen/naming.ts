@@ -40,3 +40,18 @@ export function paramsTypeName(queryName: string): string {
 export function executionContextTypeName(queryName: string): string {
   return `${queryName}ExecutionContext`;
 }
+
+/** `PostDetail` → `projectPostDetail` */
+export function projectFnName(queryName: string): string {
+  return `project${queryName}`;
+}
+
+/** `PostDetail` → `PostDetailResult` */
+export function queryResultTypeName(queryName: string): string {
+  return `${queryName}Result`;
+}
+
+/** `PostDetail` + `Post` → `PostDetail_Post` (query-scoped projection type) */
+export function projectionTypeName(queryName: string, resourceName: string): string {
+  return `${queryName}_${resourceName}`;
+}
