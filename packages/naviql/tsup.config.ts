@@ -1,15 +1,9 @@
-import { defineConfig } from "tsup";
+import { defineConfig, type Options } from "tsup";
 
-export default defineConfig({
-  entry: {
-    index: "src/index.ts",
-    "compile/index": "src/compile/index.ts",
-  },
+const shared: Options = {
   format: ["esm"],
   outDir: "dist",
-  dts: true,
   sourcemap: true,
-  clean: true,
   treeshake: true,
   splitting: false,
   external: [
@@ -18,5 +12,27 @@ export default defineConfig({
     "langium",
     /^langium\//,
     "tinyglobby",
+    "jiti",
   ],
-});
+};
+
+export default defineConfig([
+  {
+    ...shared,
+    entry: {
+      index: "src/index.ts",
+      "compile/index": "src/compile/index.ts",
+    },
+    dts: true,
+    clean: true,
+  },
+  {
+    ...shared,
+    entry: ["src/cli.ts"],
+    dts: false,
+    clean: false,
+    banner: {
+      js: "#!/usr/bin/env node",
+    },
+  },
+]);

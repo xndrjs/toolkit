@@ -11,6 +11,9 @@
   },
   "type": "module",
   "sideEffects": false,
+  "bin": {
+    "naviql-codegen": "./dist/cli.js"
+  },
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
@@ -44,6 +47,7 @@
   "dependencies": {
     "@xndrjs/application-resources": "workspace:^",
     "@xndrjs/resource-graph-resolver": "workspace:^",
+    "jiti": "^2.7.0",
     "langium": "~4.4.0",
     "tinyglobby": "^0.2.17"
   },
