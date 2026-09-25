@@ -22,6 +22,22 @@ export function scalarRef(name: string): TypeExpr {
   return { kind: "scalarRef", name, span };
 }
 
+export function strLit(value: string): TypeExpr {
+  return { kind: "stringLiteral", value, span };
+}
+
+export function arrayOf(of: TypeExpr): TypeExpr {
+  return { kind: "array", of, span };
+}
+
+export function objectType(...fields: FieldDecl[]): TypeExpr {
+  return { kind: "object", fields, span };
+}
+
+export function union(...members: TypeExpr[]): TypeExpr {
+  return { kind: "union", members, span };
+}
+
 export function field(name: string, type: TypeExpr, inheritedFromIdentity = false): FieldDecl {
   return { name, type, inheritedFromIdentity, span };
 }

@@ -49,6 +49,7 @@ export function checkTypeExpr(
 ): void {
   switch (type.kind) {
     case "primitive":
+    case "stringLiteral":
       return;
     case "scalarRef":
       if (!scalars.has(type.name)) {
@@ -66,6 +67,11 @@ export function checkTypeExpr(
     case "object":
       for (const field of type.fields) {
         checkTypeExpr(field.type, `${path}.${field.name}`, scalars, sink);
+      }
+      return;
+    case "union":
+      for (let i = 0; i < type.members.length; i++) {
+        checkTypeExpr(type.members[i]!, `${path}|${i}`, scalars, sink);
       }
       return;
   }

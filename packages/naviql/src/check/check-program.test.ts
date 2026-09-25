@@ -210,21 +210,18 @@ describe("checkProgram — negative diagnostics", () => {
     );
   });
 
-  it("rejects constructor arg type mismatch (Sku into HeroId)", () => {
+  it("rejects constructor arg type mismatch (MenuId into HeroId)", () => {
     const program = withMutatedPageDetail((p) => {
-      const tab = pageQuery(p).projections.find((pr) => pr.binding === "tab")!;
-      const stripHero = tab.expansions.find((e) => e.alias === "stripHero")!;
-      stripHero.target.args = [
-        arg("id", payload("tab", "stripProductId")),
-        arg("locale", ctx("locale")),
-      ];
+      const page = pageQuery(p).projections.find((pr) => pr.binding === "p")!;
+      const hero = page.expansions.find((e) => e.alias === "hero")!;
+      hero.target.args = [arg("id", payload("p", "menuId")), arg("locale", ctx("locale"))];
     });
 
-    // stripProductId is ProductId, Hero wants HeroId
+    // menuId is MenuId, Hero wants HeroId
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({
         code: "TYPE_MISMATCH",
-        message: expect.stringMatching(/ProductId.*HeroId/),
+        message: expect.stringMatching(/MenuId.*HeroId/),
       })
     );
   });

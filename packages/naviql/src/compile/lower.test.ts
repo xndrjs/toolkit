@@ -193,4 +193,58 @@ describe("lowerProgram", () => {
       of: { kind: "primitive", name: "string" },
     });
   });
+
+  it("lowers discriminated union strip links", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar HeroId on string;
+        scalar ProductId on string;
+        scalar TabId on string;
+        scalar Locale on string;
+
+        resource Tab(id: TabId, locale: Locale) {
+          id
+          strips: (
+            { type: "Hero", id: HeroId }
+            | { type: "Product", id: ProductId }
+          )[]
+        }
+
+        query TabDetail(tabId: TabId) {
+          context { locale: Locale }
+          root Tab(id: tabId, locale: context.locale)
+          on Tab t { id strips }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+
+    const strips = program.resources
+      .find((r) => r.name === "Tab")
+      ?.payload.fields.find((f) => f.name === "strips")?.type;
+
+    expect(strips).toMatchObject({
+      kind: "array",
+      of: {
+        kind: "union",
+        members: [
+          {
+            kind: "object",
+            fields: [
+              { name: "type", type: { kind: "stringLiteral", value: "Hero" } },
+              { name: "id", type: { kind: "scalarRef", name: "HeroId" } },
+            ],
+          },
+          {
+            kind: "object",
+            fields: [
+              { name: "type", type: { kind: "stringLiteral", value: "Product" } },
+              { name: "id", type: { kind: "scalarRef", name: "ProductId" } },
+            ],
+          },
+        ],
+      },
+    });
+  });
 });
