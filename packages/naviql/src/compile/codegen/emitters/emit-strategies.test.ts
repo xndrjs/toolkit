@@ -129,7 +129,7 @@ describe("emitStrategies", () => {
 
     expect(code).toContain("export function createPageDetailStrategy()");
     expect(code).toContain(
-      'payload.strips.filter((s) => s.type == "Hero").map((s) => editorialModuleAri({ id: s.id, locale: executionContext.locale }))'
+      'payload.strips.filter((s: any) => s.type == "Hero").map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale }))'
     );
   });
 });
@@ -159,7 +159,7 @@ describe("generateStrategies", () => {
     expect(code).toContain("menuAri({ id: payload.menuId, locale: executionContext.locale })");
     expect(code).toContain("footerAri({ id: payload.footerId, locale: executionContext.locale })");
     expect(code).toContain(
-      "...payload.strips.map((s) => editorialModuleAri({ id: s.id, locale: executionContext.locale }))"
+      "...payload.strips.map((s: any) => editorialModuleAri({ id: s.id, locale: executionContext.locale }))"
     );
     expect(code).toContain(".on(heroAri)");
     expect(code).toContain(".on(tabsAri)");

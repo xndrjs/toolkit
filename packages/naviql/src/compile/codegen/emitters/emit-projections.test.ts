@@ -66,7 +66,7 @@ describe("emitProjections", () => {
 
     expect(code).toContain("export function projectPageDetail(");
     expect(code).toContain(
-      "payload.strips.map((s) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })))"
+      "payload.strips.map((s: any) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })))"
     );
     expect(code).toContain('case "EditorialModule":');
     expect(code).toContain('case "Hero":');
@@ -77,6 +77,9 @@ describe("emitProjections", () => {
       "tabCollectionAri({ tabsId: payload.id, locale: executionContext.locale })"
     );
     expect(code).toContain("projectOnTabFromPayload");
+    expect(code).toContain(
+      "const __collectionPayload = contentMap.get(__collectionAri as never) as any;"
+    );
     expect(code).toContain("__collectionPayload.map((item: any) => projectOnTabFromPayload(item))");
     expect(code).toContain(
       "shell.menu = projectNode(menuAri({ id: payload.menuId, locale: executionContext.locale }));"

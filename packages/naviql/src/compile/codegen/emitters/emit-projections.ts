@@ -88,10 +88,10 @@ function emitManyProject(expansion: Expansion): string {
   const construction = emitConstruction(expansion.target);
   const { itemBinding, source, filter } = comprehension;
   const sourceExpr = emitExpr(source);
-  const mapFn = `(${itemBinding}) => projectNode(${construction})`;
+  const mapFn = `(${itemBinding}: any) => projectNode(${construction})`;
 
   if (filter !== null) {
-    return `${sourceExpr}.filter((${itemBinding}) => ${emitExpr(filter)}).map(${mapFn})`;
+    return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(filter)}).map(${mapFn})`;
   }
 
   return `${sourceExpr}.map(${mapFn})`;
@@ -129,7 +129,7 @@ function emitExpansionValue(
     return [
       `(() => {`,
       `  const __collectionAri = ${construction};`,
-      `  const __collectionPayload = contentMap.get(__collectionAri as never);`,
+      `  const __collectionPayload = contentMap.get(__collectionAri as never) as any;`,
       `  if (__collectionPayload === undefined) return undefined;`,
       `  return __collectionPayload.map((item: any) => ${fromPayload}(item));`,
       `})()`,
