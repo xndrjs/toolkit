@@ -2,10 +2,10 @@
 
 **Product entry** for NaviQL with two surfaces:
 
-| Export                   | Use for                                                                                         |
-| ------------------------ | ----------------------------------------------------------------------------------------------- |
-| `@xndrjs/naviql`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives — browser-safe  |
-| `@xndrjs/naviql/compile` | Compile-time DSL: semantic IR, `checkProgram`, and later parse/codegen — Node / CI / build only |
+| Export                   | Use for                                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------------------- |
+| `@xndrjs/naviql`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives — browser-safe |
+| `@xndrjs/naviql/compile` | Compile-time DSL: semantic IR, `checkProgram`, Langium services — Node / CI / build only       |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
@@ -31,7 +31,7 @@ Build / codegen / typecheck tooling:
 import { checkProgram, type Program } from "@xndrjs/naviql/compile";
 ```
 
-Generated app code should import runtime symbols from `@xndrjs/naviql`, never from `/compile`. `.naviql` parse/codegen is still WIP.
+Generated app code should import runtime symbols from `@xndrjs/naviql`, never from `/compile`. Langium lives under `./compile` only; full grammar / `parseAndCheck` are still WIP.
 
 ## License
 

@@ -1,7 +1,8 @@
 /**
- * Compile-time NaviQL surface: semantic IR and typechecker.
+ * Compile-time NaviQL surface: semantic IR, typechecker, and Langium services.
  * Import from `@xndrjs/naviql/compile` — keep out of client bundles.
- * Later: Langium parse/lower, `parseAndCheck`, codegen.
+ * Later: AST → IR lower, `parseAndCheck`, codegen.
  */
 export * from "../ir";
 export { checkProgram, type Diagnostic } from "../check";
+export { createNaviQlServices, NaviQlModule, type NaviQlServices } from "../lang";

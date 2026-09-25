@@ -1,0 +1,11 @@
+{
+  "projectName": "NaviQl",
+  "languages": [
+    {
+      "id": "naviql",
+      "grammar": "src/lang/naviql.langium",
+      "fileExtensions": [".naviql"]
+    }
+  ],
+  "out": "src/lang/generated"
+}
