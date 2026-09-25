@@ -78,15 +78,24 @@ export type ResourceDefinition = {
 };
 
 /**
- * Expression nodes used in constructor args and (later) filters.
+ * Expression nodes used in constructor args and comprehension filters.
  * `payloadRef` vs `identityRef` stay distinct through typecheck and codegen.
+ * `itemRef` is only valid inside a comprehension (binding = itemBinding).
  */
 export type Expr =
   | { kind: "literal"; value: string | number | boolean | null; span: SourceSpan | null }
   | { kind: "param"; name: string; span: SourceSpan | null }
   | { kind: "context"; path: string[]; span: SourceSpan | null }
   | { kind: "payloadRef"; binding: string; path: string[]; span: SourceSpan | null }
-  | { kind: "identityRef"; binding: string; path: string[]; span: SourceSpan | null };
+  | { kind: "identityRef"; binding: string; path: string[]; span: SourceSpan | null }
+  | { kind: "itemRef"; binding: string; path: string[]; span: SourceSpan | null }
+  | {
+      kind: "binary";
+      op: "==" | "!=";
+      left: Expr;
+      right: Expr;
+      span: SourceSpan | null;
+    };
 
 export type NamedArg = {
   name: string;
@@ -102,14 +111,26 @@ export type ResourceConstruction = {
 };
 
 /**
- * Local expansion edge. Phase 1: multiplicity is always `"one"` (no comprehensions).
- * Expanding a collection resource (`TabCollection` → `Tab[]`) is still one edge to
- * that resource; members are ordinary `Tab` instances for `on Tab` rules (later).
+ * Local expansion edge.
+ * - `"one"`: single target ARI (no comprehension).
+ * - `"many"`: comprehension over a source array (`for item in source if …`).
+ * Multiple `"many"` expansions may share an alias (polymorphic union arms).
+ * Expanding a collection resource (`TabCollection` → `Tab[]`) is still one `"one"`
+ * edge to that resource; members are ordinary `Tab` instances for `on Tab`.
  */
 export type Expansion = {
   alias: string;
   target: ResourceConstruction;
-  multiplicity: "one";
+  multiplicity: "one" | "many";
+  /**
+   * Present iff `multiplicity === "many"`.
+   * `filter` is `null` when the `if` clause is omitted.
+   */
+  comprehension: {
+    itemBinding: string;
+    source: Expr;
+    filter: Expr | null;
+  } | null;
   span: SourceSpan | null;
 };
 

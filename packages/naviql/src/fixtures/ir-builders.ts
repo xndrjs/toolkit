@@ -72,8 +72,22 @@ export function construct(resourceName: string, args: NamedArg[]): ResourceConst
   return { resource: resourceName, args, span };
 }
 
-export function expand(alias: string, target: ResourceConstruction): Expansion {
-  return { alias, target, multiplicity: "one", span };
+export function expand(
+  alias: string,
+  target: ResourceConstruction,
+  comprehension: Expansion["comprehension"] = null
+): Expansion {
+  return {
+    alias,
+    target,
+    multiplicity: comprehension ? "many" : "one",
+    comprehension,
+    span,
+  };
+}
+
+export function item(binding: string, ...path: string[]): Expr {
+  return { kind: "itemRef", binding, path, span };
 }
 
 export function projection(

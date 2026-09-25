@@ -16,6 +16,8 @@ export type QueryScope = {
   context: FieldMap;
   /** Projection binding → resource name */
   bindings: Map<string, string>;
+  /** Comprehension item binding → element type (narrowed by filter when possible) */
+  items: Map<string, TypeExpr>;
 };
 
 export type ScalarTable = Map<string, ScalarDefinition>;

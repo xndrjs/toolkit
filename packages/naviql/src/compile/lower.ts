@@ -2,8 +2,9 @@
  * Lower Langium AST → semantic Program IR.
  *
  * Defaults: `ariType = name`, object-payload shorthand sets
- * `inheritedFromIdentity`, expansions are multiplicity `"one"`, scalar
- * `metadata: null`. PathRef is classified here as `param` vs `payloadRef`.
+ * `inheritedFromIdentity`, expansions without `[…]` are multiplicity `"one"`,
+ * bracketed `for` comprehensions are `"many"`, scalar `metadata: null`.
+ * PathRef is classified here as `param` / `payloadRef` / `itemRef`.
  * Named types resolve to `resourceRef` or `scalarRef` using declaration tables.
  * Do not collapse `scalarRef` / `resourceRef` to structural types.
  */
@@ -26,6 +27,7 @@ import type {
 } from "../ir";
 import {
   isArrayTypeExpr,
+  isBinaryExpr,
   isBooleanLiteral,
   isContextRef,
   isGroupedTypeExpr,
@@ -228,32 +230,61 @@ function lowerProjection(clause: AstProjectionClause): ResourceProjection {
 }
 
 function lowerExpansion(expansion: AstExpansion): Expansion {
+  const comprehension = expansion.comprehension;
+  if (comprehension) {
+    const itemBindings = new Set([comprehension.itemBinding]);
+    return {
+      alias: expansion.alias,
+      target: lowerConstruction(expansion.target, itemBindings),
+      multiplicity: "many",
+      comprehension: {
+        itemBinding: comprehension.itemBinding,
+        source: lowerExpr(comprehension.source, /* itemBindings */ new Set()),
+        filter: comprehension.filter ? lowerExpr(comprehension.filter, itemBindings) : null,
+      },
+      span: spanOf(expansion),
+    };
+  }
   return {
     alias: expansion.alias,
     target: lowerConstruction(expansion.target),
     multiplicity: "one",
+    comprehension: null,
     span: spanOf(expansion),
   };
 }
 
-function lowerConstruction(construction: AstResourceConstruction): ResourceConstruction {
+function lowerConstruction(
+  construction: AstResourceConstruction,
+  itemBindings = new Set<string>()
+): ResourceConstruction {
   return {
     resource: construction.resource,
-    args: construction.args.map(lowerNamedArg),
+    args: construction.args.map((a) => lowerNamedArg(a, itemBindings)),
     span: spanOf(construction),
   };
 }
 
-function lowerNamedArg(arg: AstNamedArg): NamedArg {
+function lowerNamedArg(arg: AstNamedArg, itemBindings = new Set<string>()): NamedArg {
   return {
     name: arg.name,
-    value: lowerExpr(arg.value),
+    value: lowerExpr(arg.value, itemBindings),
     span: spanOf(arg),
   };
 }
 
-function lowerExpr(expr: AstExpression): Expr {
+function lowerExpr(expr: AstExpression, itemBindings = new Set<string>()): Expr {
   const span = spanOf(expr);
+
+  if (isBinaryExpr(expr)) {
+    return {
+      kind: "binary",
+      op: expr.op,
+      left: lowerExpr(expr.left, itemBindings),
+      right: lowerExpr(expr.right, itemBindings),
+      span,
+    };
+  }
 
   if (isStringLiteral(expr)) {
     return { kind: "literal", value: expr.value, span };
@@ -279,12 +310,21 @@ function lowerExpr(expr: AstExpression): Expr {
     };
   }
   if (isPathRef(expr)) {
+    const head = expr.segments[0] ?? "";
+    if (itemBindings.has(head)) {
+      return {
+        kind: "itemRef",
+        binding: head,
+        path: expr.segments.slice(1),
+        span,
+      };
+    }
     if (expr.segments.length <= 1) {
-      return { kind: "param", name: expr.segments[0] ?? "", span };
+      return { kind: "param", name: head, span };
     }
     return {
       kind: "payloadRef",
-      binding: expr.segments[0]!,
+      binding: head,
       path: expr.segments.slice(1),
       span,
     };
