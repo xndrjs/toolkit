@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { checkProgram } from "../check";
-import type { Program } from "../ir";
+import { checkProgram, type Program } from "../compile";
+
 import {
   arg,
   construct,

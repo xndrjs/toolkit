@@ -10,7 +10,7 @@ import type {
   ResourceProjection,
   ScalarDefinition,
   TypeExpr,
-} from "../ir";
+} from "../compile";
 
 export const span = null;
 

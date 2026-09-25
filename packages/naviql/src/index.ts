@@ -1,6 +1,8 @@
 /**
  * Product entry for NaviQL: re-exports the resource graph resolver and
- * application-resources, plus the NaviQL DSL stack (IR / typechecker — WIP).
+ * application-resources (browser-safe runtime façade).
+ *
+ * For IR, `checkProgram`, and (later) parse/codegen, use `@xndrjs/naviql/compile`.
  */
 export * from "@xndrjs/resource-graph-resolver";
 export {
@@ -31,6 +33,3 @@ export {
   type ApplicationResourcePrimitive,
 } from "@xndrjs/application-resources";
 // `ApplicationResourceIdentifier` is already re-exported by resource-graph-resolver.
-
-export * from "./ir";
-export { checkProgram, type Diagnostic } from "./check";
