@@ -86,7 +86,8 @@ export type AtomicTypeExpr =
   | NamedTypeExpr
   | ObjectTypeExpr
   | PrimitiveTypeExpr
-  | StringLiteralTypeExpr;
+  | StringLiteralTypeExpr
+  | TypeProjection;
 
 export const AtomicTypeExpr = {
   $type: "AtomicTypeExpr",
@@ -613,6 +614,34 @@ export function isTypeExpr(item: unknown): item is TypeExpr {
   return reflection.isInstance(item, TypeExpr.$type);
 }
 
+/**
+ * Type-level payload field projection: `EditorialModule.type` → semantic type
+ * of that payload field (distributes over resource-union payloads).
+ * Distinct from runtime path exprs (`p.authorId`).
+ */
+export interface TypeProjection extends langium.AstNode {
+  readonly $container:
+    | ArrayTypeExpr
+    | GroupedTypeExpr
+    | ObjectField
+    | ResourceDeclaration
+    | TypedField
+    | UnionTypeExpr;
+  readonly $type: "TypeProjection";
+  field: string;
+  resource: string;
+}
+
+export const TypeProjection = {
+  $type: "TypeProjection",
+  field: "field",
+  resource: "resource",
+} as const;
+
+export function isTypeProjection(item: unknown): item is TypeProjection {
+  return reflection.isInstance(item, TypeProjection.$type);
+}
+
 export type UnionMember = ArrayTypeExpr | AtomicTypeExpr;
 
 export const UnionMember = {
@@ -676,6 +705,7 @@ export type NaviQlAstType = {
   StringLiteral: StringLiteral;
   StringLiteralTypeExpr: StringLiteralTypeExpr;
   TypeExpr: TypeExpr;
+  TypeProjection: TypeProjection;
   TypedField: TypedField;
   UnionMember: UnionMember;
   UnionTypeExpr: UnionTypeExpr;
@@ -1028,6 +1058,18 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       name: TypeExpr.$type,
       properties: {},
       superTypes: [],
+    },
+    TypeProjection: {
+      name: TypeProjection.$type,
+      properties: {
+        field: {
+          name: TypeProjection.field,
+        },
+        resource: {
+          name: TypeProjection.resource,
+        },
+      },
+      superTypes: [AtomicTypeExpr.$type],
     },
     TypedField: {
       name: TypedField.$type,

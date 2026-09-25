@@ -37,6 +37,9 @@ export type ScalarDefinition = {
  * payload of that resource) — never lower to a structural object.
  * `R[]` stays `array { of: resourceRef("R") }` so collections remain distinct
  * from arrays of ordinary values.
+ *
+ * `typeProjection` (`Resource.field` in a type position) is preserved through
+ * lowering; the checker resolves it to the payload field's semantic type.
  */
 export type TypeExpr =
   | { kind: "primitive"; name: PrimitiveTypeName; span: SourceSpan | null }
@@ -46,7 +49,14 @@ export type TypeExpr =
   | { kind: "nullable"; of: TypeExpr; span: SourceSpan | null }
   | { kind: "array"; of: TypeExpr; span: SourceSpan | null }
   | { kind: "object"; fields: FieldDecl[]; span: SourceSpan | null }
-  | { kind: "union"; members: TypeExpr[]; span: SourceSpan | null };
+  | { kind: "union"; members: TypeExpr[]; span: SourceSpan | null }
+  | {
+      kind: "typeProjection";
+      /** Resource whose *payload* is projected (not ARI identity). */
+      resource: string;
+      field: string;
+      span: SourceSpan | null;
+    };
 
 export type FieldDecl = {
   name: string;
