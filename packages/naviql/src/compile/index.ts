@@ -7,11 +7,12 @@ export { checkProgram, type Diagnostic } from "../check";
 export { createNaviQlServices, NaviQlModule, type NaviQlServices } from "../lang";
 export { lowerProgram } from "./lower";
 export {
-  collectNaviQlFiles,
+  defineConfig,
   DEFAULT_NAVIQL_EXCLUDE,
   DEFAULT_NAVIQL_INCLUDE,
-  type CollectNaviQlFilesOptions,
-} from "./collect/collect-naviql-files";
+  type NaviQlCodegenConfig,
+} from "./config/define-config";
+export { collectNaviQlFiles, type CollectNaviQlFilesOptions } from "./collect/collect-naviql-files";
 export { mergePrograms } from "./merge-programs";
 export { parseAndCheck, type ParseAndCheckResult } from "./parse-and-check";
 export {
