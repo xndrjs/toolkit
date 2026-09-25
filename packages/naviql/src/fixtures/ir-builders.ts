@@ -26,6 +26,10 @@ export function resourceRef(name: string): TypeExpr {
   return { kind: "resourceRef", name, span };
 }
 
+export function typeProj(resource: string, field: string): TypeExpr {
+  return { kind: "typeProjection", resource, field, span };
+}
+
 export function strLit(value: string): TypeExpr {
   return { kind: "stringLiteral", value, span };
 }

@@ -1,5 +1,6 @@
 import type { FieldDecl, ScalarDefinition, TypeExpr } from "../ir";
 import type { DiagnosticSink } from "./diagnostic";
+import { resolveTypeExpr } from "./resolve-type";
 
 export type FieldMap = Map<string, FieldDecl>;
 
@@ -45,6 +46,10 @@ export function checkUniqueFields(
   return map;
 }
 
+/**
+ * Validate a type expression. Resolves `typeProjection` for diagnostics but
+ * does not rewrite the IR node.
+ */
 export function checkTypeExpr(
   type: TypeExpr,
   path: string,
@@ -74,6 +79,10 @@ export function checkTypeExpr(
         });
       }
       return;
+    case "typeProjection":
+      // Validate by resolving; keep IR as typeProjection.
+      resolveTypeExpr(type, path, scalars, resources, sink);
+      return;
     case "nullable":
     case "array":
       checkTypeExpr(type.of, path, scalars, resources, sink);
@@ -93,4 +102,15 @@ export function checkTypeExpr(
 
 export function unwrapNullable(type: TypeExpr): TypeExpr {
   return type.kind === "nullable" ? unwrapNullable(type.of) : type;
+}
+
+/** Resolve projections then return a concrete type for assignability / inference. */
+export function concreteType(
+  type: TypeExpr,
+  path: string,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): TypeExpr | undefined {
+  return resolveTypeExpr(type, path, scalars, resources, sink);
 }

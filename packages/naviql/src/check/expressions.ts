@@ -2,6 +2,7 @@ import type { Expr, TypeExpr } from "../ir";
 import { formatType, isAssignable, literalInhabits } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
 import {
+  concreteType,
   unwrapNullable,
   type FieldMap,
   type QueryScope,
@@ -116,12 +117,19 @@ export function checkExprAssignableTo(
   resources: ResourceTable,
   sink: DiagnosticSink
 ): void {
+  const expectedConcrete = concreteType(expected, path, scalars, resources, sink);
+  if (!expectedConcrete) return;
+
   if (expr.kind === "literal") {
-    const ok = literalInhabits(expr.value, expected, (name) => scalars.get(name)?.representation);
+    const ok = literalInhabits(
+      expr.value,
+      expectedConcrete,
+      (name) => scalars.get(name)?.representation
+    );
     if (!ok) {
       sink.push({
         code: "TYPE_MISMATCH",
-        message: `Literal is not assignable to ${formatType(expected)}`,
+        message: `Literal is not assignable to ${formatType(expectedConcrete)}`,
         path,
       });
     }
@@ -131,10 +139,13 @@ export function checkExprAssignableTo(
   const actual = inferExprType(expr, path, scope, resources, sink);
   if (!actual) return;
 
-  if (!isAssignable(actual, expected)) {
+  const actualConcrete = concreteType(actual, path, scalars, resources, sink);
+  if (!actualConcrete) return;
+
+  if (!isAssignable(actualConcrete, expectedConcrete)) {
     sink.push({
       code: "TYPE_MISMATCH",
-      message: `Type ${formatType(actual)} is not assignable to ${formatType(expected)}`,
+      message: `Type ${formatType(actualConcrete)} is not assignable to ${formatType(expectedConcrete)}`,
       path,
     });
   }

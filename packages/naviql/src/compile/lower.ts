@@ -43,6 +43,7 @@ import {
   isScalarDeclaration,
   isStringLiteral,
   isStringLiteralTypeExpr,
+  isTypeProjection,
   isUnionTypeExpr,
   type Expansion as AstExpansion,
   type Expression as AstExpression,
@@ -209,6 +210,14 @@ function lowerTypeExpr(
       span: spanOf(type),
     };
   }
+  if (isTypeProjection(type)) {
+    return {
+      kind: "typeProjection",
+      resource: type.resource,
+      field: type.field,
+      span: spanOf(type),
+    };
+  }
   if (isNamedTypeExpr(type)) {
     if (tables.resources.has(type.name)) {
       return { kind: "resourceRef", name: type.name, span: spanOf(type) };
@@ -363,6 +372,13 @@ function cloneTypeExpr(type: TypeExpr): TypeExpr {
       return {
         kind: "union",
         members: type.members.map(cloneTypeExpr),
+        span: type.span,
+      };
+    case "typeProjection":
+      return {
+        kind: "typeProjection",
+        resource: type.resource,
+        field: type.field,
         span: type.span,
       };
   }

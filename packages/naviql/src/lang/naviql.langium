@@ -49,10 +49,18 @@ UnionMember:
     AtomicTypeExpr ({infer ArrayTypeExpr.of=current} '[' ']')*;
 
 AtomicTypeExpr:
-    PrimitiveTypeExpr | NamedTypeExpr | ObjectTypeExpr | StringLiteralTypeExpr | GroupedTypeExpr;
+    PrimitiveTypeExpr | TypeProjection | NamedTypeExpr | ObjectTypeExpr | StringLiteralTypeExpr | GroupedTypeExpr;
 
 PrimitiveTypeExpr:
     name=PrimitiveName;
+
+/**
+ * Type-level payload field projection: `EditorialModule.type` → semantic type
+ * of that payload field (distributes over resource-union payloads).
+ * Distinct from runtime path exprs (`p.authorId`).
+ */
+TypeProjection:
+    resource=ID '.' field=ID;
 
 /** Scalar or resource name; resolved in lowering against declaration tables. */
 NamedTypeExpr:

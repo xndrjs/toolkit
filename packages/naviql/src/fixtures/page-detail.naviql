@@ -15,14 +15,15 @@ resource Page(id: PageId, locale: Locale): {
   title: string
   menuId: MenuId
   footerId: FooterId
-  // Polymorphic modules (demo Page.modules). Expanded as EditorialModule[].
+  // Polymorphic modules — discriminant projected from EditorialModule.
   strips: {
-    type: "Tabs" | "Hero" | "Product"
+    type: EditorialModule.type
     id: EditorialModuleId
   }[]
 }
 
 resource Hero(id: HeroId, locale: Locale): {
+  type: "Hero"
   id
   title: string
   imageId: AssetId
@@ -48,6 +49,7 @@ resource Asset(id: AssetId, locale: Locale): {
 }
 
 resource Tabs(id: TabsId, locale: Locale): {
+  type: "Tabs"
   id
   title: string
 }
@@ -57,7 +59,7 @@ resource Tab(id: TabId, locale: Locale): {
   title: string
   // Same polymorphic union as Page.strips (Tabs nesting / recursion).
   strips: {
-    type: "Tabs" | "Hero" | "Product"
+    type: EditorialModule.type
     id: EditorialModuleId
   }[]
 }
@@ -66,6 +68,7 @@ resource Tab(id: TabId, locale: Locale): {
 resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
 
 resource Product(id: ProductId, locale: Locale): {
+  type: "Product"
   id
   sku: Sku
   title: string
