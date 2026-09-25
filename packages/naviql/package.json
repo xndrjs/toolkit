@@ -32,19 +32,22 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsup",
+    "langium:generate": "langium generate",
+    "build": "pnpm run langium:generate && tsup",
     "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
     "prepublishOnly": "pnpm run build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "test": "pnpm run langium:generate && vitest run",
+    "typecheck": "pnpm run langium:generate && tsc --noEmit"
   },
   "dependencies": {
     "@xndrjs/application-resources": "workspace:^",
-    "@xndrjs/resource-graph-resolver": "workspace:^"
+    "@xndrjs/resource-graph-resolver": "workspace:^",
+    "langium": "~4.4.0"
   },
   "devDependencies": {
+    "langium-cli": "~4.4.0",
     "tsup": "^8.5.1",
     "vitest": "^4.1.0"
   }

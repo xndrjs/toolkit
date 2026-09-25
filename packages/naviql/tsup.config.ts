@@ -12,5 +12,10 @@ export default defineConfig({
   clean: true,
   treeshake: true,
   splitting: false,
-  external: ["@xndrjs/application-resources", "@xndrjs/resource-graph-resolver"],
+  external: [
+    "@xndrjs/application-resources",
+    "@xndrjs/resource-graph-resolver",
+    "langium",
+    /^langium\//,
+  ],
 });
