@@ -1,11 +1,7 @@
 import path from "node:path";
 import { globSync } from "tinyglobby";
 
-/** Default glob include patterns (relative to `root`). */
-export const DEFAULT_NAVIQL_INCLUDE = ["**/*.naviql"] as const;
-
-/** Default glob exclude patterns (relative to `root`). */
-export const DEFAULT_NAVIQL_EXCLUDE = ["**/node_modules/**"] as const;
+import { DEFAULT_NAVIQL_EXCLUDE, DEFAULT_NAVIQL_INCLUDE } from "../config/define-config";
 
 export type CollectNaviQlFilesOptions = {
   /** Directory to search; defaults to `process.cwd()`. */
@@ -20,6 +16,8 @@ export type CollectNaviQlFilesOptions = {
    */
   pathFilter?: string | RegExp;
 };
+
+export { DEFAULT_NAVIQL_EXCLUDE, DEFAULT_NAVIQL_INCLUDE };
 
 function toPosix(filePath: string): string {
   return filePath.replaceAll("\\", "/");
