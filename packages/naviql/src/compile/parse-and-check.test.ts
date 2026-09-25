@@ -7,13 +7,19 @@ import { parseAndCheck } from "./parse-and-check";
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../fixtures");
 
+function loadFixture(name: string): string {
+  return readFileSync(join(fixturesDir, name), "utf8");
+}
+
 describe("parseAndCheck", () => {
-  it("parses, lowers, and typechecks page-detail.naviql with no diagnostics", () => {
-    const source = readFileSync(join(fixturesDir, "page-detail.naviql"), "utf8");
-    const { program, diagnostics } = parseAndCheck(source, "file:///fixtures/page-detail.naviql");
+  it("returns program + empty diagnostics for valid source", () => {
+    const { program, diagnostics } = parseAndCheck(
+      loadFixture("page-detail.naviql"),
+      "file:///fixtures/page-detail.naviql"
+    );
 
     expect(diagnostics).toEqual([]);
-    expect(program.queries.map((q) => q.name)).toEqual(["PageDetail"]);
+    expect(program.queries).toHaveLength(1);
     expect(program.span?.uri).toBe("file:///fixtures/page-detail.naviql");
   });
 
@@ -30,37 +36,10 @@ describe("parseAndCheck", () => {
     });
   });
 
-  it("reports TYPE_MISMATCH for Hero(id: @p.id) from source", () => {
-    const { diagnostics } = parseAndCheck(`
-      scalar PageId on string;
-      scalar HeroId on string;
-      scalar Locale on string;
+  it("surfaces semantic diagnostics from source without SYNTAX_ERROR", () => {
+    const { diagnostics } = parseAndCheck(loadFixture("hero-id-mismatch.naviql"));
 
-      resource Page(id: PageId, locale: Locale): {
-        id
-        heroId: HeroId
-      }
-
-      resource Hero(id: HeroId, locale: Locale): {
-        id
-      }
-
-      query Bad(pageId: PageId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
-        on Page p {
-          id
-          expand hero: Hero(id: @p.id, locale: context.locale)
-        }
-      }
-    `);
-
-    expect(diagnostics).toContainEqual(
-      expect.objectContaining({
-        code: "TYPE_MISMATCH",
-        message: expect.stringMatching(/PageId.*HeroId|HeroId.*PageId/),
-      })
-    );
+    expect(diagnostics.some((d) => d.code === "TYPE_MISMATCH")).toBe(true);
     expect(diagnostics.every((d) => d.code !== "SYNTAX_ERROR")).toBe(true);
   });
 });

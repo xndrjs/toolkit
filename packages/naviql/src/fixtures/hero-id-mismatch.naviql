@@ -1,0 +1,29 @@
+/** Negative fixture: PageId is not assignable to HeroId via identity ref. */
+scalar PageId on string;
+scalar HeroId on string;
+scalar Locale on string;
+
+resource Page(id: PageId, locale: Locale): {
+  id
+  heroId: HeroId
+}
+
+resource Hero(id: HeroId, locale: Locale): {
+  id
+}
+
+query Bad(pageId: PageId) {
+  context {
+    locale: Locale
+  }
+
+  root Page(
+    id: pageId,
+    locale: context.locale
+  )
+
+  on Page p {
+    id
+    expand hero: Hero(id: @p.id, locale: context.locale)
+  }
+}
