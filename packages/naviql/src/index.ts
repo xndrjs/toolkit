@@ -33,3 +33,4 @@ export {
 // `ApplicationResourceIdentifier` is already re-exported by resource-graph-resolver.
 
 export * from "./ir";
+export { checkProgram, type Diagnostic } from "./check";

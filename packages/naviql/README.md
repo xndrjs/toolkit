@@ -18,7 +18,7 @@ pnpm add @xndrjs/naviql
 import { createResourceGraphResolver, createGraphResolutionStrategy, ari, s } from "@xndrjs/naviql";
 ```
 
-NaviQL language APIs (IR, `checkProgram`, `.naviql` compile) will land in this package as the DSL matures.
+NaviQL language APIs: IR types and `checkProgram` (typechecker) are available; `.naviql` parse/codegen is still WIP.
 
 ## License
 
