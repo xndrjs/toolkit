@@ -33,14 +33,25 @@ TypedField:
 PayloadField:
     name=ID (':' type=TypeExpr)?;
 
+/**
+ * Types: primitives, scalar refs, inline objects, and postfix arrays.
+ * `string[]`, `{ name: string; }[]`, nested objects — left-associative `[]`.
+ */
 TypeExpr:
-    PrimitiveTypeExpr | ScalarTypeExpr;
+    AtomicTypeExpr ({infer ArrayTypeExpr.of=current} '[' ']')*;
+
+AtomicTypeExpr:
+    PrimitiveTypeExpr | ScalarTypeExpr | ObjectTypeExpr;
 
 PrimitiveTypeExpr:
     name=PrimitiveName;
 
 ScalarTypeExpr:
     name=ID;
+
+/** Inline structural object; optional `;` after each field (TS-like). */
+ObjectTypeExpr:
+    '{' (fields+=TypedField ';'?)* '}';
 
 // --- Queries -----------------------------------------------------------------
 

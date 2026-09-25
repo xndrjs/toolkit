@@ -125,4 +125,46 @@ describe("NaviQl MVP grammar", () => {
     expect(post?.payload[0]?.type).toBeUndefined();
     expect(post?.payload[1]?.type?.$type).toBe("ScalarTypeExpr");
   });
+
+  it("parses inline object types and postfix arrays", () => {
+    const model = parseSource(`
+      scalar MenuId on string;
+      scalar Locale on string;
+      scalar AssetId on string;
+
+      resource Menu(id: MenuId, locale: Locale) {
+        id
+        title: string
+        logoId: AssetId
+        meta: {
+          count: number;
+          isActive: boolean;
+          name: string;
+        }
+        slides: {
+          name: string;
+        }[]
+        tags: string[]
+      }
+    `);
+
+    const menu = model.declarations.find(isResourceDeclaration) as ResourceDeclaration;
+    const meta = menu.payload.find((p) => p.name === "meta")?.type;
+    expect(meta?.$type).toBe("ObjectTypeExpr");
+    if (meta?.$type === "ObjectTypeExpr") {
+      expect(meta.fields.map((f) => f.name)).toEqual(["count", "isActive", "name"]);
+    }
+
+    const slides = menu.payload.find((p) => p.name === "slides")?.type;
+    expect(slides?.$type).toBe("ArrayTypeExpr");
+    if (slides?.$type === "ArrayTypeExpr") {
+      expect(slides.of.$type).toBe("ObjectTypeExpr");
+    }
+
+    const tags = menu.payload.find((p) => p.name === "tags")?.type;
+    expect(tags?.$type).toBe("ArrayTypeExpr");
+    if (tags?.$type === "ArrayTypeExpr") {
+      expect(tags.of.$type).toBe("PrimitiveTypeExpr");
+    }
+  });
 });
