@@ -17,13 +17,13 @@ import {
   strLit,
   typeProj,
   union,
-} from "../../fixtures";
-import type { Program, TypeExpr } from "../../ir";
-import { parseAndCheck } from "../parse-and-check";
+} from "../../../fixtures";
+import type { Program, TypeExpr } from "../../../ir";
+import { parseAndCheck } from "../../parse-and-check";
 import { emitPayloadTypes, printTypeExpr } from "./emit-types";
-import { generateResources } from "./generate-resources";
+import { generateResources } from "../generators/generate-resources";
 
-const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../fixtures");
+const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
 
 function loadFixture(name: string): string {
   return readFileSync(join(fixturesDir, name), "utf8");

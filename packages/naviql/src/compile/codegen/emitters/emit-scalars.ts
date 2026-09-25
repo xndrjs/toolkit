@@ -1,4 +1,4 @@
-import type { PrimitiveTypeName, Program } from "../../ir";
+import type { PrimitiveTypeName, Program } from "../../../ir";
 
 /**
  * Local type-only brand helper (mirrors `@xndrjs/domain` idea; no dependency).

@@ -11,12 +11,18 @@
  * Alias types restore expansion names. Union resources strip to the union of
  * projected member types; collection resources (`Tab[]`) become member arrays.
  */
-import { createDiagnosticSink } from "../../check/diagnostic";
-import { resolveTypeExpr } from "../../check/resolve-type";
-import type { ResourceTable, ScalarTable } from "../../check/symbols";
-import type { Expansion, Program, QueryDefinition, ResourceProjection, TypeExpr } from "../../ir";
+import { createDiagnosticSink } from "../../../check/diagnostic";
+import { resolveTypeExpr } from "../../../check/resolve-type";
+import type { ResourceTable, ScalarTable } from "../../../check/symbols";
+import type {
+  Expansion,
+  Program,
+  QueryDefinition,
+  ResourceProjection,
+  TypeExpr,
+} from "../../../ir";
 import { printTypeExpr } from "./emit-types";
-import { projectionTypeName, queryResultTypeName } from "./naming";
+import { projectionTypeName, queryResultTypeName } from "../naming";
 
 function tablesFromProgram(program: Program): {
   scalars: ScalarTable;

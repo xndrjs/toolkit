@@ -1,8 +1,8 @@
-import { createDiagnosticSink } from "../../check/diagnostic";
-import { resolveTypeExpr } from "../../check/resolve-type";
-import type { ResourceTable, ScalarTable } from "../../check/symbols";
-import type { Program, TypeExpr } from "../../ir";
-import { payloadTypeName } from "./naming";
+import { createDiagnosticSink } from "../../../check/diagnostic";
+import { resolveTypeExpr } from "../../../check/resolve-type";
+import type { ResourceTable, ScalarTable } from "../../../check/symbols";
+import type { Program, TypeExpr } from "../../../ir";
+import { payloadTypeName } from "../naming";
 
 /**
  * Parent context for TypeScript precedence.

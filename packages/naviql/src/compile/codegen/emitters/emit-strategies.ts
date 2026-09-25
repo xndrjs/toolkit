@@ -2,7 +2,13 @@
  * Emit open `createGraphResolutionStrategy` builders from checked queries.
  * Local expansions only — no islands, `.when()`, root helpers, or `.build()`.
  */
-import type { Expansion, FieldDecl, Program, QueryDefinition, ResourceProjection } from "../../ir";
+import type {
+  Expansion,
+  FieldDecl,
+  Program,
+  QueryDefinition,
+  ResourceProjection,
+} from "../../../ir";
 import { emitConstruction } from "./emit-construction";
 import { emitExpr } from "./emit-expr";
 import { printTypeExpr } from "./emit-types";
@@ -11,7 +17,7 @@ import {
   executionContextTypeName,
   paramsTypeName,
   strategyFactoryName,
-} from "./naming";
+} from "../naming";
 
 function emitObjectTypeAlias(name: string, fields: FieldDecl[]): string {
   const body = printTypeExpr({ kind: "object", fields, span: null });

@@ -1,6 +1,6 @@
-import type { ResourceConstruction } from "../../ir";
+import type { ResourceConstruction } from "../../../ir";
 import { emitExpr } from "./emit-expr";
-import { ariFactoryName } from "./naming";
+import { ariFactoryName } from "../naming";
 
 /**
  * Lower a `ResourceConstruction` to a TypeScript ARI factory call.
