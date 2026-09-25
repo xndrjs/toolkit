@@ -6,7 +6,8 @@
  * are represented as named one-expansions (`featuredTabs`, `stripHero`, …).
  * Islands are omitted (engine concern).
  */
-import type { Program } from "../ir";
+import type { Program } from "../compile";
+
 import {
   arg,
   construct,

@@ -1,7 +1,7 @@
 {
   "name": "@xndrjs/naviql",
   "version": "0.1.0-alpha.0",
-  "description": "NaviQL product entry: resource graph resolver + application resources re-export, with DSL stack (WIP).",
+  "description": "NaviQL product entry: browser-safe resource graph resolver + application resources; compile-time DSL via ./compile.",
   "private": false,
   "license": "MIT",
   "repository": {
@@ -17,6 +17,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./compile": {
+      "types": "./dist/compile/index.d.ts",
+      "import": "./dist/compile/index.js",
+      "default": "./dist/compile/index.js"
     }
   },
   "files": [
