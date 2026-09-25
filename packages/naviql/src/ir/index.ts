@@ -101,7 +101,11 @@ export type ResourceProjection = {
   span: SourceSpan | null;
 };
 
-export type StrategyDefinition = {
+/**
+ * Top-level NaviQL unit (`query Name(…) { … }`).
+ * Distinct from the engine's resolution *strategy* (expansion policies).
+ */
+export type QueryDefinition = {
   name: string;
   parameters: FieldDecl[];
   context: FieldDecl[];
@@ -113,6 +117,6 @@ export type StrategyDefinition = {
 export type Program = {
   scalars: ScalarDefinition[];
   resources: ResourceDefinition[];
-  strategies: StrategyDefinition[];
+  queries: QueryDefinition[];
   span: SourceSpan | null;
 };
