@@ -192,7 +192,7 @@ export function projectPageDetail(
     shell.title = payload.title;
     shell.menu = projectNode(menuAri({ id: payload.menuId, locale: executionContext.locale }));
     shell.footer = projectNode(footerAri({ id: payload.footerId, locale: executionContext.locale }));
-    shell.strips = payload.strips.map((s) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })));
+    shell.strips = payload.strips.map((s: any) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })));
     return shell;
   };
 
@@ -240,7 +240,7 @@ export function projectPageDetail(
     shell.title = payload.title;
     shell.tabs = (() => {
       const __collectionAri = tabCollectionAri({ tabsId: payload.id, locale: executionContext.locale });
-      const __collectionPayload = contentMap.get(__collectionAri as never);
+      const __collectionPayload = contentMap.get(__collectionAri as never) as any;
       if (__collectionPayload === undefined) return undefined;
       return __collectionPayload.map((item: any) => projectOnTabFromPayload(item));
     })();
@@ -252,7 +252,7 @@ export function projectPageDetail(
     memo.set(resource.toString(), shell);
     shell.id = payload.id;
     shell.title = payload.title;
-    shell.strips = payload.strips.map((s) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })));
+    shell.strips = payload.strips.map((s: any) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })));
     return shell;
   };
 
@@ -260,7 +260,7 @@ export function projectPageDetail(
     const shell: any = { $type: "Tab" };
     shell.id = payload.id;
     shell.title = payload.title;
-    shell.strips = payload.strips.map((s) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })));
+    shell.strips = payload.strips.map((s: any) => projectNode(editorialModuleAri({ id: s.id, locale: executionContext.locale })));
     return shell;
   };
 
@@ -359,6 +359,9 @@ describe("generateProjections golden", () => {
     expect(code).toContain("tabs: PageDetail_Tab[];");
     expect(code).toContain('case "EditorialModule":');
     expect(code).toContain("projectOnTabFromPayload");
+    expect(code).toContain(
+      "const __collectionPayload = contentMap.get(__collectionAri as never) as any;"
+    );
     expect(code).toContain("__collectionPayload.map((item: any) => projectOnTabFromPayload(item))");
     expect(code).not.toContain("PageDetail_EditorialModule");
     expect(code).not.toContain("PageDetail_TabCollection");
