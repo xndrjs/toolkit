@@ -212,24 +212,19 @@ export const NaviQlGrammar = (): Grammar =>
           },
           {
             "$type": "Keyword",
-            "value": "{"
+            "value": ":"
           },
           {
             "$type": "Assignment",
-            "feature": "payload",
-            "operator": "+=",
+            "feature": "payloadType",
+            "operator": "=",
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@6"
+                "$ref": "#/rules@7"
               },
               "arguments": []
-            },
-            "cardinality": "*"
-          },
-          {
-            "$type": "Keyword",
-            "value": "}"
+            }
           }
         ]
       },
@@ -279,7 +274,7 @@ export const NaviQlGrammar = (): Grammar =>
     },
     {
       "$type": "ParserRule",
-      "name": "PayloadField",
+      "name": "ObjectField",
       "definition": {
         "$type": "Group",
         "elements": [
@@ -322,7 +317,7 @@ export const NaviQlGrammar = (): Grammar =>
       "entry": false,
       "fragment": false,
       "parameters": [],
-      "$comment": "/** Bare \`id\` inherits identity type; \`title: string\` is an explicit type. */"
+      "$comment": "/**\\n * Object field: bare \`id\` (payload shorthand) or \`title: string\`.\\n * Used inside object type expressions (including resource object payloads).\\n */"
     },
     {
       "$type": "ParserRule",
@@ -373,7 +368,7 @@ export const NaviQlGrammar = (): Grammar =>
       "entry": false,
       "fragment": false,
       "parameters": [],
-      "$comment": "/**\\n * Type precedence (tight → loose): atomic / \`[]\` / \`|\`.\\n * Group with \`(…)\` for \`(A | B)[]\`. String literals are type atoms (\`\\"Hero\\"\`).\\n */"
+      "$comment": "/**\\n * Type precedence (tight → loose): atomic / \`[]\` / \`|\`.\\n * Group with \`(…)\` for \`(A | B)[]\`. String literals are type atoms (\`\\"Hero\\"\`).\\n * Bare ID is scalar or resource — classified during lowering.\\n */"
     },
     {
       "$type": "ParserRule",
@@ -485,7 +480,7 @@ export const NaviQlGrammar = (): Grammar =>
     },
     {
       "$type": "ParserRule",
-      "name": "ScalarTypeExpr",
+      "name": "NamedTypeExpr",
       "definition": {
         "$type": "Assignment",
         "feature": "name",
@@ -500,7 +495,8 @@ export const NaviQlGrammar = (): Grammar =>
       },
       "entry": false,
       "fragment": false,
-      "parameters": []
+      "parameters": [],
+      "$comment": "/** Scalar or resource name; resolved in lowering against declaration tables. */"
     },
     {
       "$type": "ParserRule",
@@ -522,7 +518,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@5"
+                    "$ref": "#/rules@6"
                   },
                   "arguments": []
                 }

@@ -1,10 +1,11 @@
 /**
  * Lower Langium AST → semantic Program IR.
  *
- * Defaults match Phase 1 fixtures: `ariType = name`, payload shorthand sets
+ * Defaults: `ariType = name`, object-payload shorthand sets
  * `inheritedFromIdentity`, expansions are multiplicity `"one"`, scalar
  * `metadata: null`. PathRef is classified here as `param` vs `payloadRef`.
- * Do not collapse `scalarRef` → `primitive`.
+ * Named types resolve to `resourceRef` or `scalarRef` using declaration tables.
+ * Do not collapse `scalarRef` / `resourceRef` to structural types.
  */
 import { AstUtils, type AstNode } from "langium";
 
@@ -29,6 +30,7 @@ import {
   isContextRef,
   isGroupedTypeExpr,
   isIdentityRef,
+  isNamedTypeExpr,
   isNullLiteral,
   isNumberLiteral,
   isObjectTypeExpr,
@@ -37,7 +39,6 @@ import {
   isQueryDeclaration,
   isResourceDeclaration,
   isScalarDeclaration,
-  isScalarTypeExpr,
   isStringLiteral,
   isStringLiteralTypeExpr,
   isUnionTypeExpr,
@@ -45,7 +46,7 @@ import {
   type Expression as AstExpression,
   type Model,
   type NamedArg as AstNamedArg,
-  type PayloadField as AstPayloadField,
+  type ObjectField as AstObjectField,
   type ProjectionClause as AstProjectionClause,
   type QueryDeclaration as AstQueryDeclaration,
   type ResourceConstruction as AstResourceConstruction,
@@ -55,7 +56,13 @@ import {
   type TypedField as AstTypedField,
 } from "../lang/generated/ast";
 
+type NameTables = {
+  resources: Set<string>;
+  scalars: Set<string>;
+};
+
 export function lowerProgram(ast: Model): Program {
+  const tables = collectNameTables(ast);
   const scalars: ScalarDefinition[] = [];
   const resources: ResourceDefinition[] = [];
   const queries: QueryDefinition[] = [];
@@ -64,9 +71,9 @@ export function lowerProgram(ast: Model): Program {
     if (isScalarDeclaration(decl)) {
       scalars.push(lowerScalar(decl));
     } else if (isResourceDeclaration(decl)) {
-      resources.push(lowerResource(decl));
+      resources.push(lowerResource(decl, tables));
     } else if (isQueryDeclaration(decl)) {
-      queries.push(lowerQuery(decl));
+      queries.push(lowerQuery(decl, tables));
     }
   }
 
@@ -78,6 +85,16 @@ export function lowerProgram(ast: Model): Program {
   };
 }
 
+function collectNameTables(ast: Model): NameTables {
+  const resources = new Set<string>();
+  const scalars = new Set<string>();
+  for (const decl of ast.declarations) {
+    if (isResourceDeclaration(decl)) resources.add(decl.name);
+    else if (isScalarDeclaration(decl)) scalars.add(decl.name);
+  }
+  return { resources, scalars };
+}
+
 function lowerScalar(decl: AstScalarDeclaration): ScalarDefinition {
   return {
     name: decl.name,
@@ -87,43 +104,44 @@ function lowerScalar(decl: AstScalarDeclaration): ScalarDefinition {
   };
 }
 
-function lowerResource(decl: AstResourceDeclaration): ResourceDefinition {
-  const identity = { fields: decl.identity.map(lowerTypedField) };
-  const payload = {
-    fields: decl.payload.map((field) => lowerPayloadField(field, identity.fields)),
-  };
+function lowerResource(decl: AstResourceDeclaration, tables: NameTables): ResourceDefinition {
+  const identity = { fields: decl.identity.map((f) => lowerTypedField(f, tables)) };
   return {
     name: decl.name,
     ariType: decl.name,
     identity,
-    payload,
+    payloadType: lowerTypeExpr(decl.payloadType, tables, identity.fields),
     span: spanOf(decl),
   };
 }
 
-function lowerQuery(decl: AstQueryDeclaration): QueryDefinition {
+function lowerQuery(decl: AstQueryDeclaration, tables: NameTables): QueryDefinition {
   return {
     name: decl.name,
-    parameters: decl.parameters.map(lowerTypedField),
-    context: decl.context ? decl.context.fields.map(lowerTypedField) : [],
+    parameters: decl.parameters.map((f) => lowerTypedField(f, tables)),
+    context: decl.context ? decl.context.fields.map((f) => lowerTypedField(f, tables)) : [],
     root: lowerConstruction(decl.root.construction),
     projections: decl.projections.map(lowerProjection),
     span: spanOf(decl),
   };
 }
 
-function lowerTypedField(field: AstTypedField): FieldDecl {
+function lowerTypedField(field: AstTypedField, tables: NameTables): FieldDecl {
   return {
     name: field.name,
-    type: lowerTypeExpr(field.type),
+    type: lowerTypeExpr(field.type, tables),
     inheritedFromIdentity: false,
     span: spanOf(field),
   };
 }
 
-function lowerPayloadField(field: AstPayloadField, identityFields: FieldDecl[]): FieldDecl {
+function lowerObjectField(
+  field: AstObjectField,
+  tables: NameTables,
+  identityFields: FieldDecl[] | null
+): FieldDecl {
   if (!field.type) {
-    const identity = identityFields.find((f) => f.name === field.name);
+    const identity = identityFields?.find((f) => f.name === field.name);
     return {
       name: field.name,
       type: identity
@@ -135,16 +153,21 @@ function lowerPayloadField(field: AstPayloadField, identityFields: FieldDecl[]):
   }
   return {
     name: field.name,
-    type: lowerTypeExpr(field.type),
+    type: lowerTypeExpr(field.type, tables),
     inheritedFromIdentity: false,
     span: spanOf(field),
   };
 }
 
-function lowerTypeExpr(type: AstTypeExpr): TypeExpr {
+function lowerTypeExpr(
+  type: AstTypeExpr,
+  tables: NameTables,
+  /** When lowering a resource's root object payload, resolve bare-field shorthand. */
+  identityFields: FieldDecl[] | null = null
+): TypeExpr {
   if (isUnionTypeExpr(type)) {
     const members = type.members.flatMap((member) => {
-      const lowered = lowerTypeExpr(member as AstTypeExpr);
+      const lowered = lowerTypeExpr(member as AstTypeExpr, tables);
       return lowered.kind === "union" ? lowered.members : [lowered];
     });
     return {
@@ -154,20 +177,19 @@ function lowerTypeExpr(type: AstTypeExpr): TypeExpr {
     };
   }
   if (isArrayTypeExpr(type)) {
-    // Generated typings narrow `of` to AtomicTypeExpr; nested `T[][]` is ArrayTypeExpr at runtime.
     return {
       kind: "array",
-      of: lowerTypeExpr(type.of as AstTypeExpr),
+      of: lowerTypeExpr(type.of as AstTypeExpr, tables),
       span: spanOf(type),
     };
   }
   if (isGroupedTypeExpr(type)) {
-    return lowerTypeExpr(type.type);
+    return lowerTypeExpr(type.type, tables, identityFields);
   }
   if (isObjectTypeExpr(type)) {
     return {
       kind: "object",
-      fields: type.fields.map(lowerTypedField),
+      fields: type.fields.map((f) => lowerObjectField(f, tables, identityFields)),
       span: spanOf(type),
     };
   }
@@ -185,14 +207,12 @@ function lowerTypeExpr(type: AstTypeExpr): TypeExpr {
       span: spanOf(type),
     };
   }
-  if (isScalarTypeExpr(type)) {
-    return {
-      kind: "scalarRef",
-      name: type.name,
-      span: spanOf(type),
-    };
+  if (isNamedTypeExpr(type)) {
+    if (tables.resources.has(type.name)) {
+      return { kind: "resourceRef", name: type.name, span: spanOf(type) };
+    }
+    return { kind: "scalarRef", name: type.name, span: spanOf(type) };
   }
-  // Exhaustiveness guard for generated union
   const _never: never = type;
   return _never;
 }
@@ -259,7 +279,6 @@ function lowerExpr(expr: AstExpression): Expr {
     };
   }
   if (isPathRef(expr)) {
-    // Single segment → query param; `binding.path…` → payloadRef.
     if (expr.segments.length <= 1) {
       return { kind: "param", name: expr.segments[0] ?? "", span };
     }
@@ -281,6 +300,8 @@ function cloneTypeExpr(type: TypeExpr): TypeExpr {
       return { kind: "primitive", name: type.name, span: type.span };
     case "scalarRef":
       return { kind: "scalarRef", name: type.name, span: type.span };
+    case "resourceRef":
+      return { kind: "resourceRef", name: type.name, span: type.span };
     case "stringLiteral":
       return { kind: "stringLiteral", value: type.value, span: type.span };
     case "nullable":
@@ -315,7 +336,6 @@ function spanOf(node: AstNode): SourceSpan | null {
   try {
     uri = AstUtils.getDocument(node).uri.toString();
   } catch {
-    // Direct `parser.parse` ASTs are not attached to a LangiumDocument.
     uri = null;
   }
 

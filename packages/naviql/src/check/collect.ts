@@ -1,7 +1,8 @@
-import type { Program } from "../ir";
-import { formatType, isPrimitiveTypeName, typesSemanticallyEqual } from "./assignability";
+import type { FieldDecl, Program, TypeExpr } from "../ir";
+import { formatType, objectPayloadFields, typesSemanticallyEqual } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
 import { checkTypeExpr, checkUniqueFields, type ResourceTable, type ScalarTable } from "./symbols";
+import { isPrimitiveTypeName } from "./assignability";
 
 export function collectScalars(program: Program, sink: DiagnosticSink): ScalarTable {
   const scalars: ScalarTable = new Map();
@@ -32,6 +33,7 @@ export function collectResources(
   scalars: ScalarTable,
   sink: DiagnosticSink
 ): ResourceTable {
+  // First pass: register names so payload `resourceRef` can resolve forward refs.
   const resources: ResourceTable = new Map();
   for (const resource of program.resources) {
     const path = `resources.${resource.name}`;
@@ -43,6 +45,16 @@ export function collectResources(
       });
       continue;
     }
+    resources.set(resource.name, {
+      identity: new Map(),
+      payload: new Map(),
+      payloadType: resource.payloadType,
+    });
+  }
+
+  for (const resource of program.resources) {
+    if (!resources.has(resource.name)) continue;
+    const path = `resources.${resource.name}`;
 
     const identity = checkUniqueFields(
       resource.identity.fields,
@@ -51,46 +63,109 @@ export function collectResources(
       "identity",
       sink
     );
+
+    for (const field of resource.identity.fields) {
+      checkTypeExpr(field.type, `${path}.identity.${field.name}`, scalars, resources, sink);
+    }
+
+    checkPayloadType(
+      resource.payloadType,
+      `${path}.payloadType`,
+      identity,
+      scalars,
+      resources,
+      sink
+    );
+
+    const payloadFields = objectPayloadFields(resource.payloadType);
     const payload = checkUniqueFields(
-      resource.payload.fields,
+      payloadFields,
       `${path}.payload`,
       "DUPLICATE_PAYLOAD_FIELD",
       "payload",
       sink
     );
 
-    for (const field of resource.identity.fields) {
-      checkTypeExpr(field.type, `${path}.identity.${field.name}`, scalars, sink);
-    }
-    for (const field of resource.payload.fields) {
-      const fieldPath = `${path}.payload.${field.name}`;
-      checkTypeExpr(field.type, fieldPath, scalars, sink);
+    checkObjectPayloadShorthand(payloadFields, identity, resource.name, path, sink);
 
-      const identityField = identity.get(field.name);
+    resources.set(resource.name, {
+      identity,
+      payload,
+      payloadType: resource.payloadType,
+    });
+  }
+  return resources;
+}
+
+function checkPayloadType(
+  type: TypeExpr,
+  path: string,
+  _identity: Map<string, FieldDecl>,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  checkTypeExpr(type, path, scalars, resources, sink);
+
+  // Nested object fields must not use identity shorthand (only root resource object payload).
+  if (type.kind === "object") {
+    for (const field of type.fields) {
+      walkForbidNestedShorthand(field.type, `${path}.${field.name}`, sink);
+    }
+  }
+}
+
+function walkForbidNestedShorthand(type: TypeExpr, path: string, sink: DiagnosticSink): void {
+  if (type.kind === "object") {
+    for (const field of type.fields) {
       if (field.inheritedFromIdentity) {
-        if (!identityField) {
-          sink.push({
-            code: "SHORTHAND_NO_IDENTITY",
-            message: `Payload shorthand '${field.name}' has no matching identity field on '${resource.name}'`,
-            path: fieldPath,
-          });
-        } else if (!typesSemanticallyEqual(field.type, identityField.type)) {
-          sink.push({
-            code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
-            message: `Payload shorthand '${field.name}' type ${formatType(field.type)} is incompatible with identity type ${formatType(identityField.type)}`,
-            path: fieldPath,
-          });
-        }
-      } else if (identityField && !typesSemanticallyEqual(field.type, identityField.type)) {
+        sink.push({
+          code: "SHORTHAND_IN_NESTED_OBJECT",
+          message: `Payload shorthand '${field.name}' is only allowed on a resource's root object payload`,
+          path: `${path}.${field.name}`,
+        });
+      }
+      walkForbidNestedShorthand(field.type, `${path}.${field.name}`, sink);
+    }
+  } else if (type.kind === "array" || type.kind === "nullable") {
+    walkForbidNestedShorthand(type.of, path, sink);
+  } else if (type.kind === "union") {
+    for (let i = 0; i < type.members.length; i++) {
+      walkForbidNestedShorthand(type.members[i]!, `${path}|${i}`, sink);
+    }
+  }
+}
+
+function checkObjectPayloadShorthand(
+  payloadFields: FieldDecl[],
+  identity: Map<string, FieldDecl>,
+  resourceName: string,
+  path: string,
+  sink: DiagnosticSink
+): void {
+  for (const field of payloadFields) {
+    const fieldPath = `${path}.payload.${field.name}`;
+    const identityField = identity.get(field.name);
+    if (field.inheritedFromIdentity) {
+      if (!identityField) {
+        sink.push({
+          code: "SHORTHAND_NO_IDENTITY",
+          message: `Payload shorthand '${field.name}' has no matching identity field on '${resourceName}'`,
+          path: fieldPath,
+        });
+      } else if (!typesSemanticallyEqual(field.type, identityField.type)) {
         sink.push({
           code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
-          message: `Identity and payload field '${field.name}' have incompatible types (${formatType(identityField.type)} vs ${formatType(field.type)})`,
+          message: `Payload shorthand '${field.name}' type ${formatType(field.type)} is incompatible with identity type ${formatType(identityField.type)}`,
           path: fieldPath,
         });
       }
+    } else if (identityField && !typesSemanticallyEqual(field.type, identityField.type)) {
+      sink.push({
+        code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
+        message: `Identity and payload field '${field.name}' have incompatible types (${formatType(identityField.type)} vs ${formatType(field.type)})`,
+        path: fieldPath,
+      });
     }
-
-    resources.set(resource.name, { identity, payload });
   }
-  return resources;
 }

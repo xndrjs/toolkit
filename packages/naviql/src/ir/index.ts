@@ -1,9 +1,9 @@
 /**
  * NaviQL semantic IR — parser-independent types.
  *
- * Phase 1 surface (checker needs only). Omitted for now: comprehensions,
- * islands, `when` on projections, binary/unary exprs, resourceRef,
- * scalar bodies/codecs, scalar-on-scalar, object-backed scalars, named enums.
+ * Phase 1–2 surface. Omitted for now: comprehensions, islands, `when` on
+ * projections, binary/unary exprs, scalar bodies/codecs, scalar-on-scalar,
+ * object-backed scalars, named enums.
  *
  * Presence/absence that affects meaning or diagnostics is never optional:
  * use `null` (or required `boolean`) so producers must choose explicitly.
@@ -32,9 +32,16 @@ export type ScalarDefinition = {
   span: SourceSpan | null;
 };
 
+/**
+ * Semantic types. `resourceRef` is a resource *instance* contract (identity +
+ * payload of that resource) — never lower to a structural object.
+ * `R[]` stays `array { of: resourceRef("R") }` so collections remain distinct
+ * from arrays of ordinary values.
+ */
 export type TypeExpr =
   | { kind: "primitive"; name: PrimitiveTypeName; span: SourceSpan | null }
   | { kind: "scalarRef"; name: string; span: SourceSpan | null }
+  | { kind: "resourceRef"; name: string; span: SourceSpan | null }
   | { kind: "stringLiteral"; value: string; span: SourceSpan | null }
   | { kind: "nullable"; of: TypeExpr; span: SourceSpan | null }
   | { kind: "array"; of: TypeExpr; span: SourceSpan | null }
@@ -44,11 +51,19 @@ export type TypeExpr =
 export type FieldDecl = {
   name: string;
   type: TypeExpr;
-  /** Bare payload shorthand (`id`) inherits type from the identity field of the same name. */
+  /**
+   * Bare payload shorthand (`id`) inherits type from the identity field of the
+   * same name. Only meaningful on object fields of a resource payload.
+   */
   inheritedFromIdentity: boolean;
   span: SourceSpan | null;
 };
 
+/**
+ * `resource Name(identity): payloadType`
+ * - identity / ARI key before `:`
+ * - resolved payload type after `:` (object, `OtherResource[]`, …)
+ */
 export type ResourceDefinition = {
   /**
    * Resource name = ARI type string in v1 (same by default).
@@ -57,7 +72,8 @@ export type ResourceDefinition = {
   name: string;
   ariType: string;
   identity: { fields: FieldDecl[] };
-  payload: { fields: FieldDecl[] };
+  /** Explicit payload type after `:`. */
+  payloadType: TypeExpr;
   span: SourceSpan | null;
 };
 
@@ -87,6 +103,8 @@ export type ResourceConstruction = {
 
 /**
  * Local expansion edge. Phase 1: multiplicity is always `"one"` (no comprehensions).
+ * Expanding a collection resource (`TabCollection` → `Tab[]`) is still one edge to
+ * that resource; members are ordinary `Tab` instances for `on Tab` rules (later).
  */
 export type Expansion = {
   alias: string;

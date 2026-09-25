@@ -5,7 +5,9 @@ export type FieldMap = Map<string, FieldDecl>;
 
 export type ResourceSymbols = {
   identity: FieldMap;
+  /** Object payload fields; empty when `payloadType` is not an object. */
   payload: FieldMap;
+  payloadType: TypeExpr;
 };
 
 export type QueryScope = {
@@ -45,6 +47,7 @@ export function checkTypeExpr(
   type: TypeExpr,
   path: string,
   scalars: ScalarTable,
+  resources: ResourceTable,
   sink: DiagnosticSink
 ): void {
   switch (type.kind) {
@@ -60,18 +63,27 @@ export function checkTypeExpr(
         });
       }
       return;
+    case "resourceRef":
+      if (!resources.has(type.name)) {
+        sink.push({
+          code: "UNKNOWN_RESOURCE",
+          message: `Unknown resource '${type.name}'`,
+          path,
+        });
+      }
+      return;
     case "nullable":
     case "array":
-      checkTypeExpr(type.of, path, scalars, sink);
+      checkTypeExpr(type.of, path, scalars, resources, sink);
       return;
     case "object":
       for (const field of type.fields) {
-        checkTypeExpr(field.type, `${path}.${field.name}`, scalars, sink);
+        checkTypeExpr(field.type, `${path}.${field.name}`, scalars, resources, sink);
       }
       return;
     case "union":
       for (let i = 0; i < type.members.length; i++) {
-        checkTypeExpr(type.members[i]!, `${path}|${i}`, scalars, sink);
+        checkTypeExpr(type.members[i]!, `${path}|${i}`, scalars, resources, sink);
       }
       return;
   }

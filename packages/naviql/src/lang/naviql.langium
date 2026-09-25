@@ -1,6 +1,6 @@
 grammar NaviQl
 
-// MVP surface matching Phase 1 IR / analysis PostDetail + page-detail.
+// MVP surface: scalars, resources (`Name(identity): payloadType`), queries.
 // No comprehensions, islands, filters, or when-clauses.
 
 entry Model:
@@ -18,24 +18,28 @@ PrimitiveName returns string:
     'string' | 'number' | 'boolean';
 
 // --- Resources ---------------------------------------------------------------
+// Identity (ARI key) before `:`; payload type after `:`.
+// `resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]`
 
 ResourceDeclaration:
     'resource' name=ID
         '(' (identity+=TypedField (',' identity+=TypedField)*)? ')'
-        '{'
-            payload+=PayloadField*
-        '}';
+        ':' payloadType=TypeExpr;
 
 TypedField:
     name=ID ':' type=TypeExpr;
 
-/** Bare `id` inherits identity type; `title: string` is an explicit type. */
-PayloadField:
+/**
+ * Object field: bare `id` (payload shorthand) or `title: string`.
+ * Used inside object type expressions (including resource object payloads).
+ */
+ObjectField:
     name=ID (':' type=TypeExpr)?;
 
 /**
  * Type precedence (tight → loose): atomic / `[]` / `|`.
  * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
+ * Bare ID is scalar or resource — classified during lowering.
  */
 TypeExpr:
     UnionMember ({infer UnionTypeExpr.members+=current} '|' members+=UnionMember)*;
@@ -44,17 +48,18 @@ UnionMember:
     AtomicTypeExpr ({infer ArrayTypeExpr.of=current} '[' ']')*;
 
 AtomicTypeExpr:
-    PrimitiveTypeExpr | ScalarTypeExpr | ObjectTypeExpr | StringLiteralTypeExpr | GroupedTypeExpr;
+    PrimitiveTypeExpr | NamedTypeExpr | ObjectTypeExpr | StringLiteralTypeExpr | GroupedTypeExpr;
 
 PrimitiveTypeExpr:
     name=PrimitiveName;
 
-ScalarTypeExpr:
+/** Scalar or resource name; resolved in lowering against declaration tables. */
+NamedTypeExpr:
     name=ID;
 
 /** Inline structural object; optional `;` or `,` after each field (TS-like). */
 ObjectTypeExpr:
-    '{' (fields+=TypedField (';'|',')?)* '}';
+    '{' (fields+=ObjectField (';'|',')?)* '}';
 
 StringLiteralTypeExpr:
     value=STRING;

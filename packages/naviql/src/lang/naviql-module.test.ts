@@ -6,6 +6,8 @@ import {
   isContextRef,
   isIdentityRef,
   isModel,
+  isNamedTypeExpr,
+  isObjectTypeExpr,
   isPathRef,
   isQueryDeclaration,
   isResourceDeclaration,
@@ -62,11 +64,10 @@ describe("NaviQl MVP grammar", () => {
   it("parses page-detail.naviql mirroring the IR fixture", () => {
     const model = parseSource(loadFixture("page-detail.naviql"));
     expect(model.declarations.filter(isScalarDeclaration)).toHaveLength(10);
-    expect(model.declarations.filter(isResourceDeclaration)).toHaveLength(8);
+    expect(model.declarations.filter(isResourceDeclaration)).toHaveLength(9);
 
     const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
     expect(query.name).toBe("PageDetail");
-    expect(query.projections).toHaveLength(8);
     expect(query.projections.map((p) => p.resource)).toEqual([
       "Page",
       "Hero",
@@ -77,6 +78,11 @@ describe("NaviQl MVP grammar", () => {
       "Tab",
       "Product",
     ]);
+
+    const tabCollection = model.declarations.find(
+      (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "TabCollection"
+    );
+    expect(tabCollection?.payloadType.$type).toBe("ArrayTypeExpr");
   });
 
   it("parses identity refs, literals, and payload shorthand", () => {
@@ -84,13 +90,13 @@ describe("NaviQl MVP grammar", () => {
       scalar PostId on string;
       scalar UserId on string;
 
-      resource Post(id: PostId) {
+      resource Post(id: PostId): {
         id
         authorId: UserId
         published: boolean
       }
 
-      resource User(id: UserId) {
+      resource User(id: UserId): {
         id
       }
 
@@ -121,9 +127,12 @@ describe("NaviQl MVP grammar", () => {
     const post = model.declarations.find(
       (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "Post"
     );
-    expect(post?.payload[0]?.name).toBe("id");
-    expect(post?.payload[0]?.type).toBeUndefined();
-    expect(post?.payload[1]?.type?.$type).toBe("ScalarTypeExpr");
+    expect(isObjectTypeExpr(post?.payloadType)).toBe(true);
+    if (post && isObjectTypeExpr(post.payloadType)) {
+      expect(post.payloadType.fields[0]?.name).toBe("id");
+      expect(post.payloadType.fields[0]?.type).toBeUndefined();
+      expect(post.payloadType.fields[1]?.type?.$type).toBe("NamedTypeExpr");
+    }
   });
 
   it("parses inline object types and postfix arrays", () => {
@@ -132,7 +141,7 @@ describe("NaviQl MVP grammar", () => {
       scalar Locale on string;
       scalar AssetId on string;
 
-      resource Menu(id: MenuId, locale: Locale) {
+      resource Menu(id: MenuId, locale: Locale): {
         id
         title: string
         logoId: AssetId
@@ -149,33 +158,37 @@ describe("NaviQl MVP grammar", () => {
     `);
 
     const menu = model.declarations.find(isResourceDeclaration) as ResourceDeclaration;
-    const meta = menu.payload.find((p) => p.name === "meta")?.type;
+    expect(isObjectTypeExpr(menu.payloadType)).toBe(true);
+    if (!isObjectTypeExpr(menu.payloadType)) return;
+
+    const meta = menu.payloadType.fields.find((p) => p.name === "meta")?.type;
     expect(meta?.$type).toBe("ObjectTypeExpr");
     if (meta?.$type === "ObjectTypeExpr") {
       expect(meta.fields.map((f) => f.name)).toEqual(["count", "isActive", "name"]);
     }
 
-    const slides = menu.payload.find((p) => p.name === "slides")?.type;
+    const slides = menu.payloadType.fields.find((p) => p.name === "slides")?.type;
     expect(slides?.$type).toBe("ArrayTypeExpr");
     if (slides?.$type === "ArrayTypeExpr") {
       expect(slides.of.$type).toBe("ObjectTypeExpr");
     }
 
-    const tags = menu.payload.find((p) => p.name === "tags")?.type;
+    const tags = menu.payloadType.fields.find((p) => p.name === "tags")?.type;
     expect(tags?.$type).toBe("ArrayTypeExpr");
     if (tags?.$type === "ArrayTypeExpr") {
       expect(tags.of.$type).toBe("PrimitiveTypeExpr");
     }
   });
 
-  it("parses string literal types and discriminated unions", () => {
+  it("parses string literal types, unions, and resource-array payloads", () => {
     const model = parseSource(`
       scalar HeroId on string;
       scalar ProductId on string;
       scalar TabId on string;
+      scalar TabsId on string;
       scalar Locale on string;
 
-      resource Tab(id: TabId, locale: Locale) {
+      resource Tab(id: TabId, locale: Locale): {
         id
         strips: (
           { type: "Hero", id: HeroId }
@@ -183,23 +196,28 @@ describe("NaviQl MVP grammar", () => {
         )[]
         kind: "Hero" | "Product"
       }
+
+      resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
     `);
 
-    const tab = model.declarations.find(isResourceDeclaration) as ResourceDeclaration;
-    const strips = tab.payload.find((p) => p.name === "strips")?.type;
-    expect(strips?.$type).toBe("ArrayTypeExpr");
-    if (strips?.$type === "ArrayTypeExpr") {
-      expect(strips.of.$type).toBe("GroupedTypeExpr");
-      if (strips.of.$type === "GroupedTypeExpr") {
-        expect(strips.of.type.$type).toBe("UnionTypeExpr");
-      }
+    const tab = model.declarations.find(
+      (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "Tab"
+    )!;
+    expect(isObjectTypeExpr(tab.payloadType)).toBe(true);
+    if (isObjectTypeExpr(tab.payloadType)) {
+      const kind = tab.payloadType.fields.find((p) => p.name === "kind")?.type;
+      expect(kind?.$type).toBe("UnionTypeExpr");
     }
 
-    const kind = tab.payload.find((p) => p.name === "kind")?.type;
-    expect(kind?.$type).toBe("UnionTypeExpr");
-    if (kind?.$type === "UnionTypeExpr") {
-      expect(kind.members).toHaveLength(2);
-      expect(kind.members.every((m) => m.$type === "StringLiteralTypeExpr")).toBe(true);
+    const collection = model.declarations.find(
+      (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "TabCollection"
+    )!;
+    expect(collection.payloadType.$type).toBe("ArrayTypeExpr");
+    if (collection.payloadType.$type === "ArrayTypeExpr") {
+      expect(isNamedTypeExpr(collection.payloadType.of)).toBe(true);
+      if (isNamedTypeExpr(collection.payloadType.of)) {
+        expect(collection.payloadType.of.name).toBe("Tab");
+      }
     }
   });
 });

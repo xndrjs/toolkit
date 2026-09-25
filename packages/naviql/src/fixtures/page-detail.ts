@@ -1,12 +1,11 @@
 /**
- * Page-graph IR fixture inspired by the resource-graph-resolver demo /
- * package test graph (Page → hero/menu/footer/modules, Tab strips, Assets).
+ * Page-graph IR fixture inspired by the resource-graph-resolver demo.
  *
- * Polymorphic link arrays (same union, stresses Tab → Tabs via `tabsId` + strips):
- * - `Page.strips` / `Tab.strips`: Tabs | Hero | Product
- * - `Tab.tabsId` → parent `Tabs` (no `Tabs.firstTabId`)
- * Expansions over strip arrays need comprehensions (later); queries select
- * the fields without expanding members. Islands are omitted (engine concern).
+ * - `resource Name(identity): payloadType` — identity before `:`, payload after.
+ * - `TabCollection(...): Tab[]` — collection of resource instances (not value array).
+ * - `Page.strips` / `Tab.strips`: Tabs | Hero | Product.
+ * Collection member expansion into the graph / `on Tab` is a later runtime concern;
+ * the IR preserves `array{ resourceRef("Tab") }` without lowering to plain objects.
  */
 import type { Program } from "../compile";
 
@@ -25,6 +24,7 @@ import {
   projection,
   query,
   resource,
+  resourceRef,
   scalarRef,
   span,
   strLit,
@@ -42,23 +42,12 @@ const TabId = scalarRef("TabId");
 const ProductId = scalarRef("ProductId");
 const Sku = scalarRef("Sku");
 
-/** Shared module/strip links: Tabs | Hero | Product (demo Page.modules). */
 const ModuleStrip = union(
   objectType(field("type", strLit("Tabs")), field("id", TabsId)),
   objectType(field("type", strLit("Hero")), field("id", HeroId)),
   objectType(field("type", strLit("Product")), field("id", ProductId))
 );
 
-/**
- * Happy-path program: `query PageDetail` over a localized page graph.
- *
- * Type facts preserved for the checker:
- * - `@p.id : PageId`, `p.id : PageId`, `p.heroId : HeroId`
- * - `p.strips` / `tab.strips` : (Tabs|Hero|Product link)[]
- * - `tab.tabsId : TabsId`
- * - `h.imageId : AssetId`
- * - locale always from `context.locale : Locale`
- */
 export function pageDetailProgram(): Program {
   return {
     span,
@@ -78,55 +67,78 @@ export function pageDetailProgram(): Program {
       resource(
         "Page",
         [field("id", PageId), field("locale", Locale)],
-        [
+        objectType(
           field("id", PageId, true),
           field("title", prim("string")),
           field("heroId", HeroId),
           field("menuId", MenuId),
           field("footerId", FooterId),
           field("featuredTabsId", TabsId),
-          field("strips", arrayOf(ModuleStrip)),
-        ]
+          field("strips", arrayOf(ModuleStrip))
+        )
       ),
       resource(
         "Hero",
         [field("id", HeroId), field("locale", Locale)],
-        [field("id", HeroId, true), field("title", prim("string")), field("imageId", AssetId)]
+        objectType(
+          field("id", HeroId, true),
+          field("title", prim("string")),
+          field("imageId", AssetId)
+        )
       ),
       resource(
         "Menu",
         [field("id", MenuId), field("locale", Locale)],
-        [field("id", MenuId, true), field("title", prim("string")), field("logoId", AssetId)]
+        objectType(
+          field("id", MenuId, true),
+          field("title", prim("string")),
+          field("logoId", AssetId)
+        )
       ),
       resource(
         "Footer",
         [field("id", FooterId), field("locale", Locale)],
-        [field("id", FooterId, true), field("title", prim("string")), field("logoId", AssetId)]
+        objectType(
+          field("id", FooterId, true),
+          field("title", prim("string")),
+          field("logoId", AssetId)
+        )
       ),
       resource(
         "Asset",
         [field("id", AssetId), field("locale", Locale)],
-        [field("id", AssetId, true), field("url", prim("string")), field("title", prim("string"))]
+        objectType(
+          field("id", AssetId, true),
+          field("url", prim("string")),
+          field("title", prim("string")),
+          field("kind", union(strLit("image"), strLit("video"), strLit("document")))
+        )
       ),
       resource(
         "Tabs",
         [field("id", TabsId), field("locale", Locale)],
-        [field("id", TabsId, true), field("title", prim("string"))]
+        objectType(field("id", TabsId, true), field("title", prim("string")))
       ),
       resource(
         "Tab",
         [field("id", TabId), field("locale", Locale)],
-        [
+        objectType(
           field("id", TabId, true),
           field("title", prim("string")),
-          field("tabsId", TabsId),
-          field("strips", arrayOf(ModuleStrip)),
-        ]
+          field("stripHeroId", HeroId),
+          field("stripProductId", ProductId),
+          field("strips", arrayOf(ModuleStrip))
+        )
+      ),
+      resource(
+        "TabCollection",
+        [field("tabsId", TabsId), field("locale", Locale)],
+        arrayOf(resourceRef("Tab"))
       ),
       resource(
         "Product",
         [field("id", ProductId), field("locale", Locale)],
-        [field("id", ProductId, true), field("sku", Sku), field("title", prim("string"))]
+        objectType(field("id", ProductId, true), field("sku", Sku), field("title", prim("string")))
       ),
     ],
     queries: [
@@ -206,18 +218,37 @@ export function pageDetailProgram(): Program {
               ),
             ]
           ),
-          projection("Asset", "a", ["id", "url", "title"]),
-          projection("Tabs", "t", ["id", "title"]),
-          // Select polymorphic strips; member expansion needs comprehensions (later).
+          projection("Asset", "a", ["id", "url", "title", "kind"]),
+          projection(
+            "Tabs",
+            "t",
+            ["id", "title"],
+            [
+              expand(
+                "tabs",
+                construct("TabCollection", [
+                  arg("tabsId", payload("t", "id")),
+                  arg("locale", ctx("locale")),
+                ])
+              ),
+            ]
+          ),
           projection(
             "Tab",
             "tab",
             ["id", "title", "strips"],
             [
               expand(
-                "parentTabs",
-                construct("Tabs", [
-                  arg("id", payload("tab", "tabsId")),
+                "stripHero",
+                construct("Hero", [
+                  arg("id", payload("tab", "stripHeroId")),
+                  arg("locale", ctx("locale")),
+                ])
+              ),
+              expand(
+                "stripProduct",
+                construct("Product", [
+                  arg("id", payload("tab", "stripProductId")),
                   arg("locale", ctx("locale")),
                 ])
               ),
