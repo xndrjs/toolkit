@@ -2,14 +2,14 @@ scalar PostId on string;
 scalar UserId on string;
 scalar Locale on string;
 
-resource Post(id: PostId, locale: Locale) {
+resource Post(id: PostId, locale: Locale): {
   id
   title: string
   content: string
   authorId: UserId
 }
 
-resource User(id: UserId) {
+resource User(id: UserId): {
   id
   username: string
 }

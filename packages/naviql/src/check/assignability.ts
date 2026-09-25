@@ -15,7 +15,7 @@ export function literalKind(value: string | number | boolean | null): PrimitiveT
 
 /**
  * Strict nominal equality of semantic types.
- * Scalars compare by name only — representation is never a substitute.
+ * Scalars and resources compare by name only — representation is never a substitute.
  * Unions compare as unordered member sets.
  */
 export function typesSemanticallyEqual(a: TypeExpr, b: TypeExpr): boolean {
@@ -36,6 +36,8 @@ export function typesSemanticallyEqual(a: TypeExpr, b: TypeExpr): boolean {
       return b.kind === "primitive" && a.name === b.name;
     case "scalarRef":
       return b.kind === "scalarRef" && a.name === b.name;
+    case "resourceRef":
+      return b.kind === "resourceRef" && a.name === b.name;
     case "stringLiteral":
       return b.kind === "stringLiteral" && a.value === b.value;
     case "nullable":
@@ -59,10 +61,10 @@ export function typesSemanticallyEqual(a: TypeExpr, b: TypeExpr): boolean {
 
 /**
  * Typed expression assignability (no literal special-case).
- * - Nominal scalars: same name only
- * - No scalar ↔ primitive conversion
+ * - Nominal scalars / resources: same name only
+ * - No scalar ↔ primitive / resource ↔ object conversion
  * - T is assignable to nullable T
- * - Unions: source → target if every source member fits some target (distributive)
+ * - Unions: distributive
  */
 export function isAssignable(source: TypeExpr, target: TypeExpr): boolean {
   if (target.kind === "nullable") {
@@ -86,10 +88,12 @@ export function isAssignable(source: TypeExpr, target: TypeExpr): boolean {
   if (source.kind === "scalarRef" && target.kind === "scalarRef") {
     return source.name === target.name;
   }
+  if (source.kind === "resourceRef" && target.kind === "resourceRef") {
+    return source.name === target.name;
+  }
   if (source.kind === "stringLiteral" && target.kind === "stringLiteral") {
     return source.value === target.value;
   }
-  // Narrow string literals are assignable to wide `string`.
   if (source.kind === "stringLiteral" && target.kind === "primitive" && target.name === "string") {
     return true;
   }
@@ -102,11 +106,6 @@ export function isAssignable(source: TypeExpr, target: TypeExpr): boolean {
   return false;
 }
 
-/**
- * Literals may inhabit a scalar when `kind(literal) === representation`.
- * `null` inhabits nullable targets (and only those).
- * String literals inhabit exact `stringLiteral` types and (via union) their members.
- */
 export function literalInhabits(
   value: string | number | boolean | null,
   target: TypeExpr,
@@ -123,6 +122,11 @@ export function literalInhabits(
 
   if (target.kind === "stringLiteral") {
     return typeof value === "string" && value === target.value;
+  }
+
+  // Resource instances are not inhabited by raw literals.
+  if (target.kind === "resourceRef" || target.kind === "array" || target.kind === "object") {
+    return false;
   }
 
   const kind = literalKind(value);
@@ -143,6 +147,7 @@ export function formatType(type: TypeExpr): string {
     case "primitive":
       return type.name;
     case "scalarRef":
+    case "resourceRef":
       return type.name;
     case "stringLiteral":
       return JSON.stringify(type.value);
@@ -157,4 +162,9 @@ export function formatType(type: TypeExpr): string {
     case "union":
       return type.members.map(formatType).join(" | ");
   }
+}
+
+/** Object payload fields when `payloadType` is an object; otherwise empty. */
+export function objectPayloadFields(payloadType: TypeExpr): import("../ir").FieldDecl[] {
+  return payloadType.kind === "object" ? payloadType.fields : [];
 }

@@ -7,7 +7,7 @@ import { checkProgram } from "../check";
 import { pageDetailProgram } from "../fixtures";
 import { isModel, type Model } from "../lang/generated/ast";
 import { createNaviQlServices } from "../lang/naviql-module";
-import type { SourceSpan } from "../ir";
+import type { SourceSpan, TypeExpr } from "../ir";
 import { lowerProgram } from "./lower";
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../fixtures");
@@ -46,6 +46,12 @@ function expectSpan(span: SourceSpan | null | undefined): asserts span is Source
   expect(span!.end).toBeGreaterThan(span!.start);
 }
 
+function objectFields(payloadType: TypeExpr | undefined) {
+  expect(payloadType?.kind).toBe("object");
+  if (payloadType?.kind !== "object") return [];
+  return payloadType.fields;
+}
+
 describe("lowerProgram", () => {
   it("lowers page-detail.naviql to IR that typechecks and matches the fixture (spans ignored)", () => {
     const source = readFileSync(join(fixturesDir, "page-detail.naviql"), "utf8");
@@ -61,12 +67,12 @@ describe("lowerProgram", () => {
         scalar PostId on string;
         scalar UserId on string;
 
-        resource Post(id: PostId) {
+        resource Post(id: PostId): {
           id
           authorId: UserId
         }
 
-        resource User(id: UserId) {
+        resource User(id: UserId): {
           id
         }
 
@@ -83,12 +89,13 @@ describe("lowerProgram", () => {
 
     const post = program.resources.find((r) => r.name === "Post");
     expect(post?.ariType).toBe("Post");
-    expect(post?.payload.fields[0]).toMatchObject({
+    const fields = objectFields(post?.payloadType);
+    expect(fields[0]).toMatchObject({
       name: "id",
       inheritedFromIdentity: true,
       type: { kind: "scalarRef", name: "PostId" },
     });
-    expect(post?.payload.fields[1]?.inheritedFromIdentity).toBe(false);
+    expect(fields[1]?.inheritedFromIdentity).toBe(false);
 
     const query = program.queries[0]!;
     expect(query.root.args[0]?.value).toMatchObject({ kind: "param", name: "postId" });
@@ -114,7 +121,7 @@ describe("lowerProgram", () => {
     const program = lowerProgram(
       parseSource(`
         scalar Id on string;
-        resource R(id: Id) { id }
+        resource R(id: Id): { id }
         query Q(x: Id) {
           root R(id: x, a: "hi", n: 1.5, t: true, z: null)
         }
@@ -142,7 +149,7 @@ describe("lowerProgram", () => {
         scalar Locale on string;
         scalar AssetId on string;
 
-        resource Menu(id: MenuId, locale: Locale) {
+        resource Menu(id: MenuId, locale: Locale): {
           id
           title: string
           logoId: AssetId
@@ -167,9 +174,8 @@ describe("lowerProgram", () => {
 
     expect(checkProgram(program)).toEqual([]);
 
-    const menu = program.resources.find((r) => r.name === "Menu");
-    const meta = menu?.payload.fields.find((f) => f.name === "meta")?.type;
-    expect(meta).toMatchObject({
+    const fields = objectFields(program.resources.find((r) => r.name === "Menu")?.payloadType);
+    expect(fields.find((f) => f.name === "meta")?.type).toMatchObject({
       kind: "object",
       fields: [
         { name: "count", type: { kind: "primitive", name: "number" } },
@@ -177,74 +183,50 @@ describe("lowerProgram", () => {
         { name: "name", type: { kind: "primitive", name: "string" } },
       ],
     });
-
-    const slides = menu?.payload.fields.find((f) => f.name === "slides")?.type;
-    expect(slides).toMatchObject({
+    expect(fields.find((f) => f.name === "slides")?.type).toMatchObject({
       kind: "array",
       of: {
         kind: "object",
         fields: [{ name: "name", type: { kind: "primitive", name: "string" } }],
       },
     });
-
-    const tags = menu?.payload.fields.find((f) => f.name === "tags")?.type;
-    expect(tags).toMatchObject({
+    expect(fields.find((f) => f.name === "tags")?.type).toMatchObject({
       kind: "array",
       of: { kind: "primitive", name: "string" },
     });
   });
 
-  it("lowers discriminated union strip links", () => {
+  it("lowers TabCollection(...): Tab[] as array of resourceRef (not object)", () => {
     const program = lowerProgram(
       parseSource(`
+        scalar TabId on string;
+        scalar TabsId on string;
+        scalar Locale on string;
         scalar HeroId on string;
         scalar ProductId on string;
-        scalar TabId on string;
-        scalar Locale on string;
 
-        resource Tab(id: TabId, locale: Locale) {
+        resource Tab(id: TabId, locale: Locale): {
           id
-          strips: (
-            { type: "Hero", id: HeroId }
-            | { type: "Product", id: ProductId }
-          )[]
+          title: string
+          stripHeroId: HeroId
+          stripProductId: ProductId
         }
 
-        query TabDetail(tabId: TabId) {
+        resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+
+        query TabsDetail(tabsId: TabsId) {
           context { locale: Locale }
-          root Tab(id: tabId, locale: context.locale)
-          on Tab t { id strips }
+          root TabCollection(tabsId: tabsId, locale: context.locale)
         }
       `)
     );
 
     expect(checkProgram(program)).toEqual([]);
 
-    const strips = program.resources
-      .find((r) => r.name === "Tab")
-      ?.payload.fields.find((f) => f.name === "strips")?.type;
-
-    expect(strips).toMatchObject({
+    const collection = program.resources.find((r) => r.name === "TabCollection");
+    expect(collection?.payloadType).toMatchObject({
       kind: "array",
-      of: {
-        kind: "union",
-        members: [
-          {
-            kind: "object",
-            fields: [
-              { name: "type", type: { kind: "stringLiteral", value: "Hero" } },
-              { name: "id", type: { kind: "scalarRef", name: "HeroId" } },
-            ],
-          },
-          {
-            kind: "object",
-            fields: [
-              { name: "type", type: { kind: "stringLiteral", value: "Product" } },
-              { name: "id", type: { kind: "scalarRef", name: "ProductId" } },
-            ],
-          },
-        ],
-      },
+      of: { kind: "resourceRef", name: "Tab" },
     });
   });
 });
