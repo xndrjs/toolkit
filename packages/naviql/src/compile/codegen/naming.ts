@@ -25,3 +25,18 @@ export function payloadTypeName(resourceName: string): string {
 export function resourceTypeName(resourceName: string): string {
   return `${resourceName}Resource`;
 }
+
+/** `PostDetail` → `createPostDetailStrategy` */
+export function strategyFactoryName(queryName: string): string {
+  return `create${queryName}Strategy`;
+}
+
+/** `PostDetail` → `PostDetailParams` */
+export function paramsTypeName(queryName: string): string {
+  return `${queryName}Params`;
+}
+
+/** `PostDetail` → `PostDetailExecutionContext` */
+export function executionContextTypeName(queryName: string): string {
+  return `${queryName}ExecutionContext`;
+}
