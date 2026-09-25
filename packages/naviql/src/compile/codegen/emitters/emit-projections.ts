@@ -13,7 +13,7 @@ import type {
   ResourceDefinition,
   ResourceProjection,
   TypeExpr,
-} from "../../ir";
+} from "../../../ir";
 import { emitConstruction } from "./emit-construction";
 import { emitExpr } from "./emit-expr";
 import {
@@ -22,7 +22,7 @@ import {
   paramsTypeName,
   projectFnName,
   queryResultTypeName,
-} from "./naming";
+} from "../naming";
 
 type ResourceIndex = Map<string, ResourceDefinition>;
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { arg, construct, ctx, identity, item, param, payload } from "../../fixtures";
+import { arg, construct, ctx, identity, item, param, payload } from "../../../fixtures";
 import { emitConstruction } from "./emit-construction";
 
 describe("emitConstruction", () => {

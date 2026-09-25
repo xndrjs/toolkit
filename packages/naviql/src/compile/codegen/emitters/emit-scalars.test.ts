@@ -3,13 +3,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { defScalar, span } from "../../fixtures";
-import type { Program } from "../../ir";
-import { parseAndCheck } from "../parse-and-check";
+import { defScalar, span } from "../../../fixtures";
+import type { Program } from "../../../ir";
+import { parseAndCheck } from "../../parse-and-check";
 import { emitScalars } from "./emit-scalars";
-import { generateResources } from "./generate-resources";
+import { generateResources } from "../generators/generate-resources";
 
-const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../fixtures");
+const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
 
 function loadFixture(name: string): string {
   return readFileSync(join(fixturesDir, name), "utf8");

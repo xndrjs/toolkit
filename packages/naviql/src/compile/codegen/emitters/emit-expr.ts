@@ -1,4 +1,4 @@
-import type { Expr } from "../../ir";
+import type { Expr } from "../../../ir";
 
 /** Join a property path onto a base identifier (`payload`, `s`, …). */
 function memberAccess(base: string, path: readonly string[]): string {

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { parseAndCheck } from "../parse-and-check";
 import { buildResources } from "./build-resources";
 import { composeGeneratedModule } from "./compose-generated-module";
-import { generateResources } from "./generate-resources";
+import { generateResources } from "./generators/generate-resources";
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../fixtures");
 
