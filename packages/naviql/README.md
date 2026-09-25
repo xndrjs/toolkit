@@ -1,6 +1,11 @@
 # @xndrjs/naviql
 
-**Product entry** for NaviQL: a single install that re-exports the resource graph resolver engine and application-resource (ARI) primitives, plus the NaviQL DSL stack (semantic IR, typechecker, and later parser/codegen — currently WIP).
+**Product entry** for NaviQL with two surfaces:
+
+| Export                   | Use for                                                                                         |
+| ------------------------ | ----------------------------------------------------------------------------------------------- |
+| `@xndrjs/naviql`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives — browser-safe  |
+| `@xndrjs/naviql/compile` | Compile-time DSL: semantic IR, `checkProgram`, and later parse/codegen — Node / CI / build only |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
@@ -14,11 +19,19 @@ pnpm add @xndrjs/naviql
 
 ## Usage
 
+Client / runtime:
+
 ```ts
 import { createResourceGraphResolver, createGraphResolutionStrategy, ari, s } from "@xndrjs/naviql";
 ```
 
-NaviQL language APIs: IR types and `checkProgram` (typechecker) are available; `.naviql` parse/codegen is still WIP.
+Build / codegen / typecheck tooling:
+
+```ts
+import { checkProgram, type Program } from "@xndrjs/naviql/compile";
+```
+
+Generated app code should import runtime symbols from `@xndrjs/naviql`, never from `/compile`. `.naviql` parse/codegen is still WIP.
 
 ## License
 
