@@ -2,7 +2,7 @@
  * Product entry for NaviQL: re-exports the resource graph resolver and
  * application-resources (browser-safe runtime façade).
  *
- * For IR, `checkProgram`, and (later) parse/codegen, use `@xndrjs/naviql/compile`.
+ * For IR, `checkProgram`, `parseAndCheck`, and (later) codegen, use `@xndrjs/naviql/compile`.
  */
 export * from "@xndrjs/resource-graph-resolver";
 export {
