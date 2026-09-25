@@ -21,6 +21,11 @@ export {
   type GenerateResourcesResult,
 } from "./codegen/generate-resources";
 export {
+  generateStrategies,
+  type GenerateStrategiesOptions,
+  type GenerateStrategiesResult,
+} from "./codegen/generate-strategies";
+export {
   buildResources,
   type BuildResourcesOptions,
   type BuildResourcesResult,
