@@ -20,3 +20,8 @@ export {
   type GenerateResourcesOptions,
   type GenerateResourcesResult,
 } from "./codegen/generate-resources";
+export {
+  buildResources,
+  type BuildResourcesOptions,
+  type BuildResourcesResult,
+} from "./codegen/build-resources";
