@@ -2,31 +2,49 @@
  * NaviQL semantic IR — parser-independent types.
  *
  * Phase 1 surface (checker needs only). Omitted for now: comprehensions,
- * islands, unions, `when` on projections, binary/unary exprs, resourceRef.
+ * islands, unions, `when` on projections, binary/unary exprs, resourceRef,
+ * scalar bodies/codecs, scalar-on-scalar, object-backed scalars.
+ *
+ * Presence/absence that affects meaning or diagnostics is never optional:
+ * use `null` (or required `boolean`) so producers must choose explicitly.
  */
 
-/** Optional source location for future diagnostics (checker may ignore). */
+/** Source location for diagnostics. Checker may ignore spans initially. */
 export type SourceSpan = {
   start: number;
   end: number;
-  /** Optional file / buffer URI once a parser exists. */
-  uri?: string;
+  /** File / buffer URI; `null` when the program is in-memory only. */
+  uri: string | null;
 };
 
 export type PrimitiveTypeName = "string" | "number" | "boolean";
 
+/**
+ * Nominal custom scalar: semantic name backed by a primitive representation.
+ * Do not lower `scalarRef` to `primitive` in IR or during semantic analysis —
+ * representation is consulted only for literal inhabitance and (later) codegen.
+ */
+export type ScalarDefinition = {
+  name: string;
+  representation: PrimitiveTypeName;
+  /** Reserved for future codecs / validation metadata; `null` when unused. */
+  metadata: Record<string, unknown> | null;
+  span: SourceSpan | null;
+};
+
 export type TypeExpr =
-  | { kind: "primitive"; name: PrimitiveTypeName; span?: SourceSpan }
-  | { kind: "nullable"; of: TypeExpr; span?: SourceSpan }
-  | { kind: "array"; of: TypeExpr; span?: SourceSpan }
-  | { kind: "object"; fields: FieldDecl[]; span?: SourceSpan };
+  | { kind: "primitive"; name: PrimitiveTypeName; span: SourceSpan | null }
+  | { kind: "scalarRef"; name: string; span: SourceSpan | null }
+  | { kind: "nullable"; of: TypeExpr; span: SourceSpan | null }
+  | { kind: "array"; of: TypeExpr; span: SourceSpan | null }
+  | { kind: "object"; fields: FieldDecl[]; span: SourceSpan | null };
 
 export type FieldDecl = {
   name: string;
   type: TypeExpr;
   /** Bare payload shorthand (`id`) inherits type from the identity field of the same name. */
-  inheritedFromIdentity?: boolean;
-  span?: SourceSpan;
+  inheritedFromIdentity: boolean;
+  span: SourceSpan | null;
 };
 
 export type ResourceDefinition = {
@@ -38,7 +56,7 @@ export type ResourceDefinition = {
   ariType: string;
   identity: { fields: FieldDecl[] };
   payload: { fields: FieldDecl[] };
-  span?: SourceSpan;
+  span: SourceSpan | null;
 };
 
 /**
@@ -46,23 +64,23 @@ export type ResourceDefinition = {
  * `payloadRef` vs `identityRef` stay distinct through typecheck and codegen.
  */
 export type Expr =
-  | { kind: "literal"; value: string | number | boolean | null; span?: SourceSpan }
-  | { kind: "param"; name: string; span?: SourceSpan }
-  | { kind: "context"; path: string[]; span?: SourceSpan }
-  | { kind: "payloadRef"; binding: string; path: string[]; span?: SourceSpan }
-  | { kind: "identityRef"; binding: string; path: string[]; span?: SourceSpan };
+  | { kind: "literal"; value: string | number | boolean | null; span: SourceSpan | null }
+  | { kind: "param"; name: string; span: SourceSpan | null }
+  | { kind: "context"; path: string[]; span: SourceSpan | null }
+  | { kind: "payloadRef"; binding: string; path: string[]; span: SourceSpan | null }
+  | { kind: "identityRef"; binding: string; path: string[]; span: SourceSpan | null };
 
 export type NamedArg = {
   name: string;
   value: Expr;
-  span?: SourceSpan;
+  span: SourceSpan | null;
 };
 
 /** ARI construction: `User(id: p.authorId)`. */
 export type ResourceConstruction = {
   resource: string;
   args: NamedArg[];
-  span?: SourceSpan;
+  span: SourceSpan | null;
 };
 
 /**
@@ -72,7 +90,7 @@ export type Expansion = {
   alias: string;
   target: ResourceConstruction;
   multiplicity: "one";
-  span?: SourceSpan;
+  span: SourceSpan | null;
 };
 
 export type ResourceProjection = {
@@ -80,7 +98,7 @@ export type ResourceProjection = {
   binding: string;
   selectedFields: string[];
   expansions: Expansion[];
-  span?: SourceSpan;
+  span: SourceSpan | null;
 };
 
 export type StrategyDefinition = {
@@ -89,11 +107,12 @@ export type StrategyDefinition = {
   context: FieldDecl[];
   root: ResourceConstruction;
   projections: ResourceProjection[];
-  span?: SourceSpan;
+  span: SourceSpan | null;
 };
 
 export type Program = {
+  scalars: ScalarDefinition[];
   resources: ResourceDefinition[];
   strategies: StrategyDefinition[];
-  span?: SourceSpan;
+  span: SourceSpan | null;
 };
