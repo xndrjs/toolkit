@@ -24,11 +24,13 @@ import type {
   TypeExpr,
 } from "../ir";
 import {
+  isArrayTypeExpr,
   isBooleanLiteral,
   isContextRef,
   isIdentityRef,
   isNullLiteral,
   isNumberLiteral,
+  isObjectTypeExpr,
   isPathRef,
   isPrimitiveTypeExpr,
   isQueryDeclaration,
@@ -137,6 +139,21 @@ function lowerPayloadField(field: AstPayloadField, identityFields: FieldDecl[]):
 }
 
 function lowerTypeExpr(type: AstTypeExpr): TypeExpr {
+  if (isArrayTypeExpr(type)) {
+    // Generated typings narrow `of` to AtomicTypeExpr; nested `T[][]` is ArrayTypeExpr at runtime.
+    return {
+      kind: "array",
+      of: lowerTypeExpr(type.of as AstTypeExpr),
+      span: spanOf(type),
+    };
+  }
+  if (isObjectTypeExpr(type)) {
+    return {
+      kind: "object",
+      fields: type.fields.map(lowerTypedField),
+      span: spanOf(type),
+    };
+  }
   if (isPrimitiveTypeExpr(type)) {
     return {
       kind: "primitive",

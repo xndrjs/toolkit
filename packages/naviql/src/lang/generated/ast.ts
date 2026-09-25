@@ -25,6 +25,8 @@ export type NaviQlKeywordNames =
   | ":"
   | ";"
   | "@"
+  | "["
+  | "]"
   | "boolean"
   | "context"
   | "expand"
@@ -42,6 +44,35 @@ export type NaviQlKeywordNames =
   | "}";
 
 export type NaviQlTokenNames = NaviQlTerminalNames | NaviQlKeywordNames;
+
+/**
+ * Types: primitives, scalar refs, inline objects, and postfix arrays.
+ * `string[]`, `{ name: string; }[]`, nested objects — left-associative `[]`.
+ */
+export interface ArrayTypeExpr extends langium.AstNode {
+  readonly $container: PayloadField | TypedField;
+  readonly $type: "ArrayTypeExpr";
+  of: AtomicTypeExpr;
+}
+
+export const ArrayTypeExpr = {
+  $type: "ArrayTypeExpr",
+  of: "of",
+} as const;
+
+export function isArrayTypeExpr(item: unknown): item is ArrayTypeExpr {
+  return reflection.isInstance(item, ArrayTypeExpr.$type);
+}
+
+export type AtomicTypeExpr = ObjectTypeExpr | PrimitiveTypeExpr | ScalarTypeExpr;
+
+export const AtomicTypeExpr = {
+  $type: "AtomicTypeExpr",
+} as const;
+
+export function isAtomicTypeExpr(item: unknown): item is AtomicTypeExpr {
+  return reflection.isInstance(item, AtomicTypeExpr.$type);
+}
 
 export interface BooleanLiteral extends langium.AstNode {
   readonly $container: NamedArg;
@@ -211,6 +242,22 @@ export function isNumberLiteral(item: unknown): item is NumberLiteral {
   return reflection.isInstance(item, NumberLiteral.$type);
 }
 
+/** Inline structural object; optional `;` after each field (TS-like). */
+export interface ObjectTypeExpr extends langium.AstNode {
+  readonly $container: ArrayTypeExpr | PayloadField | TypedField;
+  readonly $type: "ObjectTypeExpr";
+  fields: Array<TypedField>;
+}
+
+export const ObjectTypeExpr = {
+  $type: "ObjectTypeExpr",
+  fields: "fields",
+} as const;
+
+export function isObjectTypeExpr(item: unknown): item is ObjectTypeExpr {
+  return reflection.isInstance(item, ObjectTypeExpr.$type);
+}
+
 export interface PathRef extends langium.AstNode {
   readonly $container: NamedArg;
   readonly $type: "PathRef";
@@ -251,7 +298,7 @@ export function isPrimitiveName(item: unknown): item is PrimitiveName {
 }
 
 export interface PrimitiveTypeExpr extends langium.AstNode {
-  readonly $container: PayloadField | TypedField;
+  readonly $container: ArrayTypeExpr | PayloadField | TypedField;
   readonly $type: "PrimitiveTypeExpr";
   name: PrimitiveName;
 }
@@ -378,7 +425,7 @@ export function isScalarDeclaration(item: unknown): item is ScalarDeclaration {
 }
 
 export interface ScalarTypeExpr extends langium.AstNode {
-  readonly $container: PayloadField | TypedField;
+  readonly $container: ArrayTypeExpr | PayloadField | TypedField;
   readonly $type: "ScalarTypeExpr";
   name: string;
 }
@@ -408,7 +455,7 @@ export function isStringLiteral(item: unknown): item is StringLiteral {
 }
 
 export interface TypedField extends langium.AstNode {
-  readonly $container: ContextBlock | QueryDeclaration | ResourceDeclaration;
+  readonly $container: ContextBlock | ObjectTypeExpr | QueryDeclaration | ResourceDeclaration;
   readonly $type: "TypedField";
   name: string;
   type: TypeExpr;
@@ -424,7 +471,11 @@ export function isTypedField(item: unknown): item is TypedField {
   return reflection.isInstance(item, TypedField.$type);
 }
 
-export type TypeExpr = PrimitiveTypeExpr | ScalarTypeExpr;
+/**
+ * Types: primitives, scalar refs, inline objects, and postfix arrays.
+ * `string[]`, `{ name: string; }[]`, nested objects — left-associative `[]`.
+ */
+export type TypeExpr = ArrayTypeExpr | AtomicTypeExpr;
 
 export const TypeExpr = {
   $type: "TypeExpr",
@@ -435,6 +486,8 @@ export function isTypeExpr(item: unknown): item is TypeExpr {
 }
 
 export type NaviQlAstType = {
+  ArrayTypeExpr: ArrayTypeExpr;
+  AtomicTypeExpr: AtomicTypeExpr;
   BooleanLiteral: BooleanLiteral;
   ContextBlock: ContextBlock;
   ContextRef: ContextRef;
@@ -447,6 +500,7 @@ export type NaviQlAstType = {
   NamedArg: NamedArg;
   NullLiteral: NullLiteral;
   NumberLiteral: NumberLiteral;
+  ObjectTypeExpr: ObjectTypeExpr;
   PathRef: PathRef;
   PayloadField: PayloadField;
   PrimitiveTypeExpr: PrimitiveTypeExpr;
@@ -464,6 +518,20 @@ export type NaviQlAstType = {
 
 export class NaviQlAstReflection extends langium.AbstractAstReflection {
   override readonly types = {
+    ArrayTypeExpr: {
+      name: ArrayTypeExpr.$type,
+      properties: {
+        of: {
+          name: ArrayTypeExpr.of,
+        },
+      },
+      superTypes: [TypeExpr.$type],
+    },
+    AtomicTypeExpr: {
+      name: AtomicTypeExpr.$type,
+      properties: {},
+      superTypes: [TypeExpr.$type],
+    },
     BooleanLiteral: {
       name: BooleanLiteral.$type,
       properties: {
@@ -572,6 +640,17 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       },
       superTypes: [Literal.$type],
     },
+    ObjectTypeExpr: {
+      name: ObjectTypeExpr.$type,
+      properties: {
+        fields: {
+          name: ObjectTypeExpr.fields,
+          defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [AtomicTypeExpr.$type],
+    },
     PathRef: {
       name: PathRef.$type,
       properties: {
@@ -602,7 +681,7 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           name: PrimitiveTypeExpr.name,
         },
       },
-      superTypes: [TypeExpr.$type],
+      superTypes: [AtomicTypeExpr.$type],
     },
     ProjectionClause: {
       name: ProjectionClause.$type,
@@ -713,7 +792,7 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           name: ScalarTypeExpr.name,
         },
       },
-      superTypes: [TypeExpr.$type],
+      superTypes: [AtomicTypeExpr.$type],
     },
     StringLiteral: {
       name: StringLiteral.$type,

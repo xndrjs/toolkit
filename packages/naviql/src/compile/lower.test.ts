@@ -134,4 +134,63 @@ describe("lowerProgram", () => {
       expect.objectContaining({ kind: "scalarRef", name: "Id" })
     );
   });
+
+  it("lowers object and array payload types into IR", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar MenuId on string;
+        scalar Locale on string;
+        scalar AssetId on string;
+
+        resource Menu(id: MenuId, locale: Locale) {
+          id
+          title: string
+          logoId: AssetId
+          meta: {
+            count: number;
+            isActive: boolean;
+            name: string;
+          }
+          slides: {
+            name: string;
+          }[]
+          tags: string[]
+        }
+
+        query MenuDetail(menuId: MenuId) {
+          context { locale: Locale }
+          root Menu(id: menuId, locale: context.locale)
+          on Menu m { id title }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+
+    const menu = program.resources.find((r) => r.name === "Menu");
+    const meta = menu?.payload.fields.find((f) => f.name === "meta")?.type;
+    expect(meta).toMatchObject({
+      kind: "object",
+      fields: [
+        { name: "count", type: { kind: "primitive", name: "number" } },
+        { name: "isActive", type: { kind: "primitive", name: "boolean" } },
+        { name: "name", type: { kind: "primitive", name: "string" } },
+      ],
+    });
+
+    const slides = menu?.payload.fields.find((f) => f.name === "slides")?.type;
+    expect(slides).toMatchObject({
+      kind: "array",
+      of: {
+        kind: "object",
+        fields: [{ name: "name", type: { kind: "primitive", name: "string" } }],
+      },
+    });
+
+    const tags = menu?.payload.fields.find((f) => f.name === "tags")?.type;
+    expect(tags).toMatchObject({
+      kind: "array",
+      of: { kind: "primitive", name: "string" },
+    });
+  });
 });
