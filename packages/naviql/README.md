@@ -2,11 +2,11 @@
 
 **Product entry** for NaviQL with two surfaces:
 
-| Export                   | Use for                                                                                                                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@xndrjs/naviql`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives — browser-safe                                                                                   |
-| `@xndrjs/naviql/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `defineConfig`, `buildResources` — Node / CI / build only |
-| `naviql-codegen` (bin)   | CLI: load `naviql.config.ts`, collect `.naviql` files, emit TypeScript (resources + open strategy builders) — writes `out` or `--dry-run` to stdout                              |
+| Export                   | Use for                                                                                                                                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@xndrjs/naviql`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                           |
+| `@xndrjs/naviql/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `generateProjections`, `defineConfig`, `buildResources` — Node / CI / build only |
+| `naviql-codegen` (bin)   | CLI: load `naviql.config.ts`, collect `.naviql` files, emit TypeScript (resources + strategies + `project*` materializers) — writes `out` or `--dry-run` to stdout                                      |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
@@ -52,14 +52,20 @@ Flags: `--config`, `--out`, `--root`, `--dry-run`, `--help`. CLI wins over confi
 
 One config = one `out`. Multiple targets = multiple config files or scripts.
 
-Generated modules import runtime symbols (`ari`, `s`, `createGraphResolutionStrategy`) from `@xndrjs/naviql` (override with `importFrom` if needed). App code should use that same runtime entry — never `/compile`.
+Generated modules import runtime symbols (`ari`, `s`, `createGraphResolutionStrategy`, `ContentMap`) from `@xndrjs/naviql` (override with `importFrom` if needed). App code should use that same runtime entry — never `/compile`.
 
 ## Usage
 
 Client / runtime — import from the main entry only:
 
 ```ts
-import { createResourceGraphResolver, createGraphResolutionStrategy, ari, s } from "@xndrjs/naviql";
+import {
+  createResourceGraphResolver,
+  createGraphResolutionStrategy,
+  ari,
+  s,
+  type ContentMap,
+} from "@xndrjs/naviql";
 ```
 
 Build / codegen / typecheck tooling — use the compile subpath:
@@ -71,6 +77,7 @@ import {
   checkProgram,
   generateResources,
   generateStrategies,
+  generateProjections,
   buildResources,
   type Program,
 } from "@xndrjs/naviql/compile";
@@ -79,6 +86,7 @@ const { program, diagnostics } = parseAndCheck(source);
 if (diagnostics.length === 0) {
   const { code: resources } = generateResources(program);
   const { code: strategies } = generateStrategies(program);
+  const { code: projections } = generateProjections(program);
   // Pure TypeScript source strings — CLI / buildResources compose + write.
 }
 
@@ -90,7 +98,9 @@ const result = buildResources({ root: process.cwd() });
 
 `generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`). Aliases are stripped to ARI lists; the factory returns the builder **without** `.build()`, so apps can attach island policies / `.when` by hand before calling `.build()`. Islands and auto-`.when` are not emitted.
 
-`buildResources` / `naviql-codegen` compose resources + strategies into one module when queries exist. Generated imports stay on `@xndrjs/naviql` only.
+`generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …) with `$type` discriminators. Apps pass a resolved `ContentMap` (and `root` ARI); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/naviql` only — no extra runtime helper.
+
+`buildResources` / `naviql-codegen` compose resources + strategies + projections into one module when queries exist. Generated imports stay on `@xndrjs/naviql` only.
 
 Generated app code should import runtime symbols from `@xndrjs/naviql`, never from `/compile`. Langium, the checker, and codegen live under `./compile` only so they do not land in client bundles.
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ctx, identity, item, lit, param, payload } from "../../fixtures";
-import type { Expr } from "../../ir";
+import { ctx, identity, item, lit, param, payload } from "../../../fixtures";
+import type { Expr } from "../../../ir";
 import { emitExpr } from "./emit-expr";
 
 describe("emitExpr", () => {

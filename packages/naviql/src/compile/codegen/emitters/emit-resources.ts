@@ -1,5 +1,5 @@
-import type { PrimitiveTypeName, Program, TypeExpr } from "../../ir";
-import { ariFactoryName, resourceTypeName } from "./naming";
+import type { PrimitiveTypeName, Program, TypeExpr } from "../../../ir";
+import { ariFactoryName, resourceTypeName } from "../naming";
 
 function primitiveKeySchema(representation: PrimitiveTypeName): string {
   switch (representation) {

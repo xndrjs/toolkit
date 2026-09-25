@@ -19,17 +19,17 @@ export {
   generateResources,
   type GenerateResourcesOptions,
   type GenerateResourcesResult,
-} from "./codegen/generate-resources";
+} from "./codegen/generators/generate-resources";
 export {
   generateStrategies,
   type GenerateStrategiesOptions,
   type GenerateStrategiesResult,
-} from "./codegen/generate-strategies";
+} from "./codegen/generators/generate-strategies";
 export {
   generateProjections,
   type GenerateProjectionsOptions,
   type GenerateProjectionsResult,
-} from "./codegen/generate-projections";
+} from "./codegen/generators/generate-projections";
 export {
   buildResources,
   type BuildResourcesOptions,

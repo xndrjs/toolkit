@@ -14,13 +14,13 @@ import {
   query,
   resource,
   scalarRef,
-} from "../../fixtures";
-import type { Program } from "../../ir";
-import { parseAndCheck } from "../parse-and-check";
+} from "../../../fixtures";
+import type { Program } from "../../../ir";
+import { parseAndCheck } from "../../parse-and-check";
 import { emitProjections } from "./emit-projections";
-import { generateProjections } from "./generate-projections";
+import { generateProjections } from "../generators/generate-projections";
 
-const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../fixtures");
+const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
 
 function loadFixture(name: string): string {
   return readFileSync(join(fixturesDir, name), "utf8");

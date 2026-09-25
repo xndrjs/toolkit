@@ -1,5 +1,5 @@
-import type { Program } from "../../ir";
-import { payloadTypeName } from "./naming";
+import type { Program } from "../../../ir";
+import { payloadTypeName } from "../naming";
 
 /** True when `ariType` can appear as an unquoted TypeScript object-type key. */
 function isValidIdentifier(name: string): boolean {
