@@ -41,24 +41,27 @@ function pageProjection(program: Program) {
   return pageQuery(program).projections.find((p) => p.binding === "p")!;
 }
 
+function menuExpand(program: Program) {
+  return pageProjection(program).expansions.find((e) => e.alias === "menu")!;
+}
+
 describe("checkProgram — pageDetail happy path", () => {
-  it("typechecks the Page / Hero / Menu / Footer / Tabs / Tab / Asset / Product graph", () => {
+  it("typechecks the Page / strips comprehension / Menu / Footer / Tabs / Tab graph", () => {
     expect(checkProgram(pageDetailProgram())).toEqual([]);
   });
 });
 
 describe("checkProgram — negative diagnostics", () => {
-  it("rejects Hero(id: @p.id) — PageId is not assignable to HeroId", () => {
+  it("rejects Menu(id: @p.id) — PageId is not assignable to MenuId", () => {
     const program = withMutatedPageDetail((p) => {
-      const hero = pageProjection(p).expansions.find((e) => e.alias === "hero")!;
-      hero.target.args = [arg("id", identity("p", "id")), arg("locale", ctx("locale"))];
+      menuExpand(p).target.args = [arg("id", identity("p", "id")), arg("locale", ctx("locale"))];
     });
 
     const diags = checkProgram(program);
     expect(diags).toContainEqual(
       expect.objectContaining({
         code: "TYPE_MISMATCH",
-        message: expect.stringMatching(/PageId.*HeroId|HeroId.*PageId/),
+        message: expect.stringMatching(/PageId.*MenuId|MenuId.*PageId/),
       })
     );
   });
@@ -103,8 +106,10 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects identityRef path missing on the resource", () => {
     const program = withMutatedPageDetail((p) => {
-      const hero = pageProjection(p).expansions.find((e) => e.alias === "hero")!;
-      hero.target.args = [arg("id", identity("p", "missing")), arg("locale", ctx("locale"))];
+      menuExpand(p).target.args = [
+        arg("id", identity("p", "missing")),
+        arg("locale", ctx("locale")),
+      ];
     });
 
     expect(checkProgram(program)).toContainEqual(
@@ -114,8 +119,10 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects payloadRef to an identity-only field (locale)", () => {
     const program = withMutatedPageDetail((p) => {
-      const hero = pageProjection(p).expansions.find((e) => e.alias === "hero")!;
-      hero.target.args = [arg("id", payload("p", "heroId")), arg("locale", payload("p", "locale"))];
+      menuExpand(p).target.args = [
+        arg("id", payload("p", "menuId")),
+        arg("locale", payload("p", "locale")),
+      ];
     });
 
     expect(checkProgram(program)).toContainEqual(
@@ -125,8 +132,10 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects identityRef when binding is not in scope", () => {
     const program = withMutatedPageDetail((p) => {
-      const hero = pageProjection(p).expansions.find((e) => e.alias === "hero")!;
-      hero.target.args = [arg("id", identity("noSuchBinding", "id")), arg("locale", ctx("locale"))];
+      menuExpand(p).target.args = [
+        arg("id", identity("noSuchBinding", "id")),
+        arg("locale", ctx("locale")),
+      ];
     });
 
     expect(checkProgram(program)).toContainEqual(
@@ -193,7 +202,7 @@ describe("checkProgram — negative diagnostics", () => {
   it("rejects unknown resource in root / expand / on", () => {
     const program = withMutatedPageDetail((p) => {
       pageQuery(p).root.resource = "MissingRoot";
-      pageProjection(p).expansions[0]!.target.resource = "MissingExpand";
+      menuExpand(p).target.resource = "MissingExpand";
       pageQuery(p).projections.push(projection("MissingOn", "x", ["id"]));
     });
 
@@ -206,8 +215,8 @@ describe("checkProgram — negative diagnostics", () => {
       const proj = pageProjection(p);
       proj.expansions.push(
         expand(
-          "hero",
-          construct("Hero", [arg("id", payload("p", "heroId")), arg("locale", ctx("locale"))])
+          "menu",
+          construct("Menu", [arg("id", payload("p", "menuId")), arg("locale", ctx("locale"))])
         )
       );
     });
@@ -217,18 +226,18 @@ describe("checkProgram — negative diagnostics", () => {
     );
   });
 
-  it("rejects constructor arg type mismatch (MenuId into HeroId)", () => {
+  it("rejects constructor arg type mismatch (FooterId into MenuId)", () => {
     const program = withMutatedPageDetail((p) => {
-      const page = pageQuery(p).projections.find((pr) => pr.binding === "p")!;
-      const hero = page.expansions.find((e) => e.alias === "hero")!;
-      hero.target.args = [arg("id", payload("p", "menuId")), arg("locale", ctx("locale"))];
+      menuExpand(p).target.args = [
+        arg("id", payload("p", "footerId")),
+        arg("locale", ctx("locale")),
+      ];
     });
 
-    // menuId is MenuId, Hero wants HeroId
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({
         code: "TYPE_MISMATCH",
-        message: expect.stringMatching(/MenuId.*HeroId/),
+        message: expect.stringMatching(/FooterId.*MenuId/),
       })
     );
   });

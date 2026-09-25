@@ -1,11 +1,11 @@
 /**
  * Page-graph IR fixture inspired by the resource-graph-resolver demo.
  *
- * - `resource Name(identity): payloadType` — identity before `:`, payload after.
- * - `TabCollection(...): Tab[]` — collection of resource instances (not value array).
- * - `Page.strips` / `Tab.strips`: Tabs | Hero | Product.
- * Collection member expansion into the graph / `on Tab` is a later runtime concern;
- * the IR preserves `array{ resourceRef("Tab") }` without lowering to plain objects.
+ * - `Page.strips` / `Tab.strips` share the same polymorphic union and expand
+ *   once via list comprehension into `EditorialModule` (Tabs | Hero | Product),
+ *   so Tabs can nest recursively through Tab → strips → Tabs → …
+ * - Duplicate expansion aliases are errors.
+ * - `Page.menu` / `Page.footer`: singular expands (demo islands; island policy later).
  */
 import type { Program } from "../compile";
 
@@ -17,6 +17,7 @@ import {
   defScalar,
   expand,
   field,
+  item,
   objectType,
   param,
   payload,
@@ -41,11 +42,11 @@ const TabsId = scalarRef("TabsId");
 const TabId = scalarRef("TabId");
 const ProductId = scalarRef("ProductId");
 const Sku = scalarRef("Sku");
+const EditorialModuleId = scalarRef("EditorialModuleId");
 
-const ModuleStrip = union(
-  objectType(field("type", strLit("Tabs")), field("id", TabsId)),
-  objectType(field("type", strLit("Hero")), field("id", HeroId)),
-  objectType(field("type", strLit("Product")), field("id", ProductId))
+const ModuleStrip = objectType(
+  field("type", union(strLit("Tabs"), strLit("Hero"), strLit("Product"))),
+  field("id", EditorialModuleId)
 );
 
 export function pageDetailProgram(): Program {
@@ -62,6 +63,7 @@ export function pageDetailProgram(): Program {
       defScalar("TabId", "string"),
       defScalar("ProductId", "string"),
       defScalar("Sku", "string"),
+      defScalar("EditorialModuleId", "string"),
     ],
     resources: [
       resource(
@@ -70,10 +72,8 @@ export function pageDetailProgram(): Program {
         objectType(
           field("id", PageId, true),
           field("title", prim("string")),
-          field("heroId", HeroId),
           field("menuId", MenuId),
           field("footerId", FooterId),
-          field("featuredTabsId", TabsId),
           field("strips", arrayOf(ModuleStrip))
         )
       ),
@@ -125,8 +125,6 @@ export function pageDetailProgram(): Program {
         objectType(
           field("id", TabId, true),
           field("title", prim("string")),
-          field("stripHeroId", HeroId),
-          field("stripProductId", ProductId),
           field("strips", arrayOf(ModuleStrip))
         )
       ),
@@ -140,6 +138,11 @@ export function pageDetailProgram(): Program {
         [field("id", ProductId), field("locale", Locale)],
         objectType(field("id", ProductId, true), field("sku", Sku), field("title", prim("string")))
       ),
+      resource(
+        "EditorialModule",
+        [field("id", EditorialModuleId), field("locale", Locale)],
+        union(resourceRef("Tabs"), resourceRef("Hero"), resourceRef("Product"))
+      ),
     ],
     queries: [
       query("PageDetail", {
@@ -150,12 +153,8 @@ export function pageDetailProgram(): Program {
           projection(
             "Page",
             "p",
-            ["id", "title", "strips"],
+            ["id", "title"],
             [
-              expand(
-                "hero",
-                construct("Hero", [arg("id", payload("p", "heroId")), arg("locale", ctx("locale"))])
-              ),
               expand(
                 "menu",
                 construct("Menu", [arg("id", payload("p", "menuId")), arg("locale", ctx("locale"))])
@@ -168,11 +167,16 @@ export function pageDetailProgram(): Program {
                 ])
               ),
               expand(
-                "featuredTabs",
-                construct("Tabs", [
-                  arg("id", payload("p", "featuredTabsId")),
+                "strips",
+                construct("EditorialModule", [
+                  arg("id", item("s", "id")),
                   arg("locale", ctx("locale")),
-                ])
+                ]),
+                {
+                  itemBinding: "s",
+                  source: payload("p", "strips"),
+                  filter: null,
+                }
               ),
             ]
           ),
@@ -236,21 +240,19 @@ export function pageDetailProgram(): Program {
           projection(
             "Tab",
             "tab",
-            ["id", "title", "strips"],
+            ["id", "title"],
             [
               expand(
-                "stripHero",
-                construct("Hero", [
-                  arg("id", payload("tab", "stripHeroId")),
+                "strips",
+                construct("EditorialModule", [
+                  arg("id", item("s", "id")),
                   arg("locale", ctx("locale")),
-                ])
-              ),
-              expand(
-                "stripProduct",
-                construct("Product", [
-                  arg("id", payload("tab", "stripProductId")),
-                  arg("locale", ctx("locale")),
-                ])
+                ]),
+                {
+                  itemBinding: "s",
+                  source: payload("tab", "strips"),
+                  filter: null,
+                }
               ),
             ]
           ),

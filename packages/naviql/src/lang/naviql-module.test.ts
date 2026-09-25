@@ -63,8 +63,8 @@ describe("NaviQl MVP grammar", () => {
 
   it("parses page-detail.naviql mirroring the IR fixture", () => {
     const model = parseSource(loadFixture("page-detail.naviql"));
-    expect(model.declarations.filter(isScalarDeclaration)).toHaveLength(10);
-    expect(model.declarations.filter(isResourceDeclaration)).toHaveLength(9);
+    expect(model.declarations.filter(isScalarDeclaration)).toHaveLength(11);
+    expect(model.declarations.filter(isResourceDeclaration)).toHaveLength(10);
 
     const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
     expect(query.name).toBe("PageDetail");
@@ -79,10 +79,23 @@ describe("NaviQl MVP grammar", () => {
       "Product",
     ]);
 
+    const page = model.declarations.find(
+      (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "Page"
+    );
+    const stripsExpand = query.projections[0]?.expansions.find((e) => e.alias === "strips");
+    expect(stripsExpand?.comprehension?.itemBinding).toBe("s");
+    expect(stripsExpand?.target.resource).toBe("EditorialModule");
+
+    const editorial = model.declarations.find(
+      (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "EditorialModule"
+    );
+    expect(editorial?.payloadType.$type).toBe("UnionTypeExpr");
+
     const tabCollection = model.declarations.find(
       (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "TabCollection"
     );
     expect(tabCollection?.payloadType.$type).toBe("ArrayTypeExpr");
+    expect(page?.name).toBe("Page");
   });
 
   it("parses identity refs, literals, and payload shorthand", () => {

@@ -1,7 +1,8 @@
 grammar NaviQl
 
-// MVP surface: scalars, resources (`Name(identity): payloadType`), queries.
-// No comprehensions, islands, filters, or when-clauses.
+// MVP surface: scalars, resources (`Name(identity): payloadType`), queries,
+// expansions with optional comprehensions (`for … in … if …`).
+// No islands or projection `when`-clauses.
 
 entry Model:
     declarations+=Declaration*;
@@ -90,7 +91,14 @@ ProjectionClause:
     '}';
 
 Expansion:
-    'expand' alias=ID ':' target=ResourceConstruction;
+    'expand' alias=ID ':' (
+        '[' target=ResourceConstruction comprehension=ComprehensionTail ']'
+      | target=ResourceConstruction
+    );
+
+/** `for item in source if filter` — used inside `[ … ]` many-expansions. */
+ComprehensionTail:
+    'for' itemBinding=ID 'in' source=Expression ('if' filter=Expression)?;
 
 ResourceConstruction:
     resource=ID '(' (args+=NamedArg (',' args+=NamedArg)*)? ')';
@@ -99,10 +107,14 @@ NamedArg:
     name=ID ':' value=Expression;
 
 // --- Expressions -------------------------------------------------------------
-// Path shapes are classified during lowering (param vs payloadRef).
+// Path shapes are classified during lowering (param / payloadRef / itemRef).
 // `context.path` and `@binding[.path]` are dedicated forms (context is a keyword).
+// Equality is only needed for comprehension filters (`s.type == "Hero"`).
 
 Expression:
+    Atom ({infer BinaryExpr.left=current} op=('==' | '!=') right=Atom)?;
+
+Atom:
     Literal | IdentityRef | ContextRef | PathRef;
 
 Literal:
