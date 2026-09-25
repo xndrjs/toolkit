@@ -6,6 +6,12 @@ export * from "../ir";
 export { checkProgram, type Diagnostic } from "../check";
 export { createNaviQlServices, NaviQlModule, type NaviQlServices } from "../lang";
 export { lowerProgram } from "./lower";
+export {
+  collectNaviQlFiles,
+  DEFAULT_NAVIQL_EXCLUDE,
+  DEFAULT_NAVIQL_INCLUDE,
+  type CollectNaviQlFilesOptions,
+} from "./collect/collect-naviql-files";
 export { mergePrograms } from "./merge-programs";
 export { parseAndCheck, type ParseAndCheckResult } from "./parse-and-check";
 export {
