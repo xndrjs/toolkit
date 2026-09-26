@@ -11,7 +11,7 @@ import {
  * Wraps `createPageDetailStrategy` and `.build()`.
  *
  * Polymorphic `each` expands + collection fan-out are emitted by codegen;
- * no handwritten union / TabCollection glue.
+ * no handwritten union glue.
  */
 export function createDemoPageStrategy(
   params: PageDetailParams

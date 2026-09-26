@@ -75,6 +75,51 @@ function resourceRefsFromPayload(payload: TypeExpr): string[] | null {
 }
 
 /**
+ * Concrete object-payload resource names to expose when expanding `targetName`.
+ * Follows resource-valued payloads (`CustomReference → Entry → Hero | Tabs | …`).
+ * Returns `null` for ordinary object payloads (project as `targetName` itself).
+ */
+function stripToConcreteMembers(
+  targetName: string,
+  resources: ResourceTable,
+  seen = new Set<string>()
+): string[] | null {
+  if (seen.has(targetName)) {
+    return null;
+  }
+  seen.add(targetName);
+
+  const target = resources.get(targetName);
+  if (!target) {
+    return null;
+  }
+
+  const payload = target.payloadType;
+  if (payload.kind === "object") {
+    return null;
+  }
+  if (payload.kind === "array") {
+    return null;
+  }
+
+  const refs = resourceRefsFromPayload(payload);
+  if (refs === null || refs.length === 0) {
+    return null;
+  }
+
+  const members: string[] = [];
+  for (const ref of refs) {
+    const nested = stripToConcreteMembers(ref, resources, new Set(seen));
+    if (nested === null) {
+      members.push(ref);
+    } else {
+      members.push(...nested);
+    }
+  }
+  return [...new Set(members)];
+}
+
+/**
  * TypeScript type string for an expansion alias under `queryName`.
  * - ordinary resource → `Query_Resource`
  * - union resource → `Query_A | Query_B | …` (member projections)
@@ -129,17 +174,17 @@ function printTargetAliasType(
     return `${projectionTypeName(queryName, element)}[]`;
   }
 
-  const unionMembers = resourceRefsFromPayload(payload);
-  if (unionMembers !== null && (payload.kind === "union" || unionMembers.length > 1)) {
-    for (const member of unionMembers) {
-      requireProjected(queryName, member, projected, `union member of '${targetName}'`);
+  const stripped = stripToConcreteMembers(targetName, resources);
+  if (stripped !== null && stripped.length > 0) {
+    for (const member of stripped) {
+      requireProjected(queryName, member, projected, `resource-valued member of '${targetName}'`);
     }
-    return unionMembers.map((m) => projectionTypeName(queryName, m)).join(" | ");
+    return stripped.map((m) => projectionTypeName(queryName, m)).join(" | ");
   }
-  if (payload.kind === "object" || (unionMembers !== null && unionMembers.length === 1)) {
-    const concrete = payload.kind === "object" ? targetName : unionMembers![0]!;
-    requireProjected(queryName, concrete, projected, `expansion target '${targetName}'`);
-    return projectionTypeName(queryName, concrete);
+
+  if (payload.kind === "object") {
+    requireProjected(queryName, targetName, projected, `expansion target '${targetName}'`);
+    return projectionTypeName(queryName, targetName);
   }
 
   throw new Error(

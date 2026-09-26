@@ -224,7 +224,7 @@ describe("type projection Resource.field", () => {
     expect(diagnostics).toEqual([]);
   });
 
-  it("integrates discriminated strip stubs in pageDetailProgram", () => {
+  it("integrates CMS link strip objects in pageDetailProgram", () => {
     expect(checkProgram(pageDetailProgram())).toEqual([]);
 
     const page = pageDetailProgram().resources.find((r) => r.name === "Page");
@@ -233,7 +233,9 @@ describe("type projection Resource.field", () => {
     const strips = page.payloadType.fields.find((f) => f.name === "strips")?.type;
     expect(strips?.kind).toBe("array");
     if (strips?.kind !== "array") return;
-    expect(strips.of.kind).toBe("union");
+    expect(strips.of.kind).toBe("object");
+    if (strips.of.kind !== "object") return;
+    expect(strips.of.fields.map((f) => f.name)).toEqual(["id"]);
   });
 
   it("parses and typechecks page-detail.naviql with discriminated strip stubs", () => {

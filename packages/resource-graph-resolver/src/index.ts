@@ -61,6 +61,7 @@ export type {
   ResolveResourceGraphOutput,
   ResolvedResourceRecord,
   ResourceKey,
+  ResourceRedirectRecord,
   SerializedIsland,
 } from "./types";
 export type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";

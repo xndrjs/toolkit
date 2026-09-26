@@ -5,11 +5,10 @@ import {
   type SchedulingMode,
 } from "@xndrjs/naviql";
 
-import { createCatalogSource } from "./catalog/data-adapter.js";
-import { createCdnSource } from "./cdn/data-adapter.js";
-import { createCmsSource } from "./cms/data-adapter.js";
+import { createAssetSource } from "./cms/asset-data-adapter.js";
+import { createCustomReferenceSource } from "./cms/custom-reference-data-adapter.js";
+import { createEntrySource } from "./cms/data-adapter.js";
 import { createDemoPageStrategy } from "./demo-strategy.js";
-import { demoFixtureStore } from "./fixtures/store.js";
 import type {
   ContentRegistry,
   PageDetailExecutionContext,
@@ -21,24 +20,20 @@ export type DemoResolverOptions = {
   /** Walk scheduling mode. Defaults to `"lane"`. */
   schedulingMode?: SchedulingMode;
   observer?: ResolutionObserver;
-  /** Override the shared in-memory fixture map (tests). */
-  store?: ReadonlyMap<string, unknown>;
 };
 
 /**
- * Wires the three in-memory backends and the generated page-detail strategy.
+ * Wires three separate batch channels + the generated page-detail strategy.
  *
- * - cms — editorial graph ARIs
- * - catalog — `productAri`
- * - cdn — `assetAri`
+ * - cms-entries — editorial Entry / Page / Hero / … (one CMS entry endpoint)
+ * - cms-custom-references — in-memory CustomReference → Entry | Asset redirect
+ * - cms-assets — media assets (separate CDN endpoint)
  */
 export function createDemoResolver(
   options: DemoResolverOptions
 ): ResourceGraphResolver<ContentRegistry, PageDetailExecutionContext> {
-  const store = options.store ?? demoFixtureStore;
-
   return createResourceGraphResolver<ContentRegistry, PageDetailExecutionContext>({
-    sources: [createCmsSource(store), createCatalogSource(store), createCdnSource(store)],
+    sources: [createCustomReferenceSource(), createEntrySource(), createAssetSource()],
     strategy: createDemoPageStrategy(options.params),
     schedulingMode: options.schedulingMode ?? "lane",
     observer: options.observer,

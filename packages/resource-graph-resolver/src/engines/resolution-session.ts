@@ -13,8 +13,10 @@ import type {
   ResolutionError,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
+  ResolvedPayloadRecord,
   ResolvedResourceRecord,
   ResourceKey,
+  ResourceRedirectRecord,
 } from "../types";
 
 /** One walk step: a resource discovered from a specific island. */
@@ -67,6 +69,16 @@ export class ResolutionSession<
 
   private readonly failuresByResource = new Map<ResourceKey, FailureAccumulator>();
   private readonly pendingByKey = new Map<ResourceKey, PendingEntry>();
+  /**
+   * Abstract ARI key → concrete ARI rematerialized for it (e.g. Entry → Hero).
+   * Expansion policies run against the concrete resource.
+   */
+  private readonly rematerializations = new Map<ResourceKey, ApplicationResourceIdentifier>();
+  /**
+   * Abstract ARI key → canonical ARI to load next (e.g. CustomReference → Entry).
+   * No payload yet — the target source will load it.
+   */
+  private readonly redirects = new Map<ResourceKey, ApplicationResourceIdentifier>();
   /** `(islandId, resourceKey)` pairs already expanded — kept out of {@link islands}. */
   private readonly visited = new Set<string>();
   private readonly backingResources: Map<ResourceKey, unknown>;
@@ -186,16 +198,73 @@ export class ResolutionSession<
     notifyObserver(this.observer, "onBackingPromote", () => ({ resource, islandIds }));
   }
 
+  /**
+   * Concrete ARI that settled `resource` via rematerialization, if any.
+   * Expansion should run against this target so `on Hero` policies fire after
+   * an `Entry` / indirection request.
+   */
+  rematerializationOf(
+    resource: ApplicationResourceIdentifier
+  ): ApplicationResourceIdentifier | undefined {
+    return this.rematerializations.get(resource.toString());
+  }
+
+  /**
+   * Canonical ARI a prior in-memory redirect pointed at (e.g. CustomReference → Entry).
+   */
+  redirectOf(resource: ApplicationResourceIdentifier): ApplicationResourceIdentifier | undefined {
+    return this.redirects.get(resource.toString());
+  }
+
   commitRecords(
     records: readonly ResolvedResourceRecord<R>[]
-  ): Map<ResourceKey, ResolvedResourceRecord<R>> {
-    const resolvedByKey = new Map<ResourceKey, ResolvedResourceRecord<R>>();
+  ): Map<ResourceKey, ResolvedPayloadRecord<R>> {
+    const resolvedByKey = new Map<ResourceKey, ResolvedPayloadRecord<R>>();
     for (const record of records) {
+      if (isRedirectRecord(record)) {
+        for (const abstract of record.resolves) {
+          this.redirects.set(abstract.toString(), record.resource);
+        }
+        continue;
+      }
+
       resolvedByKey.set(record.resource.toString(), record);
       this.contentMap.set(record.resource, record.payload);
+
+      const abstracts = record.resolves;
+      if (abstracts !== undefined) {
+        for (const abstract of abstracts) {
+          const abstractKey = abstract.toString();
+          this.contentMap.set(
+            abstract as ApplicationResourceIdentifier<keyof R & string>,
+            record.payload as R[keyof R & string]
+          );
+          this.rematerializations.set(abstractKey, record.resource);
+          resolvedByKey.set(abstractKey, record);
+        }
+      }
+
+      // CustomReference → Entry redirects: once Entry (or its rematerialization)
+      // lands, copy the concrete payload onto the redirected abstract keys.
+      this.propagateRedirectPayloads(record);
     }
 
     return resolvedByKey;
+  }
+
+  private propagateRedirectPayloads(record: ResolvedPayloadRecord<R>): void {
+    const settled = new Set<ResourceKey>([record.resource.toString()]);
+    for (const abstract of record.resolves ?? []) {
+      settled.add(abstract.toString());
+    }
+
+    for (const [fromKey, toAri] of this.redirects) {
+      if (!settled.has(toAri.toString())) {
+        continue;
+      }
+      this.contentMap.setByKey(fromKey, record.payload);
+      this.rematerializations.set(fromKey, record.resource);
+    }
   }
 
   /** Records a resource as unresolvable from `ref`'s island and clears its pending entry. */
@@ -296,4 +365,10 @@ export class ResolutionSession<
       promotedResourceKeys: [...this.promotedResourceKeys],
     };
   }
+}
+
+function isRedirectRecord(
+  record: ResolvedResourceRecord<ContentRegistry>
+): record is ResourceRedirectRecord {
+  return (record as ResourceRedirectRecord).redirect === true;
 }

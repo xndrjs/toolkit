@@ -58,41 +58,33 @@ describe("emitProjections", () => {
     expect(code).toContain("return projectNode(root) as PostDetailResult;");
   });
 
-  it("emits multi-arm each strips and collection map for page-detail", () => {
+  it("emits Entry/CustomReference strips and tabs each-links for page-detail", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("page-detail.naviql"));
     expect(diagnostics).toEqual([]);
 
     const code = emitProjections(program!);
 
     expect(code).toContain("export function projectPageDetail(");
-    expect(code).toContain("payload.strips.flatMap((s: any): any[] =>");
     expect(code).toContain(
-      'if (s.type == "Hero") return [projectNode(heroAri({ id: s.id, locale: executionContext.locale }))];'
+      "payload.strips.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"
     );
     expect(code).toContain(
-      'if (s.type == "Tabs") return [projectNode(tabsAri({ id: s.id, locale: executionContext.locale }))];'
+      "payload.related.map((ref: any) => projectNode(customReferenceAri({ ref: ref, locale: resource.key[0].locale })))"
     );
     expect(code).toContain(
-      'if (s.type == "Product") return [projectNode(productAri({ id: s.id, locale: executionContext.locale }))];'
+      "payload.tabs.map((link: any) => projectNode(tabAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"
     );
     expect(code).not.toContain("editorialModuleAri");
+    expect(code).not.toContain("tabCollectionAri");
     expect(code).not.toContain('case "EditorialModule":');
     expect(code).toContain('case "Hero":');
     expect(code).toContain('case "Tabs":');
     expect(code).toContain('case "Product":');
+    expect(code).toContain('case "Entry":');
+    expect(code).toContain('case "CustomReference":');
     expect(code).toContain(
-      "tabCollectionAri({ tabsId: payload.id, locale: executionContext.locale })"
+      "shell.menu = projectNode(menuAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale }));"
     );
-    expect(code).toContain("projectOnTabFromPayload");
-    expect(code).toContain(
-      "const __collectionPayload = contentMap.get(__collectionAri as never) as any;"
-    );
-    expect(code).toContain("__collectionPayload.map((item: any) => projectOnTabFromPayload(item))");
-    expect(code).toContain(
-      "shell.menu = projectNode(menuAri({ id: payload.menuId, locale: executionContext.locale }));"
-    );
-    // No ContentMap lookup for embedded Tab body — FromPayload only.
-    expect(code).toMatch(/const projectOnTabFromPayload = \(payload: any\): any => \{/);
   });
 
   it("projects identity-edge ARIs via emitConstruction (payload vs identity)", () => {
