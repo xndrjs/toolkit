@@ -4,6 +4,7 @@ import type {
   Expr,
   ProjectionArm,
   QueryDefinition,
+  ResolveArm,
   SourceSpan,
   TypeExpr,
 } from "../ir";
@@ -104,7 +105,40 @@ export function checkQuery(
       });
     }
 
-    if (projection.arms !== null) {
+    // Resolve-only clauses cannot also carry projection body / when-arms
+    // (parse rejects the mix; this catches hand-built IR).
+    if (projection.resolveArms !== null && (hasFlatBody || projection.arms !== null)) {
+      sink.push({
+        code: "MIXED_RESOLVE_PROJECTION",
+        message: `Projection 'on ${projection.resource}' cannot mix 'resolve to' with selected fields, expansions, or when-arms`,
+        path: projPath,
+        span: projection.span,
+      });
+    }
+
+    if (projection.resolveArms !== null) {
+      for (let i = 0; i < projection.resolveArms.length; i++) {
+        checkResolveArm(
+          projection.resolveArms[i]!,
+          `${projPath}.resolveArms.${i}`,
+          projection.binding,
+          resource.payloadType,
+          scope,
+          scalars,
+          resources,
+          sink
+        );
+      }
+      checkResolveArmExhaustiveness(
+        resource.payloadType,
+        projection.resolveArms,
+        projection.binding,
+        projPath,
+        projection.span,
+        resources,
+        sink
+      );
+    } else if (projection.arms !== null) {
       for (let i = 0; i < projection.arms.length; i++) {
         checkProjectionArm(
           projection.arms[i]!,
@@ -140,6 +174,45 @@ export function checkQuery(
       checkExpansions(projection.expansions, projPath, scope, scalars, resources, sink);
     }
   }
+}
+
+/**
+ * Resolve arm: construction under optional `when` on the decode payload
+ * (narrowed like projection arms). No selected fields / expands here.
+ */
+function checkResolveArm(
+  arm: ResolveArm,
+  armPath: string,
+  binding: string,
+  payloadType: TypeExpr,
+  scope: QueryScope,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  let bodyScope = scope;
+  if (arm.when) {
+    const whenType = inferExprType(arm.when, `${armPath}.when`, scope, resources, sink);
+    if (whenType) {
+      const prim = unwrapNullable(whenType);
+      if (prim.kind !== "primitive" || prim.name !== "boolean") {
+        sink.push({
+          code: "RESOLVE_WHEN",
+          message: `Resolve when-clause must be boolean, got ${formatType(whenType)}`,
+          path: `${armPath}.when`,
+          span: arm.when.span,
+        });
+      }
+    }
+    const narrowed =
+      narrowPayloadByFilter(payloadType, arm.when, binding, resources) ?? payloadType;
+    bodyScope = {
+      ...scope,
+      payloadNarrowing: new Map([...scope.payloadNarrowing, [binding, narrowed]]),
+    };
+  }
+
+  checkConstruction(arm.target, armPath, bodyScope, scalars, resources, sink);
 }
 
 function checkProjectionArm(
@@ -452,6 +525,44 @@ function checkProjectionArmExhaustiveness(
     sink.push({
       code: "INEXHAUSTIVE_PROJECTION_ARMS",
       message: `projection when-arms do not cover discriminant(s): ${missing.map((v) => JSON.stringify(v)).join(", ")}`,
+      path: projPath,
+      span,
+    });
+  }
+}
+
+/**
+ * Same closed-discriminant spirit as projection arms: decode payload object
+ * unions with `type: "Lit"` must be covered by resolve `when` filters.
+ */
+function checkResolveArmExhaustiveness(
+  payloadType: TypeExpr,
+  arms: ResolveArm[],
+  binding: string,
+  projPath: string,
+  span: SourceSpan | null,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  const required = closedPayloadDiscriminants(payloadType, resources);
+  if (required === null || required.size === 0) {
+    return;
+  }
+
+  const covered = new Set<string>();
+  for (const arm of arms) {
+    if (arm.when?.kind !== "binary") continue;
+    const disc = payloadDiscriminantLiteral(arm.when, binding);
+    if (disc && arm.when.op === "==") {
+      covered.add(disc.value);
+    }
+  }
+
+  const missing = [...required].filter((v) => !covered.has(v)).sort();
+  if (missing.length > 0) {
+    sink.push({
+      code: "INEXHAUSTIVE_RESOLVE_ARMS",
+      message: `resolve when-arms do not cover discriminant(s): ${missing.map((v) => JSON.stringify(v)).join(", ")}`,
       path: projPath,
       span,
     });
