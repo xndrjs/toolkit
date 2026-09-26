@@ -20,6 +20,12 @@ export {
 } from "./completion-path";
 export { buildExprScope, type ExprScopeTables } from "./expr-scope";
 export { createNaviQlLspServices } from "./create-services";
+export {
+  definitionSpanAtOffset,
+  definitionSpanForCstLeaf,
+  NaviQlDefinitionProvider,
+  type DefinitionTables,
+} from "./definition";
 export { diagnosticToLsp, diagnosticsToLsp, type PositionAt } from "./diagnostics-to-lsp";
 export { hoverMarkdownAtOffset, hoverMarkdownForCstLeaf, NaviQlHoverProvider } from "./hover";
 export {
