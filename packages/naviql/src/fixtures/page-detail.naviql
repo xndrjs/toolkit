@@ -110,6 +110,22 @@ resource Page(
   // Legacy custom references (same target may also appear as a standard link).
   related: CustomReferenceValue[]
 }
+
+fragment EntryBase on Entry e {
+  type
+  id
+}
+
+fragment BrandChrome on Entry e {
+  title
+  expand logo: Asset(
+    spaceId: context.spaceId,
+    environmentId: context.environmentId,
+    id: e.logoId,
+    locale: @e.locale
+  )
+}
+
 query PageDetail(pageId: EntryId) {
   context {
     spaceId: SpaceId
@@ -156,9 +172,8 @@ query PageDetail(pageId: EntryId) {
   }
 
   on Entry e {
+    ...EntryBase
     when e.type == "Hero" {
-      type
-      id
       title
       expand image: Asset(
         spaceId: context.spaceId,
@@ -168,8 +183,6 @@ query PageDetail(pageId: EntryId) {
       )
     }
     when e.type == "Tabs" {
-      type
-      id
       title
       expand tabs: each link in e.tabs (
         Entry(
@@ -181,8 +194,6 @@ query PageDetail(pageId: EntryId) {
       )
     }
     when e.type == "Tab" {
-      type
-      id
       title
       expand strips: each link in e.strips (
         Entry(
@@ -194,36 +205,16 @@ query PageDetail(pageId: EntryId) {
       )
     }
     when e.type == "Product" {
-      type
-      id
       sku
       title
     }
     when e.type == "Menu" {
-      type
-      id
-      title
-      expand logo: Asset(
-        spaceId: context.spaceId,
-        environmentId: context.environmentId,
-        id: e.logoId,
-        locale: @e.locale
-      )
+      ...BrandChrome
     }
     when e.type == "Footer" {
-      type
-      id
-      title
-      expand logo: Asset(
-        spaceId: context.spaceId,
-        environmentId: context.environmentId,
-        id: e.logoId,
-        locale: @e.locale
-      )
+      ...BrandChrome
     }
     when e.type == "SiteInternalLink" {
-      type
-      id
       expand target: Entry(
         spaceId: @e.spaceId,
         environmentId: @e.environmentId,
@@ -232,8 +223,6 @@ query PageDetail(pageId: EntryId) {
       )
     }
     when e.type == "Page" {
-      type
-      id
     }
   }
 
