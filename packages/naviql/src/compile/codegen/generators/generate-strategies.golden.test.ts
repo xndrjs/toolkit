@@ -1,6 +1,7 @@
 /**
  * Golden tests: fixture → parseAndCheck → generateStrategies → stable TypeScript source.
- * Covers open create*Strategy builders (no .build() / islands). Flat fixtures omit `.when(`.
+ * Covers open create*Strategy builders (no .build()). Flat fixtures omit `.when(`.
+ * page-detail emits Entry Menu/Footer island policies.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -178,6 +179,16 @@ export function createPageDetailStrategy(params: PageDetailParams) {
       };
     });
 
+  strategy.islands
+    .on(entryAri)
+    .when((predicate) => predicate.payload.type == "Menu")
+    .startIsland();
+
+  strategy.islands
+    .on(entryAri)
+    .when((predicate) => predicate.payload.type == "Footer")
+    .startIsland();
+
   return strategy;
 }
 `;
@@ -240,7 +251,10 @@ describe("generateStrategies golden", () => {
     expect(code).toContain(
       "assetAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key[0].locale })"
     );
+    expect(code).toContain("strategy.islands");
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Menu")');
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Footer")');
+    expect(code).toContain(".startIsland()");
     expect(code).not.toContain(".build()");
-    expect(code).not.toContain("islands");
   });
 });

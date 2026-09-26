@@ -1,7 +1,8 @@
 /**
  * Strategy codegen entry: checked `Program` → TypeScript source string.
- * Emits open `create*Strategy` builders (no `.build()` / islands / root).
+ * Emits open `create*Strategy` builders (no `.build()` / root helpers).
  * Armed `on` projections emit `.when(…)`; flat `on` does not.
+ * Query `islands` emit `.islands.on(…)[.when(…)].startIsland()`.
  * Generated code imports runtime only from `@xndrjs/naviql`.
  */
 import type { Program } from "../../../ir";
@@ -45,7 +46,7 @@ function emitRuntimeImport(importFrom: string): string {
  *
  * Input should already be checked (`checkProgram` / `parseAndCheck`).
  * Output is a pure string (no filesystem writes). Builders are left open for
- * apps to add islands (or extra `.when`) before `.build()`.
+ * apps to attach extra island / `.when` policies before `.build()`.
  */
 export function generateStrategies(
   program: Program,

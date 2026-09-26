@@ -311,7 +311,14 @@ export function pageDetailProgram(): Program {
           ]),
           projection("Asset", "a", ["id", "url", "title", "kind"]),
         ],
-        islands: [],
+        islands: [
+          {
+            resource: "Entry",
+            binding: "e",
+            whens: [eq(payload("e", "type"), lit("Menu")), eq(payload("e", "type"), lit("Footer"))],
+            span: null,
+          },
+        ],
       }),
     ],
   };
