@@ -55,3 +55,15 @@ export function queryResultTypeName(queryName: string): string {
 export function projectionTypeName(queryName: string, resourceName: string): string {
   return `${queryName}_${resourceName}`;
 }
+
+/**
+ * `PostDetail` + `Entry` + `"Hero"` → `PostDetail_Entry_Hero`
+ * (one arm of an armed `on` projection).
+ */
+export function projectionVariantTypeName(
+  queryName: string,
+  resourceName: string,
+  variant: string
+): string {
+  return `${queryName}_${resourceName}_${variant}`;
+}

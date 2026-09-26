@@ -8,6 +8,13 @@
  * export type PostDetailResult = PostDetail_Post;
  * ```
  *
+ * Armed `on Entry` emits variant shells + a union alias:
+ * ```ts
+ * export type PostDetail_Entry_Hero = { $type: "Entry"; type: "Hero"; … };
+ * export type PostDetail_Entry_Page = { $type: "Entry"; id: EntryId };
+ * export type PostDetail_Entry = PostDetail_Entry_Hero | PostDetail_Entry_Page;
+ * ```
+ *
  * Alias types restore expansion names. Union resources strip to the union of
  * projected member types; collection resources (`Tab[]`) become member arrays.
  */
@@ -16,13 +23,16 @@ import { resolveTypeExpr } from "../../../check/resolve-type";
 import type { ResourceTable, ScalarTable } from "../../../check/symbols";
 import type {
   Expansion,
+  FieldDecl,
   Program,
+  ProjectionArm,
   QueryDefinition,
   ResourceProjection,
   TypeExpr,
 } from "../../../ir";
+import { projectionArmDiscriminant } from "./emit-expr";
 import { printTypeExpr } from "./emit-types";
-import { projectionTypeName, queryResultTypeName } from "../naming";
+import { projectionTypeName, projectionVariantTypeName, queryResultTypeName } from "../naming";
 
 function tablesFromProgram(program: Program): {
   scalars: ScalarTable;
@@ -78,16 +88,23 @@ function resourceRefsFromPayload(payload: TypeExpr): string[] | null {
  * Concrete object-payload resource names to expose when expanding `targetName`.
  * Follows resource-valued payloads (`CustomReference → Entry → Hero | Tabs | …`).
  * Returns `null` for ordinary object payloads (project as `targetName` itself).
+ * Stops at resources that have an explicit projection (armed or flat).
  */
 function stripToConcreteMembers(
   targetName: string,
   resources: ResourceTable,
+  projected: Set<string>,
   seen = new Set<string>()
 ): string[] | null {
   if (seen.has(targetName)) {
     return null;
   }
   seen.add(targetName);
+
+  // Explicit `on Target` (armed Entry, flat Asset, …) — do not strip further.
+  if (projected.has(targetName)) {
+    return null;
+  }
 
   const target = resources.get(targetName);
   if (!target) {
@@ -109,7 +126,7 @@ function stripToConcreteMembers(
 
   const members: string[] = [];
   for (const ref of refs) {
-    const nested = stripToConcreteMembers(ref, resources, new Set(seen));
+    const nested = stripToConcreteMembers(ref, resources, projected, new Set(seen));
     if (nested === null) {
       members.push(ref);
     } else {
@@ -174,7 +191,12 @@ function printTargetAliasType(
     return `${projectionTypeName(queryName, element)}[]`;
   }
 
-  const stripped = stripToConcreteMembers(targetName, resources);
+  // Prefer an explicit `on Target` projection (armed Entry, flat object, …).
+  if (projected.has(targetName)) {
+    return projectionTypeName(queryName, targetName);
+  }
+
+  const stripped = stripToConcreteMembers(targetName, resources, projected);
   if (stripped !== null && stripped.length > 0) {
     for (const member of stripped) {
       requireProjected(queryName, member, projected, `resource-valued member of '${targetName}'`);
@@ -205,7 +227,138 @@ function requireProjected(
   }
 }
 
-function emitResourceProjectionType(
+/**
+ * Object-payload member matching `binding.type == "Lit"`, expanding resourceRefs.
+ */
+function narrowPayloadObject(
+  payloadType: TypeExpr,
+  disc: string,
+  resources: ResourceTable
+): Extract<TypeExpr, { kind: "object" }> | null {
+  const members = expandPayloadObjectMembers(payloadType, resources);
+  if (members === null) return null;
+  const matched = members.filter((member) => {
+    const typeField = member.fields.find((f) => f.name === "type");
+    return typeField?.type.kind === "stringLiteral" && typeField.type.value === disc;
+  });
+  return matched.length === 1 ? matched[0]! : null;
+}
+
+function expandPayloadObjectMembers(
+  payloadType: TypeExpr,
+  resources: ResourceTable
+): Extract<TypeExpr, { kind: "object" }>[] | null {
+  if (payloadType.kind === "object") {
+    return [payloadType];
+  }
+  if (payloadType.kind === "resourceRef") {
+    const inner = resources.get(payloadType.name);
+    if (!inner) return null;
+    return expandPayloadObjectMembers(inner.payloadType, resources);
+  }
+  if (payloadType.kind === "union") {
+    const objects: Extract<TypeExpr, { kind: "object" }>[] = [];
+    for (const member of payloadType.members) {
+      const expanded = expandPayloadObjectMembers(member, resources);
+      if (expanded === null) return null;
+      objects.push(...expanded);
+    }
+    return objects;
+  }
+  if (payloadType.kind === "nullable") {
+    return expandPayloadObjectMembers(payloadType.of, resources);
+  }
+  return null;
+}
+
+function fieldMap(fields: FieldDecl[]): Map<string, FieldDecl> {
+  return new Map(fields.map((f) => [f.name, f]));
+}
+
+function emitArmVariantType(
+  queryName: string,
+  projection: ResourceProjection,
+  arm: ProjectionArm,
+  armIndex: number,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  projected: Set<string>
+): { typeName: string; source: string } {
+  const disc = projectionArmDiscriminant(arm.when, projection.binding);
+  const variant = disc ?? `Arm${armIndex}`;
+  const typeName = projectionVariantTypeName(queryName, projection.resource, variant);
+
+  const resource = resources.get(projection.resource);
+  if (!resource) {
+    throw new Error(
+      `emitProjectionTypes: unknown resource '${projection.resource}' in query '${queryName}'`
+    );
+  }
+
+  const narrowed =
+    disc !== null ? narrowPayloadObject(resource.payloadType, disc, resources) : null;
+  const payloadFields = narrowed !== null ? fieldMap(narrowed.fields) : resource.payload;
+
+  const lines: string[] = [`  $type: ${JSON.stringify(projection.resource)};`];
+
+  for (const fieldName of arm.selectedFields) {
+    const field = payloadFields.get(fieldName);
+    if (!field) {
+      throw new Error(
+        `emitProjectionTypes: selected field '${fieldName}' is not on narrowed payload of '${projection.resource}' arm '${variant}'`
+      );
+    }
+    const path = `queries.${queryName}.projections.${projection.binding}.arms.${armIndex}.selectedFields.${fieldName}`;
+    const resolved = resolveForEmit(field.type, path, scalars, resources);
+    lines.push(`  ${fieldName}: ${printTypeExpr(resolved)};`);
+  }
+
+  for (const expansion of arm.expansions) {
+    const aliasType = printExpansionAliasType(queryName, expansion, resources, projected);
+    lines.push(`  ${expansion.alias}: ${aliasType};`);
+  }
+
+  return {
+    typeName,
+    source: `export type ${typeName} = {\n${lines.join("\n")}\n};`,
+  };
+}
+
+function emitArmedResourceProjectionTypes(
+  queryName: string,
+  projection: ResourceProjection,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  projected: Set<string>
+): string {
+  const arms = projection.arms;
+  if (arms === null) {
+    throw new Error("emitProjectionTypes: emitArmedResourceProjectionTypes called without arms");
+  }
+
+  const variants: string[] = [];
+  const parts: string[] = [];
+
+  for (let i = 0; i < arms.length; i++) {
+    const { typeName, source } = emitArmVariantType(
+      queryName,
+      projection,
+      arms[i]!,
+      i,
+      scalars,
+      resources,
+      projected
+    );
+    variants.push(typeName);
+    parts.push(source);
+  }
+
+  const unionName = projectionTypeName(queryName, projection.resource);
+  parts.push(`export type ${unionName} = ${variants.join(" | ")};`);
+  return parts.join("\n\n");
+}
+
+function emitFlatResourceProjectionType(
   queryName: string,
   projection: ResourceProjection,
   scalars: ScalarTable,
@@ -245,6 +398,19 @@ function emitResourceProjectionType(
   }
 
   return `export type ${typeName} = {\n${lines.join("\n")}\n};`;
+}
+
+function emitResourceProjectionType(
+  queryName: string,
+  projection: ResourceProjection,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  projected: Set<string>
+): string {
+  if (projection.arms !== null) {
+    return emitArmedResourceProjectionTypes(queryName, projection, scalars, resources, projected);
+  }
+  return emitFlatResourceProjectionType(queryName, projection, scalars, resources, projected);
 }
 
 function emitQueryProjectionTypes(

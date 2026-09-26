@@ -1,6 +1,6 @@
 /**
  * Golden tests: fixture → parseAndCheck → generateStrategies → stable TypeScript source.
- * Covers open create*Strategy builders (no .build() / islands / .when()).
+ * Covers open create*Strategy builders (no .build() / islands). Flat fixtures omit `.when(`.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
