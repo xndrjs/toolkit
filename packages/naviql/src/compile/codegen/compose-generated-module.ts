@@ -1,12 +1,13 @@
 /**
- * Merge resource + strategy + projection codegen into one TypeScript module for
- * the product path (`buildResources` / CLI). Keeps `generateResources` /
- * `generateStrategies` / `generateProjections` as focused unit-test entry
- * points with separate imports.
+ * Merge resource + strategy + projection + resolve façade codegen into one
+ * TypeScript module for the product path (`buildResources` / CLI). Keeps
+ * `generateResources` / `generateStrategies` / `generateProjections` as focused
+ * unit-test entry points with separate imports.
  */
 import type { Program } from "../../ir";
 import { emitProjectionTypes } from "./emitters/emit-projection-types";
 import { emitProjections } from "./emitters/emit-projections";
+import { emitResolves } from "./emitters/emit-resolves";
 import { emitPayloadTypes } from "./emitters/emit-types";
 import { emitRegistry } from "./emitters/emit-registry";
 import { emitResources } from "./emitters/emit-resources";
@@ -44,10 +45,12 @@ function emitRuntimeImport(importFrom: string, symbols: string[]): string {
 
 /**
  * Compose a single generated module: scalars / ARIs / payloads / registry,
- * plus open strategy builders and projectors when the program has queries.
+ * plus open strategy builders, projectors, and resolve façades when the program
+ * has queries.
  *
  * Uses one header and one runtime import (`ari`, `s`,
- * `createGraphResolutionStrategy`, and/or `type ContentMap` as needed).
+ * `createGraphResolutionStrategy`, `createResourceGraphResolver`, and related
+ * types as needed).
  */
 export function composeGeneratedModule(
   program: Program,
@@ -92,6 +95,11 @@ export function composeGeneratedModule(
     bodyParts.push(projections);
   }
 
+  const resolves = emitResolves(program, registryTypeName);
+  if (resolves.length > 0) {
+    bodyParts.push(resolves);
+  }
+
   const importSymbols: string[] = [];
   if (resources.length > 0) {
     importSymbols.push("ari", "s");
@@ -103,6 +111,20 @@ export function composeGeneratedModule(
 
   if (projections.length > 0) {
     importSymbols.push("type ContentMap");
+  }
+
+  if (resolves.length > 0) {
+    importSymbols.push(
+      "createResourceGraphResolver",
+      "type DataSource",
+      "type IslandDependencyMap",
+      "type IslandMap",
+      "type MissingResourceMode",
+      "type ResolutionError",
+      "type ResolutionObserver",
+      "type ResourceKey",
+      "type SchedulingMode"
+    );
   }
 
   const parts: string[] = [GENERATED_HEADER];
