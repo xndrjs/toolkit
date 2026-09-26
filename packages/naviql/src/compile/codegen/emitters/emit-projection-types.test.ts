@@ -75,6 +75,48 @@ export type PostDetailResult = PostDetail_Post;
     );
   });
 
+  it("emits alias-keyed Result for multi-root queries", () => {
+    const source = `
+      scalar PageId on string;
+      scalar SessionId on string;
+
+      resource Page(id: PageId): { id title: string }
+      resource UserSession(id: SessionId): { id userId: string }
+
+      query Homepage(pageId: PageId, sessionId: SessionId) {
+        roots {
+          page: Page(id: pageId)
+          session: UserSession(id: sessionId)
+        }
+        on Page p { id title }
+        on UserSession s { id userId }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    expect(normalizeWhitespace(emitProjectionTypes(program!))).toBe(
+      normalizeWhitespace(`
+export type Homepage_Page = {
+  $type: "Page";
+  id: PageId;
+  title: string;
+};
+
+export type Homepage_UserSession = {
+  $type: "UserSession";
+  id: SessionId;
+  userId: string;
+};
+
+export type HomepageResult = {
+  page: Homepage_Page;
+  session: Homepage_UserSession;
+};
+`)
+    );
+  });
+
   it("emits Entry variant shells + union alias for armed on Entry", () => {
     const source = `
       scalar Locale on string;

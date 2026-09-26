@@ -44,8 +44,45 @@ describe("emitResolves", () => {
     expect(code).toContain(
       "const postDetail = projectPostDetail(input.root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n  });"
     );
+    expect(code).toContain("roots: [input.root],");
+    expect(code).toContain("root: ReturnType<typeof postAri>;");
     expect(code).toContain("postDetail: PostDetailResult;");
     expect(code).toContain("islandDependencies: IslandDependencyMap;");
+  });
+
+  it("emits alias-keyed resolve* façade for multi-root queries", () => {
+    const source = `
+      scalar PageId on string;
+      scalar SessionId on string;
+
+      resource Page(id: PageId): { id title: string }
+      resource UserSession(id: SessionId): { id userId: string }
+
+      query Homepage(pageId: PageId, sessionId: SessionId) {
+        roots {
+          page: Page(id: pageId)
+          session: UserSession(id: sessionId)
+        }
+        on Page p { id title }
+        on UserSession s { id userId }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitResolves(program!);
+
+    expect(code).toContain("export type ResolveHomepageInput");
+    expect(code).toContain("export async function resolveHomepage(");
+    expect(code).toContain("params: HomepageParams;");
+    expect(code).toContain("roots: {\n    page: ReturnType<typeof pageAri>;");
+    expect(code).toContain("session: ReturnType<typeof userSessionAri>;");
+    expect(code).toContain("roots: [input.roots.page, input.roots.session],");
+    expect(code).toContain(
+      "const homepage = projectHomepage(input.roots, contentMap, {\n    params: input.params,\n  });"
+    );
+    expect(code).toContain("homepage: HomepageResult;");
+    expect(code).not.toContain("root: ReturnType<typeof");
   });
 
   it("emits resolvePageDetail for page-detail fixture", () => {
