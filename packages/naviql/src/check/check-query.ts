@@ -12,6 +12,7 @@ import {
   checkResolveArmExhaustiveness,
   checkSelectedFields,
 } from "./check-expansions";
+import { checkIslands } from "./check-islands";
 import { checkConstruction } from "./construction";
 import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
@@ -179,6 +180,8 @@ export function checkQuery(
       checkExpansions(projection.expansions, projPath, scope, scalars, resources, sink);
     }
   }
+
+  checkIslands(query.islands, path, scope, resources, sink);
 }
 
 /**

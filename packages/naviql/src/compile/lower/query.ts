@@ -1,5 +1,6 @@
 import type {
   Expansion,
+  IslandClause,
   ProjectionArm,
   QueryDefinition,
   QueryRoot,
@@ -9,6 +10,7 @@ import type {
 import type { DiagnosticSink } from "../../check/diagnostic";
 import {
   type Expansion as AstExpansion,
+  type IslandClause as AstIslandClause,
   type ProjectionClause as AstProjectionClause,
   type ProjectionWhenArm as AstProjectionWhenArm,
   type QueryDeclaration as AstQueryDeclaration,
@@ -36,8 +38,17 @@ export function lowerQuery(
     context: decl.context ? decl.context.fields.map((f) => lowerTypedField(f, tables)) : [],
     roots: lowerQueryRoots(decl),
     projections: decl.projections.map((p) => lowerProjection(p, fragments, sink)),
-    islands: [],
+    islands: decl.islands?.clauses.map(lowerIslandClause) ?? [],
     span: spanOf(decl),
+  };
+}
+
+export function lowerIslandClause(clause: AstIslandClause): IslandClause {
+  return {
+    resource: clause.resource,
+    binding: clause.binding ?? null,
+    whens: clause.whens.map((w) => lowerExpr(w.when)),
+    span: spanOf(clause),
   };
 }
 
