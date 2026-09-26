@@ -13,7 +13,7 @@ Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](
 
 **Vertical-slice example:** [`apps/naviql-demo`](../../apps/naviql-demo) — `.naviql` → codegen → `resolvePageDetail` (closed strategy → multi-DataSource `resolve` → `projectPageDetail`; low-level `create*Strategy` / `project*` still exported).
 
-**Editor:** [`.naviql` syntax highlighting + LSP diagnostics + IntelliSense](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode`). Live squiggles, hover, completion, and go-to-definition share the same multi-file semantic snapshot as codegen (`parseAndCheck` / `checkProgram`): multi-file when a nearby `naviql.config.*` scopes the collect; otherwise single-file only (no monorepo-root glob). Build `@xndrjs/naviql` first so `naviql-language-server` exists under `dist/lsp/` (required for F5 / Install from Location).
+**Editor:** [`.naviql` syntax highlighting + LSP diagnostics + IntelliSense + Format Document](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode`). Live squiggles, hover, completion, go-to-definition, and formatting share the language server in `@xndrjs/naviql` (semantic features use the same multi-file snapshot as codegen: multi-file when a nearby `naviql.config.*` scopes the collect; otherwise single-file only). Build `@xndrjs/naviql` first so `naviql-language-server` exists under `dist/lsp/` (required for F5 / Install from Location).
 
 Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 

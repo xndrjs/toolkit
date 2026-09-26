@@ -1,6 +1,6 @@
 # NaviQL VS Code / Cursor extension
 
-Syntax highlighting, language configuration, and an LSP client for `.naviql` files: **diagnostics**, **hover**, **completion**, and **go to definition** (same `parseAndCheck` / `checkProgram` rules as codegen). The extension stays thin (`LanguageClient`); IntelliSense lives in `@xndrjs/naviql`’s language server.
+Syntax highlighting, language configuration, and an LSP client for `.naviql` files: **diagnostics**, **hover**, **completion**, **go to definition**, and **Format Document** (same `parseAndCheck` / `checkProgram` rules as codegen). The extension stays thin (`LanguageClient`); IntelliSense and formatting live in `@xndrjs/naviql`’s language server.
 
 **Extension ID:** `xndrjs.naviql-vscode`
 
@@ -70,8 +70,9 @@ Hover, completion, and go to definition read the same multi-file semantic snapsh
 | **Hover**            | Scalars (`scalar EntryId on string`), resources (identity + payload), fields, selected projection fields, expression path segments, and island `when` paths             |
 | **Completion**       | Type positions (scalar + resource names); `on` / construction / `refers` / islands targets (resources); projection body fields; construction args; island binding paths |
 | **Go to definition** | Jump to scalar, resource, and (best-effort) field declarations via IR/AST spans (including islands `on` resources)                                                      |
+| **Format Document**  | Langium `AbstractFormatter` in the language server (2-space indent by default; respects editor `tabSize` / `insertSpaces`). Range formatting included.                  |
 
-Keywords still come from the Langium grammar follow-set. Rename, find-references, format, and code actions are not implemented yet.
+Keywords still come from the Langium grammar follow-set. Rename, find-references, and code actions are not implemented yet.
 
 ## Publishing
 
