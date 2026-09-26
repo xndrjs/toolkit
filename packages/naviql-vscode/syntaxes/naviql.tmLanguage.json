@@ -1,0 +1,107 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "NaviQL",
+  "scopeName": "source.naviql",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#primitives" },
+    { "include": "#operators" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.naviql",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.naviql",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.naviql",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.naviql",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.naviql",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.naviql",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.naviql",
+          "match": "\\b-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.naviql",
+          "match": "\\b(?:scalar|resource|query|context|root|on|expand|each|in|when)\\b"
+        },
+        {
+          "name": "constant.language.boolean.naviql",
+          "match": "\\b(?:true|false|null)\\b"
+        }
+      ]
+    },
+    "primitives": {
+      "patterns": [
+        {
+          "name": "storage.type.primitive.naviql",
+          "match": "\\b(?:string|number|boolean)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.comparison.naviql",
+          "match": "==|!="
+        },
+        {
+          "name": "keyword.operator.union.naviql",
+          "match": "\\|"
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "entity.name.type.naviql",
+          "match": "\\b[A-Z][_a-zA-Z0-9]*\\b"
+        },
+        {
+          "name": "variable.other.naviql",
+          "match": "\\b[_a-zA-Z][_a-zA-Z0-9]*\\b"
+        }
+      ]
+    }
+  }
+}
