@@ -180,7 +180,19 @@ export type AssetPayload = {
   kind: "image" | "video" | "document";
 };
 
-export type CustomReferencePayload = EntryPayload | AssetPayload;
+export type CustomReferencePayload = {
+  type: "Entry";
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  id: EntryId;
+  locale: Locale;
+} | {
+  type: "Asset";
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  id: AssetId;
+  locale: Locale;
+};
 
 export type PagePayload = {
   id: EntryId;
@@ -229,7 +241,21 @@ describe("generateResources golden", () => {
     expect(code).toContain("export type EntryPayload = {");
     expect(code).toContain(`type: "Hero"`);
     expect(code).toContain(`type: "SiteInternalLink"`);
-    expect(code).toContain("export type CustomReferencePayload = EntryPayload | AssetPayload;");
+    expect(code).toContain(
+      `export type CustomReferencePayload = {
+  type: "Entry";
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  id: EntryId;
+  locale: Locale;
+} | {
+  type: "Asset";
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  id: AssetId;
+  locale: Locale;
+};`
+    );
     expect(code).toContain("tabs: {\n    id: EntryId;\n  }[];");
     expect(code).toContain("export const entryAri = ari(");
     expect(code).toContain("export const customReferenceAri = ari(");

@@ -59,7 +59,7 @@ After editing the TextMate grammar or language configuration, reload the Extensi
 
 ## Diagnostics
 
-On open/change of `.naviql` files, the language server collects the workspace set (same include/exclude rules as codegen), merges programs, and publishes syntax + semantic squiggles with source ranges. Multi-file projects (e.g. `resources.naviql` + `page-detail.naviql`) share one check so cross-file references do not false-positive.
+On open/change of `.naviql` files, the language server looks upward for `naviql.config.ts` (or `.js` / `.mjs`). With a config, it collects that project’s set (same `include` / `exclude` as codegen), merges programs, and publishes syntax + semantic squiggles. Without a config, only the open file is checked — there is no workspace-root `**/*.naviql` fallback (avoids false duplicates across unrelated packages in a monorepo).
 
 ## Publishing
 
