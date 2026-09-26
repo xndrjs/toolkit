@@ -12,6 +12,7 @@ import type { ResourceTable, ScalarTable } from "../check/symbols";
 import type { Program, SourceSpan } from "../ir";
 import {
   isFragmentDeclaration,
+  isIslandClause,
   isNamedArg,
   isNamedTypeExpr,
   isObjectField,
@@ -172,6 +173,17 @@ export function definitionSpanForCstLeaf(
     }
     if (feature === "selectedFields" || node.selectedFields.includes(text)) {
       const span = fieldDeclSpan(node.resource, text, tables.resources);
+      if (span) return span;
+    }
+  }
+
+  if (isIslandClause(node)) {
+    if (feature === "resource" || node.resource === text) {
+      const span = resourceDeclSpan(node.resource, tables.program);
+      if (span) return span;
+    }
+    if (feature === "binding" || (node.binding !== undefined && node.binding === text)) {
+      const span = resourceDeclSpan(node.resource, tables.program);
       if (span) return span;
     }
   }

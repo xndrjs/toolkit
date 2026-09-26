@@ -65,11 +65,11 @@ On open/change of `.naviql` files, the language server looks upward for `naviql.
 
 Hover, completion, and go to definition read the same multi-file semantic snapshot as diagnostics (merged IR + scalar/resource tables).
 
-| Feature              | Behavior                                                                                                                                |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Hover**            | Scalars (`scalar EntryId on string`), resources (identity + payload), fields, selected projection fields, and expression path segments  |
-| **Completion**       | Type positions (scalar + resource names); `on` / construction / `refers` targets (resources); projection body fields; construction args |
-| **Go to definition** | Jump to scalar, resource, and (best-effort) field declarations via IR/AST spans                                                         |
+| Feature              | Behavior                                                                                                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hover**            | Scalars (`scalar EntryId on string`), resources (identity + payload), fields, selected projection fields, expression path segments, and island `when` paths             |
+| **Completion**       | Type positions (scalar + resource names); `on` / construction / `refers` / islands targets (resources); projection body fields; construction args; island binding paths |
+| **Go to definition** | Jump to scalar, resource, and (best-effort) field declarations via IR/AST spans (including islands `on` resources)                                                      |
 
 Keywords still come from the Langium grammar follow-set. Rename, find-references, format, and code actions are not implemented yet.
 

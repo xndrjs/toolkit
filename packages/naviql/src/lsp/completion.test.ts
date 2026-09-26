@@ -449,3 +449,51 @@ query Q(pageId: EntryId) {
     expect(labels.every((l) => l.toLowerCase().startsWith("auth"))).toBe(true);
   });
 });
+
+const ISLANDS_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): {
+  type: string
+  id
+  title: string
+}
+
+resource Page(id: EntryId, locale: Locale): {
+  id
+}
+
+query PageDetail(pageId: EntryId) {
+  context { locale: Locale }
+  root Page(id: pageId, locale: context.locale)
+  on Page p {
+    id
+  }
+  islands {
+    on Entry e {
+      when e.type == "Menu"
+    }
+  }
+}
+`;
+
+describe("islands completions", () => {
+  it("suggests resources for islands on clause", () => {
+    const { document, scalars, resources } = tablesFrom(ISLANDS_FIXTURE);
+    const onEntry = offsetOf(ISLANDS_FIXTURE, "Entry", 1); // islands on Entry
+    expect(
+      completionsAtOffset(document, onEntry, { scalars, resources }).map((i) => i.label)
+    ).toContain("Entry");
+  });
+
+  it("suggests payload fields on island binding paths", () => {
+    const { document, scalars, resources } = tablesFrom(ISLANDS_FIXTURE);
+    const offset = offsetAfter(ISLANDS_FIXTURE, "when e.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toContain("type");
+    expect(labels).toContain("title");
+  });
+});
