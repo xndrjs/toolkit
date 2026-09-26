@@ -158,6 +158,79 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
     expect(code).not.toContain("PageDetail_CustomReference");
   });
 
+  it("strips resolve-only CustomReference aliases to Entry | Asset (no CustomReference type)", () => {
+    const source = `
+      scalar SpaceId on string;
+      scalar EnvironmentId on string;
+      scalar Locale on string;
+      scalar Ref on string;
+
+      resource Entry(spaceId: SpaceId, environmentId: EnvironmentId, id: string, locale: Locale): {
+        type: "Hero"
+        id
+        title: string
+      }
+      resource Asset(spaceId: SpaceId, environmentId: EnvironmentId, id: string, locale: Locale): {
+        id
+        url: string
+      }
+      resource CustomReference(ref: Ref, locale: Locale): {
+        type: "Entry" | "Asset"
+        spaceId: SpaceId
+        environmentId: EnvironmentId
+        id: string
+        locale: Locale
+      }
+      resource Page(id: string, locale: Locale): {
+        id
+        related: Ref[]
+      }
+
+      query PageDetail(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand related: each ref in p.related (
+            CustomReference(ref: ref, locale: @p.locale)
+          )
+        }
+        on CustomReference c resolve to {
+          Entry(
+            spaceId: c.spaceId,
+            environmentId: c.environmentId,
+            id: c.id,
+            locale: c.locale
+          ) when c.type == "Entry"
+          Asset(
+            spaceId: c.spaceId,
+            environmentId: c.environmentId,
+            id: c.id,
+            locale: c.locale
+          ) when c.type == "Asset"
+        }
+        on Entry e {
+          when e.type == "Hero" {
+            id
+            title
+          }
+        }
+        on Asset a { id url }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+
+    expect(code).toContain("related: (PageDetail_Entry | PageDetail_Asset)[];");
+    expect(code).toContain("export type PageDetail_Entry_Hero = {");
+    expect(code).toContain("export type PageDetail_Entry = PageDetail_Entry_Hero;");
+    expect(code).toContain("export type PageDetail_Asset = {");
+    expect(code).toContain("export type PageDetailResult = PageDetail_Page;");
+    expect(code).not.toContain("PageDetail_CustomReference");
+  });
+
   it("matches pageDetailProgram() IR path to the fixture emit", () => {
     const fromIr = emitProjectionTypes(pageDetailProgram());
     const { program, diagnostics } = parseAndCheck(

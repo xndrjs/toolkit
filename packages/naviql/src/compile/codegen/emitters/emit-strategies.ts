@@ -1,8 +1,9 @@
 /**
  * Emit open `createGraphResolutionStrategy` builders from checked queries.
- * Local expansions only — no islands, root helpers, or `.build()`.
+ * Local expansions and resolve policies — no islands, root helpers, or `.build()`.
  * Armed `on` projections emit one `.on(ari).when(…).expand(…)` per arm that
  * expands; flat `on` stays `.on(ari).expand(…)`.
+ * Resolve-only `on R resolve to` emits `.resolve.on(ari)[.when(…)].to(…)`.
  * Collection expand targets get an auto member-ARI fan-out `.on(collectionAri)`.
  */
 import type {
@@ -12,6 +13,7 @@ import type {
   Program,
   ProjectionArm,
   QueryDefinition,
+  ResolveArm,
   ResourceDefinition,
   ResourceProjection,
   TypeExpr,
@@ -138,8 +140,12 @@ function emitArmedProjectionExpansion(projection: ResourceProjection, arm: Proje
  * Expansion policy blocks for one `on` projection.
  * Armed projections contribute one policy per arm that has expansions;
  * arms with fields only (no expand) are omitted from the strategy.
+ * Resolve-only projections contribute no expansions.
  */
 function emitProjectionExpansions(projection: ResourceProjection): string[] {
+  if (projection.resolveArms !== null) {
+    return [];
+  }
   if (projection.arms !== null) {
     return projection.arms
       .filter((arm) => arm.expansions.length > 0)
@@ -151,8 +157,48 @@ function emitProjectionExpansions(projection: ResourceProjection): string[] {
   return [emitFlatProjectionExpansion(projection)];
 }
 
+function emitResolveArm(projection: ResourceProjection, arm: ResolveArm): string {
+  const ari = ariFactoryName(projection.resource);
+  const construction = emitConstruction(arm.target);
+
+  if (arm.when !== null) {
+    const whenPred = emitExpr(arm.when);
+    // Same cast as armed expands: `.when()` is a runtime filter only.
+    return [
+      `  strategy.resolve`,
+      `    .on(${ari})`,
+      `    .when(({ resource, payload, executionContext }) => ${whenPred})`,
+      `    .to(({ resource, payload: __payload, executionContext }) => {`,
+      `      const payload = __payload as any;`,
+      `      return {`,
+      `        resource: ${construction},`,
+      `      };`,
+      `    });`,
+    ].join("\n");
+  }
+
+  return [
+    `  strategy.resolve`,
+    `    .on(${ari})`,
+    `    .to(({ resource, payload, executionContext }) => ({`,
+    `      resource: ${construction},`,
+    `    }));`,
+  ].join("\n");
+}
+
+/** Resolve policy blocks for one resolve-only `on` projection. */
+function emitProjectionResolves(projection: ResourceProjection): string[] {
+  if (projection.resolveArms === null) {
+    return [];
+  }
+  return projection.resolveArms.map((arm) => emitResolveArm(projection, arm));
+}
+
 /** All expansions under a projection (flat body or flattened when-arms). */
 function allProjectionExpansions(projection: ResourceProjection): Expansion[] {
+  if (projection.resolveArms !== null) {
+    return [];
+  }
   if (projection.arms !== null) {
     return projection.arms.flatMap((arm) => arm.expansions);
   }
@@ -253,7 +299,7 @@ function emitQueryStrategy(
     : `function ${factory}()`;
 
   const expansionBlocks = query.projections.flatMap(emitProjectionExpansions);
-
+  const resolveBlocks = query.projections.flatMap(emitProjectionResolves);
   const fanOutBlocks = collectCollectionFanOuts(query, resourceIndex);
 
   const bodyLines: string[] = [
@@ -263,9 +309,10 @@ function emitQueryStrategy(
     `  >();`,
   ];
 
-  if (expansionBlocks.length > 0 || fanOutBlocks.length > 0) {
+  const policyBlocks = [...expansionBlocks, ...fanOutBlocks, ...resolveBlocks];
+  if (policyBlocks.length > 0) {
     bodyLines.push("");
-    bodyLines.push([...expansionBlocks, ...fanOutBlocks].join("\n\n"));
+    bodyLines.push(policyBlocks.join("\n\n"));
   }
 
   bodyLines.push("");
