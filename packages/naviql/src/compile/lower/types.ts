@@ -1,4 +1,10 @@
-import type { FieldDecl, PrimitiveTypeName, TypeExpr } from "../../ir";
+import type {
+  FieldDecl,
+  PrimitiveTypeName,
+  RefersPatternField,
+  RefersTarget,
+  TypeExpr,
+} from "../../ir";
 import {
   isArrayTypeExpr,
   isGroupedTypeExpr,
@@ -9,6 +15,9 @@ import {
   isTypeProjection,
   isUnionTypeExpr,
   type ObjectField as AstObjectField,
+  type RefersClause as AstRefersClause,
+  type RefersPatternField as AstRefersPatternField,
+  type RefersTarget as AstRefersTarget,
   type TypeExpr as AstTypeExpr,
   type TypedField as AstTypedField,
 } from "../../lang/generated/ast";
@@ -19,11 +28,33 @@ export type NameTables = {
   scalars: Set<string>;
 };
 
+function lowerRefersPatternField(field: AstRefersPatternField): RefersPatternField {
+  return {
+    name: field.name,
+    values: [...field.values],
+    span: spanOf(field),
+  };
+}
+
+function lowerRefersTarget(target: AstRefersTarget): RefersTarget {
+  return {
+    resource: target.resource,
+    fields: target.fields.map(lowerRefersPatternField),
+    span: spanOf(target),
+  };
+}
+
+function lowerRefersClause(clause: AstRefersClause | undefined): RefersTarget[] | null {
+  if (!clause) return null;
+  return clause.targets.map(lowerRefersTarget);
+}
+
 export function lowerTypedField(field: AstTypedField, tables: NameTables): FieldDecl {
   return {
     name: field.name,
     type: lowerTypeExpr(field.type, tables),
     inheritedFromIdentity: false,
+    refers: null,
     span: spanOf(field),
   };
 }
@@ -33,6 +64,7 @@ export function lowerObjectField(
   tables: NameTables,
   identityFields: FieldDecl[] | null
 ): FieldDecl {
+  const refers = lowerRefersClause(field.refers);
   if (!field.type) {
     const identity = identityFields?.find((f) => f.name === field.name);
     return {
@@ -41,6 +73,7 @@ export function lowerObjectField(
         ? cloneTypeExpr(identity.type)
         : { kind: "primitive", name: "string", span: spanOf(field) },
       inheritedFromIdentity: true,
+      refers,
       span: spanOf(field),
     };
   }
@@ -48,6 +81,7 @@ export function lowerObjectField(
     name: field.name,
     type: lowerTypeExpr(field.type, tables),
     inheritedFromIdentity: false,
+    refers,
     span: spanOf(field),
   };
 }
@@ -139,6 +173,17 @@ export function cloneTypeExpr(type: TypeExpr): TypeExpr {
           name: f.name,
           type: cloneTypeExpr(f.type),
           inheritedFromIdentity: f.inheritedFromIdentity,
+          refers: f.refers
+            ? f.refers.map((t) => ({
+                resource: t.resource,
+                fields: t.fields.map((pf) => ({
+                  name: pf.name,
+                  values: [...pf.values],
+                  span: pf.span,
+                })),
+                span: t.span,
+              }))
+            : null,
           span: f.span,
         })),
         span: type.span,

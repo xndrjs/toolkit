@@ -6,6 +6,7 @@ import type {
   PrimitiveTypeName,
   QueryDefinition,
   QueryRoot,
+  RefersTarget,
   ResourceConstruction,
   ResourceDefinition,
   ResourceProjection,
@@ -47,8 +48,13 @@ export function union(...members: TypeExpr[]): TypeExpr {
   return { kind: "union", members, span };
 }
 
-export function field(name: string, type: TypeExpr, inheritedFromIdentity = false): FieldDecl {
-  return { name, type, inheritedFromIdentity, span };
+export function field(
+  name: string,
+  type: TypeExpr,
+  inheritedFromIdentity = false,
+  refers: RefersTarget[] | null = null
+): FieldDecl {
+  return { name, type, inheritedFromIdentity, refers, span };
 }
 
 export function defScalar(name: string, representation: PrimitiveTypeName): ScalarDefinition {

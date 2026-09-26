@@ -41,6 +41,7 @@ export type NaviQlKeywordNames =
   | "number"
   | "on"
   | "query"
+  | "refers"
   | "resolve"
   | "resource"
   | "root"
@@ -50,6 +51,7 @@ export type NaviQlKeywordNames =
   | "to"
   | "true"
   | "when"
+  | "with"
   | "{"
   | "|"
   | "}";
@@ -447,18 +449,21 @@ export function isNumberLiteral(item: unknown): item is NumberLiteral {
 
 /**
  * Object field: bare `id` (payload shorthand) or `title: string`.
+ * Optional `refers` annotates intended expand targets (types + check only).
  * Used inside object type expressions (including resource object payloads).
  */
 export interface ObjectField extends langium.AstNode {
   readonly $container: ObjectTypeExpr;
   readonly $type: "ObjectField";
   name: string;
+  refers?: RefersClause;
   type?: TypeExpr;
 }
 
 export const ObjectField = {
   $type: "ObjectField",
   name: "name",
+  refers: "refers",
   type: "type",
 } as const;
 
@@ -618,6 +623,57 @@ export const QueryDeclaration = {
 
 export function isQueryDeclaration(item: unknown): item is QueryDeclaration {
   return reflection.isInstance(item, QueryDeclaration.$type);
+}
+
+/** `refers Entry with { type: "Menu" } | Entry with { type: "Footer" }` */
+export interface RefersClause extends langium.AstNode {
+  readonly $container: ObjectField;
+  readonly $type: "RefersClause";
+  targets: Array<RefersTarget>;
+}
+
+export const RefersClause = {
+  $type: "RefersClause",
+  targets: "targets",
+} as const;
+
+export function isRefersClause(item: unknown): item is RefersClause {
+  return reflection.isInstance(item, RefersClause.$type);
+}
+
+/** Partial payload pattern: AND across fields; `|` = OR on that field's literals. */
+export interface RefersPatternField extends langium.AstNode {
+  readonly $container: RefersTarget;
+  readonly $type: "RefersPatternField";
+  name: string;
+  values: Array<string>;
+}
+
+export const RefersPatternField = {
+  $type: "RefersPatternField",
+  name: "name",
+  values: "values",
+} as const;
+
+export function isRefersPatternField(item: unknown): item is RefersPatternField {
+  return reflection.isInstance(item, RefersPatternField.$type);
+}
+
+export interface RefersTarget extends langium.AstNode {
+  readonly $container: RefersClause;
+  readonly $type: "RefersTarget";
+  fields: Array<RefersPatternField>;
+  resource: string;
+}
+
+export const RefersTarget = {
+  $type: "RefersTarget",
+  fields: "fields",
+  resource: "resource",
+} as const;
+
+export function isRefersTarget(item: unknown): item is RefersTarget {
+  return reflection.isInstance(item, RefersTarget.$type);
 }
 
 /** Redirect arm: `Entry(…) when c.type == "Entry"`. */
@@ -900,6 +956,9 @@ export type NaviQlAstType = {
   ProjectionClause: ProjectionClause;
   ProjectionWhenArm: ProjectionWhenArm;
   QueryDeclaration: QueryDeclaration;
+  RefersClause: RefersClause;
+  RefersPatternField: RefersPatternField;
+  RefersTarget: RefersTarget;
   ResolveArm: ResolveArm;
   ResourceConstruction: ResourceConstruction;
   ResourceDeclaration: ResourceDeclaration;
@@ -1157,6 +1216,10 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         name: {
           name: ObjectField.name,
         },
+        refers: {
+          name: ObjectField.refers,
+          optional: true,
+        },
         type: {
           name: ObjectField.type,
           optional: true,
@@ -1285,6 +1348,42 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [Declaration.$type],
+    },
+    RefersClause: {
+      name: RefersClause.$type,
+      properties: {
+        targets: {
+          name: RefersClause.targets,
+          defaultValue: [],
+        },
+      },
+      superTypes: [],
+    },
+    RefersPatternField: {
+      name: RefersPatternField.$type,
+      properties: {
+        name: {
+          name: RefersPatternField.name,
+        },
+        values: {
+          name: RefersPatternField.values,
+          defaultValue: [],
+        },
+      },
+      superTypes: [],
+    },
+    RefersTarget: {
+      name: RefersTarget.$type,
+      properties: {
+        fields: {
+          name: RefersTarget.fields,
+          defaultValue: [],
+        },
+        resource: {
+          name: RefersTarget.resource,
+        },
+      },
+      superTypes: [],
     },
     ResolveArm: {
       name: ResolveArm.$type,

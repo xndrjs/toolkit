@@ -43,10 +43,24 @@ TypedField:
 
 /**
  * Object field: bare `id` (payload shorthand) or `title: string`.
+ * Optional `refers` annotates intended expand targets (types + check only).
  * Used inside object type expressions (including resource object payloads).
  */
 ObjectField:
-    name=ID (':' type=TypeExpr)?;
+    name=ID (':' type=TypeExpr)? (refers=RefersClause)?;
+
+/** `refers Entry with { type: "Menu" } | Entry with { type: "Footer" }` */
+RefersClause:
+    'refers' targets+=RefersTarget ('|' targets+=RefersTarget)*;
+
+RefersTarget:
+    resource=ID 'with' '{'
+        fields+=RefersPatternField (',' fields+=RefersPatternField)*
+    '}';
+
+/** Partial payload pattern: AND across fields; `|` = OR on that field's literals. */
+RefersPatternField:
+    name=ID ':' values+=STRING ('|' values+=STRING)*;
 
 /**
  * Type precedence (tight → loose): atomic / `[]` / `|`.

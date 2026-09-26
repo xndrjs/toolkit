@@ -57,6 +57,23 @@ export type TypeExpr =
       span: SourceSpan | null;
     };
 
+/**
+ * One field in a `refers … with { … }` pattern.
+ * Values are OR'd; fields within a target are AND'd.
+ */
+export type RefersPatternField = {
+  name: string;
+  values: string[];
+  span: SourceSpan | null;
+};
+
+/** One `Resource with { field: "lit" | … }` target in a `refers` clause. */
+export type RefersTarget = {
+  resource: string;
+  fields: RefersPatternField[];
+  span: SourceSpan | null;
+};
+
 export type FieldDecl = {
   name: string;
   type: TypeExpr;
@@ -65,6 +82,11 @@ export type FieldDecl = {
    * same name. Only meaningful on object fields of a resource payload.
    */
   inheritedFromIdentity: boolean;
+  /**
+   * Intended expand targets for this field (`refers …`). `null` when absent.
+   * Domain metadata for types/check only — not required to be an id scalar.
+   */
+  refers: RefersTarget[] | null;
   span: SourceSpan | null;
 };
 
