@@ -146,8 +146,10 @@ resource User(id: UserId): {
     expect(result.code).toContain("export const postAri");
     expect(result.code).toContain("export function createPostDetailStrategy");
     expect(result.code).toContain("export function projectPostDetail");
+    expect(result.code).toContain("export async function resolvePostDetail");
+    expect(result.code).toContain("createResourceGraphResolver");
     expect(result.code).toContain(
-      'import { ari, s, createGraphResolutionStrategy, type ContentMap } from "@xndrjs/naviql";'
+      'import { ari, s, createGraphResolutionStrategy, type ContentMap, createResourceGraphResolver, type DataSource, type IslandDependencyMap, type IslandMap, type MissingResourceMode, type ResolutionError, type ResolutionObserver, type ResourceKey, type SchedulingMode } from "@xndrjs/naviql";'
     );
     expect(result.code).not.toMatch(/from ["'][^"']*\/compile["']/);
     // Resource-only generateResources still ignores queries.

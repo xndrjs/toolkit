@@ -104,7 +104,7 @@ describe("resolvePage", () => {
       expect(productStrip.title).toBe("Demo T-Shirt");
     }
 
-    // SiteInternalLink → shallow linked Page (id only — no strips/menu/footer).
+    // SiteInternalLink → shallow linked Page (id + title — no strips/menu/footer).
     expect(linkStrip?.$type).toBe("Entry");
     expect(linkStrip?.type).toBe("SiteInternalLink");
     if (linkStrip?.type === "SiteInternalLink") {
@@ -112,10 +112,12 @@ describe("resolvePage", () => {
       expect(linkStrip.target.$type).toBe("Entry");
       expect(linkStrip.target.type).toBe("Page");
       expect(linkStrip.target.id).toBe(demoIds.pageAbout);
+      if (linkStrip.target.type === "Page") {
+        expect(linkStrip.target.title).toBe("About");
+      }
       expect(linkStrip.target).not.toHaveProperty("strips");
       expect(linkStrip.target).not.toHaveProperty("menu");
       expect(linkStrip.target).not.toHaveProperty("footer");
-      expect(linkStrip.target).not.toHaveProperty("title");
     }
 
     // CustomReference → Entry → Hero / Asset (no wrapper).

@@ -8,8 +8,17 @@ import {
 import { createAssetSource } from "./cms/asset-data-adapter.js";
 import { createCustomReferenceSource } from "./cms/custom-reference-data-adapter.js";
 import { createEntrySource } from "./cms/entries-data-adapter.js";
-import { createDemoPageStrategy } from "./demo-strategy.js";
-import type { ContentRegistry, PageDetailExecutionContext, PageDetailParams } from "../generated";
+import {
+  createPageDetailStrategy,
+  type ContentRegistry,
+  type PageDetailExecutionContext,
+  type PageDetailParams,
+} from "../generated";
+
+/** Demo DataSources (cms-entries / custom-references / assets). */
+export function createDemoSources() {
+  return [createCustomReferenceSource(), createEntrySource(), createAssetSource()] as const;
+}
 
 export type DemoResolverOptions = {
   params: PageDetailParams;
@@ -19,18 +28,15 @@ export type DemoResolverOptions = {
 };
 
 /**
- * Wires three separate batch channels + the generated page-detail strategy.
- *
- * - cms-entries — editorial Page + Entry (one CMS entry endpoint)
- * - cms-custom-references — decode CustomReference locator payload (resolve hops in strategy)
- * - cms-assets — media assets (separate CDN endpoint)
+ * Low-level wire: sources + generated strategy `.build()`.
+ * Prefer `resolvePageDetail` from generated for the closed façade.
  */
 export function createDemoResolver(
   options: DemoResolverOptions
 ): ResourceGraphResolver<ContentRegistry, PageDetailExecutionContext> {
   return createResourceGraphResolver<ContentRegistry, PageDetailExecutionContext>({
-    sources: [createCustomReferenceSource(), createEntrySource(), createAssetSource()],
-    strategy: createDemoPageStrategy(options.params),
+    sources: [...createDemoSources()],
+    strategy: createPageDetailStrategy(options.params).build(),
     schedulingMode: options.schedulingMode ?? "lane",
     observer: options.observer,
   });
