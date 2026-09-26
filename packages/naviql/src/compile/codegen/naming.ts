@@ -46,6 +46,21 @@ export function projectFnName(queryName: string): string {
   return `project${queryName}`;
 }
 
+/** `PostDetail` → `resolvePostDetail` */
+export function resolveFnName(queryName: string): string {
+  return `resolve${queryName}`;
+}
+
+/** `PostDetail` → `postDetail` (projected aggregate field on resolve result) */
+export function resolveResultFieldName(queryName: string): string {
+  return uncapitalize(queryName);
+}
+
+/** `PostDetail` → `ResolvePostDetailResult` */
+export function resolveResultTypeName(queryName: string): string {
+  return `Resolve${queryName}Result`;
+}
+
 /** `PostDetail` → `PostDetailResult` */
 export function queryResultTypeName(queryName: string): string {
   return `${queryName}Result`;

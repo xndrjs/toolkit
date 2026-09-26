@@ -1,13 +1,13 @@
 import {
   pageAri,
-  projectPageDetail,
+  resolvePageDetail,
   type EntryId,
   type EnvironmentId,
   type Locale,
   type PageDetailResult,
   type SpaceId,
 } from "../generated";
-import { createDemoResolver } from "../infrastructure/demo-resolver.js";
+import { createDemoSources } from "../infrastructure/demo-resolver.js";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,
@@ -63,13 +63,12 @@ export type ResolvePageFailure = {
 export type ResolvePageResult = ResolvePageSuccess | ResolvePageFailure;
 
 /**
- * Vertical-slice path: resolver → ContentMap → `projectPageDetail`.
- *
- * Apps still call `resolve` themselves; this is handwritten glue only.
+ * Vertical-slice path via generated `resolvePageDetail`
+ * (closed strategy → resolve → project).
  */
 export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageResult> {
   const locale = input.locale;
-  const pageId = (input.pageId ?? (demoIds.page as EntryId)) as EntryId;
+  const pageId = input.pageId ?? (demoIds.page as EntryId);
   const spaceId = input.spaceId ?? DEMO_SPACE;
   const environmentId = input.environmentId ?? DEMO_ENVIRONMENT;
   const schedulingMode = input.schedulingMode ?? DEFAULT_SCHEDULING_MODE;
@@ -78,10 +77,11 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
   const executionContext = { spaceId, environmentId, locale };
   const root = pageAri({ spaceId, environmentId, id: pageId, locale });
 
-  const resolver = createDemoResolver({ params, schedulingMode });
-
   try {
-    const { contentMap, errors } = await resolver.resolve({
+    const { pageDetail, contentMap, errors } = await resolvePageDetail({
+      params,
+      sources: [...createDemoSources()],
+      schedulingMode,
       root,
       executionContext,
       missingResourceMode,
@@ -103,14 +103,9 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
       };
     }
 
-    const page = projectPageDetail(root, contentMap, {
-      params,
-      executionContext,
-    });
-
     return {
       ok: true,
-      page,
+      page: pageDetail,
       meta: {
         locale,
         pageId,

@@ -7,11 +7,11 @@
 | `@xndrjs/naviql`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                           |
 | `@xndrjs/naviql/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `generateProjections`, `defineConfig`, `buildResources` — Node / CI / build only |
 | `@xndrjs/naviql/lsp`     | Language server helpers + `naviql-language-server` bin (stdio) — workspace collect/merge → `checkProgram` diagnostics                                                                                   |
-| `naviql-codegen` (bin)   | CLI: load `naviql.config.ts`, collect `.naviql` files, emit TypeScript (resources + strategies + `project*` materializers) — writes `out` or `--dry-run` to stdout                                      |
+| `naviql-codegen` (bin)   | CLI: load `naviql.config.ts`, collect `.naviql` files, emit TypeScript (resources + strategies + `project*` + `resolve*` façades) — writes `out` or `--dry-run` to stdout                               |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
-**Vertical-slice example:** [`apps/naviql-demo`](../../apps/naviql-demo) — `.naviql` → codegen → strategy `.build()` → multi-DataSource `resolve` → `projectPageDetail` (in-memory cms / catalog / cdn; no islands).
+**Vertical-slice example:** [`apps/naviql-demo`](../../apps/naviql-demo) — `.naviql` → codegen → `resolvePageDetail` (closed strategy → multi-DataSource `resolve` → `projectPageDetail`; low-level `create*Strategy` / `project*` still exported).
 
 **Editor:** [`.naviql` syntax highlighting + LSP diagnostics](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode`). Live squiggles use the same `parseAndCheck` / `checkProgram` rules as codegen: multi-file when a nearby `naviql.config.*` scopes the collect; otherwise single-file only (no monorepo-root glob). Build `@xndrjs/naviql` first so `naviql-language-server` exists under `dist/lsp/` (required for F5 / Install from Location). Completion, hover, and rename are not in this MVP.
 
@@ -57,7 +57,7 @@ Flags: `--config`, `--out`, `--root`, `--dry-run`, `--help`. CLI wins over confi
 
 One config = one `out`. Multiple targets = multiple config files or scripts.
 
-Generated modules import runtime symbols (`ari`, `s`, `createGraphResolutionStrategy`, `ContentMap`) from `@xndrjs/naviql` (override with `importFrom` if needed). App code should use that same runtime entry — never `/compile`.
+Generated modules import runtime symbols (`ari`, `s`, `createGraphResolutionStrategy`, `createResourceGraphResolver`, `ContentMap`, …) from `@xndrjs/naviql` (override with `importFrom` if needed). App code should use that same runtime entry — never `/compile`.
 
 ## Usage
 
@@ -105,7 +105,9 @@ const result = buildResources({ root: process.cwd() });
 
 `generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …) with `$type` discriminators. Apps pass a resolved `ContentMap` (and `root` ARI); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/naviql` only — no extra runtime helper.
 
-`buildResources` / `naviql-codegen` compose resources + strategies + projections into one module when queries exist. Generated imports stay on `@xndrjs/naviql` only.
+`buildResources` / `naviql-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy`, plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. `create*Strategy` and `project*` remain exported for low-level use.
+
+`buildResources` / `naviql-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. Generated imports stay on `@xndrjs/naviql` only.
 
 Generated app code should import runtime symbols from `@xndrjs/naviql`, never from `/compile`. Langium, the checker, and codegen live under `./compile` only so they do not land in client bundles.
 
