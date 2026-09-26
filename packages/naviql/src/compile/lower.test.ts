@@ -525,4 +525,94 @@ describe("lowerProgram — fragments", () => {
       })
     );
   });
+
+  it("lowers resolve-only on clauses into resolveArms (no projection body)", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar SpaceId on string;
+        scalar EnvironmentId on string;
+        scalar Locale on string;
+        scalar Ref on string;
+
+        resource Entry(spaceId: SpaceId, environmentId: EnvironmentId, id: string, locale: Locale): {
+          id
+        }
+        resource Asset(spaceId: SpaceId, environmentId: EnvironmentId, id: string, locale: Locale): {
+          id
+        }
+        resource CustomReference(ref: Ref, locale: Locale): {
+          type: "Entry" | "Asset"
+          spaceId: SpaceId
+          environmentId: EnvironmentId
+          id: string
+          locale: Locale
+        }
+
+        query Q(ref: Ref) {
+          context { locale: Locale }
+          root CustomReference(ref: ref, locale: context.locale)
+          on CustomReference c resolve to {
+            Entry(
+              spaceId: c.spaceId,
+              environmentId: c.environmentId,
+              id: c.id,
+              locale: c.locale
+            ) when c.type == "Entry"
+            Asset(
+              spaceId: c.spaceId,
+              environmentId: c.environmentId,
+              id: c.id,
+              locale: c.locale
+            ) when c.type == "Asset"
+          }
+        }
+      `)
+    );
+
+    expect(program.queries[0]!.projections[0]).toMatchObject({
+      resource: "CustomReference",
+      binding: "c",
+      selectedFields: [],
+      expansions: [],
+      arms: null,
+      resolveArms: [
+        {
+          target: { resource: "Entry" },
+          when: {
+            kind: "binary",
+            op: "==",
+            left: { kind: "payloadRef", binding: "c", path: ["type"] },
+            right: { kind: "literal", value: "Entry" },
+          },
+        },
+        {
+          target: { resource: "Asset" },
+          when: {
+            kind: "binary",
+            op: "==",
+            left: { kind: "payloadRef", binding: "c", path: ["type"] },
+            right: { kind: "literal", value: "Asset" },
+          },
+        },
+      ],
+    });
+  });
+
+  it("rejects mixing resolve to with a projection body at parse time", () => {
+    const { NaviQl } = createNaviQlServices();
+    const result = NaviQl.parser.LangiumParser.parse(`
+      scalar Id on string;
+      resource R(id: Id): { id }
+      resource T(id: Id): { id }
+      query Q(id: Id) {
+        root R(id: id)
+        on R r resolve to {
+          T(id: r.id)
+        } {
+          id
+        }
+      }
+    `);
+    expect(result.parserErrors.length).toBeGreaterThan(0);
+  });
 });

@@ -23,6 +23,7 @@ import type {
   Program,
   ProjectionArm,
   QueryDefinition,
+  ResolveArm,
   ResourceConstruction,
   ResourceDefinition,
   ResourceProjection,
@@ -62,6 +63,7 @@ import {
   type ProjectionClause as AstProjectionClause,
   type ProjectionWhenArm as AstProjectionWhenArm,
   type QueryDeclaration as AstQueryDeclaration,
+  type ResolveArm as AstResolveArm,
   type ResourceConstruction as AstResourceConstruction,
   type ResourceDeclaration as AstResourceDeclaration,
   type ScalarDeclaration as AstScalarDeclaration,
@@ -304,6 +306,18 @@ function lowerProjection(
   fragments: FragmentTable,
   sink: DiagnosticSink
 ): ResourceProjection {
+  if (clause.resolveArms.length > 0) {
+    return {
+      resource: clause.resource,
+      binding: clause.binding,
+      selectedFields: [],
+      expansions: [],
+      arms: null,
+      resolveArms: clause.resolveArms.map(lowerResolveArm),
+      span: spanOf(clause),
+    };
+  }
+
   const preamble = expandBody(clause, clause.resource, clause.binding, fragments, [], sink);
 
   if (clause.whenArms.length > 0) {
@@ -316,6 +330,7 @@ function lowerProjection(
       selectedFields: [],
       expansions: [],
       arms,
+      resolveArms: null,
       span: spanOf(clause),
     };
   }
@@ -327,7 +342,16 @@ function lowerProjection(
     selectedFields: preamble.selectedFields,
     expansions: preamble.expansions,
     arms: null,
+    resolveArms: null,
     span: spanOf(clause),
+  };
+}
+
+function lowerResolveArm(arm: AstResolveArm): ResolveArm {
+  return {
+    target: lowerConstruction(arm.target),
+    when: arm.when ? lowerExpr(arm.when) : null,
+    span: spanOf(arm),
   };
 }
 

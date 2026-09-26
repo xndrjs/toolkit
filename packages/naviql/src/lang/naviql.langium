@@ -105,24 +105,35 @@ RootClause:
     'root' construction=ResourceConstruction;
 
 /**
- * Three shapes (items = fields | expands | spreads):
+ * Four shapes (items = fields | expands | spreads):
  *   1. Flat: items* (no when)
  *   2. Armed: whenArms+ only
  *   3. Preamble + armed: items+ whenArms+
+ *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
  * Items after the first `when` are a parse error (whenArms only follow).
+ * Resolve form is mutually exclusive with projection body at parse time.
  * IR-built programs that mix root fields with arms are still rejected by check.
  */
 ProjectionClause:
-    'on' resource=ID binding=ID '{'
-        (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
-        whenArms+=ProjectionWhenArm*
-    '}';
+    'on' resource=ID binding=ID (
+        'resolve' 'to' '{'
+            resolveArms+=ResolveArm+
+        '}'
+      | '{'
+            (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
+            whenArms+=ProjectionWhenArm*
+        '}'
+    );
 
 /** Discriminant arm: `when e.type == "Hero" { … }`. */
 ProjectionWhenArm:
     'when' when=Expression '{'
         (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
     '}';
+
+/** Redirect arm: `Entry(…) when c.type == "Entry"`. */
+ResolveArm:
+    target=ResourceConstruction ('when' when=Expression)?;
 
 Expansion:
     'expand' alias=ID ':' (

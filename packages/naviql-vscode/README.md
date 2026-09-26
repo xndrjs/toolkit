@@ -50,7 +50,7 @@ After editing the TextMate grammar or language configuration, reload the Extensi
 
 ## What it colors
 
-- Keywords: `scalar`, `resource`, `fragment`, `query`, `context`, `root`, `on`, `expand`, `each`, `in`, `when`
+- Keywords: `scalar`, `resource`, `fragment`, `query`, `context`, `root`, `on`, `resolve`, `to`, `expand`, `each`, `in`, `when`
 - Primitives: `string`, `number`, `boolean`
 - Strings, numbers, `true` / `false` / `null`
 - Operators: `==`, `!=`, `...`, `|`
