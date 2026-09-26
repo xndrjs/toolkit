@@ -7,7 +7,12 @@ import { pageDetailProgram } from "../../../fixtures";
 import type { Program } from "../../../ir";
 import { parseAndCheck } from "../../parse-and-check";
 import { emitProjectionTypes, printExpansionAliasType } from "./emit-projection-types";
-import { projectFnName, projectionTypeName, queryResultTypeName } from "../naming";
+import {
+  projectFnName,
+  projectionTypeName,
+  projectionVariantTypeName,
+  queryResultTypeName,
+} from "../naming";
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
 
@@ -25,6 +30,9 @@ describe("projection naming", () => {
     expect(queryResultTypeName("PostDetail")).toBe("PostDetailResult");
     expect(projectionTypeName("PostDetail", "Post")).toBe("PostDetail_Post");
     expect(projectionTypeName("PageDetail", "Hero")).toBe("PageDetail_Hero");
+    expect(projectionVariantTypeName("EntryDetail", "Entry", "Hero")).toBe(
+      "EntryDetail_Entry_Hero"
+    );
   });
 });
 
@@ -65,6 +73,63 @@ export type PostDetail_User = {
 export type PostDetailResult = PostDetail_Post;
 `)
     );
+  });
+
+  it("emits Entry variant shells + union alias for armed on Entry", () => {
+    const source = `
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Page", id, title: string }
+
+      resource Asset(id: AssetId, locale: Locale): {
+        id
+        url: string
+      }
+
+      query EntryDetail(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" {
+            id
+            title
+            expand image: Asset(id: e.imageId, locale: context.locale)
+          }
+          when e.type == "Page" {
+            id
+          }
+        }
+        on Asset a { id url }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+
+    expect(normalizeWhitespace(code)).toContain(
+      normalizeWhitespace(`
+export type EntryDetail_Entry_Hero = {
+  $type: "Entry";
+  id: string;
+  title: string;
+  image: EntryDetail_Asset;
+};
+
+export type EntryDetail_Entry_Page = {
+  $type: "Entry";
+  id: string;
+};
+
+export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
+`)
+    );
+    expect(code).toContain("export type EntryDetailResult = EntryDetail_Entry;");
+    expect(code).not.toContain("EntryDetail_Hero");
   });
 
   it("emits union strip and collection array aliases for page-detail", () => {

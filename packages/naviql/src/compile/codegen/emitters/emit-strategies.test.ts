@@ -88,6 +88,53 @@ describe("emitStrategies", () => {
     expect(code).toMatch(/return strategy;\s*}/);
   });
 
+  it("emits .when() per expanding arm of an armed on Entry", () => {
+    const source = `
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Page", id, title: string }
+
+      resource Asset(id: AssetId, locale: Locale): {
+        id
+        url: string
+      }
+
+      query EntryDetail(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" {
+            id
+            title
+            expand image: Asset(id: e.imageId, locale: context.locale)
+          }
+          when e.type == "Page" {
+            id
+          }
+        }
+        on Asset a { id url }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitStrategies(program!);
+
+    expect(code).toContain(".on(entryAri)");
+    expect(code).toContain(
+      '.when(({ resource, payload, executionContext }) => payload.type == "Hero")'
+    );
+    expect(code).toContain("assetAri({ id: payload.imageId, locale: executionContext.locale })");
+    // Page arm has no expansions — no second .when / empty expand.
+    expect(code).not.toContain('payload.type == "Page"');
+    expect(code.match(/\.on\(entryAri\)/g)).toHaveLength(1);
+    expect(code).not.toContain(".build()");
+  });
+
   it("emits each-arm filter+map and multi-arm concat", () => {
     const program: Program = {
       ...emptyProgram(),
