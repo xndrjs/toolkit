@@ -220,4 +220,39 @@ describe("validateWorkspace", () => {
     const diags = result.byUri.get(brokenUri) ?? [];
     expect(diags.some((d) => d.code === "SYNTAX_ERROR")).toBe(true);
   });
+
+  it("publishes DUPLICATE_SELECTED_FIELD from lower (not only checkProgram)", async () => {
+    const queryWithDup = `
+query PostDetail(postId: PostId) {
+  context {
+    locale: Locale
+  }
+
+  root Post(
+    id: postId,
+    locale: context.locale
+  )
+
+  on Post p {
+    id
+    title
+    id
+  }
+}
+`;
+    const { root, queryUri } = setupTwoFiles(queryWithDup);
+
+    const result = await validateWorkspace({
+      triggerUri: queryUri,
+      openSources: new Map(),
+      workspaceFolders: [root],
+    });
+
+    const queryDiags = result.byUri.get(queryUri) ?? [];
+    const dup = queryDiags.filter((d) => d.code === "DUPLICATE_SELECTED_FIELD");
+    expect(dup).toHaveLength(1);
+    expect(dup[0]!.message).toContain("id");
+    expect(dup[0]!.span).toBeTruthy();
+    expect(dup[0]!.span!.end).toBeGreaterThan(dup[0]!.span!.start);
+  });
 });
