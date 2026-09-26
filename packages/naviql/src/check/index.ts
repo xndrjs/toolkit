@@ -1,5 +1,5 @@
 export type { Diagnostic } from "./diagnostic";
-export { checkProgram } from "./check-program";
+export { analyzeProgram, checkProgram, type ProgramAnalysis } from "./check-program";
 export {
   memberMatchesRefersPattern,
   membersMatchingRefersPattern,
@@ -7,3 +7,4 @@ export {
   type ObjectMember,
 } from "./refers";
 export { resolveTypeExpr } from "./resolve-type";
+export type { ResourceSymbols, ResourceTable, ScalarTable } from "./symbols";

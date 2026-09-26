@@ -1,11 +1,14 @@
 /**
  * Hook document / watched-file changes to multi-file compile validation.
+ * Updates the shared {@link SemanticSnapshotCache} on the same debounce as diagnostics.
  */
 import { fileURLToPath } from "node:url";
 
+import { URI, type LangiumDocument } from "langium";
 import type { LangiumSharedServices } from "langium/lsp";
 
 import { diagnosticsToLsp } from "./diagnostics-to-lsp";
+import { createSemanticSnapshotCache, type SemanticSnapshotCache } from "./semantic-snapshot";
 import { validateWorkspace } from "./workspace-validate";
 
 const DEBOUNCE_MS = 150;
@@ -32,16 +35,46 @@ function isNaviQlUri(uri: string): boolean {
   return uri.endsWith(".naviql");
 }
 
+function documentsByUriFor(
+  services: LangiumSharedServices,
+  uris: Iterable<string>
+): Map<string, LangiumDocument> {
+  const out = new Map<string, LangiumDocument>();
+  const langiumDocs = services.workspace.LangiumDocuments;
+  for (const uri of uris) {
+    try {
+      const doc = langiumDocs.getDocument(URI.parse(uri));
+      if (doc) {
+        out.set(uri, doc);
+      }
+    } catch {
+      // skip unparseable URIs
+    }
+  }
+  return out;
+}
+
+export type RegisterWorkspaceValidationOptions = {
+  /** Shared cache for IntelliSense providers; created if omitted. */
+  semanticSnapshot?: SemanticSnapshotCache;
+};
+
 /**
  * Register multi-file workspace validation on the Langium shared services.
  *
  * Call before {@link startLanguageServer} so `onInitialize` / `onInitialized`
  * listeners are in place when the client connects.
+ *
+ * @returns The semantic snapshot cache updated on each successful validate.
  */
-export function registerWorkspaceValidation(services: LangiumSharedServices): void {
+export function registerWorkspaceValidation(
+  services: LangiumSharedServices,
+  options: RegisterWorkspaceValidationOptions = {}
+): SemanticSnapshotCache {
+  const semanticSnapshot = options.semanticSnapshot ?? createSemanticSnapshotCache();
   const connection = services.lsp.Connection;
   if (!connection) {
-    return;
+    return semanticSnapshot;
   }
 
   let triggerUri: string | undefined;
@@ -94,11 +127,25 @@ export function registerWorkspaceValidation(services: LangiumSharedServices): vo
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       connection.console.error(`naviql: workspace validation failed: ${message}`);
+      if (id === runId) {
+        semanticSnapshot.set(undefined);
+      }
       return;
     }
 
     if (id !== runId) {
       return;
+    }
+
+    if (result.semantic) {
+      semanticSnapshot.set({
+        program: result.semantic.program,
+        scalars: result.semantic.scalars,
+        resources: result.semantic.resources,
+        documentsByUri: documentsByUriFor(services, result.sourcesByUri.keys()),
+      });
+    } else {
+      semanticSnapshot.set(undefined);
     }
 
     const nextPublished = new Set<string>();
@@ -133,4 +180,6 @@ export function registerWorkspaceValidation(services: LangiumSharedServices): vo
     const naviqlChange = params.changes.find((c) => isNaviQlUri(c.uri));
     schedule(naviqlChange?.uri);
   });
+
+  return semanticSnapshot;
 }
