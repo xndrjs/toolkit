@@ -2,6 +2,15 @@
  * `@xndrjs/naviql/lsp` — language server bootstrap + workspace validation helpers.
  * Keep out of the main `@xndrjs/naviql` runtime entry.
  */
+export {
+  classifyCompletionContext,
+  completionPrefix,
+  completionsAtOffset,
+  NaviQlCompletionProvider,
+  selectableFieldNames,
+  type CompletionTables,
+  type SemanticCompletionItem,
+} from "./completion";
 export { createNaviQlLspServices } from "./create-services";
 export { diagnosticToLsp, diagnosticsToLsp, type PositionAt } from "./diagnostics-to-lsp";
 export { hoverMarkdownAtOffset, hoverMarkdownForCstLeaf, NaviQlHoverProvider } from "./hover";
