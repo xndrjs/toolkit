@@ -670,4 +670,64 @@ describe("lowerProgram — fragments", () => {
     ]);
     expect(checkProgram(program)).toEqual([]);
   });
+
+  it("lowers ObjectField refers patterns (single, AND, literal OR, multi-target, nested, absent)", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar EntryId on string;
+
+        resource Entry(id: EntryId): {
+          id
+          type: "Menu" | "Footer" | "Page"
+        }
+
+        resource Page(id: EntryId): {
+          id
+          menuId: EntryId refers Entry with { type: "Menu" }
+          chromeId: EntryId refers Entry with { type: "Menu" | "Footer" }
+          eitherId: EntryId refers Entry with { type: "Menu" } | Entry with { type: "Footer" }
+          nested: {
+            linkId: EntryId refers Entry with { type: "Page", kind: "site" }
+          }
+          plainId: EntryId
+          idShorthand
+        }
+      `)
+    );
+
+    const page = program.resources.find((r) => r.name === "Page");
+    const fields = objectFields(page?.payloadType);
+    const byName = Object.fromEntries(fields.map((f) => [f.name, f]));
+
+    expect(byName.menuId?.refers).toHaveLength(1);
+    expect(byName.menuId?.refers?.[0]).toMatchObject({
+      resource: "Entry",
+      fields: [{ name: "type", values: ["Menu"] }],
+    });
+
+    expect(byName.chromeId?.refers?.[0]?.fields[0]?.values).toEqual(["Menu", "Footer"]);
+
+    expect(byName.eitherId?.refers?.map((t) => t.fields[0]?.values)).toEqual([
+      ["Menu"],
+      ["Footer"],
+    ]);
+
+    const nested = byName.nested?.type;
+    expect(nested?.kind).toBe("object");
+    if (nested?.kind === "object") {
+      expect(nested.fields[0]?.refers?.[0]).toMatchObject({
+        resource: "Entry",
+        fields: [
+          { name: "type", values: ["Page"] },
+          { name: "kind", values: ["site"] },
+        ],
+      });
+    }
+
+    expect(byName.plainId?.refers).toBeNull();
+    expect(byName.idShorthand).toMatchObject({
+      inheritedFromIdentity: true,
+      refers: null,
+    });
+  });
 });
