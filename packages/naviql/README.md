@@ -1,18 +1,19 @@
 # @xndrjs/naviql
 
-**Product entry** for NaviQL with two surfaces:
+**Product entry** for NaviQL with these surfaces:
 
 | Export                   | Use for                                                                                                                                                                                                 |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@xndrjs/naviql`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                           |
 | `@xndrjs/naviql/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `generateProjections`, `defineConfig`, `buildResources` — Node / CI / build only |
+| `@xndrjs/naviql/lsp`     | Language server helpers + `naviql-language-server` bin (stdio) — workspace collect/merge → `checkProgram` diagnostics                                                                                   |
 | `naviql-codegen` (bin)   | CLI: load `naviql.config.ts`, collect `.naviql` files, emit TypeScript (resources + strategies + `project*` materializers) — writes `out` or `--dry-run` to stdout                                      |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
 **Vertical-slice example:** [`apps/naviql-demo`](../../apps/naviql-demo) — `.naviql` → codegen → strategy `.build()` → multi-DataSource `resolve` → `projectPageDetail` (in-memory cms / catalog / cdn; no islands).
 
-**Editor:** [`.naviql` syntax highlighting](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode` — no LSP yet).
+**Editor:** [`.naviql` syntax highlighting + LSP diagnostics](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode`). Live squiggles use the same multi-file `parseAndCheck` / `checkProgram` rules as codegen. Build `@xndrjs/naviql` first so `naviql-language-server` exists under `dist/lsp/` (required for F5 / Install from Location). Completion, hover, and rename are not in this MVP.
 
 Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 
