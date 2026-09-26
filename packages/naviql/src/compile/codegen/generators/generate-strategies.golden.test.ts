@@ -181,12 +181,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.islands
     .on(entryAri)
-    .when((predicate) => predicate.payload.type == "Menu")
-    .startIsland();
-
-  strategy.islands
-    .on(entryAri)
-    .when((predicate) => predicate.payload.type == "Footer")
+    .when((predicate) => (predicate.payload.type == "Menu" || predicate.payload.type == "Footer"))
     .startIsland();
 
   return strategy;
@@ -252,8 +247,9 @@ describe("generateStrategies golden", () => {
       "assetAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key[0].locale })"
     );
     expect(code).toContain("strategy.islands");
-    expect(code).toContain('.when((predicate) => predicate.payload.type == "Menu")');
-    expect(code).toContain('.when((predicate) => predicate.payload.type == "Footer")');
+    expect(code).toContain(
+      '.when((predicate) => (predicate.payload.type == "Menu" || predicate.payload.type == "Footer"))'
+    );
     expect(code).toContain(".startIsland()");
     expect(code).not.toContain(".build()");
   });

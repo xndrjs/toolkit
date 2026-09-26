@@ -174,7 +174,7 @@ describe("emitStrategies", () => {
     );
   });
 
-  it("emits unconditional startIsland for empty islands body", () => {
+  it("emits unconditional startIsland for island without when", () => {
     const source = `
       scalar EntryId on string;
       scalar Locale on string;
@@ -186,7 +186,7 @@ describe("emitStrategies", () => {
         root Page(id: pageId, locale: context.locale)
         on Page p { id }
         islands {
-          on Page {}
+          on Page
         }
       }
     `;
@@ -202,7 +202,7 @@ describe("emitStrategies", () => {
     expect(code.match(/\.startIsland\(\)/g)).toHaveLength(1);
   });
 
-  it("emits one islands.on.when.startIsland per when (OR)", () => {
+  it("emits one islands.on.when.startIsland with or predicate", () => {
     const source = `
       scalar EntryId on string;
       scalar Locale on string;
@@ -217,10 +217,7 @@ describe("emitStrategies", () => {
         root Entry(id: pageId, locale: context.locale)
         on Entry e { id type }
         islands {
-          on Entry e {
-            when e.type == "Menu"
-            when e.type == "Footer"
-          }
+          on Entry e when e.type == "Menu" or e.type == "Footer"
         }
       }
     `;
@@ -233,20 +230,12 @@ describe("emitStrategies", () => {
       [
         `  strategy.islands`,
         `    .on(entryAri)`,
-        `    .when((predicate) => predicate.payload.type == "Menu")`,
+        `    .when((predicate) => (predicate.payload.type == "Menu" || predicate.payload.type == "Footer"))`,
         `    .startIsland();`,
       ].join("\n")
     );
-    expect(code).toContain(
-      [
-        `  strategy.islands`,
-        `    .on(entryAri)`,
-        `    .when((predicate) => predicate.payload.type == "Footer")`,
-        `    .startIsland();`,
-      ].join("\n")
-    );
-    expect(code.match(/\.startIsland\(\)/g)).toHaveLength(2);
-    expect(code.match(/strategy\.islands/g)).toHaveLength(2);
+    expect(code.match(/\.startIsland\(\)/g)).toHaveLength(1);
+    expect(code.match(/strategy\.islands/g)).toHaveLength(1);
   });
 });
 
@@ -296,8 +285,9 @@ describe("generateStrategies", () => {
     expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain(".build()");
     expect(code).toContain("strategy.islands");
-    expect(code).toContain('.when((predicate) => predicate.payload.type == "Menu")');
-    expect(code).toContain('.when((predicate) => predicate.payload.type == "Footer")');
+    expect(code).toContain(
+      '.when((predicate) => (predicate.payload.type == "Menu" || predicate.payload.type == "Footer"))'
+    );
     expect(code).toContain(".startIsland()");
   });
 
@@ -364,6 +354,51 @@ describe("generateStrategies", () => {
     expect(code).not.toContain("strategy.expansion");
     expect(code).not.toContain(".expand(");
     expect(code).not.toContain(".build()");
+  });
+
+  it("emits in / not in / ! in strategy when predicates", () => {
+    const source = `
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale): {
+        type: string
+        id
+        visible: boolean
+        logoId: EntryId
+      }
+
+      resource Asset(id: EntryId, locale: Locale): {
+        id
+      }
+
+      query PageDetail(pageId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: pageId, locale: context.locale)
+        on Entry e {
+          when e.type in ["Menu", "Footer"] {
+            expand logo: Asset(id: e.logoId, locale: context.locale)
+          }
+          when !e.visible {
+            id
+          }
+        }
+        islands {
+          on Entry e when e.type not in ["Hero"] or !e.visible
+        }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics.filter((d) => d.code === "TYPE_MISMATCH")).toEqual([]);
+
+    const code = emitStrategies(program!);
+
+    expect(code).toContain(
+      '.when((predicate) => ["Menu", "Footer"].includes(predicate.payload.type))'
+    );
+    expect(code).toContain(
+      '.when((predicate) => (!["Hero"].includes(predicate.payload.type) || !(predicate.payload.visible)))'
+    );
   });
 
   it("omits import when there are no queries", () => {

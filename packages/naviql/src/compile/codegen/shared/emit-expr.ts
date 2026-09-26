@@ -58,7 +58,12 @@ function memberAccess(base: string, path: readonly string[]): string {
  * | `identityRef`   | `resource.key[0].field…`                   |
  * | `itemRef`       | `binding.field…` (comprehension item)      |
  * | `literal`       | JSON / `null`                              |
+ * | `arrayLiteral`  | `[…]`                                      |
+ * | `unary` `!`     | `!(operand)`                               |
  * | `binary` `==`/`!=` | `left op right`                         |
+ * | `binary` `in`   | `right.includes(left)`                     |
+ * | `binary` `not in` | `!right.includes(left)`                  |
+ * | `binary` `and`/`or` | `(left && right)` / `(left \|\| right)` |
  */
 export function emitExpr(expr: Expr, scope: EmitExprScope = projectionExprScope): string {
   switch (expr.kind) {
@@ -77,7 +82,23 @@ export function emitExpr(expr: Expr, scope: EmitExprScope = projectionExprScope)
       return memberAccess(`${scope.resource}.key[0]`, expr.path);
     case "itemRef":
       return memberAccess(expr.binding, expr.path);
+    case "arrayLiteral":
+      return `[${expr.elements.map((el) => emitExpr(el, scope)).join(", ")}]`;
+    case "unary":
+      return `!(${emitExpr(expr.operand, scope)})`;
     case "binary":
+      if (expr.op === "in") {
+        return `${emitExpr(expr.right, scope)}.includes(${emitExpr(expr.left, scope)})`;
+      }
+      if (expr.op === "not in") {
+        return `!${emitExpr(expr.right, scope)}.includes(${emitExpr(expr.left, scope)})`;
+      }
+      if (expr.op === "and") {
+        return `(${emitExpr(expr.left, scope)} && ${emitExpr(expr.right, scope)})`;
+      }
+      if (expr.op === "or") {
+        return `(${emitExpr(expr.left, scope)} || ${emitExpr(expr.right, scope)})`;
+      }
       return `${emitExpr(expr.left, scope)} ${expr.op} ${emitExpr(expr.right, scope)}`;
     default: {
       const _never: never = expr;

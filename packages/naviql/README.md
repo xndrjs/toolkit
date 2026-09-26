@@ -132,6 +132,41 @@ eitherId: EntryId refers Entry with { type: "Menu" } | Entry with { type: "Foote
 
 `with { … }` is a partial payload pattern: **AND** across fields; each field value is a string literal or `|`-union of literals (**OR** on that field). When an expand constructs a resource from a field that carries `refers`, and the query has armed `on R` variants, codegen narrows the expand alias (e.g. `PageDetail_Entry_Menu` instead of `PageDetail_Entry`). Flat (non-armed) `on R` projections are not structurally narrowed.
 
+### When expressions
+
+Every `when` (projection arms, `resolve to`, expand arms, islands) shares one expression language:
+
+```naviql
+when e.type == "Menu"
+when e.type != "Hero"
+when e.type in ["Menu", "Footer"]
+when e.type not in ["Hero"]
+when !e.visible
+when e.type == "Menu" or e.type == "Footer"
+when e.visible and e.type in ["Hero", "Tabs"]
+when !(e.hidden or e.type == "Draft")
+```
+
+| Op           | Meaning                                                | Emitted JS                              |
+| ------------ | ------------------------------------------------------ | --------------------------------------- |
+| `==` / `!=`  | equality                                               | `left == right`                         |
+| `in […]`     | membership (literal list)                              | `[…].includes(left)`                    |
+| `not in […]` | negated membership                                     | `![…].includes(left)`                   |
+| `!`          | JS falsy (`null` / `undefined` / `false` / `0` / `""`) | `!(operand)`                            |
+| `and` / `or` | boolean connectives                                    | `(left && right)` / `(left \|\| right)` |
+| `(…)`        | grouping                                               | lowered away                            |
+
+Precedence: `!` > `==`/`!=` > `in`/`not in` > `and` > `or`. So `!e.x in […]` is `(!e.x) in […]`. Array literals on the right of `in` / `not in` hold literals only. `e.type in ["A","B"]` and `e.type == "A" or e.type == "B"` cover those discriminants for projection/resolve/expand exhaustiveness.
+
+Islands are flat clauses (one policy each):
+
+```naviql
+islands {
+  on Entry e when e.type == "Menu" or e.type == "Footer"
+  on Page
+}
+```
+
 ### Single-root vs multi-root queries
 
 A query seeds the graph with either one `root` or several aliased entries in `roots { … }` (XOR — not both). Multi-root aliases must be unique. The engine enqueues every seed into one resolution session (shared ContentMap, waiters, and lane scheduler) and runs until closure.

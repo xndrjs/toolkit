@@ -242,6 +242,34 @@ export function ne(left: Expr, right: Expr): Expr {
   return { kind: "binary", op: "!=", left, right, span };
 }
 
+export function arrayLit(...elements: (string | number | boolean | null)[]): Expr {
+  return {
+    kind: "arrayLiteral",
+    elements: elements.map((value) => lit(value)),
+    span,
+  };
+}
+
+export function inList(left: Expr, ...elements: (string | number | boolean | null)[]): Expr {
+  return { kind: "binary", op: "in", left, right: arrayLit(...elements), span };
+}
+
+export function notInList(left: Expr, ...elements: (string | number | boolean | null)[]): Expr {
+  return { kind: "binary", op: "not in", left, right: arrayLit(...elements), span };
+}
+
+export function not(operand: Expr): Expr {
+  return { kind: "unary", op: "!", operand, span };
+}
+
+export function and(left: Expr, right: Expr): Expr {
+  return { kind: "binary", op: "and", left, right, span };
+}
+
+export function or(left: Expr, right: Expr): Expr {
+  return { kind: "binary", op: "or", left, right, span };
+}
+
 export function param(name: string): Expr {
   return { kind: "param", name, span };
 }

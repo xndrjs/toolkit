@@ -89,7 +89,7 @@
       "patterns": [
         {
           "name": "keyword.control.naviql",
-          "match": "\\b(?:scalar|resource|fragment|query|context|roots|root|on|resolve|to|expand|each|in|when|islands|refers)\\b"
+          "match": "\\b(?:scalar|resource|fragment|query|context|roots|root|on|resolve|to|expand|each|in|not|and|or|when|islands|refers)\\b"
         },
         {
           "name": "constant.language.boolean.naviql",
@@ -110,6 +110,10 @@
         {
           "name": "keyword.operator.comparison.naviql",
           "match": "==|!="
+        },
+        {
+          "name": "keyword.operator.logical.naviql",
+          "match": "!"
         },
         {
           "name": "keyword.operator.spread.naviql",

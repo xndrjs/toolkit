@@ -367,9 +367,7 @@ query PageDetail(pageId: EntryId) {
     id
   }
   islands {
-    on Entry e {
-      when e.type == "Menu"
-    }
+    on Entry e when e.type == "Menu"
   }
 }
 `;

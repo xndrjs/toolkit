@@ -1,6 +1,6 @@
 /**
  * Island policy emit: `strategy.islands.on(ari)[.when(…)].startIsland()`.
- * Empty `whens` ⇒ unconditional startIsland; each `when` is its own OR'd policy.
+ * `when: null` ⇒ unconditional startIsland (one policy per clause).
  */
 import type { IslandClause } from "../../../ir";
 import { emitExpr, strategyExprScope } from "../shared";
@@ -19,15 +19,15 @@ function emitConditionalIsland(ari: string, whenPred: string): string {
   ].join("\n");
 }
 
-/** Island policy blocks for one `on Resource [binding] { when … }*` clause. */
+/** Island policy block for one `on Resource [binding] [when …]` clause. */
 export function emitIslandClause(clause: IslandClause): string[] {
   const ari = ariFactoryName(clause.resource);
 
-  if (clause.whens.length === 0) {
+  if (clause.when === null) {
     return [emitUnconditionalIsland(ari)];
   }
 
-  return clause.whens.map((when) => emitConditionalIsland(ari, emitExpr(when, strategyExprScope)));
+  return [emitConditionalIsland(ari, emitExpr(clause.when, strategyExprScope))];
 }
 
 /** All island policy blocks for a query's `islands { … }` clauses. */

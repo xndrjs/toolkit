@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { ctx, eq, identity, item, lit, param, payload } from "../../../fixtures";
+import {
+  and,
+  ctx,
+  eq,
+  identity,
+  inList,
+  item,
+  lit,
+  not,
+  notInList,
+  or,
+  param,
+  payload,
+} from "../../../fixtures";
 import type { Expr } from "../../../ir";
 import { emitExpr, projectionArmDiscriminant } from "./emit-expr";
 
@@ -37,7 +50,7 @@ describe("emitExpr", () => {
   });
 
   it("emits binary == / != for comprehension filters", () => {
-    const eq: Expr = {
+    const eqExpr: Expr = {
       kind: "binary",
       op: "==",
       left: item("s", "type"),
@@ -51,8 +64,30 @@ describe("emitExpr", () => {
       right: lit("Tabs"),
       span: null,
     };
-    expect(emitExpr(eq)).toBe('s.type == "Hero"');
+    expect(emitExpr(eqExpr)).toBe('s.type == "Hero"');
     expect(emitExpr(ne)).toBe('s.type != "Tabs"');
+  });
+
+  it("emits in / not in as Array.includes", () => {
+    expect(emitExpr(inList(payload("e", "type"), "Menu", "Footer"))).toBe(
+      '["Menu", "Footer"].includes(payload.type)'
+    );
+    expect(emitExpr(notInList(payload("e", "type"), "Hero"))).toBe(
+      '!["Hero"].includes(payload.type)'
+    );
+  });
+
+  it("emits unary ! as JS falsy negation", () => {
+    expect(emitExpr(not(payload("e", "visible")))).toBe("!(payload.visible)");
+  });
+
+  it("emits and / or with parentheses", () => {
+    expect(emitExpr(and(payload("e", "visible"), eq(payload("e", "type"), lit("Hero"))))).toBe(
+      '(payload.visible && payload.type == "Hero")'
+    );
+    expect(
+      emitExpr(or(eq(payload("e", "type"), lit("Menu")), eq(payload("e", "type"), lit("Footer"))))
+    ).toBe('(payload.type == "Menu" || payload.type == "Footer")');
   });
 });
 
