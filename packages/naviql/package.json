@@ -12,7 +12,8 @@
   "type": "module",
   "sideEffects": false,
   "bin": {
-    "naviql-codegen": "./dist/cli.js"
+    "naviql-codegen": "./dist/cli.js",
+    "naviql-language-server": "./dist/lsp/main.js"
   },
   "types": "./dist/index.d.ts",
   "exports": {
@@ -25,6 +26,11 @@
       "types": "./dist/compile/index.d.ts",
       "import": "./dist/compile/index.js",
       "default": "./dist/compile/index.js"
+    },
+    "./lsp": {
+      "types": "./dist/lsp/index.d.ts",
+      "import": "./dist/lsp/index.js",
+      "default": "./dist/lsp/index.js"
     }
   },
   "files": [
@@ -49,7 +55,9 @@
     "@xndrjs/resource-graph-resolver": "workspace:^",
     "jiti": "^2.7.0",
     "langium": "~4.4.0",
-    "tinyglobby": "^0.2.17"
+    "tinyglobby": "^0.2.17",
+    "vscode-languageserver": "~10.1.0",
+    "vscode-languageserver-textdocument": "~1.0.13"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
