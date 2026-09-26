@@ -91,11 +91,14 @@ export function checkQuery(
       continue;
     }
 
+    // IR invariant only: source preamble+when is distributed into arms at lower,
+    // so root selectedFields/expansions are empty. Reject hand-built IR that
+    // still sets both a flat root body and when-arms.
     const hasFlatBody = projection.selectedFields.length > 0 || projection.expansions.length > 0;
     if (projection.arms !== null && hasFlatBody) {
       sink.push({
         code: "MIXED_PROJECTION_BODY",
-        message: `Projection 'on ${projection.resource}' cannot mix flat fields/expansions with when-arms`,
+        message: `Projection 'on ${projection.resource}' IR cannot keep root fields/expansions alongside when-arms (preamble must be distributed at lower)`,
         path: projPath,
         span: projection.span,
       });

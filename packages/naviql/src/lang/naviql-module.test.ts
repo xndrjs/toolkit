@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   isContextRef,
+  isFragmentDeclaration,
+  isFragmentSpread,
   isIdentityRef,
   isModel,
   isNamedTypeExpr,
@@ -273,5 +275,100 @@ describe("NaviQl MVP grammar", () => {
         expect(collection.payloadType.of.name).toBe("Tab");
       }
     }
+  });
+
+  it("parses fragment declarations and nested spreads", () => {
+    const model = parseSource(`
+      scalar EntryId on string;
+      scalar Locale on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string }
+        | { type: "Menu", id, title: string, logoId: AssetId }
+
+      resource Asset(id: AssetId, locale: Locale): { id }
+
+      fragment EntryBase on Entry e { type id }
+
+      fragment EntryLogo on Entry e {
+        ...EntryBase
+        title
+        expand logo: Asset(id: e.logoId, locale: context.locale)
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Menu" { ...EntryLogo }
+        }
+        on Asset a { id }
+      }
+    `);
+
+    const fragments = model.declarations.filter(isFragmentDeclaration);
+    expect(fragments.map((f) => f.name)).toEqual(["EntryBase", "EntryLogo"]);
+    expect(fragments[0]?.selectedFields).toEqual(["type", "id"]);
+    expect(fragments[1]?.spreads).toHaveLength(1);
+    expect(fragments[1]?.spreads[0]?.name).toBe("EntryBase");
+    expect(fragments[1]?.selectedFields).toEqual(["title"]);
+    expect(fragments[1]?.expansions[0]?.alias).toBe("logo");
+
+    const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
+    const menuArm = query.projections[0]?.whenArms[0];
+    expect(menuArm?.spreads).toHaveLength(1);
+    expect(isFragmentSpread(menuArm?.spreads[0])).toBe(true);
+    expect(menuArm?.spreads[0]?.name).toBe("EntryLogo");
+  });
+
+  it("parses on-level preamble (...EntryBase) before when-arms", () => {
+    const model = parseSource(`
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id }
+        | { type: "Page", id }
+
+      fragment EntryBase on Entry e { type id }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          ...EntryBase
+          when e.type == "Hero" { }
+          when e.type == "Page" { }
+        }
+      }
+    `);
+
+    const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
+    const entry = query.projections[0]!;
+    expect(entry.spreads.map((s) => s.name)).toEqual(["EntryBase"]);
+    expect(entry.selectedFields).toEqual([]);
+    expect(entry.expansions).toEqual([]);
+    expect(entry.whenArms).toHaveLength(2);
+    expect(entry.whenArms[0]?.selectedFields).toEqual([]);
+    expect(entry.whenArms[1]?.selectedFields).toEqual([]);
+  });
+
+  it("rejects fields after the first when-arm (trailing projection items)", () => {
+    const { NaviQl } = createNaviQlServices();
+    const result = NaviQl.parser.LangiumParser.parse(`
+      scalar EntryId on string;
+      scalar Locale on string;
+      resource Entry(id: EntryId, locale: Locale): { type: "Hero", id }
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" { id }
+          title
+        }
+      }
+    `);
+    expect(result.parserErrors.length).toBeGreaterThan(0);
   });
 });
