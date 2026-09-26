@@ -9,7 +9,7 @@ import {
   type AssetPayload,
   type ContentRegistry,
   type PageDetailExecutionContext,
-} from "../../generated/page-detail.js";
+} from "../../generated";
 import { demoAssets } from "../fixtures/store.js";
 
 export const ASSET_SOURCE_ID = "cms-assets";

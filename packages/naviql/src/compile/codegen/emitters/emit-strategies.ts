@@ -5,6 +5,8 @@
  * expands; flat `on` stays `.on(ari).expand(…)`.
  * Resolve-only `on R resolve to` emits `.resolve.on(ari)[.when(…)].to(…)`.
  * Collection expand targets get an auto member-ARI fan-out `.on(collectionAri)`.
+ *
+ * Callbacks take a single `predicate` and use dot access (no destructuring).
  */
 import type {
   ExpandArm,
@@ -19,7 +21,12 @@ import type {
   TypeExpr,
 } from "../../../ir";
 import { emitConstruction } from "./emit-construction";
-import { emitExpr } from "./emit-expr";
+import {
+  emitExpr,
+  strategyArmedBodyScope,
+  strategyExprScope,
+  type EmitExprScope,
+} from "./emit-expr";
 import { printTypeExpr } from "./emit-types";
 import {
   ariFactoryName,
@@ -33,21 +40,31 @@ function emitObjectTypeAlias(name: string, fields: FieldDecl[]): string {
   return `export type ${name} = ${body};`;
 }
 
-function emitArmManyExpr(sourceExpr: string, itemBinding: string, arm: ExpandArm): string {
-  const construction = emitConstruction(arm.target);
+function emitArmManyExpr(
+  sourceExpr: string,
+  itemBinding: string,
+  arm: ExpandArm,
+  scope: EmitExprScope
+): string {
+  const construction = emitConstruction(arm.target, scope);
   const mapFn = `(${itemBinding}: any) => ${construction}`;
   if (arm.when !== null) {
-    return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when)}).map(${mapFn})`;
+    return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when, scope)}).map(${mapFn})`;
   }
   return `${sourceExpr}.map(${mapFn})`;
 }
 
 /** Multi-arm `each`: flatMap so source order is preserved (not concat-by-arm). */
-function emitMultiArmFlatMap(sourceExpr: string, itemBinding: string, arms: ExpandArm[]): string {
+function emitMultiArmFlatMap(
+  sourceExpr: string,
+  itemBinding: string,
+  arms: ExpandArm[],
+  scope: EmitExprScope
+): string {
   const branches = arms.map((arm) => {
-    const construction = emitConstruction(arm.target);
+    const construction = emitConstruction(arm.target, scope);
     if (arm.when !== null) {
-      return `if (${emitExpr(arm.when)}) return [${construction}];`;
+      return `if (${emitExpr(arm.when, scope)}) return [${construction}];`;
     }
     return `return [${construction}];`;
   });
@@ -61,56 +78,56 @@ function emitMultiArmFlatMap(sourceExpr: string, itemBinding: string, arms: Expa
  * - `one` → single ARI construction
  * - `many` → `source[.filter].map` or order-preserving multi-arm `flatMap`
  */
-function emitManyExpr(expansion: Expansion): string {
+function emitManyExpr(expansion: Expansion, scope: EmitExprScope): string {
   const comprehension = expansion.comprehension;
   if (comprehension === null) {
     throw new Error("emitStrategies: many expansion missing comprehension");
   }
 
   const { itemBinding, source, arms } = comprehension;
-  const sourceExpr = emitExpr(source);
+  const sourceExpr = emitExpr(source, scope);
   if (arms.length === 1) {
-    return emitArmManyExpr(sourceExpr, itemBinding, arms[0]!);
+    return emitArmManyExpr(sourceExpr, itemBinding, arms[0]!, scope);
   }
-  return emitMultiArmFlatMap(sourceExpr, itemBinding, arms);
+  return emitMultiArmFlatMap(sourceExpr, itemBinding, arms, scope);
 }
 
-function emitExpansionContribution(expansion: Expansion): string {
+function emitExpansionContribution(expansion: Expansion, scope: EmitExprScope): string {
   if (expansion.multiplicity === "one" || expansion.comprehension === null) {
     if (expansion.target === null) {
       throw new Error("emitStrategies: one-expand missing target");
     }
-    return emitConstruction(expansion.target);
+    return emitConstruction(expansion.target, scope);
   }
 
-  return `...${emitManyExpr(expansion)}`;
+  return `...${emitManyExpr(expansion, scope)}`;
 }
 
-function emitResourcesArray(expansions: Expansion[]): string {
+function emitResourcesArray(expansions: Expansion[], scope: EmitExprScope): string {
   if (expansions.length === 1) {
     const only = expansions[0]!;
     // A lone `many` already yields an array — avoid `[...xs.map(...)]`.
     if (only.multiplicity === "many" && only.comprehension !== null) {
-      return emitManyExpr(only);
+      return emitManyExpr(only, scope);
     }
     if (only.target === null) {
       throw new Error("emitStrategies: one-expand missing target");
     }
-    return `[${emitConstruction(only.target)}]`;
+    return `[${emitConstruction(only.target, scope)}]`;
   }
 
-  const parts = expansions.map(emitExpansionContribution);
+  const parts = expansions.map((e) => emitExpansionContribution(e, scope));
   return `[\n        ${parts.join(",\n        ")},\n      ]`;
 }
 
 function emitFlatProjectionExpansion(projection: ResourceProjection): string {
   const ari = ariFactoryName(projection.resource);
-  const resources = emitResourcesArray(projection.expansions);
+  const resources = emitResourcesArray(projection.expansions, strategyExprScope);
 
   return [
     `  strategy.expansion`,
     `    .on(${ari})`,
-    `    .expand(({ resource, payload, executionContext }) => ({`,
+    `    .expand((predicate) => ({`,
     `      resources: ${resources},`,
     `    }));`,
   ].join("\n");
@@ -118,17 +135,17 @@ function emitFlatProjectionExpansion(projection: ResourceProjection): string {
 
 function emitArmedProjectionExpansion(projection: ResourceProjection, arm: ProjectionArm): string {
   const ari = ariFactoryName(projection.resource);
-  const resources = emitResourcesArray(arm.expansions);
-  const whenPred = emitExpr(arm.when);
+  const resources = emitResourcesArray(arm.expansions, strategyArmedBodyScope);
+  const whenPred = emitExpr(arm.when, strategyExprScope);
 
   // `.when()` is a runtime filter; TypeScript still sees the full payload union.
   // Cast so arm-specific fields (imageId, tabs, …) typecheck in the expand body.
   return [
     `  strategy.expansion`,
     `    .on(${ari})`,
-    `    .when(({ resource, payload, executionContext }) => ${whenPred})`,
-    `    .expand(({ resource, payload: __payload, executionContext }) => {`,
-    `      const payload = __payload as any;`,
+    `    .when((predicate) => ${whenPred})`,
+    `    .expand((predicate) => {`,
+    `      const payload = predicate.payload as any;`,
     `      return {`,
     `        resources: ${resources},`,
     `      };`,
@@ -159,17 +176,17 @@ function emitProjectionExpansions(projection: ResourceProjection): string[] {
 
 function emitResolveArm(projection: ResourceProjection, arm: ResolveArm): string {
   const ari = ariFactoryName(projection.resource);
-  const construction = emitConstruction(arm.target);
 
   if (arm.when !== null) {
-    const whenPred = emitExpr(arm.when);
+    const whenPred = emitExpr(arm.when, strategyExprScope);
+    const construction = emitConstruction(arm.target, strategyArmedBodyScope);
     // Same cast as armed expands: `.when()` is a runtime filter only.
     return [
       `  strategy.resolve`,
       `    .on(${ari})`,
-      `    .when(({ resource, payload, executionContext }) => ${whenPred})`,
-      `    .to(({ resource, payload: __payload, executionContext }) => {`,
-      `      const payload = __payload as any;`,
+      `    .when((predicate) => ${whenPred})`,
+      `    .to((predicate) => {`,
+      `      const payload = predicate.payload as any;`,
       `      return {`,
       `        resource: ${construction},`,
       `      };`,
@@ -177,10 +194,11 @@ function emitResolveArm(projection: ResourceProjection, arm: ResolveArm): string
     ].join("\n");
   }
 
+  const construction = emitConstruction(arm.target, strategyExprScope);
   return [
     `  strategy.resolve`,
     `    .on(${ari})`,
-    `    .to(({ resource, payload, executionContext }) => ({`,
+    `    .to((predicate) => ({`,
     `      resource: ${construction},`,
     `    }));`,
   ].join("\n");
@@ -216,7 +234,7 @@ function collectionElement(payload: TypeExpr): string | null {
 /**
  * After expanding a collection ARI, enqueue member ARIs so `on Member` runs.
  * Identity args: payload field when present on the element resource identity name,
- * else `executionContext.<name>` when the query declares that context field.
+ * else `predicate.executionContext.<name>` when the query declares that context field.
  */
 function emitCollectionFanOut(
   collection: ResourceDefinition,
@@ -229,7 +247,7 @@ function emitCollectionFanOut(
 
   const argParts = element.identity.fields.map((field) => {
     if (contextNames.has(field.name)) {
-      return `${field.name}: executionContext.${field.name}`;
+      return `${field.name}: predicate.executionContext.${field.name}`;
     }
     return `${field.name}: item.${field.name}`;
   });
@@ -237,8 +255,8 @@ function emitCollectionFanOut(
   return [
     `  strategy.expansion`,
     `    .on(${collectionAri})`,
-    `    .expand(({ payload, executionContext }) => ({`,
-    `      resources: payload.map((item: any) => ${elementAri}({ ${argParts.join(", ")} })),`,
+    `    .expand((predicate) => ({`,
+    `      resources: predicate.payload.map((item: any) => ${elementAri}({ ${argParts.join(", ")} })),`,
     `    }));`,
   ].join("\n");
 }

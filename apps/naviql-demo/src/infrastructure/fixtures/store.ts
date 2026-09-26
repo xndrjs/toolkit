@@ -9,7 +9,7 @@ import {
   type PagePayload,
   type Sku,
   type SpaceId,
-} from "../../generated/page-detail.js";
+} from "../../generated";
 import { encodeCustomReference } from "../cms/custom-reference.js";
 
 /** Default locale / space / environment for the in-memory fixture graph. */

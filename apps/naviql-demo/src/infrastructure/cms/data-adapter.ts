@@ -11,7 +11,7 @@ import {
   pageAri,
   type ContentRegistry,
   type PageDetailExecutionContext,
-} from "../../generated/page-detail.js";
+} from "../../generated";
 import { demoEntries, entryLookupKey, type EditorialDocument } from "../fixtures/store.js";
 
 export const ENTRY_SOURCE_ID = "cms-entries";

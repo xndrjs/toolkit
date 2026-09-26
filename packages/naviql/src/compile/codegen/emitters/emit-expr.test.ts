@@ -12,13 +12,13 @@ describe("emitExpr", () => {
     expect(emitExpr(lit(null))).toBe("null");
   });
 
-  it("emits params as params.name", () => {
-    expect(emitExpr(param("postId"))).toBe("params.postId");
+  it("emits params as args.params.name (projection scope)", () => {
+    expect(emitExpr(param("postId"))).toBe("args.params.postId");
   });
 
-  it("emits context as executionContext.path", () => {
-    expect(emitExpr(ctx("locale"))).toBe("executionContext.locale");
-    expect(emitExpr(ctx("locale", "region"))).toBe("executionContext.locale.region");
+  it("emits context as args.executionContext.path (projection scope)", () => {
+    expect(emitExpr(ctx("locale"))).toBe("args.executionContext.locale");
+    expect(emitExpr(ctx("locale", "region"))).toBe("args.executionContext.locale.region");
   });
 
   it("emits payloadRef as payload.path (binding discarded)", () => {

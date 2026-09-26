@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assetAri, entryAri, pageAri } from "../../generated/page-detail.js";
+import { assetAri, entryAri, pageAri } from "../../generated";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,

@@ -58,8 +58,8 @@ export function createPostDetailStrategy(params: PostDetailParams) {
 
   strategy.expansion
     .on(postAri)
-    .expand(({ resource, payload, executionContext }) => ({
-      resources: [userAri({ id: payload.authorId })],
+    .expand((predicate) => ({
+      resources: [userAri({ id: predicate.payload.authorId })],
     }));
 
   return strategy;
@@ -89,80 +89,80 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(pageAri)
-    .expand(({ resource, payload, executionContext }) => ({
+    .expand((predicate) => ({
       resources: [
-        entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale }),
-        entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.footerId, locale: resource.key[0].locale }),
-        ...payload.strips.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })),
-        ...payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: resource.key[0].locale })),
+        entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.menuId, locale: predicate.resource.key[0].locale }),
+        entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.footerId, locale: predicate.resource.key[0].locale }),
+        ...predicate.payload.strips.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale })),
+        ...predicate.payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale })),
       ],
     }));
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Hero")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Hero")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
-        resources: [assetAri({ spaceId: executionContext.spaceId, environmentId: executionContext.environmentId, id: payload.imageId, locale: resource.key[0].locale })],
+        resources: [assetAri({ spaceId: predicate.executionContext.spaceId, environmentId: predicate.executionContext.environmentId, id: payload.imageId, locale: predicate.resource.key[0].locale })],
       };
     });
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Tabs")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Tabs")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
-        resources: payload.tabs.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })),
+        resources: payload.tabs.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale })),
       };
     });
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Tab")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Tab")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
-        resources: payload.strips.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })),
+        resources: payload.strips.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale })),
       };
     });
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Menu")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Menu")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
-        resources: [assetAri({ spaceId: executionContext.spaceId, environmentId: executionContext.environmentId, id: payload.logoId, locale: resource.key[0].locale })],
+        resources: [assetAri({ spaceId: predicate.executionContext.spaceId, environmentId: predicate.executionContext.environmentId, id: payload.logoId, locale: predicate.resource.key[0].locale })],
       };
     });
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Footer")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Footer")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
-        resources: [assetAri({ spaceId: executionContext.spaceId, environmentId: executionContext.environmentId, id: payload.logoId, locale: resource.key[0].locale })],
+        resources: [assetAri({ spaceId: predicate.executionContext.spaceId, environmentId: predicate.executionContext.environmentId, id: payload.logoId, locale: predicate.resource.key[0].locale })],
       };
     });
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "SiteInternalLink")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "SiteInternalLink")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
-        resources: [entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.targetId, locale: resource.key[0].locale })],
+        resources: [entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: payload.targetId, locale: predicate.resource.key[0].locale })],
       };
     });
 
   strategy.resolve
     .on(customReferenceAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Entry")
-    .to(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Entry")
+    .to((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resource: entryAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: payload.locale }),
       };
@@ -170,9 +170,9 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.resolve
     .on(customReferenceAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Asset")
-    .to(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Asset")
+    .to((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resource: assetAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: payload.locale }),
       };
@@ -194,7 +194,7 @@ describe("generateStrategies golden", () => {
     expectOnlyNaviqlRuntimeImport(code);
     expect(normalizeWhitespace(code)).toBe(normalizeWhitespace(POST_DETAIL_STRATEGY_GOLDEN));
 
-    expect(code).toContain("userAri({ id: payload.authorId })");
+    expect(code).toContain("userAri({ id: predicate.payload.authorId })");
     expect(code).not.toContain(".on(userAri)");
     expect(code).not.toContain(".build()");
     expect(code).not.toContain(".when(");
@@ -215,20 +215,16 @@ describe("generateStrategies golden", () => {
     // Spot-check nested expands the golden must cover.
     expect(code).toContain(".on(pageAri)");
     expect(code).toContain(".on(entryAri)");
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Hero")');
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "SiteInternalLink")');
     expect(code).toContain(
-      '.when(({ resource, payload, executionContext }) => payload.type == "Hero")'
+      "payload.tabs.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain(
-      '.when(({ resource, payload, executionContext }) => payload.type == "SiteInternalLink")'
+      "predicate.payload.strips.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain(
-      "payload.tabs.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
-    );
-    expect(code).toContain(
-      "payload.strips.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
-    );
-    expect(code).toContain(
-      "payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: resource.key[0].locale }))"
+      "predicate.payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain("tabCollectionAri");
@@ -236,12 +232,8 @@ describe("generateStrategies golden", () => {
     expect(code).not.toContain(".on(assetAri)");
     expect(code).toContain("strategy.resolve");
     expect(code).toContain(".on(customReferenceAri)");
-    expect(code).toContain(
-      '.when(({ resource, payload, executionContext }) => payload.type == "Entry")'
-    );
-    expect(code).toContain(
-      '.when(({ resource, payload, executionContext }) => payload.type == "Asset")'
-    );
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Entry")');
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Asset")');
     expect(code).toContain(
       "entryAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: payload.locale })"
     );

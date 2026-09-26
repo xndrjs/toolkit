@@ -5,7 +5,7 @@ import {
   type ContentRegistry,
   type PageDetailExecutionContext,
   type PageDetailParams,
-} from "../generated/page-detail.js";
+} from "../generated";
 
 /**
  * Wraps `createPageDetailStrategy` and `.build()`.
