@@ -72,10 +72,12 @@ const PAGE_DETAIL_STRATEGY_GOLDEN = `
 import { createGraphResolutionStrategy } from "@xndrjs/naviql";
 
 export type PageDetailParams = {
-  pageId: PageId;
+  pageId: EntryId;
 };
 
 export type PageDetailExecutionContext = {
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
   locale: Locale;
 };
 
@@ -89,56 +91,41 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     .on(pageAri)
     .expand(({ resource, payload, executionContext }) => ({
       resources: [
-        menuAri({ id: payload.menuId, locale: executionContext.locale }),
-        footerAri({ id: payload.footerId, locale: executionContext.locale }),
-        ...payload.strips.flatMap((s: any): any[] => {
-          if (s.type == "Hero") return [heroAri({ id: s.id, locale: executionContext.locale })];
-          if (s.type == "Tabs") return [tabsAri({ id: s.id, locale: executionContext.locale })];
-          if (s.type == "Product") return [productAri({ id: s.id, locale: executionContext.locale })];
-          return [];
-        }),
+        menuAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale }),
+        footerAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.footerId, locale: resource.key[0].locale }),
+        ...payload.strips.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })),
+        ...payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: resource.key[0].locale })),
       ],
     }));
 
   strategy.expansion
     .on(heroAri)
     .expand(({ resource, payload, executionContext }) => ({
-      resources: [assetAri({ id: payload.imageId, locale: executionContext.locale })],
+      resources: [assetAri({ spaceId: executionContext.spaceId, environmentId: executionContext.environmentId, id: payload.imageId, locale: resource.key[0].locale })],
     }));
 
   strategy.expansion
     .on(menuAri)
     .expand(({ resource, payload, executionContext }) => ({
-      resources: [assetAri({ id: payload.logoId, locale: executionContext.locale })],
+      resources: [assetAri({ spaceId: executionContext.spaceId, environmentId: executionContext.environmentId, id: payload.logoId, locale: resource.key[0].locale })],
     }));
 
   strategy.expansion
     .on(footerAri)
     .expand(({ resource, payload, executionContext }) => ({
-      resources: [assetAri({ id: payload.logoId, locale: executionContext.locale })],
+      resources: [assetAri({ spaceId: executionContext.spaceId, environmentId: executionContext.environmentId, id: payload.logoId, locale: resource.key[0].locale })],
     }));
 
   strategy.expansion
     .on(tabsAri)
     .expand(({ resource, payload, executionContext }) => ({
-      resources: [tabCollectionAri({ tabsId: payload.id, locale: executionContext.locale })],
+      resources: payload.tabs.map((link: any) => tabAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })),
     }));
 
   strategy.expansion
     .on(tabAri)
     .expand(({ resource, payload, executionContext }) => ({
-      resources: payload.strips.flatMap((s: any): any[] => {
-          if (s.type == "Hero") return [heroAri({ id: s.id, locale: executionContext.locale })];
-          if (s.type == "Tabs") return [tabsAri({ id: s.id, locale: executionContext.locale })];
-          if (s.type == "Product") return [productAri({ id: s.id, locale: executionContext.locale })];
-          return [];
-        }),
-    }));
-
-  strategy.expansion
-    .on(tabCollectionAri)
-    .expand(({ payload, executionContext }) => ({
-      resources: payload.map((item: any) => tabAri({ id: item.id, locale: executionContext.locale })),
+      resources: payload.strips.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })),
     }));
 
   return strategy;
@@ -164,7 +151,7 @@ describe("generateStrategies golden", () => {
     expect(code).not.toContain("islands");
   });
 
-  it("page-detail.naviql → multi-.on + many map for strips", () => {
+  it("page-detail.naviql → multi-.on + Entry/CustomReference map for strips", () => {
     const { program, diagnostics } = parseAndCheck(
       loadFixture("page-detail.naviql"),
       "file:///fixtures/page-detail.naviql"
@@ -182,9 +169,17 @@ describe("generateStrategies golden", () => {
     expect(code).toContain(".on(footerAri)");
     expect(code).toContain(".on(tabsAri)");
     expect(code).toContain(".on(tabAri)");
-    expect(code).toContain(".on(tabCollectionAri)");
-    expect(code).toContain("payload.strips.flatMap((s: any): any[] =>");
+    expect(code).toContain(
+      "payload.tabs.map((link: any) => tabAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
+    );
+    expect(code).toContain(
+      "payload.strips.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
+    );
+    expect(code).toContain(
+      "payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: resource.key[0].locale }))"
+    );
     expect(code).not.toContain("editorialModuleAri");
+    expect(code).not.toContain("tabCollectionAri");
     expect(code).not.toContain(".on(assetAri)");
     expect(code).not.toContain(".build()");
     expect(code).not.toContain("islands");

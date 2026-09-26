@@ -174,6 +174,13 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   };
 
   const visit = (ref: GraphWalkRef): void => {
+    const redirectTo = session.redirectOf(ref.resource);
+    if (redirectTo !== undefined) {
+      // In-memory locator already converted — follow the canonical ARI.
+      enqueue([{ resource: redirectTo, inheritedIslandId: ref.inheritedIslandId }]);
+      return;
+    }
+
     if (session.isResolved(ref.resource)) {
       enqueue(session.expand(ref));
       return;
@@ -372,6 +379,15 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       const islandIds = islandsWaitingOn(ref);
       session.settle(ref.resource);
 
+      const redirectTo = session.redirectOf(ref.resource);
+      if (redirectTo !== undefined) {
+        // CustomReference → Entry: enqueue the canonical ARI; do not expand the locator.
+        for (const inheritedIslandId of islandIds) {
+          enqueue([{ resource: redirectTo, inheritedIslandId }]);
+        }
+        continue;
+      }
+
       if (!session.isResolved(ref.resource)) {
         for (const inheritedIslandId of islandIds) {
           failResource(
@@ -382,7 +398,10 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
         continue;
       }
 
-      expandInto(ref.resource, islandIds);
+      // Rematerialization (Entry → Hero): expand the concrete node so member
+      // expansion policies run; the abstract key stays resolved for lookups.
+      const expandTarget = session.rematerializationOf(ref.resource) ?? ref.resource;
+      expandInto(expandTarget, islandIds);
     }
   };
 

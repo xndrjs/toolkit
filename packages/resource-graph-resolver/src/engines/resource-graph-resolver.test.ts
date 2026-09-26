@@ -35,7 +35,13 @@ import {
   testAri,
   testAriFactory,
 } from "../testing/test-fixtures";
-import type { SchedulingMode, ResolveResourceGraphOutput } from "../types";
+import type {
+  SchedulingMode,
+  ResolveResourceGraphOutput,
+  ContentRegistry,
+  ResolvedResourceRecord,
+} from "../types";
+import type { DataSource } from "../ports/data-source";
 
 const schedulingModes: readonly SchedulingMode[] = ["lane", "barrier"];
 
@@ -404,5 +410,228 @@ describe("scheduling mode parity", () => {
     expect(projectGraph(lane)).toEqual(projectGraph(barrier));
     expect(lane.errors).toEqual([]);
     expect(lane.promotedResourceKeys).toEqual([footer.toString()]);
+  });
+});
+
+describe("rematerialization (resolves)", () => {
+  it("settles an abstract ARI by returning a concrete record and expands the concrete", async () => {
+    const entryAri = testAriFactory("entry");
+    const entry = entryAri({ id: "123" });
+    const hero = heroAri({ id: "123" });
+    const asset = assetAri({ id: "A" });
+
+    let entryLoads = 0;
+    let heroLoads = 0;
+
+    const source: DataSource = {
+      id: "cms",
+      for: [entryAri, heroAri, assetAri],
+      concurrency: 1,
+      load: async (batch) => {
+        const records: ResolvedResourceRecord<ContentRegistry>[] = [];
+        for (const resource of batch) {
+          if (entryAri.matches(resource)) {
+            entryLoads += 1;
+            records.push({
+              resource: hero,
+              payload: { type: "Hero", title: "Welcome", image: asset.toString() },
+              resolves: [resource],
+            });
+            continue;
+          }
+          if (heroAri.matches(resource)) {
+            heroLoads += 1;
+            records.push({
+              resource,
+              payload: { type: "Hero", title: "Welcome", image: asset.toString() },
+            });
+            continue;
+          }
+          if (assetAri.matches(resource)) {
+            records.push({ resource, payload: { url: "https://cdn.example.com/a.jpg" } });
+          }
+        }
+        return records;
+      },
+    };
+
+    const root = pageAri({ id: "P" });
+    const pageSource = createStoreSource({
+      id: "pages",
+      for: [pageAri],
+      store: new Map([[root.toString(), { title: "Home" }]]),
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [pageSource, source],
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.equals(root),
+            expand: () => ({ resources: [entry] }),
+          },
+          {
+            matches: ({ resource }) => resource.type === "hero",
+            expand: ({ payload }) => ({
+              resources: [assetAri({ id: "A" })],
+            }),
+          },
+        ]),
+        createIslandPolicyChain([])
+      ),
+    });
+
+    const output = await resolver.resolve({
+      root,
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(entryLoads).toBe(1);
+    expect(heroLoads).toBe(0);
+    expect(output.contentMap.has(entry)).toBe(true);
+    expect(output.contentMap.has(hero)).toBe(true);
+    expect(output.contentMap.get(entry)).toEqual(output.contentMap.get(hero));
+    expect(output.contentMap.has(asset)).toBe(true);
+  });
+
+  it("converges abstract locators onto the same concrete resource", async () => {
+    const entryAri = testAriFactory("entry");
+    const customRefAri = testAriFactory("customRef");
+    const entry = entryAri({ id: "123" });
+    const customRef = customRefAri({ id: "master@foo|ENTRY|123" });
+    const hero = heroAri({ id: "123" });
+
+    const source: DataSource = {
+      id: "cms",
+      for: [entryAri, customRefAri, heroAri],
+      concurrency: 1,
+      load: async (batch) => {
+        const records: ResolvedResourceRecord<ContentRegistry>[] = [];
+        for (const resource of batch) {
+          if (entryAri.matches(resource) || customRefAri.matches(resource)) {
+            records.push({
+              resource: hero,
+              payload: { type: "Hero", title: "Same" },
+              resolves: [resource],
+            });
+          }
+        }
+        return records;
+      },
+    };
+
+    const root = pageAri({ id: "P" });
+    const pageSource = createStoreSource({
+      id: "pages",
+      for: [pageAri],
+      store: new Map([[root.toString(), {}]]),
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [pageSource, source],
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.equals(root),
+            expand: () => ({ resources: [entry, customRef] }),
+          },
+        ]),
+        createIslandPolicyChain([])
+      ),
+    });
+
+    const output = await resolver.resolve({
+      root,
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(output.contentMap.get(entry)).toEqual({ type: "Hero", title: "Same" });
+    expect(output.contentMap.get(customRef)).toEqual({ type: "Hero", title: "Same" });
+    expect(output.contentMap.get(hero)).toEqual({ type: "Hero", title: "Same" });
+  });
+});
+
+describe("in-memory redirects", () => {
+  it("converts an abstract locator to a canonical ARI then loads the canonical", async () => {
+    const customRefAri = testAriFactory("customRef");
+    const entryAriFactory = testAriFactory("entry");
+    const customRef = customRefAri({ id: "master@foo|ENTRY|123" });
+    const entry = entryAriFactory({ id: "123" });
+    const hero = heroAri({ id: "123" });
+
+    let entryLoads = 0;
+
+    const redirectSource: DataSource = {
+      id: "custom-refs",
+      for: [customRefAri],
+      concurrency: 1,
+      load: async (batch) =>
+        batch.map((resource) => ({
+          redirect: true as const,
+          resource: entry,
+          resolves: [resource],
+        })),
+    };
+
+    const entrySource: DataSource = {
+      id: "entries",
+      for: [entryAriFactory, heroAri],
+      concurrency: 1,
+      load: async (batch) => {
+        const records: ResolvedResourceRecord<ContentRegistry>[] = [];
+        for (const resource of batch) {
+          if (entryAriFactory.matches(resource)) {
+            entryLoads += 1;
+            records.push({
+              resource: hero,
+              payload: { type: "Hero", title: "Welcome" },
+              resolves: [resource],
+            });
+          }
+        }
+        return records;
+      },
+    };
+
+    const root = pageAri({ id: "P" });
+    const pageSource = createStoreSource({
+      id: "pages",
+      for: [pageAri],
+      store: new Map([[root.toString(), {}]]),
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [pageSource, redirectSource, entrySource],
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.equals(root),
+            expand: () => ({ resources: [customRef] }),
+          },
+          {
+            matches: ({ resource }) => resource.type === "hero",
+            expand: () => ({ resources: [] }),
+          },
+        ]),
+        createIslandPolicyChain([])
+      ),
+    });
+
+    const output = await resolver.resolve({
+      root,
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(entryLoads).toBe(1);
+    expect(output.contentMap.has(hero)).toBe(true);
+    expect(output.contentMap.has(entry)).toBe(true);
+    expect(output.contentMap.has(customRef)).toBe(true);
+    expect(output.contentMap.get(customRef)).toEqual({ type: "Hero", title: "Welcome" });
   });
 });

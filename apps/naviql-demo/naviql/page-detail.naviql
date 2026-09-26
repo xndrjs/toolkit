@@ -1,9 +1,13 @@
-query PageDetail(pageId: PageId) {
+query PageDetail(pageId: EntryId) {
   context {
+    spaceId: SpaceId
+    environmentId: EnvironmentId
     locale: Locale
   }
 
   root Page(
+    spaceId: context.spaceId,
+    environmentId: context.environmentId,
     id: pageId,
     locale: context.locale
   )
@@ -11,31 +15,65 @@ query PageDetail(pageId: PageId) {
   on Page p {
     id
     title
-    expand menu: Menu(id: p.menuId, locale: context.locale)
-    expand footer: Footer(id: p.footerId, locale: context.locale)
-    expand strips: each s in p.strips (
-      Hero(id: s.id, locale: context.locale) when s.type == "Hero",
-      Tabs(id: s.id, locale: context.locale) when s.type == "Tabs",
-      Product(id: s.id, locale: context.locale) when s.type == "Product"
+    expand menu: Menu(
+      spaceId: @p.spaceId,
+      environmentId: @p.environmentId,
+      id: p.menuId,
+      locale: @p.locale
+    )
+    expand footer: Footer(
+      spaceId: @p.spaceId,
+      environmentId: @p.environmentId,
+      id: p.footerId,
+      locale: @p.locale
+    )
+    expand strips: each link in p.strips (
+      Entry(
+        spaceId: @p.spaceId,
+        environmentId: @p.environmentId,
+        id: link.id,
+        locale: @p.locale
+      )
+    )
+    expand related: each ref in p.related (
+      CustomReference(
+        ref: ref,
+        locale: @p.locale
+      )
     )
   }
 
   on Hero h {
     id
     title
-    expand image: Asset(id: h.imageId, locale: context.locale)
+    expand image: Asset(
+      spaceId: context.spaceId,
+      environmentId: context.environmentId,
+      id: h.imageId,
+      locale: @h.locale
+    )
   }
 
   on Menu m {
     id
     title
-    expand logo: Asset(id: m.logoId, locale: context.locale)
+    expand logo: Asset(
+      spaceId: context.spaceId,
+      environmentId: context.environmentId,
+      id: m.logoId,
+      locale: @m.locale
+    )
   }
 
   on Footer f {
     id
     title
-    expand logo: Asset(id: f.logoId, locale: context.locale)
+    expand logo: Asset(
+      spaceId: context.spaceId,
+      environmentId: context.environmentId,
+      id: f.logoId,
+      locale: @f.locale
+    )
   }
 
   on Asset a {
@@ -48,16 +86,26 @@ query PageDetail(pageId: PageId) {
   on Tabs t {
     id
     title
-    expand tabs: TabCollection(tabsId: t.id, locale: context.locale)
+    expand tabs: each link in t.tabs (
+      Tab(
+        spaceId: @t.spaceId,
+        environmentId: @t.environmentId,
+        id: link.id,
+        locale: @t.locale
+      )
+    )
   }
 
   on Tab tab {
     id
     title
-    expand strips: each s in tab.strips (
-      Hero(id: s.id, locale: context.locale) when s.type == "Hero",
-      Tabs(id: s.id, locale: context.locale) when s.type == "Tabs",
-      Product(id: s.id, locale: context.locale) when s.type == "Product"
+    expand strips: each link in tab.strips (
+      Entry(
+        spaceId: @tab.spaceId,
+        environmentId: @tab.environmentId,
+        id: link.id,
+        locale: @tab.locale
+      )
     )
   }
 

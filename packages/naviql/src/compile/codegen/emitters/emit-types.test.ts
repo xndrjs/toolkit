@@ -89,11 +89,16 @@ export type UserPayload = {
     );
   });
 
-  it("emits resourceRef, unions, and discriminated strip stubs from page-detail", () => {
+  it("emits resourceRef, unions, and Entry-link strip objects from page-detail", () => {
     const program = pageDetailProgram();
     const code = emitPayloadTypes(program);
 
-    expect(code).toContain("export type TabCollectionPayload = TabPayload[];");
+    expect(code).toContain(
+      "export type EntryPayload = HeroPayload | TabsPayload | ProductPayload;"
+    );
+    expect(code).toContain("export type CustomReferencePayload = EntryPayload | AssetPayload;");
+    expect(code).toContain("tabs: {\n    id: EntryId;\n  }[];");
+    expect(code).not.toContain("TabCollection");
     expect(code).not.toContain("EditorialModulePayload");
     expect(code).toContain(`type: "Hero"`);
     expect(code).toContain(`type: "Tabs"`);
@@ -104,7 +109,7 @@ export type UserPayload = {
     expect(code).not.toContain("typeProjection");
   });
 
-  it("emits Page strips as a discriminated union of module stubs", () => {
+  it("emits Page strips as EntryId link objects", () => {
     const { program, diagnostics } = parseAndCheck(
       loadFixture("page-detail.naviql"),
       "file:///fixtures/page-detail.naviql"
@@ -113,20 +118,14 @@ export type UserPayload = {
 
     const code = emitPayloadTypes(program);
     expect(code).toContain(`export type PagePayload = {
-  id: PageId;
+  id: EntryId;
   title: string;
-  menuId: MenuId;
-  footerId: FooterId;
-  strips: ({
-    type: "Hero";
-    id: HeroId;
-  } | {
-    type: "Tabs";
-    id: TabsId;
-  } | {
-    type: "Product";
-    id: ProductId;
-  })[];
+  menuId: EntryId;
+  footerId: EntryId;
+  strips: {
+    id: EntryId;
+  }[];
+  related: CustomReferenceValue[];
 };`);
   });
 

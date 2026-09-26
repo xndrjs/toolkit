@@ -1,8 +1,9 @@
 /**
- * Page-graph IR fixture inspired by the resource-graph-resolver demo.
+ * Page-graph IR fixture: CMS Entry links + CustomReference indirection.
  *
- * - `Page.strips` / `Tab.strips` are discriminated stubs (`Hero` / `Tabs` / `Product`).
- * - Strips expand via polymorphic `each` into concrete resource ARIs.
+ * - `Page.strips` / `Tab.strips` are `{ id: EntryId }[]` (no content-type discriminant).
+ * - Strips expand via `each` into generic `Entry(...)`; concrete type emerges at load.
+ * - `CustomReference` is an alternate locator that rematerializes to `Entry` or `Asset`.
  */
 import type { Program } from "../compile";
 
@@ -12,12 +13,11 @@ import {
   construct,
   ctx,
   defScalar,
-  eq,
   expand,
   expandEach,
   field,
+  identity,
   item,
-  lit,
   objectType,
   param,
   payload,
@@ -33,35 +33,39 @@ import {
 } from "./ir-builders";
 
 const Locale = scalarRef("Locale");
-const PageId = scalarRef("PageId");
-const HeroId = scalarRef("HeroId");
-const MenuId = scalarRef("MenuId");
-const FooterId = scalarRef("FooterId");
+const SpaceId = scalarRef("SpaceId");
+const EnvironmentId = scalarRef("EnvironmentId");
+const EntryId = scalarRef("EntryId");
 const AssetId = scalarRef("AssetId");
-const TabsId = scalarRef("TabsId");
-const TabId = scalarRef("TabId");
-const ProductId = scalarRef("ProductId");
+const CustomReferenceValue = scalarRef("CustomReferenceValue");
 const Sku = scalarRef("Sku");
 
-const ModuleStrip = union(
-  objectType(field("type", strLit("Hero")), field("id", HeroId)),
-  objectType(field("type", strLit("Tabs")), field("id", TabsId)),
-  objectType(field("type", strLit("Product")), field("id", ProductId))
-);
+const entryIdentity = () => [
+  field("spaceId", SpaceId),
+  field("environmentId", EnvironmentId),
+  field("id", EntryId),
+  field("locale", Locale),
+];
+
+const assetIdentity = () => [
+  field("spaceId", SpaceId),
+  field("environmentId", EnvironmentId),
+  field("id", AssetId),
+  field("locale", Locale),
+];
+
+const CmsLink = objectType(field("id", EntryId));
 
 function stripsEach(sourceBinding: string, sourceField: string) {
-  return expandEach("strips", "s", payload(sourceBinding, sourceField), [
+  return expandEach("strips", "link", payload(sourceBinding, sourceField), [
     {
-      target: construct("Hero", [arg("id", item("s", "id")), arg("locale", ctx("locale"))]),
-      when: eq(item("s", "type"), lit("Hero")),
-    },
-    {
-      target: construct("Tabs", [arg("id", item("s", "id")), arg("locale", ctx("locale"))]),
-      when: eq(item("s", "type"), lit("Tabs")),
-    },
-    {
-      target: construct("Product", [arg("id", item("s", "id")), arg("locale", ctx("locale"))]),
-      when: eq(item("s", "type"), lit("Product")),
+      target: construct("Entry", [
+        arg("spaceId", identity(sourceBinding, "spaceId")),
+        arg("environmentId", identity(sourceBinding, "environmentId")),
+        arg("id", item("link", "id")),
+        arg("locale", identity(sourceBinding, "locale")),
+      ]),
+      when: null,
     },
   ]);
 }
@@ -71,60 +75,24 @@ export function pageDetailProgram(): Program {
     span,
     scalars: [
       defScalar("Locale", "string"),
-      defScalar("PageId", "string"),
-      defScalar("HeroId", "string"),
-      defScalar("MenuId", "string"),
-      defScalar("FooterId", "string"),
+      defScalar("SpaceId", "string"),
+      defScalar("EnvironmentId", "string"),
+      defScalar("EntryId", "string"),
       defScalar("AssetId", "string"),
-      defScalar("TabsId", "string"),
-      defScalar("TabId", "string"),
-      defScalar("ProductId", "string"),
+      defScalar("CustomReferenceValue", "string"),
       defScalar("Sku", "string"),
     ],
     resources: [
       resource(
-        "Page",
-        [field("id", PageId), field("locale", Locale)],
-        objectType(
-          field("id", PageId, true),
-          field("title", prim("string")),
-          field("menuId", MenuId),
-          field("footerId", FooterId),
-          field("strips", arrayOf(ModuleStrip))
-        )
-      ),
-      resource(
-        "Hero",
-        [field("id", HeroId), field("locale", Locale)],
-        objectType(
-          field("type", strLit("Hero")),
-          field("id", HeroId, true),
-          field("title", prim("string")),
-          field("imageId", AssetId)
-        )
-      ),
-      resource(
-        "Menu",
-        [field("id", MenuId), field("locale", Locale)],
-        objectType(
-          field("id", MenuId, true),
-          field("title", prim("string")),
-          field("logoId", AssetId)
-        )
-      ),
-      resource(
-        "Footer",
-        [field("id", FooterId), field("locale", Locale)],
-        objectType(
-          field("id", FooterId, true),
-          field("title", prim("string")),
-          field("logoId", AssetId)
-        )
+        "Entry",
+        entryIdentity(),
+        union(resourceRef("Hero"), resourceRef("Tabs"), resourceRef("Product"))
       ),
       resource(
         "Asset",
-        [field("id", AssetId), field("locale", Locale)],
+        assetIdentity(),
         objectType(
+          field("type", strLit("Asset")),
           field("id", AssetId, true),
           field("url", prim("string")),
           field("title", prim("string")),
@@ -132,34 +100,75 @@ export function pageDetailProgram(): Program {
         )
       ),
       resource(
+        "CustomReference",
+        [field("ref", CustomReferenceValue), field("locale", Locale)],
+        union(resourceRef("Entry"), resourceRef("Asset"))
+      ),
+      resource(
+        "Page",
+        entryIdentity(),
+        objectType(
+          field("id", EntryId, true),
+          field("title", prim("string")),
+          field("menuId", EntryId),
+          field("footerId", EntryId),
+          field("strips", arrayOf(CmsLink)),
+          field("related", arrayOf(CustomReferenceValue))
+        )
+      ),
+      resource(
+        "Hero",
+        entryIdentity(),
+        objectType(
+          field("type", strLit("Hero")),
+          field("id", EntryId, true),
+          field("title", prim("string")),
+          field("imageId", AssetId)
+        )
+      ),
+      resource(
+        "Menu",
+        entryIdentity(),
+        objectType(
+          field("id", EntryId, true),
+          field("title", prim("string")),
+          field("logoId", AssetId)
+        )
+      ),
+      resource(
+        "Footer",
+        entryIdentity(),
+        objectType(
+          field("id", EntryId, true),
+          field("title", prim("string")),
+          field("logoId", AssetId)
+        )
+      ),
+      resource(
         "Tabs",
-        [field("id", TabsId), field("locale", Locale)],
+        entryIdentity(),
         objectType(
           field("type", strLit("Tabs")),
-          field("id", TabsId, true),
-          field("title", prim("string"))
+          field("id", EntryId, true),
+          field("title", prim("string")),
+          field("tabs", arrayOf(CmsLink))
         )
       ),
       resource(
         "Tab",
-        [field("id", TabId), field("locale", Locale)],
+        entryIdentity(),
         objectType(
-          field("id", TabId, true),
+          field("id", EntryId, true),
           field("title", prim("string")),
-          field("strips", arrayOf(ModuleStrip))
+          field("strips", arrayOf(CmsLink))
         )
       ),
       resource(
-        "TabCollection",
-        [field("tabsId", TabsId), field("locale", Locale)],
-        arrayOf(resourceRef("Tab"))
-      ),
-      resource(
         "Product",
-        [field("id", ProductId), field("locale", Locale)],
+        entryIdentity(),
         objectType(
           field("type", strLit("Product")),
-          field("id", ProductId, true),
+          field("id", EntryId, true),
           field("sku", Sku),
           field("title", prim("string"))
         )
@@ -167,9 +176,18 @@ export function pageDetailProgram(): Program {
     ],
     queries: [
       query("PageDetail", {
-        parameters: [field("pageId", PageId)],
-        context: [field("locale", Locale)],
-        root: construct("Page", [arg("id", param("pageId")), arg("locale", ctx("locale"))]),
+        parameters: [field("pageId", EntryId)],
+        context: [
+          field("spaceId", SpaceId),
+          field("environmentId", EnvironmentId),
+          field("locale", Locale),
+        ],
+        root: construct("Page", [
+          arg("spaceId", ctx("spaceId")),
+          arg("environmentId", ctx("environmentId")),
+          arg("id", param("pageId")),
+          arg("locale", ctx("locale")),
+        ]),
         projections: [
           projection(
             "Page",
@@ -178,16 +196,32 @@ export function pageDetailProgram(): Program {
             [
               expand(
                 "menu",
-                construct("Menu", [arg("id", payload("p", "menuId")), arg("locale", ctx("locale"))])
+                construct("Menu", [
+                  arg("spaceId", identity("p", "spaceId")),
+                  arg("environmentId", identity("p", "environmentId")),
+                  arg("id", payload("p", "menuId")),
+                  arg("locale", identity("p", "locale")),
+                ])
               ),
               expand(
                 "footer",
                 construct("Footer", [
+                  arg("spaceId", identity("p", "spaceId")),
+                  arg("environmentId", identity("p", "environmentId")),
                   arg("id", payload("p", "footerId")),
-                  arg("locale", ctx("locale")),
+                  arg("locale", identity("p", "locale")),
                 ])
               ),
               stripsEach("p", "strips"),
+              expandEach("related", "ref", payload("p", "related"), [
+                {
+                  target: construct("CustomReference", [
+                    arg("ref", item("ref")),
+                    arg("locale", identity("p", "locale")),
+                  ]),
+                  when: null,
+                },
+              ]),
             ]
           ),
           projection(
@@ -198,8 +232,10 @@ export function pageDetailProgram(): Program {
               expand(
                 "image",
                 construct("Asset", [
+                  arg("spaceId", ctx("spaceId")),
+                  arg("environmentId", ctx("environmentId")),
                   arg("id", payload("h", "imageId")),
-                  arg("locale", ctx("locale")),
+                  arg("locale", identity("h", "locale")),
                 ])
               ),
             ]
@@ -212,8 +248,10 @@ export function pageDetailProgram(): Program {
               expand(
                 "logo",
                 construct("Asset", [
+                  arg("spaceId", ctx("spaceId")),
+                  arg("environmentId", ctx("environmentId")),
                   arg("id", payload("m", "logoId")),
-                  arg("locale", ctx("locale")),
+                  arg("locale", identity("m", "locale")),
                 ])
               ),
             ]
@@ -226,8 +264,10 @@ export function pageDetailProgram(): Program {
               expand(
                 "logo",
                 construct("Asset", [
+                  arg("spaceId", ctx("spaceId")),
+                  arg("environmentId", ctx("environmentId")),
                   arg("id", payload("f", "logoId")),
-                  arg("locale", ctx("locale")),
+                  arg("locale", identity("f", "locale")),
                 ])
               ),
             ]
@@ -238,13 +278,17 @@ export function pageDetailProgram(): Program {
             "t",
             ["id", "title"],
             [
-              expand(
-                "tabs",
-                construct("TabCollection", [
-                  arg("tabsId", payload("t", "id")),
-                  arg("locale", ctx("locale")),
-                ])
-              ),
+              expandEach("tabs", "link", payload("t", "tabs"), [
+                {
+                  target: construct("Tab", [
+                    arg("spaceId", identity("t", "spaceId")),
+                    arg("environmentId", identity("t", "environmentId")),
+                    arg("id", item("link", "id")),
+                    arg("locale", identity("t", "locale")),
+                  ]),
+                  when: null,
+                },
+              ]),
             ]
           ),
           projection("Tab", "tab", ["id", "title"], [stripsEach("tab", "strips")]),

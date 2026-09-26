@@ -56,23 +56,48 @@ function collectionElement(payload: TypeExpr): string | null {
 }
 
 /**
- * Union resource (`EditorialModule: Tabs | Hero | Product`) → member names.
- * Degenerate single `resourceRef` payload is not treated as a union strip.
+ * Union / resource-valued payload (`Entry: Hero | Tabs`, `CustomReference: Entry`)
+ * → concrete member names to discriminate in `projectNode`.
  */
-function unionMembers(payload: TypeExpr): string[] | null {
-  const refs = resourceRefsFromPayload(payload);
-  if (refs !== null && payload.kind === "union" && refs.length >= 1) {
-    return refs;
+function stripToConcreteMembers(
+  targetName: string,
+  resources: ResourceIndex,
+  seen = new Set<string>()
+): string[] | null {
+  if (seen.has(targetName)) {
+    return null;
   }
-  return null;
+  seen.add(targetName);
+
+  const target = resources.get(targetName);
+  if (!target) {
+    return null;
+  }
+
+  const payload = target.payloadType;
+  if (payload.kind === "object" || payload.kind === "array") {
+    return null;
+  }
+
+  const refs = resourceRefsFromPayload(payload);
+  if (refs === null || refs.length === 0) {
+    return null;
+  }
+
+  const members: string[] = [];
+  for (const ref of refs) {
+    const nested = stripToConcreteMembers(ref, resources, new Set(seen));
+    if (nested === null) {
+      members.push(ref);
+    } else {
+      members.push(...nested);
+    }
+  }
+  return [...new Set(members)];
 }
 
 function projectOnFnName(resourceName: string): string {
   return `projectOn${resourceName}`;
-}
-
-function projectOnFromPayloadFnName(resourceName: string): string {
-  return `projectOn${resourceName}FromPayload`;
 }
 
 /**
@@ -113,13 +138,14 @@ function emitManyProject(expansion: Expansion): string {
 /**
  * Expression that yields the projected value for one expansion alias.
  * - ordinary / union target → `projectNode(ari)` (union discriminated inside)
- * - collection target → lookup collection payload, `.map` embedded member plan
+ * - collection target → lookup collection payload, map member ARIs through `projectNode`
  * - `many` → each-comprehension map of the above
  */
 function emitExpansionValue(
   expansion: Expansion,
   resources: ResourceIndex,
-  queryName: string
+  queryName: string,
+  contextFieldNames: ReadonlySet<string>
 ): string {
   if (expansion.multiplicity === "many" && expansion.comprehension !== null) {
     return emitManyProject(expansion);
@@ -140,14 +166,26 @@ function emitExpansionValue(
   const element = collectionElement(target.payloadType);
   if (element !== null) {
     const construction = emitConstruction(expansion.target);
-    const fromPayload = projectOnFromPayloadFnName(element);
-    // IIFE keeps temporaries out of the shell scope.
+    const elementResource = resources.get(element);
+    if (!elementResource) {
+      throw new Error(
+        `emitProjections: collection '${targetName}' element '${element}' is unknown in query '${queryName}'`
+      );
+    }
+    const elementAri = ariFactoryName(element);
+    const argParts = elementResource.identity.fields.map((field) => {
+      if (contextFieldNames.has(field.name)) {
+        return `${field.name}: executionContext.${field.name}`;
+      }
+      return `${field.name}: item.${field.name}`;
+    });
+    // Same member ARI construction as strategy fan-out so nested `@id` expansions work.
     return [
       `(() => {`,
       `  const __collectionAri = ${construction};`,
       `  const __collectionPayload = contentMap.get(__collectionAri as never) as any;`,
       `  if (__collectionPayload === undefined) return undefined;`,
-      `  return __collectionPayload.map((item: any) => ${fromPayload}(item));`,
+      `  return __collectionPayload.map((item: any) => projectNode(${elementAri}({ ${argParts.join(", ")} })));`,
       `})()`,
     ].join("\n");
   }
@@ -159,24 +197,19 @@ function emitProjectOnBody(
   projection: ResourceProjection,
   resources: ResourceIndex,
   queryName: string,
-  /** When true, skip memo (embedded collection element). */
-  embedded: boolean
+  contextFieldNames: ReadonlySet<string>
 ): string {
   const lines: string[] = [];
 
-  if (!embedded) {
-    lines.push(`    const shell: any = { $type: ${JSON.stringify(projection.resource)} };`);
-    lines.push(`    memo.set(resource.toString(), shell);`);
-  } else {
-    lines.push(`    const shell: any = { $type: ${JSON.stringify(projection.resource)} };`);
-  }
+  lines.push(`    const shell: any = { $type: ${JSON.stringify(projection.resource)} };`);
+  lines.push(`    memo.set(resource.toString(), shell);`);
 
   for (const fieldName of projection.selectedFields) {
     lines.push(`    shell.${fieldName} = payload.${fieldName};`);
   }
 
   for (const expansion of projection.expansions) {
-    const value = emitExpansionValue(expansion, resources, queryName);
+    const value = emitExpansionValue(expansion, resources, queryName, contextFieldNames);
     // Indent multi-line IIFEs one level under shell assign.
     const indented = value.includes("\n")
       ? value
@@ -194,30 +227,16 @@ function emitProjectOnBody(
 function emitProjectOnHelper(
   projection: ResourceProjection,
   resources: ResourceIndex,
-  queryName: string
+  queryName: string,
+  contextFieldNames: ReadonlySet<string>
 ): string {
   const name = projectOnFnName(projection.resource);
-  const body = emitProjectOnBody(projection, resources, queryName, false);
-  return [
-    `  const ${name} = (resource: { toString(): string }, payload: any): any => {`,
-    body,
-    `  };`,
-  ].join("\n");
-}
-
-function emitProjectOnFromPayloadHelper(
-  projection: ResourceProjection,
-  resources: ResourceIndex,
-  queryName: string
-): string {
-  const name = projectOnFromPayloadFnName(projection.resource);
-  const body = emitProjectOnBody(projection, resources, queryName, true);
-  return [`  const ${name} = (payload: any): any => {`, body, `  };`].join("\n");
+  const body = emitProjectOnBody(projection, resources, queryName, contextFieldNames);
+  return [`  const ${name} = (resource: any, payload: any): any => {`, body, `  };`].join("\n");
 }
 
 /**
- * Resources that appear as collection-edge elements in this query and therefore
- * need an embedded (no ContentMap) projector.
+ * Resources that appear as collection-edge elements in this query (must have `on`).
  */
 function collectionElementResources(query: QueryDefinition, resources: ResourceIndex): Set<string> {
   const out = new Set<string>();
@@ -236,8 +255,8 @@ function collectionElementResources(query: QueryDefinition, resources: ResourceI
 }
 
 /**
- * Union resources that appear as expansion targets (need `projectNode` arms
- * even without an `on Union` projection).
+ * Union / resource-valued resources that appear as expansion targets (need
+ * `projectNode` discrimination arms even without an `on Entry` projection).
  */
 function unionTargetResources(
   query: QueryDefinition,
@@ -253,11 +272,9 @@ function unionTargetResources(
             ? [expansion.target.resource]
             : [];
       for (const targetName of targets) {
-        const target = resources.get(targetName);
-        if (!target) continue;
-        const members = unionMembers(target.payloadType);
-        if (members !== null) {
-          out.set(target.name, members);
+        const members = stripToConcreteMembers(targetName, resources);
+        if (members !== null && members.length > 0) {
+          out.set(targetName, members);
         }
       }
     }
@@ -328,7 +345,7 @@ function emitProjectNode(query: QueryDefinition, resources: ResourceIndex, fnNam
   );
 
   return [
-    `  const projectNode = (ari: { readonly type: string; toString(): string }): unknown => {`,
+    `  const projectNode = (ari: any): unknown => {`,
     `    const key = ari.toString();`,
     `    if (memo.has(key)) return memo.get(key);`,
     `    const payload = contentMap.get(ari as never);`,
@@ -388,16 +405,14 @@ function emitQueryProjection(
   bodyPreamble.push(`  const memo = new Map<string, object>();`);
 
   const embedded = collectionElementResources(query, resources);
+  const contextFieldNames = new Set(query.context.map((f) => f.name));
   const helpers: string[] = [];
 
   for (const projection of query.projections) {
-    helpers.push(emitProjectOnHelper(projection, resources, query.name));
-    if (embedded.has(projection.resource)) {
-      helpers.push(emitProjectOnFromPayloadHelper(projection, resources, query.name));
-    }
+    helpers.push(emitProjectOnHelper(projection, resources, query.name, contextFieldNames));
   }
 
-  // Embedded collection elements must have an `on` projection.
+  // Collection elements must have an `on` projection (projected via ContentMap).
   for (const element of embedded) {
     if (!query.projections.some((p) => p.resource === element)) {
       throw new Error(

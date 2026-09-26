@@ -142,35 +142,32 @@ describe("generateStrategies", () => {
     expect(code).not.toContain(".build()");
   });
 
-  it("emits multi-arm each strips, collection fan-out, and concrete on blocks for page-detail", () => {
+  it("emits Entry/CustomReference each strips, tabs each-links, and concrete on blocks for page-detail", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("page-detail.naviql"));
     expect(diagnostics).toEqual([]);
 
     const { code } = generateStrategies(program!);
 
     expect(code).toContain(".on(pageAri)");
-    expect(code).toContain("menuAri({ id: payload.menuId, locale: executionContext.locale })");
-    expect(code).toContain("footerAri({ id: payload.footerId, locale: executionContext.locale })");
-    expect(code).toContain("payload.strips.flatMap((s: any): any[] =>");
     expect(code).toContain(
-      'if (s.type == "Hero") return [heroAri({ id: s.id, locale: executionContext.locale })];'
+      "menuAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale })"
     );
     expect(code).toContain(
-      'if (s.type == "Tabs") return [tabsAri({ id: s.id, locale: executionContext.locale })];'
+      "footerAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.footerId, locale: resource.key[0].locale })"
     );
     expect(code).toContain(
-      'if (s.type == "Product") return [productAri({ id: s.id, locale: executionContext.locale })];'
+      "payload.strips.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
+    );
+    expect(code).toContain(
+      "payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: resource.key[0].locale }))"
     );
     expect(code).toContain(".on(heroAri)");
     expect(code).toContain(".on(tabsAri)");
     expect(code).toContain(
-      "tabCollectionAri({ tabsId: payload.id, locale: executionContext.locale })"
-    );
-    expect(code).toContain(".on(tabCollectionAri)");
-    expect(code).toContain(
-      "payload.map((item: any) => tabAri({ id: item.id, locale: executionContext.locale }))"
+      "payload.tabs.map((link: any) => tabAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
     );
     expect(code).toContain(".on(tabAri)");
+    expect(code).not.toContain("tabCollectionAri");
     expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain(".build()");
     expect(code).not.toContain("islands");

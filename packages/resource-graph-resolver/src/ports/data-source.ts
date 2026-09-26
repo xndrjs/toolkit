@@ -1,6 +1,11 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentRegistry, RegistryPayloadFor, ResolvedResourceRecord } from "../types";
+import type {
+  ContentRegistry,
+  RegistryPayloadFor,
+  ResolvedResourceRecord,
+  ResourceRedirectRecord,
+} from "../types";
 
 /**
  * Matcher for one ARI family, used both for routing and for narrowing.
@@ -26,12 +31,19 @@ export type ResourceUnionFromFamilies<F extends readonly ResourceFamily[]> = Res
  * Records a source may return: only its own `for` families, each paired with the
  * payload its ARI type maps to in the registry.
  */
-export type SourceResourceRecord<R extends ContentRegistry, F extends readonly ResourceFamily[]> = {
-  [K in keyof F]: {
-    resource: ResourceOfFamily<F[K]>;
-    payload: RegistryPayloadFor<R, ResourceOfFamily<F[K]>>;
-  };
-}[number];
+export type SourceResourceRecord<R extends ContentRegistry, F extends readonly ResourceFamily[]> =
+  | {
+      [K in keyof F]: {
+        resource: ResourceOfFamily<F[K]>;
+        payload: RegistryPayloadFor<R, ResourceOfFamily<F[K]>>;
+        /**
+         * Optional abstract ARIs this concrete record also settles (rematerialization).
+         * May include ARI types outside {@link F} (e.g. settle `Entry` by returning `Hero`).
+         */
+        resolves?: readonly ApplicationResourceIdentifier[];
+      };
+    }[number]
+  | ResourceRedirectRecord;
 
 export interface ResourceLoadContext<TExecutionContext = unknown> {
   /**

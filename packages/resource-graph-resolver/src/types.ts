@@ -14,12 +14,37 @@ export type RegistryPayloadFor<
 > = Resource extends ApplicationResourceIdentifier<infer T extends keyof R & string> ? R[T] : never;
 
 /** One loaded resource with correlated ARI and payload. */
-export type ResolvedResourceRecord<R extends ContentRegistry> = {
+export type ResolvedPayloadRecord<R extends ContentRegistry> = {
   [T in keyof R & string]: {
     resource: ApplicationResourceIdentifier<T>;
     payload: R[T];
+    /**
+     * Optional abstract ARIs this concrete record also settles.
+     *
+     * Use when a loader rematerializes a generic request (e.g. `Entry`) into a
+     * concrete graph node (e.g. `Hero`): the concrete ARI is stored under
+     * {@link resource}, and each `resolves` ARI is marked resolved with the same
+     * payload so the walk continues without a second fetch.
+     */
+    resolves?: readonly ApplicationResourceIdentifier[];
   };
 }[keyof R & string];
+
+/**
+ * In-memory redirect: settle `resolves` and enqueue {@link resource} without a
+ * payload (e.g. CustomReference → Entry). The target is loaded by its own source.
+ */
+export type ResourceRedirectRecord = {
+  readonly redirect: true;
+  /** Canonical ARI to enqueue (e.g. `Entry`). */
+  readonly resource: ApplicationResourceIdentifier;
+  /** Abstract ARIs settled by this redirect (e.g. `CustomReference`). */
+  readonly resolves: readonly ApplicationResourceIdentifier[];
+};
+
+export type ResolvedResourceRecord<R extends ContentRegistry> =
+  | ResolvedPayloadRecord<R>
+  | ResourceRedirectRecord;
 
 /** Stable island identifier; equal to the root resource's {@link ResourceKey}. */
 export type IslandId = string;

@@ -78,14 +78,18 @@ export type PostDetailResult = PostDetail_Post;
 
     expect(code).toContain(`$type: "Page";`);
     expect(code).toContain("strips: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[];");
+    expect(code).toContain(
+      "related: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product | PageDetail_Asset)[];"
+    );
     expect(code).toContain("tabs: PageDetail_Tab[];");
     expect(code).toContain("menu: PageDetail_Menu;");
     expect(code).toContain("image: PageDetail_Asset;");
     expect(code).toContain(`kind: "image" | "video" | "document";`);
     expect(code).toContain("export type PageDetailResult = PageDetail_Page;");
-    // No on TabCollection — collection is stripped at the alias.
     expect(code).not.toContain("PageDetail_EditorialModule");
-    expect(code).not.toContain("PageDetail_TabCollection");
+    expect(code).not.toContain("TabCollection");
+    expect(code).not.toContain("PageDetail_Entry");
+    expect(code).not.toContain("PageDetail_CustomReference");
   });
 
   it("matches pageDetailProgram() IR path to the fixture emit", () => {

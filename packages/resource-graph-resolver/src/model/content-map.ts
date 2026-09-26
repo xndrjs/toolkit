@@ -32,6 +32,11 @@ export class ContentMap<R extends ContentRegistry = ContentRegistry> {
     this.resources.set(resource.toString(), value);
   }
 
+  /** Opaque key write — used when propagating alias payloads without an ARI handle. */
+  setByKey(resourceKey: ResourceKey, value: unknown): void {
+    this.resources.set(resourceKey, value);
+  }
+
   get size(): number {
     return this.resources.size;
   }
