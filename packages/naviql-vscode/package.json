@@ -1,12 +1,12 @@
 {
   "name": "naviql-vscode",
   "displayName": "NaviQL",
-  "description": "Syntax highlighting for NaviQL (.naviql) files.",
+  "description": "Syntax highlighting and diagnostics for NaviQL (.naviql) files.",
   "version": "0.0.1",
   "publisher": "xndrjs",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.91.0"
   },
   "categories": [
     "Programming Languages"
@@ -15,6 +15,8 @@
     "naviql",
     "syntax",
     "highlighting",
+    "diagnostics",
+    "lsp",
     "graphql"
   ],
   "repository": {
@@ -26,10 +28,26 @@
     "url": "https://github.com/xndrjs/toolkit/issues"
   },
   "homepage": "https://github.com/xndrjs/toolkit/tree/main/packages/naviql-vscode",
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:naviql"
+  ],
   "scripts": {
-    "vsix": "npx --yes @vscode/vsce package --no-dependencies",
-    "publish:vscode": "npx --yes @vscode/vsce publish --no-dependencies",
-    "publish:ovsx": "npx --yes ovsx publish --no-dependencies"
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "vsix": "pnpm run build && npx --yes @vscode/vsce package --no-dependencies",
+    "publish:vscode": "pnpm run build && npx --yes @vscode/vsce publish --no-dependencies",
+    "publish:ovsx": "pnpm run build && npx --yes ovsx publish --no-dependencies"
+  },
+  "dependencies": {
+    "@xndrjs/naviql": "workspace:^",
+    "vscode-languageclient": "~10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.91.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3"
   },
   "contributes": {
     "languages": [
