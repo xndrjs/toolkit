@@ -16,6 +16,7 @@ import {
   DEFAULT_NAVIQL_INCLUDE,
 } from "../compile/collect/collect-naviql-files";
 import type { NaviQlCodegenConfig } from "../compile/config/define-config";
+import { isLowerDiagnostic } from "../compile/lower";
 import { mergePrograms } from "../compile/merge-programs";
 import { parseAndCheck } from "../compile/parse-and-check";
 import type { Program } from "../ir";
@@ -168,8 +169,9 @@ function pushByUri(byUri: Map<string, Diagnostic[]>, uri: string, diagnostics: D
  * no workspace-root glob of every `.naviql` file.
  *
  * Files with `SYNTAX_ERROR` are excluded from the merge but their syntax
- * diagnostics are still published. Semantic diagnostics are grouped by
- * `span.uri` (fallback: `triggerUri`).
+ * diagnostics are still published. Lower-phase diagnostics (fragments /
+ * duplicate selected fields) are published per file. Semantic diagnostics from
+ * the merged program are grouped by `span.uri` (fallback: `triggerUri`).
  *
  * When the merge succeeds, `result.semantic` carries the merged program plus
  * scalar/resource tables for the LSP snapshot cache.
@@ -194,6 +196,11 @@ export async function validateWorkspace(
     if (syntax.length > 0) {
       pushByUri(byUri, uri, syntax);
       continue;
+    }
+    // Fragment / duplicate-field diagnostics from lower (not re-emitted by check).
+    const lower = diagnostics.filter(isLowerDiagnostic);
+    if (lower.length > 0) {
+      pushByUri(byUri, uri, lower);
     }
     programs.push(program);
   }
