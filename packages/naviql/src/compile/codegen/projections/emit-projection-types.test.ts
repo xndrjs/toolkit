@@ -323,4 +323,120 @@ describe("printExpansionAliasType", () => {
       "PageDetail_Asset"
     );
   });
+
+  it("narrows armed Entry aliases from source-field refers", () => {
+    const source = `
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Menu", id, title: string }
+        | { type: "Footer", id, title: string }
+        | { type: "Hero", id, title: string }
+
+      resource Page(id: EntryId, locale: Locale): {
+        id
+        menuId: EntryId refers Entry with { type: "Menu" }
+        chromeId: EntryId refers Entry with { type: "Menu" | "Footer" }
+        plainId: EntryId
+        strips: {
+          id: EntryId refers Entry with { type: "Hero" }
+        }[]
+      }
+
+      query PageDetail(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand menu: Entry(id: p.menuId, locale: @p.locale)
+          expand chrome: Entry(id: p.chromeId, locale: @p.locale)
+          expand plain: Entry(id: p.plainId, locale: @p.locale)
+          expand strips: each link in p.strips (
+            Entry(id: link.id, locale: @p.locale)
+          )
+        }
+        on Entry e {
+          when e.type == "Menu" { id title }
+          when e.type == "Footer" { id title }
+          when e.type == "Hero" { id title }
+        }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain("menu: PageDetail_Entry_Menu;");
+    expect(code).toContain("chrome: PageDetail_Entry_Menu | PageDetail_Entry_Footer;");
+    expect(code).toContain("plain: PageDetail_Entry;");
+    expect(code).toContain("strips: PageDetail_Entry_Hero[];");
+    expect(code).not.toContain("menu: PageDetail_Entry;");
+  });
+
+  it("does not structurally narrow flat (non-armed) on R from refers", () => {
+    const source = `
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale): {
+        type: "Menu"
+        id
+        title: string
+      }
+
+      resource Page(id: EntryId, locale: Locale): {
+        id
+        menuId: EntryId refers Entry with { type: "Menu" }
+      }
+
+      query PageDetail(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand menu: Entry(id: p.menuId, locale: @p.locale)
+        }
+        on Entry e { id title }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain("menu: PageDetail_Entry;");
+    expect(code).not.toContain("PageDetail_Entry_Menu");
+  });
+
+  it("throws REFERS_ARM_NOT_PROJECTED when refers matches an unprojected arm", () => {
+    const source = `
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Menu", id, title: string }
+        | { type: "Footer", id, title: string }
+
+      resource Page(id: EntryId, locale: Locale): {
+        id
+        menuId: EntryId refers Entry with { type: "Menu" | "Footer" }
+      }
+
+      query PageDetail(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand menu: Entry(id: p.menuId, locale: @p.locale)
+        }
+        on Entry e {
+          when e.type == "Menu" { id title }
+        }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(program).toBeTruthy();
+    // Incomplete Entry arms also fail exhaustiveness; emit still enforces refers coverage.
+    expect(diagnostics.some((d) => d.code === "INEXHAUSTIVE_PROJECTION_ARMS")).toBe(true);
+    expect(() => emitProjectionTypes(program!)).toThrow(/REFERS_ARM_NOT_PROJECTED/);
+  });
 });
