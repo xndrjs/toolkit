@@ -31,7 +31,7 @@ Command Palette → **Extensions: Install from Location…** → select this fol
 1. Open this folder, **or** use a launch config with  
    `"args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/naviql-vscode"]`.
 2. Press **F5**.
-3. Open any `.naviql` file (e.g. `apps/demo-naviql/naviql/page-detail.naviql`).
+3. Open any `.naviql` file (e.g. `apps/naviql-demo/naviql/page-detail.naviql`).
 
 After editing `syntaxes/naviql.tmLanguage.json` or `language-configuration.json`, reload the Extension Development Host (or the main window if installed from a `.vsix` / Location).
 
