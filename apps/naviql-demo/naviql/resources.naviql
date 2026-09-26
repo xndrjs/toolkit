@@ -113,8 +113,8 @@ resource Page(
 ): {
   id
   title: string
-  menuId: EntryId
-  footerId: EntryId
+  menuId: EntryId refers Entry with { type: "Menu" }
+  footerId: EntryId refers Entry with { type: "Footer" }
   // Standard CMS links: entry id only — no content-type discriminant.
   strips: {
     id: EntryId
