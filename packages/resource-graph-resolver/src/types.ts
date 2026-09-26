@@ -64,7 +64,8 @@ export interface ResolutionError {
 }
 
 export interface ResolveResourceGraphInput<TExecutionContext = unknown> {
-  root: ApplicationResourceIdentifier;
+  /** Seed ARIs for one resolution session; must be non-empty. */
+  roots: readonly ApplicationResourceIdentifier[];
   executionContext: TExecutionContext;
   missingResourceMode: MissingResourceMode;
   /**

@@ -3,7 +3,7 @@ title: Resource graph resolver
 description: The @xndrjs/resource-graph-resolver package — typed resource graphs, islands, expansion policies, declarative multi-backend sources, and a reusable resolver.
 ---
 
-`@xndrjs/resource-graph-resolver` resolves a **resource graph** from a root [Application Resource Identifier](/v0/application/application-resources/) (ARI). It walks child resources discovered by your expansion rules, loads payloads through the backends you declare, tracks **island** membership and **dependencies**, and returns a typed `ContentMap` you can serialize for cache or map into domain aggregates.
+`@xndrjs/resource-graph-resolver` resolves a **resource graph** from one or more seed [Application Resource Identifier](/v0/application/application-resources/)s (ARIs). It walks child resources discovered by your expansion rules, loads payloads through the backends you declare, tracks **island** membership and **dependencies**, and returns a typed `ContentMap` you can serialize for cache or map into domain aggregates.
 
 ### What is an island?
 
@@ -13,7 +13,7 @@ Typical reasons to mark an island: a fragment with a **different lifecycle** tha
 
 In practice:
 
-- The **root** of a resolve starts as an island (its own id).
+- Each **seed** in `roots` starts as an island (its own id).
 - When an island policy returns `startIsland: true`, traversal **forks**: the resource starts a new island; its parent records a **dependency** on it.
 - Each island is a first-class node in the output (`IslandMap`, `SerializedIsland`) — cache TTL, warm paths, and invalidation are **downstream** concerns your infrastructure may attach to that model; they are not what defines an island.
 
@@ -195,7 +195,7 @@ const resolver = createResourceGraphResolver<DemoContentRegistry, DemoExecutionC
 });
 
 const output = await resolver.resolve({
-  root: pageRoot,
+  roots: [pageRoot],
   executionContext: { locale: "en-US" },
   missingResourceMode: "throw", // or "collect"
   // backingResources: cachedPayloadsByKey,

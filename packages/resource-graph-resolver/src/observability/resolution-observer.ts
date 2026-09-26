@@ -3,7 +3,7 @@ import type { ApplicationResourceIdentifier } from "@xndrjs/application-resource
 import type { IslandId, ResourceKey, SchedulingMode } from "../types";
 
 export interface ResolutionStartEvent {
-  root: ApplicationResourceIdentifier;
+  roots: readonly ApplicationResourceIdentifier[];
   schedulingMode: SchedulingMode;
   sourceIds: readonly string[];
 }
