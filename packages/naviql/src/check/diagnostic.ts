@@ -1,11 +1,15 @@
 /**
  * Typechecker diagnostics. `path` is a dotted IR location for tests / tooling.
- * Spans on IR nodes are ignored in phase 1.
+ * `span` points at the relevant IR / syntax range when available.
  */
+import type { SourceSpan } from "../ir";
+
 export type Diagnostic = {
   code: string;
   message: string;
   path?: string;
+  /** Source range for editor squiggles; `null`/absent when unknown. */
+  span?: SourceSpan | null;
 };
 
 export type DiagnosticSink = {

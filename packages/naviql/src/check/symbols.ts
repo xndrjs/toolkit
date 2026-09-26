@@ -38,6 +38,7 @@ export function checkUniqueFields(
         code,
         message: `Duplicate ${label} field '${field.name}'`,
         path: `${basePath}.${field.name}`,
+        span: field.span,
       });
       continue;
     }
@@ -67,6 +68,7 @@ export function checkTypeExpr(
           code: "UNKNOWN_SCALAR",
           message: `Unknown scalar '${type.name}'`,
           path,
+          span: type.span,
         });
       }
       return;
@@ -76,6 +78,7 @@ export function checkTypeExpr(
           code: "UNKNOWN_RESOURCE",
           message: `Unknown resource '${type.name}'`,
           path,
+          span: type.span,
         });
       }
       return;

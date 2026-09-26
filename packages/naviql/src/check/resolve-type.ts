@@ -2,7 +2,7 @@
  * Resolve `typeProjection` (`Resource.field`) to the payload field's semantic type.
  * Projections are kept in IR through lowering; resolution is a checker concern.
  */
-import type { TypeExpr } from "../ir";
+import type { SourceSpan, TypeExpr } from "../ir";
 import { formatType, typesSemanticallyEqual } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
 import type { ResourceTable, ScalarTable } from "./symbols";
@@ -84,6 +84,7 @@ function resolveTypeProjection(
       code: "TYPE_PROJECTION_CYCLE",
       message: `Cyclic type projection involving '${key}'`,
       path,
+      span: type.span,
     });
     return undefined;
   }
@@ -95,6 +96,7 @@ function resolveTypeProjection(
       code: "UNKNOWN_RESOURCE",
       message: `Unknown resource '${type.resource}' in type projection '${key}'`,
       path,
+      span: type.span,
     });
     visiting.delete(key);
     return undefined;
@@ -106,6 +108,7 @@ function resolveTypeProjection(
     type.resource,
     key,
     path,
+    type.span,
     resources,
     sink
   );
@@ -125,6 +128,7 @@ function projectPayloadField(
   ownerLabel: string,
   projectionLabel: string,
   path: string,
+  span: SourceSpan | null,
   resources: ResourceTable,
   sink: DiagnosticSink
 ): TypeExpr | undefined {
@@ -137,6 +141,7 @@ function projectPayloadField(
         code: "UNKNOWN_PAYLOAD_FIELD_PROJECTION",
         message: `Unknown payload field '${field}' on '${ownerLabel}'`,
         path,
+        span,
       });
       return undefined;
     }
@@ -150,6 +155,7 @@ function projectPayloadField(
         code: "UNKNOWN_RESOURCE",
         message: `Unknown resource '${payload.name}' while projecting '${projectionLabel}'`,
         path,
+        span,
       });
       return undefined;
     }
@@ -159,6 +165,7 @@ function projectPayloadField(
       payload.name,
       projectionLabel,
       path,
+      span,
       resources,
       sink
     );
@@ -177,6 +184,7 @@ function projectPayloadField(
             code: "UNKNOWN_RESOURCE",
             message: `Unknown resource '${member.name}' while projecting '${projectionLabel}'`,
             path,
+            span,
           });
           return undefined;
         }
@@ -186,6 +194,7 @@ function projectPayloadField(
             code: "INVALID_TYPE_PROJECTION",
             message: `Cannot project '${field}' from '${member.name}': payload is not an object (${formatType(inner.payloadType)})`,
             path,
+            span,
           });
           return undefined;
         }
@@ -206,6 +215,7 @@ function projectPayloadField(
         code: "INVALID_TYPE_PROJECTION",
         message: `Cannot project '${field}' from '${ownerLabel}': unsupported union member ${formatType(member)}`,
         path,
+        span,
       });
       return undefined;
     }
@@ -215,6 +225,7 @@ function projectPayloadField(
         code: "TYPE_PROJECTION_FIELD_NOT_COMMON",
         message: `Cannot project \`${field}\` from \`${ownerLabel}\`: field \`${field}\` is not present on ${missing.join(", ")}.`,
         path,
+        span,
       });
       return undefined;
     }
@@ -226,6 +237,7 @@ function projectPayloadField(
     code: "INVALID_TYPE_PROJECTION",
     message: `Cannot project '${field}' from '${ownerLabel}': payload type ${formatType(payloadType)} does not expose fields`,
     path,
+    span,
   });
   return undefined;
 }

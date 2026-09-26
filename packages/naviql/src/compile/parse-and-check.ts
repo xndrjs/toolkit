@@ -5,7 +5,7 @@
 import { URI } from "langium";
 
 import { checkProgram, type Diagnostic } from "../check";
-import type { Program } from "../ir";
+import type { Program, SourceSpan } from "../ir";
 import { isModel, type Model } from "../lang/generated/ast";
 import { createNaviQlServices } from "../lang/naviql-module";
 import { lowerProgram } from "./lower";
@@ -24,6 +24,10 @@ export type ParseAndCheckResult = {
   diagnostics: Diagnostic[];
 };
 
+function syntaxSpan(uri: string, start: number, end: number): SourceSpan {
+  return { start, end: Math.max(end, start), uri };
+}
+
 /**
  * Parse `.naviql` source, lower to IR, and run `checkProgram`.
  *
@@ -33,25 +37,39 @@ export type ParseAndCheckResult = {
 export function parseAndCheck(source: string, uri?: string): ParseAndCheckResult {
   const { shared } = createNaviQlServices();
   const documentUri = URI.parse(uri ?? DEFAULT_URI);
+  const documentUriString = documentUri.toString();
   const document = shared.workspace.LangiumDocumentFactory.fromString<Model>(source, documentUri);
   const { value, lexerErrors, parserErrors } = document.parseResult;
 
   const diagnostics: Diagnostic[] = [];
 
   for (const err of lexerErrors) {
+    const start = err.offset;
+    const end = start + Math.max(err.length, 1);
     diagnostics.push({
       code: "SYNTAX_ERROR",
       message: err.message,
-      path: `offset:${err.offset}`,
+      path: `offset:${start}`,
+      span: syntaxSpan(documentUriString, start, end),
     });
   }
 
   for (const err of parserErrors) {
-    const offset = err.token?.startOffset;
+    const token = err.token;
+    const startOffset = token?.startOffset;
+    const hasStart = typeof startOffset === "number" && startOffset >= 0;
+    const start = hasStart ? startOffset : 0;
+    // Chevrotain `endOffset` is inclusive; SourceSpan.end is exclusive.
+    const endOffset = token?.endOffset;
+    const end =
+      typeof endOffset === "number" && endOffset >= 0
+        ? endOffset + 1
+        : start + Math.max(token?.image?.length ?? 0, 1);
     diagnostics.push({
       code: "SYNTAX_ERROR",
       message: err.message,
-      path: typeof offset === "number" && offset >= 0 ? `offset:${offset}` : undefined,
+      path: hasStart ? `offset:${start}` : undefined,
+      span: syntaxSpan(documentUriString, start, end),
     });
   }
 
@@ -60,6 +78,7 @@ export function parseAndCheck(source: string, uri?: string): ParseAndCheckResult
       diagnostics.push({
         code: "SYNTAX_ERROR",
         message: "Expected a NaviQL model",
+        span: syntaxSpan(documentUriString, 0, source.length),
       });
     }
     return { program: EMPTY_PROGRAM, diagnostics };

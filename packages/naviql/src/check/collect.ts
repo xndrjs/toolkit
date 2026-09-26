@@ -19,6 +19,7 @@ export function collectScalars(program: Program, sink: DiagnosticSink): ScalarTa
         code: "DUPLICATE_SCALAR",
         message: `Duplicate scalar '${scalar.name}'`,
         path,
+        span: scalar.span,
       });
       continue;
     }
@@ -27,6 +28,7 @@ export function collectScalars(program: Program, sink: DiagnosticSink): ScalarTa
         code: "INVALID_SCALAR_REPRESENTATION",
         message: `Scalar '${scalar.name}' representation must be string, number, or boolean`,
         path,
+        span: scalar.span,
       });
     }
     scalars.set(scalar.name, scalar);
@@ -48,6 +50,7 @@ export function collectResources(
         code: "DUPLICATE_RESOURCE",
         message: `Duplicate resource '${resource.name}'`,
         path,
+        span: resource.span,
       });
       continue;
     }
@@ -137,6 +140,7 @@ function walkForbidNestedShorthand(type: TypeExpr, path: string, sink: Diagnosti
           code: "SHORTHAND_IN_NESTED_OBJECT",
           message: `Payload shorthand '${field.name}' is only allowed on a resource's root object payload`,
           path: `${path}.${field.name}`,
+          span: field.span,
         });
       }
       walkForbidNestedShorthand(field.type, `${path}.${field.name}`, sink);
@@ -168,6 +172,7 @@ function checkObjectPayloadShorthand(
           code: "SHORTHAND_NO_IDENTITY",
           message: `Payload shorthand '${field.name}' has no matching identity field on '${resourceName}'`,
           path: fieldPath,
+          span: field.span,
         });
       } else {
         const left = concreteType(field.type, fieldPath, scalars, resources, sink);
@@ -177,6 +182,7 @@ function checkObjectPayloadShorthand(
             code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
             message: `Payload shorthand '${field.name}' type ${formatType(field.type)} is incompatible with identity type ${formatType(identityField.type)}`,
             path: fieldPath,
+            span: field.span,
           });
         }
       }
@@ -188,6 +194,7 @@ function checkObjectPayloadShorthand(
           code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
           message: `Identity and payload field '${field.name}' have incompatible types (${formatType(identityField.type)} vs ${formatType(field.type)})`,
           path: fieldPath,
+          span: field.span,
         });
       }
     }

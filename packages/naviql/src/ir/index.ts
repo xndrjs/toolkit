@@ -8,7 +8,7 @@
  * use `null` (or required `boolean`) so producers must choose explicitly.
  */
 
-/** Source location for diagnostics. Checker may ignore spans initially. */
+/** Source location for diagnostics (attached by the checker / parse pipeline). */
 export type SourceSpan = {
   start: number;
   end: number;
