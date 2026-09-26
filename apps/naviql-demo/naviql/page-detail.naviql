@@ -127,6 +127,7 @@ query PageDetail(pageId: EntryId) {
       )
     }
     when e.type == "Page" {
+      title
     }
   }
 

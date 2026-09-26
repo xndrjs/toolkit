@@ -2,7 +2,7 @@
  * Parse / format legacy custom reference strings:
  * `{environmentId}@{spaceId}|ENTRY|{id}` or `|ASSET|{id}`.
  */
-import type { CustomReferenceValue, EnvironmentId, SpaceId } from "../../generated/page-detail.js";
+import type { CustomReferenceValue, EnvironmentId, SpaceId } from "../../generated";
 
 export type CustomReferenceKind = "ENTRY" | "ASSET";
 

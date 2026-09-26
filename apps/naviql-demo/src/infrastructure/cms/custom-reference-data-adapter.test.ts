@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { customReferenceAri } from "../../generated/page-detail.js";
+import { customReferenceAri } from "../../generated";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,

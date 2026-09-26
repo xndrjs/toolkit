@@ -150,46 +150,46 @@ export type PageDetailExecutionContext = {
 export function createPageDetailStrategy(params: PageDetailParams) {
   const strategy = createGraphResolutionStrategy<PageDetailExecutionContext, ContentRegistry>();
 
-  strategy.expansion.on(pageAri).expand(({ resource, payload, executionContext }) => ({
+  strategy.expansion.on(pageAri).expand((predicate) => ({
     resources: [
       entryAri({
-        spaceId: resource.key[0].spaceId,
-        environmentId: resource.key[0].environmentId,
-        id: payload.menuId,
-        locale: resource.key[0].locale,
+        spaceId: predicate.resource.key[0].spaceId,
+        environmentId: predicate.resource.key[0].environmentId,
+        id: predicate.payload.menuId,
+        locale: predicate.resource.key[0].locale,
       }),
       entryAri({
-        spaceId: resource.key[0].spaceId,
-        environmentId: resource.key[0].environmentId,
-        id: payload.footerId,
-        locale: resource.key[0].locale,
+        spaceId: predicate.resource.key[0].spaceId,
+        environmentId: predicate.resource.key[0].environmentId,
+        id: predicate.payload.footerId,
+        locale: predicate.resource.key[0].locale,
       }),
-      ...payload.strips.map((link: any) =>
+      ...predicate.payload.strips.map((link: any) =>
         entryAri({
-          spaceId: resource.key[0].spaceId,
-          environmentId: resource.key[0].environmentId,
+          spaceId: predicate.resource.key[0].spaceId,
+          environmentId: predicate.resource.key[0].environmentId,
           id: link.id,
-          locale: resource.key[0].locale,
+          locale: predicate.resource.key[0].locale,
         })
       ),
-      ...payload.related.map((ref: any) =>
-        customReferenceAri({ ref: ref, locale: resource.key[0].locale })
+      ...predicate.payload.related.map((ref: any) =>
+        customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale })
       ),
     ],
   }));
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Hero")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Hero")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resources: [
           assetAri({
-            spaceId: executionContext.spaceId,
-            environmentId: executionContext.environmentId,
+            spaceId: predicate.executionContext.spaceId,
+            environmentId: predicate.executionContext.environmentId,
             id: payload.imageId,
-            locale: resource.key[0].locale,
+            locale: predicate.resource.key[0].locale,
           }),
         ],
       };
@@ -197,16 +197,16 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Tabs")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Tabs")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resources: payload.tabs.map((link: any) =>
           entryAri({
-            spaceId: resource.key[0].spaceId,
-            environmentId: resource.key[0].environmentId,
+            spaceId: predicate.resource.key[0].spaceId,
+            environmentId: predicate.resource.key[0].environmentId,
             id: link.id,
-            locale: resource.key[0].locale,
+            locale: predicate.resource.key[0].locale,
           })
         ),
       };
@@ -214,16 +214,16 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Tab")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Tab")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resources: payload.strips.map((link: any) =>
           entryAri({
-            spaceId: resource.key[0].spaceId,
-            environmentId: resource.key[0].environmentId,
+            spaceId: predicate.resource.key[0].spaceId,
+            environmentId: predicate.resource.key[0].environmentId,
             id: link.id,
-            locale: resource.key[0].locale,
+            locale: predicate.resource.key[0].locale,
           })
         ),
       };
@@ -231,16 +231,16 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Menu")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Menu")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resources: [
           assetAri({
-            spaceId: executionContext.spaceId,
-            environmentId: executionContext.environmentId,
+            spaceId: predicate.executionContext.spaceId,
+            environmentId: predicate.executionContext.environmentId,
             id: payload.logoId,
-            locale: resource.key[0].locale,
+            locale: predicate.resource.key[0].locale,
           }),
         ],
       };
@@ -248,16 +248,16 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Footer")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Footer")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resources: [
           assetAri({
-            spaceId: executionContext.spaceId,
-            environmentId: executionContext.environmentId,
+            spaceId: predicate.executionContext.spaceId,
+            environmentId: predicate.executionContext.environmentId,
             id: payload.logoId,
-            locale: resource.key[0].locale,
+            locale: predicate.resource.key[0].locale,
           }),
         ],
       };
@@ -265,16 +265,16 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "SiteInternalLink")
-    .expand(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "SiteInternalLink")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resources: [
           entryAri({
-            spaceId: resource.key[0].spaceId,
-            environmentId: resource.key[0].environmentId,
+            spaceId: predicate.resource.key[0].spaceId,
+            environmentId: predicate.resource.key[0].environmentId,
             id: payload.targetId,
-            locale: resource.key[0].locale,
+            locale: predicate.resource.key[0].locale,
           }),
         ],
       };
@@ -282,9 +282,9 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.resolve
     .on(customReferenceAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Entry")
-    .to(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Entry")
+    .to((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resource: entryAri({
           spaceId: payload.spaceId,
@@ -297,9 +297,9 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.resolve
     .on(customReferenceAri)
-    .when(({ resource, payload, executionContext }) => payload.type == "Asset")
-    .to(({ resource, payload: __payload, executionContext }) => {
-      const payload = __payload as any;
+    .when((predicate) => predicate.payload.type == "Asset")
+    .to((predicate) => {
+      const payload = predicate.payload as any;
       return {
         resource: assetAri({
           spaceId: payload.spaceId,
@@ -412,7 +412,6 @@ export function projectPageDetail(
     executionContext: PageDetailExecutionContext;
   }
 ): PageDetailResult {
-  const { params, executionContext } = args;
   const memo = new Map<string, object>();
 
   const projectOnPage = (resource: any, payload: any): any => {
@@ -462,8 +461,8 @@ export function projectPageDetail(
         shell.title = payload.title;
         shell.image = projectNode(
           assetAri({
-            spaceId: executionContext.spaceId,
-            environmentId: executionContext.environmentId,
+            spaceId: args.executionContext.spaceId,
+            environmentId: args.executionContext.environmentId,
             id: payload.imageId,
             locale: resource.key[0].locale,
           })
@@ -523,8 +522,8 @@ export function projectPageDetail(
         shell.title = payload.title;
         shell.logo = projectNode(
           assetAri({
-            spaceId: executionContext.spaceId,
-            environmentId: executionContext.environmentId,
+            spaceId: args.executionContext.spaceId,
+            environmentId: args.executionContext.environmentId,
             id: payload.logoId,
             locale: resource.key[0].locale,
           })
@@ -539,8 +538,8 @@ export function projectPageDetail(
         shell.title = payload.title;
         shell.logo = projectNode(
           assetAri({
-            spaceId: executionContext.spaceId,
-            environmentId: executionContext.environmentId,
+            spaceId: args.executionContext.spaceId,
+            environmentId: args.executionContext.environmentId,
             id: payload.logoId,
             locale: resource.key[0].locale,
           })

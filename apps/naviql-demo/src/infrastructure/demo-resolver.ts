@@ -9,11 +9,7 @@ import { createAssetSource } from "./cms/asset-data-adapter.js";
 import { createCustomReferenceSource } from "./cms/custom-reference-data-adapter.js";
 import { createEntrySource } from "./cms/entries-data-adapter.js";
 import { createDemoPageStrategy } from "./demo-strategy.js";
-import type {
-  ContentRegistry,
-  PageDetailExecutionContext,
-  PageDetailParams,
-} from "../generated/page-detail.js";
+import type { ContentRegistry, PageDetailExecutionContext, PageDetailParams } from "../generated";
 
 export type DemoResolverOptions = {
   params: PageDetailParams;

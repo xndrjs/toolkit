@@ -100,7 +100,7 @@ describe("emitProjections", () => {
     expect(code).toContain('case "Page":');
     expect(code).toContain('const shell: any = { $type: "Entry" };');
     expect(code).toContain(
-      "shell.image = projectNode(assetAri({ id: payload.imageId, locale: executionContext.locale }));"
+      "shell.image = projectNode(assetAri({ id: payload.imageId, locale: args.executionContext.locale }));"
     );
     expect(code).toContain('case "Entry":');
     expect(code).toContain("return projectOnEntry(ari, payload);");

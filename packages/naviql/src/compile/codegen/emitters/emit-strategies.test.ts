@@ -80,7 +80,7 @@ describe("emitStrategies", () => {
     expect(code).toContain("export type PostDetailExecutionContext");
     expect(code).toContain("export function createPostDetailStrategy(params: PostDetailParams)");
     expect(code).toContain(".on(postAri)");
-    expect(code).toContain("userAri({ id: payload.authorId })");
+    expect(code).toContain("userAri({ id: predicate.payload.authorId })");
     expect(code).not.toContain(".on(userAri)");
     expect(code).not.toContain(".build()");
     expect(code).not.toContain(".when(");
@@ -125,10 +125,10 @@ describe("emitStrategies", () => {
     const code = emitStrategies(program!);
 
     expect(code).toContain(".on(entryAri)");
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Hero")');
     expect(code).toContain(
-      '.when(({ resource, payload, executionContext }) => payload.type == "Hero")'
+      "assetAri({ id: payload.imageId, locale: predicate.executionContext.locale })"
     );
-    expect(code).toContain("assetAri({ id: payload.imageId, locale: executionContext.locale })");
     // Page arm has no expansions — no second .when / empty expand.
     expect(code).not.toContain('payload.type == "Page"');
     expect(code.match(/\.on\(entryAri\)/g)).toHaveLength(1);
@@ -169,7 +169,7 @@ describe("emitStrategies", () => {
 
     expect(code).toContain("export function createPageDetailStrategy()");
     expect(code).toContain(
-      'payload.strips.filter((s: any) => s.type == "Hero").map((s: any) => heroAri({ id: s.id, locale: executionContext.locale }))'
+      'predicate.payload.strips.filter((s: any) => s.type == "Hero").map((s: any) => heroAri({ id: s.id, locale: predicate.executionContext.locale }))'
     );
   });
 });
@@ -185,7 +185,7 @@ describe("generateStrategies", () => {
     expect(code).toContain('import { createGraphResolutionStrategy } from "@xndrjs/naviql";');
     expect(code).not.toMatch(/from\s+["']@xndrjs\/naviql\/compile["']/);
     expect(code).toContain("createPostDetailStrategy");
-    expect(code).toContain("userAri({ id: payload.authorId })");
+    expect(code).toContain("userAri({ id: predicate.payload.authorId })");
     expect(code).not.toContain(".build()");
   });
 
@@ -197,26 +197,22 @@ describe("generateStrategies", () => {
 
     expect(code).toContain(".on(pageAri)");
     expect(code).toContain(
-      "entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale })"
+      "entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.menuId, locale: predicate.resource.key[0].locale })"
     );
     expect(code).toContain(
-      "entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.footerId, locale: resource.key[0].locale })"
+      "entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.footerId, locale: predicate.resource.key[0].locale })"
     );
     expect(code).toContain(
-      "payload.strips.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
+      "predicate.payload.strips.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain(
-      "payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: resource.key[0].locale }))"
+      "predicate.payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain(".on(entryAri)");
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Hero")');
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Tabs")');
     expect(code).toContain(
-      '.when(({ resource, payload, executionContext }) => payload.type == "Hero")'
-    );
-    expect(code).toContain(
-      '.when(({ resource, payload, executionContext }) => payload.type == "Tabs")'
-    );
-    expect(code).toContain(
-      "payload.tabs.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
+      "payload.tabs.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).not.toContain("heroAri");
     expect(code).not.toContain("tabAri");
@@ -277,12 +273,8 @@ describe("generateStrategies", () => {
 
     expect(code).toContain("strategy.resolve");
     expect(code).toContain(".on(customReferenceAri)");
-    expect(code).toContain(
-      '.when(({ resource, payload, executionContext }) => payload.type == "Entry")'
-    );
-    expect(code).toContain(
-      '.when(({ resource, payload, executionContext }) => payload.type == "Asset")'
-    );
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Entry")');
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Asset")');
     expect(code).toContain(
       "entryAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: payload.locale })"
     );
