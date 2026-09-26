@@ -52,6 +52,12 @@ export type UserId = Branded<"UserId", string>;
 
 export type Locale = Branded<"Locale", string>;
 
+export const Scalars = {
+  PostId: (value: string): PostId => value as PostId,
+  UserId: (value: string): UserId => value as UserId,
+  Locale: (value: string): Locale => value as Locale,
+} as const;
+
 export const postAri = ari(
   "Post",
   s.object({ id: s.string(), locale: s.string() }),
@@ -103,6 +109,16 @@ export type AssetId = Branded<"AssetId", string>;
 export type CustomReferenceValue = Branded<"CustomReferenceValue", string>;
 
 export type Sku = Branded<"Sku", string>;
+
+export const Scalars = {
+  Locale: (value: string): Locale => value as Locale,
+  SpaceId: (value: string): SpaceId => value as SpaceId,
+  EnvironmentId: (value: string): EnvironmentId => value as EnvironmentId,
+  EntryId: (value: string): EntryId => value as EntryId,
+  AssetId: (value: string): AssetId => value as AssetId,
+  CustomReferenceValue: (value: string): CustomReferenceValue => value as CustomReferenceValue,
+  Sku: (value: string): Sku => value as Sku,
+} as const;
 
 export const entryAri = ari(
   "Entry",

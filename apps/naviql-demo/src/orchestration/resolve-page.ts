@@ -1,6 +1,7 @@
 import {
   pageAri,
   resolvePageDetail,
+  Scalars,
   type EntryId,
   type EnvironmentId,
   type Locale,
@@ -68,7 +69,7 @@ export type ResolvePageResult = ResolvePageSuccess | ResolvePageFailure;
  */
 export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageResult> {
   const locale = input.locale;
-  const pageId = input.pageId ?? (demoIds.page as EntryId);
+  const pageId = input.pageId ?? Scalars.EntryId(demoIds.page);
   const spaceId = input.spaceId ?? DEMO_SPACE;
   const environmentId = input.environmentId ?? DEMO_ENVIRONMENT;
   const schedulingMode = input.schedulingMode ?? DEFAULT_SCHEDULING_MODE;

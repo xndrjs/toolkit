@@ -99,7 +99,7 @@ if (diagnostics.length === 0) {
 const result = buildResources({ root: process.cwd() });
 ```
 
-`generateResources` emits branded scalar types, ARI factories (`postAri`), payload types (`PostPayload`), and a `ContentRegistry` slice from a checked `Program`. Queries are ignored.
+`generateResources` emits branded scalar types, a `Scalars` factory namespace (`Scalars.EntryId(…)` keyed by PascalCase type name — no uncapitalized top-level helpers), ARI factories (`postAri`), payload types (`PostPayload`), and a `ContentRegistry` slice from a checked `Program`. Queries are ignored.
 
 `generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`); collection expand targets fan out member ARIs. The factory returns the builder **without** `.build()`, so apps can attach island policies by hand before calling `.build()`. Islands are not emitted.
 

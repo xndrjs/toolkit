@@ -14,13 +14,18 @@ function primitiveTsType(representation: PrimitiveTypeName): string {
 }
 
 /**
- * Emit branded scalar type aliases from `program.scalars`.
+ * Emit branded scalar type aliases and a `Scalars` factory namespace from
+ * `program.scalars`.
  *
  * ```ts
  * declare const __brand: unique symbol;
  * type Branded<Name extends string, T> = T & { readonly [__brand]: Name };
  *
  * export type PostId = Branded<"PostId", string>;
+ *
+ * export const Scalars = {
+ *   PostId: (value: string): PostId => value as PostId,
+ * } as const;
  * ```
  */
 export function emitScalars(program: Program): string {
@@ -33,5 +38,12 @@ export function emitScalars(program: Program): string {
     return `export type ${scalar.name} = Branded<${JSON.stringify(scalar.name)}, ${rep}>;`;
   });
 
-  return [BRANDED_HELPER, ...aliases].join("\n\n");
+  const factories = program.scalars.map((scalar) => {
+    const rep = primitiveTsType(scalar.representation);
+    return `  ${scalar.name}: (value: ${rep}): ${scalar.name} => value as ${scalar.name},`;
+  });
+
+  const scalarsNs = ["export const Scalars = {", ...factories, "} as const;"].join("\n");
+
+  return [BRANDED_HELPER, ...aliases, scalarsNs].join("\n\n");
 }

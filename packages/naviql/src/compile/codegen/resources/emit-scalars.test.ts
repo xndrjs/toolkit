@@ -30,7 +30,7 @@ describe("emitScalars", () => {
     expect(emitScalars(program)).toBe("");
   });
 
-  it("emits Branded helper + aliases for post-detail.naviql scalars", () => {
+  it("emits Branded helper + aliases + Scalars factories for post-detail.naviql", () => {
     const { program, diagnostics } = parseAndCheck(
       loadFixture("post-detail.naviql"),
       "file:///fixtures/post-detail.naviql"
@@ -47,6 +47,12 @@ export type PostId = Branded<"PostId", string>;
 export type UserId = Branded<"UserId", string>;
 
 export type Locale = Branded<"Locale", string>;
+
+export const Scalars = {
+  PostId: (value: string): PostId => value as PostId,
+  UserId: (value: string): UserId => value as UserId,
+  Locale: (value: string): Locale => value as Locale,
+} as const;
 `)
     );
   });
@@ -62,11 +68,31 @@ export type Locale = Branded<"Locale", string>;
     const code = emitScalars(program);
     expect(code).toContain(`export type Count = Branded<"Count", number>;`);
     expect(code).toContain(`export type Flag = Branded<"Flag", boolean>;`);
+    expect(code).toContain(`Count: (value: number): Count => value as Count,`);
+    expect(code).toContain(`Flag: (value: boolean): Flag => value as Flag,`);
+    expect(code).not.toMatch(/\bcount\s*[:=]/);
+    expect(code).not.toMatch(/\bflag\s*[:=]/);
+  });
+
+  it("does not emit uncapitalized top-level factory functions", () => {
+    const program: Program = {
+      scalars: [defScalar("EntryId", "string"), defScalar("Locale", "string")],
+      resources: [],
+      queries: [],
+      span,
+    };
+
+    const code = emitScalars(program);
+    expect(code).toContain("export const Scalars = {");
+    expect(code).toContain("EntryId: (value: string): EntryId => value as EntryId,");
+    expect(code).not.toMatch(/export function entryId/);
+    expect(code).not.toMatch(/export const entryId/);
+    expect(code).not.toMatch(/^export function /m);
   });
 });
 
 describe("generateResources — branded scalars", () => {
-  it("includes scalar aliases and does not import runtime when only scalars exist", () => {
+  it("includes scalar aliases, Scalars namespace, and does not import runtime when only scalars exist", () => {
     const program: Program = {
       scalars: [defScalar("PostId", "string")],
       resources: [],
@@ -76,6 +102,8 @@ describe("generateResources — branded scalars", () => {
 
     const { code } = generateResources(program);
     expect(code).toContain('export type PostId = Branded<"PostId", string>;');
+    expect(code).toContain("export const Scalars = {");
+    expect(code).toContain("PostId: (value: string): PostId => value as PostId,");
     expect(code).not.toMatch(/import\s*\{[^}]*\}\s*from/);
   });
 });

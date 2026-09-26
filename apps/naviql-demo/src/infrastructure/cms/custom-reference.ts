@@ -2,7 +2,12 @@
  * Parse / format legacy custom reference strings:
  * `{environmentId}@{spaceId}|ENTRY|{id}` or `|ASSET|{id}`.
  */
-import type { CustomReferenceValue, EnvironmentId, SpaceId } from "../../generated";
+import {
+  Scalars,
+  type CustomReferenceValue,
+  type EnvironmentId,
+  type SpaceId,
+} from "../../generated";
 
 export type CustomReferenceKind = "ENTRY" | "ASSET";
 
@@ -21,7 +26,9 @@ export function encodeCustomReference(parts: {
   kind: CustomReferenceKind;
   id: string;
 }): CustomReferenceValue {
-  return `${parts.environmentId}@${parts.spaceId}|${parts.kind}|${parts.id}` as CustomReferenceValue;
+  return Scalars.CustomReferenceValue(
+    `${parts.environmentId}@${parts.spaceId}|${parts.kind}|${parts.id}`
+  );
 }
 
 export function parseCustomReference(ref: string): ParsedCustomReference | null {
@@ -30,8 +37,8 @@ export function parseCustomReference(ref: string): ParsedCustomReference | null 
     return null;
   }
   return {
-    environmentId: match[1]! as EnvironmentId,
-    spaceId: match[2]! as SpaceId,
+    environmentId: Scalars.EnvironmentId(match[1]!),
+    spaceId: Scalars.SpaceId(match[2]!),
     kind: match[3]! as CustomReferenceKind,
     id: match[4]!,
   };
