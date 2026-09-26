@@ -74,7 +74,12 @@ describe("NaviQl MVP grammar", () => {
 
     const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
     expect(query.name).toBe("PageDetail");
-    expect(query.projections.map((p) => p.resource)).toEqual(["Page", "Entry", "Asset"]);
+    expect(query.projections.map((p) => p.resource)).toEqual([
+      "Page",
+      "CustomReference",
+      "Entry",
+      "Asset",
+    ]);
 
     const page = model.declarations.find(
       (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "Page"

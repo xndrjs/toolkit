@@ -1,6 +1,8 @@
 /**
  * Multi-file collect → parse → merge → check for the language server.
- * Prefers open editor buffers over disk; same collect rules as codegen.
+ * Prefers open editor buffers over disk; same collect rules as codegen
+ * when a `naviql.config.*` is found. Without a config, validates only the
+ * trigger document (no workspace-root glob).
  */
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -24,7 +26,7 @@ export type WorkspaceValidateOptions = {
   triggerUri: string;
   /** Open editor buffers keyed by document URI. */
   openSources: ReadonlyMap<string, string>;
-  /** Absolute workspace folder paths from the LSP client (fallback when no config). */
+  /** Absolute workspace folder paths from the LSP client (config walk seed only). */
   workspaceFolders: readonly string[];
 };
 
@@ -35,9 +37,26 @@ export type WorkspaceValidateResult = {
   byUri: Map<string, Diagnostic[]>;
   /** Source text used for each URI (for offset → position mapping). */
   sourcesByUri: Map<string, string>;
-  /** Config / collect root used. */
+  /** Config / collect root used (config dir, or trigger file dir in single-file mode). */
   root: string;
+  /** Whether a `naviql.config.*` scoped the collect (false = single-file fallback). */
+  usedConfig: boolean;
 };
+
+type CollectPlan =
+  | {
+      kind: "project";
+      root: string;
+      include?: string[];
+      exclude?: string[];
+      pathFilter?: string | RegExp;
+    }
+  | {
+      kind: "single-file";
+      root: string;
+      /** Absolute path of the only file to validate; null when trigger has no path. */
+      file: string | null;
+    };
 
 function isFileUri(uri: string): boolean {
   return uri.startsWith("file:");
@@ -67,10 +86,14 @@ function readSource(absPath: string, openSources: ReadonlyMap<string, string>): 
   return readFileSync(absPath, "utf8");
 }
 
-async function resolveCollectOptions(
+/**
+ * Resolve collect scope: nearest `naviql.config.*` → project globs;
+ * otherwise single-file only (never glob the workspace root).
+ */
+async function resolveCollectPlan(
   triggerUri: string,
   workspaceFolders: readonly string[]
-): Promise<{ root: string; include?: string[]; exclude?: string[]; pathFilter?: string | RegExp }> {
+): Promise<CollectPlan> {
   const triggerPath = uriToPath(triggerUri);
   const startDir = triggerPath ? dirname(triggerPath) : (workspaceFolders[0] ?? process.cwd());
 
@@ -82,6 +105,7 @@ async function resolveCollectOptions(
     } catch {
       const configDir = dirname(configPath);
       return {
+        kind: "project",
         root: configDir,
         include: [...DEFAULT_NAVIQL_INCLUDE],
         exclude: [...DEFAULT_NAVIQL_EXCLUDE],
@@ -90,6 +114,7 @@ async function resolveCollectOptions(
     const configDir = dirname(configPath);
     const root = config.root ? resolve(configDir, config.root) : configDir;
     return {
+      kind: "project",
       root,
       include: config.include,
       exclude: config.exclude,
@@ -97,12 +122,18 @@ async function resolveCollectOptions(
     };
   }
 
-  const root = workspaceFolders[0] ?? startDir;
   return {
-    root,
-    include: [...DEFAULT_NAVIQL_INCLUDE],
-    exclude: [...DEFAULT_NAVIQL_EXCLUDE],
+    kind: "single-file",
+    root: startDir,
+    file: triggerPath ?? null,
   };
+}
+
+function filesForPlan(plan: CollectPlan): string[] {
+  if (plan.kind === "project") {
+    return collectNaviQlFiles(plan);
+  }
+  return plan.file !== null ? [plan.file] : [];
 }
 
 function pushByUri(byUri: Map<string, Diagnostic[]>, uri: string, diagnostics: Diagnostic[]): void {
@@ -121,6 +152,9 @@ function pushByUri(byUri: Map<string, Diagnostic[]>, uri: string, diagnostics: D
  * Collect workspace `.naviql` files, parse each (preferring open buffers), merge
  * programs that parse cleanly, and run `checkProgram` once.
  *
+ * Without a nearby `naviql.config.*`, only the trigger document is checked —
+ * no workspace-root glob of every `.naviql` file.
+ *
  * Files with `SYNTAX_ERROR` are excluded from the merge but their syntax
  * diagnostics are still published. Semantic diagnostics are grouped by
  * `span.uri` (fallback: `triggerUri`).
@@ -129,8 +163,8 @@ export async function validateWorkspace(
   options: WorkspaceValidateOptions
 ): Promise<WorkspaceValidateResult> {
   const { triggerUri, openSources, workspaceFolders } = options;
-  const collect = await resolveCollectOptions(triggerUri, workspaceFolders);
-  const files = collectNaviQlFiles(collect);
+  const plan = await resolveCollectPlan(triggerUri, workspaceFolders);
+  const files = filesForPlan(plan);
 
   const programs: Program[] = [];
   const byUri = new Map<string, Diagnostic[]>();
@@ -166,5 +200,11 @@ export async function validateWorkspace(
     }
   }
 
-  return { files, byUri, sourcesByUri, root: collect.root };
+  return {
+    files,
+    byUri,
+    sourcesByUri,
+    root: plan.root,
+    usedConfig: plan.kind === "project",
+  };
 }

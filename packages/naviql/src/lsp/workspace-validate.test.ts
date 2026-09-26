@@ -56,6 +56,10 @@ query PostDetail(postId: PostId) {
 }
 `;
 
+/** Minimal project config so multi-file collect is scoped to the temp dir. */
+const PROJECT_CONFIG = `export default { include: ["**/*.naviql"] };
+`;
+
 describe("validateWorkspace", () => {
   let tempDir: string;
 
@@ -65,20 +69,31 @@ describe("validateWorkspace", () => {
     }
   });
 
-  function setupTwoFiles(querySource: string): {
+  function setupTwoFiles(
+    querySource: string,
+    options: { withConfig?: boolean } = {}
+  ): {
     root: string;
     resourcesUri: string;
     queryUri: string;
+    resourcesPath: string;
+    queryPath: string;
   } {
+    const { withConfig = true } = options;
     tempDir = mkdtempSync(join(tmpdir(), "xndrjs-naviql-lsp-"));
     const resourcesPath = join(tempDir, "resources.naviql");
     const queryPath = join(tempDir, "query.naviql");
     writeFileSync(resourcesPath, RESOURCES);
     writeFileSync(queryPath, querySource);
+    if (withConfig) {
+      writeFileSync(join(tempDir, "naviql.config.ts"), PROJECT_CONFIG);
+    }
     return {
       root: tempDir,
       resourcesUri: pathToFileURL(resourcesPath).href,
       queryUri: pathToFileURL(queryPath).href,
+      resourcesPath,
+      queryPath,
     };
   }
 
@@ -91,6 +106,7 @@ describe("validateWorkspace", () => {
       workspaceFolders: [root],
     });
 
+    expect(result.usedConfig).toBe(true);
     expect(result.files).toHaveLength(2);
     expect(result.byUri.get(resourcesUri)).toEqual([]);
     expect(result.byUri.get(queryUri)).toEqual([]);
@@ -140,5 +156,44 @@ describe("validateWorkspace", () => {
     const queryDiags = result.byUri.get(queryUri) ?? [];
     expect(queryDiags.some((d) => d.code === "UNKNOWN_RESOURCE")).toBe(true);
     expect(result.sourcesByUri.get(queryUri)).toBe(QUERY_UNKNOWN);
+  });
+
+  it("without naviql.config, validates only the trigger file (no workspace-root glob)", async () => {
+    const { root, queryUri, queryPath, resourcesUri } = setupTwoFiles(QUERY_OK, {
+      withConfig: false,
+    });
+
+    const result = await validateWorkspace({
+      triggerUri: queryUri,
+      openSources: new Map(),
+      workspaceFolders: [root],
+    });
+
+    expect(result.usedConfig).toBe(false);
+    expect(result.files).toEqual([queryPath]);
+    expect(result.byUri.has(resourcesUri)).toBe(false);
+
+    // Query alone cannot see Post / Locale from the sibling resources file.
+    const queryDiags = result.byUri.get(queryUri) ?? [];
+    expect(queryDiags.some((d) => d.code === "UNKNOWN_RESOURCE")).toBe(true);
+  });
+
+  it("without naviql.config, does not merge sibling files that redefine the same scalar", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-naviql-lsp-"));
+    const aPath = join(tempDir, "a.naviql");
+    const bPath = join(tempDir, "b.naviql");
+    writeFileSync(aPath, `scalar Locale on string;\nresource A(id: string): { id }\n`);
+    writeFileSync(bPath, `scalar Locale on string;\nresource B(id: string): { id }\n`);
+    const aUri = pathToFileURL(aPath).href;
+
+    const result = await validateWorkspace({
+      triggerUri: aUri,
+      openSources: new Map(),
+      workspaceFolders: [tempDir],
+    });
+
+    expect(result.usedConfig).toBe(false);
+    expect(result.files).toEqual([aPath]);
+    expect(result.byUri.get(aUri)).toEqual([]);
   });
 });

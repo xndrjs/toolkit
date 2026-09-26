@@ -97,7 +97,21 @@ export type UserPayload = {
     expect(code).toContain(`type: "Hero"`);
     expect(code).toContain(`type: "SiteInternalLink"`);
     expect(code).toContain(`type: "Page"`);
-    expect(code).toContain("export type CustomReferencePayload = EntryPayload | AssetPayload;");
+    expect(code).toContain(
+      `export type CustomReferencePayload = {
+  type: "Entry";
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  id: EntryId;
+  locale: Locale;
+} | {
+  type: "Asset";
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  id: AssetId;
+  locale: Locale;
+};`
+    );
     expect(code).toContain("tabs: {\n    id: EntryId;\n  }[];");
     expect(code).toContain("targetId: EntryId;");
     expect(code).not.toContain("TabCollection");

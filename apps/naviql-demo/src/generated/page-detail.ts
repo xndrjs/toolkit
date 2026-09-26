@@ -103,7 +103,21 @@ export type AssetPayload = {
   kind: "image" | "video" | "document";
 };
 
-export type CustomReferencePayload = EntryPayload | AssetPayload;
+export type CustomReferencePayload =
+  | {
+      type: "Entry";
+      spaceId: SpaceId;
+      environmentId: EnvironmentId;
+      id: EntryId;
+      locale: Locale;
+    }
+  | {
+      type: "Asset";
+      spaceId: SpaceId;
+      environmentId: EnvironmentId;
+      id: AssetId;
+      locale: Locale;
+    };
 
 export type PagePayload = {
   id: EntryId;
@@ -263,6 +277,36 @@ export function createPageDetailStrategy(params: PageDetailParams) {
             locale: resource.key[0].locale,
           }),
         ],
+      };
+    });
+
+  strategy.resolve
+    .on(customReferenceAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "Entry")
+    .to(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resource: entryAri({
+          spaceId: payload.spaceId,
+          environmentId: payload.environmentId,
+          id: payload.id,
+          locale: payload.locale,
+        }),
+      };
+    });
+
+  strategy.resolve
+    .on(customReferenceAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "Asset")
+    .to(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resource: assetAri({
+          spaceId: payload.spaceId,
+          environmentId: payload.environmentId,
+          id: payload.id,
+          locale: payload.locale,
+        }),
       };
     });
 

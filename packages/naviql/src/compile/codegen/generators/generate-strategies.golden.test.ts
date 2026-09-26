@@ -158,6 +158,26 @@ export function createPageDetailStrategy(params: PageDetailParams) {
       };
     });
 
+  strategy.resolve
+    .on(customReferenceAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "Entry")
+    .to(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resource: entryAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: payload.locale }),
+      };
+    });
+
+  strategy.resolve
+    .on(customReferenceAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "Asset")
+    .to(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resource: assetAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: payload.locale }),
+      };
+    });
+
   return strategy;
 }
 `;
@@ -214,6 +234,20 @@ describe("generateStrategies golden", () => {
     expect(code).not.toContain("tabCollectionAri");
     expect(code).not.toContain("heroAri");
     expect(code).not.toContain(".on(assetAri)");
+    expect(code).toContain("strategy.resolve");
+    expect(code).toContain(".on(customReferenceAri)");
+    expect(code).toContain(
+      '.when(({ resource, payload, executionContext }) => payload.type == "Entry")'
+    );
+    expect(code).toContain(
+      '.when(({ resource, payload, executionContext }) => payload.type == "Asset")'
+    );
+    expect(code).toContain(
+      "entryAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: payload.locale })"
+    );
+    expect(code).toContain(
+      "assetAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: payload.locale })"
+    );
     expect(code).not.toContain(".build()");
     expect(code).not.toContain("islands");
   });

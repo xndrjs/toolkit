@@ -82,12 +82,26 @@ resource Asset(
 
 /**
  * Legacy encoded locator (`{environmentId}@{spaceId}|ENTRY|id` or `|ASSET|id`).
- * Parses into the canonical Entry or Asset identity; does not invent a second identity.
+ * Decode payload only — redirect hops are declared in the query via `resolve to`.
  */
 resource CustomReference(
   ref: CustomReferenceValue,
   locale: Locale
-): Entry | Asset
+):
+  {
+    type: "Entry"
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    id: EntryId
+    locale: Locale
+  }
+  | {
+    type: "Asset"
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    id: AssetId
+    locale: Locale
+  }
 
 /**
  * Root editorial page only. Linked pages are Entry payloads with `type: "Page"`
@@ -169,6 +183,21 @@ query PageDetail(pageId: EntryId) {
         locale: @p.locale
       )
     )
+  }
+
+  on CustomReference c resolve to {
+    Entry(
+      spaceId: c.spaceId,
+      environmentId: c.environmentId,
+      id: c.id,
+      locale: c.locale
+    ) when c.type == "Entry"
+    Asset(
+      spaceId: c.spaceId,
+      environmentId: c.environmentId,
+      id: c.id,
+      locale: c.locale
+    ) when c.type == "Asset"
   }
 
   on Entry e {

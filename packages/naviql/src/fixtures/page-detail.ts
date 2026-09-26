@@ -3,6 +3,7 @@
  *
  * - `Page` is root-only; linked pages are shallow Entry `type: "Page"` arms.
  * - `Entry` payload is a closed discriminated object union (no rematerialize ARIs).
+ * - `CustomReference` decode payload + query `resolve to` Entry | Asset.
  * - `SiteInternalLink` expands a target Entry without re-entering root Page strips.
  */
 import type { Expr, Program } from "../compile";
@@ -27,9 +28,10 @@ import {
   projection,
   projectionArm,
   projectionWithArms,
+  projectionWithResolve,
   query,
+  resolveArm,
   resource,
-  resourceRef,
   scalarRef,
   span,
   strLit,
@@ -169,7 +171,22 @@ export function pageDetailProgram(): Program {
       resource(
         "CustomReference",
         [field("ref", CustomReferenceValue), field("locale", Locale)],
-        union(resourceRef("Entry"), resourceRef("Asset"))
+        union(
+          objectType(
+            field("type", strLit("Entry")),
+            field("spaceId", SpaceId),
+            field("environmentId", EnvironmentId),
+            field("id", EntryId),
+            field("locale", Locale)
+          ),
+          objectType(
+            field("type", strLit("Asset")),
+            field("spaceId", SpaceId),
+            field("environmentId", EnvironmentId),
+            field("id", AssetId),
+            field("locale", Locale)
+          )
+        )
       ),
       resource(
         "Page",
@@ -218,6 +235,26 @@ export function pageDetailProgram(): Program {
               ]),
             ]
           ),
+          projectionWithResolve("CustomReference", "c", [
+            resolveArm(
+              construct("Entry", [
+                arg("spaceId", payload("c", "spaceId")),
+                arg("environmentId", payload("c", "environmentId")),
+                arg("id", payload("c", "id")),
+                arg("locale", payload("c", "locale")),
+              ]),
+              eq(payload("c", "type"), lit("Entry"))
+            ),
+            resolveArm(
+              construct("Asset", [
+                arg("spaceId", payload("c", "spaceId")),
+                arg("environmentId", payload("c", "environmentId")),
+                arg("id", payload("c", "id")),
+                arg("locale", payload("c", "locale")),
+              ]),
+              eq(payload("c", "type"), lit("Asset"))
+            ),
+          ]),
           projectionWithArms("Entry", "e", [
             projectionArm(
               eq(payload("e", "type"), lit("Hero")),
