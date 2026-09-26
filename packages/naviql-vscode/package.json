@@ -1,0 +1,56 @@
+{
+  "name": "naviql-vscode",
+  "displayName": "NaviQL",
+  "description": "Syntax highlighting for NaviQL (.naviql) files.",
+  "version": "0.0.1",
+  "publisher": "xndrjs",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "naviql",
+    "syntax",
+    "highlighting",
+    "graphql"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/naviql-vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/xndrjs/toolkit/issues"
+  },
+  "homepage": "https://github.com/xndrjs/toolkit/tree/main/packages/naviql-vscode",
+  "scripts": {
+    "vsix": "npx --yes @vscode/vsce package --no-dependencies",
+    "publish:vscode": "npx --yes @vscode/vsce publish --no-dependencies",
+    "publish:ovsx": "npx --yes ovsx publish --no-dependencies"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "naviql",
+        "aliases": [
+          "NaviQL",
+          "naviql"
+        ],
+        "extensions": [
+          ".naviql"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "naviql",
+        "scopeName": "source.naviql",
+        "path": "./syntaxes/naviql.tmLanguage.json"
+      }
+    ]
+  }
+}
