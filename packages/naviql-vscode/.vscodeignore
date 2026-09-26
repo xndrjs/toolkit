@@ -3,3 +3,11 @@
 !README.md
 **/*.vsix
 .vscode/**
+src/**
+tsup.config.ts
+tsconfig.json
+**/*.ts
+**/*.map
+node_modules/**
+.gitignore
+PUBLISHING.md
