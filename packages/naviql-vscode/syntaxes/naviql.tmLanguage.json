@@ -63,7 +63,7 @@
       "patterns": [
         {
           "name": "keyword.control.naviql",
-          "match": "\\b(?:scalar|resource|query|context|root|on|expand|each|in|when)\\b"
+          "match": "\\b(?:scalar|resource|fragment|query|context|root|on|expand|each|in|when)\\b"
         },
         {
           "name": "constant.language.boolean.naviql",
@@ -84,6 +84,10 @@
         {
           "name": "keyword.operator.comparison.naviql",
           "match": "==|!="
+        },
+        {
+          "name": "keyword.operator.spread.naviql",
+          "match": "\\.\\.\\."
         },
         {
           "name": "keyword.operator.union.naviql",
