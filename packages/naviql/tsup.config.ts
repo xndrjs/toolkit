@@ -13,6 +13,9 @@ const shared: Options = {
     /^langium\//,
     "tinyglobby",
     "jiti",
+    "vscode-languageserver",
+    /^vscode-languageserver\//,
+    "vscode-languageserver-textdocument",
   ],
 };
 
@@ -22,6 +25,7 @@ export default defineConfig([
     entry: {
       index: "src/index.ts",
       "compile/index": "src/compile/index.ts",
+      "lsp/index": "src/lsp/index.ts",
     },
     dts: true,
     clean: true,
@@ -29,6 +33,17 @@ export default defineConfig([
   {
     ...shared,
     entry: ["src/cli.ts"],
+    dts: false,
+    clean: false,
+    banner: {
+      js: "#!/usr/bin/env node",
+    },
+  },
+  {
+    ...shared,
+    entry: {
+      "lsp/main": "src/lsp/main.ts",
+    },
     dts: false,
     clean: false,
     banner: {
