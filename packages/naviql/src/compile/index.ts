@@ -5,7 +5,7 @@
 export * from "../ir";
 export { checkProgram, type Diagnostic } from "../check";
 export { createNaviQlServices, NaviQlModule, type NaviQlServices } from "../lang";
-export { lowerProgram } from "./lower";
+export { lowerProgram, isLowerDiagnostic, LOWER_DIAGNOSTIC_CODES } from "./lower";
 export {
   defineConfig,
   DEFAULT_NAVIQL_EXCLUDE,

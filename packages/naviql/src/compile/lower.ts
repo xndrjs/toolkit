@@ -7,8 +7,12 @@
  * PathRef is classified here as `param` / `payloadRef` / `itemRef`.
  * Named types resolve to `resourceRef` or `scalarRef` using declaration tables.
  * Do not collapse `scalarRef` / `resourceRef` to structural types.
+ *
+ * Fragments and on-level preambles desugar here: spreads expand with binding
+ * rewrite, preamble fields/expansions distribute into every when-arm. IR stays
+ * flat (no fragment / preamble nodes).
  */
-import { AstUtils, type AstNode } from "langium";
+import { AstUtils, isCompositeCstNode, type AstNode } from "langium";
 
 import type {
   Expr,
@@ -26,11 +30,13 @@ import type {
   SourceSpan,
   TypeExpr,
 } from "../ir";
+import { createDiagnosticSink, type Diagnostic, type DiagnosticSink } from "../check/diagnostic";
 import {
   isArrayTypeExpr,
   isBinaryExpr,
   isBooleanLiteral,
   isContextRef,
+  isFragmentDeclaration,
   isGroupedTypeExpr,
   isIdentityRef,
   isNamedTypeExpr,
@@ -48,6 +54,8 @@ import {
   isUnionTypeExpr,
   type Expansion as AstExpansion,
   type Expression as AstExpression,
+  type FragmentDeclaration as AstFragmentDeclaration,
+  type FragmentSpread as AstFragmentSpread,
   type Model,
   type NamedArg as AstNamedArg,
   type ObjectField as AstObjectField,
@@ -66,8 +74,34 @@ type NameTables = {
   scalars: Set<string>;
 };
 
-export function lowerProgram(ast: Model): Program {
+type FragmentTable = Map<string, AstFragmentDeclaration>;
+
+type FlattenedBody = {
+  selectedFields: string[];
+  expansions: Expansion[];
+};
+
+type BodyItem =
+  | { kind: "field"; name: string }
+  | { kind: "expansion"; expansion: AstExpansion }
+  | { kind: "spread"; spread: AstFragmentSpread };
+
+type BodyContainer = {
+  selectedFields: string[];
+  expansions: AstExpansion[];
+  spreads: AstFragmentSpread[];
+  $cstNode?: AstNode["$cstNode"];
+};
+
+const EMPTY_BODY: FlattenedBody = { selectedFields: [], expansions: [] };
+
+/**
+ * Lower a Model AST to Program IR.
+ * Fragment/preamble diagnostics are pushed to `sink` (created if omitted).
+ */
+export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnosticSink()): Program {
   const tables = collectNameTables(ast);
+  const fragments = collectFragments(ast, sink);
   const scalars: ScalarDefinition[] = [];
   const resources: ResourceDefinition[] = [];
   const queries: QueryDefinition[] = [];
@@ -78,7 +112,7 @@ export function lowerProgram(ast: Model): Program {
     } else if (isResourceDeclaration(decl)) {
       resources.push(lowerResource(decl, tables));
     } else if (isQueryDeclaration(decl)) {
-      queries.push(lowerQuery(decl, tables));
+      queries.push(lowerQuery(decl, tables, fragments, sink));
     }
   }
 
@@ -90,6 +124,19 @@ export function lowerProgram(ast: Model): Program {
   };
 }
 
+/** Codes emitted only during fragment/preamble desugar (not by checkProgram). */
+export const LOWER_DIAGNOSTIC_CODES = new Set([
+  "UNKNOWN_FRAGMENT",
+  "FRAGMENT_RESOURCE_MISMATCH",
+  "FRAGMENT_CYCLE",
+  "DUPLICATE_FRAGMENT",
+  "DUPLICATE_SELECTED_FIELD",
+]);
+
+export function isLowerDiagnostic(diagnostic: Pick<Diagnostic, "code">): boolean {
+  return LOWER_DIAGNOSTIC_CODES.has(diagnostic.code);
+}
+
 function collectNameTables(ast: Model): NameTables {
   const resources = new Set<string>();
   const scalars = new Set<string>();
@@ -98,6 +145,23 @@ function collectNameTables(ast: Model): NameTables {
     else if (isScalarDeclaration(decl)) scalars.add(decl.name);
   }
   return { resources, scalars };
+}
+
+function collectFragments(ast: Model, sink: DiagnosticSink): FragmentTable {
+  const fragments: FragmentTable = new Map();
+  for (const decl of ast.declarations) {
+    if (!isFragmentDeclaration(decl)) continue;
+    if (fragments.has(decl.name)) {
+      sink.push({
+        code: "DUPLICATE_FRAGMENT",
+        message: `Duplicate fragment '${decl.name}'`,
+        span: spanOf(decl),
+      });
+      continue;
+    }
+    fragments.set(decl.name, decl);
+  }
+  return fragments;
 }
 
 function lowerScalar(decl: AstScalarDeclaration): ScalarDefinition {
@@ -120,13 +184,18 @@ function lowerResource(decl: AstResourceDeclaration, tables: NameTables): Resour
   };
 }
 
-function lowerQuery(decl: AstQueryDeclaration, tables: NameTables): QueryDefinition {
+function lowerQuery(
+  decl: AstQueryDeclaration,
+  tables: NameTables,
+  fragments: FragmentTable,
+  sink: DiagnosticSink
+): QueryDefinition {
   return {
     name: decl.name,
     parameters: decl.parameters.map((f) => lowerTypedField(f, tables)),
     context: decl.context ? decl.context.fields.map((f) => lowerTypedField(f, tables)) : [],
     root: lowerConstruction(decl.root.construction),
-    projections: decl.projections.map(lowerProjection),
+    projections: decl.projections.map((p) => lowerProjection(p, fragments, sink)),
     span: spanOf(decl),
   };
 }
@@ -230,34 +299,278 @@ function lowerTypeExpr(
   return _never;
 }
 
-function lowerProjection(clause: AstProjectionClause): ResourceProjection {
+function lowerProjection(
+  clause: AstProjectionClause,
+  fragments: FragmentTable,
+  sink: DiagnosticSink
+): ResourceProjection {
+  const preamble = expandBody(clause, clause.resource, clause.binding, fragments, [], sink);
+
   if (clause.whenArms.length > 0) {
+    const arms = clause.whenArms.map((arm) =>
+      lowerProjectionArm(arm, clause.resource, clause.binding, preamble, fragments, sink)
+    );
     return {
       resource: clause.resource,
       binding: clause.binding,
       selectedFields: [],
       expansions: [],
-      arms: clause.whenArms.map(lowerProjectionArm),
+      arms,
       span: spanOf(clause),
     };
   }
+
+  rejectDuplicateBody(preamble, spanOf(clause), sink);
   return {
     resource: clause.resource,
     binding: clause.binding,
-    selectedFields: [...clause.selectedFields],
-    expansions: clause.expansions.map(lowerExpansion),
+    selectedFields: preamble.selectedFields,
+    expansions: preamble.expansions,
     arms: null,
     span: spanOf(clause),
   };
 }
 
-function lowerProjectionArm(arm: AstProjectionWhenArm): ProjectionArm {
+function lowerProjectionArm(
+  arm: AstProjectionWhenArm,
+  resource: string,
+  binding: string,
+  preamble: FlattenedBody,
+  fragments: FragmentTable,
+  sink: DiagnosticSink
+): ProjectionArm {
+  const armBody = expandBody(arm, resource, binding, fragments, [], sink);
+  const combined: FlattenedBody = {
+    selectedFields: [...preamble.selectedFields, ...armBody.selectedFields],
+    expansions: [...preamble.expansions, ...armBody.expansions],
+  };
+  rejectDuplicateBody(combined, spanOf(arm), sink);
   return {
     when: lowerExpr(arm.when),
-    selectedFields: [...arm.selectedFields],
-    expansions: arm.expansions.map(lowerExpansion),
+    selectedFields: combined.selectedFields,
+    expansions: combined.expansions,
     span: spanOf(arm),
   };
+}
+
+function expandBody(
+  container: BodyContainer,
+  resource: string,
+  binding: string,
+  fragments: FragmentTable,
+  stack: string[],
+  sink: DiagnosticSink
+): FlattenedBody {
+  const selectedFields: string[] = [];
+  const expansions: Expansion[] = [];
+
+  for (const item of bodyItemsInOrder(container)) {
+    if (item.kind === "field") {
+      selectedFields.push(item.name);
+    } else if (item.kind === "expansion") {
+      expansions.push(lowerExpansion(item.expansion));
+    } else {
+      const spreadBody = expandSpread(item.spread, resource, binding, fragments, stack, sink);
+      selectedFields.push(...spreadBody.selectedFields);
+      expansions.push(...spreadBody.expansions);
+    }
+  }
+
+  return { selectedFields, expansions };
+}
+
+function expandSpread(
+  spread: AstFragmentSpread,
+  resource: string,
+  binding: string,
+  fragments: FragmentTable,
+  stack: string[],
+  sink: DiagnosticSink
+): FlattenedBody {
+  const name = spread.name;
+  if (stack.includes(name)) {
+    sink.push({
+      code: "FRAGMENT_CYCLE",
+      message: `Fragment cycle detected involving '${name}'`,
+      span: spanOf(spread),
+    });
+    return EMPTY_BODY;
+  }
+
+  const frag = fragments.get(name);
+  if (!frag) {
+    sink.push({
+      code: "UNKNOWN_FRAGMENT",
+      message: `Unknown fragment '${name}'`,
+      span: spanOf(spread),
+    });
+    return EMPTY_BODY;
+  }
+
+  if (frag.resource !== resource) {
+    sink.push({
+      code: "FRAGMENT_RESOURCE_MISMATCH",
+      message: `Fragment '${name}' is declared on '${frag.resource}' but spread on '${resource}'`,
+      span: spanOf(spread),
+    });
+    return EMPTY_BODY;
+  }
+
+  const body = expandBody(frag, resource, binding, fragments, [...stack, name], sink);
+  return {
+    selectedFields: body.selectedFields,
+    expansions: body.expansions.map((e) => rebindExpansion(e, frag.binding, binding)),
+  };
+}
+
+/**
+ * Recover source order of fields / expands / spreads from CST.
+ * Langium stores the three alternatives in separate arrays.
+ */
+function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
+  const spreadByOffset = new Map<number, AstFragmentSpread>();
+  for (const spread of container.spreads) {
+    const offset = spread.$cstNode?.offset;
+    if (offset !== undefined) spreadByOffset.set(offset, spread);
+  }
+  const expansionByOffset = new Map<number, AstExpansion>();
+  for (const expansion of container.expansions) {
+    const offset = expansion.$cstNode?.offset;
+    if (offset !== undefined) expansionByOffset.set(offset, expansion);
+  }
+
+  const fieldQueue = [...container.selectedFields];
+  const ordered: { offset: number; item: BodyItem }[] = [];
+  const seenOffsets = new Set<number>();
+
+  const cst = container.$cstNode;
+  const content = cst && isCompositeCstNode(cst) ? cst.content : [];
+
+  for (const child of content) {
+    const astType = child.astNode?.$type;
+    if (astType === "ProjectionWhenArm") continue;
+
+    if (spreadByOffset.has(child.offset)) {
+      if (!seenOffsets.has(child.offset)) {
+        seenOffsets.add(child.offset);
+        ordered.push({
+          offset: child.offset,
+          item: { kind: "spread", spread: spreadByOffset.get(child.offset)! },
+        });
+      }
+      continue;
+    }
+    if (expansionByOffset.has(child.offset)) {
+      if (!seenOffsets.has(child.offset)) {
+        seenOffsets.add(child.offset);
+        ordered.push({
+          offset: child.offset,
+          item: { kind: "expansion", expansion: expansionByOffset.get(child.offset)! },
+        });
+      }
+      continue;
+    }
+
+    const text = typeof child.text === "string" ? child.text : undefined;
+    if (text !== undefined && fieldQueue[0] === text) {
+      ordered.push({
+        offset: child.offset,
+        item: { kind: "field", name: fieldQueue.shift()! },
+      });
+    }
+  }
+
+  // Fallback if CST matching failed (e.g. missing CST in tests).
+  for (const name of fieldQueue) {
+    ordered.push({ offset: Number.MAX_SAFE_INTEGER, item: { kind: "field", name } });
+  }
+  for (const [offset, spread] of spreadByOffset) {
+    if (!seenOffsets.has(offset)) {
+      ordered.push({ offset, item: { kind: "spread", spread } });
+    }
+  }
+  for (const [offset, expansion] of expansionByOffset) {
+    if (!seenOffsets.has(offset)) {
+      ordered.push({ offset, item: { kind: "expansion", expansion } });
+    }
+  }
+
+  ordered.sort((a, b) => a.offset - b.offset);
+  return ordered.map((e) => e.item);
+}
+
+function rejectDuplicateBody(
+  body: FlattenedBody,
+  span: SourceSpan | null,
+  sink: DiagnosticSink
+): void {
+  const seenFields = new Set<string>();
+  for (const field of body.selectedFields) {
+    if (seenFields.has(field)) {
+      sink.push({
+        code: "DUPLICATE_SELECTED_FIELD",
+        message: `Duplicate selected field '${field}' after fragment expansion`,
+        span,
+      });
+    }
+    seenFields.add(field);
+  }
+  // Expansion alias duplicates surface via checkProgram (DUPLICATE_EXPANSION_ALIAS)
+  // on the flattened IR.
+}
+
+function rebindExpansion(expansion: Expansion, from: string, to: string): Expansion {
+  if (from === to) return expansion;
+  return {
+    ...expansion,
+    target: expansion.target ? rebindConstruction(expansion.target, from, to) : null,
+    comprehension: expansion.comprehension
+      ? {
+          itemBinding: expansion.comprehension.itemBinding,
+          source: rebindExpr(expansion.comprehension.source, from, to),
+          arms: expansion.comprehension.arms.map((arm) => ({
+            target: rebindConstruction(arm.target, from, to),
+            when: arm.when ? rebindExpr(arm.when, from, to) : null,
+          })),
+        }
+      : null,
+  };
+}
+
+function rebindConstruction(
+  construction: ResourceConstruction,
+  from: string,
+  to: string
+): ResourceConstruction {
+  return {
+    ...construction,
+    args: construction.args.map((arg) => ({
+      ...arg,
+      value: rebindExpr(arg.value, from, to),
+    })),
+  };
+}
+
+function rebindExpr(expr: Expr, from: string, to: string): Expr {
+  if (from === to) return expr;
+  switch (expr.kind) {
+    case "literal":
+    case "param":
+    case "context":
+      return expr;
+    case "payloadRef":
+    case "identityRef":
+      return expr.binding === from ? { ...expr, binding: to } : expr;
+    case "itemRef":
+      // Item bindings are comprehension-local; do not rewrite.
+      return expr;
+    case "binary":
+      return {
+        ...expr,
+        left: rebindExpr(expr.left, from, to),
+        right: rebindExpr(expr.right, from, to),
+      };
+  }
 }
 
 function lowerExpansion(expansion: AstExpansion): Expansion {
