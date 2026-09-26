@@ -41,28 +41,15 @@ import type {
   TypeExpr,
 } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";
-import { projectionArmDiscriminant } from "./emit-expr";
-import { printTypeExpr } from "./emit-types";
+import { printTypeExpr } from "../resources";
+import { projectionArmDiscriminant } from "../shared";
 import { projectionTypeName, projectionVariantTypeName, queryResultTypeName } from "../naming";
-
-/** resource → unique resolve-arm target resource names. */
-type ResolveTargetIndex = Map<string, string[]>;
-
-function resolveTargetIndex(query: QueryDefinition): ResolveTargetIndex {
-  const out: ResolveTargetIndex = new Map();
-  for (const projection of query.projections) {
-    if (projection.resolveArms === null) continue;
-    out.set(projection.resource, [
-      ...new Set(projection.resolveArms.map((arm) => arm.target.resource)),
-    ]);
-  }
-  return out;
-}
-
-/** Projections that emit a result shell type (excludes resolve-only). */
-function projectableProjections(query: QueryDefinition): ResourceProjection[] {
-  return query.projections.filter((p) => p.resolveArms === null);
-}
+import {
+  projectableProjections,
+  resolveTargetIndex,
+  stripToConcreteMembers,
+  type ResolveTargetIndex,
+} from "./shared";
 
 function tablesFromProgram(program: Program): {
   scalars: ScalarTable;
@@ -95,97 +82,6 @@ function resolveForEmit(
     throw new Error(`emitProjectionTypes: failed to resolve '${path}': ${detail}`);
   }
   return resolved;
-}
-
-function resourceRefsFromPayload(payload: TypeExpr): string[] | null {
-  if (payload.kind === "resourceRef") {
-    return [payload.name];
-  }
-  if (payload.kind === "union") {
-    const names: string[] = [];
-    for (const member of payload.members) {
-      if (member.kind !== "resourceRef") {
-        return null;
-      }
-      names.push(member.name);
-    }
-    return names;
-  }
-  return null;
-}
-
-/**
- * Concrete object-payload resource names to expose when expanding `targetName`.
- * Follows resource-valued payloads (`Entry → Hero | Tabs`) and query-level
- * resolve arms (`CustomReference resolve to Entry | Asset`).
- * Returns `null` for ordinary object payloads (project as `targetName` itself).
- * Stops at resources that have an explicit projectable projection.
- */
-function stripToConcreteMembers(
-  targetName: string,
-  resources: ResourceTable,
-  projected: Set<string>,
-  resolveTargets: ResolveTargetIndex,
-  seen = new Set<string>()
-): string[] | null {
-  if (seen.has(targetName)) {
-    return null;
-  }
-  seen.add(targetName);
-
-  // Explicit projectable `on Target` (armed Entry, flat Asset, …) — do not strip.
-  if (projected.has(targetName)) {
-    return null;
-  }
-
-  const resolveRefs = resolveTargets.get(targetName);
-  if (resolveRefs !== undefined && resolveRefs.length > 0) {
-    const members: string[] = [];
-    for (const ref of resolveRefs) {
-      const nested = stripToConcreteMembers(
-        ref,
-        resources,
-        projected,
-        resolveTargets,
-        new Set(seen)
-      );
-      if (nested === null) {
-        members.push(ref);
-      } else {
-        members.push(...nested);
-      }
-    }
-    return [...new Set(members)];
-  }
-
-  const target = resources.get(targetName);
-  if (!target) {
-    return null;
-  }
-
-  const payload = target.payloadType;
-  if (payload.kind === "object") {
-    return null;
-  }
-  if (payload.kind === "array") {
-    return null;
-  }
-
-  const refs = resourceRefsFromPayload(payload);
-  if (refs === null || refs.length === 0) {
-    return null;
-  }
-
-  const members: string[] = [];
-  for (const ref of refs) {
-    const nested = stripToConcreteMembers(ref, resources, projected, resolveTargets, new Set(seen));
-    if (nested === null) {
-      members.push(ref);
-    } else {
-      members.push(...nested);
-    }
-  }
-  return [...new Set(members)];
 }
 
 /**
