@@ -20,6 +20,7 @@ export {
 } from "./completion-path";
 export { buildExprScope, type ExprScopeTables } from "./expr-scope";
 export { createNaviQlLspServices } from "./create-services";
+export { NaviQlFormatter } from "./formatter";
 export {
   definitionSpanAtOffset,
   definitionSpanForCstLeaf,
