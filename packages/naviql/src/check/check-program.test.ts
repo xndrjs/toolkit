@@ -357,6 +357,168 @@ describe("checkProgram — projection when-arms", () => {
   });
 });
 
+describe("checkProgram — resolve to", () => {
+  const resolveSource = `
+    scalar SpaceId on string;
+    scalar EnvironmentId on string;
+    scalar Locale on string;
+    scalar Ref on string;
+
+    resource Entry(spaceId: SpaceId, environmentId: EnvironmentId, id: string, locale: Locale): {
+      id
+    }
+    resource Asset(spaceId: SpaceId, environmentId: EnvironmentId, id: string, locale: Locale): {
+      id
+    }
+    resource CustomReference(ref: Ref, locale: Locale): {
+      type: "Entry" | "Asset"
+      spaceId: SpaceId
+      environmentId: EnvironmentId
+      id: string
+      locale: Locale
+    }
+
+    query Q(ref: Ref) {
+      context { locale: Locale }
+      root CustomReference(ref: ref, locale: context.locale)
+      on CustomReference c resolve to {
+        Entry(
+          spaceId: c.spaceId,
+          environmentId: c.environmentId,
+          id: c.id,
+          locale: c.locale
+        ) when c.type == "Entry"
+        Asset(
+          spaceId: c.spaceId,
+          environmentId: c.environmentId,
+          id: c.id,
+          locale: c.locale
+        ) when c.type == "Asset"
+      }
+    }
+  `;
+
+  it("typechecks resolve-only on clauses against decode payload fields", () => {
+    const { diagnostics, program } = parseAndCheck(resolveSource);
+    expect(diagnostics).toEqual([]);
+    expect(program.queries[0]!.projections[0]!.resolveArms).toHaveLength(2);
+    expect(program.queries[0]!.projections[0]!.selectedFields).toEqual([]);
+  });
+
+  it("rejects hand-built IR that mixes resolveArms with a projection body", () => {
+    const { diagnostics, program } = parseAndCheck(resolveSource);
+    expect(diagnostics).toEqual([]);
+
+    const projection = program.queries[0]!.projections[0]!;
+    projection.selectedFields = ["id"];
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({ code: "MIXED_RESOLVE_PROJECTION" })
+    );
+  });
+
+  it("rejects hand-built IR that mixes resolveArms with when-arms", () => {
+    const { diagnostics, program } = parseAndCheck(resolveSource);
+    expect(diagnostics).toEqual([]);
+
+    const projection = program.queries[0]!.projections[0]!;
+    projection.arms = [
+      {
+        when: { kind: "binary", op: "==", left: payload("c", "type"), right: lit("Entry"), span },
+        selectedFields: ["id"],
+        expansions: [],
+        span,
+      },
+    ];
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({ code: "MIXED_RESOLVE_PROJECTION" })
+    );
+  });
+
+  it("reuses construction checks for unknown resolve targets", () => {
+    const { diagnostics, program } = parseAndCheck(resolveSource);
+    expect(diagnostics).toEqual([]);
+
+    program.queries[0]!.projections[0]!.resolveArms![0]!.target.resource = "Missing";
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_RESOURCE",
+        message: expect.stringContaining("Missing"),
+      })
+    );
+  });
+
+  it("rejects resolve when-clauses that are not boolean", () => {
+    const { diagnostics, program } = parseAndCheck(resolveSource);
+    expect(diagnostics).toEqual([]);
+
+    program.queries[0]!.projections[0]!.resolveArms![0]!.when = lit("Entry");
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({
+        code: "RESOLVE_WHEN",
+        message: expect.stringContaining("boolean"),
+      })
+    );
+  });
+
+  it("typechecks resolve when-arms with payload narrowing on closed disc unions", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar SpaceId on string;
+      scalar Locale on string;
+      scalar Ref on string;
+
+      resource Entry(spaceId: SpaceId, id: string, locale: Locale): { id }
+      resource Asset(spaceId: SpaceId, id: string, locale: Locale): { id }
+      resource Locator(ref: Ref, locale: Locale):
+        { type: "Entry", spaceId: SpaceId, id: string, locale: Locale }
+        | { type: "Asset", spaceId: SpaceId, id: string, locale: Locale }
+
+      query Q(ref: Ref) {
+        context { locale: Locale }
+        root Locator(ref: ref, locale: context.locale)
+        on Locator c resolve to {
+          Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
+          Asset(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Asset"
+        }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("errors when resolve when-arms omit a closed discriminant", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar SpaceId on string;
+      scalar Locale on string;
+      scalar Ref on string;
+
+      resource Entry(spaceId: SpaceId, id: string, locale: Locale): { id }
+      resource Asset(spaceId: SpaceId, id: string, locale: Locale): { id }
+      resource Locator(ref: Ref, locale: Locale):
+        { type: "Entry", spaceId: SpaceId, id: string, locale: Locale }
+        | { type: "Asset", spaceId: SpaceId, id: string, locale: Locale }
+
+      query Q(ref: Ref) {
+        context { locale: Locale }
+        root Locator(ref: ref, locale: context.locale)
+        on Locator c resolve to {
+          Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INEXHAUSTIVE_RESOLVE_ARMS",
+        message: expect.stringContaining('"Asset"'),
+      })
+    );
+  });
+});
+
 describe("checkProgram — negative diagnostics", () => {
   it("rejects Entry(id: @p.locale) — Locale is not assignable to EntryId", () => {
     const program = withMutatedPageDetail((p) => {
