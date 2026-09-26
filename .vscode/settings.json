@@ -9,5 +9,8 @@
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
+  },
+  "[naviql]": {
+    "editor.defaultFormatter": "xndrjs.naviql-vscode"
   }
 }
