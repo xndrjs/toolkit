@@ -36,6 +36,7 @@ export function lowerQuery(
     context: decl.context ? decl.context.fields.map((f) => lowerTypedField(f, tables)) : [],
     roots: lowerQueryRoots(decl),
     projections: decl.projections.map((p) => lowerProjection(p, fragments, sink)),
+    islands: [],
     span: spanOf(decl),
   };
 }

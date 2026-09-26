@@ -1,7 +1,7 @@
 /**
  * NaviQL semantic IR — parser-independent types.
  *
- * Phase 1–5+ surface. Omitted for now: islands, scalar bodies/codecs,
+ * Phase 1–5+ surface. Omitted for now: scalar bodies/codecs,
  * scalar-on-scalar, object-backed scalars, named enums.
  *
  * Presence/absence that affects meaning or diagnostics is never optional:
@@ -229,6 +229,18 @@ export type QueryRoot = {
 };
 
 /**
+ * One `on Resource [binding] { when … }*` clause inside a query `islands` block.
+ * Empty `whens` ⇒ unconditional `startIsland`; each `when` is OR'd as its own policy.
+ */
+export type IslandClause = {
+  resource: string;
+  binding: string | null;
+  /** Empty ⇒ unconditional startIsland. */
+  whens: Expr[];
+  span: SourceSpan | null;
+};
+
+/**
  * Top-level NaviQL unit (`query Name(…) { … }`).
  * Distinct from the engine's resolution *strategy* (expansion policies).
  */
@@ -239,6 +251,8 @@ export type QueryDefinition = {
   /** Non-empty after a successful parse; empty only for defensive hand-built IR. */
   roots: QueryRoot[];
   projections: ResourceProjection[];
+  /** Island start policies from an `islands { … }` block; empty when absent. */
+  islands: IslandClause[];
   span: SourceSpan | null;
 };
 
