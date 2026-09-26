@@ -7,15 +7,25 @@ export { diagnosticToLsp, diagnosticsToLsp, type PositionAt } from "./diagnostic
 export { hoverMarkdownAtOffset, hoverMarkdownForCstLeaf, NaviQlHoverProvider } from "./hover";
 export {
   fieldHoverMarkdown,
+  fieldTypeFromResource,
   formatFieldSignature,
+  formatFragmentSignature,
   formatResourceSignature,
   formatScalarSignature,
+  fragmentHoverMarkdown,
   hoverCodeBlock,
   namedTypeHoverMarkdown,
+  projectedFieldsType,
   resourceFieldHoverMarkdown,
   resourceHoverMarkdown,
   scalarHoverMarkdown,
 } from "./hover-markdown";
+export {
+  collectFragmentTable,
+  fragmentHoverMarkdownFor,
+  fragmentProjectedType,
+  lookupFragmentHoverMarkdown,
+} from "./hover-fragment";
 export { findNaviQlConfigFile } from "./resolve-config-root";
 export {
   registerWorkspaceValidation,

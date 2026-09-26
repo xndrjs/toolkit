@@ -1,5 +1,5 @@
 /**
- * NaviQL HoverProvider — scalar / resource / field previews from the semantic snapshot.
+ * NaviQL HoverProvider — scalar / resource / field / fragment / path previews.
  * Does not rely on Langium cross-refs (grammar uses bare IDs).
  */
 import { AstUtils, CstUtils, type AstNode, type CstNode, type LangiumDocument } from "langium";
@@ -11,6 +11,7 @@ import type { FieldDecl, TypeExpr } from "../ir";
 import { lowerObjectField, lowerTypedField, type NameTables } from "../compile/lower/types";
 import {
   isFragmentDeclaration,
+  isFragmentSpread,
   isNamedTypeExpr,
   isObjectField,
   isProjectionClause,
@@ -23,6 +24,12 @@ import {
   type ObjectField,
   type TypedField,
 } from "../lang/generated/ast";
+import { hoverMarkdownForExprPath } from "./hover-expr";
+import {
+  collectFragmentTable,
+  fragmentHoverMarkdownFor,
+  lookupFragmentHoverMarkdown,
+} from "./hover-fragment";
 import {
   fieldHoverMarkdown,
   namedTypeHoverMarkdown,
@@ -30,11 +37,12 @@ import {
   resourceHoverMarkdown,
   scalarHoverMarkdown,
 } from "./hover-markdown";
-import type { SemanticSnapshotCache } from "./semantic-snapshot";
+import type { SemanticSnapshot, SemanticSnapshotCache } from "./semantic-snapshot";
 
 type HoverTables = {
   scalars: ScalarTable;
   resources: ResourceTable;
+  documentsByUri?: ReadonlyMap<string, LangiumDocument>;
 };
 
 function nameTablesFrom(tables: HoverTables): NameTables {
@@ -83,7 +91,6 @@ function identityFieldsForResource(
 function typeOfTypedOrObjectField(node: TypedField | ObjectField, tables: HoverTables): TypeExpr {
   const names = nameTablesFrom(tables);
   if (isTypedField(node)) {
-    // Prefer checked identity / payload types when this field belongs to a resource.
     const resourceDecl = AstUtils.getContainerOfType(node, isResourceDeclaration);
     if (resourceDecl) {
       const symbols = tables.resources.get(resourceDecl.name);
@@ -98,7 +105,6 @@ function typeOfTypedOrObjectField(node: TypedField | ObjectField, tables: HoverT
   const resourceDecl = AstUtils.getContainerOfType(node, isResourceDeclaration);
   if (resourceDecl) {
     const symbols = tables.resources.get(resourceDecl.name);
-    // Direct payload field of the resource root object — use table (shorthand resolved).
     if (
       symbols &&
       node.$container.$type === "ObjectTypeExpr" &&
@@ -157,6 +163,35 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
   const text = leaf.text;
   const feature = assignmentFeature(leaf);
 
+  // Expression paths first — PathRef / IdentityRef / ContextRef (incl. nested).
+  const exprHover = hoverMarkdownForExprPath(leaf, feature, {
+    resources: tables.resources,
+    nameTables: nameTablesFrom(tables),
+  });
+  if (exprHover) {
+    return exprHover;
+  }
+
+  if (isFragmentDeclaration(node)) {
+    if (feature === "name" || node.name === text) {
+      const fragments = collectFragmentTable(node, tables.documentsByUri);
+      return fragmentHoverMarkdownFor(node, fragments, tables.resources);
+    }
+    if (feature === "resource" || node.resource === text) {
+      return hoverForResourceName(node.resource, tables);
+    }
+    if (feature === "selectedFields" || node.selectedFields.includes(text)) {
+      return hoverForSelectedField(node.resource, text, tables);
+    }
+    if (feature === "binding" || node.binding === text) {
+      return hoverForResourceName(node.resource, tables);
+    }
+  }
+
+  if (isFragmentSpread(node) && (feature === "name" || node.name === text)) {
+    return lookupFragmentHoverMarkdown(node.name, node, tables.resources, tables.documentsByUri);
+  }
+
   if (isNamedTypeExpr(node) && (feature === "name" || feature === undefined)) {
     return namedTypeHoverMarkdown(node.name, tables.scalars, tables.resources);
   }
@@ -186,7 +221,7 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
     }
   }
 
-  if (isProjectionClause(node) || isFragmentDeclaration(node)) {
+  if (isProjectionClause(node)) {
     if (feature === "resource" || node.resource === text) {
       return hoverForResourceName(node.resource, tables);
     }
@@ -204,20 +239,25 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
 
   if (isTypedField(node) || isObjectField(node)) {
     if (feature === "name" || feature === undefined || node.name === text) {
-      // Hovering the field name → `name: Type`
       if (node.name === text || feature === "name") {
         return fieldHoverMarkdown(node.name, typeOfTypedOrObjectField(node, tables));
       }
     }
   }
 
-  // Fallback: token text looks like a known scalar / resource name.
+  // Fallback: token text looks like a known scalar / resource / fragment name.
   if (feature === undefined || feature === "name" || feature === "resource") {
     const byName = namedTypeHoverMarkdown(text, tables.scalars, tables.resources);
     if (byName) return byName;
+    const fragHover = lookupFragmentHoverMarkdown(
+      text,
+      node,
+      tables.resources,
+      tables.documentsByUri
+    );
+    if (fragHover) return fragHover;
   }
 
-  // Selected-field token whose parent walk missed (e.g. incomplete feature).
   if (feature === "selectedFields" || feature === undefined) {
     const resourceName = enclosingProjectionResource(node);
     if (resourceName) {
@@ -256,3 +296,5 @@ export class NaviQlHoverProvider implements HoverProvider {
     };
   }
 }
+
+export type { SemanticSnapshot };
