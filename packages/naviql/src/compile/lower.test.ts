@@ -100,12 +100,12 @@ describe("lowerProgram", () => {
 
     const query = program.queries[0]!;
     expect(query.root.args[0]?.value).toMatchObject({ kind: "param", name: "postId" });
-    expect(query.projections[0]?.expansions[0]?.target.args[0]?.value).toMatchObject({
+    expect(query.projections[0]?.expansions[0]?.target?.args[0]?.value).toMatchObject({
       kind: "payloadRef",
       binding: "p",
       path: ["authorId"],
     });
-    expect(query.projections[0]?.expansions[1]?.target.args[0]?.value).toMatchObject({
+    expect(query.projections[0]?.expansions[1]?.target?.args[0]?.value).toMatchObject({
       kind: "identityRef",
       binding: "p",
       path: ["id"],
@@ -596,6 +596,7 @@ describe("lowerProgram — fragments", () => {
         },
       ],
     });
+    expect(checkProgram(program)).toEqual([]);
   });
 
   it("rejects mixing resolve to with a projection body at parse time", () => {
