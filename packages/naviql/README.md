@@ -103,11 +103,42 @@ const result = buildResources({ root: process.cwd() });
 
 `generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`); collection expand targets fan out member ARIs. The factory returns the builder **without** `.build()`, so apps can attach island policies by hand before calling `.build()`. Islands are not emitted.
 
-`generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …) with `$type` discriminators. Apps pass a resolved `ContentMap` (and `root` ARI); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/naviql` only — no extra runtime helper.
+`generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …) with `$type` discriminators. Apps pass a resolved `ContentMap` and seed ARI(s); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/naviql` only — no extra runtime helper.
 
 `buildResources` / `naviql-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy`, plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. `create*Strategy` and `project*` remain exported for low-level use.
 
 `buildResources` / `naviql-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. Generated imports stay on `@xndrjs/naviql` only.
+
+### Single-root vs multi-root queries
+
+A query seeds the graph with either one `root` or several aliased entries in `roots { … }` (XOR — not both). Multi-root aliases must be unique. The engine enqueues every seed into one resolution session (shared ContentMap, waiters, and lane scheduler) and runs until closure.
+
+```naviql
+# single-root — Result is the root resource projection
+query PageDetail(pageId: EntryId) {
+  root Page(id: pageId, …)
+  on Page p { … }
+}
+
+# multi-root — Result is alias-keyed
+query Homepage(pageId: PageId, sessionId: SessionId) {
+  roots {
+    page: Page(id: pageId)
+    session: UserSession(id: sessionId)
+  }
+  on Page p { … }
+  on UserSession s { … }
+}
+```
+
+Codegen preserves single-root ergonomics and keys multi-root APIs by alias:
+
+| Surface          | Single-root                              | Multi-root                                                 |
+| ---------------- | ---------------------------------------- | ---------------------------------------------------------- |
+| `*Result`        | `PageDetailResult = PageDetail_Page`     | `{ page: Homepage_Page; session: Homepage_UserSession }`   |
+| `project*`       | `projectPageDetail(root, contentMap, …)` | `projectHomepage(roots: { page; session }, contentMap, …)` |
+| `resolve*` input | `root: ReturnType<typeof pageAri>`       | `roots: { page: …; session: … }`                           |
+| Engine call      | `resolve({ roots: [input.root], … })`    | `resolve({ roots: [input.roots.page, …], … })`             |
 
 Generated app code should import runtime symbols from `@xndrjs/naviql`, never from `/compile`. Langium, the checker, and codegen live under `./compile` only so they do not land in client bundles.
 

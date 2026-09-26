@@ -1,0 +1,29 @@
+scalar PageId on string;
+scalar SessionId on string;
+
+resource Page(id: PageId): {
+  id
+  title: string
+}
+
+resource UserSession(id: SessionId): {
+  id
+  userId: string
+}
+
+query Homepage(pageId: PageId, sessionId: SessionId) {
+  roots {
+    page: Page(id: pageId)
+    session: UserSession(id: sessionId)
+  }
+
+  on Page p {
+    id
+    title
+  }
+
+  on UserSession s {
+    id
+    userId
+  }
+}

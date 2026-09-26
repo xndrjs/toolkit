@@ -10,7 +10,7 @@ query PageDetail(pageId: EntryId) {
     locale: Locale
   }
 
-  root Page(
+  root Page (
     spaceId: context.spaceId,
     environmentId: context.environmentId,
     id: pageId,
