@@ -5,6 +5,7 @@
 import { URI } from "langium";
 
 import { checkProgram, type Diagnostic } from "../check";
+import { createDiagnosticSink } from "../check/diagnostic";
 import type { Program, SourceSpan } from "../ir";
 import { isModel, type Model } from "../lang/generated/ast";
 import { createNaviQlServices } from "../lang/naviql-module";
@@ -89,7 +90,9 @@ export function parseAndCheck(source: string, uri?: string): ParseAndCheckResult
     return { program: EMPTY_PROGRAM, diagnostics };
   }
 
-  const program = lowerProgram(value);
+  const lowerSink = createDiagnosticSink();
+  const program = lowerProgram(value, lowerSink);
+  diagnostics.push(...lowerSink.diagnostics);
   diagnostics.push(...checkProgram(program));
   return { program, diagnostics };
 }

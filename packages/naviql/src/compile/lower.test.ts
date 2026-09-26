@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { checkProgram } from "../check";
+import { createDiagnosticSink } from "../check/diagnostic";
 import { pageDetailProgram } from "../fixtures";
 import { isModel, type Model } from "../lang/generated/ast";
 import { createNaviQlServices } from "../lang/naviql-module";
@@ -325,5 +326,203 @@ describe("lowerProgram", () => {
         right: { kind: "literal", value: "Page" },
       },
     });
+  });
+});
+
+const FRAGMENT_PRELUDE = `
+  scalar EntryId on string;
+  scalar Locale on string;
+  scalar AssetId on string;
+
+  resource Entry(id: EntryId, locale: Locale):
+    { type: "Hero", id, title: string, imageId: AssetId }
+    | { type: "Menu", id, title: string, logoId: AssetId }
+    | { type: "Page", id }
+
+  resource Asset(id: AssetId, locale: Locale): { id }
+`;
+
+describe("lowerProgram — fragments", () => {
+  it("distributes on-level preamble into every when-arm", () => {
+    const program = lowerProgram(
+      parseSource(`
+        ${FRAGMENT_PRELUDE}
+
+        fragment EntryBase on Entry e { type id }
+
+        query Q(entryId: EntryId) {
+          context { locale: Locale }
+          root Entry(id: entryId, locale: context.locale)
+          on Entry e {
+            ...EntryBase
+            when e.type == "Hero" { title }
+            when e.type == "Menu" { title }
+            when e.type == "Page" { }
+          }
+          on Asset a { id }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    const entry = program.queries[0]!.projections[0]!;
+    expect(entry.selectedFields).toEqual([]);
+    expect(entry.expansions).toEqual([]);
+    expect(entry.arms).toHaveLength(3);
+    expect(entry.arms![0]).toMatchObject({
+      selectedFields: ["type", "id", "title"],
+      expansions: [],
+    });
+    expect(entry.arms![1]).toMatchObject({
+      selectedFields: ["type", "id", "title"],
+      expansions: [],
+    });
+    expect(entry.arms![2]).toMatchObject({
+      selectedFields: ["type", "id"],
+      expansions: [],
+    });
+  });
+
+  it("expands nested spreads and rewrites fragment binding to enclosing on binding", () => {
+    const program = lowerProgram(
+      parseSource(`
+        ${FRAGMENT_PRELUDE}
+
+        fragment EntryBase on Entry x { type id }
+
+        fragment EntryLogo on Entry x {
+          ...EntryBase
+          title
+          expand logo: Asset(id: x.logoId, locale: context.locale)
+        }
+
+        query Q(entryId: EntryId) {
+          context { locale: Locale }
+          root Entry(id: entryId, locale: context.locale)
+          on Entry e {
+            when e.type == "Hero" { type id title }
+            when e.type == "Menu" {
+              ...EntryLogo
+            }
+            when e.type == "Page" { type id }
+          }
+          on Asset a { id }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    const arm = program.queries[0]!.projections[0]!.arms![1]!;
+    expect(arm.selectedFields).toEqual(["type", "id", "title"]);
+    expect(arm.expansions).toHaveLength(1);
+    expect(arm.expansions[0]).toMatchObject({
+      alias: "logo",
+      multiplicity: "one",
+      target: {
+        resource: "Asset",
+        args: [
+          { name: "id", value: { kind: "payloadRef", binding: "e", path: ["logoId"] } },
+          { name: "locale", value: { kind: "context", path: ["locale"] } },
+        ],
+      },
+    });
+  });
+
+  it("expands spreads in flat on bodies", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar AssetId on string;
+        scalar Locale on string;
+        resource Asset(id: AssetId, locale: Locale): { id title: string }
+        fragment AssetBase on Asset a { id title }
+        query Q(id: AssetId) {
+          context { locale: Locale }
+          root Asset(id: id, locale: context.locale)
+          on Asset b { ...AssetBase }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    expect(program.queries[0]!.projections[0]).toMatchObject({
+      selectedFields: ["id", "title"],
+      expansions: [],
+      arms: null,
+    });
+  });
+
+  it("reports UNKNOWN_FRAGMENT, FRAGMENT_RESOURCE_MISMATCH, and FRAGMENT_CYCLE", () => {
+    const sink = createDiagnosticSink();
+    lowerProgram(
+      parseSource(`
+        ${FRAGMENT_PRELUDE}
+
+        fragment EntryBase on Entry e { type }
+        fragment Boom on Entry e { ...Boom }
+        fragment AssetOnly on Asset a { id }
+
+        query Q(entryId: EntryId) {
+          context { locale: Locale }
+          root Entry(id: entryId, locale: context.locale)
+          on Entry e {
+            when e.type == "Hero" {
+              ...Missing
+              ...AssetOnly
+              ...Boom
+            }
+          }
+          on Asset a { id }
+        }
+      `),
+      sink
+    );
+
+    expect(sink.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_FRAGMENT",
+        message: expect.stringContaining("Missing"),
+      })
+    );
+    expect(sink.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "FRAGMENT_RESOURCE_MISMATCH",
+        message: expect.stringContaining("AssetOnly"),
+      })
+    );
+    expect(sink.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "FRAGMENT_CYCLE", message: expect.stringContaining("Boom") })
+    );
+  });
+
+  it("reports DUPLICATE_SELECTED_FIELD after flatten of preamble + arm", () => {
+    const sink = createDiagnosticSink();
+    lowerProgram(
+      parseSource(`
+        ${FRAGMENT_PRELUDE}
+
+        fragment EntryBase on Entry e { type id }
+
+        query Q(entryId: EntryId) {
+          context { locale: Locale }
+          root Entry(id: entryId, locale: context.locale)
+          on Entry e {
+            ...EntryBase
+            when e.type == "Hero" {
+              type
+              title
+            }
+          }
+          on Asset a { id }
+        }
+      `),
+      sink
+    );
+
+    expect(sink.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "DUPLICATE_SELECTED_FIELD",
+        message: expect.stringContaining("type"),
+      })
+    );
   });
 });
