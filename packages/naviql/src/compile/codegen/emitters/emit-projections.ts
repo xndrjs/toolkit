@@ -5,6 +5,8 @@
  * discriminators, and memos by `ari.toString()` with shell-before-edges
  * (cycle-safe). Union / collection expansion targets are stripped to member
  * projections (no `on EditorialModule` / `on TabCollection` required).
+ * Resolve-only `on R resolve to` is not a `projectOn*` shell — settled payload
+ * under the locator key is stripped via resolve targets (same as resourceRef unions).
  * Armed `on` projections discriminate on payload `type` and build variant shells.
  */
 import type {
@@ -28,8 +30,27 @@ import {
 
 type ResourceIndex = Map<string, ResourceDefinition>;
 
+/** resource → unique resolve-arm target resource names. */
+type ResolveTargetIndex = Map<string, string[]>;
+
 function resourceIndex(program: Program): ResourceIndex {
   return new Map(program.resources.map((r) => [r.name, r]));
+}
+
+function resolveTargetIndex(query: QueryDefinition): ResolveTargetIndex {
+  const out: ResolveTargetIndex = new Map();
+  for (const projection of query.projections) {
+    if (projection.resolveArms === null) continue;
+    out.set(projection.resource, [
+      ...new Set(projection.resolveArms.map((arm) => arm.target.resource)),
+    ]);
+  }
+  return out;
+}
+
+/** Projections that emit a `projectOn*` shell (excludes resolve-only). */
+function projectableProjections(query: QueryDefinition): ResourceProjection[] {
+  return query.projections.filter((p) => p.resolveArms === null);
 }
 
 function resourceRefsFromPayload(payload: TypeExpr): string[] | null {
@@ -58,18 +79,34 @@ function collectionElement(payload: TypeExpr): string | null {
 }
 
 /**
- * Union / resource-valued payload (`Entry: Hero | Tabs`, `CustomReference: Entry`)
+ * Union / resource-valued / resolve-only payload
+ * (`Entry: Hero | Tabs`, `CustomReference resolve to Entry | Asset`)
  * → concrete member names to discriminate in `projectNode`.
  */
 function stripToConcreteMembers(
   targetName: string,
   resources: ResourceIndex,
+  resolveTargets: ResolveTargetIndex,
   seen = new Set<string>()
 ): string[] | null {
   if (seen.has(targetName)) {
     return null;
   }
   seen.add(targetName);
+
+  const resolveRefs = resolveTargets.get(targetName);
+  if (resolveRefs !== undefined && resolveRefs.length > 0) {
+    const members: string[] = [];
+    for (const ref of resolveRefs) {
+      const nested = stripToConcreteMembers(ref, resources, resolveTargets, new Set(seen));
+      if (nested === null) {
+        members.push(ref);
+      } else {
+        members.push(...nested);
+      }
+    }
+    return [...new Set(members)];
+  }
 
   const target = resources.get(targetName);
   if (!target) {
@@ -88,7 +125,7 @@ function stripToConcreteMembers(
 
   const members: string[] = [];
   for (const ref of refs) {
-    const nested = stripToConcreteMembers(ref, resources, new Set(seen));
+    const nested = stripToConcreteMembers(ref, resources, resolveTargets, new Set(seen));
     if (nested === null) {
       members.push(ref);
     } else {
@@ -104,6 +141,9 @@ function projectOnFnName(resourceName: string): string {
 
 /** All expansions under a projection (flat body or flattened when-arms). */
 function allProjectionExpansions(projection: ResourceProjection): Expansion[] {
+  if (projection.resolveArms !== null) {
+    return [];
+  }
   if (projection.arms !== null) {
     return projection.arms.flatMap((arm) => arm.expansions);
   }
@@ -419,16 +459,28 @@ function discriminationLabelsForMember(
 }
 
 /**
- * Union / resource-valued resources that appear as expansion targets (need
- * `projectNode` discrimination arms even without an `on Entry` projection).
- * Skips targets that already have an explicit `on` (armed or flat).
+ * Union / resource-valued / resolve-only resources that need `projectNode`
+ * discrimination arms (no projectable `on`). Skips projectable targets.
+ * Always includes resolve-only projections (settled payload under locator key).
  */
 function unionTargetResources(
   query: QueryDefinition,
   resources: ResourceIndex,
-  projected: ReadonlySet<string>
+  projected: ReadonlySet<string>,
+  resolveTargets: ResolveTargetIndex
 ): Map<string, string[]> {
   const out = new Map<string, string[]>();
+
+  const consider = (targetName: string) => {
+    if (projected.has(targetName) || out.has(targetName)) {
+      return;
+    }
+    const members = stripToConcreteMembers(targetName, resources, resolveTargets);
+    if (members !== null && members.length > 0) {
+      out.set(targetName, members);
+    }
+  };
+
   for (const projection of query.projections) {
     for (const expansion of allProjectionExpansions(projection)) {
       const targets =
@@ -438,28 +490,29 @@ function unionTargetResources(
             ? [expansion.target.resource]
             : [];
       for (const targetName of targets) {
-        if (projected.has(targetName)) {
-          // Explicit `on Target` handles projection; do not rematerialize.
-          continue;
-        }
-        const members = stripToConcreteMembers(targetName, resources);
-        if (members !== null && members.length > 0) {
-          out.set(targetName, members);
-        }
+        consider(targetName);
       }
     }
   }
+
+  // Resolve-only root / unused resolve clauses still need strip arms when present.
+  for (const resourceName of resolveTargets.keys()) {
+    consider(resourceName);
+  }
+
   return out;
 }
 
 function emitProjectNode(query: QueryDefinition, resources: ResourceIndex, fnName: string): string {
-  const projected = new Map(query.projections.map((p) => [p.resource, p]));
+  const projectable = projectableProjections(query);
+  const projected = new Map(projectable.map((p) => [p.resource, p]));
   const projectedNames = new Set(projected.keys());
-  const unions = unionTargetResources(query, resources, projectedNames);
+  const resolveTargets = resolveTargetIndex(query);
+  const unions = unionTargetResources(query, resources, projectedNames, resolveTargets);
 
   const cases: string[] = [];
 
-  for (const projection of query.projections) {
+  for (const projection of projectable) {
     const helper = projectOnFnName(projection.resource);
     cases.push(
       [
@@ -582,13 +635,13 @@ function emitQueryProjection(
   const contextFieldNames = new Set(query.context.map((f) => f.name));
   const helpers: string[] = [];
 
-  for (const projection of query.projections) {
+  for (const projection of projectableProjections(query)) {
     helpers.push(emitProjectOnHelper(projection, resources, query.name, contextFieldNames));
   }
 
   // Collection elements must have an `on` projection (projected via ContentMap).
   for (const element of embedded) {
-    if (!query.projections.some((p) => p.resource === element)) {
+    if (!query.projections.some((p) => p.resource === element && p.resolveArms === null)) {
       throw new Error(
         `emitProjections: query '${query.name}' expands collection element '${element}' but has no 'on ${element}' projection`
       );

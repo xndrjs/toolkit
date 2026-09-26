@@ -141,6 +141,80 @@ describe("emitProjections", () => {
     expect(code).not.toContain("projectOnTabs");
   });
 
+  it("strips resolve-only CustomReference via settle targets (no projectOnCustomReference)", () => {
+    const source = `
+      scalar SpaceId on string;
+      scalar EnvironmentId on string;
+      scalar Locale on string;
+      scalar Ref on string;
+
+      resource Entry(spaceId: SpaceId, environmentId: EnvironmentId, id: string, locale: Locale): {
+        type: "Hero"
+        id
+        title: string
+      }
+      resource Asset(spaceId: SpaceId, environmentId: EnvironmentId, id: string, locale: Locale): {
+        id
+        url: string
+      }
+      resource CustomReference(ref: Ref, locale: Locale): {
+        type: "Entry" | "Asset"
+        spaceId: SpaceId
+        environmentId: EnvironmentId
+        id: string
+        locale: Locale
+      }
+      resource Page(id: string, locale: Locale): {
+        id
+        related: Ref[]
+      }
+
+      query PageDetail(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand related: each ref in p.related (
+            CustomReference(ref: ref, locale: @p.locale)
+          )
+        }
+        on CustomReference c resolve to {
+          Entry(
+            spaceId: c.spaceId,
+            environmentId: c.environmentId,
+            id: c.id,
+            locale: c.locale
+          ) when c.type == "Entry"
+          Asset(
+            spaceId: c.spaceId,
+            environmentId: c.environmentId,
+            id: c.id,
+            locale: c.locale
+          ) when c.type == "Asset"
+        }
+        on Entry e {
+          when e.type == "Hero" {
+            id
+            title
+          }
+        }
+        on Asset a { id url }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjections(program!);
+
+    expect(code).toContain('case "CustomReference":');
+    expect(code).toContain('case "Hero":');
+    expect(code).toContain("return projectOnEntry(ari, payload);");
+    expect(code).toContain("return projectOnAsset(ari, payload);");
+    expect(code).not.toContain("projectOnCustomReference");
+    expect(code).toContain("const projectOnEntry = (resource: any, payload: any): any => {");
+    expect(code).toContain("const projectOnAsset = (resource: any, payload: any): any => {");
+  });
+
   it("projects identity-edge ARIs via emitConstruction (payload vs identity)", () => {
     const program: Program = {
       ...emptyProgram(),
