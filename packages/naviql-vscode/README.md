@@ -1,6 +1,6 @@
 # NaviQL VS Code / Cursor extension
 
-Syntax highlighting, language configuration, and **LSP diagnostics** for `.naviql` files (same `parseAndCheck` / `checkProgram` rules as codegen).
+Syntax highlighting, language configuration, and an LSP client for `.naviql` files: **diagnostics**, **hover**, **completion**, and **go to definition** (same `parseAndCheck` / `checkProgram` rules as codegen). The extension stays thin (`LanguageClient`); IntelliSense lives in `@xndrjs/naviql`’s language server.
 
 **Extension ID:** `xndrjs.naviql-vscode`
 
@@ -61,10 +61,18 @@ After editing the TextMate grammar or language configuration, reload the Extensi
 
 On open/change of `.naviql` files, the language server looks upward for `naviql.config.ts` (or `.js` / `.mjs`). With a config, it collects that project’s set (same `include` / `exclude` as codegen), merges programs, and publishes syntax + semantic squiggles. Without a config, only the open file is checked — there is no workspace-root `**/*.naviql` fallback (avoids false duplicates across unrelated packages in a monorepo).
 
+## IntelliSense
+
+Hover, completion, and go to definition read the same multi-file semantic snapshot as diagnostics (merged IR + scalar/resource tables).
+
+| Feature              | Behavior                                                                                                                                |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hover**            | Scalars (`scalar EntryId on string`), resources (identity + payload), fields, selected projection fields, and expression path segments  |
+| **Completion**       | Type positions (scalar + resource names); `on` / construction / `refers` targets (resources); projection body fields; construction args |
+| **Go to definition** | Jump to scalar, resource, and (best-effort) field declarations via IR/AST spans                                                         |
+
+Keywords still come from the Langium grammar follow-set. Rename, find-references, format, and code actions are not implemented yet.
+
 ## Publishing
 
 See [PUBLISHING.md](./PUBLISHING.md) for Visual Studio Marketplace and Open VSX steps. Always **build before** packaging a `.vsix`.
-
-## Out of scope (for now)
-
-Completion, hover, rename, format / code actions — planned later.
