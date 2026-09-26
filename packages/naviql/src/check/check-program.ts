@@ -17,6 +17,7 @@ export function checkProgram(program: Program): Diagnostic[] {
         code: "SCALAR_RESOURCE_NAME_CLASH",
         message: `Scalar '${scalar.name}' clashes with a resource of the same name`,
         path: `scalars.${scalar.name}`,
+        span: scalar.span,
       });
     }
   }
@@ -29,6 +30,7 @@ export function checkProgram(program: Program): Diagnostic[] {
         code: "DUPLICATE_QUERY",
         message: `Duplicate query '${query.name}'`,
         path,
+        span: query.span,
       });
       continue;
     }

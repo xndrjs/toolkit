@@ -1,4 +1,4 @@
-import type { ExpandArm, Expansion, Expr, QueryDefinition, TypeExpr } from "../ir";
+import type { ExpandArm, Expansion, Expr, QueryDefinition, SourceSpan, TypeExpr } from "../ir";
 import { checkConstruction } from "./construction";
 import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
@@ -50,6 +50,7 @@ export function checkQuery(
         code: "DUPLICATE_BINDING",
         message: `Duplicate projection binding '${projection.binding}' in query '${query.name}'`,
         path: projPath,
+        span: projection.span,
       });
       continue;
     }
@@ -58,6 +59,7 @@ export function checkQuery(
         code: "UNKNOWN_RESOURCE",
         message: `Unknown resource '${projection.resource}' in projection`,
         path: projPath,
+        span: projection.span,
       });
     }
     bindings.set(projection.binding, projection.resource);
@@ -86,12 +88,14 @@ export function checkQuery(
           code: "UNKNOWN_SELECTED_FIELD",
           message: `Cannot select field '${fieldName}' on non-object payload of '${projection.resource}'`,
           path: `${projPath}.selectedFields.${fieldName}`,
+          span: projection.span,
         });
       } else if (!resource.payload.has(fieldName)) {
         sink.push({
           code: "UNKNOWN_SELECTED_FIELD",
           message: `Selected field '${fieldName}' is not on payload of '${projection.resource}'`,
           path: `${projPath}.selectedFields.${fieldName}`,
+          span: projection.span,
         });
       }
     }
@@ -104,6 +108,7 @@ export function checkQuery(
           code: "DUPLICATE_EXPANSION_ALIAS",
           message: `Duplicate expansion alias '${expansion.alias}'`,
           path: expPath,
+          span: expansion.span,
         });
         continue;
       }
@@ -117,6 +122,7 @@ export function checkQuery(
             code: "INVALID_COMPREHENSION",
             message: `Expansion '${expansion.alias}' has multiplicity "one" but includes a comprehension`,
             path: expPath,
+            span: expansion.span,
           });
         }
         if (expansion.target === null) {
@@ -124,6 +130,7 @@ export function checkQuery(
             code: "INVALID_COMPREHENSION",
             message: `Expansion '${expansion.alias}' has multiplicity "one" but no target`,
             path: expPath,
+            span: expansion.span,
           });
           continue;
         }
@@ -147,6 +154,7 @@ function checkManyExpansion(
       code: "INVALID_COMPREHENSION",
       message: `Expansion '${expansion.alias}' has multiplicity "many" but no comprehension`,
       path: expPath,
+      span: expansion.span,
     });
     return;
   }
@@ -156,6 +164,7 @@ function checkManyExpansion(
       code: "INVALID_COMPREHENSION",
       message: `Expansion '${expansion.alias}' each-comprehension has no arms`,
       path: expPath,
+      span: expansion.span,
     });
     return;
   }
@@ -177,6 +186,7 @@ function checkManyExpansion(
       code: "COMPREHENSION_SOURCE_NOT_ARRAY",
       message: `Comprehension source must be an array, got ${formatType(sourceType)}`,
       path: `${expPath}.source`,
+      span: comprehension.source.span,
     });
     return;
   }
@@ -196,7 +206,14 @@ function checkManyExpansion(
     );
   }
 
-  checkArmExhaustiveness(elementType, comprehension.arms, comprehension.itemBinding, expPath, sink);
+  checkArmExhaustiveness(
+    elementType,
+    comprehension.arms,
+    comprehension.itemBinding,
+    expPath,
+    expansion.span,
+    sink
+  );
 }
 
 function checkExpandArm(
@@ -223,6 +240,7 @@ function checkExpandArm(
           code: "TYPE_MISMATCH",
           message: `Arm when-clause must be boolean, got ${formatType(whenType)}`,
           path: `${armPath}.when`,
+          span: arm.when.span,
         });
       }
     }
@@ -248,6 +266,7 @@ function checkArmExhaustiveness(
   arms: ExpandArm[],
   itemBinding: string,
   expPath: string,
+  span: SourceSpan | null,
   sink: DiagnosticSink
 ): void {
   const required = closedTypeDiscriminants(elementType);
@@ -257,9 +276,8 @@ function checkArmExhaustiveness(
 
   const covered = new Set<string>();
   for (const arm of arms) {
-    if (!arm.when) continue;
-    const disc =
-      arm.when.kind === "binary" ? discriminantLiteral(arm.when, itemBinding) : undefined;
+    if (arm.when?.kind !== "binary") continue;
+    const disc = discriminantLiteral(arm.when, itemBinding);
     if (disc && arm.when.op === "==") {
       covered.add(disc.value);
     }
@@ -271,6 +289,7 @@ function checkArmExhaustiveness(
       code: "INEXHAUSTIVE_EXPAND_ARMS",
       message: `each-expand arms do not cover discriminant(s): ${missing.map((v) => JSON.stringify(v)).join(", ")}`,
       path: expPath,
+      span,
     });
   }
 }

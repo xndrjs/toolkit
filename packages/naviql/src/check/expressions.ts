@@ -1,4 +1,4 @@
-import type { Expr, TypeExpr } from "../ir";
+import type { Expr, SourceSpan, TypeExpr } from "../ir";
 import { formatType, isAssignable, literalInhabits } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
 import {
@@ -45,6 +45,7 @@ export function inferExprType(
           code: "UNKNOWN_PARAM",
           message: `Unknown parameter '${expr.name}'`,
           path,
+          span: expr.span,
         });
         return undefined;
       }
@@ -57,14 +58,33 @@ export function inferExprType(
         path,
         "UNKNOWN_CONTEXT_PATH",
         "context",
+        expr.span,
         sink
       );
     }
     case "payloadRef": {
-      return resolveBindingPath(expr.binding, expr.path, "payload", path, scope, resources, sink);
+      return resolveBindingPath(
+        expr.binding,
+        expr.path,
+        "payload",
+        path,
+        expr.span,
+        scope,
+        resources,
+        sink
+      );
     }
     case "identityRef": {
-      return resolveBindingPath(expr.binding, expr.path, "identity", path, scope, resources, sink);
+      return resolveBindingPath(
+        expr.binding,
+        expr.path,
+        "identity",
+        path,
+        expr.span,
+        scope,
+        resources,
+        sink
+      );
     }
     case "itemRef": {
       const itemType = scope.items.get(expr.binding);
@@ -73,13 +93,14 @@ export function inferExprType(
           code: "UNKNOWN_ITEM_BINDING",
           message: `Unknown comprehension item '${expr.binding}'`,
           path,
+          span: expr.span,
         });
         return undefined;
       }
       if (expr.path.length === 0) {
         return itemType;
       }
-      return resolvePathOnItemType(expr.path, itemType, path, sink);
+      return resolvePathOnItemType(expr.path, itemType, path, expr.span, sink);
     }
     case "binary": {
       const left = inferExprType(expr.left, `${path}.left`, scope, resources, sink);
@@ -115,6 +136,7 @@ export function checkExprAssignableTo(
         code: "TYPE_MISMATCH",
         message: `Literal is not assignable to ${formatType(expectedConcrete)}`,
         path,
+        span: expr.span,
       });
     }
     return;
@@ -131,6 +153,7 @@ export function checkExprAssignableTo(
       code: "TYPE_MISMATCH",
       message: `Type ${formatType(actualConcrete)} is not assignable to ${formatType(expectedConcrete)}`,
       path,
+      span: expr.span,
     });
   }
 }
@@ -140,6 +163,7 @@ function resolveBindingPath(
   pathSegments: string[],
   side: "payload" | "identity",
   path: string,
+  span: SourceSpan | null,
   scope: QueryScope,
   resources: ResourceTable,
   sink: DiagnosticSink
@@ -150,6 +174,7 @@ function resolveBindingPath(
       code: "UNKNOWN_BINDING",
       message: `Unknown binding '${binding}'`,
       path,
+      span,
     });
     return undefined;
   }
@@ -159,7 +184,7 @@ function resolveBindingPath(
   }
   const fields = side === "payload" ? resource.payload : resource.identity;
   const code = side === "payload" ? "UNKNOWN_PAYLOAD_PATH" : "UNKNOWN_IDENTITY_PATH";
-  return resolvePathOnFields(pathSegments, fields, path, code, side, sink);
+  return resolvePathOnFields(pathSegments, fields, path, code, side, span, sink);
 }
 
 function resolvePathOnFields(
@@ -168,6 +193,7 @@ function resolvePathOnFields(
   diagPath: string,
   code: string,
   label: string,
+  span: SourceSpan | null,
   sink: DiagnosticSink
 ): TypeExpr | undefined {
   if (pathSegments.length === 0) {
@@ -175,6 +201,7 @@ function resolvePathOnFields(
       code,
       message: `Empty ${label} path`,
       path: diagPath,
+      span,
     });
     return undefined;
   }
@@ -189,6 +216,7 @@ function resolvePathOnFields(
         code,
         message: `Cannot access '${segment}' on non-object ${label} type${currentType ? ` ${formatType(currentType)}` : ""}`,
         path: diagPath,
+        span,
       });
       return undefined;
     }
@@ -198,6 +226,7 @@ function resolvePathOnFields(
         code,
         message: `Unknown ${label} path '${pathSegments.slice(0, i + 1).join(".")}'`,
         path: diagPath,
+        span,
       });
       return undefined;
     }
@@ -223,6 +252,7 @@ function resolvePathOnItemType(
   pathSegments: string[],
   itemType: TypeExpr,
   diagPath: string,
+  span: SourceSpan | null,
   sink: DiagnosticSink
 ): TypeExpr | undefined {
   const inner = unwrapNullable(itemType);
@@ -233,6 +263,7 @@ function resolvePathOnItemType(
       diagPath,
       "UNKNOWN_ITEM_PATH",
       "item",
+      span,
       sink
     );
   }
@@ -240,7 +271,7 @@ function resolvePathOnItemType(
   if (inner.kind === "union") {
     const memberTypes: TypeExpr[] = [];
     for (const member of inner.members) {
-      const resolved = resolvePathOnItemType(pathSegments, member, diagPath, sink);
+      const resolved = resolvePathOnItemType(pathSegments, member, diagPath, span, sink);
       if (!resolved) {
         return undefined;
       }
@@ -261,6 +292,7 @@ function resolvePathOnItemType(
     code: "UNKNOWN_ITEM_PATH",
     message: `Cannot access path on non-object item type ${formatType(itemType)}`,
     path: diagPath,
+    span,
   });
   return undefined;
 }
