@@ -95,7 +95,7 @@ export async function resolveDemoPage(
   );
 
   const output = await resolver.resolve({
-    root: pageRoot,
+    roots: [pageRoot],
     executionContext,
     missingResourceMode: "throw",
     backingResources,

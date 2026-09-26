@@ -196,7 +196,7 @@ describe("createDemoStrategy", () => {
       .build();
 
     const output = await createDemoResolver({ schedulingMode: "barrier" }).resolve({
-      root: pageRoot,
+      roots: [pageRoot],
       executionContext,
       missingResourceMode: "throw",
     });

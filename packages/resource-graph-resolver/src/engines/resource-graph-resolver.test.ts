@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+
 import { createResourceGraphResolver } from "./resource-graph-resolver";
 import {
   MissingResourceError,
@@ -33,11 +35,21 @@ import {
   menuAri,
   orphanAri,
   pageAri,
+  productAri,
   testAri,
   testAriFactory,
 } from "../testing/test-fixtures";
 import type { SchedulingMode, ResolveResourceGraphOutput } from "../types";
 import type { DataSource } from "../ports/data-source";
+
+/** Lets every pending macrotask run so any load that *can* start has started. */
+async function flushMacrotasks(rounds = 12): Promise<void> {
+  for (let round = 0; round < rounds; round += 1) {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  }
+}
 
 const schedulingModes: readonly SchedulingMode[] = ["lane", "barrier"];
 
@@ -195,7 +207,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     });
 
     const output = await resolver.resolve({
-      root: first,
+      roots: [first],
       executionContext: {},
       missingResourceMode: "throw",
     });
@@ -255,7 +267,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     });
 
     await resolver.resolve({
-      root: page,
+      roots: [page],
       executionContext: {},
       missingResourceMode: "throw",
       signal: controller.signal,
@@ -285,7 +297,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     });
 
     const failure = await resolver
-      .resolve({ root: page, executionContext: {}, missingResourceMode: "throw" })
+      .resolve({ roots: [page], executionContext: {}, missingResourceMode: "throw" })
       .catch((error: unknown) => error);
 
     expect(failure).toBeInstanceOf(ResourceLoadFailedError);
@@ -333,7 +345,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     });
 
     const output = await resolver.resolve({
-      root: page,
+      roots: [page],
       executionContext: {},
       missingResourceMode: "collect",
     });
@@ -390,7 +402,7 @@ describe("scheduling mode parity", () => {
     });
 
     return resolver.resolve({
-      root: page,
+      roots: [page],
       executionContext: {},
       missingResourceMode: "collect",
       backingResources: new Map<string, unknown>([
@@ -444,7 +456,7 @@ describe("positional load contract", () => {
     });
 
     const output = await resolver.resolve({
-      root,
+      roots: [root],
       executionContext: {},
       missingResourceMode: "collect",
     });
@@ -487,7 +499,7 @@ describe("positional load contract", () => {
 
     await expect(
       resolver.resolve({
-        root,
+        roots: [root],
         executionContext: {},
         missingResourceMode: "throw",
       })
@@ -559,7 +571,7 @@ describe("strategy resolve redirects", () => {
     });
 
     const output = await resolver.resolve({
-      root,
+      roots: [root],
       executionContext: {},
       missingResourceMode: "throw",
     });
@@ -634,7 +646,7 @@ describe("strategy resolve redirects", () => {
     });
 
     const output = await resolver.resolve({
-      root,
+      roots: [root],
       executionContext: {},
       missingResourceMode: "throw",
     });
@@ -677,7 +689,7 @@ describe("strategy resolve redirects", () => {
     });
 
     const output = await resolver.resolve({
-      root,
+      roots: [root],
       executionContext: {},
       missingResourceMode: "throw",
       backingResources: new Map([[customRef.toString(), { type: "Entry", id: "1" }]]),
@@ -687,5 +699,310 @@ describe("strategy resolve redirects", () => {
     expect(output.promotedResourceKeys).toEqual([customRef.toString()]);
     expect(output.contentMap.get(customRef)).toEqual({ title: "From entry" });
     expect(output.contentMap.get(entry)).toEqual({ title: "From entry" });
+  });
+});
+
+describe("multi-root seeds", () => {
+  it("throws when roots is empty", async () => {
+    const resolver = createResourceGraphResolver({
+      sources: [createStoreSource({ for: pageGraphFamilies })],
+      strategy: graphStrategy(
+        createExpansionPolicyChain(createPageGraphPolicies()),
+        createIslandPolicyChain(createPageGraphIslandPolicies())
+      ),
+    });
+
+    await expect(
+      resolver.resolve({
+        roots: [],
+        executionContext: {},
+        missingResourceMode: "throw",
+      })
+    ).rejects.toMatchObject({
+      name: "ResourceGraphError",
+      message: "ResolveResourceGraphInput.roots must be non-empty",
+    });
+  });
+
+  it("reports all seed ARIs on the resolution start event", async () => {
+    const a = pageAri({ id: "A" });
+    const b = pageAri({ id: "B" });
+    const store = new Map<string, unknown>([
+      [a.toString(), {}],
+      [b.toString(), {}],
+    ]);
+
+    let seenRoots: readonly ApplicationResourceIdentifier[] | undefined;
+    const resolver = createResourceGraphResolver({
+      sources: [createStoreSource({ id: "pages", for: [pageAri], store })],
+      strategy: graphStrategy(createExpansionPolicyChain([]), createIslandPolicyChain([])),
+      observer: {
+        onResolutionStart: (event) => {
+          seenRoots = event.roots;
+        },
+      },
+    });
+
+    await resolver.resolve({
+      roots: [a, b],
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(seenRoots).toEqual([a, b]);
+  });
+
+  it("enqueues every seed before any load runs", async () => {
+    const a = pageAri({ id: "A" });
+    const b = pageAri({ id: "B" });
+    const store = new Map<string, unknown>([
+      [a.toString(), {}],
+      [b.toString(), {}],
+    ]);
+
+    const gate = createDeferred<void>();
+    const source = createStoreSource({
+      id: "pages",
+      for: [pageAri],
+      store,
+      batchSize: 1,
+      concurrency: 2,
+      gate: () => gate.promise,
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [source],
+      strategy: graphStrategy(createExpansionPolicyChain([]), createIslandPolicyChain([])),
+      schedulingMode: "lane",
+    });
+
+    const resolution = resolver.resolve({
+      roots: [a, b],
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    await flushMacrotasks();
+    expect(source.batches).toHaveLength(2);
+    expect(
+      source.batches
+        .flat()
+        .map((resource) => resource.toString())
+        .sort()
+    ).toEqual([a.toString(), b.toString()].sort());
+
+    gate.resolve();
+    await resolution;
+  });
+
+  it("loads the same ARI only once when listed twice in roots", async () => {
+    const source = createStoreSource({
+      for: [pageAri],
+      store: new Map([[page.toString(), {}]]),
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [source],
+      strategy: graphStrategy(createExpansionPolicyChain([]), createIslandPolicyChain([])),
+    });
+
+    const output = await resolver.resolve({
+      roots: [page, page],
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.contentMap.size).toBe(1);
+    expect(source.batches.flat()).toHaveLength(1);
+  });
+
+  it("loads a shared child once when discovered from two seed subgraphs", async () => {
+    const left = pageAri({ id: "L" });
+    const right = pageAri({ id: "R" });
+    const shared = assetAri({ id: "shared" });
+
+    const store = new Map<string, unknown>([
+      [left.toString(), {}],
+      [right.toString(), {}],
+      [shared.toString(), { url: "https://cdn.example.com/shared.svg" }],
+    ]);
+
+    const source = createStoreSource({
+      for: [pageAri, assetAri],
+      store,
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [source],
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.equals(left) || resource.equals(right),
+            expand: () => ({ resources: [shared] }),
+          },
+        ]),
+        createIslandPolicyChain([])
+      ),
+    });
+
+    const output = await resolver.resolve({
+      roots: [left, right],
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.contentMap.size).toBe(3);
+    const sharedLoads = source.batches.filter((batch) =>
+      batch.some((resource) => resource.equals(shared))
+    );
+    expect(sharedLoads).toHaveLength(1);
+  });
+
+  it("redirects when a seed is a resolve locator", async () => {
+    const customRefAri = testAriFactory("customRef");
+    const entryAriFactory = testAriFactory("entry");
+    const customRef = customRefAri({ id: "master@foo|ENTRY|1" });
+    const entry = entryAriFactory({ id: "1" });
+
+    const decodeSource: DataSource = {
+      id: "custom-refs",
+      for: [customRefAri],
+      concurrency: 1,
+      load: async (batch) => batch.map(() => ({ type: "Entry", id: "1" })),
+    };
+
+    const entrySource: DataSource = {
+      id: "entries",
+      for: [entryAriFactory],
+      concurrency: 1,
+      load: async (batch) =>
+        batch.map((resource) =>
+          entryAriFactory.matches(resource) ? { title: "Seed redirect" } : undefined
+        ),
+    };
+
+    const resolver = createResourceGraphResolver({
+      sources: [decodeSource, entrySource],
+      strategy: createGraphResolutionStrategy()
+        .resolve.on(customRefAri)
+        .when(({ payload }) => (payload as { type?: string }).type === "Entry")
+        .to(() => ({ resource: entry }))
+        .build(),
+    });
+
+    const output = await resolver.resolve({
+      roots: [customRef],
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(output.contentMap.has(customRef)).toBe(true);
+    expect(output.contentMap.has(entry)).toBe(true);
+    expect(output.contentMap.get(customRef)).toEqual({ title: "Seed redirect" });
+    expect(output.contentMap.get(entry)).toEqual({ title: "Seed redirect" });
+  });
+
+  it("lets independent seed lanes advance while a peer source is gated", async () => {
+    const fastRoot = pageAri({ id: "fast" });
+    const slowRoot = productAri({ id: "slow" });
+    const fastChild = heroAri({ id: "fast-child" });
+
+    const store = new Map<string, unknown>([
+      [fastRoot.toString(), {}],
+      [fastChild.toString(), {}],
+      [slowRoot.toString(), {}],
+    ]);
+
+    const gate = createDeferred<void>();
+    const fast = createStoreSource({
+      id: "fast",
+      for: [pageAri, heroAri],
+      store,
+    });
+    const slow = createStoreSource({
+      id: "slow",
+      for: [productAri],
+      store,
+      gate: () => gate.promise,
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [fast, slow],
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.equals(fastRoot),
+            expand: () => ({ resources: [fastChild] }),
+          },
+        ]),
+        createIslandPolicyChain([])
+      ),
+      schedulingMode: "lane",
+    });
+
+    const resolution = resolver.resolve({
+      roots: [fastRoot, slowRoot],
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    await flushMacrotasks();
+    expect(
+      fast.batches
+        .flat()
+        .map((r) => r.toString())
+        .sort()
+    ).toEqual([fastRoot.toString(), fastChild.toString()].sort());
+    expect(slow.batches).toHaveLength(1);
+
+    gate.resolve();
+    const output = await resolution;
+
+    expect(output.contentMap.size).toBe(3);
+    expect(output.contentMap.has(slowRoot)).toBe(true);
+  });
+
+  it("waits for every seed and its descendants before closing", async () => {
+    const left = pageAri({ id: "L" });
+    const right = pageAri({ id: "R" });
+    const leftChild = heroAri({ id: "LH" });
+    const rightChild = menuAri({ id: "RM" });
+
+    const store = new Map<string, unknown>([
+      [left.toString(), {}],
+      [right.toString(), {}],
+      [leftChild.toString(), {}],
+      [rightChild.toString(), {}],
+    ]);
+
+    const resolver = createResourceGraphResolver({
+      sources: [createStoreSource({ for: [pageAri, heroAri, menuAri], store })],
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.equals(left),
+            expand: () => ({ resources: [leftChild] }),
+          },
+          {
+            matches: ({ resource }) => resource.equals(right),
+            expand: () => ({ resources: [rightChild] }),
+          },
+        ]),
+        createIslandPolicyChain([])
+      ),
+    });
+
+    const output = await resolver.resolve({
+      roots: [left, right],
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(output.contentMap.size).toBe(4);
+    expect(Object.keys(output.contentMap.toJSON()).sort()).toEqual(
+      [left, right, leftChild, rightChild].map((r) => r.toString()).sort()
+    );
   });
 });

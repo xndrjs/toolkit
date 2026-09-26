@@ -684,7 +684,7 @@ export async function resolvePageDetail(
 
   const { contentMap, islands, islandDependencies, errors, promotedResourceKeys } =
     await resolver.resolve({
-      root: input.root,
+      roots: [input.root],
       executionContext: input.executionContext,
       missingResourceMode: input.missingResourceMode,
       backingResources: input.backingResources,

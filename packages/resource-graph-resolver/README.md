@@ -54,7 +54,7 @@ const resolver = createResourceGraphResolver({
 });
 
 const output = await resolver.resolve({
-  root: pageAri({ id: "home", locale: "en-US" }),
+  roots: [pageAri({ id: "home", locale: "en-US" })],
   executionContext: { locale: "en-US" },
 });
 ```

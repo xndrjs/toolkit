@@ -81,7 +81,7 @@ describe("lane versus barrier scheduling", () => {
     });
 
     const resolution = resolver.resolve({
-      root,
+      roots: [root],
       executionContext: {},
       missingResourceMode: "throw",
     });
@@ -143,7 +143,7 @@ describe("batching and concurrency", () => {
     });
 
     const output = await resolver.resolve({
-      root,
+      roots: [root],
       executionContext: {},
       missingResourceMode: "throw",
     });
@@ -241,7 +241,7 @@ describe("observer", () => {
     });
 
     await resolver.resolve({
-      root,
+      roots: [root],
       executionContext: {},
       missingResourceMode: "throw",
       backingResources: new Map<string, unknown>([[promoted.toString(), {}]]),
@@ -279,7 +279,7 @@ describe("observer", () => {
     });
 
     const output = await resolver.resolve({
-      root,
+      roots: [root],
       executionContext: {},
       missingResourceMode: "throw",
     });
@@ -315,7 +315,7 @@ describe("positional load length", () => {
 
     await expect(
       resolver.resolve({
-        root,
+        roots: [root],
         executionContext: {},
         missingResourceMode: "throw",
       })

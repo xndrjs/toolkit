@@ -23,7 +23,7 @@ async function resolveDemoPage(
   const pageRoot = cmsEntryAri({ id: demoIds.page, locale });
 
   return createDemoResolver({ schedulingMode: "barrier", productCatalog: catalog }).resolve({
-    root: pageRoot,
+    roots: [pageRoot],
     executionContext,
     missingResourceMode: "throw",
   });
