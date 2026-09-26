@@ -1,4 +1,4 @@
-import { isCompositeCstNode, type AstNode } from "langium";
+import { isCompositeCstNode, type CstNode } from "langium";
 
 import type { Expansion, Expr, ResourceConstruction, SourceSpan } from "../../ir";
 import type { DiagnosticSink } from "../../check/diagnostic";
@@ -6,6 +6,8 @@ import {
   type Expansion as AstExpansion,
   type FragmentDeclaration as AstFragmentDeclaration,
   type FragmentSpread as AstFragmentSpread,
+  type ProjectionClause as AstProjectionClause,
+  type ProjectionWhenArm as AstProjectionWhenArm,
 } from "../../lang/generated/ast";
 import { lowerExpansion } from "./query";
 import { spanOf } from "./span";
@@ -18,18 +20,26 @@ export type FlattenedBody = {
 };
 
 type BodyItem =
-  | { kind: "field"; name: string }
+  | { kind: "field"; name: string; span: SourceSpan | null }
   | { kind: "expansion"; expansion: AstExpansion }
   | { kind: "spread"; spread: AstFragmentSpread };
 
-type BodyContainer = {
-  selectedFields: string[];
-  expansions: AstExpansion[];
-  spreads: AstFragmentSpread[];
-  $cstNode?: AstNode["$cstNode"];
-};
+/** AST nodes that own a mixed field / expand / spread body. */
+type BodyContainer = AstProjectionClause | AstProjectionWhenArm | AstFragmentDeclaration;
 
 const EMPTY_BODY: FlattenedBody = { selectedFields: [], expansions: [] };
+
+function cstSpan(cst: CstNode, uri: string | null): SourceSpan {
+  return { start: cst.offset, end: cst.end, uri };
+}
+
+function containerUri(container: BodyContainer): string | null {
+  try {
+    return spanOf(container)?.uri ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function expandBody(
   container: BodyContainer,
@@ -41,15 +51,35 @@ export function expandBody(
 ): FlattenedBody {
   const selectedFields: string[] = [];
   const expansions: Expansion[] = [];
+  const seenFields = new Set<string>();
+  const fallbackSpan = spanOf(container);
 
   for (const item of bodyItemsInOrder(container)) {
     if (item.kind === "field") {
+      if (seenFields.has(item.name)) {
+        sink.push({
+          code: "DUPLICATE_SELECTED_FIELD",
+          message: `Duplicate selected field '${item.name}'`,
+          span: item.span ?? fallbackSpan,
+        });
+      }
+      seenFields.add(item.name);
       selectedFields.push(item.name);
     } else if (item.kind === "expansion") {
       expansions.push(lowerExpansion(item.expansion));
     } else {
       const spreadBody = expandSpread(item.spread, resource, binding, fragments, stack, sink);
-      selectedFields.push(...spreadBody.selectedFields);
+      for (const field of spreadBody.selectedFields) {
+        if (seenFields.has(field)) {
+          sink.push({
+            code: "DUPLICATE_SELECTED_FIELD",
+            message: `Duplicate selected field '${field}'`,
+            span: spanOf(item.spread) ?? fallbackSpan,
+          });
+        }
+        seenFields.add(field);
+        selectedFields.push(field);
+      }
       expansions.push(...spreadBody.expansions);
     }
   }
@@ -106,6 +136,7 @@ export function expandSpread(
  * Langium stores the three alternatives in separate arrays.
  */
 export function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
+  const uri = containerUri(container);
   const spreadByOffset = new Map<number, AstFragmentSpread>();
   for (const spread of container.spreads) {
     const offset = spread.$cstNode?.offset;
@@ -125,8 +156,12 @@ export function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
   const content = cst && isCompositeCstNode(cst) ? cst.content : [];
 
   for (const child of content) {
-    const astType = child.astNode?.$type;
-    if (astType === "ProjectionWhenArm") continue;
+    // Skip nested when-arm subtrees when walking a projection clause. Leaves
+    // inside a when-arm still have `$type === "ProjectionWhenArm"` but share
+    // the arm as `astNode` — those must not be skipped.
+    if (child.astNode?.$type === "ProjectionWhenArm" && child.astNode !== container) {
+      continue;
+    }
 
     if (spreadByOffset.has(child.offset)) {
       if (!seenOffsets.has(child.offset)) {
@@ -153,14 +188,17 @@ export function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
     if (text !== undefined && fieldQueue[0] === text) {
       ordered.push({
         offset: child.offset,
-        item: { kind: "field", name: fieldQueue.shift()! },
+        item: { kind: "field", name: fieldQueue.shift()!, span: cstSpan(child, uri) },
       });
     }
   }
 
   // Fallback if CST matching failed (e.g. missing CST in tests).
   for (const name of fieldQueue) {
-    ordered.push({ offset: Number.MAX_SAFE_INTEGER, item: { kind: "field", name } });
+    ordered.push({
+      offset: Number.MAX_SAFE_INTEGER,
+      item: { kind: "field", name, span: null },
+    });
   }
   for (const [offset, spread] of spreadByOffset) {
     if (!seenOffsets.has(offset)) {
@@ -177,6 +215,31 @@ export function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
   return ordered.map((e) => e.item);
 }
 
+/**
+ * Report selected fields that appear in both preamble and arm body
+ * (within-body duplicates are already diagnosed in {@link expandBody}).
+ */
+export function rejectPreambleArmFieldClash(
+  preamble: FlattenedBody,
+  armBody: FlattenedBody,
+  span: SourceSpan | null,
+  sink: DiagnosticSink
+): void {
+  const preambleFields = new Set(preamble.selectedFields);
+  const reported = new Set<string>();
+  for (const field of armBody.selectedFields) {
+    if (preambleFields.has(field) && !reported.has(field)) {
+      reported.add(field);
+      sink.push({
+        code: "DUPLICATE_SELECTED_FIELD",
+        message: `Duplicate selected field '${field}'`,
+        span,
+      });
+    }
+  }
+}
+
+/** @deprecated Prefer {@link expandBody} + {@link rejectPreambleArmFieldClash}. */
 export function rejectDuplicateBody(
   body: FlattenedBody,
   span: SourceSpan | null,
@@ -187,7 +250,7 @@ export function rejectDuplicateBody(
     if (seenFields.has(field)) {
       sink.push({
         code: "DUPLICATE_SELECTED_FIELD",
-        message: `Duplicate selected field '${field}' after fragment expansion`,
+        message: `Duplicate selected field '${field}'`,
         span,
       });
     }
