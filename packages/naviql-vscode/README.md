@@ -1,8 +1,19 @@
 # NaviQL VS Code / Cursor extension
 
-Syntax highlighting and language configuration for `.naviql` files. No language server yet.
+Syntax highlighting, language configuration, and **LSP diagnostics** for `.naviql` files (same `parseAndCheck` / `checkProgram` rules as codegen).
 
 **Extension ID:** `xndrjs.naviql-vscode`
+
+## Prerequisites (diagnostics)
+
+The LanguageClient starts `@xndrjs/naviql`’s `naviql-language-server` (`dist/lsp/main.js`). Build that package first:
+
+```bash
+pnpm --filter @xndrjs/naviql build
+pnpm --filter naviql-vscode build
+```
+
+F5 / **Install from Location** in this monorepo resolve the server via the workspace dependency. A marketplace `.vsix` does not yet bundle the server binary (absolute path / packaging TBD — see [PUBLISHING.md](./PUBLISHING.md)).
 
 ## Install
 
@@ -15,25 +26,27 @@ Syntax highlighting and language configuration for `.naviql` files. No language 
 
 ```bash
 cd packages/naviql-vscode
-npm run vsix
+pnpm run vsix   # builds the client, then packages
 cursor --install-extension ./naviql-vscode-0.0.1.vsix
 # or: code --install-extension ./naviql-vscode-0.0.1.vsix
 ```
 
-Then reload the window (`Developer: Reload Window`).
+Then reload the window (`Developer: Reload Window`). Note: a vsix built with `--no-dependencies` includes the client only; for live diagnostics prefer F5 or Install from Location in the monorepo (with `@xndrjs/naviql` built).
 
 ### From Location (dev)
 
-Command Palette → **Extensions: Install from Location…** → select this folder → reload.
+1. `pnpm --filter @xndrjs/naviql build && pnpm --filter naviql-vscode build`
+2. Command Palette → **Extensions: Install from Location…** → select this folder → reload.
 
 ### F5 (Extension Development Host)
 
-1. Open this folder, **or** use a launch config with  
+1. Build both packages (see Prerequisites).
+2. Open the monorepo, **or** use a launch config with  
    `"args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/naviql-vscode"]`.
-2. Press **F5**.
-3. Open any `.naviql` file (e.g. `apps/naviql-demo/naviql/page-detail.naviql`).
+3. Press **F5**.
+4. Open any `.naviql` file (e.g. `apps/naviql-demo/naviql/page-detail.naviql`).
 
-After editing `syntaxes/naviql.tmLanguage.json` or `language-configuration.json`, reload the Extension Development Host (or the main window if installed from a `.vsix` / Location).
+After editing the TextMate grammar or language configuration, reload the Extension Development Host. After editing `src/extension.ts`, rebuild (`pnpm run build`) then reload.
 
 ## What it colors
 
@@ -44,10 +57,14 @@ After editing `syntaxes/naviql.tmLanguage.json` or `language-configuration.json`
 - Comments: `//` and `/* */`
 - Coarse type/identifier scopes (PascalCase → type-like)
 
+## Diagnostics
+
+On open/change of `.naviql` files, the language server collects the workspace set (same include/exclude rules as codegen), merges programs, and publishes syntax + semantic squiggles with source ranges. Multi-file projects (e.g. `resources.naviql` + `page-detail.naviql`) share one check so cross-file references do not false-positive.
+
 ## Publishing
 
-See [PUBLISHING.md](./PUBLISHING.md) for Visual Studio Marketplace and Open VSX steps.
+See [PUBLISHING.md](./PUBLISHING.md) for Visual Studio Marketplace and Open VSX steps. Always **build before** packaging a `.vsix`.
 
 ## Out of scope (for now)
 
-Diagnostics, completion, hover, rename — planned via `@xndrjs/naviql/lsp` later.
+Completion, hover, rename, format / code actions — planned later.
