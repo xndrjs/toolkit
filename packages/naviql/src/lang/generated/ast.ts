@@ -37,6 +37,7 @@ export type NaviQlKeywordNames =
   | "false"
   | "fragment"
   | "in"
+  | "islands"
   | "null"
   | "number"
   | "on"
@@ -105,7 +106,13 @@ export function isAtomicTypeExpr(item: unknown): item is AtomicTypeExpr {
 }
 
 export interface BinaryExpr extends langium.AstNode {
-  readonly $container: EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm | ResolveArm;
+  readonly $container:
+    | EachComprehension
+    | ExpandArm
+    | IslandWhen
+    | NamedArg
+    | ProjectionWhenArm
+    | ResolveArm;
   readonly $type: "BinaryExpr";
   left: Atom;
   op: "!=" | "==";
@@ -128,6 +135,7 @@ export interface BooleanLiteral extends langium.AstNode {
     | BinaryExpr
     | EachComprehension
     | ExpandArm
+    | IslandWhen
     | NamedArg
     | ProjectionWhenArm
     | ResolveArm;
@@ -164,6 +172,7 @@ export interface ContextRef extends langium.AstNode {
     | BinaryExpr
     | EachComprehension
     | ExpandArm
+    | IslandWhen
     | NamedArg
     | ProjectionWhenArm
     | ResolveArm;
@@ -326,6 +335,7 @@ export interface IdentityRef extends langium.AstNode {
     | BinaryExpr
     | EachComprehension
     | ExpandArm
+    | IslandWhen
     | NamedArg
     | ProjectionWhenArm
     | ResolveArm;
@@ -342,6 +352,59 @@ export const IdentityRef = {
 
 export function isIdentityRef(item: unknown): item is IdentityRef {
   return reflection.isInstance(item, IdentityRef.$type);
+}
+
+export interface IslandClause extends langium.AstNode {
+  readonly $container: IslandsBlock;
+  readonly $type: "IslandClause";
+  binding?: string;
+  resource: string;
+  whens: Array<IslandWhen>;
+}
+
+export const IslandClause = {
+  $type: "IslandClause",
+  binding: "binding",
+  resource: "resource",
+  whens: "whens",
+} as const;
+
+export function isIslandClause(item: unknown): item is IslandClause {
+  return reflection.isInstance(item, IslandClause.$type);
+}
+
+/**
+ * Island policies: multiple `when` under one `on` are OR'd (one startIsland each).
+ * Empty body ⇒ unconditional startIsland. Binding required when any `when` is present.
+ */
+export interface IslandsBlock extends langium.AstNode {
+  readonly $container: QueryDeclaration;
+  readonly $type: "IslandsBlock";
+  clauses: Array<IslandClause>;
+}
+
+export const IslandsBlock = {
+  $type: "IslandsBlock",
+  clauses: "clauses",
+} as const;
+
+export function isIslandsBlock(item: unknown): item is IslandsBlock {
+  return reflection.isInstance(item, IslandsBlock.$type);
+}
+
+export interface IslandWhen extends langium.AstNode {
+  readonly $container: IslandClause;
+  readonly $type: "IslandWhen";
+  when: Expression;
+}
+
+export const IslandWhen = {
+  $type: "IslandWhen",
+  when: "when",
+} as const;
+
+export function isIslandWhen(item: unknown): item is IslandWhen {
+  return reflection.isInstance(item, IslandWhen.$type);
 }
 
 export type Literal = BooleanLiteral | NullLiteral | NumberLiteral | StringLiteral;
@@ -412,6 +475,7 @@ export interface NullLiteral extends langium.AstNode {
     | BinaryExpr
     | EachComprehension
     | ExpandArm
+    | IslandWhen
     | NamedArg
     | ProjectionWhenArm
     | ResolveArm;
@@ -431,6 +495,7 @@ export interface NumberLiteral extends langium.AstNode {
     | BinaryExpr
     | EachComprehension
     | ExpandArm
+    | IslandWhen
     | NamedArg
     | ProjectionWhenArm
     | ResolveArm;
@@ -498,6 +563,7 @@ export interface PathRef extends langium.AstNode {
     | BinaryExpr
     | EachComprehension
     | ExpandArm
+    | IslandWhen
     | NamedArg
     | ProjectionWhenArm
     | ResolveArm;
@@ -604,6 +670,7 @@ export interface QueryDeclaration extends langium.AstNode {
   readonly $container: Model;
   readonly $type: "QueryDeclaration";
   context?: ContextBlock;
+  islands?: IslandsBlock;
   name: string;
   parameters: Array<TypedField>;
   projections: Array<ProjectionClause>;
@@ -614,6 +681,7 @@ export interface QueryDeclaration extends langium.AstNode {
 export const QueryDeclaration = {
   $type: "QueryDeclaration",
   context: "context",
+  islands: "islands",
   name: "name",
   parameters: "parameters",
   projections: "projections",
@@ -799,6 +867,7 @@ export interface StringLiteral extends langium.AstNode {
     | BinaryExpr
     | EachComprehension
     | ExpandArm
+    | IslandWhen
     | NamedArg
     | ProjectionWhenArm
     | ResolveArm;
@@ -943,6 +1012,9 @@ export type NaviQlAstType = {
   FragmentSpread: FragmentSpread;
   GroupedTypeExpr: GroupedTypeExpr;
   IdentityRef: IdentityRef;
+  IslandClause: IslandClause;
+  IslandWhen: IslandWhen;
+  IslandsBlock: IslandsBlock;
   Literal: Literal;
   Model: Model;
   NamedArg: NamedArg;
@@ -1159,6 +1231,43 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       },
       superTypes: [Atom.$type],
     },
+    IslandClause: {
+      name: IslandClause.$type,
+      properties: {
+        binding: {
+          name: IslandClause.binding,
+          optional: true,
+        },
+        resource: {
+          name: IslandClause.resource,
+        },
+        whens: {
+          name: IslandClause.whens,
+          defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [],
+    },
+    IslandWhen: {
+      name: IslandWhen.$type,
+      properties: {
+        when: {
+          name: IslandWhen.when,
+        },
+      },
+      superTypes: [],
+    },
+    IslandsBlock: {
+      name: IslandsBlock.$type,
+      properties: {
+        clauses: {
+          name: IslandsBlock.clauses,
+          defaultValue: [],
+        },
+      },
+      superTypes: [],
+    },
     Literal: {
       name: Literal.$type,
       properties: {},
@@ -1323,6 +1432,10 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       properties: {
         context: {
           name: QueryDeclaration.context,
+          optional: true,
+        },
+        islands: {
+          name: QueryDeclaration.islands,
           optional: true,
         },
         name: {

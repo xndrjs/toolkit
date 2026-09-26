@@ -110,10 +110,26 @@ QueryDeclaration:
             context=ContextBlock?
             (root=RootClause | roots=RootsBlock)
             projections+=ProjectionClause*
+            islands=IslandsBlock?
         '}';
 
 ContextBlock:
     'context' '{' fields+=TypedField* '}';
+
+/**
+ * Island policies: multiple `when` under one `on` are OR'd (one startIsland each).
+ * Empty body ⇒ unconditional startIsland. Binding required when any `when` is present.
+ */
+IslandsBlock:
+    'islands' '{' clauses+=IslandClause+ '}';
+
+IslandClause:
+    'on' resource=ID binding=ID? '{'
+        whens+=IslandWhen*
+    '}';
+
+IslandWhen:
+    'when' when=Expression;
 
 RootClause:
     'root' construction=ResourceConstruction;
