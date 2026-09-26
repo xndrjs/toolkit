@@ -109,6 +109,18 @@ const result = buildResources({ root: process.cwd() });
 
 `buildResources` / `naviql-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. Generated imports stay on `@xndrjs/naviql` only.
 
+### `refers` field annotations
+
+Object fields may declare intended expand targets with `refers` (types + check only — no runtime assert):
+
+```naviql
+menuId: EntryId refers Entry with { type: "Menu" }
+chromeId: EntryId refers Entry with { type: "Menu" | "Footer" }
+eitherId: EntryId refers Entry with { type: "Menu" } | Entry with { type: "Footer" }
+```
+
+`with { … }` is a partial payload pattern: **AND** across fields; each field value is a string literal or `|`-union of literals (**OR** on that field). When an expand constructs a resource from a field that carries `refers`, and the query has armed `on R` variants, codegen narrows the expand alias (e.g. `PageDetail_Entry_Menu` instead of `PageDetail_Entry`). Flat (non-armed) `on R` projections are not structurally narrowed.
+
 ### Single-root vs multi-root queries
 
 A query seeds the graph with either one `root` or several aliased entries in `roots { … }` (XOR — not both). Multi-root aliases must be unique. The engine enqueues every seed into one resolution session (shared ContentMap, waiters, and lane scheduler) and runs until closure.

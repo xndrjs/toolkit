@@ -330,8 +330,8 @@ export type PageDetail_Page = {
   $type: "Page";
   id: EntryId;
   title: string;
-  menu: PageDetail_Entry;
-  footer: PageDetail_Entry;
+  menu: PageDetail_Entry_Menu;
+  footer: PageDetail_Entry_Footer;
   strips: PageDetail_Entry[];
   related: (PageDetail_Entry | PageDetail_Asset)[];
 };
