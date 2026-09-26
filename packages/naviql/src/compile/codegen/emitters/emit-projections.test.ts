@@ -58,6 +58,57 @@ describe("emitProjections", () => {
     expect(code).toContain("return projectNode(root) as PostDetailResult;");
   });
 
+  it("emits payload.type switch and Entry shells for armed on Entry", () => {
+    const source = `
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Page", id, title: string }
+
+      resource Asset(id: AssetId, locale: Locale): {
+        id
+        url: string
+      }
+
+      query EntryDetail(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" {
+            id
+            title
+            expand image: Asset(id: e.imageId, locale: context.locale)
+          }
+          when e.type == "Page" {
+            id
+          }
+        }
+        on Asset a { id url }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjections(program!);
+
+    expect(code).toContain("const projectOnEntry = (resource: any, payload: any): any => {");
+    expect(code).toContain("switch ((payload as any).type) {");
+    expect(code).toContain('case "Hero":');
+    expect(code).toContain('case "Page":');
+    expect(code).toContain('const shell: any = { $type: "Entry" };');
+    expect(code).toContain(
+      "shell.image = projectNode(assetAri({ id: payload.imageId, locale: executionContext.locale }));"
+    );
+    expect(code).toContain('case "Entry":');
+    expect(code).toContain("return projectOnEntry(ari, payload);");
+    // No rematerialize-to-Hero ARI cases.
+    expect(code).not.toContain('case "Hero":\n        return projectOnHero');
+    expect(code).not.toContain("projectOnHero");
+  });
+
   it("emits Entry/CustomReference strips and tabs each-links for page-detail", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("page-detail.naviql"));
     expect(diagnostics).toEqual([]);

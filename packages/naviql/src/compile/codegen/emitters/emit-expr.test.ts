@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { ctx, identity, item, lit, param, payload } from "../../../fixtures";
+import { ctx, eq, identity, item, lit, param, payload } from "../../../fixtures";
 import type { Expr } from "../../../ir";
-import { emitExpr } from "./emit-expr";
+import { emitExpr, projectionArmDiscriminant } from "./emit-expr";
 
 describe("emitExpr", () => {
   it("emits literals", () => {
@@ -53,5 +53,18 @@ describe("emitExpr", () => {
     };
     expect(emitExpr(eq)).toBe('s.type == "Hero"');
     expect(emitExpr(ne)).toBe('s.type != "Tabs"');
+  });
+});
+
+describe("projectionArmDiscriminant", () => {
+  it("extracts string literal from binding.type == Lit", () => {
+    expect(projectionArmDiscriminant(eq(payload("e", "type"), lit("Hero")), "e")).toBe("Hero");
+    expect(projectionArmDiscriminant(eq(lit("Page"), payload("e", "type")), "e")).toBe("Page");
+  });
+
+  it("returns null for non-discriminant filters", () => {
+    expect(projectionArmDiscriminant(eq(payload("e", "title"), lit("x")), "e")).toBeNull();
+    expect(projectionArmDiscriminant(eq(payload("other", "type"), lit("Hero")), "e")).toBeNull();
+    expect(projectionArmDiscriminant(lit("Hero"), "e")).toBeNull();
   });
 });

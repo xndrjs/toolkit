@@ -1,6 +1,8 @@
 /**
  * Emit open `createGraphResolutionStrategy` builders from checked queries.
- * Local expansions only — no islands, `.when()`, root helpers, or `.build()`.
+ * Local expansions only — no islands, root helpers, or `.build()`.
+ * Armed `on` projections emit one `.on(ari).when(…).expand(…)` per arm that
+ * expands; flat `on` stays `.on(ari).expand(…)`.
  * Collection expand targets get an auto member-ARI fan-out `.on(collectionAri)`.
  */
 import type {
@@ -8,6 +10,7 @@ import type {
   Expansion,
   FieldDecl,
   Program,
+  ProjectionArm,
   QueryDefinition,
   ResourceDefinition,
   ResourceProjection,
@@ -98,7 +101,7 @@ function emitResourcesArray(expansions: Expansion[]): string {
   return `[\n        ${parts.join(",\n        ")},\n      ]`;
 }
 
-function emitProjectionExpansion(projection: ResourceProjection): string {
+function emitFlatProjectionExpansion(projection: ResourceProjection): string {
   const ari = ariFactoryName(projection.resource);
   const resources = emitResourcesArray(projection.expansions);
 
@@ -109,6 +112,46 @@ function emitProjectionExpansion(projection: ResourceProjection): string {
     `      resources: ${resources},`,
     `    }));`,
   ].join("\n");
+}
+
+function emitArmedProjectionExpansion(projection: ResourceProjection, arm: ProjectionArm): string {
+  const ari = ariFactoryName(projection.resource);
+  const resources = emitResourcesArray(arm.expansions);
+  const whenPred = emitExpr(arm.when);
+
+  return [
+    `  strategy.expansion`,
+    `    .on(${ari})`,
+    `    .when(({ resource, payload, executionContext }) => ${whenPred})`,
+    `    .expand(({ resource, payload, executionContext }) => ({`,
+    `      resources: ${resources},`,
+    `    }));`,
+  ].join("\n");
+}
+
+/**
+ * Expansion policy blocks for one `on` projection.
+ * Armed projections contribute one policy per arm that has expansions;
+ * arms with fields only (no expand) are omitted from the strategy.
+ */
+function emitProjectionExpansions(projection: ResourceProjection): string[] {
+  if (projection.arms !== null) {
+    return projection.arms
+      .filter((arm) => arm.expansions.length > 0)
+      .map((arm) => emitArmedProjectionExpansion(projection, arm));
+  }
+  if (projection.expansions.length === 0) {
+    return [];
+  }
+  return [emitFlatProjectionExpansion(projection)];
+}
+
+/** All expansions under a projection (flat body or flattened when-arms). */
+function allProjectionExpansions(projection: ResourceProjection): Expansion[] {
+  if (projection.arms !== null) {
+    return projection.arms.flatMap((arm) => arm.expansions);
+  }
+  return projection.expansions;
 }
 
 /** Collection resource (`TabCollection: Tab[]`) → element resource name. */
@@ -157,7 +200,7 @@ function collectCollectionFanOuts(
   const blocks: string[] = [];
 
   for (const projection of query.projections) {
-    for (const expansion of projection.expansions) {
+    for (const expansion of allProjectionExpansions(projection)) {
       if (expansion.multiplicity !== "one" || expansion.target === null) continue;
       const collection = resourceIndex.get(expansion.target.resource);
       if (!collection) continue;
@@ -204,9 +247,7 @@ function emitQueryStrategy(
     ? `function ${factory}(params: ${paramsName})`
     : `function ${factory}()`;
 
-  const expansionBlocks = query.projections
-    .filter((p) => p.expansions.length > 0)
-    .map(emitProjectionExpansion);
+  const expansionBlocks = query.projections.flatMap(emitProjectionExpansions);
 
   const fanOutBlocks = collectCollectionFanOuts(query, resourceIndex);
 

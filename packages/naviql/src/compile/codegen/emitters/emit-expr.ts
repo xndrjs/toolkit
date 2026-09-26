@@ -46,3 +46,31 @@ export function emitExpr(expr: Expr): string {
     }
   }
 }
+
+/**
+ * Extract `"Hero"` from a projection arm filter `binding.type == "Hero"`.
+ * Returns `null` when the filter is not a payload `type` equality.
+ */
+export function projectionArmDiscriminant(when: Expr, binding: string): string | null {
+  if (when.kind !== "binary" || when.op !== "==") {
+    return null;
+  }
+
+  const sides: { left: Expr; right: Expr }[] = [
+    { left: when.left, right: when.right },
+    { left: when.right, right: when.left },
+  ];
+  for (const { left, right } of sides) {
+    if (
+      left.kind === "payloadRef" &&
+      left.binding === binding &&
+      left.path.length === 1 &&
+      left.path[0] === "type" &&
+      right.kind === "literal" &&
+      typeof right.value === "string"
+    ) {
+      return right.value;
+    }
+  }
+  return null;
+}

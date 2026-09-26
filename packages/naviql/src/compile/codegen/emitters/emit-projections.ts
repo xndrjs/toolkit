@@ -5,17 +5,19 @@
  * discriminators, and memos by `ari.toString()` with shell-before-edges
  * (cycle-safe). Union / collection expansion targets are stripped to member
  * projections (no `on EditorialModule` / `on TabCollection` required).
+ * Armed `on` projections discriminate on payload `type` and build variant shells.
  */
 import type {
   Expansion,
   Program,
+  ProjectionArm,
   QueryDefinition,
   ResourceDefinition,
   ResourceProjection,
   TypeExpr,
 } from "../../../ir";
 import { emitConstruction } from "./emit-construction";
-import { emitExpr } from "./emit-expr";
+import { emitExpr, projectionArmDiscriminant } from "./emit-expr";
 import {
   ariFactoryName,
   executionContextTypeName,
@@ -98,6 +100,14 @@ function stripToConcreteMembers(
 
 function projectOnFnName(resourceName: string): string {
   return `projectOn${resourceName}`;
+}
+
+/** All expansions under a projection (flat body or flattened when-arms). */
+function allProjectionExpansions(projection: ResourceProjection): Expansion[] {
+  if (projection.arms !== null) {
+    return projection.arms.flatMap((arm) => arm.expansions);
+  }
+  return projection.expansions;
 }
 
 /**
@@ -193,35 +203,161 @@ function emitExpansionValue(
   return `projectNode(${emitConstruction(expansion.target)})`;
 }
 
+function emitShellBody(
+  resourceName: string,
+  selectedFields: string[],
+  expansions: Expansion[],
+  resources: ResourceIndex,
+  queryName: string,
+  contextFieldNames: ReadonlySet<string>,
+  indent: string
+): string {
+  const lines: string[] = [];
+
+  lines.push(`${indent}const shell: any = { $type: ${JSON.stringify(resourceName)} };`);
+  lines.push(`${indent}memo.set(resource.toString(), shell);`);
+
+  for (const fieldName of selectedFields) {
+    lines.push(`${indent}shell.${fieldName} = payload.${fieldName};`);
+  }
+
+  for (const expansion of expansions) {
+    const value = emitExpansionValue(expansion, resources, queryName, contextFieldNames);
+    const indented = value.includes("\n")
+      ? value
+          .split("\n")
+          .map((line, i) => (i === 0 ? line : `${indent}${line}`))
+          .join("\n")
+      : value;
+    lines.push(`${indent}shell.${expansion.alias} = ${indented};`);
+  }
+
+  lines.push(`${indent}return shell;`);
+  return lines.join("\n");
+}
+
 function emitProjectOnBody(
   projection: ResourceProjection,
   resources: ResourceIndex,
   queryName: string,
   contextFieldNames: ReadonlySet<string>
 ): string {
-  const lines: string[] = [];
+  return emitShellBody(
+    projection.resource,
+    projection.selectedFields,
+    projection.expansions,
+    resources,
+    queryName,
+    contextFieldNames,
+    "    "
+  );
+}
 
-  lines.push(`    const shell: any = { $type: ${JSON.stringify(projection.resource)} };`);
-  lines.push(`    memo.set(resource.toString(), shell);`);
+function emitArmedArmCase(
+  projection: ResourceProjection,
+  arm: ProjectionArm,
+  armIndex: number,
+  resources: ResourceIndex,
+  queryName: string,
+  contextFieldNames: ReadonlySet<string>
+): { labels: string[]; body: string } {
+  const disc = projectionArmDiscriminant(arm.when, projection.binding);
+  const labels = disc !== null ? [disc] : [];
+  const body = [
+    `        {`,
+    emitShellBody(
+      projection.resource,
+      arm.selectedFields,
+      arm.expansions,
+      resources,
+      queryName,
+      contextFieldNames,
+      "          "
+    ),
+    `        }`,
+  ].join("\n");
 
-  for (const fieldName of projection.selectedFields) {
-    lines.push(`    shell.${fieldName} = payload.${fieldName};`);
+  if (labels.length === 0) {
+    // Non-discriminant `when` — fall back to if-guard (caller handles).
+    return { labels: [`__arm${armIndex}`], body };
+  }
+  return { labels, body };
+}
+
+function emitArmedProjectOnBody(
+  projection: ResourceProjection,
+  resources: ResourceIndex,
+  queryName: string,
+  contextFieldNames: ReadonlySet<string>
+): string {
+  const arms = projection.arms;
+  if (arms === null) {
+    throw new Error("emitProjections: emitArmedProjectOnBody called without arms");
   }
 
-  for (const expansion of projection.expansions) {
-    const value = emitExpansionValue(expansion, resources, queryName, contextFieldNames);
-    // Indent multi-line IIFEs one level under shell assign.
-    const indented = value.includes("\n")
-      ? value
-          .split("\n")
-          .map((line, i) => (i === 0 ? line : `    ${line}`))
-          .join("\n")
-      : value;
-    lines.push(`    shell.${expansion.alias} = ${indented};`);
+  // Prefer switch on payload.type when every arm is `binding.type == "Lit"`.
+  const allDisc = arms.every(
+    (arm) => projectionArmDiscriminant(arm.when, projection.binding) !== null
+  );
+
+  if (allDisc) {
+    const cases: string[] = [];
+    for (let i = 0; i < arms.length; i++) {
+      const arm = arms[i]!;
+      const { labels, body } = emitArmedArmCase(
+        projection,
+        arm,
+        i,
+        resources,
+        queryName,
+        contextFieldNames
+      );
+      cases.push([`      case ${JSON.stringify(labels[0]!)}:`, body].join("\n"));
+    }
+    cases.push(
+      [
+        `      default:`,
+        `        throw new Error(`,
+        `          ${JSON.stringify(`projectOn${projection.resource}: cannot discriminate ${projection.resource} payload (type=`)} +`,
+        `            JSON.stringify((payload as any).type) +`,
+        `            ")"`,
+        `        );`,
+      ].join("\n")
+    );
+    return [`    switch ((payload as any).type) {`, cases.join("\n"), `    }`].join("\n");
   }
 
-  lines.push(`    return shell;`);
-  return lines.join("\n");
+  // Mixed / non-discriminant filters → if/else chain.
+  const branches: string[] = [];
+  for (let i = 0; i < arms.length; i++) {
+    const arm = arms[i]!;
+    const cond = emitExpr(arm.when);
+    const keyword = i === 0 ? "if" : "} else if";
+    branches.push(
+      [
+        `    ${keyword} (${cond}) {`,
+        emitShellBody(
+          projection.resource,
+          arm.selectedFields,
+          arm.expansions,
+          resources,
+          queryName,
+          contextFieldNames,
+          "      "
+        ),
+      ].join("\n")
+    );
+  }
+  branches.push(
+    [
+      `    } else {`,
+      `      throw new Error(`,
+      `        ${JSON.stringify(`projectOn${projection.resource}: no when-arm matched for ${projection.resource}`)}`,
+      `      );`,
+      `    }`,
+    ].join("\n")
+  );
+  return branches.join("\n");
 }
 
 function emitProjectOnHelper(
@@ -231,7 +367,10 @@ function emitProjectOnHelper(
   contextFieldNames: ReadonlySet<string>
 ): string {
   const name = projectOnFnName(projection.resource);
-  const body = emitProjectOnBody(projection, resources, queryName, contextFieldNames);
+  const body =
+    projection.arms !== null
+      ? emitArmedProjectOnBody(projection, resources, queryName, contextFieldNames)
+      : emitProjectOnBody(projection, resources, queryName, contextFieldNames);
   return [`  const ${name} = (resource: any, payload: any): any => {`, body, `  };`].join("\n");
 }
 
@@ -241,7 +380,7 @@ function emitProjectOnHelper(
 function collectionElementResources(query: QueryDefinition, resources: ResourceIndex): Set<string> {
   const out = new Set<string>();
   for (const projection of query.projections) {
-    for (const expansion of projection.expansions) {
+    for (const expansion of allProjectionExpansions(projection)) {
       if (expansion.target === null) continue;
       const target = resources.get(expansion.target.resource);
       if (!target) continue;
@@ -255,16 +394,43 @@ function collectionElementResources(query: QueryDefinition, resources: ResourceI
 }
 
 /**
+ * Payload `type` case labels that should route to `projectOn${member}`.
+ * Armed projections contribute their when-arm discriminants; flat resources
+ * use the resource name (matches rematerialize `payload.type === "Hero"`).
+ */
+function discriminationLabelsForMember(
+  member: string,
+  projected: Map<string, ResourceProjection>
+): string[] {
+  const projection = projected.get(member);
+  if (projection?.arms !== null && projection?.arms !== undefined) {
+    const labels: string[] = [];
+    for (const arm of projection.arms) {
+      const disc = projectionArmDiscriminant(arm.when, projection.binding);
+      if (disc !== null) {
+        labels.push(disc);
+      }
+    }
+    if (labels.length > 0) {
+      return labels;
+    }
+  }
+  return [member];
+}
+
+/**
  * Union / resource-valued resources that appear as expansion targets (need
  * `projectNode` discrimination arms even without an `on Entry` projection).
+ * Skips targets that already have an explicit `on` (armed or flat).
  */
 function unionTargetResources(
   query: QueryDefinition,
-  resources: ResourceIndex
+  resources: ResourceIndex,
+  projected: ReadonlySet<string>
 ): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const projection of query.projections) {
-    for (const expansion of projection.expansions) {
+    for (const expansion of allProjectionExpansions(projection)) {
       const targets =
         expansion.multiplicity === "many" && expansion.comprehension !== null
           ? expansion.comprehension.arms.map((a) => a.target.resource)
@@ -272,6 +438,10 @@ function unionTargetResources(
             ? [expansion.target.resource]
             : [];
       for (const targetName of targets) {
+        if (projected.has(targetName)) {
+          // Explicit `on Target` handles projection; do not rematerialize.
+          continue;
+        }
         const members = stripToConcreteMembers(targetName, resources);
         if (members !== null && members.length > 0) {
           out.set(targetName, members);
@@ -284,7 +454,8 @@ function unionTargetResources(
 
 function emitProjectNode(query: QueryDefinition, resources: ResourceIndex, fnName: string): string {
   const projected = new Map(query.projections.map((p) => [p.resource, p]));
-  const unions = unionTargetResources(query, resources);
+  const projectedNames = new Set(projected.keys());
+  const unions = unionTargetResources(query, resources, projectedNames);
 
   const cases: string[] = [];
 
@@ -306,12 +477,15 @@ function emitProjectNode(query: QueryDefinition, resources: ResourceIndex, fnNam
           `emitProjections: query '${query.name}' expands union '${unionName}' member '${member}' but has no 'on ${member}' projection`
         );
       }
-      discCases.push(
-        [
-          `          case ${JSON.stringify(member)}:`,
-          `            return ${projectOnFnName(member)}(ari, payload);`,
-        ].join("\n")
-      );
+      const labels = discriminationLabelsForMember(member, projected);
+      for (const label of labels) {
+        discCases.push(
+          [
+            `          case ${JSON.stringify(label)}:`,
+            `            return ${projectOnFnName(member)}(ari, payload);`,
+          ].join("\n")
+        );
+      }
     }
     discCases.push(
       [
