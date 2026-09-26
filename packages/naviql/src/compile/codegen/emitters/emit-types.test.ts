@@ -93,14 +93,16 @@ export type UserPayload = {
     const program = pageDetailProgram();
     const code = emitPayloadTypes(program);
 
-    expect(code).toContain(
-      "export type EntryPayload = HeroPayload | TabsPayload | ProductPayload;"
-    );
+    expect(code).toContain("export type EntryPayload = {");
+    expect(code).toContain(`type: "Hero"`);
+    expect(code).toContain(`type: "SiteInternalLink"`);
+    expect(code).toContain(`type: "Page"`);
     expect(code).toContain("export type CustomReferencePayload = EntryPayload | AssetPayload;");
     expect(code).toContain("tabs: {\n    id: EntryId;\n  }[];");
+    expect(code).toContain("targetId: EntryId;");
     expect(code).not.toContain("TabCollection");
     expect(code).not.toContain("EditorialModulePayload");
-    expect(code).toContain(`type: "Hero"`);
+    expect(code).not.toContain("HeroPayload");
     expect(code).toContain(`type: "Tabs"`);
     expect(code).toContain(`type: "Product"`);
     expect(code).toContain("export type AssetPayload = {");

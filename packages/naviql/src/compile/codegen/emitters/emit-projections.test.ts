@@ -109,7 +109,7 @@ describe("emitProjections", () => {
     expect(code).not.toContain("projectOnHero");
   });
 
-  it("emits Entry/CustomReference strips and tabs each-links for page-detail", () => {
+  it("emits Entry/CustomReference strips and armed Entry payload switch for page-detail", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("page-detail.naviql"));
     expect(diagnostics).toEqual([]);
 
@@ -123,19 +123,22 @@ describe("emitProjections", () => {
       "payload.related.map((ref: any) => projectNode(customReferenceAri({ ref: ref, locale: resource.key[0].locale })))"
     );
     expect(code).toContain(
-      "payload.tabs.map((link: any) => projectNode(tabAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"
+      "payload.tabs.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"
     );
-    expect(code).not.toContain("editorialModuleAri");
-    expect(code).not.toContain("tabCollectionAri");
-    expect(code).not.toContain('case "EditorialModule":');
+    expect(code).toContain("const projectOnEntry = (resource: any, payload: any): any => {");
+    expect(code).toContain("switch ((payload as any).type) {");
     expect(code).toContain('case "Hero":');
-    expect(code).toContain('case "Tabs":');
-    expect(code).toContain('case "Product":');
+    expect(code).toContain('case "SiteInternalLink":');
+    expect(code).toContain('case "Page":');
     expect(code).toContain('case "Entry":');
     expect(code).toContain('case "CustomReference":');
     expect(code).toContain(
-      "shell.menu = projectNode(menuAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale }));"
+      "shell.menu = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale }));"
     );
+    expect(code).not.toContain("editorialModuleAri");
+    expect(code).not.toContain("tabCollectionAri");
+    expect(code).not.toContain("projectOnHero");
+    expect(code).not.toContain("projectOnTabs");
   });
 
   it("projects identity-edge ARIs via emitConstruction (payload vs identity)", () => {

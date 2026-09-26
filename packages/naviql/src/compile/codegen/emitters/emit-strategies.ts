@@ -119,13 +119,18 @@ function emitArmedProjectionExpansion(projection: ResourceProjection, arm: Proje
   const resources = emitResourcesArray(arm.expansions);
   const whenPred = emitExpr(arm.when);
 
+  // `.when()` is a runtime filter; TypeScript still sees the full payload union.
+  // Cast so arm-specific fields (imageId, tabs, …) typecheck in the expand body.
   return [
     `  strategy.expansion`,
     `    .on(${ari})`,
     `    .when(({ resource, payload, executionContext }) => ${whenPred})`,
-    `    .expand(({ resource, payload, executionContext }) => ({`,
-    `      resources: ${resources},`,
-    `    }));`,
+    `    .expand(({ resource, payload: __payload, executionContext }) => {`,
+    `      const payload = __payload as any;`,
+    `      return {`,
+    `        resources: ${resources},`,
+    `      };`,
+    `    });`,
   ].join("\n");
 }
 

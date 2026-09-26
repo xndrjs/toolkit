@@ -172,7 +172,7 @@ function lowerTypeExpr(
 ): TypeExpr {
   if (isUnionTypeExpr(type)) {
     const members = type.members.flatMap((member) => {
-      const lowered = lowerTypeExpr(member as AstTypeExpr, tables);
+      const lowered = lowerTypeExpr(member as AstTypeExpr, tables, identityFields);
       return lowered.kind === "union" ? lowered.members : [lowered];
     });
     return {

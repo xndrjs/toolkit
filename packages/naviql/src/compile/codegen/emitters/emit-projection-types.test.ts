@@ -115,14 +115,14 @@ export type PostDetailResult = PostDetail_Post;
       normalizeWhitespace(`
 export type EntryDetail_Entry_Hero = {
   $type: "Entry";
-  id: string;
+  id: EntryId;
   title: string;
   image: EntryDetail_Asset;
 };
 
 export type EntryDetail_Entry_Page = {
   $type: "Entry";
-  id: string;
+  id: EntryId;
 };
 
 export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
@@ -132,7 +132,7 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
     expect(code).not.toContain("EntryDetail_Hero");
   });
 
-  it("emits union strip and collection array aliases for page-detail", () => {
+  it("emits union strip and Entry variant aliases for page-detail", () => {
     const { program, diagnostics } = parseAndCheck(
       loadFixture("page-detail.naviql"),
       "file:///fixtures/page-detail.naviql"
@@ -142,18 +142,19 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
     const code = emitProjectionTypes(program);
 
     expect(code).toContain(`$type: "Page";`);
-    expect(code).toContain("strips: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[];");
-    expect(code).toContain(
-      "related: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product | PageDetail_Asset)[];"
-    );
-    expect(code).toContain("tabs: PageDetail_Tab[];");
-    expect(code).toContain("menu: PageDetail_Menu;");
+    expect(code).toContain("strips: PageDetail_Entry[];");
+    expect(code).toContain("related: (PageDetail_Entry | PageDetail_Asset)[];");
+    expect(code).toContain("tabs: PageDetail_Entry[];");
+    expect(code).toContain("menu: PageDetail_Entry;");
     expect(code).toContain("image: PageDetail_Asset;");
+    expect(code).toContain("export type PageDetail_Entry_Hero = {");
+    expect(code).toContain("export type PageDetail_Entry_Page = {");
+    expect(code).toContain("export type PageDetail_Entry =");
     expect(code).toContain(`kind: "image" | "video" | "document";`);
     expect(code).toContain("export type PageDetailResult = PageDetail_Page;");
     expect(code).not.toContain("PageDetail_EditorialModule");
     expect(code).not.toContain("TabCollection");
-    expect(code).not.toContain("PageDetail_Entry");
+    expect(code).not.toContain("PageDetail_Hero");
     expect(code).not.toContain("PageDetail_CustomReference");
   });
 
@@ -169,7 +170,7 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
 });
 
 describe("printExpansionAliasType", () => {
-  it("prints union / collection / one aliases for page-detail expansions", () => {
+  it("prints Entry / Asset aliases for page-detail expansions", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("page-detail.naviql"));
     expect(diagnostics).toEqual([]);
 
@@ -191,17 +192,18 @@ describe("printExpansionAliasType", () => {
     const page = query.projections.find((p) => p.resource === "Page")!;
     const strips = page.expansions.find((e) => e.alias === "strips")!;
     expect(printExpansionAliasType("PageDetail", strips, resources, projected)).toBe(
-      "(PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[]"
+      "PageDetail_Entry[]"
     );
 
-    const tabs = query.projections.find((p) => p.resource === "Tabs")!;
-    const tabsEdge = tabs.expansions.find((e) => e.alias === "tabs")!;
+    const entry = query.projections.find((p) => p.resource === "Entry")!;
+    const tabsArm = entry.arms!.find((arm) => arm.expansions.some((e) => e.alias === "tabs"))!;
+    const tabsEdge = tabsArm.expansions.find((e) => e.alias === "tabs")!;
     expect(printExpansionAliasType("PageDetail", tabsEdge, resources, projected)).toBe(
-      "PageDetail_Tab[]"
+      "PageDetail_Entry[]"
     );
 
-    const hero = query.projections.find((p) => p.resource === "Hero")!;
-    const image = hero.expansions.find((e) => e.alias === "image")!;
+    const heroArm = entry.arms!.find((arm) => arm.expansions.some((e) => e.alias === "image"))!;
+    const image = heroArm.expansions.find((e) => e.alias === "image")!;
     expect(printExpansionAliasType("PageDetail", image, resources, projected)).toBe(
       "PageDetail_Asset"
     );

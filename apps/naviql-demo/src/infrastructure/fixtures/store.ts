@@ -3,17 +3,12 @@ import {
   type AssetPayload,
   type CustomReferenceValue,
   type EntryId,
+  type EntryPayload,
   type EnvironmentId,
-  type FooterPayload,
-  type HeroPayload,
   type Locale,
-  type MenuPayload,
   type PagePayload,
-  type ProductPayload,
   type Sku,
   type SpaceId,
-  type TabPayload,
-  type TabsPayload,
 } from "../../generated/page-detail.js";
 import { encodeCustomReference } from "../cms/custom-reference.js";
 
@@ -25,6 +20,7 @@ export const DEMO_ENVIRONMENT = "master" as EnvironmentId;
 /** Stable demo entry ids (shared Entry ID namespace). */
 export const demoIds = {
   page: "page-home",
+  pageAbout: "page-about",
   menu: "menu-main",
   footer: "footer-main",
   tabs: "tabs-featured",
@@ -33,6 +29,7 @@ export const demoIds = {
   heroNested: "hero-nested",
   productTshirt: "product-tshirt",
   productHoodie: "product-hoodie",
+  linkAbout: "link-about",
   assetLogo: "asset-logo",
   assetHero: "asset-hero",
   assetHeroNested: "asset-hero-nested",
@@ -64,23 +61,10 @@ export const demoLogoAssetCustomRef: CustomReferenceValue = encodeCustomReferenc
   id: demoIds.assetLogo,
 });
 
-export type EditorialContentTypeId =
-  | "page"
-  | "menu"
-  | "footer"
-  | "hero"
-  | "tabs"
-  | "tab"
-  | "product";
-
-export type EditorialEntryDocument =
-  | { contentTypeId: "page"; payload: PagePayload }
-  | { contentTypeId: "menu"; payload: MenuPayload }
-  | { contentTypeId: "footer"; payload: FooterPayload }
-  | { contentTypeId: "hero"; payload: HeroPayload }
-  | { contentTypeId: "tabs"; payload: TabsPayload }
-  | { contentTypeId: "tab"; payload: TabPayload }
-  | { contentTypeId: "product"; payload: ProductPayload };
+/** Root Page document vs polymorphic Entry payload. */
+export type EditorialDocument =
+  | { kind: "page"; payload: PagePayload }
+  | { kind: "entry"; payload: EntryPayload };
 
 export function entryLookupKey(parts: {
   spaceId: string;
@@ -93,21 +77,15 @@ export function entryLookupKey(parts: {
 const spaceId = DEMO_SPACE;
 const environmentId = DEMO_ENVIRONMENT;
 
-const tabOverviewPayload: TabPayload = {
-  id: entryId(demoIds.tabOverview),
-  title: "Overview",
-  strips: [{ id: entryId(demoIds.heroNested) }, { id: entryId(demoIds.productHoodie) }],
-};
-
 /**
- * Editorial entries keyed by `space/environment/id`.
- * Content type lives here — not on relationship links.
+ * Editorial documents keyed by `space/environment/id`.
+ * Content type lives on Entry payloads (`type`) — not on relationship links.
  */
-export const demoEntries: ReadonlyMap<string, EditorialEntryDocument> = new Map([
+export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.page }),
     {
-      contentTypeId: "page",
+      kind: "page",
       payload: {
         id: entryId(demoIds.page),
         title: "Homepage",
@@ -117,16 +95,29 @@ export const demoEntries: ReadonlyMap<string, EditorialEntryDocument> = new Map(
           { id: entryId(demoIds.tabs) },
           { id: entryId(demoIds.heroWelcome) },
           { id: entryId(demoIds.productTshirt) },
+          { id: entryId(demoIds.linkAbout) },
         ],
         related: [demoHeroWelcomeCustomRef, demoLogoAssetCustomRef],
       },
     },
   ],
   [
+    entryLookupKey({ spaceId, environmentId, id: demoIds.pageAbout }),
+    {
+      kind: "entry",
+      payload: {
+        type: "Page",
+        id: entryId(demoIds.pageAbout),
+        title: "About",
+      },
+    },
+  ],
+  [
     entryLookupKey({ spaceId, environmentId, id: demoIds.menu }),
     {
-      contentTypeId: "menu",
+      kind: "entry",
       payload: {
+        type: "Menu",
         id: entryId(demoIds.menu),
         title: "Main menu",
         logoId: assetId(demoIds.assetLogo),
@@ -136,8 +127,9 @@ export const demoEntries: ReadonlyMap<string, EditorialEntryDocument> = new Map(
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.footer }),
     {
-      contentTypeId: "footer",
+      kind: "entry",
       payload: {
+        type: "Footer",
         id: entryId(demoIds.footer),
         title: "Footer",
         logoId: assetId(demoIds.assetLogo),
@@ -147,7 +139,7 @@ export const demoEntries: ReadonlyMap<string, EditorialEntryDocument> = new Map(
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.heroWelcome }),
     {
-      contentTypeId: "hero",
+      kind: "entry",
       payload: {
         type: "Hero",
         id: entryId(demoIds.heroWelcome),
@@ -159,7 +151,7 @@ export const demoEntries: ReadonlyMap<string, EditorialEntryDocument> = new Map(
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.heroNested }),
     {
-      contentTypeId: "hero",
+      kind: "entry",
       payload: {
         type: "Hero",
         id: entryId(demoIds.heroNested),
@@ -171,7 +163,7 @@ export const demoEntries: ReadonlyMap<string, EditorialEntryDocument> = new Map(
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.tabs }),
     {
-      contentTypeId: "tabs",
+      kind: "entry",
       payload: {
         type: "Tabs",
         id: entryId(demoIds.tabs),
@@ -183,14 +175,19 @@ export const demoEntries: ReadonlyMap<string, EditorialEntryDocument> = new Map(
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.tabOverview }),
     {
-      contentTypeId: "tab",
-      payload: tabOverviewPayload,
+      kind: "entry",
+      payload: {
+        type: "Tab",
+        id: entryId(demoIds.tabOverview),
+        title: "Overview",
+        strips: [{ id: entryId(demoIds.heroNested) }, { id: entryId(demoIds.productHoodie) }],
+      },
     },
   ],
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.productTshirt }),
     {
-      contentTypeId: "product",
+      kind: "entry",
       payload: {
         type: "Product",
         id: entryId(demoIds.productTshirt),
@@ -202,12 +199,23 @@ export const demoEntries: ReadonlyMap<string, EditorialEntryDocument> = new Map(
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.productHoodie }),
     {
-      contentTypeId: "product",
+      kind: "entry",
       payload: {
         type: "Product",
         id: entryId(demoIds.productHoodie),
         sku: sku("HOODIE-1"),
         title: "Demo Hoodie",
+      },
+    },
+  ],
+  [
+    entryLookupKey({ spaceId, environmentId, id: demoIds.linkAbout }),
+    {
+      kind: "entry",
+      payload: {
+        type: "SiteInternalLink",
+        id: entryId(demoIds.linkAbout),
+        targetId: entryId(demoIds.pageAbout),
       },
     },
   ],
