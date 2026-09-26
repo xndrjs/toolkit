@@ -92,160 +92,154 @@ type Branded<Name extends string, T> = T & { readonly [__brand]: Name };
 
 export type Locale = Branded<"Locale", string>;
 
-export type PageId = Branded<"PageId", string>;
+export type SpaceId = Branded<"SpaceId", string>;
 
-export type HeroId = Branded<"HeroId", string>;
+export type EnvironmentId = Branded<"EnvironmentId", string>;
 
-export type MenuId = Branded<"MenuId", string>;
-
-export type FooterId = Branded<"FooterId", string>;
+export type EntryId = Branded<"EntryId", string>;
 
 export type AssetId = Branded<"AssetId", string>;
 
-export type TabsId = Branded<"TabsId", string>;
-
-export type TabId = Branded<"TabId", string>;
-
-export type ProductId = Branded<"ProductId", string>;
+export type CustomReferenceValue = Branded<"CustomReferenceValue", string>;
 
 export type Sku = Branded<"Sku", string>;
 
+export const entryAri = ari(
+  "Entry",
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
+);
+export type EntryResource = ReturnType<typeof entryAri>;
+
+export const assetAri = ari(
+  "Asset",
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
+);
+export type AssetResource = ReturnType<typeof assetAri>;
+
+export const customReferenceAri = ari(
+  "CustomReference",
+  s.object({ ref: s.string(), locale: s.string() }),
+);
+export type CustomReferenceResource = ReturnType<typeof customReferenceAri>;
+
 export const pageAri = ari(
   "Page",
-  s.object({ id: s.string(), locale: s.string() }),
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
 );
 export type PageResource = ReturnType<typeof pageAri>;
 
 export const heroAri = ari(
   "Hero",
-  s.object({ id: s.string(), locale: s.string() }),
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
 );
 export type HeroResource = ReturnType<typeof heroAri>;
 
 export const menuAri = ari(
   "Menu",
-  s.object({ id: s.string(), locale: s.string() }),
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
 );
 export type MenuResource = ReturnType<typeof menuAri>;
 
 export const footerAri = ari(
   "Footer",
-  s.object({ id: s.string(), locale: s.string() }),
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
 );
 export type FooterResource = ReturnType<typeof footerAri>;
 
-export const assetAri = ari(
-  "Asset",
-  s.object({ id: s.string(), locale: s.string() }),
-);
-export type AssetResource = ReturnType<typeof assetAri>;
-
 export const tabsAri = ari(
   "Tabs",
-  s.object({ id: s.string(), locale: s.string() }),
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
 );
 export type TabsResource = ReturnType<typeof tabsAri>;
 
 export const tabAri = ari(
   "Tab",
-  s.object({ id: s.string(), locale: s.string() }),
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
 );
 export type TabResource = ReturnType<typeof tabAri>;
 
-export const tabCollectionAri = ari(
-  "TabCollection",
-  s.object({ tabsId: s.string(), locale: s.string() }),
-);
-export type TabCollectionResource = ReturnType<typeof tabCollectionAri>;
-
 export const productAri = ari(
   "Product",
-  s.object({ id: s.string(), locale: s.string() }),
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
 );
 export type ProductResource = ReturnType<typeof productAri>;
 
-export type PagePayload = {
-  id: PageId;
-  title: string;
-  menuId: MenuId;
-  footerId: FooterId;
-  strips: ({
-    type: "Hero";
-    id: HeroId;
-  } | {
-    type: "Tabs";
-    id: TabsId;
-  } | {
-    type: "Product";
-    id: ProductId;
-  })[];
-};
-
-export type HeroPayload = {
-  type: "Hero";
-  id: HeroId;
-  title: string;
-  imageId: AssetId;
-};
-
-export type MenuPayload = {
-  id: MenuId;
-  title: string;
-  logoId: AssetId;
-};
-
-export type FooterPayload = {
-  id: FooterId;
-  title: string;
-  logoId: AssetId;
-};
+export type EntryPayload = HeroPayload | TabsPayload | ProductPayload;
 
 export type AssetPayload = {
+  type: "Asset";
   id: AssetId;
   url: string;
   title: string;
   kind: "image" | "video" | "document";
 };
 
+export type CustomReferencePayload = EntryPayload | AssetPayload;
+
+export type PagePayload = {
+  id: EntryId;
+  title: string;
+  menuId: EntryId;
+  footerId: EntryId;
+  strips: {
+    id: EntryId;
+  }[];
+  related: CustomReferenceValue[];
+};
+
+export type HeroPayload = {
+  type: "Hero";
+  id: EntryId;
+  title: string;
+  imageId: AssetId;
+};
+
+export type MenuPayload = {
+  id: EntryId;
+  title: string;
+  logoId: AssetId;
+};
+
+export type FooterPayload = {
+  id: EntryId;
+  title: string;
+  logoId: AssetId;
+};
+
 export type TabsPayload = {
   type: "Tabs";
-  id: TabsId;
+  id: EntryId;
   title: string;
+  tabs: {
+    id: EntryId;
+  }[];
 };
 
 export type TabPayload = {
-  id: TabId;
+  id: EntryId;
   title: string;
-  strips: ({
-    type: "Hero";
-    id: HeroId;
-  } | {
-    type: "Tabs";
-    id: TabsId;
-  } | {
-    type: "Product";
-    id: ProductId;
-  })[];
+  strips: {
+    id: EntryId;
+  }[];
 };
-
-export type TabCollectionPayload = TabPayload[];
 
 export type ProductPayload = {
   type: "Product";
-  id: ProductId;
+  id: EntryId;
   sku: Sku;
   title: string;
 };
 
 export type ContentRegistry = {
+  Entry: EntryPayload;
+  Asset: AssetPayload;
+  CustomReference: CustomReferencePayload;
   Page: PagePayload;
   Hero: HeroPayload;
   Menu: MenuPayload;
   Footer: FooterPayload;
-  Asset: AssetPayload;
   Tabs: TabsPayload;
   Tab: TabPayload;
-  TabCollection: TabCollectionPayload;
   Product: ProductPayload;
 };
 `;
@@ -275,12 +269,20 @@ describe("generateResources golden", () => {
     expect(normalizeWhitespace(code)).toBe(normalizeWhitespace(PAGE_DETAIL_GOLDEN));
 
     // Spot-check cases the golden must cover.
-    expect(code).toContain("export type TabCollectionPayload = TabPayload[];");
+    expect(code).toContain(
+      "export type EntryPayload = HeroPayload | TabsPayload | ProductPayload;"
+    );
+    expect(code).toContain("export type CustomReferencePayload = EntryPayload | AssetPayload;");
+    expect(code).toContain("tabs: {\n    id: EntryId;\n  }[];");
+    expect(code).toContain("export const entryAri = ari(");
+    expect(code).toContain("export const customReferenceAri = ari(");
     expect(code).not.toContain("EditorialModulePayload");
     expect(code).not.toContain("editorialModuleAri");
+    expect(code).not.toContain("TabCollection");
     expect(code).toContain(`type: "Hero"`);
     expect(code).toContain(`type: "Tabs"`);
     expect(code).toContain(`type: "Product"`);
+    expect(code).toContain("strips: {\n    id: EntryId;\n  }[];");
     expect(code).not.toContain("EditorialModule.type");
     expect(code).not.toContain("typeProjection");
   });

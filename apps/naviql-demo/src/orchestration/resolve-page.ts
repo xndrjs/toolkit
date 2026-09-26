@@ -1,14 +1,20 @@
-import type { MissingResourceMode, SchedulingMode } from "@xndrjs/naviql";
-
 import {
   pageAri,
   projectPageDetail,
+  type EntryId,
+  type EnvironmentId,
   type Locale,
   type PageDetailResult,
-  type PageId,
+  type SpaceId,
 } from "../generated/page-detail.js";
 import { createDemoResolver } from "../infrastructure/demo-resolver.js";
-import { DEMO_LOCALE, demoIds } from "../infrastructure/fixtures/store.js";
+import {
+  DEMO_ENVIRONMENT,
+  DEMO_LOCALE,
+  DEMO_SPACE,
+  demoIds,
+} from "../infrastructure/fixtures/store.js";
+import type { MissingResourceMode, SchedulingMode } from "@xndrjs/naviql";
 
 const DEFAULT_SCHEDULING_MODE: SchedulingMode = "lane";
 
@@ -17,7 +23,9 @@ export const DEMO_ROUTE_LOCALES = ["en", "en-US"] as const;
 
 export type ResolvePageInput = {
   locale: Locale;
-  pageId?: PageId;
+  pageId?: EntryId;
+  spaceId?: SpaceId;
+  environmentId?: EnvironmentId;
   schedulingMode?: SchedulingMode;
   /** Defaults to `"throw"`; use `"collect"` for soft failures in the UI. */
   missingResourceMode?: MissingResourceMode;
@@ -26,7 +34,9 @@ export type ResolvePageInput = {
 
 export type ResolvePageMeta = {
   locale: Locale;
-  pageId: PageId;
+  pageId: EntryId;
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
   schedulingMode: SchedulingMode;
   resolvedCount: number;
 };
@@ -41,7 +51,9 @@ export type ResolvePageFailure = {
   ok: false;
   meta: {
     locale: Locale;
-    pageId: PageId;
+    pageId: EntryId;
+    spaceId: SpaceId;
+    environmentId: EnvironmentId;
     schedulingMode: SchedulingMode;
     resolvedCount?: number;
   };
@@ -57,12 +69,14 @@ export type ResolvePageResult = ResolvePageSuccess | ResolvePageFailure;
  */
 export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageResult> {
   const locale = input.locale;
-  const pageId = (input.pageId ?? (demoIds.page as PageId)) as PageId;
+  const pageId = (input.pageId ?? (demoIds.page as EntryId)) as EntryId;
+  const spaceId = input.spaceId ?? DEMO_SPACE;
+  const environmentId = input.environmentId ?? DEMO_ENVIRONMENT;
   const schedulingMode = input.schedulingMode ?? DEFAULT_SCHEDULING_MODE;
   const missingResourceMode = input.missingResourceMode ?? "throw";
   const params = { pageId };
-  const executionContext = { locale };
-  const root = pageAri({ id: pageId, locale });
+  const executionContext = { spaceId, environmentId, locale };
+  const root = pageAri({ spaceId, environmentId, id: pageId, locale });
 
   const resolver = createDemoResolver({ params, schedulingMode });
 
@@ -80,6 +94,8 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
         meta: {
           locale,
           pageId,
+          spaceId,
+          environmentId,
           schedulingMode,
           resolvedCount: contentMap.size,
         },
@@ -98,6 +114,8 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
       meta: {
         locale,
         pageId,
+        spaceId,
+        environmentId,
         schedulingMode,
         resolvedCount: contentMap.size,
       },
@@ -105,7 +123,7 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
   } catch (error) {
     return {
       ok: false,
-      meta: { locale, pageId, schedulingMode },
+      meta: { locale, pageId, spaceId, environmentId, schedulingMode },
       errors: [
         {
           resourceKey: root.toString(),

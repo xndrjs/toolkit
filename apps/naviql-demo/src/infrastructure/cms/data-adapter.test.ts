@@ -2,72 +2,158 @@ import { describe, expect, it } from "vitest";
 
 import {
   assetAri,
+  customReferenceAri,
+  entryAri,
   footerAri,
   heroAri,
   menuAri,
   pageAri,
   productAri,
   tabAri,
-  tabCollectionAri,
   tabsAri,
 } from "../../generated/page-detail.js";
-import { DEMO_LOCALE, demoFixtureStore, demoIds } from "../fixtures/store.js";
-import { CMS_SOURCE_ID, createCmsSource } from "./data-adapter.js";
+import {
+  DEMO_ENVIRONMENT,
+  DEMO_LOCALE,
+  DEMO_SPACE,
+  demoEntries,
+  demoHeroWelcomeCustomRef,
+  demoIds,
+  demoLogoAssetCustomRef,
+  entryLookupKey,
+} from "../fixtures/store.js";
+import { createCustomReferenceSource } from "./custom-reference-data-adapter.js";
+import { ENTRY_SOURCE_ID, createEntrySource } from "./data-adapter.js";
 
 const locale = DEMO_LOCALE;
-const loadContext = { executionContext: { locale }, batchNumber: 1 };
+const spaceId = DEMO_SPACE;
+const environmentId = DEMO_ENVIRONMENT;
+const loadContext = {
+  executionContext: { spaceId, environmentId, locale },
+  batchNumber: 1,
+};
 
-describe("createCmsSource", () => {
-  it("owns the editorial ARI families", () => {
-    const source = createCmsSource();
-    expect(source.id).toBe(CMS_SOURCE_ID);
+const entryIdentity = (id: string) => ({ spaceId, environmentId, id, locale });
+
+describe("createEntrySource", () => {
+  it("owns editorial entry ARI families (not CustomReference / Asset)", () => {
+    const source = createEntrySource();
+    expect(source.id).toBe(ENTRY_SOURCE_ID);
     expect(source.for.map((family) => family.type).sort()).toEqual([
+      "Entry",
       "Footer",
       "Hero",
       "Menu",
       "Page",
+      "Product",
       "Tab",
-      "TabCollection",
       "Tabs",
     ]);
   });
 
-  it("returns fixtures for owned families and omits missing keys", async () => {
-    const source = createCmsSource();
-    const page = pageAri({ id: demoIds.page, locale });
-    const hero = heroAri({ id: demoIds.heroWelcome, locale });
-    const menu = menuAri({ id: demoIds.menu, locale });
-    const footer = footerAri({ id: demoIds.footer, locale });
-    const tabs = tabsAri({ id: demoIds.tabs, locale });
-    const tab = tabAri({ id: demoIds.tabOverview, locale });
-    const tabCollection = tabCollectionAri({ tabsId: demoIds.tabs, locale });
-    const unknownPage = pageAri({ id: "missing-page", locale });
+  it("looks up by entry id for both Entry and concrete Hero ARIs", async () => {
+    const source = createEntrySource();
+    const entry = entryAri(entryIdentity(demoIds.heroWelcome));
+    const hero = heroAri(entryIdentity(demoIds.heroWelcome));
 
-    const records = await source.load(
-      [page, hero, menu, footer, tabs, tab, tabCollection, unknownPage],
-      loadContext
-    );
+    const fromEntry = await source.load([entry], loadContext);
+    const fromHero = await source.load([hero], loadContext);
 
-    expect(records.map((r) => r.resource.toString()).sort()).toEqual(
-      [
-        page.toString(),
-        hero.toString(),
-        menu.toString(),
-        footer.toString(),
-        tabs.toString(),
-        tab.toString(),
-        tabCollection.toString(),
-      ].sort()
-    );
-    expect(records.some((r) => r.resource.toString() === unknownPage.toString())).toBe(false);
+    expect(fromEntry).toHaveLength(1);
+    expect(fromEntry[0]!.resource.toString()).toBe(hero.toString());
+    expect(fromEntry[0]!.resolves?.map((r) => r.toString())).toEqual([entry.toString()]);
+
+    expect(fromHero).toHaveLength(1);
+    expect(fromHero[0]!.resource.toString()).toBe(hero.toString());
+    expect(fromHero[0]!.resolves).toBeUndefined();
   });
 
-  it("does not return catalog or cdn ARIs even when present in the store", async () => {
-    const source = createCmsSource(demoFixtureStore);
-    const product = productAri({ id: demoIds.productTshirt, locale });
-    const asset = assetAri({ id: demoIds.assetLogo, locale });
+  it("serves Page / Menu / Footer / Tab from the entries fixture", async () => {
+    const source = createEntrySource();
+    const page = pageAri(entryIdentity(demoIds.page));
+    const menu = menuAri(entryIdentity(demoIds.menu));
+    const footer = footerAri(entryIdentity(demoIds.footer));
+    const tab = tabAri(entryIdentity(demoIds.tabOverview));
 
-    const records = await source.load([product, asset], loadContext);
-    expect(records).toEqual([]);
+    const records = await source.load([page, menu, footer, tab], loadContext);
+    expect(records.map((r) => r.resource.toString()).sort()).toEqual(
+      [page.toString(), menu.toString(), footer.toString(), tab.toString()].sort()
+    );
+  });
+
+  it("rematerializes Entry into Tabs / Product", async () => {
+    const source = createEntrySource();
+    const tabsEntry = entryAri(entryIdentity(demoIds.tabs));
+    const productEntry = entryAri(entryIdentity(demoIds.productTshirt));
+
+    const tabs = await source.load([tabsEntry], loadContext);
+    expect(tabs[0]!.resource.toString()).toBe(tabsAri(entryIdentity(demoIds.tabs)).toString());
+
+    const product = await source.load([productEntry], loadContext);
+    expect(product[0]!.resource.toString()).toBe(
+      productAri(entryIdentity(demoIds.productTshirt)).toString()
+    );
+  });
+
+  it("Page.strips links carry only EntryId — no content-type discriminant", () => {
+    const doc = demoEntries.get(entryLookupKey({ spaceId, environmentId, id: demoIds.page }));
+    expect(doc?.contentTypeId).toBe("page");
+    if (doc?.contentTypeId !== "page") {
+      return;
+    }
+    for (const link of doc.payload.strips) {
+      expect(Object.keys(link).sort()).toEqual(["id"]);
+      expect(link).not.toHaveProperty("type");
+    }
+  });
+
+  it("does not own Asset ARIs", async () => {
+    const source = createEntrySource();
+    const asset = assetAri({
+      spaceId,
+      environmentId,
+      id: demoIds.assetLogo,
+      locale,
+    });
+    expect(await source.load([asset], loadContext)).toEqual([]);
+  });
+});
+
+describe("createCustomReferenceSource", () => {
+  it("redirects CustomReference ENTRY to Entry without fetching payloads", async () => {
+    const source = createCustomReferenceSource();
+    const customRef = customReferenceAri({ ref: demoHeroWelcomeCustomRef, locale });
+    const entry = entryAri(entryIdentity(demoIds.heroWelcome));
+
+    const records = await source.load([customRef], loadContext);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      redirect: true,
+      resource: expect.objectContaining({ type: "Entry" }),
+      resolves: [customRef],
+    });
+    expect(records[0]!.resource.toString()).toBe(entry.toString());
+    expect(records[0]).not.toHaveProperty("payload");
+  });
+
+  it("redirects CustomReference ASSET to Asset without fetching payloads", async () => {
+    const source = createCustomReferenceSource();
+    const customRef = customReferenceAri({ ref: demoLogoAssetCustomRef, locale });
+    const asset = assetAri({
+      spaceId,
+      environmentId,
+      id: demoIds.assetLogo,
+      locale,
+    });
+
+    const records = await source.load([customRef], loadContext);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      redirect: true,
+      resource: expect.objectContaining({ type: "Asset" }),
+      resolves: [customRef],
+    });
+    expect(records[0]!.resource.toString()).toBe(asset.toString());
+    expect(records[0]).not.toHaveProperty("payload");
   });
 });

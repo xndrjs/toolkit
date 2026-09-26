@@ -54,7 +54,7 @@ describe("NaviQl MVP grammar", () => {
     expect(query.projections[0]?.selectedFields).toEqual(["id", "title", "content"]);
     expect(query.projections[0]?.expansions[0]?.alias).toBe("author");
 
-    const authorArg = query.projections[0]?.expansions[0]?.target.args[0]?.value;
+    const authorArg = query.projections[0]?.expansions[0]?.target?.args[0]?.value;
     expect(authorArg && isPathRef(authorArg)).toBe(true);
     if (authorArg && isPathRef(authorArg)) {
       expect(authorArg.segments).toEqual(["p", "authorId"]);
@@ -63,8 +63,8 @@ describe("NaviQl MVP grammar", () => {
 
   it("parses page-detail.naviql mirroring the IR fixture", () => {
     const model = parseSource(loadFixture("page-detail.naviql"));
-    expect(model.declarations.filter(isScalarDeclaration)).toHaveLength(10);
-    expect(model.declarations.filter(isResourceDeclaration)).toHaveLength(9);
+    expect(model.declarations.filter(isScalarDeclaration)).toHaveLength(7);
+    expect(model.declarations.filter(isResourceDeclaration)).toHaveLength(10);
 
     const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
     expect(query.name).toBe("PageDetail");
@@ -83,18 +83,21 @@ describe("NaviQl MVP grammar", () => {
       (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "Page"
     );
     const stripsExpand = query.projections[0]?.expansions.find((e) => e.alias === "strips");
-    expect(stripsExpand?.each?.itemBinding).toBe("s");
-    expect(stripsExpand?.each?.arms.map((a) => a.target.resource)).toEqual([
-      "Hero",
-      "Tabs",
-      "Product",
-    ]);
+    expect(stripsExpand?.each?.itemBinding).toBe("link");
+    expect(stripsExpand?.each?.arms.map((a) => a.target.resource)).toEqual(["Entry"]);
     expect(stripsExpand?.target).toBeUndefined();
 
-    const tabCollection = model.declarations.find(
-      (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "TabCollection"
-    );
-    expect(tabCollection?.payloadType.$type).toBe("ArrayTypeExpr");
+    const relatedExpand = query.projections[0]?.expansions.find((e) => e.alias === "related");
+    expect(relatedExpand?.each?.itemBinding).toBe("ref");
+    expect(relatedExpand?.each?.arms.map((a) => a.target.resource)).toEqual(["CustomReference"]);
+
+    const tabsExpand = query.projections
+      .find((p) => p.resource === "Tabs")
+      ?.expansions.find((e) => e.alias === "tabs");
+    expect(tabsExpand?.each?.itemBinding).toBe("link");
+    expect(tabsExpand?.each?.arms.map((a) => a.target.resource)).toEqual(["Tab"]);
+    expect(tabsExpand?.target).toBeUndefined();
+
     expect(page?.name).toBe("Page");
   });
 
@@ -130,7 +133,7 @@ describe("NaviQl MVP grammar", () => {
     expect(args[3]?.value.$type).toBe("StringLiteral");
     expect(args[4]?.value.$type).toBe("NullLiteral");
 
-    const idArg = query.projections[0]?.expansions[0]?.target.args[0]?.value;
+    const idArg = query.projections[0]?.expansions[0]?.target?.args[0]?.value;
     expect(idArg && isIdentityRef(idArg)).toBe(true);
     if (idArg && isIdentityRef(idArg)) {
       expect(idArg.binding).toBe("p");

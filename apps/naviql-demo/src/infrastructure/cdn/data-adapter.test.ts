@@ -1,29 +1,47 @@
 import { describe, expect, it } from "vitest";
 
 import { assetAri } from "../../generated/page-detail.js";
-import { DEMO_LOCALE, demoIds } from "../fixtures/store.js";
-import { CDN_SOURCE_ID, createCdnSource } from "./data-adapter.js";
+import { DEMO_ENVIRONMENT, DEMO_LOCALE, DEMO_SPACE, demoIds } from "../fixtures/store.js";
+import { ASSET_SOURCE_ID, createAssetSource } from "../cms/asset-data-adapter.js";
 
 const locale = DEMO_LOCALE;
-const loadContext = { executionContext: { locale }, batchNumber: 1 };
+const loadContext = {
+  executionContext: {
+    spaceId: DEMO_SPACE,
+    environmentId: DEMO_ENVIRONMENT,
+    locale,
+  },
+  batchNumber: 1,
+};
 
-describe("createCdnSource", () => {
+describe("createAssetSource", () => {
   it("owns only assetAri", () => {
-    const source = createCdnSource();
-    expect(source.id).toBe(CDN_SOURCE_ID);
+    const source = createAssetSource();
+    expect(source.id).toBe(ASSET_SOURCE_ID);
     expect(source.for.map((family) => family.type)).toEqual(["Asset"]);
   });
 
   it("returns asset fixtures and omits unknown keys", async () => {
-    const source = createCdnSource();
-    const known = assetAri({ id: demoIds.assetHero, locale });
-    const missing = assetAri({ id: "missing-asset", locale });
+    const source = createAssetSource();
+    const known = assetAri({
+      spaceId: DEMO_SPACE,
+      environmentId: DEMO_ENVIRONMENT,
+      id: demoIds.assetHero,
+      locale,
+    });
+    const missing = assetAri({
+      spaceId: DEMO_SPACE,
+      environmentId: DEMO_ENVIRONMENT,
+      id: "missing-asset",
+      locale,
+    });
 
     const records = await source.load([known, missing], loadContext);
 
     expect(records).toHaveLength(1);
-    expect(records[0]?.resource.toString()).toBe(known.toString());
-    expect(records[0]?.payload).toMatchObject({
+    const record = records[0]!;
+    expect(record.resource.toString()).toBe(known.toString());
+    expect("payload" in record && record.payload).toMatchObject({
       id: demoIds.assetHero,
       url: "https://cdn.example.com/hero-welcome.jpg",
       kind: "image",

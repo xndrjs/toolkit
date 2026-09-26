@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { checkProgram, type Program } from "../compile";
+import { parseAndCheck } from "../compile/parse-and-check";
 
 import {
   arg,
   construct,
-  ctx,
   defScalar,
   expand,
   field,
@@ -53,16 +53,47 @@ describe("checkProgram — pageDetail happy path", () => {
 
 describe("checkProgram — each-expand exhaustiveness", () => {
   it("errors when arms omit a closed type discriminant", () => {
-    const program = withMutatedPageDetail((p) => {
-      const strips = pageProjection(p).expansions.find((e) => e.alias === "strips")!;
-      expect(strips.comprehension).not.toBeNull();
-      // Drop the Product arm.
-      strips.comprehension!.arms = strips.comprehension!.arms.filter(
-        (arm) => arm.target.resource !== "Product"
-      );
-    });
+    // Page-detail strips are open `{ id }[]` links (no discriminants). Use a
+    // local closed object-union so INEXHAUSTIVE_EXPAND_ARMS still has coverage.
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar PageId on string;
+      scalar HeroId on string;
+      scalar ProductId on string;
 
-    expect(checkProgram(program)).toContainEqual(
+      resource Page(id: PageId, locale: Locale): {
+        id
+        strips: (
+          { type: "Hero", id: HeroId } |
+          { type: "Product", id: ProductId }
+        )[]
+      }
+
+      resource Hero(id: HeroId, locale: Locale): {
+        type: "Hero"
+        id
+      }
+
+      resource Product(id: ProductId, locale: Locale): {
+        type: "Product"
+        id
+      }
+
+      query Q(pageId: PageId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand strips: each s in p.strips (
+            Hero(id: s.id, locale: context.locale) when s.type == "Hero"
+          )
+        }
+        on Hero h { id }
+        on Product prod { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
       expect.objectContaining({
         code: "INEXHAUSTIVE_EXPAND_ARMS",
         message: expect.stringContaining('"Product"'),
@@ -72,27 +103,32 @@ describe("checkProgram — each-expand exhaustiveness", () => {
 });
 
 describe("checkProgram — negative diagnostics", () => {
-  it("rejects Menu(id: @p.id) — PageId is not assignable to MenuId", () => {
+  it("rejects Menu(id: @p.locale) — Locale is not assignable to EntryId", () => {
     const program = withMutatedPageDetail((p) => {
-      menuExpand(p).target.args = [arg("id", identity("p", "id")), arg("locale", ctx("locale"))];
+      menuExpand(p).target.args = [
+        arg("spaceId", identity("p", "spaceId")),
+        arg("environmentId", identity("p", "environmentId")),
+        arg("id", identity("p", "locale")),
+        arg("locale", identity("p", "locale")),
+      ];
     });
 
     const diags = checkProgram(program);
     expect(diags).toContainEqual(
       expect.objectContaining({
         code: "TYPE_MISMATCH",
-        message: expect.stringMatching(/PageId.*MenuId|MenuId.*PageId/),
+        message: expect.stringMatching(/Locale.*EntryId|EntryId.*Locale/),
       })
     );
   });
 
   it("rejects identity/payload semantic conflict on the same field name", () => {
     const program = withMutatedPageDetail((p) => {
-      const page = p.resources.find((r) => r.name === "Page")!;
-      expect(page.payloadType.kind).toBe("object");
-      if (page.payloadType.kind !== "object") return;
-      const idPayload = page.payloadType.fields.find((f) => f.name === "id")!;
-      idPayload.type = scalarRef("HeroId");
+      const asset = p.resources.find((r) => r.name === "Asset")!;
+      expect(asset.payloadType.kind).toBe("object");
+      if (asset.payloadType.kind !== "object") return;
+      const idPayload = asset.payloadType.fields.find((f) => f.name === "id")!;
+      idPayload.type = scalarRef("EntryId");
       idPayload.inheritedFromIdentity = false;
     });
 
@@ -106,7 +142,7 @@ describe("checkProgram — negative diagnostics", () => {
       const page = p.resources.find((r) => r.name === "Page")!;
       expect(page.payloadType.kind).toBe("object");
       if (page.payloadType.kind !== "object") return;
-      page.payloadType.fields.push(field("orphan", scalarRef("PageId"), true));
+      page.payloadType.fields.push(field("orphan", scalarRef("EntryId"), true));
     });
 
     expect(checkProgram(program)).toContainEqual(
@@ -127,8 +163,10 @@ describe("checkProgram — negative diagnostics", () => {
   it("rejects identityRef path missing on the resource", () => {
     const program = withMutatedPageDetail((p) => {
       menuExpand(p).target.args = [
+        arg("spaceId", identity("p", "spaceId")),
+        arg("environmentId", identity("p", "environmentId")),
         arg("id", identity("p", "missing")),
-        arg("locale", ctx("locale")),
+        arg("locale", identity("p", "locale")),
       ];
     });
 
@@ -140,6 +178,8 @@ describe("checkProgram — negative diagnostics", () => {
   it("rejects payloadRef to an identity-only field (locale)", () => {
     const program = withMutatedPageDetail((p) => {
       menuExpand(p).target.args = [
+        arg("spaceId", identity("p", "spaceId")),
+        arg("environmentId", identity("p", "environmentId")),
         arg("id", payload("p", "menuId")),
         arg("locale", payload("p", "locale")),
       ];
@@ -153,8 +193,10 @@ describe("checkProgram — negative diagnostics", () => {
   it("rejects identityRef when binding is not in scope", () => {
     const program = withMutatedPageDetail((p) => {
       menuExpand(p).target.args = [
+        arg("spaceId", identity("p", "spaceId")),
+        arg("environmentId", identity("p", "environmentId")),
         arg("id", identity("noSuchBinding", "id")),
-        arg("locale", ctx("locale")),
+        arg("locale", identity("p", "locale")),
       ];
     });
 
@@ -183,7 +225,7 @@ describe("checkProgram — negative diagnostics", () => {
     );
   });
 
-  it("rejects typed string where PageId is expected (no primitive widening)", () => {
+  it("rejects typed string where EntryId is expected (no primitive widening)", () => {
     const program = withMutatedPageDetail((p) => {
       pageQuery(p).parameters = [field("pageId", prim("string"))];
     });
@@ -191,7 +233,7 @@ describe("checkProgram — negative diagnostics", () => {
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({
         code: "TYPE_MISMATCH",
-        message: expect.stringContaining("string is not assignable to PageId"),
+        message: expect.stringContaining("string is not assignable to EntryId"),
       })
     );
   });
@@ -211,7 +253,7 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects duplicate scalar name", () => {
     const program = withMutatedPageDetail((p) => {
-      p.scalars.push(defScalar("PageId", "string"));
+      p.scalars.push(defScalar("EntryId", "string"));
     });
 
     expect(checkProgram(program)).toContainEqual(
@@ -236,7 +278,12 @@ describe("checkProgram — negative diagnostics", () => {
       proj.expansions.push(
         expand(
           "menu",
-          construct("Menu", [arg("id", payload("p", "menuId")), arg("locale", ctx("locale"))])
+          construct("Menu", [
+            arg("spaceId", identity("p", "spaceId")),
+            arg("environmentId", identity("p", "environmentId")),
+            arg("id", payload("p", "menuId")),
+            arg("locale", identity("p", "locale")),
+          ])
         )
       );
     });
@@ -246,18 +293,20 @@ describe("checkProgram — negative diagnostics", () => {
     );
   });
 
-  it("rejects constructor arg type mismatch (FooterId into MenuId)", () => {
+  it("rejects constructor arg type mismatch (SpaceId into EntryId)", () => {
     const program = withMutatedPageDetail((p) => {
       menuExpand(p).target.args = [
-        arg("id", payload("p", "footerId")),
-        arg("locale", ctx("locale")),
+        arg("spaceId", identity("p", "spaceId")),
+        arg("environmentId", identity("p", "environmentId")),
+        arg("id", identity("p", "spaceId")),
+        arg("locale", identity("p", "locale")),
       ];
     });
 
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({
         code: "TYPE_MISMATCH",
-        message: expect.stringMatching(/FooterId.*MenuId/),
+        message: expect.stringMatching(/SpaceId.*EntryId/),
       })
     );
   });
