@@ -1,6 +1,8 @@
 import type { FieldDecl, Program, TypeExpr } from "../ir";
 import { formatType, objectPayloadFields, typesSemanticallyEqual } from "./assignability";
+import { expandPayloadObjectMembers } from "./discriminants";
 import type { DiagnosticSink } from "./diagnostic";
+import { memberMatchesRefersPattern, refersPatternFieldMissingOnAllMembers } from "./refers";
 import {
   checkTypeExpr,
   checkUniqueFields,
@@ -86,6 +88,8 @@ export function collectResources(
       sink
     );
 
+    walkCheckRefers(resource.payloadType, `${path}.payloadType`, resources, sink);
+
     const payloadFields = objectPayloadFields(resource.payloadType);
     const payload = checkUniqueFields(
       payloadFields,
@@ -150,6 +154,88 @@ function walkForbidNestedShorthand(type: TypeExpr, path: string, sink: Diagnosti
   } else if (type.kind === "union") {
     for (let i = 0; i < type.members.length; i++) {
       walkForbidNestedShorthand(type.members[i]!, `${path}|${i}`, sink);
+    }
+  }
+}
+
+/** Walk payload object fields (including nested objects/arrays/unions) and validate `refers`. */
+function walkCheckRefers(
+  type: TypeExpr,
+  path: string,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  if (type.kind === "object") {
+    for (const field of type.fields) {
+      const fieldPath = `${path}.${field.name}`;
+      checkFieldRefers(field, fieldPath, resources, sink);
+      walkCheckRefers(field.type, fieldPath, resources, sink);
+    }
+  } else if (type.kind === "array" || type.kind === "nullable") {
+    walkCheckRefers(type.of, path, resources, sink);
+  } else if (type.kind === "union") {
+    for (let i = 0; i < type.members.length; i++) {
+      walkCheckRefers(type.members[i]!, `${path}|${i}`, resources, sink);
+    }
+  }
+}
+
+function checkFieldRefers(
+  field: FieldDecl,
+  fieldPath: string,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  if (!field.refers) return;
+
+  for (let i = 0; i < field.refers.length; i++) {
+    const target = field.refers[i]!;
+    const targetPath = `${fieldPath}.refers[${i}]`;
+
+    const resourceSymbols = resources.get(target.resource);
+    if (!resourceSymbols) {
+      sink.push({
+        code: "UNKNOWN_REFERS_RESOURCE",
+        message: `Unknown resource '${target.resource}' in refers clause`,
+        path: targetPath,
+        span: target.span,
+      });
+      continue;
+    }
+
+    const members = expandPayloadObjectMembers(resourceSymbols.payloadType, resources);
+    if (members === null) {
+      sink.push({
+        code: "REFERS_MATCHES_NOTHING",
+        message: `refers '${target.resource}' pattern matches no payload members`,
+        path: targetPath,
+        span: target.span,
+      });
+      continue;
+    }
+
+    let hasUnknownField = false;
+    for (const pf of target.fields) {
+      if (refersPatternFieldMissingOnAllMembers(members, pf.name)) {
+        hasUnknownField = true;
+        sink.push({
+          code: "UNKNOWN_REFERS_FIELD",
+          message: `refers pattern field '${pf.name}' is not present on any '${target.resource}' payload member`,
+          path: targetPath,
+          span: pf.span ?? target.span,
+        });
+      }
+    }
+    if (hasUnknownField) continue;
+
+    const matched = members.filter((m) => memberMatchesRefersPattern(m, target.fields));
+    if (matched.length === 0) {
+      sink.push({
+        code: "REFERS_MATCHES_NOTHING",
+        message: `refers '${target.resource}' pattern matches no payload members`,
+        path: targetPath,
+        span: target.span,
+      });
     }
   }
 }
