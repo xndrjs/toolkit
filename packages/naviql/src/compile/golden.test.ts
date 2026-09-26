@@ -60,6 +60,26 @@ describe("golden .naviql → parseAndCheck", () => {
     expect(program.resources.map((r) => r.name)).toEqual(["Post", "User"]);
   });
 
+  it("homepage-multi.naviql typechecks with aliased roots", () => {
+    const { program, diagnostics } = parseAndCheck(
+      loadFixture("homepage-multi.naviql"),
+      "file:///fixtures/homepage-multi.naviql"
+    );
+
+    expect(diagnostics).toEqual([]);
+    expect(program.queries.map((q) => q.name)).toEqual(["Homepage"]);
+    expect(program.queries[0]?.roots).toEqual([
+      expect.objectContaining({
+        alias: "page",
+        construction: expect.objectContaining({ resource: "Page" }),
+      }),
+      expect.objectContaining({
+        alias: "session",
+        construction: expect.objectContaining({ resource: "UserSession" }),
+      }),
+    ]);
+  });
+
   it("hero-id-mismatch.naviql reports TYPE_MISMATCH for Hero(id: @p.id)", () => {
     const { diagnostics } = parseAndCheck(
       loadFixture("hero-id-mismatch.naviql"),
