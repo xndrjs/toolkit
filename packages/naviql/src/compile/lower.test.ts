@@ -253,4 +253,77 @@ describe("lowerProgram", () => {
       },
     });
   });
+
+  it("lowers projection when-arms with payloadRef filters", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar EntryId on string;
+        scalar Locale on string;
+        scalar AssetId on string;
+
+        resource Entry(id: EntryId, locale: Locale):
+          { type: "Hero", id, title: string, imageId: AssetId }
+          | { type: "Page", id }
+
+        resource Asset(id: AssetId, locale: Locale): { id }
+
+        query Q(entryId: EntryId) {
+          context { locale: Locale }
+          root Entry(id: entryId, locale: context.locale)
+          on Entry e {
+            when e.type == "Hero" {
+              id
+              expand image: Asset(id: e.imageId, locale: context.locale)
+            }
+            when e.type == "Page" {
+              id
+            }
+          }
+          on Asset a { id }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    const entry = program.queries[0]!.projections[0]!;
+    expect(entry).toMatchObject({
+      resource: "Entry",
+      binding: "e",
+      selectedFields: [],
+      expansions: [],
+    });
+    expect(entry.arms).toHaveLength(2);
+    expect(entry.arms![0]).toMatchObject({
+      when: {
+        kind: "binary",
+        op: "==",
+        left: { kind: "payloadRef", binding: "e", path: ["type"] },
+        right: { kind: "literal", value: "Hero" },
+      },
+      selectedFields: ["id"],
+      expansions: [
+        {
+          alias: "image",
+          multiplicity: "one",
+          target: {
+            resource: "Asset",
+            args: [
+              { name: "id", value: { kind: "payloadRef", binding: "e", path: ["imageId"] } },
+              { name: "locale", value: { kind: "context", path: ["locale"] } },
+            ],
+          },
+        },
+      ],
+    });
+    expect(entry.arms![1]).toMatchObject({
+      selectedFields: ["id"],
+      expansions: [],
+      when: {
+        kind: "binary",
+        op: "==",
+        left: { kind: "payloadRef", binding: "e", path: ["type"] },
+        right: { kind: "literal", value: "Page" },
+      },
+    });
+  });
 });

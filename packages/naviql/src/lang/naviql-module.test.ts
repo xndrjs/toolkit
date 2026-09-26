@@ -101,6 +101,52 @@ describe("NaviQl MVP grammar", () => {
     expect(page?.name).toBe("Page");
   });
 
+  it("parses projection when-arms inside on blocks", () => {
+    const model = parseSource(`
+      scalar EntryId on string;
+      scalar Locale on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Page", id, title: string }
+
+      resource Asset(id: AssetId, locale: Locale): {
+        id
+        url: string
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" {
+            id
+            title
+            expand image: Asset(id: e.imageId, locale: context.locale)
+          }
+          when e.type == "Page" {
+            id
+          }
+        }
+        on Asset a { id url }
+      }
+    `);
+
+    const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
+    const entry = query.projections.find((p) => p.resource === "Entry");
+    expect(entry?.whenArms).toHaveLength(2);
+    expect(entry?.selectedFields).toEqual([]);
+    expect(entry?.expansions).toEqual([]);
+    expect(entry?.whenArms[0]?.selectedFields).toEqual(["id", "title"]);
+    expect(entry?.whenArms[0]?.expansions[0]?.alias).toBe("image");
+    expect(entry?.whenArms[1]?.selectedFields).toEqual(["id"]);
+    expect(entry?.whenArms[1]?.expansions).toEqual([]);
+
+    const whenExpr = entry?.whenArms[0]?.when;
+    expect(whenExpr?.$type).toBe("BinaryExpr");
+  });
+
   it("parses identity refs, literals, and payload shorthand", () => {
     const model = parseSource(`
       scalar PostId on string;
