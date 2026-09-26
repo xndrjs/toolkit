@@ -146,3 +146,202 @@ describe("hoverMarkdownAtOffset", () => {
     });
   });
 });
+
+const PATH_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): {
+  id
+  footerId: EntryId
+  strips: { id: EntryId }[]
+  meta: { something: string }
+}
+
+query PageDetail(pageId: EntryId) {
+  context {
+    locale: Locale
+    meta: { something: string }
+  }
+  root Entry(id: pageId, locale: context.locale)
+  on Entry p {
+    expand footer: Entry(id: p.footerId, locale: @p.locale)
+    expand strips: each link in p.strips (
+      Entry(id: link.id, locale: context.meta.something)
+    )
+  }
+}
+`;
+
+describe("hover expression paths", () => {
+  it("hovers payload paths like p.footerId", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const footerId = offsetOf(PATH_FIXTURE, "footerId", 1); // use in p.footerId
+    expect(hoverMarkdownAtOffset(document, footerId, { scalars, resources })).toContain(
+      "footerId: EntryId"
+    );
+
+    const binding = offsetOf(PATH_FIXTURE, "p", 1); // p.footerId head (after on Entry p)
+    expect(hoverMarkdownAtOffset(document, binding, { scalars, resources })).toContain(
+      "resource Entry("
+    );
+  });
+
+  it("hovers identity paths like @p.locale", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const locale = offsetOf(PATH_FIXTURE, "locale", 5); // @p.locale
+    expect(hoverMarkdownAtOffset(document, locale, { scalars, resources })).toContain(
+      "locale: Locale"
+    );
+
+    const binding = offsetOf(PATH_FIXTURE, "p", 2); // @p in @p.locale
+    expect(hoverMarkdownAtOffset(document, binding, { scalars, resources })).toContain(
+      "p: { id: EntryId, locale: Locale }"
+    );
+  });
+
+  it("hovers context keyword and nested context paths", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+
+    const contextKw = offsetOf(PATH_FIXTURE, "context", 1); // context.locale in root
+    expect(hoverMarkdownAtOffset(document, contextKw, { scalars, resources })).toContain(
+      "context: {"
+    );
+    expect(hoverMarkdownAtOffset(document, contextKw, { scalars, resources })).toContain(
+      "locale: Locale"
+    );
+
+    const locale = offsetOf(PATH_FIXTURE, "locale", 3); // context.locale
+    expect(hoverMarkdownAtOffset(document, locale, { scalars, resources })).toContain(
+      "locale: Locale"
+    );
+
+    const meta = offsetOf(PATH_FIXTURE, "meta", 2); // context.meta.something
+    expect(hoverMarkdownAtOffset(document, meta, { scalars, resources })).toContain(
+      "meta: { something: string }"
+    );
+
+    const something = offsetOf(PATH_FIXTURE, "something", 2);
+    expect(hoverMarkdownAtOffset(document, something, { scalars, resources })).toContain(
+      "something: string"
+    );
+  });
+
+  it("hovers item paths inside each", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const linkId = offsetOf(PATH_FIXTURE, "id", 6); // link.id
+    expect(hoverMarkdownAtOffset(document, linkId, { scalars, resources })).toContain(
+      "id: EntryId"
+    );
+
+    const link = offsetOf(PATH_FIXTURE, "link", 1); // link.id head
+    expect(hoverMarkdownAtOffset(document, link, { scalars, resources })).toContain(
+      "link: { id: EntryId }"
+    );
+  });
+
+  it("hovers each item binding (each ref in …)", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const itemBinding = offsetOf(PATH_FIXTURE, "link", 0); // each link in
+    expect(hoverMarkdownAtOffset(document, itemBinding, { scalars, resources })).toContain(
+      "link: { id: EntryId }"
+    );
+  });
+
+  it("hovers nested payload paths like p.meta.something", () => {
+    // Type mismatch on id arg is fine — hover only needs tables + AST.
+    const loose = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): {
+  id
+  meta: { something: string }
+}
+query Q(pageId: EntryId) {
+  context { locale: Locale }
+  root Entry(id: pageId, locale: context.locale)
+  on Entry p {
+    expand x: Entry(id: p.meta.something, locale: @p.locale)
+  }
+}
+`;
+    const { document, scalars, resources } = tablesFrom(loose);
+    const meta = offsetOf(loose, "meta", 1); // p.meta.something
+    expect(hoverMarkdownAtOffset(document, meta, { scalars, resources })).toContain(
+      "meta: { something: string }"
+    );
+    const something = offsetOf(loose, "something", 1);
+    expect(hoverMarkdownAtOffset(document, something, { scalars, resources })).toContain(
+      "something: string"
+    );
+  });
+});
+
+const FRAGMENT_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): {
+  type: string
+  id
+  title: string
+}
+
+fragment EntryBase on Entry e {
+  type
+  id
+}
+
+fragment EntryTitle on Entry e {
+  ...EntryBase
+  title
+}
+
+query Q(entryId: EntryId) {
+  context { locale: Locale }
+  root Entry(id: entryId, locale: context.locale)
+  on Entry e {
+    ...EntryBase
+  }
+}
+`;
+
+describe("hover fragments", () => {
+  it("hovers fragment declaration name as projected shape", () => {
+    const { document, scalars, resources } = tablesFrom(FRAGMENT_FIXTURE);
+    const name = offsetOf(FRAGMENT_FIXTURE, "EntryBase", 0); // fragment EntryBase
+    expect(hoverMarkdownAtOffset(document, name, { scalars, resources })).toContain(
+      "fragment EntryBase on Entry: { type: string, id: EntryId }"
+    );
+  });
+
+  it("hovers fragment spread ...EntryBase", () => {
+    const { document, scalars, resources } = tablesFrom(FRAGMENT_FIXTURE);
+    const spread = offsetOf(FRAGMENT_FIXTURE, "EntryBase", 2); // ...EntryBase in query
+    expect(hoverMarkdownAtOffset(document, spread, { scalars, resources })).toContain(
+      "{ type: string, id: EntryId }"
+    );
+  });
+
+  it("hovers selected fields inside a fragment body", () => {
+    const { document, scalars, resources } = tablesFrom(FRAGMENT_FIXTURE);
+    // `type` in fragment EntryBase body (after payload `type: string`)
+    const typeField = offsetOf(FRAGMENT_FIXTURE, "type", 1);
+    expect(hoverMarkdownAtOffset(document, typeField, { scalars, resources })).toContain(
+      "type: string"
+    );
+
+    const idField = offsetOf(FRAGMENT_FIXTURE, "id", 2); // fragment body id (after identity + payload shorthand)
+    expect(hoverMarkdownAtOffset(document, idField, { scalars, resources })).toContain(
+      "id: EntryId"
+    );
+  });
+
+  it("hovers fragment that spreads another (flattened fields)", () => {
+    const { document, scalars, resources } = tablesFrom(FRAGMENT_FIXTURE);
+    const name = offsetOf(FRAGMENT_FIXTURE, "EntryTitle", 0);
+    expect(hoverMarkdownAtOffset(document, name, { scalars, resources })).toContain(
+      "fragment EntryTitle on Entry: { type: string, id: EntryId, title: string }"
+    );
+  });
+});
