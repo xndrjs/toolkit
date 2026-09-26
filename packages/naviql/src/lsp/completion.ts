@@ -29,12 +29,20 @@ import {
   type Expression,
   type ResourceConstruction,
 } from "../lang/generated/ast";
+import { pathCompletionsAtOffset } from "./completion-path";
 import type { SemanticSnapshotCache } from "./semantic-snapshot";
 
 export type CompletionTables = {
   scalars: ScalarTable;
   resources: ResourceTable;
 };
+
+function nameTablesFrom(tables: CompletionTables) {
+  return {
+    scalars: new Set(tables.scalars.keys()),
+    resources: new Set(tables.resources.keys()),
+  };
+}
 
 /** Lightweight completion proposal (unit-tested without full LSP text edits). */
 export type SemanticCompletionItem = {
@@ -392,6 +400,15 @@ export function completionsAtOffset(
   offset: number,
   tables: CompletionTables
 ): SemanticCompletionItem[] {
+  // Property paths (`@p.`, `p.`, `context.`, item) take priority over other contexts.
+  const pathItems = pathCompletionsAtOffset(document, offset, {
+    resources: tables.resources,
+    nameTables: nameTablesFrom(tables),
+  });
+  if (pathItems) {
+    return pathItems;
+  }
+
   const context = classifyCompletionContext(document, offset);
   if (!context) return [];
 

@@ -11,6 +11,14 @@ export {
   type CompletionTables,
   type SemanticCompletionItem,
 } from "./completion";
+export {
+  parseTrailingPathAccess,
+  pathCompletionsAtOffset,
+  pathFieldCompletions,
+  type PathAccess,
+  type PathFieldCompletion,
+} from "./completion-path";
+export { buildExprScope, type ExprScopeTables } from "./expr-scope";
 export { createNaviQlLspServices } from "./create-services";
 export { diagnosticToLsp, diagnosticsToLsp, type PositionAt } from "./diagnostics-to-lsp";
 export { hoverMarkdownAtOffset, hoverMarkdownForCstLeaf, NaviQlHoverProvider } from "./hover";
