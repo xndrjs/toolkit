@@ -97,6 +97,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     input,
     config.strategy.expansion,
     config.strategy.islands,
+    config.strategy.resolve,
     observer
   );
   const resolutionStartedAt = Date.now();
@@ -134,6 +135,26 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     for (const inheritedIslandId of islandIds) {
       enqueue(session.expand({ resource, inheritedIslandId }));
     }
+  };
+
+  /**
+   * After settle: follow DataSource or strategy redirects, else expand.
+   * Does not treat a missing payload as an error — callers check that first when needed.
+   */
+  const continueAfterPayload = (
+    resource: ApplicationResourceIdentifier,
+    islandIds: readonly IslandId[]
+  ): void => {
+    const redirectTo = session.applyResolvePolicies(resource);
+    if (redirectTo !== undefined) {
+      for (const inheritedIslandId of islandIds) {
+        enqueue([{ resource: redirectTo, inheritedIslandId }]);
+      }
+      return;
+    }
+
+    const expandTarget = session.rematerializationOf(resource) ?? resource;
+    expandInto(expandTarget, islandIds);
   };
 
   /** Islands waiting on `ref`, falling back to the ref's own island. */
@@ -182,7 +203,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     }
 
     if (session.isResolved(ref.resource)) {
-      enqueue(session.expand(ref));
+      continueAfterPayload(ref.resource, [ref.inheritedIslandId]);
       return;
     }
 
@@ -199,7 +220,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     if (session.promoteFromBacking(ref.resource)) {
       const islandIds = session.settle(ref.resource);
       session.notifyBackingPromotion(ref.resource, islandIds);
-      expandInto(ref.resource, islandIds);
+      continueAfterPayload(ref.resource, islandIds);
       return;
     }
 
@@ -239,7 +260,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       if (session.isResolved(ref.resource)) {
         const islandIds = islandsWaitingOn(ref);
         session.settle(ref.resource);
-        expandInto(ref.resource, islandIds);
+        continueAfterPayload(ref.resource, islandIds);
         continue;
       }
 
@@ -379,7 +400,8 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       const islandIds = islandsWaitingOn(ref);
       session.settle(ref.resource);
 
-      const redirectTo = session.redirectOf(ref.resource);
+      // DataSource ResourceRedirectRecord (no payload) or strategy resolve (post-decode).
+      const redirectTo = session.applyResolvePolicies(ref.resource);
       if (redirectTo !== undefined) {
         // CustomReference → Entry: enqueue the canonical ARI; do not expand the locator.
         for (const inheritedIslandId of islandIds) {

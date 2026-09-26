@@ -17,6 +17,14 @@ import {
   type IslandPolicy,
   type IslandPort,
 } from "../ports/island-port";
+import {
+  createResolvePolicyChain,
+  defineResolvePolicy,
+  type ResolveContext,
+  type ResolvePolicy,
+  type ResolvePort,
+  type ResolveResult,
+} from "../ports/resolve-port";
 import type { ContentRegistry } from "../types";
 
 export interface GraphResolutionStrategy<
@@ -25,6 +33,7 @@ export interface GraphResolutionStrategy<
 > {
   readonly expansion: ExpansionPort<R, TExecutionContext>;
   readonly islands: IslandPort<R, TExecutionContext>;
+  readonly resolve: ResolvePort<R, TExecutionContext>;
 }
 
 export interface GraphResolutionStrategyBuilder<
@@ -33,6 +42,7 @@ export interface GraphResolutionStrategyBuilder<
 > {
   readonly expansion: ExpansionActions<R, TExecutionContext>;
   readonly islands: IslandActions<R, TExecutionContext>;
+  readonly resolve: ResolveActions<R, TExecutionContext>;
   build(): GraphResolutionStrategy<R, TExecutionContext>;
 }
 
@@ -106,6 +116,39 @@ class IslandClauseBuilder<
   }
 }
 
+class ResolveClauseBuilder<
+  R extends ContentRegistry,
+  TExecutionContext,
+  Resource extends ApplicationResourceIdentifier,
+> {
+  private whenPredicate?: (context: ResolveContext<R, TExecutionContext, Resource>) => boolean;
+
+  constructor(
+    private readonly registerPolicy: (policy: ResolvePolicy<R, TExecutionContext>) => void,
+    private readonly getBuilder: () => GraphResolutionStrategyBuilder<R, TExecutionContext>,
+    private readonly forResource: ExpansionResourceFor<Resource>
+  ) {}
+
+  when(predicate: (context: ResolveContext<R, TExecutionContext, Resource>) => boolean): this {
+    this.whenPredicate = predicate;
+    return this;
+  }
+
+  to(
+    to: (context: ResolveContext<R, TExecutionContext, Resource>) => ResolveResult
+  ): GraphResolutionStrategyBuilder<R, TExecutionContext> {
+    this.registerPolicy(
+      defineResolvePolicy({
+        for: this.forResource,
+        ...(this.whenPredicate === undefined ? {} : { when: this.whenPredicate }),
+        to,
+      })
+    );
+
+    return this.getBuilder();
+  }
+}
+
 class ExpansionActions<R extends ContentRegistry, TExecutionContext> {
   constructor(
     private readonly registerPolicy: (policy: ExpansionPolicy<R, TExecutionContext>) => void,
@@ -132,9 +175,22 @@ class IslandActions<R extends ContentRegistry, TExecutionContext> {
   }
 }
 
+class ResolveActions<R extends ContentRegistry, TExecutionContext> {
+  constructor(
+    private readonly registerPolicy: (policy: ResolvePolicy<R, TExecutionContext>) => void,
+    private readonly getBuilder: () => GraphResolutionStrategyBuilder<R, TExecutionContext>
+  ) {}
+
+  on<Resource extends ApplicationResourceIdentifier>(
+    forResource: ExpansionResourceFor<Resource>
+  ): ResolveClauseBuilder<R, TExecutionContext, Resource> {
+    return new ResolveClauseBuilder(this.registerPolicy, this.getBuilder, forResource);
+  }
+}
+
 /**
- * Starts a graph resolution strategy with separate `expansion` and `islands` namespaces.
- * Each `.expand()` / `.startIsland()` registers one policy and returns the builder.
+ * Starts a graph resolution strategy with `expansion`, `islands`, and `resolve` namespaces.
+ * Each `.expand()` / `.startIsland()` / `.to()` registers one policy and returns the builder.
  */
 export function createGraphResolutionStrategy<
   TExecutionContext = unknown,
@@ -142,6 +198,7 @@ export function createGraphResolutionStrategy<
 >(): GraphResolutionStrategyBuilder<R, TExecutionContext> {
   const expansionPolicies: ExpansionPolicy<R, TExecutionContext>[] = [];
   const islandPolicies: IslandPolicy<R, TExecutionContext>[] = [];
+  const resolvePolicies: ResolvePolicy<R, TExecutionContext>[] = [];
 
   const owner = {} as GraphResolutionStrategyBuilder<R, TExecutionContext>;
 
@@ -158,10 +215,17 @@ export function createGraphResolutionStrategy<
       },
       () => owner
     ),
+    resolve: new ResolveActions(
+      (policy) => {
+        resolvePolicies.push(policy);
+      },
+      () => owner
+    ),
     build() {
       return {
         expansion: createExpansionPolicyChain(expansionPolicies),
         islands: createIslandPolicyChain(islandPolicies),
+        resolve: createResolvePolicyChain(resolvePolicies),
       };
     },
   } satisfies GraphResolutionStrategyBuilder<R, TExecutionContext>);

@@ -29,7 +29,7 @@ export interface ExpansionResult {
 
 /**
  * Resource matcher for `createGraphResolutionStrategy().expansion.on(ari)` /
- * `.islands.on(ari)` (e.g. an {@link import("@xndrjs/application-resources").AriFactory}).
+ * `.islands.on(ari)` / `.resolve.on(ari)` (e.g. an {@link import("@xndrjs/application-resources").AriFactory}).
  */
 export type ExpansionResourceFor<
   Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,

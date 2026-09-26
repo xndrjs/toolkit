@@ -72,7 +72,7 @@ Under `lane`, a fast source keeps walking its own subgraph while a slow peer's r
 
 - **`ContentRegistry`** — maps ARI `type` literals to payload shapes; `ContentMap.get` follows `resource.type`. Compose per-source slices with `ComposeContentRegistry`.
 - **`DataSource`** — one transport channel: the ARI types in `for`, its batch limit, its concurrency budget, and `load(batch)`.
-- **`createGraphResolutionStrategy()`** — fluent builder for expansion and island policies; `.build()` returns a `GraphResolutionStrategy` for the resolver.
+- **`createGraphResolutionStrategy()`** — fluent builder for expansion, island, and resolve policies; `.build()` returns a `GraphResolutionStrategy` for the resolver. Use `.resolve.on(ari).when(…).to(…)` for post-decode redirects (DataSource `ResourceRedirectRecord` remains supported).
 - **`IslandDependencyMap`** — direct edges between islands; `getFlatDependencies` builds transitive cache manifests (cycles excluded from the start island).
 - **`backingResources`** — pre-resolved payloads consulted before any source is asked. The map is never mutated; keys the walk actually reached come back as `promotedResourceKeys`.
 - **`ResolutionObserver`** — optional hooks for batches, expansions, promotions and misses. Observer failures never affect resolution.
