@@ -1,21 +1,16 @@
 import {
-  type AssetId,
+  Scalars,
   type AssetPayload,
   type CustomReferenceValue,
-  type EntryId,
   type EntryPayload,
-  type EnvironmentId,
-  type Locale,
   type PagePayload,
-  type Sku,
-  type SpaceId,
 } from "../../generated";
 import { encodeCustomReference } from "../cms/custom-reference.js";
 
 /** Default locale / space / environment for the in-memory fixture graph. */
-export const DEMO_LOCALE = "en-US" as Locale;
-export const DEMO_SPACE = "marketing" as SpaceId;
-export const DEMO_ENVIRONMENT = "master" as EnvironmentId;
+export const DEMO_LOCALE = Scalars.Locale("en-US");
+export const DEMO_SPACE = Scalars.SpaceId("marketing");
+export const DEMO_ENVIRONMENT = Scalars.EnvironmentId("master");
 
 /** Stable demo entry ids (shared Entry ID namespace). */
 export const demoIds = {
@@ -34,16 +29,6 @@ export const demoIds = {
   assetHero: "asset-hero",
   assetHeroNested: "asset-hero-nested",
 } as const;
-
-function entryId(id: string): EntryId {
-  return id as EntryId;
-}
-function assetId(id: string): AssetId {
-  return id as AssetId;
-}
-function sku(value: string): Sku {
-  return value as Sku;
-}
 
 /** Encoded custom ref pointing at the welcome hero (same canonical Entry as strips). */
 export const demoHeroWelcomeCustomRef: CustomReferenceValue = encodeCustomReference({
@@ -87,15 +72,15 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "page",
       payload: {
-        id: entryId(demoIds.page),
+        id: Scalars.EntryId(demoIds.page),
         title: "Homepage",
-        menuId: entryId(demoIds.menu),
-        footerId: entryId(demoIds.footer),
+        menuId: Scalars.EntryId(demoIds.menu),
+        footerId: Scalars.EntryId(demoIds.footer),
         strips: [
-          { id: entryId(demoIds.tabs) },
-          { id: entryId(demoIds.heroWelcome) },
-          { id: entryId(demoIds.productTshirt) },
-          { id: entryId(demoIds.linkAbout) },
+          { id: Scalars.EntryId(demoIds.tabs) },
+          { id: Scalars.EntryId(demoIds.heroWelcome) },
+          { id: Scalars.EntryId(demoIds.productTshirt) },
+          { id: Scalars.EntryId(demoIds.linkAbout) },
         ],
         related: [demoHeroWelcomeCustomRef, demoLogoAssetCustomRef],
       },
@@ -107,7 +92,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "Page",
-        id: entryId(demoIds.pageAbout),
+        id: Scalars.EntryId(demoIds.pageAbout),
         title: "About",
       },
     },
@@ -118,9 +103,9 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "Menu",
-        id: entryId(demoIds.menu),
+        id: Scalars.EntryId(demoIds.menu),
         title: "Main menu",
-        logoId: assetId(demoIds.assetLogo),
+        logoId: Scalars.AssetId(demoIds.assetLogo),
       },
     },
   ],
@@ -130,9 +115,9 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "Footer",
-        id: entryId(demoIds.footer),
+        id: Scalars.EntryId(demoIds.footer),
         title: "Footer",
-        logoId: assetId(demoIds.assetLogo),
+        logoId: Scalars.AssetId(demoIds.assetLogo),
       },
     },
   ],
@@ -142,9 +127,9 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "Hero",
-        id: entryId(demoIds.heroWelcome),
+        id: Scalars.EntryId(demoIds.heroWelcome),
         title: "Welcome",
-        imageId: assetId(demoIds.assetHero),
+        imageId: Scalars.AssetId(demoIds.assetHero),
       },
     },
   ],
@@ -154,9 +139,9 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "Hero",
-        id: entryId(demoIds.heroNested),
+        id: Scalars.EntryId(demoIds.heroNested),
         title: "Nested hero",
-        imageId: assetId(demoIds.assetHeroNested),
+        imageId: Scalars.AssetId(demoIds.assetHeroNested),
       },
     },
   ],
@@ -166,9 +151,9 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "Tabs",
-        id: entryId(demoIds.tabs),
+        id: Scalars.EntryId(demoIds.tabs),
         title: "Featured",
-        tabs: [{ id: entryId(demoIds.tabOverview) }],
+        tabs: [{ id: Scalars.EntryId(demoIds.tabOverview) }],
       },
     },
   ],
@@ -178,9 +163,12 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "Tab",
-        id: entryId(demoIds.tabOverview),
+        id: Scalars.EntryId(demoIds.tabOverview),
         title: "Overview",
-        strips: [{ id: entryId(demoIds.heroNested) }, { id: entryId(demoIds.productHoodie) }],
+        strips: [
+          { id: Scalars.EntryId(demoIds.heroNested) },
+          { id: Scalars.EntryId(demoIds.productHoodie) },
+        ],
       },
     },
   ],
@@ -190,8 +178,8 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "Product",
-        id: entryId(demoIds.productTshirt),
-        sku: sku("TSHIRT-1"),
+        id: Scalars.EntryId(demoIds.productTshirt),
+        sku: Scalars.Sku("TSHIRT-1"),
         title: "Demo T-Shirt",
       },
     },
@@ -202,8 +190,8 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "Product",
-        id: entryId(demoIds.productHoodie),
-        sku: sku("HOODIE-1"),
+        id: Scalars.EntryId(demoIds.productHoodie),
+        sku: Scalars.Sku("HOODIE-1"),
         title: "Demo Hoodie",
       },
     },
@@ -214,8 +202,8 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       kind: "entry",
       payload: {
         type: "SiteInternalLink",
-        id: entryId(demoIds.linkAbout),
-        targetId: entryId(demoIds.pageAbout),
+        id: Scalars.EntryId(demoIds.linkAbout),
+        targetId: Scalars.EntryId(demoIds.pageAbout),
       },
     },
   ],
@@ -227,7 +215,7 @@ export const demoAssets: ReadonlyMap<string, AssetPayload> = new Map([
     demoIds.assetLogo,
     {
       type: "Asset",
-      id: assetId(demoIds.assetLogo),
+      id: Scalars.AssetId(demoIds.assetLogo),
       url: "https://cdn.example.com/logo.svg",
       title: "Logo",
       kind: "image",
@@ -237,7 +225,7 @@ export const demoAssets: ReadonlyMap<string, AssetPayload> = new Map([
     demoIds.assetHero,
     {
       type: "Asset",
-      id: assetId(demoIds.assetHero),
+      id: Scalars.AssetId(demoIds.assetHero),
       url: "https://cdn.example.com/hero-welcome.jpg",
       title: "Welcome hero",
       kind: "image",
@@ -247,7 +235,7 @@ export const demoAssets: ReadonlyMap<string, AssetPayload> = new Map([
     demoIds.assetHeroNested,
     {
       type: "Asset",
-      id: assetId(demoIds.assetHeroNested),
+      id: Scalars.AssetId(demoIds.assetHeroNested),
       url: "https://cdn.example.com/hero-nested.jpg",
       title: "Nested hero",
       kind: "image",

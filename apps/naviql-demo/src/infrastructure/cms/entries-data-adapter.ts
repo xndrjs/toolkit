@@ -9,6 +9,7 @@ import { defineDataSourceFor, type DataSource } from "@xndrjs/naviql";
 import {
   entryAri,
   pageAri,
+  Scalars,
   type ContentRegistry,
   type EntryId,
   type EnvironmentId,
@@ -44,10 +45,10 @@ function entryIdentityOf(resource: { key: readonly unknown[] }): EntryIdentity |
     return null;
   }
   return {
-    spaceId: fields.spaceId as SpaceId,
-    environmentId: fields.environmentId as EnvironmentId,
-    id: fields.id as EntryId,
-    locale: fields.locale as Locale,
+    spaceId: Scalars.SpaceId(fields.spaceId),
+    environmentId: Scalars.EnvironmentId(fields.environmentId),
+    id: Scalars.EntryId(fields.id),
+    locale: Scalars.Locale(fields.locale),
   };
 }
 
