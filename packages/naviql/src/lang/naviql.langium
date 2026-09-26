@@ -94,7 +94,7 @@ QueryDeclaration:
         '(' (parameters+=TypedField (',' parameters+=TypedField)*)? ')'
         '{'
             context=ContextBlock?
-            root=RootClause
+            (root=RootClause | roots=RootsBlock)
             projections+=ProjectionClause*
         '}';
 
@@ -103,6 +103,12 @@ ContextBlock:
 
 RootClause:
     'root' construction=ResourceConstruction;
+
+RootsBlock:
+    'roots' '{' entries+=RootEntry+ '}';
+
+RootEntry:
+    alias=ID ':' construction=ResourceConstruction;
 
 /**
  * Four shapes (items = fields | expands | spreads):

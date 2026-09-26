@@ -23,6 +23,7 @@ import type {
   Program,
   ProjectionArm,
   QueryDefinition,
+  QueryRoot,
   ResolveArm,
   ResourceConstruction,
   ResourceDefinition,
@@ -196,10 +197,35 @@ function lowerQuery(
     name: decl.name,
     parameters: decl.parameters.map((f) => lowerTypedField(f, tables)),
     context: decl.context ? decl.context.fields.map((f) => lowerTypedField(f, tables)) : [],
-    root: lowerConstruction(decl.root.construction),
+    roots: lowerQueryRoots(decl),
     projections: decl.projections.map((p) => lowerProjection(p, fragments, sink)),
     span: spanOf(decl),
   };
+}
+
+/**
+ * Singular `root R(…)` → one entry with `alias: null`.
+ * `roots { a: R(…); … }` → one entry per alias (aliases stay non-null).
+ */
+function lowerQueryRoots(decl: AstQueryDeclaration): QueryRoot[] {
+  if (decl.root) {
+    return [
+      {
+        alias: null,
+        construction: lowerConstruction(decl.root.construction),
+        span: spanOf(decl.root),
+      },
+    ];
+  }
+  if (decl.roots) {
+    return decl.roots.entries.map((entry) => ({
+      alias: entry.alias,
+      construction: lowerConstruction(entry.construction),
+      span: spanOf(entry),
+    }));
+  }
+  // Grammar XOR usually prevents this; leave empty for the checker.
+  return [];
 }
 
 function lowerTypedField(field: AstTypedField, tables: NameTables): FieldDecl {

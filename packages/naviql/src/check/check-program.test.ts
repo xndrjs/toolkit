@@ -20,6 +20,7 @@ import {
   resource,
   objectType,
   scalarRef,
+  singleRoot,
   span,
 } from "../fixtures";
 
@@ -624,7 +625,7 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects missing constructor arg", () => {
     const program = withMutatedPageDetail((p) => {
-      pageQuery(p).root.args = [arg("id", param("pageId"))];
+      pageQuery(p).roots[0]!.construction.args = [arg("id", param("pageId"))];
     });
 
     expect(checkProgram(program)).toContainEqual(
@@ -634,7 +635,7 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects unknown constructor arg", () => {
     const program = withMutatedPageDetail((p) => {
-      pageQuery(p).root.args.push(arg("extra", lit("x")));
+      pageQuery(p).roots[0]!.construction.args.push(arg("extra", lit("x")));
     });
 
     expect(checkProgram(program)).toContainEqual(
@@ -680,7 +681,7 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects unknown resource in root / expand / on", () => {
     const program = withMutatedPageDetail((p) => {
-      pageQuery(p).root.resource = "MissingRoot";
+      pageQuery(p).roots[0]!.construction.resource = "MissingRoot";
       menuExpand(p).target!.resource = "MissingExpand";
       pageQuery(p).projections.push(projection("MissingOn", "x", ["id"]));
     });
@@ -745,7 +746,7 @@ describe("checkProgram — scalar / resource name clash", () => {
         query("Q", {
           parameters: [],
           context: [],
-          root: construct("Page", [arg("id", lit("x"))]),
+          roots: singleRoot(construct("Page", [arg("id", lit("x"))])),
           projections: [],
         }),
       ],
@@ -754,5 +755,97 @@ describe("checkProgram — scalar / resource name clash", () => {
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({ code: "SCALAR_RESOURCE_NAME_CLASH" })
     );
+  });
+});
+
+describe("checkProgram — multi-root queries", () => {
+  it("rejects duplicate root aliases", () => {
+    const program: Program = {
+      span,
+      scalars: [defScalar("Id", "string")],
+      resources: [
+        resource(
+          "R",
+          [field("id", scalarRef("Id"))],
+          objectType(field("id", scalarRef("Id"), true))
+        ),
+      ],
+      queries: [
+        query("Homepage", {
+          parameters: [field("id", scalarRef("Id"))],
+          context: [],
+          roots: [
+            { alias: "page", construction: construct("R", [arg("id", param("id"))]), span },
+            { alias: "page", construction: construct("R", [arg("id", param("id"))]), span },
+          ],
+          projections: [],
+        }),
+      ],
+    };
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({ code: "DUPLICATE_ROOT_ALIAS" })
+    );
+  });
+
+  it("rejects bad construction args on a multi-root entry", () => {
+    const program: Program = {
+      span,
+      scalars: [defScalar("Id", "string")],
+      resources: [
+        resource(
+          "R",
+          [field("id", scalarRef("Id"))],
+          objectType(field("id", scalarRef("Id"), true))
+        ),
+      ],
+      queries: [
+        query("Homepage", {
+          parameters: [field("id", scalarRef("Id"))],
+          context: [],
+          roots: [
+            {
+              alias: "page",
+              construction: construct("R", [arg("id", param("id"))]),
+              span,
+            },
+            {
+              alias: "session",
+              construction: construct("R", [arg("extra", param("id"))]),
+              span,
+            },
+          ],
+          projections: [],
+        }),
+      ],
+    };
+
+    const codes = checkProgram(program).map((d) => d.code);
+    expect(codes).toContain("UNKNOWN_CONSTRUCTOR_ARG");
+    expect(codes).toContain("MISSING_CONSTRUCTOR_ARG");
+  });
+
+  it("rejects empty roots on hand-built IR", () => {
+    const program: Program = {
+      span,
+      scalars: [defScalar("Id", "string")],
+      resources: [
+        resource(
+          "R",
+          [field("id", scalarRef("Id"))],
+          objectType(field("id", scalarRef("Id"), true))
+        ),
+      ],
+      queries: [
+        query("Q", {
+          parameters: [],
+          context: [],
+          roots: [],
+          projections: [],
+        }),
+      ],
+    };
+
+    expect(checkProgram(program)).toContainEqual(expect.objectContaining({ code: "EMPTY_ROOTS" }));
   });
 });

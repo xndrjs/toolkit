@@ -14,6 +14,7 @@ import {
   query,
   resource,
   scalarRef,
+  singleRoot,
 } from "../../../fixtures";
 import type { Program } from "../../../ir";
 import { parseAndCheck } from "../../parse-and-check";
@@ -234,7 +235,7 @@ describe("emitProjections", () => {
         query("PostDetail", {
           parameters: [field("postId", scalarRef("PostId"))],
           context: [],
-          root: construct("Post", [arg("id", param("postId"))]),
+          roots: singleRoot(construct("Post", [arg("id", param("postId"))])),
           projections: [
             projection(
               "Post",
@@ -270,7 +271,7 @@ describe("emitProjections", () => {
         query("Cycle", {
           parameters: [field("nodeId", scalarRef("NodeId"))],
           context: [],
-          root: construct("Node", [arg("id", param("nodeId"))]),
+          roots: singleRoot(construct("Node", [arg("id", param("nodeId"))])),
           projections: [
             projection(
               "Node",

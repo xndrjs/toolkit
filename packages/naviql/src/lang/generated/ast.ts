@@ -44,6 +44,7 @@ export type NaviQlKeywordNames =
   | "resolve"
   | "resource"
   | "root"
+  | "roots"
   | "scalar"
   | "string"
   | "to"
@@ -601,7 +602,8 @@ export interface QueryDeclaration extends langium.AstNode {
   name: string;
   parameters: Array<TypedField>;
   projections: Array<ProjectionClause>;
-  root: RootClause;
+  root?: RootClause;
+  roots?: RootsBlock;
 }
 
 export const QueryDeclaration = {
@@ -611,6 +613,7 @@ export const QueryDeclaration = {
   parameters: "parameters",
   projections: "projections",
   root: "root",
+  roots: "roots",
 } as const;
 
 export function isQueryDeclaration(item: unknown): item is QueryDeclaration {
@@ -636,7 +639,7 @@ export function isResolveArm(item: unknown): item is ResolveArm {
 }
 
 export interface ResourceConstruction extends langium.AstNode {
-  readonly $container: ExpandArm | Expansion | ResolveArm | RootClause;
+  readonly $container: ExpandArm | Expansion | ResolveArm | RootClause | RootEntry;
   readonly $type: "ResourceConstruction";
   args: Array<NamedArg>;
   resource: string;
@@ -684,6 +687,38 @@ export const RootClause = {
 
 export function isRootClause(item: unknown): item is RootClause {
   return reflection.isInstance(item, RootClause.$type);
+}
+
+export interface RootEntry extends langium.AstNode {
+  readonly $container: RootsBlock;
+  readonly $type: "RootEntry";
+  alias: string;
+  construction: ResourceConstruction;
+}
+
+export const RootEntry = {
+  $type: "RootEntry",
+  alias: "alias",
+  construction: "construction",
+} as const;
+
+export function isRootEntry(item: unknown): item is RootEntry {
+  return reflection.isInstance(item, RootEntry.$type);
+}
+
+export interface RootsBlock extends langium.AstNode {
+  readonly $container: QueryDeclaration;
+  readonly $type: "RootsBlock";
+  entries: Array<RootEntry>;
+}
+
+export const RootsBlock = {
+  $type: "RootsBlock",
+  entries: "entries",
+} as const;
+
+export function isRootsBlock(item: unknown): item is RootsBlock {
+  return reflection.isInstance(item, RootsBlock.$type);
 }
 
 export interface ScalarDeclaration extends langium.AstNode {
@@ -869,6 +904,8 @@ export type NaviQlAstType = {
   ResourceConstruction: ResourceConstruction;
   ResourceDeclaration: ResourceDeclaration;
   RootClause: RootClause;
+  RootEntry: RootEntry;
+  RootsBlock: RootsBlock;
   ScalarDeclaration: ScalarDeclaration;
   StringLiteral: StringLiteral;
   StringLiteralTypeExpr: StringLiteralTypeExpr;
@@ -1240,6 +1277,11 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         },
         root: {
           name: QueryDeclaration.root,
+          optional: true,
+        },
+        roots: {
+          name: QueryDeclaration.roots,
+          optional: true,
         },
       },
       superTypes: [Declaration.$type],
@@ -1293,6 +1335,28 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       properties: {
         construction: {
           name: RootClause.construction,
+        },
+      },
+      superTypes: [],
+    },
+    RootEntry: {
+      name: RootEntry.$type,
+      properties: {
+        alias: {
+          name: RootEntry.alias,
+        },
+        construction: {
+          name: RootEntry.construction,
+        },
+      },
+      superTypes: [],
+    },
+    RootsBlock: {
+      name: RootsBlock.$type,
+      properties: {
+        entries: {
+          name: RootsBlock.entries,
+          defaultValue: [],
         },
       },
       superTypes: [],

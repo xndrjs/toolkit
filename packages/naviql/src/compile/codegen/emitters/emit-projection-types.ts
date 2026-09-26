@@ -518,7 +518,7 @@ function emitQueryProjectionTypes(
     );
   }
 
-  const rootResource = query.root.resource;
+  const rootResource = query.roots[0]!.construction.resource;
   const rootType = printTargetAliasType(
     query.name,
     rootResource,
