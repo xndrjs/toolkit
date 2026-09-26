@@ -19,7 +19,7 @@ import type {
   TypeExpr,
 } from "../../../ir";
 import { emitConstruction } from "./emit-construction";
-import { emitExpr, projectionArmDiscriminant } from "./emit-expr";
+import { emitExpr, projectionArmDiscriminant, projectionExprScope } from "./emit-expr";
 import {
   ariFactoryName,
   executionContextTypeName,
@@ -161,23 +161,23 @@ function emitManyProject(expansion: Expansion): string {
   }
 
   const { itemBinding, source, arms } = comprehension;
-  const sourceExpr = emitExpr(source);
+  const sourceExpr = emitExpr(source, projectionExprScope);
 
   if (arms.length === 1) {
     const arm = arms[0]!;
-    const construction = emitConstruction(arm.target);
+    const construction = emitConstruction(arm.target, projectionExprScope);
     const mapFn = `(${itemBinding}: any) => projectNode(${construction})`;
     if (arm.when !== null) {
-      return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when)}).map(${mapFn})`;
+      return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when, projectionExprScope)}).map(${mapFn})`;
     }
     return `${sourceExpr}.map(${mapFn})`;
   }
 
   // Multi-arm: flatMap preserves source order (same as strategy emit).
   const branches = arms.map((arm) => {
-    const construction = emitConstruction(arm.target);
+    const construction = emitConstruction(arm.target, projectionExprScope);
     if (arm.when !== null) {
-      return `if (${emitExpr(arm.when)}) return [projectNode(${construction})];`;
+      return `if (${emitExpr(arm.when, projectionExprScope)}) return [projectNode(${construction})];`;
     }
     return `return [projectNode(${construction})];`;
   });
@@ -215,7 +215,7 @@ function emitExpansionValue(
 
   const element = collectionElement(target.payloadType);
   if (element !== null) {
-    const construction = emitConstruction(expansion.target);
+    const construction = emitConstruction(expansion.target, projectionExprScope);
     const elementResource = resources.get(element);
     if (!elementResource) {
       throw new Error(
@@ -225,7 +225,7 @@ function emitExpansionValue(
     const elementAri = ariFactoryName(element);
     const argParts = elementResource.identity.fields.map((field) => {
       if (contextFieldNames.has(field.name)) {
-        return `${field.name}: executionContext.${field.name}`;
+        return `${field.name}: args.executionContext.${field.name}`;
       }
       return `${field.name}: item.${field.name}`;
     });
@@ -240,7 +240,7 @@ function emitExpansionValue(
     ].join("\n");
   }
 
-  return `projectNode(${emitConstruction(expansion.target)})`;
+  return `projectNode(${emitConstruction(expansion.target, projectionExprScope)})`;
 }
 
 function emitShellBody(
@@ -371,7 +371,7 @@ function emitArmedProjectOnBody(
   const branches: string[] = [];
   for (let i = 0; i < arms.length; i++) {
     const arm = arms[i]!;
-    const cond = emitExpr(arm.when);
+    const cond = emitExpr(arm.when, projectionExprScope);
     const keyword = i === 0 ? "if" : "} else if";
     branches.push(
       [
@@ -610,8 +610,6 @@ function emitQueryProjection(
   const resultType = queryResultTypeName(query.name);
   const rootAri = ariFactoryName(query.root.resource);
   const argsType = emitArgsType(query);
-  const hasParams = query.parameters.length > 0;
-  const hasContext = query.context.length > 0;
 
   const sigParams = [
     `root: ReturnType<typeof ${rootAri}>`,
@@ -620,16 +618,6 @@ function emitQueryProjection(
   if (argsType !== null) {
     sigParams.push(`args: ${argsType}`);
   }
-
-  const bodyPreamble: string[] = [];
-  if (hasParams && hasContext) {
-    bodyPreamble.push(`  const { params, executionContext } = args;`);
-  } else if (hasParams) {
-    bodyPreamble.push(`  const { params } = args;`);
-  } else if (hasContext) {
-    bodyPreamble.push(`  const { executionContext } = args;`);
-  }
-  bodyPreamble.push(`  const memo = new Map<string, object>();`);
 
   const embedded = collectionElementResources(query, resources);
   const contextFieldNames = new Set(query.context.map((f) => f.name));
@@ -651,7 +639,7 @@ function emitQueryProjection(
   const projectNode = emitProjectNode(query, resources, fnName);
 
   const body = [
-    ...bodyPreamble,
+    `  const memo = new Map<string, object>();`,
     "",
     helpers.join("\n\n"),
     "",

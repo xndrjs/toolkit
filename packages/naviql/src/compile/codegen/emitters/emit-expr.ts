@@ -1,6 +1,45 @@
 import type { Expr } from "../../../ir";
 
-/** Join a property path onto a base identifier (`payload`, `s`, …). */
+/** How IR refs lower to TS identifiers (dot chains, no destructuring). */
+export type EmitExprScope = {
+  /** Prefix for `param` refs, e.g. `params` or `args.params`. */
+  params: string;
+  /** Prefix for `context` refs, e.g. `executionContext` or `ctx.executionContext`. */
+  executionContext: string;
+  /** Prefix for `payloadRef`, e.g. `payload` or `ctx.payload`. */
+  payload: string;
+  /** Prefix for `identityRef` root, e.g. `resource` or `ctx.resource`. */
+  resource: string;
+};
+
+/** Default scope for projection helpers (`resource`/`payload` locals + `args.*`). */
+export const projectionExprScope: EmitExprScope = {
+  params: "args.params",
+  executionContext: "args.executionContext",
+  payload: "payload",
+  resource: "resource",
+};
+
+/** Scope inside strategy `.when` / flat `.expand` / flat `.to` (`predicate`). */
+export const strategyExprScope: EmitExprScope = {
+  params: "params",
+  executionContext: "predicate.executionContext",
+  payload: "predicate.payload",
+  resource: "predicate.resource",
+};
+
+/**
+ * Armed expand/to after `const payload = predicate.payload as any` — payload is
+ * local; resource / executionContext stay on `predicate`.
+ */
+export const strategyArmedBodyScope: EmitExprScope = {
+  params: "params",
+  executionContext: "predicate.executionContext",
+  payload: "payload",
+  resource: "predicate.resource",
+};
+
+/** Join a property path onto a base identifier (`payload`, `ctx.payload`, …). */
 function memberAccess(base: string, path: readonly string[]): string {
   if (path.length === 0) {
     return base;
@@ -9,19 +48,19 @@ function memberAccess(base: string, path: readonly string[]): string {
 }
 
 /**
- * Lower an IR `Expr` to a TypeScript expression fragment for strategy codegen.
+ * Lower an IR `Expr` to a TypeScript expression fragment.
  *
- * | IR              | TS                                      |
- * | --------------- | --------------------------------------- |
- * | `param`         | `params.name`                           |
- * | `context`       | `executionContext.field…`               |
- * | `payloadRef`    | `payload.field…` (binding discarded)    |
- * | `identityRef`   | `resource.key[0].field…`                |
- * | `itemRef`       | `binding.field…` (comprehension item)   |
- * | `literal`       | JSON / `null`                           |
- * | `binary` `==`/`!=` | `left op right`                      |
+ * | IR              | TS (default projection scope)              |
+ * | --------------- | ------------------------------------------ |
+ * | `param`         | `args.params.name`                         |
+ * | `context`       | `args.executionContext.field…`             |
+ * | `payloadRef`    | `payload.field…` (binding discarded)       |
+ * | `identityRef`   | `resource.key[0].field…`                   |
+ * | `itemRef`       | `binding.field…` (comprehension item)      |
+ * | `literal`       | JSON / `null`                              |
+ * | `binary` `==`/`!=` | `left op right`                         |
  */
-export function emitExpr(expr: Expr): string {
+export function emitExpr(expr: Expr, scope: EmitExprScope = projectionExprScope): string {
   switch (expr.kind) {
     case "literal":
       if (expr.value === null) {
@@ -29,17 +68,17 @@ export function emitExpr(expr: Expr): string {
       }
       return JSON.stringify(expr.value);
     case "param":
-      return `params.${expr.name}`;
+      return `${scope.params}.${expr.name}`;
     case "context":
-      return memberAccess("executionContext", expr.path);
+      return memberAccess(scope.executionContext, expr.path);
     case "payloadRef":
-      return memberAccess("payload", expr.path);
+      return memberAccess(scope.payload, expr.path);
     case "identityRef":
-      return memberAccess("resource.key[0]", expr.path);
+      return memberAccess(`${scope.resource}.key[0]`, expr.path);
     case "itemRef":
       return memberAccess(expr.binding, expr.path);
     case "binary":
-      return `${emitExpr(expr.left)} ${expr.op} ${emitExpr(expr.right)}`;
+      return `${emitExpr(expr.left, scope)} ${expr.op} ${emitExpr(expr.right, scope)}`;
     default: {
       const _never: never = expr;
       return _never;

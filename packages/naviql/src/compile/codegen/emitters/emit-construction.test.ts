@@ -16,7 +16,7 @@ describe("emitConstruction", () => {
       emitConstruction(
         construct("Menu", [arg("id", payload("p", "menuId")), arg("locale", ctx("locale"))])
       )
-    ).toBe("menuAri({ id: payload.menuId, locale: executionContext.locale })");
+    ).toBe("menuAri({ id: payload.menuId, locale: args.executionContext.locale })");
   });
 
   it("emits param, identity, and item refs in args", () => {
@@ -24,7 +24,7 @@ describe("emitConstruction", () => {
       emitConstruction(
         construct("Post", [arg("id", param("postId")), arg("locale", ctx("locale"))])
       )
-    ).toBe("postAri({ id: params.postId, locale: executionContext.locale })");
+    ).toBe("postAri({ id: args.params.postId, locale: args.executionContext.locale })");
 
     expect(
       emitConstruction(
@@ -33,12 +33,14 @@ describe("emitConstruction", () => {
           arg("locale", ctx("locale")),
         ])
       )
-    ).toBe("tabCollectionAri({ tabsId: resource.key[0].id, locale: executionContext.locale })");
+    ).toBe(
+      "tabCollectionAri({ tabsId: resource.key[0].id, locale: args.executionContext.locale })"
+    );
 
     expect(
       emitConstruction(
         construct("Hero", [arg("id", item("s", "id")), arg("locale", ctx("locale"))])
       )
-    ).toBe("heroAri({ id: s.id, locale: executionContext.locale })");
+    ).toBe("heroAri({ id: s.id, locale: args.executionContext.locale })");
   });
 });

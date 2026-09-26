@@ -65,7 +65,6 @@ export function projectPostDetail(
     executionContext: PostDetailExecutionContext;
   },
 ): PostDetailResult {
-  const { params, executionContext } = args;
   const memo = new Map<string, object>();
 
   const projectOnPost = (resource: any, payload: any): any => {
@@ -203,7 +202,6 @@ export function projectPageDetail(
     executionContext: PageDetailExecutionContext;
   },
 ): PageDetailResult {
-  const { params, executionContext } = args;
   const memo = new Map<string, object>();
 
   const projectOnPage = (resource: any, payload: any): any => {
@@ -227,7 +225,7 @@ export function projectPageDetail(
           shell.type = payload.type;
           shell.id = payload.id;
           shell.title = payload.title;
-          shell.image = projectNode(assetAri({ spaceId: executionContext.spaceId, environmentId: executionContext.environmentId, id: payload.imageId, locale: resource.key[0].locale }));
+          shell.image = projectNode(assetAri({ spaceId: args.executionContext.spaceId, environmentId: args.executionContext.environmentId, id: payload.imageId, locale: resource.key[0].locale }));
           return shell;
         }
       case "Tabs":
@@ -267,7 +265,7 @@ export function projectPageDetail(
           shell.type = payload.type;
           shell.id = payload.id;
           shell.title = payload.title;
-          shell.logo = projectNode(assetAri({ spaceId: executionContext.spaceId, environmentId: executionContext.environmentId, id: payload.logoId, locale: resource.key[0].locale }));
+          shell.logo = projectNode(assetAri({ spaceId: args.executionContext.spaceId, environmentId: args.executionContext.environmentId, id: payload.logoId, locale: resource.key[0].locale }));
           return shell;
         }
       case "Footer":
@@ -277,7 +275,7 @@ export function projectPageDetail(
           shell.type = payload.type;
           shell.id = payload.id;
           shell.title = payload.title;
-          shell.logo = projectNode(assetAri({ spaceId: executionContext.spaceId, environmentId: executionContext.environmentId, id: payload.logoId, locale: resource.key[0].locale }));
+          shell.logo = projectNode(assetAri({ spaceId: args.executionContext.spaceId, environmentId: args.executionContext.environmentId, id: payload.logoId, locale: resource.key[0].locale }));
           return shell;
         }
       case "SiteInternalLink":

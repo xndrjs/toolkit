@@ -13,7 +13,7 @@ import {
   type EntryId,
   type Locale,
   type PageDetailExecutionContext,
-} from "../../generated/page-detail.js";
+} from "../../generated";
 import { parseCustomReference } from "./custom-reference.js";
 
 export const CUSTOM_REFERENCE_SOURCE_ID = "cms-custom-references";

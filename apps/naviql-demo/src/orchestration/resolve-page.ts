@@ -6,7 +6,7 @@ import {
   type Locale,
   type PageDetailResult,
   type SpaceId,
-} from "../generated/page-detail.js";
+} from "../generated";
 import { createDemoResolver } from "../infrastructure/demo-resolver.js";
 import {
   DEMO_ENVIRONMENT,
