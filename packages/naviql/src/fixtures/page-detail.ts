@@ -193,8 +193,20 @@ export function pageDetailProgram(): Program {
         objectType(
           field("id", EntryId, true),
           field("title", prim("string")),
-          field("menuId", EntryId),
-          field("footerId", EntryId),
+          field("menuId", EntryId, false, [
+            {
+              resource: "Entry",
+              fields: [{ name: "type", values: ["Menu"], span }],
+              span,
+            },
+          ]),
+          field("footerId", EntryId, false, [
+            {
+              resource: "Entry",
+              fields: [{ name: "type", values: ["Footer"], span }],
+              span,
+            },
+          ]),
           field("strips", arrayOf(CmsLink)),
           field("related", arrayOf(CustomReferenceValue))
         )

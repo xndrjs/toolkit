@@ -6,6 +6,7 @@
     { "include": "#comments" },
     { "include": "#strings" },
     { "include": "#numbers" },
+    { "include": "#refers" },
     { "include": "#keywords" },
     { "include": "#primitives" },
     { "include": "#operators" },
@@ -56,6 +57,31 @@
         {
           "name": "constant.numeric.naviql",
           "match": "\\b-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b"
+        }
+      ]
+    },
+    "refers": {
+      "patterns": [
+        {
+          "name": "meta.refers.naviql",
+          "begin": "\\brefers\\b",
+          "beginCaptures": {
+            "0": { "name": "keyword.control.naviql" }
+          },
+          "end": "(?=\\n|;)",
+          "patterns": [
+            {
+              "name": "keyword.control.naviql",
+              "match": "\\bwith\\b"
+            },
+            { "include": "#strings" },
+            { "include": "#operators" },
+            { "include": "#identifiers" },
+            {
+              "name": "punctuation.definition.block.naviql",
+              "match": "[{}]"
+            }
+          ]
         }
       ]
     },

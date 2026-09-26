@@ -187,7 +187,8 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
     expect(code).toContain("strips: PageDetail_Entry[];");
     expect(code).toContain("related: (PageDetail_Entry | PageDetail_Asset)[];");
     expect(code).toContain("tabs: PageDetail_Entry[];");
-    expect(code).toContain("menu: PageDetail_Entry;");
+    expect(code).toContain("menu: PageDetail_Entry_Menu;");
+    expect(code).toContain("footer: PageDetail_Entry_Footer;");
     expect(code).toContain("image: PageDetail_Asset;");
     expect(code).toContain("export type PageDetail_Entry_Hero = {");
     expect(code).toContain("export type PageDetail_Entry_Page = {");
@@ -303,12 +304,42 @@ describe("printExpansionAliasType", () => {
     );
     const query = program.queries[0]!;
     const projected = new Set(query.projections.map((p) => p.resource));
+    const projectionsByResource = new Map(query.projections.map((p) => [p.resource, p]));
+    const resolveTargets = new Map();
 
     const page = query.projections.find((p) => p.resource === "Page")!;
+    const pageResource = resources.get("Page")!;
+    const pageContext = {
+      sourcePayload: pageResource.payloadType,
+      projectionsByResource,
+    };
     const strips = page.expansions.find((e) => e.alias === "strips")!;
-    expect(printExpansionAliasType("PageDetail", strips, resources, projected)).toBe(
-      "PageDetail_Entry[]"
-    );
+    expect(
+      printExpansionAliasType(
+        "PageDetail",
+        strips,
+        resources,
+        projected,
+        resolveTargets,
+        pageContext
+      )
+    ).toBe("PageDetail_Entry[]");
+
+    const menu = page.expansions.find((e) => e.alias === "menu")!;
+    expect(
+      printExpansionAliasType("PageDetail", menu, resources, projected, resolveTargets, pageContext)
+    ).toBe("PageDetail_Entry_Menu");
+    const footer = page.expansions.find((e) => e.alias === "footer")!;
+    expect(
+      printExpansionAliasType(
+        "PageDetail",
+        footer,
+        resources,
+        projected,
+        resolveTargets,
+        pageContext
+      )
+    ).toBe("PageDetail_Entry_Footer");
 
     const entry = query.projections.find((p) => p.resource === "Entry")!;
     const tabsArm = entry.arms!.find((arm) => arm.expansions.some((e) => e.alias === "tabs"))!;
