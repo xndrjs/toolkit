@@ -37,7 +37,9 @@ import type {
   Program,
   ProjectionArm,
   QueryDefinition,
+  ResourceConstruction,
   ResourceProjection,
+  RefersTarget,
   TypeExpr,
 } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";
@@ -45,11 +47,20 @@ import { printTypeExpr } from "../resources";
 import { projectionArmDiscriminant } from "../shared";
 import { projectionTypeName, projectionVariantTypeName, queryResultTypeName } from "../naming";
 import {
+  collectApplicableRefers,
+  comprehensionElementType,
+  membersMatchingApplicableRefers,
+  printNarrowedArmedAliasType,
+  type ExpansionAliasContext,
+} from "./refers-narrow";
+import {
   projectableProjections,
   resolveTargetIndex,
   stripToConcreteMembers,
   type ResolveTargetIndex,
 } from "./shared";
+
+export type { ExpansionAliasContext } from "./refers-narrow";
 
 function tablesFromProgram(program: Program): {
   scalars: ScalarTable;
@@ -90,18 +101,36 @@ function resolveForEmit(
  * - union / resolve-only resource → `Query_A | Query_B | …` (member projections)
  * - collection (`R[]`) → `Query_R[]`
  * - `many` / multi-arm → union of arm targets, wrapped in an array
+ * - with `refers` + armed `on R` → narrowed variant union (e.g. `Query_Entry_Menu`)
  */
 export function printExpansionAliasType(
   queryName: string,
   expansion: Expansion,
   resources: ResourceTable,
   projected: Set<string>,
-  resolveTargets: ResolveTargetIndex = new Map()
+  resolveTargets: ResolveTargetIndex = new Map(),
+  context: ExpansionAliasContext | null = null
 ): string {
   if (expansion.multiplicity === "many" && expansion.comprehension !== null) {
-    const armTypes = expansion.comprehension.arms.map((arm) =>
-      printTargetAliasType(queryName, arm.target.resource, resources, projected, resolveTargets)
-    );
+    const itemType =
+      context !== null
+        ? comprehensionElementType(expansion.comprehension.source, context.sourcePayload, resources)
+        : null;
+    const armTypes = expansion.comprehension.arms.map((arm) => {
+      const refers =
+        context !== null && itemType !== null
+          ? collectApplicableRefers(arm.target, itemType, resources)
+          : [];
+      return printTargetAliasType(
+        queryName,
+        arm.target,
+        resources,
+        projected,
+        resolveTargets,
+        refers,
+        context
+      );
+    });
     // Deduplicate while preserving order.
     const unique: string[] = [];
     for (const t of armTypes) {
@@ -115,31 +144,39 @@ export function printExpansionAliasType(
     throw new Error(`emitProjectionTypes: one-expand missing target in query '${queryName}'`);
   }
 
-  const base = printTargetAliasType(
+  const refers =
+    context !== null
+      ? collectApplicableRefers(expansion.target, context.sourcePayload, resources)
+      : [];
+  return printTargetAliasType(
     queryName,
-    expansion.target.resource,
+    expansion.target,
     resources,
     projected,
-    resolveTargets
+    resolveTargets,
+    refers,
+    context
   );
-  return base;
 }
 
 function printTargetAliasType(
   queryName: string,
-  targetName: string,
+  target: ResourceConstruction | string,
   resources: ResourceTable,
   projected: Set<string>,
-  resolveTargets: ResolveTargetIndex
+  resolveTargets: ResolveTargetIndex,
+  refers: RefersTarget[] = [],
+  context: ExpansionAliasContext | null = null
 ): string {
-  const target = resources.get(targetName);
-  if (!target) {
+  const targetName = typeof target === "string" ? target : target.resource;
+  const resource = resources.get(targetName);
+  if (!resource) {
     throw new Error(
       `emitProjectionTypes: unknown expansion target '${targetName}' in query '${queryName}'`
     );
   }
 
-  const payload = target.payloadType;
+  const payload = resource.payloadType;
 
   if (payload.kind === "array" && payload.of.kind === "resourceRef") {
     const element = payload.of.name;
@@ -149,6 +186,10 @@ function printTargetAliasType(
 
   // Prefer an explicit projectable `on Target` projection (armed Entry, flat object, …).
   if (projected.has(targetName)) {
+    const narrowed = tryNarrowArmedAlias(queryName, targetName, refers, context, resources);
+    if (narrowed !== null) {
+      return narrowed;
+    }
     return projectionTypeName(queryName, targetName);
   }
 
@@ -170,6 +211,30 @@ function printTargetAliasType(
   );
 }
 
+/**
+ * When `refers` applies and the query has an armed `on R`, emit the matching
+ * variant union. Flat (non-armed) projections are not structurally narrowed.
+ */
+function tryNarrowArmedAlias(
+  queryName: string,
+  targetName: string,
+  refers: RefersTarget[],
+  context: ExpansionAliasContext | null,
+  resources: ResourceTable
+): string | null {
+  if (refers.length === 0 || context === null) {
+    return null;
+  }
+  const projection = context.projectionsByResource.get(targetName);
+  if (!projection || projection.arms === null) {
+    return null;
+  }
+  const matched = membersMatchingApplicableRefers(targetName, refers, resources);
+  if (matched === null || matched.length === 0) {
+    return null;
+  }
+  return printNarrowedArmedAliasType(queryName, targetName, matched, projection, resources);
+}
 function requireProjected(
   queryName: string,
   resourceName: string,
@@ -239,7 +304,8 @@ function emitArmVariantType(
   scalars: ScalarTable,
   resources: ResourceTable,
   projected: Set<string>,
-  resolveTargets: ResolveTargetIndex
+  resolveTargets: ResolveTargetIndex,
+  projectionsByResource: Map<string, ResourceProjection>
 ): { typeName: string; source: string } {
   const disc = projectionArmDiscriminant(arm.when, projection.binding);
   const variant = disc ?? `Arm${armIndex}`;
@@ -255,6 +321,11 @@ function emitArmVariantType(
   const narrowed =
     disc !== null ? narrowPayloadObject(resource.payloadType, disc, resources) : null;
   const payloadFields = narrowed !== null ? fieldMap(narrowed.fields) : resource.payload;
+  const sourcePayload: TypeExpr = narrowed ?? resource.payloadType;
+  const expansionContext: ExpansionAliasContext = {
+    sourcePayload,
+    projectionsByResource,
+  };
 
   const lines: string[] = [`  $type: ${JSON.stringify(projection.resource)};`];
 
@@ -276,7 +347,8 @@ function emitArmVariantType(
       expansion,
       resources,
       projected,
-      resolveTargets
+      resolveTargets,
+      expansionContext
     );
     lines.push(`  ${expansion.alias}: ${aliasType};`);
   }
@@ -293,7 +365,8 @@ function emitArmedResourceProjectionTypes(
   scalars: ScalarTable,
   resources: ResourceTable,
   projected: Set<string>,
-  resolveTargets: ResolveTargetIndex
+  resolveTargets: ResolveTargetIndex,
+  projectionsByResource: Map<string, ResourceProjection>
 ): string {
   const arms = projection.arms;
   if (arms === null) {
@@ -312,7 +385,8 @@ function emitArmedResourceProjectionTypes(
       scalars,
       resources,
       projected,
-      resolveTargets
+      resolveTargets,
+      projectionsByResource
     );
     variants.push(typeName);
     parts.push(source);
@@ -329,7 +403,8 @@ function emitFlatResourceProjectionType(
   scalars: ScalarTable,
   resources: ResourceTable,
   projected: Set<string>,
-  resolveTargets: ResolveTargetIndex
+  resolveTargets: ResolveTargetIndex,
+  projectionsByResource: Map<string, ResourceProjection>
 ): string {
   const resource = resources.get(projection.resource);
   if (!resource) {
@@ -345,6 +420,10 @@ function emitFlatResourceProjectionType(
 
   const typeName = projectionTypeName(queryName, projection.resource);
   const lines: string[] = [`  $type: ${JSON.stringify(projection.resource)};`];
+  const expansionContext: ExpansionAliasContext = {
+    sourcePayload: resource.payloadType,
+    projectionsByResource,
+  };
 
   for (const fieldName of projection.selectedFields) {
     const field = resource.payload.get(fieldName);
@@ -364,7 +443,8 @@ function emitFlatResourceProjectionType(
       expansion,
       resources,
       projected,
-      resolveTargets
+      resolveTargets,
+      expansionContext
     );
     lines.push(`  ${expansion.alias}: ${aliasType};`);
   }
@@ -378,7 +458,8 @@ function emitResourceProjectionType(
   scalars: ScalarTable,
   resources: ResourceTable,
   projected: Set<string>,
-  resolveTargets: ResolveTargetIndex
+  resolveTargets: ResolveTargetIndex,
+  projectionsByResource: Map<string, ResourceProjection>
 ): string {
   if (projection.arms !== null) {
     return emitArmedResourceProjectionTypes(
@@ -387,7 +468,8 @@ function emitResourceProjectionType(
       scalars,
       resources,
       projected,
-      resolveTargets
+      resolveTargets,
+      projectionsByResource
     );
   }
   return emitFlatResourceProjectionType(
@@ -396,7 +478,8 @@ function emitResourceProjectionType(
     scalars,
     resources,
     projected,
-    resolveTargets
+    resolveTargets,
+    projectionsByResource
   );
 }
 
@@ -408,6 +491,7 @@ function emitQueryProjectionTypes(
   const projectable = projectableProjections(query);
   const projected = new Set(projectable.map((p) => p.resource));
   const resolveTargets = resolveTargetIndex(query);
+  const projectionsByResource = new Map(projectable.map((p) => [p.resource, p]));
   const parts: string[] = [];
 
   for (const projection of projectable) {
@@ -418,7 +502,8 @@ function emitQueryProjectionTypes(
         scalars,
         resources,
         projected,
-        resolveTargets
+        resolveTargets,
+        projectionsByResource
       )
     );
   }
