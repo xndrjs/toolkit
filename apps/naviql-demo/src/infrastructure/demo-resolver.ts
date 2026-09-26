@@ -25,7 +25,7 @@ export type DemoResolverOptions = {
 /**
  * Wires three separate batch channels + the generated page-detail strategy.
  *
- * - cms-entries — editorial Entry / Page / Hero / … (one CMS entry endpoint)
+ * - cms-entries — editorial Page + Entry (one CMS entry endpoint)
  * - cms-custom-references — in-memory CustomReference → Entry | Asset redirect
  * - cms-assets — media assets (separate CDN endpoint)
  */

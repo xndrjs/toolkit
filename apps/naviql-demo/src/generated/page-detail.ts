@@ -43,43 +43,57 @@ export const pageAri = ari(
 );
 export type PageResource = ReturnType<typeof pageAri>;
 
-export const heroAri = ari(
-  "Hero",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
-);
-export type HeroResource = ReturnType<typeof heroAri>;
-
-export const menuAri = ari(
-  "Menu",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
-);
-export type MenuResource = ReturnType<typeof menuAri>;
-
-export const footerAri = ari(
-  "Footer",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
-);
-export type FooterResource = ReturnType<typeof footerAri>;
-
-export const tabsAri = ari(
-  "Tabs",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
-);
-export type TabsResource = ReturnType<typeof tabsAri>;
-
-export const tabAri = ari(
-  "Tab",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
-);
-export type TabResource = ReturnType<typeof tabAri>;
-
-export const productAri = ari(
-  "Product",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
-);
-export type ProductResource = ReturnType<typeof productAri>;
-
-export type EntryPayload = HeroPayload | TabsPayload | ProductPayload;
+export type EntryPayload =
+  | {
+      type: "Hero";
+      id: EntryId;
+      title: string;
+      imageId: AssetId;
+    }
+  | {
+      type: "Tabs";
+      id: EntryId;
+      title: string;
+      tabs: {
+        id: EntryId;
+      }[];
+    }
+  | {
+      type: "Tab";
+      id: EntryId;
+      title: string;
+      strips: {
+        id: EntryId;
+      }[];
+    }
+  | {
+      type: "Product";
+      id: EntryId;
+      sku: Sku;
+      title: string;
+    }
+  | {
+      type: "Menu";
+      id: EntryId;
+      title: string;
+      logoId: AssetId;
+    }
+  | {
+      type: "Footer";
+      id: EntryId;
+      title: string;
+      logoId: AssetId;
+    }
+  | {
+      type: "Page";
+      id: EntryId;
+      title: string;
+    }
+  | {
+      type: "SiteInternalLink";
+      id: EntryId;
+      targetId: EntryId;
+    };
 
 export type AssetPayload = {
   type: "Asset";
@@ -102,60 +116,11 @@ export type PagePayload = {
   related: CustomReferenceValue[];
 };
 
-export type HeroPayload = {
-  type: "Hero";
-  id: EntryId;
-  title: string;
-  imageId: AssetId;
-};
-
-export type MenuPayload = {
-  id: EntryId;
-  title: string;
-  logoId: AssetId;
-};
-
-export type FooterPayload = {
-  id: EntryId;
-  title: string;
-  logoId: AssetId;
-};
-
-export type TabsPayload = {
-  type: "Tabs";
-  id: EntryId;
-  title: string;
-  tabs: {
-    id: EntryId;
-  }[];
-};
-
-export type TabPayload = {
-  id: EntryId;
-  title: string;
-  strips: {
-    id: EntryId;
-  }[];
-};
-
-export type ProductPayload = {
-  type: "Product";
-  id: EntryId;
-  sku: Sku;
-  title: string;
-};
-
 export type ContentRegistry = {
   Entry: EntryPayload;
   Asset: AssetPayload;
   CustomReference: CustomReferencePayload;
   Page: PagePayload;
-  Hero: HeroPayload;
-  Menu: MenuPayload;
-  Footer: FooterPayload;
-  Tabs: TabsPayload;
-  Tab: TabPayload;
-  Product: ProductPayload;
 };
 
 export type PageDetailParams = {
@@ -173,13 +138,13 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion.on(pageAri).expand(({ resource, payload, executionContext }) => ({
     resources: [
-      menuAri({
+      entryAri({
         spaceId: resource.key[0].spaceId,
         environmentId: resource.key[0].environmentId,
         id: payload.menuId,
         locale: resource.key[0].locale,
       }),
-      footerAri({
+      entryAri({
         spaceId: resource.key[0].spaceId,
         environmentId: resource.key[0].environmentId,
         id: payload.footerId,
@@ -199,60 +164,107 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     ],
   }));
 
-  strategy.expansion.on(heroAri).expand(({ resource, payload, executionContext }) => ({
-    resources: [
-      assetAri({
-        spaceId: executionContext.spaceId,
-        environmentId: executionContext.environmentId,
-        id: payload.imageId,
-        locale: resource.key[0].locale,
-      }),
-    ],
-  }));
+  strategy.expansion
+    .on(entryAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "Hero")
+    .expand(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resources: [
+          assetAri({
+            spaceId: executionContext.spaceId,
+            environmentId: executionContext.environmentId,
+            id: payload.imageId,
+            locale: resource.key[0].locale,
+          }),
+        ],
+      };
+    });
 
-  strategy.expansion.on(menuAri).expand(({ resource, payload, executionContext }) => ({
-    resources: [
-      assetAri({
-        spaceId: executionContext.spaceId,
-        environmentId: executionContext.environmentId,
-        id: payload.logoId,
-        locale: resource.key[0].locale,
-      }),
-    ],
-  }));
+  strategy.expansion
+    .on(entryAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "Tabs")
+    .expand(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resources: payload.tabs.map((link: any) =>
+          entryAri({
+            spaceId: resource.key[0].spaceId,
+            environmentId: resource.key[0].environmentId,
+            id: link.id,
+            locale: resource.key[0].locale,
+          })
+        ),
+      };
+    });
 
-  strategy.expansion.on(footerAri).expand(({ resource, payload, executionContext }) => ({
-    resources: [
-      assetAri({
-        spaceId: executionContext.spaceId,
-        environmentId: executionContext.environmentId,
-        id: payload.logoId,
-        locale: resource.key[0].locale,
-      }),
-    ],
-  }));
+  strategy.expansion
+    .on(entryAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "Tab")
+    .expand(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resources: payload.strips.map((link: any) =>
+          entryAri({
+            spaceId: resource.key[0].spaceId,
+            environmentId: resource.key[0].environmentId,
+            id: link.id,
+            locale: resource.key[0].locale,
+          })
+        ),
+      };
+    });
 
-  strategy.expansion.on(tabsAri).expand(({ resource, payload, executionContext }) => ({
-    resources: payload.tabs.map((link: any) =>
-      tabAri({
-        spaceId: resource.key[0].spaceId,
-        environmentId: resource.key[0].environmentId,
-        id: link.id,
-        locale: resource.key[0].locale,
-      })
-    ),
-  }));
+  strategy.expansion
+    .on(entryAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "Menu")
+    .expand(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resources: [
+          assetAri({
+            spaceId: executionContext.spaceId,
+            environmentId: executionContext.environmentId,
+            id: payload.logoId,
+            locale: resource.key[0].locale,
+          }),
+        ],
+      };
+    });
 
-  strategy.expansion.on(tabAri).expand(({ resource, payload, executionContext }) => ({
-    resources: payload.strips.map((link: any) =>
-      entryAri({
-        spaceId: resource.key[0].spaceId,
-        environmentId: resource.key[0].environmentId,
-        id: link.id,
-        locale: resource.key[0].locale,
-      })
-    ),
-  }));
+  strategy.expansion
+    .on(entryAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "Footer")
+    .expand(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resources: [
+          assetAri({
+            spaceId: executionContext.spaceId,
+            environmentId: executionContext.environmentId,
+            id: payload.logoId,
+            locale: resource.key[0].locale,
+          }),
+        ],
+      };
+    });
+
+  strategy.expansion
+    .on(entryAri)
+    .when(({ resource, payload, executionContext }) => payload.type == "SiteInternalLink")
+    .expand(({ resource, payload: __payload, executionContext }) => {
+      const payload = __payload as any;
+      return {
+        resources: [
+          entryAri({
+            spaceId: resource.key[0].spaceId,
+            environmentId: resource.key[0].environmentId,
+            id: payload.targetId,
+            locale: resource.key[0].locale,
+          }),
+        ],
+      };
+    });
 
   return strategy;
 }
@@ -261,32 +273,82 @@ export type PageDetail_Page = {
   $type: "Page";
   id: EntryId;
   title: string;
-  menu: PageDetail_Menu;
-  footer: PageDetail_Footer;
-  strips: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[];
-  related: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product | PageDetail_Asset)[];
+  menu: PageDetail_Entry;
+  footer: PageDetail_Entry;
+  strips: PageDetail_Entry[];
+  related: (PageDetail_Entry | PageDetail_Asset)[];
 };
 
-export type PageDetail_Hero = {
-  $type: "Hero";
+export type PageDetail_Entry_Hero = {
+  $type: "Entry";
+  type: "Hero";
   id: EntryId;
   title: string;
   image: PageDetail_Asset;
 };
 
-export type PageDetail_Menu = {
-  $type: "Menu";
+export type PageDetail_Entry_Tabs = {
+  $type: "Entry";
+  type: "Tabs";
+  id: EntryId;
+  title: string;
+  tabs: PageDetail_Entry[];
+};
+
+export type PageDetail_Entry_Tab = {
+  $type: "Entry";
+  type: "Tab";
+  id: EntryId;
+  title: string;
+  strips: PageDetail_Entry[];
+};
+
+export type PageDetail_Entry_Product = {
+  $type: "Entry";
+  type: "Product";
+  id: EntryId;
+  sku: Sku;
+  title: string;
+};
+
+export type PageDetail_Entry_Menu = {
+  $type: "Entry";
+  type: "Menu";
   id: EntryId;
   title: string;
   logo: PageDetail_Asset;
 };
 
-export type PageDetail_Footer = {
-  $type: "Footer";
+export type PageDetail_Entry_Footer = {
+  $type: "Entry";
+  type: "Footer";
   id: EntryId;
   title: string;
   logo: PageDetail_Asset;
 };
+
+export type PageDetail_Entry_SiteInternalLink = {
+  $type: "Entry";
+  type: "SiteInternalLink";
+  id: EntryId;
+  target: PageDetail_Entry;
+};
+
+export type PageDetail_Entry_Page = {
+  $type: "Entry";
+  type: "Page";
+  id: EntryId;
+};
+
+export type PageDetail_Entry =
+  | PageDetail_Entry_Hero
+  | PageDetail_Entry_Tabs
+  | PageDetail_Entry_Tab
+  | PageDetail_Entry_Product
+  | PageDetail_Entry_Menu
+  | PageDetail_Entry_Footer
+  | PageDetail_Entry_SiteInternalLink
+  | PageDetail_Entry_Page;
 
 export type PageDetail_Asset = {
   $type: "Asset";
@@ -294,27 +356,6 @@ export type PageDetail_Asset = {
   url: string;
   title: string;
   kind: "image" | "video" | "document";
-};
-
-export type PageDetail_Tabs = {
-  $type: "Tabs";
-  id: EntryId;
-  title: string;
-  tabs: PageDetail_Tab[];
-};
-
-export type PageDetail_Tab = {
-  $type: "Tab";
-  id: EntryId;
-  title: string;
-  strips: (PageDetail_Hero | PageDetail_Tabs | PageDetail_Product)[];
-};
-
-export type PageDetail_Product = {
-  $type: "Product";
-  id: EntryId;
-  sku: Sku;
-  title: string;
 };
 
 export type PageDetailResult = PageDetail_Page;
@@ -336,7 +377,7 @@ export function projectPageDetail(
     shell.id = payload.id;
     shell.title = payload.title;
     shell.menu = projectNode(
-      menuAri({
+      entryAri({
         spaceId: resource.key[0].spaceId,
         environmentId: resource.key[0].environmentId,
         id: payload.menuId,
@@ -344,7 +385,7 @@ export function projectPageDetail(
       })
     );
     shell.footer = projectNode(
-      footerAri({
+      entryAri({
         spaceId: resource.key[0].spaceId,
         environmentId: resource.key[0].environmentId,
         id: payload.footerId,
@@ -367,52 +408,130 @@ export function projectPageDetail(
     return shell;
   };
 
-  const projectOnHero = (resource: any, payload: any): any => {
-    const shell: any = { $type: "Hero" };
-    memo.set(resource.toString(), shell);
-    shell.id = payload.id;
-    shell.title = payload.title;
-    shell.image = projectNode(
-      assetAri({
-        spaceId: executionContext.spaceId,
-        environmentId: executionContext.environmentId,
-        id: payload.imageId,
-        locale: resource.key[0].locale,
-      })
-    );
-    return shell;
-  };
-
-  const projectOnMenu = (resource: any, payload: any): any => {
-    const shell: any = { $type: "Menu" };
-    memo.set(resource.toString(), shell);
-    shell.id = payload.id;
-    shell.title = payload.title;
-    shell.logo = projectNode(
-      assetAri({
-        spaceId: executionContext.spaceId,
-        environmentId: executionContext.environmentId,
-        id: payload.logoId,
-        locale: resource.key[0].locale,
-      })
-    );
-    return shell;
-  };
-
-  const projectOnFooter = (resource: any, payload: any): any => {
-    const shell: any = { $type: "Footer" };
-    memo.set(resource.toString(), shell);
-    shell.id = payload.id;
-    shell.title = payload.title;
-    shell.logo = projectNode(
-      assetAri({
-        spaceId: executionContext.spaceId,
-        environmentId: executionContext.environmentId,
-        id: payload.logoId,
-        locale: resource.key[0].locale,
-      })
-    );
-    return shell;
+  const projectOnEntry = (resource: any, payload: any): any => {
+    switch ((payload as any).type) {
+      case "Hero": {
+        const shell: any = { $type: "Entry" };
+        memo.set(resource.toString(), shell);
+        shell.type = payload.type;
+        shell.id = payload.id;
+        shell.title = payload.title;
+        shell.image = projectNode(
+          assetAri({
+            spaceId: executionContext.spaceId,
+            environmentId: executionContext.environmentId,
+            id: payload.imageId,
+            locale: resource.key[0].locale,
+          })
+        );
+        return shell;
+      }
+      case "Tabs": {
+        const shell: any = { $type: "Entry" };
+        memo.set(resource.toString(), shell);
+        shell.type = payload.type;
+        shell.id = payload.id;
+        shell.title = payload.title;
+        shell.tabs = payload.tabs.map((link: any) =>
+          projectNode(
+            entryAri({
+              spaceId: resource.key[0].spaceId,
+              environmentId: resource.key[0].environmentId,
+              id: link.id,
+              locale: resource.key[0].locale,
+            })
+          )
+        );
+        return shell;
+      }
+      case "Tab": {
+        const shell: any = { $type: "Entry" };
+        memo.set(resource.toString(), shell);
+        shell.type = payload.type;
+        shell.id = payload.id;
+        shell.title = payload.title;
+        shell.strips = payload.strips.map((link: any) =>
+          projectNode(
+            entryAri({
+              spaceId: resource.key[0].spaceId,
+              environmentId: resource.key[0].environmentId,
+              id: link.id,
+              locale: resource.key[0].locale,
+            })
+          )
+        );
+        return shell;
+      }
+      case "Product": {
+        const shell: any = { $type: "Entry" };
+        memo.set(resource.toString(), shell);
+        shell.type = payload.type;
+        shell.id = payload.id;
+        shell.sku = payload.sku;
+        shell.title = payload.title;
+        return shell;
+      }
+      case "Menu": {
+        const shell: any = { $type: "Entry" };
+        memo.set(resource.toString(), shell);
+        shell.type = payload.type;
+        shell.id = payload.id;
+        shell.title = payload.title;
+        shell.logo = projectNode(
+          assetAri({
+            spaceId: executionContext.spaceId,
+            environmentId: executionContext.environmentId,
+            id: payload.logoId,
+            locale: resource.key[0].locale,
+          })
+        );
+        return shell;
+      }
+      case "Footer": {
+        const shell: any = { $type: "Entry" };
+        memo.set(resource.toString(), shell);
+        shell.type = payload.type;
+        shell.id = payload.id;
+        shell.title = payload.title;
+        shell.logo = projectNode(
+          assetAri({
+            spaceId: executionContext.spaceId,
+            environmentId: executionContext.environmentId,
+            id: payload.logoId,
+            locale: resource.key[0].locale,
+          })
+        );
+        return shell;
+      }
+      case "SiteInternalLink": {
+        const shell: any = { $type: "Entry" };
+        memo.set(resource.toString(), shell);
+        shell.type = payload.type;
+        shell.id = payload.id;
+        shell.target = projectNode(
+          entryAri({
+            spaceId: resource.key[0].spaceId,
+            environmentId: resource.key[0].environmentId,
+            id: payload.targetId,
+            locale: resource.key[0].locale,
+          })
+        );
+        return shell;
+      }
+      case "Page": {
+        const shell: any = { $type: "Entry" };
+        memo.set(resource.toString(), shell);
+        shell.type = payload.type;
+        shell.id = payload.id;
+        return shell;
+      }
+      default:
+        throw new Error(
+          "projectOnEntry: cannot discriminate Entry payload (type=" +
+            JSON.stringify((payload as any).type) +
+            ")"
+        );
+    }
   };
 
   const projectOnAsset = (resource: any, payload: any): any => {
@@ -425,51 +544,6 @@ export function projectPageDetail(
     return shell;
   };
 
-  const projectOnTabs = (resource: any, payload: any): any => {
-    const shell: any = { $type: "Tabs" };
-    memo.set(resource.toString(), shell);
-    shell.id = payload.id;
-    shell.title = payload.title;
-    shell.tabs = payload.tabs.map((link: any) =>
-      projectNode(
-        tabAri({
-          spaceId: resource.key[0].spaceId,
-          environmentId: resource.key[0].environmentId,
-          id: link.id,
-          locale: resource.key[0].locale,
-        })
-      )
-    );
-    return shell;
-  };
-
-  const projectOnTab = (resource: any, payload: any): any => {
-    const shell: any = { $type: "Tab" };
-    memo.set(resource.toString(), shell);
-    shell.id = payload.id;
-    shell.title = payload.title;
-    shell.strips = payload.strips.map((link: any) =>
-      projectNode(
-        entryAri({
-          spaceId: resource.key[0].spaceId,
-          environmentId: resource.key[0].environmentId,
-          id: link.id,
-          locale: resource.key[0].locale,
-        })
-      )
-    );
-    return shell;
-  };
-
-  const projectOnProduct = (resource: any, payload: any): any => {
-    const shell: any = { $type: "Product" };
-    memo.set(resource.toString(), shell);
-    shell.id = payload.id;
-    shell.sku = payload.sku;
-    shell.title = payload.title;
-    return shell;
-  };
-
   const projectNode = (ari: any): unknown => {
     const key = ari.toString();
     if (memo.has(key)) return memo.get(key);
@@ -478,44 +552,28 @@ export function projectPageDetail(
     switch (ari.type) {
       case "Page":
         return projectOnPage(ari, payload);
-      case "Hero":
-        return projectOnHero(ari, payload);
-      case "Menu":
-        return projectOnMenu(ari, payload);
-      case "Footer":
-        return projectOnFooter(ari, payload);
+      case "Entry":
+        return projectOnEntry(ari, payload);
       case "Asset":
         return projectOnAsset(ari, payload);
-      case "Tabs":
-        return projectOnTabs(ari, payload);
-      case "Tab":
-        return projectOnTab(ari, payload);
-      case "Product":
-        return projectOnProduct(ari, payload);
-      case "Entry": {
-        switch ((payload as any).type) {
-          case "Hero":
-            return projectOnHero(ari, payload);
-          case "Tabs":
-            return projectOnTabs(ari, payload);
-          case "Product":
-            return projectOnProduct(ari, payload);
-          default:
-            throw new Error(
-              "projectPageDetail: cannot discriminate Entry payload (type=" +
-                JSON.stringify((payload as any).type) +
-                ")"
-            );
-        }
-      }
       case "CustomReference": {
         switch ((payload as any).type) {
           case "Hero":
-            return projectOnHero(ari, payload);
+            return projectOnEntry(ari, payload);
           case "Tabs":
-            return projectOnTabs(ari, payload);
+            return projectOnEntry(ari, payload);
+          case "Tab":
+            return projectOnEntry(ari, payload);
           case "Product":
-            return projectOnProduct(ari, payload);
+            return projectOnEntry(ari, payload);
+          case "Menu":
+            return projectOnEntry(ari, payload);
+          case "Footer":
+            return projectOnEntry(ari, payload);
+          case "SiteInternalLink":
+            return projectOnEntry(ari, payload);
+          case "Page":
+            return projectOnEntry(ari, payload);
           case "Asset":
             return projectOnAsset(ari, payload);
           default:

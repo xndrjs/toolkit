@@ -189,7 +189,7 @@ describe("generateStrategies", () => {
     expect(code).not.toContain(".build()");
   });
 
-  it("emits Entry/CustomReference each strips, tabs each-links, and concrete on blocks for page-detail", () => {
+  it("emits Entry/CustomReference each strips and armed Entry .when for page-detail", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("page-detail.naviql"));
     expect(diagnostics).toEqual([]);
 
@@ -197,10 +197,10 @@ describe("generateStrategies", () => {
 
     expect(code).toContain(".on(pageAri)");
     expect(code).toContain(
-      "menuAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale })"
+      "entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale })"
     );
     expect(code).toContain(
-      "footerAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.footerId, locale: resource.key[0].locale })"
+      "entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.footerId, locale: resource.key[0].locale })"
     );
     expect(code).toContain(
       "payload.strips.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
@@ -208,12 +208,18 @@ describe("generateStrategies", () => {
     expect(code).toContain(
       "payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: resource.key[0].locale }))"
     );
-    expect(code).toContain(".on(heroAri)");
-    expect(code).toContain(".on(tabsAri)");
+    expect(code).toContain(".on(entryAri)");
     expect(code).toContain(
-      "payload.tabs.map((link: any) => tabAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
+      '.when(({ resource, payload, executionContext }) => payload.type == "Hero")'
     );
-    expect(code).toContain(".on(tabAri)");
+    expect(code).toContain(
+      '.when(({ resource, payload, executionContext }) => payload.type == "Tabs")'
+    );
+    expect(code).toContain(
+      "payload.tabs.map((link: any) => entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale }))"
+    );
+    expect(code).not.toContain("heroAri");
+    expect(code).not.toContain("tabAri");
     expect(code).not.toContain("tabCollectionAri");
     expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain(".build()");

@@ -15,13 +15,13 @@ query PageDetail(pageId: EntryId) {
   on Page p {
     id
     title
-    expand menu: Menu(
+    expand menu: Entry(
       spaceId: @p.spaceId,
       environmentId: @p.environmentId,
       id: p.menuId,
       locale: @p.locale
     )
-    expand footer: Footer(
+    expand footer: Entry(
       spaceId: @p.spaceId,
       environmentId: @p.environmentId,
       id: p.footerId,
@@ -43,37 +43,86 @@ query PageDetail(pageId: EntryId) {
     )
   }
 
-  on Hero h {
-    id
-    title
-    expand image: Asset(
-      spaceId: context.spaceId,
-      environmentId: context.environmentId,
-      id: h.imageId,
-      locale: @h.locale
-    )
-  }
-
-  on Menu m {
-    id
-    title
-    expand logo: Asset(
-      spaceId: context.spaceId,
-      environmentId: context.environmentId,
-      id: m.logoId,
-      locale: @m.locale
-    )
-  }
-
-  on Footer f {
-    id
-    title
-    expand logo: Asset(
-      spaceId: context.spaceId,
-      environmentId: context.environmentId,
-      id: f.logoId,
-      locale: @f.locale
-    )
+  on Entry e {
+    when e.type == "Hero" {
+      type
+      id
+      title
+      expand image: Asset(
+        spaceId: context.spaceId,
+        environmentId: context.environmentId,
+        id: e.imageId,
+        locale: @e.locale
+      )
+    }
+    when e.type == "Tabs" {
+      type
+      id
+      title
+      expand tabs: each link in e.tabs (
+        Entry(
+          spaceId: @e.spaceId,
+          environmentId: @e.environmentId,
+          id: link.id,
+          locale: @e.locale
+        )
+      )
+    }
+    when e.type == "Tab" {
+      type
+      id
+      title
+      expand strips: each link in e.strips (
+        Entry(
+          spaceId: @e.spaceId,
+          environmentId: @e.environmentId,
+          id: link.id,
+          locale: @e.locale
+        )
+      )
+    }
+    when e.type == "Product" {
+      type
+      id
+      sku
+      title
+    }
+    when e.type == "Menu" {
+      type
+      id
+      title
+      expand logo: Asset(
+        spaceId: context.spaceId,
+        environmentId: context.environmentId,
+        id: e.logoId,
+        locale: @e.locale
+      )
+    }
+    when e.type == "Footer" {
+      type
+      id
+      title
+      expand logo: Asset(
+        spaceId: context.spaceId,
+        environmentId: context.environmentId,
+        id: e.logoId,
+        locale: @e.locale
+      )
+    }
+    when e.type == "SiteInternalLink" {
+      type
+      id
+      expand target: Entry(
+        spaceId: @e.spaceId,
+        environmentId: @e.environmentId,
+        id: e.targetId,
+        locale: @e.locale
+      )
+    }
+    when e.type == "Page" {
+      type
+      id
+    }
   }
 
   on Asset a {
@@ -81,37 +130,5 @@ query PageDetail(pageId: EntryId) {
     url
     title
     kind
-  }
-
-  on Tabs t {
-    id
-    title
-    expand tabs: each link in t.tabs (
-      Tab(
-        spaceId: @t.spaceId,
-        environmentId: @t.environmentId,
-        id: link.id,
-        locale: @t.locale
-      )
-    )
-  }
-
-  on Tab tab {
-    id
-    title
-    expand strips: each link in tab.strips (
-      Entry(
-        spaceId: @tab.spaceId,
-        environmentId: @tab.environmentId,
-        id: link.id,
-        locale: @tab.locale
-      )
-    )
-  }
-
-  on Product prod {
-    id
-    sku
-    title
   }
 }

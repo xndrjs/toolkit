@@ -46,7 +46,7 @@ function menuExpand(program: Program) {
 }
 
 describe("checkProgram — pageDetail happy path", () => {
-  it("typechecks the Page / strips each-expand / Menu / Footer / Tabs / Tab graph", () => {
+  it("typechecks the Page / Entry when-arms / Asset graph", () => {
     expect(checkProgram(pageDetailProgram())).toEqual([]);
   });
 });
@@ -230,7 +230,7 @@ describe("checkProgram — projection when-arms", () => {
 });
 
 describe("checkProgram — negative diagnostics", () => {
-  it("rejects Menu(id: @p.locale) — Locale is not assignable to EntryId", () => {
+  it("rejects Entry(id: @p.locale) — Locale is not assignable to EntryId", () => {
     const program = withMutatedPageDetail((p) => {
       menuExpand(p).target.args = [
         arg("spaceId", identity("p", "spaceId")),
@@ -405,7 +405,7 @@ describe("checkProgram — negative diagnostics", () => {
       proj.expansions.push(
         expand(
           "menu",
-          construct("Menu", [
+          construct("Entry", [
             arg("spaceId", identity("p", "spaceId")),
             arg("environmentId", identity("p", "environmentId")),
             arg("id", payload("p", "menuId")),

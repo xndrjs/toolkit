@@ -128,43 +128,49 @@ export const pageAri = ari(
 );
 export type PageResource = ReturnType<typeof pageAri>;
 
-export const heroAri = ari(
-  "Hero",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
-);
-export type HeroResource = ReturnType<typeof heroAri>;
-
-export const menuAri = ari(
-  "Menu",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
-);
-export type MenuResource = ReturnType<typeof menuAri>;
-
-export const footerAri = ari(
-  "Footer",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
-);
-export type FooterResource = ReturnType<typeof footerAri>;
-
-export const tabsAri = ari(
-  "Tabs",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
-);
-export type TabsResource = ReturnType<typeof tabsAri>;
-
-export const tabAri = ari(
-  "Tab",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
-);
-export type TabResource = ReturnType<typeof tabAri>;
-
-export const productAri = ari(
-  "Product",
-  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() }),
-);
-export type ProductResource = ReturnType<typeof productAri>;
-
-export type EntryPayload = HeroPayload | TabsPayload | ProductPayload;
+export type EntryPayload = {
+  type: "Hero";
+  id: EntryId;
+  title: string;
+  imageId: AssetId;
+} | {
+  type: "Tabs";
+  id: EntryId;
+  title: string;
+  tabs: {
+    id: EntryId;
+  }[];
+} | {
+  type: "Tab";
+  id: EntryId;
+  title: string;
+  strips: {
+    id: EntryId;
+  }[];
+} | {
+  type: "Product";
+  id: EntryId;
+  sku: Sku;
+  title: string;
+} | {
+  type: "Menu";
+  id: EntryId;
+  title: string;
+  logoId: AssetId;
+} | {
+  type: "Footer";
+  id: EntryId;
+  title: string;
+  logoId: AssetId;
+} | {
+  type: "Page";
+  id: EntryId;
+  title: string;
+} | {
+  type: "SiteInternalLink";
+  id: EntryId;
+  targetId: EntryId;
+};
 
 export type AssetPayload = {
   type: "Asset";
@@ -187,60 +193,11 @@ export type PagePayload = {
   related: CustomReferenceValue[];
 };
 
-export type HeroPayload = {
-  type: "Hero";
-  id: EntryId;
-  title: string;
-  imageId: AssetId;
-};
-
-export type MenuPayload = {
-  id: EntryId;
-  title: string;
-  logoId: AssetId;
-};
-
-export type FooterPayload = {
-  id: EntryId;
-  title: string;
-  logoId: AssetId;
-};
-
-export type TabsPayload = {
-  type: "Tabs";
-  id: EntryId;
-  title: string;
-  tabs: {
-    id: EntryId;
-  }[];
-};
-
-export type TabPayload = {
-  id: EntryId;
-  title: string;
-  strips: {
-    id: EntryId;
-  }[];
-};
-
-export type ProductPayload = {
-  type: "Product";
-  id: EntryId;
-  sku: Sku;
-  title: string;
-};
-
 export type ContentRegistry = {
   Entry: EntryPayload;
   Asset: AssetPayload;
   CustomReference: CustomReferencePayload;
   Page: PagePayload;
-  Hero: HeroPayload;
-  Menu: MenuPayload;
-  Footer: FooterPayload;
-  Tabs: TabsPayload;
-  Tab: TabPayload;
-  Product: ProductPayload;
 };
 `;
 
@@ -269,9 +226,9 @@ describe("generateResources golden", () => {
     expect(normalizeWhitespace(code)).toBe(normalizeWhitespace(PAGE_DETAIL_GOLDEN));
 
     // Spot-check cases the golden must cover.
-    expect(code).toContain(
-      "export type EntryPayload = HeroPayload | TabsPayload | ProductPayload;"
-    );
+    expect(code).toContain("export type EntryPayload = {");
+    expect(code).toContain(`type: "Hero"`);
+    expect(code).toContain(`type: "SiteInternalLink"`);
     expect(code).toContain("export type CustomReferencePayload = EntryPayload | AssetPayload;");
     expect(code).toContain("tabs: {\n    id: EntryId;\n  }[];");
     expect(code).toContain("export const entryAri = ari(");
@@ -279,7 +236,7 @@ describe("generateResources golden", () => {
     expect(code).not.toContain("EditorialModulePayload");
     expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain("TabCollection");
-    expect(code).toContain(`type: "Hero"`);
+    expect(code).not.toContain("heroAri");
     expect(code).toContain(`type: "Tabs"`);
     expect(code).toContain(`type: "Product"`);
     expect(code).toContain("strips: {\n    id: EntryId;\n  }[];");

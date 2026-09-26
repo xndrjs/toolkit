@@ -1,17 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  assetAri,
-  customReferenceAri,
-  entryAri,
-  footerAri,
-  heroAri,
-  menuAri,
-  pageAri,
-  productAri,
-  tabAri,
-  tabsAri,
-} from "../../generated/page-detail.js";
+import { assetAri, customReferenceAri, entryAri, pageAri } from "../../generated/page-detail.js";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,
@@ -36,69 +25,65 @@ const loadContext = {
 const entryIdentity = (id: string) => ({ spaceId, environmentId, id, locale });
 
 describe("createEntrySource", () => {
-  it("owns editorial entry ARI families (not CustomReference / Asset)", () => {
+  it("owns Page + Entry ARI families (not CustomReference / Asset)", () => {
     const source = createEntrySource();
     expect(source.id).toBe(ENTRY_SOURCE_ID);
-    expect(source.for.map((family) => family.type).sort()).toEqual([
-      "Entry",
-      "Footer",
-      "Hero",
-      "Menu",
-      "Page",
-      "Product",
-      "Tab",
-      "Tabs",
-    ]);
+    expect(source.for.map((family) => family.type).sort()).toEqual(["Entry", "Page"]);
   });
 
-  it("looks up by entry id for both Entry and concrete Hero ARIs", async () => {
+  it("returns Entry ARI + payload without rematerialize", async () => {
     const source = createEntrySource();
     const entry = entryAri(entryIdentity(demoIds.heroWelcome));
-    const hero = heroAri(entryIdentity(demoIds.heroWelcome));
 
-    const fromEntry = await source.load([entry], loadContext);
-    const fromHero = await source.load([hero], loadContext);
-
-    expect(fromEntry).toHaveLength(1);
-    expect(fromEntry[0]!.resource.toString()).toBe(hero.toString());
-    expect(fromEntry[0]!.resolves?.map((r) => r.toString())).toEqual([entry.toString()]);
-
-    expect(fromHero).toHaveLength(1);
-    expect(fromHero[0]!.resource.toString()).toBe(hero.toString());
-    expect(fromHero[0]!.resolves).toBeUndefined();
+    const records = await source.load([entry], loadContext);
+    expect(records).toHaveLength(1);
+    const record = records[0]!;
+    expect(record.resource.toString()).toBe(entry.toString());
+    expect("resolves" in record ? record.resolves : undefined).toBeUndefined();
+    expect("payload" in record ? record.payload : undefined).toMatchObject({
+      type: "Hero",
+      id: demoIds.heroWelcome,
+    });
   });
 
-  it("serves Page / Menu / Footer / Tab from the entries fixture", async () => {
+  it("serves root Page and polymorphic Entry documents from the same store", async () => {
     const source = createEntrySource();
     const page = pageAri(entryIdentity(demoIds.page));
-    const menu = menuAri(entryIdentity(demoIds.menu));
-    const footer = footerAri(entryIdentity(demoIds.footer));
-    const tab = tabAri(entryIdentity(demoIds.tabOverview));
+    const menu = entryAri(entryIdentity(demoIds.menu));
+    const about = entryAri(entryIdentity(demoIds.pageAbout));
 
-    const records = await source.load([page, menu, footer, tab], loadContext);
+    const records = await source.load([page, menu, about], loadContext);
     expect(records.map((r) => r.resource.toString()).sort()).toEqual(
-      [page.toString(), menu.toString(), footer.toString(), tab.toString()].sort()
+      [page.toString(), menu.toString(), about.toString()].sort()
     );
+
+    const pageRecord = records.find((r) => pageAri.matches(r.resource));
+    expect(pageRecord && "payload" in pageRecord ? pageRecord.payload : undefined).toMatchObject({
+      id: demoIds.page,
+      title: "Homepage",
+    });
+
+    const aboutRecord = records.find((r) => r.resource.equals(about));
+    expect(aboutRecord && "payload" in aboutRecord ? aboutRecord.payload : undefined).toEqual({
+      type: "Page",
+      id: demoIds.pageAbout,
+      title: "About",
+    });
   });
 
-  it("rematerializes Entry into Tabs / Product", async () => {
+  it("does not serve Entry payloads for Page ARI requests (or vice versa)", async () => {
     const source = createEntrySource();
-    const tabsEntry = entryAri(entryIdentity(demoIds.tabs));
-    const productEntry = entryAri(entryIdentity(demoIds.productTshirt));
+    const pageAsEntry = entryAri(entryIdentity(demoIds.page));
+    const aboutAsPage = pageAri(entryIdentity(demoIds.pageAbout));
 
-    const tabs = await source.load([tabsEntry], loadContext);
-    expect(tabs[0]!.resource.toString()).toBe(tabsAri(entryIdentity(demoIds.tabs)).toString());
-
-    const product = await source.load([productEntry], loadContext);
-    expect(product[0]!.resource.toString()).toBe(
-      productAri(entryIdentity(demoIds.productTshirt)).toString()
-    );
+    expect(await source.load([pageAsEntry], loadContext)).toEqual([]);
+    expect(await source.load([aboutAsPage], loadContext)).toEqual([]);
   });
 
   it("Page.strips links carry only EntryId — no content-type discriminant", () => {
     const doc = demoEntries.get(entryLookupKey({ spaceId, environmentId, id: demoIds.page }));
-    expect(doc?.contentTypeId).toBe("page");
-    if (doc?.contentTypeId !== "page") {
+    expect(doc?.kind).toBe("page");
+    if (doc?.kind !== "page") {
       return;
     }
     for (const link of doc.payload.strips) {
