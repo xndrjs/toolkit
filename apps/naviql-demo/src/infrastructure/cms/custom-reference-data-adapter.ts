@@ -8,9 +8,8 @@ import { defineDataSourceFor, type DataSource } from "@xndrjs/naviql";
 
 import {
   customReferenceAri,
-  type AssetId,
+  Scalars,
   type ContentRegistry,
-  type EntryId,
   type PageDetailExecutionContext,
 } from "../../generated";
 import { parseCustomReference } from "./custom-reference.js";
@@ -45,13 +44,13 @@ export function createCustomReferenceSource(): DataSource<
               type: "Entry" as const,
               spaceId: parsed.spaceId,
               environmentId: parsed.environmentId,
-              id: parsed.id as EntryId,
+              id: Scalars.EntryId(parsed.id),
             }
           : {
               type: "Asset" as const,
               spaceId: parsed.spaceId,
               environmentId: parsed.environmentId,
-              id: parsed.id as AssetId,
+              id: Scalars.AssetId(parsed.id),
             };
       });
     },

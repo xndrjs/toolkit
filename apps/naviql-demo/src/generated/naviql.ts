@@ -34,6 +34,16 @@ export type CustomReferenceValue = Branded<"CustomReferenceValue", string>;
 
 export type Sku = Branded<"Sku", string>;
 
+export const Scalars = {
+  Locale: (value: string): Locale => value as Locale,
+  SpaceId: (value: string): SpaceId => value as SpaceId,
+  EnvironmentId: (value: string): EnvironmentId => value as EnvironmentId,
+  EntryId: (value: string): EntryId => value as EntryId,
+  AssetId: (value: string): AssetId => value as AssetId,
+  CustomReferenceValue: (value: string): CustomReferenceValue => value as CustomReferenceValue,
+  Sku: (value: string): Sku => value as Sku,
+} as const;
+
 export const entryAri = ari(
   "Entry",
   s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
