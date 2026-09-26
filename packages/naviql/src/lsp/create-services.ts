@@ -12,6 +12,7 @@ import {
 } from "langium/lsp";
 
 import { NaviQlGeneratedModule, NaviQlGeneratedSharedModule } from "../lang/generated/module.js";
+import { createSemanticSnapshotCache, type SemanticSnapshotCache } from "./semantic-snapshot";
 
 /**
  * Create shared + language LSP services for the NaviQL language server.
@@ -22,6 +23,8 @@ import { NaviQlGeneratedModule, NaviQlGeneratedSharedModule } from "../lang/gene
 export function createNaviQlLspServices(context: DefaultSharedModuleContext): {
   shared: LangiumSharedServices;
   NaviQl: LangiumServices;
+  /** Cache filled by {@link registerWorkspaceValidation}; providers read via `.get()`. */
+  semanticSnapshot: SemanticSnapshotCache;
 } {
   const shared = inject(
     createDefaultSharedModule(context),
@@ -41,5 +44,7 @@ export function createNaviQlLspServices(context: DefaultSharedModuleContext): {
     shared.workspace.ConfigurationProvider.initialized({});
   }
 
-  return { shared, NaviQl };
+  const semanticSnapshot = createSemanticSnapshotCache();
+
+  return { shared, NaviQl, semanticSnapshot };
 }

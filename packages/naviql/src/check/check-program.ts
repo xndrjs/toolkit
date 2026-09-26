@@ -2,11 +2,20 @@ import type { Program } from "../ir";
 import { checkQuery } from "./check-query";
 import { collectResources, collectScalars } from "./collect";
 import { createDiagnosticSink, type Diagnostic } from "./diagnostic";
+import type { ResourceTable, ScalarTable } from "./symbols";
+
+export type ProgramAnalysis = {
+  diagnostics: Diagnostic[];
+  scalars: ScalarTable;
+  resources: ResourceTable;
+};
 
 /**
- * Check a NaviQL program. Returns all diagnostics (does not throw).
+ * Collect scalar/resource tables and run semantic checks.
+ * Prefer this when callers need the tables (e.g. LSP snapshot); use
+ * {@link checkProgram} when only diagnostics matter.
  */
-export function checkProgram(program: Program): Diagnostic[] {
+export function analyzeProgram(program: Program): ProgramAnalysis {
   const sink = createDiagnosticSink();
   const scalars = collectScalars(program, sink);
   const resources = collectResources(program, scalars, sink);
@@ -38,5 +47,12 @@ export function checkProgram(program: Program): Diagnostic[] {
     checkQuery(query, path, scalars, resources, sink);
   }
 
-  return sink.diagnostics;
+  return { diagnostics: sink.diagnostics, scalars, resources };
+}
+
+/**
+ * Check a NaviQL program. Returns all diagnostics (does not throw).
+ */
+export function checkProgram(program: Program): Diagnostic[] {
+  return analyzeProgram(program).diagnostics;
 }

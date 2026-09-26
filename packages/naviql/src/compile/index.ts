@@ -3,7 +3,14 @@
  * Import from `@xndrjs/naviql/compile` — keep out of client bundles.
  */
 export * from "../ir";
-export { checkProgram, type Diagnostic } from "../check";
+export {
+  analyzeProgram,
+  checkProgram,
+  type Diagnostic,
+  type ProgramAnalysis,
+  type ResourceTable,
+  type ScalarTable,
+} from "../check";
 export { createNaviQlServices, NaviQlModule, type NaviQlServices } from "../lang";
 export { lowerProgram, isLowerDiagnostic, LOWER_DIAGNOSTIC_CODES } from "./lower";
 export {

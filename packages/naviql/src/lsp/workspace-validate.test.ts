@@ -110,6 +110,12 @@ describe("validateWorkspace", () => {
     expect(result.files).toHaveLength(2);
     expect(result.byUri.get(resourcesUri)).toEqual([]);
     expect(result.byUri.get(queryUri)).toEqual([]);
+    expect(result.semantic).toBeDefined();
+    expect(result.semantic!.scalars.has("PostId")).toBe(true);
+    expect(result.semantic!.scalars.has("Locale")).toBe(true);
+    expect(result.semantic!.resources.has("Post")).toBe(true);
+    expect(result.semantic!.program.resources).toHaveLength(1);
+    expect(result.semantic!.program.queries).toHaveLength(1);
   });
 
   it("reports UNKNOWN_RESOURCE with a range in the query file only", async () => {
@@ -195,5 +201,23 @@ describe("validateWorkspace", () => {
     expect(result.usedConfig).toBe(false);
     expect(result.files).toEqual([aPath]);
     expect(result.byUri.get(aUri)).toEqual([]);
+  });
+
+  it("leaves semantic undefined when the only file has syntax errors", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-naviql-lsp-"));
+    const brokenPath = join(tempDir, "broken.naviql");
+    writeFileSync(brokenPath, `scalar Locale on\n`);
+    writeFileSync(join(tempDir, "naviql.config.ts"), PROJECT_CONFIG);
+    const brokenUri = pathToFileURL(brokenPath).href;
+
+    const result = await validateWorkspace({
+      triggerUri: brokenUri,
+      openSources: new Map(),
+      workspaceFolders: [tempDir],
+    });
+
+    expect(result.semantic).toBeUndefined();
+    const diags = result.byUri.get(brokenUri) ?? [];
+    expect(diags.some((d) => d.code === "SYNTAX_ERROR")).toBe(true);
   });
 });
