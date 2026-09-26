@@ -23,6 +23,6 @@
     "@xndrjs/contentful-to-zod-demo",
     "@xndrjs/resource-graph-resolver-demo",
     "@xndrjs/resource-graph-resolver-bench",
-    "@xndrjs/demo-naviql"
+    "@xndrjs/naviql-demo"
   ]
 }

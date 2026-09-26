@@ -1,5 +1,5 @@
 {
-  "name": "@xndrjs/demo-naviql",
+  "name": "@xndrjs/naviql-demo",
   "private": true,
   "type": "module",
   "scripts": {

@@ -10,7 +10,7 @@
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
-**Vertical-slice example:** [`apps/demo-naviql`](../../apps/demo-naviql) — `.naviql` → codegen → strategy `.build()` → multi-DataSource `resolve` → `projectPageDetail` (in-memory cms / catalog / cdn; no islands).
+**Vertical-slice example:** [`apps/naviql-demo`](../../apps/naviql-demo) — `.naviql` → codegen → strategy `.build()` → multi-DataSource `resolve` → `projectPageDetail` (in-memory cms / catalog / cdn; no islands).
 
 **Editor:** [`.naviql` syntax highlighting](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode` — no LSP yet).
 
