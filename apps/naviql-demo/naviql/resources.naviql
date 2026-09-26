@@ -80,10 +80,6 @@ resource Asset(
   kind: "image" | "video" | "document"
 }
 
-/**
- * Legacy encoded locator (`{environmentId}@{spaceId}|ENTRY|id` or `|ASSET|id`).
- * Parses into the canonical Entry or Asset identity; does not invent a second identity.
- */
 resource CustomReference(
   ref: CustomReferenceValue,
   locale: Locale
