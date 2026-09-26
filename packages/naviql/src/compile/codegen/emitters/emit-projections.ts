@@ -460,9 +460,9 @@ function discriminationLabelsForMember(
 }
 
 /**
- * Union / resource-valued / resolve-only resources that need `projectNode`
- * discrimination arms (no projectable `on`). Skips projectable targets.
- * Always includes resolve-only projections (settled payload under locator key).
+ * Union / resource-valued resources that need `projectNode` discrimination arms
+ * (no projectable `on`). Resolve-only locators are handled separately by following
+ * {@link ResolveResourceGraphOutput.redirects}.
  */
 function unionTargetResources(
   query: QueryDefinition,
@@ -473,7 +473,7 @@ function unionTargetResources(
   const out = new Map<string, string[]>();
 
   const consider = (targetName: string) => {
-    if (projected.has(targetName) || out.has(targetName)) {
+    if (projected.has(targetName) || out.has(targetName) || resolveTargets.has(targetName)) {
       return;
     }
     const members = stripToConcreteMembers(targetName, resources, resolveTargets);
@@ -496,11 +496,6 @@ function unionTargetResources(
     }
   }
 
-  // Resolve-only root / unused resolve clauses still need strip arms when present.
-  for (const resourceName of resolveTargets.keys()) {
-    consider(resourceName);
-  }
-
   return out;
 }
 
@@ -519,6 +514,18 @@ function emitProjectNode(query: QueryDefinition, resources: ResourceIndex, fnNam
       [
         `      case ${JSON.stringify(projection.resource)}:`,
         `        return ${helper}(ari, payload);`,
+      ].join("\n")
+    );
+  }
+
+  for (const locator of resolveTargets.keys()) {
+    cases.push(
+      [
+        `      case ${JSON.stringify(locator)}: {`,
+        `        const canonical = args.redirects.get(ari.toString());`,
+        `        if (canonical === undefined) return undefined;`,
+        `        return projectNode(canonical);`,
+        `      }`,
       ].join("\n")
     );
   }
@@ -588,7 +595,8 @@ function emitProjectNode(query: QueryDefinition, resources: ResourceIndex, fnNam
 function emitArgsType(query: QueryDefinition): string | null {
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
-  if (!hasParams && !hasContext) {
+  const hasRedirects = resolveTargetIndex(query).size > 0;
+  if (!hasParams && !hasContext && !hasRedirects) {
     return null;
   }
 
@@ -598,6 +606,9 @@ function emitArgsType(query: QueryDefinition): string | null {
   }
   if (hasContext) {
     fields.push(`    executionContext: ${executionContextTypeName(query.name)};`);
+  }
+  if (hasRedirects) {
+    fields.push(`    redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;`);
   }
   return `{\n${fields.join("\n")}\n  }`;
 }

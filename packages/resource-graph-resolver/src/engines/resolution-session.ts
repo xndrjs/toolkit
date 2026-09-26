@@ -361,6 +361,7 @@ export class ResolutionSession<
       islandDependencies: this.islandDependencies,
       errors,
       promotedResourceKeys: [...this.promotedResourceKeys],
+      redirects: new Map(this.redirects),
     };
   }
 }

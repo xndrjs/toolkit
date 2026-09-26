@@ -85,8 +85,8 @@ function assetExpand(alias: string, binding: string, idField: string) {
   return expand(
     alias,
     construct("Asset", [
-      arg("spaceId", ctx("spaceId")),
-      arg("environmentId", ctx("environmentId")),
+      arg("spaceId", identity(binding, "spaceId")),
+      arg("environmentId", identity(binding, "environmentId")),
       arg("id", payload(binding, idField)),
       arg("locale", identity(binding, "locale")),
     ])
@@ -177,15 +177,13 @@ export function pageDetailProgram(): Program {
             field("type", strLit("Entry")),
             field("spaceId", SpaceId),
             field("environmentId", EnvironmentId),
-            field("id", EntryId),
-            field("locale", Locale)
+            field("id", EntryId)
           ),
           objectType(
             field("type", strLit("Asset")),
             field("spaceId", SpaceId),
             field("environmentId", EnvironmentId),
-            field("id", AssetId),
-            field("locale", Locale)
+            field("id", AssetId)
           )
         )
       ),
@@ -244,7 +242,7 @@ export function pageDetailProgram(): Program {
                 arg("spaceId", payload("c", "spaceId")),
                 arg("environmentId", payload("c", "environmentId")),
                 arg("id", payload("c", "id")),
-                arg("locale", payload("c", "locale")),
+                arg("locale", identity("c", "locale")),
               ]),
               eq(payload("c", "type"), lit("Entry"))
             ),
@@ -253,7 +251,7 @@ export function pageDetailProgram(): Program {
                 arg("spaceId", payload("c", "spaceId")),
                 arg("environmentId", payload("c", "environmentId")),
                 arg("id", payload("c", "id")),
-                arg("locale", payload("c", "locale")),
+                arg("locale", identity("c", "locale")),
               ]),
               eq(payload("c", "type"), lit("Asset"))
             ),

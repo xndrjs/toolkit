@@ -105,9 +105,10 @@ function emitProjectCall(query: QueryDefinition): string {
   const projectFn = projectFnName(query.name);
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
+  const hasRedirects = query.projections.some((p) => p.resolveArms !== null);
   const seedArg = isSingleRootQuery(query) ? "input.root" : "input.roots";
 
-  if (!hasParams && !hasContext) {
+  if (!hasParams && !hasContext && !hasRedirects) {
     return `${projectFn}(${seedArg}, contentMap)`;
   }
 
@@ -117,6 +118,9 @@ function emitProjectCall(query: QueryDefinition): string {
   }
   if (hasContext) {
     argFields.push("executionContext: input.executionContext");
+  }
+  if (hasRedirects) {
+    argFields.push("redirects");
   }
   return `${projectFn}(${seedArg}, contentMap, {\n    ${argFields.join(",\n    ")},\n  })`;
 }
@@ -159,6 +163,7 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
     `    islandDependencies,`,
     `    errors,`,
     `    promotedResourceKeys,`,
+    `    redirects,`,
     `  } = await resolver.resolve({`,
     `    roots: ${engineRoots},`,
     `    executionContext: input.executionContext,`,

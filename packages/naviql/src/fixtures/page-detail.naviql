@@ -93,14 +93,12 @@ resource CustomReference(
     spaceId: SpaceId
     environmentId: EnvironmentId
     id: EntryId
-    locale: Locale
   }
   | {
     type: "Asset"
     spaceId: SpaceId
     environmentId: EnvironmentId
     id: AssetId
-    locale: Locale
   }
 
 /**
@@ -133,8 +131,8 @@ fragment EntryBase on Entry e {
 fragment BrandChrome on Entry e {
   title
   expand logo: Asset(
-    spaceId: context.spaceId,
-    environmentId: context.environmentId,
+    spaceId: @e.spaceId,
+    environmentId: @e.environmentId,
     id: e.logoId,
     locale: @e.locale
   )
@@ -190,13 +188,13 @@ query PageDetail(pageId: EntryId) {
       spaceId: c.spaceId,
       environmentId: c.environmentId,
       id: c.id,
-      locale: c.locale
+      locale: @c.locale
     ) when c.type == "Entry"
     Asset(
       spaceId: c.spaceId,
       environmentId: c.environmentId,
       id: c.id,
-      locale: c.locale
+      locale: @c.locale
     ) when c.type == "Asset"
   }
 
@@ -205,8 +203,8 @@ query PageDetail(pageId: EntryId) {
     when e.type == "Hero" {
       title
       expand image: Asset(
-        spaceId: context.spaceId,
-        environmentId: context.environmentId,
+        spaceId: @e.spaceId,
+        environmentId: @e.environmentId,
         id: e.imageId,
         locale: @e.locale
       )
