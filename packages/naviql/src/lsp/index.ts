@@ -4,6 +4,18 @@
  */
 export { createNaviQlLspServices } from "./create-services";
 export { diagnosticToLsp, diagnosticsToLsp, type PositionAt } from "./diagnostics-to-lsp";
+export { hoverMarkdownAtOffset, hoverMarkdownForCstLeaf, NaviQlHoverProvider } from "./hover";
+export {
+  fieldHoverMarkdown,
+  formatFieldSignature,
+  formatResourceSignature,
+  formatScalarSignature,
+  hoverCodeBlock,
+  namedTypeHoverMarkdown,
+  resourceFieldHoverMarkdown,
+  resourceHoverMarkdown,
+  scalarHoverMarkdown,
+} from "./hover-markdown";
 export { findNaviQlConfigFile } from "./resolve-config-root";
 export {
   registerWorkspaceValidation,
