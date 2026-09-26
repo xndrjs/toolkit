@@ -158,23 +158,40 @@ export type ProjectionArm = {
   span: SourceSpan | null;
 };
 
+/**
+ * One arm of `on R b resolve to { … }`: construction + optional `when` filter.
+ * Same construction shape as expand targets; settles via redirect, not projection.
+ */
+export type ResolveArm = {
+  target: ResourceConstruction;
+  when: Expr | null;
+  span: SourceSpan | null;
+};
+
 export type ResourceProjection = {
   resource: string;
   binding: string;
   /**
-   * Flat body fields. Empty when `arms !== null` (armed projections keep fields
-   * on each arm instead).
+   * Flat body fields. Empty when `arms !== null` or `resolveArms !== null`
+   * (armed / resolve-only projections keep fields off the root body).
    */
   selectedFields: string[];
   /**
-   * Flat body expansions. Empty when `arms !== null`.
+   * Flat body expansions. Empty when `arms !== null` or `resolveArms !== null`.
    */
   expansions: Expansion[];
   /**
    * Discriminant `when` arms, or `null` for an unconditional flat `on` body.
    * Mixing flat fields/expansions with arms is rejected by the checker.
+   * Mutually exclusive with `resolveArms`.
    */
   arms: ProjectionArm[] | null;
+  /**
+   * Resolve-only redirect arms (`on R b resolve to { … }`), or `null` for
+   * normal projections. Mutually exclusive with projection body (`selectedFields`,
+   * `expansions`, `arms`).
+   */
+  resolveArms: ResolveArm[] | null;
   span: SourceSpan | null;
 };
 

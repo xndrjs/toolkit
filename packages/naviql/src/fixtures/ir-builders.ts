@@ -139,6 +139,7 @@ export function projection(
     selectedFields,
     expansions,
     arms,
+    resolveArms: null,
     span,
   };
 }
@@ -155,6 +156,24 @@ export function projectionWithArms(
     selectedFields: [],
     expansions: [],
     arms,
+    resolveArms: null,
+    span,
+  };
+}
+
+/** Resolve-only projection helper: `on CustomReference c resolve to { … }`. */
+export function projectionWithResolve(
+  resourceName: string,
+  binding: string,
+  resolveArms: NonNullable<ResourceProjection["resolveArms"]>
+): ResourceProjection {
+  return {
+    resource: resourceName,
+    binding,
+    selectedFields: [],
+    expansions: [],
+    arms: null,
+    resolveArms,
     span,
   };
 }
@@ -168,6 +187,17 @@ export function projectionArm(
     when,
     selectedFields,
     expansions,
+    span,
+  };
+}
+
+export function resolveArm(
+  target: ResourceConstruction,
+  when: Expr | null = null
+): NonNullable<ResourceProjection["resolveArms"]>[number] {
+  return {
+    target,
+    when,
     span,
   };
 }
