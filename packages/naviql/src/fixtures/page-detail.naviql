@@ -259,4 +259,11 @@ query PageDetail(pageId: EntryId) {
     title
     kind
   }
+
+  islands {
+    on Entry e {
+      when e.type == "Menu"
+      when e.type == "Footer"
+    }
+  }
 }
