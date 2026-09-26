@@ -3,6 +3,8 @@
  * Providers resolve AST context, then call these with IR / check tables.
  */
 import { formatType } from "../check/assignability";
+import { createDiagnosticSink } from "../check/diagnostic";
+import { resolvePathOnPayloadType } from "../check/expr-paths";
 import type { ResourceSymbols, ResourceTable, ScalarTable } from "../check/symbols";
 import type { FieldDecl, TypeExpr } from "../ir";
 
@@ -27,6 +29,15 @@ export function formatFieldSignature(name: string, type: TypeExpr): string {
   return `${name}: ${formatType(type)}`;
 }
 
+/** `fragment Name on Resource: { field: Type, … }` — projected payload shape. */
+export function formatFragmentSignature(
+  name: string,
+  resource: string,
+  projectedType: TypeExpr
+): string {
+  return `fragment ${name} on ${resource}: ${formatType(projectedType)}`;
+}
+
 export function scalarHoverMarkdown(name: string, representation: string): string {
   return hoverCodeBlock(formatScalarSignature(name, representation));
 }
@@ -37,6 +48,14 @@ export function resourceHoverMarkdown(name: string, symbols: ResourceSymbols): s
 
 export function fieldHoverMarkdown(name: string, type: TypeExpr): string {
   return hoverCodeBlock(formatFieldSignature(name, type));
+}
+
+export function fragmentHoverMarkdown(
+  name: string,
+  resource: string,
+  projectedType: TypeExpr
+): string {
+  return hoverCodeBlock(formatFragmentSignature(name, resource, projectedType));
 }
 
 /**
@@ -59,16 +78,54 @@ export function namedTypeHoverMarkdown(
   return undefined;
 }
 
+/**
+ * Field type on a resource: flat payload/identity map, else path on payload
+ * (distributes over object unions — e.g. Entry.type / Entry.id).
+ */
+export function fieldTypeFromResource(
+  resourceName: string,
+  fieldName: string,
+  resources: ResourceTable
+): TypeExpr | undefined {
+  const symbols = resources.get(resourceName);
+  if (!symbols) return undefined;
+  const fromMap = symbols.payload.get(fieldName) ?? symbols.identity.get(fieldName);
+  if (fromMap) return fromMap.type;
+
+  const sink = createDiagnosticSink();
+  return resolvePathOnPayloadType([fieldName], symbols.payloadType, "hover", null, resources, sink);
+}
+
 /** Payload (or identity) field on a known resource. */
 export function resourceFieldHoverMarkdown(
   resourceName: string,
   fieldName: string,
   resources: ResourceTable
 ): string | undefined {
-  const symbols = resources.get(resourceName);
-  if (!symbols) return undefined;
-  const field: FieldDecl | undefined =
-    symbols.payload.get(fieldName) ?? symbols.identity.get(fieldName);
-  if (!field) return undefined;
-  return fieldHoverMarkdown(field.name, field.type);
+  const type = fieldTypeFromResource(resourceName, fieldName, resources);
+  if (!type) return undefined;
+  return fieldHoverMarkdown(fieldName, type);
+}
+
+/** Object type from selected field names looked up on a resource. */
+export function projectedFieldsType(
+  fieldNames: string[],
+  resourceName: string,
+  resources: ResourceTable
+): TypeExpr | undefined {
+  if (!resources.has(resourceName)) return undefined;
+  const fields: FieldDecl[] = [];
+  for (const name of fieldNames) {
+    const type = fieldTypeFromResource(resourceName, name, resources);
+    if (type) {
+      fields.push({
+        name,
+        type,
+        inheritedFromIdentity: false,
+        refers: null,
+        span: null,
+      });
+    }
+  }
+  return { kind: "object", fields, span: null };
 }

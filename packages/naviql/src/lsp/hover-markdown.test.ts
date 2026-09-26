@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { analyzeProgram } from "../check";
 import type { ResourceSymbols } from "../check/symbols";
-import type { TypeExpr } from "../ir";
+import type { FieldDecl, TypeExpr } from "../ir";
 import {
   fieldHoverMarkdown,
   formatFieldSignature,
+  formatFragmentSignature,
   formatResourceSignature,
   formatScalarSignature,
+  fragmentHoverMarkdown,
   namedTypeHoverMarkdown,
+  projectedFieldsType,
   resourceFieldHoverMarkdown,
   resourceHoverMarkdown,
   scalarHoverMarkdown,
@@ -139,49 +141,41 @@ describe("hover-markdown builders", () => {
     expect(resourceFieldHoverMarkdown("Entry", "missing", resources)).toBeUndefined();
   });
 
-  it("matches analyzeProgram tables for a tiny program", () => {
-    const { scalars, resources } = analyzeProgram({
-      scalars: [
-        {
-          name: "EntryId",
-          representation: "string",
-          metadata: null,
-          span: null,
-        },
-      ],
-      resources: [
-        {
-          name: "Entry",
-          ariType: "Entry",
-          identity: {
-            fields: [
-              {
-                name: "id",
-                type: { kind: "scalarRef", name: "EntryId", span: null },
-                inheritedFromIdentity: false,
-                refers: null,
-                span: null,
-              },
-            ],
-          },
-          payloadType: objectPayload([
-            {
-              name: "id",
-              type: { kind: "scalarRef", name: "EntryId", span: null },
-            },
-          ]),
-          span: null,
-        },
-      ],
-      queries: [],
+  it("formats fragment projected shapes", () => {
+    const typeT: TypeExpr = { kind: "primitive", name: "string", span: null };
+    const idT: TypeExpr = { kind: "scalarRef", name: "EntryId", span: null };
+    const typeField: FieldDecl = {
+      name: "type",
+      type: typeT,
+      inheritedFromIdentity: false,
+      refers: null,
       span: null,
-    });
-
-    expect(namedTypeHoverMarkdown("EntryId", scalars, resources)).toContain(
-      "scalar EntryId on string"
+    };
+    const idField: FieldDecl = {
+      name: "id",
+      type: idT,
+      inheritedFromIdentity: true,
+      refers: null,
+      span: null,
+    };
+    const symbols: ResourceSymbols = {
+      identity: new Map([["id", idField]]),
+      payload: new Map([
+        ["type", typeField],
+        ["id", idField],
+      ]),
+      payloadType: objectPayload([
+        { name: "type", type: typeT },
+        { name: "id", type: idT },
+      ]),
+    };
+    const resources = new Map<string, ResourceSymbols>([["Entry", symbols]]);
+    const projected = projectedFieldsType(["type", "id"], "Entry", resources)!;
+    expect(formatFragmentSignature("EntryBase", "Entry", projected)).toBe(
+      "fragment EntryBase on Entry: { type: string, id: EntryId }"
     );
-    expect(namedTypeHoverMarkdown("Entry", scalars, resources)).toContain(
-      "resource Entry(id: EntryId)"
+    expect(fragmentHoverMarkdown("EntryBase", "Entry", projected)).toContain(
+      "{ type: string, id: EntryId }"
     );
   });
 });
