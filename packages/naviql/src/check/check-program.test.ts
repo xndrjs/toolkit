@@ -849,3 +849,115 @@ describe("checkProgram — multi-root queries", () => {
     expect(checkProgram(program)).toContainEqual(expect.objectContaining({ code: "EMPTY_ROOTS" }));
   });
 });
+
+describe("checkProgram — islands", () => {
+  const islandsPrelude = `
+    scalar EntryId on string;
+    scalar Locale on string;
+
+    resource Entry(id: EntryId, locale: Locale): {
+      id
+      type: string
+    }
+
+    resource Page(id: EntryId, locale: Locale): {
+      id
+    }
+  `;
+
+  it("typechecks Menu/Footer island whens and unconditional on Page", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${islandsPrelude}
+
+      query Q(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p { id }
+        on Entry e { id type }
+        islands {
+          on Entry e {
+            when e.type == "Menu"
+            when e.type == "Footer"
+          }
+          on Page {}
+        }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("rejects unknown island resource", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${islandsPrelude}
+
+      query Q(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p { id }
+        islands {
+          on Missing {}
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_RESOURCE",
+        message: expect.stringContaining("Missing"),
+      })
+    );
+  });
+
+  it("requires a binding when island when-clauses are present", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${islandsPrelude}
+
+      query Q(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p { id }
+        islands {
+          on Entry {
+            when true
+          }
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "ISLAND_BINDING_REQUIRED",
+        message: expect.stringContaining("Entry"),
+      })
+    );
+  });
+
+  it("rejects non-boolean island when-clauses", () => {
+    const { diagnostics, program } = parseAndCheck(`
+      ${islandsPrelude}
+
+      query Q(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p { id }
+        on Entry e { id type }
+        islands {
+          on Entry e {
+            when e.type == "Menu"
+          }
+        }
+      }
+    `);
+    expect(diagnostics).toEqual([]);
+
+    program.queries[0]!.islands[0]!.whens[0] = lit("Menu");
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({
+        code: "TYPE_MISMATCH",
+        message: expect.stringContaining("boolean"),
+      })
+    );
+  });
+});
