@@ -112,7 +112,7 @@ const locale: Locale = Scalars.Locale("en-US");
 
 There are no uncapitalized top-level helpers (`entryId(…)`). An empty scalars program emits nothing for this section.
 
-`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`); collection expand targets fan out member ARIs. The factory returns the builder **without** `.build()`, so apps can attach island policies by hand before calling `.build()`. Islands are not emitted.
+`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`, plus `islands.on(…)[.when(…)].startIsland()` when the query declares an `islands` block). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`); collection expand targets fan out member ARIs. The factory returns the builder **without** `.build()`, so apps can still attach extra island policies by hand before calling `.build()`.
 
 `generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …) with `$type` discriminators. Apps pass a resolved `ContentMap` and seed ARI(s); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/naviql` only — no extra runtime helper.
 

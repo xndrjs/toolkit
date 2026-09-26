@@ -79,7 +79,7 @@ function applyWhenArmNarrowing(node: AstNode, scope: QueryScope, resources: Reso
 
 /**
  * Build a QueryScope at `node` for path hover / completion:
- * params, context, projection/fragment bindings, enclosing `each` items,
+ * params, context, projection/fragment/island bindings, enclosing `each` items,
  * and payload narrowing when inside a `when` arm.
  */
 export function buildExprScope(node: AstNode, tables: ExprScopeTables): QueryScope {
@@ -100,6 +100,11 @@ export function buildExprScope(node: AstNode, tables: ExprScopeTables): QuerySco
     }
     for (const projection of query.projections) {
       bindings.set(projection.binding, projection.resource);
+    }
+    for (const clause of query.islands?.clauses ?? []) {
+      if (clause.binding) {
+        bindings.set(clause.binding, clause.resource);
+      }
     }
   }
 
