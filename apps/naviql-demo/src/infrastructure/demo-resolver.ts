@@ -7,7 +7,7 @@ import {
 
 import { createAssetSource } from "./cms/asset-data-adapter.js";
 import { createCustomReferenceSource } from "./cms/custom-reference-data-adapter.js";
-import { createEntrySource } from "./cms/data-adapter.js";
+import { createEntrySource } from "./cms/entries-data-adapter.js";
 import { createDemoPageStrategy } from "./demo-strategy.js";
 import type {
   ContentRegistry,

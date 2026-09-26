@@ -71,12 +71,12 @@ Under `lane`, a fast source keeps walking its own subgraph while a slow peer's r
 ## Concepts
 
 - **`ContentRegistry`** — maps ARI `type` literals to payload shapes; `ContentMap.get` follows `resource.type`. Compose per-source slices with `ComposeContentRegistry`.
-- **`DataSource`** — one transport channel: the ARI types in `for`, its batch limit, its concurrency budget, and `load(batch)`.
-- **`createGraphResolutionStrategy()`** — fluent builder for expansion, island, and resolve policies; `.build()` returns a `GraphResolutionStrategy` for the resolver. Use `.resolve.on(ari).when(…).to(…)` for post-decode redirects (DataSource `ResourceRedirectRecord` remains supported).
+- **`DataSource`** — one transport channel: the ARI types in `for`, its batch limit, its concurrency budget, and positional `load(batch)` → `(payload | undefined)[]` (same length/order; `undefined` = miss).
+- **`createGraphResolutionStrategy()`** — fluent builder for expansion, island, and resolve policies; `.build()` returns a `GraphResolutionStrategy` for the resolver. Use `.resolve.on(ari).when(…).to(…)` for post-decode redirects (identity hops belong here, not in `load`).
 - **`IslandDependencyMap`** — direct edges between islands; `getFlatDependencies` builds transitive cache manifests (cycles excluded from the start island).
 - **`backingResources`** — pre-resolved payloads consulted before any source is asked. The map is never mutated; keys the walk actually reached come back as `promotedResourceKeys`.
 - **`ResolutionObserver`** — optional hooks for batches, expansions, promotions and misses. Observer failures never affect resolution.
-- **Errors** — `ResourceGraphError` base, plus `MissingResourceError`, `NoDataSourceError` (no source declares a matching family — a wiring bug, not missing data), `ResourceLoadFailedError` (wraps a rejected `load`), and `ResourceGraphAbortedError`.
+- **Errors** — `ResourceGraphError` base, plus `MissingResourceError`, `NoDataSourceError` (no source declares a matching family — a wiring bug, not missing data), `ResourceLoadFailedError` (wraps a rejected `load`), `ResourceBatchLengthError` (wrong result length), and `ResourceGraphAbortedError`.
 - **`serializeAllIslands`** — cache-ready payloads (`SerializedIsland`, schema v1).
 
 ## Demo

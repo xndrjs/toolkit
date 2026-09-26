@@ -13,6 +13,7 @@ export {
 export {
   MissingResourceError,
   NoDataSourceError,
+  ResourceBatchLengthError,
   ResourceGraphAbortedError,
   ResourceGraphError,
   ResourceLoadFailedError,
@@ -44,10 +45,10 @@ export {
   type ResourceLoadContext,
   type ResourceOfFamily,
   type ResourceUnionFromFamilies,
+  type SourcePayloadSlot,
   type SourceRouteContext,
   type DataSource,
   type DataSourceDefinition,
-  type SourceResourceRecord,
 } from "./ports/data-source";
 export { serializeAllIslands, serializeIsland } from "./islands/serialize-island";
 export type {
@@ -60,9 +61,7 @@ export type {
   SchedulingMode,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
-  ResolvedResourceRecord,
   ResourceKey,
-  ResourceRedirectRecord,
   SerializedIsland,
 } from "./types";
 export type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";

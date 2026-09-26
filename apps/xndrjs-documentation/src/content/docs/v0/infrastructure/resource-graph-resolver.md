@@ -147,16 +147,16 @@ The demo app uses this second shape: Contentful-shaped payloads, but one in-memo
 
 The definer is curried (`defineDataSourceFor<R, Ctx>()` then the config) because TypeScript has no partial type-argument inference: currying keeps `for` inferred while the registry stays explicit.
 
-`R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `for` is what scopes a source to the ARI types it may be asked for and may return. Returning a record outside the declared `for` list is a compile error.
+`R` is the **whole project registry**, not the source's own slice — payload shapes are a project-wide contract, and `for` is what scopes a source to the ARI types it may be asked for. Identity hops (e.g. CustomReference → Entry) belong in strategy `.resolve`, not in `load`.
 
-| Field         | Meaning                                                                          |
-| ------------- | -------------------------------------------------------------------------------- |
-| `id`          | Stable identifier used in observer events and error messages                     |
-| `for`         | ARI factories this transport channel handles; each covers one ARI `type`         |
-| `batchSize`   | Max ARIs per `load`. Omit for no limit                                           |
-| `concurrency` | Loads this backend tolerates in parallel. Defaults to `1` (serial)               |
-| `when`        | Optional routing predicate (rare). Evaluated before `for` matching               |
-| `load`        | Fetch one heterogeneous batch; return correlated `{ resource, payload }` records |
+| Field         | Meaning                                                                                                            |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `id`          | Stable identifier used in observer events and error messages                                                       |
+| `for`         | ARI factories this transport channel handles; each covers one ARI `type`                                           |
+| `batchSize`   | Max ARIs per `load`. Omit for no limit                                                                             |
+| `concurrency` | Loads this backend tolerates in parallel. Defaults to `1` (serial)                                                 |
+| `when`        | Optional routing predicate (rare). Evaluated before `for` matching                                                 |
+| `load`        | Fetch one heterogeneous batch; return `(payload \| undefined)[]` same length/order as `batch` (`undefined` = miss) |
 
 ### Routing
 
@@ -393,12 +393,12 @@ Exported symbols:
 
 - **`createResourceGraphResolver`** — and types `ResourceGraphResolver`, `ResourceGraphResolverConfig`
 - **`createGraphResolutionStrategy`** — and types `GraphResolutionStrategy`, `GraphResolutionStrategyBuilder`
-- **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceOfFamily`, `ResourceUnionFromFamilies`, `SourceResourceRecord`, `ResourceLoadContext`, `SourceRouteContext`
+- **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceOfFamily`, `ResourceUnionFromFamilies`, `SourcePayloadSlot`, `ResourceLoadContext`, `SourceRouteContext`
 - **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**
-- Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceGraphAbortedError`**
+- Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceBatchLengthError`**, **`ResourceGraphAbortedError`**
 - Observability: **`ResolutionObserver`** and its event types
-- Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`SchedulingMode`**, **`ResolutionError`**, **`MissingResourceMode`**, **`SerializedIsland`**, **`ExpansionResult`**, **`IslandResult`**, **`ExpansionContext`**, **`IslandContext`**, **`ResolvedResourceRecord`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
+- Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`SchedulingMode`**, **`ResolutionError`**, **`MissingResourceMode`**, **`SerializedIsland`**, **`ExpansionResult`**, **`IslandResult`**, **`ExpansionContext`**, **`IslandContext`**, **`ResolveContext`**, **`ResolveResult`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 
 ## See also
 

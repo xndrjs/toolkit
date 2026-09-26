@@ -23,18 +23,13 @@ export function createAssetSource(
     id: ASSET_SOURCE_ID,
     for: [assetAri],
     async load(batch) {
-      const records: { resource: ReturnType<typeof assetAri>; payload: AssetPayload }[] = [];
-      for (const resource of batch) {
+      return batch.map((resource) => {
         if (!assetAri.matches(resource)) {
-          continue;
+          return undefined;
         }
-        const id = String((resource.key[0] as { id: string }).id);
-        const payload = assets.get(id);
-        if (payload !== undefined) {
-          records.push({ resource, payload });
-        }
-      }
-      return records;
+        const id = String(resource.key[0].id);
+        return assets.get(id);
+      });
     },
   });
 }
