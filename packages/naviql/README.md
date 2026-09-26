@@ -6,14 +6,14 @@
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@xndrjs/naviql`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                           |
 | `@xndrjs/naviql/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `generateProjections`, `defineConfig`, `buildResources` — Node / CI / build only |
-| `@xndrjs/naviql/lsp`     | Language server helpers + `naviql-language-server` bin (stdio) — workspace collect/merge → `checkProgram` diagnostics                                                                                   |
+| `@xndrjs/naviql/lsp`     | Language server helpers + `naviql-language-server` bin (stdio) — workspace collect/merge → diagnostics + IntelliSense (hover / completion / definition)                                                 |
 | `naviql-codegen` (bin)   | CLI: load `naviql.config.ts`, collect `.naviql` files, emit TypeScript (resources + strategies + `project*` + `resolve*` façades) — writes `out` or `--dry-run` to stdout                               |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
 **Vertical-slice example:** [`apps/naviql-demo`](../../apps/naviql-demo) — `.naviql` → codegen → `resolvePageDetail` (closed strategy → multi-DataSource `resolve` → `projectPageDetail`; low-level `create*Strategy` / `project*` still exported).
 
-**Editor:** [`.naviql` syntax highlighting + LSP diagnostics](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode`). Live squiggles use the same `parseAndCheck` / `checkProgram` rules as codegen: multi-file when a nearby `naviql.config.*` scopes the collect; otherwise single-file only (no monorepo-root glob). Build `@xndrjs/naviql` first so `naviql-language-server` exists under `dist/lsp/` (required for F5 / Install from Location). Completion, hover, and rename are not in this MVP.
+**Editor:** [`.naviql` syntax highlighting + LSP diagnostics + IntelliSense](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode`). Live squiggles, hover, completion, and go-to-definition share the same multi-file semantic snapshot as codegen (`parseAndCheck` / `checkProgram`): multi-file when a nearby `naviql.config.*` scopes the collect; otherwise single-file only (no monorepo-root glob). Build `@xndrjs/naviql` first so `naviql-language-server` exists under `dist/lsp/` (required for F5 / Install from Location).
 
 Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 
@@ -99,7 +99,18 @@ if (diagnostics.length === 0) {
 const result = buildResources({ root: process.cwd() });
 ```
 
-`generateResources` emits branded scalar types, a `Scalars` factory namespace (`Scalars.EntryId(…)` keyed by PascalCase type name — no uncapitalized top-level helpers), ARI factories (`postAri`), payload types (`PostPayload`), and a `ContentRegistry` slice from a checked `Program`. Queries are ignored.
+`generateResources` emits branded scalar types, a `Scalars` factory namespace, ARI factories (`postAri`), payload types (`PostPayload`), and a `ContentRegistry` slice from a checked `Program`. Queries are ignored.
+
+**Scalar factories** — each scalar gets a PascalCase key on `Scalars` whose param is the representation (`string` | `number` | `boolean`) and return type is the branded alias. Prefer factories over casts in adapters and fixtures:
+
+```ts
+import { Scalars, type EntryId, type Locale } from "./generated/resources";
+
+const id: EntryId = Scalars.EntryId(parsed.id);
+const locale: Locale = Scalars.Locale("en-US");
+```
+
+There are no uncapitalized top-level helpers (`entryId(…)`). An empty scalars program emits nothing for this section.
 
 `generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`); collection expand targets fan out member ARIs. The factory returns the builder **without** `.build()`, so apps can attach island policies by hand before calling `.build()`. Islands are not emitted.
 
