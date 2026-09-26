@@ -59,6 +59,43 @@ describe("emitProjections", () => {
     expect(code).toContain("return projectNode(root) as PostDetailResult;");
   });
 
+  it("emits alias-keyed project* for multi-root queries", () => {
+    const source = `
+      scalar PageId on string;
+      scalar SessionId on string;
+
+      resource Page(id: PageId): { id title: string }
+      resource UserSession(id: SessionId): { id userId: string }
+
+      query Homepage(pageId: PageId, sessionId: SessionId) {
+        roots {
+          page: Page(id: pageId)
+          session: UserSession(id: sessionId)
+        }
+        on Page p { id title }
+        on UserSession s { id userId }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjections(program!);
+
+    expect(code).toContain("export function projectHomepage(");
+    expect(code).toContain("roots: {\n    page: ReturnType<typeof pageAri>;");
+    expect(code).toContain("session: ReturnType<typeof userSessionAri>;");
+    expect(code).toContain("contentMap: ContentMap<ContentRegistry>");
+    expect(code).toContain("params: HomepageParams");
+    expect(code).toContain(": HomepageResult");
+    expect(code).toContain("const memo = new Map<string, object>();");
+    expect(code).toContain('case "Page":');
+    expect(code).toContain('case "UserSession":');
+    expect(code).toContain("page: projectNode(roots.page),");
+    expect(code).toContain("session: projectNode(roots.session),");
+    expect(code).toContain("} as HomepageResult;");
+    expect(code).not.toContain("root: ReturnType<typeof");
+  });
+
   it("emits payload.type switch and Entry shells for armed on Entry", () => {
     const source = `
       scalar Locale on string;
