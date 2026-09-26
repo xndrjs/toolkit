@@ -30,7 +30,6 @@ describe("createCustomReferenceSource", () => {
         spaceId,
         environmentId,
         id: demoIds.heroWelcome,
-        locale,
       },
     ]);
   });
@@ -45,7 +44,6 @@ describe("createCustomReferenceSource", () => {
         spaceId,
         environmentId,
         id: demoIds.assetLogo,
-        locale,
       },
     ]);
   });

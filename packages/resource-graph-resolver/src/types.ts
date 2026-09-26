@@ -85,6 +85,11 @@ export interface ResolveResourceGraphOutput<R extends ContentRegistry = ContentR
   errors: readonly ResolutionError[];
   /** Backing keys the walk actually reached, in promotion order. */
   promotedResourceKeys: readonly ResourceKey[];
+  /**
+   * Locator ARI key → canonical settle target (strategy `resolve` redirects).
+   * Projectors follow this so `@binding` identity refs use the canonical ARI key.
+   */
+  redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;
 }
 
 /** Portable island payload for cache/JSON (schema v1). */

@@ -39,8 +39,12 @@ function resolveOptions(options?: GenerateProjectionsOptions): ResolvedOptions {
   };
 }
 
-function emitRuntimeImport(importFrom: string): string {
-  return `import { type ContentMap } from ${JSON.stringify(importFrom)};`;
+function emitRuntimeImport(importFrom: string, program: Program): string {
+  const symbols = ["type ContentMap"];
+  if (program.queries.some((q) => q.projections.some((p) => p.resolveArms !== null))) {
+    symbols.push("type ApplicationResourceIdentifier", "type ResourceKey");
+  }
+  return `import { ${symbols.join(", ")} } from ${JSON.stringify(importFrom)};`;
 }
 
 /**
@@ -71,7 +75,7 @@ export function generateProjections(
   const parts: string[] = [GENERATED_HEADER];
 
   if (bodyParts.length > 0) {
-    parts.push(emitRuntimeImport(importFrom));
+    parts.push(emitRuntimeImport(importFrom, program));
     parts.push(...bodyParts);
   }
 

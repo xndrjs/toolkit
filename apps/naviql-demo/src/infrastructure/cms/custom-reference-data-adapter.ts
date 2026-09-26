@@ -11,7 +11,6 @@ import {
   type AssetId,
   type ContentRegistry,
   type EntryId,
-  type Locale,
   type PageDetailExecutionContext,
 } from "../../generated";
 import { parseCustomReference } from "./custom-reference.js";
@@ -35,7 +34,7 @@ export function createCustomReferenceSource(): DataSource<
         if (!customReferenceAri.matches(resource)) {
           return undefined;
         }
-        const key = resource.key[0] as { ref: string; locale: Locale };
+        const key = resource.key[0];
         const parsed = parseCustomReference(key.ref);
         if (parsed === null) {
           return undefined;
@@ -47,14 +46,12 @@ export function createCustomReferenceSource(): DataSource<
               spaceId: parsed.spaceId,
               environmentId: parsed.environmentId,
               id: parsed.id as EntryId,
-              locale: key.locale,
             }
           : {
               type: "Asset" as const,
               spaceId: parsed.spaceId,
               environmentId: parsed.environmentId,
               id: parsed.id as AssetId,
-              locale: key.locale,
             };
       });
     },
