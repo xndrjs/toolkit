@@ -1,44 +1,27 @@
 /**
- * Emit open `createGraphResolutionStrategy` builders from checked queries.
- * Local expansions and resolve policies — no islands, root helpers, or `.build()`.
+ * Expansion policy emit helpers for open `createGraphResolutionStrategy` builders.
  * Armed `on` projections emit one `.on(ari).when(…).expand(…)` per arm that
  * expands; flat `on` stays `.on(ari).expand(…)`.
- * Resolve-only `on R resolve to` emits `.resolve.on(ari)[.when(…)].to(…)`.
  * Collection expand targets get an auto member-ARI fan-out `.on(collectionAri)`.
- *
- * Callbacks take a single `predicate` and use dot access (no destructuring).
  */
 import type {
   ExpandArm,
   Expansion,
   FieldDecl,
-  Program,
   ProjectionArm,
   QueryDefinition,
-  ResolveArm,
   ResourceDefinition,
   ResourceProjection,
   TypeExpr,
 } from "../../../ir";
-import { emitConstruction } from "./emit-construction";
 import {
+  emitConstruction,
   emitExpr,
   strategyArmedBodyScope,
   strategyExprScope,
   type EmitExprScope,
-} from "./emit-expr";
-import { printTypeExpr } from "./emit-types";
-import {
-  ariFactoryName,
-  executionContextTypeName,
-  paramsTypeName,
-  strategyFactoryName,
-} from "../naming";
-
-function emitObjectTypeAlias(name: string, fields: FieldDecl[]): string {
-  const body = printTypeExpr({ kind: "object", fields, span: null });
-  return `export type ${name} = ${body};`;
-}
+} from "../shared";
+import { ariFactoryName } from "../naming";
 
 function emitArmManyExpr(
   sourceExpr: string,
@@ -159,7 +142,7 @@ function emitArmedProjectionExpansion(projection: ResourceProjection, arm: Proje
  * arms with fields only (no expand) are omitted from the strategy.
  * Resolve-only projections contribute no expansions.
  */
-function emitProjectionExpansions(projection: ResourceProjection): string[] {
+export function emitProjectionExpansions(projection: ResourceProjection): string[] {
   if (projection.resolveArms !== null) {
     return [];
   }
@@ -172,44 +155,6 @@ function emitProjectionExpansions(projection: ResourceProjection): string[] {
     return [];
   }
   return [emitFlatProjectionExpansion(projection)];
-}
-
-function emitResolveArm(projection: ResourceProjection, arm: ResolveArm): string {
-  const ari = ariFactoryName(projection.resource);
-
-  if (arm.when !== null) {
-    const whenPred = emitExpr(arm.when, strategyExprScope);
-    const construction = emitConstruction(arm.target, strategyArmedBodyScope);
-    // Same cast as armed expands: `.when()` is a runtime filter only.
-    return [
-      `  strategy.resolve`,
-      `    .on(${ari})`,
-      `    .when((predicate) => ${whenPred})`,
-      `    .to((predicate) => {`,
-      `      const payload = predicate.payload as any;`,
-      `      return {`,
-      `        resource: ${construction},`,
-      `      };`,
-      `    });`,
-    ].join("\n");
-  }
-
-  const construction = emitConstruction(arm.target, strategyExprScope);
-  return [
-    `  strategy.resolve`,
-    `    .on(${ari})`,
-    `    .to((predicate) => ({`,
-    `      resource: ${construction},`,
-    `    }));`,
-  ].join("\n");
-}
-
-/** Resolve policy blocks for one resolve-only `on` projection. */
-function emitProjectionResolves(projection: ResourceProjection): string[] {
-  if (projection.resolveArms === null) {
-    return [];
-  }
-  return projection.resolveArms.map((arm) => emitResolveArm(projection, arm));
 }
 
 /** All expansions under a projection (flat body or flattened when-arms). */
@@ -261,7 +206,7 @@ function emitCollectionFanOut(
   ].join("\n");
 }
 
-function collectCollectionFanOuts(
+export function collectCollectionFanOuts(
   query: QueryDefinition,
   resourceIndex: Map<string, ResourceDefinition>
 ): string[] {
@@ -289,71 +234,4 @@ function collectCollectionFanOuts(
   }
 
   return blocks;
-}
-
-function emitQueryStrategy(
-  query: QueryDefinition,
-  registryTypeName: string,
-  resourceIndex: Map<string, ResourceDefinition>
-): string {
-  const factory = strategyFactoryName(query.name);
-  const paramsName = paramsTypeName(query.name);
-  const contextName = executionContextTypeName(query.name);
-  const hasParams = query.parameters.length > 0;
-  const hasContext = query.context.length > 0;
-
-  const parts: string[] = [];
-
-  if (hasParams) {
-    parts.push(emitObjectTypeAlias(paramsName, query.parameters));
-  }
-  if (hasContext) {
-    parts.push(emitObjectTypeAlias(contextName, query.context));
-  }
-
-  const executionContextType = hasContext ? contextName : "unknown";
-  const factorySig = hasParams
-    ? `function ${factory}(params: ${paramsName})`
-    : `function ${factory}()`;
-
-  const expansionBlocks = query.projections.flatMap(emitProjectionExpansions);
-  const resolveBlocks = query.projections.flatMap(emitProjectionResolves);
-  const fanOutBlocks = collectCollectionFanOuts(query, resourceIndex);
-
-  const bodyLines: string[] = [
-    `  const strategy = createGraphResolutionStrategy<`,
-    `    ${executionContextType},`,
-    `    ${registryTypeName}`,
-    `  >();`,
-  ];
-
-  const policyBlocks = [...expansionBlocks, ...fanOutBlocks, ...resolveBlocks];
-  if (policyBlocks.length > 0) {
-    bodyLines.push("");
-    bodyLines.push(policyBlocks.join("\n\n"));
-  }
-
-  bodyLines.push("");
-  bodyLines.push(`  return strategy;`);
-
-  parts.push(`export ${factorySig} {\n${bodyLines.join("\n")}\n}`);
-
-  return parts.join("\n\n");
-}
-
-/**
- * Emit params/context types and `create*Strategy` factories for each query.
- * Returns an empty string when the program has no queries.
- *
- * @param registryTypeName - Registry generic on `createGraphResolutionStrategy` (default `ContentRegistry`).
- */
-export function emitStrategies(program: Program, registryTypeName = "ContentRegistry"): string {
-  if (program.queries.length === 0) {
-    return "";
-  }
-
-  const resourceIndex = new Map(program.resources.map((r) => [r.name, r]));
-  return program.queries
-    .map((query) => emitQueryStrategy(query, registryTypeName, resourceIndex))
-    .join("\n\n");
 }

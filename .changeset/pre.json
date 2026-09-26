@@ -24,8 +24,5 @@
     "@xndrjs/tasks": "0.2.0",
     "@xndrjs/contentful-to-zod-demo": "0.0.1"
   },
-  "changesets": [
-    "contentful-to-zod-values-first-ids",
-    "resource-graph-resolver-strategy-dsl"
-  ]
+  "changesets": ["contentful-to-zod-values-first-ids", "resource-graph-resolver-strategy-dsl"]
 }
