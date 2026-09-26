@@ -41,10 +41,12 @@ export type NaviQlKeywordNames =
   | "number"
   | "on"
   | "query"
+  | "resolve"
   | "resource"
   | "root"
   | "scalar"
   | "string"
+  | "to"
   | "true"
   | "when"
   | "{"
@@ -100,7 +102,7 @@ export function isAtomicTypeExpr(item: unknown): item is AtomicTypeExpr {
 }
 
 export interface BinaryExpr extends langium.AstNode {
-  readonly $container: EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
+  readonly $container: EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm | ResolveArm;
   readonly $type: "BinaryExpr";
   left: Atom;
   op: "!=" | "==";
@@ -119,7 +121,13 @@ export function isBinaryExpr(item: unknown): item is BinaryExpr {
 }
 
 export interface BooleanLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
+  readonly $container:
+    | BinaryExpr
+    | EachComprehension
+    | ExpandArm
+    | NamedArg
+    | ProjectionWhenArm
+    | ResolveArm;
   readonly $type: "BooleanLiteral";
   value: "false" | "true";
 }
@@ -149,7 +157,13 @@ export function isContextBlock(item: unknown): item is ContextBlock {
 }
 
 export interface ContextRef extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
+  readonly $container:
+    | BinaryExpr
+    | EachComprehension
+    | ExpandArm
+    | NamedArg
+    | ProjectionWhenArm
+    | ResolveArm;
   readonly $type: "ContextRef";
   path: Array<string>;
 }
@@ -305,7 +319,13 @@ export function isGroupedTypeExpr(item: unknown): item is GroupedTypeExpr {
 }
 
 export interface IdentityRef extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
+  readonly $container:
+    | BinaryExpr
+    | EachComprehension
+    | ExpandArm
+    | NamedArg
+    | ProjectionWhenArm
+    | ResolveArm;
   readonly $type: "IdentityRef";
   binding: string;
   path: Array<string>;
@@ -385,7 +405,13 @@ export function isNamedTypeExpr(item: unknown): item is NamedTypeExpr {
 }
 
 export interface NullLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
+  readonly $container:
+    | BinaryExpr
+    | EachComprehension
+    | ExpandArm
+    | NamedArg
+    | ProjectionWhenArm
+    | ResolveArm;
   readonly $type: "NullLiteral";
 }
 
@@ -398,7 +424,13 @@ export function isNullLiteral(item: unknown): item is NullLiteral {
 }
 
 export interface NumberLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
+  readonly $container:
+    | BinaryExpr
+    | EachComprehension
+    | ExpandArm
+    | NamedArg
+    | ProjectionWhenArm
+    | ResolveArm;
   readonly $type: "NumberLiteral";
   value: string;
 }
@@ -456,7 +488,13 @@ export function isObjectTypeExpr(item: unknown): item is ObjectTypeExpr {
 }
 
 export interface PathRef extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
+  readonly $container:
+    | BinaryExpr
+    | EachComprehension
+    | ExpandArm
+    | NamedArg
+    | ProjectionWhenArm
+    | ResolveArm;
   readonly $type: "PathRef";
   segments: Array<string>;
 }
@@ -498,11 +536,13 @@ export function isPrimitiveTypeExpr(item: unknown): item is PrimitiveTypeExpr {
 }
 
 /**
- * Three shapes (items = fields | expands | spreads):
+ * Four shapes (items = fields | expands | spreads):
  *   1. Flat: items* (no when)
  *   2. Armed: whenArms+ only
  *   3. Preamble + armed: items+ whenArms+
+ *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
  * Items after the first `when` are a parse error (whenArms only follow).
+ * Resolve form is mutually exclusive with projection body at parse time.
  * IR-built programs that mix root fields with arms are still rejected by check.
  */
 export interface ProjectionClause extends langium.AstNode {
@@ -510,6 +550,7 @@ export interface ProjectionClause extends langium.AstNode {
   readonly $type: "ProjectionClause";
   binding: string;
   expansions: Array<Expansion>;
+  resolveArms: Array<ResolveArm>;
   resource: string;
   selectedFields: Array<string>;
   spreads: Array<FragmentSpread>;
@@ -520,6 +561,7 @@ export const ProjectionClause = {
   $type: "ProjectionClause",
   binding: "binding",
   expansions: "expansions",
+  resolveArms: "resolveArms",
   resource: "resource",
   selectedFields: "selectedFields",
   spreads: "spreads",
@@ -575,8 +617,26 @@ export function isQueryDeclaration(item: unknown): item is QueryDeclaration {
   return reflection.isInstance(item, QueryDeclaration.$type);
 }
 
+/** Redirect arm: `Entry(…) when c.type == "Entry"`. */
+export interface ResolveArm extends langium.AstNode {
+  readonly $container: ProjectionClause;
+  readonly $type: "ResolveArm";
+  target: ResourceConstruction;
+  when?: Expression;
+}
+
+export const ResolveArm = {
+  $type: "ResolveArm",
+  target: "target",
+  when: "when",
+} as const;
+
+export function isResolveArm(item: unknown): item is ResolveArm {
+  return reflection.isInstance(item, ResolveArm.$type);
+}
+
 export interface ResourceConstruction extends langium.AstNode {
-  readonly $container: ExpandArm | Expansion | RootClause;
+  readonly $container: ExpandArm | Expansion | ResolveArm | RootClause;
   readonly $type: "ResourceConstruction";
   args: Array<NamedArg>;
   resource: string;
@@ -644,7 +704,13 @@ export function isScalarDeclaration(item: unknown): item is ScalarDeclaration {
 }
 
 export interface StringLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
+  readonly $container:
+    | BinaryExpr
+    | EachComprehension
+    | ExpandArm
+    | NamedArg
+    | ProjectionWhenArm
+    | ResolveArm;
   readonly $type: "StringLiteral";
   value: string;
 }
@@ -799,6 +865,7 @@ export type NaviQlAstType = {
   ProjectionClause: ProjectionClause;
   ProjectionWhenArm: ProjectionWhenArm;
   QueryDeclaration: QueryDeclaration;
+  ResolveArm: ResolveArm;
   ResourceConstruction: ResourceConstruction;
   ResourceDeclaration: ResourceDeclaration;
   RootClause: RootClause;
@@ -1101,6 +1168,11 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           defaultValue: [],
           optional: true,
         },
+        resolveArms: {
+          name: ProjectionClause.resolveArms,
+          defaultValue: [],
+          optional: true,
+        },
         resource: {
           name: ProjectionClause.resource,
         },
@@ -1171,6 +1243,19 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [Declaration.$type],
+    },
+    ResolveArm: {
+      name: ResolveArm.$type,
+      properties: {
+        target: {
+          name: ResolveArm.target,
+        },
+        when: {
+          name: ResolveArm.when,
+          optional: true,
+        },
+      },
+      superTypes: [],
     },
     ResourceConstruction: {
       name: ResourceConstruction.$type,
