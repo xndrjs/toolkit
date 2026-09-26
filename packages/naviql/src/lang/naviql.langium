@@ -1,8 +1,7 @@
 grammar NaviQl
 
 // MVP surface: scalars, resources (`Name(identity): payloadType`), queries,
-// expansions with `each` many-arms (`when` per arm).
-// No islands or projection `when`-clauses.
+// expansions with `each` many-arms (`when` per arm), and projection `when` arms.
 
 entry Model:
     declarations+=Declaration*;
@@ -93,8 +92,21 @@ ContextBlock:
 RootClause:
     'root' construction=ResourceConstruction;
 
+/**
+ * Flat body (`id` / `expand …`) or only `when` arms — not both.
+ * Mixing is also rejected by the checker for IR-built programs.
+ */
 ProjectionClause:
     'on' resource=ID binding=ID '{'
+        (
+            whenArms+=ProjectionWhenArm+
+          | (selectedFields+=ID | expansions+=Expansion)*
+        )
+    '}';
+
+/** Discriminant arm: `when e.type == "Hero" { … }`. */
+ProjectionWhenArm:
+    'when' when=Expression '{'
         (selectedFields+=ID | expansions+=Expansion)*
     '}';
 
@@ -121,7 +133,7 @@ NamedArg:
 // --- Expressions -------------------------------------------------------------
 // Path shapes are classified during lowering (param / payloadRef / itemRef).
 // `context.path` and `@binding[.path]` are dedicated forms (context is a keyword).
-// Equality is only needed for `each` arm `when` filters (`s.type == "Hero"`).
+// Equality is used for `each` / projection `when` filters (`s.type == "Hero"`).
 
 Expression:
     Atom ({infer BinaryExpr.left=current} op=('==' | '!=') right=Atom)?;

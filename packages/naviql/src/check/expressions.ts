@@ -182,9 +182,104 @@ function resolveBindingPath(
   if (!resource) {
     return undefined;
   }
-  const fields = side === "payload" ? resource.payload : resource.identity;
-  const code = side === "payload" ? "UNKNOWN_PAYLOAD_PATH" : "UNKNOWN_IDENTITY_PATH";
-  return resolvePathOnFields(pathSegments, fields, path, code, side, span, sink);
+
+  if (side === "identity") {
+    return resolvePathOnFields(
+      pathSegments,
+      resource.identity,
+      path,
+      "UNKNOWN_IDENTITY_PATH",
+      "identity",
+      span,
+      sink
+    );
+  }
+
+  const narrowed = scope.payloadNarrowing.get(binding);
+  const payloadType = narrowed ?? resource.payloadType;
+  return resolvePathOnPayloadType(pathSegments, payloadType, path, span, resources, sink);
+}
+
+/**
+ * Resolve a payload path against an object, resourceRef, or union payload,
+ * distributing over unions the same way item paths do.
+ */
+function resolvePathOnPayloadType(
+  pathSegments: string[],
+  payloadType: TypeExpr,
+  diagPath: string,
+  span: SourceSpan | null,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): TypeExpr | undefined {
+  const inner = unwrapNullable(payloadType);
+
+  if (inner.kind === "object") {
+    return resolvePathOnFields(
+      pathSegments,
+      new Map(inner.fields.map((f) => [f.name, f])),
+      diagPath,
+      "UNKNOWN_PAYLOAD_PATH",
+      "payload",
+      span,
+      sink
+    );
+  }
+
+  if (inner.kind === "resourceRef") {
+    const referenced = resources.get(inner.name);
+    if (!referenced) {
+      sink.push({
+        code: "UNKNOWN_PAYLOAD_PATH",
+        message: `Unknown resource '${inner.name}' in payload path`,
+        path: diagPath,
+        span,
+      });
+      return undefined;
+    }
+    return resolvePathOnPayloadType(
+      pathSegments,
+      referenced.payloadType,
+      diagPath,
+      span,
+      resources,
+      sink
+    );
+  }
+
+  if (inner.kind === "union") {
+    const memberTypes: TypeExpr[] = [];
+    for (const member of inner.members) {
+      const resolved = resolvePathOnPayloadType(
+        pathSegments,
+        member,
+        diagPath,
+        span,
+        resources,
+        sink
+      );
+      if (!resolved) {
+        return undefined;
+      }
+      memberTypes.push(resolved);
+    }
+    const unique: TypeExpr[] = [];
+    for (const t of memberTypes) {
+      if (!unique.some((u) => formatType(u) === formatType(t))) {
+        unique.push(t);
+      }
+    }
+    if (unique.length === 1) return unique[0];
+    return { kind: "union", members: unique, span: null };
+  }
+
+  sink.push({
+    code: "UNKNOWN_PAYLOAD_PATH",
+    message: `Cannot access path on non-object payload type ${formatType(payloadType)}`,
+    path: diagPath,
+    span,
+  });
+  return undefined;
 }
 
 function resolvePathOnFields(

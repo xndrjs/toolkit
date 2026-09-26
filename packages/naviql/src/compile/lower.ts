@@ -17,6 +17,7 @@ import type {
   NamedArg,
   PrimitiveTypeName,
   Program,
+  ProjectionArm,
   QueryDefinition,
   ResourceConstruction,
   ResourceDefinition,
@@ -51,6 +52,7 @@ import {
   type NamedArg as AstNamedArg,
   type ObjectField as AstObjectField,
   type ProjectionClause as AstProjectionClause,
+  type ProjectionWhenArm as AstProjectionWhenArm,
   type QueryDeclaration as AstQueryDeclaration,
   type ResourceConstruction as AstResourceConstruction,
   type ResourceDeclaration as AstResourceDeclaration,
@@ -229,12 +231,32 @@ function lowerTypeExpr(
 }
 
 function lowerProjection(clause: AstProjectionClause): ResourceProjection {
+  if (clause.whenArms.length > 0) {
+    return {
+      resource: clause.resource,
+      binding: clause.binding,
+      selectedFields: [],
+      expansions: [],
+      arms: clause.whenArms.map(lowerProjectionArm),
+      span: spanOf(clause),
+    };
+  }
   return {
     resource: clause.resource,
     binding: clause.binding,
     selectedFields: [...clause.selectedFields],
     expansions: clause.expansions.map(lowerExpansion),
+    arms: null,
     span: spanOf(clause),
+  };
+}
+
+function lowerProjectionArm(arm: AstProjectionWhenArm): ProjectionArm {
+  return {
+    when: lowerExpr(arm.when),
+    selectedFields: [...arm.selectedFields],
+    expansions: arm.expansions.map(lowerExpansion),
+    span: spanOf(arm),
   };
 }
 

@@ -98,7 +98,7 @@ export function isAtomicTypeExpr(item: unknown): item is AtomicTypeExpr {
 }
 
 export interface BinaryExpr extends langium.AstNode {
-  readonly $container: EachComprehension | ExpandArm | NamedArg;
+  readonly $container: EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
   readonly $type: "BinaryExpr";
   left: Atom;
   op: "!=" | "==";
@@ -117,7 +117,7 @@ export function isBinaryExpr(item: unknown): item is BinaryExpr {
 }
 
 export interface BooleanLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
   readonly $type: "BooleanLiteral";
   value: "false" | "true";
 }
@@ -147,7 +147,7 @@ export function isContextBlock(item: unknown): item is ContextBlock {
 }
 
 export interface ContextRef extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
   readonly $type: "ContextRef";
   path: Array<string>;
 }
@@ -209,7 +209,7 @@ export function isExpandArm(item: unknown): item is ExpandArm {
 }
 
 export interface Expansion extends langium.AstNode {
-  readonly $container: ProjectionClause;
+  readonly $container: ProjectionClause | ProjectionWhenArm;
   readonly $type: "Expansion";
   alias: string;
   each?: EachComprehension;
@@ -259,7 +259,7 @@ export function isGroupedTypeExpr(item: unknown): item is GroupedTypeExpr {
 }
 
 export interface IdentityRef extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
   readonly $type: "IdentityRef";
   binding: string;
   path: Array<string>;
@@ -339,7 +339,7 @@ export function isNamedTypeExpr(item: unknown): item is NamedTypeExpr {
 }
 
 export interface NullLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
   readonly $type: "NullLiteral";
 }
 
@@ -352,7 +352,7 @@ export function isNullLiteral(item: unknown): item is NullLiteral {
 }
 
 export interface NumberLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
   readonly $type: "NumberLiteral";
   value: string;
 }
@@ -410,7 +410,7 @@ export function isObjectTypeExpr(item: unknown): item is ObjectTypeExpr {
 }
 
 export interface PathRef extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
   readonly $type: "PathRef";
   segments: Array<string>;
 }
@@ -451,6 +451,10 @@ export function isPrimitiveTypeExpr(item: unknown): item is PrimitiveTypeExpr {
   return reflection.isInstance(item, PrimitiveTypeExpr.$type);
 }
 
+/**
+ * Flat body (`id` / `expand …`) or only `when` arms — not both.
+ * Mixing is also rejected by the checker for IR-built programs.
+ */
 export interface ProjectionClause extends langium.AstNode {
   readonly $container: QueryDeclaration;
   readonly $type: "ProjectionClause";
@@ -458,6 +462,7 @@ export interface ProjectionClause extends langium.AstNode {
   expansions: Array<Expansion>;
   resource: string;
   selectedFields: Array<string>;
+  whenArms: Array<ProjectionWhenArm>;
 }
 
 export const ProjectionClause = {
@@ -466,10 +471,31 @@ export const ProjectionClause = {
   expansions: "expansions",
   resource: "resource",
   selectedFields: "selectedFields",
+  whenArms: "whenArms",
 } as const;
 
 export function isProjectionClause(item: unknown): item is ProjectionClause {
   return reflection.isInstance(item, ProjectionClause.$type);
+}
+
+/** Discriminant arm: `when e.type == "Hero" { … }`. */
+export interface ProjectionWhenArm extends langium.AstNode {
+  readonly $container: ProjectionClause;
+  readonly $type: "ProjectionWhenArm";
+  expansions: Array<Expansion>;
+  selectedFields: Array<string>;
+  when: Expression;
+}
+
+export const ProjectionWhenArm = {
+  $type: "ProjectionWhenArm",
+  expansions: "expansions",
+  selectedFields: "selectedFields",
+  when: "when",
+} as const;
+
+export function isProjectionWhenArm(item: unknown): item is ProjectionWhenArm {
+  return reflection.isInstance(item, ProjectionWhenArm.$type);
 }
 
 export interface QueryDeclaration extends langium.AstNode {
@@ -564,7 +590,7 @@ export function isScalarDeclaration(item: unknown): item is ScalarDeclaration {
 }
 
 export interface StringLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg;
+  readonly $container: BinaryExpr | EachComprehension | ExpandArm | NamedArg | ProjectionWhenArm;
   readonly $type: "StringLiteral";
   value: string;
 }
@@ -715,6 +741,7 @@ export type NaviQlAstType = {
   PathRef: PathRef;
   PrimitiveTypeExpr: PrimitiveTypeExpr;
   ProjectionClause: ProjectionClause;
+  ProjectionWhenArm: ProjectionWhenArm;
   QueryDeclaration: QueryDeclaration;
   ResourceConstruction: ResourceConstruction;
   ResourceDeclaration: ResourceDeclaration;
@@ -986,6 +1013,30 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           name: ProjectionClause.selectedFields,
           defaultValue: [],
           optional: true,
+        },
+        whenArms: {
+          name: ProjectionClause.whenArms,
+          defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [],
+    },
+    ProjectionWhenArm: {
+      name: ProjectionWhenArm.$type,
+      properties: {
+        expansions: {
+          name: ProjectionWhenArm.expansions,
+          defaultValue: [],
+          optional: true,
+        },
+        selectedFields: {
+          name: ProjectionWhenArm.selectedFields,
+          defaultValue: [],
+          optional: true,
+        },
+        when: {
+          name: ProjectionWhenArm.when,
         },
       },
       superTypes: [],

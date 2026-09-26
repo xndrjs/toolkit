@@ -19,6 +19,11 @@ export type QueryScope = {
   bindings: Map<string, string>;
   /** Comprehension item binding → element type (narrowed by filter when possible) */
   items: Map<string, TypeExpr>;
+  /**
+   * Projection binding → narrowed payload type (set while checking `when` arms).
+   * When absent, payload refs resolve against the resource's declared payload.
+   */
+  payloadNarrowing: Map<string, TypeExpr>;
 };
 
 export type ScalarTable = Map<string, ScalarDefinition>;

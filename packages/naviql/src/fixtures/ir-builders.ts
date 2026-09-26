@@ -130,11 +130,42 @@ export function projection(
   resourceName: string,
   binding: string,
   selectedFields: string[],
-  expansions: Expansion[] = []
+  expansions: Expansion[] = [],
+  arms: ResourceProjection["arms"] = null
 ): ResourceProjection {
   return {
     resource: resourceName,
     binding,
+    selectedFields,
+    expansions,
+    arms,
+    span,
+  };
+}
+
+/** Armed projection helper: `on Entry e { when … { … } … }`. */
+export function projectionWithArms(
+  resourceName: string,
+  binding: string,
+  arms: NonNullable<ResourceProjection["arms"]>
+): ResourceProjection {
+  return {
+    resource: resourceName,
+    binding,
+    selectedFields: [],
+    expansions: [],
+    arms,
+    span,
+  };
+}
+
+export function projectionArm(
+  when: Expr,
+  selectedFields: string[],
+  expansions: Expansion[] = []
+): NonNullable<ResourceProjection["arms"]>[number] {
+  return {
+    when,
     selectedFields,
     expansions,
     span,

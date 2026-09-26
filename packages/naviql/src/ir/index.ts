@@ -1,8 +1,8 @@
 /**
  * NaviQL semantic IR — parser-independent types.
  *
- * Phase 1–5+ surface. Omitted for now: islands, `when` on projections,
- * scalar bodies/codecs, scalar-on-scalar, object-backed scalars, named enums.
+ * Phase 1–5+ surface. Omitted for now: islands, scalar bodies/codecs,
+ * scalar-on-scalar, object-backed scalars, named enums.
  *
  * Presence/absence that affects meaning or diagnostics is never optional:
  * use `null` (or required `boolean`) so producers must choose explicitly.
@@ -87,9 +87,10 @@ export type ResourceDefinition = {
 };
 
 /**
- * Expression nodes used in constructor args and `each` arm `when` filters.
- * `payloadRef` vs `identityRef` stay distinct through typecheck and codegen.
- * `itemRef` is only valid inside an `each` comprehension (binding = itemBinding).
+ * Expression nodes used in constructor args and `when` filters (`each` arms and
+ * projection arms). `payloadRef` vs `identityRef` stay distinct through typecheck
+ * and codegen. `itemRef` is only valid inside an `each` comprehension
+ * (binding = itemBinding).
  */
 export type Expr =
   | { kind: "literal"; value: string | number | boolean | null; span: SourceSpan | null }
@@ -149,11 +150,31 @@ export type Expansion = {
   span: SourceSpan | null;
 };
 
+/** One arm of a projection `when` block: filter + selected fields / expansions. */
+export type ProjectionArm = {
+  when: Expr;
+  selectedFields: string[];
+  expansions: Expansion[];
+  span: SourceSpan | null;
+};
+
 export type ResourceProjection = {
   resource: string;
   binding: string;
+  /**
+   * Flat body fields. Empty when `arms !== null` (armed projections keep fields
+   * on each arm instead).
+   */
   selectedFields: string[];
+  /**
+   * Flat body expansions. Empty when `arms !== null`.
+   */
   expansions: Expansion[];
+  /**
+   * Discriminant `when` arms, or `null` for an unconditional flat `on` body.
+   * Mixing flat fields/expansions with arms is rejected by the checker.
+   */
+  arms: ProjectionArm[] | null;
   span: SourceSpan | null;
 };
 
