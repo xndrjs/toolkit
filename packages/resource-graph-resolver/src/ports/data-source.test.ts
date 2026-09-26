@@ -36,7 +36,7 @@ describe("resource family typing", () => {
 });
 
 describe("defineDataSourceFor", () => {
-  it("narrows the batch and the payload per ARI type inside load", async () => {
+  it("returns positional payloads (same length/order as batch); undefined = miss", async () => {
     const source = defineCmsSource({
       id: "cms",
       for: forFamilies,
@@ -47,10 +47,10 @@ describe("defineDataSourceFor", () => {
 
         return batch.map((resource) => {
           if (cmsEntryAri.matches(resource)) {
-            return { resource, payload: { title: `entry:${resource.key[0].id}` } };
+            return { title: `entry:${resource.key[0].id}` };
           }
 
-          return { resource, payload: { url: `https://cdn.example.com/${resource.key[0].id}` } };
+          return { url: `https://cdn.example.com/${resource.key[0].id}` };
         });
       },
     });
@@ -58,22 +58,19 @@ describe("defineDataSourceFor", () => {
     const pageEntry = cmsEntryAri({ id: "page", locale: "en-US" });
     const logoAsset = cmsAssetAri({ id: "logo", locale: "en-US" });
 
-    const records = await source.load([pageEntry, logoAsset], {
+    const payloads = await source.load([pageEntry, logoAsset], {
       executionContext: undefined,
       batchNumber: 1,
     });
 
-    expect(records.map((record) => [record.resource.toString(), record.payload])).toEqual([
-      [pageEntry.toString(), { title: "entry:page" }],
-      [logoAsset.toString(), { url: "https://cdn.example.com/logo" }],
-    ]);
+    expect(payloads).toEqual([{ title: "entry:page" }, { url: "https://cdn.example.com/logo" }]);
   });
 
   it("defaults batchSize to unlimited and concurrency to serial", () => {
     const source = defineCmsSource({
       id: "cms",
       for: forFamilies,
-      load: async () => [],
+      load: async (batch) => batch.map(() => undefined),
     });
 
     expect(source.batchSize).toBeUndefined();
@@ -86,13 +83,13 @@ describe("defineDataSourceFor", () => {
       id: "a",
       for: forFamilies,
       concurrency: 0,
-      load: async () => [],
+      load: async (batch) => batch.map(() => undefined),
     });
     const parallel = defineCmsSource({
       id: "b",
       for: forFamilies,
       concurrency: 3.7,
-      load: async () => [],
+      load: async (batch) => batch.map(() => undefined),
     });
 
     expect(serial.concurrency).toBe(1);

@@ -3,6 +3,7 @@ import type { ApplicationResourceIdentifier } from "@xndrjs/application-resource
 import {
   MissingResourceError,
   NoDataSourceError,
+  ResourceBatchLengthError,
   ResourceLoadFailedError,
   type ResourceGraphError,
 } from "../errors";
@@ -16,7 +17,6 @@ import type {
   SchedulingMode,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
-  ResolvedResourceRecord,
 } from "../types";
 
 /** Per-source scheduling state: one pending queue plus in-flight accounting. */
@@ -36,7 +36,7 @@ type LoadCompletion<R extends ContentRegistry, TExecutionContext> = {
   readonly startedAt: number;
   readonly resources: readonly ApplicationResourceIdentifier[];
 } & (
-  | { readonly ok: true; readonly records: readonly ResolvedResourceRecord<R>[] }
+  | { readonly ok: true; readonly payloads: readonly (R[keyof R & string] | undefined)[] }
   | { readonly ok: false; readonly error: unknown }
 );
 
@@ -138,7 +138,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   };
 
   /**
-   * After settle: follow DataSource or strategy redirects, else expand.
+   * After settle: follow strategy redirects, else expand.
    * Does not treat a missing payload as an error — callers check that first when needed.
    */
   const continueAfterPayload = (
@@ -153,8 +153,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       return;
     }
 
-    const expandTarget = session.rematerializationOf(resource) ?? resource;
-    expandInto(expandTarget, islandIds);
+    expandInto(resource, islandIds);
   };
 
   /** Islands waiting on `ref`, falling back to the ref's own island. */
@@ -255,8 +254,8 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     const resources: ApplicationResourceIdentifier[] = [];
 
     for (const ref of slice) {
-      // A source may return records it was never asked for, resolving an ARI
-      // that is still queued elsewhere. Expand it instead of fetching again.
+      // Another batch (or backing promote) may have settled this ARI while it
+      // waited in the lane — expand instead of fetching again.
       if (session.isResolved(ref.resource)) {
         const islandIds = islandsWaitingOn(ref);
         session.settle(ref.resource);
@@ -298,7 +297,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
         batchNumber,
       })
       .then(
-        (records): LoadCompletion<R, TExecutionContext> => ({
+        (payloads): LoadCompletion<R, TExecutionContext> => ({
           ok: true,
           loadId,
           lane,
@@ -306,7 +305,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
           batchNumber,
           startedAt,
           resources,
-          records,
+          payloads,
         }),
         (error: unknown): LoadCompletion<R, TExecutionContext> => ({
           ok: false,
@@ -389,21 +388,29 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       sourceId: completion.lane.source.id,
       batchNumber: completion.batchNumber,
       requestedCount: completion.refs.length,
-      resolvedCount: completion.records.length,
+      resolvedCount: completion.payloads.filter((payload) => payload !== undefined).length,
       durationMs,
     }));
 
     session.assertNotAborted();
-    session.commitRecords(completion.records);
+
+    if (completion.payloads.length !== completion.resources.length) {
+      throw new ResourceBatchLengthError(
+        completion.lane.source.id,
+        completion.resources.length,
+        completion.payloads.length
+      );
+    }
+
+    session.commitPayloads(completion.resources, completion.payloads);
 
     for (const ref of completion.refs) {
       const islandIds = islandsWaitingOn(ref);
       session.settle(ref.resource);
 
-      // DataSource ResourceRedirectRecord (no payload) or strategy resolve (post-decode).
+      // Strategy resolve (post-decode): enqueue target; do not expand the locator.
       const redirectTo = session.applyResolvePolicies(ref.resource);
       if (redirectTo !== undefined) {
-        // CustomReference → Entry: enqueue the canonical ARI; do not expand the locator.
         for (const inheritedIslandId of islandIds) {
           enqueue([{ resource: redirectTo, inheritedIslandId }]);
         }
@@ -420,10 +427,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
         continue;
       }
 
-      // Rematerialization (Entry → Hero): expand the concrete node so member
-      // expansion policies run; the abstract key stays resolved for lookups.
-      const expandTarget = session.rematerializationOf(ref.resource) ?? ref.resource;
-      expandInto(expandTarget, islandIds);
+      expandInto(ref.resource, islandIds);
     }
   };
 

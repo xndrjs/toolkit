@@ -18,8 +18,7 @@ export type ResolveContext<
 
 /**
  * Redirect target for the current resource. The engine registers
- * `current → resource` the same way a DataSource {@link import("../types").ResourceRedirectRecord}
- * does, then enqueues the target without expanding the locator.
+ * `current → resource`, then enqueues the target without expanding the locator.
  */
 export interface ResolveResult {
   readonly resource: ApplicationResourceIdentifier;

@@ -1,4 +1,3 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 import { describe, expect, it } from "vitest";
 
 import { createResourceGraphResolver } from "./resource-graph-resolver";
@@ -290,76 +289,40 @@ describe("observer", () => {
   });
 });
 
-describe("unrequested records", () => {
-  it("expands a resource a source volunteered while it was queued elsewhere", async () => {
+describe("positional load length", () => {
+  it("rejects a source that returns extra payload slots beyond the batch", async () => {
     const root = chainAri({ id: "P" });
-    const volunteered = slowAri({ id: "S" });
-    const grandchild = chainAri({ id: "A" });
 
     const chainSource = createStoreSource({
       id: "chain",
       for: [chainAri],
-      store: new Map<string, unknown>([
-        [root.toString(), {}],
-        [grandchild.toString(), {}],
-      ]),
+      store: new Map<string, unknown>([[root.toString(), {}]]),
     });
 
-    // Returns `volunteered` alongside the root, before the slow source is asked.
-    const eager: DataSource = {
+    const broken: DataSource = {
       ...chainSource,
       load: async (batch, context) => {
-        const records = await chainSource.load(batch, context);
-        const askedForRoot = batch.some((resource: ApplicationResourceIdentifier) =>
-          resource.equals(root)
-        );
-
-        return askedForRoot ? [...records, { resource: volunteered, payload: {} }] : records;
+        const payloads = await chainSource.load(batch, context);
+        return [...payloads, {}];
       },
     };
 
-    const slowSource = createStoreSource({
-      id: "slow",
-      for: [slowAri],
-      store: new Map<string, unknown>(),
-    });
-
     const resolver = createResourceGraphResolver({
-      sources: [eager, slowSource],
-      strategy: graphStrategy(
-        createExpansionPolicyChain([
-          {
-            matches: ({ resource }) => resource.equals(root),
-            expand: () => ({ resources: [volunteered] }),
-          },
-          {
-            matches: ({ resource }) => resource.equals(volunteered),
-            expand: () => ({ resources: [grandchild] }),
-          },
-        ]),
-        createIslandPolicyChain([
-          {
-            matches: ({ resource }) => resource.equals(volunteered),
-            resolve: () => ({ startIsland: true }),
-          },
-        ])
-      ),
+      sources: [broken],
+      strategy: graphStrategy(createExpansionPolicyChain([]), createIslandPolicyChain([])),
       schedulingMode: "barrier",
     });
 
-    const output = await resolver.resolve({
-      root,
-      executionContext: {},
-      missingResourceMode: "throw",
+    await expect(
+      resolver.resolve({
+        root,
+        executionContext: {},
+        missingResourceMode: "throw",
+      })
+    ).rejects.toMatchObject({
+      name: "ResourceBatchLengthError",
+      requestedCount: 1,
+      returnedCount: 2,
     });
-
-    expect(output.errors).toEqual([]);
-    expect(output.contentMap.has(volunteered)).toBe(true);
-    // Expanded despite never being loaded, so its own child was still discovered.
-    expect(output.contentMap.has(grandchild)).toBe(true);
-    expect(output.islands.get(volunteered.toString())).toEqual(
-      new Set([volunteered.toString(), grandchild.toString()])
-    );
-    expect(slowSource.batches).toEqual([]);
   });
 });

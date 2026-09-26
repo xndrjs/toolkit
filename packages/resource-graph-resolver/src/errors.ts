@@ -28,8 +28,8 @@ export class ResourceGraphAbortedError extends ResourceGraphError {
 }
 
 /**
- * A resource was requested but never resolved: either a source omitted it from
- * its result, or a source rejected while loading it.
+ * A resource was requested but never resolved: either a source returned
+ * `undefined` for its batch slot, or a source rejected while loading it.
  *
  * Thrown when `missingResourceMode` is `"throw"`; otherwise collected into
  * {@link import("./types").ResolveResourceGraphOutput.errors}.
@@ -81,5 +81,25 @@ export class ResourceLoadFailedError extends ResourceGraphError {
     this.name = "ResourceLoadFailedError";
     this.sourceId = sourceId;
     this.resourceKeys = resourceKeys;
+  }
+}
+
+/**
+ * A data source's `load` returned a result whose length does not match the batch.
+ * Positional contract: `results[i]` must correspond to `batch[i]`.
+ */
+export class ResourceBatchLengthError extends ResourceGraphError {
+  readonly sourceId: string;
+  readonly requestedCount: number;
+  readonly returnedCount: number;
+
+  constructor(sourceId: string, requestedCount: number, returnedCount: number) {
+    super(
+      `Data source "${sourceId}" returned ${returnedCount} payload slot(s) for a batch of ${requestedCount}`
+    );
+    this.name = "ResourceBatchLengthError";
+    this.sourceId = sourceId;
+    this.requestedCount = requestedCount;
+    this.returnedCount = returnedCount;
   }
 }

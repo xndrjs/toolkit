@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { assetAri } from "../../generated/page-detail.js";
 import { DEMO_ENVIRONMENT, DEMO_LOCALE, DEMO_SPACE, demoIds } from "../fixtures/store.js";
-import { ASSET_SOURCE_ID, createAssetSource } from "../cms/asset-data-adapter.js";
+import { ASSET_SOURCE_ID, createAssetSource } from "./asset-data-adapter.js";
 
 const locale = DEMO_LOCALE;
 const loadContext = {
@@ -21,7 +21,7 @@ describe("createAssetSource", () => {
     expect(source.for.map((family) => family.type)).toEqual(["Asset"]);
   });
 
-  it("returns asset fixtures and omits unknown keys", async () => {
+  it("returns asset fixtures and undefined for unknown keys (same length)", async () => {
     const source = createAssetSource();
     const known = assetAri({
       spaceId: DEMO_SPACE,
@@ -36,15 +36,15 @@ describe("createAssetSource", () => {
       locale,
     });
 
-    const records = await source.load([known, missing], loadContext);
+    const payloads = await source.load([known, missing], loadContext);
 
-    expect(records).toHaveLength(1);
-    const record = records[0]!;
-    expect(record.resource.toString()).toBe(known.toString());
-    expect("payload" in record && record.payload).toMatchObject({
-      id: demoIds.assetHero,
-      url: "https://cdn.example.com/hero-welcome.jpg",
-      kind: "image",
-    });
+    expect(payloads).toEqual([
+      expect.objectContaining({
+        id: demoIds.assetHero,
+        url: "https://cdn.example.com/hero-welcome.jpg",
+        kind: "image",
+      }),
+      undefined,
+    ]);
   });
 });

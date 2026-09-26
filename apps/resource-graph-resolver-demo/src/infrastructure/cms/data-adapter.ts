@@ -60,23 +60,12 @@ export function createCmsSource(
 
       await simulateNetworkLatency(latencyMs);
 
-      const records: (CmsEntryRecord | CmsAssetRecord)[] = [];
-      for (const resource of batch) {
+      return batch.map((resource) => {
         if (cmsEntryAri.matches(resource)) {
-          const payload = store.entries.get(resource.key[0].id);
-          if (payload !== undefined) {
-            records.push({ resource, payload });
-          }
-          continue;
+          return store.entries.get(resource.key[0].id);
         }
-
-        const payload = store.assets.get(resource.key[0].id);
-        if (payload !== undefined) {
-          records.push({ resource, payload });
-        }
-      }
-
-      return records;
+        return store.assets.get(resource.key[0].id);
+      });
     },
   });
 }
