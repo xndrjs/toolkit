@@ -761,4 +761,68 @@ describe("lowerProgram — fragments", () => {
       refers: null,
     });
   });
+
+  it("lowers islands clauses (empty body, multi-when, optional binding)", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar EntryId on string;
+        scalar Locale on string;
+
+        resource Entry(id: EntryId, locale: Locale): {
+          id
+          type: string
+        }
+
+        resource Page(id: EntryId, locale: Locale): {
+          id
+        }
+
+        query Q(pageId: EntryId) {
+          context { locale: Locale }
+          root Page(id: pageId, locale: context.locale)
+          on Page p { id }
+          on Entry e { id type }
+          islands {
+            on Entry e {
+              when e.type == "Menu"
+              when e.type == "Footer"
+            }
+            on Page {}
+          }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    expect(stripSpans(program.queries[0]!.islands)).toEqual([
+      {
+        resource: "Entry",
+        binding: "e",
+        whens: [
+          {
+            kind: "binary",
+            op: "==",
+            left: { kind: "payloadRef", binding: "e", path: ["type"], span: null },
+            right: { kind: "literal", value: "Menu", span: null },
+            span: null,
+          },
+          {
+            kind: "binary",
+            op: "==",
+            left: { kind: "payloadRef", binding: "e", path: ["type"], span: null },
+            right: { kind: "literal", value: "Footer", span: null },
+            span: null,
+          },
+        ],
+        span: null,
+      },
+      {
+        resource: "Page",
+        binding: null,
+        whens: [],
+        span: null,
+      },
+    ]);
+    expectSpan(program.queries[0]!.islands[0]?.span);
+  });
 });
