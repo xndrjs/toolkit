@@ -345,3 +345,51 @@ describe("hover fragments", () => {
     );
   });
 });
+
+const ISLANDS_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): {
+  type: string
+  id
+  title: string
+}
+
+resource Page(id: EntryId, locale: Locale): {
+  id
+}
+
+query PageDetail(pageId: EntryId) {
+  context { locale: Locale }
+  root Page(id: pageId, locale: context.locale)
+  on Page p {
+    id
+  }
+  islands {
+    on Entry e {
+      when e.type == "Menu"
+    }
+  }
+}
+`;
+
+describe("hover islands", () => {
+  it("hovers islands on-resource and when paths", () => {
+    const { document, scalars, resources } = tablesFrom(ISLANDS_FIXTURE);
+    const onEntry = offsetOf(ISLANDS_FIXTURE, "Entry", 1); // islands on Entry
+    expect(hoverMarkdownAtOffset(document, onEntry, { scalars, resources })).toContain(
+      "resource Entry("
+    );
+
+    const typePath = offsetOf(ISLANDS_FIXTURE, "type", 1); // e.type in when
+    expect(hoverMarkdownAtOffset(document, typePath, { scalars, resources })).toContain(
+      "type: string"
+    );
+
+    const binding = offsetOf(ISLANDS_FIXTURE, "e", 1); // e.type head
+    expect(hoverMarkdownAtOffset(document, binding, { scalars, resources })).toContain(
+      "resource Entry("
+    );
+  });
+});

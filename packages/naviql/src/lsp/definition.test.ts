@@ -169,3 +169,40 @@ describe("definition refers targets", () => {
     );
   });
 });
+
+const ISLANDS_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): {
+  type: string
+  id
+}
+
+resource Page(id: EntryId, locale: Locale): {
+  id
+}
+
+query PageDetail(pageId: EntryId) {
+  context { locale: Locale }
+  root Page(id: pageId, locale: context.locale)
+  on Page p {
+    id
+  }
+  islands {
+    on Entry e {
+      when e.type == "Menu"
+    }
+  }
+}
+`;
+
+describe("definition islands targets", () => {
+  it("jumps from islands on-resource to the resource declaration", () => {
+    const { document, program, scalars, resources } = tablesFrom(ISLANDS_FIXTURE);
+    const islandsEntry = offsetOf(ISLANDS_FIXTURE, "Entry", 1); // islands on Entry
+    expect(definitionSpanAtOffset(document, islandsEntry, { program, scalars, resources })).toEqual(
+      program.resources.find((r) => r.name === "Entry")!.span
+    );
+  });
+});

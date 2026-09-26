@@ -12,6 +12,7 @@ import { lowerObjectField, lowerTypedField, type NameTables } from "../compile/l
 import {
   isFragmentDeclaration,
   isFragmentSpread,
+  isIslandClause,
   isNamedTypeExpr,
   isObjectField,
   isProjectionClause,
@@ -227,6 +228,15 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
     }
     if (feature === "selectedFields" || node.selectedFields.includes(text)) {
       return hoverForSelectedField(node.resource, text, tables);
+    }
+  }
+
+  if (isIslandClause(node)) {
+    if (feature === "resource" || node.resource === text) {
+      return hoverForResourceName(node.resource, tables);
+    }
+    if (feature === "binding" || (node.binding !== undefined && node.binding === text)) {
+      return hoverForResourceName(node.resource, tables);
     }
   }
 

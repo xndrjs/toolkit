@@ -16,6 +16,7 @@ import {
   isExpandArm,
   isExpansion,
   isFragmentDeclaration,
+  isIslandClause,
   isNamedArg,
   isNamedTypeExpr,
   isObjectField,
@@ -308,7 +309,10 @@ export function classifyCompletionContext(
   }
 
   if (
-    (isProjectionClause(node) || isFragmentDeclaration(node) || isResourceConstruction(node)) &&
+    (isProjectionClause(node) ||
+      isIslandClause(node) ||
+      isFragmentDeclaration(node) ||
+      isResourceConstruction(node)) &&
     (feature === "resource" || (feature === undefined && node.resource === leaf.text))
   ) {
     return { kind: "resources" };
