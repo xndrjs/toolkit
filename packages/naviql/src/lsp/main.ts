@@ -11,6 +11,6 @@ import { createNaviQlLspServices } from "./create-services";
 import { registerWorkspaceValidation } from "./register-workspace-validation";
 
 const connection = createConnection(ProposedFeatures.all);
-const { shared } = createNaviQlLspServices({ connection, ...NodeFileSystem });
-registerWorkspaceValidation(shared);
+const { shared, semanticSnapshot } = createNaviQlLspServices({ connection, ...NodeFileSystem });
+registerWorkspaceValidation(shared, { semanticSnapshot });
 startLanguageServer(shared);

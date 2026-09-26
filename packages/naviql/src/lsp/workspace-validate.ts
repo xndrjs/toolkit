@@ -9,7 +9,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadConfigFile } from "../cli/load-config";
-import { checkProgram, type Diagnostic } from "../check";
+import { analyzeProgram, type Diagnostic, type ResourceTable, type ScalarTable } from "../check";
 import {
   collectNaviQlFiles,
   DEFAULT_NAVIQL_EXCLUDE,
@@ -30,6 +30,13 @@ export type WorkspaceValidateOptions = {
   workspaceFolders: readonly string[];
 };
 
+/** Merged program + tables when at least one file lowered cleanly. */
+export type WorkspaceSemanticResult = {
+  program: Program;
+  scalars: ScalarTable;
+  resources: ResourceTable;
+};
+
 export type WorkspaceValidateResult = {
   /** Absolute paths collected for this run. */
   files: string[];
@@ -41,6 +48,11 @@ export type WorkspaceValidateResult = {
   root: string;
   /** Whether a `naviql.config.*` scoped the collect (false = single-file fallback). */
   usedConfig: boolean;
+  /**
+   * Semantic snapshot inputs for IntelliSense providers.
+   * `undefined` when every collected file failed to parse (nothing to merge).
+   */
+  semantic: WorkspaceSemanticResult | undefined;
 };
 
 type CollectPlan =
@@ -150,7 +162,7 @@ function pushByUri(byUri: Map<string, Diagnostic[]>, uri: string, diagnostics: D
 
 /**
  * Collect workspace `.naviql` files, parse each (preferring open buffers), merge
- * programs that parse cleanly, and run `checkProgram` once.
+ * programs that parse cleanly, and run `analyzeProgram` once.
  *
  * Without a nearby `naviql.config.*`, only the trigger document is checked —
  * no workspace-root glob of every `.naviql` file.
@@ -158,6 +170,9 @@ function pushByUri(byUri: Map<string, Diagnostic[]>, uri: string, diagnostics: D
  * Files with `SYNTAX_ERROR` are excluded from the merge but their syntax
  * diagnostics are still published. Semantic diagnostics are grouped by
  * `span.uri` (fallback: `triggerUri`).
+ *
+ * When the merge succeeds, `result.semantic` carries the merged program plus
+ * scalar/resource tables for the LSP snapshot cache.
  */
 export async function validateWorkspace(
   options: WorkspaceValidateOptions
@@ -183,10 +198,16 @@ export async function validateWorkspace(
     programs.push(program);
   }
 
+  let semantic: WorkspaceSemanticResult | undefined;
   if (programs.length > 0) {
     const merged = mergePrograms(programs);
-    const semantic = checkProgram(merged);
-    for (const diagnostic of semantic) {
+    const analysis = analyzeProgram(merged);
+    semantic = {
+      program: merged,
+      scalars: analysis.scalars,
+      resources: analysis.resources,
+    };
+    for (const diagnostic of analysis.diagnostics) {
       const uri = diagnostic.span?.uri ?? triggerUri;
       pushByUri(byUri, uri, [diagnostic]);
     }
@@ -206,5 +227,6 @@ export async function validateWorkspace(
     sourcesByUri,
     root: plan.root,
     usedConfig: plan.kind === "project",
+    semantic,
   };
 }
