@@ -1,11 +1,11 @@
 /**
- * Page-graph IR fixture: CMS Entry links + CustomReference indirection.
+ * Page-graph IR fixture: identity resources + Entry polymorphism via `when`.
  *
- * - `Page.strips` / `Tab.strips` are `{ id: EntryId }[]` (no content-type discriminant).
- * - Strips expand via `each` into generic `Entry(...)`; concrete type emerges at load.
- * - `CustomReference` is an alternate locator that rematerializes to `Entry` or `Asset`.
+ * - `Page` is root-only; linked pages are shallow Entry `type: "Page"` arms.
+ * - `Entry` payload is a closed discriminated object union (no rematerialize ARIs).
+ * - `SiteInternalLink` expands a target Entry without re-entering root Page strips.
  */
-import type { Program } from "../compile";
+import type { Expr, Program } from "../compile";
 
 import {
   arg,
@@ -13,16 +13,20 @@ import {
   construct,
   ctx,
   defScalar,
+  eq,
   expand,
   expandEach,
   field,
   identity,
   item,
+  lit,
   objectType,
   param,
   payload,
   prim,
   projection,
+  projectionArm,
+  projectionWithArms,
   query,
   resource,
   resourceRef,
@@ -56,18 +60,34 @@ const assetIdentity = () => [
 
 const CmsLink = objectType(field("id", EntryId));
 
+function entryConstruct(sourceBinding: string, idExpr: Expr) {
+  return construct("Entry", [
+    arg("spaceId", identity(sourceBinding, "spaceId")),
+    arg("environmentId", identity(sourceBinding, "environmentId")),
+    arg("id", idExpr),
+    arg("locale", identity(sourceBinding, "locale")),
+  ]);
+}
+
 function stripsEach(sourceBinding: string, sourceField: string) {
   return expandEach("strips", "link", payload(sourceBinding, sourceField), [
     {
-      target: construct("Entry", [
-        arg("spaceId", identity(sourceBinding, "spaceId")),
-        arg("environmentId", identity(sourceBinding, "environmentId")),
-        arg("id", item("link", "id")),
-        arg("locale", identity(sourceBinding, "locale")),
-      ]),
+      target: entryConstruct(sourceBinding, item("link", "id")),
       when: null,
     },
   ]);
+}
+
+function assetExpand(alias: string, binding: string, idField: string) {
+  return expand(
+    alias,
+    construct("Asset", [
+      arg("spaceId", ctx("spaceId")),
+      arg("environmentId", ctx("environmentId")),
+      arg("id", payload(binding, idField)),
+      arg("locale", identity(binding, "locale")),
+    ])
+  );
 }
 
 export function pageDetailProgram(): Program {
@@ -86,7 +106,54 @@ export function pageDetailProgram(): Program {
       resource(
         "Entry",
         entryIdentity(),
-        union(resourceRef("Hero"), resourceRef("Tabs"), resourceRef("Product"))
+        union(
+          objectType(
+            field("type", strLit("Hero")),
+            field("id", EntryId, true),
+            field("title", prim("string")),
+            field("imageId", AssetId)
+          ),
+          objectType(
+            field("type", strLit("Tabs")),
+            field("id", EntryId, true),
+            field("title", prim("string")),
+            field("tabs", arrayOf(CmsLink))
+          ),
+          objectType(
+            field("type", strLit("Tab")),
+            field("id", EntryId, true),
+            field("title", prim("string")),
+            field("strips", arrayOf(CmsLink))
+          ),
+          objectType(
+            field("type", strLit("Product")),
+            field("id", EntryId, true),
+            field("sku", Sku),
+            field("title", prim("string"))
+          ),
+          objectType(
+            field("type", strLit("Menu")),
+            field("id", EntryId, true),
+            field("title", prim("string")),
+            field("logoId", AssetId)
+          ),
+          objectType(
+            field("type", strLit("Footer")),
+            field("id", EntryId, true),
+            field("title", prim("string")),
+            field("logoId", AssetId)
+          ),
+          objectType(
+            field("type", strLit("Page")),
+            field("id", EntryId, true),
+            field("title", prim("string"))
+          ),
+          objectType(
+            field("type", strLit("SiteInternalLink")),
+            field("id", EntryId, true),
+            field("targetId", EntryId)
+          )
+        )
       ),
       resource(
         "Asset",
@@ -116,63 +183,6 @@ export function pageDetailProgram(): Program {
           field("related", arrayOf(CustomReferenceValue))
         )
       ),
-      resource(
-        "Hero",
-        entryIdentity(),
-        objectType(
-          field("type", strLit("Hero")),
-          field("id", EntryId, true),
-          field("title", prim("string")),
-          field("imageId", AssetId)
-        )
-      ),
-      resource(
-        "Menu",
-        entryIdentity(),
-        objectType(
-          field("id", EntryId, true),
-          field("title", prim("string")),
-          field("logoId", AssetId)
-        )
-      ),
-      resource(
-        "Footer",
-        entryIdentity(),
-        objectType(
-          field("id", EntryId, true),
-          field("title", prim("string")),
-          field("logoId", AssetId)
-        )
-      ),
-      resource(
-        "Tabs",
-        entryIdentity(),
-        objectType(
-          field("type", strLit("Tabs")),
-          field("id", EntryId, true),
-          field("title", prim("string")),
-          field("tabs", arrayOf(CmsLink))
-        )
-      ),
-      resource(
-        "Tab",
-        entryIdentity(),
-        objectType(
-          field("id", EntryId, true),
-          field("title", prim("string")),
-          field("strips", arrayOf(CmsLink))
-        )
-      ),
-      resource(
-        "Product",
-        entryIdentity(),
-        objectType(
-          field("type", strLit("Product")),
-          field("id", EntryId, true),
-          field("sku", Sku),
-          field("title", prim("string"))
-        )
-      ),
     ],
     queries: [
       query("PageDetail", {
@@ -194,24 +204,8 @@ export function pageDetailProgram(): Program {
             "p",
             ["id", "title"],
             [
-              expand(
-                "menu",
-                construct("Menu", [
-                  arg("spaceId", identity("p", "spaceId")),
-                  arg("environmentId", identity("p", "environmentId")),
-                  arg("id", payload("p", "menuId")),
-                  arg("locale", identity("p", "locale")),
-                ])
-              ),
-              expand(
-                "footer",
-                construct("Footer", [
-                  arg("spaceId", identity("p", "spaceId")),
-                  arg("environmentId", identity("p", "environmentId")),
-                  arg("id", payload("p", "footerId")),
-                  arg("locale", identity("p", "locale")),
-                ])
-              ),
+              expand("menu", entryConstruct("p", payload("p", "menuId"))),
+              expand("footer", entryConstruct("p", payload("p", "footerId"))),
               stripsEach("p", "strips"),
               expandEach("related", "ref", payload("p", "related"), [
                 {
@@ -224,75 +218,48 @@ export function pageDetailProgram(): Program {
               ]),
             ]
           ),
-          projection(
-            "Hero",
-            "h",
-            ["id", "title"],
-            [
-              expand(
-                "image",
-                construct("Asset", [
-                  arg("spaceId", ctx("spaceId")),
-                  arg("environmentId", ctx("environmentId")),
-                  arg("id", payload("h", "imageId")),
-                  arg("locale", identity("h", "locale")),
-                ])
-              ),
-            ]
-          ),
-          projection(
-            "Menu",
-            "m",
-            ["id", "title"],
-            [
-              expand(
-                "logo",
-                construct("Asset", [
-                  arg("spaceId", ctx("spaceId")),
-                  arg("environmentId", ctx("environmentId")),
-                  arg("id", payload("m", "logoId")),
-                  arg("locale", identity("m", "locale")),
-                ])
-              ),
-            ]
-          ),
-          projection(
-            "Footer",
-            "f",
-            ["id", "title"],
-            [
-              expand(
-                "logo",
-                construct("Asset", [
-                  arg("spaceId", ctx("spaceId")),
-                  arg("environmentId", ctx("environmentId")),
-                  arg("id", payload("f", "logoId")),
-                  arg("locale", identity("f", "locale")),
-                ])
-              ),
-            ]
-          ),
+          projectionWithArms("Entry", "e", [
+            projectionArm(
+              eq(payload("e", "type"), lit("Hero")),
+              ["type", "id", "title"],
+              [assetExpand("image", "e", "imageId")]
+            ),
+            projectionArm(
+              eq(payload("e", "type"), lit("Tabs")),
+              ["type", "id", "title"],
+              [
+                expandEach("tabs", "link", payload("e", "tabs"), [
+                  {
+                    target: entryConstruct("e", item("link", "id")),
+                    when: null,
+                  },
+                ]),
+              ]
+            ),
+            projectionArm(
+              eq(payload("e", "type"), lit("Tab")),
+              ["type", "id", "title"],
+              [stripsEach("e", "strips")]
+            ),
+            projectionArm(eq(payload("e", "type"), lit("Product")), ["type", "id", "sku", "title"]),
+            projectionArm(
+              eq(payload("e", "type"), lit("Menu")),
+              ["type", "id", "title"],
+              [assetExpand("logo", "e", "logoId")]
+            ),
+            projectionArm(
+              eq(payload("e", "type"), lit("Footer")),
+              ["type", "id", "title"],
+              [assetExpand("logo", "e", "logoId")]
+            ),
+            projectionArm(
+              eq(payload("e", "type"), lit("SiteInternalLink")),
+              ["type", "id"],
+              [expand("target", entryConstruct("e", payload("e", "targetId")))]
+            ),
+            projectionArm(eq(payload("e", "type"), lit("Page")), ["type", "id"]),
+          ]),
           projection("Asset", "a", ["id", "url", "title", "kind"]),
-          projection(
-            "Tabs",
-            "t",
-            ["id", "title"],
-            [
-              expandEach("tabs", "link", payload("t", "tabs"), [
-                {
-                  target: construct("Tab", [
-                    arg("spaceId", identity("t", "spaceId")),
-                    arg("environmentId", identity("t", "environmentId")),
-                    arg("id", item("link", "id")),
-                    arg("locale", identity("t", "locale")),
-                  ]),
-                  when: null,
-                },
-              ]),
-            ]
-          ),
-          projection("Tab", "tab", ["id", "title"], [stripsEach("tab", "strips")]),
-          projection("Product", "prod", ["id", "sku", "title"]),
         ],
       }),
     ],

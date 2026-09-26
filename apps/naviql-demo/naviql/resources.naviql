@@ -6,13 +6,66 @@ scalar AssetId on string;
 scalar CustomReferenceValue on string;
 scalar Sku on string;
 
-/** Canonical CMS entry address — content type is not part of identity. */
+/**
+ * Canonical CMS entry address — content type is not part of identity.
+ * Payload is a closed discriminated object union (not rematerialized ARIs).
+ */
 resource Entry(
   spaceId: SpaceId,
   environmentId: EnvironmentId,
   id: EntryId,
   locale: Locale
-): Hero | Tabs | Product
+):
+  {
+    type: "Hero"
+    id
+    title: string
+    imageId: AssetId
+  }
+  | {
+    type: "Tabs"
+    id
+    title: string
+    tabs: {
+      id: EntryId
+    }[]
+  }
+  | {
+    type: "Tab"
+    id
+    title: string
+    strips: {
+      id: EntryId
+    }[]
+  }
+  | {
+    type: "Product"
+    id
+    sku: Sku
+    title: string
+  }
+  | {
+    type: "Menu"
+    id
+    title: string
+    logoId: AssetId
+  }
+  | {
+    type: "Footer"
+    id
+    title: string
+    logoId: AssetId
+  }
+  | {
+    type: "Page"
+    id
+    title: string
+  }
+  | {
+    type: "SiteInternalLink"
+    id
+    targetId: EntryId
+  }
 
 resource Asset(
   spaceId: SpaceId,
@@ -36,6 +89,10 @@ resource CustomReference(
   locale: Locale
 ): Entry | Asset
 
+/**
+ * Root editorial page only. Linked pages are Entry payloads with `type: "Page"`
+ * (shallow — no strips/menu/footer) and are not loaded as Page ARIs.
+ */
 resource Page(
   spaceId: SpaceId,
   environmentId: EnvironmentId,
@@ -52,77 +109,4 @@ resource Page(
   }[]
   // Legacy custom references (same target may also appear as a standard link).
   related: CustomReferenceValue[]
-}
-
-resource Hero(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  type: "Hero"
-  id
-  title: string
-  imageId: AssetId
-}
-
-resource Menu(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  id
-  title: string
-  logoId: AssetId
-}
-
-resource Footer(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  id
-  title: string
-  logoId: AssetId
-}
-
-resource Tabs(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  type: "Tabs"
-  id
-  title: string
-  tabs: {
-    id: EntryId
-  }[]
-}
-
-resource Tab(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  id
-  title: string
-  strips: {
-    id: EntryId
-  }[]
-}
-
-resource Product(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  type: "Product"
-  id
-  sku: Sku
-  title: string
 }

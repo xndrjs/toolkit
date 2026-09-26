@@ -64,20 +64,11 @@ describe("NaviQl MVP grammar", () => {
   it("parses page-detail.naviql mirroring the IR fixture", () => {
     const model = parseSource(loadFixture("page-detail.naviql"));
     expect(model.declarations.filter(isScalarDeclaration)).toHaveLength(7);
-    expect(model.declarations.filter(isResourceDeclaration)).toHaveLength(10);
+    expect(model.declarations.filter(isResourceDeclaration)).toHaveLength(4);
 
     const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
     expect(query.name).toBe("PageDetail");
-    expect(query.projections.map((p) => p.resource)).toEqual([
-      "Page",
-      "Hero",
-      "Menu",
-      "Footer",
-      "Asset",
-      "Tabs",
-      "Tab",
-      "Product",
-    ]);
+    expect(query.projections.map((p) => p.resource)).toEqual(["Page", "Entry", "Asset"]);
 
     const page = model.declarations.find(
       (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "Page"
@@ -91,11 +82,12 @@ describe("NaviQl MVP grammar", () => {
     expect(relatedExpand?.each?.itemBinding).toBe("ref");
     expect(relatedExpand?.each?.arms.map((a) => a.target.resource)).toEqual(["CustomReference"]);
 
-    const tabsExpand = query.projections
-      .find((p) => p.resource === "Tabs")
-      ?.expansions.find((e) => e.alias === "tabs");
+    const entry = query.projections.find((p) => p.resource === "Entry");
+    expect(entry?.whenArms).toHaveLength(8);
+    const tabsArm = entry?.whenArms.find((arm) => arm.expansions.some((e) => e.alias === "tabs"));
+    const tabsExpand = tabsArm?.expansions.find((e) => e.alias === "tabs");
     expect(tabsExpand?.each?.itemBinding).toBe("link");
-    expect(tabsExpand?.each?.arms.map((a) => a.target.resource)).toEqual(["Tab"]);
+    expect(tabsExpand?.each?.arms.map((a) => a.target.resource)).toEqual(["Entry"]);
     expect(tabsExpand?.target).toBeUndefined();
 
     expect(page?.name).toBe("Page");

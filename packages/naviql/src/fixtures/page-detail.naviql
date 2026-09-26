@@ -6,13 +6,66 @@ scalar AssetId on string;
 scalar CustomReferenceValue on string;
 scalar Sku on string;
 
-/** Canonical CMS entry address — content type is not part of identity. */
+/**
+ * Canonical CMS entry address — content type is not part of identity.
+ * Payload is a closed discriminated object union (not rematerialized ARIs).
+ */
 resource Entry(
   spaceId: SpaceId,
   environmentId: EnvironmentId,
   id: EntryId,
   locale: Locale
-): Hero | Tabs | Product
+):
+  {
+    type: "Hero"
+    id
+    title: string
+    imageId: AssetId
+  }
+  | {
+    type: "Tabs"
+    id
+    title: string
+    tabs: {
+      id: EntryId
+    }[]
+  }
+  | {
+    type: "Tab"
+    id
+    title: string
+    strips: {
+      id: EntryId
+    }[]
+  }
+  | {
+    type: "Product"
+    id
+    sku: Sku
+    title: string
+  }
+  | {
+    type: "Menu"
+    id
+    title: string
+    logoId: AssetId
+  }
+  | {
+    type: "Footer"
+    id
+    title: string
+    logoId: AssetId
+  }
+  | {
+    type: "Page"
+    id
+    title: string
+  }
+  | {
+    type: "SiteInternalLink"
+    id
+    targetId: EntryId
+  }
 
 resource Asset(
   spaceId: SpaceId,
@@ -36,6 +89,10 @@ resource CustomReference(
   locale: Locale
 ): Entry | Asset
 
+/**
+ * Root editorial page only. Linked pages are Entry payloads with `type: "Page"`
+ * (shallow — no strips/menu/footer) and are not loaded as Page ARIs.
+ */
 resource Page(
   spaceId: SpaceId,
   environmentId: EnvironmentId,
@@ -52,80 +109,6 @@ resource Page(
   }[]
   // Legacy custom references (same target may also appear as a standard link).
   related: CustomReferenceValue[]
-}
-
-resource Hero(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  type: "Hero"
-  id
-  title: string
-  imageId: AssetId
-}
-
-resource Menu(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  id
-  title: string
-  logoId: AssetId
-}
-
-resource Footer(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  id
-  title: string
-  logoId: AssetId
-}
-
-resource Tabs(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  type: "Tabs"
-  id
-  title: string
-  // Same link shape as Page.strips / Tab.strips — entry id only.
-  tabs: {
-    id: EntryId
-  }[]
-}
-
-resource Tab(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  id
-  title: string
-  strips: {
-    id: EntryId
-  }[]
-}
-
-resource Product(
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  id: EntryId,
-  locale: Locale
-): {
-  type: "Product"
-  id
-  sku: Sku
-  title: string
 }
 query PageDetail(pageId: EntryId) {
   context {
@@ -144,13 +127,13 @@ query PageDetail(pageId: EntryId) {
   on Page p {
     id
     title
-    expand menu: Menu(
+    expand menu: Entry(
       spaceId: @p.spaceId,
       environmentId: @p.environmentId,
       id: p.menuId,
       locale: @p.locale
     )
-    expand footer: Footer(
+    expand footer: Entry(
       spaceId: @p.spaceId,
       environmentId: @p.environmentId,
       id: p.footerId,
@@ -172,37 +155,86 @@ query PageDetail(pageId: EntryId) {
     )
   }
 
-  on Hero h {
-    id
-    title
-    expand image: Asset(
-      spaceId: context.spaceId,
-      environmentId: context.environmentId,
-      id: h.imageId,
-      locale: @h.locale
-    )
-  }
-
-  on Menu m {
-    id
-    title
-    expand logo: Asset(
-      spaceId: context.spaceId,
-      environmentId: context.environmentId,
-      id: m.logoId,
-      locale: @m.locale
-    )
-  }
-
-  on Footer f {
-    id
-    title
-    expand logo: Asset(
-      spaceId: context.spaceId,
-      environmentId: context.environmentId,
-      id: f.logoId,
-      locale: @f.locale
-    )
+  on Entry e {
+    when e.type == "Hero" {
+      type
+      id
+      title
+      expand image: Asset(
+        spaceId: context.spaceId,
+        environmentId: context.environmentId,
+        id: e.imageId,
+        locale: @e.locale
+      )
+    }
+    when e.type == "Tabs" {
+      type
+      id
+      title
+      expand tabs: each link in e.tabs (
+        Entry(
+          spaceId: @e.spaceId,
+          environmentId: @e.environmentId,
+          id: link.id,
+          locale: @e.locale
+        )
+      )
+    }
+    when e.type == "Tab" {
+      type
+      id
+      title
+      expand strips: each link in e.strips (
+        Entry(
+          spaceId: @e.spaceId,
+          environmentId: @e.environmentId,
+          id: link.id,
+          locale: @e.locale
+        )
+      )
+    }
+    when e.type == "Product" {
+      type
+      id
+      sku
+      title
+    }
+    when e.type == "Menu" {
+      type
+      id
+      title
+      expand logo: Asset(
+        spaceId: context.spaceId,
+        environmentId: context.environmentId,
+        id: e.logoId,
+        locale: @e.locale
+      )
+    }
+    when e.type == "Footer" {
+      type
+      id
+      title
+      expand logo: Asset(
+        spaceId: context.spaceId,
+        environmentId: context.environmentId,
+        id: e.logoId,
+        locale: @e.locale
+      )
+    }
+    when e.type == "SiteInternalLink" {
+      type
+      id
+      expand target: Entry(
+        spaceId: @e.spaceId,
+        environmentId: @e.environmentId,
+        id: e.targetId,
+        locale: @e.locale
+      )
+    }
+    when e.type == "Page" {
+      type
+      id
+    }
   }
 
   on Asset a {
@@ -210,37 +242,5 @@ query PageDetail(pageId: EntryId) {
     url
     title
     kind
-  }
-
-  on Tabs t {
-    id
-    title
-    expand tabs: each link in t.tabs (
-      Tab(
-        spaceId: @t.spaceId,
-        environmentId: @t.environmentId,
-        id: link.id,
-        locale: @t.locale
-      )
-    )
-  }
-
-  on Tab tab {
-    id
-    title
-    expand strips: each link in tab.strips (
-      Entry(
-        spaceId: @tab.spaceId,
-        environmentId: @tab.environmentId,
-        id: link.id,
-        locale: @tab.locale
-      )
-    )
-  }
-
-  on Product prod {
-    id
-    sku
-    title
   }
 }
