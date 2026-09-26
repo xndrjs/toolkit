@@ -211,7 +211,7 @@ export async function resolvePageGraph(
   });
 
   return resolver.resolve({
-    root: page,
+    roots: [page],
     executionContext: {},
     missingResourceMode: options.missingResourceMode ?? "throw",
     ...(options.backingResources !== undefined

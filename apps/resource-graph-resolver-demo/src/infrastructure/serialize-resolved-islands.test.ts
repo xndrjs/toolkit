@@ -12,7 +12,7 @@ describe("serializeAllIslands", () => {
     const pageRoot = cmsEntryAri({ id: demoIds.page, locale: executionContext.locale });
 
     const result = await createDemoResolver({ schedulingMode: "barrier" }).resolve({
-      root: pageRoot,
+      roots: [pageRoot],
       executionContext,
       missingResourceMode: "throw",
     });

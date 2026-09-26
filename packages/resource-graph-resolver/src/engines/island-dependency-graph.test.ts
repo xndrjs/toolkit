@@ -84,7 +84,7 @@ describe("island dependency graph", () => {
     });
 
     const output = await resolver.resolve({
-      root: page,
+      roots: [page],
       executionContext: {},
       missingResourceMode: "throw",
     });

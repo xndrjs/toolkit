@@ -37,7 +37,7 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
   const { backingResources, report } = loadBackingForRoot(pageRoot, cache);
 
   const output = await resolver.resolve({
-    root: pageRoot,
+    roots: [pageRoot],
     executionContext,
     missingResourceMode: "throw",
     backingResources,
@@ -124,7 +124,7 @@ describe("island cache cold/warm round-trip", () => {
     const backingSizeBefore = backingResources.size;
 
     const output = await resolver.resolve({
-      root: pageRoot,
+      roots: [pageRoot],
       executionContext,
       missingResourceMode: "throw",
       backingResources,

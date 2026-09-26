@@ -13,7 +13,7 @@ app/[locale]/page.tsx
   → resolveDemoPage(locale)
       → loadBackingForRoot (island cache)
       → createDemoResolver({ schedulingMode, sources, expansion })
-      → resolver.resolve({ root, backingResources })
+      → resolver.resolve({ roots: [root], backingResources })
       → mapContentMapToPageAggregate
       → persistResolvedIslands
 ```

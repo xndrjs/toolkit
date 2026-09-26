@@ -113,7 +113,7 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
     `    errors,`,
     `    promotedResourceKeys,`,
     `  } = await resolver.resolve({`,
-    `    root: input.root,`,
+    `    roots: [input.root],`,
     `    executionContext: input.executionContext,`,
     `    missingResourceMode: input.missingResourceMode,`,
     `    backingResources: input.backingResources,`,

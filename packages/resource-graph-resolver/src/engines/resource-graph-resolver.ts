@@ -4,8 +4,8 @@ import {
   MissingResourceError,
   NoDataSourceError,
   ResourceBatchLengthError,
+  ResourceGraphError,
   ResourceLoadFailedError,
-  type ResourceGraphError,
 } from "../errors";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
 import type { GraphResolutionStrategy } from "../strategy/create-graph-resolution-strategy";
@@ -104,6 +104,10 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
   session.assertNotAborted();
 
+  if (input.roots.length === 0) {
+    throw new ResourceGraphError("ResolveResourceGraphInput.roots must be non-empty");
+  }
+
   const lanes: SourceLane<R, TExecutionContext>[] = config.sources.map((source) => ({
     source,
     pending: [],
@@ -113,7 +117,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   }));
 
   notifyObserver(observer, "onResolutionStart", () => ({
-    root: input.root,
+    roots: input.roots,
     schedulingMode,
     sourceIds: config.sources.map((source) => source.id),
   }));
@@ -432,7 +436,9 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   };
 
   try {
-    enqueue([{ resource: input.root, inheritedIslandId: input.root.toString() }]);
+    for (const root of input.roots) {
+      enqueue([{ resource: root, inheritedIslandId: root.toString() }]);
+    }
 
     while (true) {
       session.assertNotAborted();

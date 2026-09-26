@@ -57,7 +57,7 @@ async function resolveOnce(
   });
 
   await resolver.resolve({
-    root: graph.root,
+    roots: [graph.root],
     executionContext: {},
     missingResourceMode: "throw",
   });
