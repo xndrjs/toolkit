@@ -196,6 +196,17 @@ export type ResourceProjection = {
 };
 
 /**
+ * One seed of a query: singular `root R(…)` lowers to `alias: null`;
+ * each `roots { alias: R(…) }` entry keeps its alias.
+ */
+export type QueryRoot = {
+  /** `null` for single-root syntax; non-null for multi-root entries. */
+  alias: string | null;
+  construction: ResourceConstruction;
+  span: SourceSpan | null;
+};
+
+/**
  * Top-level NaviQL unit (`query Name(…) { … }`).
  * Distinct from the engine's resolution *strategy* (expansion policies).
  */
@@ -203,10 +214,16 @@ export type QueryDefinition = {
   name: string;
   parameters: FieldDecl[];
   context: FieldDecl[];
-  root: ResourceConstruction;
+  /** Non-empty after a successful parse; empty only for defensive hand-built IR. */
+  roots: QueryRoot[];
   projections: ResourceProjection[];
   span: SourceSpan | null;
 };
+
+/** True when the query used singular `root` syntax (one entry, `alias: null`). */
+export function isSingleRootQuery(query: QueryDefinition): boolean {
+  return query.roots.length === 1 && query.roots[0]!.alias === null;
+}
 
 export type Program = {
   scalars: ScalarDefinition[];

@@ -45,8 +45,8 @@ describe("NaviQl MVP grammar", () => {
     expect(query.name).toBe("PostDetail");
     expect(query.parameters.map((p) => p.name)).toEqual(["postId"]);
     expect(query.context?.fields.map((f) => f.name)).toEqual(["locale"]);
-    expect(query.root.construction.resource).toBe("Post");
-    const localeArg = query.root.construction.args.find((a) => a.name === "locale")?.value;
+    expect(query.root?.construction.resource).toBe("Post");
+    const localeArg = query.root?.construction.args.find((a) => a.name === "locale")?.value;
     expect(localeArg && isContextRef(localeArg)).toBe(true);
     if (localeArg && isContextRef(localeArg)) {
       expect(localeArg.path).toEqual(["locale"]);
@@ -180,7 +180,7 @@ describe("NaviQl MVP grammar", () => {
     `);
 
     const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
-    const args = query.root.construction.args;
+    const args = query.root!.construction.args;
     expect(args.map((a) => a.name)).toEqual(["id", "flag", "n", "s", "z"]);
     expect(args[1]?.value.$type).toBe("BooleanLiteral");
     expect(args[2]?.value.$type).toBe("NumberLiteral");
@@ -381,6 +381,60 @@ describe("NaviQl MVP grammar", () => {
           when e.type == "Hero" { id }
           title
         }
+      }
+    `);
+    expect(result.parserErrors.length).toBeGreaterThan(0);
+  });
+
+  it("parses multi-root queries with aliased constructions", () => {
+    const model = parseSource(`
+      scalar PageId on string;
+      scalar SessionId on string;
+
+      resource Page(id: PageId): { id }
+      resource UserSession(id: SessionId): { id }
+
+      query Homepage(pageId: PageId, sessionId: SessionId) {
+        roots {
+          page: Page(id: pageId)
+          session: UserSession(id: sessionId)
+        }
+        on Page p { id }
+        on UserSession s { id }
+      }
+    `);
+
+    const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
+    expect(query.root).toBeUndefined();
+    expect(query.roots?.entries.map((e) => e.alias)).toEqual(["page", "session"]);
+    expect(query.roots?.entries.map((e) => e.construction.resource)).toEqual([
+      "Page",
+      "UserSession",
+    ]);
+  });
+
+  it("rejects both root and roots in the same query", () => {
+    const { NaviQl } = createNaviQlServices();
+    const result = NaviQl.parser.LangiumParser.parse(`
+      scalar Id on string;
+      resource R(id: Id): { id }
+      query Q(id: Id) {
+        root R(id: id)
+        roots {
+          a: R(id: id)
+        }
+      }
+    `);
+    expect(result.parserErrors.length).toBeGreaterThan(0);
+  });
+
+  it("rejects empty roots block", () => {
+    const { NaviQl } = createNaviQlServices();
+    const result = NaviQl.parser.LangiumParser.parse(`
+      scalar Id on string;
+      resource R(id: Id): { id }
+      query Q(id: Id) {
+        roots {}
       }
     `);
     expect(result.parserErrors.length).toBeGreaterThan(0);

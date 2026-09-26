@@ -19,6 +19,7 @@ import {
   query,
   resource,
   scalarRef,
+  singleRoot,
 } from "../../../fixtures";
 import type { Program } from "../../../ir";
 import { parseAndCheck } from "../../parse-and-check";
@@ -60,7 +61,7 @@ describe("emitStrategies", () => {
         query("PostDetail", {
           parameters: [field("postId", scalarRef("PostId"))],
           context: [field("locale", scalarRef("Locale"))],
-          root: construct("Post", [arg("id", param("postId"))]),
+          roots: singleRoot(construct("Post", [arg("id", param("postId"))])),
           projections: [
             projection(
               "Post",
@@ -142,7 +143,7 @@ describe("emitStrategies", () => {
         query("PageDetail", {
           parameters: [],
           context: [field("locale", scalarRef("Locale"))],
-          root: construct("Page", []),
+          roots: singleRoot(construct("Page", [])),
           projections: [
             projection(
               "Page",

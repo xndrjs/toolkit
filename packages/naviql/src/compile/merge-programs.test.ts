@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { checkProgram } from "../check";
-import { construct, defScalar, field, objectType, query, resource, scalarRef } from "../fixtures";
+import {
+  construct,
+  defScalar,
+  field,
+  objectType,
+  query,
+  resource,
+  scalarRef,
+  singleRoot,
+} from "../fixtures";
 import type { Program, SourceSpan } from "../ir";
 import { parseAndCheck } from "./parse-and-check";
 import { mergePrograms } from "./merge-programs";
@@ -43,7 +52,7 @@ function programB(): Program {
       query("QB", {
         parameters: [],
         context: [],
-        root: construct("B", []),
+        roots: singleRoot(construct("B", [])),
         projections: [],
       }),
     ],

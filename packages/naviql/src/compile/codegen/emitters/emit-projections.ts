@@ -608,7 +608,7 @@ function emitQueryProjection(
 ): string {
   const fnName = projectFnName(query.name);
   const resultType = queryResultTypeName(query.name);
-  const rootAri = ariFactoryName(query.root.resource);
+  const rootAri = ariFactoryName(query.roots[0]!.construction.resource);
   const argsType = emitArgsType(query);
 
   const sigParams = [

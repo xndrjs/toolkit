@@ -43,7 +43,7 @@ function emitResolveResultType(
 function emitResolveInputType(query: QueryDefinition, registryTypeName: string): string {
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
-  const rootAri = ariFactoryName(query.root.resource);
+  const rootAri = ariFactoryName(query.roots[0]!.construction.resource);
   const contextType = hasContext ? executionContextTypeName(query.name) : "unknown";
 
   const fields: string[] = [];
