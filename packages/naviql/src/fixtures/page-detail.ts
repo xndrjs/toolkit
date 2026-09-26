@@ -22,6 +22,7 @@ import {
   item,
   lit,
   objectType,
+  or,
   param,
   payload,
   prim,
@@ -315,7 +316,10 @@ export function pageDetailProgram(): Program {
           {
             resource: "Entry",
             binding: "e",
-            whens: [eq(payload("e", "type"), lit("Menu")), eq(payload("e", "type"), lit("Footer"))],
+            when: or(
+              eq(payload("e", "type"), lit("Menu")),
+              eq(payload("e", "type"), lit("Footer"))
+            ),
             span: null,
           },
         ],

@@ -122,8 +122,19 @@ export type Expr =
   | { kind: "identityRef"; binding: string; path: string[]; span: SourceSpan | null }
   | { kind: "itemRef"; binding: string; path: string[]; span: SourceSpan | null }
   | {
+      kind: "arrayLiteral";
+      elements: Expr[];
+      span: SourceSpan | null;
+    }
+  | {
+      kind: "unary";
+      op: "!";
+      operand: Expr;
+      span: SourceSpan | null;
+    }
+  | {
       kind: "binary";
-      op: "==" | "!=";
+      op: "==" | "!=" | "in" | "not in" | "and" | "or";
       left: Expr;
       right: Expr;
       span: SourceSpan | null;
@@ -229,14 +240,13 @@ export type QueryRoot = {
 };
 
 /**
- * One `on Resource [binding] { when … }*` clause inside a query `islands` block.
- * Empty `whens` ⇒ unconditional `startIsland`; each `when` is OR'd as its own policy.
+ * One `on Resource [binding] [when expr]` clause inside a query `islands` block.
+ * `when: null` ⇒ unconditional `startIsland`.
  */
 export type IslandClause = {
   resource: string;
   binding: string | null;
-  /** Empty ⇒ unconditional startIsland. */
-  whens: Expr[];
+  when: Expr | null;
   span: SourceSpan | null;
 };
 
