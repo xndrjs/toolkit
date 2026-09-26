@@ -14,6 +14,7 @@ import {
 
 import { NaviQlGeneratedModule, NaviQlGeneratedSharedModule } from "../lang/generated/module.js";
 import { NaviQlCompletionProvider } from "./completion";
+import { NaviQlDefinitionProvider } from "./definition";
 import { NaviQlHoverProvider } from "./hover";
 import { createSemanticSnapshotCache, type SemanticSnapshotCache } from "./semantic-snapshot";
 
@@ -23,6 +24,7 @@ function createNaviQlIntelliSenseModule(
   return {
     lsp: {
       CompletionProvider: (services) => new NaviQlCompletionProvider(services, semanticSnapshot),
+      DefinitionProvider: (services) => new NaviQlDefinitionProvider(services, semanticSnapshot),
       HoverProvider: (services) => new NaviQlHoverProvider(services, semanticSnapshot),
     },
   };
@@ -33,7 +35,7 @@ function createNaviQlIntelliSenseModule(
  *
  * Pass `{ connection, ...NodeFileSystem }` from `langium/node` when running as a server.
  * Langium built-in validation is disabled — diagnostics come from compile APIs.
- * Hover / completion (and later definition) read {@link SemanticSnapshotCache}.
+ * Hover / completion / definition read {@link SemanticSnapshotCache}.
  */
 export function createNaviQlLspServices(context: DefaultSharedModuleContext): {
   shared: LangiumSharedServices;
