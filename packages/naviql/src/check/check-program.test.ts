@@ -167,7 +167,7 @@ describe("checkProgram — projection when-arms", () => {
     );
   });
 
-  it("rejects mixing flat fields with when-arms (IR)", () => {
+  it("rejects hand-built IR that keeps root fields alongside when-arms", () => {
     const { diagnostics, program } = parseAndCheck(`
       scalar Locale on string;
       scalar EntryId on string;
@@ -193,6 +193,134 @@ describe("checkProgram — projection when-arms", () => {
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({ code: "MIXED_PROJECTION_BODY" })
     );
+  });
+
+  it("allows on-level preamble + when (desugared; no MIXED_PROJECTION_BODY)", () => {
+    const { diagnostics, program } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      fragment EntryBase on Entry e { type id }
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id }
+        | { type: "Page", id }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          ...EntryBase
+          when e.type == "Hero" { }
+          when e.type == "Page" { }
+        }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+    expect(diagnostics.every((d) => d.code !== "MIXED_PROJECTION_BODY")).toBe(true);
+    const entry = program.queries[0]!.projections[0]!;
+    expect(entry.selectedFields).toEqual([]);
+    expect(entry.expansions).toEqual([]);
+    expect(entry.arms?.[0]?.selectedFields).toEqual(["type", "id"]);
+    expect(entry.arms?.[1]?.selectedFields).toEqual(["type", "id"]);
+  });
+
+  it("rejects preamble field illegal on a narrowed arm", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string }
+        | { type: "Page", id }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          title
+          when e.type == "Hero" { id }
+          when e.type == "Page" { id }
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_SELECTED_FIELD",
+        message: expect.stringContaining("title"),
+      })
+    );
+  });
+
+  it("rejects ...EntryLogo on Hero (logoId absent); accepts it on Menu", () => {
+    const heroBad = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Menu", id, title: string, logoId: AssetId }
+        | { type: "Page", id }
+
+      resource Asset(id: AssetId, locale: Locale): { id }
+
+      fragment EntryLogo on Entry e {
+        title
+        expand logo: Asset(id: e.logoId, locale: context.locale)
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" { ...EntryLogo }
+          when e.type == "Menu" { type id }
+          when e.type == "Page" { type id }
+        }
+        on Asset a { id }
+      }
+    `);
+
+    expect(heroBad.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_PAYLOAD_PATH",
+        message: expect.stringContaining("logoId"),
+      })
+    );
+
+    const menuOk = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Menu", id, title: string, logoId: AssetId }
+        | { type: "Page", id }
+
+      resource Asset(id: AssetId, locale: Locale): { id }
+
+      fragment EntryLogo on Entry e {
+        title
+        expand logo: Asset(id: e.logoId, locale: context.locale)
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" { type id title }
+          when e.type == "Menu" { type id ...EntryLogo }
+          when e.type == "Page" { type id }
+        }
+        on Asset a { id }
+      }
+    `);
+
+    expect(menuOk.diagnostics).toEqual([]);
   });
 
   it("rejects selecting a field absent from the narrowed arm", () => {
@@ -232,7 +360,7 @@ describe("checkProgram — projection when-arms", () => {
 describe("checkProgram — negative diagnostics", () => {
   it("rejects Entry(id: @p.locale) — Locale is not assignable to EntryId", () => {
     const program = withMutatedPageDetail((p) => {
-      menuExpand(p).target.args = [
+      menuExpand(p).target!.args = [
         arg("spaceId", identity("p", "spaceId")),
         arg("environmentId", identity("p", "environmentId")),
         arg("id", identity("p", "locale")),
@@ -289,7 +417,7 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects identityRef path missing on the resource", () => {
     const program = withMutatedPageDetail((p) => {
-      menuExpand(p).target.args = [
+      menuExpand(p).target!.args = [
         arg("spaceId", identity("p", "spaceId")),
         arg("environmentId", identity("p", "environmentId")),
         arg("id", identity("p", "missing")),
@@ -304,7 +432,7 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects payloadRef to an identity-only field (locale)", () => {
     const program = withMutatedPageDetail((p) => {
-      menuExpand(p).target.args = [
+      menuExpand(p).target!.args = [
         arg("spaceId", identity("p", "spaceId")),
         arg("environmentId", identity("p", "environmentId")),
         arg("id", payload("p", "menuId")),
@@ -319,7 +447,7 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects identityRef when binding is not in scope", () => {
     const program = withMutatedPageDetail((p) => {
-      menuExpand(p).target.args = [
+      menuExpand(p).target!.args = [
         arg("spaceId", identity("p", "spaceId")),
         arg("environmentId", identity("p", "environmentId")),
         arg("id", identity("noSuchBinding", "id")),
@@ -391,7 +519,7 @@ describe("checkProgram — negative diagnostics", () => {
   it("rejects unknown resource in root / expand / on", () => {
     const program = withMutatedPageDetail((p) => {
       pageQuery(p).root.resource = "MissingRoot";
-      menuExpand(p).target.resource = "MissingExpand";
+      menuExpand(p).target!.resource = "MissingExpand";
       pageQuery(p).projections.push(projection("MissingOn", "x", ["id"]));
     });
 
@@ -422,7 +550,7 @@ describe("checkProgram — negative diagnostics", () => {
 
   it("rejects constructor arg type mismatch (SpaceId into EntryId)", () => {
     const program = withMutatedPageDetail((p) => {
-      menuExpand(p).target.args = [
+      menuExpand(p).target!.args = [
         arg("spaceId", identity("p", "spaceId")),
         arg("environmentId", identity("p", "environmentId")),
         arg("id", identity("p", "spaceId")),
