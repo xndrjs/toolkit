@@ -3,8 +3,12 @@
  *
  * Apps pass resolver config minus `strategy`, plus `resolve` input and query
  * params. Strategy factories and projectors stay exported for low-level use.
+ *
+ * Single-root keeps ergonomic `root:`; multi-root takes `roots: { alias: ARI }`.
+ * Both call `resolver.resolve({ roots: […] })`.
  */
 import type { Program, QueryDefinition } from "../../../ir";
+import { isSingleRootQuery } from "../../../ir";
 import {
   ariFactoryName,
   executionContextTypeName,
@@ -40,10 +44,22 @@ function emitResolveResultType(
   ].join("\n");
 }
 
+function emitMultiRootInputField(query: QueryDefinition): string {
+  const fields: string[] = [];
+  for (const root of query.roots) {
+    if (root.alias === null) {
+      throw new Error(`emitResolves: multi-root query '${query.name}' has a null alias`);
+    }
+    const ari = ariFactoryName(root.construction.resource);
+    fields.push(`    ${root.alias}: ReturnType<typeof ${ari}>;`);
+  }
+  return `  roots: {\n${fields.join("\n")}\n  };`;
+}
+
 function emitResolveInputType(query: QueryDefinition, registryTypeName: string): string {
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
-  const rootAri = ariFactoryName(query.roots[0]!.construction.resource);
+  const singleRoot = isSingleRootQuery(query);
   const contextType = hasContext ? executionContextTypeName(query.name) : "unknown";
 
   const fields: string[] = [];
@@ -53,8 +69,15 @@ function emitResolveInputType(query: QueryDefinition, registryTypeName: string):
   fields.push(
     `  sources: readonly DataSource<${registryTypeName}, ${contextType}>[];`,
     `  schedulingMode?: SchedulingMode;`,
-    `  observer?: ResolutionObserver;`,
-    `  root: ReturnType<typeof ${rootAri}>;`,
+    `  observer?: ResolutionObserver;`
+  );
+  if (singleRoot) {
+    const rootAri = ariFactoryName(query.roots[0]!.construction.resource);
+    fields.push(`  root: ReturnType<typeof ${rootAri}>;`);
+  } else {
+    fields.push(emitMultiRootInputField(query));
+  }
+  fields.push(
     `  executionContext: ${contextType};`,
     `  missingResourceMode: MissingResourceMode;`,
     `  backingResources?: ReadonlyMap<ResourceKey, unknown>;`,
@@ -64,13 +87,46 @@ function emitResolveInputType(query: QueryDefinition, registryTypeName: string):
   return `export type ${resolveInputTypeName(query.name)} = {\n${fields.join("\n")}\n};`;
 }
 
+function emitEngineRootsExpr(query: QueryDefinition): string {
+  if (isSingleRootQuery(query)) {
+    return `[input.root]`;
+  }
+  const parts: string[] = [];
+  for (const root of query.roots) {
+    if (root.alias === null) {
+      throw new Error(`emitResolves: multi-root query '${query.name}' has a null alias`);
+    }
+    parts.push(`input.roots.${root.alias}`);
+  }
+  return `[${parts.join(", ")}]`;
+}
+
+function emitProjectCall(query: QueryDefinition): string {
+  const projectFn = projectFnName(query.name);
+  const hasParams = query.parameters.length > 0;
+  const hasContext = query.context.length > 0;
+  const seedArg = isSingleRootQuery(query) ? "input.root" : "input.roots";
+
+  if (!hasParams && !hasContext) {
+    return `${projectFn}(${seedArg}, contentMap)`;
+  }
+
+  const argFields: string[] = [];
+  if (hasParams) {
+    argFields.push("params: input.params");
+  }
+  if (hasContext) {
+    argFields.push("executionContext: input.executionContext");
+  }
+  return `${projectFn}(${seedArg}, contentMap, {\n    ${argFields.join(",\n    ")},\n  })`;
+}
+
 function emitQueryResolve(query: QueryDefinition, registryTypeName: string): string {
   const fnName = resolveFnName(query.name);
   const resultType = resolveResultTypeName(query.name);
   const inputType = resolveInputTypeName(query.name);
   const resultField = resolveResultFieldName(query.name);
   const strategyFactory = strategyFactoryName(query.name);
-  const projectFn = projectFnName(query.name);
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
   const contextType = hasContext ? executionContextTypeName(query.name) : "unknown";
@@ -79,17 +135,8 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
     ? `${strategyFactory}(input.params).build()`
     : `${strategyFactory}().build()`;
 
-  let projectCall = `${projectFn}(input.root, contentMap)`;
-  if (hasParams || hasContext) {
-    const argFields: string[] = [];
-    if (hasParams) {
-      argFields.push("params: input.params");
-    }
-    if (hasContext) {
-      argFields.push("executionContext: input.executionContext");
-    }
-    projectCall = `${projectFn}(input.root, contentMap, {\n    ${argFields.join(",\n    ")},\n  })`;
-  }
+  const projectCall = emitProjectCall(query);
+  const engineRoots = emitEngineRootsExpr(query);
 
   return [
     emitResolveInputType(query, registryTypeName),
@@ -113,7 +160,7 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
     `    errors,`,
     `    promotedResourceKeys,`,
     `  } = await resolver.resolve({`,
-    `    roots: [input.root],`,
+    `    roots: ${engineRoots},`,
     `    executionContext: input.executionContext,`,
     `    missingResourceMode: input.missingResourceMode,`,
     `    backingResources: input.backingResources,`,

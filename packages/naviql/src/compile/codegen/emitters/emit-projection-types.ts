@@ -1,11 +1,19 @@
 /**
  * Emit query-scoped projection TypeScript types from checked queries.
  *
- * Per query `PostDetail`:
+ * Per single-root query `PostDetail`:
  * ```ts
  * export type PostDetail_User = { $type: "User"; … };
  * export type PostDetail_Post = { $type: "Post"; …; author: PostDetail_User };
  * export type PostDetailResult = PostDetail_Post;
+ * ```
+ *
+ * Multi-root queries key the aggregate by alias:
+ * ```ts
+ * export type HomepageResult = {
+ *   page: Homepage_Page;
+ *   session: Homepage_UserSession;
+ * };
  * ```
  *
  * Armed `on Entry` emits variant shells + a union alias:
@@ -32,6 +40,7 @@ import type {
   ResourceProjection,
   TypeExpr,
 } from "../../../ir";
+import { isSingleRootQuery } from "../../../ir";
 import { projectionArmDiscriminant } from "./emit-expr";
 import { printTypeExpr } from "./emit-types";
 import { projectionTypeName, projectionVariantTypeName, queryResultTypeName } from "../naming";
@@ -518,16 +527,35 @@ function emitQueryProjectionTypes(
     );
   }
 
-  const rootResource = query.roots[0]!.construction.resource;
-  const rootType = printTargetAliasType(
-    query.name,
-    rootResource,
-    resources,
-    projected,
-    resolveTargets
-  );
+  const resultTypeName = queryResultTypeName(query.name);
 
-  parts.push(`export type ${queryResultTypeName(query.name)} = ${rootType};`);
+  if (isSingleRootQuery(query)) {
+    const rootResource = query.roots[0]!.construction.resource;
+    const rootType = printTargetAliasType(
+      query.name,
+      rootResource,
+      resources,
+      projected,
+      resolveTargets
+    );
+    parts.push(`export type ${resultTypeName} = ${rootType};`);
+  } else {
+    const fields: string[] = [];
+    for (const root of query.roots) {
+      if (root.alias === null) {
+        throw new Error(`emitProjectionTypes: multi-root query '${query.name}' has a null alias`);
+      }
+      const rootType = printTargetAliasType(
+        query.name,
+        root.construction.resource,
+        resources,
+        projected,
+        resolveTargets
+      );
+      fields.push(`  ${root.alias}: ${rootType};`);
+    }
+    parts.push(`export type ${resultTypeName} = {\n${fields.join("\n")}\n};`);
+  }
 
   return parts.join("\n\n");
 }

@@ -18,6 +18,7 @@ import type {
   ResourceProjection,
   TypeExpr,
 } from "../../../ir";
+import { isSingleRootQuery } from "../../../ir";
 import { emitConstruction } from "./emit-construction";
 import { emitExpr, projectionArmDiscriminant, projectionExprScope } from "./emit-expr";
 import {
@@ -601,6 +602,29 @@ function emitArgsType(query: QueryDefinition): string | null {
   return `{\n${fields.join("\n")}\n  }`;
 }
 
+function emitRootsParamType(query: QueryDefinition): string {
+  const fields: string[] = [];
+  for (const root of query.roots) {
+    if (root.alias === null) {
+      throw new Error(`emitProjections: multi-root query '${query.name}' has a null alias`);
+    }
+    const ari = ariFactoryName(root.construction.resource);
+    fields.push(`    ${root.alias}: ReturnType<typeof ${ari}>;`);
+  }
+  return `{\n${fields.join("\n")}\n  }`;
+}
+
+function emitMultiRootReturn(query: QueryDefinition, resultType: string): string {
+  const fields: string[] = [];
+  for (const root of query.roots) {
+    if (root.alias === null) {
+      throw new Error(`emitProjections: multi-root query '${query.name}' has a null alias`);
+    }
+    fields.push(`    ${root.alias}: projectNode(roots.${root.alias}),`);
+  }
+  return `  return {\n${fields.join("\n")}\n  } as ${resultType};`;
+}
+
 function emitQueryProjection(
   query: QueryDefinition,
   resources: ResourceIndex,
@@ -608,13 +632,14 @@ function emitQueryProjection(
 ): string {
   const fnName = projectFnName(query.name);
   const resultType = queryResultTypeName(query.name);
-  const rootAri = ariFactoryName(query.roots[0]!.construction.resource);
+  const singleRoot = isSingleRootQuery(query);
   const argsType = emitArgsType(query);
 
-  const sigParams = [
-    `root: ReturnType<typeof ${rootAri}>`,
-    `contentMap: ContentMap<${registryTypeName}>`,
-  ];
+  const rootParam = singleRoot
+    ? `root: ReturnType<typeof ${ariFactoryName(query.roots[0]!.construction.resource)}>`
+    : `roots: ${emitRootsParamType(query)}`;
+
+  const sigParams = [rootParam, `contentMap: ContentMap<${registryTypeName}>`];
   if (argsType !== null) {
     sigParams.push(`args: ${argsType}`);
   }
@@ -637,6 +662,9 @@ function emitQueryProjection(
   }
 
   const projectNode = emitProjectNode(query, resources, fnName);
+  const returnStmt = singleRoot
+    ? `  return projectNode(root) as ${resultType};`
+    : emitMultiRootReturn(query, resultType);
 
   const body = [
     `  const memo = new Map<string, object>();`,
@@ -645,7 +673,7 @@ function emitQueryProjection(
     "",
     projectNode,
     "",
-    `  return projectNode(root) as ${resultType};`,
+    returnStmt,
   ].join("\n");
 
   return `export function ${fnName}(\n  ${sigParams.join(",\n  ")},\n): ${resultType} {\n${body}\n}`;
