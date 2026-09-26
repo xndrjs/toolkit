@@ -23,6 +23,7 @@ export type NaviQlKeywordNames =
   | ")"
   | ","
   | "."
+  | "..."
   | ":"
   | ";"
   | "=="
@@ -34,6 +35,7 @@ export type NaviQlKeywordNames =
   | "each"
   | "expand"
   | "false"
+  | "fragment"
   | "in"
   | "null"
   | "number"
@@ -161,7 +163,11 @@ export function isContextRef(item: unknown): item is ContextRef {
   return reflection.isInstance(item, ContextRef.$type);
 }
 
-export type Declaration = QueryDeclaration | ResourceDeclaration | ScalarDeclaration;
+export type Declaration =
+  | FragmentDeclaration
+  | QueryDeclaration
+  | ResourceDeclaration
+  | ScalarDeclaration;
 
 export const Declaration = {
   $type: "Declaration",
@@ -209,7 +215,7 @@ export function isExpandArm(item: unknown): item is ExpandArm {
 }
 
 export interface Expansion extends langium.AstNode {
-  readonly $container: ProjectionClause | ProjectionWhenArm;
+  readonly $container: FragmentDeclaration | ProjectionClause | ProjectionWhenArm;
   readonly $type: "Expansion";
   alias: string;
   each?: EachComprehension;
@@ -235,6 +241,46 @@ export const Expression = {
 
 export function isExpression(item: unknown): item is Expression {
   return reflection.isInstance(item, Expression.$type);
+}
+
+export interface FragmentDeclaration extends langium.AstNode {
+  readonly $container: Model;
+  readonly $type: "FragmentDeclaration";
+  binding: string;
+  expansions: Array<Expansion>;
+  name: string;
+  resource: string;
+  selectedFields: Array<string>;
+  spreads: Array<FragmentSpread>;
+}
+
+export const FragmentDeclaration = {
+  $type: "FragmentDeclaration",
+  binding: "binding",
+  expansions: "expansions",
+  name: "name",
+  resource: "resource",
+  selectedFields: "selectedFields",
+  spreads: "spreads",
+} as const;
+
+export function isFragmentDeclaration(item: unknown): item is FragmentDeclaration {
+  return reflection.isInstance(item, FragmentDeclaration.$type);
+}
+
+export interface FragmentSpread extends langium.AstNode {
+  readonly $container: FragmentDeclaration | ProjectionClause | ProjectionWhenArm;
+  readonly $type: "FragmentSpread";
+  name: string;
+}
+
+export const FragmentSpread = {
+  $type: "FragmentSpread",
+  name: "name",
+} as const;
+
+export function isFragmentSpread(item: unknown): item is FragmentSpread {
+  return reflection.isInstance(item, FragmentSpread.$type);
 }
 
 export interface GroupedTypeExpr extends langium.AstNode {
@@ -452,8 +498,12 @@ export function isPrimitiveTypeExpr(item: unknown): item is PrimitiveTypeExpr {
 }
 
 /**
- * Flat body (`id` / `expand …`) or only `when` arms — not both.
- * Mixing is also rejected by the checker for IR-built programs.
+ * Three shapes (items = fields | expands | spreads):
+ *   1. Flat: items* (no when)
+ *   2. Armed: whenArms+ only
+ *   3. Preamble + armed: items+ whenArms+
+ * Items after the first `when` are a parse error (whenArms only follow).
+ * IR-built programs that mix root fields with arms are still rejected by check.
  */
 export interface ProjectionClause extends langium.AstNode {
   readonly $container: QueryDeclaration;
@@ -462,6 +512,7 @@ export interface ProjectionClause extends langium.AstNode {
   expansions: Array<Expansion>;
   resource: string;
   selectedFields: Array<string>;
+  spreads: Array<FragmentSpread>;
   whenArms: Array<ProjectionWhenArm>;
 }
 
@@ -471,6 +522,7 @@ export const ProjectionClause = {
   expansions: "expansions",
   resource: "resource",
   selectedFields: "selectedFields",
+  spreads: "spreads",
   whenArms: "whenArms",
 } as const;
 
@@ -484,6 +536,7 @@ export interface ProjectionWhenArm extends langium.AstNode {
   readonly $type: "ProjectionWhenArm";
   expansions: Array<Expansion>;
   selectedFields: Array<string>;
+  spreads: Array<FragmentSpread>;
   when: Expression;
 }
 
@@ -491,6 +544,7 @@ export const ProjectionWhenArm = {
   $type: "ProjectionWhenArm",
   expansions: "expansions",
   selectedFields: "selectedFields",
+  spreads: "spreads",
   when: "when",
 } as const;
 
@@ -728,6 +782,8 @@ export type NaviQlAstType = {
   ExpandArm: ExpandArm;
   Expansion: Expansion;
   Expression: Expression;
+  FragmentDeclaration: FragmentDeclaration;
+  FragmentSpread: FragmentSpread;
   GroupedTypeExpr: GroupedTypeExpr;
   IdentityRef: IdentityRef;
   Literal: Literal;
@@ -878,6 +934,45 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
       properties: {},
       superTypes: [],
     },
+    FragmentDeclaration: {
+      name: FragmentDeclaration.$type,
+      properties: {
+        binding: {
+          name: FragmentDeclaration.binding,
+        },
+        expansions: {
+          name: FragmentDeclaration.expansions,
+          defaultValue: [],
+          optional: true,
+        },
+        name: {
+          name: FragmentDeclaration.name,
+        },
+        resource: {
+          name: FragmentDeclaration.resource,
+        },
+        selectedFields: {
+          name: FragmentDeclaration.selectedFields,
+          defaultValue: [],
+          optional: true,
+        },
+        spreads: {
+          name: FragmentDeclaration.spreads,
+          defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [Declaration.$type],
+    },
+    FragmentSpread: {
+      name: FragmentSpread.$type,
+      properties: {
+        name: {
+          name: FragmentSpread.name,
+        },
+      },
+      superTypes: [],
+    },
     GroupedTypeExpr: {
       name: GroupedTypeExpr.$type,
       properties: {
@@ -1014,6 +1109,11 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           defaultValue: [],
           optional: true,
         },
+        spreads: {
+          name: ProjectionClause.spreads,
+          defaultValue: [],
+          optional: true,
+        },
         whenArms: {
           name: ProjectionClause.whenArms,
           defaultValue: [],
@@ -1032,6 +1132,11 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         },
         selectedFields: {
           name: ProjectionWhenArm.selectedFields,
+          defaultValue: [],
+          optional: true,
+        },
+        spreads: {
+          name: ProjectionWhenArm.spreads,
           defaultValue: [],
           optional: true,
         },

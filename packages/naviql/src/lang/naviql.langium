@@ -7,7 +7,19 @@ entry Model:
     declarations+=Declaration*;
 
 Declaration:
-    ScalarDeclaration | ResourceDeclaration | QueryDeclaration;
+    ScalarDeclaration | ResourceDeclaration | FragmentDeclaration | QueryDeclaration;
+
+// --- Fragments ---------------------------------------------------------------
+// Compile-time reusable field/expand blocks. Spreads desugar in lower;
+// binding is rewritten to the enclosing `on` / fragment binding at expand time.
+
+FragmentDeclaration:
+    'fragment' name=ID 'on' resource=ID binding=ID '{'
+        (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
+    '}';
+
+FragmentSpread:
+    '...' name=ID;
 
 // --- Scalars -----------------------------------------------------------------
 
@@ -93,21 +105,23 @@ RootClause:
     'root' construction=ResourceConstruction;
 
 /**
- * Flat body (`id` / `expand …`) or only `when` arms — not both.
- * Mixing is also rejected by the checker for IR-built programs.
+ * Three shapes (items = fields | expands | spreads):
+ *   1. Flat: items* (no when)
+ *   2. Armed: whenArms+ only
+ *   3. Preamble + armed: items+ whenArms+
+ * Items after the first `when` are a parse error (whenArms only follow).
+ * IR-built programs that mix root fields with arms are still rejected by check.
  */
 ProjectionClause:
     'on' resource=ID binding=ID '{'
-        (
-            whenArms+=ProjectionWhenArm+
-          | (selectedFields+=ID | expansions+=Expansion)*
-        )
+        (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
+        whenArms+=ProjectionWhenArm*
     '}';
 
 /** Discriminant arm: `when e.type == "Hero" { … }`. */
 ProjectionWhenArm:
     'when' when=Expression '{'
-        (selectedFields+=ID | expansions+=Expansion)*
+        (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
     '}';
 
 Expansion:
