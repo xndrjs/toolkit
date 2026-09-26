@@ -312,3 +312,140 @@ query Q(entryId: EntryId) {
     );
   });
 });
+
+const PATH_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): {
+  type: "Hero"
+  id
+  title: string
+  authorId: EntryId
+  meta: { something: string }
+  strips: { id: EntryId }[]
+} | {
+  type: "Page"
+  id
+  title: string
+  authorId: EntryId
+  meta: { something: string }
+  strips: { id: EntryId }[]
+}
+
+query PageDetail(pageId: EntryId) {
+  context {
+    locale: Locale
+    meta: { something: string }
+  }
+  root Entry(id: pageId, locale: context.locale)
+  on Entry p {
+    expand author: Entry(id: p.authorId, locale: @p.locale)
+    expand strips: each link in p.strips (
+      Entry(id: link.id, locale: context.locale)
+    )
+    when p.type == "Hero" {
+      title
+      expand x: Entry(id: p.authorId, locale: @p.locale)
+    }
+  }
+}
+`;
+
+describe("path property completions", () => {
+  it("completes payload fields after p.", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const offset = offsetAfter(PATH_FIXTURE, "id: p.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toContain("authorId");
+    expect(labels).toContain("title");
+    expect(labels).toContain("strips");
+    expect(labels).toContain("meta");
+  });
+
+  it("completes identity fields after @p.", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const offset = offsetAfter(PATH_FIXTURE, "locale: @p.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toEqual(expect.arrayContaining(["id", "locale"]));
+    expect(labels).not.toContain("authorId");
+    expect(labels).not.toContain("title");
+  });
+
+  it("completes context fields after context.", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const offset = offsetAfter(PATH_FIXTURE, "locale: context.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toEqual(expect.arrayContaining(["locale", "meta"]));
+  });
+
+  it("completes nested context.meta.", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id }
+query Q(pageId: EntryId) {
+  context {
+    locale: Locale
+    meta: { something: string }
+  }
+  root Entry(id: pageId, locale: context.meta.)
+  on Entry p { id }
+}
+`;
+    // Incomplete trailing dot — may have parse errors
+    const document = parseDocument(source);
+    const { scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const offset = offsetAfter(source, "context.meta.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toContain("something");
+  });
+
+  it("completes each item fields after link.", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const offset = offsetAfter(PATH_FIXTURE, "id: link.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toContain("id");
+  });
+
+  it("completes payload fields in when clause after p.", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const offset = offsetAfter(PATH_FIXTURE, "when p.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toContain("type");
+    expect(labels).toContain("title");
+  });
+
+  it("narrows payload fields inside when arm for p.", () => {
+    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
+    // p.authorId inside when Hero arm
+    const offset = offsetAfter(PATH_FIXTURE, "expand x: Entry(id: p.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toContain("authorId");
+    expect(labels).toContain("title");
+  });
+
+  it("filters path completions by partial segment", () => {
+    const { scalars, resources } = tablesFrom(PATH_FIXTURE);
+    const synthetic = PATH_FIXTURE.replace("id: p.authorId", "id: p.auth");
+    const doc = parseDocument(synthetic);
+    const off = offsetAfter(synthetic, "id: p.auth");
+    const labels = completionsAtOffset(doc, off, { scalars, resources }).map((i) => i.label);
+    expect(labels).toContain("authorId");
+    expect(labels.every((l) => l.toLowerCase().startsWith("auth"))).toBe(true);
+  });
+});

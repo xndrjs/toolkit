@@ -497,6 +497,37 @@ describe("lowerProgram — fragments", () => {
     );
   });
 
+  it("reports DUPLICATE_SELECTED_FIELD for repeated fields in a when arm", () => {
+    const sink = createDiagnosticSink();
+    lowerProgram(
+      parseSource(`
+        ${FRAGMENT_PRELUDE}
+
+        query Q(entryId: EntryId) {
+          context { locale: Locale }
+          root Entry(id: entryId, locale: context.locale)
+          on Entry e {
+            when e.type == "Hero" {
+              title
+              title
+            }
+          }
+          on Asset a { id }
+        }
+      `),
+      sink
+    );
+
+    const dup = sink.diagnostics.find((d) => d.code === "DUPLICATE_SELECTED_FIELD");
+    expect(dup).toMatchObject({
+      code: "DUPLICATE_SELECTED_FIELD",
+      message: "Duplicate selected field 'title'",
+    });
+    // Span should cover the second `title` token, not the whole when-arm.
+    expect(dup?.span).toBeTruthy();
+    expect((dup!.span!.end ?? 0) - (dup!.span!.start ?? 0)).toBeLessThan(20);
+  });
+
   it("reports DUPLICATE_SELECTED_FIELD after flatten of preamble + arm", () => {
     const sink = createDiagnosticSink();
     lowerProgram(

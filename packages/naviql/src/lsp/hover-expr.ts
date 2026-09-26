@@ -1,7 +1,7 @@
 /**
  * Hover for expression paths: `p.field`, `@p.id`, `context.meta.x`, item refs.
  */
-import { AstUtils, isCompositeCstNode, isLeafCstNode, type AstNode, type CstNode } from "langium";
+import { isCompositeCstNode, isLeafCstNode, type AstNode, type CstNode } from "langium";
 
 import { createDiagnosticSink } from "../check/diagnostic";
 import {
@@ -9,34 +9,22 @@ import {
   resolvePathOnFields,
   resolvePathOnItemType,
 } from "../check/expr-paths";
-import { inferExprType } from "../check/expressions";
-import {
-  unwrapNullable,
-  type FieldMap,
-  type QueryScope,
-  type ResourceTable,
-} from "../check/symbols";
-import { lowerExpr } from "../compile/lower/expr";
-import { lowerTypedField, type NameTables } from "../compile/lower/types";
+import type { FieldMap, QueryScope, ResourceTable } from "../check/symbols";
 import type { TypeExpr } from "../ir";
 import {
   isContextRef,
   isEachComprehension,
-  isFragmentDeclaration,
   isIdentityRef,
   isPathRef,
-  isQueryDeclaration,
   type ContextRef,
   type EachComprehension,
   type IdentityRef,
   type PathRef,
 } from "../lang/generated/ast";
+import { buildExprScope, type ExprScopeTables } from "./expr-scope";
 import { fieldHoverMarkdown, resourceHoverMarkdown } from "./hover-markdown";
 
-export type ExprHoverTables = {
-  resources: ResourceTable;
-  nameTables: NameTables;
-};
+export type ExprHoverTables = ExprScopeTables;
 
 function assignmentFeature(cstNode: CstNode): string | undefined {
   let current: AstNode | undefined = cstNode.grammarSource as AstNode | undefined;
@@ -84,79 +72,6 @@ function fieldMapAsObject(fields: FieldMap): TypeExpr {
     fields: [...fields.values()],
     span: null,
   };
-}
-
-function eachAncestorsOuterFirst(node: AstNode): EachComprehension[] {
-  const chain: EachComprehension[] = [];
-  let current: AstNode | undefined = node;
-  while (current) {
-    if (isEachComprehension(current)) {
-      chain.push(current);
-    }
-    current = current.$container;
-  }
-  return chain.reverse();
-}
-
-function buildExprHoverScope(node: AstNode, tables: ExprHoverTables): QueryScope {
-  const params: FieldMap = new Map();
-  const context: FieldMap = new Map();
-  const bindings = new Map<string, string>();
-  const items = new Map<string, TypeExpr>();
-
-  const query = AstUtils.getContainerOfType(node, isQueryDeclaration);
-  if (query) {
-    for (const field of query.parameters) {
-      params.set(field.name, lowerTypedField(field, tables.nameTables));
-    }
-    if (query.context) {
-      for (const field of query.context.fields) {
-        context.set(field.name, lowerTypedField(field, tables.nameTables));
-      }
-    }
-    for (const projection of query.projections) {
-      bindings.set(projection.binding, projection.resource);
-    }
-  }
-
-  const fragment = AstUtils.getContainerOfType(node, isFragmentDeclaration);
-  if (fragment) {
-    bindings.set(fragment.binding, fragment.resource);
-  }
-
-  const scope: QueryScope = {
-    path: "hover",
-    params,
-    context,
-    bindings,
-    items,
-    payloadNarrowing: new Map(),
-  };
-
-  // Outer `each` first so nested sources can see outer item bindings.
-  for (const each of eachAncestorsOuterFirst(node)) {
-    const elementType = inferEachElementType(each, scope, tables);
-    if (elementType) {
-      items.set(each.itemBinding, elementType);
-    }
-  }
-
-  return scope;
-}
-
-function inferEachElementType(
-  each: EachComprehension,
-  scope: QueryScope,
-  tables: ExprHoverTables
-): TypeExpr | undefined {
-  const itemBindings = new Set(scope.items.keys());
-  const sourceExpr = lowerExpr(each.source, itemBindings);
-  const sink = createDiagnosticSink();
-  const sourceType = inferExprType(sourceExpr, "hover.each", scope, tables.resources, sink);
-  if (!sourceType) return undefined;
-  const unwrapped = unwrapNullable(sourceType);
-  if (unwrapped.kind !== "array") return undefined;
-  return unwrapped.of;
 }
 
 function quietResolveBindingPath(
@@ -208,7 +123,7 @@ function hoverPathRef(
   feature: string | undefined,
   tables: ExprHoverTables
 ): string | undefined {
-  const scope = buildExprHoverScope(node, tables);
+  const scope = buildExprScope(node, tables);
   const segmentIndex =
     feature === "segments" ? hoveredFeatureIndex(node, "segments", leaf) : undefined;
   if (segmentIndex === undefined) {
@@ -256,7 +171,7 @@ function hoverIdentityRef(
   feature: string | undefined,
   tables: ExprHoverTables
 ): string | undefined {
-  const scope = buildExprHoverScope(node, tables);
+  const scope = buildExprScope(node, tables);
   const resourceName = scope.bindings.get(node.binding);
   const symbols = resourceName ? tables.resources.get(resourceName) : undefined;
 
@@ -286,7 +201,7 @@ function hoverContextRef(
   feature: string | undefined,
   tables: ExprHoverTables
 ): string | undefined {
-  const scope = buildExprHoverScope(node, tables);
+  const scope = buildExprScope(node, tables);
 
   // Keyword `context` (or bare ContextRef with empty path).
   if (feature === undefined && (leaf.text === "context" || node.path.length === 0)) {
@@ -313,7 +228,7 @@ function hoverEachItemBinding(
   if (feature !== "itemBinding" && leaf.text !== node.itemBinding) {
     return undefined;
   }
-  const scope = buildExprHoverScope(node, tables);
+  const scope = buildExprScope(node, tables);
   const itemType = scope.items.get(node.itemBinding);
   if (!itemType) return undefined;
   return markdownForSegment(node.itemBinding, itemType);

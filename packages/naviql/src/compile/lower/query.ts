@@ -17,7 +17,7 @@ import {
 import { lowerConstruction, lowerExpr } from "./expr";
 import {
   expandBody,
-  rejectDuplicateBody,
+  rejectPreambleArmFieldClash,
   type FlattenedBody,
   type FragmentTable,
 } from "./fragments";
@@ -99,7 +99,7 @@ export function lowerProjection(
     };
   }
 
-  rejectDuplicateBody(preamble, spanOf(clause), sink);
+  // Within-body duplicate fields are reported in expandBody.
   return {
     resource: clause.resource,
     binding: clause.binding,
@@ -128,11 +128,11 @@ export function lowerProjectionArm(
   sink: DiagnosticSink
 ): ProjectionArm {
   const armBody = expandBody(arm, resource, binding, fragments, [], sink);
+  rejectPreambleArmFieldClash(preamble, armBody, spanOf(arm), sink);
   const combined: FlattenedBody = {
     selectedFields: [...preamble.selectedFields, ...armBody.selectedFields],
     expansions: [...preamble.expansions, ...armBody.expansions],
   };
-  rejectDuplicateBody(combined, spanOf(arm), sink);
   return {
     when: lowerExpr(arm.when),
     selectedFields: combined.selectedFields,
