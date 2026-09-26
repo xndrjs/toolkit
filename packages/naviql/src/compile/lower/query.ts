@@ -47,7 +47,7 @@ export function lowerIslandClause(clause: AstIslandClause): IslandClause {
   return {
     resource: clause.resource,
     binding: clause.binding ?? null,
-    whens: clause.whens.map((w) => lowerExpr(w.when)),
+    when: clause.when ? lowerExpr(clause.when) : null,
     span: spanOf(clause),
   };
 }

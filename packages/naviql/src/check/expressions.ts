@@ -96,11 +96,40 @@ export function inferExprType(
       }
       return resolvePathOnItemType(expr.path, itemType, path, expr.span, sink);
     }
+    case "arrayLiteral": {
+      if (expr.elements.length === 0) {
+        // Empty membership list — type as never[] (no element type).
+        return {
+          kind: "array",
+          of: { kind: "primitive", name: "string", span: null },
+          span: null,
+        };
+      }
+      const first = inferExprType(expr.elements[0]!, `${path}.elements.0`, scope, resources, sink);
+      if (!first) return undefined;
+      for (let i = 1; i < expr.elements.length; i++) {
+        const el = inferExprType(
+          expr.elements[i]!,
+          `${path}.elements.${i}`,
+          scope,
+          resources,
+          sink
+        );
+        if (!el) return undefined;
+      }
+      return { kind: "array", of: first, span: null };
+    }
+    case "unary": {
+      const operand = inferExprType(expr.operand, `${path}.operand`, scope, resources, sink);
+      if (!operand) return undefined;
+      // JS falsy — any typed operand yields boolean.
+      return { kind: "primitive", name: "boolean", span: null };
+    }
     case "binary": {
       const left = inferExprType(expr.left, `${path}.left`, scope, resources, sink);
       const right = inferExprType(expr.right, `${path}.right`, scope, resources, sink);
       if (!left || !right) return undefined;
-      // Equality is always boolean; assignability of operands is not required
+      // Equality / membership always boolean; assignability of operands is not required
       // (discriminant filters compare stringLiteral to stringLiteral / scalar).
       return { kind: "primitive", name: "boolean", span: null };
     }

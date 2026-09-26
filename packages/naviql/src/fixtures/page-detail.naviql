@@ -261,9 +261,6 @@ query PageDetail(pageId: EntryId) {
   }
 
   islands {
-    on Entry e {
-      when e.type == "Menu"
-      when e.type == "Footer"
-    }
+    on Entry e when e.type == "Menu" or e.type == "Footer"
   }
 }

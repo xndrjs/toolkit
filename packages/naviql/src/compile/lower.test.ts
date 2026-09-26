@@ -762,7 +762,7 @@ describe("lowerProgram — fragments", () => {
     });
   });
 
-  it("lowers islands clauses (empty body, multi-when, optional binding)", () => {
+  it("lowers islands clauses (when or / unconditional)", () => {
     const program = lowerProgram(
       parseSource(`
         scalar EntryId on string;
@@ -783,11 +783,8 @@ describe("lowerProgram — fragments", () => {
           on Page p { id }
           on Entry e { id type }
           islands {
-            on Entry e {
-              when e.type == "Menu"
-              when e.type == "Footer"
-            }
-            on Page {}
+            on Entry e when e.type == "Menu" or e.type == "Footer"
+            on Page
           }
         }
       `)
@@ -798,31 +795,100 @@ describe("lowerProgram — fragments", () => {
       {
         resource: "Entry",
         binding: "e",
-        whens: [
-          {
+        when: {
+          kind: "binary",
+          op: "or",
+          left: {
             kind: "binary",
             op: "==",
             left: { kind: "payloadRef", binding: "e", path: ["type"], span: null },
             right: { kind: "literal", value: "Menu", span: null },
             span: null,
           },
-          {
+          right: {
             kind: "binary",
             op: "==",
             left: { kind: "payloadRef", binding: "e", path: ["type"], span: null },
             right: { kind: "literal", value: "Footer", span: null },
             span: null,
           },
-        ],
+          span: null,
+        },
         span: null,
       },
       {
         resource: "Page",
         binding: null,
-        whens: [],
+        when: null,
         span: null,
       },
     ]);
     expectSpan(program.queries[0]!.islands[0]?.span);
+  });
+
+  it("lowers in / not in / unary ! in when clauses", () => {
+    const program = lowerProgram(
+      parseSource(`
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale): {
+        type: string
+        id
+        visible: boolean
+      }
+
+      query Q(pageId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: pageId, locale: context.locale)
+        on Entry e {
+          when e.type in ["Menu", "Footer"] { id }
+          when e.type not in ["Hero"] { id }
+          when !e.visible { id }
+        }
+        islands {
+          on Entry e when e.type in ["Menu", "Footer"] or !e.visible
+        }
+      }
+    `)
+    );
+
+    const arms = program.queries[0]!.projections[0]!.arms!;
+    expect(stripSpans(arms[0]!.when)).toEqual({
+      kind: "binary",
+      op: "in",
+      left: { kind: "payloadRef", binding: "e", path: ["type"], span: null },
+      right: {
+        kind: "arrayLiteral",
+        elements: [
+          { kind: "literal", value: "Menu", span: null },
+          { kind: "literal", value: "Footer", span: null },
+        ],
+        span: null,
+      },
+      span: null,
+    });
+    expect(stripSpans(arms[1]!.when)).toEqual({
+      kind: "binary",
+      op: "not in",
+      left: { kind: "payloadRef", binding: "e", path: ["type"], span: null },
+      right: {
+        kind: "arrayLiteral",
+        elements: [{ kind: "literal", value: "Hero", span: null }],
+        span: null,
+      },
+      span: null,
+    });
+    expect(stripSpans(arms[2]!.when)).toEqual({
+      kind: "unary",
+      op: "!",
+      operand: { kind: "payloadRef", binding: "e", path: ["visible"], span: null },
+      span: null,
+    });
+
+    expect(stripSpans(program.queries[0]!.islands[0]!.when)).toMatchObject({
+      kind: "binary",
+      op: "or",
+    });
   });
 });

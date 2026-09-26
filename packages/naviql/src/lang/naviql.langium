@@ -117,19 +117,14 @@ ContextBlock:
     'context' '{' fields+=TypedField* '}';
 
 /**
- * Island policies: multiple `when` under one `on` are OR'd (one startIsland each).
- * Empty body ⇒ unconditional startIsland. Binding required when any `when` is present.
+ * Island policies: one clause = one startIsland.
+ * `on Page` ⇒ unconditional; `on Entry e when …` ⇒ conditional (binding required).
  */
 IslandsBlock:
     'islands' '{' clauses+=IslandClause+ '}';
 
 IslandClause:
-    'on' resource=ID binding=ID? '{'
-        whens+=IslandWhen*
-    '}';
-
-IslandWhen:
-    'when' when=Expression;
+    'on' resource=ID binding=ID? ('when' when=Expression)?;
 
 RootClause:
     'root' construction=ResourceConstruction;
@@ -194,13 +189,40 @@ NamedArg:
 // --- Expressions -------------------------------------------------------------
 // Path shapes are classified during lowering (param / payloadRef / itemRef).
 // `context.path` and `@binding[.path]` are dedicated forms (context is a keyword).
-// Equality is used for `each` / projection `when` filters (`s.type == "Hero"`).
+// When filters: `or` / `and` / `==`/`!=` / `in`/`not in` / unary `!` (JS falsy).
+// Precedence: `!` > `==`/`!=` > `in`/`not in` > `and` > `or`. Parentheses group.
 
 Expression:
-    Atom ({infer BinaryExpr.left=current} op=('==' | '!=') right=Atom)?;
+    OrExpr;
 
-Atom:
-    Literal | IdentityRef | ContextRef | PathRef;
+OrExpr:
+    AndExpr ({infer BinaryExpr.left=current} op='or' right=AndExpr)*;
+
+AndExpr:
+    InExpr ({infer BinaryExpr.left=current} op='and' right=InExpr)*;
+
+InExpr:
+    EqExpr ({infer BinaryExpr.left=current} op=MembershipOp right=ArrayLiteral)?;
+
+MembershipOp returns string:
+    'in' | 'not' 'in';
+
+EqExpr:
+    UnaryExpr ({infer BinaryExpr.left=current} op=('==' | '!=') right=UnaryExpr)?;
+
+UnaryExpr:
+    {infer UnaryExpr} op='!' operand=UnaryExpr
+  | Primary;
+
+Primary:
+    GroupedExpr | ArrayLiteral | Literal | IdentityRef | ContextRef | PathRef;
+
+GroupedExpr:
+    '(' expr=Expression ')';
+
+/** Value list for membership (`e.type in ["Menu", "Footer"]`). Literals only. */
+ArrayLiteral:
+    '[' (elements+=Literal (',' elements+=Literal)*)? ']';
 
 Literal:
     StringLiteral | NumberLiteral | BooleanLiteral | NullLiteral;

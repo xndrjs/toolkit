@@ -335,12 +335,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.islands
     .on(entryAri)
-    .when((predicate) => predicate.payload.type == "Menu")
-    .startIsland();
-
-  strategy.islands
-    .on(entryAri)
-    .when((predicate) => predicate.payload.type == "Footer")
+    .when((predicate) => predicate.payload.type == "Menu" || predicate.payload.type == "Footer")
     .startIsland();
 
   return strategy;

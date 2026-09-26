@@ -5,9 +5,8 @@ import { formatType } from "./assignability";
 import {
   closedPayloadDiscriminants,
   closedTypeDiscriminants,
-  itemDiscriminantLiteral,
+  coveredDiscriminantLabels,
   narrowItemTypeByFilter,
-  payloadDiscriminantLiteral,
   payloadHasField,
 } from "./discriminants";
 import { inferExprType } from "./expressions";
@@ -231,10 +230,9 @@ export function checkArmExhaustiveness(
 
   const covered = new Set<string>();
   for (const arm of arms) {
-    if (arm.when?.kind !== "binary") continue;
-    const disc = itemDiscriminantLiteral(arm.when, itemBinding);
-    if (disc && arm.when.op === "==") {
-      covered.add(disc.value);
+    if (!arm.when) continue;
+    for (const label of coveredDiscriminantLabels(arm.when, itemBinding, "item")) {
+      covered.add(label);
     }
   }
 
@@ -269,10 +267,8 @@ export function checkProjectionArmExhaustiveness(
 
   const covered = new Set<string>();
   for (const arm of arms) {
-    if (arm.when.kind !== "binary") continue;
-    const disc = payloadDiscriminantLiteral(arm.when, binding);
-    if (disc && arm.when.op === "==") {
-      covered.add(disc.value);
+    for (const label of coveredDiscriminantLabels(arm.when, binding, "payload")) {
+      covered.add(label);
     }
   }
 
@@ -307,10 +303,9 @@ export function checkResolveArmExhaustiveness(
 
   const covered = new Set<string>();
   for (const arm of arms) {
-    if (arm.when?.kind !== "binary") continue;
-    const disc = payloadDiscriminantLiteral(arm.when, binding);
-    if (disc && arm.when.op === "==") {
-      covered.add(disc.value);
+    if (!arm.when) continue;
+    for (const label of coveredDiscriminantLabels(arm.when, binding, "payload")) {
+      covered.add(label);
     }
   }
 

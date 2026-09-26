@@ -5,8 +5,8 @@ import { inferExprType } from "./expressions";
 import { unwrapNullable, type QueryScope, type ResourceTable } from "./symbols";
 
 /**
- * Validate query `islands { on Resource [binding] { when … }* }` clauses.
- * Empty whens ⇒ unconditional startIsland (no further checks beyond resource).
+ * Validate query `islands { on Resource [binding] [when …] }` clauses.
+ * `when: null` ⇒ unconditional startIsland (no further checks beyond resource).
  */
 export function checkIslands(
   islands: IslandClause[],
@@ -29,17 +29,17 @@ export function checkIslands(
       });
     }
 
-    if (clause.whens.length > 0 && clause.binding == null) {
+    if (clause.when !== null && clause.binding == null) {
       sink.push({
         code: "ISLAND_BINDING_REQUIRED",
-        message: `Island clause 'on ${clause.resource}' requires a binding when when-clauses are present`,
+        message: `Island clause 'on ${clause.resource}' requires a binding when a when-clause is present`,
         path: clausePath,
         span: clause.span,
       });
       continue;
     }
 
-    if (!knownResource || clause.whens.length === 0 || clause.binding == null) {
+    if (!knownResource || clause.when === null || clause.binding == null) {
       continue;
     }
 
@@ -48,21 +48,18 @@ export function checkIslands(
       bindings: new Map([...scope.bindings, [clause.binding, clause.resource]]),
     };
 
-    for (let j = 0; j < clause.whens.length; j++) {
-      const when = clause.whens[j]!;
-      const whenPath = `${clausePath}.whens.${j}`;
-      const whenType = inferExprType(when, whenPath, whenScope, resources, sink);
-      if (!whenType) continue;
+    const whenPath = `${clausePath}.when`;
+    const whenType = inferExprType(clause.when, whenPath, whenScope, resources, sink);
+    if (!whenType) continue;
 
-      const prim = unwrapNullable(whenType);
-      if (prim.kind !== "primitive" || prim.name !== "boolean") {
-        sink.push({
-          code: "TYPE_MISMATCH",
-          message: `Island when-clause must be boolean, got ${formatType(whenType)}`,
-          path: whenPath,
-          span: when.span,
-        });
-      }
+    const prim = unwrapNullable(whenType);
+    if (prim.kind !== "primitive" || prim.name !== "boolean") {
+      sink.push({
+        code: "TYPE_MISMATCH",
+        message: `Island when-clause must be boolean, got ${formatType(whenType)}`,
+        path: whenPath,
+        span: clause.when.span,
+      });
     }
   }
 }

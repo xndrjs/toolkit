@@ -305,6 +305,16 @@ export function rebindExpr(expr: Expr, from: string, to: string): Expr {
     case "itemRef":
       // Item bindings are comprehension-local; do not rewrite.
       return expr;
+    case "arrayLiteral":
+      return {
+        ...expr,
+        elements: expr.elements.map((el) => rebindExpr(el, from, to)),
+      };
+    case "unary":
+      return {
+        ...expr,
+        operand: rebindExpr(expr.operand, from, to),
+      };
     case "binary":
       return {
         ...expr,

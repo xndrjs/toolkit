@@ -865,7 +865,7 @@ describe("checkProgram — islands", () => {
     }
   `;
 
-  it("typechecks Menu/Footer island whens and unconditional on Page", () => {
+  it("typechecks Menu/Footer island when and unconditional on Page", () => {
     const { diagnostics } = parseAndCheck(`
       ${islandsPrelude}
 
@@ -875,11 +875,8 @@ describe("checkProgram — islands", () => {
         on Page p { id }
         on Entry e { id type }
         islands {
-          on Entry e {
-            when e.type == "Menu"
-            when e.type == "Footer"
-          }
-          on Page {}
+          on Entry e when e.type == "Menu" or e.type == "Footer"
+          on Page
         }
       }
     `);
@@ -896,7 +893,7 @@ describe("checkProgram — islands", () => {
         root Page(id: pageId, locale: context.locale)
         on Page p { id }
         islands {
-          on Missing {}
+          on Missing
         }
       }
     `);
@@ -909,7 +906,7 @@ describe("checkProgram — islands", () => {
     );
   });
 
-  it("requires a binding when island when-clauses are present", () => {
+  it("requires a binding when island when-clause is present", () => {
     const { diagnostics } = parseAndCheck(`
       ${islandsPrelude}
 
@@ -918,9 +915,7 @@ describe("checkProgram — islands", () => {
         root Page(id: pageId, locale: context.locale)
         on Page p { id }
         islands {
-          on Entry {
-            when true
-          }
+          on Entry when true
         }
       }
     `);
@@ -943,15 +938,13 @@ describe("checkProgram — islands", () => {
         on Page p { id }
         on Entry e { id type }
         islands {
-          on Entry e {
-            when e.type == "Menu"
-          }
+          on Entry e when e.type == "Menu"
         }
       }
     `);
     expect(diagnostics).toEqual([]);
 
-    program.queries[0]!.islands[0]!.whens[0] = lit("Menu");
+    program.queries[0]!.islands[0]!.when = lit("Menu");
 
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({
@@ -959,5 +952,65 @@ describe("checkProgram — islands", () => {
         message: expect.stringContaining("boolean"),
       })
     );
+  });
+});
+
+describe("checkProgram — expression ops in / not in / !", () => {
+  const prelude = `
+    scalar EntryId on string;
+    scalar Locale on string;
+
+    resource Entry(id: EntryId, locale: Locale):
+      { type: "Menu" id visible: boolean }
+      | { type: "Footer" id visible: boolean }
+      | { type: "Hero" id visible: boolean }
+
+    resource Page(id: EntryId, locale: Locale): { id }
+  `;
+
+  it("accepts in / not in / ! across projection, resolve, and islands", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      resource Ref(id: EntryId):
+        { type: "Entry" id: EntryId }
+        | { type: "Asset" id: EntryId }
+
+      query Q(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p { id }
+        on Entry e {
+          when e.type in ["Menu", "Footer"] { id }
+          when e.type not in ["Hero"] { id }
+          when !e.visible { id }
+        }
+        on Ref r resolve to {
+          Entry(id: r.id, locale: context.locale) when r.type == "Entry"
+          Entry(id: r.id, locale: context.locale) when r.type not in ["Entry"]
+        }
+        islands {
+          on Entry e when e.type in ["Menu", "Footer"] or !e.visible
+        }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "TYPE_MISMATCH")).toEqual([]);
+  });
+
+  it("treats type in […] as covering those discriminants for exhaustiveness", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      query Q(pageId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: pageId, locale: context.locale)
+        on Entry e {
+          when e.type in ["Menu", "Footer", "Hero"] { id }
+        }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
   });
 });
