@@ -170,9 +170,12 @@ describe("emitProjections", () => {
     expect(code).toContain('case "Page":');
     expect(code).toContain('case "Entry":');
     expect(code).toContain('case "CustomReference":');
+    expect(code).toContain("const canonical = args.redirects.get(ari.toString());");
+    expect(code).toContain("return projectNode(canonical);");
     expect(code).toContain(
       "shell.menu = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale }));"
     );
+    expect(code).toContain("redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;");
     expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain("tabCollectionAri");
     expect(code).not.toContain("projectOnHero");
@@ -245,9 +248,8 @@ describe("emitProjections", () => {
     const code = emitProjections(program!);
 
     expect(code).toContain('case "CustomReference":');
-    expect(code).toContain('case "Hero":');
-    expect(code).toContain("return projectOnEntry(ari, payload);");
-    expect(code).toContain("return projectOnAsset(ari, payload);");
+    expect(code).toContain("const canonical = args.redirects.get(ari.toString());");
+    expect(code).toContain("return projectNode(canonical);");
     expect(code).not.toContain("projectOnCustomReference");
     expect(code).toContain("const projectOnEntry = (resource: any, payload: any): any => {");
     expect(code).toContain("const projectOnAsset = (resource: any, payload: any): any => {");

@@ -103,13 +103,11 @@ export type UserPayload = {
   spaceId: SpaceId;
   environmentId: EnvironmentId;
   id: EntryId;
-  locale: Locale;
 } | {
   type: "Asset";
   spaceId: SpaceId;
   environmentId: EnvironmentId;
   id: AssetId;
-  locale: Locale;
 };`
     );
     expect(code).toContain("tabs: {\n    id: EntryId;\n  }[];");

@@ -185,13 +185,11 @@ export type CustomReferencePayload = {
   spaceId: SpaceId;
   environmentId: EnvironmentId;
   id: EntryId;
-  locale: Locale;
 } | {
   type: "Asset";
   spaceId: SpaceId;
   environmentId: EnvironmentId;
   id: AssetId;
-  locale: Locale;
 };
 
 export type PagePayload = {
@@ -247,13 +245,11 @@ describe("generateResources golden", () => {
   spaceId: SpaceId;
   environmentId: EnvironmentId;
   id: EntryId;
-  locale: Locale;
 } | {
   type: "Asset";
   spaceId: SpaceId;
   environmentId: EnvironmentId;
   id: AssetId;
-  locale: Locale;
 };`
     );
     expect(code).toContain("tabs: {\n    id: EntryId;\n  }[];");

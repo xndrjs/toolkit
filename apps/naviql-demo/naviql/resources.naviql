@@ -93,14 +93,12 @@ resource CustomReference(
     spaceId: SpaceId
     environmentId: EnvironmentId
     id: EntryId
-    locale: Locale
   }
   | {
     type: "Asset"
     spaceId: SpaceId
     environmentId: EnvironmentId
     id: AssetId
-    locale: Locale
   }
 
 /**

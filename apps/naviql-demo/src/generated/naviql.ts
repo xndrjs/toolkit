@@ -5,6 +5,8 @@ import {
   s,
   createGraphResolutionStrategy,
   type ContentMap,
+  type ApplicationResourceIdentifier,
+  type ResourceKey,
   createResourceGraphResolver,
   type DataSource,
   type IslandDependencyMap,
@@ -12,7 +14,6 @@ import {
   type MissingResourceMode,
   type ResolutionError,
   type ResolutionObserver,
-  type ResourceKey,
   type SchedulingMode,
 } from "@xndrjs/naviql";
 
@@ -123,14 +124,12 @@ export type CustomReferencePayload =
       spaceId: SpaceId;
       environmentId: EnvironmentId;
       id: EntryId;
-      locale: Locale;
     }
   | {
       type: "Asset";
       spaceId: SpaceId;
       environmentId: EnvironmentId;
       id: AssetId;
-      locale: Locale;
     };
 
 export type PagePayload = {
@@ -200,8 +199,8 @@ export function createPageDetailStrategy(params: PageDetailParams) {
       return {
         resources: [
           assetAri({
-            spaceId: predicate.executionContext.spaceId,
-            environmentId: predicate.executionContext.environmentId,
+            spaceId: predicate.resource.key[0].spaceId,
+            environmentId: predicate.resource.key[0].environmentId,
             id: payload.imageId,
             locale: predicate.resource.key[0].locale,
           }),
@@ -251,8 +250,8 @@ export function createPageDetailStrategy(params: PageDetailParams) {
       return {
         resources: [
           assetAri({
-            spaceId: predicate.executionContext.spaceId,
-            environmentId: predicate.executionContext.environmentId,
+            spaceId: predicate.resource.key[0].spaceId,
+            environmentId: predicate.resource.key[0].environmentId,
             id: payload.logoId,
             locale: predicate.resource.key[0].locale,
           }),
@@ -268,8 +267,8 @@ export function createPageDetailStrategy(params: PageDetailParams) {
       return {
         resources: [
           assetAri({
-            spaceId: predicate.executionContext.spaceId,
-            environmentId: predicate.executionContext.environmentId,
+            spaceId: predicate.resource.key[0].spaceId,
+            environmentId: predicate.resource.key[0].environmentId,
             id: payload.logoId,
             locale: predicate.resource.key[0].locale,
           }),
@@ -304,7 +303,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
           spaceId: payload.spaceId,
           environmentId: payload.environmentId,
           id: payload.id,
-          locale: payload.locale,
+          locale: predicate.resource.key[0].locale,
         }),
       };
     });
@@ -319,7 +318,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
           spaceId: payload.spaceId,
           environmentId: payload.environmentId,
           id: payload.id,
-          locale: payload.locale,
+          locale: predicate.resource.key[0].locale,
         }),
       };
     });
@@ -425,6 +424,7 @@ export function projectPageDetail(
   args: {
     params: PageDetailParams;
     executionContext: PageDetailExecutionContext;
+    redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;
   }
 ): PageDetailResult {
   const memo = new Map<string, object>();
@@ -476,8 +476,8 @@ export function projectPageDetail(
         shell.title = payload.title;
         shell.image = projectNode(
           assetAri({
-            spaceId: args.executionContext.spaceId,
-            environmentId: args.executionContext.environmentId,
+            spaceId: resource.key[0].spaceId,
+            environmentId: resource.key[0].environmentId,
             id: payload.imageId,
             locale: resource.key[0].locale,
           })
@@ -537,8 +537,8 @@ export function projectPageDetail(
         shell.title = payload.title;
         shell.logo = projectNode(
           assetAri({
-            spaceId: args.executionContext.spaceId,
-            environmentId: args.executionContext.environmentId,
+            spaceId: resource.key[0].spaceId,
+            environmentId: resource.key[0].environmentId,
             id: payload.logoId,
             locale: resource.key[0].locale,
           })
@@ -553,8 +553,8 @@ export function projectPageDetail(
         shell.title = payload.title;
         shell.logo = projectNode(
           assetAri({
-            spaceId: args.executionContext.spaceId,
-            environmentId: args.executionContext.environmentId,
+            spaceId: resource.key[0].spaceId,
+            environmentId: resource.key[0].environmentId,
             id: payload.logoId,
             locale: resource.key[0].locale,
           })
@@ -616,32 +616,9 @@ export function projectPageDetail(
       case "Asset":
         return projectOnAsset(ari, payload);
       case "CustomReference": {
-        switch ((payload as any).type) {
-          case "Hero":
-            return projectOnEntry(ari, payload);
-          case "Tabs":
-            return projectOnEntry(ari, payload);
-          case "Tab":
-            return projectOnEntry(ari, payload);
-          case "Product":
-            return projectOnEntry(ari, payload);
-          case "Menu":
-            return projectOnEntry(ari, payload);
-          case "Footer":
-            return projectOnEntry(ari, payload);
-          case "SiteInternalLink":
-            return projectOnEntry(ari, payload);
-          case "Page":
-            return projectOnEntry(ari, payload);
-          case "Asset":
-            return projectOnAsset(ari, payload);
-          default:
-            throw new Error(
-              "projectPageDetail: cannot discriminate CustomReference payload (type=" +
-                JSON.stringify((payload as any).type) +
-                ")"
-            );
-        }
+        const canonical = args.redirects.get(ari.toString());
+        if (canonical === undefined) return undefined;
+        return projectNode(canonical);
       }
       default:
         throw new Error("projectPageDetail: unexpected resource type " + JSON.stringify(ari.type));
@@ -682,7 +659,7 @@ export async function resolvePageDetail(
     observer: input.observer,
   });
 
-  const { contentMap, islands, islandDependencies, errors, promotedResourceKeys } =
+  const { contentMap, islands, islandDependencies, errors, promotedResourceKeys, redirects } =
     await resolver.resolve({
       roots: [input.root],
       executionContext: input.executionContext,
@@ -694,6 +671,7 @@ export async function resolvePageDetail(
   const pageDetail = projectPageDetail(input.root, contentMap, {
     params: input.params,
     executionContext: input.executionContext,
+    redirects,
   });
 
   return {

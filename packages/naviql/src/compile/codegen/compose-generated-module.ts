@@ -111,10 +111,13 @@ export function composeGeneratedModule(
 
   if (projections.length > 0) {
     importSymbols.push("type ContentMap");
+    if (program.queries.some((q) => q.projections.some((p) => p.resolveArms !== null))) {
+      importSymbols.push("type ApplicationResourceIdentifier", "type ResourceKey");
+    }
   }
 
   if (resolves.length > 0) {
-    importSymbols.push(
+    for (const symbol of [
       "createResourceGraphResolver",
       "type DataSource",
       "type IslandDependencyMap",
@@ -123,8 +126,12 @@ export function composeGeneratedModule(
       "type ResolutionError",
       "type ResolutionObserver",
       "type ResourceKey",
-      "type SchedulingMode"
-    );
+      "type SchedulingMode",
+    ]) {
+      if (!importSymbols.includes(symbol)) {
+        importSymbols.push(symbol);
+      }
+    }
   }
 
   const parts: string[] = [GENERATED_HEADER];
