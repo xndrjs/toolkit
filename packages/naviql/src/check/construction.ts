@@ -17,6 +17,7 @@ export function checkConstruction(
       code: "UNKNOWN_RESOURCE",
       message: `Unknown resource '${construction.resource}'`,
       path,
+      span: construction.span,
     });
     for (const arg of construction.args) {
       inferExprType(arg.value, `${path}.args.${arg.name}`, scope, resources, sink);
@@ -32,6 +33,7 @@ export function checkConstruction(
         code: "DUPLICATE_CONSTRUCTOR_ARG",
         message: `Duplicate constructor argument '${arg.name}'`,
         path: argPath,
+        span: arg.span,
       });
       continue;
     }
@@ -43,6 +45,7 @@ export function checkConstruction(
         code: "UNKNOWN_CONSTRUCTOR_ARG",
         message: `Unknown identity argument '${arg.name}' for resource '${construction.resource}'`,
         path: argPath,
+        span: arg.span,
       });
       inferExprType(arg.value, argPath, scope, resources, sink);
       continue;
@@ -57,6 +60,7 @@ export function checkConstruction(
         code: "MISSING_CONSTRUCTOR_ARG",
         message: `Missing required identity argument '${fieldName}' for resource '${construction.resource}'`,
         path,
+        span: construction.span,
       });
     }
   }
