@@ -102,6 +102,133 @@ describe("checkProgram — each-expand exhaustiveness", () => {
   });
 });
 
+describe("checkProgram — projection when-arms", () => {
+  it("typechecks exhaustive on Entry when-arms with payload narrowing", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Page", id, title: string }
+
+      resource Asset(id: AssetId, locale: Locale): {
+        id
+        url: string
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" {
+            id
+            title
+            expand image: Asset(id: e.imageId, locale: context.locale)
+          }
+          when e.type == "Page" {
+            id
+          }
+        }
+        on Asset a { id url }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("errors when projection when-arms omit a closed discriminant", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string }
+        | { type: "Page", id, title: string }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" {
+            id
+            title
+          }
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INEXHAUSTIVE_PROJECTION_ARMS",
+        message: expect.stringContaining('"Page"'),
+      })
+    );
+  });
+
+  it("rejects mixing flat fields with when-arms (IR)", () => {
+    const { diagnostics, program } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id }
+        | { type: "Page", id }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" { id }
+          when e.type == "Page" { id }
+        }
+      }
+    `);
+    expect(diagnostics).toEqual([]);
+
+    const projection = program.queries[0]!.projections[0]!;
+    projection.selectedFields = ["id"];
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({ code: "MIXED_PROJECTION_BODY" })
+    );
+  });
+
+  it("rejects selecting a field absent from the narrowed arm", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Page", id, title: string }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Page" {
+            id
+            imageId
+          }
+          when e.type == "Hero" {
+            id
+          }
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_SELECTED_FIELD",
+        message: expect.stringContaining("imageId"),
+      })
+    );
+  });
+});
+
 describe("checkProgram — negative diagnostics", () => {
   it("rejects Menu(id: @p.locale) — Locale is not assignable to EntryId", () => {
     const program = withMutatedPageDetail((p) => {
