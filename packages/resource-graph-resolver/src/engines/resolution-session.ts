@@ -7,6 +7,7 @@ import { notifyObserver, type ResolutionObserver } from "../observability/resolu
 import { ResourceGraphAbortedError } from "../errors";
 import type { ExpansionContext, ExpansionPort } from "../ports/expansion-port";
 import type { IslandPort } from "../ports/island-port";
+import type { ResolvePort } from "../ports/resolve-port";
 import type {
   ContentRegistry,
   IslandId,
@@ -88,6 +89,7 @@ export class ResolutionSession<
     private readonly input: ResolveResourceGraphInput<TExecutionContext>,
     private readonly expansionPort: ExpansionPort<R, TExecutionContext>,
     private readonly islandPort: IslandPort<R, TExecutionContext>,
+    private readonly resolvePort: ResolvePort<R, TExecutionContext>,
     private readonly observer?: ResolutionObserver
   ) {
     // Copied so the caller's map is never mutated; promotions are reported instead.
@@ -214,6 +216,35 @@ export class ResolutionSession<
    */
   redirectOf(resource: ApplicationResourceIdentifier): ApplicationResourceIdentifier | undefined {
     return this.redirects.get(resource.toString());
+  }
+
+  /**
+   * After a decode payload is in {@link contentMap}, apply strategy resolve policies.
+   *
+   * Returns an existing DataSource redirect, a newly registered strategy redirect
+   * target, or `undefined` when the resource should expand as usual. Decode payload
+   * stays until the target lands and {@link propagateRedirectPayloads} overwrites it.
+   */
+  applyResolvePolicies(
+    resource: ApplicationResourceIdentifier
+  ): ApplicationResourceIdentifier | undefined {
+    const existing = this.redirectOf(resource);
+    if (existing !== undefined) {
+      return existing;
+    }
+
+    const resourceKey = resource.toString();
+    if (!this.contentMap.hasKey(resourceKey)) {
+      return undefined;
+    }
+
+    const result = this.resolvePort.resolve(this.policyContextOf(resourceKey, resource));
+    if (result === undefined) {
+      return undefined;
+    }
+
+    this.redirects.set(resourceKey, result.resource);
+    return result.resource;
   }
 
   commitRecords(

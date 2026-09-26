@@ -9,6 +9,7 @@ import {
 } from "../errors";
 import { createExpansionPolicyChain, type ExpansionPolicy } from "../ports/expansion-port";
 import { createIslandPolicyChain } from "../ports/island-port";
+import { createGraphResolutionStrategy } from "../strategy/create-graph-resolution-strategy";
 import { serializeAllIslands } from "../islands/serialize-island";
 import {
   asset,
@@ -633,5 +634,208 @@ describe("in-memory redirects", () => {
     expect(output.contentMap.has(entry)).toBe(true);
     expect(output.contentMap.has(customRef)).toBe(true);
     expect(output.contentMap.get(customRef)).toEqual({ type: "Hero", title: "Welcome" });
+  });
+});
+
+describe("strategy resolve redirects", () => {
+  it("redirects after decode payload load without expanding the locator", async () => {
+    const customRefAri = testAriFactory("customRef");
+    const entryAriFactory = testAriFactory("entry");
+    const customRef = customRefAri({ id: "master@foo|ENTRY|123" });
+    const entry = entryAriFactory({ id: "123" });
+    const hero = heroAri({ id: "123" });
+
+    let entryLoads = 0;
+    let customRefExpanded = false;
+
+    const decodeSource: DataSource = {
+      id: "custom-refs",
+      for: [customRefAri],
+      concurrency: 1,
+      load: async (batch) =>
+        batch.map((resource) => ({
+          resource,
+          payload: { type: "Entry", id: "123", spaceId: "s", environmentId: "e" },
+        })),
+    };
+
+    const entrySource: DataSource = {
+      id: "entries",
+      for: [entryAriFactory, heroAri],
+      concurrency: 1,
+      load: async (batch) => {
+        const records: ResolvedResourceRecord<ContentRegistry>[] = [];
+        for (const resource of batch) {
+          if (entryAriFactory.matches(resource)) {
+            entryLoads += 1;
+            records.push({
+              resource: hero,
+              payload: { type: "Hero", title: "Welcome" },
+              resolves: [resource],
+            });
+          }
+        }
+        return records;
+      },
+    };
+
+    const root = pageAri({ id: "P" });
+    const pageSource = createStoreSource({
+      id: "pages",
+      for: [pageAri],
+      store: new Map([[root.toString(), {}]]),
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [pageSource, decodeSource, entrySource],
+      strategy: createGraphResolutionStrategy()
+        .expansion.on(pageAri)
+        .expand(() => ({ resources: [customRef] }))
+        .expansion.on(heroAri)
+        .expand(() => ({ resources: [] }))
+        .expansion.on(customRefAri)
+        .expand(() => {
+          customRefExpanded = true;
+          return { resources: [] };
+        })
+        .resolve.on(customRefAri)
+        .when(({ payload }) => (payload as { type?: string }).type === "Entry")
+        .to(() => ({ resource: entry }))
+        .build(),
+    });
+
+    const output = await resolver.resolve({
+      root,
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(entryLoads).toBe(1);
+    expect(customRefExpanded).toBe(false);
+    expect(output.contentMap.has(hero)).toBe(true);
+    expect(output.contentMap.has(entry)).toBe(true);
+    expect(output.contentMap.has(customRef)).toBe(true);
+    expect(output.contentMap.get(customRef)).toEqual({ type: "Hero", title: "Welcome" });
+  });
+
+  it("chooses the resolve arm from decode payload when", async () => {
+    const customRefAri = testAriFactory("customRef");
+    const entryAriFactory = testAriFactory("entry");
+    const assetAriFactory = testAriFactory("cmsAsset");
+    const customRef = customRefAri({ id: "master@foo|ASSET|456" });
+    const entry = entryAriFactory({ id: "456" });
+    const asset = assetAriFactory({ id: "456" });
+
+    let entryLoads = 0;
+    let assetLoads = 0;
+
+    const decodeSource: DataSource = {
+      id: "custom-refs",
+      for: [customRefAri],
+      concurrency: 1,
+      load: async (batch) =>
+        batch.map((resource) => ({
+          resource,
+          payload: { type: "Asset", id: "456" },
+        })),
+    };
+
+    const entrySource: DataSource = {
+      id: "entries",
+      for: [entryAriFactory],
+      concurrency: 1,
+      load: async (batch) => {
+        entryLoads += batch.length;
+        return batch.map((resource) => ({ resource, payload: { title: "Entry" } }));
+      },
+    };
+
+    const assetSource: DataSource = {
+      id: "assets",
+      for: [assetAriFactory],
+      concurrency: 1,
+      load: async (batch) => {
+        assetLoads += batch.length;
+        return batch.map((resource) => ({ resource, payload: { url: "https://cdn/x" } }));
+      },
+    };
+
+    const root = pageAri({ id: "P" });
+    const pageSource = createStoreSource({
+      id: "pages",
+      for: [pageAri],
+      store: new Map([[root.toString(), {}]]),
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [pageSource, decodeSource, entrySource, assetSource],
+      strategy: createGraphResolutionStrategy()
+        .expansion.on(pageAri)
+        .expand(() => ({ resources: [customRef] }))
+        .resolve.on(customRefAri)
+        .when(({ payload }) => (payload as { type?: string }).type === "Entry")
+        .to(() => ({ resource: entry }))
+        .resolve.on(customRefAri)
+        .when(({ payload }) => (payload as { type?: string }).type === "Asset")
+        .to(() => ({ resource: asset }))
+        .build(),
+    });
+
+    const output = await resolver.resolve({
+      root,
+      executionContext: {},
+      missingResourceMode: "throw",
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(entryLoads).toBe(0);
+    expect(assetLoads).toBe(1);
+    expect(output.contentMap.get(customRef)).toEqual({ url: "https://cdn/x" });
+    expect(output.contentMap.get(asset)).toEqual({ url: "https://cdn/x" });
+  });
+
+  it("applies resolve policies when promoting from backingResources", async () => {
+    const customRefAri = testAriFactory("customRef");
+    const entryAriFactory = testAriFactory("entry");
+    const customRef = customRefAri({ id: "C" });
+    const entry = entryAriFactory({ id: "1" });
+
+    const entrySource: DataSource = {
+      id: "entries",
+      for: [entryAriFactory],
+      concurrency: 1,
+      load: async (batch) =>
+        batch.map((resource) => ({ resource, payload: { title: "From entry" } })),
+    };
+
+    const root = pageAri({ id: "P" });
+    const pageSource = createStoreSource({
+      id: "pages",
+      for: [pageAri],
+      store: new Map([[root.toString(), {}]]),
+    });
+
+    const resolver = createResourceGraphResolver({
+      sources: [pageSource, entrySource],
+      strategy: createGraphResolutionStrategy()
+        .expansion.on(pageAri)
+        .expand(() => ({ resources: [customRef] }))
+        .resolve.on(customRefAri)
+        .to(() => ({ resource: entry }))
+        .build(),
+    });
+
+    const output = await resolver.resolve({
+      root,
+      executionContext: {},
+      missingResourceMode: "throw",
+      backingResources: new Map([[customRef.toString(), { type: "Entry", id: "1" }]]),
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(output.promotedResourceKeys).toEqual([customRef.toString()]);
+    expect(output.contentMap.get(customRef)).toEqual({ title: "From entry" });
+    expect(output.contentMap.get(entry)).toEqual({ title: "From entry" });
   });
 });
