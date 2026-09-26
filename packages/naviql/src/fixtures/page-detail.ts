@@ -33,6 +33,7 @@ import {
   resolveArm,
   resource,
   scalarRef,
+  singleRoot,
   span,
   strLit,
   union,
@@ -209,12 +210,14 @@ export function pageDetailProgram(): Program {
           field("environmentId", EnvironmentId),
           field("locale", Locale),
         ],
-        root: construct("Page", [
-          arg("spaceId", ctx("spaceId")),
-          arg("environmentId", ctx("environmentId")),
-          arg("id", param("pageId")),
-          arg("locale", ctx("locale")),
-        ]),
+        roots: singleRoot(
+          construct("Page", [
+            arg("spaceId", ctx("spaceId")),
+            arg("environmentId", ctx("environmentId")),
+            arg("id", param("pageId")),
+            arg("locale", ctx("locale")),
+          ])
+        ),
         projections: [
           projection(
             "Page",

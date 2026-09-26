@@ -4,6 +4,7 @@ import type {
   Expr,
   ProjectionArm,
   QueryDefinition,
+  QueryRoot,
   ResolveArm,
   SourceSpan,
   TypeExpr,
@@ -83,7 +84,7 @@ export function checkQuery(
     payloadNarrowing: new Map(),
   };
 
-  checkConstruction(query.root, `${path}.root`, scope, scalars, resources, sink);
+  checkQueryRoots(query.roots, path, query.span, scope, scalars, resources, sink);
 
   for (const projection of query.projections) {
     const projPath = `${path}.projections.${projection.binding}`;
@@ -173,6 +174,50 @@ export function checkQuery(
       );
       checkExpansions(projection.expansions, projPath, scope, scalars, resources, sink);
     }
+  }
+}
+
+/**
+ * Validate query seeds: non-empty `roots`, unique non-null aliases, and
+ * construction checks per entry (same path as expand/resolve targets).
+ */
+function checkQueryRoots(
+  roots: QueryRoot[],
+  path: string,
+  querySpan: SourceSpan | null,
+  scope: QueryScope,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  if (roots.length === 0) {
+    sink.push({
+      code: "EMPTY_ROOTS",
+      message: "Query must declare at least one root",
+      path: `${path}.roots`,
+      span: querySpan,
+    });
+    return;
+  }
+
+  const seenAliases = new Set<string>();
+  for (let i = 0; i < roots.length; i++) {
+    const root = roots[i]!;
+    const rootPath = root.alias === null ? `${path}.roots.${i}` : `${path}.roots.${root.alias}`;
+
+    if (root.alias !== null) {
+      if (seenAliases.has(root.alias)) {
+        sink.push({
+          code: "DUPLICATE_ROOT_ALIAS",
+          message: `Duplicate root alias '${root.alias}'`,
+          path: rootPath,
+          span: root.span,
+        });
+      }
+      seenAliases.add(root.alias);
+    }
+
+    checkConstruction(root.construction, rootPath, scope, scalars, resources, sink);
   }
 }
 

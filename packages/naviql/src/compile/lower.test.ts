@@ -99,7 +99,10 @@ describe("lowerProgram", () => {
     expect(fields[1]?.inheritedFromIdentity).toBe(false);
 
     const query = program.queries[0]!;
-    expect(query.root.args[0]?.value).toMatchObject({ kind: "param", name: "postId" });
+    expect(query.roots[0]?.construction.args[0]?.value).toMatchObject({
+      kind: "param",
+      name: "postId",
+    });
     expect(query.projections[0]?.expansions[0]?.target?.args[0]?.value).toMatchObject({
       kind: "payloadRef",
       binding: "p",
@@ -115,7 +118,7 @@ describe("lowerProgram", () => {
     expectSpan(program.span);
     expectSpan(post?.span);
     expectSpan(query.span);
-    expectSpan(query.root.span);
+    expectSpan(query.roots[0]?.span);
   });
 
   it("lowers literals without collapsing scalarRef types", () => {
@@ -129,7 +132,7 @@ describe("lowerProgram", () => {
       `)
     );
 
-    const args = program.queries[0]!.root.args;
+    const args = program.queries[0]!.roots[0]!.construction.args;
     expect(args.map((a) => a.value)).toEqual([
       expect.objectContaining({ kind: "param", name: "x" }),
       expect.objectContaining({ kind: "literal", value: "hi" }),
@@ -615,5 +618,56 @@ describe("lowerProgram — fragments", () => {
       }
     `);
     expect(result.parserErrors.length).toBeGreaterThan(0);
+  });
+
+  it("lowers singular root to one QueryRoot with alias null", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+        resource R(id: Id): { id }
+        query Q(id: Id) {
+          root R(id: id)
+        }
+      `)
+    );
+
+    expect(program.queries[0]?.roots).toEqual([
+      expect.objectContaining({
+        alias: null,
+        construction: expect.objectContaining({
+          resource: "R",
+          args: [expect.objectContaining({ name: "id" })],
+        }),
+      }),
+    ]);
+  });
+
+  it("lowers multi-root entries with aliases", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar PageId on string;
+        scalar SessionId on string;
+        resource Page(id: PageId): { id }
+        resource UserSession(id: SessionId): { id }
+        query Homepage(pageId: PageId, sessionId: SessionId) {
+          roots {
+            page: Page(id: pageId)
+            session: UserSession(id: sessionId)
+          }
+        }
+      `)
+    );
+
+    expect(program.queries[0]?.roots).toEqual([
+      expect.objectContaining({
+        alias: "page",
+        construction: expect.objectContaining({ resource: "Page" }),
+      }),
+      expect.objectContaining({
+        alias: "session",
+        construction: expect.objectContaining({ resource: "UserSession" }),
+      }),
+    ]);
+    expect(checkProgram(program)).toEqual([]);
   });
 });

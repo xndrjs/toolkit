@@ -5,6 +5,7 @@ import type {
   NamedArg,
   PrimitiveTypeName,
   QueryDefinition,
+  QueryRoot,
   ResourceConstruction,
   ResourceDefinition,
   ResourceProjection,
@@ -74,6 +75,19 @@ export function arg(name: string, value: Expr): NamedArg {
 
 export function construct(resourceName: string, args: NamedArg[]): ResourceConstruction {
   return { resource: resourceName, args, span };
+}
+
+/** Single-root IR entry (`alias: null`) or a named multi-root entry. */
+export function queryRoot(
+  construction: ResourceConstruction,
+  alias: string | null = null
+): QueryRoot {
+  return { alias, construction, span };
+}
+
+/** Wrap a construction as the sole single-root seed (`alias: null`). */
+export function singleRoot(construction: ResourceConstruction): QueryRoot[] {
+  return [queryRoot(construction)];
 }
 
 export function expand(
