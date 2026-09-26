@@ -105,40 +105,41 @@ describe("createEntrySource", () => {
 });
 
 describe("createCustomReferenceSource", () => {
-  it("redirects CustomReference ENTRY to Entry without fetching payloads", async () => {
+  it("decodes CustomReference ENTRY into a locator payload (no redirect record)", async () => {
     const source = createCustomReferenceSource();
     const customRef = customReferenceAri({ ref: demoHeroWelcomeCustomRef, locale });
-    const entry = entryAri(entryIdentity(demoIds.heroWelcome));
 
     const records = await source.load([customRef], loadContext);
     expect(records).toHaveLength(1);
-    expect(records[0]).toMatchObject({
-      redirect: true,
-      resource: expect.objectContaining({ type: "Entry" }),
-      resolves: [customRef],
+    expect(records[0]).toEqual({
+      resource: customRef,
+      payload: {
+        type: "Entry",
+        spaceId,
+        environmentId,
+        id: demoIds.heroWelcome,
+        locale,
+      },
     });
-    expect(records[0]!.resource.toString()).toBe(entry.toString());
-    expect(records[0]).not.toHaveProperty("payload");
+    expect(records[0]).not.toHaveProperty("redirect");
   });
 
-  it("redirects CustomReference ASSET to Asset without fetching payloads", async () => {
+  it("decodes CustomReference ASSET into a locator payload (no redirect record)", async () => {
     const source = createCustomReferenceSource();
     const customRef = customReferenceAri({ ref: demoLogoAssetCustomRef, locale });
-    const asset = assetAri({
-      spaceId,
-      environmentId,
-      id: demoIds.assetLogo,
-      locale,
-    });
 
     const records = await source.load([customRef], loadContext);
     expect(records).toHaveLength(1);
-    expect(records[0]).toMatchObject({
-      redirect: true,
-      resource: expect.objectContaining({ type: "Asset" }),
-      resolves: [customRef],
+    expect(records[0]).toEqual({
+      resource: customRef,
+      payload: {
+        type: "Asset",
+        spaceId,
+        environmentId,
+        id: demoIds.assetLogo,
+        locale,
+      },
     });
-    expect(records[0]!.resource.toString()).toBe(asset.toString());
-    expect(records[0]).not.toHaveProperty("payload");
+    expect(records[0]).not.toHaveProperty("redirect");
   });
 });

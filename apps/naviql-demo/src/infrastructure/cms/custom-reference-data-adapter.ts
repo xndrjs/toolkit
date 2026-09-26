@@ -1,18 +1,17 @@
 /**
- * In-memory CustomReference → Entry | Asset redirect.
+ * In-memory CustomReference decode.
  *
- * Does not fetch CMS/CDN data and must not share the entry/asset batch channels:
- * it only parses `env@space|ENTRY|id` or `env@space|ASSET|id` into a canonical ARI.
+ * Parses `env@space|ENTRY|id` or `env@space|ASSET|id` into the decode payload.
+ * Redirect hops are declared in the query (`resolve to`), not here.
  */
-import type { ResourceRedirectRecord } from "@xndrjs/naviql";
 import { defineDataSourceFor, type DataSource } from "@xndrjs/naviql";
 
 import {
-  assetAri,
   customReferenceAri,
-  entryAri,
   type AssetId,
   type ContentRegistry,
+  type CustomReferencePayload,
+  type CustomReferenceResource,
   type EntryId,
   type Locale,
   type PageDetailExecutionContext,
@@ -34,7 +33,7 @@ export function createCustomReferenceSource(): DataSource<
     id: CUSTOM_REFERENCE_SOURCE_ID,
     for: [customReferenceAri],
     async load(batch) {
-      const records: ResourceRedirectRecord[] = [];
+      const records: { resource: CustomReferenceResource; payload: CustomReferencePayload }[] = [];
 
       for (const resource of batch) {
         if (!customReferenceAri.matches(resource)) {
@@ -46,29 +45,25 @@ export function createCustomReferenceSource(): DataSource<
           continue;
         }
 
-        if (parsed.kind === "ENTRY") {
-          records.push({
-            redirect: true,
-            resource: entryAri({
-              spaceId: parsed.spaceId,
-              environmentId: parsed.environmentId,
-              id: parsed.id as EntryId,
-              locale: key.locale,
-            }),
-            resolves: [resource],
-          });
-        } else {
-          records.push({
-            redirect: true,
-            resource: assetAri({
-              spaceId: parsed.spaceId,
-              environmentId: parsed.environmentId,
-              id: parsed.id as AssetId,
-              locale: key.locale,
-            }),
-            resolves: [resource],
-          });
-        }
+        records.push({
+          resource,
+          payload:
+            parsed.kind === "ENTRY"
+              ? {
+                  type: "Entry",
+                  spaceId: parsed.spaceId,
+                  environmentId: parsed.environmentId,
+                  id: parsed.id as EntryId,
+                  locale: key.locale,
+                }
+              : {
+                  type: "Asset",
+                  spaceId: parsed.spaceId,
+                  environmentId: parsed.environmentId,
+                  id: parsed.id as AssetId,
+                  locale: key.locale,
+                },
+        });
       }
 
       return records;

@@ -48,6 +48,21 @@ query PageDetail(pageId: EntryId) {
     )
   }
 
+  on CustomReference c resolve to {
+    Entry(
+      spaceId: c.spaceId,
+      environmentId: c.environmentId,
+      id: c.id,
+      locale: c.locale
+    ) when c.type == "Entry"
+    Asset(
+      spaceId: c.spaceId,
+      environmentId: c.environmentId,
+      id: c.id,
+      locale: c.locale
+    ) when c.type == "Asset"
+  }
+
   on Entry e {
     ...EntryBase
     when e.type == "Hero" {

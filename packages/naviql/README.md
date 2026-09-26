@@ -13,7 +13,7 @@ Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](
 
 **Vertical-slice example:** [`apps/naviql-demo`](../../apps/naviql-demo) — `.naviql` → codegen → strategy `.build()` → multi-DataSource `resolve` → `projectPageDetail` (in-memory cms / catalog / cdn; no islands).
 
-**Editor:** [`.naviql` syntax highlighting + LSP diagnostics](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode`). Live squiggles use the same multi-file `parseAndCheck` / `checkProgram` rules as codegen. Build `@xndrjs/naviql` first so `naviql-language-server` exists under `dist/lsp/` (required for F5 / Install from Location). Completion, hover, and rename are not in this MVP.
+**Editor:** [`.naviql` syntax highlighting + LSP diagnostics](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode`). Live squiggles use the same `parseAndCheck` / `checkProgram` rules as codegen: multi-file when a nearby `naviql.config.*` scopes the collect; otherwise single-file only (no monorepo-root glob). Build `@xndrjs/naviql` first so `naviql-language-server` exists under `dist/lsp/` (required for F5 / Install from Location). Completion, hover, and rename are not in this MVP.
 
 Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 
