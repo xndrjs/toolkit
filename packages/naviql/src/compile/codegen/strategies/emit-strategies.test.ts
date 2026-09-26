@@ -173,6 +173,81 @@ describe("emitStrategies", () => {
       'predicate.payload.strips.filter((s: any) => s.type == "Hero").map((s: any) => heroAri({ id: s.id, locale: predicate.executionContext.locale }))'
     );
   });
+
+  it("emits unconditional startIsland for empty islands body", () => {
+    const source = `
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Page(id: EntryId, locale: Locale): { id }
+
+      query PageDetail(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p { id }
+        islands {
+          on Page {}
+        }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitStrategies(program!);
+
+    expect(code).toContain("strategy.islands");
+    expect(code).toContain(".on(pageAri)");
+    expect(code).toContain(".startIsland()");
+    expect(code).not.toContain("strategy.islands\n    .on(pageAri)\n    .when(");
+    expect(code.match(/\.startIsland\(\)/g)).toHaveLength(1);
+  });
+
+  it("emits one islands.on.when.startIsland per when (OR)", () => {
+    const source = `
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale): {
+        type: "Menu" | "Footer"
+        id
+      }
+
+      query PageDetail(pageId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: pageId, locale: context.locale)
+        on Entry e { id type }
+        islands {
+          on Entry e {
+            when e.type == "Menu"
+            when e.type == "Footer"
+          }
+        }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitStrategies(program!);
+
+    expect(code).toContain(
+      [
+        `  strategy.islands`,
+        `    .on(entryAri)`,
+        `    .when((predicate) => predicate.payload.type == "Menu")`,
+        `    .startIsland();`,
+      ].join("\n")
+    );
+    expect(code).toContain(
+      [
+        `  strategy.islands`,
+        `    .on(entryAri)`,
+        `    .when((predicate) => predicate.payload.type == "Footer")`,
+        `    .startIsland();`,
+      ].join("\n")
+    );
+    expect(code.match(/\.startIsland\(\)/g)).toHaveLength(2);
+    expect(code.match(/strategy\.islands/g)).toHaveLength(2);
+  });
 });
 
 describe("generateStrategies", () => {
@@ -220,7 +295,10 @@ describe("generateStrategies", () => {
     expect(code).not.toContain("tabCollectionAri");
     expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain(".build()");
-    expect(code).not.toContain("islands");
+    expect(code).toContain("strategy.islands");
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Menu")');
+    expect(code).toContain('.when((predicate) => predicate.payload.type == "Footer")');
+    expect(code).toContain(".startIsland()");
   });
 
   it("emits .resolve.on().when().to() from resolve-only on CustomReference", () => {

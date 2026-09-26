@@ -1,10 +1,12 @@
 /**
  * Emit open `createGraphResolutionStrategy` builders from checked queries.
- * Local expansions and resolve policies — no islands, root helpers, or `.build()`.
+ * Local expansions, resolve policies, and island policies — no root helpers
+ * or `.build()`.
  * Armed `on` projections emit one `.on(ari).when(…).expand(…)` per arm that
  * expands; flat `on` stays `.on(ari).expand(…)`.
  * Resolve-only `on R resolve to` emits `.resolve.on(ari)[.when(…)].to(…)`.
  * Collection expand targets get an auto member-ARI fan-out `.on(collectionAri)`.
+ * Query `islands` emit `.islands.on(ari)[.when(…)].startIsland()` before return.
  *
  * Callbacks take a single `predicate` and use dot access (no destructuring).
  */
@@ -12,6 +14,7 @@ import type { FieldDecl, Program, QueryDefinition, ResourceDefinition } from "..
 import { printTypeExpr } from "../resources";
 import { executionContextTypeName, paramsTypeName, strategyFactoryName } from "../naming";
 import { collectCollectionFanOuts, emitProjectionExpansions } from "./emit-expansion";
+import { emitIslands } from "./emit-islands";
 import { emitProjectionResolves } from "./emit-resolve-policies";
 
 function emitObjectTypeAlias(name: string, fields: FieldDecl[]): string {
@@ -47,6 +50,7 @@ function emitQueryStrategy(
   const expansionBlocks = query.projections.flatMap(emitProjectionExpansions);
   const resolveBlocks = query.projections.flatMap(emitProjectionResolves);
   const fanOutBlocks = collectCollectionFanOuts(query, resourceIndex);
+  const islandBlocks = emitIslands(query.islands);
 
   const bodyLines: string[] = [
     `  const strategy = createGraphResolutionStrategy<`,
@@ -55,7 +59,7 @@ function emitQueryStrategy(
     `  >();`,
   ];
 
-  const policyBlocks = [...expansionBlocks, ...fanOutBlocks, ...resolveBlocks];
+  const policyBlocks = [...expansionBlocks, ...fanOutBlocks, ...resolveBlocks, ...islandBlocks];
   if (policyBlocks.length > 0) {
     bodyLines.push("");
     bodyLines.push(policyBlocks.join("\n\n"));
