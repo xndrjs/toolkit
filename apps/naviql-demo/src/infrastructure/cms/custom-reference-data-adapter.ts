@@ -10,8 +10,6 @@ import {
   customReferenceAri,
   type AssetId,
   type ContentRegistry,
-  type CustomReferencePayload,
-  type CustomReferenceResource,
   type EntryId,
   type Locale,
   type PageDetailExecutionContext,
@@ -33,40 +31,32 @@ export function createCustomReferenceSource(): DataSource<
     id: CUSTOM_REFERENCE_SOURCE_ID,
     for: [customReferenceAri],
     async load(batch) {
-      const records: { resource: CustomReferenceResource; payload: CustomReferencePayload }[] = [];
-
-      for (const resource of batch) {
+      return batch.map((resource) => {
         if (!customReferenceAri.matches(resource)) {
-          continue;
+          return undefined;
         }
         const key = resource.key[0] as { ref: string; locale: Locale };
         const parsed = parseCustomReference(key.ref);
         if (parsed === null) {
-          continue;
+          return undefined;
         }
 
-        records.push({
-          resource,
-          payload:
-            parsed.kind === "ENTRY"
-              ? {
-                  type: "Entry",
-                  spaceId: parsed.spaceId,
-                  environmentId: parsed.environmentId,
-                  id: parsed.id as EntryId,
-                  locale: key.locale,
-                }
-              : {
-                  type: "Asset",
-                  spaceId: parsed.spaceId,
-                  environmentId: parsed.environmentId,
-                  id: parsed.id as AssetId,
-                  locale: key.locale,
-                },
-        });
-      }
-
-      return records;
+        return parsed.kind === "ENTRY"
+          ? {
+              type: "Entry" as const,
+              spaceId: parsed.spaceId,
+              environmentId: parsed.environmentId,
+              id: parsed.id as EntryId,
+              locale: key.locale,
+            }
+          : {
+              type: "Asset" as const,
+              spaceId: parsed.spaceId,
+              environmentId: parsed.environmentId,
+              id: parsed.id as AssetId,
+              locale: key.locale,
+            };
+      });
     },
   });
 }

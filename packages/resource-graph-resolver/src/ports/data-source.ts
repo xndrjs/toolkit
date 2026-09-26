@@ -1,11 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type {
-  ContentRegistry,
-  RegistryPayloadFor,
-  ResolvedResourceRecord,
-  ResourceRedirectRecord,
-} from "../types";
+import type { ContentRegistry, RegistryPayloadFor } from "../types";
 
 /**
  * Matcher for one ARI family, used both for routing and for narrowing.
@@ -28,22 +23,14 @@ export type ResourceUnionFromFamilies<F extends readonly ResourceFamily[]> = Res
 >;
 
 /**
- * Records a source may return: only its own `for` families, each paired with the
- * payload its ARI type maps to in the registry.
+ * One slot in a `load` result: payload for that batch index, or `undefined` when
+ * missing. `null` is a valid payload value and must not be used as a miss sentinel.
  */
-export type SourceResourceRecord<R extends ContentRegistry, F extends readonly ResourceFamily[]> =
+export type SourcePayloadSlot<R extends ContentRegistry, F extends readonly ResourceFamily[]> =
   | {
-      [K in keyof F]: {
-        resource: ResourceOfFamily<F[K]>;
-        payload: RegistryPayloadFor<R, ResourceOfFamily<F[K]>>;
-        /**
-         * Optional abstract ARIs this concrete record also settles (rematerialization).
-         * May include ARI types outside {@link F} (e.g. settle `Entry` by returning `Hero`).
-         */
-        resolves?: readonly ApplicationResourceIdentifier[];
-      };
+      [K in keyof F]: RegistryPayloadFor<R, ResourceOfFamily<F[K]>>;
     }[number]
-  | ResourceRedirectRecord;
+  | undefined;
 
 export interface ResourceLoadContext<TExecutionContext = unknown> {
   /**
@@ -71,10 +58,13 @@ export interface SourceRouteContext<TExecutionContext = unknown> {
  *
  * `R` is the whole project registry, not the source's own slice: payload shapes
  * are a project-wide contract, and {@link for} is what scopes a source to the
- * ARI types it may be asked for and may return.
+ * ARI types it may be asked for.
  *
  * When several sources can handle the same ARI, the resolver picks the first
  * match in `sources` order whose optional {@link when} predicate passes.
+ *
+ * Redirects / identity hops are **not** expressed from `load` — use strategy
+ * `resolve` policies after a decode payload is committed.
  */
 export interface DataSourceDefinition<
   R extends ContentRegistry,
@@ -95,14 +85,14 @@ export interface DataSourceDefinition<
    */
   readonly when?: (context: SourceRouteContext<TExecutionContext>) => boolean;
   /**
-   * Fetch one batch. Heterogeneous ARIs from `for` travel together in one call.
-   * Omit a requested ARI from the result once retries are exhausted — the
-   * resolver treats it as a missing resource.
+   * Fetch one batch. Return value must have the **same length and order** as
+   * `batch`: `results[i]` is the payload for `batch[i]`, or `undefined` on miss
+   * (`null` remains a legal payload).
    */
   load(
     batch: readonly ResourceUnionFromFamilies<F>[],
     context: ResourceLoadContext<TExecutionContext>
-  ): Promise<readonly SourceResourceRecord<R, F>[]>;
+  ): Promise<readonly SourcePayloadSlot<R, F>[]>;
 }
 
 /** Family-erased source consumed by the resolver. Build one with {@link defineDataSourceFor}. */
@@ -118,7 +108,7 @@ export interface DataSource<
   load(
     batch: readonly ApplicationResourceIdentifier[],
     context: ResourceLoadContext<TExecutionContext>
-  ): Promise<readonly ResolvedResourceRecord<R>[]>;
+  ): Promise<readonly (R[keyof R & string] | undefined)[]>;
 }
 
 /**

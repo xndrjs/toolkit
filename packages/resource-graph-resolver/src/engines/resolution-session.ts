@@ -14,10 +14,7 @@ import type {
   ResolutionError,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
-  ResolvedPayloadRecord,
-  ResolvedResourceRecord,
   ResourceKey,
-  ResourceRedirectRecord,
 } from "../types";
 
 /** One walk step: a resource discovered from a specific island. */
@@ -71,13 +68,9 @@ export class ResolutionSession<
   private readonly failuresByResource = new Map<ResourceKey, FailureAccumulator>();
   private readonly pendingByKey = new Map<ResourceKey, PendingEntry>();
   /**
-   * Abstract ARI key → concrete ARI rematerialized for it (e.g. Entry → Hero).
-   * Expansion policies run against the concrete resource.
-   */
-  private readonly rematerializations = new Map<ResourceKey, ApplicationResourceIdentifier>();
-  /**
    * Abstract ARI key → canonical ARI to load next (e.g. CustomReference → Entry).
-   * No payload yet — the target source will load it.
+   * Decode payload stays until the target lands and {@link propagateRedirectPayloads}
+   * overwrites it.
    */
   private readonly redirects = new Map<ResourceKey, ApplicationResourceIdentifier>();
   /** `(islandId, resourceKey)` pairs already expanded — kept out of {@link islands}. */
@@ -201,18 +194,7 @@ export class ResolutionSession<
   }
 
   /**
-   * Concrete ARI that settled `resource` via rematerialization, if any.
-   * Expansion should run against this target so `on Hero` policies fire after
-   * an `Entry` / indirection request.
-   */
-  rematerializationOf(
-    resource: ApplicationResourceIdentifier
-  ): ApplicationResourceIdentifier | undefined {
-    return this.rematerializations.get(resource.toString());
-  }
-
-  /**
-   * Canonical ARI a prior in-memory redirect pointed at (e.g. CustomReference → Entry).
+   * Canonical ARI a prior strategy redirect pointed at (e.g. CustomReference → Entry).
    */
   redirectOf(resource: ApplicationResourceIdentifier): ApplicationResourceIdentifier | undefined {
     return this.redirects.get(resource.toString());
@@ -221,9 +203,9 @@ export class ResolutionSession<
   /**
    * After a decode payload is in {@link contentMap}, apply strategy resolve policies.
    *
-   * Returns an existing DataSource redirect, a newly registered strategy redirect
-   * target, or `undefined` when the resource should expand as usual. Decode payload
-   * stays until the target lands and {@link propagateRedirectPayloads} overwrites it.
+   * Returns an existing redirect, a newly registered strategy redirect target, or
+   * `undefined` when the resource should expand as usual. Decode payload stays until
+   * the target lands and {@link propagateRedirectPayloads} overwrites it.
    */
   applyResolvePolicies(
     resource: ApplicationResourceIdentifier
@@ -247,54 +229,39 @@ export class ResolutionSession<
     return result.resource;
   }
 
-  commitRecords(
-    records: readonly ResolvedResourceRecord<R>[]
-  ): Map<ResourceKey, ResolvedPayloadRecord<R>> {
-    const resolvedByKey = new Map<ResourceKey, ResolvedPayloadRecord<R>>();
-    for (const record of records) {
-      if (isRedirectRecord(record)) {
-        for (const abstract of record.resolves) {
-          this.redirects.set(abstract.toString(), record.resource);
-        }
+  /**
+   * Commit positional `load` results: `payloads[i]` settles `resources[i]`.
+   * `undefined` slots are skips (caller treats as missing).
+   */
+  commitPayloads(
+    resources: readonly ApplicationResourceIdentifier[],
+    payloads: readonly (R[keyof R & string] | undefined)[]
+  ): void {
+    for (let i = 0; i < resources.length; i++) {
+      const resource = resources[i]!;
+      const payload = payloads[i];
+      if (payload === undefined) {
         continue;
       }
 
-      resolvedByKey.set(record.resource.toString(), record);
-      this.contentMap.set(record.resource, record.payload);
-
-      const abstracts = record.resolves;
-      if (abstracts !== undefined) {
-        for (const abstract of abstracts) {
-          const abstractKey = abstract.toString();
-          this.contentMap.set(
-            abstract as ApplicationResourceIdentifier<keyof R & string>,
-            record.payload as R[keyof R & string]
-          );
-          this.rematerializations.set(abstractKey, record.resource);
-          resolvedByKey.set(abstractKey, record);
-        }
-      }
-
-      // CustomReference → Entry redirects: once Entry (or its rematerialization)
-      // lands, copy the concrete payload onto the redirected abstract keys.
-      this.propagateRedirectPayloads(record);
+      this.contentMap.set(
+        resource as ApplicationResourceIdentifier<keyof R & string>,
+        payload as R[keyof R & string]
+      );
+      this.propagateRedirectPayloads(resource, payload as R[keyof R & string]);
     }
-
-    return resolvedByKey;
   }
 
-  private propagateRedirectPayloads(record: ResolvedPayloadRecord<R>): void {
-    const settled = new Set<ResourceKey>([record.resource.toString()]);
-    for (const abstract of record.resolves ?? []) {
-      settled.add(abstract.toString());
-    }
-
+  private propagateRedirectPayloads(
+    resource: ApplicationResourceIdentifier,
+    payload: R[keyof R & string]
+  ): void {
+    const settledKey = resource.toString();
     for (const [fromKey, toAri] of this.redirects) {
-      if (!settled.has(toAri.toString())) {
+      if (toAri.toString() !== settledKey) {
         continue;
       }
-      this.contentMap.setByKey(fromKey, record.payload);
-      this.rematerializations.set(fromKey, record.resource);
+      this.contentMap.setByKey(fromKey, payload);
     }
   }
 
@@ -396,10 +363,4 @@ export class ResolutionSession<
       promotedResourceKeys: [...this.promotedResourceKeys],
     };
   }
-}
-
-function isRedirectRecord(
-  record: ResolvedResourceRecord<ContentRegistry>
-): record is ResourceRedirectRecord {
-  return (record as ResourceRedirectRecord).redirect === true;
 }

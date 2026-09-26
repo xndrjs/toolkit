@@ -10,12 +10,7 @@ import type { ExpansionPort } from "../ports/expansion-port";
 import type { IslandPort } from "../ports/island-port";
 import type { ResourceFamily, ResourceLoadContext, DataSource } from "../ports/data-source";
 import { assetAri, footerAri, heroAri, menuAri, pageAri, productAri } from "./test-fixtures";
-import type {
-  ContentRegistry,
-  SchedulingMode,
-  ResolveResourceGraphOutput,
-  ResolvedResourceRecord,
-} from "../types";
+import type { ContentRegistry, SchedulingMode, ResolveResourceGraphOutput } from "../types";
 
 export const page = pageAri({ id: "P" });
 export const hero = heroAri({ id: "H" });
@@ -111,16 +106,11 @@ export function createDeferred<T>(): Deferred<T> {
 export function recordsFromStore(
   resources: readonly ApplicationResourceIdentifier[],
   store: ReadonlyMap<string, unknown>
-): ResolvedResourceRecord<ContentRegistry>[] {
-  const records: ResolvedResourceRecord<ContentRegistry>[] = [];
-  for (const resource of resources) {
+): (unknown | undefined)[] {
+  return resources.map((resource) => {
     const key = resource.toString();
-    if (store.has(key)) {
-      records.push({ resource, payload: store.get(key) });
-    }
-  }
-
-  return records;
+    return store.has(key) ? store.get(key) : undefined;
+  });
 }
 
 export interface StoreSourceOptions {
@@ -170,10 +160,13 @@ export function createStoreSource(options: StoreSourceOptions): StoreSource {
           await options.gate();
         }
 
-        return recordsFromStore(
-          requested.filter((resource) => !omitted.has(resource.toString())),
-          store
-        );
+        return recordsFromStore(requested, store).map((payload, index) => {
+          const resource = requested[index]!;
+          if (omitted.has(resource.toString())) {
+            return undefined;
+          }
+          return payload;
+        });
       } finally {
         inFlight -= 1;
       }

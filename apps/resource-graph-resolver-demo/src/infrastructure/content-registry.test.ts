@@ -107,42 +107,37 @@ describe("demo data sources", () => {
   it("loads heterogeneous entries and assets in one CMS batch", async () => {
     const cms = createCmsSource(demoCmsStore);
 
-    const records = await cms.load([pageEntryAri, heroEntryAri, productEntryAri, logoAssetAri], {
+    const payloads = await cms.load([pageEntryAri, heroEntryAri, productEntryAri, logoAssetAri], {
       executionContext: { locale: "en-US" },
       batchNumber: 1,
     });
 
-    expect(records.map((record) => record.resource.toString()).sort()).toEqual(
-      [
-        pageEntryAri.toString(),
-        heroEntryAri.toString(),
-        logoAssetAri.toString(),
-        productEntryAri.toString(),
-      ].sort()
-    );
+    expect(payloads).toHaveLength(4);
+    expect(payloads.every((payload) => payload !== undefined)).toBe(true);
   });
 
-  it("omits resources the CMS store does not hold, so the resolver reports them missing", async () => {
+  it("returns undefined for resources the CMS store does not hold", async () => {
     const missing = pageEntryAri;
     const emptyStore = { entries: new Map(), assets: new Map() };
     const cms = createCmsSource(emptyStore);
 
-    const records = await cms.load([missing], {
+    const payloads = await cms.load([missing], {
       executionContext: { locale: "en-US" },
       batchNumber: 1,
     });
 
-    expect(records).toEqual([]);
+    expect(payloads).toEqual([undefined]);
   });
 
   it("resolves product snapshots by sku", async () => {
-    const records = await loadIntegrationProducts(demoProductCatalog, [tshirtIntegrationAri]);
+    const payloads = await loadIntegrationProducts(demoProductCatalog, [tshirtIntegrationAri]);
 
-    expect(records).toHaveLength(1);
-    expect(records[0]?.payload).toEqual({
-      price: { amount: 1999, currency: "EUR" },
-      inStock: true,
-    });
+    expect(payloads).toEqual([
+      {
+        price: { amount: 1999, currency: "EUR" },
+        inStock: true,
+      },
+    ]);
   });
 
   it("skips IO entirely for an empty batch", async () => {
