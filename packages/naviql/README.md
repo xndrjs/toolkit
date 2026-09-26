@@ -12,6 +12,8 @@ Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](
 
 **Vertical-slice example:** [`apps/demo-naviql`](../../apps/demo-naviql) — `.naviql` → codegen → strategy `.build()` → multi-DataSource `resolve` → `projectPageDetail` (in-memory cms / catalog / cdn; no islands).
 
+**Editor:** [`.naviql` syntax highlighting](../naviql-vscode) (VS Code / Cursor extension `xndrjs.naviql-vscode` — no LSP yet).
+
 Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 
 ## Installation
