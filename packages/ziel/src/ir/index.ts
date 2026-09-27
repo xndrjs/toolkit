@@ -306,12 +306,13 @@ export function isSingleRootQuery(query: QueryDefinition): boolean {
 
 /**
  * Compile-time reusable projection body
- * (`fragment Name on Resource b [when …] [include …] { … }`).
+ * (`fragment Name on Resource b [when …] { … }`).
  * Spreads desugar into enclosing `on` clauses; the declaration itself is kept
  * in IR so unused / mis-bound fragment bodies are still typechecked.
  *
- * `when` / `include` use the same semantics as projection `on` / `when` arms:
- * include is resolved against the (narrowed) raw resource payload.
+ * Fragments carry explicit fields / expands / excludes only — `include` lives
+ * on projection clauses and when-arms (the projection site owns include policy).
+ * `when` narrows the fragment payload for field checks (same as projection arms).
  */
 export type FragmentDefinition = {
   name: string;
@@ -319,11 +320,6 @@ export type FragmentDefinition = {
   binding: string;
   /** Optional filter; `null` when omitted. Narrows the fragment payload. */
   when: Expr | null;
-  /**
-   * `include all` | `include properties` | `include none`, or `null` when omitted.
-   * Same modes as `ResourceProjection.include` / `ProjectionArm.include`.
-   */
-  include: "all" | "properties" | "none" | null;
   selectedFields: string[];
   /** Field names from `exclude …`; empty when none. */
   excludedFields: string[];

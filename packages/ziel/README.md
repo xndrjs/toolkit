@@ -171,7 +171,7 @@ Bare `refers Entry` matches any payload member. `with { … }` is a partial payl
 
 ### `include` modes
 
-The same three modes apply on projection clauses (`on`), projection `when` arms, and fragments. Includes are always computed against the **(narrowed) raw resource payload**, never against another projection’s selected fields:
+The same three modes apply on projection clauses (`on`) and projection `when` arms — **not** on fragments. Includes are always computed against the **(narrowed) raw resource payload**, never against another projection’s selected fields:
 
 | Mode                 | Meaning                                                                            |
 | -------------------- | ---------------------------------------------------------------------------------- |
@@ -201,19 +201,19 @@ on Entry e include properties {
 }
 on Asset a include all { }
 
-fragment MenuChrome on Entry e when e.type == "Menu" include properties {
+fragment MenuChrome on Entry e when e.type == "Menu" {
   expand logo: Asset(…)
 }
 ```
 
-- On a `when` arm (or fragment `when`), the include set uses the **narrowed** payload. Effective mode is `arm.include ?? clause.include` — so an inner `include none` **overrides** an outer `include properties` / `include all`.
+- On a `when` arm, the include set uses the **narrowed** payload. Effective mode is `arm.include ?? clause.include` — so an inner `include none` **overrides** an outer `include properties` / `include all`.
 - Expand aliases with the same name as a payload field **shadow** the native field (silent drop; expand wins). Explicit duplicate field names stay errors. `exclude` of an expand alias is an error.
-- Allowed on normal `on R b { … }`, its `when` arms, and fragments (not `resolve to`).
+- Allowed on normal `on R b { … }` and its `when` arms (not fragments, not `resolve to`). Fragments contribute explicit fields / expands / excludes only; the enclosing clause owns `include`.
 - `expand … using Fragment` is **not** in this release (deferred).
 
 ### Fragments
 
-Reusable projection bodies: `fragment Name on Resource binding [when …] [include …] { … }`. Spreads (`...Name`) desugar into the enclosing body; the fragment’s `when` / `include` shape how that body is filled and checked.
+Reusable projection bodies: `fragment Name on Resource binding [when …] { … }`. Spreads (`...Name`) desugar into the enclosing body; the fragment’s `when` narrows its body for checks. Field auto-include is declared on the enclosing `on` / `when` arm, not on the fragment.
 
 ```ziel
 fragment MenuOnly on Entry e when e.type == "Menu" {

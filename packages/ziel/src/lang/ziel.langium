@@ -30,7 +30,6 @@ DatasourceRoute:
 FragmentDeclaration:
     'fragment' name=ID 'on' resource=ID binding=ID
         ('when' when=Expression)?
-        (include=IncludeMode)?
         '{'
             (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread | excludes+=ExcludeClause)*
         '}';

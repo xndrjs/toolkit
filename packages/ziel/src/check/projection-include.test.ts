@@ -333,8 +333,8 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     expect(code).not.toContain("shell.headline");
   });
 
-  it("fragment include all codegen matches on-clause include all", () => {
-    const viaFragment = parseAndCheck(`
+  it("on-clause include all codegen (fragments do not carry include)", () => {
+    const { program, diagnostics } = parseAndCheck(`
       scalar Id on string;
       resource Page(id: Id): {
         id
@@ -342,51 +342,28 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         menuId: Id refers Page
         strips: { id: Id }[]
       }
-      fragment PageAll on Page p include all { }
+      fragment PageTitle on Page p { title }
       query Q(id: Id) {
         context { }
         root Page(id: id)
-        on Page p { ...PageAll }
-      }
-    `);
-    const viaOn = parseAndCheck(`
-      scalar Id on string;
-      resource Page(id: Id): {
-        id
-        title: string
-        menuId: Id refers Page
-        strips: { id: Id }[]
-      }
-      query Q(id: Id) {
-        context { }
-        root Page(id: id)
-        on Page p include all { }
+        on Page p include all { ...PageTitle }
       }
     `);
 
-    expect(viaFragment.diagnostics).toEqual([]);
-    expect(viaOn.diagnostics).toEqual([]);
-
-    const fragTypes = emitProjectionTypes(viaFragment.program!);
-    const onTypes = emitProjectionTypes(viaOn.program!);
-    for (const types of [fragTypes, onTypes]) {
-      expect(types).toMatch(
-        /export type Q_Page = \{[^}]*id: Id;[^}]*title: string;[^}]*menuId: Id;[^}]*strips:/s
-      );
-    }
-
-    const fragCode = emitProjections(viaFragment.program!);
-    const onCode = emitProjections(viaOn.program!);
-    for (const code of [fragCode, onCode]) {
-      expect(code).toContain("shell.id = payload.id;");
-      expect(code).toContain("shell.title = payload.title;");
-      expect(code).toContain("shell.menuId = payload.menuId;");
-      expect(code).toContain("shell.strips = payload.strips;");
-    }
+    expect(diagnostics).toEqual([]);
+    const types = emitProjectionTypes(program!);
+    expect(types).toMatch(
+      /export type Q_Page = \{[^}]*id: Id;[^}]*title: string;[^}]*menuId: Id;[^}]*strips:/s
+    );
+    const code = emitProjections(program!);
+    expect(code).toContain("shell.id = payload.id;");
+    expect(code).toContain("shell.title = payload.title;");
+    expect(code).toContain("shell.menuId = payload.menuId;");
+    expect(code).toContain("shell.strips = payload.strips;");
   });
 
-  it("fragment include none codegen matches on-clause include none", () => {
-    const viaFragment = parseAndCheck(`
+  it("on-clause include none with explicit fragment fields", () => {
+    const { program, diagnostics } = parseAndCheck(`
       scalar Id on string;
       resource Page(id: Id): {
         id
@@ -394,47 +371,25 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         menuId: Id refers Page
         strips: { id: Id }[]
       }
-      fragment PageNone on Page p include none { title }
+      fragment PageTitle on Page p { title }
       query Q(id: Id) {
         context { }
         root Page(id: id)
-        on Page p { ...PageNone }
-      }
-    `);
-    const viaOn = parseAndCheck(`
-      scalar Id on string;
-      resource Page(id: Id): {
-        id
-        title: string
-        menuId: Id refers Page
-        strips: { id: Id }[]
-      }
-      query Q(id: Id) {
-        context { }
-        root Page(id: id)
-        on Page p include none { title }
+        on Page p include none { ...PageTitle }
       }
     `);
 
-    expect(viaFragment.diagnostics).toEqual([]);
-    expect(viaOn.diagnostics).toEqual([]);
+    expect(diagnostics).toEqual([]);
+    const types = emitProjectionTypes(program!);
+    expect(types).toMatch(/export type Q_Page = \{[^}]*title: string;[^}]*\};/s);
+    expect(types).not.toMatch(/export type Q_Page = \{[^}]*\bid:/s);
+    expect(types).not.toMatch(/export type Q_Page = \{[^}]*menuId:/s);
 
-    const fragTypes = emitProjectionTypes(viaFragment.program!);
-    const onTypes = emitProjectionTypes(viaOn.program!);
-    for (const types of [fragTypes, onTypes]) {
-      expect(types).toMatch(/export type Q_Page = \{[^}]*title: string;[^}]*\};/s);
-      expect(types).not.toMatch(/export type Q_Page = \{[^}]*\bid:/s);
-      expect(types).not.toMatch(/export type Q_Page = \{[^}]*menuId:/s);
-    }
-
-    const fragCode = emitProjections(viaFragment.program!);
-    const onCode = emitProjections(viaOn.program!);
-    for (const code of [fragCode, onCode]) {
-      expect(code).toContain("shell.title = payload.title;");
-      expect(code).not.toContain("shell.id =");
-      expect(code).not.toContain("shell.menuId");
-      expect(code).not.toContain("shell.strips");
-    }
+    const code = emitProjections(program!);
+    expect(code).toContain("shell.title = payload.title;");
+    expect(code).not.toContain("shell.id =");
+    expect(code).not.toContain("shell.menuId");
+    expect(code).not.toContain("shell.strips");
   });
 
   it("exclude from include all omits field in types and shell assign", () => {
@@ -515,26 +470,27 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     );
   });
 
-  it("fragment exclude bakes into spread-site selectedFields", () => {
-    const { program, diagnostics } = parseAndCheck(`
+  it("fragment exclude of an explicit field is rejected (same as on clauses)", () => {
+    const { diagnostics } = parseAndCheck(`
       ${prelude}
-      fragment PageMinusMenu on Page p include all {
-        exclude menuId
+      fragment PageTitleOnly on Page p {
+        id
+        title
+        exclude id
       }
       query Q(id: Id) {
         context { }
         root Page(id: id)
-        on Page p { ...PageMinusMenu }
+        on Page p include all { ...PageTitleOnly }
         on Entry e {
           when e.type == "Hero" { id title }
           when e.type == "Page" { id title }
         }
       }
     `);
-    expect(diagnostics).toEqual([]);
-    expect(program!.fragments[0]!.excludedFields).toEqual(["menuId"]);
-    expect(program!.queries[0]!.projections[0]!.selectedFields).toEqual(["id", "title", "strips"]);
-    expect(program!.queries[0]!.projections[0]!.excludedFields).toEqual([]);
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({ code: "EXCLUDED_SELECTED_FIELD" })
+    );
   });
 
   it("fixture page-detail still parseAndCheck clean", () => {
