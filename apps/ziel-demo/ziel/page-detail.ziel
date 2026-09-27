@@ -1,3 +1,17 @@
+/**
+ * Chrome logo expand shared by Menu / Footer — `when` narrows so `logoId` is
+ * valid; `include properties` pulls the narrowed payload fields.
+ */
+fragment ChromeLogo on Entry e when e.type == "Menu"
+  or e.type == "Footer" include properties {
+  expand logo: Asset(
+    spaceId: @e.spaceId,
+    environmentId: @e.environmentId,
+    id: e.logoId,
+    locale: @e.locale
+  )
+}
+
 query PageDetail(pageId: EntryId) {
   context {
     spaceId: SpaceId
@@ -90,21 +104,11 @@ query PageDetail(pageId: EntryId) {
     }
 
     when e.type == "Menu" {
-      expand logo: Asset(
-        spaceId: @e.spaceId,
-        environmentId: @e.environmentId,
-        id: e.logoId,
-        locale: @e.locale
-      )
+      ...ChromeLogo
     }
 
     when e.type == "Footer" {
-      expand logo: Asset(
-        spaceId: @e.spaceId,
-        environmentId: @e.environmentId,
-        id: e.logoId,
-        locale: @e.locale
-      )
+      ...ChromeLogo
     }
 
     when e.type == "SiteInternalLink" {

@@ -133,33 +133,61 @@ strips: { id: EntryId }[] refers Entry
 
 Bare `refers Entry` matches any payload member. `with { … }` is a partial payload pattern: **AND** across fields; each field value is a string literal or `|`-union of literals (**OR** on that field). When an expand constructs a resource from a field that carries `refers`, and the query has armed `on R` variants, codegen narrows the expand alias (e.g. `PageDetail_Entry_Menu` instead of `PageDetail_Entry`). Flat (non-armed) `on R` projections are not structurally narrowed.
 
-### `include all` / `include properties`
+### `include` modes
 
-Projection clauses and `when` arms may pull payload fields without listing them:
+The same three modes apply on projection clauses (`on`), projection `when` arms, and fragments. Includes are always computed against the **(narrowed) raw resource payload**, never against another projection’s selected fields:
+
+| Mode                 | Meaning                                                                            |
+| -------------------- | ---------------------------------------------------------------------------------- |
+| `include none`       | Start from empty; only explicit selections / expands remain                        |
+| `include all`        | All selectable payload fields (object: all fields; union: intersection of members) |
+| `include properties` | That set minus fields whose `refers` is set (relationships)                        |
+| omitted              | No auto-include; explicit only. Does **not** override a parent clause              |
 
 ```ziel
 on Page p include properties {
   expand menu: Entry(…)
   expand strips: each link in p.strips ( Entry(…) )
 }
-on Entry e {
-  when e.type == "Hero" include properties {
-    expand image: Asset(…)
-  }
+on Entry e include properties {
+  when e.type == "Hero" include none { title }
   when e.type == "Page" include properties { }
 }
 on Asset a include all { }
+
+fragment MenuChrome on Entry e when e.type == "Menu" include properties {
+  expand logo: Asset(…)
+}
 ```
 
-- **`include all`**: every selectable payload field (object: all fields; union: intersection across members).
-- **`include properties`**: that set minus fields whose `refers` is set (relationships).
-- On a `when` arm, the include set is taken from the **narrowed** arm payload (not the full resource union). Effective mode is `arm.include ?? clause.include` (arm overrides; else inherit clause).
+- On a `when` arm (or fragment `when`), the include set uses the **narrowed** payload. Effective mode is `arm.include ?? clause.include` — so an inner `include none` **overrides** an outer `include properties` / `include all`.
 - Expand aliases with the same name as a payload field **shadow** the native field (silent drop; expand wins). Explicit duplicate field names stay errors.
-- Allowed on normal `on R b { … }` and its `when` arms only (not `resolve to`, not fragments).
+- Allowed on normal `on R b { … }`, its `when` arms, and fragments (not `resolve to`).
+- `expand … using Fragment` is **not** in this release (deferred).
+
+### Fragments
+
+Reusable projection bodies: `fragment Name on Resource binding [when …] [include …] { … }`. Spreads (`...Name`) desugar into the enclosing body; the fragment’s `when` / `include` shape how that body is filled and checked.
+
+```ziel
+fragment MenuOnly on Entry e when e.type == "Menu" {
+  logoId
+  expand logo: Asset(id: e.logoId, locale: context.locale)
+}
+
+on Entry e {
+  when e.type == "Hero" { type id title }
+  when e.type == "Menu" { type id ...MenuOnly }
+}
+```
+
+- Fragment `when` narrows the binding’s payload for field checks and expands (same `narrowPayloadByFilter` as projection arms). Menu-only fields like `logoId` are valid under `when e.type == "Menu"` and rejected without a matching `when`.
+- Spreading a fragment into an arm whose narrowing is disjoint from the fragment’s `when` reports `FRAGMENT_WHEN_MISMATCH`.
+- **IntelliSense:** inside a fragment body with `when`, completion and hover use the narrowed payload type (same as projection `when` arms). Without `when`, the full resource payload applies.
 
 ### When expressions
 
-Every `when` (projection arms, `resolve to`, expand arms, islands) shares one expression language:
+Every `when` (projection arms, fragment declarations, `resolve to`, expand arms, islands) shares one expression language:
 
 ```ziel
 when e.type == "Menu"

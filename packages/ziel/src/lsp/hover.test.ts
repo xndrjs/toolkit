@@ -434,4 +434,13 @@ describe("hover fragment when narrowing", () => {
       "logoId: EntryId"
     );
   });
+
+  it("does not resolve Hero-only fields inside Menu fragment when body", () => {
+    // Inject a Hero-only name into the expand path; narrowing should not type it.
+    const source = FRAGMENT_WHEN_HOVER_FIXTURE.replace("id: e.logoId", "id: e.authorId");
+    const { document, scalars, resources } = tablesFrom(source);
+    const authorPath = offsetOf(source, "authorId", 2); // e.authorId (after Hero + Page decls)
+    const md = hoverMarkdownAtOffset(document, authorPath, { scalars, resources });
+    expect(md ?? "").not.toContain("authorId: EntryId");
+  });
 });
