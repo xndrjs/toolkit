@@ -325,7 +325,7 @@ describe("checkProgram — projection when-arms", () => {
     );
   });
 
-  it("rejects ...EntryLogo on Hero (logoId absent); accepts it on Menu", () => {
+  it("rejects ...EntryLogo on Hero (when mismatch); accepts it on Menu", () => {
     const heroBad = parseAndCheck(`
       scalar Locale on string;
       scalar EntryId on string;
@@ -357,8 +357,8 @@ describe("checkProgram — projection when-arms", () => {
 
     expect(heroBad.diagnostics).toContainEqual(
       expect.objectContaining({
-        code: "UNKNOWN_PAYLOAD_PATH",
-        message: expect.stringContaining("logoId"),
+        code: "FRAGMENT_WHEN_MISMATCH",
+        message: expect.stringContaining("EntryLogo"),
       })
     );
 
@@ -508,6 +508,54 @@ describe("checkProgram — projection when-arms", () => {
       { name: "PageNone", include: "none" },
       { name: "PageAll", include: "all" },
     ]);
+  });
+
+  it("spread of fragment include all matches on R include all field set", () => {
+    const viaFragment = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): {
+        id
+        title: string
+        menuId: Id refers Page
+        strips: { id: Id }[]
+      }
+
+      fragment PageAll on Page p include all { }
+
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p { ...PageAll }
+      }
+    `);
+    const viaOn = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): {
+        id
+        title: string
+        menuId: Id refers Page
+        strips: { id: Id }[]
+      }
+
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p include all { }
+      }
+    `);
+
+    expect(viaFragment.diagnostics).toEqual([]);
+    expect(viaOn.diagnostics).toEqual([]);
+
+    // Spread bakes include into selectedFields; on-clause keeps include on IR.
+    expect(viaFragment.program.queries[0]!.projections[0]!.selectedFields).toEqual([
+      "id",
+      "title",
+      "menuId",
+      "strips",
+    ]);
+    expect(viaOn.program.queries[0]!.projections[0]!.include).toBe("all");
+    expect(viaOn.program.queries[0]!.projections[0]!.selectedFields).toEqual([]);
   });
 
   it("rejects selecting a field absent from the narrowed arm", () => {

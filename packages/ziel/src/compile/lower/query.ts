@@ -7,6 +7,7 @@ import type {
   ResolveArm,
   ResourceProjection,
 } from "../../ir";
+import type { PayloadTypeLookup } from "../../check/discriminants";
 import type { DiagnosticSink } from "../../check/diagnostic";
 import {
   type Expansion as AstExpansion,
@@ -19,6 +20,7 @@ import {
 import { lowerConstruction, lowerExpr } from "./expr";
 import {
   expandBody,
+  lowerEnclosingWhen,
   rejectPreambleArmFieldClash,
   type FlattenedBody,
   type FragmentTable,
@@ -31,6 +33,7 @@ export function lowerQuery(
   decl: AstQueryDeclaration,
   tables: NameTables,
   fragments: FragmentTable,
+  resources: PayloadTypeLookup,
   sink: DiagnosticSink
 ): QueryDefinition {
   return {
@@ -39,7 +42,7 @@ export function lowerQuery(
     context: decl.context ? decl.context.fields.map((f) => lowerTypedField(f, tables)) : [],
     contextDeclared: decl.context !== undefined,
     roots: lowerQueryRoots(decl),
-    projections: decl.projections.map((p) => lowerProjection(p, fragments, sink)),
+    projections: decl.projections.map((p) => lowerProjection(p, fragments, resources, sink)),
     islands: decl.islands?.clauses.map(lowerIslandClause) ?? [],
     span: spanOf(decl),
   };
@@ -82,6 +85,7 @@ export function lowerQueryRoots(decl: AstQueryDeclaration): QueryRoot[] {
 export function lowerProjection(
   clause: AstProjectionClause,
   fragments: FragmentTable,
+  resources: PayloadTypeLookup,
   sink: DiagnosticSink
 ): ResourceProjection {
   const include = normalizeIncludeMode(clause.include);
@@ -99,11 +103,20 @@ export function lowerProjection(
     };
   }
 
-  const preamble = expandBody(clause, clause.resource, clause.binding, fragments, [], sink);
+  const preamble = expandBody(
+    clause,
+    clause.resource,
+    clause.binding,
+    fragments,
+    [],
+    sink,
+    resources,
+    null
+  );
 
   if (clause.whenArms.length > 0) {
     const arms = clause.whenArms.map((arm) =>
-      lowerProjectionArm(arm, clause.resource, clause.binding, preamble, fragments, sink)
+      lowerProjectionArm(arm, clause.resource, clause.binding, preamble, fragments, resources, sink)
     );
     return {
       resource: clause.resource,
@@ -144,16 +157,18 @@ export function lowerProjectionArm(
   binding: string,
   preamble: FlattenedBody,
   fragments: FragmentTable,
+  resources: PayloadTypeLookup,
   sink: DiagnosticSink
 ): ProjectionArm {
-  const armBody = expandBody(arm, resource, binding, fragments, [], sink);
+  const when = lowerEnclosingWhen(arm.when)!;
+  const armBody = expandBody(arm, resource, binding, fragments, [], sink, resources, when);
   rejectPreambleArmFieldClash(preamble, armBody, spanOf(arm), sink);
   const combined: FlattenedBody = {
     selectedFields: [...preamble.selectedFields, ...armBody.selectedFields],
     expansions: [...preamble.expansions, ...armBody.expansions],
   };
   return {
-    when: lowerExpr(arm.when),
+    when,
     selectedFields: combined.selectedFields,
     expansions: combined.expansions,
     include: normalizeIncludeMode(arm.include),

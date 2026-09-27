@@ -4,8 +4,10 @@
 import { AstUtils, type AstNode, type LangiumDocument } from "langium";
 
 import { createDiagnosticSink } from "../check/diagnostic";
+import { narrowPayloadByFilter } from "../check/discriminants";
+import { normalizeIncludeMode, resolveSelectedFields } from "../check/projection-include";
 import type { ResourceTable } from "../check/symbols";
-import { expandBody, type FragmentTable } from "../compile/lower/fragments";
+import { expandBody, lowerEnclosingWhen, type FragmentTable } from "../compile/lower/fragments";
 import type { TypeExpr } from "../ir";
 import { isFragmentDeclaration, isModel, type FragmentDeclaration } from "../lang/generated/ast";
 import { fragmentHoverMarkdown, projectedFieldsType } from "./hover-markdown";
@@ -46,6 +48,9 @@ export function collectFragmentTable(
 /**
  * Flattened selected-field types for a fragment (includes nested spreads).
  * Returns `{ type: T, id: U, … }` shaped object type.
+ *
+ * Applies the fragment's own `include` / `when` the same way checkFragment does,
+ * so hover matches effective projected fields after include resolution.
  */
 export function fragmentProjectedType(
   frag: FragmentDeclaration,
@@ -53,8 +58,32 @@ export function fragmentProjectedType(
   resources: ResourceTable
 ): TypeExpr | undefined {
   const sink = createDiagnosticSink();
-  const body = expandBody(frag, frag.resource, frag.binding, fragments, [frag.name], sink);
-  return projectedFieldsType(body.selectedFields, frag.resource, resources);
+  const when = lowerEnclosingWhen(frag.when);
+  const body = expandBody(
+    frag,
+    frag.resource,
+    frag.binding,
+    fragments,
+    [frag.name],
+    sink,
+    resources,
+    when
+  );
+  const payloadType = resources.get(frag.resource)?.payloadType;
+  if (!payloadType) {
+    return projectedFieldsType(body.selectedFields, frag.resource, resources);
+  }
+  const bodyPayload = when
+    ? (narrowPayloadByFilter(payloadType, when, frag.binding, resources) ?? payloadType)
+    : payloadType;
+  const selectedFields = resolveSelectedFields(
+    body.selectedFields,
+    body.expansions,
+    normalizeIncludeMode(frag.include),
+    bodyPayload,
+    resources
+  );
+  return projectedFieldsType(selectedFields, frag.resource, resources);
 }
 
 export function fragmentHoverMarkdownFor(

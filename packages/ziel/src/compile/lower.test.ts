@@ -548,7 +548,7 @@ describe("lowerProgram — fragments", () => {
     expect(program.fragments[3]!.when).toBeNull();
   });
 
-  it("reports UNKNOWN_FRAGMENT, FRAGMENT_RESOURCE_MISMATCH, and FRAGMENT_CYCLE", () => {
+  it("reports UNKNOWN_FRAGMENT, FRAGMENT_RESOURCE_MISMATCH, FRAGMENT_WHEN_MISMATCH, and FRAGMENT_CYCLE", () => {
     const sink = createDiagnosticSink();
     lowerProgram(
       parseSource(`
@@ -557,6 +557,7 @@ describe("lowerProgram — fragments", () => {
         fragment EntryBase on Entry e { type }
         fragment Boom on Entry e { ...Boom }
         fragment AssetOnly on Asset a { id }
+        fragment MenuOnly on Entry e when e.type == "Menu" { title }
 
         query Q(entryId: EntryId) {
           context { locale: Locale }
@@ -566,6 +567,7 @@ describe("lowerProgram — fragments", () => {
               ...Missing
               ...AssetOnly
               ...Boom
+              ...MenuOnly
             }
           }
           on Asset a { id }
@@ -589,6 +591,72 @@ describe("lowerProgram — fragments", () => {
     expect(sink.diagnostics).toContainEqual(
       expect.objectContaining({ code: "FRAGMENT_CYCLE", message: expect.stringContaining("Boom") })
     );
+    expect(sink.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "FRAGMENT_WHEN_MISMATCH",
+        message: expect.stringContaining("MenuOnly"),
+      })
+    );
+  });
+
+  it("merges fragment include into spread-site selectedFields via resolveSelectedFields", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+        resource Page(id: Id): {
+          id
+          title: string
+          menuId: Id refers Page
+          strips: { id: Id }[]
+        }
+
+        fragment PageProps on Page p include properties { }
+        fragment PageAll on Page p include all { }
+        fragment PageNone on Page p include none { title }
+
+        query Q(id: Id) {
+          context { }
+          root Page(id: id)
+          on Page a { ...PageProps }
+          on Page b { ...PageAll }
+          on Page c { ...PageNone }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    const [props, all, none] = program.queries[0]!.projections;
+    // include properties: non-refers fields (id, title, strips); menuId has refers
+    expect(props!.selectedFields).toEqual(["id", "title", "strips"]);
+    expect(all!.selectedFields).toEqual(["id", "title", "menuId", "strips"]);
+    expect(none!.selectedFields).toEqual(["title"]);
+  });
+
+  it("merges fragment include against when-narrowed payload at spread site", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+        resource Entry(id: Id):
+          { type: "Hero", id, title: string, headline: string, imageId: Id refers Entry }
+          | { type: "Page", id, title: string }
+
+        fragment HeroProps on Entry e when e.type == "Hero" include properties { }
+
+        query Q(id: Id) {
+          context { }
+          root Entry(id: id)
+          on Entry e {
+            when e.type == "Hero" { ...HeroProps }
+            when e.type == "Page" { id title }
+          }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    const heroArm = program.queries[0]!.projections[0]!.arms![0]!;
+    // Hero properties: type, id, title, headline (imageId has refers → excluded)
+    expect(heroArm.selectedFields).toEqual(["type", "id", "title", "headline"]);
   });
 
   it("reports DUPLICATE_SELECTED_FIELD for repeated fields in a when arm", () => {
