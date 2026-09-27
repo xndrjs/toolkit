@@ -116,6 +116,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       payload: {
         type: "Footer",
         id: Scalars.EntryId(demoIds.footer),
+        cta: "Contact us",
         title: "Footer",
         logoId: Scalars.AssetId(demoIds.assetLogo),
       },

@@ -1,0 +1,32 @@
+/**
+ * Routing metadata for demo DataSources.
+ * App code supplies `load` / batchSize / concurrency via `createDataSources`.
+ */
+
+datasource CmsCustomReferences {
+  context {
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    locale: Locale
+  }
+  for CustomReference
+}
+
+datasource CmsEntries {
+  context {
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    locale: Locale
+  }
+  for Page
+  for Entry
+}
+
+datasource CmsAssets {
+  context {
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    locale: Locale
+  }
+  for Asset
+}

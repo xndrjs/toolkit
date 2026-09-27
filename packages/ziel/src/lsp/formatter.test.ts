@@ -215,4 +215,26 @@ fragment NoneOnly on Entry e include none{title}
     );
     expect(formatted).toContain("fragment NoneOnly on Entry e include none {");
   });
+
+  it("formats datasource blocks with context and for routes", async () => {
+    const messy = `
+scalar Locale on string;
+scalar EntryId on string;
+scalar AssetId on string;
+resource Entry(id:EntryId,locale:Locale):{id locale}
+resource Asset(id:AssetId,locale:Locale):{id}
+datasource CmsSource{
+context{locale:Locale}
+for Entry e when context.locale==@e.locale
+for Asset
+}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain("datasource CmsSource {");
+    expect(formatted).toMatch(/\n {2}context \{/);
+    expect(formatted).toMatch(/context \{[\s\S]*?\}\n\n {2}for Entry e when/);
+    expect(formatted).toContain("for Entry e when context.locale == @e.locale");
+    expect(formatted).toMatch(/\n {2}for Asset\n/);
+  });
 });

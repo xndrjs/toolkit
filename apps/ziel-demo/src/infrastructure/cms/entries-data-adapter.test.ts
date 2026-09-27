@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { assetAri, entryAri, pageAri } from "../../generated";
+import { createDemoSources } from "../demo-resolver.js";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,
@@ -9,7 +10,7 @@ import {
   demoIds,
   entryLookupKey,
 } from "../fixtures/store.js";
-import { ENTRY_SOURCE_ID, createEntrySource } from "./entries-data-adapter.js";
+import { ENTRY_SOURCE_ID, loadCmsEntries } from "./entries-data-adapter.js";
 
 const locale = DEMO_LOCALE;
 const spaceId = DEMO_SPACE;
@@ -21,18 +22,22 @@ const loadContext = {
 
 const entryIdentity = (id: string) => ({ spaceId, environmentId, id, locale });
 
-describe("createEntrySource", () => {
+function entrySource() {
+  return createDemoSources().find((source) => source.id === ENTRY_SOURCE_ID)!;
+}
+
+describe("CmsEntries datasource", () => {
   it("owns Page + Entry ARI families (not CustomReference / Asset)", () => {
-    const source = createEntrySource();
+    const source = entrySource();
     expect(source.id).toBe(ENTRY_SOURCE_ID);
     expect(source.for.map((family) => family.type).sort()).toEqual(["Entry", "Page"]);
   });
 
   it("returns positional Entry payload without rematerialize", async () => {
-    const source = createEntrySource();
+    const load = loadCmsEntries();
     const entry = entryAri(entryIdentity(demoIds.heroWelcome));
 
-    const payloads = await source.load([entry], loadContext);
+    const payloads = await load([entry], loadContext);
     expect(payloads).toEqual([
       expect.objectContaining({
         type: "Hero",
@@ -42,12 +47,12 @@ describe("createEntrySource", () => {
   });
 
   it("serves root Page and polymorphic Entry documents from the same store", async () => {
-    const source = createEntrySource();
+    const load = loadCmsEntries();
     const page = pageAri(entryIdentity(demoIds.page));
     const menu = entryAri(entryIdentity(demoIds.menu));
     const about = entryAri(entryIdentity(demoIds.pageAbout));
 
-    const payloads = await source.load([page, menu, about], loadContext);
+    const payloads = await load([page, menu, about], loadContext);
     expect(payloads).toHaveLength(3);
     expect(payloads[0]).toMatchObject({
       id: demoIds.page,
@@ -62,12 +67,12 @@ describe("createEntrySource", () => {
   });
 
   it("returns undefined for Entry/Page kind mismatches (same length as batch)", async () => {
-    const source = createEntrySource();
+    const load = loadCmsEntries();
     const pageAsEntry = entryAri(entryIdentity(demoIds.page));
     const aboutAsPage = pageAri(entryIdentity(demoIds.pageAbout));
 
-    expect(await source.load([pageAsEntry], loadContext)).toEqual([undefined]);
-    expect(await source.load([aboutAsPage], loadContext)).toEqual([undefined]);
+    expect(await load([pageAsEntry], loadContext)).toEqual([undefined]);
+    expect(await load([aboutAsPage], loadContext)).toEqual([undefined]);
   });
 
   it("Page.strips links carry only EntryId — no content-type discriminant", () => {
@@ -83,7 +88,7 @@ describe("createEntrySource", () => {
   });
 
   it("does not own Asset ARIs (routed elsewhere — empty batch from this source)", async () => {
-    const source = createEntrySource();
+    const load = loadCmsEntries();
     const asset = assetAri({
       spaceId,
       environmentId,
@@ -91,6 +96,6 @@ describe("createEntrySource", () => {
       locale,
     });
     // Asset is not in `for`; if somehow asked, map yields undefined slots.
-    expect(await source.load([asset], loadContext)).toEqual([undefined]);
+    expect(await load([asset as never], loadContext)).toEqual([undefined]);
   });
 });

@@ -1,43 +1,40 @@
+import type { EditorialDocument } from "./fixtures/store.js";
+import { loadCmsAssets } from "./cms/asset-data-adapter.js";
+import { loadCmsCustomReferences } from "./cms/custom-reference-data-adapter.js";
+import { loadCmsEntries } from "./cms/entries-data-adapter.js";
 import {
-  createResourceGraphResolver,
-  type ResolutionObserver,
-  type ResourceGraphResolver,
-  type SchedulingMode,
-} from "@xndrjs/ziel";
-
-import { createAssetSource } from "./cms/asset-data-adapter.js";
-import { createCustomReferenceSource } from "./cms/custom-reference-data-adapter.js";
-import { createEntrySource } from "./cms/entries-data-adapter.js";
-import {
-  createPageDetailStrategy,
-  type ContentRegistry,
-  type PageDetailExecutionContext,
-  type PageDetailParams,
+  createDataSources,
+  resolvePageDetail,
+  type AssetPayload,
+  type ResolvePageDetailInput,
+  type ResolvePageDetailResult,
 } from "../generated";
 
-/** Demo DataSources (cms-entries / custom-references / assets). */
-export function createDemoSources() {
-  return [createCustomReferenceSource(), createEntrySource(), createAssetSource()] as const;
-}
-
-export type DemoResolverOptions = {
-  params: PageDetailParams;
-  /** Walk scheduling mode. Defaults to `"lane"`. */
-  schedulingMode?: SchedulingMode;
-  observer?: ResolutionObserver;
+export type DemoSourcesOptions = {
+  entries?: ReadonlyMap<string, EditorialDocument>;
+  assets?: ReadonlyMap<string, AssetPayload>;
 };
 
+/** Demo DataSources via generated `createDataSources` (DSL routing + app loaders). */
+export function createDemoSources(options: DemoSourcesOptions = {}) {
+  return createDataSources({
+    CmsCustomReferences: { load: loadCmsCustomReferences },
+    CmsEntries: { load: loadCmsEntries(options.entries) },
+    CmsAssets: { load: loadCmsAssets(options.assets) },
+  });
+}
+
+export type DemoResolveOptions = Omit<ResolvePageDetailInput, "sources"> & DemoSourcesOptions;
+
 /**
- * Low-level wire: sources + generated strategy `.build()`.
- * Prefer `resolvePageDetail` from generated for the closed façade.
+ * Closed façade: generated `resolvePageDetail` + demo DataSources.
  */
-export function createDemoResolver(
-  options: DemoResolverOptions
-): ResourceGraphResolver<ContentRegistry, PageDetailExecutionContext> {
-  return createResourceGraphResolver<ContentRegistry, PageDetailExecutionContext>({
-    sources: [...createDemoSources()],
-    strategy: createPageDetailStrategy(options.params).build(),
-    schedulingMode: options.schedulingMode ?? "lane",
-    observer: options.observer,
+export function resolveDemoPageDetail(
+  options: DemoResolveOptions
+): Promise<ResolvePageDetailResult> {
+  const { entries, assets, ...input } = options;
+  return resolvePageDetail({
+    ...input,
+    sources: createDemoSources({ entries, assets }),
   });
 }
