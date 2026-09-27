@@ -1,0 +1,74 @@
+{
+  "name": "ziel-vscode",
+  "displayName": "Ziel",
+  "description": "Syntax highlighting and diagnostics for Ziel (.ziel) files.",
+  "version": "0.0.1",
+  "publisher": "xndrjs",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ziel",
+    "syntax",
+    "highlighting",
+    "diagnostics",
+    "lsp",
+    "graphql"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/ziel-vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/xndrjs/toolkit/issues"
+  },
+  "homepage": "https://github.com/xndrjs/toolkit/tree/main/packages/ziel-vscode",
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:ziel"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "vsix": "pnpm run build && npx --yes @vscode/vsce package --no-dependencies",
+    "publish:vscode": "pnpm run build && npx --yes @vscode/vsce publish --no-dependencies",
+    "publish:ovsx": "pnpm run build && npx --yes ovsx publish --no-dependencies"
+  },
+  "dependencies": {
+    "@xndrjs/ziel": "workspace:^",
+    "vscode-languageclient": "~10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.91.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "ziel",
+        "aliases": [
+          "Ziel",
+          "ziel"
+        ],
+        "extensions": [
+          ".ziel"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ziel",
+        "scopeName": "source.ziel",
+        "path": "./syntaxes/ziel.tmLanguage.json"
+      }
+    ]
+  }
+}

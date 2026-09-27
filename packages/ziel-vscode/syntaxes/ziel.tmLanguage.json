@@ -1,0 +1,141 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Ziel",
+  "scopeName": "source.ziel",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#refers" },
+    { "include": "#keywords" },
+    { "include": "#primitives" },
+    { "include": "#operators" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.ziel",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.ziel",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.ziel",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.ziel",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.ziel",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.ziel",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.ziel",
+          "match": "\\b-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b"
+        }
+      ]
+    },
+    "refers": {
+      "patterns": [
+        {
+          "name": "meta.refers.ziel",
+          "begin": "\\brefers\\b",
+          "beginCaptures": {
+            "0": { "name": "keyword.control.ziel" }
+          },
+          "end": "(?=\\n|;)",
+          "patterns": [
+            {
+              "name": "keyword.control.ziel",
+              "match": "\\bwith\\b"
+            },
+            { "include": "#strings" },
+            { "include": "#operators" },
+            { "include": "#identifiers" },
+            {
+              "name": "punctuation.definition.block.ziel",
+              "match": "[{}]"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.ziel",
+          "match": "\\b(?:scalar|resource|fragment|query|context|roots|root|on|resolve|to|expand|each|in|not|and|or|when|islands|refers|include|all|properties)\\b"
+        },
+        {
+          "name": "constant.language.boolean.ziel",
+          "match": "\\b(?:true|false|null)\\b"
+        }
+      ]
+    },
+    "primitives": {
+      "patterns": [
+        {
+          "name": "storage.type.primitive.ziel",
+          "match": "\\b(?:string|number|boolean)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.comparison.ziel",
+          "match": "==|!="
+        },
+        {
+          "name": "keyword.operator.logical.ziel",
+          "match": "!"
+        },
+        {
+          "name": "keyword.operator.spread.ziel",
+          "match": "\\.\\.\\."
+        },
+        {
+          "name": "keyword.operator.union.ziel",
+          "match": "\\|"
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "entity.name.type.ziel",
+          "match": "\\b[A-Z][_a-zA-Z0-9]*\\b"
+        },
+        {
+          "name": "variable.other.ziel",
+          "match": "\\b[_a-zA-Z][_a-zA-Z0-9]*\\b"
+        }
+      ]
+    }
+  }
+}
