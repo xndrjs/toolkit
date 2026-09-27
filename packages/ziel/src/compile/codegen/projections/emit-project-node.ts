@@ -1,15 +1,16 @@
 import type { QueryDefinition, ResourceProjection } from "../../../ir";
-import { projectionArmDiscriminant } from "../shared";
-import { ariFactoryName, executionContextTypeName, paramsTypeName } from "../naming";
-import { allProjectionExpansions, projectOnFnName } from "./emit-project-on";
 import {
+  allProjectionExpansions,
   collectionElement,
   projectableProjections,
   resolveTargetIndex,
   stripToConcreteMembers,
   type ResolveTargetIndex,
-  type ResourceIndex,
-} from "./shared";
+} from "../../../check/projection-graph";
+import { projectionArmDiscriminant } from "../shared";
+import { ariFactoryName, executionContextTypeName, paramsTypeName } from "../naming";
+import { projectOnFnName } from "./emit-project-on";
+import { type ResourceIndex } from "./shared";
 
 /**
  * Resources that appear as collection-edge elements in this query (must have `on`).

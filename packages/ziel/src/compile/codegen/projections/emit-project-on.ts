@@ -8,21 +8,11 @@ import {
   projectionExprScope,
 } from "../shared";
 import { ariFactoryName } from "../naming";
-import { collectionElement, type ResourceIndex } from "./shared";
+import { collectionElement } from "../../../check/projection-graph";
+import { type ResourceIndex } from "./shared";
 
 export function projectOnFnName(resourceName: string): string {
   return `projectOn${resourceName}`;
-}
-
-/** All expansions under a projection (flat body or flattened when-arms). */
-export function allProjectionExpansions(projection: ResourceProjection): Expansion[] {
-  if (projection.resolveArms !== null) {
-    return [];
-  }
-  if (projection.arms !== null) {
-    return projection.arms.flatMap((arm) => arm.expansions);
-  }
-  return projection.expansions;
 }
 
 /** Payload type for include resolution on a when-arm (narrowed when possible). */

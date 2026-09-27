@@ -29,6 +29,12 @@
  * resolve targets (e.g. `related: PageDetail_Entry | PageDetail_Asset`).
  */
 import { createDiagnosticSink } from "../../../check/diagnostic";
+import {
+  projectableProjections,
+  resolveTargetIndex,
+  stripToConcreteMembers,
+  type ResolveTargetIndex,
+} from "../../../check/projection-graph";
 import { resolveSelectedFields } from "../../../check/projection-include";
 import { resolveTypeExpr } from "../../../check/resolve-type";
 import type { ResourceTable, ScalarTable } from "../../../check/symbols";
@@ -54,12 +60,6 @@ import {
   printNarrowedArmedAliasType,
   type ExpansionAliasContext,
 } from "./refers-narrow";
-import {
-  projectableProjections,
-  resolveTargetIndex,
-  stripToConcreteMembers,
-  type ResolveTargetIndex,
-} from "./shared";
 
 export type { ExpansionAliasContext } from "./refers-narrow";
 
