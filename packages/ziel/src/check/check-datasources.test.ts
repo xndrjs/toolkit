@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseAndCheck } from "../compile/parse-and-check";
-import { eq, lit, payload } from "../fixtures";
+import { eq, item, lit, payload } from "../fixtures";
 import { checkProgram } from "./check-program";
 
 const prelude = `
@@ -273,6 +273,53 @@ describe("checkDatasources", () => {
     expect(diagnostics).toEqual([]);
   });
 
+  it("rejects non-boolean datasource when", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      datasource CmsSource {
+        context { locale: Locale }
+        for Entry e when context.locale
+        for Asset
+      }
+
+      ${coveredQuery}
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "TYPE_MISMATCH",
+        message: expect.stringContaining("boolean"),
+      })
+    );
+  });
+
+  it("rejects query context fields incompatible with aggregate datasource types", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      datasource CmsSource {
+        context { locale: Locale }
+        for Entry
+        for Asset
+      }
+
+      query Q(id: EntryId) {
+        context { locale: string }
+        root Entry(id: id, locale: "en")
+        on Entry e { id type }
+        on Asset a { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_CONTEXT_MISSING_DATASOURCE_FIELD",
+        message: expect.stringMatching(/locale.*incompatible/i),
+      })
+    );
+  });
+
   it("rejects param references in datasource when via IR", () => {
     const { program, diagnostics: parseDiags } = parseAndCheck(`
       ${prelude}
@@ -295,6 +342,30 @@ describe("checkDatasources", () => {
 
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({ code: "DATASOURCE_INVALID_EXPR" })
+    );
+  });
+
+  it("rejects itemRef planted in IR", () => {
+    const { program, diagnostics: parseDiags } = parseAndCheck(`
+      ${prelude}
+
+      datasource CmsSource {
+        context { locale: Locale }
+        for Entry e when context.locale == @e.locale
+        for Asset
+      }
+
+      ${coveredQuery}
+    `);
+    expect(parseDiags).toEqual([]);
+
+    program.datasources[0]!.routes[0]!.when = item("link", "id");
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({
+        code: "DATASOURCE_INVALID_EXPR",
+        message: expect.stringContaining("comprehension item"),
+      })
     );
   });
 
