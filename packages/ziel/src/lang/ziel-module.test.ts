@@ -422,7 +422,7 @@ describe("Ziel MVP grammar", () => {
     expect(result.parserErrors.length).toBeGreaterThan(0);
   });
 
-  it("rejects empty roots block", () => {
+  it("parses an empty roots block", () => {
     const { Ziel } = createZielServices();
     const result = Ziel.parser.LangiumParser.parse(`
       scalar Id on string;
@@ -431,7 +431,9 @@ describe("Ziel MVP grammar", () => {
         roots {}
       }
     `);
-    expect(result.parserErrors.length).toBeGreaterThan(0);
+    expect(result.parserErrors).toEqual([]);
+    const query = (result.value as Model).declarations.find(isQueryDeclaration) as QueryDeclaration;
+    expect(query.roots?.entries).toEqual([]);
   });
 
   it("parses include all / include properties on projection clauses", () => {

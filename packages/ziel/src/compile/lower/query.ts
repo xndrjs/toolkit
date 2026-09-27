@@ -37,6 +37,7 @@ export function lowerQuery(
     name: decl.name,
     parameters: decl.parameters.map((f) => lowerTypedField(f, tables)),
     context: decl.context ? decl.context.fields.map((f) => lowerTypedField(f, tables)) : [],
+    contextDeclared: decl.context !== undefined,
     roots: lowerQueryRoots(decl),
     projections: decl.projections.map((p) => lowerProjection(p, fragments, sink)),
     islands: decl.islands?.clauses.map(lowerIslandClause) ?? [],

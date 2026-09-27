@@ -272,7 +272,13 @@ export type QueryDefinition = {
   name: string;
   parameters: FieldDecl[];
   context: FieldDecl[];
-  /** Non-empty after a successful parse; empty only for defensive hand-built IR. */
+  /**
+   * True when the source wrote a `context { … }` block (possibly empty).
+   * False when the block was omitted — check emits `MISSING_CONTEXT`.
+   * Hand-built IR should set this `true` unless testing that diagnostic.
+   */
+  contextDeclared: boolean;
+  /** Non-empty after a successful parse with a root; empty when omitted or hand-built. */
   roots: QueryRoot[];
   projections: ResourceProjection[];
   /** Island start policies from an `islands { … }` block; empty when absent. */

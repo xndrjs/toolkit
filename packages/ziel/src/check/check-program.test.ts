@@ -531,10 +531,13 @@ describe("checkProgram — missing on projection", () => {
       pageQuery(p).projections = pageQuery(p).projections.filter((pr) => pr.resource !== "Asset");
     });
 
-    expect(checkProgram(program)).toContainEqual(
+    const missing = checkProgram(program).filter((d) => d.code === "MISSING_ON_PROJECTION");
+    expect(missing).toContainEqual(
       expect.objectContaining({
         code: "MISSING_ON_PROJECTION",
         message: expect.stringContaining("Asset"),
+        path: "queries.PageDetail",
+        span: pageQuery(program).span,
         data: { missingResource: "Asset" },
       })
     );
@@ -571,9 +574,15 @@ describe("checkProgram — missing on projection", () => {
       expect.objectContaining({
         code: "MISSING_ON_PROJECTION",
         message: expect.stringContaining("Tab"),
+        path: "queries.Q",
         data: { missingResource: "Tab" },
       })
     );
+    const tabDiag = diagnostics.find(
+      (d) => d.code === "MISSING_ON_PROJECTION" && d.data?.missingResource === "Tab"
+    );
+    expect(tabDiag?.span).not.toBeNull();
+    expect(tabDiag?.path).toBe("queries.Q");
   });
 
   it("errors when a resolve-strip member lacks a projectable on", () => {
@@ -606,6 +615,7 @@ describe("checkProgram — missing on projection", () => {
       expect.objectContaining({
         code: "MISSING_ON_PROJECTION",
         message: expect.stringContaining("Asset"),
+        path: "queries.Q",
         data: { missingResource: "Asset" },
       })
     );
@@ -1005,7 +1015,59 @@ describe("checkProgram — multi-root queries", () => {
       ],
     };
 
-    expect(checkProgram(program)).toContainEqual(expect.objectContaining({ code: "EMPTY_ROOTS" }));
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({ code: "EMPTY_ROOTS", path: "queries.Q" })
+    );
+  });
+
+  it("errors when context block is omitted in source", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): { id }
+      query Q(id: Id) {
+        root Page(id: id)
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "MISSING_CONTEXT",
+        path: "queries.Q",
+        message: expect.stringContaining("context"),
+      })
+    );
+  });
+
+  it("accepts an empty context { } block", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): { id }
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p { id }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "MISSING_CONTEXT")).toEqual([]);
+  });
+
+  it("errors when root/roots are omitted in source", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): { id }
+      query Q(id: Id) {
+        context { }
+        on Page p { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "EMPTY_ROOTS",
+        path: "queries.Q",
+      })
+    );
   });
 });
 

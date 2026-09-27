@@ -1683,6 +1683,7 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         entries: {
           name: RootsBlock.entries,
           defaultValue: [],
+          optional: true,
         },
       },
       superTypes: [],

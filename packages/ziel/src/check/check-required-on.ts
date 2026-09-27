@@ -1,8 +1,11 @@
 /**
  * Require a projectable `on R` for every expansion / root site that materializes
  * an object projection (mirrors emit's `printTargetAliasType` coverage).
+ *
+ * Diagnostics are query-scoped: missing `on` is a property of the query as a
+ * whole, not of any particular expand / root construction.
  */
-import type { Expansion, QueryDefinition, ResourceConstruction, SourceSpan } from "../ir";
+import type { Expansion, QueryDefinition, ResourceConstruction } from "../ir";
 import type { DiagnosticSink } from "./diagnostic";
 import {
   allProjectionExpansions,
@@ -15,8 +18,6 @@ import type { ResourceTable } from "./symbols";
 
 type RequiringSite = {
   targetName: string;
-  span: SourceSpan | null;
-  path: string;
 };
 
 /**
@@ -33,11 +34,7 @@ export function checkRequiredOn(
   const resolveTargets = resolveTargetIndex(query);
   const reported = new Set<string>();
 
-  const requireProjected = (
-    resourceName: string,
-    span: SourceSpan | null,
-    sitePath: string
-  ): void => {
+  const requireProjected = (resourceName: string): void => {
     if (projected.has(resourceName) || reported.has(resourceName)) {
       return;
     }
@@ -45,8 +42,8 @@ export function checkRequiredOn(
     sink.push({
       code: "MISSING_ON_PROJECTION",
       message: `Query '${query.name}' expands '${resourceName}' but has no 'on ${resourceName}' projection`,
-      path: sitePath,
-      span,
+      path,
+      span: query.span,
       data: { missingResource: resourceName },
     });
   };
@@ -62,7 +59,7 @@ export function checkRequiredOn(
     // Collection resource (`TabCollection: Tab[]`) → require element `on`.
     const element = collectionElement(payload);
     if (element !== null) {
-      requireProjected(element, site.span, site.path);
+      requireProjected(element);
       return;
     }
 
@@ -73,65 +70,50 @@ export function checkRequiredOn(
     const stripped = stripToConcreteMembers(site.targetName, resources, projected, resolveTargets);
     if (stripped !== null && stripped.length > 0) {
       for (const member of stripped) {
-        requireProjected(member, site.span, site.path);
+        requireProjected(member);
       }
       return;
     }
 
     if (payload.kind === "object") {
-      requireProjected(site.targetName, site.span, site.path);
+      requireProjected(site.targetName);
     }
   };
 
-  for (const site of requiringSites(query, path)) {
+  for (const site of requiringSites(query)) {
     checkSite(site);
   }
 }
 
 /** Roots + expansion targets under projectable (non-resolve-only) projections. */
-function requiringSites(query: QueryDefinition, path: string): RequiringSite[] {
+function requiringSites(query: QueryDefinition): RequiringSite[] {
   const sites: RequiringSite[] = [];
 
-  for (let i = 0; i < query.roots.length; i++) {
-    const root = query.roots[i]!;
-    const rootPath = root.alias === null ? `${path}.roots.${i}` : `${path}.roots.${root.alias}`;
-    sites.push(siteFromConstruction(root.construction, root.span, rootPath));
+  for (const root of query.roots) {
+    sites.push(siteFromConstruction(root.construction));
   }
 
   for (const projection of projectableProjections(query)) {
-    const projPath = `${path}.projections.${projection.binding}`;
     for (const expansion of allProjectionExpansions(projection)) {
-      sites.push(...sitesFromExpansion(expansion, projPath));
+      sites.push(...sitesFromExpansion(expansion));
     }
   }
 
   return sites;
 }
 
-function sitesFromExpansion(expansion: Expansion, projPath: string): RequiringSite[] {
-  const expPath = `${projPath}.expansions.${expansion.alias}`;
-
+function sitesFromExpansion(expansion: Expansion): RequiringSite[] {
   if (expansion.multiplicity === "many" && expansion.comprehension !== null) {
-    return expansion.comprehension.arms.map((arm, i) =>
-      siteFromConstruction(arm.target, expansion.span, `${expPath}.arms.${i}`)
-    );
+    return expansion.comprehension.arms.map((arm) => siteFromConstruction(arm.target));
   }
 
   if (expansion.target !== null) {
-    return [siteFromConstruction(expansion.target, expansion.span, expPath)];
+    return [siteFromConstruction(expansion.target)];
   }
 
   return [];
 }
 
-function siteFromConstruction(
-  construction: ResourceConstruction,
-  fallbackSpan: SourceSpan | null,
-  path: string
-): RequiringSite {
-  return {
-    targetName: construction.resource,
-    span: construction.span ?? fallbackSpan,
-    path,
-  };
+function siteFromConstruction(construction: ResourceConstruction): RequiringSite {
+  return { targetName: construction.resource };
 }

@@ -3,6 +3,16 @@
  * Keep out of the main `@xndrjs/ziel` runtime entry.
  */
 export {
+  isMissingOnDiagnostic,
+  missingOnEditsForQuery,
+  missingOnInsertOffset,
+  missingOnInsertText,
+  missingOnStubLine,
+  uniqueProjectionBinding,
+  usedBindingsInQuery,
+  ZielCodeActionProvider,
+} from "./code-action";
+export {
   classifyCompletionContext,
   completionPrefix,
   completionsAtOffset,

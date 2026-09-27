@@ -36,6 +36,15 @@ export function checkQuery(
   resources: ResourceTable,
   sink: DiagnosticSink
 ): void {
+  if (!query.contextDeclared) {
+    sink.push({
+      code: "MISSING_CONTEXT",
+      message: `Query '${query.name}' must declare a context block`,
+      path,
+      span: query.span,
+    });
+  }
+
   const params = checkUniqueFields(
     query.parameters,
     `${path}.parameters`,
@@ -221,7 +230,7 @@ function checkQueryRoots(
     sink.push({
       code: "EMPTY_ROOTS",
       message: "Query must declare at least one root",
-      path: `${path}.roots`,
+      path,
       span: querySpan,
     });
     return;

@@ -68,6 +68,7 @@ describe("emitProjections", () => {
       resource UserSession(id: SessionId): { id userId: string }
 
       query Homepage(pageId: PageId, sessionId: SessionId) {
+        context { }
         roots {
           page: Page(id: pageId)
           session: UserSession(id: sessionId)

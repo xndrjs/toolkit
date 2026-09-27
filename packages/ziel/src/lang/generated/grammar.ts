@@ -1109,7 +1109,8 @@ export const ZielGrammar = (): Grammar =>
                   "arguments": []
                 }
               }
-            ]
+            ],
+            "cardinality": "?"
           },
           {
             "$type": "Assignment",
@@ -1338,7 +1339,7 @@ export const ZielGrammar = (): Grammar =>
               },
               "arguments": []
             },
-            "cardinality": "+"
+            "cardinality": "*"
           },
           {
             "$type": "Keyword",
