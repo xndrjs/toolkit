@@ -272,7 +272,14 @@ query Q(entryId: EntryId) {
     expect(Ziel.lsp.CompletionProvider).toBeDefined();
     const { document, scalars, resources } = tablesFrom(FIXTURE);
     semanticSnapshot.set({
-      program: { scalars: [], resources: [], fragments: [], queries: [], span: null },
+      program: {
+        scalars: [],
+        resources: [],
+        fragments: [],
+        datasources: [],
+        queries: [],
+        span: null,
+      },
       scalars,
       resources,
       documentsByUri: new Map([[document.uri.toString(), document]]),

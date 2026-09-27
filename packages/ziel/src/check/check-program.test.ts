@@ -1146,6 +1146,7 @@ describe("checkProgram — scalar / resource name clash", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [
         query("Q", {
           parameters: [],
@@ -1175,6 +1176,7 @@ describe("checkProgram — multi-root queries", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [
         query("Homepage", {
           parameters: [field("id", scalarRef("Id"))],
@@ -1205,6 +1207,7 @@ describe("checkProgram — multi-root queries", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [
         query("Homepage", {
           parameters: [field("id", scalarRef("Id"))],
@@ -1243,6 +1246,7 @@ describe("checkProgram — multi-root queries", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [
         query("Q", {
           parameters: [],

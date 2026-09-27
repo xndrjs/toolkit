@@ -4,6 +4,7 @@ const EMPTY_PROGRAM: Program = {
   scalars: [],
   resources: [],
   fragments: [],
+  datasources: [],
   queries: [],
   span: null,
 };
@@ -24,6 +25,7 @@ export function mergePrograms(programs: Program[]): Program {
       scalars: [...program.scalars],
       resources: [...program.resources],
       fragments: [...program.fragments],
+      datasources: [...program.datasources],
       queries: [...program.queries],
       span: null,
     };
@@ -33,6 +35,7 @@ export function mergePrograms(programs: Program[]): Program {
     scalars: programs.flatMap((p) => p.scalars),
     resources: programs.flatMap((p) => p.resources),
     fragments: programs.flatMap((p) => p.fragments),
+    datasources: programs.flatMap((p) => p.datasources),
     queries: programs.flatMap((p) => p.queries),
     span: null,
   };

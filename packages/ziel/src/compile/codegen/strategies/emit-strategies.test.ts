@@ -33,7 +33,7 @@ function loadFixture(name: string): string {
 }
 
 function emptyProgram(): Program {
-  return { scalars: [], resources: [], fragments: [], queries: [], span: null };
+  return { scalars: [], resources: [], fragments: [], datasources: [], queries: [], span: null };
 }
 
 describe("emitStrategies", () => {
@@ -58,6 +58,7 @@ describe("emitStrategies", () => {
         }),
       ],
       fragments: [],
+      datasources: [],
       queries: [
         query("PostDetail", {
           parameters: [field("postId", scalarRef("PostId"))],
@@ -141,6 +142,7 @@ describe("emitStrategies", () => {
     const program: Program = {
       ...emptyProgram(),
       fragments: [],
+      datasources: [],
       queries: [
         query("PageDetail", {
           parameters: [],

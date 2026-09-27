@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { checkProgram } from "../check";
 import {
   construct,
+  datasource,
+  datasourceRoute,
   defScalar,
   field,
   objectType,
@@ -20,7 +22,7 @@ function fileSpan(uri: string): SourceSpan {
 }
 
 function emptyProgram(): Program {
-  return { scalars: [], resources: [], fragments: [], queries: [], span: null };
+  return { scalars: [], resources: [], fragments: [], datasources: [], queries: [], span: null };
 }
 
 function programA(): Program {
@@ -34,6 +36,7 @@ function programA(): Program {
       ),
     ],
     fragments: [],
+    datasources: [datasource("SourceA", [datasourceRoute("A")])],
     queries: [],
     span: fileSpan("file:///a.ziel"),
   };
@@ -50,6 +53,7 @@ function programB(): Program {
       ),
     ],
     fragments: [],
+    datasources: [],
     queries: [
       query("QB", {
         parameters: [],
@@ -90,9 +94,11 @@ describe("mergePrograms", () => {
     expect(merged.span).toBeNull();
     expect(merged.scalars.map((s) => s.name)).toEqual(["AId", "BId"]);
     expect(merged.resources.map((r) => r.name)).toEqual(["A", "B"]);
+    expect(merged.datasources.map((d) => d.name)).toEqual(["SourceA"]);
     expect(merged.queries.map((q) => q.name)).toEqual(["QB"]);
     expect(merged.scalars[0]).toBe(a.scalars[0]);
     expect(merged.scalars[1]).toBe(b.scalars[0]);
+    expect(merged.datasources[0]).toBe(a.datasources[0]);
   });
 
   it("preserves per-node URIs from dual parse while clearing program span", () => {
@@ -128,6 +134,7 @@ describe("mergePrograms", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
       span: null,
     };
@@ -141,6 +148,7 @@ describe("mergePrograms", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
       span: null,
     };

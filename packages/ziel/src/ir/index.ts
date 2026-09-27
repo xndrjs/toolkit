@@ -317,11 +317,36 @@ export type FragmentDefinition = {
   span: SourceSpan | null;
 };
 
+/**
+ * One `for Resource [binding] [when expr]` route inside a `datasource` block.
+ * `alias` is `null` when the binding is omitted; `when` is `null` when absent.
+ */
+export type DatasourceResourceRoute = {
+  resource: string;
+  /** Binding alias for `when` / identity refs; `null` when `for Entry` with no binding. */
+  alias: string | null;
+  when: Expr | null;
+  span: SourceSpan | null;
+};
+
+/**
+ * Top-level `datasource Name { … }` — routing metadata only (no loader body).
+ * App codegen supplies `load` / `batchSize` / `concurrency`.
+ */
+export type DatasourceDefinition = {
+  name: string;
+  contextFields: FieldDecl[];
+  routes: DatasourceResourceRoute[];
+  span: SourceSpan | null;
+};
+
 export type Program = {
   scalars: ScalarDefinition[];
   resources: ResourceDefinition[];
   /** Top-level `fragment` declarations (after spread expansion within each body). */
   fragments: FragmentDefinition[];
+  /** Top-level `datasource` declarations (routing metadata; empty when none declared). */
+  datasources: DatasourceDefinition[];
   queries: QueryDefinition[];
   span: SourceSpan | null;
 };
