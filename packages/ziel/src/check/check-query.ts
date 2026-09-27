@@ -301,7 +301,7 @@ function checkProjectionArm(
   armPath: string,
   binding: string,
   resourceName: string,
-  include: "all" | "properties" | null,
+  include: "all" | "properties" | "none" | null,
   payloadType: TypeExpr,
   scope: QueryScope,
   scalars: ScalarTable,

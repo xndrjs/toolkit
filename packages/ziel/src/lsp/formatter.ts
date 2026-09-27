@@ -246,6 +246,8 @@ export class ZielFormatter extends AbstractFormatter {
           f.keyword("include").surround(Formatting.oneSpace());
           if (node.include.includes("properties")) {
             f.keyword("properties").append(Formatting.oneSpace());
+          } else if (node.include.includes("none")) {
+            f.keyword("none").append(Formatting.oneSpace());
           } else {
             f.keyword("all").append(Formatting.oneSpace());
           }
@@ -274,6 +276,8 @@ export class ZielFormatter extends AbstractFormatter {
         f.keyword("include").surround(Formatting.oneSpace());
         if (node.include.includes("properties")) {
           f.keyword("properties").append(Formatting.oneSpace());
+        } else if (node.include.includes("none")) {
+          f.keyword("none").append(Formatting.oneSpace());
         } else {
           f.keyword("all").append(Formatting.oneSpace());
         }

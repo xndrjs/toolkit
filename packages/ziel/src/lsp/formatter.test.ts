@@ -190,6 +190,7 @@ root Entry(id:id)
 on Entry e{
 when e.type=="Hero"include properties{title}
 when e.type=="Page"include all{}
+when e.type=="Menu"include none{title}
 }
 }
 `.trim();
@@ -197,5 +198,6 @@ when e.type=="Page"include all{}
     const formatted = await formatSource(messy);
     expect(formatted).toContain('when e.type == "Hero" include properties {');
     expect(formatted).toContain('when e.type == "Page" include all { }');
+    expect(formatted).toContain('when e.type == "Menu" include none {');
   });
 });

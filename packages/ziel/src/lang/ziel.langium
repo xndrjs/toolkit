@@ -142,7 +142,8 @@ RootEntry:
  *   2. Armed: whenArms+ only
  *   3. Preamble + armed: items+ whenArms+
  *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
- * Shapes 1–3 may optionally use `include all` or `include properties` before `{`.
+ * Shapes 1–3 may optionally use `include all`, `include properties`, or
+ * `include none` before `{`.
  * Items after the first `when` are a parse error (whenArms only follow).
  * Resolve form is mutually exclusive with projection body at parse time.
  * IR-built programs that mix root fields with arms are still rejected by check.
@@ -158,9 +159,12 @@ ProjectionClause:
         '}'
     );
 
-/** `include all` | `include properties` — Langium may store as `"includeall"` / `"includeproperties"`. */
+/**
+ * `include all` | `include properties` | `include none` — Langium may store as
+ * `"includeall"` / `"includeproperties"` / `"includenone"`.
+ */
 IncludeMode returns string:
-    'include' 'all' | 'include' 'properties';
+    'include' 'all' | 'include' 'properties' | 'include' 'none';
 
 /** Discriminant arm: `when e.type == "Hero" include properties { … }`. */
 ProjectionWhenArm:

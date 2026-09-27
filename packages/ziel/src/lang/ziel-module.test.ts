@@ -436,7 +436,7 @@ describe("Ziel MVP grammar", () => {
     expect(query.roots?.entries).toEqual([]);
   });
 
-  it("parses include all / include properties on projection clauses", () => {
+  it("parses include all / include properties / include none on projection clauses", () => {
     const model = parseSource(`
       scalar Id on string;
       resource Page(id: Id): { id: Id, title: string }
@@ -444,6 +444,7 @@ describe("Ziel MVP grammar", () => {
         root Page(id: id)
         on Page p include all { id }
         on Page q include properties { title }
+        on Page n include none { title }
         on Page r { id }
       }
     `);
@@ -451,11 +452,12 @@ describe("Ziel MVP grammar", () => {
     expect(query.projections.map((p) => p.include)).toEqual([
       "includeall",
       "includeproperties",
+      "includenone",
       undefined,
     ]);
   });
 
-  it("parses include all / include properties on projection when-arms", () => {
+  it("parses include all / include properties / include none on projection when-arms", () => {
     const model = parseSource(`
       scalar Id on string;
       resource Entry(id: Id):
@@ -466,6 +468,7 @@ describe("Ziel MVP grammar", () => {
         on Entry e {
           when e.type == "Hero" include all { id }
           when e.type == "Page" include properties { }
+          when e.type == "Hero" include none { id }
           when e.type == "Hero" { id }
         }
       }
@@ -475,6 +478,7 @@ describe("Ziel MVP grammar", () => {
     expect(clause.whenArms.map((arm) => arm.include)).toEqual([
       "includeall",
       "includeproperties",
+      "includenone",
       undefined,
     ]);
   });
