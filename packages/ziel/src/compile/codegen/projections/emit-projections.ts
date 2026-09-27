@@ -19,8 +19,9 @@ import {
   emitProjectNode,
   emitRootsParamType,
 } from "./emit-project-node";
+import { projectableProjections } from "../../../check/projection-graph";
 import { emitProjectOnHelper } from "./emit-project-on";
-import { projectableProjections, resourceIndex, type ResourceIndex } from "./shared";
+import { resourceIndex, type ResourceIndex } from "./shared";
 
 function emitQueryProjection(
   query: QueryDefinition,

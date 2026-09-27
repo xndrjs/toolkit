@@ -29,9 +29,6 @@
   },
   "homepage": "https://github.com/xndrjs/toolkit/tree/main/packages/ziel-vscode",
   "main": "./dist/extension.js",
-  "activationEvents": [
-    "onLanguage:ziel"
-  ],
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",

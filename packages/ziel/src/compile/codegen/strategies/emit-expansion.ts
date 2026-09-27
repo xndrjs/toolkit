@@ -12,8 +12,8 @@ import type {
   QueryDefinition,
   ResourceDefinition,
   ResourceProjection,
-  TypeExpr,
 } from "../../../ir";
+import { allProjectionExpansions, collectionElement } from "../../../check/projection-graph";
 import {
   emitConstruction,
   emitExpr,
@@ -155,25 +155,6 @@ export function emitProjectionExpansions(projection: ResourceProjection): string
     return [];
   }
   return [emitFlatProjectionExpansion(projection)];
-}
-
-/** All expansions under a projection (flat body or flattened when-arms). */
-function allProjectionExpansions(projection: ResourceProjection): Expansion[] {
-  if (projection.resolveArms !== null) {
-    return [];
-  }
-  if (projection.arms !== null) {
-    return projection.arms.flatMap((arm) => arm.expansions);
-  }
-  return projection.expansions;
-}
-
-/** Collection resource (`TabCollection: Tab[]`) → element resource name. */
-function collectionElement(payload: TypeExpr): string | null {
-  if (payload.kind === "array" && payload.of.kind === "resourceRef") {
-    return payload.of.name;
-  }
-  return null;
 }
 
 /**
