@@ -220,9 +220,11 @@ export type ResourceProjection = {
   expansions: Expansion[];
   /**
    * `include all` | `include properties` on the projection clause, or `null`
-   * when absent / resolve-only. Effective selection =
-   * `(selectedFields ∪ includeSet) − expansionAliases` (see
-   * `resolveSelectedFields`).
+   * when absent / resolve-only. Per-arm effective include is
+   * `arm.include ?? projection.include`. Effective selection =
+   * `(selectedFields ∪ includeSet) − expansionAliases` against the relevant
+   * payload (full resource for flat; narrowed for when-arms) — see
+   * `resolveSelectedFields`.
    */
   include: "all" | "properties" | null;
   /**

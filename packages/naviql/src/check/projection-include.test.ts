@@ -95,7 +95,7 @@ describe("payloadSelectableFields / resolveSelectedFields", () => {
         ["title"],
         [{ alias: "strips", target: null, multiplicity: "many", comprehension: null, span: null }],
         "all",
-        "Page",
+        page.payloadType,
         resources
       )
     ).toEqual(["id", "title", "menuId"]);
@@ -107,10 +107,40 @@ describe("payloadSelectableFields / resolveSelectedFields", () => {
         [],
         [{ alias: "strips", target: null, multiplicity: "many", comprehension: null, span: null }],
         "properties",
-        "Page",
+        page.payloadType,
         resources
       )
     ).toEqual(["id", "title"]);
+  });
+
+  it("resolves include against a narrowed arm payload, not the union intersection", () => {
+    const hero = objectType(
+      field("type", strLit("Hero")),
+      field("id", scalarRef("Id"), true),
+      field("title", prim("string")),
+      field("headline", prim("string")),
+      field("imageId", scalarRef("Id"), false, [{ resource: "Page", fields: [], span: null }])
+    );
+    expect(payloadSelectableFields(entry.payloadType, resources).map((f) => f.name)).toEqual([
+      "type",
+      "id",
+      "title",
+    ]);
+    expect(resolveSelectedFields([], [], "properties", hero, resources)).toEqual([
+      "type",
+      "id",
+      "title",
+      "headline",
+    ]);
+    expect(
+      resolveSelectedFields(
+        [],
+        [{ alias: "image", target: null, multiplicity: "one", comprehension: null, span: null }],
+        "all",
+        hero,
+        resources
+      )
+    ).toEqual(["type", "id", "title", "headline", "imageId"]);
   });
 });
 
@@ -179,6 +209,60 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     expect(code).toContain("shell.title = payload.title;");
     expect(code).toContain("shell.strips =");
     expect(code).not.toContain("shell.menuId");
+  });
+
+  it("include properties on a when-arm uses the narrowed payload (not union intersection)", () => {
+    const { program, diagnostics } = parseAndCheck(`
+      scalar Id on string;
+      resource Entry(id: Id):
+        { type: "Hero", id, title: string, headline: string, imageId: Id refers Entry }
+        | { type: "Page", id, title: string }
+      query Q(id: Id) {
+        root Entry(id: id)
+        on Entry e {
+          when e.type == "Hero" include properties {
+            expand image: Entry(id: e.imageId)
+          }
+          when e.type == "Page" include properties { }
+        }
+      }
+    `);
+    expect(diagnostics).toEqual([]);
+    const types = emitProjectionTypes(program!);
+    expect(types).toContain("headline: string;");
+    expect(types).toContain("image: Q_Entry_Hero | Q_Entry_Page;");
+    expect(types).not.toContain("imageId:");
+    const code = emitProjections(program!);
+    expect(code).toContain("shell.headline = payload.headline;");
+    expect(code).toContain("shell.image =");
+    expect(code).not.toContain("shell.imageId");
+  });
+
+  it("arm include overrides clause include; absent arm inherits clause", () => {
+    const { program, diagnostics } = parseAndCheck(`
+      scalar Id on string;
+      resource Entry(id: Id):
+        { type: "Hero", id, title: string, imageId: Id refers Entry }
+        | { type: "Page", id, title: string }
+      query Q(id: Id) {
+        root Entry(id: id)
+        on Entry e include all {
+          when e.type == "Hero" include properties { }
+          when e.type == "Page" { }
+        }
+      }
+    `);
+    expect(diagnostics).toEqual([]);
+    const types = emitProjectionTypes(program!);
+    // Hero arm: properties → no imageId
+    expect(types).toMatch(/export type Q_Entry_Hero = \{[^}]*title: string;[^}]*\};/s);
+    expect(types).not.toMatch(/export type Q_Entry_Hero = \{[^}]*imageId:/s);
+    // Page arm: inherits clause `all` — still only Page properties (no refers on Page)
+    expect(types).toContain("export type Q_Entry_Page");
+    const code = emitProjections(program!);
+    expect(code).toContain('case "Hero":');
+    expect(code).not.toContain("shell.imageId");
+    expect(code).toContain("shell.title = payload.title;");
   });
 
   it("fixture page-detail still parseAndCheck clean", () => {

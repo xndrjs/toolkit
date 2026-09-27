@@ -64,6 +64,10 @@ function includeFieldNames(
  * Effective selected field names for a projection body (flat or one when-arm):
  * `(explicitFields ∪ includeSet) − expandAliases`.
  *
+ * `payloadType` is the payload to resolve against: the full resource payload for
+ * flat clauses, or the **narrowed** arm payload for `when` arms. Callers pass
+ * effective include (`arm.include ?? projection.include`).
+ *
  * Expand aliases silently shadow same-named native fields. Callers should run
  * `UNKNOWN_SELECTED_FIELD` / type emit on this list.
  */
@@ -71,13 +75,11 @@ export function resolveSelectedFields(
   selected: readonly string[],
   expansions: readonly Expansion[],
   include: "all" | "properties" | null,
-  resourceName: string,
+  payloadType: TypeExpr,
   resources: PayloadTypeLookup
 ): string[] {
   const expandAliases = new Set(expansions.map((e) => e.alias));
-  const resource = resources.get(resourceName);
-  const included =
-    include !== null && resource ? includeFieldNames(include, resource.payloadType, resources) : [];
+  const included = include !== null ? includeFieldNames(include, payloadType, resources) : [];
 
   const ordered: string[] = [];
   const seen = new Set<string>();
