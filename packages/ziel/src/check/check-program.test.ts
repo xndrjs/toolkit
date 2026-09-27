@@ -525,6 +525,160 @@ describe("checkProgram — resolve to", () => {
   });
 });
 
+describe("checkProgram — missing on projection", () => {
+  it("errors when an object expand has no projectable on Asset", () => {
+    const program = withMutatedPageDetail((p) => {
+      pageQuery(p).projections = pageQuery(p).projections.filter((pr) => pr.resource !== "Asset");
+    });
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({
+        code: "MISSING_ON_PROJECTION",
+        message: expect.stringContaining("Asset"),
+        data: { missingResource: "Asset" },
+      })
+    );
+  });
+
+  it("errors when a collection expand has no on for the element resource", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): {
+        id
+      }
+
+      resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+
+      resource Page(id: string, locale: Locale): {
+        id
+        tabsId: TabsId
+      }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "MISSING_ON_PROJECTION",
+        message: expect.stringContaining("Tab"),
+        data: { missingResource: "Tab" },
+      })
+    );
+  });
+
+  it("errors when a resolve-strip member lacks a projectable on", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar SpaceId on string;
+      scalar Locale on string;
+      scalar Ref on string;
+
+      resource Entry(spaceId: SpaceId, id: string, locale: Locale): { id }
+      resource Asset(spaceId: SpaceId, id: string, locale: Locale): { id }
+      resource CustomReference(ref: Ref, locale: Locale): {
+        type: "Entry" | "Asset"
+        spaceId: SpaceId
+        id: string
+        locale: Locale
+      }
+
+      query Q(ref: Ref) {
+        context { locale: Locale }
+        root CustomReference(ref: ref, locale: context.locale)
+        on CustomReference c resolve to {
+          Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
+          Asset(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Asset"
+        }
+        on Entry e { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "MISSING_ON_PROJECTION",
+        message: expect.stringContaining("Asset"),
+        data: { missingResource: "Asset" },
+      })
+    );
+    expect(diagnostics.filter((d) => d.code === "MISSING_ON_PROJECTION")).toHaveLength(1);
+  });
+
+  it("does not treat resolve-only on CustomReference as satisfying Entry / Asset", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar SpaceId on string;
+      scalar Locale on string;
+      scalar Ref on string;
+
+      resource Entry(spaceId: SpaceId, id: string, locale: Locale): { id }
+      resource Asset(spaceId: SpaceId, id: string, locale: Locale): { id }
+      resource CustomReference(ref: Ref, locale: Locale): {
+        type: "Entry" | "Asset"
+        spaceId: SpaceId
+        id: string
+        locale: Locale
+      }
+
+      query Q(ref: Ref) {
+        context { locale: Locale }
+        root CustomReference(ref: ref, locale: context.locale)
+        on CustomReference c resolve to {
+          Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
+          Asset(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Asset"
+        }
+      }
+    `);
+
+    const missing = diagnostics.filter((d) => d.code === "MISSING_ON_PROJECTION");
+    expect(missing).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ data: { missingResource: "Entry" } }),
+        expect.objectContaining({ data: { missingResource: "Asset" } }),
+      ])
+    );
+    expect(missing).toHaveLength(2);
+  });
+
+  it("accepts a present on Asset for an object expand", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale): {
+        type: "Hero"
+        id
+        imageId: AssetId
+      }
+
+      resource Asset(id: AssetId, locale: Locale): {
+        id
+        url: string
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          id
+          expand image: Asset(id: e.imageId, locale: context.locale)
+        }
+        on Asset a { id url }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "MISSING_ON_PROJECTION")).toEqual([]);
+  });
+});
+
 describe("checkProgram — negative diagnostics", () => {
   it("rejects Entry(id: @p.locale) — Locale is not assignable to EntryId", () => {
     const program = withMutatedPageDetail((p) => {
