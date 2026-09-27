@@ -11,6 +11,8 @@ import {
   isArrayLiteral,
   isBinaryExpr,
   isContextBlock,
+  isDatasourceDeclaration,
+  isDatasourceRoute,
   isEachComprehension,
   isExpandArm,
   isExpansion,
@@ -194,6 +196,29 @@ export class ZielFormatter extends AbstractFormatter {
       ].filter((s): s is NonNullable<typeof s> => s != null);
       for (let i = 1; i < sections.length; i++) {
         f.node(sections[i]!).prepend(blankLineIndent);
+      }
+      return;
+    }
+
+    if (isDatasourceDeclaration(node)) {
+      const f = this.getNodeFormatter(node);
+      f.keyword("datasource").append(Formatting.oneSpace());
+      f.property("name").append(Formatting.oneSpace());
+      this.formatBracedBlock(node);
+      if (node.context && node.routes.length > 0) {
+        f.node(node.routes[0]!).prepend(blankLineIndent);
+      }
+      for (let i = 1; i < node.routes.length; i++) {
+        f.node(node.routes[i]!).prepend(Formatting.indent());
+      }
+      return;
+    }
+
+    if (isDatasourceRoute(node)) {
+      const f = this.getNodeFormatter(node);
+      f.keyword("for").append(Formatting.oneSpace());
+      if (node.when) {
+        f.keyword("when").surround(Formatting.oneSpace());
       }
       return;
     }

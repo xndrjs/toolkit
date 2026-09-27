@@ -7,8 +7,11 @@ import {
   type ContentMap,
   type ApplicationResourceIdentifier,
   type ResourceKey,
-  createResourceGraphResolver,
+  defineDataSourceFor,
   type DataSource,
+  type ResourceLoadContext,
+  type SourceRouteContext,
+  createResourceGraphResolver,
   type IslandDependencyMap,
   type IslandMap,
   type MissingResourceMode,
@@ -106,6 +109,7 @@ export type EntryPayload =
   | {
       type: "Footer";
       id: EntryId;
+      cta: string;
       title: string;
       logoId: AssetId;
     }
@@ -159,6 +163,107 @@ export type ContentRegistry = {
   CustomReference: CustomReferencePayload;
   Page: PagePayload;
 };
+
+export type CmsCustomReferencesContext = {
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
+};
+
+export type CmsEntriesContext = {
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
+};
+
+export type CmsAssetsContext = {
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
+};
+
+export type ZielExecutionContext = {
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
+};
+
+type CmsCustomReferencesConfig = {
+  load: (
+    batch: readonly CustomReferenceResource[],
+    context: ResourceLoadContext<CmsCustomReferencesContext>
+  ) => Promise<readonly (CustomReferencePayload | undefined)[]>;
+  batchSize?: number;
+  concurrency?: number;
+  when?: (context: SourceRouteContext<CmsCustomReferencesContext>) => boolean;
+};
+
+type CmsEntriesConfig = {
+  load: (
+    batch: readonly (PageResource | EntryResource)[],
+    context: ResourceLoadContext<CmsEntriesContext>
+  ) => Promise<readonly (PagePayload | EntryPayload | undefined)[]>;
+  batchSize?: number;
+  concurrency?: number;
+  when?: (context: SourceRouteContext<CmsEntriesContext>) => boolean;
+};
+
+type CmsAssetsConfig = {
+  load: (
+    batch: readonly AssetResource[],
+    context: ResourceLoadContext<CmsAssetsContext>
+  ) => Promise<readonly (AssetPayload | undefined)[]>;
+  batchSize?: number;
+  concurrency?: number;
+  when?: (context: SourceRouteContext<CmsAssetsContext>) => boolean;
+};
+
+export function createDataSources<C extends ZielExecutionContext>(config: {
+  CmsCustomReferences: CmsCustomReferencesConfig;
+  CmsEntries: CmsEntriesConfig;
+  CmsAssets: CmsAssetsConfig;
+}): DataSource<ContentRegistry, C>[] {
+  const defineSource = defineDataSourceFor<ContentRegistry, C>();
+
+  return [
+    defineSource({
+      id: "CmsCustomReferences",
+      for: [customReferenceAri],
+      batchSize: config.CmsCustomReferences.batchSize,
+      concurrency: config.CmsCustomReferences.concurrency,
+      when: config.CmsCustomReferences.when,
+      load: (batch, ctx) =>
+        config.CmsCustomReferences.load(batch as readonly CustomReferenceResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "CmsEntries",
+      for: [pageAri, entryAri],
+      batchSize: config.CmsEntries.batchSize,
+      concurrency: config.CmsEntries.concurrency,
+      when: config.CmsEntries.when,
+      load: (batch, ctx) =>
+        config.CmsEntries.load(batch as readonly (PageResource | EntryResource)[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "CmsAssets",
+      for: [assetAri],
+      batchSize: config.CmsAssets.batchSize,
+      concurrency: config.CmsAssets.concurrency,
+      when: config.CmsAssets.when,
+      load: (batch, ctx) =>
+        config.CmsAssets.load(batch as readonly AssetResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+  ];
+}
 
 export type PageDetailParams = {
   pageId: EntryId;
@@ -388,6 +493,7 @@ export type PageDetail_Entry_Footer = {
   $type: "Entry";
   type: "Footer";
   id: EntryId;
+  cta: string;
   title: string;
   logoId: AssetId;
   logo: PageDetail_Asset;
@@ -561,6 +667,7 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.cta = payload.cta;
         shell.title = payload.title;
         shell.logoId = payload.logoId;
         shell.logo = projectNode(

@@ -1,6 +1,5 @@
 import {
   pageAri,
-  resolvePageDetail,
   Scalars,
   type EntryId,
   type EnvironmentId,
@@ -8,7 +7,7 @@ import {
   type PageDetailResult,
   type SpaceId,
 } from "../generated";
-import { createDemoSources } from "../infrastructure/demo-resolver.js";
+import { resolveDemoPageDetail } from "../infrastructure/demo-resolver.js";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,
@@ -66,7 +65,7 @@ export type ResolvePageResult = ResolvePageSuccess | ResolvePageFailure;
 
 /**
  * Vertical-slice path via generated `resolvePageDetail`
- * (closed strategy → resolve → project).
+ * (closed strategy → resolve → project) + demo DataSources.
  */
 export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageResult> {
   const locale = input.locale;
@@ -80,9 +79,8 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
   const root = pageAri({ spaceId, environmentId, id: pageId, locale });
 
   try {
-    const { pageDetail, contentMap, errors, islands } = await resolvePageDetail({
+    const { pageDetail, contentMap, errors, islands } = await resolveDemoPageDetail({
       params,
-      sources: [...createDemoSources()],
       schedulingMode,
       root,
       executionContext,

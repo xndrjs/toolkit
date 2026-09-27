@@ -9,7 +9,7 @@ import {
   demoIds,
   demoLogoAssetCustomRef,
 } from "../fixtures/store.js";
-import { createCustomReferenceSource } from "./custom-reference-data-adapter.js";
+import { loadCmsCustomReferences } from "./custom-reference-data-adapter.js";
 
 const locale = DEMO_LOCALE;
 const spaceId = DEMO_SPACE;
@@ -19,12 +19,11 @@ const loadContext = {
   batchNumber: 1,
 };
 
-describe("createCustomReferenceSource", () => {
+describe("CmsCustomReferences datasource", () => {
   it("decodes CustomReference ENTRY into a locator payload slot", async () => {
-    const source = createCustomReferenceSource();
     const customRef = customReferenceAri({ ref: demoHeroWelcomeCustomRef, locale });
 
-    expect(await source.load([customRef], loadContext)).toEqual([
+    expect(await loadCmsCustomReferences([customRef], loadContext)).toEqual([
       {
         type: "Entry",
         spaceId,
@@ -35,10 +34,9 @@ describe("createCustomReferenceSource", () => {
   });
 
   it("decodes CustomReference ASSET into a locator payload slot", async () => {
-    const source = createCustomReferenceSource();
     const customRef = customReferenceAri({ ref: demoLogoAssetCustomRef, locale });
 
-    expect(await source.load([customRef], loadContext)).toEqual([
+    expect(await loadCmsCustomReferences([customRef], loadContext)).toEqual([
       {
         type: "Asset",
         spaceId,

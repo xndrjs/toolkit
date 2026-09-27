@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { assetAri } from "../../generated";
+import { createDemoSources } from "../demo-resolver.js";
 import { DEMO_ENVIRONMENT, DEMO_LOCALE, DEMO_SPACE, demoIds } from "../fixtures/store.js";
-import { ASSET_SOURCE_ID, createAssetSource } from "./asset-data-adapter.js";
+import { ASSET_SOURCE_ID, loadCmsAssets } from "./asset-data-adapter.js";
 
 const locale = DEMO_LOCALE;
 const loadContext = {
@@ -14,15 +15,15 @@ const loadContext = {
   batchNumber: 1,
 };
 
-describe("createAssetSource", () => {
+describe("CmsAssets datasource", () => {
   it("owns only assetAri", () => {
-    const source = createAssetSource();
+    const source = createDemoSources().find((s) => s.id === ASSET_SOURCE_ID)!;
     expect(source.id).toBe(ASSET_SOURCE_ID);
     expect(source.for.map((family) => family.type)).toEqual(["Asset"]);
   });
 
   it("returns asset fixtures and undefined for unknown keys (same length)", async () => {
-    const source = createAssetSource();
+    const load = loadCmsAssets();
     const known = assetAri({
       spaceId: DEMO_SPACE,
       environmentId: DEMO_ENVIRONMENT,
@@ -36,7 +37,7 @@ describe("createAssetSource", () => {
       locale,
     });
 
-    const payloads = await source.load([known, missing], loadContext);
+    const payloads = await load([known, missing], loadContext);
 
     expect(payloads).toEqual([
       expect.objectContaining({
