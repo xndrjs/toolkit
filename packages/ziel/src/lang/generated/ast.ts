@@ -37,6 +37,7 @@ export type ZielKeywordNames =
   | "context"
   | "datasource"
   | "each"
+  | "exclude"
   | "expand"
   | "false"
   | "for"
@@ -287,6 +288,22 @@ export function isEqExpr(item: unknown): item is EqExpr {
   return reflection.isInstance(item, EqExpr.$type);
 }
 
+/** `exclude imageId` or `exclude imageId title` — subtract from include/selection. */
+export interface ExcludeClause extends langium.AstNode {
+  readonly $container: FragmentDeclaration | ProjectionClause | ProjectionWhenArm;
+  readonly $type: "ExcludeClause";
+  names: Array<string>;
+}
+
+export const ExcludeClause = {
+  $type: "ExcludeClause",
+  names: "names",
+} as const;
+
+export function isExcludeClause(item: unknown): item is ExcludeClause {
+  return reflection.isInstance(item, ExcludeClause.$type);
+}
+
 export interface ExpandArm extends langium.AstNode {
   readonly $container: EachComprehension;
   readonly $type: "ExpandArm";
@@ -337,6 +354,7 @@ export interface FragmentDeclaration extends langium.AstNode {
   readonly $container: Model;
   readonly $type: "FragmentDeclaration";
   binding: string;
+  excludes: Array<ExcludeClause>;
   expansions: Array<Expansion>;
   include?: IncludeMode;
   name: string;
@@ -349,6 +367,7 @@ export interface FragmentDeclaration extends langium.AstNode {
 export const FragmentDeclaration = {
   $type: "FragmentDeclaration",
   binding: "binding",
+  excludes: "excludes",
   expansions: "expansions",
   include: "include",
   name: "name",
@@ -706,6 +725,7 @@ export interface ProjectionClause extends langium.AstNode {
   readonly $container: QueryDeclaration;
   readonly $type: "ProjectionClause";
   binding: string;
+  excludes: Array<ExcludeClause>;
   expansions: Array<Expansion>;
   include?: IncludeMode;
   resolveArms: Array<ResolveArm>;
@@ -718,6 +738,7 @@ export interface ProjectionClause extends langium.AstNode {
 export const ProjectionClause = {
   $type: "ProjectionClause",
   binding: "binding",
+  excludes: "excludes",
   expansions: "expansions",
   include: "include",
   resolveArms: "resolveArms",
@@ -735,6 +756,7 @@ export function isProjectionClause(item: unknown): item is ProjectionClause {
 export interface ProjectionWhenArm extends langium.AstNode {
   readonly $container: ProjectionClause;
   readonly $type: "ProjectionWhenArm";
+  excludes: Array<ExcludeClause>;
   expansions: Array<Expansion>;
   include?: IncludeMode;
   selectedFields: Array<string>;
@@ -744,6 +766,7 @@ export interface ProjectionWhenArm extends langium.AstNode {
 
 export const ProjectionWhenArm = {
   $type: "ProjectionWhenArm",
+  excludes: "excludes",
   expansions: "expansions",
   include: "include",
   selectedFields: "selectedFields",
@@ -1132,6 +1155,7 @@ export type ZielAstType = {
   Declaration: Declaration;
   EachComprehension: EachComprehension;
   EqExpr: EqExpr;
+  ExcludeClause: ExcludeClause;
   ExpandArm: ExpandArm;
   Expansion: Expansion;
   Expression: Expression;
@@ -1315,6 +1339,16 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
       properties: {},
       superTypes: [InExpr.$type],
     },
+    ExcludeClause: {
+      name: ExcludeClause.$type,
+      properties: {
+        names: {
+          name: ExcludeClause.names,
+          defaultValue: [],
+        },
+      },
+      superTypes: [],
+    },
     ExpandArm: {
       name: ExpandArm.$type,
       properties: {
@@ -1355,6 +1389,11 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
       properties: {
         binding: {
           name: FragmentDeclaration.binding,
+        },
+        excludes: {
+          name: FragmentDeclaration.excludes,
+          defaultValue: [],
+          optional: true,
         },
         expansions: {
           name: FragmentDeclaration.expansions,
@@ -1575,6 +1614,11 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         binding: {
           name: ProjectionClause.binding,
         },
+        excludes: {
+          name: ProjectionClause.excludes,
+          defaultValue: [],
+          optional: true,
+        },
         expansions: {
           name: ProjectionClause.expansions,
           defaultValue: [],
@@ -1613,6 +1657,11 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
     ProjectionWhenArm: {
       name: ProjectionWhenArm.$type,
       properties: {
+        excludes: {
+          name: ProjectionWhenArm.excludes,
+          defaultValue: [],
+          optional: true,
+        },
         expansions: {
           name: ProjectionWhenArm.expansions,
           defaultValue: [],

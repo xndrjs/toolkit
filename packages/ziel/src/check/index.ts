@@ -10,6 +10,7 @@ export {
   normalizeIncludeMode,
   payloadSelectableFields,
   resolveSelectedFields,
+  checkExcludedFields,
   type PayloadTypeLookup,
   type SelectableField,
 } from "./projection-include";

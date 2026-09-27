@@ -96,6 +96,7 @@ export function lowerProjection(
       binding: clause.binding,
       selectedFields: [],
       expansions: [],
+      excludedFields: [],
       include: null,
       arms: null,
       resolveArms: clause.resolveArms.map(lowerResolveArm),
@@ -123,6 +124,7 @@ export function lowerProjection(
       binding: clause.binding,
       selectedFields: [],
       expansions: [],
+      excludedFields: [],
       include,
       arms,
       resolveArms: null,
@@ -136,6 +138,7 @@ export function lowerProjection(
     binding: clause.binding,
     selectedFields: preamble.selectedFields,
     expansions: preamble.expansions,
+    excludedFields: preamble.excludedFields,
     include,
     arms: null,
     resolveArms: null,
@@ -166,11 +169,13 @@ export function lowerProjectionArm(
   const combined: FlattenedBody = {
     selectedFields: [...preamble.selectedFields, ...armBody.selectedFields],
     expansions: [...preamble.expansions, ...armBody.expansions],
+    excludedFields: [...preamble.excludedFields, ...armBody.excludedFields],
   };
   return {
     when,
     selectedFields: combined.selectedFields,
     expansions: combined.expansions,
+    excludedFields: combined.excludedFields,
     include: normalizeIncludeMode(arm.include),
     span: spanOf(arm),
   };

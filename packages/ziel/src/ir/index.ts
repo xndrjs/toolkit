@@ -189,6 +189,11 @@ export type ProjectionArm = {
   selectedFields: string[];
   expansions: Expansion[];
   /**
+   * Field names from `exclude …` in this arm body (plus any preamble excludes
+   * merged at lower). Empty when none.
+   */
+  excludedFields: string[];
+  /**
    * `include all` | `include properties` | `include none` on this `when` arm,
    * or `null` when absent. Effective include is
    * `arm.include ?? projection.include` (`include none` overrides a parent).
@@ -220,10 +225,17 @@ export type ResourceProjection = {
    */
   expansions: Expansion[];
   /**
+   * Field names from `exclude …` in the flat body. Empty when none, armed, or
+   * resolve-only (armed arms carry their own `excludedFields`, including any
+   * preamble excludes merged at lower).
+   */
+  excludedFields: string[];
+  /**
    * `include all` | `include properties` | `include none` on the projection
    * clause, or `null` when absent / resolve-only. Per-arm effective include is
    * `arm.include ?? projection.include` (`include none` overrides a parent).
-   * Effective selection = `(selectedFields ∪ includeSet) − expansionAliases`
+   * Effective selection =
+   * `(selectedFields ∪ includeSet) − excludedFields − expansionAliases`
    * against the relevant payload (full resource for flat; narrowed for
    * when-arms) — see `resolveSelectedFields`.
    */
@@ -313,6 +325,8 @@ export type FragmentDefinition = {
    */
   include: "all" | "properties" | "none" | null;
   selectedFields: string[];
+  /** Field names from `exclude …`; empty when none. */
+  excludedFields: string[];
   expansions: Expansion[];
   span: SourceSpan | null;
 };

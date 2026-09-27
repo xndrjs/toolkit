@@ -477,7 +477,16 @@ export type PageDetail_Entry_Tab = {
   type: "Tab";
   id: EntryId;
   title: string;
-  strips: PageDetail_Entry[];
+  strips: (
+    | PageDetail_Entry_Hero
+    | PageDetail_Entry_Tabs
+    | PageDetail_Entry_Tab
+    | PageDetail_Entry_Menu
+    | PageDetail_Entry_Footer
+    | PageDetail_Entry_SiteInternalLink
+    | PageDetail_Entry_Page
+    | PageDetail_Entry_Product
+  )[];
 };
 
 export type PageDetail_Entry_Menu = {
@@ -485,7 +494,6 @@ export type PageDetail_Entry_Menu = {
   type: "Menu";
   id: EntryId;
   title: string;
-  logoId: AssetId;
   logo: PageDetail_Asset;
 };
 
@@ -495,7 +503,6 @@ export type PageDetail_Entry_Footer = {
   id: EntryId;
   cta: string;
   title: string;
-  logoId: AssetId;
   logo: PageDetail_Asset;
 };
 
@@ -503,8 +510,15 @@ export type PageDetail_Entry_SiteInternalLink = {
   $type: "Entry";
   type: "SiteInternalLink";
   id: EntryId;
-  targetId: EntryId;
-  target: PageDetail_Entry;
+  target:
+    | PageDetail_Entry_Hero
+    | PageDetail_Entry_Tabs
+    | PageDetail_Entry_Tab
+    | PageDetail_Entry_Menu
+    | PageDetail_Entry_Footer
+    | PageDetail_Entry_SiteInternalLink
+    | PageDetail_Entry_Page
+    | PageDetail_Entry_Product;
 };
 
 export type PageDetail_Entry_Page = {
@@ -651,7 +665,6 @@ export function projectPageDetail(
         shell.type = payload.type;
         shell.id = payload.id;
         shell.title = payload.title;
-        shell.logoId = payload.logoId;
         shell.logo = projectNode(
           assetAri({
             spaceId: resource.key[0].spaceId,
@@ -669,7 +682,6 @@ export function projectPageDetail(
         shell.id = payload.id;
         shell.cta = payload.cta;
         shell.title = payload.title;
-        shell.logoId = payload.logoId;
         shell.logo = projectNode(
           assetAri({
             spaceId: resource.key[0].spaceId,
@@ -685,7 +697,6 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
-        shell.targetId = payload.targetId;
         shell.target = projectNode(
           entryAri({
             spaceId: resource.key[0].spaceId,

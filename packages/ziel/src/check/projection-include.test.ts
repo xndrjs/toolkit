@@ -152,6 +152,28 @@ describe("payloadSelectableFields / resolveSelectedFields", () => {
       )
     ).toEqual(["type", "id", "title", "headline", "imageId"]);
   });
+
+  it("exclude subtracts from include all / properties", () => {
+    expect(
+      resolveSelectedFields([], [], "all", page.payloadType, resources, ["menuId", "strips"])
+    ).toEqual(["id", "title"]);
+    expect(
+      resolveSelectedFields([], [], "properties", page.payloadType, resources, ["title"])
+    ).toEqual(["id"]);
+  });
+
+  it("exclude applies after expand-alias shadowing", () => {
+    expect(
+      resolveSelectedFields(
+        [],
+        [{ alias: "strips", target: null, multiplicity: "many", comprehension: null, span: null }],
+        "all",
+        page.payloadType,
+        resources,
+        ["menuId"]
+      )
+    ).toEqual(["id", "title"]);
+  });
 });
 
 describe("include all / include properties — parseAndCheck + codegen", () => {
@@ -413,6 +435,106 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
       expect(code).not.toContain("shell.menuId");
       expect(code).not.toContain("shell.strips");
     }
+  });
+
+  it("exclude from include all omits field in types and shell assign", () => {
+    const { program, diagnostics } = parseAndCheck(`
+      ${prelude}
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p include all {
+          exclude menuId
+        }
+        on Entry e {
+          when e.type == "Hero" { id title }
+          when e.type == "Page" { id title }
+        }
+      }
+    `);
+    expect(diagnostics).toEqual([]);
+    expect(program!.queries[0]!.projections[0]!.excludedFields).toEqual(["menuId"]);
+    const types = emitProjectionTypes(program!);
+    expect(types).toContain("id: Id;");
+    expect(types).toContain("title: string;");
+    expect(types).toContain("strips:");
+    expect(types).not.toContain("menuId:");
+    const code = emitProjections(program!);
+    expect(code).toContain("shell.id = payload.id;");
+    expect(code).not.toContain("shell.menuId");
+  });
+
+  it("rejects selected + excluded, unknown exclude, and exclude of expand alias", () => {
+    const clash = parseAndCheck(`
+      ${prelude}
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p include all {
+          title
+          exclude title
+        }
+        on Entry e { id }
+      }
+    `);
+    expect(clash.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "EXCLUDED_SELECTED_FIELD" })
+    );
+
+    const unknown = parseAndCheck(`
+      ${prelude}
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p include all {
+          exclude nope
+        }
+        on Entry e { id }
+      }
+    `);
+    expect(unknown.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "UNKNOWN_EXCLUDED_FIELD" })
+    );
+
+    const expandAlias = parseAndCheck(`
+      ${prelude}
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p include all {
+          exclude strips
+          expand strips: each link in p.strips (
+            Entry(id: link.id)
+          )
+        }
+        on Entry e { id }
+      }
+    `);
+    expect(expandAlias.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "EXCLUDED_EXPAND_ALIAS" })
+    );
+  });
+
+  it("fragment exclude bakes into spread-site selectedFields", () => {
+    const { program, diagnostics } = parseAndCheck(`
+      ${prelude}
+      fragment PageMinusMenu on Page p include all {
+        exclude menuId
+      }
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p { ...PageMinusMenu }
+        on Entry e {
+          when e.type == "Hero" { id title }
+          when e.type == "Page" { id title }
+        }
+      }
+    `);
+    expect(diagnostics).toEqual([]);
+    expect(program!.fragments[0]!.excludedFields).toEqual(["menuId"]);
+    expect(program!.queries[0]!.projections[0]!.selectedFields).toEqual(["id", "title", "strips"]);
+    expect(program!.queries[0]!.projections[0]!.excludedFields).toEqual([]);
   });
 
   it("fixture page-detail still parseAndCheck clean", () => {

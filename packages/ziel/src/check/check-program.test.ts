@@ -664,6 +664,7 @@ describe("checkProgram — resolve to", () => {
         when: { kind: "binary", op: "==", left: payload("c", "type"), right: lit("Entry"), span },
         selectedFields: ["id"],
         expansions: [],
+        excludedFields: [],
         include: null,
         span,
       },

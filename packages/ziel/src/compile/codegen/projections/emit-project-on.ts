@@ -135,7 +135,8 @@ export function emitShellBody(
   contextFieldNames: ReadonlySet<string>,
   indent: string,
   include: ResourceProjection["include"] = null,
-  payloadType?: TypeExpr
+  payloadType?: TypeExpr,
+  excludedFields: readonly string[] = []
 ): string {
   const lines: string[] = [];
   const resolvedPayload =
@@ -152,7 +153,8 @@ export function emitShellBody(
     expansions,
     include,
     resolvedPayload,
-    resources
+    resources,
+    excludedFields
   );
 
   lines.push(`${indent}const shell: any = { $type: ${JSON.stringify(resourceName)} };`);
@@ -198,7 +200,8 @@ export function emitProjectOnBody(
     contextFieldNames,
     "    ",
     projection.include,
-    resource.payloadType
+    resource.payloadType,
+    projection.excludedFields
   );
 }
 
@@ -223,7 +226,8 @@ export function emitArmedArmCase(
       contextFieldNames,
       "          ",
       arm.include ?? projection.include,
-      armPayloadType(projection, arm, resources)
+      armPayloadType(projection, arm, resources),
+      arm.excludedFields
     ),
     `        }`,
   ].join("\n");
@@ -296,7 +300,8 @@ export function emitArmedProjectOnBody(
           contextFieldNames,
           "      ",
           arm.include ?? projection.include,
-          armPayloadType(projection, arm, resources)
+          armPayloadType(projection, arm, resources),
+          arm.excludedFields
         ),
       ].join("\n")
     );

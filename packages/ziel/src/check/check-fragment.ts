@@ -14,7 +14,7 @@ import { checkExpansions, checkSelectedFields } from "./check-expansions";
 import { narrowPayloadByFilter } from "./discriminants";
 import { createDiagnosticSink, type DiagnosticSink } from "./diagnostic";
 import { inferExprType } from "./expressions";
-import { resolveSelectedFields } from "./projection-include";
+import { checkExcludedFields, resolveSelectedFields } from "./projection-include";
 import { unwrapNullable, type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
 
 const SUPPRESSED_IN_FRAGMENT = new Set(["UNKNOWN_CONTEXT_PATH", "UNKNOWN_PARAM"]);
@@ -67,12 +67,23 @@ export function checkFragment(
     scope.payloadNarrowing.set(fragment.binding, bodyPayload);
   }
 
+  checkExcludedFields(
+    fragment.excludedFields,
+    fragment.selectedFields,
+    fragment.expansions,
+    bodyPayload,
+    resources,
+    path,
+    fragment.span,
+    sink
+  );
   const effectiveFields = resolveSelectedFields(
     fragment.selectedFields,
     fragment.expansions,
     fragment.include,
     bodyPayload,
-    resources
+    resources,
+    fragment.excludedFields
   );
   checkSelectedFields(
     effectiveFields,

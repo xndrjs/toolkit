@@ -14,6 +14,7 @@ import {
   isDatasourceDeclaration,
   isDatasourceRoute,
   isEachComprehension,
+  isExcludeClause,
   isExpandArm,
   isExpansion,
   isFragmentDeclaration,
@@ -294,9 +295,14 @@ export class ZielFormatter extends AbstractFormatter {
           node.selectedFields.length === 0 &&
           node.expansions.length === 0 &&
           node.spreads.length === 0 &&
+          node.excludes.length === 0 &&
           node.whenArms.length === 0;
         this.formatBracedBlock(node, empty);
-        const preceding = node.selectedFields.length + node.expansions.length + node.spreads.length;
+        const preceding =
+          node.selectedFields.length +
+          node.expansions.length +
+          node.spreads.length +
+          node.excludes.length;
         if (preceding > 0 && node.whenArms.length > 0) {
           f.node(node.whenArms[0]!).prepend(blankLineIndent);
         }
@@ -325,8 +331,15 @@ export class ZielFormatter extends AbstractFormatter {
       const empty =
         node.selectedFields.length === 0 &&
         node.expansions.length === 0 &&
-        node.spreads.length === 0;
+        node.spreads.length === 0 &&
+        node.excludes.length === 0;
       this.formatBracedBlock(node, empty);
+      return;
+    }
+
+    if (isExcludeClause(node)) {
+      const f = this.getNodeFormatter(node);
+      f.keyword("exclude").append(Formatting.oneSpace());
       return;
     }
 

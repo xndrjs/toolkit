@@ -3,7 +3,7 @@
  * valid; `include properties` pulls the narrowed payload fields.
  */
 fragment ChromeLogo on Entry e when e.type == "Menu"
-  or e.type == "Footer" include properties {
+  or e.type == "Footer" include all {
   expand logo: Asset(
     spaceId: @e.spaceId,
     environmentId: @e.environmentId,
