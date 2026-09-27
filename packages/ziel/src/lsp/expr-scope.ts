@@ -21,6 +21,7 @@ import {
   isProjectionWhenArm,
   isQueryDeclaration,
   type EachComprehension,
+  type Expression,
 } from "../lang/generated/ast";
 
 export type ExprScopeTables = {
@@ -55,32 +56,45 @@ function inferEachElementType(
   return unwrapped.of;
 }
 
-function applyWhenArmNarrowing(node: AstNode, scope: QueryScope, resources: ResourceTable): void {
-  const whenArm = AstUtils.getContainerOfType(node, isProjectionWhenArm);
-  if (!whenArm) return;
-  const clause = whenArm.$container;
-  const symbols = resources.get(clause.resource);
+function applyPayloadNarrowing(
+  binding: string,
+  resourceName: string,
+  whenExpr: Expression,
+  scope: QueryScope,
+  resources: ResourceTable
+): void {
+  const symbols = resources.get(resourceName);
   if (!symbols) return;
   try {
     const narrowed =
-      narrowPayloadByFilter(
-        symbols.payloadType,
-        lowerExpr(whenArm.when),
-        clause.binding,
-        resources
-      ) ?? undefined;
+      narrowPayloadByFilter(symbols.payloadType, lowerExpr(whenExpr), binding, resources) ??
+      undefined;
     if (narrowed) {
-      scope.payloadNarrowing.set(clause.binding, narrowed);
+      scope.payloadNarrowing.set(binding, narrowed);
     }
   } catch {
     // Incomplete when-expr — leave un-narrowed.
   }
 }
 
+function applyWhenArmNarrowing(node: AstNode, scope: QueryScope, resources: ResourceTable): void {
+  const whenArm = AstUtils.getContainerOfType(node, isProjectionWhenArm);
+  if (whenArm) {
+    const clause = whenArm.$container;
+    applyPayloadNarrowing(clause.binding, clause.resource, whenArm.when, scope, resources);
+    return;
+  }
+
+  const fragment = AstUtils.getContainerOfType(node, isFragmentDeclaration);
+  if (fragment?.when) {
+    applyPayloadNarrowing(fragment.binding, fragment.resource, fragment.when, scope, resources);
+  }
+}
+
 /**
  * Build a QueryScope at `node` for path hover / completion:
  * params, context, projection/fragment/island bindings, enclosing `each` items,
- * and payload narrowing when inside a `when` arm.
+ * and payload narrowing when inside a projection `when` arm or fragment `when`.
  */
 export function buildExprScope(node: AstNode, tables: ExprScopeTables): QueryScope {
   const params: FieldMap = new Map();
