@@ -2,12 +2,12 @@
 
 **Product entry** for Ziel with these surfaces:
 
-| Export                 | Use for                                                                                                                                                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@xndrjs/ziel`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                           |
-| `@xndrjs/ziel/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `generateProjections`, `defineConfig`, `buildResources` — Node / CI / build only |
-| `@xndrjs/ziel/lsp`     | Language server helpers + `ziel-language-server` bin (stdio) — workspace collect/merge → diagnostics + IntelliSense (hover / completion / definition)                                                   |
-| `ziel-codegen` (bin)   | CLI: load `ziel.config.ts`, collect `.ziel` files, emit TypeScript (resources + strategies + `project*` + `resolve*` façades) — writes `out` or `--dry-run` to stdout                                   |
+| Export                 | Use for                                                                                                                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@xndrjs/ziel`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                                                  |
+| `@xndrjs/ziel/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `generateProjections`, `generateDataSources`, `defineConfig`, `buildResources` — Node / CI / build only |
+| `@xndrjs/ziel/lsp`     | Language server helpers + `ziel-language-server` bin (stdio) — workspace collect/merge → diagnostics + IntelliSense (hover / completion / definition)                                                                          |
+| `ziel-codegen` (bin)   | CLI: load `ziel.config.ts`, collect `.ziel` files, emit TypeScript (resources + strategies + datasources + `project*` + `resolve*` façades) — writes `out` or `--dry-run` to stdout                                            |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
@@ -83,6 +83,7 @@ import {
   generateResources,
   generateStrategies,
   generateProjections,
+  generateDataSources,
   buildResources,
   type Program,
 } from "@xndrjs/ziel/compile";
@@ -92,6 +93,7 @@ if (diagnostics.length === 0) {
   const { code: resources } = generateResources(program);
   const { code: strategies } = generateStrategies(program);
   const { code: projections } = generateProjections(program);
+  const { code: datasources } = generateDataSources(program);
   // Pure TypeScript source strings — CLI / buildResources compose + write.
 }
 
@@ -118,7 +120,41 @@ There are no uncapitalized top-level helpers (`entryId(…)`). An empty scalars 
 
 `buildResources` / `ziel-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy`, plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. `create*Strategy` and `project*` remain exported for low-level use.
 
-`buildResources` / `ziel-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. Generated imports stay on `@xndrjs/ziel` only.
+`buildResources` / `ziel-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. When the program declares one or more `datasource` blocks, the same compose path also emits `createDataSources`. Generated imports stay on `@xndrjs/ziel` only.
+
+### Datasource declarations
+
+Declare routing metadata with bare `datasource` (same style as `resource` / `query`). The DSL owns which resources a source handles and optional route predicates; the app still owns IO (`load`, `batchSize`, `concurrency`).
+
+```ziel
+datasource CmsSource {
+  context { locale: Locale }
+  for Entry e when context.locale == @e.locale
+  for Asset
+}
+```
+
+- **`context`** — fields available as `executionContext` on that source (and merged into aggregate `ZielExecutionContext`).
+- **`for Resource [binding] [when …]`** — routes; `when` may use `context.…` and identity `@binding.…` only (no payload / params / items). Binding is required when `when` is present.
+- **Coverage** — if the program declares ≥1 datasource, every resource must appear in at least one `for` route (hand-wired apps with zero datasources stay valid).
+- **Query context** — when datasources exist, each query context must include every aggregate field with a compatible type (`C extends ZielExecutionContext`).
+
+Codegen (`generateDataSources` / compose) emits per-source `*Context` types, aggregate `ZielExecutionContext`, and:
+
+```ts
+createDataSources({
+  CmsSource: {
+    load: (batch, context) => {
+      /* app IO */
+    },
+    batchSize: 20,
+    concurrency: 4,
+    // when?: …  — only when no route on this DS has a DSL `when`
+  },
+});
+```
+
+`load` keeps `(batch, context: ResourceLoadContext<DsContext>)` and returns the payload union (`EntryPayload | AssetPayload | undefined`)[]. DSL `when` compiles to a single runtime predicate over `defineDataSourceFor` lanes; if every route omits DSL `when`, an optional implementation `when` may be supplied on the config instead.
 
 ### `refers` field annotations
 
