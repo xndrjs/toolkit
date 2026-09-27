@@ -279,19 +279,6 @@ export const ZielGrammar = (): Grammar =>
             "cardinality": "?"
           },
           {
-            "$type": "Assignment",
-            "feature": "include",
-            "operator": "=",
-            "terminal": {
-              "$type": "RuleCall",
-              "rule": {
-                "$ref": "#/rules@32"
-              },
-              "arguments": []
-            },
-            "cardinality": "?"
-          },
-          {
             "$type": "Keyword",
             "value": "{"
           },

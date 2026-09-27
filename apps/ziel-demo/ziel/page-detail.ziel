@@ -1,9 +1,9 @@
 /**
  * Chrome logo expand shared by Menu / Footer — `when` narrows so `logoId` is
- * valid; `include properties` pulls the narrowed payload fields.
+ * valid on the fragment body; field include comes from the enclosing `on Entry`.
  */
 fragment ChromeLogo on Entry e when e.type == "Menu"
-  or e.type == "Footer" include all {
+  or e.type == "Footer" {
   expand logo: Asset(
     spaceId: @e.spaceId,
     environmentId: @e.environmentId,

@@ -8,7 +8,7 @@ import {
   type PayloadTypeLookup,
 } from "../../check/discriminants";
 import type { DiagnosticSink } from "../../check/diagnostic";
-import { normalizeIncludeMode, resolveSelectedFields } from "../../check/projection-include";
+import { resolveSelectedFields } from "../../check/projection-include";
 import {
   type ExcludeClause as AstExcludeClause,
   type Expansion as AstExpansion,
@@ -118,7 +118,7 @@ export function expandBody(
         selectedFields.push(field);
       }
       expansions.push(...spreadBody.expansions);
-      // Fragment excludes are baked into spread selectedFields via resolveSelectedFields.
+      // Fragment excludes are already applied in expandSpread selectedFields.
     }
   }
 
@@ -201,18 +201,18 @@ export function expandSpread(
     nestedEnclosing
   );
 
-  const include = normalizeIncludeMode(frag.include);
-  const bodyPayload = payloadForFragmentInclude(payloadType, fragWhen, frag.binding, resources);
+  // Fragments have no `include` — only explicit fields minus excludes / expand aliases.
+  const bodyPayload = payloadForFragmentExclude(payloadType, fragWhen, frag.binding, resources);
   const selectedFields = bodyPayload
     ? resolveSelectedFields(
         body.selectedFields,
         body.expansions,
-        include,
+        null,
         bodyPayload,
         resources,
         body.excludedFields
       )
-    : body.selectedFields;
+    : body.selectedFields.filter((f) => !body.excludedFields.includes(f));
 
   return {
     selectedFields,
@@ -221,8 +221,8 @@ export function expandSpread(
   };
 }
 
-/** Payload used for fragment `include` resolution: full or fragment-`when`-narrowed. */
-function payloadForFragmentInclude(
+/** Payload used when applying fragment `exclude` at a spread site. */
+function payloadForFragmentExclude(
   payloadType: TypeExpr | undefined,
   fragWhen: Expr | null,
   fragBinding: string,

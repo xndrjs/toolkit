@@ -34,7 +34,6 @@ import {
   type ScalarDeclaration as AstScalarDeclaration,
 } from "../../lang/generated/ast";
 import type { PayloadTypeLookup } from "../../check/discriminants";
-import { normalizeIncludeMode } from "../../check/projection-include";
 import { lowerDatasource } from "./datasources";
 import { expandBody, lowerEnclosingWhen, type FragmentTable } from "./fragments";
 import { lowerQuery } from "./query";
@@ -45,8 +44,8 @@ import { lowerTypeExpr, lowerTypedField, type NameTables } from "./types";
  * Lower a Model AST to Program IR.
  * Fragment/preamble diagnostics are pushed to `sink` (created if omitted).
  *
- * Resources are lowered before fragments/queries so spread-site `include`
- * resolution and `FRAGMENT_WHEN_MISMATCH` can consult payload types.
+ * Resources are lowered before fragments/queries so spread-site payload
+ * narrowing and `FRAGMENT_WHEN_MISMATCH` can consult payload types.
  */
 export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnosticSink()): Program {
   const tables = collectNameTables(ast);
@@ -136,12 +135,9 @@ export function collectFragments(ast: Model, sink: DiagnosticSink): FragmentTabl
 }
 
 /**
- * Lower a fragment declaration: optional `when` / `include`, then expand nested
- * spreads with the fragment's own binding so the body can be typechecked
- * independently of any spread site.
- *
- * The fragment's own `include` stays on IR (applied by check/codegen); nested
- * spreads bake *their* include into the flattened selected fields.
+ * Lower a fragment declaration: optional `when`, then expand nested spreads
+ * with the fragment's own binding so the body can be typechecked independently
+ * of any spread site. Fragments do not carry `include` (projection sites do).
  */
 export function lowerFragment(
   decl: AstFragmentDeclaration,
@@ -165,7 +161,6 @@ export function lowerFragment(
     resource: decl.resource,
     binding: decl.binding,
     when,
-    include: normalizeIncludeMode(decl.include),
     selectedFields: body.selectedFields,
     excludedFields: body.excludedFields,
     expansions: body.expansions,

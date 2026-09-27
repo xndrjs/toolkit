@@ -356,7 +356,6 @@ export interface FragmentDeclaration extends langium.AstNode {
   binding: string;
   excludes: Array<ExcludeClause>;
   expansions: Array<Expansion>;
-  include?: IncludeMode;
   name: string;
   resource: string;
   selectedFields: Array<string>;
@@ -369,7 +368,6 @@ export const FragmentDeclaration = {
   binding: "binding",
   excludes: "excludes",
   expansions: "expansions",
-  include: "include",
   name: "name",
   resource: "resource",
   selectedFields: "selectedFields",
@@ -1398,10 +1396,6 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         expansions: {
           name: FragmentDeclaration.expansions,
           defaultValue: [],
-          optional: true,
-        },
-        include: {
-          name: FragmentDeclaration.include,
           optional: true,
         },
         name: {

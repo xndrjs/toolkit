@@ -5,7 +5,7 @@ import { AstUtils, type AstNode, type LangiumDocument } from "langium";
 
 import { createDiagnosticSink } from "../check/diagnostic";
 import { narrowPayloadByFilter } from "../check/discriminants";
-import { normalizeIncludeMode, resolveSelectedFields } from "../check/projection-include";
+import { resolveSelectedFields } from "../check/projection-include";
 import type { ResourceTable } from "../check/symbols";
 import { expandBody, lowerEnclosingWhen, type FragmentTable } from "../compile/lower/fragments";
 import type { TypeExpr } from "../ir";
@@ -49,8 +49,8 @@ export function collectFragmentTable(
  * Flattened selected-field types for a fragment (includes nested spreads).
  * Returns `{ type: T, id: U, … }` shaped object type.
  *
- * Applies the fragment's own `include` / `when` the same way checkFragment does,
- * so hover matches effective projected fields after include resolution.
+ * Applies the fragment's `when` / `exclude` the same way checkFragment does
+ * (fragments do not carry `include`).
  */
 export function fragmentProjectedType(
   frag: FragmentDeclaration,
@@ -79,7 +79,7 @@ export function fragmentProjectedType(
   const selectedFields = resolveSelectedFields(
     body.selectedFields,
     body.expansions,
-    normalizeIncludeMode(frag.include),
+    null,
     bodyPayload,
     resources,
     body.excludedFields

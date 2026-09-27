@@ -201,19 +201,18 @@ when e.type=="Menu"include none{title}
     expect(formatted).toContain('when e.type == "Menu" include none {');
   });
 
-  it("spaces fragment when and include before {", async () => {
+  it("spaces fragment when before { (no include on fragments)", async () => {
     const messy = `
 scalar Id on string;
 resource Entry(id:Id):{type:string title:string logoId:string}
-fragment MenuOnly on Entry e when e.type=="Menu"include properties{logoId}
-fragment NoneOnly on Entry e include none{title}
+fragment MenuOnly on Entry e when e.type=="Menu"{logoId}
+fragment Plain on Entry e{title}
 `.trim();
 
     const formatted = await formatSource(messy);
-    expect(formatted).toContain(
-      'fragment MenuOnly on Entry e when e.type == "Menu" include properties {'
-    );
-    expect(formatted).toContain("fragment NoneOnly on Entry e include none {");
+    expect(formatted).toContain('fragment MenuOnly on Entry e when e.type == "Menu" {');
+    expect(formatted).toContain("fragment Plain on Entry e {");
+    expect(formatted).not.toContain("include");
   });
 
   it("formats datasource blocks with context and for routes", async () => {

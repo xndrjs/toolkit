@@ -486,31 +486,26 @@ describe("checkProgram — projection when-arms", () => {
     );
   });
 
-  it("applies include modes on fragments like on clauses", () => {
+  it("fragments do not carry include (projection sites do)", () => {
     const { diagnostics, program } = parseAndCheck(`
       scalar Id on string;
       resource Page(id: Id): { id title: string strips: { id: Id }[] }
 
-      fragment PageProps on Page p include properties { }
-      fragment PageNone on Page p include none { title }
-      fragment PageAll on Page p include all { }
+      fragment PageTitle on Page p { title }
 
       query Q(id: Id) {
         context { }
         root Page(id: id)
-        on Page p { id }
+        on Page p include all { ...PageTitle }
       }
     `);
 
     expect(diagnostics).toEqual([]);
-    expect(program.fragments.map((f) => ({ name: f.name, include: f.include }))).toEqual([
-      { name: "PageProps", include: "properties" },
-      { name: "PageNone", include: "none" },
-      { name: "PageAll", include: "all" },
-    ]);
+    expect(program.fragments[0]!.selectedFields).toEqual(["title"]);
+    expect(program.queries[0]!.projections[0]!.include).toBe("all");
   });
 
-  it("spread of fragment include all matches on R include all field set", () => {
+  it("spread of fragment fields combines with on-clause include all", () => {
     const viaFragment = parseAndCheck(`
       scalar Id on string;
       resource Page(id: Id): {
@@ -520,12 +515,12 @@ describe("checkProgram — projection when-arms", () => {
         strips: { id: Id }[]
       }
 
-      fragment PageAll on Page p include all { }
+      fragment PageTitle on Page p { title }
 
       query Q(id: Id) {
         context { }
         root Page(id: id)
-        on Page p { ...PageAll }
+        on Page p include all { ...PageTitle }
       }
     `);
     const viaOn = parseAndCheck(`
@@ -547,13 +542,8 @@ describe("checkProgram — projection when-arms", () => {
     expect(viaFragment.diagnostics).toEqual([]);
     expect(viaOn.diagnostics).toEqual([]);
 
-    // Spread bakes include into selectedFields; on-clause keeps include on IR.
-    expect(viaFragment.program.queries[0]!.projections[0]!.selectedFields).toEqual([
-      "id",
-      "title",
-      "menuId",
-      "strips",
-    ]);
+    expect(viaFragment.program.queries[0]!.projections[0]!.selectedFields).toEqual(["title"]);
+    expect(viaFragment.program.queries[0]!.projections[0]!.include).toBe("all");
     expect(viaOn.program.queries[0]!.projections[0]!.include).toBe("all");
     expect(viaOn.program.queries[0]!.projections[0]!.selectedFields).toEqual([]);
   });

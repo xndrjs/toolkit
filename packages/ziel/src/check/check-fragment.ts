@@ -1,9 +1,9 @@
 /**
  * Typecheck a top-level `fragment` body in isolation.
  *
- * Same include / selected-field rules as projection `on` / `when` arms: resolve
- * against the (narrowed) raw resource payload. Optional `when` must be boolean
- * and narrows `payloadNarrowing` for expansions and field checks.
+ * Fragments carry explicit fields / expands / excludes only (no `include`).
+ * Optional `when` must be boolean and narrows `payloadNarrowing` for expansions
+ * and field checks against the (narrowed) raw resource payload.
  *
  * `context` / params resolve when the fragment is spread into a query, so
  * those path errors are suppressed here.
@@ -80,7 +80,7 @@ export function checkFragment(
   const effectiveFields = resolveSelectedFields(
     fragment.selectedFields,
     fragment.expansions,
-    fragment.include,
+    null,
     bodyPayload,
     resources,
     fragment.excludedFields
