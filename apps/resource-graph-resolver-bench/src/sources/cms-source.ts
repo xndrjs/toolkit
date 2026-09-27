@@ -15,11 +15,6 @@ export type CmsSourceOptions = {
   readonly concurrency?: number;
 };
 
-export type CmsNodeRecord = {
-  resource: BenchNodeResource;
-  payload: BenchNodePayload;
-};
-
 const defineCmsSource = defineDataSourceFor<BenchContentRegistry>();
 
 /**
@@ -43,25 +38,20 @@ export function createCmsSource(
   });
 }
 
-/** Simulates a batched CMS id-in fetch and correlates rows back to ARIs. */
+/**
+ * Simulates a batched CMS id-in fetch.
+ * Returns one slot per input ARI (same order); `undefined` = miss.
+ */
 export async function loadCmsNodes(
   store: ReadonlyMap<string, BenchNodePayload>,
   resources: readonly BenchNodeResource[],
   latencyMs = 0
-): Promise<CmsNodeRecord[]> {
+): Promise<readonly (BenchNodePayload | undefined)[]> {
   if (resources.length === 0) {
     return [];
   }
 
   await simulateNetworkLatency(latencyMs);
 
-  const records: CmsNodeRecord[] = [];
-  for (const resource of resources) {
-    const payload = store.get(resource.key[0].id);
-    if (payload !== undefined) {
-      records.push({ resource, payload });
-    }
-  }
-
-  return records;
+  return resources.map((resource) => store.get(resource.key[0].id));
 }

@@ -15,11 +15,6 @@ export type IntegrationSourceOptions = {
   readonly concurrency?: number;
 };
 
-export type IntegrationProductRecord = {
-  resource: BenchProductResource;
-  payload: BenchProductPayload;
-};
-
 const defineIntegrationSource = defineDataSourceFor<BenchContentRegistry>();
 
 /**
@@ -43,25 +38,20 @@ export function createIntegrationSource(
   });
 }
 
-/** Simulates a batched products-by-sku fetch and correlates rows back to ARIs. */
+/**
+ * Simulates a batched products-by-sku fetch.
+ * Returns one slot per input ARI (same order); `undefined` = miss.
+ */
 export async function loadIntegrationProducts(
   catalog: ReadonlyMap<string, BenchProductPayload>,
   resources: readonly BenchProductResource[],
   latencyMs = 0
-): Promise<IntegrationProductRecord[]> {
+): Promise<readonly (BenchProductPayload | undefined)[]> {
   if (resources.length === 0) {
     return [];
   }
 
   await simulateNetworkLatency(latencyMs);
 
-  const records: IntegrationProductRecord[] = [];
-  for (const resource of resources) {
-    const payload = catalog.get(resource.key[0].sku);
-    if (payload !== undefined) {
-      records.push({ resource, payload });
-    }
-  }
-
-  return records;
+  return resources.map((resource) => catalog.get(resource.key[0].sku));
 }
