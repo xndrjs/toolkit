@@ -19,7 +19,7 @@ import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
 import { narrowPayloadByFilter } from "./discriminants";
 import { inferExprType } from "./expressions";
-import { resolveSelectedFields } from "./projection-include";
+import { checkExcludedFields, resolveSelectedFields } from "./projection-include";
 import {
   checkTypeExpr,
   checkUniqueFields,
@@ -189,12 +189,23 @@ export function checkQuery(
         sink
       );
     } else {
+      checkExcludedFields(
+        projection.excludedFields,
+        projection.selectedFields,
+        projection.expansions,
+        resource.payloadType,
+        resources,
+        projPath,
+        projection.span,
+        sink
+      );
       const effectiveFields = resolveSelectedFields(
         projection.selectedFields,
         projection.expansions,
         projection.include,
         resource.payloadType,
-        resources
+        resources,
+        projection.excludedFields
       );
       checkSelectedFields(
         effectiveFields,
@@ -328,12 +339,23 @@ function checkProjectionArm(
   };
 
   const effectiveInclude = arm.include ?? include;
+  checkExcludedFields(
+    arm.excludedFields,
+    arm.selectedFields,
+    arm.expansions,
+    narrowed,
+    resources,
+    armPath,
+    arm.span,
+    sink
+  );
   const effectiveFields = resolveSelectedFields(
     arm.selectedFields,
     arm.expansions,
     effectiveInclude,
     narrowed,
-    resources
+    resources,
+    arm.excludedFields
   );
   checkSelectedFields(effectiveFields, narrowed, resourceName, armPath, arm.span, resources, sink);
   checkExpansions(arm.expansions, armPath, bodyScope, scalars, resources, sink);

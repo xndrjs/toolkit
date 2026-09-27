@@ -32,11 +32,15 @@ FragmentDeclaration:
         ('when' when=Expression)?
         (include=IncludeMode)?
         '{'
-            (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
+            (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread | excludes+=ExcludeClause)*
         '}';
 
 FragmentSpread:
     '...' name=ID;
+
+/** `exclude imageId` or `exclude imageId title` — subtract from include/selection. */
+ExcludeClause:
+    'exclude' names+=ID+;
 
 // --- Scalars -----------------------------------------------------------------
 
@@ -171,7 +175,7 @@ ProjectionClause:
             resolveArms+=ResolveArm+
         '}'
       | (include=IncludeMode)? '{'
-            (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
+            (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread | excludes+=ExcludeClause)*
             whenArms+=ProjectionWhenArm*
         '}'
     );
@@ -186,7 +190,7 @@ IncludeMode returns string:
 /** Discriminant arm: `when e.type == "Hero" include properties { … }`. */
 ProjectionWhenArm:
     'when' when=Expression (include=IncludeMode)? '{'
-        (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
+        (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread | excludes+=ExcludeClause)*
     '}';
 
 /** Redirect arm: `Entry(…) when c.type == "Entry"`. */

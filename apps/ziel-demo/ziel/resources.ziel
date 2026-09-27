@@ -39,7 +39,7 @@ resource Entry(
   id
   title: string
   strips: {
-    id: EntryId
+    id: EntryId refers Entry
   }[]
 } | {
   type: "Product"
@@ -50,13 +50,13 @@ resource Entry(
   type: "Menu"
   id
   title: string
-  logoId: AssetId
+  logoId: AssetId refers Asset
 } | {
   type: "Footer"
   id
   cta: string
   title: string
-  logoId: AssetId
+  logoId: AssetId refers Asset
 } | {
   type: "Page"
   id
@@ -64,7 +64,7 @@ resource Entry(
 } | {
   type: "SiteInternalLink"
   id
-  targetId: EntryId
+  targetId: EntryId refers Entry
 }
 
 resource Asset(
@@ -92,12 +92,12 @@ resource CustomReference(
   type: "Entry"
   spaceId: SpaceId
   environmentId: EnvironmentId
-  id: EntryId
+  id: EntryId refers Entry
 } | {
   type: "Asset"
   spaceId: SpaceId
   environmentId: EnvironmentId
-  id: AssetId
+  id: AssetId refers Asset
 }
 
 /**

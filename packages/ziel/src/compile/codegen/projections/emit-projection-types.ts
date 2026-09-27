@@ -335,7 +335,8 @@ function emitArmVariantType(
     arm.expansions,
     arm.include ?? projection.include,
     sourcePayload,
-    resources
+    resources,
+    arm.excludedFields
   );
 
   for (const fieldName of effectiveFields) {
@@ -439,7 +440,8 @@ function emitFlatResourceProjectionType(
     projection.expansions,
     projection.include,
     resource.payloadType,
-    resources
+    resources,
+    projection.excludedFields
   );
 
   for (const fieldName of effectiveFields) {

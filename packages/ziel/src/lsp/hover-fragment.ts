@@ -81,7 +81,8 @@ export function fragmentProjectedType(
     body.expansions,
     normalizeIncludeMode(frag.include),
     bodyPayload,
-    resources
+    resources,
+    body.excludedFields
   );
   return projectedFieldsType(selectedFields, frag.resource, resources);
 }

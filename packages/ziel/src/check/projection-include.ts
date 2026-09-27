@@ -1,5 +1,6 @@
 import type { Expansion, FieldDecl, RefersTarget, TypeExpr } from "../ir";
 import { expandPayloadObjectMembers, type PayloadTypeLookup } from "./discriminants";
+import type { DiagnosticSink } from "./diagnostic";
 
 export type { PayloadTypeLookup };
 
@@ -66,7 +67,7 @@ function includeFieldNames(
 
 /**
  * Effective selected field names for a projection body (flat or one when-arm):
- * `(explicitFields ∪ includeSet) − expandAliases`.
+ * `(explicitFields ∪ includeSet) − excludedFields − expandAliases`.
  *
  * `payloadType` is the payload to resolve against: the full resource payload for
  * flat clauses, or the **narrowed** arm payload for `when` arms. Callers pass
@@ -77,16 +78,19 @@ function includeFieldNames(
  * empty auto-include set; inheritance is handled by callers via `??`.
  *
  * Expand aliases silently shadow same-named native fields. Callers should run
- * `UNKNOWN_SELECTED_FIELD` / type emit on this list.
+ * `UNKNOWN_SELECTED_FIELD` / type emit on this list. Callers should validate
+ * `excludedFields` via {@link checkExcludedFields} before resolving.
  */
 export function resolveSelectedFields(
   selected: readonly string[],
   expansions: readonly Expansion[],
   include: IncludeMode | null,
   payloadType: TypeExpr,
-  resources: PayloadTypeLookup
+  resources: PayloadTypeLookup,
+  excludedFields: readonly string[] = []
 ): string[] {
   const expandAliases = new Set(expansions.map((e) => e.alias));
+  const excluded = new Set(excludedFields);
   const included =
     include === null || include === "none"
       ? []
@@ -95,11 +99,60 @@ export function resolveSelectedFields(
   const ordered: string[] = [];
   const seen = new Set<string>();
   for (const name of [...included, ...selected]) {
-    if (expandAliases.has(name) || seen.has(name)) continue;
+    if (expandAliases.has(name) || excluded.has(name) || seen.has(name)) continue;
     seen.add(name);
     ordered.push(name);
   }
   return ordered;
+}
+
+/**
+ * Validate `exclude` names against the (narrowed) payload and body selection.
+ * Emits UNKNOWN_EXCLUDED_FIELD / EXCLUDED_SELECTED_FIELD / EXCLUDED_EXPAND_ALIAS.
+ */
+export function checkExcludedFields(
+  excludedFields: readonly string[],
+  selectedFields: readonly string[],
+  expansions: readonly Expansion[],
+  payloadType: TypeExpr,
+  resources: PayloadTypeLookup,
+  path: string,
+  span: { start: number; end: number; uri: string | null } | null,
+  sink: DiagnosticSink
+): void {
+  if (excludedFields.length === 0) return;
+
+  const selectable = new Set(payloadSelectableFields(payloadType, resources).map((f) => f.name));
+  const selected = new Set(selectedFields);
+  const expandAliases = new Set(expansions.map((e) => e.alias));
+
+  for (const name of excludedFields) {
+    if (!selectable.has(name)) {
+      sink.push({
+        code: "UNKNOWN_EXCLUDED_FIELD",
+        message: `Unknown excluded field '${name}'`,
+        path: `${path}.exclude.${name}`,
+        span,
+      });
+      continue;
+    }
+    if (selected.has(name)) {
+      sink.push({
+        code: "EXCLUDED_SELECTED_FIELD",
+        message: `Field '${name}' cannot be both selected and excluded`,
+        path: `${path}.exclude.${name}`,
+        span,
+      });
+    }
+    if (expandAliases.has(name)) {
+      sink.push({
+        code: "EXCLUDED_EXPAND_ALIAS",
+        message: `Cannot exclude expand alias '${name}'`,
+        path: `${path}.exclude.${name}`,
+        span,
+      });
+    }
+  }
 }
 
 /**

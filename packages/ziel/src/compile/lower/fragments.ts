@@ -10,6 +10,7 @@ import {
 import type { DiagnosticSink } from "../../check/diagnostic";
 import { normalizeIncludeMode, resolveSelectedFields } from "../../check/projection-include";
 import {
+  type ExcludeClause as AstExcludeClause,
   type Expansion as AstExpansion,
   type Expression as AstExpression,
   type FragmentDeclaration as AstFragmentDeclaration,
@@ -26,17 +27,19 @@ export type FragmentTable = Map<string, AstFragmentDeclaration>;
 export type FlattenedBody = {
   selectedFields: string[];
   expansions: Expansion[];
+  excludedFields: string[];
 };
 
 type BodyItem =
   | { kind: "field"; name: string; span: SourceSpan | null }
   | { kind: "expansion"; expansion: AstExpansion }
-  | { kind: "spread"; spread: AstFragmentSpread };
+  | { kind: "spread"; spread: AstFragmentSpread }
+  | { kind: "exclude"; names: string[]; span: SourceSpan | null };
 
-/** AST nodes that own a mixed field / expand / spread body. */
+/** AST nodes that own a mixed field / expand / spread / exclude body. */
 type BodyContainer = AstProjectionClause | AstProjectionWhenArm | AstFragmentDeclaration;
 
-const EMPTY_BODY: FlattenedBody = { selectedFields: [], expansions: [] };
+const EMPTY_BODY: FlattenedBody = { selectedFields: [], expansions: [], excludedFields: [] };
 
 function cstSpan(cst: CstNode, uri: string | null): SourceSpan {
   return { start: cst.offset, end: cst.end, uri };
@@ -62,7 +65,9 @@ export function expandBody(
 ): FlattenedBody {
   const selectedFields: string[] = [];
   const expansions: Expansion[] = [];
+  const excludedFields: string[] = [];
   const seenFields = new Set<string>();
+  const seenExcluded = new Set<string>();
   const fallbackSpan = spanOf(container);
 
   for (const item of bodyItemsInOrder(container)) {
@@ -78,6 +83,18 @@ export function expandBody(
       selectedFields.push(item.name);
     } else if (item.kind === "expansion") {
       expansions.push(lowerExpansion(item.expansion));
+    } else if (item.kind === "exclude") {
+      for (const name of item.names) {
+        if (seenExcluded.has(name)) {
+          sink.push({
+            code: "DUPLICATE_EXCLUDED_FIELD",
+            message: `Duplicate excluded field '${name}'`,
+            span: item.span ?? fallbackSpan,
+          });
+        }
+        seenExcluded.add(name);
+        excludedFields.push(name);
+      }
     } else {
       const spreadBody = expandSpread(
         item.spread,
@@ -101,10 +118,11 @@ export function expandBody(
         selectedFields.push(field);
       }
       expansions.push(...spreadBody.expansions);
+      // Fragment excludes are baked into spread selectedFields via resolveSelectedFields.
     }
   }
 
-  return { selectedFields, expansions };
+  return { selectedFields, expansions, excludedFields };
 }
 
 export function expandSpread(
@@ -186,12 +204,20 @@ export function expandSpread(
   const include = normalizeIncludeMode(frag.include);
   const bodyPayload = payloadForFragmentInclude(payloadType, fragWhen, frag.binding, resources);
   const selectedFields = bodyPayload
-    ? resolveSelectedFields(body.selectedFields, body.expansions, include, bodyPayload, resources)
+    ? resolveSelectedFields(
+        body.selectedFields,
+        body.expansions,
+        include,
+        bodyPayload,
+        resources,
+        body.excludedFields
+      )
     : body.selectedFields;
 
   return {
     selectedFields,
     expansions: body.expansions.map((e) => rebindExpansion(e, frag.binding, binding)),
+    excludedFields: [],
   };
 }
 
@@ -254,8 +280,8 @@ export function lowerEnclosingWhen(when: AstExpression | undefined): Expr | null
 }
 
 /**
- * Recover source order of fields / expands / spreads from CST.
- * Langium stores the three alternatives in separate arrays.
+ * Recover source order of fields / expands / spreads / excludes from CST.
+ * Langium stores the alternatives in separate arrays.
  */
 export function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
   const uri = containerUri(container);
@@ -268,6 +294,11 @@ export function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
   for (const expansion of container.expansions) {
     const offset = expansion.$cstNode?.offset;
     if (offset !== undefined) expansionByOffset.set(offset, expansion);
+  }
+  const excludeByOffset = new Map<number, AstExcludeClause>();
+  for (const exclude of container.excludes) {
+    const offset = exclude.$cstNode?.offset;
+    if (offset !== undefined) excludeByOffset.set(offset, exclude);
   }
 
   const fieldQueue = [...container.selectedFields];
@@ -305,6 +336,21 @@ export function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
       }
       continue;
     }
+    if (excludeByOffset.has(child.offset)) {
+      if (!seenOffsets.has(child.offset)) {
+        seenOffsets.add(child.offset);
+        const clause = excludeByOffset.get(child.offset)!;
+        ordered.push({
+          offset: child.offset,
+          item: {
+            kind: "exclude",
+            names: [...clause.names],
+            span: cstSpan(child, uri),
+          },
+        });
+      }
+      continue;
+    }
 
     const text = typeof child.text === "string" ? child.text : undefined;
     if (text !== undefined && fieldQueue[0] === text) {
@@ -332,6 +378,14 @@ export function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
       ordered.push({ offset, item: { kind: "expansion", expansion } });
     }
   }
+  for (const [offset, clause] of excludeByOffset) {
+    if (!seenOffsets.has(offset)) {
+      ordered.push({
+        offset,
+        item: { kind: "exclude", names: [...clause.names], span: spanOf(clause) },
+      });
+    }
+  }
 
   ordered.sort((a, b) => a.offset - b.offset);
   return ordered.map((e) => e.item);
@@ -355,6 +409,19 @@ export function rejectPreambleArmFieldClash(
       sink.push({
         code: "DUPLICATE_SELECTED_FIELD",
         message: `Duplicate selected field '${field}'`,
+        span,
+      });
+    }
+  }
+
+  const preambleExcluded = new Set(preamble.excludedFields);
+  const reportedExcluded = new Set<string>();
+  for (const field of armBody.excludedFields) {
+    if (preambleExcluded.has(field) && !reportedExcluded.has(field)) {
+      reportedExcluded.add(field);
+      sink.push({
+        code: "DUPLICATE_EXCLUDED_FIELD",
+        message: `Duplicate excluded field '${field}'`,
         span,
       });
     }

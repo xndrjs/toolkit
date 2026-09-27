@@ -180,6 +180,16 @@ The same three modes apply on projection clauses (`on`), projection `when` arms,
 | `include properties` | That set minus fields whose `refers` is set (relationships)                        |
 | omitted              | No auto-include; explicit only. Does **not** override a parent clause              |
 
+Body-level `exclude name+` subtracts fields from the effective set:
+
+```ziel
+on Entry e include all {
+  exclude imageId
+}
+```
+
+Effective selection is `(includeSet ∪ explicit) − excluded − expandAliases`. Errors if a name is also selected explicitly, equals an expand alias, is unknown on the (narrowed) payload, or is duplicated across `exclude` lines.
+
 ```ziel
 on Page p include properties {
   expand menu: Entry(…)
@@ -197,7 +207,7 @@ fragment MenuChrome on Entry e when e.type == "Menu" include properties {
 ```
 
 - On a `when` arm (or fragment `when`), the include set uses the **narrowed** payload. Effective mode is `arm.include ?? clause.include` — so an inner `include none` **overrides** an outer `include properties` / `include all`.
-- Expand aliases with the same name as a payload field **shadow** the native field (silent drop; expand wins). Explicit duplicate field names stay errors.
+- Expand aliases with the same name as a payload field **shadow** the native field (silent drop; expand wins). Explicit duplicate field names stay errors. `exclude` of an expand alias is an error.
 - Allowed on normal `on R b { … }`, its `when` arms, and fragments (not `resolve to`).
 - `expand … using Fragment` is **not** in this release (deferred).
 

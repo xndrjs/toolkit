@@ -237,4 +237,21 @@ for Asset
     expect(formatted).toContain("for Entry e when context.locale == @e.locale");
     expect(formatted).toMatch(/\n {2}for Asset\n/);
   });
+
+  it("formats exclude clauses inside include bodies", async () => {
+    const messy = `
+scalar Id on string;
+resource Entry(id:Id):{id title:string imageId:string}
+query Q(id:Id){
+root Entry(id:id)
+on Entry e include all{
+exclude imageId title
+}
+}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain("on Entry e include all {");
+    expect(formatted).toMatch(/\n {4}exclude imageId title\n/);
+  });
 });

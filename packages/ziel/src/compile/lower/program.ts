@@ -167,6 +167,7 @@ export function lowerFragment(
     when,
     include: normalizeIncludeMode(decl.include),
     selectedFields: body.selectedFields,
+    excludedFields: body.excludedFields,
     expansions: body.expansions,
     span: spanOf(decl),
   };
