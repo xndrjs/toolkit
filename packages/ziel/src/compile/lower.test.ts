@@ -393,7 +393,7 @@ describe("lowerProgram — fragments", () => {
 
         fragment EntryBase on Entry x { type id }
 
-        fragment EntryLogo on Entry x {
+        fragment EntryLogo on Entry x when x.type == "Menu" {
           ...EntryBase
           title
           expand logo: Asset(id: x.logoId, locale: context.locale)
@@ -511,6 +511,41 @@ describe("lowerProgram — fragments", () => {
     expect(withoutClause!.arms!.map((arm) => arm.include)).toEqual(["all", null]);
     expect(noneOverride!.include).toBe("properties");
     expect(noneOverride!.arms!.map((arm) => arm.include)).toEqual(["none", null]);
+  });
+
+  it("lowers fragment when and include onto FragmentDefinition", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+        scalar AssetId on string;
+        resource Entry(id: Id):
+          { type: "Hero", id, title: string }
+          | { type: "Menu", id, title: string, logoId: AssetId }
+
+        fragment MenuOnly on Entry e when e.type == "Menu" include properties {
+          logoId
+        }
+        fragment AllFields on Entry e include all { }
+        fragment NoneOnly on Entry e include none { title }
+        fragment Plain on Entry e { id }
+      `)
+    );
+
+    expect(program.fragments.map((f) => ({ name: f.name, include: f.include }))).toEqual([
+      { name: "MenuOnly", include: "properties" },
+      { name: "AllFields", include: "all" },
+      { name: "NoneOnly", include: "none" },
+      { name: "Plain", include: null },
+    ]);
+    const menuOnly = program.fragments[0]!;
+    expect(menuOnly.when).toMatchObject({
+      kind: "binary",
+      op: "==",
+    });
+    expect(menuOnly.selectedFields).toEqual(["logoId"]);
+    expect(program.fragments[1]!.when).toBeNull();
+    expect(program.fragments[2]!.selectedFields).toEqual(["title"]);
+    expect(program.fragments[3]!.when).toBeNull();
   });
 
   it("reports UNKNOWN_FRAGMENT, FRAGMENT_RESOURCE_MISMATCH, and FRAGMENT_CYCLE", () => {

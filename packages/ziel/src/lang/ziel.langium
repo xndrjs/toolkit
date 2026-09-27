@@ -14,9 +14,12 @@ Declaration:
 // binding is rewritten to the enclosing `on` / fragment binding at expand time.
 
 FragmentDeclaration:
-    'fragment' name=ID 'on' resource=ID binding=ID '{'
-        (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
-    '}';
+    'fragment' name=ID 'on' resource=ID binding=ID
+        ('when' when=Expression)?
+        (include=IncludeMode)?
+        '{'
+            (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
+        '}';
 
 FragmentSpread:
     '...' name=ID;

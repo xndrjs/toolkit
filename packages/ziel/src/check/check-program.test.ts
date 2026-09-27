@@ -338,7 +338,7 @@ describe("checkProgram — projection when-arms", () => {
 
       resource Asset(id: AssetId, locale: Locale): { id }
 
-      fragment EntryLogo on Entry e {
+      fragment EntryLogo on Entry e when e.type == "Menu" {
         title
         expand logo: Asset(id: e.logoId, locale: context.locale)
       }
@@ -374,7 +374,7 @@ describe("checkProgram — projection when-arms", () => {
 
       resource Asset(id: AssetId, locale: Locale): { id }
 
-      fragment EntryLogo on Entry e {
+      fragment EntryLogo on Entry e when e.type == "Menu" {
         title
         expand logo: Asset(id: e.logoId, locale: context.locale)
       }
@@ -392,6 +392,122 @@ describe("checkProgram — projection when-arms", () => {
     `);
 
     expect(menuOk.diagnostics).toEqual([]);
+  });
+
+  it("accepts Menu-only fields on fragment when; rejects them without when", () => {
+    const withWhen = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Menu", id, title: string, logoId: AssetId }
+
+      resource Asset(id: AssetId, locale: Locale): { id }
+
+      fragment MenuOnly on Entry e when e.type == "Menu" {
+        logoId
+        expand logo: Asset(id: e.logoId, locale: context.locale)
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" { type id }
+          when e.type == "Menu" { type id ...MenuOnly }
+        }
+        on Asset a { id }
+      }
+    `);
+    expect(withWhen.diagnostics).toEqual([]);
+
+    const withoutWhen = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Menu", id, title: string, logoId: AssetId }
+
+      resource Asset(id: AssetId, locale: Locale): { id }
+
+      fragment MenuOnly on Entry e {
+        logoId
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" { type id }
+          when e.type == "Menu" { type id }
+        }
+      }
+    `);
+    expect(withoutWhen.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_SELECTED_FIELD",
+        message: expect.stringContaining("logoId"),
+        path: expect.stringContaining("fragments.MenuOnly"),
+      })
+    );
+
+    const wrongWhen = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string, imageId: AssetId }
+        | { type: "Menu", id, title: string, logoId: AssetId }
+
+      fragment MenuOnly on Entry e when e.type == "Hero" {
+        logoId
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" { type id }
+          when e.type == "Menu" { type id }
+        }
+      }
+    `);
+    expect(wrongWhen.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_SELECTED_FIELD",
+        message: expect.stringContaining("logoId"),
+        path: expect.stringContaining("fragments.MenuOnly"),
+      })
+    );
+  });
+
+  it("applies include modes on fragments like on clauses", () => {
+    const { diagnostics, program } = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): { id title: string strips: { id: Id }[] }
+
+      fragment PageProps on Page p include properties { }
+      fragment PageNone on Page p include none { title }
+      fragment PageAll on Page p include all { }
+
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p { id }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+    expect(program.fragments.map((f) => ({ name: f.name, include: f.include }))).toEqual([
+      { name: "PageProps", include: "properties" },
+      { name: "PageNone", include: "none" },
+      { name: "PageAll", include: "all" },
+    ]);
   });
 
   it("rejects selecting a field absent from the narrowed arm", () => {

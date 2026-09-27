@@ -200,4 +200,19 @@ when e.type=="Menu"include none{title}
     expect(formatted).toContain('when e.type == "Page" include all { }');
     expect(formatted).toContain('when e.type == "Menu" include none {');
   });
+
+  it("spaces fragment when and include before {", async () => {
+    const messy = `
+scalar Id on string;
+resource Entry(id:Id):{type:string title:string logoId:string}
+fragment MenuOnly on Entry e when e.type=="Menu"include properties{logoId}
+fragment NoneOnly on Entry e include none{title}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain(
+      'fragment MenuOnly on Entry e when e.type == "Menu" include properties {'
+    );
+    expect(formatted).toContain("fragment NoneOnly on Entry e include none {");
+  });
 });

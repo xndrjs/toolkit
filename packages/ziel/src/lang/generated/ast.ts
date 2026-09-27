@@ -134,6 +134,7 @@ export interface BinaryExpr extends langium.AstNode {
     | BinaryExpr
     | EachComprehension
     | ExpandArm
+    | FragmentDeclaration
     | GroupedExpr
     | IslandClause
     | NamedArg
@@ -295,20 +296,24 @@ export interface FragmentDeclaration extends langium.AstNode {
   readonly $type: "FragmentDeclaration";
   binding: string;
   expansions: Array<Expansion>;
+  include?: IncludeMode;
   name: string;
   resource: string;
   selectedFields: Array<string>;
   spreads: Array<FragmentSpread>;
+  when?: Expression;
 }
 
 export const FragmentDeclaration = {
   $type: "FragmentDeclaration",
   binding: "binding",
   expansions: "expansions",
+  include: "include",
   name: "name",
   resource: "resource",
   selectedFields: "selectedFields",
   spreads: "spreads",
+  when: "when",
 } as const;
 
 export function isFragmentDeclaration(item: unknown): item is FragmentDeclaration {
@@ -1006,6 +1011,7 @@ export interface UnaryExpr extends langium.AstNode {
     | BinaryExpr
     | EachComprehension
     | ExpandArm
+    | FragmentDeclaration
     | GroupedExpr
     | IslandClause
     | NamedArg
@@ -1276,6 +1282,10 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
           defaultValue: [],
           optional: true,
         },
+        include: {
+          name: FragmentDeclaration.include,
+          optional: true,
+        },
         name: {
           name: FragmentDeclaration.name,
         },
@@ -1290,6 +1300,10 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         spreads: {
           name: FragmentDeclaration.spreads,
           defaultValue: [],
+          optional: true,
+        },
+        when: {
+          name: FragmentDeclaration.when,
           optional: true,
         },
       },

@@ -30,7 +30,9 @@ import {
   type ResourceDeclaration as AstResourceDeclaration,
   type ScalarDeclaration as AstScalarDeclaration,
 } from "../../lang/generated/ast";
+import { normalizeIncludeMode } from "../../check/projection-include";
 import { expandBody, type FragmentTable } from "./fragments";
+import { lowerExpr } from "./expr";
 import { lowerQuery } from "./query";
 import { spanOf } from "./span";
 import { lowerTypeExpr, lowerTypedField, type NameTables } from "./types";
@@ -113,8 +115,9 @@ export function collectFragments(ast: Model, sink: DiagnosticSink): FragmentTabl
 }
 
 /**
- * Lower a fragment declaration: expand nested spreads with the fragment's own
- * binding so the body can be typechecked independently of any spread site.
+ * Lower a fragment declaration: optional `when` / `include`, then expand nested
+ * spreads with the fragment's own binding so the body can be typechecked
+ * independently of any spread site.
  */
 export function lowerFragment(
   decl: AstFragmentDeclaration,
@@ -126,6 +129,8 @@ export function lowerFragment(
     name: decl.name,
     resource: decl.resource,
     binding: decl.binding,
+    when: decl.when ? lowerExpr(decl.when) : null,
+    include: normalizeIncludeMode(decl.include),
     selectedFields: body.selectedFields,
     expansions: body.expansions,
     span: spanOf(decl),
