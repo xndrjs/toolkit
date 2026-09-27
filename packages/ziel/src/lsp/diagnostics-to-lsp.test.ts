@@ -78,4 +78,17 @@ query Q(id: Id) {
     });
     expect(lsp.code).toBe("GENERIC");
   });
+
+  it("forwards diagnostic.data for MISSING_ON_PROJECTION", () => {
+    const lsp = diagnosticToLsp(
+      {
+        code: "MISSING_ON_PROJECTION",
+        message: "Query 'Q' expands 'Asset' but has no 'on Asset' projection",
+        data: { missingResource: "Asset" },
+      },
+      () => ({ line: 0, character: 0 })
+    );
+
+    expect(lsp.data).toEqual({ missingResource: "Asset" });
+  });
 });

@@ -28,6 +28,7 @@ export function diagnosticToLsp(diagnostic: Diagnostic, positionAt: PositionAt):
     message: diagnostic.message,
     code: diagnostic.code,
     source: "ziel",
+    ...(diagnostic.data !== undefined ? { data: diagnostic.data } : {}),
   };
 }
 

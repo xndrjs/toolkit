@@ -649,6 +649,8 @@ describe("lowerProgram — fragments", () => {
               locale: c.locale
             ) when c.type == "Asset"
           }
+          on Entry e { id }
+          on Asset a { id }
         }
       `)
     );
@@ -735,6 +737,8 @@ describe("lowerProgram — fragments", () => {
             page: Page(id: pageId)
             session: UserSession(id: sessionId)
           }
+          on Page p { id }
+          on UserSession s { id }
         }
       `)
     );

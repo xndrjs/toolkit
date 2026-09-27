@@ -396,6 +396,8 @@ describe("checkProgram — resolve to", () => {
           locale: c.locale
         ) when c.type == "Asset"
       }
+      on Entry e { id }
+      on Asset a { id }
     }
   `;
 
@@ -485,6 +487,8 @@ describe("checkProgram — resolve to", () => {
           Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
           Asset(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Asset"
         }
+        on Entry e { id }
+        on Asset a { id }
       }
     `);
 
