@@ -183,7 +183,7 @@ export function checkQuery(
         projection.selectedFields,
         projection.expansions,
         projection.include,
-        projection.resource,
+        resource.payloadType,
         resources
       );
       checkSelectedFields(
@@ -316,11 +316,12 @@ function checkProjectionArm(
     payloadNarrowing: new Map([...scope.payloadNarrowing, [binding, narrowed]]),
   };
 
+  const effectiveInclude = arm.include ?? include;
   const effectiveFields = resolveSelectedFields(
     arm.selectedFields,
     arm.expansions,
-    include,
-    resourceName,
+    effectiveInclude,
+    narrowed,
     resources
   );
   checkSelectedFields(effectiveFields, narrowed, resourceName, armPath, arm.span, resources, sink);

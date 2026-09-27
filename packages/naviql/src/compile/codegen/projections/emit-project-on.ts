@@ -1,4 +1,5 @@
-import type { Expansion, ProjectionArm, ResourceProjection } from "../../../ir";
+import type { Expansion, ProjectionArm, ResourceProjection, TypeExpr } from "../../../ir";
+import { narrowPayloadByFilter } from "../../../check/discriminants";
 import { resolveSelectedFields } from "../../../check/projection-include";
 import {
   emitConstruction,
@@ -22,6 +23,24 @@ export function allProjectionExpansions(projection: ResourceProjection): Expansi
     return projection.arms.flatMap((arm) => arm.expansions);
   }
   return projection.expansions;
+}
+
+/** Payload type for include resolution on a when-arm (narrowed when possible). */
+function armPayloadType(
+  projection: ResourceProjection,
+  arm: ProjectionArm,
+  resources: ResourceIndex
+): TypeExpr {
+  const resource = resources.get(projection.resource);
+  if (!resource) {
+    throw new Error(
+      `emitProjections: unknown resource '${projection.resource}' while emitting armed shell`
+    );
+  }
+  return (
+    narrowPayloadByFilter(resource.payloadType, arm.when, projection.binding, resources) ??
+    resource.payloadType
+  );
 }
 
 /**
@@ -125,14 +144,24 @@ export function emitShellBody(
   queryName: string,
   contextFieldNames: ReadonlySet<string>,
   indent: string,
-  include: ResourceProjection["include"] = null
+  include: ResourceProjection["include"] = null,
+  payloadType?: TypeExpr
 ): string {
   const lines: string[] = [];
+  const resolvedPayload =
+    payloadType ??
+    (() => {
+      const resource = resources.get(resourceName);
+      if (!resource) {
+        throw new Error(`emitProjections: unknown resource '${resourceName}' while emitting shell`);
+      }
+      return resource.payloadType;
+    })();
   const effectiveFields = resolveSelectedFields(
     selectedFields,
     expansions,
     include,
-    resourceName,
+    resolvedPayload,
     resources
   );
 
@@ -164,6 +193,12 @@ export function emitProjectOnBody(
   queryName: string,
   contextFieldNames: ReadonlySet<string>
 ): string {
+  const resource = resources.get(projection.resource);
+  if (!resource) {
+    throw new Error(
+      `emitProjections: unknown resource '${projection.resource}' while emitting flat shell`
+    );
+  }
   return emitShellBody(
     projection.resource,
     projection.selectedFields,
@@ -172,7 +207,8 @@ export function emitProjectOnBody(
     queryName,
     contextFieldNames,
     "    ",
-    projection.include
+    projection.include,
+    resource.payloadType
   );
 }
 
@@ -196,7 +232,8 @@ export function emitArmedArmCase(
       queryName,
       contextFieldNames,
       "          ",
-      projection.include
+      arm.include ?? projection.include,
+      armPayloadType(projection, arm, resources)
     ),
     `        }`,
   ].join("\n");
@@ -268,7 +305,8 @@ export function emitArmedProjectOnBody(
           queryName,
           contextFieldNames,
           "      ",
-          projection.include
+          arm.include ?? projection.include,
+          armPayloadType(projection, arm, resources)
         ),
       ].join("\n")
     );
