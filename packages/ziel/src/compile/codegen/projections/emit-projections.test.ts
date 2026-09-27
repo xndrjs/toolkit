@@ -28,7 +28,7 @@ function loadFixture(name: string): string {
 }
 
 function emptyProgram(): Program {
-  return { scalars: [], resources: [], queries: [], span: null };
+  return { scalars: [], resources: [], fragments: [], queries: [], span: null };
 }
 
 describe("emitProjections", () => {
@@ -271,6 +271,7 @@ describe("emitProjections", () => {
           span: null,
         }),
       ],
+      fragments: [],
       queries: [
         query("PostDetail", {
           parameters: [field("postId", scalarRef("PostId"))],
@@ -307,6 +308,7 @@ describe("emitProjections", () => {
           span: null,
         }),
       ],
+      fragments: [],
       queries: [
         query("Cycle", {
           parameters: [field("nodeId", scalarRef("NodeId"))],

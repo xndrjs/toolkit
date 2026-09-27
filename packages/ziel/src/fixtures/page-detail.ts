@@ -225,6 +225,7 @@ export function pageDetailProgram(): Program {
         )
       ),
     ],
+    fragments: [],
     queries: [
       query("PageDetail", {
         parameters: [field("pageId", EntryId)],

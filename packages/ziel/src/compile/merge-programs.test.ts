@@ -20,7 +20,7 @@ function fileSpan(uri: string): SourceSpan {
 }
 
 function emptyProgram(): Program {
-  return { scalars: [], resources: [], queries: [], span: null };
+  return { scalars: [], resources: [], fragments: [], queries: [], span: null };
 }
 
 function programA(): Program {
@@ -33,6 +33,7 @@ function programA(): Program {
         objectType(field("id", scalarRef("AId"), true))
       ),
     ],
+    fragments: [],
     queries: [],
     span: fileSpan("file:///a.ziel"),
   };
@@ -48,6 +49,7 @@ function programB(): Program {
         objectType(field("id", scalarRef("BId"), true))
       ),
     ],
+    fragments: [],
     queries: [
       query("QB", {
         parameters: [],
@@ -125,6 +127,7 @@ describe("mergePrograms", () => {
           objectType(field("id", scalarRef("Id"), true))
         ),
       ],
+      fragments: [],
       queries: [],
       span: null,
     };
@@ -137,6 +140,7 @@ describe("mergePrograms", () => {
           objectType(field("id", scalarRef("Id"), true))
         ),
       ],
+      fragments: [],
       queries: [],
       span: null,
     };

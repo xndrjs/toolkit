@@ -31,6 +31,7 @@ describe("parseAndCheck", () => {
     expect(program).toEqual({
       scalars: [],
       resources: [],
+      fragments: [],
       queries: [],
       span: null,
     });

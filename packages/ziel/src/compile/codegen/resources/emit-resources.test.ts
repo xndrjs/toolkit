@@ -24,6 +24,7 @@ describe("emitResources", () => {
     const program: Program = {
       scalars: [],
       resources: [],
+      fragments: [],
       queries: [],
       span,
     };
@@ -65,6 +66,7 @@ export type UserResource = ReturnType<typeof userAri>;
         ),
         resource("Raw", [field("n", prim("number")), field("on", prim("boolean"))], objectType()),
       ],
+      fragments: [],
       queries: [],
       span,
     };
@@ -88,6 +90,7 @@ export type UserResource = ReturnType<typeof userAri>;
           span,
         },
       ],
+      fragments: [],
       queries: [],
       span,
     };
@@ -105,6 +108,7 @@ export type UserResource = ReturnType<typeof userAri>;
           objectType()
         ),
       ],
+      fragments: [],
       queries: [],
       span,
     };

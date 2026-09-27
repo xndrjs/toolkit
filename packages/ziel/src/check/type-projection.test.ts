@@ -41,6 +41,7 @@ describe("type projection Resource.field", () => {
           objectType(field("id", scalarRef("ProductId"), true), field("sku", scalarRef("Sku")))
         ),
       ],
+      fragments: [],
       queries: [],
     };
 
@@ -60,6 +61,7 @@ describe("type projection Resource.field", () => {
           objectType(field("type", strLit("Hero")), field("id", scalarRef("HeroId"), true))
         ),
       ],
+      fragments: [],
       queries: [],
     };
 
@@ -79,6 +81,7 @@ describe("type projection Resource.field", () => {
           objectType(field("id", scalarRef("HeroId"), true), field("title", prim("string")))
         ),
       ],
+      fragments: [],
       queries: [],
     };
 
@@ -123,6 +126,7 @@ describe("type projection Resource.field", () => {
           )
         ),
       ],
+      fragments: [],
       queries: [],
     };
 
@@ -142,6 +146,7 @@ describe("type projection Resource.field", () => {
           objectType(field("id", scalarRef("HeroId"), true))
         ),
       ],
+      fragments: [],
       queries: [],
     };
 
@@ -190,6 +195,7 @@ describe("type projection Resource.field", () => {
           union(resourceRef("Tabs"), resourceRef("Hero"), resourceRef("Product"))
         ),
       ],
+      fragments: [],
       queries: [],
     };
 

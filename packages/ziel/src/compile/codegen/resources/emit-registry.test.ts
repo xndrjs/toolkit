@@ -24,6 +24,7 @@ describe("emitRegistry", () => {
     const program: Program = {
       scalars: [],
       resources: [],
+      fragments: [],
       queries: [],
       span,
     };
@@ -60,6 +61,7 @@ export type ContentRegistry = {
         },
         resource("User", [field("id", scalarRef("PostId"))], objectType()),
       ],
+      fragments: [],
       queries: [],
       span,
     };
@@ -78,6 +80,7 @@ export type ContentRegistry = {
     const program: Program = {
       scalars: [],
       resources: [resource("Tab", [field("id", scalarRef("PostId"))], objectType())],
+      fragments: [],
       queries: [],
       span,
     };

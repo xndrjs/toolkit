@@ -14,7 +14,7 @@ function loadFixture(name: string): string {
 }
 
 function emptyProgram(): Program {
-  return { scalars: [], resources: [], queries: [], span: null };
+  return { scalars: [], resources: [], fragments: [], queries: [], span: null };
 }
 
 describe("emitResolves", () => {

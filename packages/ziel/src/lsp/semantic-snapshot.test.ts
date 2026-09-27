@@ -6,6 +6,7 @@ import type { Program } from "../ir";
 const EMPTY_PROGRAM: Program = {
   scalars: [],
   resources: [],
+  fragments: [],
   queries: [],
   span: null,
 };

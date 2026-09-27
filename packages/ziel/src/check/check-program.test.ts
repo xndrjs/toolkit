@@ -227,6 +227,76 @@ describe("checkProgram — projection when-arms", () => {
     expect(entry.arms?.[1]?.selectedFields).toEqual(["type", "id"]);
   });
 
+  it("rejects unknown binding inside an unused fragment body", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale): {
+        type: "Hero"
+        id
+        imageId: AssetId
+      }
+
+      resource Asset(id: AssetId, locale: Locale): { id }
+
+      fragment EntryBase on Entry e {
+        expand image: Asset(
+          id: c.imageId,
+          locale: @c.locale
+        )
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e { id }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "UNKNOWN_BINDING")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "UNKNOWN_BINDING",
+          message: expect.stringContaining("'c'"),
+          path: expect.stringContaining("fragments.EntryBase"),
+        }),
+      ])
+    );
+  });
+
+  it("accepts the fragment binding inside a fragment body", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      scalar AssetId on string;
+
+      resource Entry(id: EntryId, locale: Locale): {
+        type: "Hero"
+        id
+        imageId: AssetId
+      }
+
+      resource Asset(id: AssetId, locale: Locale): { id }
+
+      fragment EntryBase on Entry e {
+        expand image: Asset(
+          id: e.imageId,
+          locale: @e.locale
+        )
+      }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e { id }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "UNKNOWN_BINDING")).toEqual([]);
+  });
+
   it("rejects preamble field illegal on a narrowed arm", () => {
     const { diagnostics } = parseAndCheck(`
       scalar Locale on string;
@@ -911,6 +981,7 @@ describe("checkProgram — scalar / resource name clash", () => {
           objectType(field("id", scalarRef("Page"), true))
         ),
       ],
+      fragments: [],
       queries: [
         query("Q", {
           parameters: [],
@@ -939,6 +1010,7 @@ describe("checkProgram — multi-root queries", () => {
           objectType(field("id", scalarRef("Id"), true))
         ),
       ],
+      fragments: [],
       queries: [
         query("Homepage", {
           parameters: [field("id", scalarRef("Id"))],
@@ -968,6 +1040,7 @@ describe("checkProgram — multi-root queries", () => {
           objectType(field("id", scalarRef("Id"), true))
         ),
       ],
+      fragments: [],
       queries: [
         query("Homepage", {
           parameters: [field("id", scalarRef("Id"))],
@@ -1005,6 +1078,7 @@ describe("checkProgram — multi-root queries", () => {
           objectType(field("id", scalarRef("Id"), true))
         ),
       ],
+      fragments: [],
       queries: [
         query("Q", {
           parameters: [],

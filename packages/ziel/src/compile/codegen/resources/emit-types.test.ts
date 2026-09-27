@@ -59,6 +59,7 @@ describe("emitPayloadTypes", () => {
     const program: Program = {
       scalars: [],
       resources: [],
+      fragments: [],
       queries: [],
       span,
     };
@@ -153,6 +154,7 @@ export type UserPayload = {
           objectType(field("kind", typeProj("Missing", "type")))
         ),
       ],
+      fragments: [],
       queries: [],
       span,
     };

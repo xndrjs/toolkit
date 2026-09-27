@@ -33,7 +33,7 @@ function loadFixture(name: string): string {
 }
 
 function emptyProgram(): Program {
-  return { scalars: [], resources: [], queries: [], span: null };
+  return { scalars: [], resources: [], fragments: [], queries: [], span: null };
 }
 
 describe("emitStrategies", () => {
@@ -57,6 +57,7 @@ describe("emitStrategies", () => {
           span: null,
         }),
       ],
+      fragments: [],
       queries: [
         query("PostDetail", {
           parameters: [field("postId", scalarRef("PostId"))],
@@ -139,6 +140,7 @@ describe("emitStrategies", () => {
   it("emits each-arm filter+map and multi-arm concat", () => {
     const program: Program = {
       ...emptyProgram(),
+      fragments: [],
       queries: [
         query("PageDetail", {
           parameters: [],
