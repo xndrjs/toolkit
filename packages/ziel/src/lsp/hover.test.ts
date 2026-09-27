@@ -391,3 +391,47 @@ describe("hover islands", () => {
     );
   });
 });
+
+const FRAGMENT_WHEN_HOVER_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): {
+  type: "Hero"
+  id
+  title: string
+  authorId: EntryId
+} | {
+  type: "Page"
+  id
+  title: string
+  authorId: EntryId
+} | {
+  type: "Menu"
+  id
+  logoId: EntryId
+}
+
+fragment MenuOnly on Entry e when e.type == "Menu" {
+  logoId
+  expand related: Entry(id: e.logoId, locale: @e.locale)
+}
+
+query Q(entryId: EntryId) {
+  context { locale: Locale }
+  root Entry(id: entryId, locale: context.locale)
+  on Entry e {
+    ...MenuOnly
+  }
+}
+`;
+
+describe("hover fragment when narrowing", () => {
+  it("hovers Menu-only payload paths inside fragment when body", () => {
+    const { document, scalars, resources } = tablesFrom(FRAGMENT_WHEN_HOVER_FIXTURE);
+    const logoPath = offsetOf(FRAGMENT_WHEN_HOVER_FIXTURE, "logoId", 2); // e.logoId
+    expect(hoverMarkdownAtOffset(document, logoPath, { scalars, resources })).toContain(
+      "logoId: EntryId"
+    );
+  });
+});

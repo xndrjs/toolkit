@@ -495,3 +495,78 @@ describe("islands completions", () => {
     expect(labels).toContain("title");
   });
 });
+
+const FRAGMENT_WHEN_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): {
+  type: "Hero"
+  id
+  title: string
+  authorId: EntryId
+} | {
+  type: "Page"
+  id
+  title: string
+  authorId: EntryId
+} | {
+  type: "Menu"
+  id
+  logoId: EntryId
+}
+
+fragment MenuOnly on Entry e when e.type == "Menu" {
+  logoId
+  expand related: Entry(id: e.logoId, locale: @e.locale)
+}
+
+fragment Unnarrowed on Entry e {
+  id
+}
+
+query Q(entryId: EntryId) {
+  context { locale: Locale }
+  root Entry(id: entryId, locale: context.locale)
+  on Entry e {
+    ...MenuOnly
+  }
+}
+`;
+
+describe("fragment when narrowing completions", () => {
+  it("narrows selected-field suggestions inside fragment when body", () => {
+    const { document, scalars, resources } = tablesFrom(FRAGMENT_WHEN_FIXTURE);
+    const logoField = offsetOf(FRAGMENT_WHEN_FIXTURE, "logoId", 1); // fragment body logoId
+    const menuLabels = completionsAtOffset(document, logoField, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(menuLabels).toContain("logoId");
+    expect(menuLabels).not.toContain("title");
+    expect(menuLabels).not.toContain("authorId");
+  });
+
+  it("narrows binding path completions inside fragment when body", () => {
+    const { document, scalars, resources } = tablesFrom(FRAGMENT_WHEN_FIXTURE);
+    const offset = offsetAfter(FRAGMENT_WHEN_FIXTURE, "id: e.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toContain("logoId");
+    expect(labels).not.toContain("title");
+    expect(labels).not.toContain("authorId");
+  });
+
+  it("keeps full payload suggestions inside fragment without when", () => {
+    const { document, scalars, resources } = tablesFrom(FRAGMENT_WHEN_FIXTURE);
+    const offset = offsetAfter(FRAGMENT_WHEN_FIXTURE, "fragment Unnarrowed on Entry e {\n  ");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    // Intersection of Hero|Page|Menu — shared fields only
+    expect(labels).toContain("id");
+    expect(labels).toContain("type");
+    expect(labels).not.toContain("logoId");
+    expect(labels).not.toContain("title");
+  });
+});

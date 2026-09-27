@@ -240,6 +240,7 @@ function payloadContextFromNode(node: AstNode): SemanticContext | undefined {
       kind: "payloadFields",
       resourceName: fragment.resource,
       binding: fragment.binding,
+      when: fragment.when,
     };
   }
   return undefined;
