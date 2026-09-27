@@ -135,20 +135,27 @@ Bare `refers Entry` matches any payload member. `with { … }` is a partial payl
 
 ### `include all` / `include properties`
 
-Projection clauses may pull payload fields without listing them:
+Projection clauses and `when` arms may pull payload fields without listing them:
 
 ```naviql
 on Page p include properties {
   expand menu: Entry(…)
   expand strips: each link in p.strips ( Entry(…) )
 }
+on Entry e {
+  when e.type == "Hero" include properties {
+    expand image: Asset(…)
+  }
+  when e.type == "Page" include properties { }
+}
 on Asset a include all { }
 ```
 
 - **`include all`**: every selectable payload field (object: all fields; union: intersection across members).
 - **`include properties`**: that set minus fields whose `refers` is set (relationships).
+- On a `when` arm, the include set is taken from the **narrowed** arm payload (not the full resource union). Effective mode is `arm.include ?? clause.include` (arm overrides; else inherit clause).
 - Expand aliases with the same name as a payload field **shadow** the native field (silent drop; expand wins). Explicit duplicate field names stay errors.
-- Allowed on normal `on R b { … }` only (not `resolve to`). MVP: clause-level only (not fragments / per-`when`).
+- Allowed on normal `on R b { … }` and its `when` arms only (not `resolve to`, not fragments).
 
 ### When expressions
 

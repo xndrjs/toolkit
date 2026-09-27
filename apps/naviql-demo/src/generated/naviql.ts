@@ -355,6 +355,7 @@ export type PageDetail_Entry_Hero = {
   $type: "Entry";
   type: "Hero";
   id: EntryId;
+  title: string;
   image: PageDetail_Asset;
 };
 
@@ -362,6 +363,7 @@ export type PageDetail_Entry_Tabs = {
   $type: "Entry";
   type: "Tabs";
   id: EntryId;
+  title: string;
   tabs: PageDetail_Entry[];
 };
 
@@ -369,6 +371,7 @@ export type PageDetail_Entry_Tab = {
   $type: "Entry";
   type: "Tab";
   id: EntryId;
+  title: string;
   strips: PageDetail_Entry[];
 };
 
@@ -376,12 +379,16 @@ export type PageDetail_Entry_Product = {
   $type: "Entry";
   type: "Product";
   id: EntryId;
+  sku: Sku;
+  title: string;
 };
 
 export type PageDetail_Entry_Menu = {
   $type: "Entry";
   type: "Menu";
   id: EntryId;
+  title: string;
+  logoId: AssetId;
   logo: PageDetail_Asset;
 };
 
@@ -389,6 +396,8 @@ export type PageDetail_Entry_Footer = {
   $type: "Entry";
   type: "Footer";
   id: EntryId;
+  title: string;
+  logoId: AssetId;
   logo: PageDetail_Asset;
 };
 
@@ -396,6 +405,7 @@ export type PageDetail_Entry_SiteInternalLink = {
   $type: "Entry";
   type: "SiteInternalLink";
   id: EntryId;
+  targetId: EntryId;
   target: PageDetail_Entry;
 };
 
@@ -403,6 +413,7 @@ export type PageDetail_Entry_Page = {
   $type: "Entry";
   type: "Page";
   id: EntryId;
+  title: string;
 };
 
 export type PageDetail_Entry =
@@ -417,6 +428,11 @@ export type PageDetail_Entry =
 
 export type PageDetail_Asset = {
   $type: "Asset";
+  type: "Asset";
+  id: AssetId;
+  url: string;
+  title: string;
+  kind: "image" | "video" | "document";
 };
 
 export type PageDetailResult = PageDetail_Page;
@@ -476,6 +492,7 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.title = payload.title;
         shell.image = projectNode(
           assetAri({
             spaceId: resource.key[0].spaceId,
@@ -491,6 +508,7 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.title = payload.title;
         shell.tabs = payload.tabs.map((link: any) =>
           projectNode(
             entryAri({
@@ -508,6 +526,7 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.title = payload.title;
         shell.strips = payload.strips.map((link: any) =>
           projectNode(
             entryAri({
@@ -525,6 +544,8 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.sku = payload.sku;
+        shell.title = payload.title;
         return shell;
       }
       case "Menu": {
@@ -532,6 +553,8 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.title = payload.title;
+        shell.logoId = payload.logoId;
         shell.logo = projectNode(
           assetAri({
             spaceId: resource.key[0].spaceId,
@@ -547,6 +570,8 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.title = payload.title;
+        shell.logoId = payload.logoId;
         shell.logo = projectNode(
           assetAri({
             spaceId: resource.key[0].spaceId,
@@ -562,6 +587,7 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.targetId = payload.targetId;
         shell.target = projectNode(
           entryAri({
             spaceId: resource.key[0].spaceId,
@@ -577,6 +603,7 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.title = payload.title;
         return shell;
       }
       default:
@@ -591,6 +618,11 @@ export function projectPageDetail(
   const projectOnAsset = (resource: any, payload: any): any => {
     const shell: any = { $type: "Asset" };
     memo.set(resource.toString(), shell);
+    shell.type = payload.type;
+    shell.id = payload.id;
+    shell.url = payload.url;
+    shell.title = payload.title;
+    shell.kind = payload.kind;
     return shell;
   };
 
