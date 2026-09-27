@@ -91,7 +91,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -107,7 +107,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -119,7 +119,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -138,7 +138,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@55"
+                    "$ref": "#/rules@56"
                   },
                   "arguments": []
                 }
@@ -150,7 +150,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@31"
+                    "$ref": "#/rules@32"
                   },
                   "arguments": []
                 }
@@ -197,7 +197,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -225,7 +225,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -298,7 +298,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -386,7 +386,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -426,7 +426,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -522,7 +522,7 @@ export const NaviQlGrammar = (): Grammar =>
       "entry": false,
       "fragment": false,
       "parameters": [],
-      "$comment": "/** \`refers Entry with { type: \\"Menu\\" } | Entry with { type: \\"Footer\\" }\` */"
+      "$comment": "/** \`refers Entry\` or \`refers Entry with { type: \\"Menu\\" } | Entry with { type: \\"Footer\\" }\` */"
     },
     {
       "$type": "ParserRule",
@@ -537,27 +537,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
-              },
-              "arguments": []
-            }
-          },
-          {
-            "$type": "Keyword",
-            "value": "with"
-          },
-          {
-            "$type": "Keyword",
-            "value": "{"
-          },
-          {
-            "$type": "Assignment",
-            "feature": "fields",
-            "operator": "+=",
-            "terminal": {
-              "$type": "RuleCall",
-              "rule": {
-                "$ref": "#/rules@11"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -567,7 +547,11 @@ export const NaviQlGrammar = (): Grammar =>
             "elements": [
               {
                 "$type": "Keyword",
-                "value": ","
+                "value": "with"
+              },
+              {
+                "$type": "Keyword",
+                "value": "{"
               },
               {
                 "$type": "Assignment",
@@ -580,19 +564,42 @@ export const NaviQlGrammar = (): Grammar =>
                   },
                   "arguments": []
                 }
+              },
+              {
+                "$type": "Group",
+                "elements": [
+                  {
+                    "$type": "Keyword",
+                    "value": ","
+                  },
+                  {
+                    "$type": "Assignment",
+                    "feature": "fields",
+                    "operator": "+=",
+                    "terminal": {
+                      "$type": "RuleCall",
+                      "rule": {
+                        "$ref": "#/rules@11"
+                      },
+                      "arguments": []
+                    }
+                  }
+                ],
+                "cardinality": "*"
+              },
+              {
+                "$type": "Keyword",
+                "value": "}"
               }
             ],
-            "cardinality": "*"
-          },
-          {
-            "$type": "Keyword",
-            "value": "}"
+            "cardinality": "?"
           }
         ]
       },
       "entry": false,
       "fragment": false,
-      "parameters": []
+      "parameters": [],
+      "$comment": "/** Bare \`Entry\` matches any payload member; \`with { … }\` narrows by pattern. */"
     },
     {
       "$type": "ParserRule",
@@ -607,7 +614,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -623,7 +630,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@56"
+                "$ref": "#/rules@57"
               },
               "arguments": []
             }
@@ -642,7 +649,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@56"
+                    "$ref": "#/rules@57"
                   },
                   "arguments": []
                 }
@@ -836,7 +843,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -852,7 +859,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -874,7 +881,7 @@ export const NaviQlGrammar = (): Grammar =>
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@55"
+            "$ref": "#/rules@56"
           },
           "arguments": []
         }
@@ -947,7 +954,7 @@ export const NaviQlGrammar = (): Grammar =>
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@56"
+            "$ref": "#/rules@57"
           },
           "arguments": []
         }
@@ -1005,7 +1012,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -1232,7 +1239,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -1244,7 +1251,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             },
@@ -1264,7 +1271,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@36"
+                    "$ref": "#/rules@37"
                   },
                   "arguments": []
                 }
@@ -1295,7 +1302,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@34"
+                "$ref": "#/rules@35"
               },
               "arguments": []
             }
@@ -1356,7 +1363,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -1372,7 +1379,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@34"
+                "$ref": "#/rules@35"
               },
               "arguments": []
             }
@@ -1400,7 +1407,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -1412,7 +1419,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -1442,7 +1449,7 @@ export const NaviQlGrammar = (): Grammar =>
                     "terminal": {
                       "$type": "RuleCall",
                       "rule": {
-                        "$ref": "#/rules@30"
+                        "$ref": "#/rules@31"
                       },
                       "arguments": []
                     },
@@ -1458,6 +1465,19 @@ export const NaviQlGrammar = (): Grammar =>
                 "$type": "Group",
                 "elements": [
                   {
+                    "$type": "Assignment",
+                    "feature": "include",
+                    "operator": "=",
+                    "terminal": {
+                      "$type": "RuleCall",
+                      "rule": {
+                        "$ref": "#/rules@29"
+                      },
+                      "arguments": []
+                    },
+                    "cardinality": "?"
+                  },
+                  {
                     "$type": "Keyword",
                     "value": "{"
                   },
@@ -1471,7 +1491,7 @@ export const NaviQlGrammar = (): Grammar =>
                         "terminal": {
                           "$type": "RuleCall",
                           "rule": {
-                            "$ref": "#/rules@55"
+                            "$ref": "#/rules@56"
                           },
                           "arguments": []
                         }
@@ -1483,7 +1503,7 @@ export const NaviQlGrammar = (): Grammar =>
                         "terminal": {
                           "$type": "RuleCall",
                           "rule": {
-                            "$ref": "#/rules@31"
+                            "$ref": "#/rules@32"
                           },
                           "arguments": []
                         }
@@ -1510,7 +1530,7 @@ export const NaviQlGrammar = (): Grammar =>
                     "terminal": {
                       "$type": "RuleCall",
                       "rule": {
-                        "$ref": "#/rules@29"
+                        "$ref": "#/rules@30"
                       },
                       "arguments": []
                     },
@@ -1529,7 +1549,47 @@ export const NaviQlGrammar = (): Grammar =>
       "entry": false,
       "fragment": false,
       "parameters": [],
-      "$comment": "/**\\n * Four shapes (items = fields | expands | spreads):\\n *   1. Flat: items* (no when)\\n *   2. Armed: whenArms+ only\\n *   3. Preamble + armed: items+ whenArms+\\n *   4. Resolve-only: \`resolve to { ResolveArm+ }\` — no fields / expands / spreads / whenArms\\n * Items after the first \`when\` are a parse error (whenArms only follow).\\n * Resolve form is mutually exclusive with projection body at parse time.\\n * IR-built programs that mix root fields with arms are still rejected by check.\\n */"
+      "$comment": "/**\\n * Four shapes (items = fields | expands | spreads):\\n *   1. Flat: items* (no when)\\n *   2. Armed: whenArms+ only\\n *   3. Preamble + armed: items+ whenArms+\\n *   4. Resolve-only: \`resolve to { ResolveArm+ }\` — no fields / expands / spreads / whenArms\\n * Shapes 1–3 may optionally use \`include all\` or \`include properties\` before \`{\`.\\n * Items after the first \`when\` are a parse error (whenArms only follow).\\n * Resolve form is mutually exclusive with projection body at parse time.\\n * IR-built programs that mix root fields with arms are still rejected by check.\\n */"
+    },
+    {
+      "$type": "ParserRule",
+      "name": "IncludeMode",
+      "dataType": "string",
+      "definition": {
+        "$type": "Alternatives",
+        "elements": [
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "include"
+              },
+              {
+                "$type": "Keyword",
+                "value": "all"
+              }
+            ]
+          },
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "include"
+              },
+              {
+                "$type": "Keyword",
+                "value": "properties"
+              }
+            ]
+          }
+        ]
+      },
+      "entry": false,
+      "fragment": false,
+      "parameters": [],
+      "$comment": "/** \`include all\` | \`include properties\` — Langium may store as \`\\"includeall\\"\` / \`\\"includeproperties\\"\`. */"
     },
     {
       "$type": "ParserRule",
@@ -1548,10 +1608,23 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@36"
+                "$ref": "#/rules@37"
               },
               "arguments": []
             }
+          },
+          {
+            "$type": "Assignment",
+            "feature": "include",
+            "operator": "=",
+            "terminal": {
+              "$type": "RuleCall",
+              "rule": {
+                "$ref": "#/rules@29"
+              },
+              "arguments": []
+            },
+            "cardinality": "?"
           },
           {
             "$type": "Keyword",
@@ -1567,7 +1640,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@55"
+                    "$ref": "#/rules@56"
                   },
                   "arguments": []
                 }
@@ -1579,7 +1652,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@31"
+                    "$ref": "#/rules@32"
                   },
                   "arguments": []
                 }
@@ -1608,7 +1681,7 @@ export const NaviQlGrammar = (): Grammar =>
       "entry": false,
       "fragment": false,
       "parameters": [],
-      "$comment": "/** Discriminant arm: \`when e.type == \\"Hero\\" { … }\`. */"
+      "$comment": "/** Discriminant arm: \`when e.type == \\"Hero\\" include properties { … }\`. */"
     },
     {
       "$type": "ParserRule",
@@ -1623,7 +1696,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@34"
+                "$ref": "#/rules@35"
               },
               "arguments": []
             }
@@ -1642,7 +1715,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@36"
+                    "$ref": "#/rules@37"
                   },
                   "arguments": []
                 }
@@ -1674,7 +1747,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -1693,7 +1766,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@32"
+                    "$ref": "#/rules@33"
                   },
                   "arguments": []
                 }
@@ -1705,7 +1778,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@34"
+                    "$ref": "#/rules@35"
                   },
                   "arguments": []
                 }
@@ -1735,7 +1808,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -1751,7 +1824,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@36"
+                "$ref": "#/rules@37"
               },
               "arguments": []
             }
@@ -1767,7 +1840,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@33"
+                "$ref": "#/rules@34"
               },
               "arguments": []
             }
@@ -1786,7 +1859,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@33"
+                    "$ref": "#/rules@34"
                   },
                   "arguments": []
                 }
@@ -1818,7 +1891,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@34"
+                "$ref": "#/rules@35"
               },
               "arguments": []
             }
@@ -1837,7 +1910,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@36"
+                    "$ref": "#/rules@37"
                   },
                   "arguments": []
                 }
@@ -1864,7 +1937,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -1883,7 +1956,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@35"
+                    "$ref": "#/rules@36"
                   },
                   "arguments": []
                 }
@@ -1902,7 +1975,7 @@ export const NaviQlGrammar = (): Grammar =>
                     "terminal": {
                       "$type": "RuleCall",
                       "rule": {
-                        "$ref": "#/rules@35"
+                        "$ref": "#/rules@36"
                       },
                       "arguments": []
                     }
@@ -1936,7 +2009,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -1952,7 +2025,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@36"
+                "$ref": "#/rules@37"
               },
               "arguments": []
             }
@@ -1969,7 +2042,7 @@ export const NaviQlGrammar = (): Grammar =>
       "definition": {
         "$type": "RuleCall",
         "rule": {
-          "$ref": "#/rules@37"
+          "$ref": "#/rules@38"
         },
         "arguments": []
       },
@@ -1986,7 +2059,7 @@ export const NaviQlGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@38"
+              "$ref": "#/rules@39"
             },
             "arguments": []
           },
@@ -2018,7 +2091,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@38"
+                    "$ref": "#/rules@39"
                   },
                   "arguments": []
                 }
@@ -2041,7 +2114,7 @@ export const NaviQlGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@39"
+              "$ref": "#/rules@40"
             },
             "arguments": []
           },
@@ -2073,7 +2146,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@39"
+                    "$ref": "#/rules@40"
                   },
                   "arguments": []
                 }
@@ -2096,7 +2169,7 @@ export const NaviQlGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@41"
+              "$ref": "#/rules@42"
             },
             "arguments": []
           },
@@ -2119,7 +2192,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@40"
+                    "$ref": "#/rules@41"
                   },
                   "arguments": []
                 }
@@ -2131,7 +2204,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@45"
+                    "$ref": "#/rules@46"
                   },
                   "arguments": []
                 }
@@ -2184,7 +2257,7 @@ export const NaviQlGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@42"
+              "$ref": "#/rules@43"
             },
             "arguments": []
           },
@@ -2225,7 +2298,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@42"
+                    "$ref": "#/rules@43"
                   },
                   "arguments": []
                 }
@@ -2271,7 +2344,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@42"
+                    "$ref": "#/rules@43"
                   },
                   "arguments": []
                 }
@@ -2281,7 +2354,7 @@ export const NaviQlGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@43"
+              "$ref": "#/rules@44"
             },
             "arguments": []
           }
@@ -2300,13 +2373,6 @@ export const NaviQlGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@44"
-            },
-            "arguments": []
-          },
-          {
-            "$type": "RuleCall",
-            "rule": {
               "$ref": "#/rules@45"
             },
             "arguments": []
@@ -2321,7 +2387,7 @@ export const NaviQlGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@51"
+              "$ref": "#/rules@47"
             },
             "arguments": []
           },
@@ -2336,6 +2402,13 @@ export const NaviQlGrammar = (): Grammar =>
             "$type": "RuleCall",
             "rule": {
               "$ref": "#/rules@53"
+            },
+            "arguments": []
+          },
+          {
+            "$type": "RuleCall",
+            "rule": {
+              "$ref": "#/rules@54"
             },
             "arguments": []
           }
@@ -2362,7 +2435,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@36"
+                "$ref": "#/rules@37"
               },
               "arguments": []
             }
@@ -2397,7 +2470,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@46"
+                    "$ref": "#/rules@47"
                   },
                   "arguments": []
                 }
@@ -2416,7 +2489,7 @@ export const NaviQlGrammar = (): Grammar =>
                     "terminal": {
                       "$type": "RuleCall",
                       "rule": {
-                        "$ref": "#/rules@46"
+                        "$ref": "#/rules@47"
                       },
                       "arguments": []
                     }
@@ -2447,13 +2520,6 @@ export const NaviQlGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@47"
-            },
-            "arguments": []
-          },
-          {
-            "$type": "RuleCall",
-            "rule": {
               "$ref": "#/rules@48"
             },
             "arguments": []
@@ -2469,6 +2535,13 @@ export const NaviQlGrammar = (): Grammar =>
             "$type": "RuleCall",
             "rule": {
               "$ref": "#/rules@50"
+            },
+            "arguments": []
+          },
+          {
+            "$type": "RuleCall",
+            "rule": {
+              "$ref": "#/rules@51"
             },
             "arguments": []
           }
@@ -2488,7 +2561,7 @@ export const NaviQlGrammar = (): Grammar =>
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@56"
+            "$ref": "#/rules@57"
           },
           "arguments": []
         }
@@ -2507,7 +2580,7 @@ export const NaviQlGrammar = (): Grammar =>
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@57"
+            "$ref": "#/rules@58"
           },
           "arguments": []
         }
@@ -2581,7 +2654,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -2600,7 +2673,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@55"
+                    "$ref": "#/rules@56"
                   },
                   "arguments": []
                 }
@@ -2635,7 +2708,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -2654,7 +2727,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@55"
+                    "$ref": "#/rules@56"
                   },
                   "arguments": []
                 }
@@ -2681,7 +2754,7 @@ export const NaviQlGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@55"
+                "$ref": "#/rules@56"
               },
               "arguments": []
             }
@@ -2700,7 +2773,7 @@ export const NaviQlGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@55"
+                    "$ref": "#/rules@56"
                   },
                   "arguments": []
                 }

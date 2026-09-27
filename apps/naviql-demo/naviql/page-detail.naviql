@@ -17,9 +17,7 @@ query PageDetail(pageId: EntryId) {
     locale: context.locale
   )
 
-  on Page p {
-    id
-    title
+  on Page p include properties {
     expand menu: Entry(
       spaceId: @p.spaceId,
       environmentId: @p.environmentId,
@@ -64,11 +62,8 @@ query PageDetail(pageId: EntryId) {
     ) when c.type == "Asset"
   }
 
-  on Entry e {
-    ...EntryBase
-
+  on Entry e include properties {
     when e.type == "Hero" {
-      title
       expand image: Asset(
         spaceId: @e.spaceId,
         environmentId: @e.environmentId,
@@ -78,7 +73,6 @@ query PageDetail(pageId: EntryId) {
     }
 
     when e.type == "Tabs" {
-      title
       expand tabs: each link in e.tabs (
         Entry(
           spaceId: @e.spaceId,
@@ -90,7 +84,6 @@ query PageDetail(pageId: EntryId) {
     }
 
     when e.type == "Tab" {
-      title
       expand strips: each link in e.strips (
         Entry(
           spaceId: @e.spaceId,
@@ -102,12 +95,9 @@ query PageDetail(pageId: EntryId) {
     }
 
     when e.type == "Product" {
-      sku
-      title
     }
 
     when e.type == "Menu" {
-      title
       expand logo: Asset(
         spaceId: @e.spaceId,
         environmentId: @e.environmentId,
@@ -117,7 +107,6 @@ query PageDetail(pageId: EntryId) {
     }
 
     when e.type == "Footer" {
-      title
       expand logo: Asset(
         spaceId: @e.spaceId,
         environmentId: @e.environmentId,
@@ -136,15 +125,10 @@ query PageDetail(pageId: EntryId) {
     }
 
     when e.type == "Page" {
-      title
     }
   }
 
-  on Asset a {
-    id
-    url
-    title
-    kind
+  on Asset a include properties {
   }
 
   islands {

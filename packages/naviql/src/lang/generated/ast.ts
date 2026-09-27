@@ -31,6 +31,7 @@ export type NaviQlKeywordNames =
   | "@"
   | "["
   | "]"
+  | "all"
   | "and"
   | "boolean"
   | "context"
@@ -39,12 +40,14 @@ export type NaviQlKeywordNames =
   | "false"
   | "fragment"
   | "in"
+  | "include"
   | "islands"
   | "not"
   | "null"
   | "number"
   | "on"
   | "or"
+  | "properties"
   | "query"
   | "refers"
   | "resolve"
@@ -377,6 +380,13 @@ export function isIdentityRef(item: unknown): item is IdentityRef {
   return reflection.isInstance(item, IdentityRef.$type);
 }
 
+/** `include all` | `include properties` — Langium may store as `"includeall"` / `"includeproperties"`. */
+export type IncludeMode = string;
+
+export function isIncludeMode(item: unknown): item is IncludeMode {
+  return typeof item === "string";
+}
+
 export type InExpr = BinaryExpr | EqExpr;
 
 export const InExpr = {
@@ -635,6 +645,7 @@ export function isPrimitiveTypeExpr(item: unknown): item is PrimitiveTypeExpr {
  *   2. Armed: whenArms+ only
  *   3. Preamble + armed: items+ whenArms+
  *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
+ * Shapes 1–3 may optionally use `include all` or `include properties` before `{`.
  * Items after the first `when` are a parse error (whenArms only follow).
  * Resolve form is mutually exclusive with projection body at parse time.
  * IR-built programs that mix root fields with arms are still rejected by check.
@@ -644,6 +655,7 @@ export interface ProjectionClause extends langium.AstNode {
   readonly $type: "ProjectionClause";
   binding: string;
   expansions: Array<Expansion>;
+  include?: IncludeMode;
   resolveArms: Array<ResolveArm>;
   resource: string;
   selectedFields: Array<string>;
@@ -655,6 +667,7 @@ export const ProjectionClause = {
   $type: "ProjectionClause",
   binding: "binding",
   expansions: "expansions",
+  include: "include",
   resolveArms: "resolveArms",
   resource: "resource",
   selectedFields: "selectedFields",
@@ -666,11 +679,12 @@ export function isProjectionClause(item: unknown): item is ProjectionClause {
   return reflection.isInstance(item, ProjectionClause.$type);
 }
 
-/** Discriminant arm: `when e.type == "Hero" { … }`. */
+/** Discriminant arm: `when e.type == "Hero" include properties { … }`. */
 export interface ProjectionWhenArm extends langium.AstNode {
   readonly $container: ProjectionClause;
   readonly $type: "ProjectionWhenArm";
   expansions: Array<Expansion>;
+  include?: IncludeMode;
   selectedFields: Array<string>;
   spreads: Array<FragmentSpread>;
   when: Expression;
@@ -679,6 +693,7 @@ export interface ProjectionWhenArm extends langium.AstNode {
 export const ProjectionWhenArm = {
   $type: "ProjectionWhenArm",
   expansions: "expansions",
+  include: "include",
   selectedFields: "selectedFields",
   spreads: "spreads",
   when: "when",
@@ -715,7 +730,7 @@ export function isQueryDeclaration(item: unknown): item is QueryDeclaration {
   return reflection.isInstance(item, QueryDeclaration.$type);
 }
 
-/** `refers Entry with { type: "Menu" } | Entry with { type: "Footer" }` */
+/** `refers Entry` or `refers Entry with { type: "Menu" } | Entry with { type: "Footer" }` */
 export interface RefersClause extends langium.AstNode {
   readonly $container: ObjectField;
   readonly $type: "RefersClause";
@@ -749,6 +764,7 @@ export function isRefersPatternField(item: unknown): item is RefersPatternField 
   return reflection.isInstance(item, RefersPatternField.$type);
 }
 
+/** Bare `Entry` matches any payload member; `with { … }` narrows by pattern. */
 export interface RefersTarget extends langium.AstNode {
   readonly $container: RefersClause;
   readonly $type: "RefersTarget";
@@ -1466,6 +1482,10 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
           defaultValue: [],
           optional: true,
         },
+        include: {
+          name: ProjectionClause.include,
+          optional: true,
+        },
         resolveArms: {
           name: ProjectionClause.resolveArms,
           defaultValue: [],
@@ -1498,6 +1518,10 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         expansions: {
           name: ProjectionWhenArm.expansions,
           defaultValue: [],
+          optional: true,
+        },
+        include: {
+          name: ProjectionWhenArm.include,
           optional: true,
         },
         selectedFields: {
@@ -1580,6 +1604,7 @@ export class NaviQlAstReflection extends langium.AbstractAstReflection {
         fields: {
           name: RefersTarget.fields,
           defaultValue: [],
+          optional: true,
         },
         resource: {
           name: RefersTarget.resource,

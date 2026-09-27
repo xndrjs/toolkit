@@ -151,13 +151,15 @@ export function projection(
   binding: string,
   selectedFields: string[],
   expansions: Expansion[] = [],
-  arms: ResourceProjection["arms"] = null
+  arms: ResourceProjection["arms"] = null,
+  include: ResourceProjection["include"] = null
 ): ResourceProjection {
   return {
     resource: resourceName,
     binding,
     selectedFields,
     expansions,
+    include,
     arms,
     resolveArms: null,
     span,
@@ -168,13 +170,15 @@ export function projection(
 export function projectionWithArms(
   resourceName: string,
   binding: string,
-  arms: NonNullable<ResourceProjection["arms"]>
+  arms: NonNullable<ResourceProjection["arms"]>,
+  include: ResourceProjection["include"] = null
 ): ResourceProjection {
   return {
     resource: resourceName,
     binding,
     selectedFields: [],
     expansions: [],
+    include,
     arms,
     resolveArms: null,
     span,
@@ -192,6 +196,7 @@ export function projectionWithResolve(
     binding,
     selectedFields: [],
     expansions: [],
+    include: null,
     arms: null,
     resolveArms,
     span,
@@ -201,12 +206,14 @@ export function projectionWithResolve(
 export function projectionArm(
   when: Expr,
   selectedFields: string[],
-  expansions: Expansion[] = []
+  expansions: Expansion[] = [],
+  include: NonNullable<ResourceProjection["arms"]>[number]["include"] = null
 ): NonNullable<ResourceProjection["arms"]>[number] {
   return {
     when,
     selectedFields,
     expansions,
+    include,
     span,
   };
 }

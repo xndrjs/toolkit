@@ -29,6 +29,7 @@
  * resolve targets (e.g. `related: PageDetail_Entry | PageDetail_Asset`).
  */
 import { createDiagnosticSink } from "../../../check/diagnostic";
+import { resolveSelectedFields } from "../../../check/projection-include";
 import { resolveTypeExpr } from "../../../check/resolve-type";
 import type { ResourceTable, ScalarTable } from "../../../check/symbols";
 import type {
@@ -329,7 +330,15 @@ function emitArmVariantType(
 
   const lines: string[] = [`  $type: ${JSON.stringify(projection.resource)};`];
 
-  for (const fieldName of arm.selectedFields) {
+  const effectiveFields = resolveSelectedFields(
+    arm.selectedFields,
+    arm.expansions,
+    projection.include,
+    projection.resource,
+    resources
+  );
+
+  for (const fieldName of effectiveFields) {
     const field = payloadFields.get(fieldName);
     if (!field) {
       throw new Error(
@@ -425,7 +434,15 @@ function emitFlatResourceProjectionType(
     projectionsByResource,
   };
 
-  for (const fieldName of projection.selectedFields) {
+  const effectiveFields = resolveSelectedFields(
+    projection.selectedFields,
+    projection.expansions,
+    projection.include,
+    projection.resource,
+    resources
+  );
+
+  for (const fieldName of effectiveFields) {
     const field = resource.payload.get(fieldName);
     if (!field) {
       throw new Error(

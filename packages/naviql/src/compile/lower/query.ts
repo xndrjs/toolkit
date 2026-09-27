@@ -24,6 +24,7 @@ import {
   type FragmentTable,
 } from "./fragments";
 import { spanOf } from "./span";
+import { normalizeIncludeMode } from "../../check/projection-include";
 import { lowerTypedField, type NameTables } from "./types";
 
 export function lowerQuery(
@@ -82,12 +83,15 @@ export function lowerProjection(
   fragments: FragmentTable,
   sink: DiagnosticSink
 ): ResourceProjection {
+  const include = normalizeIncludeMode(clause.include);
+
   if (clause.resolveArms.length > 0) {
     return {
       resource: clause.resource,
       binding: clause.binding,
       selectedFields: [],
       expansions: [],
+      include: null,
       arms: null,
       resolveArms: clause.resolveArms.map(lowerResolveArm),
       span: spanOf(clause),
@@ -105,6 +109,7 @@ export function lowerProjection(
       binding: clause.binding,
       selectedFields: [],
       expansions: [],
+      include,
       arms,
       resolveArms: null,
       span: spanOf(clause),
@@ -117,6 +122,7 @@ export function lowerProjection(
     binding: clause.binding,
     selectedFields: preamble.selectedFields,
     expansions: preamble.expansions,
+    include,
     arms: null,
     resolveArms: null,
     span: spanOf(clause),
@@ -149,6 +155,7 @@ export function lowerProjectionArm(
     when: lowerExpr(arm.when),
     selectedFields: combined.selectedFields,
     expansions: combined.expansions,
+    include: normalizeIncludeMode(arm.include),
     span: spanOf(arm),
   };
 }

@@ -235,6 +235,14 @@ export class NaviQlFormatter extends AbstractFormatter {
           f.node(node.resolveArms[i]!).prepend(blankLineIndent);
         }
       } else {
+        if (node.include) {
+          f.keyword("include").surround(Formatting.oneSpace());
+          if (node.include.includes("properties")) {
+            f.keyword("properties").append(Formatting.oneSpace());
+          } else {
+            f.keyword("all").append(Formatting.oneSpace());
+          }
+        }
         this.formatBracedBlock(node);
         const preceding = node.selectedFields.length + node.expansions.length + node.spreads.length;
         if (preceding > 0 && node.whenArms.length > 0) {

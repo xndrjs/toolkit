@@ -45,9 +45,14 @@ export function closedPayloadDiscriminants(
  * Expand a payload type to object members (following resourceRefs). Returns
  * `null` when the shape is not a closed object / object-union.
  */
+/** Lookup that only needs `payloadType` (ResourceTable or codegen ResourceIndex). */
+export type PayloadTypeLookup = {
+  get(name: string): { payloadType: TypeExpr } | undefined;
+};
+
 export function expandPayloadObjectMembers(
   payloadType: TypeExpr,
-  resources: ResourceTable
+  resources: PayloadTypeLookup
 ): Extract<TypeExpr, { kind: "object" }>[] | null {
   const unwrapped = unwrapNullable(payloadType);
   if (unwrapped.kind === "object") {

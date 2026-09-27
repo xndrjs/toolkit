@@ -97,6 +97,7 @@ describe("checkProgram — refers", () => {
         menuId: EntryId refers Entry with { type: "Menu" }
         chromeId: EntryId refers Entry with { type: "Menu" | "Footer" }
         eitherId: EntryId refers Entry with { type: "Menu" } | Entry with { type: "Footer" }
+        anyId: EntryId refers Entry
         strips: {
           linkId: EntryId refers Entry with { type: "Page", kind: "site" }
         }[]

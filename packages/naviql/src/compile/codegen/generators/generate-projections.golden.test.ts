@@ -187,6 +187,7 @@ export type PageDetail_Entry = PageDetail_Entry_Hero | PageDetail_Entry_Tabs | P
 
 export type PageDetail_Asset = {
   $type: "Asset";
+  type: "Asset";
   id: AssetId;
   url: string;
   title: string;
@@ -309,6 +310,7 @@ export function projectPageDetail(
   const projectOnAsset = (resource: any, payload: any): any => {
     const shell: any = { $type: "Asset" };
     memo.set(resource.toString(), shell);
+    shell.type = payload.type;
     shell.id = payload.id;
     shell.url = payload.url;
     shell.title = payload.title;
