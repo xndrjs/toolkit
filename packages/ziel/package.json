@@ -1,0 +1,68 @@
+{
+  "name": "@xndrjs/ziel",
+  "version": "0.1.0-alpha.0",
+  "description": "Ziel product entry: browser-safe resource graph resolver + application resources; compile-time DSL via ./compile.",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "packages/ziel"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "ziel-codegen": "./dist/cli.js",
+    "ziel-language-server": "./dist/lsp/main.js"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./compile": {
+      "types": "./dist/compile/index.d.ts",
+      "import": "./dist/compile/index.js",
+      "default": "./dist/compile/index.js"
+    },
+    "./lsp": {
+      "types": "./dist/lsp/index.d.ts",
+      "import": "./dist/lsp/index.js",
+      "default": "./dist/lsp/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "langium:generate": "langium generate",
+    "build": "pnpm run langium:generate && tsup",
+    "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
+    "prepublishOnly": "pnpm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "pnpm run langium:generate && vitest run",
+    "typecheck": "pnpm run langium:generate && tsc --noEmit"
+  },
+  "dependencies": {
+    "@xndrjs/application-resources": "workspace:^",
+    "@xndrjs/resource-graph-resolver": "workspace:^",
+    "jiti": "^2.7.0",
+    "langium": "~4.4.0",
+    "tinyglobby": "^0.2.17",
+    "vscode-languageserver": "~10.1.0",
+    "vscode-languageserver-textdocument": "~1.0.13"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "langium-cli": "~4.4.0",
+    "tsup": "^8.5.1",
+    "vitest": "^4.1.0"
+  }
+}
