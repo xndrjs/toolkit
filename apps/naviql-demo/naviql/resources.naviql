@@ -1,71 +1,70 @@
 scalar Locale on string;
+
 scalar SpaceId on string;
+
 scalar EnvironmentId on string;
+
 scalar EntryId on string;
+
 scalar AssetId on string;
+
 scalar CustomReferenceValue on string;
+
 scalar Sku on string;
 
 /**
  * Canonical CMS entry address — content type is not part of identity.
  * Payload is a closed discriminated object union (not rematerialized ARIs).
  */
+
 resource Entry(
   spaceId: SpaceId,
   environmentId: EnvironmentId,
   id: EntryId,
   locale: Locale
-):
-  {
-    type: "Hero"
-    id
-    title: string
-    imageId: AssetId
-  }
-  | {
-    type: "Tabs"
-    id
-    title: string
-    tabs: {
-      id: EntryId
-    }[]
-  }
-  | {
-    type: "Tab"
-    id
-    title: string
-    strips: {
-      id: EntryId
-    }[]
-  }
-  | {
-    type: "Product"
-    id
-    sku: Sku
-    title: string
-  }
-  | {
-    type: "Menu"
-    id
-    title: string
-    logoId: AssetId
-  }
-  | {
-    type: "Footer"
-    id
-    title: string
-    logoId: AssetId
-  }
-  | {
-    type: "Page"
-    id
-    title: string
-  }
-  | {
-    type: "SiteInternalLink"
-    id
-    targetId: EntryId
-  }
+): {
+  type: "Hero"
+  id
+  title: string
+  imageId: AssetId refers Asset
+} | {
+  type: "Tabs"
+  id
+  title: string
+  tabs: {
+    id: EntryId
+  }[]
+} | {
+  type: "Tab"
+  id
+  title: string
+  strips: {
+    id: EntryId
+  }[]
+} | {
+  type: "Product"
+  id
+  sku: Sku
+  title: string
+} | {
+  type: "Menu"
+  id
+  title: string
+  logoId: AssetId
+} | {
+  type: "Footer"
+  id
+  title: string
+  logoId: AssetId
+} | {
+  type: "Page"
+  id
+  title: string
+} | {
+  type: "SiteInternalLink"
+  id
+  targetId: EntryId
+}
 
 resource Asset(
   spaceId: SpaceId,
@@ -84,27 +83,27 @@ resource Asset(
  * Legacy encoded locator (`{environmentId}@{spaceId}|ENTRY|id` or `|ASSET|id`).
  * Decode payload only — redirect hops are declared in the query via `resolve to`.
  */
+
 resource CustomReference(
   ref: CustomReferenceValue,
   locale: Locale
-):
-  {
-    type: "Entry"
-    spaceId: SpaceId
-    environmentId: EnvironmentId
-    id: EntryId
-  }
-  | {
-    type: "Asset"
-    spaceId: SpaceId
-    environmentId: EnvironmentId
-    id: AssetId
-  }
+): {
+  type: "Entry"
+  spaceId: SpaceId
+  environmentId: EnvironmentId
+  id: EntryId
+} | {
+  type: "Asset"
+  spaceId: SpaceId
+  environmentId: EnvironmentId
+  id: AssetId
+}
 
 /**
  * Root editorial page only. Linked pages are Entry payloads with `type: "Page"`
  * (shallow — no strips/menu/footer) and are not loaded as Page ARIs.
  */
+
 resource Page(
   spaceId: SpaceId,
   environmentId: EnvironmentId,
@@ -113,12 +112,16 @@ resource Page(
 ): {
   id
   title: string
-  menuId: EntryId refers Entry with { type: "Menu" }
-  footerId: EntryId refers Entry with { type: "Footer" }
-  // Standard CMS links: entry id only — no content-type discriminant.
+  menuId: EntryId refers Entry with {
+    type: "Menu"
+  }
+  footerId: EntryId refers Entry with {
+    type: "Footer"
+  }
+// Standard CMS links: entry id only — no content-type discriminant.
   strips: {
     id: EntryId
   }[] refers Entry
-  // Legacy custom references (same target may also appear as a standard link).
+// Legacy custom references (same target may also appear as a standard link).
   related: CustomReferenceValue[] refers CustomReference
 }

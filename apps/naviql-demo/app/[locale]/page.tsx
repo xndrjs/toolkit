@@ -53,6 +53,10 @@ export default async function LocaleDemoPage({ params }: Props) {
 
   const { page, meta } = result;
 
+  const islandsJson = Object.fromEntries(
+    (meta.islands?.islandIds() ?? []).map((id) => [id, [...(meta.islands!.get(id) ?? [])].sort()])
+  );
+
   return (
     <main>
       <header>
@@ -67,6 +71,13 @@ export default async function LocaleDemoPage({ params }: Props) {
       <section className="panel">
         <pre>
           <code>{JSON.stringify(page, null, 2)}</code>
+        </pre>
+      </section>
+      <br />
+      <p className="lead">Islands</p>
+      <section className="panel">
+        <pre>
+          <code>{JSON.stringify(islandsJson, null, 2)}</code>
         </pre>
       </section>
     </main>

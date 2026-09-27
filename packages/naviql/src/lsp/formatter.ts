@@ -47,11 +47,18 @@ const blankLineIndent: FormattingAction = {
 };
 
 export class NaviQlFormatter extends AbstractFormatter {
-  /** Indented body inside `{ … }`. Callers ensure a space before `{` if needed. */
-  private formatBracedBlock(node: AstNode): void {
+  /**
+   * Indented body inside `{ … }`. Callers ensure a space before `{` if needed.
+   * Empty blocks format as `{ }` (space before `}`, no newline).
+   */
+  private formatBracedBlock(node: AstNode, empty = false): void {
     const f = this.getNodeFormatter(node);
     const open = f.keyword("{");
     const close = f.keyword("}");
+    if (empty) {
+      close.prepend(Formatting.oneSpace());
+      return;
+    }
     f.interior(open, close).prepend(Formatting.indent());
     close.prepend(Formatting.newLine());
   }
@@ -243,7 +250,12 @@ export class NaviQlFormatter extends AbstractFormatter {
             f.keyword("all").append(Formatting.oneSpace());
           }
         }
-        this.formatBracedBlock(node);
+        const empty =
+          node.selectedFields.length === 0 &&
+          node.expansions.length === 0 &&
+          node.spreads.length === 0 &&
+          node.whenArms.length === 0;
+        this.formatBracedBlock(node, empty);
         const preceding = node.selectedFields.length + node.expansions.length + node.spreads.length;
         if (preceding > 0 && node.whenArms.length > 0) {
           f.node(node.whenArms[0]!).prepend(blankLineIndent);
@@ -258,11 +270,21 @@ export class NaviQlFormatter extends AbstractFormatter {
     if (isProjectionWhenArm(node)) {
       const f = this.getNodeFormatter(node);
       f.keyword("when").append(Formatting.oneSpace());
-      const open = f.keyword("{");
-      const close = f.keyword("}");
-      open.prepend(Formatting.oneSpace());
-      f.interior(open, close).prepend(Formatting.indent());
-      close.prepend(Formatting.newLine());
+      if (node.include) {
+        f.keyword("include").surround(Formatting.oneSpace());
+        if (node.include.includes("properties")) {
+          f.keyword("properties").append(Formatting.oneSpace());
+        } else {
+          f.keyword("all").append(Formatting.oneSpace());
+        }
+      } else {
+        f.keyword("{").prepend(Formatting.oneSpace());
+      }
+      const empty =
+        node.selectedFields.length === 0 &&
+        node.expansions.length === 0 &&
+        node.spreads.length === 0;
+      this.formatBracedBlock(node, empty);
       return;
     }
 

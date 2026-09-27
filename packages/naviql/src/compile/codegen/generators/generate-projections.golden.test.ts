@@ -127,6 +127,7 @@ export type PageDetail_Entry_Hero = {
   type: "Hero";
   id: EntryId;
   title: string;
+  imageId: AssetId;
   image: PageDetail_Asset;
 };
 
@@ -159,6 +160,7 @@ export type PageDetail_Entry_Menu = {
   type: "Menu";
   id: EntryId;
   title: string;
+  logoId: AssetId;
   logo: PageDetail_Asset;
 };
 
@@ -167,6 +169,7 @@ export type PageDetail_Entry_Footer = {
   type: "Footer";
   id: EntryId;
   title: string;
+  logoId: AssetId;
   logo: PageDetail_Asset;
 };
 
@@ -174,6 +177,7 @@ export type PageDetail_Entry_SiteInternalLink = {
   $type: "Entry";
   type: "SiteInternalLink";
   id: EntryId;
+  targetId: EntryId;
   target: PageDetail_Entry;
 };
 
@@ -181,6 +185,7 @@ export type PageDetail_Entry_Page = {
   $type: "Entry";
   type: "Page";
   id: EntryId;
+  title: string;
 };
 
 export type PageDetail_Entry = PageDetail_Entry_Hero | PageDetail_Entry_Tabs | PageDetail_Entry_Tab | PageDetail_Entry_Product | PageDetail_Entry_Menu | PageDetail_Entry_Footer | PageDetail_Entry_SiteInternalLink | PageDetail_Entry_Page;
@@ -228,6 +233,7 @@ export function projectPageDetail(
           shell.type = payload.type;
           shell.id = payload.id;
           shell.title = payload.title;
+          shell.imageId = payload.imageId;
           shell.image = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.imageId, locale: resource.key[0].locale }));
           return shell;
         }
@@ -268,6 +274,7 @@ export function projectPageDetail(
           shell.type = payload.type;
           shell.id = payload.id;
           shell.title = payload.title;
+          shell.logoId = payload.logoId;
           shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale }));
           return shell;
         }
@@ -278,6 +285,7 @@ export function projectPageDetail(
           shell.type = payload.type;
           shell.id = payload.id;
           shell.title = payload.title;
+          shell.logoId = payload.logoId;
           shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale }));
           return shell;
         }
@@ -287,6 +295,7 @@ export function projectPageDetail(
           memo.set(resource.toString(), shell);
           shell.type = payload.type;
           shell.id = payload.id;
+          shell.targetId = payload.targetId;
           shell.target = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.targetId, locale: resource.key[0].locale }));
           return shell;
         }
@@ -296,6 +305,7 @@ export function projectPageDetail(
           memo.set(resource.toString(), shell);
           shell.type = payload.type;
           shell.id = payload.id;
+          shell.title = payload.title;
           return shell;
         }
       default:

@@ -15,7 +15,7 @@ import {
   DEMO_SPACE,
   demoIds,
 } from "../infrastructure/fixtures/store.js";
-import type { MissingResourceMode, SchedulingMode } from "@xndrjs/naviql";
+import type { IslandMap, MissingResourceMode, SchedulingMode } from "@xndrjs/naviql";
 
 const DEFAULT_SCHEDULING_MODE: SchedulingMode = "lane";
 
@@ -35,6 +35,7 @@ export type ResolvePageInput = {
 
 export type ResolvePageMeta = {
   locale: Locale;
+  islands?: IslandMap;
   pageId: EntryId;
   spaceId: SpaceId;
   environmentId: EnvironmentId;
@@ -79,7 +80,7 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
   const root = pageAri({ spaceId, environmentId, id: pageId, locale });
 
   try {
-    const { pageDetail, contentMap, errors } = await resolvePageDetail({
+    const { pageDetail, contentMap, errors, islands } = await resolvePageDetail({
       params,
       sources: [...createDemoSources()],
       schedulingMode,
@@ -108,6 +109,7 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
       ok: true,
       page: pageDetail,
       meta: {
+        islands,
         locale,
         pageId,
         spaceId,
