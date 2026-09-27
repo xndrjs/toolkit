@@ -1,4 +1,5 @@
 import type { Program } from "../ir";
+import { checkDatasources } from "./check-datasources";
 import { checkFragment } from "./check-fragment";
 import { checkQuery } from "./check-query";
 import { collectResources, collectScalars } from "./collect";
@@ -47,6 +48,8 @@ export function analyzeProgram(program: Program): ProgramAnalysis {
     fragmentNames.add(fragment.name);
     checkFragment(fragment, path, scalars, resources, sink);
   }
+
+  checkDatasources(program, scalars, resources, sink);
 
   const queryNames = new Set<string>();
   for (const query of program.queries) {
