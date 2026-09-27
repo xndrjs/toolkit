@@ -37,8 +37,11 @@ describe("normalizeIncludeMode", () => {
     expect(normalizeIncludeMode(undefined)).toBeNull();
     expect(normalizeIncludeMode("includeall")).toBe("all");
     expect(normalizeIncludeMode("includeproperties")).toBe("properties");
+    expect(normalizeIncludeMode("includenone")).toBe("none");
     expect(normalizeIncludeMode("include all")).toBe("all");
     expect(normalizeIncludeMode("include properties")).toBe("properties");
+    expect(normalizeIncludeMode("include none")).toBe("none");
+    expect(normalizeIncludeMode("none")).toBe("none");
   });
 });
 
@@ -111,6 +114,13 @@ describe("payloadSelectableFields / resolveSelectedFields", () => {
         resources
       )
     ).toEqual(["id", "title"]);
+  });
+
+  it("include none keeps only explicit fields (empty auto-include)", () => {
+    expect(resolveSelectedFields(["title"], [], "none", page.payloadType, resources)).toEqual([
+      "title",
+    ]);
+    expect(resolveSelectedFields([], [], "none", page.payloadType, resources)).toEqual([]);
   });
 
   it("resolves include against a narrowed arm payload, not the union intersection", () => {
@@ -267,6 +277,38 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     expect(code).toContain('case "Hero":');
     expect(code).not.toContain("shell.imageId");
     expect(code).toContain("shell.title = payload.title;");
+  });
+
+  it("arm include none overrides clause include properties (explicit fields only)", () => {
+    const { program, diagnostics } = parseAndCheck(`
+      scalar Id on string;
+      resource Entry(id: Id):
+        { type: "Hero", id, title: string, headline: string }
+        | { type: "Page", id, title: string }
+      query Q(id: Id) {
+        context { }
+        root Entry(id: id)
+        on Entry e include properties {
+          when e.type == "Hero" include none { title }
+          when e.type == "Page" { }
+        }
+      }
+    `);
+    expect(diagnostics).toEqual([]);
+    const hero = program!.queries[0]!.projections[0]!.arms![0]!;
+    expect(hero.include).toBe("none");
+    const types = emitProjectionTypes(program!);
+    // Hero: include none + title → only title (no id / headline from properties)
+    expect(types).toMatch(/export type Q_Entry_Hero = \{[^}]*title: string;[^}]*\};/s);
+    expect(types).not.toMatch(/export type Q_Entry_Hero = \{[^}]*\bid:/s);
+    expect(types).not.toMatch(/export type Q_Entry_Hero = \{[^}]*headline:/s);
+    // Page: inherits clause properties → id + title
+    expect(types).toMatch(/export type Q_Entry_Page = \{[^}]*id:/s);
+    expect(types).toMatch(/export type Q_Entry_Page = \{[^}]*title: string;[^}]*\};/s);
+    const code = emitProjections(program!);
+    expect(code).toContain('case "Hero":');
+    expect(code).toContain("shell.title = payload.title;");
+    expect(code).not.toContain("shell.headline");
   });
 
   it("fixture page-detail still parseAndCheck clean", () => {

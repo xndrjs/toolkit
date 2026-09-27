@@ -189,10 +189,11 @@ export type ProjectionArm = {
   selectedFields: string[];
   expansions: Expansion[];
   /**
-   * `include all` | `include properties` on this `when` arm, or `null` when
-   * absent. Effective include is `arm.include ?? projection.include`.
+   * `include all` | `include properties` | `include none` on this `when` arm,
+   * or `null` when absent. Effective include is
+   * `arm.include ?? projection.include` (`include none` overrides a parent).
    */
-  include: "all" | "properties" | null;
+  include: "all" | "properties" | "none" | null;
   span: SourceSpan | null;
 };
 
@@ -219,14 +220,14 @@ export type ResourceProjection = {
    */
   expansions: Expansion[];
   /**
-   * `include all` | `include properties` on the projection clause, or `null`
-   * when absent / resolve-only. Per-arm effective include is
-   * `arm.include ?? projection.include`. Effective selection =
-   * `(selectedFields ∪ includeSet) − expansionAliases` against the relevant
-   * payload (full resource for flat; narrowed for when-arms) — see
-   * `resolveSelectedFields`.
+   * `include all` | `include properties` | `include none` on the projection
+   * clause, or `null` when absent / resolve-only. Per-arm effective include is
+   * `arm.include ?? projection.include` (`include none` overrides a parent).
+   * Effective selection = `(selectedFields ∪ includeSet) − expansionAliases`
+   * against the relevant payload (full resource for flat; narrowed for
+   * when-arms) — see `resolveSelectedFields`.
    */
-  include: "all" | "properties" | null;
+  include: "all" | "properties" | "none" | null;
   /**
    * Discriminant `when` arms, or `null` for an unconditional flat `on` body.
    * Mixing flat fields/expansions with arms is rejected by the checker.

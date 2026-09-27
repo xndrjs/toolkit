@@ -42,6 +42,7 @@ export type ZielKeywordNames =
   | "in"
   | "include"
   | "islands"
+  | "none"
   | "not"
   | "null"
   | "number"
@@ -380,7 +381,10 @@ export function isIdentityRef(item: unknown): item is IdentityRef {
   return reflection.isInstance(item, IdentityRef.$type);
 }
 
-/** `include all` | `include properties` — Langium may store as `"includeall"` / `"includeproperties"`. */
+/**
+ * `include all` | `include properties` | `include none` — Langium may store as
+ * `"includeall"` / `"includeproperties"` / `"includenone"`.
+ */
 export type IncludeMode = string;
 
 export function isIncludeMode(item: unknown): item is IncludeMode {
@@ -645,7 +649,8 @@ export function isPrimitiveTypeExpr(item: unknown): item is PrimitiveTypeExpr {
  *   2. Armed: whenArms+ only
  *   3. Preamble + armed: items+ whenArms+
  *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
- * Shapes 1–3 may optionally use `include all` or `include properties` before `{`.
+ * Shapes 1–3 may optionally use `include all`, `include properties`, or
+ * `include none` before `{`.
  * Items after the first `when` are a parse error (whenArms only follow).
  * Resolve form is mutually exclusive with projection body at parse time.
  * IR-built programs that mix root fields with arms are still rejected by check.

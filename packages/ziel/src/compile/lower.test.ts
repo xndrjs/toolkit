@@ -454,7 +454,7 @@ describe("lowerProgram — fragments", () => {
     });
   });
 
-  it("lowers include all / include properties onto ResourceProjection.include", () => {
+  it("lowers include all / include properties / include none onto ResourceProjection.include", () => {
     const program = lowerProgram(
       parseSource(`
         scalar Id on string;
@@ -464,6 +464,7 @@ describe("lowerProgram — fragments", () => {
           root Page(id: id)
           on Page p include all { id }
           on Page q include properties { title }
+          on Page n include none { title }
           on Page r { id }
         }
       `)
@@ -473,6 +474,7 @@ describe("lowerProgram — fragments", () => {
     expect(program.queries[0]!.projections.map((p) => p.include)).toEqual([
       "all",
       "properties",
+      "none",
       null,
     ]);
   });
@@ -494,15 +496,21 @@ describe("lowerProgram — fragments", () => {
             when f.type == "Hero" include all { id }
             when f.type == "Page" { id }
           }
+          on Entry g include properties {
+            when g.type == "Hero" include none { title }
+            when g.type == "Page" { id }
+          }
         }
       `)
     );
 
-    const [withClause, withoutClause] = program.queries[0]!.projections;
+    const [withClause, withoutClause, noneOverride] = program.queries[0]!.projections;
     expect(withClause!.include).toBe("all");
     expect(withClause!.arms!.map((arm) => arm.include)).toEqual(["properties", null]);
     expect(withoutClause!.include).toBeNull();
     expect(withoutClause!.arms!.map((arm) => arm.include)).toEqual(["all", null]);
+    expect(noneOverride!.include).toBe("properties");
+    expect(noneOverride!.arms!.map((arm) => arm.include)).toEqual(["none", null]);
   });
 
   it("reports UNKNOWN_FRAGMENT, FRAGMENT_RESOURCE_MISMATCH, and FRAGMENT_CYCLE", () => {

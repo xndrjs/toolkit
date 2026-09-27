@@ -8,12 +8,16 @@ export type SelectableField = {
   refers: RefersTarget[] | null;
 };
 
+/** IR include mode on projection clauses / when-arms (`null` = omitted). */
+export type IncludeMode = "all" | "properties" | "none";
+
 /**
  * Fields selectable from a resource payload for `include all` / `include properties`.
  * Object payloads: all fields. Unions: **intersection** across members (same bar as
  * `UNKNOWN_SELECTED_FIELD` / `payloadHasField`).
  *
  * For intersection fields, `refers` is non-null when any member's field has `refers`.
+ * `include none` does not use this list (empty auto-include).
  */
 export function payloadSelectableFields(
   payloadType: TypeExpr,
@@ -68,18 +72,25 @@ function includeFieldNames(
  * flat clauses, or the **narrowed** arm payload for `when` arms. Callers pass
  * effective include (`arm.include ?? projection.include`).
  *
+ * `include none` is a real mode (not `null`): auto-include is empty, but
+ * explicit `selected` still remain. Omitted include (`null`) also yields an
+ * empty auto-include set; inheritance is handled by callers via `??`.
+ *
  * Expand aliases silently shadow same-named native fields. Callers should run
  * `UNKNOWN_SELECTED_FIELD` / type emit on this list.
  */
 export function resolveSelectedFields(
   selected: readonly string[],
   expansions: readonly Expansion[],
-  include: "all" | "properties" | null,
+  include: IncludeMode | null,
   payloadType: TypeExpr,
   resources: PayloadTypeLookup
 ): string[] {
   const expandAliases = new Set(expansions.map((e) => e.alias));
-  const included = include !== null ? includeFieldNames(include, payloadType, resources) : [];
+  const included =
+    include === null || include === "none"
+      ? []
+      : includeFieldNames(include, payloadType, resources);
 
   const ordered: string[] = [];
   const seen = new Set<string>();
@@ -91,11 +102,15 @@ export function resolveSelectedFields(
   return ordered;
 }
 
-/** Normalize Langium `IncludeMode` (`"includeall"` / `"includeproperties"`) to IR. */
-export function normalizeIncludeMode(raw: string | undefined | null): "all" | "properties" | null {
+/**
+ * Normalize Langium `IncludeMode`
+ * (`"includeall"` / `"includeproperties"` / `"includenone"`) to IR.
+ */
+export function normalizeIncludeMode(raw: string | undefined | null): IncludeMode | null {
   if (raw == null || raw === "") return null;
   const compact = raw.replace(/\s+/g, "").toLowerCase();
   if (compact === "includeall" || compact === "all") return "all";
   if (compact === "includeproperties" || compact === "properties") return "properties";
+  if (compact === "includenone" || compact === "none") return "none";
   return null;
 }

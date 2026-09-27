@@ -1550,7 +1550,7 @@ export const ZielGrammar = (): Grammar =>
       "entry": false,
       "fragment": false,
       "parameters": [],
-      "$comment": "/**\\n * Four shapes (items = fields | expands | spreads):\\n *   1. Flat: items* (no when)\\n *   2. Armed: whenArms+ only\\n *   3. Preamble + armed: items+ whenArms+\\n *   4. Resolve-only: \`resolve to { ResolveArm+ }\` — no fields / expands / spreads / whenArms\\n * Shapes 1–3 may optionally use \`include all\` or \`include properties\` before \`{\`.\\n * Items after the first \`when\` are a parse error (whenArms only follow).\\n * Resolve form is mutually exclusive with projection body at parse time.\\n * IR-built programs that mix root fields with arms are still rejected by check.\\n */"
+      "$comment": "/**\\n * Four shapes (items = fields | expands | spreads):\\n *   1. Flat: items* (no when)\\n *   2. Armed: whenArms+ only\\n *   3. Preamble + armed: items+ whenArms+\\n *   4. Resolve-only: \`resolve to { ResolveArm+ }\` — no fields / expands / spreads / whenArms\\n * Shapes 1–3 may optionally use \`include all\`, \`include properties\`, or\\n * \`include none\` before \`{\`.\\n * Items after the first \`when\` are a parse error (whenArms only follow).\\n * Resolve form is mutually exclusive with projection body at parse time.\\n * IR-built programs that mix root fields with arms are still rejected by check.\\n */"
     },
     {
       "$type": "ParserRule",
@@ -1584,13 +1584,26 @@ export const ZielGrammar = (): Grammar =>
                 "value": "properties"
               }
             ]
+          },
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Keyword",
+                "value": "include"
+              },
+              {
+                "$type": "Keyword",
+                "value": "none"
+              }
+            ]
           }
         ]
       },
       "entry": false,
       "fragment": false,
       "parameters": [],
-      "$comment": "/** \`include all\` | \`include properties\` — Langium may store as \`\\"includeall\\"\` / \`\\"includeproperties\\"\`. */"
+      "$comment": "/**\\n * \`include all\` | \`include properties\` | \`include none\` — Langium may store as\\n * \`\\"includeall\\"\` / \`\\"includeproperties\\"\` / \`\\"includenone\\"\`.\\n */"
     },
     {
       "$type": "ParserRule",
