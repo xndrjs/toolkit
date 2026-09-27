@@ -1,10 +1,11 @@
 /**
- * Merge resource + strategy + projection + resolve façade codegen into one
- * TypeScript module for the product path (`buildResources` / CLI). Keeps
- * `generateResources` / `generateStrategies` / `generateProjections` as focused
- * unit-test entry points with separate imports.
+ * Merge resource + datasource + strategy + projection + resolve façade codegen
+ * into one TypeScript module for the product path (`buildResources` / CLI).
+ * Keeps `generateResources` / `generateStrategies` / `generateProjections` /
+ * `generateDataSources` as focused unit-test entry points with separate imports.
  */
 import type { Program } from "../../ir";
+import { datasourcesNeedSourceRouteContext, emitDataSources } from "./datasources";
 import type { GenerateResourcesOptions } from "./generators/generate-resources";
 import { emitProjectionTypes, emitProjections } from "./projections";
 import { emitPayloadTypes, emitRegistry, emitResources, emitScalars } from "./resources";
@@ -41,12 +42,12 @@ function emitRuntimeImport(importFrom: string, symbols: string[]): string {
 
 /**
  * Compose a single generated module: scalars / ARIs / payloads / registry,
- * plus open strategy builders, projectors, and resolve façades when the program
- * has queries.
+ * plus `createDataSources` when datasources are declared, and open strategy
+ * builders, projectors, and resolve façades when the program has queries.
  *
  * Uses one header and one runtime import (`ari`, `s`,
- * `createGraphResolutionStrategy`, `createResourceGraphResolver`, and related
- * types as needed).
+ * `createGraphResolutionStrategy`, `defineDataSourceFor`,
+ * `createResourceGraphResolver`, and related types as needed).
  */
 export function composeGeneratedModule(
   program: Program,
@@ -74,6 +75,11 @@ export function composeGeneratedModule(
   const registry = emitRegistry(program, registryTypeName);
   if (registry.length > 0) {
     bodyParts.push(registry);
+  }
+
+  const datasources = emitDataSources(program, registryTypeName);
+  if (datasources.length > 0) {
+    bodyParts.push(datasources);
   }
 
   const strategies = emitStrategies(program, registryTypeName);
@@ -109,6 +115,19 @@ export function composeGeneratedModule(
     importSymbols.push("type ContentMap");
     if (program.queries.some((q) => q.projections.some((p) => p.resolveArms !== null))) {
       importSymbols.push("type ApplicationResourceIdentifier", "type ResourceKey");
+    }
+  }
+
+  if (datasources.length > 0) {
+    for (const symbol of ["defineDataSourceFor", "type DataSource", "type ResourceLoadContext"]) {
+      if (!importSymbols.includes(symbol)) {
+        importSymbols.push(symbol);
+      }
+    }
+    if (datasourcesNeedSourceRouteContext(program)) {
+      if (!importSymbols.includes("type SourceRouteContext")) {
+        importSymbols.push("type SourceRouteContext");
+      }
     }
   }
 

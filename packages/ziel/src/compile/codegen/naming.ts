@@ -82,3 +82,16 @@ export function projectionVariantTypeName(
 ): string {
   return `${queryName}_${resourceName}_${variant}`;
 }
+
+/** Aggregate execution context merged from all datasource `context` blocks. */
+export const ZIEL_EXECUTION_CONTEXT_TYPE_NAME = "ZielExecutionContext";
+
+/** `CmsSource` → `CmsSourceContext` */
+export function datasourceContextTypeName(datasourceName: string): string {
+  return `${datasourceName}Context`;
+}
+
+/** `CmsSource` → `CmsSourceConfig` (module-private config shape). */
+export function datasourceConfigTypeName(datasourceName: string): string {
+  return `${datasourceName}Config`;
+}

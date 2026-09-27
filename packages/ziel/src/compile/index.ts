@@ -38,6 +38,11 @@ export {
   type GenerateProjectionsResult,
 } from "./codegen/generators/generate-projections";
 export {
+  generateDataSources,
+  type GenerateDataSourcesOptions,
+  type GenerateDataSourcesResult,
+} from "./codegen/generators/generate-datasources";
+export {
   buildResources,
   type BuildResourcesOptions,
   type BuildResourcesResult,

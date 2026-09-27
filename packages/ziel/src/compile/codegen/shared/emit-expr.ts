@@ -39,6 +39,17 @@ export const strategyArmedBodyScope: EmitExprScope = {
   resource: "predicate.resource",
 };
 
+/**
+ * Datasource route `when` — destructured `{ executionContext, resource }` locals
+ * on `SourceRouteContext`.
+ */
+export const datasourceExprScope: EmitExprScope = {
+  params: "params",
+  executionContext: "executionContext",
+  payload: "payload",
+  resource: "resource",
+};
+
 /** Join a property path onto a base identifier (`payload`, `ctx.payload`, …). */
 function memberAccess(base: string, path: readonly string[]): string {
   if (path.length === 0) {
