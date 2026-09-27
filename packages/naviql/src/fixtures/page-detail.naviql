@@ -123,21 +123,6 @@ resource Page(
   related: CustomReferenceValue[] refers CustomReference
 }
 
-fragment EntryBase on Entry e {
-  type
-  id
-}
-
-fragment BrandChrome on Entry e {
-  title
-  expand logo: Asset(
-    spaceId: @e.spaceId,
-    environmentId: @e.environmentId,
-    id: e.logoId,
-    locale: @e.locale
-  )
-}
-
 query PageDetail(pageId: EntryId) {
   context {
     spaceId: SpaceId
@@ -197,9 +182,7 @@ query PageDetail(pageId: EntryId) {
   }
 
   on Entry e {
-    ...EntryBase
-    when e.type == "Hero" {
-      title
+    when e.type == "Hero" include properties {
       expand image: Asset(
         spaceId: @e.spaceId,
         environmentId: @e.environmentId,
@@ -207,8 +190,7 @@ query PageDetail(pageId: EntryId) {
         locale: @e.locale
       )
     }
-    when e.type == "Tabs" {
-      title
+    when e.type == "Tabs" include properties {
       expand tabs: each link in e.tabs (
         Entry(
           spaceId: @e.spaceId,
@@ -218,8 +200,7 @@ query PageDetail(pageId: EntryId) {
         )
       )
     }
-    when e.type == "Tab" {
-      title
+    when e.type == "Tab" include properties {
       expand strips: each link in e.strips (
         Entry(
           spaceId: @e.spaceId,
@@ -229,17 +210,24 @@ query PageDetail(pageId: EntryId) {
         )
       )
     }
-    when e.type == "Product" {
-      sku
-      title
+    when e.type == "Product" include properties { }
+    when e.type == "Menu" include properties {
+      expand logo: Asset(
+        spaceId: @e.spaceId,
+        environmentId: @e.environmentId,
+        id: e.logoId,
+        locale: @e.locale
+      )
     }
-    when e.type == "Menu" {
-      ...BrandChrome
+    when e.type == "Footer" include properties {
+      expand logo: Asset(
+        spaceId: @e.spaceId,
+        environmentId: @e.environmentId,
+        id: e.logoId,
+        locale: @e.locale
+      )
     }
-    when e.type == "Footer" {
-      ...BrandChrome
-    }
-    when e.type == "SiteInternalLink" {
+    when e.type == "SiteInternalLink" include properties {
       expand target: Entry(
         spaceId: @e.spaceId,
         environmentId: @e.environmentId,
@@ -247,12 +235,10 @@ query PageDetail(pageId: EntryId) {
         locale: @e.locale
       )
     }
-    when e.type == "Page" {
-    }
+    when e.type == "Page" include properties { }
   }
 
-  on Asset a include properties {
-  }
+  on Asset a include properties { }
 
   islands {
     on Entry e when e.type == "Menu" or e.type == "Footer"

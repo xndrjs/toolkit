@@ -156,4 +156,46 @@ on Entry e when e.type=="Menu" or e.type=="Footer" and e.type!="X"
     expect(formatted).toMatch(/e\.type == "Menu"\n {6}or e\.type == "Footer"/);
     expect(formatted).toMatch(/e\.type == "Footer"\n {6}and e\.type != "X"/);
   });
+
+  it("formats empty when arms and empty include clauses as { }", async () => {
+    const messy = `
+scalar Id on string;
+resource Entry(id:Id):{type:string id}
+resource Asset(id:Id):{id}
+query Q(id:Id){
+root Entry(id:id)
+on Entry e{
+when e.type=="Page"{
+}
+when e.type=="Hero"{title}
+}
+on Asset a include properties{
+}
+}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain('when e.type == "Page" { }');
+    expect(formatted).not.toMatch(/when e\.type == "Page" \{\s*\n\s*\}/);
+    expect(formatted).toMatch(/when e\.type == "Hero" \{\n {6}title\n {4}\}/);
+    expect(formatted).toContain("on Asset a include properties { }");
+  });
+
+  it("spaces include on when arms before {", async () => {
+    const messy = `
+scalar Id on string;
+resource Entry(id:Id):{type:string title:string}
+query Q(id:Id){
+root Entry(id:id)
+on Entry e{
+when e.type=="Hero"include properties{title}
+when e.type=="Page"include all{}
+}
+}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain('when e.type == "Hero" include properties {');
+    expect(formatted).toContain('when e.type == "Page" include all { }');
+  });
 });

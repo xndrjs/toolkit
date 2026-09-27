@@ -67,10 +67,7 @@ describe("NaviQl MVP grammar", () => {
     const model = parseSource(loadFixture("page-detail.naviql"));
     expect(model.declarations.filter(isScalarDeclaration)).toHaveLength(7);
     expect(model.declarations.filter(isResourceDeclaration)).toHaveLength(4);
-    expect(model.declarations.filter(isFragmentDeclaration).map((f) => f.name)).toEqual([
-      "EntryBase",
-      "BrandChrome",
-    ]);
+    expect(model.declarations.filter(isFragmentDeclaration)).toHaveLength(0);
 
     const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
     expect(query.name).toBe("PageDetail");
@@ -94,12 +91,9 @@ describe("NaviQl MVP grammar", () => {
     expect(relatedExpand?.each?.arms.map((a) => a.target.resource)).toEqual(["CustomReference"]);
 
     const entry = query.projections.find((p) => p.resource === "Entry");
-    expect(entry?.spreads.map((s) => s.name)).toEqual(["EntryBase"]);
+    expect(entry?.include).toBeUndefined();
     expect(entry?.whenArms).toHaveLength(8);
-    const menuArm = entry?.whenArms.find((arm) =>
-      arm.spreads.some((s) => s.name === "BrandChrome")
-    );
-    expect(menuArm?.spreads.map((s) => s.name)).toEqual(["BrandChrome"]);
+    expect(entry?.whenArms.every((arm) => arm.include?.includes("properties"))).toBe(true);
     const tabsArm = entry?.whenArms.find((arm) => arm.expansions.some((e) => e.alias === "tabs"));
     const tabsExpand = tabsArm?.expansions.find((e) => e.alias === "tabs");
     expect(tabsExpand?.each?.itemBinding).toBe("link");

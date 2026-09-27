@@ -1,8 +1,3 @@
-fragment EntryBase on Entry e {
-  type
-  id
-}
-
 query PageDetail(pageId: EntryId) {
   context {
     spaceId: SpaceId
@@ -94,8 +89,7 @@ query PageDetail(pageId: EntryId) {
       )
     }
 
-    when e.type == "Product" {
-    }
+    when e.type == "Product" { }
 
     when e.type == "Menu" {
       expand logo: Asset(
@@ -124,12 +118,10 @@ query PageDetail(pageId: EntryId) {
       )
     }
 
-    when e.type == "Page" {
-    }
+    when e.type == "Page" { }
   }
 
-  on Asset a include properties {
-  }
+  on Asset a include properties { }
 
   islands {
     on Entry e when e.type == "Menu"

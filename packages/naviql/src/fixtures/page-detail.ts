@@ -286,12 +286,13 @@ export function pageDetailProgram(): Program {
           projectionWithArms("Entry", "e", [
             projectionArm(
               eq(payload("e", "type"), lit("Hero")),
-              ["type", "id", "title"],
-              [assetExpand("image", "e", "imageId")]
+              [],
+              [assetExpand("image", "e", "imageId")],
+              "properties"
             ),
             projectionArm(
               eq(payload("e", "type"), lit("Tabs")),
-              ["type", "id", "title"],
+              [],
               [
                 expandEach("tabs", "link", payload("e", "tabs"), [
                   {
@@ -299,30 +300,35 @@ export function pageDetailProgram(): Program {
                     when: null,
                   },
                 ]),
-              ]
+              ],
+              "properties"
             ),
             projectionArm(
               eq(payload("e", "type"), lit("Tab")),
-              ["type", "id", "title"],
-              [stripsEach("e", "strips")]
+              [],
+              [stripsEach("e", "strips")],
+              "properties"
             ),
-            projectionArm(eq(payload("e", "type"), lit("Product")), ["type", "id", "sku", "title"]),
+            projectionArm(eq(payload("e", "type"), lit("Product")), [], [], "properties"),
             projectionArm(
               eq(payload("e", "type"), lit("Menu")),
-              ["type", "id", "title"],
-              [assetExpand("logo", "e", "logoId")]
+              [],
+              [assetExpand("logo", "e", "logoId")],
+              "properties"
             ),
             projectionArm(
               eq(payload("e", "type"), lit("Footer")),
-              ["type", "id", "title"],
-              [assetExpand("logo", "e", "logoId")]
+              [],
+              [assetExpand("logo", "e", "logoId")],
+              "properties"
             ),
             projectionArm(
               eq(payload("e", "type"), lit("SiteInternalLink")),
-              ["type", "id"],
-              [expand("target", entryConstruct("e", payload("e", "targetId")))]
+              [],
+              [expand("target", entryConstruct("e", payload("e", "targetId")))],
+              "properties"
             ),
-            projectionArm(eq(payload("e", "type"), lit("Page")), ["type", "id"]),
+            projectionArm(eq(payload("e", "type"), lit("Page")), [], [], "properties"),
           ]),
           projection("Asset", "a", [], [], null, "properties"),
         ],
