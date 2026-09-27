@@ -1,4 +1,6 @@
 import type {
+  DatasourceDefinition,
+  DatasourceResourceRoute,
   Expr,
   Expansion,
   FieldDecl,
@@ -235,6 +237,24 @@ export function query(
     Partial<Pick<QueryDefinition, "islands" | "contextDeclared">>
 ): QueryDefinition {
   return { name, span, islands: [], contextDeclared: true, ...partial };
+}
+
+/** One `for Resource [binding] [when …]` route. */
+export function datasourceRoute(
+  resourceName: string,
+  alias: string | null = null,
+  when: Expr | null = null
+): DatasourceResourceRoute {
+  return { resource: resourceName, alias, when, span };
+}
+
+/** Top-level `datasource Name { … }` IR helper. */
+export function datasource(
+  name: string,
+  routes: DatasourceResourceRoute[],
+  contextFields: FieldDecl[] = []
+): DatasourceDefinition {
+  return { name, contextFields, routes, span };
 }
 
 export function lit(value: string | number | boolean | null): Expr {

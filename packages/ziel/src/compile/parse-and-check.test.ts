@@ -32,6 +32,7 @@ describe("parseAndCheck", () => {
       scalars: [],
       resources: [],
       fragments: [],
+      datasources: [],
       queries: [],
       span: null,
     });

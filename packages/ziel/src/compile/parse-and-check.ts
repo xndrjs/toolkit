@@ -15,6 +15,7 @@ const EMPTY_PROGRAM: Program = {
   scalars: [],
   resources: [],
   fragments: [],
+  datasources: [],
   queries: [],
   span: null,
 };

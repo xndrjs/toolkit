@@ -7,7 +7,21 @@ entry Model:
     declarations+=Declaration*;
 
 Declaration:
-    ScalarDeclaration | ResourceDeclaration | FragmentDeclaration | QueryDeclaration;
+    ScalarDeclaration | ResourceDeclaration | FragmentDeclaration
+  | DatasourceDeclaration | QueryDeclaration;
+
+// --- Datasources -------------------------------------------------------------
+// Routing metadata only — load implementation lives in app codegen config.
+// `for Resource [binding] [when expr]` mirrors island clause shape (`on` → `for`).
+
+DatasourceDeclaration:
+    'datasource' name=ID '{'
+        context=ContextBlock?
+        routes+=DatasourceRoute+
+    '}';
+
+DatasourceRoute:
+    'for' resource=ID binding=ID? ('when' when=Expression)?;
 
 // --- Fragments ---------------------------------------------------------------
 // Compile-time reusable field/expand blocks. Spreads desugar in lower;

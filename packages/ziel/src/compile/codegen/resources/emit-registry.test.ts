@@ -25,6 +25,7 @@ describe("emitRegistry", () => {
       scalars: [],
       resources: [],
       fragments: [],
+      datasources: [],
       queries: [],
       span,
     };
@@ -62,6 +63,7 @@ export type ContentRegistry = {
         resource("User", [field("id", scalarRef("PostId"))], objectType()),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
       span,
     };
@@ -81,6 +83,7 @@ export type ContentRegistry = {
       scalars: [],
       resources: [resource("Tab", [field("id", scalarRef("PostId"))], objectType())],
       fragments: [],
+      datasources: [],
       queries: [],
       span,
     };

@@ -42,6 +42,7 @@ describe("emitProjectionTypes", () => {
       scalars: [],
       resources: [],
       fragments: [],
+      datasources: [],
       queries: [],
       span: null,
     };

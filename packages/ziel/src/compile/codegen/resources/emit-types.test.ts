@@ -60,6 +60,7 @@ describe("emitPayloadTypes", () => {
       scalars: [],
       resources: [],
       fragments: [],
+      datasources: [],
       queries: [],
       span,
     };
@@ -155,6 +156,7 @@ export type UserPayload = {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
       span,
     };

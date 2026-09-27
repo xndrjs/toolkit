@@ -42,6 +42,7 @@ describe("type projection Resource.field", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
     };
 
@@ -62,6 +63,7 @@ describe("type projection Resource.field", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
     };
 
@@ -82,6 +84,7 @@ describe("type projection Resource.field", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
     };
 
@@ -127,6 +130,7 @@ describe("type projection Resource.field", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
     };
 
@@ -147,6 +151,7 @@ describe("type projection Resource.field", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
     };
 
@@ -196,6 +201,7 @@ describe("type projection Resource.field", () => {
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
     };
 

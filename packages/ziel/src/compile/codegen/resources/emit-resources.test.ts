@@ -25,6 +25,7 @@ describe("emitResources", () => {
       scalars: [],
       resources: [],
       fragments: [],
+      datasources: [],
       queries: [],
       span,
     };
@@ -67,6 +68,7 @@ export type UserResource = ReturnType<typeof userAri>;
         resource("Raw", [field("n", prim("number")), field("on", prim("boolean"))], objectType()),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
       span,
     };
@@ -91,6 +93,7 @@ export type UserResource = ReturnType<typeof userAri>;
         },
       ],
       fragments: [],
+      datasources: [],
       queries: [],
       span,
     };
@@ -109,6 +112,7 @@ export type UserResource = ReturnType<typeof userAri>;
         ),
       ],
       fragments: [],
+      datasources: [],
       queries: [],
       span,
     };

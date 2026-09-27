@@ -81,6 +81,7 @@ export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnostic
     scalars,
     resources,
     fragments,
+    datasources: [],
     queries,
     span: spanOf(ast),
   };

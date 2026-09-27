@@ -35,9 +35,11 @@ export type ZielKeywordNames =
   | "and"
   | "boolean"
   | "context"
+  | "datasource"
   | "each"
   | "expand"
   | "false"
+  | "for"
   | "fragment"
   | "in"
   | "include"
@@ -132,6 +134,7 @@ export function isAtomicTypeExpr(item: unknown): item is AtomicTypeExpr {
 export interface BinaryExpr extends langium.AstNode {
   readonly $container:
     | BinaryExpr
+    | DatasourceRoute
     | EachComprehension
     | ExpandArm
     | FragmentDeclaration
@@ -173,7 +176,7 @@ export function isBooleanLiteral(item: unknown): item is BooleanLiteral {
 }
 
 export interface ContextBlock extends langium.AstNode {
-  readonly $container: QueryDeclaration;
+  readonly $container: DatasourceDeclaration | QueryDeclaration;
   readonly $type: "ContextBlock";
   fields: Array<TypedField>;
 }
@@ -201,7 +204,46 @@ export function isContextRef(item: unknown): item is ContextRef {
   return reflection.isInstance(item, ContextRef.$type);
 }
 
+export interface DatasourceDeclaration extends langium.AstNode {
+  readonly $container: Model;
+  readonly $type: "DatasourceDeclaration";
+  context?: ContextBlock;
+  name: string;
+  routes: Array<DatasourceRoute>;
+}
+
+export const DatasourceDeclaration = {
+  $type: "DatasourceDeclaration",
+  context: "context",
+  name: "name",
+  routes: "routes",
+} as const;
+
+export function isDatasourceDeclaration(item: unknown): item is DatasourceDeclaration {
+  return reflection.isInstance(item, DatasourceDeclaration.$type);
+}
+
+export interface DatasourceRoute extends langium.AstNode {
+  readonly $container: DatasourceDeclaration;
+  readonly $type: "DatasourceRoute";
+  binding?: string;
+  resource: string;
+  when?: Expression;
+}
+
+export const DatasourceRoute = {
+  $type: "DatasourceRoute",
+  binding: "binding",
+  resource: "resource",
+  when: "when",
+} as const;
+
+export function isDatasourceRoute(item: unknown): item is DatasourceRoute {
+  return reflection.isInstance(item, DatasourceRoute.$type);
+}
+
 export type Declaration =
+  | DatasourceDeclaration
   | FragmentDeclaration
   | QueryDeclaration
   | ResourceDeclaration
@@ -1009,6 +1051,7 @@ export function isTypeProjection(item: unknown): item is TypeProjection {
 export interface UnaryExpr extends langium.AstNode {
   readonly $container:
     | BinaryExpr
+    | DatasourceRoute
     | EachComprehension
     | ExpandArm
     | FragmentDeclaration
@@ -1084,6 +1127,8 @@ export type ZielAstType = {
   BooleanLiteral: BooleanLiteral;
   ContextBlock: ContextBlock;
   ContextRef: ContextRef;
+  DatasourceDeclaration: DatasourceDeclaration;
+  DatasourceRoute: DatasourceRoute;
   Declaration: Declaration;
   EachComprehension: EachComprehension;
   EqExpr: EqExpr;
@@ -1209,6 +1254,40 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [Primary.$type],
+    },
+    DatasourceDeclaration: {
+      name: DatasourceDeclaration.$type,
+      properties: {
+        context: {
+          name: DatasourceDeclaration.context,
+          optional: true,
+        },
+        name: {
+          name: DatasourceDeclaration.name,
+        },
+        routes: {
+          name: DatasourceDeclaration.routes,
+          defaultValue: [],
+        },
+      },
+      superTypes: [Declaration.$type],
+    },
+    DatasourceRoute: {
+      name: DatasourceRoute.$type,
+      properties: {
+        binding: {
+          name: DatasourceRoute.binding,
+          optional: true,
+        },
+        resource: {
+          name: DatasourceRoute.resource,
+        },
+        when: {
+          name: DatasourceRoute.when,
+          optional: true,
+        },
+      },
+      superTypes: [],
     },
     Declaration: {
       name: Declaration.$type,
