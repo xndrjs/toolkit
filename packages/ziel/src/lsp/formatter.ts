@@ -162,6 +162,19 @@ export class ZielFormatter extends AbstractFormatter {
       f.keyword("fragment").append(Formatting.oneSpace());
       f.keyword("on").surround(Formatting.oneSpace());
       f.property("binding").append(Formatting.oneSpace());
+      if (node.when) {
+        f.keyword("when").surround(Formatting.oneSpace());
+      }
+      if (node.include) {
+        f.keyword("include").surround(Formatting.oneSpace());
+        if (node.include.includes("properties")) {
+          f.keyword("properties").append(Formatting.oneSpace());
+        } else if (node.include.includes("none")) {
+          f.keyword("none").append(Formatting.oneSpace());
+        } else {
+          f.keyword("all").append(Formatting.oneSpace());
+        }
+      }
       this.formatBracedBlock(node);
       return;
     }

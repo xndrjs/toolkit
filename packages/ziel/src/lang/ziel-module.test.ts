@@ -482,4 +482,32 @@ describe("Ziel MVP grammar", () => {
       undefined,
     ]);
   });
+
+  it("parses fragment when and include modes", () => {
+    const model = parseSource(`
+      scalar Id on string;
+      scalar AssetId on string;
+      resource Entry(id: Id):
+        { type: "Hero", id, title: string }
+        | { type: "Menu", id, title: string, logoId: AssetId }
+
+      fragment MenuOnly on Entry e when e.type == "Menu" include properties {
+        logoId
+      }
+      fragment AllFields on Entry e include all { }
+      fragment NoneOnly on Entry e include none { title }
+      fragment Plain on Entry e { id }
+    `);
+
+    const fragments = model.declarations.filter(isFragmentDeclaration);
+    expect(fragments.map((f) => f.name)).toEqual(["MenuOnly", "AllFields", "NoneOnly", "Plain"]);
+    expect(fragments[0]?.when).toBeDefined();
+    expect(fragments[0]?.include).toBe("includeproperties");
+    expect(fragments[0]?.selectedFields).toEqual(["logoId"]);
+    expect(fragments[1]?.when).toBeUndefined();
+    expect(fragments[1]?.include).toBe("includeall");
+    expect(fragments[2]?.include).toBe("includenone");
+    expect(fragments[3]?.include).toBeUndefined();
+    expect(fragments[3]?.when).toBeUndefined();
+  });
 });

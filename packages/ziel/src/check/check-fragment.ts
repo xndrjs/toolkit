@@ -1,26 +1,23 @@
 /**
  * Typecheck a top-level `fragment` body in isolation.
  *
- * Fragments are often spread into narrowed `when` arms, so selected fields /
- * payload paths are validated at the spread site — not against the full
- * resource payload here. This pass focuses on scope errors that are always
- * wrong at the declaration: unknown resource, and bindings other than the
- * fragment's declared binding (plus comprehension item bindings).
+ * Same include / selected-field rules as projection `on` / `when` arms: resolve
+ * against the (narrowed) raw resource payload. Optional `when` must be boolean
+ * and narrows `payloadNarrowing` for expansions and field checks.
  *
  * `context` / params resolve when the fragment is spread into a query, so
- * those path errors are suppressed here too.
+ * those path errors are suppressed here.
  */
 import type { FragmentDefinition } from "../ir";
-import { checkExpansions } from "./check-expansions";
+import { formatType } from "./assignability";
+import { checkExpansions, checkSelectedFields } from "./check-expansions";
+import { narrowPayloadByFilter } from "./discriminants";
 import { createDiagnosticSink, type DiagnosticSink } from "./diagnostic";
-import type { QueryScope, ResourceTable, ScalarTable } from "./symbols";
+import { inferExprType } from "./expressions";
+import { resolveSelectedFields } from "./projection-include";
+import { unwrapNullable, type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
 
-const SUPPRESSED_IN_FRAGMENT = new Set([
-  "UNKNOWN_CONTEXT_PATH",
-  "UNKNOWN_PARAM",
-  "UNKNOWN_SELECTED_FIELD",
-  "UNKNOWN_PAYLOAD_PATH",
-]);
+const SUPPRESSED_IN_FRAGMENT = new Set(["UNKNOWN_CONTEXT_PATH", "UNKNOWN_PARAM"]);
 
 export function checkFragment(
   fragment: FragmentDefinition,
@@ -39,6 +36,9 @@ export function checkFragment(
     return;
   }
 
+  const resource = resources.get(fragment.resource)!;
+  const payloadType = resource.payloadType;
+
   const scope: QueryScope = {
     path,
     params: new Map(),
@@ -47,6 +47,42 @@ export function checkFragment(
     items: new Map(),
     payloadNarrowing: new Map(),
   };
+
+  let bodyPayload = payloadType;
+  if (fragment.when) {
+    const whenType = inferExprType(fragment.when, `${path}.when`, scope, resources, sink);
+    if (whenType) {
+      const prim = unwrapNullable(whenType);
+      if (prim.kind !== "primitive" || prim.name !== "boolean") {
+        sink.push({
+          code: "TYPE_MISMATCH",
+          message: `Fragment when-clause must be boolean, got ${formatType(whenType)}`,
+          path: `${path}.when`,
+          span: fragment.when.span,
+        });
+      }
+    }
+    bodyPayload =
+      narrowPayloadByFilter(payloadType, fragment.when, fragment.binding, resources) ?? payloadType;
+    scope.payloadNarrowing.set(fragment.binding, bodyPayload);
+  }
+
+  const effectiveFields = resolveSelectedFields(
+    fragment.selectedFields,
+    fragment.expansions,
+    fragment.include,
+    bodyPayload,
+    resources
+  );
+  checkSelectedFields(
+    effectiveFields,
+    bodyPayload,
+    fragment.resource,
+    path,
+    fragment.span,
+    resources,
+    sink
+  );
 
   const bodySink = createDiagnosticSink();
   checkExpansions(fragment.expansions, path, scope, scalars, resources, bodySink);
