@@ -11,8 +11,10 @@
  * Fragments and on-level preambles desugar here: spreads expand with binding
  * rewrite, preamble fields/expansions distribute into every when-arm. Fragment
  * declarations are also kept flattened in IR so unused bodies are typechecked.
+ * Datasources lower after name tables exist (routing metadata only).
  */
 import type {
+  DatasourceDefinition,
   FragmentDefinition,
   Program,
   ResourceDefinition,
@@ -21,6 +23,7 @@ import type {
 } from "../../ir";
 import { createDiagnosticSink, type Diagnostic, type DiagnosticSink } from "../../check/diagnostic";
 import {
+  isDatasourceDeclaration,
   isFragmentDeclaration,
   isQueryDeclaration,
   isResourceDeclaration,
@@ -32,6 +35,7 @@ import {
 } from "../../lang/generated/ast";
 import type { PayloadTypeLookup } from "../../check/discriminants";
 import { normalizeIncludeMode } from "../../check/projection-include";
+import { lowerDatasource } from "./datasources";
 import { expandBody, lowerEnclosingWhen, type FragmentTable } from "./fragments";
 import { lowerQuery } from "./query";
 import { spanOf } from "./span";
@@ -63,6 +67,7 @@ export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnostic
   );
 
   const fragments: FragmentDefinition[] = [];
+  const datasources: DatasourceDefinition[] = [];
   const queries: QueryDefinition[] = [];
 
   for (const decl of ast.declarations) {
@@ -72,6 +77,8 @@ export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnostic
         continue;
       }
       fragments.push(lowerFragment(decl, fragmentTable, payloadLookup, sink));
+    } else if (isDatasourceDeclaration(decl)) {
+      datasources.push(lowerDatasource(decl, tables));
     } else if (isQueryDeclaration(decl)) {
       queries.push(lowerQuery(decl, tables, fragmentTable, payloadLookup, sink));
     }
@@ -81,7 +88,7 @@ export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnostic
     scalars,
     resources,
     fragments,
-    datasources: [],
+    datasources,
     queries,
     span: spanOf(ast),
   };
