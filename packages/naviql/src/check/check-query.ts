@@ -18,6 +18,7 @@ import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
 import { narrowPayloadByFilter } from "./discriminants";
 import { inferExprType } from "./expressions";
+import { resolveSelectedFields } from "./projection-include";
 import {
   checkTypeExpr,
   checkUniqueFields,
@@ -122,6 +123,15 @@ export function checkQuery(
       });
     }
 
+    if (projection.resolveArms !== null && projection.include !== null) {
+      sink.push({
+        code: "INCLUDE_ON_RESOLVE",
+        message: `Projection 'on ${projection.resource}' cannot use 'include' with 'resolve to'`,
+        path: projPath,
+        span: projection.span,
+      });
+    }
+
     if (projection.resolveArms !== null) {
       for (let i = 0; i < projection.resolveArms.length; i++) {
         checkResolveArm(
@@ -151,6 +161,7 @@ export function checkQuery(
           `${projPath}.arms.${i}`,
           projection.binding,
           projection.resource,
+          projection.include,
           resource.payloadType,
           scope,
           scalars,
@@ -168,8 +179,15 @@ export function checkQuery(
         sink
       );
     } else {
-      checkSelectedFields(
+      const effectiveFields = resolveSelectedFields(
         projection.selectedFields,
+        projection.expansions,
+        projection.include,
+        projection.resource,
+        resources
+      );
+      checkSelectedFields(
+        effectiveFields,
         resource.payloadType,
         projection.resource,
         projPath,
@@ -272,6 +290,7 @@ function checkProjectionArm(
   armPath: string,
   binding: string,
   resourceName: string,
+  include: "all" | "properties" | null,
   payloadType: TypeExpr,
   scope: QueryScope,
   scalars: ScalarTable,
@@ -297,14 +316,13 @@ function checkProjectionArm(
     payloadNarrowing: new Map([...scope.payloadNarrowing, [binding, narrowed]]),
   };
 
-  checkSelectedFields(
+  const effectiveFields = resolveSelectedFields(
     arm.selectedFields,
-    narrowed,
+    arm.expansions,
+    include,
     resourceName,
-    armPath,
-    arm.span,
-    resources,
-    sink
+    resources
   );
+  checkSelectedFields(effectiveFields, narrowed, resourceName, armPath, arm.span, resources, sink);
   checkExpansions(arm.expansions, armPath, bodyScope, scalars, resources, sink);
 }

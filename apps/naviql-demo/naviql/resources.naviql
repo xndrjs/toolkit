@@ -118,7 +118,7 @@ resource Page(
   // Standard CMS links: entry id only — no content-type discriminant.
   strips: {
     id: EntryId
-  }[]
+  }[] refers Entry
   // Legacy custom references (same target may also appear as a standard link).
-  related: CustomReferenceValue[]
+  related: CustomReferenceValue[] refers CustomReference
 }

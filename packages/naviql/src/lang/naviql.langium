@@ -49,14 +49,15 @@ TypedField:
 ObjectField:
     name=ID (':' type=TypeExpr)? (refers=RefersClause)?;
 
-/** `refers Entry with { type: "Menu" } | Entry with { type: "Footer" }` */
+/** `refers Entry` or `refers Entry with { type: "Menu" } | Entry with { type: "Footer" }` */
 RefersClause:
     'refers' targets+=RefersTarget ('|' targets+=RefersTarget)*;
 
+/** Bare `Entry` matches any payload member; `with { … }` narrows by pattern. */
 RefersTarget:
-    resource=ID 'with' '{'
+    resource=ID ('with' '{'
         fields+=RefersPatternField (',' fields+=RefersPatternField)*
-    '}';
+    '}')?;
 
 /** Partial payload pattern: AND across fields; `|` = OR on that field's literals. */
 RefersPatternField:
@@ -141,6 +142,7 @@ RootEntry:
  *   2. Armed: whenArms+ only
  *   3. Preamble + armed: items+ whenArms+
  *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
+ * Shapes 1–3 may optionally use `include all` or `include properties` before `{`.
  * Items after the first `when` are a parse error (whenArms only follow).
  * Resolve form is mutually exclusive with projection body at parse time.
  * IR-built programs that mix root fields with arms are still rejected by check.
@@ -150,15 +152,19 @@ ProjectionClause:
         'resolve' 'to' '{'
             resolveArms+=ResolveArm+
         '}'
-      | '{'
+      | (include=IncludeMode)? '{'
             (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
             whenArms+=ProjectionWhenArm*
         '}'
     );
 
-/** Discriminant arm: `when e.type == "Hero" { … }`. */
+/** `include all` | `include properties` — Langium may store as `"includeall"` / `"includeproperties"`. */
+IncludeMode returns string:
+    'include' 'all' | 'include' 'properties';
+
+/** Discriminant arm: `when e.type == "Hero" include properties { … }`. */
 ProjectionWhenArm:
-    'when' when=Expression '{'
+    'when' when=Expression (include=IncludeMode)? '{'
         (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread)*
     '}';
 

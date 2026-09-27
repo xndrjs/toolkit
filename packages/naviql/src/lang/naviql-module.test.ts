@@ -439,4 +439,47 @@ describe("NaviQl MVP grammar", () => {
     `);
     expect(result.parserErrors.length).toBeGreaterThan(0);
   });
+
+  it("parses include all / include properties on projection clauses", () => {
+    const model = parseSource(`
+      scalar Id on string;
+      resource Page(id: Id): { id: Id, title: string }
+      query Q(id: Id) {
+        root Page(id: id)
+        on Page p include all { id }
+        on Page q include properties { title }
+        on Page r { id }
+      }
+    `);
+    const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
+    expect(query.projections.map((p) => p.include)).toEqual([
+      "includeall",
+      "includeproperties",
+      undefined,
+    ]);
+  });
+
+  it("parses include all / include properties on projection when-arms", () => {
+    const model = parseSource(`
+      scalar Id on string;
+      resource Entry(id: Id):
+        { type: "Hero", id, title: string }
+        | { type: "Page", id }
+      query Q(id: Id) {
+        root Entry(id: id)
+        on Entry e {
+          when e.type == "Hero" include all { id }
+          when e.type == "Page" include properties { }
+          when e.type == "Hero" { id }
+        }
+      }
+    `);
+    const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
+    const clause = query.projections[0]!;
+    expect(clause.whenArms.map((arm) => arm.include)).toEqual([
+      "includeall",
+      "includeproperties",
+      undefined,
+    ]);
+  });
 });

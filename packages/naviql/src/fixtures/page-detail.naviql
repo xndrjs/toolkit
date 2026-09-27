@@ -118,9 +118,9 @@ resource Page(
   // Standard CMS links: entry id only — no content-type discriminant.
   strips: {
     id: EntryId
-  }[]
+  }[] refers Entry
   // Legacy custom references (same target may also appear as a standard link).
-  related: CustomReferenceValue[]
+  related: CustomReferenceValue[] refers CustomReference
 }
 
 fragment EntryBase on Entry e {
@@ -152,9 +152,7 @@ query PageDetail(pageId: EntryId) {
     locale: context.locale
   )
 
-  on Page p {
-    id
-    title
+  on Page p include properties {
     expand menu: Entry(
       spaceId: @p.spaceId,
       environmentId: @p.environmentId,
@@ -253,11 +251,7 @@ query PageDetail(pageId: EntryId) {
     }
   }
 
-  on Asset a {
-    id
-    url
-    title
-    kind
+  on Asset a include properties {
   }
 
   islands {
