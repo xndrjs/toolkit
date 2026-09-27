@@ -1,4 +1,5 @@
 export {
+  datasourceExprScope,
   emitExpr,
   projectionArmDiscriminant,
   projectionExprScope,
