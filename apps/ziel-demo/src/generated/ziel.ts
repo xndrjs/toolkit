@@ -375,14 +375,6 @@ export type PageDetail_Entry_Tab = {
   strips: PageDetail_Entry[];
 };
 
-export type PageDetail_Entry_Product = {
-  $type: "Entry";
-  type: "Product";
-  id: EntryId;
-  sku: Sku;
-  title: string;
-};
-
 export type PageDetail_Entry_Menu = {
   $type: "Entry";
   type: "Menu";
@@ -416,15 +408,23 @@ export type PageDetail_Entry_Page = {
   title: string;
 };
 
+export type PageDetail_Entry_Product = {
+  $type: "Entry";
+  type: "Product";
+  id: EntryId;
+  sku: Sku;
+  title: string;
+};
+
 export type PageDetail_Entry =
   | PageDetail_Entry_Hero
   | PageDetail_Entry_Tabs
   | PageDetail_Entry_Tab
-  | PageDetail_Entry_Product
   | PageDetail_Entry_Menu
   | PageDetail_Entry_Footer
   | PageDetail_Entry_SiteInternalLink
-  | PageDetail_Entry_Page;
+  | PageDetail_Entry_Page
+  | PageDetail_Entry_Product;
 
 export type PageDetail_Asset = {
   $type: "Asset";
@@ -539,15 +539,6 @@ export function projectPageDetail(
         );
         return shell;
       }
-      case "Product": {
-        const shell: any = { $type: "Entry" };
-        memo.set(resource.toString(), shell);
-        shell.type = payload.type;
-        shell.id = payload.id;
-        shell.sku = payload.sku;
-        shell.title = payload.title;
-        return shell;
-      }
       case "Menu": {
         const shell: any = { $type: "Entry" };
         memo.set(resource.toString(), shell);
@@ -603,6 +594,15 @@ export function projectPageDetail(
         memo.set(resource.toString(), shell);
         shell.type = payload.type;
         shell.id = payload.id;
+        shell.title = payload.title;
+        return shell;
+      }
+      case "Product": {
+        const shell: any = { $type: "Entry" };
+        memo.set(resource.toString(), shell);
+        shell.type = payload.type;
+        shell.id = payload.id;
+        shell.sku = payload.sku;
         shell.title = payload.title;
         return shell;
       }

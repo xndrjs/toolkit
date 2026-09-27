@@ -162,6 +162,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     const { program, diagnostics } = parseAndCheck(`
       ${prelude}
       query Q(id: Id) {
+        context { }
         root Page(id: id)
         on Page p include properties {
           expand strips: each link in p.strips (
@@ -186,6 +187,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     const { program, diagnostics } = parseAndCheck(`
       ${prelude}
       query Q(id: Id) {
+        context { }
         root Page(id: id)
         on Page p include properties {
           expand strips: each link in p.strips (
@@ -218,6 +220,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         { type: "Hero", id, title: string, headline: string, imageId: Id refers Entry }
         | { type: "Page", id, title: string }
       query Q(id: Id) {
+        context { }
         root Entry(id: id)
         on Entry e {
           when e.type == "Hero" include properties {
@@ -245,6 +248,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         { type: "Hero", id, title: string, imageId: Id refers Entry }
         | { type: "Page", id, title: string }
       query Q(id: Id) {
+        context { }
         root Entry(id: id)
         on Entry e include all {
           when e.type == "Hero" include properties { }

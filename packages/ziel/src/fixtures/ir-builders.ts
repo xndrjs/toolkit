@@ -231,10 +231,10 @@ export function resolveArm(
 
 export function query(
   name: string,
-  partial: Omit<QueryDefinition, "name" | "span" | "islands"> &
-    Partial<Pick<QueryDefinition, "islands">>
+  partial: Omit<QueryDefinition, "name" | "span" | "islands" | "contextDeclared"> &
+    Partial<Pick<QueryDefinition, "islands" | "contextDeclared">>
 ): QueryDefinition {
-  return { name, span, islands: [], ...partial };
+  return { name, span, islands: [], contextDeclared: true, ...partial };
 }
 
 export function lit(value: string | number | boolean | null): Expr {

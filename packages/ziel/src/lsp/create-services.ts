@@ -13,6 +13,7 @@ import {
 } from "langium/lsp";
 
 import { ZielGeneratedModule, ZielGeneratedSharedModule } from "../lang/generated/module.js";
+import { ZielCodeActionProvider } from "./code-action";
 import { ZielCompletionProvider } from "./completion";
 import { ZielDefinitionProvider } from "./definition";
 import { ZielFormatter } from "./formatter";
@@ -24,6 +25,7 @@ function createZielIntelliSenseModule(
 ): Module<LangiumServices, PartialLangiumServices> {
   return {
     lsp: {
+      CodeActionProvider: (services) => new ZielCodeActionProvider(services, semanticSnapshot),
       CompletionProvider: (services) => new ZielCompletionProvider(services, semanticSnapshot),
       DefinitionProvider: (services) => new ZielDefinitionProvider(services, semanticSnapshot),
       HoverProvider: (services) => new ZielHoverProvider(services, semanticSnapshot),
@@ -37,7 +39,7 @@ function createZielIntelliSenseModule(
  *
  * Pass `{ connection, ...NodeFileSystem }` from `langium/node` when running as a server.
  * Langium built-in validation is disabled — diagnostics come from compile APIs.
- * Hover / completion / definition read {@link SemanticSnapshotCache}.
+ * Hover / completion / definition / code actions read {@link SemanticSnapshotCache}.
  * Formatting walks the CST via {@link ZielFormatter} (no snapshot).
  */
 export function createZielLspServices(context: DefaultSharedModuleContext): {

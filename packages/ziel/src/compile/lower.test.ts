@@ -460,6 +460,7 @@ describe("lowerProgram — fragments", () => {
         scalar Id on string;
         resource Page(id: Id): { id title: string strips: { id: Id }[] }
         query Q(id: Id) {
+          context { }
           root Page(id: id)
           on Page p include all { id }
           on Page q include properties { title }
@@ -733,6 +734,7 @@ describe("lowerProgram — fragments", () => {
         resource Page(id: PageId): { id }
         resource UserSession(id: SessionId): { id }
         query Homepage(pageId: PageId, sessionId: SessionId) {
+          context { }
           roots {
             page: Page(id: pageId)
             session: UserSession(id: sessionId)

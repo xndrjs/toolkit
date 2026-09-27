@@ -84,6 +84,7 @@ export type PostDetailResult = PostDetail_Post;
       resource UserSession(id: SessionId): { id userId: string }
 
       query Homepage(pageId: PageId, sessionId: SessionId) {
+        context { }
         roots {
           page: Page(id: pageId)
           session: UserSession(id: sessionId)
