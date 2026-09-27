@@ -311,6 +311,110 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     expect(code).not.toContain("shell.headline");
   });
 
+  it("fragment include all codegen matches on-clause include all", () => {
+    const viaFragment = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): {
+        id
+        title: string
+        menuId: Id refers Page
+        strips: { id: Id }[]
+      }
+      fragment PageAll on Page p include all { }
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p { ...PageAll }
+      }
+    `);
+    const viaOn = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): {
+        id
+        title: string
+        menuId: Id refers Page
+        strips: { id: Id }[]
+      }
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p include all { }
+      }
+    `);
+
+    expect(viaFragment.diagnostics).toEqual([]);
+    expect(viaOn.diagnostics).toEqual([]);
+
+    const fragTypes = emitProjectionTypes(viaFragment.program!);
+    const onTypes = emitProjectionTypes(viaOn.program!);
+    for (const types of [fragTypes, onTypes]) {
+      expect(types).toMatch(
+        /export type Q_Page = \{[^}]*id: Id;[^}]*title: string;[^}]*menuId: Id;[^}]*strips:/s
+      );
+    }
+
+    const fragCode = emitProjections(viaFragment.program!);
+    const onCode = emitProjections(viaOn.program!);
+    for (const code of [fragCode, onCode]) {
+      expect(code).toContain("shell.id = payload.id;");
+      expect(code).toContain("shell.title = payload.title;");
+      expect(code).toContain("shell.menuId = payload.menuId;");
+      expect(code).toContain("shell.strips = payload.strips;");
+    }
+  });
+
+  it("fragment include none codegen matches on-clause include none", () => {
+    const viaFragment = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): {
+        id
+        title: string
+        menuId: Id refers Page
+        strips: { id: Id }[]
+      }
+      fragment PageNone on Page p include none { title }
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p { ...PageNone }
+      }
+    `);
+    const viaOn = parseAndCheck(`
+      scalar Id on string;
+      resource Page(id: Id): {
+        id
+        title: string
+        menuId: Id refers Page
+        strips: { id: Id }[]
+      }
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page p include none { title }
+      }
+    `);
+
+    expect(viaFragment.diagnostics).toEqual([]);
+    expect(viaOn.diagnostics).toEqual([]);
+
+    const fragTypes = emitProjectionTypes(viaFragment.program!);
+    const onTypes = emitProjectionTypes(viaOn.program!);
+    for (const types of [fragTypes, onTypes]) {
+      expect(types).toMatch(/export type Q_Page = \{[^}]*title: string;[^}]*\};/s);
+      expect(types).not.toMatch(/export type Q_Page = \{[^}]*\bid:/s);
+      expect(types).not.toMatch(/export type Q_Page = \{[^}]*menuId:/s);
+    }
+
+    const fragCode = emitProjections(viaFragment.program!);
+    const onCode = emitProjections(viaOn.program!);
+    for (const code of [fragCode, onCode]) {
+      expect(code).toContain("shell.title = payload.title;");
+      expect(code).not.toContain("shell.id =");
+      expect(code).not.toContain("shell.menuId");
+      expect(code).not.toContain("shell.strips");
+    }
+  });
+
   it("fixture page-detail still parseAndCheck clean", () => {
     const source = readFileSync(join(fixturesDir, "page-detail.ziel"), "utf8");
     const { diagnostics } = parseAndCheck(source, "file:///fixtures/page-detail.ziel");
