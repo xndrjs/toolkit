@@ -1,4 +1,5 @@
 import type { Expansion, ProjectionArm, ResourceProjection } from "../../../ir";
+import { resolveSelectedFields } from "../../../check/projection-include";
 import {
   emitConstruction,
   emitExpr,
@@ -123,14 +124,22 @@ export function emitShellBody(
   resources: ResourceIndex,
   queryName: string,
   contextFieldNames: ReadonlySet<string>,
-  indent: string
+  indent: string,
+  include: ResourceProjection["include"] = null
 ): string {
   const lines: string[] = [];
+  const effectiveFields = resolveSelectedFields(
+    selectedFields,
+    expansions,
+    include,
+    resourceName,
+    resources
+  );
 
   lines.push(`${indent}const shell: any = { $type: ${JSON.stringify(resourceName)} };`);
   lines.push(`${indent}memo.set(resource.toString(), shell);`);
 
-  for (const fieldName of selectedFields) {
+  for (const fieldName of effectiveFields) {
     lines.push(`${indent}shell.${fieldName} = payload.${fieldName};`);
   }
 
@@ -162,7 +171,8 @@ export function emitProjectOnBody(
     resources,
     queryName,
     contextFieldNames,
-    "    "
+    "    ",
+    projection.include
   );
 }
 
@@ -185,7 +195,8 @@ export function emitArmedArmCase(
       resources,
       queryName,
       contextFieldNames,
-      "          "
+      "          ",
+      projection.include
     ),
     `        }`,
   ].join("\n");
@@ -256,7 +267,8 @@ export function emitArmedProjectOnBody(
           resources,
           queryName,
           contextFieldNames,
-          "      "
+          "      ",
+          projection.include
         ),
       ].join("\n")
     );

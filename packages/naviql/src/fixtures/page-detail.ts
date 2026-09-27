@@ -208,8 +208,20 @@ export function pageDetailProgram(): Program {
               span,
             },
           ]),
-          field("strips", arrayOf(CmsLink)),
-          field("related", arrayOf(CustomReferenceValue))
+          field("strips", arrayOf(CmsLink), false, [
+            {
+              resource: "Entry",
+              fields: [],
+              span,
+            },
+          ]),
+          field("related", arrayOf(CustomReferenceValue), false, [
+            {
+              resource: "CustomReference",
+              fields: [],
+              span,
+            },
+          ])
         )
       ),
     ],
@@ -233,7 +245,7 @@ export function pageDetailProgram(): Program {
           projection(
             "Page",
             "p",
-            ["id", "title"],
+            [],
             [
               expand("menu", entryConstruct("p", payload("p", "menuId"))),
               expand("footer", entryConstruct("p", payload("p", "footerId"))),
@@ -247,7 +259,9 @@ export function pageDetailProgram(): Program {
                   when: null,
                 },
               ]),
-            ]
+            ],
+            null,
+            "properties"
           ),
           projectionWithResolve("CustomReference", "c", [
             resolveArm(
@@ -310,7 +324,7 @@ export function pageDetailProgram(): Program {
             ),
             projectionArm(eq(payload("e", "type"), lit("Page")), ["type", "id"]),
           ]),
-          projection("Asset", "a", ["id", "url", "title", "kind"]),
+          projection("Asset", "a", [], [], null, "properties"),
         ],
         islands: [
           {

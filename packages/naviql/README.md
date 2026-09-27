@@ -128,9 +128,27 @@ Object fields may declare intended expand targets with `refers` (types + check o
 menuId: EntryId refers Entry with { type: "Menu" }
 chromeId: EntryId refers Entry with { type: "Menu" | "Footer" }
 eitherId: EntryId refers Entry with { type: "Menu" } | Entry with { type: "Footer" }
+strips: { id: EntryId }[] refers Entry
 ```
 
-`with { … }` is a partial payload pattern: **AND** across fields; each field value is a string literal or `|`-union of literals (**OR** on that field). When an expand constructs a resource from a field that carries `refers`, and the query has armed `on R` variants, codegen narrows the expand alias (e.g. `PageDetail_Entry_Menu` instead of `PageDetail_Entry`). Flat (non-armed) `on R` projections are not structurally narrowed.
+Bare `refers Entry` matches any payload member. `with { … }` is a partial payload pattern: **AND** across fields; each field value is a string literal or `|`-union of literals (**OR** on that field). When an expand constructs a resource from a field that carries `refers`, and the query has armed `on R` variants, codegen narrows the expand alias (e.g. `PageDetail_Entry_Menu` instead of `PageDetail_Entry`). Flat (non-armed) `on R` projections are not structurally narrowed.
+
+### `include all` / `include properties`
+
+Projection clauses may pull payload fields without listing them:
+
+```naviql
+on Page p include properties {
+  expand menu: Entry(…)
+  expand strips: each link in p.strips ( Entry(…) )
+}
+on Asset a include all { }
+```
+
+- **`include all`**: every selectable payload field (object: all fields; union: intersection across members).
+- **`include properties`**: that set minus fields whose `refers` is set (relationships).
+- Expand aliases with the same name as a payload field **shadow** the native field (silent drop; expand wins). Explicit duplicate field names stay errors.
+- Allowed on normal `on R b { … }` only (not `resolve to`). MVP: clause-level only (not fragments / per-`when`).
 
 ### When expressions
 

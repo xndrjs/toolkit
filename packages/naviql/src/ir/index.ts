@@ -188,6 +188,11 @@ export type ProjectionArm = {
   when: Expr;
   selectedFields: string[];
   expansions: Expansion[];
+  /**
+   * `include all` | `include properties` on this `when` arm, or `null` when
+   * absent. Effective include is `arm.include ?? projection.include`.
+   */
+  include: "all" | "properties" | null;
   span: SourceSpan | null;
 };
 
@@ -213,6 +218,13 @@ export type ResourceProjection = {
    * Flat body expansions. Empty when `arms !== null` or `resolveArms !== null`.
    */
   expansions: Expansion[];
+  /**
+   * `include all` | `include properties` on the projection clause, or `null`
+   * when absent / resolve-only. Effective selection =
+   * `(selectedFields ∪ includeSet) − expansionAliases` (see
+   * `resolveSelectedFields`).
+   */
+  include: "all" | "properties" | null;
   /**
    * Discriminant `when` arms, or `null` for an unconditional flat `on` body.
    * Mixing flat fields/expansions with arms is rejected by the checker.

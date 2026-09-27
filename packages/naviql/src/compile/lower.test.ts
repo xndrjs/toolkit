@@ -454,6 +454,56 @@ describe("lowerProgram — fragments", () => {
     });
   });
 
+  it("lowers include all / include properties onto ResourceProjection.include", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+        resource Page(id: Id): { id title: string strips: { id: Id }[] }
+        query Q(id: Id) {
+          root Page(id: id)
+          on Page p include all { id }
+          on Page q include properties { title }
+          on Page r { id }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    expect(program.queries[0]!.projections.map((p) => p.include)).toEqual([
+      "all",
+      "properties",
+      null,
+    ]);
+  });
+
+  it("lowers include on when-arms (override vs inherit from clause)", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+        resource Entry(id: Id):
+          { type: "Hero", id, title: string }
+          | { type: "Page", id }
+        query Q(id: Id) {
+          root Entry(id: id)
+          on Entry e include all {
+            when e.type == "Hero" include properties { id }
+            when e.type == "Page" { id }
+          }
+          on Entry f {
+            when f.type == "Hero" include all { id }
+            when f.type == "Page" { id }
+          }
+        }
+      `)
+    );
+
+    const [withClause, withoutClause] = program.queries[0]!.projections;
+    expect(withClause!.include).toBe("all");
+    expect(withClause!.arms!.map((arm) => arm.include)).toEqual(["properties", null]);
+    expect(withoutClause!.include).toBeNull();
+    expect(withoutClause!.arms!.map((arm) => arm.include)).toEqual(["all", null]);
+  });
+
   it("reports UNKNOWN_FRAGMENT, FRAGMENT_RESOURCE_MISMATCH, and FRAGMENT_CYCLE", () => {
     const sink = createDiagnosticSink();
     lowerProgram(
