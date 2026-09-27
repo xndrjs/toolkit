@@ -291,9 +291,25 @@ export function isSingleRootQuery(query: QueryDefinition): boolean {
   return query.roots.length === 1 && query.roots[0]!.alias === null;
 }
 
+/**
+ * Compile-time reusable projection body (`fragment Name on Resource b { … }`).
+ * Spreads desugar into enclosing `on` clauses; the declaration itself is kept
+ * in IR so unused / mis-bound fragment bodies are still typechecked.
+ */
+export type FragmentDefinition = {
+  name: string;
+  resource: string;
+  binding: string;
+  selectedFields: string[];
+  expansions: Expansion[];
+  span: SourceSpan | null;
+};
+
 export type Program = {
   scalars: ScalarDefinition[];
   resources: ResourceDefinition[];
+  /** Top-level `fragment` declarations (after spread expansion within each body). */
+  fragments: FragmentDefinition[];
   queries: QueryDefinition[];
   span: SourceSpan | null;
 };

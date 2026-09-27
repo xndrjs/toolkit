@@ -41,6 +41,7 @@ describe("emitProjectionTypes", () => {
     const program: Program = {
       scalars: [],
       resources: [],
+      fragments: [],
       queries: [],
       span: null,
     };

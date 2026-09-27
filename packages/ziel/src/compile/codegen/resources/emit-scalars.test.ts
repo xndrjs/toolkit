@@ -24,6 +24,7 @@ describe("emitScalars", () => {
     const program: Program = {
       scalars: [],
       resources: [],
+      fragments: [],
       queries: [],
       span,
     };
@@ -61,6 +62,7 @@ export const Scalars = {
     const program: Program = {
       scalars: [defScalar("Count", "number"), defScalar("Flag", "boolean")],
       resources: [],
+      fragments: [],
       queries: [],
       span,
     };
@@ -78,6 +80,7 @@ export const Scalars = {
     const program: Program = {
       scalars: [defScalar("EntryId", "string"), defScalar("Locale", "string")],
       resources: [],
+      fragments: [],
       queries: [],
       span,
     };
@@ -96,6 +99,7 @@ describe("generateResources — branded scalars", () => {
     const program: Program = {
       scalars: [defScalar("PostId", "string")],
       resources: [],
+      fragments: [],
       queries: [],
       span,
     };

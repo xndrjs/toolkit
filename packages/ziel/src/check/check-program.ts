@@ -1,4 +1,5 @@
 import type { Program } from "../ir";
+import { checkFragment } from "./check-fragment";
 import { checkQuery } from "./check-query";
 import { collectResources, collectScalars } from "./collect";
 import { createDiagnosticSink, type Diagnostic } from "./diagnostic";
@@ -29,6 +30,22 @@ export function analyzeProgram(program: Program): ProgramAnalysis {
         span: scalar.span,
       });
     }
+  }
+
+  const fragmentNames = new Set<string>();
+  for (const fragment of program.fragments) {
+    const path = `fragments.${fragment.name}`;
+    if (fragmentNames.has(fragment.name)) {
+      sink.push({
+        code: "DUPLICATE_FRAGMENT",
+        message: `Duplicate fragment '${fragment.name}'`,
+        path,
+        span: fragment.span,
+      });
+      continue;
+    }
+    fragmentNames.add(fragment.name);
+    checkFragment(fragment, path, scalars, resources, sink);
   }
 
   const queryNames = new Set<string>();

@@ -14,6 +14,7 @@ import { lowerProgram } from "./lower";
 const EMPTY_PROGRAM: Program = {
   scalars: [],
   resources: [],
+  fragments: [],
   queries: [],
   span: null,
 };

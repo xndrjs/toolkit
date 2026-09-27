@@ -128,7 +128,7 @@ describe("hoverMarkdownAtOffset", () => {
     expect(Ziel.lsp.HoverProvider).toBeDefined();
     const { document, scalars, resources } = tablesFrom(FIXTURE);
     semanticSnapshot.set({
-      program: { scalars: [], resources: [], queries: [], span: null },
+      program: { scalars: [], resources: [], fragments: [], queries: [], span: null },
       scalars,
       resources,
       documentsByUri: new Map([[document.uri.toString(), document]]),

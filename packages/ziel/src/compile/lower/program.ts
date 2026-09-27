@@ -9,10 +9,16 @@
  * Do not collapse `scalarRef` / `resourceRef` to structural types.
  *
  * Fragments and on-level preambles desugar here: spreads expand with binding
- * rewrite, preamble fields/expansions distribute into every when-arm. IR stays
- * flat (no fragment / preamble nodes).
+ * rewrite, preamble fields/expansions distribute into every when-arm. Fragment
+ * declarations are also kept flattened in IR so unused bodies are typechecked.
  */
-import type { Program, ResourceDefinition, ScalarDefinition, QueryDefinition } from "../../ir";
+import type {
+  FragmentDefinition,
+  Program,
+  ResourceDefinition,
+  ScalarDefinition,
+  QueryDefinition,
+} from "../../ir";
 import { createDiagnosticSink, type Diagnostic, type DiagnosticSink } from "../../check/diagnostic";
 import {
   isFragmentDeclaration,
@@ -20,10 +26,11 @@ import {
   isResourceDeclaration,
   isScalarDeclaration,
   type Model,
+  type FragmentDeclaration as AstFragmentDeclaration,
   type ResourceDeclaration as AstResourceDeclaration,
   type ScalarDeclaration as AstScalarDeclaration,
 } from "../../lang/generated/ast";
-import { type FragmentTable } from "./fragments";
+import { expandBody, type FragmentTable } from "./fragments";
 import { lowerQuery } from "./query";
 import { spanOf } from "./span";
 import { lowerTypeExpr, lowerTypedField, type NameTables } from "./types";
@@ -34,9 +41,10 @@ import { lowerTypeExpr, lowerTypedField, type NameTables } from "./types";
  */
 export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnosticSink()): Program {
   const tables = collectNameTables(ast);
-  const fragments = collectFragments(ast, sink);
+  const fragmentTable = collectFragments(ast, sink);
   const scalars: ScalarDefinition[] = [];
   const resources: ResourceDefinition[] = [];
+  const fragments: FragmentDefinition[] = [];
   const queries: QueryDefinition[] = [];
 
   for (const decl of ast.declarations) {
@@ -44,14 +52,21 @@ export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnostic
       scalars.push(lowerScalar(decl));
     } else if (isResourceDeclaration(decl)) {
       resources.push(lowerResource(decl, tables));
+    } else if (isFragmentDeclaration(decl)) {
+      // Skip duplicates already reported by collectFragments.
+      if (fragmentTable.get(decl.name) !== decl) {
+        continue;
+      }
+      fragments.push(lowerFragment(decl, fragmentTable, sink));
     } else if (isQueryDeclaration(decl)) {
-      queries.push(lowerQuery(decl, tables, fragments, sink));
+      queries.push(lowerQuery(decl, tables, fragmentTable, sink));
     }
   }
 
   return {
     scalars,
     resources,
+    fragments,
     queries,
     span: spanOf(ast),
   };
@@ -95,6 +110,26 @@ export function collectFragments(ast: Model, sink: DiagnosticSink): FragmentTabl
     fragments.set(decl.name, decl);
   }
   return fragments;
+}
+
+/**
+ * Lower a fragment declaration: expand nested spreads with the fragment's own
+ * binding so the body can be typechecked independently of any spread site.
+ */
+export function lowerFragment(
+  decl: AstFragmentDeclaration,
+  fragments: FragmentTable,
+  sink: DiagnosticSink
+): FragmentDefinition {
+  const body = expandBody(decl, decl.resource, decl.binding, fragments, [decl.name], sink);
+  return {
+    name: decl.name,
+    resource: decl.resource,
+    binding: decl.binding,
+    selectedFields: body.selectedFields,
+    expansions: body.expansions,
+    span: spanOf(decl),
+  };
 }
 
 export function lowerScalar(decl: AstScalarDeclaration): ScalarDefinition {
