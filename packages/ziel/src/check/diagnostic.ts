@@ -10,6 +10,11 @@ export type Diagnostic = {
   path?: string;
   /** Source range for editor squiggles; `null`/absent when unknown. */
   span?: SourceSpan | null;
+  /**
+   * Structured payload for code actions / tooling (e.g. quick-fix resource name).
+   * Forwarded as LSP `diagnostic.data` when present.
+   */
+  data?: { missingResource: string };
 };
 
 export type DiagnosticSink = {

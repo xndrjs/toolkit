@@ -13,6 +13,7 @@ import {
   checkSelectedFields,
 } from "./check-expansions";
 import { checkIslands } from "./check-islands";
+import { checkRequiredOn } from "./check-required-on";
 import { checkConstruction } from "./construction";
 import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
@@ -200,6 +201,7 @@ export function checkQuery(
   }
 
   checkIslands(query.islands, path, scope, resources, sink);
+  checkRequiredOn(query, path, resources, sink);
 }
 
 /**
