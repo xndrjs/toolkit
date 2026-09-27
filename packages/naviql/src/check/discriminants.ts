@@ -157,7 +157,7 @@ export function narrowPayloadByFilter(
   payloadType: TypeExpr,
   filter: Expr,
   binding: string,
-  resources: ResourceTable
+  resources: PayloadTypeLookup
 ): TypeExpr | undefined {
   const match = payloadDiscriminantMatch(filter, binding);
   if (!match) return undefined;

@@ -333,8 +333,8 @@ function emitArmVariantType(
   const effectiveFields = resolveSelectedFields(
     arm.selectedFields,
     arm.expansions,
-    projection.include,
-    projection.resource,
+    arm.include ?? projection.include,
+    sourcePayload,
     resources
   );
 
@@ -438,7 +438,7 @@ function emitFlatResourceProjectionType(
     projection.selectedFields,
     projection.expansions,
     projection.include,
-    projection.resource,
+    resource.payloadType,
     resources
   );
 
