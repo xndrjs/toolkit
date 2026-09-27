@@ -30,9 +30,9 @@ import {
   type ResourceDeclaration as AstResourceDeclaration,
   type ScalarDeclaration as AstScalarDeclaration,
 } from "../../lang/generated/ast";
+import type { PayloadTypeLookup } from "../../check/discriminants";
 import { normalizeIncludeMode } from "../../check/projection-include";
-import { expandBody, type FragmentTable } from "./fragments";
-import { lowerExpr } from "./expr";
+import { expandBody, lowerEnclosingWhen, type FragmentTable } from "./fragments";
 import { lowerQuery } from "./query";
 import { spanOf } from "./span";
 import { lowerTypeExpr, lowerTypedField, type NameTables } from "./types";
@@ -40,28 +40,40 @@ import { lowerTypeExpr, lowerTypedField, type NameTables } from "./types";
 /**
  * Lower a Model AST to Program IR.
  * Fragment/preamble diagnostics are pushed to `sink` (created if omitted).
+ *
+ * Resources are lowered before fragments/queries so spread-site `include`
+ * resolution and `FRAGMENT_WHEN_MISMATCH` can consult payload types.
  */
 export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnosticSink()): Program {
   const tables = collectNameTables(ast);
   const fragmentTable = collectFragments(ast, sink);
   const scalars: ScalarDefinition[] = [];
   const resources: ResourceDefinition[] = [];
-  const fragments: FragmentDefinition[] = [];
-  const queries: QueryDefinition[] = [];
 
   for (const decl of ast.declarations) {
     if (isScalarDeclaration(decl)) {
       scalars.push(lowerScalar(decl));
     } else if (isResourceDeclaration(decl)) {
       resources.push(lowerResource(decl, tables));
-    } else if (isFragmentDeclaration(decl)) {
+    }
+  }
+
+  const payloadLookup: PayloadTypeLookup = new Map(
+    resources.map((r) => [r.name, { payloadType: r.payloadType }])
+  );
+
+  const fragments: FragmentDefinition[] = [];
+  const queries: QueryDefinition[] = [];
+
+  for (const decl of ast.declarations) {
+    if (isFragmentDeclaration(decl)) {
       // Skip duplicates already reported by collectFragments.
       if (fragmentTable.get(decl.name) !== decl) {
         continue;
       }
-      fragments.push(lowerFragment(decl, fragmentTable, sink));
+      fragments.push(lowerFragment(decl, fragmentTable, payloadLookup, sink));
     } else if (isQueryDeclaration(decl)) {
-      queries.push(lowerQuery(decl, tables, fragmentTable, sink));
+      queries.push(lowerQuery(decl, tables, fragmentTable, payloadLookup, sink));
     }
   }
 
@@ -78,6 +90,7 @@ export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnostic
 export const LOWER_DIAGNOSTIC_CODES = new Set([
   "UNKNOWN_FRAGMENT",
   "FRAGMENT_RESOURCE_MISMATCH",
+  "FRAGMENT_WHEN_MISMATCH",
   "FRAGMENT_CYCLE",
   "DUPLICATE_FRAGMENT",
   "DUPLICATE_SELECTED_FIELD",
@@ -118,18 +131,32 @@ export function collectFragments(ast: Model, sink: DiagnosticSink): FragmentTabl
  * Lower a fragment declaration: optional `when` / `include`, then expand nested
  * spreads with the fragment's own binding so the body can be typechecked
  * independently of any spread site.
+ *
+ * The fragment's own `include` stays on IR (applied by check/codegen); nested
+ * spreads bake *their* include into the flattened selected fields.
  */
 export function lowerFragment(
   decl: AstFragmentDeclaration,
   fragments: FragmentTable,
+  resources: PayloadTypeLookup,
   sink: DiagnosticSink
 ): FragmentDefinition {
-  const body = expandBody(decl, decl.resource, decl.binding, fragments, [decl.name], sink);
+  const when = lowerEnclosingWhen(decl.when);
+  const body = expandBody(
+    decl,
+    decl.resource,
+    decl.binding,
+    fragments,
+    [decl.name],
+    sink,
+    resources,
+    when
+  );
   return {
     name: decl.name,
     resource: decl.resource,
     binding: decl.binding,
-    when: decl.when ? lowerExpr(decl.when) : null,
+    when,
     include: normalizeIncludeMode(decl.include),
     selectedFields: body.selectedFields,
     expansions: body.expansions,

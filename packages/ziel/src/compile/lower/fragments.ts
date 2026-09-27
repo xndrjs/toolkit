@@ -1,14 +1,23 @@
 import { isCompositeCstNode, type CstNode } from "langium";
 
-import type { Expansion, Expr, ResourceConstruction, SourceSpan } from "../../ir";
+import type { Expansion, Expr, ResourceConstruction, SourceSpan, TypeExpr } from "../../ir";
+import {
+  coveredDiscriminantLabels,
+  expandPayloadObjectMembers,
+  narrowPayloadByFilter,
+  type PayloadTypeLookup,
+} from "../../check/discriminants";
 import type { DiagnosticSink } from "../../check/diagnostic";
+import { normalizeIncludeMode, resolveSelectedFields } from "../../check/projection-include";
 import {
   type Expansion as AstExpansion,
+  type Expression as AstExpression,
   type FragmentDeclaration as AstFragmentDeclaration,
   type FragmentSpread as AstFragmentSpread,
   type ProjectionClause as AstProjectionClause,
   type ProjectionWhenArm as AstProjectionWhenArm,
 } from "../../lang/generated/ast";
+import { lowerExpr } from "./expr";
 import { lowerExpansion } from "./query";
 import { spanOf } from "./span";
 
@@ -47,7 +56,9 @@ export function expandBody(
   binding: string,
   fragments: FragmentTable,
   stack: string[],
-  sink: DiagnosticSink
+  sink: DiagnosticSink,
+  resources: PayloadTypeLookup,
+  enclosingWhen: Expr | null = null
 ): FlattenedBody {
   const selectedFields: string[] = [];
   const expansions: Expansion[] = [];
@@ -68,7 +79,16 @@ export function expandBody(
     } else if (item.kind === "expansion") {
       expansions.push(lowerExpansion(item.expansion));
     } else {
-      const spreadBody = expandSpread(item.spread, resource, binding, fragments, stack, sink);
+      const spreadBody = expandSpread(
+        item.spread,
+        resource,
+        binding,
+        fragments,
+        stack,
+        sink,
+        resources,
+        enclosingWhen
+      );
       for (const field of spreadBody.selectedFields) {
         if (seenFields.has(field)) {
           sink.push({
@@ -93,7 +113,9 @@ export function expandSpread(
   binding: string,
   fragments: FragmentTable,
   stack: string[],
-  sink: DiagnosticSink
+  sink: DiagnosticSink,
+  resources: PayloadTypeLookup,
+  enclosingWhen: Expr | null = null
 ): FlattenedBody {
   const name = spread.name;
   if (stack.includes(name)) {
@@ -124,11 +146,111 @@ export function expandSpread(
     return EMPTY_BODY;
   }
 
-  const body = expandBody(frag, resource, binding, fragments, [...stack, name], sink);
+  const payloadType = resources.get(resource)?.payloadType;
+  const fragWhen = frag.when ? lowerExpr(frag.when) : null;
+
+  if (fragWhen && enclosingWhen && payloadType) {
+    if (
+      fragmentWhenMismatchesEnclosing(
+        payloadType,
+        fragWhen,
+        frag.binding,
+        enclosingWhen,
+        binding,
+        resources
+      )
+    ) {
+      sink.push({
+        code: "FRAGMENT_WHEN_MISMATCH",
+        message: `Fragment '${name}' when-clause is incompatible with enclosing arm narrowing`,
+        span: spanOf(spread),
+      });
+      return EMPTY_BODY;
+    }
+  }
+
+  // Nested spreads inside the fragment inherit the fragment's own `when` as
+  // enclosing narrowing (not the outer arm's), matching fragment-body checking.
+  const nestedEnclosing = fragWhen ?? enclosingWhen;
+  const body = expandBody(
+    frag,
+    resource,
+    binding,
+    fragments,
+    [...stack, name],
+    sink,
+    resources,
+    nestedEnclosing
+  );
+
+  const include = normalizeIncludeMode(frag.include);
+  const bodyPayload = payloadForFragmentInclude(payloadType, fragWhen, frag.binding, resources);
+  const selectedFields = bodyPayload
+    ? resolveSelectedFields(body.selectedFields, body.expansions, include, bodyPayload, resources)
+    : body.selectedFields;
+
   return {
-    selectedFields: body.selectedFields,
+    selectedFields,
     expansions: body.expansions.map((e) => rebindExpansion(e, frag.binding, binding)),
   };
+}
+
+/** Payload used for fragment `include` resolution: full or fragment-`when`-narrowed. */
+function payloadForFragmentInclude(
+  payloadType: TypeExpr | undefined,
+  fragWhen: Expr | null,
+  fragBinding: string,
+  resources: PayloadTypeLookup
+): TypeExpr | undefined {
+  if (!payloadType) return undefined;
+  if (!fragWhen) return payloadType;
+  return narrowPayloadByFilter(payloadType, fragWhen, fragBinding, resources) ?? payloadType;
+}
+
+/**
+ * True when fragment `when` and enclosing arm `when` cover disjoint discriminant
+ * labels (or narrowed payload members have no overlap).
+ */
+export function fragmentWhenMismatchesEnclosing(
+  payloadType: TypeExpr,
+  fragWhen: Expr,
+  fragBinding: string,
+  enclosingWhen: Expr,
+  enclosingBinding: string,
+  resources: PayloadTypeLookup
+): boolean {
+  const fragLabels = coveredDiscriminantLabels(fragWhen, fragBinding, "payload");
+  const armLabels = coveredDiscriminantLabels(enclosingWhen, enclosingBinding, "payload");
+  if (fragLabels.length > 0 && armLabels.length > 0) {
+    return !fragLabels.some((label) => armLabels.includes(label));
+  }
+
+  const fragNarrow = narrowPayloadByFilter(payloadType, fragWhen, fragBinding, resources);
+  const armNarrow = narrowPayloadByFilter(payloadType, enclosingWhen, enclosingBinding, resources);
+  if (!fragNarrow || !armNarrow) return false;
+
+  const fragMembers = expandPayloadObjectMembers(fragNarrow, resources);
+  const armMembers = expandPayloadObjectMembers(armNarrow, resources);
+  if (!fragMembers?.length || !armMembers?.length) return false;
+
+  const armDiscs = new Set<string>();
+  for (const member of armMembers) {
+    const typeField = member.fields.find((f) => f.name === "type");
+    if (typeField?.type.kind === "stringLiteral") {
+      armDiscs.add(typeField.type.value);
+    }
+  }
+  if (armDiscs.size === 0) return false;
+
+  return !fragMembers.some((member) => {
+    const typeField = member.fields.find((f) => f.name === "type");
+    return typeField?.type.kind === "stringLiteral" && armDiscs.has(typeField.type.value);
+  });
+}
+
+/** Lower an optional AST when-expression for use as enclosing narrowing. */
+export function lowerEnclosingWhen(when: AstExpression | undefined): Expr | null {
+  return when ? lowerExpr(when) : null;
 }
 
 /**
