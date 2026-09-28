@@ -22,50 +22,58 @@ resource Entry(
   environmentId: EnvironmentId,
   id: EntryId,
   locale: Locale
-): {
-  kind: "Hero"
-  id
-  title: string
-  imageId: AssetId refers Asset
-} | {
-  kind: "Tabs"
-  id
-  title: string
-  tabs: {
-    id: EntryId
-  }[]
-} | {
-  kind: "Tab"
-  id
-  title: string
-  strips: {
-    id: EntryId refers Entry
-  }[]
-} | {
-  kind: "Product"
-  id
-  sku: Sku
-  title: string
-} | {
-  kind: "Menu"
-  id
-  title: string
-  logoId: AssetId refers Asset
-} | {
-  kind: "Footer"
-  id
-  cta: string
-  title: string
-  logoId: AssetId refers Asset
-} | {
-  kind: "Page"
-  id
-  title: string
-} | {
-  kind: "SiteInternalLink"
-  id
-  targetId: EntryId refers Entry
-}
+):
+  {
+    kind: "Hero"
+    id
+    title: string
+    imageId: AssetId refers Asset
+  }
+  | {
+    kind: "Tabs"
+    id
+    title: string
+    tabs: {
+      id: EntryId
+    }[]
+  }
+  | {
+    kind: "Tab"
+    id
+    title: string
+    strips: {
+      id: EntryId refers Entry
+    }[]
+  }
+  | {
+    kind: "Product"
+    id
+    sku: Sku
+    title: string
+  }
+  | {
+    kind: "Menu"
+    id
+    title: string
+    logoId: AssetId refers Asset
+  }
+  | {
+    kind: "Footer"
+    id
+    cta: string
+    title: string
+    logoId: AssetId refers Asset
+  }
+  | {
+    kind: "Page"
+    id
+    title: string
+  }
+  | {
+    kind: "SiteInternalLink"
+    id
+    targetId: EntryId refers Entry
+  }
 
 resource Asset(
   spaceId: SpaceId,
@@ -88,17 +96,19 @@ resource Asset(
 resource CustomReference(
   ref: CustomReferenceValue,
   locale: Locale
-): {
-  kind: "Entry"
-  spaceId: SpaceId
-  environmentId: EnvironmentId
-  id: EntryId refers Entry
-} | {
-  kind: "Asset"
-  spaceId: SpaceId
-  environmentId: EnvironmentId
-  id: AssetId refers Asset
-}
+):
+  {
+    kind: "Entry"
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    id: EntryId refers Entry
+  }
+  | {
+    kind: "Asset"
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    id: AssetId refers Asset
+  }
 
 /**
  * Root editorial page only. Linked pages are Entry payloads with `kind: "Page"`
@@ -119,10 +129,10 @@ resource Page(
   footerId: EntryId refers Entry with {
     kind: "Footer"
   }
-// Standard CMS links: entry id only — no content-type discriminant.
+  // Standard CMS links: entry id only — no content-type discriminant.
   strips: {
     id: EntryId
   }[] refers Entry
-// Legacy custom references (same target may also appear as a standard link).
+  // Legacy custom references (same target may also appear as a standard link).
   related: CustomReferenceValue[] refers CustomReference
 }
