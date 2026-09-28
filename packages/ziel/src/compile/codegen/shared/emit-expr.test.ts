@@ -92,14 +92,20 @@ describe("emitExpr", () => {
 });
 
 describe("projectionArmDiscriminant", () => {
-  it("extracts string literal from binding.type == Lit", () => {
+  it("extracts string literal from binding.<field> == Lit (any field)", () => {
     expect(projectionArmDiscriminant(eq(payload("e", "type"), lit("Hero")), "e")).toBe("Hero");
     expect(projectionArmDiscriminant(eq(lit("Page"), payload("e", "type")), "e")).toBe("Page");
+    expect(projectionArmDiscriminant(eq(payload("e", "kind"), lit("Menu")), "e")).toBe("Menu");
+    expect(projectionArmDiscriminant(eq(payload("e", "contentType"), lit("Article")), "e")).toBe(
+      "Article"
+    );
   });
 
   it("returns null for non-discriminant filters", () => {
-    expect(projectionArmDiscriminant(eq(payload("e", "title"), lit("x")), "e")).toBeNull();
     expect(projectionArmDiscriminant(eq(payload("other", "type"), lit("Hero")), "e")).toBeNull();
+    expect(
+      projectionArmDiscriminant(eq(payload("e", "type"), payload("e", "kind")), "e")
+    ).toBeNull();
     expect(projectionArmDiscriminant(lit("Hero"), "e")).toBeNull();
   });
 });

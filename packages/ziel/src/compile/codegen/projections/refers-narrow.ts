@@ -206,23 +206,38 @@ function memberMatchesArm(
   return members.some((m) => sameObjectMember(m, member));
 }
 
-function memberTypeDiscriminant(member: ObjectMember): string | null {
-  const typeField = member.fields.find((f) => f.name === "type");
-  return typeField?.type.kind === "stringLiteral" ? typeField.type.value : null;
+/** stringLiteral fields on an object member (field name → value). */
+function stringLiteralFields(member: ObjectMember): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const field of member.fields) {
+    if (field.type.kind === "stringLiteral") {
+      out.set(field.name, field.type.value);
+    }
+  }
+  return out;
 }
 
 function memberLabel(member: ObjectMember): string {
-  const disc = memberTypeDiscriminant(member);
-  return disc !== null ? `type=${JSON.stringify(disc)}` : "object";
+  const lits = stringLiteralFields(member);
+  if (lits.size === 0) return "object";
+  const [field, value] = [...lits.entries()].sort((a, b) => a[0].localeCompare(b[0]))[0]!;
+  return `${field}=${JSON.stringify(value)}`;
 }
 
+/**
+ * Member identity: same reference, matching shared stringLiteral fields, or
+ * structural field-name equality when no shared literals exist.
+ */
 function sameObjectMember(a: ObjectMember, b: ObjectMember): boolean {
   if (a === b) return true;
-  const da = memberTypeDiscriminant(a);
-  const db = memberTypeDiscriminant(b);
-  if (da !== null && db !== null) {
-    return da === db;
+
+  const la = stringLiteralFields(a);
+  const lb = stringLiteralFields(b);
+  const shared = [...la.keys()].filter((name) => lb.has(name));
+  if (shared.length > 0) {
+    return shared.every((name) => la.get(name) === lb.get(name));
   }
+
   if (a.fields.length !== b.fields.length) return false;
   for (let i = 0; i < a.fields.length; i++) {
     if (a.fields[i]!.name !== b.fields[i]!.name) return false;

@@ -23,10 +23,11 @@
  * export type PostDetail_Entry = PostDetail_Entry_Hero | PostDetail_Entry_Page;
  * ```
  *
- * Alias types restore expansion names. Union resources strip to the union of
- * projected member types; collection resources (`Tab[]`) become member arrays.
- * Resolve-only `on R resolve to` is not a projection type — strip aliases follow
- * resolve targets (e.g. `related: PageDetail_Entry | PageDetail_Asset`).
+ * Alias types restore expansion names. Resolve-only locators strip to the union of
+ * settle-target projection types; collection resources (`Tab[]`) become member arrays.
+ * Resource-union payloads require an explicit projectable `on` (no silent strip to
+ * member resource projectors). Resolve-only `on R resolve to` is not a projection
+ * type — strip aliases follow resolve targets (e.g. `related: PageDetail_Entry | PageDetail_Asset`).
  */
 import { createDiagnosticSink } from "../../../check/diagnostic";
 import { expandPayloadObjectMembers, narrowPayloadByFilter } from "../../../check/discriminants";
@@ -196,22 +197,19 @@ function printTargetAliasType(
     return projectionTypeName(queryName, targetName);
   }
 
+  // Resolve-only locator → alias is the union of settle-target projection types.
   const stripped = stripToConcreteMembers(targetName, resources, projected, resolveTargets);
   if (stripped !== null && stripped.length > 0) {
     for (const member of stripped) {
-      requireProjected(queryName, member, projected, `resource-valued member of '${targetName}'`);
+      requireProjected(queryName, member, projected, `resolve target of '${targetName}'`);
     }
     return stripped.map((m) => projectionTypeName(queryName, m)).join(" | ");
   }
 
-  if (payload.kind === "object") {
-    requireProjected(queryName, targetName, projected, `expansion target '${targetName}'`);
-    return projectionTypeName(queryName, targetName);
-  }
-
-  throw new Error(
-    `emitProjectionTypes: unsupported payload shape for expansion target '${targetName}' in query '${queryName}'`
-  );
+  // Object / resource-union / resourceRef payloads require an explicit `on Target`
+  // (no silent strip of `EditorialModule: Hero | Tabs` onto member projectors).
+  requireProjected(queryName, targetName, projected, `expansion target '${targetName}'`);
+  return projectionTypeName(queryName, targetName);
 }
 
 /**
@@ -249,24 +247,6 @@ function requireProjected(
       `emitProjectionTypes: query '${queryName}' expands ${label} '${resourceName}' but has no 'on ${resourceName}' projection`
     );
   }
-}
-
-/**
- * Object-payload member matching `binding.type == "Lit"`, expanding resourceRefs.
- * @deprecated Prefer {@link narrowPayloadByFilter}; kept for disc-named variants.
- */
-function narrowPayloadObject(
-  payloadType: TypeExpr,
-  disc: string,
-  resources: ResourceTable
-): Extract<TypeExpr, { kind: "object" }> | null {
-  const members = expandPayloadObjectMembers(payloadType, resources);
-  if (members === null) return null;
-  const matched = members.filter((member) => {
-    const typeField = member.fields.find((f) => f.name === "type");
-    return typeField?.type.kind === "stringLiteral" && typeField.type.value === disc;
-  });
-  return matched.length === 1 ? matched[0]! : null;
 }
 
 function fieldMapFromPayload(
@@ -376,7 +356,6 @@ function emitArmVariantType(
 
   const narrowed =
     narrowPayloadByFilter(resource.payloadType, arm.when, projection.binding, resources) ??
-    (disc !== null ? narrowPayloadObject(resource.payloadType, disc, resources) : null) ??
     resource.payloadType;
 
   return emitArmBodyVariantType(

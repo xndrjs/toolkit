@@ -2,6 +2,10 @@
  * Require a projectable `on R` for every expansion / root site that materializes
  * an object projection (mirrors emit's `printTargetAliasType` coverage).
  *
+ * Collections require the element `on` (`TabCollection` → `on Tab`). Resolve-only
+ * locators require settle-target `on`s. Resource-union payloads require `on` for
+ * the wrapper resource itself (`EditorialModule: Hero | Tabs` → `on EditorialModule`).
+ *
  * Diagnostics are query-scoped: missing `on` is a property of the query as a
  * whole, not of any particular expand / root construction.
  */
@@ -67,6 +71,7 @@ export function checkRequiredOn(
       return;
     }
 
+    // Resolve-only locator (`resolve to Entry | Asset`) → require settle targets.
     const stripped = stripToConcreteMembers(site.targetName, resources, projected, resolveTargets);
     if (stripped !== null && stripped.length > 0) {
       for (const member of stripped) {
@@ -75,9 +80,9 @@ export function checkRequiredOn(
       return;
     }
 
-    if (payload.kind === "object") {
-      requireProjected(site.targetName);
-    }
+    // Object payload, resource-union payload (`EditorialModule: Hero | Tabs`), or
+    // any other non-collection target → require `on` for this resource itself.
+    requireProjected(site.targetName);
   };
 
   for (const site of requiringSites(query)) {

@@ -1,12 +1,9 @@
-import type { QueryDefinition, ResourceProjection } from "../../../ir";
-import { closedLiteralDiscriminant } from "../../../check/discriminants";
+import type { QueryDefinition } from "../../../ir";
 import {
   allProjectionExpansions,
   collectionElement,
   projectableProjections,
   resolveTargetIndex,
-  stripToConcreteMembers,
-  type ResolveTargetIndex,
 } from "../../../check/projection-graph";
 import { ariFactoryName, executionContextTypeName, paramsTypeName } from "../naming";
 import { projectOnFnName } from "./emit-project-on";
@@ -34,80 +31,13 @@ export function collectionElementResources(
   return out;
 }
 
-/**
- * Payload discriminant case labels that should route to `projectOn${member}`.
- * Armed projections with a default arm route every closed payload discriminant
- * (and fall through) to `projectOn*` so ordered when/default runs there.
- * Flat resources use the resource name.
- */
-export function discriminationLabelsForMember(
-  member: string,
-  projected: Map<string, ResourceProjection>,
-  resources: ResourceIndex
-): string[] {
-  const projection = projected.get(member);
-  if (projection?.arms !== null && projection?.arms !== undefined) {
-    const resource = resources.get(member);
-    if (resource && projection.defaultArm !== null) {
-      const closed = closedLiteralDiscriminant(resource.payloadType, resources);
-      if (closed !== null && closed.values.size > 0) {
-        return [...closed.values].sort();
-      }
-    }
-  }
-  return [member];
-}
-
-/**
- * Union / resource-valued resources that need `projectNode` discrimination arms
- * (no projectable `on`). Resolve-only locators are handled separately by following
- * {@link ResolveResourceGraphOutput.redirects}.
- */
-export function unionTargetResources(
-  query: QueryDefinition,
-  resources: ResourceIndex,
-  projected: ReadonlySet<string>,
-  resolveTargets: ResolveTargetIndex
-): Map<string, string[]> {
-  const out = new Map<string, string[]>();
-
-  const consider = (targetName: string) => {
-    if (projected.has(targetName) || out.has(targetName) || resolveTargets.has(targetName)) {
-      return;
-    }
-    const members = stripToConcreteMembers(targetName, resources, projected, resolveTargets);
-    if (members !== null && members.length > 0) {
-      out.set(targetName, members);
-    }
-  };
-
-  for (const projection of query.projections) {
-    for (const expansion of allProjectionExpansions(projection)) {
-      const targets =
-        expansion.multiplicity === "many" && expansion.comprehension !== null
-          ? expansion.comprehension.arms.map((a) => a.target.resource)
-          : expansion.target !== null
-            ? [expansion.target.resource]
-            : [];
-      for (const targetName of targets) {
-        consider(targetName);
-      }
-    }
-  }
-
-  return out;
-}
-
 export function emitProjectNode(
   query: QueryDefinition,
   resources: ResourceIndex,
   fnName: string
 ): string {
   const projectable = projectableProjections(query);
-  const projected = new Map(projectable.map((p) => [p.resource, p]));
-  const projectedNames = new Set(projected.keys());
   const resolveTargets = resolveTargetIndex(query);
-  const unions = unionTargetResources(query, resources, projectedNames, resolveTargets);
 
   const cases: string[] = [];
 
@@ -128,46 +58,6 @@ export function emitProjectNode(
         `        const canonical = args.redirects.get(ari.toString());`,
         `        if (canonical === undefined) return undefined;`,
         `        return projectNode(canonical);`,
-        `      }`,
-      ].join("\n")
-    );
-  }
-
-  for (const [unionName, members] of unions) {
-    const discCases: string[] = [];
-    for (const member of members) {
-      if (!projected.has(member)) {
-        throw new Error(
-          `emitProjections: query '${query.name}' expands union '${unionName}' member '${member}' but has no 'on ${member}' projection`
-        );
-      }
-      const labels = discriminationLabelsForMember(member, projected, resources);
-      for (const label of labels) {
-        discCases.push(
-          [
-            `          case ${JSON.stringify(label)}:`,
-            `            return ${projectOnFnName(member)}(ari, payload);`,
-          ].join("\n")
-        );
-      }
-    }
-    discCases.push(
-      [
-        `          default:`,
-        `            throw new Error(`,
-        `              ${JSON.stringify(`${fnName}: cannot discriminate ${unionName} payload (type=`)} +`,
-        `                JSON.stringify((payload as any).type) +`,
-        `                ")"`,
-        `            );`,
-      ].join("\n")
-    );
-
-    cases.push(
-      [
-        `      case ${JSON.stringify(unionName)}: {`,
-        `        switch ((payload as any).type) {`,
-        discCases.join("\n"),
-        `        }`,
         `      }`,
       ].join("\n")
     );

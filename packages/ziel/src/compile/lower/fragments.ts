@@ -264,19 +264,37 @@ export function fragmentWhenMismatchesEnclosing(
   const armMembers = expandPayloadObjectMembers(armNarrow, resources);
   if (!fragMembers?.length || !armMembers?.length) return false;
 
-  const armDiscs = new Set<string>();
-  for (const member of armMembers) {
-    const typeField = member.fields.find((f) => f.name === "type");
-    if (typeField?.type.kind === "stringLiteral") {
-      armDiscs.add(typeField.type.value);
+  // Disjoint when no narrowed member appears in both sets (reference or structural).
+  return !fragMembers.some((fm) => armMembers.some((am) => sameNarrowedMember(fm, am)));
+}
+
+type ObjectMember = Extract<TypeExpr, { kind: "object" }>;
+
+function stringLiteralFields(member: ObjectMember): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const field of member.fields) {
+    if (field.type.kind === "stringLiteral") {
+      out.set(field.name, field.type.value);
     }
   }
-  if (armDiscs.size === 0) return false;
+  return out;
+}
 
-  return !fragMembers.some((member) => {
-    const typeField = member.fields.find((f) => f.name === "type");
-    return typeField?.type.kind === "stringLiteral" && armDiscs.has(typeField.type.value);
-  });
+function sameNarrowedMember(a: ObjectMember, b: ObjectMember): boolean {
+  if (a === b) return true;
+
+  const la = stringLiteralFields(a);
+  const lb = stringLiteralFields(b);
+  const shared = [...la.keys()].filter((name) => lb.has(name));
+  if (shared.length > 0) {
+    return shared.every((name) => la.get(name) === lb.get(name));
+  }
+
+  if (a.fields.length !== b.fields.length) return false;
+  for (let i = 0; i < a.fields.length; i++) {
+    if (a.fields[i]!.name !== b.fields[i]!.name) return false;
+  }
+  return true;
 }
 
 /** Lower an optional AST when-expression for use as enclosing narrowing. */
