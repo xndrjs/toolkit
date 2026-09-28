@@ -131,7 +131,10 @@ function memberMatchesConstraint(
   constraint: DiscConstraint
 ): boolean {
   const field = member.fields.find((f) => f.name === constraint.field);
-  if (!field || field.type.kind !== "stringLiteral") return false;
+  if (!field) return false;
+  // Non-literal fields (e.g. `cta: string`) cannot refine the closed member set;
+  // keep the member so `kind == "Footer" and e.cta == "…"` still narrows to Footer.
+  if (field.type.kind !== "stringLiteral") return true;
   const value = field.type.value;
   switch (constraint.mode) {
     case "eq":

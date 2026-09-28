@@ -190,6 +190,134 @@ describe("checkProgram — projection when-arms", () => {
     expect(diagnostics).toEqual([]);
   });
 
+  it("rejects duplicate identical when conditions in the same on clause", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { kind: "Hero", id, title: string }
+        | { kind: "Footer", id, title: string }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.kind == "Footer" { }
+          when e.kind == "Footer" { }
+          default { }
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "DUPLICATE_PROJECTION_WHEN",
+        message: expect.stringContaining("when-arm 1"),
+      })
+    );
+  });
+
+  it("rejects duplicate identical and/or when conditions", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { kind: "Menu", id }
+        | { kind: "Footer", id }
+        | { kind: "Hero", id }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.kind == "Menu" or e.kind == "Footer" { }
+          when e.kind == "Menu" or e.kind == "Footer" { }
+          default { }
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({ code: "DUPLICATE_PROJECTION_WHEN" })
+    );
+  });
+
+  it("allows when conditions that differ only by or-operand order", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { kind: "Menu", id }
+        | { kind: "Footer", id }
+        | { kind: "Hero", id }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.kind == "Menu" or e.kind == "Footer" { }
+          when e.kind == "Footer" or e.kind == "Menu" { }
+          default { }
+        }
+      }
+    `);
+
+    expect(diagnostics).not.toContainEqual(
+      expect.objectContaining({ code: "DUPLICATE_PROJECTION_WHEN" })
+    );
+  });
+
+  it("narrows progressive and-filters so member fields are visible", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { kind: "Hero", id, title: string }
+        | { kind: "Footer", id, title: string, cta: string }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.kind == "Footer" and e.cta == "ciao" {
+            cta
+          }
+          default { }
+        }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("rejects unknown member fields on the right of and without prior narrow", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { kind: "Hero", id, title: string }
+        | { kind: "Footer", id, title: string, cta: string }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.cta == "ciao" {
+            id
+          }
+          default { }
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(expect.objectContaining({ code: "UNKNOWN_PAYLOAD_PATH" }));
+  });
+
   it("rejects hand-built IR that keeps root fields alongside when-arms", () => {
     const { diagnostics, program } = parseAndCheck(`
       scalar Locale on string;

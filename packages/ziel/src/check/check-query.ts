@@ -14,12 +14,11 @@ import { checkConstruction } from "./construction";
 import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
 import { narrowPayloadByFilter } from "./discriminants";
-import { inferExprType } from "./expressions";
+import { exprsEqual, inferPayloadWhenExprType, isBooleanWhenType } from "./expressions";
 import { checkExcludedFields, resolveSelectedFields } from "./projection-include";
 import {
   checkTypeExpr,
   checkUniqueFields,
-  unwrapNullable,
   type QueryScope,
   type ResourceTable,
   type ScalarTable,
@@ -183,6 +182,22 @@ export function checkQuery(
         );
       }
 
+      for (let i = 0; i < projection.arms.length; i++) {
+        for (let j = 0; j < i; j++) {
+          if (exprsEqual(projection.arms[i]!.when, projection.arms[j]!.when)) {
+            sink.push({
+              code: "DUPLICATE_PROJECTION_WHEN",
+              message:
+                `Projection 'on ${projection.resource}' when-arm ${i} has the same condition ` +
+                `as when-arm ${j} (unreachable / zombie arm)`,
+              path: `${projPath}.arms.${i}.when`,
+              span: projection.arms[i]!.when.span ?? projection.arms[i]!.span,
+            });
+            break;
+          }
+        }
+      }
+
       if (projection.defaultArm !== null) {
         checkProjectionArmBody(
           projection.defaultArm,
@@ -301,17 +316,22 @@ function checkResolveArm(
 ): void {
   let bodyScope = scope;
   if (arm.when) {
-    const whenType = inferExprType(arm.when, `${armPath}.when`, scope, resources, sink);
-    if (whenType) {
-      const prim = unwrapNullable(whenType);
-      if (prim.kind !== "primitive" || prim.name !== "boolean") {
-        sink.push({
-          code: "RESOLVE_WHEN",
-          message: `Resolve when-clause must be boolean, got ${formatType(whenType)}`,
-          path: `${armPath}.when`,
-          span: arm.when.span,
-        });
-      }
+    const whenType = inferPayloadWhenExprType(
+      arm.when,
+      `${armPath}.when`,
+      binding,
+      payloadType,
+      scope,
+      resources,
+      sink
+    );
+    if (whenType && !isBooleanWhenType(whenType)) {
+      sink.push({
+        code: "RESOLVE_WHEN",
+        message: `Resolve when-clause must be boolean, got ${formatType(whenType)}`,
+        path: `${armPath}.when`,
+        span: arm.when.span,
+      });
     }
     const narrowed =
       narrowPayloadByFilter(payloadType, arm.when, binding, resources) ?? payloadType;
@@ -336,17 +356,22 @@ function checkProjectionArm(
   resources: ResourceTable,
   sink: DiagnosticSink
 ): void {
-  const whenType = inferExprType(arm.when, `${armPath}.when`, scope, resources, sink);
-  if (whenType) {
-    const prim = unwrapNullable(whenType);
-    if (prim.kind !== "primitive" || prim.name !== "boolean") {
-      sink.push({
-        code: "TYPE_MISMATCH",
-        message: `Projection when-clause must be boolean, got ${formatType(whenType)}`,
-        path: `${armPath}.when`,
-        span: arm.when.span,
-      });
-    }
+  const whenType = inferPayloadWhenExprType(
+    arm.when,
+    `${armPath}.when`,
+    binding,
+    payloadType,
+    scope,
+    resources,
+    sink
+  );
+  if (whenType && !isBooleanWhenType(whenType)) {
+    sink.push({
+      code: "TYPE_MISMATCH",
+      message: `Projection when-clause must be boolean, got ${formatType(whenType)}`,
+      path: `${armPath}.when`,
+      span: arm.when.span,
+    });
   }
 
   const narrowed = narrowPayloadByFilter(payloadType, arm.when, binding, resources) ?? payloadType;

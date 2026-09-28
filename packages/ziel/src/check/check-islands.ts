@@ -1,8 +1,8 @@
 import type { IslandClause } from "../ir";
 import { formatType } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
-import { inferExprType } from "./expressions";
-import { unwrapNullable, type QueryScope, type ResourceTable } from "./symbols";
+import { inferPayloadWhenExprType, isBooleanWhenType } from "./expressions";
+import { type QueryScope, type ResourceTable } from "./symbols";
 
 /**
  * Validate query `islands { on Resource [binding] [when …] }` clauses.
@@ -43,17 +43,25 @@ export function checkIslands(
       continue;
     }
 
+    const resource = resources.get(clause.resource)!;
     const whenScope: QueryScope = {
       ...scope,
       bindings: new Map([...scope.bindings, [clause.binding, clause.resource]]),
     };
 
     const whenPath = `${clausePath}.when`;
-    const whenType = inferExprType(clause.when, whenPath, whenScope, resources, sink);
+    const whenType = inferPayloadWhenExprType(
+      clause.when,
+      whenPath,
+      clause.binding,
+      resource.payloadType,
+      whenScope,
+      resources,
+      sink
+    );
     if (!whenType) continue;
 
-    const prim = unwrapNullable(whenType);
-    if (prim.kind !== "primitive" || prim.name !== "boolean") {
+    if (!isBooleanWhenType(whenType)) {
       sink.push({
         code: "TYPE_MISMATCH",
         message: `Island when-clause must be boolean, got ${formatType(whenType)}`,

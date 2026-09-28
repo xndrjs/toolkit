@@ -14,8 +14,9 @@ import {
 } from "../check/symbols";
 import { lowerExpr } from "../compile/lower/expr";
 import { lowerTypedField, type NameTables } from "../compile/lower/types";
-import type { TypeExpr } from "../ir";
+import type { Expr, TypeExpr } from "../ir";
 import {
+  isBinaryExpr,
   isEachComprehension,
   isFragmentDeclaration,
   isProjectionWhenArm,
@@ -56,6 +57,25 @@ function inferEachElementType(
   return unwrapped.of;
 }
 
+function applyPayloadNarrowingFromIr(
+  binding: string,
+  resourceName: string,
+  filter: Expr,
+  scope: QueryScope,
+  resources: ResourceTable
+): void {
+  const symbols = resources.get(resourceName);
+  if (!symbols) return;
+  try {
+    const narrowed = narrowPayloadByFilter(symbols.payloadType, filter, binding, resources);
+    if (narrowed) {
+      scope.payloadNarrowing.set(binding, narrowed);
+    }
+  } catch {
+    // Incomplete when-expr — leave un-narrowed.
+  }
+}
+
 function applyPayloadNarrowing(
   binding: string,
   resourceName: string,
@@ -63,15 +83,8 @@ function applyPayloadNarrowing(
   scope: QueryScope,
   resources: ResourceTable
 ): void {
-  const symbols = resources.get(resourceName);
-  if (!symbols) return;
   try {
-    const narrowed =
-      narrowPayloadByFilter(symbols.payloadType, lowerExpr(whenExpr), binding, resources) ??
-      undefined;
-    if (narrowed) {
-      scope.payloadNarrowing.set(binding, narrowed);
-    }
+    applyPayloadNarrowingFromIr(binding, resourceName, lowerExpr(whenExpr), scope, resources);
   } catch {
     // Incomplete when-expr — leave un-narrowed.
   }
@@ -87,12 +100,74 @@ function isInsideAst(node: AstNode, root: AstNode | undefined): boolean {
   return false;
 }
 
+function combineAndFilters(filters: Expr[]): Expr | undefined {
+  if (filters.length === 0) return undefined;
+  return filters.reduce((left, right) => ({
+    kind: "binary" as const,
+    op: "and" as const,
+    left,
+    right,
+    span: null,
+  }));
+}
+
+/**
+ * Left `and` conjuncts that dominate `node` under `whenRoot`
+ * (so `A and B` while editing `B` narrows by `A` only).
+ */
+function leftAndConjunctFilters(node: AstNode, whenRoot: Expression): Expr[] {
+  const parts: Expr[] = [];
+  let current: AstNode | undefined = node;
+  while (current && current !== whenRoot) {
+    const parent: AstNode | undefined = current.$container;
+    if (!parent) break;
+    if (
+      isBinaryExpr(parent) &&
+      parent.op === "and" &&
+      isInsideAst(parent, whenRoot) &&
+      parent.left &&
+      (current === parent.right || isInsideAst(current, parent.right))
+    ) {
+      try {
+        parts.push(lowerExpr(parent.left));
+      } catch {
+        // Incomplete left conjunct — skip.
+      }
+    }
+    current = parent;
+  }
+  return parts;
+}
+
+function applyFilterPrefixNarrowing(
+  node: AstNode,
+  whenRoot: Expression,
+  binding: string,
+  resourceName: string,
+  scope: QueryScope,
+  resources: ResourceTable
+): void {
+  const combined = combineAndFilters(leftAndConjunctFilters(node, whenRoot));
+  if (!combined) return;
+  applyPayloadNarrowingFromIr(binding, resourceName, combined, scope, resources);
+}
+
 function applyWhenArmNarrowing(node: AstNode, scope: QueryScope, resources: ResourceTable): void {
   const whenArm = AstUtils.getContainerOfType(node, isProjectionWhenArm);
   if (whenArm) {
-    // Editing the filter itself — keep the full payload so literal completions
-    // see every discriminant value (not the arm's own narrow).
-    if (!isInsideAst(node, whenArm.when)) {
+    if (isInsideAst(node, whenArm.when) && whenArm.when) {
+      // Inside the filter: narrow only by completed left `and` conjuncts so
+      // `e.kind == "Footer" and e.cta` sees Footer fields, while `kind == "`
+      // still sees the full discriminant set.
+      applyFilterPrefixNarrowing(
+        node,
+        whenArm.when,
+        whenArm.$container.binding,
+        whenArm.$container.resource,
+        scope,
+        resources
+      );
+    } else if (whenArm.when) {
       applyPayloadNarrowing(
         whenArm.$container.binding,
         whenArm.$container.resource,
@@ -106,7 +181,16 @@ function applyWhenArmNarrowing(node: AstNode, scope: QueryScope, resources: Reso
 
   const fragment = AstUtils.getContainerOfType(node, isFragmentDeclaration);
   if (fragment?.when) {
-    if (!isInsideAst(node, fragment.when)) {
+    if (isInsideAst(node, fragment.when)) {
+      applyFilterPrefixNarrowing(
+        node,
+        fragment.when,
+        fragment.binding,
+        fragment.resource,
+        scope,
+        resources
+      );
+    } else {
       applyPayloadNarrowing(fragment.binding, fragment.resource, fragment.when, scope, resources);
     }
   }

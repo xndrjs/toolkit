@@ -1,8 +1,57 @@
 import type { Expr, TypeExpr } from "../ir";
 import { formatType, isAssignable, literalInhabits } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
+import { narrowPayloadByFilter, type PayloadTypeLookup } from "./discriminants";
 import { resolveBindingPath, resolvePathOnFields, resolvePathOnItemType } from "./expr-paths";
-import { concreteType, type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
+import {
+  concreteType,
+  unwrapNullable,
+  type QueryScope,
+  type ResourceTable,
+  type ScalarTable,
+} from "./symbols";
+
+function pathsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((seg, i) => seg === b[i]);
+}
+
+/**
+ * Structural equality of expression trees, ignoring `span`.
+ * Used for duplicate `when` detection (exact identity, no and/or reordering).
+ */
+export function exprsEqual(a: Expr, b: Expr): boolean {
+  if (a.kind !== b.kind) return false;
+  switch (a.kind) {
+    case "literal":
+      return b.kind === "literal" && Object.is(a.value, b.value);
+    case "param":
+      return b.kind === "param" && a.name === b.name;
+    case "context":
+      return b.kind === "context" && pathsEqual(a.path, b.path);
+    case "payloadRef":
+      return b.kind === "payloadRef" && a.binding === b.binding && pathsEqual(a.path, b.path);
+    case "identityRef":
+      return b.kind === "identityRef" && a.binding === b.binding && pathsEqual(a.path, b.path);
+    case "itemRef":
+      return b.kind === "itemRef" && a.binding === b.binding && pathsEqual(a.path, b.path);
+    case "arrayLiteral":
+      return (
+        b.kind === "arrayLiteral" &&
+        a.elements.length === b.elements.length &&
+        a.elements.every((el, i) => exprsEqual(el, b.elements[i]!))
+      );
+    case "unary":
+      return b.kind === "unary" && a.op === b.op && exprsEqual(a.operand, b.operand);
+    case "binary":
+      return (
+        b.kind === "binary" &&
+        a.op === b.op &&
+        exprsEqual(a.left, b.left) &&
+        exprsEqual(a.right, b.right)
+      );
+  }
+}
 
 /**
  * Infer the type of an expression. Returns `undefined` when already diagnosed
@@ -134,6 +183,105 @@ export function inferExprType(
       return { kind: "primitive", name: "boolean", span: null };
     }
   }
+}
+
+/**
+ * Infer a payload `when` filter with progressive narrowing on `and`:
+ * after the left conjunct, narrow `binding`'s payload before typing the right.
+ * (`or` keeps the incoming scope for both sides.)
+ */
+export function inferPayloadWhenExprType(
+  expr: Expr,
+  path: string,
+  binding: string,
+  payloadType: TypeExpr,
+  scope: QueryScope,
+  resources: ResourceTable & PayloadTypeLookup,
+  sink: DiagnosticSink
+): TypeExpr | undefined {
+  if (expr.kind === "binary" && expr.op === "and") {
+    const left = inferPayloadWhenExprType(
+      expr.left,
+      `${path}.left`,
+      binding,
+      payloadType,
+      scope,
+      resources,
+      sink
+    );
+    if (!left) return undefined;
+
+    const previous = scope.payloadNarrowing.get(binding);
+    const base = previous ?? payloadType;
+    const fromLeft = narrowPayloadByFilter(base, expr.left, binding, resources);
+    if (fromLeft) {
+      scope.payloadNarrowing.set(binding, fromLeft);
+    }
+
+    const right = inferPayloadWhenExprType(
+      expr.right,
+      `${path}.right`,
+      binding,
+      payloadType,
+      scope,
+      resources,
+      sink
+    );
+
+    if (previous !== undefined) {
+      scope.payloadNarrowing.set(binding, previous);
+    } else {
+      scope.payloadNarrowing.delete(binding);
+    }
+
+    if (!right) return undefined;
+    return { kind: "primitive", name: "boolean", span: null };
+  }
+
+  if (expr.kind === "binary" && expr.op === "or") {
+    const left = inferPayloadWhenExprType(
+      expr.left,
+      `${path}.left`,
+      binding,
+      payloadType,
+      scope,
+      resources,
+      sink
+    );
+    const right = inferPayloadWhenExprType(
+      expr.right,
+      `${path}.right`,
+      binding,
+      payloadType,
+      scope,
+      resources,
+      sink
+    );
+    if (!left || !right) return undefined;
+    return { kind: "primitive", name: "boolean", span: null };
+  }
+
+  if (expr.kind === "unary" && expr.op === "!") {
+    const operand = inferPayloadWhenExprType(
+      expr.operand,
+      `${path}.operand`,
+      binding,
+      payloadType,
+      scope,
+      resources,
+      sink
+    );
+    if (!operand) return undefined;
+    return { kind: "primitive", name: "boolean", span: null };
+  }
+
+  return inferExprType(expr, path, scope, resources, sink);
+}
+
+/** True when a when-filter inference result is a boolean type. */
+export function isBooleanWhenType(type: TypeExpr): boolean {
+  const prim = unwrapNullable(type);
+  return prim.kind === "primitive" && prim.name === "boolean";
 }
 
 export function checkExprAssignableTo(
