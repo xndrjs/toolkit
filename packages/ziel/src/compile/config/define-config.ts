@@ -26,6 +26,11 @@ export type ZielCodegenConfig = {
   importFrom?: string;
   /** Name of the emitted registry type → `generateResources`. */
   registryTypeName?: string;
+  /**
+   * Optional property name stamped with the resource name on projection shells
+   * and types (e.g. `"$type"` or `"__resource"`). Default: unset (no stamp).
+   */
+  resourceTag?: string;
 };
 
 /**

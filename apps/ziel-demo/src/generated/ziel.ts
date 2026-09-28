@@ -73,13 +73,13 @@ export type PageResource = ReturnType<typeof pageAri>;
 
 export type EntryPayload =
   | {
-      type: "Hero";
+      kind: "Hero";
       id: EntryId;
       title: string;
       imageId: AssetId;
     }
   | {
-      type: "Tabs";
+      kind: "Tabs";
       id: EntryId;
       title: string;
       tabs: {
@@ -87,7 +87,7 @@ export type EntryPayload =
       }[];
     }
   | {
-      type: "Tab";
+      kind: "Tab";
       id: EntryId;
       title: string;
       strips: {
@@ -95,52 +95,52 @@ export type EntryPayload =
       }[];
     }
   | {
-      type: "Product";
+      kind: "Product";
       id: EntryId;
       sku: Sku;
       title: string;
     }
   | {
-      type: "Menu";
+      kind: "Menu";
       id: EntryId;
       title: string;
       logoId: AssetId;
     }
   | {
-      type: "Footer";
+      kind: "Footer";
       id: EntryId;
       cta: string;
       title: string;
       logoId: AssetId;
     }
   | {
-      type: "Page";
+      kind: "Page";
       id: EntryId;
       title: string;
     }
   | {
-      type: "SiteInternalLink";
+      kind: "SiteInternalLink";
       id: EntryId;
       targetId: EntryId;
     };
 
 export type AssetPayload = {
-  type: "Asset";
+  kind: "Asset";
   id: AssetId;
   url: string;
   title: string;
-  kind: "image" | "video" | "document";
+  asset_type: "image" | "video" | "document";
 };
 
 export type CustomReferencePayload =
   | {
-      type: "Entry";
+      kind: "Entry";
       spaceId: SpaceId;
       environmentId: EnvironmentId;
       id: EntryId;
     }
   | {
-      type: "Asset";
+      kind: "Asset";
       spaceId: SpaceId;
       environmentId: EnvironmentId;
       id: AssetId;
@@ -308,7 +308,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when((predicate) => predicate.payload.type == "Hero")
+    .when((predicate) => predicate.payload.kind == "Hero")
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
@@ -325,7 +325,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when((predicate) => predicate.payload.type == "Tabs")
+    .when((predicate) => predicate.payload.kind == "Tabs")
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
@@ -342,7 +342,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when((predicate) => predicate.payload.type == "Tab")
+    .when((predicate) => predicate.payload.kind == "Tab")
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
@@ -359,7 +359,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when((predicate) => predicate.payload.type == "Menu")
+    .when((predicate) => predicate.payload.kind == "Menu")
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
@@ -376,26 +376,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when(
-      (predicate) => predicate.payload.type == "SiteInternalLink" && predicate.payload.id != "2"
-    )
-    .expand((predicate) => {
-      const payload = predicate.payload as any;
-      return {
-        resources: [
-          entryAri({
-            spaceId: predicate.resource.key[0].spaceId,
-            environmentId: predicate.resource.key[0].environmentId,
-            id: payload.targetId,
-            locale: predicate.resource.key[0].locale,
-          }),
-        ],
-      };
-    });
-
-  strategy.expansion
-    .on(entryAri)
-    .when((predicate) => predicate.payload.type == "SiteInternalLink")
+    .when((predicate) => predicate.payload.kind == "SiteInternalLink")
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
@@ -412,7 +393,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.resolve
     .on(customReferenceAri)
-    .when((predicate) => predicate.payload.type == "Entry")
+    .when((predicate) => predicate.payload.kind == "Entry")
     .to((predicate) => {
       const payload = predicate.payload as any;
       return {
@@ -427,7 +408,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.resolve
     .on(customReferenceAri)
-    .when((predicate) => predicate.payload.type == "Asset")
+    .when((predicate) => predicate.payload.kind == "Asset")
     .to((predicate) => {
       const payload = predicate.payload as any;
       return {
@@ -442,41 +423,37 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.islands
     .on(entryAri)
-    .when((predicate) => predicate.payload.type == "Menu" || predicate.payload.type == "Footer")
+    .when((predicate) => predicate.payload.kind == "Menu" || predicate.payload.kind == "Footer")
     .startIsland();
 
   return strategy;
 }
 
 export type PageDetail_Page = {
-  $type: "Page";
   id: EntryId;
   title: string;
   menu: PageDetail_Entry_Menu;
-  footer: PageDetail_Entry_Arm4;
+  footer: PageDetail_Entry_Footer;
   strips: PageDetail_Entry[];
   related: (PageDetail_Entry | PageDetail_Asset)[];
 };
 
 export type PageDetail_Entry_Hero = {
-  $type: "Entry";
-  type: "Hero";
+  kind: "Hero";
   id: EntryId;
   title: string;
   image: PageDetail_Asset;
 };
 
 export type PageDetail_Entry_Tabs = {
-  $type: "Entry";
-  type: "Tabs";
+  kind: "Tabs";
   id: EntryId;
   title: string;
   tabs: PageDetail_Entry[];
 };
 
 export type PageDetail_Entry_Tab = {
-  $type: "Entry";
-  type: "Tab";
+  kind: "Tab";
   id: EntryId;
   title: string;
   strips: (
@@ -484,61 +461,49 @@ export type PageDetail_Entry_Tab = {
     | PageDetail_Entry_Tabs
     | PageDetail_Entry_Tab
     | PageDetail_Entry_Menu
-    | PageDetail_Entry_Arm4
-    | PageDetail_Entry_Arm5
+    | PageDetail_Entry_Footer
     | PageDetail_Entry_SiteInternalLink
     | PageDetail_Entry_Default
   )[];
 };
 
 export type PageDetail_Entry_Menu = {
-  $type: "Entry";
-  type: "Menu";
+  kind: "Menu";
   id: EntryId;
   title: string;
   logo: PageDetail_Asset;
 };
 
-export type PageDetail_Entry_Arm4 = {
-  $type: "Entry";
-  type: "Footer";
+export type PageDetail_Entry_Footer = {
+  kind: "Footer";
   id: EntryId;
   cta: string;
   title: string;
 };
 
-export type PageDetail_Entry_Arm5 = {
-  $type: "Entry";
-  type: "SiteInternalLink";
+export type PageDetail_Entry_Footer = {
+  kind: "Footer";
   id: EntryId;
-  target:
-    | PageDetail_Entry_Hero
-    | PageDetail_Entry_Tabs
-    | PageDetail_Entry_Tab
-    | PageDetail_Entry_Menu
-    | PageDetail_Entry_Arm4
-    | PageDetail_Entry_Arm5
-    | PageDetail_Entry_SiteInternalLink
-    | PageDetail_Entry_Default;
+  cta: string;
+  title: string;
 };
 
 export type PageDetail_Entry_SiteInternalLink = {
-  $type: "Entry";
-  type: "SiteInternalLink";
+  kind: "SiteInternalLink";
   id: EntryId;
   target:
     | PageDetail_Entry_Hero
     | PageDetail_Entry_Tabs
     | PageDetail_Entry_Tab
     | PageDetail_Entry_Menu
-    | PageDetail_Entry_Arm4
-    | PageDetail_Entry_Arm5
+    | PageDetail_Entry_Footer
     | PageDetail_Entry_SiteInternalLink
     | PageDetail_Entry_Default;
 };
 
 export type PageDetail_Entry_Default = {
-  $type: "Entry";
+  kind: "Hero" | "Tabs" | "Tab" | "Product" | "Menu" | "Footer" | "Page" | "SiteInternalLink";
+  id: EntryId;
 };
 
 export type PageDetail_Entry =
@@ -546,18 +511,17 @@ export type PageDetail_Entry =
   | PageDetail_Entry_Tabs
   | PageDetail_Entry_Tab
   | PageDetail_Entry_Menu
-  | PageDetail_Entry_Arm4
-  | PageDetail_Entry_Arm5
+  | PageDetail_Entry_Footer
+  | PageDetail_Entry_Footer
   | PageDetail_Entry_SiteInternalLink
   | PageDetail_Entry_Default;
 
 export type PageDetail_Asset = {
-  $type: "Asset";
-  type: "Asset";
+  kind: "Asset";
   id: AssetId;
   url: string;
   title: string;
-  kind: "image" | "video" | "document";
+  asset_type: "image" | "video" | "document";
 };
 
 export type PageDetailResult = PageDetail_Page;
@@ -574,7 +538,7 @@ export function projectPageDetail(
   const memo = new Map<string, object>();
 
   const projectOnPage = (resource: any, payload: any): any => {
-    const shell: any = { $type: "Page" };
+    const shell: any = {};
     memo.set(resource.toString(), shell);
     shell.id = payload.id;
     shell.title = payload.title;
@@ -611,10 +575,10 @@ export function projectPageDetail(
   };
 
   const projectOnEntry = (resource: any, payload: any): any => {
-    if (payload.type == "Hero") {
-      const shell: any = { $type: "Entry" };
+    if (payload.kind == "Hero") {
+      const shell: any = {};
       memo.set(resource.toString(), shell);
-      shell.type = payload.type;
+      shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
       shell.image = projectNode(
@@ -626,10 +590,10 @@ export function projectPageDetail(
         })
       );
       return shell;
-    } else if (payload.type == "Tabs") {
-      const shell: any = { $type: "Entry" };
+    } else if (payload.kind == "Tabs") {
+      const shell: any = {};
       memo.set(resource.toString(), shell);
-      shell.type = payload.type;
+      shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
       shell.tabs = payload.tabs.map((link: any) =>
@@ -643,10 +607,10 @@ export function projectPageDetail(
         )
       );
       return shell;
-    } else if (payload.type == "Tab") {
-      const shell: any = { $type: "Entry" };
+    } else if (payload.kind == "Tab") {
+      const shell: any = {};
       memo.set(resource.toString(), shell);
-      shell.type = payload.type;
+      shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
       shell.strips = payload.strips.map((link: any) =>
@@ -660,10 +624,10 @@ export function projectPageDetail(
         )
       );
       return shell;
-    } else if (payload.type == "Menu") {
-      const shell: any = { $type: "Entry" };
+    } else if (payload.kind == "Menu") {
+      const shell: any = {};
       memo.set(resource.toString(), shell);
-      shell.type = payload.type;
+      shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
       shell.logo = projectNode(
@@ -675,32 +639,26 @@ export function projectPageDetail(
         })
       );
       return shell;
-    } else if (payload.type == "Footer" && !payload.id) {
-      const shell: any = { $type: "Entry" };
+    } else if (payload.kind == "Footer" && !payload.id) {
+      const shell: any = {};
       memo.set(resource.toString(), shell);
-      shell.type = payload.type;
+      shell.kind = payload.kind;
       shell.id = payload.id;
       shell.cta = payload.cta;
       shell.title = payload.title;
       return shell;
-    } else if (payload.type == "SiteInternalLink" && payload.id != "2") {
-      const shell: any = { $type: "Entry" };
+    } else if (payload.kind == "Footer") {
+      const shell: any = {};
       memo.set(resource.toString(), shell);
-      shell.type = payload.type;
+      shell.kind = payload.kind;
       shell.id = payload.id;
-      shell.target = projectNode(
-        entryAri({
-          spaceId: resource.key[0].spaceId,
-          environmentId: resource.key[0].environmentId,
-          id: payload.targetId,
-          locale: resource.key[0].locale,
-        })
-      );
+      shell.cta = payload.cta;
+      shell.title = payload.title;
       return shell;
-    } else if (payload.type == "SiteInternalLink") {
-      const shell: any = { $type: "Entry" };
+    } else if (payload.kind == "SiteInternalLink") {
+      const shell: any = {};
       memo.set(resource.toString(), shell);
-      shell.type = payload.type;
+      shell.kind = payload.kind;
       shell.id = payload.id;
       shell.target = projectNode(
         entryAri({
@@ -712,20 +670,22 @@ export function projectPageDetail(
       );
       return shell;
     } else {
-      const shell: any = { $type: "Entry" };
+      const shell: any = {};
       memo.set(resource.toString(), shell);
+      shell.kind = payload.kind;
+      shell.id = payload.id;
       return shell;
     }
   };
 
   const projectOnAsset = (resource: any, payload: any): any => {
-    const shell: any = { $type: "Asset" };
+    const shell: any = {};
     memo.set(resource.toString(), shell);
-    shell.type = payload.type;
+    shell.kind = payload.kind;
     shell.id = payload.id;
     shell.url = payload.url;
     shell.title = payload.title;
-    shell.kind = payload.kind;
+    shell.asset_type = payload.asset_type;
     return shell;
   };
 

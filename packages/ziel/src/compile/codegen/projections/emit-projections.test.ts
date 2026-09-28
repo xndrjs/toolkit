@@ -49,7 +49,8 @@ describe("emitProjections", () => {
     expect(code).toContain("executionContext: PostDetailExecutionContext");
     expect(code).toContain(": PostDetailResult");
     expect(code).toContain("const memo = new Map<string, object>();");
-    expect(code).toContain('const shell: any = { $type: "Post" };');
+    expect(code).toContain("const shell: any = {};");
+    expect(code).not.toContain("$type");
     expect(code).toContain("memo.set(resource.toString(), shell);");
     expect(code).toContain("shell.author = projectNode(userAri({ id: payload.authorId }));");
     expect(code).toContain("if (memo.has(key)) return memo.get(key);");
@@ -57,6 +58,19 @@ describe("emitProjections", () => {
     expect(code).toContain('case "Post":');
     expect(code).toContain('case "User":');
     expect(code).toContain("return projectNode(root) as PostDetailResult;");
+  });
+
+  it("stamps resourceTag on shells when configured", () => {
+    const { program, diagnostics } = parseAndCheck(loadFixture("post-detail.ziel"));
+    expect(diagnostics).toEqual([]);
+
+    const withType = emitProjections(program!, "ContentRegistry", "$type");
+    expect(withType).toContain('const shell: any = { $type: "Post" };');
+    expect(withType).toContain('const shell: any = { $type: "User" };');
+
+    const withAlt = emitProjections(program!, "ContentRegistry", "__resource");
+    expect(withAlt).toContain('const shell: any = { __resource: "Post" };');
+    expect(withAlt).not.toContain("$type");
   });
 
   it("emits alias-keyed project* for multi-root queries", () => {
@@ -139,7 +153,7 @@ describe("emitProjections", () => {
     expect(code).toContain('} else if (payload.type == "Page") {');
     expect(code).toContain("} else {");
     expect(code).not.toContain("switch ((payload as any).type)");
-    expect(code).toContain('const shell: any = { $type: "Entry" };');
+    expect(code).toContain("const shell: any = {};");
     expect(code).toContain(
       "shell.image = projectNode(assetAri({ id: payload.imageId, locale: args.executionContext.locale }));"
     );
@@ -153,7 +167,7 @@ describe("emitProjections", () => {
       code.indexOf("const projectOnEntry"),
       code.indexOf("const projectOnAsset")
     );
-    expect(onEntry).toMatch(/\} else \{\s*const shell: any = \{ \$type: "Entry" \};/);
+    expect(onEntry).toMatch(/\} else \{\s*const shell: any = \{\};/);
     expect(onEntry).not.toContain("throw new Error");
   });
 

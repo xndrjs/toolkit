@@ -107,11 +107,6 @@ query PageDetail(pageId: EntryId) {
       ...ChromeLogo
     }
 
-    when e.kind == "Footer"
-      and !e.id {
-      cta
-    }
-
     when e.kind == "Footer" {
       cta
     }

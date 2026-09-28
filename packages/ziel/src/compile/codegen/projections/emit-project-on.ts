@@ -147,7 +147,8 @@ export function emitShellBody(
   indent: string,
   include: ResourceProjection["include"] = null,
   payloadType?: TypeExpr,
-  excludedFields: readonly string[] = []
+  excludedFields: readonly string[] = [],
+  resourceTag?: string
 ): string {
   const lines: string[] = [];
   const resolvedPayload =
@@ -168,7 +169,9 @@ export function emitShellBody(
     excludedFields
   );
 
-  lines.push(`${indent}const shell: any = { $type: ${JSON.stringify(resourceName)} };`);
+  const shellInit =
+    resourceTag === undefined ? "{}" : `{ ${resourceTag}: ${JSON.stringify(resourceName)} }`;
+  lines.push(`${indent}const shell: any = ${shellInit};`);
   lines.push(`${indent}memo.set(resource.toString(), shell);`);
 
   for (const fieldName of effectiveFields) {
@@ -194,7 +197,8 @@ export function emitProjectOnBody(
   projection: ResourceProjection,
   resources: ResourceIndex,
   queryName: string,
-  contextFieldNames: ReadonlySet<string>
+  contextFieldNames: ReadonlySet<string>,
+  resourceTag?: string
 ): string {
   const resource = resources.get(projection.resource);
   if (!resource) {
@@ -212,7 +216,8 @@ export function emitProjectOnBody(
     "    ",
     projection.include,
     resource.payloadType,
-    projection.excludedFields
+    projection.excludedFields,
+    resourceTag
   );
 }
 
@@ -223,7 +228,8 @@ function emitArmShell(
   resources: ResourceIndex,
   queryName: string,
   contextFieldNames: ReadonlySet<string>,
-  indent: string
+  indent: string,
+  resourceTag?: string
 ): string {
   return emitShellBody(
     projection.resource,
@@ -235,7 +241,8 @@ function emitArmShell(
     indent,
     arm.include ?? projection.include,
     payloadType,
-    arm.excludedFields
+    arm.excludedFields,
+    resourceTag
   );
 }
 
@@ -246,7 +253,8 @@ export function emitArmedProjectOnBody(
   projection: ResourceProjection,
   resources: ResourceIndex,
   queryName: string,
-  contextFieldNames: ReadonlySet<string>
+  contextFieldNames: ReadonlySet<string>,
+  resourceTag?: string
 ): string {
   const arms = projection.arms;
   if (arms === null) {
@@ -274,7 +282,8 @@ export function emitArmedProjectOnBody(
           resources,
           queryName,
           contextFieldNames,
-          "      "
+          "      ",
+          resourceTag
         ),
       ].join("\n")
     );
@@ -289,7 +298,8 @@ export function emitArmedProjectOnBody(
         resources,
         queryName,
         contextFieldNames,
-        "      "
+        "      ",
+        resourceTag
       ),
       `    }`,
     ].join("\n")
@@ -301,12 +311,13 @@ export function emitProjectOnHelper(
   projection: ResourceProjection,
   resources: ResourceIndex,
   queryName: string,
-  contextFieldNames: ReadonlySet<string>
+  contextFieldNames: ReadonlySet<string>,
+  resourceTag?: string
 ): string {
   const name = projectOnFnName(projection.resource);
   const body =
     projection.arms !== null
-      ? emitArmedProjectOnBody(projection, resources, queryName, contextFieldNames)
-      : emitProjectOnBody(projection, resources, queryName, contextFieldNames);
+      ? emitArmedProjectOnBody(projection, resources, queryName, contextFieldNames, resourceTag)
+      : emitProjectOnBody(projection, resources, queryName, contextFieldNames, resourceTag);
   return [`  const ${name} = (resource: any, payload: any): any => {`, body, `  };`].join("\n");
 }
