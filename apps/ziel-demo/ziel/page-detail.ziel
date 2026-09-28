@@ -2,8 +2,8 @@
  * Chrome logo expand shared by Menu / Footer — `when` narrows so `logoId` is
  * valid on the fragment body; field include comes from the enclosing `on Entry`.
  */
-fragment ChromeLogo on Entry e when e.type == "Menu"
-  or e.type == "Footer" {
+fragment ChromeLogo on Entry e when e.kind == "Menu"
+  or e.kind == "Footer" {
   expand logo: Asset(
     spaceId: @e.spaceId,
     environmentId: @e.environmentId,
@@ -61,18 +61,18 @@ query PageDetail(pageId: EntryId) {
       environmentId: c.environmentId,
       id: c.id,
       locale: @c.locale
-    ) when c.type == "Entry"
+    ) when c.kind == "Entry"
 
     Asset(
       spaceId: c.spaceId,
       environmentId: c.environmentId,
       id: c.id,
       locale: @c.locale
-    ) when c.type == "Asset"
+    ) when c.kind == "Asset"
   }
 
   on Entry e include properties {
-    when e.type == "Hero" {
+    when e.kind == "Hero" {
       expand image: Asset(
         spaceId: @e.spaceId,
         environmentId: @e.environmentId,
@@ -81,7 +81,7 @@ query PageDetail(pageId: EntryId) {
       )
     }
 
-    when e.type == "Tabs" {
+    when e.kind == "Tabs" {
       expand tabs: each link in e.tabs (
         Entry(
           spaceId: @e.spaceId,
@@ -92,7 +92,7 @@ query PageDetail(pageId: EntryId) {
       )
     }
 
-    when e.type == "Tab" {
+    when e.kind == "Tab" {
       expand strips: each link in e.strips (
         Entry(
           spaceId: @e.spaceId,
@@ -103,20 +103,20 @@ query PageDetail(pageId: EntryId) {
       )
     }
 
-    when e.type == "Menu" {
+    when e.kind == "Menu" {
       ...ChromeLogo
     }
 
-    when e.type == "Footer"
+    when e.kind == "Footer"
       and !e.id {
       cta
     }
 
-    when e.type == "Footer" {
+    when e.kind == "Footer" {
       cta
     }
 
-    when e.type == "SiteInternalLink" {
+    when e.kind == "SiteInternalLink" {
       expand target: Entry(
         spaceId: @e.spaceId,
         environmentId: @e.environmentId,
@@ -131,7 +131,7 @@ query PageDetail(pageId: EntryId) {
   on Asset a include properties { }
 
   islands {
-    on Entry e when e.type == "Menu"
-      or e.type == "Footer"
+    on Entry e when e.kind == "Menu"
+      or e.kind == "Footer"
   }
 }

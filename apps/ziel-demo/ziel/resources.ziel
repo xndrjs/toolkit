@@ -23,46 +23,46 @@ resource Entry(
   id: EntryId,
   locale: Locale
 ): {
-  type: "Hero"
+  kind: "Hero"
   id
   title: string
   imageId: AssetId refers Asset
 } | {
-  type: "Tabs"
+  kind: "Tabs"
   id
   title: string
   tabs: {
     id: EntryId
   }[]
 } | {
-  type: "Tab"
+  kind: "Tab"
   id
   title: string
   strips: {
     id: EntryId refers Entry
   }[]
 } | {
-  type: "Product"
+  kind: "Product"
   id
   sku: Sku
   title: string
 } | {
-  type: "Menu"
+  kind: "Menu"
   id
   title: string
   logoId: AssetId refers Asset
 } | {
-  type: "Footer"
+  kind: "Footer"
   id
   cta: string
   title: string
   logoId: AssetId refers Asset
 } | {
-  type: "Page"
+  kind: "Page"
   id
   title: string
 } | {
-  type: "SiteInternalLink"
+  kind: "SiteInternalLink"
   id
   targetId: EntryId refers Entry
 }
@@ -73,11 +73,11 @@ resource Asset(
   id: AssetId,
   locale: Locale
 ): {
-  type: "Asset"
+  kind: "Asset"
   id
   url: string
   title: string
-  kind: "image" | "video" | "document"
+  asset_type: "image" | "video" | "document"
 }
 
 /**
@@ -89,19 +89,19 @@ resource CustomReference(
   ref: CustomReferenceValue,
   locale: Locale
 ): {
-  type: "Entry"
+  kind: "Entry"
   spaceId: SpaceId
   environmentId: EnvironmentId
   id: EntryId refers Entry
 } | {
-  type: "Asset"
+  kind: "Asset"
   spaceId: SpaceId
   environmentId: EnvironmentId
   id: AssetId refers Asset
 }
 
 /**
- * Root editorial page only. Linked pages are Entry payloads with `type: "Page"`
+ * Root editorial page only. Linked pages are Entry payloads with `kind: "Page"`
  * (shallow — no strips/menu/footer) and are not loaded as Page ARIs.
  */
 
@@ -114,10 +114,10 @@ resource Page(
   id
   title: string
   menuId: EntryId refers Entry with {
-    type: "Menu"
+    kind: "Menu"
   }
   footerId: EntryId refers Entry with {
-    type: "Footer"
+    kind: "Footer"
   }
 // Standard CMS links: entry id only — no content-type discriminant.
   strips: {

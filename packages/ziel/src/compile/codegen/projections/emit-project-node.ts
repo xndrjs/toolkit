@@ -1,5 +1,5 @@
 import type { QueryDefinition, ResourceProjection } from "../../../ir";
-import { closedPayloadDiscriminants } from "../../../check/discriminants";
+import { closedLiteralDiscriminant } from "../../../check/discriminants";
 import {
   allProjectionExpansions,
   collectionElement,
@@ -35,7 +35,7 @@ export function collectionElementResources(
 }
 
 /**
- * Payload `type` case labels that should route to `projectOn${member}`.
+ * Payload discriminant case labels that should route to `projectOn${member}`.
  * Armed projections with a default arm route every closed payload discriminant
  * (and fall through) to `projectOn*` so ordered when/default runs there.
  * Flat resources use the resource name.
@@ -49,9 +49,9 @@ export function discriminationLabelsForMember(
   if (projection?.arms !== null && projection?.arms !== undefined) {
     const resource = resources.get(member);
     if (resource && projection.defaultArm !== null) {
-      const closed = closedPayloadDiscriminants(resource.payloadType, resources);
-      if (closed !== null && closed.size > 0) {
-        return [...closed].sort();
+      const closed = closedLiteralDiscriminant(resource.payloadType, resources);
+      if (closed !== null && closed.values.size > 0) {
+        return [...closed.values].sort();
       }
     }
   }
