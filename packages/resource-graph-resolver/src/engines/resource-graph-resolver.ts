@@ -15,6 +15,7 @@ import { ResolutionSession, type GraphWalkRef } from "./resolution-session";
 import type {
   ContentRegistry,
   IslandId,
+  OnFailurePolicy,
   SchedulingMode,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
@@ -40,6 +41,16 @@ type LoadCompletion<R extends ContentRegistry, TExecutionContext> = {
   | { readonly ok: true; readonly payloads: readonly (R[keyof R & string] | undefined)[] }
   | { readonly ok: false; readonly error: unknown }
 );
+
+const ROOT_ON_FAILURE: OnFailurePolicy = "throw";
+
+function walkRef(
+  resource: ApplicationResourceIdentifier,
+  inheritedIslandId: IslandId,
+  onFailure: OnFailurePolicy
+): GraphWalkRef {
+  return { resource, inheritedIslandId, onFailure };
+}
 
 export interface ResourceGraphResolverConfig<
   R extends ContentRegistry = ContentRegistry,
@@ -138,7 +149,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     islandIds: readonly IslandId[]
   ): void => {
     for (const inheritedIslandId of islandIds) {
-      enqueue(session.expand({ resource, inheritedIslandId }));
+      enqueue(session.expand(walkRef(resource, inheritedIslandId, ROOT_ON_FAILURE)));
     }
   };
 
@@ -148,12 +159,13 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
    */
   const continueAfterPayload = (
     resource: ApplicationResourceIdentifier,
-    islandIds: readonly IslandId[]
+    islandIds: readonly IslandId[],
+    onFailure: OnFailurePolicy
   ): void => {
     const redirectTo = session.applyResolvePolicies(resource);
     if (redirectTo !== undefined) {
       for (const inheritedIslandId of islandIds) {
-        enqueue([{ resource: redirectTo, inheritedIslandId }]);
+        enqueue([walkRef(redirectTo, inheritedIslandId, onFailure)]);
       }
       return;
     }
@@ -168,8 +180,14 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   };
 
   const failResource = (ref: GraphWalkRef, error: ResourceGraphError): void => {
-    if (input.missingResourceMode === "throw") {
+    // Callers must pass the effective edge policy on `ref` (capture before settle).
+    if (ref.onFailure === "throw") {
       throw error;
+    }
+
+    if (ref.onFailure === "setNull") {
+      session.registerAbsent(ref);
+      return;
     }
 
     session.registerMissing(ref, toCollectedResolutionError(ref, error));
@@ -202,29 +220,36 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     const redirectTo = session.redirectOf(ref.resource);
     if (redirectTo !== undefined) {
       // In-memory locator already converted — follow the canonical ARI.
-      enqueue([{ resource: redirectTo, inheritedIslandId: ref.inheritedIslandId }]);
+      enqueue([walkRef(redirectTo, ref.inheritedIslandId, ref.onFailure)]);
       return;
     }
 
     if (session.isResolved(ref.resource)) {
-      continueAfterPayload(ref.resource, [ref.inheritedIslandId]);
+      continueAfterPayload(ref.resource, [ref.inheritedIslandId], ref.onFailure);
       return;
     }
 
     if (session.hasFailure(ref.resource)) {
-      failResource(ref, new MissingResourceError(ref.resource.toString(), [ref.inheritedIslandId]));
+      session.rememberWaiter(ref);
+      if (session.onFailureOf(ref.resource) === "throw") {
+        throw new MissingResourceError(ref.resource.toString(), [ref.inheritedIslandId]);
+      }
+      return;
+    }
+
+    if (session.isAbsent(ref.resource)) {
       return;
     }
 
     if (!session.rememberWaiter(ref)) {
-      // Already pending; this island is now recorded as a waiter.
+      // Already pending; this island is now recorded as a waiter (policy upgraded).
       return;
     }
 
     if (session.promoteFromBacking(ref.resource)) {
       const islandIds = session.settle(ref.resource);
       session.notifyBackingPromotion(ref.resource, islandIds);
-      continueAfterPayload(ref.resource, islandIds);
+      continueAfterPayload(ref.resource, islandIds, ref.onFailure);
       return;
     }
 
@@ -264,11 +289,11 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       if (session.isResolved(ref.resource)) {
         const islandIds = islandsWaitingOn(ref);
         session.settle(ref.resource);
-        continueAfterPayload(ref.resource, islandIds);
+        continueAfterPayload(ref.resource, islandIds, session.onFailureOf(ref.resource));
         continue;
       }
 
-      if (session.hasFailure(ref.resource)) {
+      if (session.hasFailure(ref.resource) || session.isAbsent(ref.resource)) {
         continue;
       }
 
@@ -364,20 +389,29 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
     const resourceKeys = completion.refs.map((ref) => ref.resource.toString());
     const thrown = completion.error;
+    const shouldThrow = completion.refs.some(
+      (ref) => session.onFailureOf(ref.resource) === "throw"
+    );
 
     // Datasources may reject with ResolutionError; preserve code/message/originalError.
     if (thrown instanceof ResolutionError) {
-      if (input.missingResourceMode === "throw") {
+      if (shouldThrow) {
         const first = completion.refs[0]!;
         throw thrown.withAttribution(first.resource.toString(), islandsWaitingOn(first));
       }
 
       for (const ref of completion.refs) {
+        const onFailure = session.onFailureOf(ref.resource);
         for (const inheritedIslandId of islandsWaitingOn(ref)) {
-          session.registerMissing(
-            { resource: ref.resource, inheritedIslandId },
-            thrown.withAttribution(ref.resource.toString(), [inheritedIslandId])
-          );
+          const attributed = walkRef(ref.resource, inheritedIslandId, onFailure);
+          if (onFailure === "setNull") {
+            session.registerAbsent(attributed);
+          } else {
+            session.registerMissing(
+              attributed,
+              thrown.withAttribution(ref.resource.toString(), [inheritedIslandId])
+            );
+          }
         }
       }
       return;
@@ -387,20 +421,26 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       cause: thrown,
     });
 
-    if (input.missingResourceMode === "throw") {
+    if (shouldThrow) {
       throw failure;
     }
 
-    // Collect / set-error: wrap non-ResolutionError rejects as ResolutionError instances.
+    // setNull / setError: wrap non-ResolutionError rejects as ResolutionError when collecting.
     for (const ref of completion.refs) {
+      const onFailure = session.onFailureOf(ref.resource);
       for (const inheritedIslandId of islandsWaitingOn(ref)) {
-        session.registerMissing(
-          { resource: ref.resource, inheritedIslandId },
-          new ResolutionError("load_failed", failure.message, thrown, {
-            resourceKey: ref.resource.toString(),
-            inheritedIslandIds: [inheritedIslandId],
-          })
-        );
+        const attributed = walkRef(ref.resource, inheritedIslandId, onFailure);
+        if (onFailure === "setNull") {
+          session.registerAbsent(attributed);
+        } else {
+          session.registerMissing(
+            attributed,
+            new ResolutionError("load_failed", failure.message, thrown, {
+              resourceKey: ref.resource.toString(),
+              inheritedIslandIds: [inheritedIslandId],
+            })
+          );
+        }
       }
     }
   };
@@ -436,13 +476,14 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
     for (const ref of completion.refs) {
       const islandIds = islandsWaitingOn(ref);
+      const onFailure = session.onFailureOf(ref.resource);
       session.settle(ref.resource);
 
       // Strategy resolve (post-decode): enqueue target; do not expand the locator.
       const redirectTo = session.applyResolvePolicies(ref.resource);
       if (redirectTo !== undefined) {
         for (const inheritedIslandId of islandIds) {
-          enqueue([{ resource: redirectTo, inheritedIslandId }]);
+          enqueue([walkRef(redirectTo, inheritedIslandId, onFailure)]);
         }
         continue;
       }
@@ -450,7 +491,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       if (!session.isResolved(ref.resource)) {
         for (const inheritedIslandId of islandIds) {
           failResource(
-            { resource: ref.resource, inheritedIslandId },
+            walkRef(ref.resource, inheritedIslandId, onFailure),
             new MissingResourceError(ref.resource.toString(), islandIds)
           );
         }
@@ -463,7 +504,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
   try {
     for (const root of input.roots) {
-      enqueue([{ resource: root, inheritedIslandId: root.toString() }]);
+      enqueue([walkRef(root, root.toString(), ROOT_ON_FAILURE)]);
     }
 
     while (true) {

@@ -14,7 +14,6 @@ import {
   createResourceGraphResolver,
   type IslandDependencyMap,
   type IslandMap,
-  type MissingResourceMode,
   type ResolutionError,
   type ResolutionObserver,
   type SchedulingMode,
@@ -729,7 +728,6 @@ export type ResolvePageDetailInput = {
   observer?: ResolutionObserver;
   root: ReturnType<typeof pageAri>;
   executionContext: PageDetailExecutionContext;
-  missingResourceMode: MissingResourceMode;
   backingResources?: ReadonlyMap<ResourceKey, unknown>;
   signal?: AbortSignal;
 };
@@ -757,7 +755,6 @@ export async function resolvePageDetail(
     await resolver.resolve({
       roots: [input.root],
       executionContext: input.executionContext,
-      missingResourceMode: input.missingResourceMode,
       backingResources: input.backingResources,
       signal: input.signal,
     });

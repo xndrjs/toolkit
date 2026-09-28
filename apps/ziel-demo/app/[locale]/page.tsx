@@ -26,7 +26,7 @@ export default async function LocaleDemoPage({ params }: Props) {
     notFound();
   }
 
-  const result = await resolvePage({ locale, missingResourceMode: "collect" });
+  const result = await resolvePage({ locale });
 
   if (!result.ok) {
     return (

@@ -79,7 +79,6 @@ function emitResolveInputType(query: QueryDefinition, registryTypeName: string):
   }
   fields.push(
     `  executionContext: ${contextType};`,
-    `  missingResourceMode: MissingResourceMode;`,
     `  backingResources?: ReadonlyMap<ResourceKey, unknown>;`,
     `  signal?: AbortSignal;`
   );
@@ -167,7 +166,6 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
     `  } = await resolver.resolve({`,
     `    roots: ${engineRoots},`,
     `    executionContext: input.executionContext,`,
-    `    missingResourceMode: input.missingResourceMode,`,
     `    backingResources: input.backingResources,`,
     `    signal: input.signal,`,
     `  });`,

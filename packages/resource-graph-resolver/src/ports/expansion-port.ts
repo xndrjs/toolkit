@@ -1,6 +1,19 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { ContentRegistry, RegistryPayloadFor } from "../types";
+import type { ContentRegistry, OnFailurePolicy, RegistryPayloadFor } from "../types";
+
+export type { OnFailurePolicy };
+
+const ON_FAILURE_RANK: Record<OnFailurePolicy, number> = {
+  setNull: 0,
+  setError: 1,
+  throw: 2,
+};
+
+/** Strictest-wins: `throw` > `setError` > `setNull`. */
+export function stricterOnFailure(left: OnFailurePolicy, right: OnFailurePolicy): OnFailurePolicy {
+  return ON_FAILURE_RANK[left] >= ON_FAILURE_RANK[right] ? left : right;
+}
 
 /**
  * Everything a policy may observe: the resource, its own payload, and the
@@ -25,6 +38,16 @@ export interface ExpansionContext<
 
 export interface ExpansionResult {
   resources: readonly ApplicationResourceIdentifier[];
+  /**
+   * Failure policy for every resource in this result. Defaults to `"throw"`.
+   * After a policy-chain merge, prefer {@link onFailureByKey} when policies differ.
+   */
+  onFailure?: OnFailurePolicy;
+  /**
+   * Per-resource failure policy (e.g. after merging expansion policies).
+   * Takes precedence over {@link onFailure} for listed keys.
+   */
+  onFailureByKey?: ReadonlyMap<string, OnFailurePolicy>;
 }
 
 /**
@@ -95,9 +118,18 @@ export function defineExpansionPolicy<
 
 const EMPTY_EXPANSION: ExpansionResult = { resources: [] };
 
+function onFailureForResource(
+  result: ExpansionResult,
+  resourceKey: string,
+  fallback: OnFailurePolicy = "throw"
+): OnFailurePolicy {
+  return result.onFailureByKey?.get(resourceKey) ?? result.onFailure ?? fallback;
+}
+
 /**
  * Builds an {@link ExpansionPort} that merges every matching policy.
  * Children are concatenated in policy order and deduplicated by `resource.toString()`.
+ * Duplicate ARIs keep the strictest {@link OnFailurePolicy} (`throw` > `setError` > `setNull`).
  * When no policy matches, returns `{ resources: [] }`.
  */
 export function createExpansionPolicyChain<
@@ -107,25 +139,40 @@ export function createExpansionPolicyChain<
   return {
     expand(context) {
       const merged: ApplicationResourceIdentifier[] = [];
-      const seen = new Set<string>();
+      const onFailureByKey = new Map<string, OnFailurePolicy>();
 
       for (const policy of policies) {
         if (!policy.matches(context)) {
           continue;
         }
 
-        for (const resource of policy.expand(context).resources) {
+        const result = policy.expand(context);
+        for (const resource of result.resources) {
           const key = resource.toString();
-          if (seen.has(key)) {
+          const edgePolicy = onFailureForResource(result, key);
+          const existing = onFailureByKey.get(key);
+
+          if (existing === undefined) {
+            merged.push(resource);
+            onFailureByKey.set(key, edgePolicy);
             continue;
           }
 
-          seen.add(key);
-          merged.push(resource);
+          onFailureByKey.set(key, stricterOnFailure(existing, edgePolicy));
         }
       }
 
-      return merged.length === 0 ? EMPTY_EXPANSION : { resources: merged };
+      if (merged.length === 0) {
+        return EMPTY_EXPANSION;
+      }
+
+      const uniquePolicies = new Set(onFailureByKey.values());
+      if (uniquePolicies.size === 1) {
+        const only = uniquePolicies.values().next().value!;
+        return only === "throw" ? { resources: merged } : { resources: merged, onFailure: only };
+      }
+
+      return { resources: merged, onFailureByKey };
     },
   };
 }

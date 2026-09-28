@@ -102,7 +102,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     const source = createStoreSource({ for: pageGraphFamilies, omit: [asset] });
     const output = await resolvePageGraph(schedulingMode, {
       source,
-      missingResourceMode: "collect",
+      onFailure: "setError",
     });
 
     expect(output.errors).toHaveLength(1);
@@ -126,7 +126,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
 
     const output = await resolvePageGraph(schedulingMode, {
       policies,
-      missingResourceMode: "collect",
+      onFailure: "setError",
     });
 
     expect(output.errors).toHaveLength(1);
@@ -210,7 +210,6 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     const output = await resolver.resolve({
       roots: [first],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     expect(output.errors).toEqual([]);
@@ -270,7 +269,6 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     await resolver.resolve({
       roots: [page],
       executionContext: {},
-      missingResourceMode: "throw",
       signal: controller.signal,
     });
 
@@ -298,7 +296,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     });
 
     const failure = await resolver
-      .resolve({ roots: [page], executionContext: {}, missingResourceMode: "throw" })
+      .resolve({ roots: [page], executionContext: {} })
       .catch((error: unknown) => error);
 
     expect(failure).toBeInstanceOf(ResourceLoadFailedError);
@@ -328,7 +326,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
         createExpansionPolicyChain([
           {
             matches: ({ resource }) => resource.type === "page",
-            expand: () => ({ resources: [hero, menu] }),
+            expand: () => ({ resources: [hero, menu], onFailure: "setError" }),
           },
           {
             matches: ({ resource }) => resource.type === "menu",
@@ -348,7 +346,6 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     const output = await resolver.resolve({
       roots: [page],
       executionContext: {},
-      missingResourceMode: "collect",
     });
 
     expect(output.contentMap.has(page)).toBe(true);
@@ -383,7 +380,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     });
 
     const failure = await resolver
-      .resolve({ roots: [page], executionContext: {}, missingResourceMode: "throw" })
+      .resolve({ roots: [page], executionContext: {} })
       .catch((error: unknown) => error);
 
     expect(failure).toBeInstanceOf(ResolutionError);
@@ -417,7 +414,7 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
         createExpansionPolicyChain([
           {
             matches: ({ resource }) => resource.type === "page",
-            expand: () => ({ resources: [hero, menu] }),
+            expand: () => ({ resources: [hero, menu], onFailure: "setError" }),
           },
           {
             matches: ({ resource }) => resource.type === "menu",
@@ -437,7 +434,6 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     const output = await resolver.resolve({
       roots: [page],
       executionContext: {},
-      missingResourceMode: "collect",
     });
 
     expect(output.contentMap.has(page)).toBe(true);
@@ -498,7 +494,6 @@ describe("scheduling mode parity", () => {
     return resolver.resolve({
       roots: [page],
       executionContext: {},
-      missingResourceMode: "collect",
       backingResources: new Map<string, unknown>([
         [footer.toString(), { logo: { $ref: asset.toString() } }],
       ]),
@@ -542,7 +537,7 @@ describe("positional load contract", () => {
         createExpansionPolicyChain([
           {
             matches: ({ resource }) => resource.equals(root),
-            expand: () => ({ resources: [entryA, entryB] }),
+            expand: () => ({ resources: [entryA, entryB], onFailure: "setError" }),
           },
         ]),
         createIslandPolicyChain([])
@@ -552,7 +547,6 @@ describe("positional load contract", () => {
     const output = await resolver.resolve({
       roots: [root],
       executionContext: {},
-      missingResourceMode: "collect",
     });
 
     expect(output.contentMap.get(entryA)).toEqual({ title: "A" });
@@ -595,7 +589,6 @@ describe("positional load contract", () => {
       resolver.resolve({
         roots: [root],
         executionContext: {},
-        missingResourceMode: "throw",
       })
     ).rejects.toMatchObject({
       name: "ResourceBatchLengthError",
@@ -667,7 +660,6 @@ describe("strategy resolve redirects", () => {
     const output = await resolver.resolve({
       roots: [root],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     expect(output.errors).toEqual([]);
@@ -742,7 +734,6 @@ describe("strategy resolve redirects", () => {
     const output = await resolver.resolve({
       roots: [root],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     expect(output.errors).toEqual([]);
@@ -785,7 +776,6 @@ describe("strategy resolve redirects", () => {
     const output = await resolver.resolve({
       roots: [root],
       executionContext: {},
-      missingResourceMode: "throw",
       backingResources: new Map([[customRef.toString(), { type: "Entry", id: "1" }]]),
     });
 
@@ -810,7 +800,6 @@ describe("multi-root seeds", () => {
       resolver.resolve({
         roots: [],
         executionContext: {},
-        missingResourceMode: "throw",
       })
     ).rejects.toMatchObject({
       name: "ResourceGraphError",
@@ -840,7 +829,6 @@ describe("multi-root seeds", () => {
     await resolver.resolve({
       roots: [a, b],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     expect(seenRoots).toEqual([a, b]);
@@ -873,7 +861,6 @@ describe("multi-root seeds", () => {
     const resolution = resolver.resolve({
       roots: [a, b],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     await flushMacrotasks();
@@ -903,7 +890,6 @@ describe("multi-root seeds", () => {
     const output = await resolver.resolve({
       roots: [page, page],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     expect(output.contentMap.size).toBe(1);
@@ -942,7 +928,6 @@ describe("multi-root seeds", () => {
     const output = await resolver.resolve({
       roots: [left, right],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     expect(output.contentMap.size).toBe(3);
@@ -987,7 +972,6 @@ describe("multi-root seeds", () => {
     const output = await resolver.resolve({
       roots: [customRef],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     expect(output.errors).toEqual([]);
@@ -1038,7 +1022,6 @@ describe("multi-root seeds", () => {
     const resolution = resolver.resolve({
       roots: [fastRoot, slowRoot],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     await flushMacrotasks();
@@ -1090,7 +1073,6 @@ describe("multi-root seeds", () => {
     const output = await resolver.resolve({
       roots: [left, right],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     expect(output.errors).toEqual([]);
@@ -1098,5 +1080,105 @@ describe("multi-root seeds", () => {
     expect(Object.keys(output.contentMap.toJSON()).sort()).toEqual(
       [left, right, leftChild, rightChild].map((r) => r.toString()).sort()
     );
+  });
+});
+
+describe("per-edge onFailure", () => {
+  it("omits a missing child under setNull without recording errors", async () => {
+    const source = createStoreSource({ for: pageGraphFamilies, omit: [asset] });
+    const output = await resolvePageGraph("lane", {
+      source,
+      onFailure: "setNull",
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(output.contentMap.has(asset)).toBe(false);
+    expect(output.contentMap.has(page)).toBe(true);
+    expect(output.contentMap.has(hero)).toBe(true);
+  });
+
+  it("applies strictest-wins when the same ARI is discovered with different policies", async () => {
+    const source = createStoreSource({ for: pageGraphFamilies, omit: [asset] });
+
+    const policies: ExpansionPolicy[] = [
+      {
+        matches: ({ resource }) => resource.type === "page",
+        expand: () => ({ resources: [hero, menu] }),
+      },
+      {
+        matches: ({ resource }) => resource.type === "hero",
+        expand: () => ({ resources: [asset], onFailure: "setNull" }),
+      },
+      {
+        matches: ({ resource }) => resource.type === "menu",
+        // Same ARI as hero→asset; throw is stricter than setNull.
+        expand: () => ({ resources: [asset], onFailure: "throw" }),
+      },
+    ];
+
+    await expect(
+      resolvePageGraph("lane", {
+        source,
+        policies,
+        islandPolicies: [
+          {
+            matches: ({ resource }) => resource.type === "menu",
+            resolve: () => ({ startIsland: true }),
+          },
+        ],
+      })
+    ).rejects.toThrow(MissingResourceError);
+  });
+
+  it("records setError for one child while setNull omits another", async () => {
+    const root = pageAri({ id: "P" });
+    const entryAri = testAriFactory("entry");
+    const keep = entryAri({ id: "keep" });
+    const soft = entryAri({ id: "soft" });
+    const hard = entryAri({ id: "hard" });
+
+    const resolver = createResourceGraphResolver({
+      sources: [
+        createStoreSource({
+          id: "pages",
+          for: [pageAri],
+          store: new Map([[root.toString(), {}]]),
+        }),
+        {
+          id: "cms",
+          for: [entryAri],
+          concurrency: 1,
+          load: async (batch) =>
+            batch.map((resource) => (resource.equals(keep) ? { title: "ok" } : undefined)),
+        },
+      ],
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.equals(root),
+            expand: () => ({
+              resources: [keep, soft, hard],
+              onFailureByKey: new Map([
+                [soft.toString(), "setNull"],
+                [hard.toString(), "setError"],
+              ]),
+            }),
+          },
+        ]),
+        createIslandPolicyChain([])
+      ),
+    });
+
+    const output = await resolver.resolve({
+      roots: [root],
+      executionContext: {},
+    });
+
+    expect(output.contentMap.get(keep)).toEqual({ title: "ok" });
+    expect(output.contentMap.has(soft)).toBe(false);
+    expect(output.contentMap.has(hard)).toBe(false);
+    expect(output.errors).toHaveLength(1);
+    expect(output.errors[0]?.resourceKey).toBe(hard.toString());
+    expect(output.errors[0]?.code).toBe("missing");
   });
 });

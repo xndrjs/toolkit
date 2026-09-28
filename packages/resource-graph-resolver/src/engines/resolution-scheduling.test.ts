@@ -83,7 +83,6 @@ describe("lane versus barrier scheduling", () => {
     const resolution = resolver.resolve({
       roots: [root],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     await flushMacrotasks();
@@ -145,7 +144,6 @@ describe("batching and concurrency", () => {
     const output = await resolver.resolve({
       roots: [root],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     return { source, output };
@@ -243,7 +241,6 @@ describe("observer", () => {
     await resolver.resolve({
       roots: [root],
       executionContext: {},
-      missingResourceMode: "throw",
       backingResources: new Map<string, unknown>([[promoted.toString(), {}]]),
     });
 
@@ -281,7 +278,6 @@ describe("observer", () => {
     const output = await resolver.resolve({
       roots: [root],
       executionContext: {},
-      missingResourceMode: "throw",
     });
 
     expect(output.errors).toEqual([]);
@@ -317,7 +313,6 @@ describe("positional load length", () => {
       resolver.resolve({
         roots: [root],
         executionContext: {},
-        missingResourceMode: "throw",
       })
     ).rejects.toMatchObject({
       name: "ResourceBatchLengthError",

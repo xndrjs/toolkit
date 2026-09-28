@@ -77,7 +77,8 @@ export class ResourceGraphAbortedError extends ResourceGraphError {
  * A resource was requested but never resolved: either a source returned
  * `undefined` for its batch slot, or a source rejected while loading it.
  *
- * Thrown when `missingResourceMode` is `"throw"`; otherwise collected into
+ * Thrown when the discovering edge's `onFailure` is `"throw"` (the default);
+ * under `"setError"` it is collected into
  * {@link import("./types").ResolveResourceGraphOutput.errors}.
  */
 export class MissingResourceError extends ResourceGraphError {

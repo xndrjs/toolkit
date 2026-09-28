@@ -97,7 +97,6 @@ export async function resolveDemoPage(
   const output = await resolver.resolve({
     roots: [pageRoot],
     executionContext,
-    missingResourceMode: "throw",
     backingResources,
     signal: options?.signal,
   });
@@ -178,7 +177,10 @@ function finalize(args: {
     return {
       ok: false,
       schedulingMode,
-      errors: output.errors.map(({ resourceKey, message }) => ({ resourceKey, message })),
+      errors: output.errors.map(({ resourceKey, message }) => ({
+        resourceKey: resourceKey ?? "",
+        message,
+      })),
     };
   }
 

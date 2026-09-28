@@ -192,7 +192,8 @@ export async function resolvePageGraph(
     sources?: readonly DataSource[];
     policies?: ExpansionPolicy[];
     islandPolicies?: IslandPolicy[];
-    missingResourceMode?: "throw" | "collect";
+    /** Applied as `onFailure` on every expansion policy in this resolve. */
+    onFailure?: "throw" | "setNull" | "setError";
     backingResources?: ReadonlyMap<string, unknown>;
     signal?: AbortSignal;
   } = {}
@@ -201,10 +202,25 @@ export async function resolvePageGraph(
     options.source ?? createStoreSource({ for: pageGraphFamilies }),
   ];
 
+  const basePolicies = options.policies ?? createPageGraphPolicies();
+  const policies =
+    options.onFailure === undefined
+      ? basePolicies
+      : basePolicies.map((policy) => ({
+          ...policy,
+          expand: (context: Parameters<ExpansionPolicy["expand"]>[0]) => {
+            const result = policy.expand(context);
+            return {
+              ...result,
+              onFailure: result.onFailure ?? options.onFailure,
+            };
+          },
+        }));
+
   const resolver = createResourceGraphResolver({
     sources,
     strategy: graphStrategy(
-      createExpansionPolicyChain(options.policies ?? createPageGraphPolicies()),
+      createExpansionPolicyChain(policies),
       createIslandPolicyChain(options.islandPolicies ?? createPageGraphIslandPolicies())
     ),
     schedulingMode,
@@ -213,7 +229,6 @@ export async function resolvePageGraph(
   return resolver.resolve({
     roots: [page],
     executionContext: {},
-    missingResourceMode: options.missingResourceMode ?? "throw",
     ...(options.backingResources !== undefined
       ? { backingResources: options.backingResources }
       : {}),

@@ -39,7 +39,6 @@ async function resolveWithCache(cache: LruIslandCache): Promise<{
   const output = await resolver.resolve({
     roots: [pageRoot],
     executionContext,
-    missingResourceMode: "throw",
     backingResources,
   });
 
@@ -126,7 +125,6 @@ describe("island cache cold/warm round-trip", () => {
     const output = await resolver.resolve({
       roots: [pageRoot],
       executionContext,
-      missingResourceMode: "throw",
       backingResources,
     });
 

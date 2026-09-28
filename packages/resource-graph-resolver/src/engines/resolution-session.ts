@@ -5,12 +5,17 @@ import { IslandDependencyMap } from "../model/island-dependency-map";
 import { IslandMap } from "../model/island-map";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
 import { ResolutionError, ResourceGraphAbortedError } from "../errors";
-import type { ExpansionContext, ExpansionPort } from "../ports/expansion-port";
+import {
+  stricterOnFailure,
+  type ExpansionContext,
+  type ExpansionPort,
+} from "../ports/expansion-port";
 import type { IslandPort } from "../ports/island-port";
 import type { ResolvePort } from "../ports/resolve-port";
 import type {
   ContentRegistry,
   IslandId,
+  OnFailurePolicy,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
   ResourceKey,
@@ -20,17 +25,21 @@ import type {
 export interface GraphWalkRef {
   resource: ApplicationResourceIdentifier;
   inheritedIslandId: IslandId;
+  /** Failure policy for this edge. Roots always use `"throw"`. */
+  onFailure: OnFailurePolicy;
 }
 
 interface FailureAccumulator {
   error: ResolutionError;
   inheritedIslandIds: Set<IslandId>;
+  onFailure: OnFailurePolicy;
 }
 
 /** An ARI awaiting a load, plus every island currently waiting for it. */
 interface PendingEntry {
   resource: ApplicationResourceIdentifier;
   inheritedIslandIds: Set<IslandId>;
+  onFailure: OnFailurePolicy;
 }
 
 const VISIT_SEPARATOR = "\u0000";
@@ -64,6 +73,8 @@ export class ResolutionSession<
   readonly islandDependencies = new IslandDependencyMap();
 
   private readonly failuresByResource = new Map<ResourceKey, FailureAccumulator>();
+  /** Resources omitted under `onFailure: "setNull"` (not listed in {@link errors}). */
+  private readonly absentResources = new Set<ResourceKey>();
   private readonly pendingByKey = new Map<ResourceKey, PendingEntry>();
   /**
    * Abstract ARI key → canonical ARI to load next (e.g. CustomReference → Entry).
@@ -109,6 +120,34 @@ export class ResolutionSession<
     return this.failuresByResource.has(resource.toString());
   }
 
+  /** True when the resource was omitted under `onFailure: "setNull"`. */
+  isAbsent(resource: ApplicationResourceIdentifier): boolean {
+    return this.absentResources.has(resource.toString());
+  }
+
+  /**
+   * Effective failure policy for a pending or already-failed resource.
+   * Defaults to `"throw"` when the ARI is not tracked.
+   */
+  onFailureOf(resource: ApplicationResourceIdentifier): OnFailurePolicy {
+    const key = resource.toString();
+    const pending = this.pendingByKey.get(key);
+    if (pending !== undefined) {
+      return pending.onFailure;
+    }
+
+    const failure = this.failuresByResource.get(key);
+    if (failure !== undefined) {
+      return failure.onFailure;
+    }
+
+    if (this.absentResources.has(key)) {
+      return "setNull";
+    }
+
+    return "throw";
+  }
+
   /**
    * Failure recorded for `resource`, if any. Used by projectors under
    * `on failure set error` to place the same instance into the projected alias.
@@ -148,21 +187,28 @@ export class ResolutionSession<
       return false;
     }
 
+    if (this.absentResources.has(key)) {
+      return false;
+    }
+
     const failure = this.failuresByResource.get(key);
     if (failure !== undefined) {
       failure.inheritedIslandIds.add(ref.inheritedIslandId);
+      failure.onFailure = stricterOnFailure(failure.onFailure, ref.onFailure);
       return false;
     }
 
     const pending = this.pendingByKey.get(key);
     if (pending !== undefined) {
       pending.inheritedIslandIds.add(ref.inheritedIslandId);
+      pending.onFailure = stricterOnFailure(pending.onFailure, ref.onFailure);
       return false;
     }
 
     this.pendingByKey.set(key, {
       resource: ref.resource,
       inheritedIslandIds: new Set([ref.inheritedIslandId]),
+      onFailure: ref.onFailure,
     });
     return true;
   }
@@ -289,10 +335,16 @@ export class ResolutionSession<
    *
    * Prefer passing a {@link ResolutionError} (preserved from a datasource or
    * wrapped from a load failure). A plain message becomes `code: "missing"`.
+   * Used for `onFailure: "setError"` (and throw paths that collect before rethrowing).
    */
   registerMissing(ref: GraphWalkRef, failure?: ResolutionError | string): void {
     const resourceKey = ref.resource.toString();
+    const pending = this.pendingByKey.get(resourceKey);
     const existing = this.failuresByResource.get(resourceKey);
+    const onFailure = stricterOnFailure(
+      pending?.onFailure ?? existing?.onFailure ?? "setError",
+      ref.onFailure
+    );
 
     const error =
       existing?.error ??
@@ -305,10 +357,13 @@ export class ResolutionSession<
     const accumulated = existing ?? {
       error,
       inheritedIslandIds: new Set<IslandId>(),
+      onFailure,
     };
 
     accumulated.inheritedIslandIds.add(ref.inheritedIslandId);
+    accumulated.onFailure = stricterOnFailure(accumulated.onFailure, onFailure);
     this.failuresByResource.set(resourceKey, accumulated);
+    this.absentResources.delete(resourceKey);
     this.pendingByKey.delete(resourceKey);
 
     if (existing !== undefined) {
@@ -321,6 +376,22 @@ export class ResolutionSession<
       inheritedIslandIds: sortedCopy(accumulated.inheritedIslandIds),
       message: accumulated.error.message,
     }));
+  }
+
+  /**
+   * Marks a resource as omitted under `onFailure: "setNull"` and clears its pending entry.
+   * Does not appear in {@link ResolveResourceGraphOutput.errors}.
+   */
+  registerAbsent(ref: GraphWalkRef): void {
+    const resourceKey = ref.resource.toString();
+    if (this.failuresByResource.has(resourceKey)) {
+      // setError already recorded — keep the stricter outcome.
+      this.pendingByKey.delete(resourceKey);
+      return;
+    }
+
+    this.absentResources.add(resourceKey);
+    this.pendingByKey.delete(resourceKey);
   }
 
   /**
@@ -355,9 +426,15 @@ export class ResolutionSession<
       children: expansion.resources,
     }));
 
+    const defaultOnFailure = expansion.onFailure ?? "throw";
     const children: GraphWalkRef[] = [];
     for (const child of expansion.resources) {
-      children.push({ resource: child, inheritedIslandId: islandId });
+      const key = child.toString();
+      children.push({
+        resource: child,
+        inheritedIslandId: islandId,
+        onFailure: expansion.onFailureByKey?.get(key) ?? defaultOnFailure,
+      });
     }
 
     return children;

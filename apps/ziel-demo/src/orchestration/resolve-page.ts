@@ -14,7 +14,7 @@ import {
   DEMO_SPACE,
   demoIds,
 } from "../infrastructure/fixtures/store.js";
-import type { IslandMap, MissingResourceMode, SchedulingMode } from "@xndrjs/ziel";
+import type { IslandMap, SchedulingMode } from "@xndrjs/ziel";
 
 const DEFAULT_SCHEDULING_MODE: SchedulingMode = "lane";
 
@@ -27,8 +27,6 @@ export type ResolvePageInput = {
   spaceId?: SpaceId;
   environmentId?: EnvironmentId;
   schedulingMode?: SchedulingMode;
-  /** Defaults to `"throw"`; use `"collect"` for soft failures in the UI. */
-  missingResourceMode?: MissingResourceMode;
   signal?: AbortSignal;
 };
 
@@ -73,7 +71,6 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
   const spaceId = input.spaceId ?? DEMO_SPACE;
   const environmentId = input.environmentId ?? DEMO_ENVIRONMENT;
   const schedulingMode = input.schedulingMode ?? DEFAULT_SCHEDULING_MODE;
-  const missingResourceMode = input.missingResourceMode ?? "throw";
   const params = { pageId };
   const executionContext = { spaceId, environmentId, locale };
   const root = pageAri({ spaceId, environmentId, id: pageId, locale });
@@ -84,7 +81,6 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
       schedulingMode,
       root,
       executionContext,
-      missingResourceMode,
       signal: input.signal,
     });
 
@@ -99,7 +95,10 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
           schedulingMode,
           resolvedCount: contentMap.size,
         },
-        errors: errors.map(({ resourceKey, message }) => ({ resourceKey, message })),
+        errors: errors.map(({ resourceKey, message }) => ({
+          resourceKey: resourceKey ?? "",
+          message,
+        })),
       };
     }
 
