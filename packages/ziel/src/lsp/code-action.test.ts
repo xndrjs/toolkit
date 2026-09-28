@@ -410,7 +410,9 @@ query Q() {
     expect(missingContextInsertText()).toBe("  context { }\n\n");
     const edits = missingContextEditsForQuery(document, query)!;
     expect(applyInsert(text, offset, edits[0]!.newText)).toContain("context { }");
-    expect(applyInsert(text, offset, edits[0]!.newText)).toMatch(/\{\n {2}context \{ \}\n\n {2}root/);
+    expect(applyInsert(text, offset, edits[0]!.newText)).toMatch(
+      /\{\n {2}context \{ \}\n\n {2}root/
+    );
   });
 
   it("inserts empty roots block after context", () => {
