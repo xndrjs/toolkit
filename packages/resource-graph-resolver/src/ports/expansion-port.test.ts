@@ -111,6 +111,45 @@ describe("createExpansionPolicyChain", () => {
 
     expect(port.expand(createContext())).toEqual({ resources: [] });
   });
+
+  it("propagates a shared onFailure when every policy agrees", () => {
+    const child = testAri("item", "1");
+    const port = createExpansionPolicyChain([
+      {
+        matches: () => true,
+        expand: () => ({ resources: [child], onFailure: "setNull" }),
+      },
+    ]);
+
+    expect(port.expand(createContext())).toEqual({
+      resources: [child],
+      onFailure: "setNull",
+    });
+  });
+
+  it("keeps per-resource onFailure and applies strictest-wins on duplicates", () => {
+    const soft = testAri("item", "soft");
+    const hard = testAri("item", "hard");
+    const shared = testAri("item", "shared");
+
+    const port = createExpansionPolicyChain([
+      {
+        matches: () => true,
+        expand: () => ({ resources: [soft, shared], onFailure: "setNull" }),
+      },
+      {
+        matches: () => true,
+        expand: () => ({ resources: [hard, shared], onFailure: "setError" }),
+      },
+    ]);
+
+    const result = port.expand(createContext());
+    expect(result.resources).toEqual([soft, shared, hard]);
+    expect(result.onFailure).toBeUndefined();
+    expect(result.onFailureByKey?.get(soft.toString())).toBe("setNull");
+    expect(result.onFailureByKey?.get(hard.toString())).toBe("setError");
+    expect(result.onFailureByKey?.get(shared.toString())).toBe("setError");
+  });
 });
 
 describe("defineExpansionPolicy", () => {

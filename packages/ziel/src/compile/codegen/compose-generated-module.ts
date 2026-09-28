@@ -145,7 +145,6 @@ export function composeGeneratedModule(
       "type DataSource",
       "type IslandDependencyMap",
       "type IslandMap",
-      "type MissingResourceMode",
       "type ResolutionError",
       "type ResolutionObserver",
       "type ResourceKey",

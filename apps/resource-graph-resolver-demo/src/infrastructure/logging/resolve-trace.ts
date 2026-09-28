@@ -36,9 +36,9 @@ export function createConsoleResolveTrace(): ResolveTrace {
   }
 
   const observer: ResolutionObserver = {
-    onResolutionStart({ root, schedulingMode, sourceIds }) {
+    onResolutionStart({ roots, schedulingMode, sourceIds }) {
       log(
-        `── Resolve ${root.toString()} · scheduling ${schedulingMode} · sources ${sourceIds.join(", ")}`
+        `── Resolve ${roots.map((root) => root.toString()).join(", ")} · scheduling ${schedulingMode} · sources ${sourceIds.join(", ")}`
       );
     },
 

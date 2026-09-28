@@ -25,7 +25,6 @@ async function resolveDemoPage(
   return createDemoResolver({ schedulingMode: "barrier", productCatalog: catalog }).resolve({
     roots: [pageRoot],
     executionContext,
-    missingResourceMode: "throw",
   });
 }
 

@@ -198,7 +198,6 @@ describe("createDemoStrategy", () => {
     const output = await createDemoResolver({ schedulingMode: "barrier" }).resolve({
       roots: [pageRoot],
       executionContext,
-      missingResourceMode: "throw",
     });
 
     expect(output.errors).toEqual([]);

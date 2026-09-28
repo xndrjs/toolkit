@@ -14,7 +14,6 @@ describe("serializeAllIslands", () => {
     const result = await createDemoResolver({ schedulingMode: "barrier" }).resolve({
       roots: [pageRoot],
       executionContext,
-      missingResourceMode: "throw",
     });
 
     const serializedIslands = serializeAllIslands(result);

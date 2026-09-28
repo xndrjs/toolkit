@@ -59,7 +59,6 @@ async function resolveOnce(
   await resolver.resolve({
     roots: [graph.root],
     executionContext: {},
-    missingResourceMode: "throw",
   });
 
   return collector.snapshot();

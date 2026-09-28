@@ -41,7 +41,17 @@ export type ComposeContentRegistry<Slices extends readonly ContentRegistry[]> = 
   [K in keyof UnionToIntersection<Slices[number]>]: UnionToIntersection<Slices[number]>[K];
 };
 
-export type MissingResourceMode = "throw" | "collect";
+/**
+ * Per-edge policy for a child discovered by expansion when its load fails.
+ *
+ * - `throw` — abort resolution (default when omitted).
+ * - `setNull` — omit the payload and continue; projectors treat the alias as `null`.
+ * - `setError` — record a {@link ResolutionError} in `errors` / failures and continue.
+ *
+ * Roots always throw. When the same ARI is reached by several edges, the
+ * strictest policy wins (`throw` > `setError` > `setNull`).
+ */
+export type OnFailurePolicy = "throw" | "setNull" | "setError";
 
 /**
  * When expansion runs relative to in-flight loads.
@@ -57,7 +67,6 @@ export interface ResolveResourceGraphInput<TExecutionContext = unknown> {
   /** Seed ARIs for one resolution session; must be non-empty. */
   roots: readonly ApplicationResourceIdentifier[];
   executionContext: TExecutionContext;
-  missingResourceMode: MissingResourceMode;
   /**
    * Opaque pre-resolved payloads consulted before any source is asked.
    * The map is never mutated; promoted keys are reported as

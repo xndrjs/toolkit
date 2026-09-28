@@ -197,7 +197,6 @@ const resolver = createResourceGraphResolver<DemoContentRegistry, DemoExecutionC
 const output = await resolver.resolve({
   roots: [pageRoot],
   executionContext: { locale: "en-US" },
-  missingResourceMode: "throw", // or "collect"
   // backingResources: cachedPayloadsByKey,
   // signal: AbortSignal.timeout(5_000),
 });
@@ -221,24 +220,24 @@ When several sources can handle the same ARI `type`, the **first** match in `sou
 | `contentMap`           | Resolved payloads keyed by ARI                                         |
 | `islands`              | Per-island resource membership                                         |
 | `islandDependencies`   | Direct edges between islands (child island opened by an island policy) |
-| `errors`               | Missing resources when `missingResourceMode: "collect"`                |
+| `errors`               | `ResolutionError` instances from edges with `onFailure: "setError"`    |
 | `promotedResourceKeys` | Backing keys the walk actually reached, in promotion order             |
 
 ### Missing resources and termination
 
-Because the resolver owns chunking, a batch always starts while work is pending and concurrency allows. So there is no ambiguous “no progress” state, and exactly three things can go wrong:
+Roots always throw on failure. Children inherit `onFailure` from the expansion that discovered them (`"throw"` by default). When the same ARI is reached by several edges, the **strictest** policy wins (`throw` > `setError` > `setNull`).
 
-| Situation                              | `"throw"`                 | `"collect"`                                                |
-| -------------------------------------- | ------------------------- | ---------------------------------------------------------- |
-| A source omitted a requested ARI       | `MissingResourceError`    | Error entry attributed to every island that reached it     |
-| No source's `for` list matches the ARI | `NoDataSourceError`       | Error entry (this is a wiring bug, not missing data)       |
-| A source's `load` rejected             | `ResourceLoadFailedError` | Error entries for that batch; other sources keep resolving |
+| Situation                              | `"throw"` (default)       | `"setNull"`                          | `"setError"`                                                |
+| -------------------------------------- | ------------------------- | ------------------------------------ | ----------------------------------------------------------- |
+| A source omitted a requested ARI       | `MissingResourceError`    | Omit payload, continue               | `ResolutionError` (`code: "missing"`) in `errors`, continue |
+| No source's `for` list matches the ARI | `NoDataSourceError`       | Omit payload, continue               | `ResolutionError` (`code: "no_data_source"`) in `errors`    |
+| A source's `load` rejected             | `ResourceLoadFailedError` | Omit payloads in the batch, continue | `ResolutionError` (`code: "load_failed"`) per ARI, continue |
 
-All of them extend `ResourceGraphError`. `ResourceLoadFailedError` carries `sourceId`, `resourceKeys` and the original rejection as `cause`.
+Set `onFailure` on `ExpansionResult` (Ziel: `on failure set null` / `set error` / `throw` after an expand target). All thrown errors extend `ResourceGraphError`. `ResourceLoadFailedError` carries `sourceId`, `resourceKeys` and the original rejection as `cause`. Datasources may also `throw new ResolutionError(code, message, cause)` — the resolver preserves the instance.
 
 ### Cancellation
 
-Pass `signal: AbortSignal` on the resolve input. The resolver checks it around every load and forwards it to sources. Abort throws `ResourceGraphAbortedError` independent of `missingResourceMode`, and outstanding loads are always observed first, so a cancellation never leaves unhandled rejections behind.
+Pass `signal: AbortSignal` on the resolve input. The resolver checks it around every load and forwards it to sources. Abort throws `ResourceGraphAbortedError` independent of per-edge `onFailure`, and outstanding loads are always observed first, so a cancellation never leaves unhandled rejections behind.
 
 ### Optional backing resources
 
@@ -398,7 +397,7 @@ Exported symbols:
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**
 - Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceBatchLengthError`**, **`ResourceGraphAbortedError`**
 - Observability: **`ResolutionObserver`** and its event types
-- Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`SchedulingMode`**, **`ResolutionError`**, **`MissingResourceMode`**, **`SerializedIsland`**, **`ExpansionResult`**, **`IslandResult`**, **`ExpansionContext`**, **`IslandContext`**, **`ResolveContext`**, **`ResolveResult`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
+- Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`SchedulingMode`**, **`ResolutionError`**, **`OnFailurePolicy`**, **`SerializedIsland`**, **`ExpansionResult`**, **`IslandResult`**, **`ExpansionContext`**, **`IslandContext`**, **`ResolveContext`**, **`ResolveResult`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 
 ## See also
 

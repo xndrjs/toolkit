@@ -25,6 +25,7 @@ export {
   type GraphResolutionStrategyBuilder,
 } from "./strategy/create-graph-resolution-strategy";
 export type { ExpansionContext, ExpansionResult } from "./ports/expansion-port";
+export { stricterOnFailure } from "./ports/expansion-port";
 export type { IslandContext, IslandResult } from "./ports/island-port";
 export type { ResolveContext, ResolveResult } from "./ports/resolve-port";
 export { IslandDependencyMap } from "./model/island-dependency-map";
@@ -56,7 +57,7 @@ export type {
   ComposeContentRegistry,
   ContentRegistry,
   IslandId,
-  MissingResourceMode,
+  OnFailurePolicy,
   RegistryPayloadFor,
   SchedulingMode,
   ResolveResourceGraphInput,
