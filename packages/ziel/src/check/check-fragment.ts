@@ -13,9 +13,9 @@ import { formatType } from "./assignability";
 import { checkExpansions, checkSelectedFields } from "./check-expansions";
 import { narrowPayloadByFilter } from "./discriminants";
 import { createDiagnosticSink, type DiagnosticSink } from "./diagnostic";
-import { inferExprType } from "./expressions";
+import { inferPayloadWhenExprType, isBooleanWhenType } from "./expressions";
 import { checkExcludedFields, resolveSelectedFields } from "./projection-include";
-import { unwrapNullable, type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
+import { type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
 
 const SUPPRESSED_IN_FRAGMENT = new Set(["UNKNOWN_CONTEXT_PATH", "UNKNOWN_PARAM"]);
 
@@ -50,17 +50,22 @@ export function checkFragment(
 
   let bodyPayload = payloadType;
   if (fragment.when) {
-    const whenType = inferExprType(fragment.when, `${path}.when`, scope, resources, sink);
-    if (whenType) {
-      const prim = unwrapNullable(whenType);
-      if (prim.kind !== "primitive" || prim.name !== "boolean") {
-        sink.push({
-          code: "TYPE_MISMATCH",
-          message: `Fragment when-clause must be boolean, got ${formatType(whenType)}`,
-          path: `${path}.when`,
-          span: fragment.when.span,
-        });
-      }
+    const whenType = inferPayloadWhenExprType(
+      fragment.when,
+      `${path}.when`,
+      fragment.binding,
+      payloadType,
+      scope,
+      resources,
+      sink
+    );
+    if (whenType && !isBooleanWhenType(whenType)) {
+      sink.push({
+        code: "TYPE_MISMATCH",
+        message: `Fragment when-clause must be boolean, got ${formatType(whenType)}`,
+        path: `${path}.when`,
+        span: fragment.when.span,
+      });
     }
     bodyPayload =
       narrowPayloadByFilter(payloadType, fragment.when, fragment.binding, resources) ?? payloadType;

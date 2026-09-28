@@ -580,6 +580,41 @@ describe("fragment when narrowing completions", () => {
   });
 });
 
+describe("progressive and-narrowing completions", () => {
+  it("suggests Footer-only fields after kind == Footer and e.", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): {
+  kind: "Hero"
+  id
+  title: string
+} | {
+  kind: "Footer"
+  id
+  title: string
+  cta: string
+}
+query Q(entryId: EntryId) {
+  context { locale: Locale }
+  root Entry(id: entryId, locale: context.locale)
+  on Entry e {
+    when e.kind == "Footer" and e.cta == "x" { }
+    default { }
+  }
+}
+`;
+    const { document, scalars, resources } = tablesFrom(source);
+    const offset = offsetAfter(source, 'when e.kind == "Footer" and e.');
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toContain("cta");
+    expect(labels).toContain("title");
+    expect(labels).not.toContain("authorId");
+  });
+});
+
 describe("string-literal comparison completions", () => {
   it('suggests discriminant values inside e.type == "', () => {
     const { document, scalars, resources } = tablesFrom(FIXTURE);
