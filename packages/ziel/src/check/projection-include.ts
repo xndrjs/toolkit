@@ -1,4 +1,5 @@
 import type { Expansion, FieldDecl, RefersTarget, TypeExpr } from "../ir";
+import { typesSemanticallyEqual } from "./assignability";
 import { expandPayloadObjectMembers, type PayloadTypeLookup } from "./discriminants";
 import type { DiagnosticSink } from "./diagnostic";
 
@@ -12,29 +13,66 @@ export type SelectableField = {
 /** IR include mode on projection clauses / when-arms (`null` = omitted). */
 export type IncludeMode = "all" | "properties" | "none";
 
+type ObjectMember = Extract<TypeExpr, { kind: "object" }>;
+
 /**
- * Fields selectable from a resource payload for `include all` / `include properties`.
- * Object payloads: all fields. Unions: **intersection** across members (same bar as
- * `UNKNOWN_SELECTED_FIELD` / `payloadHasField`).
- *
- * For intersection fields, `refers` is non-null when any member's field has `refers`.
- * `include none` does not use this list (empty auto-include).
+ * Merge types of the same field across union members into a single TypeExpr
+ * (deduped flat union when members differ).
  */
-export function payloadSelectableFields(
+function unionFieldTypes(types: TypeExpr[]): TypeExpr {
+  const members: TypeExpr[] = [];
+  const push = (t: TypeExpr): void => {
+    if (t.kind === "union") {
+      for (const m of t.members) push(m);
+      return;
+    }
+    if (!members.some((m) => typesSemanticallyEqual(m, t))) {
+      members.push(t);
+    }
+  };
+  for (const t of types) push(t);
+  if (members.length <= 1) {
+    return members[0] ?? types[0]!;
+  }
+  return { kind: "union", members, span: null };
+}
+
+function mergeIntersectionField(decls: FieldDecl[]): FieldDecl {
+  const first = decls[0]!;
+  return {
+    name: first.name,
+    type: unionFieldTypes(decls.map((d) => d.type)),
+    inheritedFromIdentity: decls.every((d) => d.inheritedFromIdentity),
+    refers: decls.find((d) => d.refers !== null)?.refers ?? null,
+    span: first.span,
+  };
+}
+
+/**
+ * Object fields present on every member of a closed object-union payload.
+ * Single-object payloads return that object's fields unchanged. Non-object /
+ * non-expandable payloads return `[]`.
+ *
+ * Shared field types are unioned across members (e.g. `kind: "Hero" | "Page"`).
+ * `refers` is non-null when any member's field has `refers`.
+ */
+export function payloadIntersectionFields(
   payloadType: TypeExpr,
   resources: PayloadTypeLookup
-): SelectableField[] {
+): FieldDecl[] {
   const members = expandPayloadObjectMembers(payloadType, resources);
   if (members === null || members.length === 0) {
     return [];
   }
-
   if (members.length === 1) {
-    return members[0]!.fields.map((f) => ({ name: f.name, refers: f.refers }));
+    return members[0]!.fields;
   }
+  return intersectObjectFields(members);
+}
 
+function intersectObjectFields(members: ObjectMember[]): FieldDecl[] {
   const [first, ...rest] = members;
-  const out: SelectableField[] = [];
+  const out: FieldDecl[] = [];
   for (const field of first!.fields) {
     const decls: FieldDecl[] = [field];
     let onAll = true;
@@ -47,10 +85,27 @@ export function payloadSelectableFields(
       decls.push(match);
     }
     if (!onAll) continue;
-    const refers = decls.find((d) => d.refers !== null)?.refers ?? null;
-    out.push({ name: field.name, refers });
+    out.push(mergeIntersectionField(decls));
   }
   return out;
+}
+
+/**
+ * Fields selectable from a resource payload for `include all` / `include properties`.
+ * Object payloads: all fields. Unions: **intersection** across members (same bar as
+ * `UNKNOWN_SELECTED_FIELD` / `payloadHasField`).
+ *
+ * For intersection fields, `refers` is non-null when any member's field has `refers`.
+ * `include none` does not use this list (empty auto-include).
+ */
+export function payloadSelectableFields(
+  payloadType: TypeExpr,
+  resources: PayloadTypeLookup
+): SelectableField[] {
+  return payloadIntersectionFields(payloadType, resources).map((f) => ({
+    name: f.name,
+    refers: f.refers,
+  }));
 }
 
 function includeFieldNames(

@@ -9,6 +9,7 @@ import { emitProjections } from "../compile/codegen/projections/emit-projections
 import { arrayOf, field, objectType, prim, resource, scalarRef, strLit, union } from "../fixtures";
 import {
   normalizeIncludeMode,
+  payloadIntersectionFields,
   payloadSelectableFields,
   resolveSelectedFields,
 } from "./projection-include";
@@ -90,6 +91,20 @@ describe("payloadSelectableFields / resolveSelectedFields", () => {
   it("intersects union members (same bar as UNKNOWN_SELECTED_FIELD)", () => {
     const fields = payloadSelectableFields(entry.payloadType, resources);
     expect(fields.map((f) => f.name)).toEqual(["type", "id", "title"]);
+  });
+
+  it("payloadIntersectionFields unions discriminant literals across members", () => {
+    const fields = payloadIntersectionFields(entry.payloadType, resources);
+    expect(fields.map((f) => f.name)).toEqual(["type", "id", "title"]);
+    const typeField = fields.find((f) => f.name === "type")!;
+    expect(typeField.type).toEqual({
+      kind: "union",
+      members: [
+        { kind: "stringLiteral", value: "Hero", span: null },
+        { kind: "stringLiteral", value: "Page", span: null },
+      ],
+      span: null,
+    });
   });
 
   it("include all unions explicit fields and drops expand aliases", () => {
@@ -302,6 +317,34 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     const code = emitProjections(program!);
     expect(code).toContain('if (payload.type == "Hero") {');
     expect(code).not.toContain("shell.imageId");
+    expect(code).toContain("shell.title = payload.title;");
+  });
+
+  it("default inherits clause include properties via union intersection fields", () => {
+    const { program, diagnostics } = parseAndCheck(`
+      scalar Id on string;
+      resource Entry(id: Id):
+        { kind: "Hero", id, title: string, headline: string }
+        | { kind: "Page", id, title: string }
+      query Q(id: Id) {
+        context { }
+        root Entry(id: id)
+        on Entry e include properties {
+          when e.kind == "Hero" { }
+          when e.kind == "Page" { }
+          default { }
+        }
+      }
+    `);
+    expect(diagnostics).toEqual([]);
+    const types = emitProjectionTypes(program!);
+    expect(types).toMatch(/export type Q_Entry_Default = \{[^}]*kind: "Hero" \| "Page";[^}]*\};/s);
+    expect(types).toMatch(/export type Q_Entry_Default = \{[^}]*\bid:/s);
+    expect(types).toMatch(/export type Q_Entry_Default = \{[^}]*title: string;[^}]*\};/s);
+    expect(types).not.toMatch(/export type Q_Entry_Default = \{[^}]*headline:/s);
+    const code = emitProjections(program!);
+    expect(code).toContain("shell.kind = payload.kind;");
+    expect(code).toContain("shell.id = payload.id;");
     expect(code).toContain("shell.title = payload.title;");
   });
 

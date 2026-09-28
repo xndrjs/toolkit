@@ -6,7 +6,10 @@ export type FieldMap = Map<string, FieldDecl>;
 
 export type ResourceSymbols = {
   identity: FieldMap;
-  /** Object payload fields; empty when `payloadType` is not an object. */
+  /**
+   * Payload fields for lookup: object fields, or the intersection across closed
+   * object-union members. Empty when `payloadType` is not an expandable object union.
+   */
   payload: FieldMap;
   payloadType: TypeExpr;
 };

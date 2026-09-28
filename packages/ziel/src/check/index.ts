@@ -8,6 +8,7 @@ export {
 } from "./refers";
 export {
   normalizeIncludeMode,
+  payloadIntersectionFields,
   payloadSelectableFields,
   resolveSelectedFields,
   checkExcludedFields,
