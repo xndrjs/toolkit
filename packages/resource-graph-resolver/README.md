@@ -77,7 +77,7 @@ Under `lane`, a fast source keeps walking its own subgraph while a slow peer's r
 - **`backingResources`** — pre-resolved payloads consulted before any source is asked. The map is never mutated; keys the walk actually reached come back as `promotedResourceKeys`.
 - **`ResolutionObserver`** — optional hooks for batches, expansions, promotions and misses. Observer failures never affect resolution.
 - **Errors** — `ResourceGraphError` base, plus `MissingResourceError`, `NoDataSourceError` (no source declares a matching family — a wiring bug, not missing data), `ResourceLoadFailedError` (wraps a rejected `load`), `ResourceBatchLengthError` (wrong result length), and `ResourceGraphAbortedError`. `ResolutionError` is a class (not a plain object): datasources can `throw new ResolutionError(code, message, cause)`; the resolver preserves it (`instanceof`), attributes `resourceKey` / island ids, and collects instances into `output.errors` under `onFailure: "setError"`.
-- **`onFailure`** — per expansion edge (`ExpansionResult.onFailure`: `"throw"` | `"setNull"` | `"setError"`, default `"throw"`). Roots always throw. Same ARI from multiple edges → strictest wins (`throw` > `setError` > `setNull`).
+- **`onFailure`** — per expansion edge (`ExpansionResult.onFailure`: `"throw"` | `"setNull"` | `"setError"`, default `"throw"`). Roots always throw. Same ARI from multiple edges → strictest wins (`throw` > `setError` > `setNull`). There is no global `missingResourceMode` on `ResolveResourceGraphInput` — soft failures are declared on the discovering edge (Ziel: `on failure set null` / `set error`).
 - **`serializeAllIslands`** — cache-ready payloads (`SerializedIsland`, schema v1).
 
 ## Demo

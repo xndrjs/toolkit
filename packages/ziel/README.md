@@ -114,11 +114,11 @@ const locale: Locale = Scalars.Locale("en-US");
 
 There are no uncapitalized top-level helpers (`entryId(…)`). An empty scalars program emits nothing for this section.
 
-`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`, plus `islands.on(…)[.when(…)].startIsland()` when the query declares an `islands` block). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`); collection expand targets fan out member ARIs. The factory returns the builder **without** `.build()`, so apps can still attach extra island policies by hand before calling `.build()`.
+`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`, plus `islands.on(…)[.when(…)].startIsland()` when the query declares an `islands` block). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`); collection expand targets fan out member ARIs. Per-edge `on failure` policies land on `ExpansionResult.onFailure` (or `onFailureByKey` when edges disagree). The factory returns the builder **without** `.build()`, so apps can still attach extra island policies by hand before calling `.build()`.
 
 `generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …). Projection shapes follow the DSL only — there is no default resource-name stamp. Pass `resourceTag` (e.g. `"$type"` or `"__resource"`) on codegen options / `ziel.config.ts` to opt into stamping the resource name on shells and types. Apps pass a resolved `ContentMap` and seed ARI(s); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/ziel` only — no extra runtime helper.
 
-`buildResources` / `ziel-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy`, plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. `create*Strategy` and `project*` remain exported for low-level use.
+`buildResources` / `ziel-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy`, plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. There is **no** global `missingResourceMode` on resolve input — roots always throw; child load failures follow each expand’s `on failure` policy. `create*Strategy` and `project*` remain exported for low-level use.
 
 `buildResources` / `ziel-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. When the program declares one or more `datasource` blocks, the same compose path also emits `createDataSources`. Generated imports stay on `@xndrjs/ziel` only.
 
@@ -155,6 +155,26 @@ createDataSources({
 ```
 
 `load` keeps `(batch, context: ResourceLoadContext<DsContext>)` and returns the payload union (`EntryPayload | AssetPayload | undefined`)[]. DSL `when` compiles to a single runtime predicate over `defineDataSourceFor` lanes; if every route omits DSL `when`, an optional implementation `when` may be supplied on the config instead.
+
+### `on failure` (per-expand load policy)
+
+After a one-expand target or an `each` arm, declare what happens when that child fails to load. Omitted → **`throw`** (same as the resolver default). There is no global soft-fail mode on `resolve*` input.
+
+```ziel
+expand menu: Entry(id: p.menuId, locale: @p.locale) on failure set null
+expand soft: Entry(id: p.softId, locale: @p.locale) on failure set error
+expand items: each link in p.items (
+  Entry(id: link.id, locale: @p.locale) on failure set null
+)
+```
+
+| Policy      | Resolver                                     | Projected alias type     |
+| ----------- | -------------------------------------------- | ------------------------ |
+| `throw`     | throw (`MissingResourceError` / load errors) | `Foo`                    |
+| `set null`  | omit payload, continue                       | `Foo \| null`            |
+| `set error` | record `ResolutionError`, continue           | `Foo \| ResolutionError` |
+
+Many-expand array elements follow each arm’s policy (`(Foo | null)[]`, …). Same ARI discovered by several edges → strictest wins (`throw` > `setError` > `setNull`). Datasources may `throw new ResolutionError(code, message, cause)`; under `set error` consumers use `instanceof ResolutionError`.
 
 ### `refers` field annotations
 
