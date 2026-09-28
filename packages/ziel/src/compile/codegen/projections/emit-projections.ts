@@ -3,11 +3,13 @@
  *
  * Restores expansion aliases over a resolved `ContentMap`, stamps `$type`
  * discriminators, and memos by `ari.toString()` with shell-before-edges
- * (cycle-safe). Union / collection expansion targets are stripped to member
- * projections (no `on EditorialModule` / `on TabCollection` required).
+ * (cycle-safe). Collection expansion targets strip to the element resource
+ * (`TabCollection` → `on Tab`). Resource-union payloads (`EditorialModule:
+ * Hero | Tabs`) require an explicit `on EditorialModule` — indirection to
+ * member resources uses `resolve to`, same as CustomReference.
  * Resolve-only `on R resolve to` is not a `projectOn*` shell — settled payload
- * under the locator key is stripped via resolve targets (same as resourceRef unions).
- * Armed `on` projections discriminate on payload `type` and build variant shells.
+ * under the locator key is stripped via resolve targets.
+ * Armed `on` projections discriminate on payload fields and build variant shells.
  */
 import type { Program, QueryDefinition } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";

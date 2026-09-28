@@ -81,7 +81,7 @@ export function emitManyProject(expansion: Expansion): string {
 
 /**
  * Expression that yields the projected value for one expansion alias.
- * - ordinary / union target → `projectNode(ari)` (union discriminated inside)
+ * - ordinary target → `projectNode(ari)` (requires projectable `on` for that resource)
  * - collection target → lookup collection payload, map member ARIs through `projectNode`
  * - `many` → each-comprehension map of the above
  */

@@ -845,6 +845,99 @@ describe("checkProgram — missing on projection", () => {
     expect(tabDiag?.path).toBe("queries.Q");
   });
 
+  it("errors when a resource-union expand has no on for the wrapper (does not strip to members)", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar HeroId on string;
+      scalar TabsId on string;
+      scalar ModuleId on string;
+
+      resource Hero(id: HeroId, locale: Locale): {
+        type: "Hero"
+        id
+        title: string
+      }
+
+      resource Tabs(id: TabsId, locale: Locale): {
+        type: "Tabs"
+        id
+        title: string
+      }
+
+      resource EditorialModule(id: ModuleId, locale: Locale): Hero | Tabs
+
+      resource Page(id: string, locale: Locale): {
+        id
+        moduleId: ModuleId
+      }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand mod: EditorialModule(id: p.moduleId, locale: context.locale)
+        }
+        on Hero h { id title }
+        on Tabs t { id title }
+      }
+    `);
+
+    const missing = diagnostics.filter((d) => d.code === "MISSING_ON_PROJECTION");
+    expect(missing).toContainEqual(
+      expect.objectContaining({
+        code: "MISSING_ON_PROJECTION",
+        message: expect.stringContaining("EditorialModule"),
+        path: "queries.Q",
+        data: { missingResource: "EditorialModule" },
+      })
+    );
+    expect(missing.map((d) => d.data?.missingResource)).toEqual(["EditorialModule"]);
+  });
+
+  it("accepts on EditorialModule for a resource-union expand (no member strip)", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar HeroId on string;
+      scalar TabsId on string;
+      scalar ModuleId on string;
+
+      resource Hero(id: HeroId, locale: Locale): {
+        type: "Hero"
+        id
+        title: string
+      }
+
+      resource Tabs(id: TabsId, locale: Locale): {
+        type: "Tabs"
+        id
+        title: string
+      }
+
+      resource EditorialModule(id: ModuleId, locale: Locale): Hero | Tabs
+
+      resource Page(id: string, locale: Locale): {
+        id
+        moduleId: ModuleId
+      }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand mod: EditorialModule(id: p.moduleId, locale: context.locale)
+        }
+        on EditorialModule m {
+          // payload is Hero | Tabs — fields must be shared / selected carefully;
+          // for this test we only need the on to satisfy MISSING_ON.
+        }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "MISSING_ON_PROJECTION")).toEqual([]);
+  });
+
   it("errors when a resolve-strip member lacks a projectable on", () => {
     const { diagnostics } = parseAndCheck(`
       scalar SpaceId on string;
