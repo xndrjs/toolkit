@@ -2,7 +2,8 @@
  * Ziel document formatter — Langium AbstractFormatter (no Prettier).
  * Style: 2-space indent (via LSP options), blank line between top-level decls
  * and query sections / when arms, multiline constructions (2+ args),
- * `and`/`or` broken across lines, braced blocks with indented interiors.
+ * `and`/`or` and object-union `|` broken across lines (leading pipe),
+ * braced blocks with indented interiors.
  */
 import type { AstNode } from "langium";
 import { AbstractFormatter, Formatting, type FormattingAction } from "langium/lsp";
@@ -42,6 +43,8 @@ import {
   isTypedField,
   isUnaryExpr,
   isUnionTypeExpr,
+  type ObjectTypeExpr,
+  type UnionTypeExpr,
 } from "../lang/generated/ast";
 
 /** Blank line + one indent level (overrides interior `indent` when priority is higher). */
@@ -49,6 +52,58 @@ const blankLineIndent: FormattingAction = {
   options: { priority: 1 },
   moves: [{ lines: 2, tabs: 1 }],
 };
+
+/** Same column for every leading `|` / `}` in a top-level object union. */
+const objectUnionBraceIndent: FormattingAction = {
+  options: { priority: 1 },
+  moves: [{ lines: 1, tabs: 1 }],
+};
+
+/** Fields inside an object-union member (`  | {` / `  {`). */
+const objectUnionFieldIndent: FormattingAction = {
+  options: { priority: 1 },
+  moves: [{ lines: 1, tabs: 2 }],
+};
+
+/**
+ * Langium left-folds `A | B | C` into nested UnionTypeExpr nodes. Treat any
+ * node in that chain that has an object leaf as a multiline object union.
+ */
+function isMultilineObjectUnion(node: AstNode | undefined): node is UnionTypeExpr {
+  return !!node && isUnionTypeExpr(node) && unionHasObjectLeaf(node);
+}
+
+function unionHasObjectLeaf(node: UnionTypeExpr): boolean {
+  return node.members.some((m) =>
+    isObjectTypeExpr(m) ? true : isUnionTypeExpr(m) && unionHasObjectLeaf(m)
+  );
+}
+
+function isRootUnionType(node: UnionTypeExpr): boolean {
+  return !isUnionTypeExpr(node.$container);
+}
+
+/** Leftmost leaf under a left-folded union chain. */
+function leftmostUnionLeaf(node: UnionTypeExpr): AstNode | undefined {
+  let cur: AstNode | undefined = node.members[0];
+  while (cur && isUnionTypeExpr(cur)) {
+    cur = cur.members[0];
+  }
+  return cur;
+}
+
+/** True for the first object arm of a whole `A | B | …` chain (not nested `|` arms). */
+function isFirstObjectUnionLeaf(node: ObjectTypeExpr): boolean {
+  let current: AstNode = node;
+  let root: UnionTypeExpr | undefined;
+  while (isUnionTypeExpr(current.$container)) {
+    const union = current.$container;
+    if (union.members[0] !== current) return false;
+    root = union;
+    current = union;
+  }
+  return !!root && isMultilineObjectUnion(root);
+}
 
 export class ZielFormatter extends AbstractFormatter {
   /**
@@ -98,7 +153,12 @@ export class ZielFormatter extends AbstractFormatter {
     if (isResourceDeclaration(node)) {
       const f = this.getNodeFormatter(node);
       f.keyword("resource").append(Formatting.oneSpace());
-      f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+      if (isMultilineObjectUnion(node.payloadType)) {
+        // `):\n  { … }\n  | { … }` — colon owns the line; union indents members.
+        f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.noSpace());
+      } else {
+        f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+      }
       if (node.identity.length >= 2) {
         this.formatMultilineParens(node, node.identity);
       } else {
@@ -111,7 +171,11 @@ export class ZielFormatter extends AbstractFormatter {
 
     if (isTypedField(node)) {
       const f = this.getNodeFormatter(node);
-      f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+      if (isMultilineObjectUnion(node.type)) {
+        f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.noSpace());
+      } else {
+        f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+      }
       return;
     }
 
@@ -119,9 +183,23 @@ export class ZielFormatter extends AbstractFormatter {
       const f = this.getNodeFormatter(node);
       const open = f.keyword("{");
       const close = f.keyword("}");
-      close.prepend(Formatting.newLine());
-      for (const field of node.fields) {
-        f.node(field).prepend(Formatting.indent());
+      if (isMultilineObjectUnion(node.$container)) {
+        if (isFirstObjectUnionLeaf(node)) {
+          // First arm is node-indented (`  {`); relative +1 nests fields.
+          for (const field of node.fields) {
+            f.node(field).prepend(Formatting.indent());
+          }
+          close.prepend(Formatting.newLine());
+        } else {
+          // Later arms sit on `  | {` — pin field/`}` to the shared union column.
+          for (const field of node.fields) {
+            f.node(field).prepend(objectUnionFieldIndent);
+          }
+          close.prepend(objectUnionBraceIndent);
+        }
+      } else {
+        f.interior(open, close).prepend(Formatting.indent());
+        close.prepend(Formatting.newLine());
       }
       f.keywords(";", ",").prepend(Formatting.noSpace());
       return;
@@ -129,7 +207,11 @@ export class ZielFormatter extends AbstractFormatter {
 
     if (isObjectField(node)) {
       const f = this.getNodeFormatter(node);
-      f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+      if (isMultilineObjectUnion(node.type)) {
+        f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.noSpace());
+      } else {
+        f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+      }
       return;
     }
 
@@ -157,7 +239,21 @@ export class ZielFormatter extends AbstractFormatter {
 
     if (isUnionTypeExpr(node)) {
       const f = this.getNodeFormatter(node);
-      f.keywords("|").surround(Formatting.oneSpace());
+      // Object unions (resource payloads): flat leading-pipe column.
+      // Atomic unions (`"image" | "video"`) stay inline.
+      // Langium left-folds `A|B|C` into nested UnionTypeExpr — pin every `|`
+      // to the same absolute indent so we don't get a staircase.
+      if (isMultilineObjectUnion(node)) {
+        f.keywords("|").prepend(objectUnionBraceIndent).append(Formatting.oneSpace());
+        if (isRootUnionType(node)) {
+          const firstLeaf = leftmostUnionLeaf(node);
+          if (firstLeaf) {
+            f.node(firstLeaf).prepend(Formatting.indent());
+          }
+        }
+      } else {
+        f.keywords("|").surround(Formatting.oneSpace());
+      }
       return;
     }
 

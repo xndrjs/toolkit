@@ -159,6 +159,26 @@ on Entry e when e.type=="Menu" or e.type=="Footer" and e.type!="X"
     expect(formatted).toMatch(/e\.type == "Footer"\n {6}and e\.type != "X"/);
   });
 
+  it("breaks object-union pipes onto leading-pipe lines; keeps atomic unions inline", async () => {
+    const messy = `
+scalar Id on string;
+resource Entry(id:Id):{kind:"Hero" id}|{kind:"Footer" id cta:string}|{kind:"Page" id}
+resource Asset(id:Id):{kind:"Asset" asset_type:"image"|"video"|"document"}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toMatch(
+      /Entry\(id: Id\):\n {2}\{\n {4}kind: "Hero"\n {4}id\n {2}\}\n {2}\| \{\n {4}kind: "Footer"/
+    );
+    // No staircase: every leading pipe shares the same column.
+    expect(formatted).toMatch(
+      /\n {2}\| \{\n {4}kind: "Footer"[\s\S]*?\n {2}\}\n {2}\| \{\n {4}kind: "Page"/
+    );
+    expect(formatted).not.toMatch(/\n {4}\| \{/);
+    expect(formatted).toContain('asset_type: "image" | "video" | "document"');
+    expect(formatted).not.toMatch(/"image"\n\s+\| "video"/);
+  });
+
   it("formats empty when arms and empty include clauses as { }", async () => {
     const messy = `
 scalar Id on string;
