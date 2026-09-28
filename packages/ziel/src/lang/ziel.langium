@@ -213,10 +213,21 @@ ProjectionDefaultArm:
 ResolveArm:
     target=ResourceConstruction ('when' when=Expression)?;
 
+/**
+ * Per-edge load failure policy after `expand` target / `each` arm.
+ * Default when omitted: `throw`. `set null` / `set error` widen projected aliases.
+ */
+OnFailureClause:
+    'on' 'failure' (
+        {infer OnFailureThrow} 'throw'
+      | {infer OnFailureSetNull} 'set' 'null'
+      | {infer OnFailureSetError} 'set' 'error'
+    );
+
 Expansion:
     'expand' alias=ID ':' (
         each=EachComprehension
-      | target=ResourceConstruction
+      | target=ResourceConstruction onFailure=OnFailureClause?
     );
 
 /** `each item in source ( Constr when …, … )` — polymorphic many-expand. */
@@ -225,7 +236,7 @@ EachComprehension:
         '(' arms+=ExpandArm (',' arms+=ExpandArm)* ')';
 
 ExpandArm:
-    target=ResourceConstruction ('when' when=Expression)?;
+    target=ResourceConstruction ('when' when=Expression)? onFailure=OnFailureClause?;
 
 ResourceConstruction:
     resource=ID '(' (args+=NamedArg (',' args+=NamedArg)*)? ')';

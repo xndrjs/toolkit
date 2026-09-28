@@ -1,5 +1,6 @@
 import type {
   Expansion,
+  OnFailurePolicy,
   ProjectionArm,
   ProjectionArmBody,
   ResourceProjection,
@@ -44,9 +45,16 @@ function defaultArmPayloadType(projection: ResourceProjection, resources: Resour
   return resource.payloadType;
 }
 
+function emitProjectEdgeCall(ariExpr: string, onFailure: OnFailurePolicy): string {
+  if (onFailure === "throw") {
+    return `projectNode(${ariExpr})`;
+  }
+  return `projectEdge(${ariExpr}, ${JSON.stringify(onFailure)})`;
+}
+
 /**
  * Project a `many` each-comprehension: same ARI list as strategy emit, then map
- * each ARI through `projectNode`.
+ * each ARI through `projectNode` / `projectEdge` per arm policy.
  */
 export function emitManyProject(expansion: Expansion): string {
   const comprehension = expansion.comprehension;
@@ -60,7 +68,7 @@ export function emitManyProject(expansion: Expansion): string {
   if (arms.length === 1) {
     const arm = arms[0]!;
     const construction = emitConstruction(arm.target, projectionExprScope);
-    const mapFn = `(${itemBinding}: any) => projectNode(${construction})`;
+    const mapFn = `(${itemBinding}: any) => ${emitProjectEdgeCall(construction, arm.onFailure)}`;
     if (arm.when !== null) {
       return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when, projectionExprScope)}).map(${mapFn})`;
     }
@@ -70,10 +78,11 @@ export function emitManyProject(expansion: Expansion): string {
   // Multi-arm: flatMap preserves source order (same as strategy emit).
   const branches = arms.map((arm) => {
     const construction = emitConstruction(arm.target, projectionExprScope);
+    const projected = emitProjectEdgeCall(construction, arm.onFailure);
     if (arm.when !== null) {
-      return `if (${emitExpr(arm.when, projectionExprScope)}) return [projectNode(${construction})];`;
+      return `if (${emitExpr(arm.when, projectionExprScope)}) return [${projected}];`;
     }
-    return `return [projectNode(${construction})];`;
+    return `return [${projected}];`;
   });
   const body = [...branches, `return [];`].join("\n        ");
   return `${sourceExpr}.flatMap((${itemBinding}: any): any[] => {\n        ${body}\n      })`;
@@ -84,6 +93,7 @@ export function emitManyProject(expansion: Expansion): string {
  * - ordinary target → `projectNode(ari)` (requires projectable `on` for that resource)
  * - collection target → lookup collection payload, map member ARIs through `projectNode`
  * - `many` → each-comprehension map of the above
+ * - `on failure set null` / `set error` → `projectEdge` when payload/failure is absent
  */
 export function emitExpansionValue(
   expansion: Expansion,
@@ -123,18 +133,28 @@ export function emitExpansionValue(
       }
       return `${field.name}: item.${field.name}`;
     });
+    const onFailure = expansion.onFailure;
+    const missingReturn =
+      onFailure === "setNull"
+        ? "return null;"
+        : onFailure === "setError"
+          ? "return failures.get(__collectionAri.toString());"
+          : "return undefined;";
     // Same member ARI construction as strategy fan-out so nested `@id` expansions work.
     return [
       `(() => {`,
       `  const __collectionAri = ${construction};`,
       `  const __collectionPayload = contentMap.get(__collectionAri as never) as any;`,
-      `  if (__collectionPayload === undefined) return undefined;`,
+      `  if (__collectionPayload === undefined) ${missingReturn}`,
       `  return __collectionPayload.map((item: any) => projectNode(${elementAri}({ ${argParts.join(", ")} })));`,
       `})()`,
     ].join("\n");
   }
 
-  return `projectNode(${emitConstruction(expansion.target, projectionExprScope)})`;
+  return emitProjectEdgeCall(
+    emitConstruction(expansion.target, projectionExprScope),
+    expansion.onFailure
+  );
 }
 
 export function emitShellBody(

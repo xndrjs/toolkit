@@ -9,6 +9,7 @@
  */
 import type { Program, QueryDefinition } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";
+import { queryNeedsFailureProjection } from "../../../check/projection-graph";
 import {
   ariFactoryName,
   executionContextTypeName,
@@ -105,9 +106,10 @@ function emitProjectCall(query: QueryDefinition): string {
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
   const hasRedirects = query.projections.some((p) => p.resolveArms !== null);
+  const hasFailures = queryNeedsFailureProjection(query);
   const seedArg = isSingleRootQuery(query) ? "input.root" : "input.roots";
 
-  if (!hasParams && !hasContext && !hasRedirects) {
+  if (!hasParams && !hasContext && !hasRedirects && !hasFailures) {
     return `${projectFn}(${seedArg}, contentMap)`;
   }
 
@@ -121,6 +123,9 @@ function emitProjectCall(query: QueryDefinition): string {
   if (hasRedirects) {
     argFields.push("redirects");
   }
+  if (hasFailures) {
+    argFields.push("failures");
+  }
   return `${projectFn}(${seedArg}, contentMap, {\n    ${argFields.join(",\n    ")},\n  })`;
 }
 
@@ -132,6 +137,7 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
   const strategyFactory = strategyFactoryName(query.name);
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
+  const hasFailures = queryNeedsFailureProjection(query);
   const contextType = hasContext ? executionContextTypeName(query.name) : "unknown";
 
   const strategyCall = hasParams
@@ -140,6 +146,18 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
 
   const projectCall = emitProjectCall(query);
   const engineRoots = emitEngineRootsExpr(query);
+  const failuresBinding = hasFailures
+    ? [
+        ``,
+        `  const failures = new Map<ResourceKey, ResolutionError>();`,
+        `  for (const error of errors) {`,
+        `    if (error.resourceKey !== undefined) {`,
+        `      failures.set(error.resourceKey, error);`,
+        `    }`,
+        `  }`,
+        ``,
+      ].join("\n")
+    : `\n`;
 
   return [
     emitResolveInputType(query, registryTypeName),
@@ -169,7 +187,7 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
     `    backingResources: input.backingResources,`,
     `    signal: input.signal,`,
     `  });`,
-    ``,
+    failuresBinding,
     `  const ${resultField} = ${projectCall};`,
     ``,
     `  return {`,

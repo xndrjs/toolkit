@@ -3,11 +3,14 @@
  * Armed `on` projections emit one `.on(ari).when(…).expand(…)` per arm that
  * expands; flat `on` stays `.on(ari).expand(…)`.
  * Collection expand targets get an auto member-ARI fan-out `.on(collectionAri)`.
+ * `on failure` policies are emitted as `ExpansionResult.onFailure` (uniform) or
+ * `onFailureByKey` when edges in the same expand disagree.
  */
 import type {
   ExpandArm,
   Expansion,
   FieldDecl,
+  OnFailurePolicy,
   ProjectionArm,
   QueryDefinition,
   ResourceDefinition,
@@ -103,26 +106,167 @@ function emitResourcesArray(expansions: Expansion[], scope: EmitExprScope): stri
   return `[\n        ${parts.join(",\n        ")},\n      ]`;
 }
 
+/** Collect every per-edge policy contributed by these expansions. */
+function collectOnFailurePolicies(expansions: Expansion[]): OnFailurePolicy[] {
+  const policies: OnFailurePolicy[] = [];
+  for (const expansion of expansions) {
+    if (expansion.multiplicity === "one") {
+      policies.push(expansion.onFailure);
+      continue;
+    }
+    if (expansion.comprehension === null) continue;
+    for (const arm of expansion.comprehension.arms) {
+      policies.push(arm.onFailure);
+    }
+  }
+  return policies;
+}
+
+/**
+ * Shared policy when every edge agrees; otherwise `null` (emit `onFailureByKey`).
+ */
+function uniformOnFailure(expansions: Expansion[]): OnFailurePolicy | null {
+  const policies = collectOnFailurePolicies(expansions);
+  if (policies.length === 0) return "throw";
+  const first = policies[0]!;
+  return policies.every((p) => p === first) ? first : null;
+}
+
+function emitManyPushStmts(expansion: Expansion, scope: EmitExprScope, index: number): string[] {
+  const comprehension = expansion.comprehension;
+  if (comprehension === null) {
+    throw new Error("emitStrategies: many expansion missing comprehension");
+  }
+
+  const { itemBinding, source, arms } = comprehension;
+  const sourceExpr = emitExpr(source, scope);
+  const stmts: string[] = [];
+
+  if (arms.length === 1) {
+    const arm = arms[0]!;
+    const listVar = `__many${index}`;
+    const construction = emitConstruction(arm.target, scope);
+    const listExpr =
+      arm.when !== null
+        ? `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when, scope)}).map((${itemBinding}: any) => ${construction})`
+        : `${sourceExpr}.map((${itemBinding}: any) => ${construction})`;
+    stmts.push(`const ${listVar} = ${listExpr};`);
+    stmts.push(`for (const __item of ${listVar}) {`);
+    stmts.push(`  __resources.push(__item);`);
+    stmts.push(`  __onFailureByKey.set(__item.toString(), ${JSON.stringify(arm.onFailure)});`);
+    stmts.push(`}`);
+    return stmts;
+  }
+
+  const policyVar = `__policy${index}`;
+  stmts.push(`for (const ${itemBinding} of ${sourceExpr}) {`);
+  for (const arm of arms) {
+    const construction = emitConstruction(arm.target, scope);
+    if (arm.when !== null) {
+      stmts.push(`  if (${emitExpr(arm.when, scope)}) {`);
+      stmts.push(`    const ${policyVar} = ${construction};`);
+      stmts.push(`    __resources.push(${policyVar});`);
+      stmts.push(
+        `    __onFailureByKey.set(${policyVar}.toString(), ${JSON.stringify(arm.onFailure)});`
+      );
+      stmts.push(`    continue;`);
+      stmts.push(`  }`);
+    } else {
+      stmts.push(`  {`);
+      stmts.push(`    const ${policyVar} = ${construction};`);
+      stmts.push(`    __resources.push(${policyVar});`);
+      stmts.push(
+        `    __onFailureByKey.set(${policyVar}.toString(), ${JSON.stringify(arm.onFailure)});`
+      );
+      stmts.push(`    continue;`);
+      stmts.push(`  }`);
+    }
+  }
+  stmts.push(`}`);
+  return stmts;
+}
+
+/**
+ * Mixed per-edge policies: build `resources` + `onFailureByKey` imperatively so
+ * many-expand source order is preserved.
+ */
+function emitMixedExpandBody(expansions: Expansion[], scope: EmitExprScope): string {
+  const stmts: string[] = [
+    `const __resources: any[] = [];`,
+    `const __onFailureByKey = new Map<string, "throw" | "setNull" | "setError">();`,
+  ];
+
+  for (let i = 0; i < expansions.length; i++) {
+    const expansion = expansions[i]!;
+    if (expansion.multiplicity === "one") {
+      if (expansion.target === null) {
+        throw new Error("emitStrategies: one-expand missing target");
+      }
+      const varName = `__r${i}`;
+      stmts.push(`const ${varName} = ${emitConstruction(expansion.target, scope)};`);
+      stmts.push(`__resources.push(${varName});`);
+      stmts.push(
+        `__onFailureByKey.set(${varName}.toString(), ${JSON.stringify(expansion.onFailure)});`
+      );
+      continue;
+    }
+    stmts.push(...emitManyPushStmts(expansion, scope, i));
+  }
+
+  stmts.push(`return { resources: __resources, onFailureByKey: __onFailureByKey };`);
+  return stmts.join("\n      ");
+}
+
+function emitOnFailureField(onFailure: OnFailurePolicy, indent: string): string[] {
+  if (onFailure === "throw") return [];
+  return [`${indent}onFailure: ${JSON.stringify(onFailure)},`];
+}
+
 function emitFlatProjectionExpansion(projection: ResourceProjection): string {
   const ari = ariFactoryName(projection.resource);
-  const resources = emitResourcesArray(projection.expansions, strategyExprScope);
+  const uniform = uniformOnFailure(projection.expansions);
 
+  if (uniform === null) {
+    return [
+      `  strategy.expansion`,
+      `    .on(${ari})`,
+      `    .expand((predicate) => {`,
+      `      ${emitMixedExpandBody(projection.expansions, strategyExprScope)}`,
+      `    });`,
+    ].join("\n");
+  }
+
+  const resources = emitResourcesArray(projection.expansions, strategyExprScope);
   return [
     `  strategy.expansion`,
     `    .on(${ari})`,
     `    .expand((predicate) => ({`,
     `      resources: ${resources},`,
+    ...emitOnFailureField(uniform, "      "),
     `    }));`,
   ].join("\n");
 }
 
 function emitArmedProjectionExpansion(projection: ResourceProjection, arm: ProjectionArm): string {
   const ari = ariFactoryName(projection.resource);
-  const resources = emitResourcesArray(arm.expansions, strategyArmedBodyScope);
   const whenPred = emitExpr(arm.when, strategyExprScope);
+  const uniform = uniformOnFailure(arm.expansions);
 
   // `.when()` is a runtime filter; TypeScript still sees the full payload union.
   // Cast so arm-specific fields (imageId, tabs, …) typecheck in the expand body.
+  if (uniform === null) {
+    return [
+      `  strategy.expansion`,
+      `    .on(${ari})`,
+      `    .when((predicate) => ${whenPred})`,
+      `    .expand((predicate) => {`,
+      `      const payload = predicate.payload as any;`,
+      `      ${emitMixedExpandBody(arm.expansions, strategyArmedBodyScope)}`,
+      `    });`,
+    ].join("\n");
+  }
+
+  const resources = emitResourcesArray(arm.expansions, strategyArmedBodyScope);
   return [
     `  strategy.expansion`,
     `    .on(${ari})`,
@@ -131,6 +275,7 @@ function emitArmedProjectionExpansion(projection: ResourceProjection, arm: Proje
     `      const payload = predicate.payload as any;`,
     `      return {`,
     `        resources: ${resources},`,
+    ...emitOnFailureField(uniform, "        "),
     `      };`,
     `    });`,
   ].join("\n");

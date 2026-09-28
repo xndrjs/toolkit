@@ -49,6 +49,7 @@ import type { ResourceTable, ScalarTable } from "../../../check/symbols";
 import type {
   Expansion,
   FieldDecl,
+  OnFailurePolicy,
   Program,
   ProjectionArm,
   ProjectionArmBody,
@@ -117,6 +118,7 @@ function resolveForEmit(
  * - collection (`R[]`) → `Query_R[]`
  * - `many` / multi-arm → union of arm targets, wrapped in an array
  * - with `refers` + armed `on R` → narrowed variant union (e.g. `Query_Entry_Menu`)
+ * - `on failure set null` / `set error` widen each edge (`T | null` / `T | ResolutionError`)
  */
 export function printExpansionAliasType(
   queryName: string,
@@ -136,7 +138,7 @@ export function printExpansionAliasType(
         context !== null && itemType !== null
           ? collectApplicableRefers(arm.target, itemType, resources)
           : [];
-      return printTargetAliasType(
+      const base = printTargetAliasType(
         queryName,
         arm.target,
         resources,
@@ -145,6 +147,7 @@ export function printExpansionAliasType(
         refers,
         context
       );
+      return wrapOnFailureType(base, arm.onFailure);
     });
     // Deduplicate while preserving order.
     const unique: string[] = [];
@@ -163,7 +166,7 @@ export function printExpansionAliasType(
     context !== null
       ? collectApplicableRefers(expansion.target, context.sourcePayload, resources)
       : [];
-  return printTargetAliasType(
+  const base = printTargetAliasType(
     queryName,
     expansion.target,
     resources,
@@ -172,6 +175,15 @@ export function printExpansionAliasType(
     refers,
     context
   );
+  return wrapOnFailureType(base, expansion.onFailure);
+}
+
+/** Widen a projected alias for `on failure set null` / `set error`. */
+export function wrapOnFailureType(base: string, onFailure: OnFailurePolicy): string {
+  if (onFailure === "throw") return base;
+  const inner = base.includes("|") ? `(${base})` : base;
+  if (onFailure === "setNull") return `${inner} | null`;
+  return `${inner} | ResolutionError`;
 }
 
 function printTargetAliasType(

@@ -111,7 +111,16 @@ describe("payloadSelectableFields / resolveSelectedFields", () => {
     expect(
       resolveSelectedFields(
         ["title"],
-        [{ alias: "strips", target: null, multiplicity: "many", comprehension: null, span: null }],
+        [
+          {
+            alias: "strips",
+            target: null,
+            multiplicity: "many",
+            comprehension: null,
+            onFailure: "throw",
+            span: null,
+          },
+        ],
         "all",
         page.payloadType,
         resources
@@ -123,7 +132,16 @@ describe("payloadSelectableFields / resolveSelectedFields", () => {
     expect(
       resolveSelectedFields(
         [],
-        [{ alias: "strips", target: null, multiplicity: "many", comprehension: null, span: null }],
+        [
+          {
+            alias: "strips",
+            target: null,
+            multiplicity: "many",
+            comprehension: null,
+            onFailure: "throw",
+            span: null,
+          },
+        ],
         "properties",
         page.payloadType,
         resources
@@ -160,7 +178,16 @@ describe("payloadSelectableFields / resolveSelectedFields", () => {
     expect(
       resolveSelectedFields(
         [],
-        [{ alias: "image", target: null, multiplicity: "one", comprehension: null, span: null }],
+        [
+          {
+            alias: "image",
+            target: null,
+            multiplicity: "one",
+            comprehension: null,
+            onFailure: "throw",
+            span: null,
+          },
+        ],
         "all",
         hero,
         resources
@@ -181,7 +208,16 @@ describe("payloadSelectableFields / resolveSelectedFields", () => {
     expect(
       resolveSelectedFields(
         [],
-        [{ alias: "strips", target: null, multiplicity: "many", comprehension: null, span: null }],
+        [
+          {
+            alias: "strips",
+            target: null,
+            multiplicity: "many",
+            comprehension: null,
+            onFailure: "throw",
+            span: null,
+          },
+        ],
         "all",
         page.payloadType,
         resources,

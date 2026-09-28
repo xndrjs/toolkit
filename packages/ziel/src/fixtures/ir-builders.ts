@@ -106,7 +106,8 @@ export function singleRoot(construction: ResourceConstruction): QueryRoot[] {
 export function expand(
   alias: string,
   target: ResourceConstruction,
-  comprehension: Expansion["comprehension"] = null
+  comprehension: Expansion["comprehension"] = null,
+  onFailure: Expansion["onFailure"] = "throw"
 ): Expansion {
   if (comprehension) {
     return {
@@ -114,6 +115,7 @@ export function expand(
       target: null,
       multiplicity: "many",
       comprehension,
+      onFailure: "throw",
       span,
     };
   }
@@ -122,6 +124,7 @@ export function expand(
     target,
     multiplicity: "one",
     comprehension: null,
+    onFailure,
     span,
   };
 }
@@ -131,7 +134,11 @@ export function expandEach(
   alias: string,
   itemBinding: string,
   source: Expr,
-  arms: { target: ResourceConstruction; when?: Expr | null }[]
+  arms: {
+    target: ResourceConstruction;
+    when?: Expr | null;
+    onFailure?: Expansion["onFailure"];
+  }[]
 ): Expansion {
   return {
     alias,
@@ -143,8 +150,10 @@ export function expandEach(
       arms: arms.map((arm) => ({
         target: arm.target,
         when: arm.when ?? null,
+        onFailure: arm.onFailure ?? "throw",
       })),
     },
+    onFailure: "throw",
     span,
   };
 }

@@ -291,4 +291,26 @@ resource Post(id:Id):{id title ?: string subtitle:string|null note ?: string | n
     expect(formatted).not.toContain("title ?");
     expect(formatted).not.toContain("?:string");
   });
+
+  it("formats on failure clauses after expand targets and each arms", async () => {
+    const messy = `
+scalar Id on string;
+resource Page(id:Id):{menuId:Id items:{id:Id}[]}
+resource Entry(id:Id):{id}
+query Q(id:Id){
+root Page(id:id)
+on Page p{
+expand menu:Entry(id:p.menuId)on failure set null
+expand items:each link in p.items(Entry(id:link.id)on failure set error)
+}
+on Entry e{id}
+}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain("on failure set null");
+    expect(formatted).toContain("on failure set error");
+    expect(formatted).toMatch(/Entry\(id: p\.menuId\) on failure set null/);
+    expect(formatted).toMatch(/Entry\(id: link\.id\) on failure set error/);
+  });
 });
