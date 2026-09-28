@@ -77,17 +77,38 @@ function applyPayloadNarrowing(
   }
 }
 
+function isInsideAst(node: AstNode, root: AstNode | undefined): boolean {
+  if (!root) return false;
+  let current: AstNode | undefined = node;
+  while (current) {
+    if (current === root) return true;
+    current = current.$container;
+  }
+  return false;
+}
+
 function applyWhenArmNarrowing(node: AstNode, scope: QueryScope, resources: ResourceTable): void {
   const whenArm = AstUtils.getContainerOfType(node, isProjectionWhenArm);
   if (whenArm) {
-    const clause = whenArm.$container;
-    applyPayloadNarrowing(clause.binding, clause.resource, whenArm.when, scope, resources);
+    // Editing the filter itself — keep the full payload so literal completions
+    // see every discriminant value (not the arm's own narrow).
+    if (!isInsideAst(node, whenArm.when)) {
+      applyPayloadNarrowing(
+        whenArm.$container.binding,
+        whenArm.$container.resource,
+        whenArm.when,
+        scope,
+        resources
+      );
+    }
     return;
   }
 
   const fragment = AstUtils.getContainerOfType(node, isFragmentDeclaration);
   if (fragment?.when) {
-    applyPayloadNarrowing(fragment.binding, fragment.resource, fragment.when, scope, resources);
+    if (!isInsideAst(node, fragment.when)) {
+      applyPayloadNarrowing(fragment.binding, fragment.resource, fragment.when, scope, resources);
+    }
   }
 }
 

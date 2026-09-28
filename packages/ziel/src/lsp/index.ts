@@ -28,6 +28,13 @@ export {
   type PathAccess,
   type PathFieldCompletion,
 } from "./completion-path";
+export {
+  collectStringLiteralValues,
+  literalCompletionsAtOffset,
+  parseTrailingLiteralCompare,
+  type LiteralCompareSite,
+  type LiteralValueCompletion,
+} from "./completion-literal";
 export { buildExprScope, type ExprScopeTables } from "./expr-scope";
 export { createZielLspServices } from "./create-services";
 export { ZielFormatter } from "./formatter";
