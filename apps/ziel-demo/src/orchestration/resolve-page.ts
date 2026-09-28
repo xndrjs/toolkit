@@ -1,5 +1,4 @@
 import {
-  pageAri,
   Scalars,
   type EntryId,
   type EnvironmentId,
@@ -73,13 +72,11 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
   const schedulingMode = input.schedulingMode ?? DEFAULT_SCHEDULING_MODE;
   const params = { pageId };
   const executionContext = { spaceId, environmentId, locale };
-  const root = pageAri({ spaceId, environmentId, id: pageId, locale });
 
   try {
     const { pageDetail, contentMap, errors, islands } = await resolveDemoPageDetail({
       params,
       schedulingMode,
-      root,
       executionContext,
       signal: input.signal,
     });
@@ -121,7 +118,7 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
       meta: { locale, pageId, spaceId, environmentId, schedulingMode },
       errors: [
         {
-          resourceKey: root.toString(),
+          resourceKey: `page/${pageId}`,
           message: error instanceof Error ? error.message : String(error),
         },
       ],

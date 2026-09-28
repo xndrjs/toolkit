@@ -1,17 +1,16 @@
 /**
  * Emit high-level `resolve*` façades: closed strategy → resolve → project.
  *
- * Apps pass resolver config minus `strategy`, plus `resolve` input and query
- * params. Strategy factories and projectors stay exported for low-level use.
+ * Apps pass resolver config minus `strategy`, plus query params and
+ * `executionContext`. Root ARIs are built inside the façade from the query’s
+ * `root` / `roots` constructions (params + context) — callers do not pass them.
  *
- * Single-root keeps ergonomic `root:`; multi-root takes `roots: { alias: ARI }`.
- * Both call `resolver.resolve({ roots: […] })`.
+ * Strategy factories and projectors stay exported for low-level use.
  */
 import type { Program, QueryDefinition } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";
 import { queryNeedsFailureProjection } from "../../../check/projection-graph";
 import {
-  ariFactoryName,
   executionContextTypeName,
   paramsTypeName,
   projectFnName,
@@ -21,6 +20,16 @@ import {
   resolveResultTypeName,
   strategyFactoryName,
 } from "../naming";
+import { emitConstruction } from "../shared/emit-construction";
+import type { EmitExprScope } from "../shared/emit-expr";
+
+/** Scope for root constructions inside `resolve*`: params + executionContext on `input`. */
+const resolveFacadeExprScope: EmitExprScope = {
+  params: "input.params",
+  executionContext: "input.executionContext",
+  payload: "payload",
+  resource: "resource",
+};
 
 function resolveInputTypeName(queryName: string): string {
   return `Resolve${queryName}Input`;
@@ -45,22 +54,9 @@ function emitResolveResultType(
   ].join("\n");
 }
 
-function emitMultiRootInputField(query: QueryDefinition): string {
-  const fields: string[] = [];
-  for (const root of query.roots) {
-    if (root.alias === null) {
-      throw new Error(`emitResolves: multi-root query '${query.name}' has a null alias`);
-    }
-    const ari = ariFactoryName(root.construction.resource);
-    fields.push(`    ${root.alias}: ReturnType<typeof ${ari}>;`);
-  }
-  return `  roots: {\n${fields.join("\n")}\n  };`;
-}
-
 function emitResolveInputType(query: QueryDefinition, registryTypeName: string): string {
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
-  const singleRoot = isSingleRootQuery(query);
   const contextType = hasContext ? executionContextTypeName(query.name) : "unknown";
 
   const fields: string[] = [];
@@ -70,15 +66,7 @@ function emitResolveInputType(query: QueryDefinition, registryTypeName: string):
   fields.push(
     `  sources: readonly DataSource<${registryTypeName}, ${contextType}>[];`,
     `  schedulingMode?: SchedulingMode;`,
-    `  observer?: ResolutionObserver;`
-  );
-  if (singleRoot) {
-    const rootAri = ariFactoryName(query.roots[0]!.construction.resource);
-    fields.push(`  root: ReturnType<typeof ${rootAri}>;`);
-  } else {
-    fields.push(emitMultiRootInputField(query));
-  }
-  fields.push(
+    `  observer?: ResolutionObserver;`,
     `  executionContext: ${contextType};`,
     `  backingResources?: ReadonlyMap<ResourceKey, unknown>;`,
     `  signal?: AbortSignal;`
@@ -87,16 +75,34 @@ function emitResolveInputType(query: QueryDefinition, registryTypeName: string):
   return `export type ${resolveInputTypeName(query.name)} = {\n${fields.join("\n")}\n};`;
 }
 
+/** Bind locals `root` / `roots` from the query’s constructions. */
+function emitRootBindings(query: QueryDefinition): string[] {
+  if (isSingleRootQuery(query)) {
+    const construction = emitConstruction(query.roots[0]!.construction, resolveFacadeExprScope);
+    return [`  const root = ${construction};`];
+  }
+
+  const entries: string[] = [];
+  for (const root of query.roots) {
+    if (root.alias === null) {
+      throw new Error(`emitResolves: multi-root query '${query.name}' has a null alias`);
+    }
+    const construction = emitConstruction(root.construction, resolveFacadeExprScope);
+    entries.push(`    ${root.alias}: ${construction},`);
+  }
+  return [`  const roots = {`, ...entries, `  };`];
+}
+
 function emitEngineRootsExpr(query: QueryDefinition): string {
   if (isSingleRootQuery(query)) {
-    return `[input.root]`;
+    return `[root]`;
   }
   const parts: string[] = [];
   for (const root of query.roots) {
     if (root.alias === null) {
       throw new Error(`emitResolves: multi-root query '${query.name}' has a null alias`);
     }
-    parts.push(`input.roots.${root.alias}`);
+    parts.push(`roots.${root.alias}`);
   }
   return `[${parts.join(", ")}]`;
 }
@@ -107,7 +113,7 @@ function emitProjectCall(query: QueryDefinition): string {
   const hasContext = query.context.length > 0;
   const hasRedirects = query.projections.some((p) => p.resolveArms !== null);
   const hasFailures = queryNeedsFailureProjection(query);
-  const seedArg = isSingleRootQuery(query) ? "input.root" : "input.roots";
+  const seedArg = isSingleRootQuery(query) ? "root" : "roots";
 
   if (!hasParams && !hasContext && !hasRedirects && !hasFailures) {
     return `${projectFn}(${seedArg}, contentMap)`;
@@ -146,6 +152,7 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
 
   const projectCall = emitProjectCall(query);
   const engineRoots = emitEngineRootsExpr(query);
+  const rootBindings = emitRootBindings(query);
   const failuresBinding = hasFailures
     ? [
         ``,
@@ -167,6 +174,7 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
     `export async function ${fnName}(`,
     `  input: ${inputType},`,
     `): Promise<${resultType}> {`,
+    ...rootBindings,
     `  const resolver = createResourceGraphResolver<${registryTypeName}, ${contextType}>({`,
     `    sources: input.sources,`,
     `    strategy: ${strategyCall},`,
