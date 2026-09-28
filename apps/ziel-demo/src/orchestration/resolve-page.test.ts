@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   customReferenceAri,
   entryAri,
-  pageAri,
   Scalars,
   type PageDetail_Asset,
   type PageDetail_Entry,
@@ -226,12 +225,6 @@ describe("resolvePage", () => {
 
     const output = await resolveDemoPageDetail({
       params: { pageId: Scalars.EntryId(demoIds.page) },
-      root: pageAri({
-        spaceId: DEMO_SPACE,
-        environmentId: DEMO_ENVIRONMENT,
-        id: Scalars.EntryId(demoIds.page),
-        locale: DEMO_LOCALE,
-      }),
       executionContext: {
         spaceId: DEMO_SPACE,
         environmentId: DEMO_ENVIRONMENT,

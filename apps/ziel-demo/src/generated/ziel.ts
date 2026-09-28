@@ -755,7 +755,6 @@ export type ResolvePageDetailInput = {
   sources: readonly DataSource<ContentRegistry, PageDetailExecutionContext>[];
   schedulingMode?: SchedulingMode;
   observer?: ResolutionObserver;
-  root: ReturnType<typeof pageAri>;
   executionContext: PageDetailExecutionContext;
   backingResources?: ReadonlyMap<ResourceKey, unknown>;
   signal?: AbortSignal;
@@ -773,6 +772,12 @@ export type ResolvePageDetailResult = {
 export async function resolvePageDetail(
   input: ResolvePageDetailInput
 ): Promise<ResolvePageDetailResult> {
+  const root = pageAri({
+    spaceId: input.executionContext.spaceId,
+    environmentId: input.executionContext.environmentId,
+    id: input.params.pageId,
+    locale: input.executionContext.locale,
+  });
   const resolver = createResourceGraphResolver<ContentRegistry, PageDetailExecutionContext>({
     sources: input.sources,
     strategy: createPageDetailStrategy(input.params).build(),
@@ -782,7 +787,7 @@ export async function resolvePageDetail(
 
   const { contentMap, islands, islandDependencies, errors, promotedResourceKeys, redirects } =
     await resolver.resolve({
-      roots: [input.root],
+      roots: [root],
       executionContext: input.executionContext,
       backingResources: input.backingResources,
       signal: input.signal,
@@ -795,7 +800,7 @@ export async function resolvePageDetail(
     }
   }
 
-  const pageDetail = projectPageDetail(input.root, contentMap, {
+  const pageDetail = projectPageDetail(root, contentMap, {
     params: input.params,
     executionContext: input.executionContext,
     redirects,

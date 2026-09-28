@@ -317,12 +317,12 @@ query Homepage(pageId: PageId, sessionId: SessionId) {
 
 Codegen preserves single-root ergonomics and keys multi-root APIs by alias:
 
-| Surface          | Single-root                              | Multi-root                                                 |
-| ---------------- | ---------------------------------------- | ---------------------------------------------------------- |
-| `*Result`        | `PageDetailResult = PageDetail_Page`     | `{ page: Homepage_Page; session: Homepage_UserSession }`   |
-| `project*`       | `projectPageDetail(root, contentMap, …)` | `projectHomepage(roots: { page; session }, contentMap, …)` |
-| `resolve*` input | `root: ReturnType<typeof pageAri>`       | `roots: { page: …; session: … }`                           |
-| Engine call      | `resolve({ roots: [input.root], … })`    | `resolve({ roots: [input.roots.page, …], … })`             |
+| Surface          | Single-root                               | Multi-root                                                 |
+| ---------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| `*Result`        | `PageDetailResult = PageDetail_Page`      | `{ page: Homepage_Page; session: Homepage_UserSession }`   |
+| `project*`       | `projectPageDetail(root, contentMap, …)`  | `projectHomepage(roots: { page; session }, contentMap, …)` |
+| `resolve*` input | `params` + `executionContext` (no `root`) | same — façade builds each root ARI from the query DSL      |
+| Engine call      | `resolve({ roots: [root], … })`           | `resolve({ roots: [roots.page, …], … })`                   |
 
 Generated app code should import runtime symbols from `@xndrjs/ziel`, never from `/compile`. Langium, the checker, and codegen live under `./compile` only so they do not land in client bundles.
 

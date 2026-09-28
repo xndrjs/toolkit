@@ -22,7 +22,7 @@ describe("emitResolves", () => {
     expect(emitResolves(emptyProgram())).toBe("");
   });
 
-  it("emits resolve façade for post-detail (closed strategy + project)", () => {
+  it("emits resolve façade for post-detail (builds root from params + context)", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("post-detail.ziel"));
     expect(diagnostics).toEqual([]);
 
@@ -37,20 +37,22 @@ describe("emitResolves", () => {
     );
     expect(code).toContain("schedulingMode?: SchedulingMode;");
     expect(code).toContain("observer?: ResolutionObserver;");
+    expect(code).not.toContain("root: ReturnType<typeof");
+    expect(code).not.toContain("roots: {");
+    expect(code).toContain("const root = postAri({");
     expect(code).toContain("createPostDetailStrategy(input.params).build()");
     expect(code).toContain(
       "createResourceGraphResolver<ContentRegistry, PostDetailExecutionContext>"
     );
     expect(code).toContain(
-      "const postDetail = projectPostDetail(input.root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n  });"
+      "const postDetail = projectPostDetail(root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n  });"
     );
-    expect(code).toContain("roots: [input.root],");
-    expect(code).toContain("root: ReturnType<typeof postAri>;");
+    expect(code).toContain("roots: [root],");
     expect(code).toContain("postDetail: PostDetailResult;");
     expect(code).toContain("islandDependencies: IslandDependencyMap;");
   });
 
-  it("emits alias-keyed resolve* façade for multi-root queries", () => {
+  it("builds alias-keyed roots inside resolve* for multi-root queries", () => {
     const source = `
       scalar PageId on string;
       scalar SessionId on string;
@@ -76,11 +78,13 @@ describe("emitResolves", () => {
     expect(code).toContain("export type ResolveHomepageInput");
     expect(code).toContain("export async function resolveHomepage(");
     expect(code).toContain("params: HomepageParams;");
-    expect(code).toContain("roots: {\n    page: ReturnType<typeof pageAri>;");
-    expect(code).toContain("session: ReturnType<typeof userSessionAri>;");
-    expect(code).toContain("roots: [input.roots.page, input.roots.session],");
+    expect(code).not.toContain("roots: {\n    page: ReturnType<typeof pageAri>;");
+    expect(code).toContain("const roots = {");
+    expect(code).toContain("page: pageAri({ id: input.params.pageId }),");
+    expect(code).toContain("session: userSessionAri({ id: input.params.sessionId }),");
+    expect(code).toContain("roots: [roots.page, roots.session],");
     expect(code).toContain(
-      "const homepage = projectHomepage(input.roots, contentMap, {\n    params: input.params,\n  });"
+      "const homepage = projectHomepage(roots, contentMap, {\n    params: input.params,\n  });"
     );
     expect(code).toContain("homepage: HomepageResult;");
     expect(code).not.toContain("root: ReturnType<typeof");
@@ -94,8 +98,10 @@ describe("emitResolves", () => {
 
     expect(code).toContain("export async function resolvePageDetail(");
     expect(code).toContain("createPageDetailStrategy(input.params).build()");
+    expect(code).toContain("const root = pageAri({");
     expect(code).toContain("const pageDetail = projectPageDetail(");
     expect(code).toContain("pageDetail: PageDetailResult;");
+    expect(code).not.toContain("root: ReturnType<typeof pageAri>;");
   });
 
   it("passes failures map into project* when on failure set null/error is used", () => {
@@ -123,7 +129,7 @@ describe("emitResolves", () => {
     expect(code).toContain("const failures = new Map<ResourceKey, ResolutionError>();");
     expect(code).toContain("failures");
     expect(code).toContain(
-      "const pageDetail = projectPageDetail(input.root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n    failures,\n  });"
+      "const pageDetail = projectPageDetail(root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n    failures,\n  });"
     );
     expect(code).not.toContain("missingResourceMode");
   });
