@@ -31,6 +31,7 @@ import {
   type ResourceConstruction,
 } from "../lang/generated/ast";
 import { pathCompletionsAtOffset } from "./completion-path";
+import { literalCompletionsAtOffset } from "./completion-literal";
 import type { SemanticSnapshotCache } from "./semantic-snapshot";
 
 export type CompletionTables = {
@@ -405,11 +406,19 @@ export function completionsAtOffset(
   offset: number,
   tables: CompletionTables
 ): SemanticCompletionItem[] {
-  // Property paths (`@p.`, `p.`, `context.`, item) take priority over other contexts.
-  const pathItems = pathCompletionsAtOffset(document, offset, {
+  const exprTables = {
     resources: tables.resources,
     nameTables: nameTablesFrom(tables),
-  });
+  };
+
+  // Comparison string RHS (`e.kind == "…"`) before path field completion.
+  const literalItems = literalCompletionsAtOffset(document, offset, exprTables);
+  if (literalItems) {
+    return literalItems;
+  }
+
+  // Property paths (`@p.`, `p.`, `context.`, item) take priority over other contexts.
+  const pathItems = pathCompletionsAtOffset(document, offset, exprTables);
   if (pathItems) {
     return pathItems;
   }

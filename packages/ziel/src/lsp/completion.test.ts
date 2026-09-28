@@ -579,3 +579,123 @@ describe("fragment when narrowing completions", () => {
     expect(labels).not.toContain("title");
   });
 });
+
+describe("string-literal comparison completions", () => {
+  it('suggests discriminant values inside e.type == "', () => {
+    const { document, scalars, resources } = tablesFrom(FIXTURE);
+    const offset = offsetAfter(FIXTURE, 'when e.type == "');
+    const items = completionsAtOffset(document, offset, { scalars, resources });
+    const labels = items.map((i) => i.label);
+    expect(labels).toEqual(["Hero", "Menu", "Page"]);
+    expect(items.every((i) => i.kind === CompletionItemKind.EnumMember)).toBe(true);
+  });
+
+  it("filters by partial text inside the open string", () => {
+    const { document, scalars, resources } = tablesFrom(FIXTURE);
+    const offset = offsetAfter(FIXTURE, 'when e.type == "He');
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toEqual(["Hero"]);
+  });
+
+  it("suggests values with an unclosed quote (incomplete parse)", () => {
+    const incomplete = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): {
+  type: "Hero"
+  id
+} | {
+  type: "Menu"
+  id
+}
+query Q(entryId: EntryId) {
+  context { locale: Locale }
+  root Entry(id: entryId, locale: context.locale)
+  on Entry e {
+    when e.type == "
+`;
+    const document = parseDocument(incomplete);
+    const { scalars, resources } = tablesFrom(FIXTURE);
+    const offset = offsetAfter(incomplete, 'when e.type == "');
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toContain("Hero");
+    expect(labels).toContain("Menu");
+  });
+
+  it('suggests values inside in ("…")', () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): {
+  type: "Hero"
+  id
+} | {
+  type: "Page"
+  id
+} | {
+  type: "Menu"
+  id
+}
+query Q(entryId: EntryId) {
+  context { locale: Locale }
+  root Entry(id: entryId, locale: context.locale)
+  on Entry e {
+    when e.type in ("
+    default { }
+  }
+}
+`;
+    const document = parseDocument(source);
+    const { scalars, resources } = tablesFrom(FIXTURE);
+    const offset = offsetAfter(source, 'when e.type in ("');
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toEqual(["Hero", "Menu", "Page"]);
+  });
+
+  it("suggests kind literals when the field is named kind", () => {
+    const complete = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): {
+  kind: "Hero"
+  id
+} | {
+  kind: "Footer"
+  id
+}
+query Q(entryId: EntryId) {
+  context { locale: Locale }
+  root Entry(id: entryId, locale: context.locale)
+  on Entry e {
+    when e.kind == "Hero" { }
+    default { }
+  }
+}
+`;
+    const { scalars, resources } = tablesFrom(complete);
+    const incomplete = complete.replace('when e.kind == "Hero"', 'when e.kind == "');
+    const document = parseDocument(incomplete);
+    const offset = offsetAfter(incomplete, 'when e.kind == "');
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toEqual(["Footer", "Hero"]);
+  });
+
+  it("returns no proposals for non-literal field comparisons", () => {
+    const { document, scalars, resources } = tablesFrom(FIXTURE);
+    const offset = offsetAfter(FIXTURE, 'when e.type == "Hero" {\n      ');
+    // Not inside a string compare — selected fields, not literals
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).not.toContain("Hero");
+    expect(labels).toContain("title");
+  });
+});
