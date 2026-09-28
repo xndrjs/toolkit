@@ -1,4 +1,5 @@
 import type { QueryDefinition, ResourceProjection } from "../../../ir";
+import { closedPayloadDiscriminants } from "../../../check/discriminants";
 import {
   allProjectionExpansions,
   collectionElement,
@@ -7,7 +8,6 @@ import {
   stripToConcreteMembers,
   type ResolveTargetIndex,
 } from "../../../check/projection-graph";
-import { projectionArmDiscriminant } from "../shared";
 import { ariFactoryName, executionContextTypeName, paramsTypeName } from "../naming";
 import { projectOnFnName } from "./emit-project-on";
 import { type ResourceIndex } from "./shared";
@@ -36,24 +36,23 @@ export function collectionElementResources(
 
 /**
  * Payload `type` case labels that should route to `projectOn${member}`.
- * Armed projections contribute their when-arm discriminants; flat resources
- * use the resource name (matches rematerialize `payload.type === "Hero"`).
+ * Armed projections with a default arm route every closed payload discriminant
+ * (and fall through) to `projectOn*` so ordered when/default runs there.
+ * Flat resources use the resource name.
  */
 export function discriminationLabelsForMember(
   member: string,
-  projected: Map<string, ResourceProjection>
+  projected: Map<string, ResourceProjection>,
+  resources: ResourceIndex
 ): string[] {
   const projection = projected.get(member);
   if (projection?.arms !== null && projection?.arms !== undefined) {
-    const labels: string[] = [];
-    for (const arm of projection.arms) {
-      const disc = projectionArmDiscriminant(arm.when, projection.binding);
-      if (disc !== null) {
-        labels.push(disc);
+    const resource = resources.get(member);
+    if (resource && projection.defaultArm !== null) {
+      const closed = closedPayloadDiscriminants(resource.payloadType, resources);
+      if (closed !== null && closed.size > 0) {
+        return [...closed].sort();
       }
-    }
-    if (labels.length > 0) {
-      return labels;
     }
   }
   return [member];
@@ -142,7 +141,7 @@ export function emitProjectNode(
           `emitProjections: query '${query.name}' expands union '${unionName}' member '${member}' but has no 'on ${member}' projection`
         );
       }
-      const labels = discriminationLabelsForMember(member, projected);
+      const labels = discriminationLabelsForMember(member, projected, resources);
       for (const label of labels) {
         discCases.push(
           [

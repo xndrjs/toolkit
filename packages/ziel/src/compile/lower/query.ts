@@ -2,6 +2,7 @@ import type {
   Expansion,
   IslandClause,
   ProjectionArm,
+  ProjectionArmBody,
   QueryDefinition,
   QueryRoot,
   ResolveArm,
@@ -13,6 +14,7 @@ import {
   type Expansion as AstExpansion,
   type IslandClause as AstIslandClause,
   type ProjectionClause as AstProjectionClause,
+  type ProjectionDefaultArm as AstProjectionDefaultArm,
   type ProjectionWhenArm as AstProjectionWhenArm,
   type QueryDeclaration as AstQueryDeclaration,
   type ResolveArm as AstResolveArm,
@@ -99,6 +101,7 @@ export function lowerProjection(
       excludedFields: [],
       include: null,
       arms: null,
+      defaultArm: null,
       resolveArms: clause.resolveArms.map(lowerResolveArm),
       span: spanOf(clause),
     };
@@ -119,6 +122,17 @@ export function lowerProjection(
     const arms = clause.whenArms.map((arm) =>
       lowerProjectionArm(arm, clause.resource, clause.binding, preamble, fragments, resources, sink)
     );
+    const defaultArm = clause.defaultArm
+      ? lowerProjectionDefaultArm(
+          clause.defaultArm,
+          clause.resource,
+          clause.binding,
+          preamble,
+          fragments,
+          resources,
+          sink
+        )
+      : null;
     return {
       resource: clause.resource,
       binding: clause.binding,
@@ -127,12 +141,14 @@ export function lowerProjection(
       excludedFields: [],
       include,
       arms,
+      defaultArm,
       resolveArms: null,
       span: spanOf(clause),
     };
   }
 
   // Within-body duplicate fields are reported in expandBody.
+  // Lone `default` without when-arms is rejected by check.
   return {
     resource: clause.resource,
     binding: clause.binding,
@@ -141,6 +157,17 @@ export function lowerProjection(
     excludedFields: preamble.excludedFields,
     include,
     arms: null,
+    defaultArm: clause.defaultArm
+      ? lowerProjectionDefaultArm(
+          clause.defaultArm,
+          clause.resource,
+          clause.binding,
+          preamble,
+          fragments,
+          resources,
+          sink
+        )
+      : null,
     resolveArms: null,
     span: spanOf(clause),
   };
@@ -176,6 +203,26 @@ export function lowerProjectionArm(
     selectedFields: combined.selectedFields,
     expansions: combined.expansions,
     excludedFields: combined.excludedFields,
+    include: normalizeIncludeMode(arm.include),
+    span: spanOf(arm),
+  };
+}
+
+export function lowerProjectionDefaultArm(
+  arm: AstProjectionDefaultArm,
+  resource: string,
+  binding: string,
+  preamble: FlattenedBody,
+  fragments: FragmentTable,
+  resources: PayloadTypeLookup,
+  sink: DiagnosticSink
+): ProjectionArmBody {
+  const armBody = expandBody(arm, resource, binding, fragments, [], sink, resources, null);
+  rejectPreambleArmFieldClash(preamble, armBody, spanOf(arm), sink);
+  return {
+    selectedFields: [...preamble.selectedFields, ...armBody.selectedFields],
+    expansions: [...preamble.expansions, ...armBody.expansions],
+    excludedFields: [...preamble.excludedFields, ...armBody.excludedFields],
     include: normalizeIncludeMode(arm.include),
     span: spanOf(arm),
   };

@@ -97,7 +97,7 @@ describe("emitProjections", () => {
     expect(code).not.toContain("root: ReturnType<typeof");
   });
 
-  it("emits payload.type switch and Entry shells for armed on Entry", () => {
+  it("emits ordered if/else ending in default body for armed on Entry", () => {
     const source = `
       scalar Locale on string;
       scalar EntryId on string;
@@ -124,6 +124,7 @@ describe("emitProjections", () => {
           when e.type == "Page" {
             id
           }
+          default { }
         }
         on Asset a { id url }
       }
@@ -134,9 +135,10 @@ describe("emitProjections", () => {
     const code = emitProjections(program!);
 
     expect(code).toContain("const projectOnEntry = (resource: any, payload: any): any => {");
-    expect(code).toContain("switch ((payload as any).type) {");
-    expect(code).toContain('case "Hero":');
-    expect(code).toContain('case "Page":');
+    expect(code).toContain('if (payload.type == "Hero") {');
+    expect(code).toContain('} else if (payload.type == "Page") {');
+    expect(code).toContain("} else {");
+    expect(code).not.toContain("switch ((payload as any).type)");
     expect(code).toContain('const shell: any = { $type: "Entry" };');
     expect(code).toContain(
       "shell.image = projectNode(assetAri({ id: payload.imageId, locale: args.executionContext.locale }));"
@@ -146,9 +148,16 @@ describe("emitProjections", () => {
     // No rematerialize-to-Hero ARI cases.
     expect(code).not.toContain('case "Hero":\n        return projectOnHero');
     expect(code).not.toContain("projectOnHero");
+    // Default arm projects an empty shell (no throw).
+    const onEntry = code.slice(
+      code.indexOf("const projectOnEntry"),
+      code.indexOf("const projectOnAsset")
+    );
+    expect(onEntry).toMatch(/\} else \{\s*const shell: any = \{ \$type: "Entry" \};/);
+    expect(onEntry).not.toContain("throw new Error");
   });
 
-  it("emits Entry/CustomReference strips and armed Entry payload switch for page-detail", () => {
+  it("emits Entry/CustomReference strips and armed Entry if/else for page-detail", () => {
     const { program, diagnostics } = parseAndCheck(loadFixture("page-detail.ziel"));
     expect(diagnostics).toEqual([]);
 
@@ -165,10 +174,10 @@ describe("emitProjections", () => {
       "payload.tabs.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"
     );
     expect(code).toContain("const projectOnEntry = (resource: any, payload: any): any => {");
-    expect(code).toContain("switch ((payload as any).type) {");
-    expect(code).toContain('case "Hero":');
-    expect(code).toContain('case "SiteInternalLink":');
-    expect(code).toContain('case "Page":');
+    expect(code).toContain('if (payload.type == "Hero") {');
+    expect(code).toContain('} else if (payload.type == "SiteInternalLink") {');
+    expect(code).toContain("} else {");
+    expect(code).not.toContain("switch ((payload as any).type)");
     expect(code).toContain('case "Entry":');
     expect(code).toContain('case "CustomReference":');
     expect(code).toContain("const canonical = args.redirects.get(ari.toString());");
@@ -239,6 +248,7 @@ describe("emitProjections", () => {
             id
             title
           }
+          default { }
         }
         on Asset a { id url }
       }

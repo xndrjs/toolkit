@@ -210,7 +210,6 @@ query PageDetail(pageId: EntryId) {
         )
       )
     }
-    when e.type == "Product" include properties { }
     when e.type == "Menu" include properties {
       expand logo: Asset(
         spaceId: @e.spaceId,
@@ -235,7 +234,7 @@ query PageDetail(pageId: EntryId) {
         locale: @e.locale
       )
     }
-    when e.type == "Page" include properties { }
+    default { }
   }
 
   on Asset a include properties { }

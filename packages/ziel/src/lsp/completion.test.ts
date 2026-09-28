@@ -41,6 +41,7 @@ query EntryDetail(entryId: EntryId) {
     when e.type == "Menu" {
       logoId
     }
+    default { }
   }
 }
 `;
@@ -355,6 +356,7 @@ query PageDetail(pageId: EntryId) {
       title
       expand x: Entry(id: p.authorId, locale: @p.locale)
     }
+    default { }
   }
 }
 `;

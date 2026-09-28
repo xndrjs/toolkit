@@ -118,6 +118,7 @@ describe("emitStrategies", () => {
           when e.type == "Page" {
             id
           }
+          default { }
         }
         on Asset a { id url }
       }
@@ -386,6 +387,7 @@ describe("generateStrategies", () => {
           when !e.visible {
             id
           }
+          default { }
         }
         islands {
           on Entry e when e.type not in ["Hero"] or !e.visible

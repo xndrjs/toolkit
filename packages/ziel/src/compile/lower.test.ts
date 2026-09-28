@@ -282,6 +282,7 @@ describe("lowerProgram", () => {
             when e.type == "Page" {
               id
             }
+            default { }
           }
           on Asset a { id }
         }
@@ -297,6 +298,11 @@ describe("lowerProgram", () => {
       expansions: [],
     });
     expect(entry.arms).toHaveLength(2);
+    expect(entry.defaultArm).toMatchObject({
+      selectedFields: [],
+      expansions: [],
+      include: null,
+    });
     expect(entry.arms![0]).toMatchObject({
       when: {
         kind: "binary",
@@ -361,6 +367,7 @@ describe("lowerProgram — fragments", () => {
             when e.type == "Hero" { title }
             when e.type == "Menu" { title }
             when e.type == "Page" { }
+            default { }
           }
           on Asset a { id }
         }
@@ -408,6 +415,7 @@ describe("lowerProgram — fragments", () => {
               ...EntryLogo
             }
             when e.type == "Page" { type id }
+            default { }
           }
           on Asset a { id }
         }
@@ -491,14 +499,17 @@ describe("lowerProgram — fragments", () => {
           on Entry e include all {
             when e.type == "Hero" include properties { id }
             when e.type == "Page" { id }
+            default { }
           }
           on Entry f {
             when f.type == "Hero" include all { id }
             when f.type == "Page" { id }
+            default { }
           }
           on Entry g include properties {
             when g.type == "Hero" include none { title }
             when g.type == "Page" { id }
+            default { }
           }
         }
       `)
@@ -561,6 +572,7 @@ describe("lowerProgram — fragments", () => {
               ...Boom
               ...MenuOnly
             }
+            default { }
           }
           on Asset a { id }
         }
@@ -640,6 +652,7 @@ describe("lowerProgram — fragments", () => {
           on Entry e include properties {
             when e.type == "Hero" { ...HeroHeadline }
             when e.type == "Page" { id title }
+            default { }
           }
         }
       `)
@@ -666,6 +679,7 @@ describe("lowerProgram — fragments", () => {
               title
               title
             }
+            default { }
           }
           on Asset a { id }
         }
@@ -700,6 +714,7 @@ describe("lowerProgram — fragments", () => {
               type
               title
             }
+            default { }
           }
           on Asset a { id }
         }
@@ -1005,6 +1020,7 @@ describe("lowerProgram — fragments", () => {
           when e.type in ["Menu", "Footer"] { id }
           when e.type not in ["Hero"] { id }
           when !e.visible { id }
+          default { }
         }
         islands {
           on Entry e when e.type in ["Menu", "Footer"] or !e.visible

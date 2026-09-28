@@ -1,17 +1,13 @@
 import type {
   ProjectionArm,
+  ProjectionArmBody,
   QueryDefinition,
   QueryRoot,
   ResolveArm,
   SourceSpan,
   TypeExpr,
 } from "../ir";
-import {
-  checkExpansions,
-  checkProjectionArmExhaustiveness,
-  checkResolveArmExhaustiveness,
-  checkSelectedFields,
-} from "./check-expansions";
+import { checkExpansions, checkSelectedFields } from "./check-expansions";
 import { checkIslands } from "./check-islands";
 import { checkRequiredOn } from "./check-required-on";
 import { checkConstruction } from "./construction";
@@ -155,16 +151,23 @@ export function checkQuery(
           sink
         );
       }
-      checkResolveArmExhaustiveness(
-        resource.payloadType,
-        projection.resolveArms,
-        projection.binding,
-        projPath,
-        projection.span,
-        resources,
-        sink
-      );
     } else if (projection.arms !== null) {
+      if (projection.arms.length === 0) {
+        sink.push({
+          code: "EMPTY_PROJECTION_ARMS",
+          message: `Projection 'on ${projection.resource}' has an empty when-arm list`,
+          path: projPath,
+          span: projection.span,
+        });
+      } else if (projection.defaultArm === null) {
+        sink.push({
+          code: "MISSING_PROJECTION_DEFAULT",
+          message: `Projection 'on ${projection.resource}' with when-arms must include a default arm`,
+          path: projPath,
+          span: projection.span,
+        });
+      }
+
       for (let i = 0; i < projection.arms.length; i++) {
         checkProjectionArm(
           projection.arms[i]!,
@@ -179,16 +182,30 @@ export function checkQuery(
           sink
         );
       }
-      checkProjectionArmExhaustiveness(
-        resource.payloadType,
-        projection.arms,
-        projection.binding,
-        projPath,
-        projection.span,
-        resources,
-        sink
-      );
+
+      if (projection.defaultArm !== null) {
+        checkProjectionArmBody(
+          projection.defaultArm,
+          `${projPath}.defaultArm`,
+          projection.binding,
+          projection.resource,
+          projection.include,
+          resource.payloadType,
+          scope,
+          scalars,
+          resources,
+          sink
+        );
+      }
     } else {
+      if (projection.defaultArm !== null) {
+        sink.push({
+          code: "UNEXPECTED_PROJECTION_DEFAULT",
+          message: `Projection 'on ${projection.resource}' cannot use 'default' without when-arms`,
+          path: `${projPath}.defaultArm`,
+          span: projection.defaultArm.span ?? projection.span,
+        });
+      }
       checkExcludedFields(
         projection.excludedFields,
         projection.selectedFields,
@@ -333,17 +350,48 @@ function checkProjectionArm(
   }
 
   const narrowed = narrowPayloadByFilter(payloadType, arm.when, binding, resources) ?? payloadType;
-  const bodyScope: QueryScope = {
-    ...scope,
-    payloadNarrowing: new Map([...scope.payloadNarrowing, [binding, narrowed]]),
-  };
+  checkProjectionArmBody(
+    arm,
+    armPath,
+    binding,
+    resourceName,
+    include,
+    narrowed,
+    scope,
+    scalars,
+    resources,
+    sink,
+    true
+  );
+}
+
+/** Check selected fields / expands for a when-arm or default body. */
+function checkProjectionArmBody(
+  arm: ProjectionArmBody,
+  armPath: string,
+  binding: string,
+  resourceName: string,
+  include: "all" | "properties" | "none" | null,
+  payloadType: TypeExpr,
+  scope: QueryScope,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  sink: DiagnosticSink,
+  narrowedPayload = false
+): void {
+  const bodyScope: QueryScope = narrowedPayload
+    ? {
+        ...scope,
+        payloadNarrowing: new Map([...scope.payloadNarrowing, [binding, payloadType]]),
+      }
+    : scope;
 
   const effectiveInclude = arm.include ?? include;
   checkExcludedFields(
     arm.excludedFields,
     arm.selectedFields,
     arm.expansions,
-    narrowed,
+    payloadType,
     resources,
     armPath,
     arm.span,
@@ -353,10 +401,18 @@ function checkProjectionArm(
     arm.selectedFields,
     arm.expansions,
     effectiveInclude,
-    narrowed,
+    payloadType,
     resources,
     arm.excludedFields
   );
-  checkSelectedFields(effectiveFields, narrowed, resourceName, armPath, arm.span, resources, sink);
+  checkSelectedFields(
+    effectiveFields,
+    payloadType,
+    resourceName,
+    armPath,
+    arm.span,
+    resources,
+    sink
+  );
   checkExpansions(arm.expansions, armPath, bodyScope, scalars, resources, sink);
 }

@@ -29,6 +29,7 @@
  * resolve targets (e.g. `related: PageDetail_Entry | PageDetail_Asset`).
  */
 import { createDiagnosticSink } from "../../../check/diagnostic";
+import { expandPayloadObjectMembers, narrowPayloadByFilter } from "../../../check/discriminants";
 import {
   projectableProjections,
   resolveTargetIndex,
@@ -43,6 +44,7 @@ import type {
   FieldDecl,
   Program,
   ProjectionArm,
+  ProjectionArmBody,
   QueryDefinition,
   ResourceConstruction,
   ResourceProjection,
@@ -251,6 +253,7 @@ function requireProjected(
 
 /**
  * Object-payload member matching `binding.type == "Lit"`, expanding resourceRefs.
+ * @deprecated Prefer {@link narrowPayloadByFilter}; kept for disc-named variants.
  */
 function narrowPayloadObject(
   payloadType: TypeExpr,
@@ -266,52 +269,36 @@ function narrowPayloadObject(
   return matched.length === 1 ? matched[0]! : null;
 }
 
-function expandPayloadObjectMembers(
+function fieldMapFromPayload(
   payloadType: TypeExpr,
+  resourcePayload: Map<string, FieldDecl>,
   resources: ResourceTable
-): Extract<TypeExpr, { kind: "object" }>[] | null {
-  if (payloadType.kind === "object") {
-    return [payloadType];
+): Map<string, FieldDecl> {
+  const members = expandPayloadObjectMembers(payloadType, resources);
+  if (members !== null && members.length === 1) {
+    return fieldMap(members[0]!.fields);
   }
-  if (payloadType.kind === "resourceRef") {
-    const inner = resources.get(payloadType.name);
-    if (!inner) return null;
-    return expandPayloadObjectMembers(inner.payloadType, resources);
-  }
-  if (payloadType.kind === "union") {
-    const objects: Extract<TypeExpr, { kind: "object" }>[] = [];
-    for (const member of payloadType.members) {
-      const expanded = expandPayloadObjectMembers(member, resources);
-      if (expanded === null) return null;
-      objects.push(...expanded);
-    }
-    return objects;
-  }
-  if (payloadType.kind === "nullable") {
-    return expandPayloadObjectMembers(payloadType.of, resources);
-  }
-  return null;
+  return resourcePayload;
 }
 
 function fieldMap(fields: FieldDecl[]): Map<string, FieldDecl> {
   return new Map(fields.map((f) => [f.name, f]));
 }
 
-function emitArmVariantType(
+function emitArmBodyVariantType(
   queryName: string,
   projection: ResourceProjection,
-  arm: ProjectionArm,
-  armIndex: number,
+  arm: ProjectionArmBody,
+  variant: string,
+  sourcePayload: TypeExpr,
+  fieldPath: string,
   scalars: ScalarTable,
   resources: ResourceTable,
   projected: Set<string>,
   resolveTargets: ResolveTargetIndex,
   projectionsByResource: Map<string, ResourceProjection>
 ): { typeName: string; source: string } {
-  const disc = projectionArmDiscriminant(arm.when, projection.binding);
-  const variant = disc ?? `Arm${armIndex}`;
   const typeName = projectionVariantTypeName(queryName, projection.resource, variant);
-
   const resource = resources.get(projection.resource);
   if (!resource) {
     throw new Error(
@@ -319,10 +306,7 @@ function emitArmVariantType(
     );
   }
 
-  const narrowed =
-    disc !== null ? narrowPayloadObject(resource.payloadType, disc, resources) : null;
-  const payloadFields = narrowed !== null ? fieldMap(narrowed.fields) : resource.payload;
-  const sourcePayload: TypeExpr = narrowed ?? resource.payloadType;
+  const payloadFields = fieldMapFromPayload(sourcePayload, resource.payload, resources);
   const expansionContext: ExpansionAliasContext = {
     sourcePayload,
     projectionsByResource,
@@ -346,7 +330,7 @@ function emitArmVariantType(
         `emitProjectionTypes: selected field '${fieldName}' is not on narrowed payload of '${projection.resource}' arm '${variant}'`
       );
     }
-    const path = `queries.${queryName}.projections.${projection.binding}.arms.${armIndex}.selectedFields.${fieldName}`;
+    const path = `${fieldPath}.selectedFields.${fieldName}`;
     const resolved = resolveForEmit(field.type, path, scalars, resources);
     lines.push(`  ${fieldName}: ${printTypeExpr(resolved)};`);
   }
@@ -369,6 +353,81 @@ function emitArmVariantType(
   };
 }
 
+function emitArmVariantType(
+  queryName: string,
+  projection: ResourceProjection,
+  arm: ProjectionArm,
+  armIndex: number,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  projected: Set<string>,
+  resolveTargets: ResolveTargetIndex,
+  projectionsByResource: Map<string, ResourceProjection>
+): { typeName: string; source: string } {
+  const disc = projectionArmDiscriminant(arm.when, projection.binding);
+  const variant = disc ?? `Arm${armIndex}`;
+
+  const resource = resources.get(projection.resource);
+  if (!resource) {
+    throw new Error(
+      `emitProjectionTypes: unknown resource '${projection.resource}' in query '${queryName}'`
+    );
+  }
+
+  const narrowed =
+    narrowPayloadByFilter(resource.payloadType, arm.when, projection.binding, resources) ??
+    (disc !== null ? narrowPayloadObject(resource.payloadType, disc, resources) : null) ??
+    resource.payloadType;
+
+  return emitArmBodyVariantType(
+    queryName,
+    projection,
+    arm,
+    variant,
+    narrowed,
+    `queries.${queryName}.projections.${projection.binding}.arms.${armIndex}`,
+    scalars,
+    resources,
+    projected,
+    resolveTargets,
+    projectionsByResource
+  );
+}
+
+function emitDefaultArmVariantType(
+  queryName: string,
+  projection: ResourceProjection,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  projected: Set<string>,
+  resolveTargets: ResolveTargetIndex,
+  projectionsByResource: Map<string, ResourceProjection>
+): { typeName: string; source: string } {
+  const defaultArm = projection.defaultArm;
+  if (defaultArm === null) {
+    throw new Error("emitProjectionTypes: emitDefaultArmVariantType called without defaultArm");
+  }
+  const resource = resources.get(projection.resource);
+  if (!resource) {
+    throw new Error(
+      `emitProjectionTypes: unknown resource '${projection.resource}' in query '${queryName}'`
+    );
+  }
+  return emitArmBodyVariantType(
+    queryName,
+    projection,
+    defaultArm,
+    "Default",
+    resource.payloadType,
+    `queries.${queryName}.projections.${projection.binding}.defaultArm`,
+    scalars,
+    resources,
+    projected,
+    resolveTargets,
+    projectionsByResource
+  );
+}
+
 function emitArmedResourceProjectionTypes(
   queryName: string,
   projection: ResourceProjection,
@@ -381,6 +440,11 @@ function emitArmedResourceProjectionTypes(
   const arms = projection.arms;
   if (arms === null) {
     throw new Error("emitProjectionTypes: emitArmedResourceProjectionTypes called without arms");
+  }
+  if (projection.defaultArm === null) {
+    throw new Error(
+      `emitProjectionTypes: armed 'on ${projection.resource}' missing defaultArm in query '${queryName}'`
+    );
   }
 
   const variants: string[] = [];
@@ -401,6 +465,18 @@ function emitArmedResourceProjectionTypes(
     variants.push(typeName);
     parts.push(source);
   }
+
+  const { typeName: defaultName, source: defaultSource } = emitDefaultArmVariantType(
+    queryName,
+    projection,
+    scalars,
+    resources,
+    projected,
+    resolveTargets,
+    projectionsByResource
+  );
+  variants.push(defaultName);
+  parts.push(defaultSource);
 
   const unionName = projectionTypeName(queryName, projection.resource);
   parts.push(`export type ${unionName} = ${variants.join(" | ")};`);

@@ -311,7 +311,6 @@ export function pageDetailProgram(): Program {
               [stripsEach("e", "strips")],
               "properties"
             ),
-            projectionArm(eq(payload("e", "type"), lit("Product")), [], [], "properties"),
             projectionArm(
               eq(payload("e", "type"), lit("Menu")),
               [],
@@ -330,7 +329,6 @@ export function pageDetailProgram(): Program {
               [expand("target", entryConstruct("e", payload("e", "targetId")))],
               "properties"
             ),
-            projectionArm(eq(payload("e", "type"), lit("Page")), [], [], "properties"),
           ]),
           projection("Asset", "a", [], [], null, "properties"),
         ],

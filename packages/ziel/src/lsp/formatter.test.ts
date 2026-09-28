@@ -64,6 +64,7 @@ root Entry(id:id)
 on Entry e{
 id
 when e.type=="Hero"{title}
+default { }
 }
 islands{
 on Entry e when e.type=="Menu" or e.type=="Footer"
@@ -129,6 +130,7 @@ root Entry(id:id)
 on Entry e{
 when !e.visible{id}
 when e.type in["A","B"]{id}
+default { }
 }
 }
 `.trim();
@@ -168,6 +170,7 @@ on Entry e{
 when e.type=="Page"{
 }
 when e.type=="Hero"{title}
+default { }
 }
 on Asset a include properties{
 }
@@ -191,6 +194,7 @@ on Entry e{
 when e.type=="Hero"include properties{title}
 when e.type=="Page"include all{}
 when e.type=="Menu"include none{title}
+default { }
 }
 }
 `.trim();

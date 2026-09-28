@@ -158,13 +158,15 @@ RootEntry:
 
 /**
  * Four shapes (items = fields | expands | spreads):
- *   1. Flat: items* (no when)
- *   2. Armed: whenArms+ only
- *   3. Preamble + armed: items+ whenArms+
+ *   1. Flat: items* (no when / default)
+ *   2. Armed: whenArms+ defaultArm
+ *   3. Preamble + armed: items+ whenArms+ defaultArm
  *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
  * Shapes 1–3 may optionally use `include all`, `include properties`, or
  * `include none` before `{`.
- * Items after the first `when` are a parse error (whenArms only follow).
+ * Items after the first `when` are a parse error (whenArms / default only follow).
+ * When whenArms are present, `default { … }` is required by check (optional in grammar
+ * so missing-default can be diagnosed).
  * Resolve form is mutually exclusive with projection body at parse time.
  * IR-built programs that mix root fields with arms are still rejected by check.
  */
@@ -176,6 +178,7 @@ ProjectionClause:
       | (include=IncludeMode)? '{'
             (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread | excludes+=ExcludeClause)*
             whenArms+=ProjectionWhenArm*
+            defaultArm=ProjectionDefaultArm?
         '}'
     );
 
@@ -186,9 +189,15 @@ ProjectionClause:
 IncludeMode returns string:
     'include' 'all' | 'include' 'properties' | 'include' 'none';
 
-/** Discriminant arm: `when e.type == "Hero" include properties { … }`. */
+/** Conditional arm: `when expr include properties { … }` — applied in source order. */
 ProjectionWhenArm:
     'when' when=Expression (include=IncludeMode)? '{'
+        (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread | excludes+=ExcludeClause)*
+    '}';
+
+/** Catch-all arm when one or more `when` arms are present: `default { … }`. */
+ProjectionDefaultArm:
+    'default' (include=IncludeMode)? '{'
         (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread | excludes+=ExcludeClause)*
     '}';
 

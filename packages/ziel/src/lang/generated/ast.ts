@@ -36,6 +36,7 @@ export type ZielKeywordNames =
   | "boolean"
   | "context"
   | "datasource"
+  | "default"
   | "each"
   | "exclude"
   | "expand"
@@ -290,7 +291,11 @@ export function isEqExpr(item: unknown): item is EqExpr {
 
 /** `exclude imageId` or `exclude imageId title` — subtract from include/selection. */
 export interface ExcludeClause extends langium.AstNode {
-  readonly $container: FragmentDeclaration | ProjectionClause | ProjectionWhenArm;
+  readonly $container:
+    | FragmentDeclaration
+    | ProjectionClause
+    | ProjectionDefaultArm
+    | ProjectionWhenArm;
   readonly $type: "ExcludeClause";
   names: Array<string>;
 }
@@ -322,7 +327,11 @@ export function isExpandArm(item: unknown): item is ExpandArm {
 }
 
 export interface Expansion extends langium.AstNode {
-  readonly $container: FragmentDeclaration | ProjectionClause | ProjectionWhenArm;
+  readonly $container:
+    | FragmentDeclaration
+    | ProjectionClause
+    | ProjectionDefaultArm
+    | ProjectionWhenArm;
   readonly $type: "Expansion";
   alias: string;
   each?: EachComprehension;
@@ -380,7 +389,11 @@ export function isFragmentDeclaration(item: unknown): item is FragmentDeclaratio
 }
 
 export interface FragmentSpread extends langium.AstNode {
-  readonly $container: FragmentDeclaration | ProjectionClause | ProjectionWhenArm;
+  readonly $container:
+    | FragmentDeclaration
+    | ProjectionClause
+    | ProjectionDefaultArm
+    | ProjectionWhenArm;
   readonly $type: "FragmentSpread";
   name: string;
 }
@@ -709,13 +722,15 @@ export function isPrimitiveTypeExpr(item: unknown): item is PrimitiveTypeExpr {
 
 /**
  * Four shapes (items = fields | expands | spreads):
- *   1. Flat: items* (no when)
- *   2. Armed: whenArms+ only
- *   3. Preamble + armed: items+ whenArms+
+ *   1. Flat: items* (no when / default)
+ *   2. Armed: whenArms+ defaultArm
+ *   3. Preamble + armed: items+ whenArms+ defaultArm
  *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
  * Shapes 1–3 may optionally use `include all`, `include properties`, or
  * `include none` before `{`.
- * Items after the first `when` are a parse error (whenArms only follow).
+ * Items after the first `when` are a parse error (whenArms / default only follow).
+ * When whenArms are present, `default { … }` is required by check (optional in grammar
+ * so missing-default can be diagnosed).
  * Resolve form is mutually exclusive with projection body at parse time.
  * IR-built programs that mix root fields with arms are still rejected by check.
  */
@@ -723,6 +738,7 @@ export interface ProjectionClause extends langium.AstNode {
   readonly $container: QueryDeclaration;
   readonly $type: "ProjectionClause";
   binding: string;
+  defaultArm?: ProjectionDefaultArm;
   excludes: Array<ExcludeClause>;
   expansions: Array<Expansion>;
   include?: IncludeMode;
@@ -736,6 +752,7 @@ export interface ProjectionClause extends langium.AstNode {
 export const ProjectionClause = {
   $type: "ProjectionClause",
   binding: "binding",
+  defaultArm: "defaultArm",
   excludes: "excludes",
   expansions: "expansions",
   include: "include",
@@ -750,7 +767,31 @@ export function isProjectionClause(item: unknown): item is ProjectionClause {
   return reflection.isInstance(item, ProjectionClause.$type);
 }
 
-/** Discriminant arm: `when e.type == "Hero" include properties { … }`. */
+/** Catch-all arm when one or more `when` arms are present: `default { … }`. */
+export interface ProjectionDefaultArm extends langium.AstNode {
+  readonly $container: ProjectionClause;
+  readonly $type: "ProjectionDefaultArm";
+  excludes: Array<ExcludeClause>;
+  expansions: Array<Expansion>;
+  include?: IncludeMode;
+  selectedFields: Array<string>;
+  spreads: Array<FragmentSpread>;
+}
+
+export const ProjectionDefaultArm = {
+  $type: "ProjectionDefaultArm",
+  excludes: "excludes",
+  expansions: "expansions",
+  include: "include",
+  selectedFields: "selectedFields",
+  spreads: "spreads",
+} as const;
+
+export function isProjectionDefaultArm(item: unknown): item is ProjectionDefaultArm {
+  return reflection.isInstance(item, ProjectionDefaultArm.$type);
+}
+
+/** Conditional arm: `when expr include properties { … }` — applied in source order. */
 export interface ProjectionWhenArm extends langium.AstNode {
   readonly $container: ProjectionClause;
   readonly $type: "ProjectionWhenArm";
@@ -1178,6 +1219,7 @@ export type ZielAstType = {
   Primary: Primary;
   PrimitiveTypeExpr: PrimitiveTypeExpr;
   ProjectionClause: ProjectionClause;
+  ProjectionDefaultArm: ProjectionDefaultArm;
   ProjectionWhenArm: ProjectionWhenArm;
   QueryDeclaration: QueryDeclaration;
   RefersClause: RefersClause;
@@ -1608,6 +1650,10 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         binding: {
           name: ProjectionClause.binding,
         },
+        defaultArm: {
+          name: ProjectionClause.defaultArm,
+          optional: true,
+        },
         excludes: {
           name: ProjectionClause.excludes,
           defaultValue: [],
@@ -1642,6 +1688,36 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         },
         whenArms: {
           name: ProjectionClause.whenArms,
+          defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [],
+    },
+    ProjectionDefaultArm: {
+      name: ProjectionDefaultArm.$type,
+      properties: {
+        excludes: {
+          name: ProjectionDefaultArm.excludes,
+          defaultValue: [],
+          optional: true,
+        },
+        expansions: {
+          name: ProjectionDefaultArm.expansions,
+          defaultValue: [],
+          optional: true,
+        },
+        include: {
+          name: ProjectionDefaultArm.include,
+          optional: true,
+        },
+        selectedFields: {
+          name: ProjectionDefaultArm.selectedFields,
+          defaultValue: [],
+          optional: true,
+        },
+        spreads: {
+          name: ProjectionDefaultArm.spreads,
           defaultValue: [],
           optional: true,
         },

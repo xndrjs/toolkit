@@ -204,6 +204,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         on Entry e include all {
           when e.type == "Hero" { }
           when e.type == "Page" { }
+          default { }
         }
       }
     `);
@@ -229,6 +230,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         on Entry e {
           when e.type == "Hero" { id title }
           when e.type == "Page" { id title }
+          default { }
         }
       }
     `);
@@ -259,6 +261,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
             expand image: Entry(id: e.imageId)
           }
           when e.type == "Page" include properties { }
+          default { }
         }
       }
     `);
@@ -285,6 +288,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         on Entry e include all {
           when e.type == "Hero" include properties { }
           when e.type == "Page" { }
+          default include none { }
         }
       }
     `);
@@ -296,7 +300,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     // Page arm: inherits clause `all` — still only Page properties (no refers on Page)
     expect(types).toContain("export type Q_Entry_Page");
     const code = emitProjections(program!);
-    expect(code).toContain('case "Hero":');
+    expect(code).toContain('if (payload.type == "Hero") {');
     expect(code).not.toContain("shell.imageId");
     expect(code).toContain("shell.title = payload.title;");
   });
@@ -313,6 +317,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         on Entry e include properties {
           when e.type == "Hero" include none { title }
           when e.type == "Page" { }
+          default include none { }
         }
       }
     `);
@@ -328,7 +333,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     expect(types).toMatch(/export type Q_Entry_Page = \{[^}]*id:/s);
     expect(types).toMatch(/export type Q_Entry_Page = \{[^}]*title: string;[^}]*\};/s);
     const code = emitProjections(program!);
-    expect(code).toContain('case "Hero":');
+    expect(code).toContain('if (payload.type == "Hero") {');
     expect(code).toContain("shell.title = payload.title;");
     expect(code).not.toContain("shell.headline");
   });
@@ -404,6 +409,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         on Entry e {
           when e.type == "Hero" { id title }
           when e.type == "Page" { id title }
+          default { }
         }
       }
     `);
@@ -485,6 +491,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
         on Entry e {
           when e.type == "Hero" { id title }
           when e.type == "Page" { id title }
+          default { }
         }
       }
     `);

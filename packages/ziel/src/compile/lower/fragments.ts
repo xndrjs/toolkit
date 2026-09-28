@@ -16,6 +16,7 @@ import {
   type FragmentDeclaration as AstFragmentDeclaration,
   type FragmentSpread as AstFragmentSpread,
   type ProjectionClause as AstProjectionClause,
+  type ProjectionDefaultArm as AstProjectionDefaultArm,
   type ProjectionWhenArm as AstProjectionWhenArm,
 } from "../../lang/generated/ast";
 import { lowerExpr } from "./expr";
@@ -37,7 +38,11 @@ type BodyItem =
   | { kind: "exclude"; names: string[]; span: SourceSpan | null };
 
 /** AST nodes that own a mixed field / expand / spread / exclude body. */
-type BodyContainer = AstProjectionClause | AstProjectionWhenArm | AstFragmentDeclaration;
+type BodyContainer =
+  | AstProjectionClause
+  | AstProjectionWhenArm
+  | AstProjectionDefaultArm
+  | AstFragmentDeclaration;
 
 const EMPTY_BODY: FlattenedBody = { selectedFields: [], expansions: [], excludedFields: [] };
 
@@ -309,10 +314,14 @@ export function bodyItemsInOrder(container: BodyContainer): BodyItem[] {
   const content = cst && isCompositeCstNode(cst) ? cst.content : [];
 
   for (const child of content) {
-    // Skip nested when-arm subtrees when walking a projection clause. Leaves
-    // inside a when-arm still have `$type === "ProjectionWhenArm"` but share
-    // the arm as `astNode` — those must not be skipped.
-    if (child.astNode?.$type === "ProjectionWhenArm" && child.astNode !== container) {
+    // Skip nested when/default-arm subtrees when walking a projection clause.
+    // Leaves inside an arm still have that arm as `astNode` — those must not
+    // be skipped.
+    const childType = child.astNode?.$type;
+    if (
+      (childType === "ProjectionWhenArm" || childType === "ProjectionDefaultArm") &&
+      child.astNode !== container
+    ) {
       continue;
     }
 

@@ -26,6 +26,7 @@ import {
   isObjectField,
   isObjectTypeExpr,
   isProjectionClause,
+  isProjectionDefaultArm,
   isProjectionWhenArm,
   isQueryDeclaration,
   isRefersClause,
@@ -287,7 +288,8 @@ export class ZielFormatter extends AbstractFormatter {
           node.expansions.length === 0 &&
           node.spreads.length === 0 &&
           node.excludes.length === 0 &&
-          node.whenArms.length === 0;
+          node.whenArms.length === 0 &&
+          !node.defaultArm;
         this.formatBracedBlock(node, empty);
         const preceding =
           node.selectedFields.length +
@@ -300,13 +302,22 @@ export class ZielFormatter extends AbstractFormatter {
         for (let i = 1; i < node.whenArms.length; i++) {
           f.node(node.whenArms[i]!).prepend(blankLineIndent);
         }
+        if (node.defaultArm) {
+          const blankBeforeDefault =
+            preceding > 0 || node.whenArms.length > 0 ? blankLineIndent : Formatting.indent();
+          f.node(node.defaultArm).prepend(blankBeforeDefault);
+        }
       }
       return;
     }
 
-    if (isProjectionWhenArm(node)) {
+    if (isProjectionWhenArm(node) || isProjectionDefaultArm(node)) {
       const f = this.getNodeFormatter(node);
-      f.keyword("when").append(Formatting.oneSpace());
+      if (isProjectionWhenArm(node)) {
+        f.keyword("when").append(Formatting.oneSpace());
+      } else {
+        f.keyword("default");
+      }
       if (node.include) {
         f.keyword("include").surround(Formatting.oneSpace());
         if (node.include.includes("properties")) {
