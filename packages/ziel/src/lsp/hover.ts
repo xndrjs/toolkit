@@ -250,7 +250,8 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
   if (isTypedField(node) || isObjectField(node)) {
     if (feature === "name" || feature === undefined || node.name === text) {
       if (node.name === text || feature === "name") {
-        return fieldHoverMarkdown(node.name, typeOfTypedOrObjectField(node, tables));
+        const optional = isObjectField(node) && node.optional === true;
+        return fieldHoverMarkdown(node.name, typeOfTypedOrObjectField(node, tables), optional);
       }
     }
   }

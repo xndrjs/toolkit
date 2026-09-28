@@ -54,9 +54,14 @@ export function field(
   name: string,
   type: TypeExpr,
   inheritedFromIdentity = false,
-  refers: RefersTarget[] | null = null
+  refers: RefersTarget[] | null = null,
+  optional = false
 ): FieldDecl {
-  return { name, type, inheritedFromIdentity, refers, span };
+  return { name, type, optional, inheritedFromIdentity, refers, span };
+}
+
+export function nullable(of: TypeExpr): TypeExpr {
+  return { kind: "nullable", of, span };
 }
 
 export function defScalar(name: string, representation: PrimitiveTypeName): ScalarDefinition {

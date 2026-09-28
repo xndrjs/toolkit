@@ -333,7 +333,7 @@ function emitArmBodyVariantType(
     }
     const path = `${fieldPath}.selectedFields.${fieldName}`;
     const resolved = resolveForEmit(field.type, path, scalars, resources);
-    lines.push(`  ${fieldName}: ${printTypeExpr(resolved)};`);
+    lines.push(`  ${fieldName}${field.optional ? "?" : ""}: ${printTypeExpr(resolved)};`);
   }
 
   for (const expansion of arm.expansions) {
@@ -543,7 +543,7 @@ function emitFlatResourceProjectionType(
     }
     const path = `queries.${queryName}.projections.${projection.binding}.selectedFields.${fieldName}`;
     const resolved = resolveForEmit(field.type, path, scalars, resources);
-    lines.push(`  ${fieldName}: ${printTypeExpr(resolved)};`);
+    lines.push(`  ${fieldName}${field.optional ? "?" : ""}: ${printTypeExpr(resolved)};`);
   }
 
   for (const expansion of projection.expansions) {

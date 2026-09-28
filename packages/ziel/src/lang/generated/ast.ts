@@ -28,6 +28,7 @@ export type ZielKeywordNames =
   | ":"
   | ";"
   | "=="
+  | "?"
   | "@"
   | "["
   | "]"
@@ -120,6 +121,7 @@ export function isArrayTypeExpr(item: unknown): item is ArrayTypeExpr {
 export type AtomicTypeExpr =
   | GroupedTypeExpr
   | NamedTypeExpr
+  | NullTypeExpr
   | ObjectTypeExpr
   | PrimitiveTypeExpr
   | StringLiteralTypeExpr
@@ -598,6 +600,26 @@ export function isNullLiteral(item: unknown): item is NullLiteral {
   return reflection.isInstance(item, NullLiteral.$type);
 }
 
+/** Type-level `null` (value nullability). Bare `null` is rejected by check. */
+export interface NullTypeExpr extends langium.AstNode {
+  readonly $container:
+    | ArrayTypeExpr
+    | GroupedTypeExpr
+    | ObjectField
+    | ResourceDeclaration
+    | TypedField
+    | UnionTypeExpr;
+  readonly $type: "NullTypeExpr";
+}
+
+export const NullTypeExpr = {
+  $type: "NullTypeExpr",
+} as const;
+
+export function isNullTypeExpr(item: unknown): item is NullTypeExpr {
+  return reflection.isInstance(item, NullTypeExpr.$type);
+}
+
 export interface NumberLiteral extends langium.AstNode {
   readonly $container: ArrayLiteral;
   readonly $type: "NumberLiteral";
@@ -615,6 +637,8 @@ export function isNumberLiteral(item: unknown): item is NumberLiteral {
 
 /**
  * Object field: bare `id` (payload shorthand) or `title: string`.
+ * `?` after the name is presence-optional (`title?: string`), distinct from
+ * value-nullability (`string | null`). Combine as `title?: string | null`.
  * Optional `refers` annotates intended expand targets (types + check only).
  * Used inside object type expressions (including resource object payloads).
  */
@@ -622,6 +646,7 @@ export interface ObjectField extends langium.AstNode {
   readonly $container: ObjectTypeExpr;
   readonly $type: "ObjectField";
   name: string;
+  optional: boolean;
   refers?: RefersClause;
   type?: TypeExpr;
 }
@@ -629,6 +654,7 @@ export interface ObjectField extends langium.AstNode {
 export const ObjectField = {
   $type: "ObjectField",
   name: "name",
+  optional: "optional",
   refers: "refers",
   type: "type",
 } as const;
@@ -1071,6 +1097,7 @@ export function isTypedField(item: unknown): item is TypedField {
  * Type precedence (tight → loose): atomic / `[]` / `|`.
  * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
  * Bare ID is scalar or resource — classified during lowering.
+ * `null` is a type atom; unions containing it lower to IR `nullable`.
  */
 export type TypeExpr = UnionMember | UnionTypeExpr;
 
@@ -1164,6 +1191,7 @@ export function isUnionMember(item: unknown): item is UnionMember {
  * Type precedence (tight → loose): atomic / `[]` / `|`.
  * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
  * Bare ID is scalar or resource — classified during lowering.
+ * `null` is a type atom; unions containing it lower to IR `nullable`.
  */
 export interface UnionTypeExpr extends langium.AstNode {
   readonly $container: GroupedTypeExpr | ObjectField | ResourceDeclaration | TypedField;
@@ -1211,6 +1239,7 @@ export type ZielAstType = {
   NamedArg: NamedArg;
   NamedTypeExpr: NamedTypeExpr;
   NullLiteral: NullLiteral;
+  NullTypeExpr: NullTypeExpr;
   NumberLiteral: NumberLiteral;
   ObjectField: ObjectField;
   ObjectTypeExpr: ObjectTypeExpr;
@@ -1578,6 +1607,11 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
       properties: {},
       superTypes: [Literal.$type],
     },
+    NullTypeExpr: {
+      name: NullTypeExpr.$type,
+      properties: {},
+      superTypes: [AtomicTypeExpr.$type],
+    },
     NumberLiteral: {
       name: NumberLiteral.$type,
       properties: {
@@ -1592,6 +1626,11 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
       properties: {
         name: {
           name: ObjectField.name,
+        },
+        optional: {
+          name: ObjectField.optional,
+          defaultValue: false,
+          optional: true,
         },
         refers: {
           name: ObjectField.refers,

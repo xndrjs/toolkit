@@ -16,12 +16,13 @@ import {
   scalarHoverMarkdown,
 } from "./hover-markdown";
 
-function objectPayload(fields: { name: string; type: TypeExpr }[]): TypeExpr {
+function objectPayload(fields: { name: string; type: TypeExpr; optional?: boolean }[]): TypeExpr {
   return {
     kind: "object",
     fields: fields.map((f) => ({
       name: f.name,
       type: f.type,
+      optional: f.optional ?? false,
       inheritedFromIdentity: false,
       refers: null,
       span: null,
@@ -45,6 +46,7 @@ function entrySymbols(): ResourceSymbols {
         {
           name: "id",
           type: idType,
+          optional: false,
           inheritedFromIdentity: false,
           refers: null,
           span: null,
@@ -55,6 +57,7 @@ function entrySymbols(): ResourceSymbols {
         {
           name: "locale",
           type: localeType,
+          optional: false,
           inheritedFromIdentity: false,
           refers: null,
           span: null,
@@ -67,6 +70,7 @@ function entrySymbols(): ResourceSymbols {
         {
           name: "id",
           type: idType,
+          optional: false,
           inheritedFromIdentity: true,
           refers: null,
           span: null,
@@ -77,6 +81,7 @@ function entrySymbols(): ResourceSymbols {
         {
           name: "title",
           type: titleType,
+          optional: false,
           inheritedFromIdentity: false,
           refers: null,
           span: null,
@@ -147,6 +152,7 @@ describe("hover-markdown builders", () => {
     const typeField: FieldDecl = {
       name: "type",
       type: typeT,
+      optional: false,
       inheritedFromIdentity: false,
       refers: null,
       span: null,
@@ -154,6 +160,7 @@ describe("hover-markdown builders", () => {
     const idField: FieldDecl = {
       name: "id",
       type: idT,
+      optional: false,
       inheritedFromIdentity: true,
       refers: null,
       span: null,

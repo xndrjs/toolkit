@@ -207,6 +207,7 @@ export class ZielFormatter extends AbstractFormatter {
 
     if (isObjectField(node)) {
       const f = this.getNodeFormatter(node);
+      f.keyword("?").prepend(Formatting.noSpace()).append(Formatting.noSpace());
       if (isMultilineObjectUnion(node.type)) {
         f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.noSpace());
       } else {

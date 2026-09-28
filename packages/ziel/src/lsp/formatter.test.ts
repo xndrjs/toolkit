@@ -277,4 +277,18 @@ exclude imageId title
     expect(formatted).toContain("on Entry e include all {");
     expect(formatted).toMatch(/\n {4}exclude imageId title\n/);
   });
+
+  it("formats optional fields and `| null` without extra spaces around `?`", async () => {
+    const messy = `
+scalar Id on string;
+resource Post(id:Id):{id title ?: string subtitle:string|null note ?: string | null}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain("title?: string");
+    expect(formatted).toContain("subtitle: string | null");
+    expect(formatted).toContain("note?: string | null");
+    expect(formatted).not.toContain("title ?");
+    expect(formatted).not.toContain("?:string");
+  });
 });

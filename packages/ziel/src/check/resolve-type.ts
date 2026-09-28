@@ -24,6 +24,14 @@ export function resolveTypeExpr(
     case "resourceRef":
     case "stringLiteral":
       return type;
+    case "null":
+      sink.push({
+        code: "INVALID_NULL_TYPE",
+        message: "`null` is not a standalone type; use `T | null`",
+        path,
+        span: type.span,
+      });
+      return undefined;
     case "nullable": {
       const of = resolveTypeExpr(type.of, path, scalars, resources, sink, visiting);
       return of ? { kind: "nullable", of, span: type.span } : undefined;

@@ -40,6 +40,8 @@ export function typesSemanticallyEqual(a: TypeExpr, b: TypeExpr): boolean {
       return b.kind === "resourceRef" && a.name === b.name;
     case "stringLiteral":
       return b.kind === "stringLiteral" && a.value === b.value;
+    case "null":
+      return b.kind === "null";
     case "nullable":
       return b.kind === "nullable" && typesSemanticallyEqual(a.of, b.of);
     case "array":
@@ -50,7 +52,11 @@ export function typesSemanticallyEqual(a: TypeExpr, b: TypeExpr): boolean {
       const bByName = new Map(b.fields.map((f) => [f.name, f]));
       for (const field of a.fields) {
         const other = bByName.get(field.name);
-        if (!other || !typesSemanticallyEqual(field.type, other.type)) {
+        if (
+          !other ||
+          field.optional !== other.optional ||
+          !typesSemanticallyEqual(field.type, other.type)
+        ) {
           return false;
         }
       }
@@ -159,14 +165,20 @@ export function formatType(type: TypeExpr): string {
       return type.name;
     case "stringLiteral":
       return JSON.stringify(type.value);
+    case "null":
+      return "null";
     case "nullable":
-      return `${formatType(type.of)}?`;
+      return `${formatType(type.of)} | null`;
     case "array": {
       const inner = formatType(type.of);
-      return type.of.kind === "union" ? `(${inner})[]` : `${inner}[]`;
+      return type.of.kind === "union" || type.of.kind === "nullable"
+        ? `(${inner})[]`
+        : `${inner}[]`;
     }
     case "object":
-      return `{ ${type.fields.map((f) => `${f.name}: ${formatType(f.type)}`).join(", ")} }`;
+      return `{ ${type.fields
+        .map((f) => `${f.name}${f.optional ? "?" : ""}: ${formatType(f.type)}`)
+        .join(", ")} }`;
     case "union":
       return type.members.map(formatType).join(" | ");
     case "typeProjection":

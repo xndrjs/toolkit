@@ -42,6 +42,7 @@ function mergeIntersectionField(decls: FieldDecl[]): FieldDecl {
   return {
     name: first.name,
     type: unionFieldTypes(decls.map((d) => d.type)),
+    optional: decls.every((d) => d.optional),
     inheritedFromIdentity: decls.every((d) => d.inheritedFromIdentity),
     refers: decls.find((d) => d.refers !== null)?.refers ?? null,
     span: first.span,
