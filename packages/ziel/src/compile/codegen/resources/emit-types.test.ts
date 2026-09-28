@@ -7,6 +7,7 @@ import {
   arrayOf,
   defScalar,
   field,
+  nullable,
   objectType,
   pageDetailProgram,
   prim,
@@ -18,7 +19,7 @@ import {
   typeProj,
   union,
 } from "../../../fixtures";
-import type { Program, TypeExpr } from "../../../ir";
+import type { Program } from "../../../ir";
 import { parseAndCheck } from "../../parse-and-check";
 import { emitPayloadTypes, printTypeExpr } from "./emit-types";
 import { generateResources } from "../generators/generate-resources";
@@ -31,10 +32,6 @@ function loadFixture(name: string): string {
 
 function normalizeWhitespace(code: string): string {
   return code.trim().replace(/\n{3,}/g, "\n\n");
-}
-
-function nullable(of: TypeExpr): TypeExpr {
-  return { kind: "nullable", of, span };
 }
 
 describe("printTypeExpr", () => {
@@ -51,6 +48,20 @@ describe("printTypeExpr", () => {
   it("parenthesizes union / nullable inside arrays", () => {
     expect(printTypeExpr(arrayOf(union(strLit("a"), strLit("b"))))).toBe('("a" | "b")[]');
     expect(printTypeExpr(arrayOf(nullable(prim("string"))))).toBe("(string | null)[]");
+  });
+
+  it("emits optional object fields with ?: ", () => {
+    expect(
+      printTypeExpr(
+        objectType(
+          field("title", prim("string"), false, null, true),
+          field("subtitle", nullable(prim("string")), false, null, true)
+        )
+      )
+    ).toBe(`{
+  title?: string;
+  subtitle?: string | null;
+}`);
   });
 });
 
@@ -143,6 +154,30 @@ export type UserPayload = {
   }[];
   related: CustomReferenceValue[];
 };`);
+  });
+
+  it("emits optional and nullable payload fields from DSL", () => {
+    const { program, diagnostics } = parseAndCheck(
+      `
+        scalar PostId on string;
+        resource Post(id: PostId): {
+          id
+          title?: string
+          subtitle: string | null
+        }
+      `,
+      "file:///optional.ziel"
+    );
+    expect(diagnostics).toEqual([]);
+    expect(normalizeWhitespace(emitPayloadTypes(program))).toBe(
+      normalizeWhitespace(`
+export type PostPayload = {
+  id: PostId;
+  title?: string;
+  subtitle: string | null;
+};
+`)
+    );
   });
 
   it("throws on unresolved typeProjection when the target resource is missing", () => {

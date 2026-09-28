@@ -45,6 +45,8 @@ export type TypeExpr =
   | { kind: "scalarRef"; name: string; span: SourceSpan | null }
   | { kind: "resourceRef"; name: string; span: SourceSpan | null }
   | { kind: "stringLiteral"; value: string; span: SourceSpan | null }
+  /** Bare `null` type atom; valid only as a union member before lower normalizes to `nullable`. Surviving nodes are rejected by check (`INVALID_NULL_TYPE`). */
+  | { kind: "null"; span: SourceSpan | null }
   | { kind: "nullable"; of: TypeExpr; span: SourceSpan | null }
   | { kind: "array"; of: TypeExpr; span: SourceSpan | null }
   | { kind: "object"; fields: FieldDecl[]; span: SourceSpan | null }
@@ -77,6 +79,11 @@ export type RefersTarget = {
 export type FieldDecl = {
   name: string;
   type: TypeExpr;
+  /**
+   * Presence-optional field (`name?: T` in the DSL). Distinct from value
+   * nullability (`T | null` → `nullable`). Default `false`.
+   */
+  optional: boolean;
   /**
    * Bare payload shorthand (`id`) inherits type from the identity field of the
    * same name. Only meaningful on object fields of a resource payload.

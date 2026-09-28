@@ -25,8 +25,8 @@ export function formatResourceSignature(name: string, symbols: ResourceSymbols):
   return `resource ${name}(${identity}): ${formatType(symbols.payloadType)}`;
 }
 
-export function formatFieldSignature(name: string, type: TypeExpr): string {
-  return `${name}: ${formatType(type)}`;
+export function formatFieldSignature(name: string, type: TypeExpr, optional = false): string {
+  return `${name}${optional ? "?" : ""}: ${formatType(type)}`;
 }
 
 /** `fragment Name on Resource: { field: Type, … }` — projected payload shape. */
@@ -46,8 +46,8 @@ export function resourceHoverMarkdown(name: string, symbols: ResourceSymbols): s
   return hoverCodeBlock(formatResourceSignature(name, symbols));
 }
 
-export function fieldHoverMarkdown(name: string, type: TypeExpr): string {
-  return hoverCodeBlock(formatFieldSignature(name, type));
+export function fieldHoverMarkdown(name: string, type: TypeExpr, optional = false): string {
+  return hoverCodeBlock(formatFieldSignature(name, type, optional));
 }
 
 export function fragmentHoverMarkdown(
@@ -102,6 +102,12 @@ export function resourceFieldHoverMarkdown(
   fieldName: string,
   resources: ResourceTable
 ): string | undefined {
+  const symbols = resources.get(resourceName);
+  if (!symbols) return undefined;
+  const fromMap = symbols.payload.get(fieldName) ?? symbols.identity.get(fieldName);
+  if (fromMap) {
+    return fieldHoverMarkdown(fromMap.name, fromMap.type, fromMap.optional);
+  }
   const type = fieldTypeFromResource(resourceName, fieldName, resources);
   if (!type) return undefined;
   return fieldHoverMarkdown(fieldName, type);
@@ -114,13 +120,27 @@ export function projectedFieldsType(
   resources: ResourceTable
 ): TypeExpr | undefined {
   if (!resources.has(resourceName)) return undefined;
+  const symbols = resources.get(resourceName)!;
   const fields: FieldDecl[] = [];
   for (const name of fieldNames) {
+    const fromMap = symbols.payload.get(name) ?? symbols.identity.get(name);
+    if (fromMap) {
+      fields.push({
+        name: fromMap.name,
+        type: fromMap.type,
+        optional: fromMap.optional,
+        inheritedFromIdentity: fromMap.inheritedFromIdentity,
+        refers: fromMap.refers,
+        span: fromMap.span,
+      });
+      continue;
+    }
     const type = fieldTypeFromResource(resourceName, name, resources);
     if (type) {
       fields.push({
         name,
         type,
+        optional: false,
         inheritedFromIdentity: false,
         refers: null,
         span: null,

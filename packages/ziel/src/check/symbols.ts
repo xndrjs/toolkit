@@ -94,6 +94,14 @@ export function checkTypeExpr(
       // Validate by resolving; keep IR as typeProjection.
       resolveTypeExpr(type, path, scalars, resources, sink);
       return;
+    case "null":
+      sink.push({
+        code: "INVALID_NULL_TYPE",
+        message: "`null` is not a standalone type; use `T | null`",
+        path,
+        span: type.span,
+      });
+      return;
     case "nullable":
     case "array":
       checkTypeExpr(type.of, path, scalars, resources, sink);

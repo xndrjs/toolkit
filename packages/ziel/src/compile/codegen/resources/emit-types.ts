@@ -59,6 +59,8 @@ export function printTypeExpr(type: TypeExpr, ctx: PrintContext = "root", indent
       return payloadTypeName(type.name);
     case "stringLiteral":
       return JSON.stringify(type.value);
+    case "null":
+      return "null";
     case "nullable": {
       // `A | B | null` / `T[] | null` — no extra parens.
       const inner = `${printTypeExpr(type.of, "root", indent)} | null`;
@@ -73,7 +75,10 @@ export function printTypeExpr(type: TypeExpr, ctx: PrintContext = "root", indent
       const pad = "  ".repeat(indent);
       const fieldPad = "  ".repeat(indent + 1);
       const fields = type.fields
-        .map((f) => `${fieldPad}${f.name}: ${printTypeExpr(f.type, "root", indent + 1)};`)
+        .map(
+          (f) =>
+            `${fieldPad}${f.name}${f.optional ? "?" : ""}: ${printTypeExpr(f.type, "root", indent + 1)};`
+        )
         .join("\n");
       return `{\n${fields}\n${pad}}`;
     }

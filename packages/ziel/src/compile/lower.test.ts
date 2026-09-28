@@ -1067,4 +1067,111 @@ describe("lowerProgram — fragments", () => {
       op: "or",
     });
   });
+
+  it("lowers optional object fields and normalizes `| null` to nullable", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar PostId on string;
+
+        resource Post(id: PostId): {
+          id
+          title?: string
+          subtitle: string | null
+          tags?: (string | null)[]
+          meta?: {
+            note?: string | null
+          }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    const fields = objectFields(program.resources.find((r) => r.name === "Post")?.payloadType);
+
+    expect(fields.find((f) => f.name === "title")).toMatchObject({
+      name: "title",
+      optional: true,
+      type: { kind: "primitive", name: "string" },
+    });
+    expect(fields.find((f) => f.name === "subtitle")).toMatchObject({
+      name: "subtitle",
+      optional: false,
+      type: {
+        kind: "nullable",
+        of: { kind: "primitive", name: "string" },
+      },
+    });
+    expect(fields.find((f) => f.name === "tags")).toMatchObject({
+      name: "tags",
+      optional: true,
+      type: {
+        kind: "array",
+        of: {
+          kind: "nullable",
+          of: { kind: "primitive", name: "string" },
+        },
+      },
+    });
+    expect(fields.find((f) => f.name === "meta")).toMatchObject({
+      name: "meta",
+      optional: true,
+      type: {
+        kind: "object",
+        fields: [
+          {
+            name: "note",
+            optional: true,
+            type: {
+              kind: "nullable",
+              of: { kind: "primitive", name: "string" },
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it("lowers union `| null` with multiple members into nullable union", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+        resource R(id: Id): {
+          kind: "a" | "b" | null
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    const fields = objectFields(program.resources.find((r) => r.name === "R")?.payloadType);
+    expect(fields[0]?.type).toMatchObject({
+      kind: "nullable",
+      of: {
+        kind: "union",
+        members: [
+          { kind: "stringLiteral", value: "a" },
+          { kind: "stringLiteral", value: "b" },
+        ],
+      },
+    });
+  });
+
+  it("rejects bare `null` types with INVALID_NULL_TYPE", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+        resource R(id: Id): {
+          bad: null
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "INVALID_NULL_TYPE",
+          path: "resources.R.payloadType.bad",
+        }),
+      ])
+    );
+  });
 });

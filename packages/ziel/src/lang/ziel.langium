@@ -63,11 +63,13 @@ TypedField:
 
 /**
  * Object field: bare `id` (payload shorthand) or `title: string`.
+ * `?` after the name is presence-optional (`title?: string`), distinct from
+ * value-nullability (`string | null`). Combine as `title?: string | null`.
  * Optional `refers` annotates intended expand targets (types + check only).
  * Used inside object type expressions (including resource object payloads).
  */
 ObjectField:
-    name=ID (':' type=TypeExpr)? (refers=RefersClause)?;
+    name=ID (optional?='?')? (':' type=TypeExpr)? (refers=RefersClause)?;
 
 /** `refers Entry` or `refers Entry with { type: "Menu" } | Entry with { type: "Footer" }` */
 RefersClause:
@@ -87,6 +89,7 @@ RefersPatternField:
  * Type precedence (tight → loose): atomic / `[]` / `|`.
  * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
  * Bare ID is scalar or resource — classified during lowering.
+ * `null` is a type atom; unions containing it lower to IR `nullable`.
  */
 TypeExpr:
     UnionMember ({infer UnionTypeExpr.members+=current} '|' members+=UnionMember)*;
@@ -95,10 +98,15 @@ UnionMember:
     AtomicTypeExpr ({infer ArrayTypeExpr.of=current} '[' ']')*;
 
 AtomicTypeExpr:
-    PrimitiveTypeExpr | TypeProjection | NamedTypeExpr | ObjectTypeExpr | StringLiteralTypeExpr | GroupedTypeExpr;
+    PrimitiveTypeExpr | TypeProjection | NamedTypeExpr | ObjectTypeExpr
+  | StringLiteralTypeExpr | GroupedTypeExpr | NullTypeExpr;
 
 PrimitiveTypeExpr:
     name=PrimitiveName;
+
+/** Type-level `null` (value nullability). Bare `null` is rejected by check. */
+NullTypeExpr:
+    {infer NullTypeExpr} 'null';
 
 /**
  * Type-level payload field projection: `EditorialModule.type` → semantic type

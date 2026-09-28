@@ -9,6 +9,7 @@ import {
   isArrayTypeExpr,
   isGroupedTypeExpr,
   isNamedTypeExpr,
+  isNullTypeExpr,
   isObjectTypeExpr,
   isPrimitiveTypeExpr,
   isStringLiteralTypeExpr,
@@ -53,6 +54,7 @@ export function lowerTypedField(field: AstTypedField, tables: NameTables): Field
   return {
     name: field.name,
     type: lowerTypeExpr(field.type, tables),
+    optional: false,
     inheritedFromIdentity: false,
     refers: null,
     span: spanOf(field),
@@ -65,6 +67,7 @@ export function lowerObjectField(
   identityFields: FieldDecl[] | null
 ): FieldDecl {
   const refers = lowerRefersClause(field.refers);
+  const optional = field.optional === true;
   if (!field.type) {
     const identity = identityFields?.find((f) => f.name === field.name);
     return {
@@ -72,6 +75,7 @@ export function lowerObjectField(
       type: identity
         ? cloneTypeExpr(identity.type)
         : { kind: "primitive", name: "string", span: spanOf(field) },
+      optional,
       inheritedFromIdentity: true,
       refers,
       span: spanOf(field),
@@ -80,10 +84,48 @@ export function lowerObjectField(
   return {
     name: field.name,
     type: lowerTypeExpr(field.type, tables),
+    optional,
     inheritedFromIdentity: false,
     refers,
     span: spanOf(field),
   };
+}
+
+/**
+ * Collapse `T | null | …` into `{ kind: "nullable", of: … }`.
+ * Bare `null` (or `null | null`) survives as `{ kind: "null" }` for check.
+ */
+function normalizeNullability(type: TypeExpr): TypeExpr {
+  if (type.kind !== "union") return type;
+
+  const nonNull: TypeExpr[] = [];
+  let sawNull = false;
+  for (const member of type.members) {
+    if (member.kind === "null") {
+      sawNull = true;
+      continue;
+    }
+    if (member.kind === "nullable") {
+      sawNull = true;
+      if (member.of.kind === "union") {
+        nonNull.push(...member.of.members);
+      } else {
+        nonNull.push(member.of);
+      }
+      continue;
+    }
+    nonNull.push(member);
+  }
+
+  if (!sawNull) {
+    return type;
+  }
+  if (nonNull.length === 0) {
+    return { kind: "null", span: type.span };
+  }
+  const of: TypeExpr =
+    nonNull.length === 1 ? nonNull[0]! : { kind: "union", members: nonNull, span: type.span };
+  return { kind: "nullable", of, span: type.span };
 }
 
 export function lowerTypeExpr(
@@ -97,11 +139,11 @@ export function lowerTypeExpr(
       const lowered = lowerTypeExpr(member as AstTypeExpr, tables, identityFields);
       return lowered.kind === "union" ? lowered.members : [lowered];
     });
-    return {
+    return normalizeNullability({
       kind: "union",
       members,
       span: spanOf(type),
-    };
+    });
   }
   if (isArrayTypeExpr(type)) {
     return {
@@ -126,6 +168,9 @@ export function lowerTypeExpr(
       value: type.value,
       span: spanOf(type),
     };
+  }
+  if (isNullTypeExpr(type)) {
+    return { kind: "null", span: spanOf(type) };
   }
   if (isPrimitiveTypeExpr(type)) {
     return {
@@ -162,6 +207,8 @@ export function cloneTypeExpr(type: TypeExpr): TypeExpr {
       return { kind: "resourceRef", name: type.name, span: type.span };
     case "stringLiteral":
       return { kind: "stringLiteral", value: type.value, span: type.span };
+    case "null":
+      return { kind: "null", span: type.span };
     case "nullable":
       return { kind: "nullable", of: cloneTypeExpr(type.of), span: type.span };
     case "array":
@@ -172,6 +219,7 @@ export function cloneTypeExpr(type: TypeExpr): TypeExpr {
         fields: type.fields.map((f) => ({
           name: f.name,
           type: cloneTypeExpr(f.type),
+          optional: f.optional,
           inheritedFromIdentity: f.inheritedFromIdentity,
           refers: f.refers
             ? f.refers.map((t) => ({
