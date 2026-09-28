@@ -37,7 +37,10 @@ import {
   stripToConcreteMembers,
   type ResolveTargetIndex,
 } from "../../../check/projection-graph";
-import { resolveSelectedFields } from "../../../check/projection-include";
+import {
+  payloadIntersectionFields,
+  resolveSelectedFields,
+} from "../../../check/projection-include";
 import { resolveTypeExpr } from "../../../check/resolve-type";
 import type { ResourceTable, ScalarTable } from "../../../check/symbols";
 import type {
@@ -72,13 +75,18 @@ function tablesFromProgram(program: Program): {
 } {
   const scalars: ScalarTable = new Map(program.scalars.map((s) => [s.name, s]));
   const resources: ResourceTable = new Map();
+  // First pass: register names so union / resourceRef payloads can expand.
   for (const resource of program.resources) {
-    const payloadFields = resource.payloadType.kind === "object" ? resource.payloadType.fields : [];
     resources.set(resource.name, {
       identity: new Map(resource.identity.fields.map((f) => [f.name, f])),
-      payload: new Map(payloadFields.map((f) => [f.name, f])),
+      payload: new Map(),
       payloadType: resource.payloadType,
     });
+  }
+  // Second pass: object fields, or intersection fields for closed object unions.
+  for (const resource of program.resources) {
+    const entry = resources.get(resource.name)!;
+    entry.payload = fieldMapFromPayload(resource.payloadType, entry.payload, resources);
   }
   return { scalars, resources };
 }
@@ -249,16 +257,22 @@ function requireProjected(
   }
 }
 
+/**
+ * Field lookup for a (possibly narrowed) payload.
+ * - Single object → that object's fields
+ * - Closed object union → intersection fields (same bar as `payloadSelectableFields`)
+ * - Otherwise → `resourcePayload` fallback
+ */
 function fieldMapFromPayload(
   payloadType: TypeExpr,
   resourcePayload: Map<string, FieldDecl>,
   resources: ResourceTable
 ): Map<string, FieldDecl> {
   const members = expandPayloadObjectMembers(payloadType, resources);
-  if (members !== null && members.length === 1) {
-    return fieldMap(members[0]!.fields);
+  if (members === null) {
+    return resourcePayload;
   }
-  return resourcePayload;
+  return fieldMap(payloadIntersectionFields(payloadType, resources));
 }
 
 function fieldMap(fields: FieldDecl[]): Map<string, FieldDecl> {
