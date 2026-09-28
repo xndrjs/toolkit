@@ -6,6 +6,7 @@ import { createResourceGraphResolver } from "./resource-graph-resolver";
 import {
   MissingResourceError,
   NoDataSourceError,
+  ResolutionError,
   ResourceGraphAbortedError,
   ResourceLoadFailedError,
 } from "../errors";
@@ -353,9 +354,102 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
     expect(output.contentMap.has(page)).toBe(true);
     expect(output.contentMap.has(menu)).toBe(true);
     expect(output.errors).toHaveLength(1);
+    expect(output.errors[0]).toBeInstanceOf(ResolutionError);
+    expect(output.errors[0]?.code).toBe("load_failed");
     expect(output.errors[0]?.resourceKey).toBe(hero.toString());
     expect(output.errors[0]?.message).toContain('Data source "hero-api" failed to load');
+    expect(output.errors[0]?.originalError).toBeInstanceOf(Error);
     expect(output.errors[0]?.inheritedIslandIds).toEqual([page.toString()]);
+  });
+
+  it("preserves a ResolutionError thrown by a datasource in throw mode", async () => {
+    const upstream = new Error("token expired");
+    const resolver = createResourceGraphResolver({
+      sources: [
+        {
+          id: "auth-aware",
+          for: [pageAri],
+          concurrency: 1,
+          load: async () => {
+            throw new ResolutionError(401, "Unauthorized", upstream);
+          },
+        },
+      ],
+      strategy: graphStrategy(
+        createExpansionPolicyChain(createPageGraphPolicies()),
+        createIslandPolicyChain(createPageGraphIslandPolicies())
+      ),
+      schedulingMode,
+    });
+
+    const failure = await resolver
+      .resolve({ roots: [page], executionContext: {}, missingResourceMode: "throw" })
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ResolutionError);
+    const resolutionError = failure as ResolutionError;
+    expect(resolutionError.code).toBe(401);
+    expect(resolutionError.message).toBe("Unauthorized");
+    expect(resolutionError.originalError).toBe(upstream);
+    expect(resolutionError.resourceKey).toBe(page.toString());
+    expect(resolutionError.inheritedIslandIds).toEqual([page.toString()]);
+  });
+
+  it("collects a datasource ResolutionError into errors[] for set-error projection", async () => {
+    const upstream = new Error("token expired");
+    const resolver = createResourceGraphResolver({
+      sources: [
+        createStoreSource({
+          id: "cms",
+          for: [pageAri, menuAri],
+          store: pageGraphValues,
+        }),
+        {
+          id: "hero-api",
+          for: [heroAri],
+          concurrency: 1,
+          load: async () => {
+            throw new ResolutionError(401, "Unauthorized", upstream);
+          },
+        },
+      ],
+      strategy: graphStrategy(
+        createExpansionPolicyChain([
+          {
+            matches: ({ resource }) => resource.type === "page",
+            expand: () => ({ resources: [hero, menu] }),
+          },
+          {
+            matches: ({ resource }) => resource.type === "menu",
+            expand: () => ({ resources: [] }),
+          },
+        ]),
+        createIslandPolicyChain([
+          {
+            matches: ({ resource }) => resource.type === "menu",
+            resolve: () => ({ startIsland: true }),
+          },
+        ])
+      ),
+      schedulingMode,
+    });
+
+    const output = await resolver.resolve({
+      roots: [page],
+      executionContext: {},
+      missingResourceMode: "collect",
+    });
+
+    expect(output.contentMap.has(page)).toBe(true);
+    expect(output.contentMap.has(menu)).toBe(true);
+    expect(output.errors).toHaveLength(1);
+    const collected = output.errors[0]!;
+    expect(collected).toBeInstanceOf(ResolutionError);
+    expect(collected.code).toBe(401);
+    expect(collected.message).toBe("Unauthorized");
+    expect(collected.originalError).toBe(upstream);
+    expect(collected.resourceKey).toBe(hero.toString());
+    expect(collected.inheritedIslandIds).toEqual([page.toString()]);
   });
 });
 

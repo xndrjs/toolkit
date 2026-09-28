@@ -13,6 +13,7 @@ export {
 export {
   MissingResourceError,
   NoDataSourceError,
+  ResolutionError,
   ResourceBatchLengthError,
   ResourceGraphAbortedError,
   ResourceGraphError,
@@ -57,7 +58,6 @@ export type {
   IslandId,
   MissingResourceMode,
   RegistryPayloadFor,
-  ResolutionError,
   SchedulingMode,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,

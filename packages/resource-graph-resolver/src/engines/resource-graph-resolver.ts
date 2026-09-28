@@ -3,6 +3,7 @@ import type { ApplicationResourceIdentifier } from "@xndrjs/application-resource
 import {
   MissingResourceError,
   NoDataSourceError,
+  ResolutionError,
   ResourceBatchLengthError,
   ResourceGraphError,
   ResourceLoadFailedError,
@@ -171,7 +172,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       throw error;
     }
 
-    session.registerMissing(ref, error.message);
+    session.registerMissing(ref, toCollectedResolutionError(ref, error));
   };
 
   const routeOf = (
@@ -361,20 +362,45 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       error: completion.error,
     }));
 
-    const failure = new ResourceLoadFailedError(
-      completion.lane.source.id,
-      completion.refs.map((ref) => ref.resource.toString()),
-      { cause: completion.error }
-    );
+    const resourceKeys = completion.refs.map((ref) => ref.resource.toString());
+    const thrown = completion.error;
+
+    // Datasources may reject with ResolutionError; preserve code/message/originalError.
+    if (thrown instanceof ResolutionError) {
+      if (input.missingResourceMode === "throw") {
+        const first = completion.refs[0]!;
+        throw thrown.withAttribution(first.resource.toString(), islandsWaitingOn(first));
+      }
+
+      for (const ref of completion.refs) {
+        for (const inheritedIslandId of islandsWaitingOn(ref)) {
+          session.registerMissing(
+            { resource: ref.resource, inheritedIslandId },
+            thrown.withAttribution(ref.resource.toString(), [inheritedIslandId])
+          );
+        }
+      }
+      return;
+    }
+
+    const failure = new ResourceLoadFailedError(completion.lane.source.id, resourceKeys, {
+      cause: thrown,
+    });
 
     if (input.missingResourceMode === "throw") {
       throw failure;
     }
 
-    // Collect mode: the batch's resources are unresolvable, other sources continue.
+    // Collect / set-error: wrap non-ResolutionError rejects as ResolutionError instances.
     for (const ref of completion.refs) {
       for (const inheritedIslandId of islandsWaitingOn(ref)) {
-        session.registerMissing({ resource: ref.resource, inheritedIslandId }, failure.message);
+        session.registerMissing(
+          { resource: ref.resource, inheritedIslandId },
+          new ResolutionError("load_failed", failure.message, thrown, {
+            resourceKey: ref.resource.toString(),
+            inheritedIslandIds: [inheritedIslandId],
+          })
+        );
       }
     }
   };
@@ -484,4 +510,43 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   }));
 
   return output;
+}
+
+/**
+ * Maps a thrown graph error into a {@link ResolutionError} for collect / set-error paths.
+ * Datasource `ResolutionError` instances are preserved (attribution only).
+ */
+function toCollectedResolutionError(ref: GraphWalkRef, error: ResourceGraphError): ResolutionError {
+  const resourceKey = ref.resource.toString();
+  const inheritedIslandIds = [ref.inheritedIslandId];
+
+  if (error instanceof ResolutionError) {
+    return error.withAttribution(resourceKey, inheritedIslandIds);
+  }
+
+  if (error instanceof MissingResourceError) {
+    return new ResolutionError("missing", error.message, error.cause, {
+      resourceKey,
+      inheritedIslandIds,
+    });
+  }
+
+  if (error instanceof NoDataSourceError) {
+    return new ResolutionError("no_data_source", error.message, undefined, {
+      resourceKey,
+      inheritedIslandIds,
+    });
+  }
+
+  if (error instanceof ResourceLoadFailedError) {
+    return new ResolutionError("load_failed", error.message, error.cause, {
+      resourceKey,
+      inheritedIslandIds,
+    });
+  }
+
+  return new ResolutionError("unknown", error.message, error, {
+    resourceKey,
+    inheritedIslandIds,
+  });
 }

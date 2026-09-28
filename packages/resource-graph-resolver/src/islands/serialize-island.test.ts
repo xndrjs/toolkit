@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ResolutionError } from "../errors";
 import { ContentMap } from "../model/content-map";
 import { IslandDependencyMap } from "../model/island-dependency-map";
 import { IslandMap } from "../model/island-map";
@@ -71,14 +72,14 @@ function createPageGraphOutput(options?: {
     islandDependencies,
     errors: options?.missingFromPage
       ? [
-          {
+          new ResolutionError("missing", `Unable to resolve ${missing.toString()}`, undefined, {
             resourceKey: missing.toString(),
-            message: `Unable to resolve ${missing.toString()}`,
             inheritedIslandIds: [page.toString()],
-          },
+          }),
         ]
       : [],
     promotedResourceKeys: [],
+    redirects: new Map(),
   };
 }
 
