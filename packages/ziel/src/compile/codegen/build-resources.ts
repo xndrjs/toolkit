@@ -45,7 +45,7 @@ function withFileUri(diagnostic: Diagnostic, uri: string): Diagnostic {
  * On any diagnostics (syntax or semantic), `code` is `""` and nothing is written.
  */
 export function buildResources(options: BuildResourcesOptions = {}): BuildResourcesResult {
-  const { importFrom, registryTypeName, ...collectOptions } = options;
+  const { importFrom, registryTypeName, resourceTag, ...collectOptions } = options;
   const files = collectZielFiles(collectOptions);
 
   const programs: Program[] = [];
@@ -85,6 +85,6 @@ export function buildResources(options: BuildResourcesOptions = {}): BuildResour
     return { code: "", diagnostics, files };
   }
 
-  const { code } = composeGeneratedModule(merged, { importFrom, registryTypeName });
+  const { code } = composeGeneratedModule(merged, { importFrom, registryTypeName, resourceTag });
   return { code, diagnostics: [], files };
 }

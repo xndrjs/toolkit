@@ -49,7 +49,7 @@ describe("emitProjectionTypes", () => {
     expect(emitProjectionTypes(program)).toBe("");
   });
 
-  it("emits $type, selected fields, and restored aliases for post-detail", () => {
+  it("emits selected fields and restored aliases for post-detail", () => {
     const { program, diagnostics } = parseAndCheck(
       loadFixture("post-detail.ziel"),
       "file:///fixtures/post-detail.ziel"
@@ -59,7 +59,6 @@ describe("emitProjectionTypes", () => {
     expect(normalizeWhitespace(emitProjectionTypes(program))).toBe(
       normalizeWhitespace(`
 export type PostDetail_Post = {
-  $type: "Post";
   id: PostId;
   title: string;
   content: string;
@@ -67,7 +66,6 @@ export type PostDetail_Post = {
 };
 
 export type PostDetail_User = {
-  $type: "User";
   id: UserId;
   username: string;
 };
@@ -75,6 +73,22 @@ export type PostDetail_User = {
 export type PostDetailResult = PostDetail_Post;
 `)
     );
+  });
+
+  it("stamps resourceTag when configured", () => {
+    const { program, diagnostics } = parseAndCheck(
+      loadFixture("post-detail.ziel"),
+      "file:///fixtures/post-detail.ziel"
+    );
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program, "$type");
+    expect(code).toContain(`$type: "Post";`);
+    expect(code).toContain(`$type: "User";`);
+
+    const alt = emitProjectionTypes(program, "__resource");
+    expect(alt).toContain(`__resource: "Post";`);
+    expect(alt).not.toContain("$type");
   });
 
   it("emits alias-keyed Result for multi-root queries", () => {
@@ -101,13 +115,11 @@ export type PostDetailResult = PostDetail_Post;
     expect(normalizeWhitespace(emitProjectionTypes(program!))).toBe(
       normalizeWhitespace(`
 export type Homepage_Page = {
-  $type: "Page";
   id: PageId;
   title: string;
 };
 
 export type Homepage_UserSession = {
-  $type: "UserSession";
   id: SessionId;
   userId: string;
 };
@@ -160,20 +172,16 @@ export type HomepageResult = {
     expect(normalizeWhitespace(code)).toContain(
       normalizeWhitespace(`
 export type EntryDetail_Entry_Hero = {
-  $type: "Entry";
   id: EntryId;
   title: string;
   image: EntryDetail_Asset;
 };
 
 export type EntryDetail_Entry_Page = {
-  $type: "Entry";
   id: EntryId;
 };
 
-export type EntryDetail_Entry_Default = {
-  $type: "Entry";
-};
+export type EntryDetail_Entry_Default = {};
 
 export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page | EntryDetail_Entry_Default;
 `)
@@ -191,7 +199,7 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page 
 
     const code = emitProjectionTypes(program);
 
-    expect(code).toContain(`$type: "Page";`);
+    expect(code).not.toContain("$type");
     expect(code).toContain("strips: PageDetail_Entry[];");
     expect(code).toContain("related: (PageDetail_Entry | PageDetail_Asset)[];");
     expect(code).toContain("tabs: PageDetail_Entry[];");

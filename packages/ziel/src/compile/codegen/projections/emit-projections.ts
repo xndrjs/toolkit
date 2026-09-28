@@ -1,15 +1,16 @@
 /**
  * Emit memoized `project*` materializers from checked queries.
  *
- * Restores expansion aliases over a resolved `ContentMap`, stamps `$type`
- * discriminators, and memos by `ari.toString()` with shell-before-edges
- * (cycle-safe). Collection expansion targets strip to the element resource
- * (`TabCollection` → `on Tab`). Resource-union payloads (`EditorialModule:
- * Hero | Tabs`) require an explicit `on EditorialModule` — indirection to
- * member resources uses `resolve to`, same as CustomReference.
+ * Restores expansion aliases over a resolved `ContentMap` and memos by
+ * `ari.toString()` with shell-before-edges (cycle-safe). Collection expansion
+ * targets strip to the element resource (`TabCollection` → `on Tab`).
+ * Resource-union payloads (`EditorialModule: Hero | Tabs`) require an explicit
+ * `on EditorialModule` — indirection to member resources uses `resolve to`,
+ * same as CustomReference.
  * Resolve-only `on R resolve to` is not a `projectOn*` shell — settled payload
  * under the locator key is stripped via resolve targets.
  * Armed `on` projections discriminate on payload fields and build variant shells.
+ * Optional `resourceTag` stamps the resource name onto each shell (off by default).
  */
 import type { Program, QueryDefinition } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";
@@ -28,7 +29,8 @@ import { resourceIndex, type ResourceIndex } from "./shared";
 function emitQueryProjection(
   query: QueryDefinition,
   resources: ResourceIndex,
-  registryTypeName: string
+  registryTypeName: string,
+  resourceTag?: string
 ): string {
   const fnName = projectFnName(query.name);
   const resultType = queryResultTypeName(query.name);
@@ -49,7 +51,9 @@ function emitQueryProjection(
   const helpers: string[] = [];
 
   for (const projection of projectableProjections(query)) {
-    helpers.push(emitProjectOnHelper(projection, resources, query.name, contextFieldNames));
+    helpers.push(
+      emitProjectOnHelper(projection, resources, query.name, contextFieldNames, resourceTag)
+    );
   }
 
   // Collection elements must have an `on` projection (projected via ContentMap).
@@ -87,14 +91,19 @@ function emitQueryProjection(
  * {@link emitStrategies}); this function only emits the projectors.
  *
  * @param registryTypeName - Registry generic on `ContentMap` (default `ContentRegistry`).
+ * @param resourceTag - Optional property name for a resource-name stamp on shells.
  */
-export function emitProjections(program: Program, registryTypeName = "ContentRegistry"): string {
+export function emitProjections(
+  program: Program,
+  registryTypeName = "ContentRegistry",
+  resourceTag?: string
+): string {
   if (program.queries.length === 0) {
     return "";
   }
 
   const resources = resourceIndex(program);
   return program.queries
-    .map((query) => emitQueryProjection(query, resources, registryTypeName))
+    .map((query) => emitQueryProjection(query, resources, registryTypeName, resourceTag))
     .join("\n\n");
 }

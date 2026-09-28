@@ -55,6 +55,7 @@ export async function runCli(argv: string[]): Promise<number> {
     pathFilter: config?.pathFilter,
     importFrom: config?.importFrom,
     registryTypeName: config?.registryTypeName,
+    resourceTag: config?.resourceTag,
   });
 
   if (diagnostics.length > 0) {

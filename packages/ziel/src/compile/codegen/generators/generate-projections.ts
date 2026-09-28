@@ -19,6 +19,11 @@ export type GenerateProjectionsOptions = {
   importFrom?: string;
   /** Name of the registry type used as the `ContentMap` generic. Default: `ContentRegistry`. */
   registryTypeName?: string;
+  /**
+   * Optional property name stamped with the resource name on projection shells
+   * and types (e.g. `"$type"` or `"__resource"`). Default: unset (no stamp).
+   */
+  resourceTag?: string;
 };
 
 export type GenerateProjectionsResult = {
@@ -29,12 +34,14 @@ export type GenerateProjectionsResult = {
 type ResolvedOptions = {
   importFrom: string;
   registryTypeName: string;
+  resourceTag: string | undefined;
 };
 
 function resolveOptions(options?: GenerateProjectionsOptions): ResolvedOptions {
   return {
     importFrom: options?.importFrom ?? DEFAULT_IMPORT_FROM,
     registryTypeName: options?.registryTypeName ?? DEFAULT_REGISTRY_TYPE_NAME,
+    resourceTag: options?.resourceTag,
   };
 }
 
@@ -57,16 +64,16 @@ export function generateProjections(
   program: Program,
   options?: GenerateProjectionsOptions
 ): GenerateProjectionsResult {
-  const { importFrom, registryTypeName } = resolveOptions(options);
+  const { importFrom, registryTypeName, resourceTag } = resolveOptions(options);
 
   const bodyParts: string[] = [];
 
-  const types = emitProjectionTypes(program);
+  const types = emitProjectionTypes(program, resourceTag);
   if (types.length > 0) {
     bodyParts.push(types);
   }
 
-  const projectors = emitProjections(program, registryTypeName);
+  const projectors = emitProjections(program, registryTypeName, resourceTag);
   if (projectors.length > 0) {
     bodyParts.push(projectors);
   }

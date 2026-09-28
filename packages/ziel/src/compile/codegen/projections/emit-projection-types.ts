@@ -3,8 +3,8 @@
  *
  * Per single-root query `PostDetail`:
  * ```ts
- * export type PostDetail_User = { $type: "User"; … };
- * export type PostDetail_Post = { $type: "Post"; …; author: PostDetail_User };
+ * export type PostDetail_User = { … };
+ * export type PostDetail_Post = { …; author: PostDetail_User };
  * export type PostDetailResult = PostDetail_Post;
  * ```
  *
@@ -18,10 +18,13 @@
  *
  * Armed `on Entry` emits variant shells + a union alias:
  * ```ts
- * export type PostDetail_Entry_Hero = { $type: "Entry"; type: "Hero"; … };
- * export type PostDetail_Entry_Page = { $type: "Entry"; id: EntryId };
+ * export type PostDetail_Entry_Hero = { type: "Hero"; … };
+ * export type PostDetail_Entry_Page = { id: EntryId };
  * export type PostDetail_Entry = PostDetail_Entry_Hero | PostDetail_Entry_Page;
  * ```
+ *
+ * Optional `resourceTag` (e.g. `"$type"`) stamps the resource name onto each
+ * projection type. Off by default — payload/resource shape stays DSL-driven.
  *
  * Alias types restore expansion names. Resolve-only locators strip to the union of
  * settle-target projection types; collection resources (`Tab[]`) become member arrays.
@@ -290,7 +293,8 @@ function emitArmBodyVariantType(
   resources: ResourceTable,
   projected: Set<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>
+  projectionsByResource: Map<string, ResourceProjection>,
+  resourceTag?: string
 ): { typeName: string; source: string } {
   const typeName = projectionVariantTypeName(queryName, projection.resource, variant);
   const resource = resources.get(projection.resource);
@@ -306,7 +310,10 @@ function emitArmBodyVariantType(
     projectionsByResource,
   };
 
-  const lines: string[] = [`  $type: ${JSON.stringify(projection.resource)};`];
+  const lines: string[] = [];
+  if (resourceTag !== undefined) {
+    lines.push(`  ${resourceTag}: ${JSON.stringify(projection.resource)};`);
+  }
 
   const effectiveFields = resolveSelectedFields(
     arm.selectedFields,
@@ -343,7 +350,10 @@ function emitArmBodyVariantType(
 
   return {
     typeName,
-    source: `export type ${typeName} = {\n${lines.join("\n")}\n};`,
+    source:
+      lines.length === 0
+        ? `export type ${typeName} = {};`
+        : `export type ${typeName} = {\n${lines.join("\n")}\n};`,
   };
 }
 
@@ -356,7 +366,8 @@ function emitArmVariantType(
   resources: ResourceTable,
   projected: Set<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>
+  projectionsByResource: Map<string, ResourceProjection>,
+  resourceTag?: string
 ): { typeName: string; source: string } {
   const disc = projectionArmDiscriminant(arm.when, projection.binding);
   const variant = disc ?? `Arm${armIndex}`;
@@ -383,7 +394,8 @@ function emitArmVariantType(
     resources,
     projected,
     resolveTargets,
-    projectionsByResource
+    projectionsByResource,
+    resourceTag
   );
 }
 
@@ -394,7 +406,8 @@ function emitDefaultArmVariantType(
   resources: ResourceTable,
   projected: Set<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>
+  projectionsByResource: Map<string, ResourceProjection>,
+  resourceTag?: string
 ): { typeName: string; source: string } {
   const defaultArm = projection.defaultArm;
   if (defaultArm === null) {
@@ -417,7 +430,8 @@ function emitDefaultArmVariantType(
     resources,
     projected,
     resolveTargets,
-    projectionsByResource
+    projectionsByResource,
+    resourceTag
   );
 }
 
@@ -428,7 +442,8 @@ function emitArmedResourceProjectionTypes(
   resources: ResourceTable,
   projected: Set<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>
+  projectionsByResource: Map<string, ResourceProjection>,
+  resourceTag?: string
 ): string {
   const arms = projection.arms;
   if (arms === null) {
@@ -453,7 +468,8 @@ function emitArmedResourceProjectionTypes(
       resources,
       projected,
       resolveTargets,
-      projectionsByResource
+      projectionsByResource,
+      resourceTag
     );
     variants.push(typeName);
     parts.push(source);
@@ -466,7 +482,8 @@ function emitArmedResourceProjectionTypes(
     resources,
     projected,
     resolveTargets,
-    projectionsByResource
+    projectionsByResource,
+    resourceTag
   );
   variants.push(defaultName);
   parts.push(defaultSource);
@@ -483,7 +500,8 @@ function emitFlatResourceProjectionType(
   resources: ResourceTable,
   projected: Set<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>
+  projectionsByResource: Map<string, ResourceProjection>,
+  resourceTag?: string
 ): string {
   const resource = resources.get(projection.resource);
   if (!resource) {
@@ -498,7 +516,10 @@ function emitFlatResourceProjectionType(
   }
 
   const typeName = projectionTypeName(queryName, projection.resource);
-  const lines: string[] = [`  $type: ${JSON.stringify(projection.resource)};`];
+  const lines: string[] = [];
+  if (resourceTag !== undefined) {
+    lines.push(`  ${resourceTag}: ${JSON.stringify(projection.resource)};`);
+  }
   const expansionContext: ExpansionAliasContext = {
     sourcePayload: resource.payloadType,
     projectionsByResource,
@@ -537,7 +558,9 @@ function emitFlatResourceProjectionType(
     lines.push(`  ${expansion.alias}: ${aliasType};`);
   }
 
-  return `export type ${typeName} = {\n${lines.join("\n")}\n};`;
+  return lines.length === 0
+    ? `export type ${typeName} = {};`
+    : `export type ${typeName} = {\n${lines.join("\n")}\n};`;
 }
 
 function emitResourceProjectionType(
@@ -547,7 +570,8 @@ function emitResourceProjectionType(
   resources: ResourceTable,
   projected: Set<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>
+  projectionsByResource: Map<string, ResourceProjection>,
+  resourceTag?: string
 ): string {
   if (projection.arms !== null) {
     return emitArmedResourceProjectionTypes(
@@ -557,7 +581,8 @@ function emitResourceProjectionType(
       resources,
       projected,
       resolveTargets,
-      projectionsByResource
+      projectionsByResource,
+      resourceTag
     );
   }
   return emitFlatResourceProjectionType(
@@ -567,14 +592,16 @@ function emitResourceProjectionType(
     resources,
     projected,
     resolveTargets,
-    projectionsByResource
+    projectionsByResource,
+    resourceTag
   );
 }
 
 function emitQueryProjectionTypes(
   query: QueryDefinition,
   scalars: ScalarTable,
-  resources: ResourceTable
+  resources: ResourceTable,
+  resourceTag?: string
 ): string {
   const projectable = projectableProjections(query);
   const projected = new Set(projectable.map((p) => p.resource));
@@ -591,7 +618,8 @@ function emitQueryProjectionTypes(
         resources,
         projected,
         resolveTargets,
-        projectionsByResource
+        projectionsByResource,
+        resourceTag
       )
     );
   }
@@ -632,14 +660,16 @@ function emitQueryProjectionTypes(
 /**
  * Emit query-scoped projection types (`Query_Resource`, `QueryResult`) for each query.
  * Returns an empty string when the program has no queries.
+ *
+ * @param resourceTag - Optional property name for a resource-name stamp on types.
  */
-export function emitProjectionTypes(program: Program): string {
+export function emitProjectionTypes(program: Program, resourceTag?: string): string {
   if (program.queries.length === 0) {
     return "";
   }
 
   const { scalars, resources } = tablesFromProgram(program);
   return program.queries
-    .map((query) => emitQueryProjectionTypes(query, scalars, resources))
+    .map((query) => emitQueryProjectionTypes(query, scalars, resources, resourceTag))
     .join("\n\n");
 }
