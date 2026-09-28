@@ -43,7 +43,8 @@ describe("CmsAssets datasource", () => {
       expect.objectContaining({
         id: demoIds.assetHero,
         url: "https://cdn.example.com/hero-welcome.jpg",
-        kind: "image",
+        kind: "Asset",
+        asset_type: "image",
       }),
       undefined,
     ]);

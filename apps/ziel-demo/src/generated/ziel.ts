@@ -359,7 +359,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when((predicate) => predicate.payload.kind == "Menu")
+    .when((predicate) => predicate.payload.kind == "Menu" || predicate.payload.kind == "Footer")
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
@@ -430,15 +430,17 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 }
 
 export type PageDetail_Page = {
+  __typename: "Page";
   id: EntryId;
   title: string;
-  menu: PageDetail_Entry_Menu;
-  footer: PageDetail_Entry_Footer;
+  menu: PageDetail_Entry_Arm3;
+  footer: PageDetail_Entry_Arm3;
   strips: PageDetail_Entry[];
   related: (PageDetail_Entry | PageDetail_Asset)[];
 };
 
 export type PageDetail_Entry_Hero = {
+  __typename: "Entry";
   kind: "Hero";
   id: EntryId;
   title: string;
@@ -446,6 +448,7 @@ export type PageDetail_Entry_Hero = {
 };
 
 export type PageDetail_Entry_Tabs = {
+  __typename: "Entry";
   kind: "Tabs";
   id: EntryId;
   title: string;
@@ -453,6 +456,7 @@ export type PageDetail_Entry_Tabs = {
 };
 
 export type PageDetail_Entry_Tab = {
+  __typename: "Entry";
   kind: "Tab";
   id: EntryId;
   title: string;
@@ -460,48 +464,52 @@ export type PageDetail_Entry_Tab = {
     | PageDetail_Entry_Hero
     | PageDetail_Entry_Tabs
     | PageDetail_Entry_Tab
-    | PageDetail_Entry_Menu
-    | PageDetail_Entry_Footer
+    | PageDetail_Entry_Arm3
+    | PageDetail_Entry_Product
+    | PageDetail_Entry_Page
     | PageDetail_Entry_SiteInternalLink
-    | PageDetail_Entry_Default
   )[];
 };
 
-export type PageDetail_Entry_Menu = {
-  kind: "Menu";
+export type PageDetail_Entry_Arm3 = {
+  __typename: "Entry";
+  kind: "Menu" | "Footer";
   id: EntryId;
   title: string;
   logo: PageDetail_Asset;
 };
 
-export type PageDetail_Entry_Footer = {
-  kind: "Footer";
+export type PageDetail_Entry_Product = {
+  __typename: "Entry";
+  kind: "Product";
   id: EntryId;
-  cta: string;
+  sku: Sku;
   title: string;
 };
 
-export type PageDetail_Entry_Footer = {
-  kind: "Footer";
+export type PageDetail_Entry_Page = {
+  __typename: "Entry";
+  kind: "Page";
   id: EntryId;
-  cta: string;
   title: string;
 };
 
 export type PageDetail_Entry_SiteInternalLink = {
+  __typename: "Entry";
   kind: "SiteInternalLink";
   id: EntryId;
   target:
     | PageDetail_Entry_Hero
     | PageDetail_Entry_Tabs
     | PageDetail_Entry_Tab
-    | PageDetail_Entry_Menu
-    | PageDetail_Entry_Footer
-    | PageDetail_Entry_SiteInternalLink
-    | PageDetail_Entry_Default;
+    | PageDetail_Entry_Arm3
+    | PageDetail_Entry_Product
+    | PageDetail_Entry_Page
+    | PageDetail_Entry_SiteInternalLink;
 };
 
 export type PageDetail_Entry_Default = {
+  __typename: "Entry";
   kind: "Hero" | "Tabs" | "Tab" | "Product" | "Menu" | "Footer" | "Page" | "SiteInternalLink";
   id: EntryId;
 };
@@ -510,13 +518,14 @@ export type PageDetail_Entry =
   | PageDetail_Entry_Hero
   | PageDetail_Entry_Tabs
   | PageDetail_Entry_Tab
-  | PageDetail_Entry_Menu
-  | PageDetail_Entry_Footer
-  | PageDetail_Entry_Footer
+  | PageDetail_Entry_Arm3
+  | PageDetail_Entry_Product
+  | PageDetail_Entry_Page
   | PageDetail_Entry_SiteInternalLink
   | PageDetail_Entry_Default;
 
 export type PageDetail_Asset = {
+  __typename: "Asset";
   kind: "Asset";
   id: AssetId;
   url: string;
@@ -538,7 +547,7 @@ export function projectPageDetail(
   const memo = new Map<string, object>();
 
   const projectOnPage = (resource: any, payload: any): any => {
-    const shell: any = {};
+    const shell: any = { __typename: "Page" };
     memo.set(resource.toString(), shell);
     shell.id = payload.id;
     shell.title = payload.title;
@@ -576,7 +585,7 @@ export function projectPageDetail(
 
   const projectOnEntry = (resource: any, payload: any): any => {
     if (payload.kind == "Hero") {
-      const shell: any = {};
+      const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
       shell.id = payload.id;
@@ -591,7 +600,7 @@ export function projectPageDetail(
       );
       return shell;
     } else if (payload.kind == "Tabs") {
-      const shell: any = {};
+      const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
       shell.id = payload.id;
@@ -608,7 +617,7 @@ export function projectPageDetail(
       );
       return shell;
     } else if (payload.kind == "Tab") {
-      const shell: any = {};
+      const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
       shell.id = payload.id;
@@ -624,8 +633,8 @@ export function projectPageDetail(
         )
       );
       return shell;
-    } else if (payload.kind == "Menu") {
-      const shell: any = {};
+    } else if (payload.kind == "Menu" || payload.kind == "Footer") {
+      const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
       shell.id = payload.id;
@@ -639,24 +648,23 @@ export function projectPageDetail(
         })
       );
       return shell;
-    } else if (payload.kind == "Footer" && !payload.id) {
-      const shell: any = {};
+    } else if (payload.kind == "Product") {
+      const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
       shell.id = payload.id;
-      shell.cta = payload.cta;
+      shell.sku = payload.sku;
       shell.title = payload.title;
       return shell;
-    } else if (payload.kind == "Footer") {
-      const shell: any = {};
+    } else if (payload.kind == "Page") {
+      const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
       shell.id = payload.id;
-      shell.cta = payload.cta;
       shell.title = payload.title;
       return shell;
     } else if (payload.kind == "SiteInternalLink") {
-      const shell: any = {};
+      const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
       shell.id = payload.id;
@@ -670,7 +678,7 @@ export function projectPageDetail(
       );
       return shell;
     } else {
-      const shell: any = {};
+      const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
       shell.id = payload.id;
@@ -679,7 +687,7 @@ export function projectPageDetail(
   };
 
   const projectOnAsset = (resource: any, payload: any): any => {
-    const shell: any = {};
+    const shell: any = { __typename: "Asset" };
     memo.set(resource.toString(), shell);
     shell.kind = payload.kind;
     shell.id = payload.id;

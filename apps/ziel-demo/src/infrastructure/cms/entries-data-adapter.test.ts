@@ -40,7 +40,7 @@ describe("CmsEntries datasource", () => {
     const payloads = await load([entry], loadContext);
     expect(payloads).toEqual([
       expect.objectContaining({
-        type: "Hero",
+        kind: "Hero",
         id: demoIds.heroWelcome,
       }),
     ]);
@@ -58,9 +58,9 @@ describe("CmsEntries datasource", () => {
       id: demoIds.page,
       title: "Homepage",
     });
-    expect(payloads[1]).toMatchObject({ type: "Menu", id: demoIds.menu });
+    expect(payloads[1]).toMatchObject({ kind: "Menu", id: demoIds.menu });
     expect(payloads[2]).toEqual({
-      type: "Page",
+      kind: "Page",
       id: demoIds.pageAbout,
       title: "About",
     });
@@ -83,7 +83,7 @@ describe("CmsEntries datasource", () => {
     }
     for (const link of doc.payload.strips) {
       expect(Object.keys(link).sort()).toEqual(["id"]);
-      expect(link).not.toHaveProperty("type");
+      expect(link).not.toHaveProperty("kind");
     }
   });
 

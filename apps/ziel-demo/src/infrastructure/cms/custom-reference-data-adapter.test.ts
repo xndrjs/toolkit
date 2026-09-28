@@ -25,7 +25,7 @@ describe("CmsCustomReferences datasource", () => {
 
     expect(await loadCmsCustomReferences([customRef], loadContext)).toEqual([
       {
-        type: "Entry",
+        kind: "Entry",
         spaceId,
         environmentId,
         id: demoIds.heroWelcome,
@@ -38,7 +38,7 @@ describe("CmsCustomReferences datasource", () => {
 
     expect(await loadCmsCustomReferences([customRef], loadContext)).toEqual([
       {
-        type: "Asset",
+        kind: "Asset",
         spaceId,
         environmentId,
         id: demoIds.assetLogo,
