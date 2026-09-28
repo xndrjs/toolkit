@@ -7,6 +7,7 @@ import {
   type ContentMap,
   type ApplicationResourceIdentifier,
   type ResourceKey,
+  type ResolutionError,
   defineDataSourceFor,
   type DataSource,
   type ResourceLoadContext,
@@ -14,7 +15,6 @@ import {
   createResourceGraphResolver,
   type IslandDependencyMap,
   type IslandMap,
-  type ResolutionError,
   type ResolutionObserver,
   type SchedulingMode,
 } from "@xndrjs/ziel";
@@ -303,6 +303,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
         customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale })
       ),
     ],
+    onFailure: "setNull",
   }));
 
   strategy.expansion
@@ -319,6 +320,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
             locale: predicate.resource.key[0].locale,
           }),
         ],
+        onFailure: "setNull",
       };
     });
 
@@ -336,6 +338,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
             locale: predicate.resource.key[0].locale,
           })
         ),
+        onFailure: "setNull",
       };
     });
 
@@ -353,6 +356,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
             locale: predicate.resource.key[0].locale,
           })
         ),
+        onFailure: "setNull",
       };
     });
 
@@ -370,6 +374,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
             locale: predicate.resource.key[0].locale,
           }),
         ],
+        onFailure: "setNull",
       };
     });
 
@@ -387,6 +392,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
             locale: predicate.resource.key[0].locale,
           }),
         ],
+        onFailure: "setNull",
       };
     });
 
@@ -432,10 +438,10 @@ export type PageDetail_Page = {
   __typename: "Page";
   id: EntryId;
   title: string;
-  menu: PageDetail_Entry_Arm3;
-  footer: PageDetail_Entry_Arm3;
-  strips: PageDetail_Entry[];
-  related: (PageDetail_Entry | PageDetail_Asset)[];
+  menu: PageDetail_Entry_Arm3 | null;
+  footer: PageDetail_Entry_Arm3 | null;
+  strips: (PageDetail_Entry | null)[];
+  related: ((PageDetail_Entry | PageDetail_Asset) | null)[];
 };
 
 export type PageDetail_Entry_Hero = {
@@ -443,7 +449,7 @@ export type PageDetail_Entry_Hero = {
   kind: "Hero";
   id: EntryId;
   title: string;
-  image: PageDetail_Asset;
+  image: PageDetail_Asset | null;
 };
 
 export type PageDetail_Entry_Tabs = {
@@ -451,7 +457,7 @@ export type PageDetail_Entry_Tabs = {
   kind: "Tabs";
   id: EntryId;
   title: string;
-  tabs: PageDetail_Entry[];
+  tabs: (PageDetail_Entry | null)[];
 };
 
 export type PageDetail_Entry_Tab = {
@@ -460,13 +466,16 @@ export type PageDetail_Entry_Tab = {
   id: EntryId;
   title: string;
   strips: (
-    | PageDetail_Entry_Hero
-    | PageDetail_Entry_Tabs
-    | PageDetail_Entry_Tab
-    | PageDetail_Entry_Arm3
-    | PageDetail_Entry_Product
-    | PageDetail_Entry_Page
-    | PageDetail_Entry_SiteInternalLink
+    | (
+        | PageDetail_Entry_Hero
+        | PageDetail_Entry_Tabs
+        | PageDetail_Entry_Tab
+        | PageDetail_Entry_Arm3
+        | PageDetail_Entry_Product
+        | PageDetail_Entry_Page
+        | PageDetail_Entry_SiteInternalLink
+      )
+    | null
   )[];
 };
 
@@ -475,7 +484,7 @@ export type PageDetail_Entry_Arm3 = {
   kind: "Menu" | "Footer";
   id: EntryId;
   title: string;
-  logo: PageDetail_Asset;
+  logo: PageDetail_Asset | null;
 };
 
 export type PageDetail_Entry_Product = {
@@ -498,13 +507,16 @@ export type PageDetail_Entry_SiteInternalLink = {
   kind: "SiteInternalLink";
   id: EntryId;
   target:
-    | PageDetail_Entry_Hero
-    | PageDetail_Entry_Tabs
-    | PageDetail_Entry_Tab
-    | PageDetail_Entry_Arm3
-    | PageDetail_Entry_Product
-    | PageDetail_Entry_Page
-    | PageDetail_Entry_SiteInternalLink;
+    | (
+        | PageDetail_Entry_Hero
+        | PageDetail_Entry_Tabs
+        | PageDetail_Entry_Tab
+        | PageDetail_Entry_Arm3
+        | PageDetail_Entry_Product
+        | PageDetail_Entry_Page
+        | PageDetail_Entry_SiteInternalLink
+      )
+    | null;
 };
 
 export type PageDetail_Entry_Default = {
@@ -541,43 +553,48 @@ export function projectPageDetail(
     params: PageDetailParams;
     executionContext: PageDetailExecutionContext;
     redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;
+    failures: ReadonlyMap<ResourceKey, ResolutionError>;
   }
 ): PageDetailResult {
   const memo = new Map<string, object>();
+  const failures = args.failures;
 
   const projectOnPage = (resource: any, payload: any): any => {
     const shell: any = { __typename: "Page" };
     memo.set(resource.toString(), shell);
     shell.id = payload.id;
     shell.title = payload.title;
-    shell.menu = projectNode(
+    shell.menu = projectEdge(
       entryAri({
         spaceId: resource.key[0].spaceId,
         environmentId: resource.key[0].environmentId,
         id: payload.menuId,
         locale: resource.key[0].locale,
-      })
+      }),
+      "setNull"
     );
-    shell.footer = projectNode(
+    shell.footer = projectEdge(
       entryAri({
         spaceId: resource.key[0].spaceId,
         environmentId: resource.key[0].environmentId,
         id: payload.footerId,
         locale: resource.key[0].locale,
-      })
+      }),
+      "setNull"
     );
     shell.strips = payload.strips.map((link: any) =>
-      projectNode(
+      projectEdge(
         entryAri({
           spaceId: resource.key[0].spaceId,
           environmentId: resource.key[0].environmentId,
           id: link.id,
           locale: resource.key[0].locale,
-        })
+        }),
+        "setNull"
       )
     );
     shell.related = payload.related.map((ref: any) =>
-      projectNode(customReferenceAri({ ref: ref, locale: resource.key[0].locale }))
+      projectEdge(customReferenceAri({ ref: ref, locale: resource.key[0].locale }), "setNull")
     );
     return shell;
   };
@@ -589,13 +606,14 @@ export function projectPageDetail(
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
-      shell.image = projectNode(
+      shell.image = projectEdge(
         assetAri({
           spaceId: resource.key[0].spaceId,
           environmentId: resource.key[0].environmentId,
           id: payload.imageId,
           locale: resource.key[0].locale,
-        })
+        }),
+        "setNull"
       );
       return shell;
     } else if (payload.kind == "Tabs") {
@@ -605,13 +623,14 @@ export function projectPageDetail(
       shell.id = payload.id;
       shell.title = payload.title;
       shell.tabs = payload.tabs.map((link: any) =>
-        projectNode(
+        projectEdge(
           entryAri({
             spaceId: resource.key[0].spaceId,
             environmentId: resource.key[0].environmentId,
             id: link.id,
             locale: resource.key[0].locale,
-          })
+          }),
+          "setNull"
         )
       );
       return shell;
@@ -622,13 +641,14 @@ export function projectPageDetail(
       shell.id = payload.id;
       shell.title = payload.title;
       shell.strips = payload.strips.map((link: any) =>
-        projectNode(
+        projectEdge(
           entryAri({
             spaceId: resource.key[0].spaceId,
             environmentId: resource.key[0].environmentId,
             id: link.id,
             locale: resource.key[0].locale,
-          })
+          }),
+          "setNull"
         )
       );
       return shell;
@@ -638,13 +658,14 @@ export function projectPageDetail(
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
-      shell.logo = projectNode(
+      shell.logo = projectEdge(
         assetAri({
           spaceId: resource.key[0].spaceId,
           environmentId: resource.key[0].environmentId,
           id: payload.logoId,
           locale: resource.key[0].locale,
-        })
+        }),
+        "setNull"
       );
       return shell;
     } else if (payload.kind == "Product") {
@@ -667,13 +688,14 @@ export function projectPageDetail(
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
       shell.id = payload.id;
-      shell.target = projectNode(
+      shell.target = projectEdge(
         entryAri({
           spaceId: resource.key[0].spaceId,
           environmentId: resource.key[0].environmentId,
           id: payload.targetId,
           locale: resource.key[0].locale,
-        })
+        }),
+        "setNull"
       );
       return shell;
     } else {
@@ -718,6 +740,13 @@ export function projectPageDetail(
     }
   };
 
+  const projectEdge = (ari: any, onFailure: "setNull" | "setError"): unknown => {
+    const value = projectNode(ari);
+    if (value !== undefined) return value;
+    if (onFailure === "setNull") return null;
+    return failures.get(ari.toString());
+  };
+
   return projectNode(root) as PageDetailResult;
 }
 
@@ -759,10 +788,18 @@ export async function resolvePageDetail(
       signal: input.signal,
     });
 
+  const failures = new Map<ResourceKey, ResolutionError>();
+  for (const error of errors) {
+    if (error.resourceKey !== undefined) {
+      failures.set(error.resourceKey, error);
+    }
+  }
+
   const pageDetail = projectPageDetail(input.root, contentMap, {
     params: input.params,
     executionContext: input.executionContext,
     redirects,
+    failures,
   });
 
   return {

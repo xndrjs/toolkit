@@ -1,6 +1,7 @@
 /**
  * Chrome logo expand shared by Menu / Footer — `when` narrows so `logoId` is
  * valid on the fragment body; field include comes from the enclosing `on Entry`.
+ * Soft-fail: replaces former global `missingResourceMode: "collect"`.
  */
 fragment ChromeLogo on Entry e when e.kind == "Menu"
   or e.kind == "Footer" {
@@ -9,7 +10,7 @@ fragment ChromeLogo on Entry e when e.kind == "Menu"
     environmentId: @e.environmentId,
     id: e.logoId,
     locale: @e.locale
-  )
+  ) on failure set null
 }
 
 query PageDetail(pageId: EntryId) {
@@ -32,26 +33,26 @@ query PageDetail(pageId: EntryId) {
       environmentId: @p.environmentId,
       id: p.menuId,
       locale: @p.locale
-    )
+    ) on failure set null
     expand footer: Entry(
       spaceId: @p.spaceId,
       environmentId: @p.environmentId,
       id: p.footerId,
       locale: @p.locale
-    )
+    ) on failure set null
     expand strips: each link in p.strips (
       Entry(
         spaceId: @p.spaceId,
         environmentId: @p.environmentId,
         id: link.id,
         locale: @p.locale
-      )
+      ) on failure set null
     )
     expand related: each ref in p.related (
       CustomReference(
         ref: ref,
         locale: @p.locale
-      )
+      ) on failure set null
     )
   }
 
@@ -78,7 +79,7 @@ query PageDetail(pageId: EntryId) {
         environmentId: @e.environmentId,
         id: e.imageId,
         locale: @e.locale
-      )
+      ) on failure set null
     }
 
     when e.kind == "Tabs" {
@@ -88,7 +89,7 @@ query PageDetail(pageId: EntryId) {
           environmentId: @e.environmentId,
           id: link.id,
           locale: @e.locale
-        )
+        ) on failure set null
       )
     }
 
@@ -99,7 +100,7 @@ query PageDetail(pageId: EntryId) {
           environmentId: @e.environmentId,
           id: link.id,
           locale: @e.locale
-        )
+        ) on failure set null
       )
     }
 
@@ -108,13 +109,22 @@ query PageDetail(pageId: EntryId) {
       ...ChromeLogo
     }
 
+    when e.kind == "Product" {
+      sku
+      title
+    }
+
+    when e.kind == "Page" {
+      id
+    }
+
     when e.kind == "SiteInternalLink" {
       expand target: Entry(
         spaceId: @e.spaceId,
         environmentId: @e.environmentId,
         id: e.targetId,
         locale: @e.locale
-      )
+      ) on failure set null
     }
 
     default { }

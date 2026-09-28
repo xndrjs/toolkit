@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   customReferenceAri,
   entryAri,
+  pageAri,
+  Scalars,
   type PageDetail_Asset,
   type PageDetail_Entry,
+  type PageDetail_Entry_Arm3,
   type PageDetail_Entry_Hero,
   type PageDetail_Entry_Page,
   type PageDetail_Entry_Product,
@@ -12,11 +15,13 @@ import {
   type PageDetail_Entry_Tab,
   type PageDetail_Entry_Tabs,
 } from "../generated";
+import { resolveDemoPageDetail } from "../infrastructure/demo-resolver.js";
 import { parseCustomReference } from "../infrastructure/cms/custom-reference.js";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,
   DEMO_SPACE,
+  demoAssets,
   demoHeroWelcomeCustomRef,
   demoIds,
 } from "../infrastructure/fixtures/store.js";
@@ -49,6 +54,18 @@ function isPageEntry(e: PageDetail_Entry | null | undefined): e is PageDetail_En
   return e != null && e.kind === "Page" && "title" in e;
 }
 
+function isMenu(e: PageDetail_Entry_Arm3 | null | undefined): e is PageDetail_Entry_Arm3 & {
+  kind: "Menu";
+} {
+  return e != null && e.kind === "Menu";
+}
+
+function isFooter(e: PageDetail_Entry_Arm3 | null | undefined): e is PageDetail_Entry_Arm3 & {
+  kind: "Footer";
+} {
+  return e != null && e.kind === "Footer";
+}
+
 function isAsset(e: PageDetail_Entry | PageDetail_Asset | null | undefined): e is PageDetail_Asset {
   return e != null && e.kind === "Asset" && "url" in e;
 }
@@ -75,15 +92,15 @@ describe("resolvePage", () => {
     expect(page.id).toBe(demoIds.page);
     expect(page.title).toBe("Homepage");
 
-    expect(page.menu.kind).toBe("Menu");
-    if (page.menu.kind !== "Menu") {
+    expect(isMenu(page.menu)).toBe(true);
+    if (!isMenu(page.menu)) {
       return;
     }
     expect(page.menu.id).toBe(demoIds.menu);
-    expect(page.menu.logo.id).toBe(demoIds.assetLogo);
+    expect(page.menu.logo?.id).toBe(demoIds.assetLogo);
 
-    expect(page.footer.kind).toBe("Footer");
-    if (page.footer.kind !== "Footer") {
+    expect(isFooter(page.footer)).toBe(true);
+    if (!isFooter(page.footer)) {
       return;
     }
     expect(page.footer.id).toBe(demoIds.footer);
@@ -110,7 +127,7 @@ describe("resolvePage", () => {
     const [nestedHero, nestedProduct] = nestedTab.strips;
     expect(isHero(nestedHero)).toBe(true);
     if (isHero(nestedHero)) {
-      expect(nestedHero.image.id).toBe(demoIds.assetHeroNested);
+      expect(nestedHero.image?.id).toBe(demoIds.assetHeroNested);
     }
     expect(isProduct(nestedProduct)).toBe(true);
     if (isProduct(nestedProduct)) {
@@ -121,8 +138,8 @@ describe("resolvePage", () => {
     expect(isHero(heroStrip)).toBe(true);
     if (isHero(heroStrip)) {
       expect(heroStrip.id).toBe(demoIds.heroWelcome);
-      expect(heroStrip.image.id).toBe(demoIds.assetHero);
-      expect(heroStrip.image.url).toContain("hero-welcome");
+      expect(heroStrip.image?.id).toBe(demoIds.assetHero);
+      expect(heroStrip.image?.url).toContain("hero-welcome");
     }
 
     expect(isProduct(productStrip)).toBe(true);
@@ -137,7 +154,7 @@ describe("resolvePage", () => {
     if (isLink(linkStrip)) {
       expect(linkStrip.id).toBe(demoIds.linkAbout);
       expect(isPageEntry(linkStrip.target)).toBe(true);
-      expect(linkStrip.target.id).toBe(demoIds.pageAbout);
+      expect(linkStrip.target?.id).toBe(demoIds.pageAbout);
       if (isPageEntry(linkStrip.target)) {
         expect(linkStrip.target.title).toBe("About");
       }
@@ -152,7 +169,7 @@ describe("resolvePage", () => {
     expect(isHero(relatedHero)).toBe(true);
     if (isHero(relatedHero)) {
       expect(relatedHero.id).toBe(demoIds.heroWelcome);
-      expect(relatedHero.image.id).toBe(demoIds.assetHero);
+      expect(relatedHero.image?.id).toBe(demoIds.assetHero);
     }
     expect(isAsset(page.related[1])).toBe(true);
     if (isAsset(page.related[1])) {
@@ -175,7 +192,7 @@ describe("resolvePage", () => {
     if (isHero(fromStrip) && isHero(fromRelated)) {
       expect(fromRelated.id).toBe(fromStrip.id);
       expect(fromRelated.title).toBe(fromStrip.title);
-      expect(fromRelated.image.id).toBe(fromStrip.image.id);
+      expect(fromRelated.image?.id).toBe(fromStrip.image?.id);
     }
 
     const entry = entryAri({
@@ -201,5 +218,34 @@ describe("resolvePage", () => {
     expect(parseDemoLocaleParam("en")).toBe(DEMO_LOCALE);
     expect(parseDemoLocaleParam("en-US")).toBe(DEMO_LOCALE);
     expect(parseDemoLocaleParam("it")).toBeNull();
+  });
+
+  it("soft-fails missing expand children via on failure set null (no global collect mode)", async () => {
+    const assetsWithoutLogo = new Map(demoAssets);
+    assetsWithoutLogo.delete(demoIds.assetLogo);
+
+    const output = await resolveDemoPageDetail({
+      params: { pageId: Scalars.EntryId(demoIds.page) },
+      root: pageAri({
+        spaceId: DEMO_SPACE,
+        environmentId: DEMO_ENVIRONMENT,
+        id: Scalars.EntryId(demoIds.page),
+        locale: DEMO_LOCALE,
+      }),
+      executionContext: {
+        spaceId: DEMO_SPACE,
+        environmentId: DEMO_ENVIRONMENT,
+        locale: DEMO_LOCALE,
+      },
+      assets: assetsWithoutLogo,
+    });
+
+    expect(output.errors).toEqual([]);
+    expect(isMenu(output.pageDetail.menu)).toBe(true);
+    if (isMenu(output.pageDetail.menu)) {
+      expect(output.pageDetail.menu.logo).toBeNull();
+    }
+    // Related asset (same logo ARI) is also omitted under set null.
+    expect(output.pageDetail.related.some((r) => r === null)).toBe(true);
   });
 });
