@@ -527,4 +527,60 @@ describe("printExpansionAliasType", () => {
     program!.queries[0]!.projections.find((p) => p.resource === "Entry")!.defaultArm = null;
     expect(() => emitProjectionTypes(program!)).toThrow(/REFERS_ARM_NOT_PROJECTED/);
   });
+
+  it("widens expansion aliases for on failure set null / set error", () => {
+    const source = `
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale): { id title: string }
+      resource Page(id: EntryId, locale: Locale): {
+        id
+        menuId: EntryId
+        related: { id: EntryId }[]
+      }
+
+      query PageDetail(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand menu: Entry(id: p.menuId, locale: @p.locale) on failure set null
+          expand soft: Entry(id: p.menuId, locale: @p.locale) on failure set error
+          expand related: each link in p.related (
+            Entry(id: link.id, locale: @p.locale) on failure set null
+          )
+        }
+        on Entry e { id title }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const resources = new Map(
+      program!.resources.map((r) => [
+        r.name,
+        {
+          identity: new Map(r.identity.fields.map((f) => [f.name, f])),
+          payload: new Map(
+            (r.payloadType.kind === "object" ? r.payloadType.fields : []).map((f) => [f.name, f])
+          ),
+          payloadType: r.payloadType,
+        },
+      ])
+    );
+    const query = program!.queries[0]!;
+    const projected = new Set(query.projections.map((p) => p.resource));
+    const page = query.projections.find((p) => p.resource === "Page")!;
+
+    expect(printExpansionAliasType("PageDetail", page.expansions[0]!, resources, projected)).toBe(
+      "PageDetail_Entry | null"
+    );
+    expect(printExpansionAliasType("PageDetail", page.expansions[1]!, resources, projected)).toBe(
+      "PageDetail_Entry | ResolutionError"
+    );
+    expect(printExpansionAliasType("PageDetail", page.expansions[2]!, resources, projected)).toBe(
+      "(PageDetail_Entry | null)[]"
+    );
+  });
 });

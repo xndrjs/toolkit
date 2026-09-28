@@ -252,8 +252,53 @@ describe("lowerProgram", () => {
                 { name: "locale", value: { kind: "context", path: ["locale"] } },
               ],
             },
+            onFailure: "throw",
           },
         ],
+      },
+      onFailure: "throw",
+    });
+  });
+
+  it("lowers on failure clauses on one-expand and each arms", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar EntryId on string;
+        scalar Locale on string;
+
+        resource Entry(id: EntryId, locale: Locale): { id }
+        resource Page(id: EntryId, locale: Locale): {
+          id
+          menuId: EntryId
+          strips: { id: EntryId }[]
+        }
+
+        query Q(pageId: EntryId) {
+          context { locale: Locale }
+          root Page(id: pageId, locale: context.locale)
+          on Page p {
+            expand menu: Entry(id: p.menuId, locale: context.locale) on failure set null
+            expand strips: each s in p.strips (
+              Entry(id: s.id, locale: context.locale) on failure set error
+            )
+          }
+          on Entry e { id }
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    const page = program.queries[0]!.projections[0]!;
+    expect(page.expansions[0]).toMatchObject({
+      alias: "menu",
+      multiplicity: "one",
+      onFailure: "setNull",
+    });
+    expect(page.expansions[1]).toMatchObject({
+      alias: "strips",
+      multiplicity: "many",
+      comprehension: {
+        arms: [{ onFailure: "setError" }],
       },
     });
   });

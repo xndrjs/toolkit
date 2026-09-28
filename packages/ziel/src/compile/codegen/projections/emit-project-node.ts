@@ -3,6 +3,7 @@ import {
   allProjectionExpansions,
   collectionElement,
   projectableProjections,
+  queryNeedsFailureProjection,
   resolveTargetIndex,
 } from "../../../check/projection-graph";
 import { ariFactoryName, executionContextTypeName, paramsTypeName } from "../naming";
@@ -29,6 +30,21 @@ export function collectionElementResources(
     }
   }
   return out;
+}
+
+/** Shared helper for `on failure set null` / `set error` edges. */
+export function emitProjectEdgeHelper(): string {
+  return [
+    `  const projectEdge = (`,
+    `    ari: any,`,
+    `    onFailure: "setNull" | "setError",`,
+    `  ): unknown => {`,
+    `    const value = projectNode(ari);`,
+    `    if (value !== undefined) return value;`,
+    `    if (onFailure === "setNull") return null;`,
+    `    return failures.get(ari.toString());`,
+    `  };`,
+  ].join("\n");
 }
 
 export function emitProjectNode(
@@ -89,7 +105,8 @@ export function emitArgsType(query: QueryDefinition): string | null {
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
   const hasRedirects = resolveTargetIndex(query).size > 0;
-  if (!hasParams && !hasContext && !hasRedirects) {
+  const hasFailures = queryNeedsFailureProjection(query);
+  if (!hasParams && !hasContext && !hasRedirects && !hasFailures) {
     return null;
   }
 
@@ -102,6 +119,9 @@ export function emitArgsType(query: QueryDefinition): string | null {
   }
   if (hasRedirects) {
     fields.push(`    redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;`);
+  }
+  if (hasFailures) {
+    fields.push(`    failures: ReadonlyMap<ResourceKey, ResolutionError>;`);
   }
   return `{\n${fields.join("\n")}\n  }`;
 }

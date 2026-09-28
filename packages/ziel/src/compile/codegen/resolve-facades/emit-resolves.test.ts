@@ -97,4 +97,34 @@ describe("emitResolves", () => {
     expect(code).toContain("const pageDetail = projectPageDetail(");
     expect(code).toContain("pageDetail: PageDetailResult;");
   });
+
+  it("passes failures map into project* when on failure set null/error is used", () => {
+    const source = `
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale): { id title: string }
+      resource Page(id: EntryId, locale: Locale): { id menuId: EntryId }
+
+      query PageDetail(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand menu: Entry(id: p.menuId, locale: @p.locale) on failure set null
+        }
+        on Entry e { id title }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitResolves(program!);
+    expect(code).toContain("const failures = new Map<ResourceKey, ResolutionError>();");
+    expect(code).toContain("failures");
+    expect(code).toContain(
+      "const pageDetail = projectPageDetail(input.root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n    failures,\n  });"
+    );
+    expect(code).not.toContain("missingResourceMode");
+  });
 });

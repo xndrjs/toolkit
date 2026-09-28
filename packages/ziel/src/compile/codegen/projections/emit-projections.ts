@@ -19,10 +19,14 @@ import {
   collectionElementResources,
   emitArgsType,
   emitMultiRootReturn,
+  emitProjectEdgeHelper,
   emitProjectNode,
   emitRootsParamType,
 } from "./emit-project-node";
-import { projectableProjections } from "../../../check/projection-graph";
+import {
+  projectableProjections,
+  queryNeedsFailureProjection,
+} from "../../../check/projection-graph";
 import { emitProjectOnHelper } from "./emit-project-on";
 import { resourceIndex, type ResourceIndex } from "./shared";
 
@@ -36,6 +40,7 @@ function emitQueryProjection(
   const resultType = queryResultTypeName(query.name);
   const singleRoot = isSingleRootQuery(query);
   const argsType = emitArgsType(query);
+  const needsFailures = queryNeedsFailureProjection(query);
 
   const rootParam = singleRoot
     ? `root: ReturnType<typeof ${ariFactoryName(query.roots[0]!.construction.resource)}>`
@@ -66,16 +71,19 @@ function emitQueryProjection(
   }
 
   const projectNode = emitProjectNode(query, resources, fnName);
+  const projectEdge = needsFailures ? emitProjectEdgeHelper() : null;
+  const failuresBinding = needsFailures ? `  const failures = args.failures;\n` : "";
   const returnStmt = singleRoot
     ? `  return projectNode(root) as ${resultType};`
     : emitMultiRootReturn(query, resultType);
 
   const body = [
     `  const memo = new Map<string, object>();`,
-    "",
+    failuresBinding,
     helpers.join("\n\n"),
     "",
     projectNode,
+    projectEdge ? `\n${projectEdge}` : "",
     "",
     returnStmt,
   ].join("\n");

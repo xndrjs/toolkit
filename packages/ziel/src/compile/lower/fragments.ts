@@ -488,6 +488,7 @@ export function rebindExpansion(expansion: Expansion, from: string, to: string):
           arms: expansion.comprehension.arms.map((arm) => ({
             target: rebindConstruction(arm.target, from, to),
             when: arm.when ? rebindExpr(arm.when, from, to) : null,
+            onFailure: arm.onFailure,
           })),
         }
       : null,

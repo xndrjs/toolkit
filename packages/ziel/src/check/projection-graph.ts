@@ -1,4 +1,10 @@
-import type { Expansion, QueryDefinition, ResourceProjection, TypeExpr } from "../ir";
+import type {
+  Expansion,
+  OnFailurePolicy,
+  QueryDefinition,
+  ResourceProjection,
+  TypeExpr,
+} from "../ir";
 import type { PayloadTypeLookup } from "./discriminants";
 
 export type { PayloadTypeLookup };
@@ -31,6 +37,34 @@ export function allProjectionExpansions(projection: ResourceProjection): Expansi
     return projection.arms.flatMap((arm) => arm.expansions);
   }
   return projection.expansions;
+}
+
+/** Every per-edge `on failure` policy in a query. */
+export function allOnFailurePolicies(query: QueryDefinition): OnFailurePolicy[] {
+  const policies: OnFailurePolicy[] = [];
+  for (const projection of query.projections) {
+    for (const expansion of allProjectionExpansions(projection)) {
+      if (expansion.multiplicity === "one") {
+        policies.push(expansion.onFailure);
+        continue;
+      }
+      if (expansion.comprehension === null) continue;
+      for (const arm of expansion.comprehension.arms) {
+        policies.push(arm.onFailure);
+      }
+    }
+  }
+  return policies;
+}
+
+/** True when any expand uses `on failure set null` or `set error` (projectors need `failures`). */
+export function queryNeedsFailureProjection(query: QueryDefinition): boolean {
+  return allOnFailurePolicies(query).some((p) => p !== "throw");
+}
+
+/** True when any expand uses `on failure set error` (types reference `ResolutionError`). */
+export function queryUsesSetError(query: QueryDefinition): boolean {
+  return allOnFailurePolicies(query).some((p) => p === "setError");
 }
 
 /** Collection resource (`TabCollection: Tab[]`) → element resource name. */

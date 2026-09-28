@@ -26,6 +26,7 @@ import {
   isNamedArg,
   isObjectField,
   isObjectTypeExpr,
+  isOnFailureClause,
   isProjectionClause,
   isProjectionDefaultArm,
   isProjectionWhenArm,
@@ -476,6 +477,14 @@ export class ZielFormatter extends AbstractFormatter {
       if (node.when) {
         f.keyword("when").surround(Formatting.oneSpace());
       }
+      return;
+    }
+
+    if (isOnFailureClause(node)) {
+      const f = this.getNodeFormatter(node);
+      f.keyword("on").prepend(Formatting.oneSpace()).append(Formatting.oneSpace());
+      f.keyword("failure").append(Formatting.oneSpace());
+      f.keyword("set").append(Formatting.oneSpace());
       return;
     }
 

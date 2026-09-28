@@ -39,8 +39,10 @@ export type ZielKeywordNames =
   | "datasource"
   | "default"
   | "each"
+  | "error"
   | "exclude"
   | "expand"
+  | "failure"
   | "false"
   | "for"
   | "fragment"
@@ -61,7 +63,9 @@ export type ZielKeywordNames =
   | "root"
   | "roots"
   | "scalar"
+  | "set"
   | "string"
+  | "throw"
   | "to"
   | "true"
   | "when"
@@ -314,12 +318,14 @@ export function isExcludeClause(item: unknown): item is ExcludeClause {
 export interface ExpandArm extends langium.AstNode {
   readonly $container: EachComprehension;
   readonly $type: "ExpandArm";
+  onFailure?: OnFailureClause;
   target: ResourceConstruction;
   when?: Expression;
 }
 
 export const ExpandArm = {
   $type: "ExpandArm",
+  onFailure: "onFailure",
   target: "target",
   when: "when",
 } as const;
@@ -337,6 +343,7 @@ export interface Expansion extends langium.AstNode {
   readonly $type: "Expansion";
   alias: string;
   each?: EachComprehension;
+  onFailure?: OnFailureClause;
   target?: ResourceConstruction;
 }
 
@@ -344,6 +351,7 @@ export const Expansion = {
   $type: "Expansion",
   alias: "alias",
   each: "each",
+  onFailure: "onFailure",
   target: "target",
 } as const;
 
@@ -683,6 +691,71 @@ export const ObjectTypeExpr = {
 
 export function isObjectTypeExpr(item: unknown): item is ObjectTypeExpr {
   return reflection.isInstance(item, ObjectTypeExpr.$type);
+}
+
+/**
+ * Per-edge load failure policy after `expand` target / `each` arm.
+ * Default when omitted: `throw`. `set null` / `set error` widen projected aliases.
+ */
+export type OnFailureClause = OnFailureSetError | OnFailureSetNull | OnFailureThrow;
+
+export const OnFailureClause = {
+  $type: "OnFailureClause",
+} as const;
+
+export function isOnFailureClause(item: unknown): item is OnFailureClause {
+  return reflection.isInstance(item, OnFailureClause.$type);
+}
+
+/**
+ * Per-edge load failure policy after `expand` target / `each` arm.
+ * Default when omitted: `throw`. `set null` / `set error` widen projected aliases.
+ */
+export interface OnFailureSetError extends langium.AstNode {
+  readonly $container: ExpandArm | Expansion;
+  readonly $type: "OnFailureSetError";
+}
+
+export const OnFailureSetError = {
+  $type: "OnFailureSetError",
+} as const;
+
+export function isOnFailureSetError(item: unknown): item is OnFailureSetError {
+  return reflection.isInstance(item, OnFailureSetError.$type);
+}
+
+/**
+ * Per-edge load failure policy after `expand` target / `each` arm.
+ * Default when omitted: `throw`. `set null` / `set error` widen projected aliases.
+ */
+export interface OnFailureSetNull extends langium.AstNode {
+  readonly $container: ExpandArm | Expansion;
+  readonly $type: "OnFailureSetNull";
+}
+
+export const OnFailureSetNull = {
+  $type: "OnFailureSetNull",
+} as const;
+
+export function isOnFailureSetNull(item: unknown): item is OnFailureSetNull {
+  return reflection.isInstance(item, OnFailureSetNull.$type);
+}
+
+/**
+ * Per-edge load failure policy after `expand` target / `each` arm.
+ * Default when omitted: `throw`. `set null` / `set error` widen projected aliases.
+ */
+export interface OnFailureThrow extends langium.AstNode {
+  readonly $container: ExpandArm | Expansion;
+  readonly $type: "OnFailureThrow";
+}
+
+export const OnFailureThrow = {
+  $type: "OnFailureThrow",
+} as const;
+
+export function isOnFailureThrow(item: unknown): item is OnFailureThrow {
+  return reflection.isInstance(item, OnFailureThrow.$type);
 }
 
 export type OrExpr = AndExpr | BinaryExpr;
@@ -1243,6 +1316,10 @@ export type ZielAstType = {
   NumberLiteral: NumberLiteral;
   ObjectField: ObjectField;
   ObjectTypeExpr: ObjectTypeExpr;
+  OnFailureClause: OnFailureClause;
+  OnFailureSetError: OnFailureSetError;
+  OnFailureSetNull: OnFailureSetNull;
+  OnFailureThrow: OnFailureThrow;
   OrExpr: OrExpr;
   PathRef: PathRef;
   Primary: Primary;
@@ -1421,6 +1498,10 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
     ExpandArm: {
       name: ExpandArm.$type,
       properties: {
+        onFailure: {
+          name: ExpandArm.onFailure,
+          optional: true,
+        },
         target: {
           name: ExpandArm.target,
         },
@@ -1439,6 +1520,10 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         },
         each: {
           name: Expansion.each,
+          optional: true,
+        },
+        onFailure: {
+          name: Expansion.onFailure,
           optional: true,
         },
         target: {
@@ -1653,6 +1738,26 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [AtomicTypeExpr.$type],
+    },
+    OnFailureClause: {
+      name: OnFailureClause.$type,
+      properties: {},
+      superTypes: [],
+    },
+    OnFailureSetError: {
+      name: OnFailureSetError.$type,
+      properties: {},
+      superTypes: [OnFailureClause.$type],
+    },
+    OnFailureSetNull: {
+      name: OnFailureSetNull.$type,
+      properties: {},
+      superTypes: [OnFailureClause.$type],
+    },
+    OnFailureThrow: {
+      name: OnFailureThrow.$type,
+      properties: {},
+      superTypes: [OnFailureClause.$type],
     },
     OrExpr: {
       name: OrExpr.$type,

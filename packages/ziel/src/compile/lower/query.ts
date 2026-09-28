@@ -1,6 +1,7 @@
 import type {
   Expansion,
   IslandClause,
+  OnFailurePolicy,
   ProjectionArm,
   ProjectionArmBody,
   QueryDefinition,
@@ -12,7 +13,10 @@ import type { PayloadTypeLookup } from "../../check/discriminants";
 import type { DiagnosticSink } from "../../check/diagnostic";
 import {
   type Expansion as AstExpansion,
+  isOnFailureSetError,
+  isOnFailureSetNull,
   type IslandClause as AstIslandClause,
+  type OnFailureClause as AstOnFailureClause,
   type ProjectionClause as AstProjectionClause,
   type ProjectionDefaultArm as AstProjectionDefaultArm,
   type ProjectionWhenArm as AstProjectionWhenArm,
@@ -30,6 +34,13 @@ import {
 import { spanOf } from "./span";
 import { normalizeIncludeMode } from "../../check/projection-include";
 import { lowerTypedField, type NameTables } from "./types";
+
+function lowerOnFailure(clause: AstOnFailureClause | undefined): OnFailurePolicy {
+  if (!clause) return "throw";
+  if (isOnFailureSetNull(clause)) return "setNull";
+  if (isOnFailureSetError(clause)) return "setError";
+  return "throw";
+}
 
 export function lowerQuery(
   decl: AstQueryDeclaration,
@@ -242,8 +253,11 @@ export function lowerExpansion(expansion: AstExpansion): Expansion {
         arms: each.arms.map((arm) => ({
           target: lowerConstruction(arm.target, itemBindings),
           when: arm.when ? lowerExpr(arm.when, itemBindings) : null,
+          onFailure: lowerOnFailure(arm.onFailure),
         })),
       },
+      /** Many-expand policy lives on arms; keep throw as a inert default. */
+      onFailure: "throw",
       span: spanOf(expansion),
     };
   }
@@ -255,6 +269,7 @@ export function lowerExpansion(expansion: AstExpansion): Expansion {
     target: lowerConstruction(expansion.target),
     multiplicity: "one",
     comprehension: null,
+    onFailure: lowerOnFailure(expansion.onFailure),
     span: spanOf(expansion),
   };
 }

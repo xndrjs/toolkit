@@ -84,8 +84,26 @@ export function checkExpansions(
         continue;
       }
       checkConstruction(expansion.target, expPath, scope, scalars, resources, sink);
+      checkOnFailure(expansion.onFailure, `${expPath}.onFailure`, expansion.span, sink);
     }
   }
+}
+
+function checkOnFailure(
+  onFailure: ExpandArm["onFailure"],
+  path: string,
+  span: SourceSpan | null,
+  sink: DiagnosticSink
+): void {
+  if (onFailure === "throw" || onFailure === "setNull" || onFailure === "setError") {
+    return;
+  }
+  sink.push({
+    code: "INVALID_ON_FAILURE",
+    message: `Invalid on-failure policy '${String(onFailure)}' (expected throw | set null | set error)`,
+    path,
+    span,
+  });
 }
 
 export function checkManyExpansion(
@@ -194,4 +212,5 @@ export function checkExpandArm(
     items: new Map([[itemBinding, itemType]]),
   };
   checkConstruction(arm.target, armPath, bodyScope, scalars, resources, sink);
+  checkOnFailure(arm.onFailure, `${armPath}.onFailure`, arm.target.span, sink);
 }

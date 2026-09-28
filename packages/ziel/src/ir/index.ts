@@ -160,10 +160,18 @@ export type ResourceConstruction = {
   span: SourceSpan | null;
 };
 
-/** One arm of an `each` many-expand: construction + optional `when` filter. */
+/**
+ * Per-edge load failure policy (`on failure …` in the DSL).
+ * Default when the clause is omitted: `"throw"`.
+ */
+export type OnFailurePolicy = "throw" | "setNull" | "setError";
+
+/** One arm of an `each` many-expand: construction + optional `when` + `on failure`. */
 export type ExpandArm = {
   target: ResourceConstruction;
   when: Expr | null;
+  /** Defaults to `"throw"` when the DSL omits `on failure`. */
+  onFailure: OnFailurePolicy;
 };
 
 /**
@@ -187,6 +195,12 @@ export type Expansion = {
     source: Expr;
     arms: ExpandArm[];
   } | null;
+  /**
+   * One-expand failure policy (`on failure` after the target).
+   * Ignored for `"many"` (policy lives on each {@link ExpandArm}).
+   * Defaults to `"throw"` when omitted in the DSL.
+   */
+  onFailure: OnFailurePolicy;
   span: SourceSpan | null;
 };
 
