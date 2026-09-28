@@ -23,8 +23,14 @@ describe("parseCliArgs", () => {
       out: "./out.ts",
       root: "./schemas",
       dryRun: true,
+      watch: false,
       help: false,
     });
+  });
+
+  it("treats --watch and --dev as watch mode", () => {
+    expect(parseCliArgs(["--watch"])).toMatchObject({ watch: true, dryRun: false });
+    expect(parseCliArgs(["--dev"])).toMatchObject({ watch: true });
   });
 });
 
@@ -63,5 +69,11 @@ describe("validateCliOptions", () => {
   it("requires --out unless --dry-run", () => {
     expect(() => validateCliOptions(parseCliArgs([]))).toThrow(/--out is required/);
     expect(() => validateCliOptions(parseCliArgs(["--dry-run"]))).not.toThrow();
+  });
+
+  it("rejects --watch with --dry-run", () => {
+    expect(() =>
+      validateCliOptions(parseCliArgs(["--watch", "--dry-run", "--out", "./x.ts"]))
+    ).toThrow(/cannot be combined with --dry-run/);
   });
 });

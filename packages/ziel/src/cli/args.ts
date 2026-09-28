@@ -7,6 +7,8 @@ export type CliOptions = {
   out: string | undefined;
   root: string | undefined;
   dryRun: boolean;
+  /** Watch included `.ziel` files (and config) and regenerate on change. */
+  watch: boolean;
   help: boolean;
 };
 
@@ -41,6 +43,9 @@ export function parseCliArgs(argv: string[]): CliOptions {
       out: { type: "string" },
       root: { type: "string" },
       "dry-run": { type: "boolean", default: false },
+      watch: { type: "boolean", default: false },
+      /** Alias of `--watch` (dev loop). */
+      dev: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
     allowPositionals: false,
@@ -51,6 +56,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
     out: values.out,
     root: values.root,
     dryRun: values["dry-run"] ?? false,
+    watch: (values.watch ?? false) || (values.dev ?? false),
     help: values.help ?? false,
   };
 }
@@ -61,6 +67,8 @@ export function printCliHelp(): void {
 Usage:
   ziel-codegen --config ./ziel.config.ts
   ziel-codegen --config ./ziel.config.ts --dry-run
+  ziel-codegen --config ./ziel.config.ts --watch
+  ziel-codegen --config ./ziel.config.ts --dev
   ziel-codegen --out ./src/generated/resources.ts --dry-run
 
 Options:
@@ -68,6 +76,7 @@ Options:
   --out <path>      Output TypeScript file (required unless --dry-run; can be set in config)
   --root <path>     Root directory for globs (default: process.cwd(); can be set in config)
   --dry-run         Print generated source to stdout instead of writing --out
+  --watch, --dev    Watch included .ziel files (and the config) and regenerate on change
   -h, --help        Show this help
 `);
 }
@@ -86,6 +95,10 @@ export function resolveCliOptions(
 export function validateCliOptions(options: ResolvedCliOptions): void {
   if (options.help) {
     return;
+  }
+
+  if (options.watch && options.dryRun) {
+    throw new Error("--watch/--dev cannot be combined with --dry-run.");
   }
 
   if (!options.dryRun && !options.out) {
