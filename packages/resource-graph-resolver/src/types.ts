@@ -1,5 +1,6 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
+import type { ResolutionError } from "./errors";
 import type { ContentMap } from "./model/content-map";
 import type { IslandDependencyMap } from "./model/island-dependency-map";
 import type { IslandMap } from "./model/island-map";
@@ -51,17 +52,6 @@ export type MissingResourceMode = "throw" | "collect";
  *   reproducible, but wall clock tracks the slowest source in each round.
  */
 export type SchedulingMode = "lane" | "barrier";
-
-export interface ResolutionError {
-  resourceKey: ResourceKey;
-  message: string;
-
-  /**
-   * Islands from which the missing resource was reached.
-   * The resource was never resolved, so it has no effective island of its own.
-   */
-  inheritedIslandIds: readonly IslandId[];
-}
 
 export interface ResolveResourceGraphInput<TExecutionContext = unknown> {
   /** Seed ARIs for one resolution session; must be non-empty. */

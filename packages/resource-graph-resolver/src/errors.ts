@@ -19,6 +19,52 @@ export class ResourceGraphError extends Error {
   }
 }
 
+/**
+ * Typed resolution failure: throwable from data sources (`instanceof ResolutionError`),
+ * collectable into {@link import("./types").ResolveResourceGraphOutput.errors}, and
+ * usable as a projected alias value under `on failure set error`.
+ *
+ * Datasources typically throw with `code` + `message` (+ optional `originalError`);
+ * the resolver fills `resourceKey` / `inheritedIslandIds` when attributing the failure.
+ */
+export class ResolutionError extends ResourceGraphError {
+  readonly code: number | string;
+  readonly originalError?: unknown;
+  readonly resourceKey?: ResourceKey;
+  readonly inheritedIslandIds: readonly IslandId[];
+
+  constructor(
+    code: number | string,
+    message: string,
+    originalError?: unknown,
+    options?: {
+      resourceKey?: ResourceKey;
+      inheritedIslandIds?: readonly IslandId[];
+    }
+  ) {
+    super(message, originalError === undefined ? undefined : { cause: originalError });
+    this.name = "ResolutionError";
+    this.code = code;
+    this.originalError = originalError;
+    this.resourceKey = options?.resourceKey;
+    this.inheritedIslandIds = options?.inheritedIslandIds ?? [];
+  }
+
+  /**
+   * Returns a copy with resolver attribution. Preserves `code`, `message`, and
+   * `originalError` from the source error (e.g. a datasource rejection).
+   */
+  withAttribution(
+    resourceKey: ResourceKey,
+    inheritedIslandIds: readonly IslandId[] = []
+  ): ResolutionError {
+    return new ResolutionError(this.code, this.message, this.originalError, {
+      resourceKey,
+      inheritedIslandIds,
+    });
+  }
+}
+
 /** Thrown when {@link import("./types").ResolveResourceGraphInput.signal} aborts resolution. */
 export class ResourceGraphAbortedError extends ResourceGraphError {
   constructor(message = "Resource graph resolution was aborted", options?: { cause?: unknown }) {

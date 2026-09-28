@@ -39,7 +39,8 @@ export function serializeIsland<R extends ContentRegistry = ContentRegistry>(
 
   const missingResources = result.errors
     .filter((error) => error.inheritedIslandIds.includes(islandId))
-    .map((error) => error.resourceKey);
+    .map((error) => error.resourceKey)
+    .filter((resourceKey): resourceKey is ResourceKey => resourceKey !== undefined);
 
   return {
     schemaVersion: 1,

@@ -4,14 +4,13 @@ import { ContentMap } from "../model/content-map";
 import { IslandDependencyMap } from "../model/island-dependency-map";
 import { IslandMap } from "../model/island-map";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
-import { ResourceGraphAbortedError } from "../errors";
+import { ResolutionError, ResourceGraphAbortedError } from "../errors";
 import type { ExpansionContext, ExpansionPort } from "../ports/expansion-port";
 import type { IslandPort } from "../ports/island-port";
 import type { ResolvePort } from "../ports/resolve-port";
 import type {
   ContentRegistry,
   IslandId,
-  ResolutionError,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
   ResourceKey,
@@ -24,8 +23,7 @@ export interface GraphWalkRef {
 }
 
 interface FailureAccumulator {
-  resourceKey: ResourceKey;
-  message: string;
+  error: ResolutionError;
   inheritedIslandIds: Set<IslandId>;
 }
 
@@ -109,6 +107,27 @@ export class ResolutionSession<
 
   hasFailure(resource: ApplicationResourceIdentifier): boolean {
     return this.failuresByResource.has(resource.toString());
+  }
+
+  /**
+   * Failure recorded for `resource`, if any. Used by projectors under
+   * `on failure set error` to place the same instance into the projected alias.
+   */
+  failureOf(resource: ApplicationResourceIdentifier): ResolutionError | undefined {
+    const accumulated = this.failuresByResource.get(resource.toString());
+    return accumulated?.error;
+  }
+
+  /** Snapshot of failures keyed by resource, for projection / set-error wiring. */
+  failures(): ReadonlyMap<ResourceKey, ResolutionError> {
+    const out = new Map<ResourceKey, ResolutionError>();
+    for (const [resourceKey, accumulated] of this.failuresByResource) {
+      out.set(
+        resourceKey,
+        accumulated.error.withAttribution(resourceKey, sortedCopy(accumulated.inheritedIslandIds))
+      );
+    }
+    return out;
   }
 
   isPending(resource: ApplicationResourceIdentifier): boolean {
@@ -265,19 +284,31 @@ export class ResolutionSession<
     }
   }
 
-  /** Records a resource as unresolvable from `ref`'s island and clears its pending entry. */
-  registerMissing(ref: GraphWalkRef, message?: string): void {
+  /**
+   * Records a resource as unresolvable from `ref`'s island and clears its pending entry.
+   *
+   * Prefer passing a {@link ResolutionError} (preserved from a datasource or
+   * wrapped from a load failure). A plain message becomes `code: "missing"`.
+   */
+  registerMissing(ref: GraphWalkRef, failure?: ResolutionError | string): void {
     const resourceKey = ref.resource.toString();
     const existing = this.failuresByResource.get(resourceKey);
 
-    const failure = existing ?? {
-      resourceKey,
-      message: message ?? `Unable to resolve ${resourceKey}`,
+    const error =
+      existing?.error ??
+      (typeof failure === "string" || failure === undefined
+        ? new ResolutionError("missing", failure ?? `Unable to resolve ${resourceKey}`, undefined, {
+            resourceKey,
+          })
+        : failure.withAttribution(resourceKey, failure.inheritedIslandIds));
+
+    const accumulated = existing ?? {
+      error,
       inheritedIslandIds: new Set<IslandId>(),
     };
 
-    failure.inheritedIslandIds.add(ref.inheritedIslandId);
-    this.failuresByResource.set(resourceKey, failure);
+    accumulated.inheritedIslandIds.add(ref.inheritedIslandId);
+    this.failuresByResource.set(resourceKey, accumulated);
     this.pendingByKey.delete(resourceKey);
 
     if (existing !== undefined) {
@@ -287,8 +318,8 @@ export class ResolutionSession<
 
     notifyObserver(this.observer, "onMissingResource", () => ({
       resourceKey,
-      inheritedIslandIds: sortedCopy(failure.inheritedIslandIds),
-      message: failure.message,
+      inheritedIslandIds: sortedCopy(accumulated.inheritedIslandIds),
+      message: accumulated.error.message,
     }));
   }
 
@@ -347,13 +378,9 @@ export class ResolutionSession<
   }
 
   toOutput(): ResolveResourceGraphOutput<R> {
-    const errors: ResolutionError[] = [...this.failuresByResource.values()]
-      .map((failure) => ({
-        resourceKey: failure.resourceKey,
-        message: failure.message,
-        inheritedIslandIds: sortedCopy(failure.inheritedIslandIds),
-      }))
-      .sort((left, right) => compareStrings(left.resourceKey, right.resourceKey));
+    const errors = [...this.failures().values()].sort((left, right) =>
+      compareStrings(left.resourceKey ?? "", right.resourceKey ?? "")
+    );
 
     return {
       contentMap: this.contentMap,
