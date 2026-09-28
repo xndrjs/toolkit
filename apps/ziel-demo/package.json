@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "ziel:codegen": "ziel-codegen --config ./ziel.config.ts",
+    "ziel:dev": "ziel-codegen --config ./ziel.config.ts --watch",
     "predev": "pnpm run ziel:codegen",
     "dev": "next dev --webpack",
     "build": "next build --webpack",

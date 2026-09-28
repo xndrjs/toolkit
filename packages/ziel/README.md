@@ -2,12 +2,12 @@
 
 **Product entry** for Ziel with these surfaces:
 
-| Export                 | Use for                                                                                                                                                                                                                        |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@xndrjs/ziel`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                                                  |
-| `@xndrjs/ziel/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `generateProjections`, `generateDataSources`, `defineConfig`, `buildResources` — Node / CI / build only |
-| `@xndrjs/ziel/lsp`     | Language server helpers + `ziel-language-server` bin (stdio) — workspace collect/merge → diagnostics + IntelliSense (hover / completion / definition)                                                                          |
-| `ziel-codegen` (bin)   | CLI: load `ziel.config.ts`, collect `.ziel` files, emit TypeScript (resources + strategies + datasources + `project*` + `resolve*` façades) — writes `out` or `--dry-run` to stdout                                            |
+| Export                 | Use for                                                                                                                                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@xndrjs/ziel`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                                                     |
+| `@xndrjs/ziel/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `generateProjections`, `generateDataSources`, `defineConfig`, `buildResources` — Node / CI / build only    |
+| `@xndrjs/ziel/lsp`     | Language server helpers + `ziel-language-server` bin (stdio) — workspace collect/merge → diagnostics + IntelliSense (hover / completion / definition)                                                                             |
+| `ziel-codegen` (bin)   | CLI: load `ziel.config.ts`, collect `.ziel` files, emit TypeScript (resources + strategies + datasources + `project*` + `resolve*` façades) — writes `out`, `--dry-run` to stdout, or `--watch` / `--dev` to regenerate on change |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
@@ -43,7 +43,8 @@ export default defineConfig({
 ```json
 {
   "scripts": {
-    "ziel:codegen": "ziel-codegen --config ./ziel.config.ts"
+    "ziel:codegen": "ziel-codegen --config ./ziel.config.ts",
+    "ziel:dev": "ziel-codegen --config ./ziel.config.ts --watch"
   }
 }
 ```
@@ -51,9 +52,12 @@ export default defineConfig({
 ```bash
 pnpm ziel-codegen --config ./ziel.config.ts
 pnpm ziel-codegen --config ./ziel.config.ts --dry-run
+pnpm ziel-codegen --config ./ziel.config.ts --watch   # or --dev
 ```
 
-Flags: `--config`, `--out`, `--root`, `--dry-run`, `--help`. CLI wins over config (with a warning). `include` / `exclude` / `pathFilter` are config-only. Diagnostics → exit `1` and no write.
+Flags: `--config`, `--out`, `--root`, `--dry-run`, `--watch` / `--dev`, `--help`. CLI wins over config (with a warning). `include` / `exclude` / `pathFilter` are config-only. Diagnostics → exit `1` and no write (in `--watch` / `--dev`, errors are logged and the watcher keeps running).
+
+`--watch` / `--dev` regenerate when any `.ziel` under `root` (or the config) changes. The output file is ignored so writes do not loop. Unchanged content is not rewritten (stable mtimes).
 
 One config = one `out`. Multiple targets = multiple config files or scripts.
 
