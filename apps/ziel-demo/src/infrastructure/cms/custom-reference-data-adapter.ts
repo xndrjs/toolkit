@@ -34,13 +34,13 @@ export async function loadCmsCustomReferences(
 
     return parsed.kind === "ENTRY"
       ? {
-          type: "Entry" as const,
+          kind: "Entry" as const,
           spaceId: parsed.spaceId,
           environmentId: parsed.environmentId,
           id: Scalars.EntryId(parsed.id),
         }
       : {
-          type: "Asset" as const,
+          kind: "Asset" as const,
           spaceId: parsed.spaceId,
           environmentId: parsed.environmentId,
           id: Scalars.AssetId(parsed.id),

@@ -103,12 +103,9 @@ query PageDetail(pageId: EntryId) {
       )
     }
 
-    when e.kind == "Menu" {
+    when e.kind == "Menu"
+      or e.kind == "Footer" {
       ...ChromeLogo
-    }
-
-    when e.kind == "Footer" {
-      cta
     }
 
     when e.kind == "SiteInternalLink" {

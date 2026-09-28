@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { customReferenceAri, entryAri } from "../generated";
+import {
+  customReferenceAri,
+  entryAri,
+  type PageDetail_Asset,
+  type PageDetail_Entry,
+  type PageDetail_Entry_Hero,
+  type PageDetail_Entry_Page,
+  type PageDetail_Entry_Product,
+  type PageDetail_Entry_SiteInternalLink,
+  type PageDetail_Entry_Tab,
+  type PageDetail_Entry_Tabs,
+} from "../generated";
 import { parseCustomReference } from "../infrastructure/cms/custom-reference.js";
 import {
   DEMO_ENVIRONMENT,
@@ -10,6 +21,37 @@ import {
   demoIds,
 } from "../infrastructure/fixtures/store.js";
 import { parseDemoLocaleParam, resolvePage } from "./resolve-page.js";
+
+/** Default arm shares `kind` literals — narrow via a distinctive field. */
+function isHero(
+  e: PageDetail_Entry | PageDetail_Asset | null | undefined
+): e is PageDetail_Entry_Hero {
+  return e != null && e.kind === "Hero" && "image" in e;
+}
+
+function isTabs(e: PageDetail_Entry | null | undefined): e is PageDetail_Entry_Tabs {
+  return e != null && e.kind === "Tabs" && "tabs" in e;
+}
+
+function isTab(e: PageDetail_Entry | null | undefined): e is PageDetail_Entry_Tab {
+  return e != null && e.kind === "Tab" && "strips" in e;
+}
+
+function isProduct(e: PageDetail_Entry | null | undefined): e is PageDetail_Entry_Product {
+  return e != null && e.kind === "Product" && "sku" in e;
+}
+
+function isLink(e: PageDetail_Entry | null | undefined): e is PageDetail_Entry_SiteInternalLink {
+  return e != null && e.kind === "SiteInternalLink" && "target" in e;
+}
+
+function isPageEntry(e: PageDetail_Entry | null | undefined): e is PageDetail_Entry_Page {
+  return e != null && e.kind === "Page" && "title" in e;
+}
+
+function isAsset(e: PageDetail_Entry | PageDetail_Asset | null | undefined): e is PageDetail_Asset {
+  return e != null && e.kind === "Asset" && "url" in e;
+}
 
 describe("resolvePage", () => {
   it("projects the fixture page with Entry variants and Assets", async () => {
@@ -50,53 +92,53 @@ describe("resolvePage", () => {
     expect(page.strips).toHaveLength(4);
     const [tabsStrip, heroStrip, productStrip, linkStrip] = page.strips;
 
-    expect(tabsStrip?.kind).toBe("Tabs");
-    if (tabsStrip?.kind !== "Tabs") {
+    expect(isTabs(tabsStrip)).toBe(true);
+    if (!isTabs(tabsStrip)) {
       return;
     }
     expect(tabsStrip.id).toBe(demoIds.tabs);
     expect(tabsStrip.tabs).toHaveLength(1);
 
     const nestedTab = tabsStrip.tabs[0]!;
-    expect(nestedTab.kind).toBe("Tab");
-    if (nestedTab.kind !== "Tab") {
+    expect(isTab(nestedTab)).toBe(true);
+    if (!isTab(nestedTab)) {
       return;
     }
     expect(nestedTab.id).toBe(demoIds.tabOverview);
     expect(nestedTab.strips).toHaveLength(2);
 
     const [nestedHero, nestedProduct] = nestedTab.strips;
-    expect(nestedHero?.kind).toBe("Hero");
-    if (nestedHero?.kind === "Hero") {
+    expect(isHero(nestedHero)).toBe(true);
+    if (isHero(nestedHero)) {
       expect(nestedHero.image.id).toBe(demoIds.assetHeroNested);
     }
-    expect(nestedProduct?.kind).toBe("Product");
-    if (nestedProduct?.kind === "Product") {
+    expect(isProduct(nestedProduct)).toBe(true);
+    if (isProduct(nestedProduct)) {
       expect(nestedProduct.id).toBe(demoIds.productHoodie);
       expect(nestedProduct.sku).toBe("HOODIE-1");
     }
 
-    expect(heroStrip?.kind).toBe("Hero");
-    if (heroStrip?.kind === "Hero") {
+    expect(isHero(heroStrip)).toBe(true);
+    if (isHero(heroStrip)) {
       expect(heroStrip.id).toBe(demoIds.heroWelcome);
       expect(heroStrip.image.id).toBe(demoIds.assetHero);
       expect(heroStrip.image.url).toContain("hero-welcome");
     }
 
-    expect(productStrip?.kind).toBe("Product");
-    if (productStrip?.kind === "Product") {
+    expect(isProduct(productStrip)).toBe(true);
+    if (isProduct(productStrip)) {
       expect(productStrip.id).toBe(demoIds.productTshirt);
       expect(productStrip.sku).toBe("TSHIRT-1");
       expect(productStrip.title).toBe("Demo T-Shirt");
     }
 
     // SiteInternalLink → shallow linked Page (id + title — no strips/menu/footer).
-    expect(linkStrip?.kind).toBe("SiteInternalLink");
-    if (linkStrip?.kind === "SiteInternalLink") {
+    expect(isLink(linkStrip)).toBe(true);
+    if (isLink(linkStrip)) {
       expect(linkStrip.id).toBe(demoIds.linkAbout);
-      expect(linkStrip.target.kind).toBe("Page");
+      expect(isPageEntry(linkStrip.target)).toBe(true);
       expect(linkStrip.target.id).toBe(demoIds.pageAbout);
-      if (linkStrip.target.kind === "Page") {
+      if (isPageEntry(linkStrip.target)) {
         expect(linkStrip.target.title).toBe("About");
       }
       expect(linkStrip.target).not.toHaveProperty("strips");
@@ -107,13 +149,13 @@ describe("resolvePage", () => {
     // CustomReference → Entry → Hero / Asset (no wrapper).
     expect(page.related).toHaveLength(2);
     const relatedHero = page.related[0];
-    expect(relatedHero?.kind).toBe("Hero");
-    if (relatedHero?.kind === "Hero") {
+    expect(isHero(relatedHero)).toBe(true);
+    if (isHero(relatedHero)) {
       expect(relatedHero.id).toBe(demoIds.heroWelcome);
       expect(relatedHero.image.id).toBe(demoIds.assetHero);
     }
-    expect(page.related[1]?.kind).toBe("Asset");
-    if (page.related[1]?.kind === "Asset") {
+    expect(isAsset(page.related[1])).toBe(true);
+    if (isAsset(page.related[1])) {
       expect(page.related[1].id).toBe(demoIds.assetLogo);
       expect(page.related[1].url).toContain("logo.svg");
     }
@@ -126,11 +168,11 @@ describe("resolvePage", () => {
       return;
     }
 
-    const fromStrip = result.page.strips.find((s) => s?.kind === "Hero");
-    const fromRelated = result.page.related.find((r) => r?.kind === "Hero");
-    expect(fromStrip?.kind).toBe("Hero");
-    expect(fromRelated?.kind).toBe("Hero");
-    if (fromStrip?.kind === "Hero" && fromRelated?.kind === "Hero") {
+    const fromStrip = result.page.strips.find((s) => isHero(s));
+    const fromRelated = result.page.related.find((r) => isHero(r));
+    expect(isHero(fromStrip)).toBe(true);
+    expect(isHero(fromRelated)).toBe(true);
+    if (isHero(fromStrip) && isHero(fromRelated)) {
       expect(fromRelated.id).toBe(fromStrip.id);
       expect(fromRelated.title).toBe(fromStrip.title);
       expect(fromRelated.image.id).toBe(fromStrip.image.id);

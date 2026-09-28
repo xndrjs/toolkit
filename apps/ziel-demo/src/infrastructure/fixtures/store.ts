@@ -64,7 +64,7 @@ const environmentId = DEMO_ENVIRONMENT;
 
 /**
  * Editorial documents keyed by `space/environment/id`.
- * Content type lives on Entry payloads (`type`) — not on relationship links.
+ * Content type lives on Entry payloads (`kind`) — not on relationship links.
  */
 export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
   [
@@ -91,7 +91,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "Page",
+        kind: "Page",
         id: Scalars.EntryId(demoIds.pageAbout),
         title: "About",
       },
@@ -102,7 +102,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "Menu",
+        kind: "Menu",
         id: Scalars.EntryId(demoIds.menu),
         title: "Main menu",
         logoId: Scalars.AssetId(demoIds.assetLogo),
@@ -114,7 +114,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "Footer",
+        kind: "Footer",
         id: Scalars.EntryId(demoIds.footer),
         cta: "Contact us",
         title: "Footer",
@@ -127,7 +127,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "Hero",
+        kind: "Hero",
         id: Scalars.EntryId(demoIds.heroWelcome),
         title: "Welcome",
         imageId: Scalars.AssetId(demoIds.assetHero),
@@ -139,7 +139,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "Hero",
+        kind: "Hero",
         id: Scalars.EntryId(demoIds.heroNested),
         title: "Nested hero",
         imageId: Scalars.AssetId(demoIds.assetHeroNested),
@@ -151,7 +151,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "Tabs",
+        kind: "Tabs",
         id: Scalars.EntryId(demoIds.tabs),
         title: "Featured",
         tabs: [{ id: Scalars.EntryId(demoIds.tabOverview) }],
@@ -163,7 +163,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "Tab",
+        kind: "Tab",
         id: Scalars.EntryId(demoIds.tabOverview),
         title: "Overview",
         strips: [
@@ -178,7 +178,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "Product",
+        kind: "Product",
         id: Scalars.EntryId(demoIds.productTshirt),
         sku: Scalars.Sku("TSHIRT-1"),
         title: "Demo T-Shirt",
@@ -190,7 +190,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "Product",
+        kind: "Product",
         id: Scalars.EntryId(demoIds.productHoodie),
         sku: Scalars.Sku("HOODIE-1"),
         title: "Demo Hoodie",
@@ -202,7 +202,7 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
     {
       kind: "entry",
       payload: {
-        type: "SiteInternalLink",
+        kind: "SiteInternalLink",
         id: Scalars.EntryId(demoIds.linkAbout),
         targetId: Scalars.EntryId(demoIds.pageAbout),
       },
@@ -215,31 +215,31 @@ export const demoAssets: ReadonlyMap<string, AssetPayload> = new Map([
   [
     demoIds.assetLogo,
     {
-      type: "Asset",
+      kind: "Asset",
       id: Scalars.AssetId(demoIds.assetLogo),
       url: "https://cdn.example.com/logo.svg",
       title: "Logo",
-      kind: "image",
+      asset_type: "image",
     },
   ],
   [
     demoIds.assetHero,
     {
-      type: "Asset",
+      kind: "Asset",
       id: Scalars.AssetId(demoIds.assetHero),
       url: "https://cdn.example.com/hero-welcome.jpg",
       title: "Welcome hero",
-      kind: "image",
+      asset_type: "image",
     },
   ],
   [
     demoIds.assetHeroNested,
     {
-      type: "Asset",
+      kind: "Asset",
       id: Scalars.AssetId(demoIds.assetHeroNested),
       url: "https://cdn.example.com/hero-nested.jpg",
       title: "Nested hero",
-      kind: "image",
+      asset_type: "image",
     },
   ],
 ]);
