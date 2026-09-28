@@ -2,7 +2,7 @@
  * Resolve `refers` annotations from expand constructions and narrow armed
  * projection alias types to the matching variant union.
  */
-import { expandPayloadObjectMembers } from "../../../check/discriminants";
+import { expandPayloadObjectMembers, narrowPayloadByFilter } from "../../../check/discriminants";
 import { createDiagnosticSink } from "../../../check/diagnostic";
 import { resolvePathOnPayloadType } from "../../../check/expr-paths";
 import { memberMatchesRefersPattern, type ObjectMember } from "../../../check/refers";
@@ -115,7 +115,8 @@ export function membersMatchingApplicableRefers(
 /**
  * Narrow an armed `on R` projection alias using refers-matched members.
  * Returns `null` when narrowing does not apply (no refers / not armed / empty).
- * Throws when a matched member has no corresponding projection arm.
+ * Members not matched by any `when` fall through to the required `default` variant.
+ * Throws when a matched member has no corresponding when-arm and no default.
  */
 export function printNarrowedArmedAliasType(
   queryName: string,
@@ -156,11 +157,17 @@ export function printNarrowedArmedAliasType(
 
   const uncovered = matchedMembers.filter((m) => !coveredMembers.has(m));
   if (uncovered.length > 0) {
-    const labels = uncovered.map(memberLabel).join(", ");
-    throw new Error(
-      `emitProjectionTypes: REFERS_ARM_NOT_PROJECTED: refers matches payload member(s) of '${targetName}' ` +
-        `(${labels}) with no corresponding 'on ${targetName}' arm in query '${queryName}'`
-    );
+    if (projection.defaultArm === null) {
+      const labels = uncovered.map(memberLabel).join(", ");
+      throw new Error(
+        `emitProjectionTypes: REFERS_ARM_NOT_PROJECTED: refers matches payload member(s) of '${targetName}' ` +
+          `(${labels}) with no corresponding 'on ${targetName}' when-arm or default in query '${queryName}'`
+      );
+    }
+    const defaultType = projectionVariantTypeName(queryName, targetName, "Default");
+    if (!variantTypes.includes(defaultType)) {
+      variantTypes.push(defaultType);
+    }
   }
 
   if (variantTypes.length === 0) {
@@ -179,6 +186,10 @@ function armMatchesAnyMember(
   return members.some((m) => memberMatchesArm(m, arm, binding, payloadType, resources));
 }
 
+/**
+ * True when `member` remains after narrowing `payloadType` by the arm `when`
+ * filter (best-effort via {@link narrowPayloadByFilter}).
+ */
 function memberMatchesArm(
   member: ObjectMember,
   arm: ProjectionArm,
@@ -186,33 +197,13 @@ function memberMatchesArm(
   payloadType: TypeExpr,
   resources: ResourceTable
 ): boolean {
-  const disc = projectionArmDiscriminant(arm.when, binding);
-  if (disc !== null) {
-    const narrowed = narrowPayloadObjectByDisc(payloadType, disc, resources);
-    if (narrowed !== null) {
-      return sameObjectMember(narrowed, member);
-    }
-    return memberTypeDiscriminant(member) === disc;
+  const narrowed = narrowPayloadByFilter(payloadType, arm.when, binding, resources);
+  if (narrowed === undefined) {
+    return false;
   }
-
-  // No type discriminant on the arm — compare against the full (un-narrowed) payload
-  // only when it is a single object equal to the member.
-  const expanded = expandPayloadObjectMembers(payloadType, resources);
-  if (expanded !== null && expanded.length === 1) {
-    return sameObjectMember(expanded[0]!, member);
-  }
-  return false;
-}
-
-function narrowPayloadObjectByDisc(
-  payloadType: TypeExpr,
-  disc: string,
-  resources: ResourceTable
-): ObjectMember | null {
-  const members = expandPayloadObjectMembers(payloadType, resources);
-  if (members === null) return null;
-  const matched = members.filter((member) => memberTypeDiscriminant(member) === disc);
-  return matched.length === 1 ? matched[0]! : null;
+  const members = expandPayloadObjectMembers(narrowed, resources);
+  if (members === null) return false;
+  return members.some((m) => sameObjectMember(m, member));
 }
 
 function memberTypeDiscriminant(member: ObjectMember): string | null {

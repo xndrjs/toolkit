@@ -1,14 +1,8 @@
-import type { ExpandArm, Expansion, ProjectionArm, ResolveArm, SourceSpan, TypeExpr } from "../ir";
+import type { ExpandArm, Expansion, SourceSpan, TypeExpr } from "../ir";
 import { checkConstruction } from "./construction";
 import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
-import {
-  closedPayloadDiscriminants,
-  closedTypeDiscriminants,
-  coveredDiscriminantLabels,
-  narrowItemTypeByFilter,
-  payloadHasField,
-} from "./discriminants";
+import { narrowItemTypeByFilter, payloadHasField } from "./discriminants";
 import { inferExprType } from "./expressions";
 import { unwrapNullable, type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
 
@@ -159,15 +153,6 @@ export function checkManyExpansion(
       sink
     );
   }
-
-  checkArmExhaustiveness(
-    elementType,
-    comprehension.arms,
-    comprehension.itemBinding,
-    expPath,
-    expansion.span,
-    sink
-  );
 }
 
 export function checkExpandArm(
@@ -209,113 +194,4 @@ export function checkExpandArm(
     items: new Map([[itemBinding, itemType]]),
   };
   checkConstruction(arm.target, armPath, bodyScope, scalars, resources, sink);
-}
-
-/**
- * Closed union of objects with `type: "Lit"` discriminants must be covered by
- * at least one `when item.type == "Lit"` arm.
- */
-export function checkArmExhaustiveness(
-  elementType: TypeExpr,
-  arms: ExpandArm[],
-  itemBinding: string,
-  expPath: string,
-  span: SourceSpan | null,
-  sink: DiagnosticSink
-): void {
-  const required = closedTypeDiscriminants(elementType);
-  if (required === null || required.size === 0) {
-    return;
-  }
-
-  const covered = new Set<string>();
-  for (const arm of arms) {
-    if (!arm.when) continue;
-    for (const label of coveredDiscriminantLabels(arm.when, itemBinding, "item")) {
-      covered.add(label);
-    }
-  }
-
-  const missing = [...required].filter((v) => !covered.has(v)).sort();
-  if (missing.length > 0) {
-    sink.push({
-      code: "INEXHAUSTIVE_EXPAND_ARMS",
-      message: `each-expand arms do not cover discriminant(s): ${missing.map((v) => JSON.stringify(v)).join(", ")}`,
-      path: expPath,
-      span,
-    });
-  }
-}
-
-/**
- * Closed discriminant union on a resource payload must be covered by projection
- * `when binding.type == "Lit"` arms.
- */
-export function checkProjectionArmExhaustiveness(
-  payloadType: TypeExpr,
-  arms: ProjectionArm[],
-  binding: string,
-  projPath: string,
-  span: SourceSpan | null,
-  resources: ResourceTable,
-  sink: DiagnosticSink
-): void {
-  const required = closedPayloadDiscriminants(payloadType, resources);
-  if (required === null || required.size === 0) {
-    return;
-  }
-
-  const covered = new Set<string>();
-  for (const arm of arms) {
-    for (const label of coveredDiscriminantLabels(arm.when, binding, "payload")) {
-      covered.add(label);
-    }
-  }
-
-  const missing = [...required].filter((v) => !covered.has(v)).sort();
-  if (missing.length > 0) {
-    sink.push({
-      code: "INEXHAUSTIVE_PROJECTION_ARMS",
-      message: `projection when-arms do not cover discriminant(s): ${missing.map((v) => JSON.stringify(v)).join(", ")}`,
-      path: projPath,
-      span,
-    });
-  }
-}
-
-/**
- * Same closed-discriminant spirit as projection arms: decode payload object
- * unions with `type: "Lit"` must be covered by resolve `when` filters.
- */
-export function checkResolveArmExhaustiveness(
-  payloadType: TypeExpr,
-  arms: ResolveArm[],
-  binding: string,
-  projPath: string,
-  span: SourceSpan | null,
-  resources: ResourceTable,
-  sink: DiagnosticSink
-): void {
-  const required = closedPayloadDiscriminants(payloadType, resources);
-  if (required === null || required.size === 0) {
-    return;
-  }
-
-  const covered = new Set<string>();
-  for (const arm of arms) {
-    if (!arm.when) continue;
-    for (const label of coveredDiscriminantLabels(arm.when, binding, "payload")) {
-      covered.add(label);
-    }
-  }
-
-  const missing = [...required].filter((v) => !covered.has(v)).sort();
-  if (missing.length > 0) {
-    sink.push({
-      code: "INEXHAUSTIVE_RESOLVE_ARMS",
-      message: `resolve when-arms do not cover discriminant(s): ${missing.map((v) => JSON.stringify(v)).join(", ")}`,
-      path: projPath,
-      span,
-    });
-  }
 }

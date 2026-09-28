@@ -147,6 +147,7 @@ export type HomepageResult = {
           when e.type == "Page" {
             id
           }
+          default { }
         }
         on Asset a { id url }
       }
@@ -170,7 +171,11 @@ export type EntryDetail_Entry_Page = {
   id: EntryId;
 };
 
-export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
+export type EntryDetail_Entry_Default = {
+  $type: "Entry";
+};
+
+export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page | EntryDetail_Entry_Default;
 `)
     );
     expect(code).toContain("export type EntryDetailResult = EntryDetail_Entry;");
@@ -194,8 +199,11 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
     expect(code).toContain("footer: PageDetail_Entry_Footer;");
     expect(code).toContain("image: PageDetail_Asset;");
     expect(code).toContain("export type PageDetail_Entry_Hero = {");
-    expect(code).toContain("export type PageDetail_Entry_Page = {");
+    expect(code).toContain("export type PageDetail_Entry_Default = {");
     expect(code).toContain("export type PageDetail_Entry =");
+    expect(code).toContain("PageDetail_Entry_Default");
+    expect(code).not.toContain("export type PageDetail_Entry_Page = {");
+    expect(code).not.toContain("export type PageDetail_Entry_Product = {");
     expect(code).toContain(`kind: "image" | "video" | "document";`);
     expect(code).toContain("export type PageDetailResult = PageDetail_Page;");
     expect(code).not.toContain("PageDetail_EditorialModule");
@@ -260,6 +268,7 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
             id
             title
           }
+          default { }
         }
         on Asset a { id url }
       }
@@ -271,7 +280,10 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page;
 
     expect(code).toContain("related: (PageDetail_Entry | PageDetail_Asset)[];");
     expect(code).toContain("export type PageDetail_Entry_Hero = {");
-    expect(code).toContain("export type PageDetail_Entry = PageDetail_Entry_Hero;");
+    expect(code).toContain("export type PageDetail_Entry_Default = {");
+    expect(code).toContain(
+      "export type PageDetail_Entry = PageDetail_Entry_Hero | PageDetail_Entry_Default;"
+    );
     expect(code).toContain("export type PageDetail_Asset = {");
     expect(code).toContain("export type PageDetailResult = PageDetail_Page;");
     expect(code).not.toContain("PageDetail_CustomReference");
@@ -394,6 +406,7 @@ describe("printExpansionAliasType", () => {
           when e.type == "Menu" { id title }
           when e.type == "Footer" { id title }
           when e.type == "Hero" { id title }
+          default { }
         }
       }
     `;
@@ -441,7 +454,7 @@ describe("printExpansionAliasType", () => {
     expect(code).not.toContain("PageDetail_Entry_Menu");
   });
 
-  it("throws REFERS_ARM_NOT_PROJECTED when refers matches an unprojected arm", () => {
+  it("uses Default variant when refers matches an arm covered only by default", () => {
     const source = `
       scalar EntryId on string;
       scalar Locale on string;
@@ -464,13 +477,46 @@ describe("printExpansionAliasType", () => {
         }
         on Entry e {
           when e.type == "Menu" { id title }
+          default { }
         }
       }
     `;
     const { program, diagnostics } = parseAndCheck(source);
-    expect(program).toBeTruthy();
-    // Incomplete Entry arms also fail exhaustiveness; emit still enforces refers coverage.
-    expect(diagnostics.some((d) => d.code === "INEXHAUSTIVE_PROJECTION_ARMS")).toBe(true);
+    expect(diagnostics).toEqual([]);
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain("menu: PageDetail_Entry_Menu | PageDetail_Entry_Default;");
+  });
+
+  it("throws REFERS_ARM_NOT_PROJECTED when defaultArm is missing on hand-built IR", () => {
+    const source = `
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Menu", id, title: string }
+        | { type: "Footer", id, title: string }
+
+      resource Page(id: EntryId, locale: Locale): {
+        id
+        menuId: EntryId refers Entry with { type: "Menu" | "Footer" }
+      }
+
+      query PageDetail(pageId: EntryId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand menu: Entry(id: p.menuId, locale: @p.locale)
+        }
+        on Entry e {
+          when e.type == "Menu" { id title }
+          default { }
+        }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+    program!.queries[0]!.projections.find((p) => p.resource === "Entry")!.defaultArm = null;
     expect(() => emitProjectionTypes(program!)).toThrow(/REFERS_ARM_NOT_PROJECTED/);
   });
 });

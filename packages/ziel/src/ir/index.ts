@@ -183,9 +183,8 @@ export type Expansion = {
   span: SourceSpan | null;
 };
 
-/** One arm of a projection `when` block: filter + selected fields / expansions. */
-export type ProjectionArm = {
-  when: Expr;
+/** Body of a projection arm or `default` (fields / expands / include / exclude). */
+export type ProjectionArmBody = {
   selectedFields: string[];
   expansions: Expansion[];
   /**
@@ -194,12 +193,17 @@ export type ProjectionArm = {
    */
   excludedFields: string[];
   /**
-   * `include all` | `include properties` | `include none` on this `when` arm,
+   * `include all` | `include properties` | `include none` on this arm,
    * or `null` when absent. Effective include is
    * `arm.include ?? projection.include` (`include none` overrides a parent).
    */
   include: "all" | "properties" | "none" | null;
   span: SourceSpan | null;
+};
+
+/** One arm of a projection `when` block: filter + selected fields / expansions. */
+export type ProjectionArm = ProjectionArmBody & {
+  when: Expr;
 };
 
 /**
@@ -241,11 +245,17 @@ export type ResourceProjection = {
    */
   include: "all" | "properties" | "none" | null;
   /**
-   * Discriminant `when` arms, or `null` for an unconditional flat `on` body.
+   * Ordered `when` arms, or `null` for an unconditional flat `on` body.
    * Mixing flat fields/expansions with arms is rejected by the checker.
+   * When non-null and non-empty, `defaultArm` is required by check.
    * Mutually exclusive with `resolveArms`.
    */
   arms: ProjectionArm[] | null;
+  /**
+   * Catch-all body when `arms` is non-empty. `null` for flat / resolve-only
+   * projections, or when lowering omitted a missing `default` (checker error).
+   */
+  defaultArm: ProjectionArmBody | null;
   /**
    * Resolve-only redirect arms (`on R b resolve to { … }`), or `null` for
    * normal projections. Mutually exclusive with projection body (`selectedFields`,

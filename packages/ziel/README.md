@@ -198,6 +198,7 @@ on Page p include properties {
 on Entry e include properties {
   when e.type == "Hero" include none { title }
   when e.type == "Page" include properties { }
+  default { }
 }
 on Asset a include all { }
 
@@ -208,7 +209,8 @@ fragment MenuChrome on Entry e when e.type == "Menu" {
 
 - On a `when` arm, the include set uses the **narrowed** payload. Effective mode is `arm.include ?? clause.include` — so an inner `include none` **overrides** an outer `include properties` / `include all`.
 - Expand aliases with the same name as a payload field **shadow** the native field (silent drop; expand wins). Explicit duplicate field names stay errors. `exclude` of an expand alias is an error.
-- Allowed on normal `on R b { … }` and its `when` arms (not fragments, not `resolve to`). Fragments contribute explicit fields / expands / excludes only; the enclosing clause owns `include`.
+- Allowed on normal `on R b { … }` and its `when` / `default` arms (not fragments, not `resolve to`). Fragments contribute explicit fields / expands / excludes only; the enclosing clause owns `include`.
+- `when` arms are applied **in source order** (first match wins). They are **not** checked for discriminant exhaustiveness. If the clause has one or more `when` arms, a trailing `default { … }` is **required**.
 - `expand … using Fragment` is **not** in this release (deferred).
 
 ### Fragments
@@ -224,6 +226,7 @@ fragment MenuOnly on Entry e when e.type == "Menu" {
 on Entry e {
   when e.type == "Hero" { type id title }
   when e.type == "Menu" { type id ...MenuOnly }
+  default { }
 }
 ```
 
@@ -255,7 +258,7 @@ when !(e.hidden or e.type == "Draft")
 | `and` / `or` | boolean connectives                                    | `(left && right)` / `(left \|\| right)` |
 | `(…)`        | grouping                                               | lowered away                            |
 
-Precedence: `!` > `==`/`!=` > `in`/`not in` > `and` > `or`. So `!e.x in […]` is `(!e.x) in […]`. Array literals on the right of `in` / `not in` hold literals only. `e.type in ["A","B"]` and `e.type == "A" or e.type == "B"` cover those discriminants for projection/resolve/expand exhaustiveness.
+Precedence: `!` > `==`/`!=` > `in`/`not in` > `and` > `or`. So `!e.x in […]` is `(!e.x) in […]`. Array literals on the right of `in` / `not in` hold literals only. Filters may narrow payloads for field checks (best-effort); they do **not** drive static arm exhaustiveness — use ordered `when` + required `default` on armed projections.
 
 Islands are flat clauses (one policy each):
 

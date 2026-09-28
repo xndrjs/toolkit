@@ -92,7 +92,8 @@ describe("Ziel MVP grammar", () => {
 
     const entry = query.projections.find((p) => p.resource === "Entry");
     expect(entry?.include).toBeUndefined();
-    expect(entry?.whenArms).toHaveLength(8);
+    expect(entry?.whenArms).toHaveLength(6);
+    expect(entry?.defaultArm).toBeDefined();
     expect(entry?.whenArms.every((arm) => arm.include?.includes("properties"))).toBe(true);
     const tabsArm = entry?.whenArms.find((arm) => arm.expansions.some((e) => e.alias === "tabs"));
     const tabsExpand = tabsArm?.expansions.find((e) => e.alias === "tabs");
@@ -130,6 +131,7 @@ describe("Ziel MVP grammar", () => {
           when e.type == "Page" {
             id
           }
+          default { }
         }
         on Asset a { id url }
       }
@@ -310,6 +312,7 @@ describe("Ziel MVP grammar", () => {
         root Entry(id: entryId, locale: context.locale)
         on Entry e {
           when e.type == "Menu" { ...EntryLogo }
+          default { }
         }
         on Asset a { id }
       }
@@ -348,6 +351,7 @@ describe("Ziel MVP grammar", () => {
           ...EntryBase
           when e.type == "Hero" { }
           when e.type == "Page" { }
+          default { }
         }
       }
     `);
@@ -374,6 +378,7 @@ describe("Ziel MVP grammar", () => {
         on Entry e {
           when e.type == "Hero" { id }
           title
+          default { }
         }
       }
     `);
@@ -470,6 +475,7 @@ describe("Ziel MVP grammar", () => {
           when e.type == "Page" include properties { }
           when e.type == "Hero" include none { id }
           when e.type == "Hero" { id }
+          default { }
         }
       }
     `);

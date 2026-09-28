@@ -52,10 +52,10 @@ describe("checkProgram — pageDetail happy path", () => {
   });
 });
 
-describe("checkProgram — each-expand exhaustiveness", () => {
-  it("errors when arms omit a closed type discriminant", () => {
-    // Page-detail strips are open `{ id }[]` links (no discriminants). Use a
-    // local closed object-union so INEXHAUSTIVE_EXPAND_ARMS still has coverage.
+describe("checkProgram — each-expand arms", () => {
+  it("allows incomplete each-expand arms (no exhaustiveness error)", () => {
+    // Page-detail strips are open `{ id }[]` links (no discriminants). Closed
+    // object-union strips may omit arms; unmatched elements are simply skipped.
     const { diagnostics } = parseAndCheck(`
       scalar Locale on string;
       scalar PageId on string;
@@ -94,12 +94,8 @@ describe("checkProgram — each-expand exhaustiveness", () => {
       }
     `);
 
-    expect(diagnostics).toContainEqual(
-      expect.objectContaining({
-        code: "INEXHAUSTIVE_EXPAND_ARMS",
-        message: expect.stringContaining('"Product"'),
-      })
-    );
+    expect(diagnostics.filter((d) => d.code.startsWith("INEXHAUSTIVE_"))).toEqual([]);
+    expect(diagnostics).toEqual([]);
   });
 });
 
@@ -131,6 +127,7 @@ describe("checkProgram — projection when-arms", () => {
           when e.type == "Page" {
             id
           }
+          default { }
         }
         on Asset a { id url }
       }
@@ -139,7 +136,7 @@ describe("checkProgram — projection when-arms", () => {
     expect(diagnostics).toEqual([]);
   });
 
-  it("errors when projection when-arms omit a closed discriminant", () => {
+  it("errors when projection when-arms omit a required default", () => {
     const { diagnostics } = parseAndCheck(`
       scalar Locale on string;
       scalar EntryId on string;
@@ -162,10 +159,35 @@ describe("checkProgram — projection when-arms", () => {
 
     expect(diagnostics).toContainEqual(
       expect.objectContaining({
-        code: "INEXHAUSTIVE_PROJECTION_ARMS",
-        message: expect.stringContaining('"Page"'),
+        code: "MISSING_PROJECTION_DEFAULT",
+        message: expect.stringContaining("default"),
       })
     );
+  });
+
+  it("allows incomplete when-arms when default is present", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId, locale: Locale):
+        { type: "Hero", id, title: string }
+        | { type: "Page", id, title: string }
+
+      query Q(entryId: EntryId) {
+        context { locale: Locale }
+        root Entry(id: entryId, locale: context.locale)
+        on Entry e {
+          when e.type == "Hero" {
+            id
+            title
+          }
+          default { }
+        }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
   });
 
   it("rejects hand-built IR that keeps root fields alongside when-arms", () => {
@@ -183,6 +205,7 @@ describe("checkProgram — projection when-arms", () => {
         on Entry e {
           when e.type == "Hero" { id }
           when e.type == "Page" { id }
+          default { }
         }
       }
     `);
@@ -214,6 +237,7 @@ describe("checkProgram — projection when-arms", () => {
           ...EntryBase
           when e.type == "Hero" { }
           when e.type == "Page" { }
+          default { }
         }
       }
     `);
@@ -313,6 +337,7 @@ describe("checkProgram — projection when-arms", () => {
           title
           when e.type == "Hero" { id }
           when e.type == "Page" { id }
+          default { }
         }
       }
     `);
@@ -350,6 +375,7 @@ describe("checkProgram — projection when-arms", () => {
           when e.type == "Hero" { ...EntryLogo }
           when e.type == "Menu" { type id }
           when e.type == "Page" { type id }
+          default { }
         }
         on Asset a { id }
       }
@@ -386,6 +412,7 @@ describe("checkProgram — projection when-arms", () => {
           when e.type == "Hero" { type id title }
           when e.type == "Menu" { type id ...EntryLogo }
           when e.type == "Page" { type id }
+          default { }
         }
         on Asset a { id }
       }
@@ -417,6 +444,7 @@ describe("checkProgram — projection when-arms", () => {
         on Entry e {
           when e.type == "Hero" { type id }
           when e.type == "Menu" { type id ...MenuOnly }
+          default { }
         }
         on Asset a { id }
       }
@@ -444,6 +472,7 @@ describe("checkProgram — projection when-arms", () => {
         on Entry e {
           when e.type == "Hero" { type id }
           when e.type == "Menu" { type id }
+          default { }
         }
       }
     `);
@@ -474,6 +503,7 @@ describe("checkProgram — projection when-arms", () => {
         on Entry e {
           when e.type == "Hero" { type id }
           when e.type == "Menu" { type id }
+          default { }
         }
       }
     `);
@@ -569,6 +599,7 @@ describe("checkProgram — projection when-arms", () => {
           when e.type == "Hero" {
             id
           }
+          default { }
         }
       }
     `);
@@ -659,6 +690,13 @@ describe("checkProgram — resolve to", () => {
         span,
       },
     ];
+    projection.defaultArm = {
+      selectedFields: [],
+      expansions: [],
+      excludedFields: [],
+      include: null,
+      span,
+    };
 
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({ code: "MIXED_RESOLVE_PROJECTION" })
@@ -720,7 +758,7 @@ describe("checkProgram — resolve to", () => {
     expect(diagnostics).toEqual([]);
   });
 
-  it("errors when resolve when-arms omit a closed discriminant", () => {
+  it("allows incomplete resolve when-arms (no exhaustiveness error)", () => {
     const { diagnostics } = parseAndCheck(`
       scalar SpaceId on string;
       scalar Locale on string;
@@ -738,15 +776,12 @@ describe("checkProgram — resolve to", () => {
         on Locator c resolve to {
           Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
         }
+        on Entry e { id }
       }
     `);
 
-    expect(diagnostics).toContainEqual(
-      expect.objectContaining({
-        code: "INEXHAUSTIVE_RESOLVE_ARMS",
-        message: expect.stringContaining('"Asset"'),
-      })
-    );
+    expect(diagnostics.filter((d) => d.code.startsWith("INEXHAUSTIVE_"))).toEqual([]);
+    expect(diagnostics.filter((d) => d.code === "MISSING_ON_PROJECTION")).toEqual([]);
   });
 });
 
@@ -1438,6 +1473,7 @@ describe("checkProgram — expression ops in / not in / !", () => {
           when e.type in ["Menu", "Footer"] { id }
           when e.type not in ["Hero"] { id }
           when !e.visible { id }
+          default { }
         }
         on Ref r resolve to {
           Entry(id: r.id, locale: context.locale) when r.type == "Entry"
@@ -1452,7 +1488,7 @@ describe("checkProgram — expression ops in / not in / !", () => {
     expect(diagnostics.filter((d) => d.code === "TYPE_MISMATCH")).toEqual([]);
   });
 
-  it("treats type in […] as covering those discriminants for exhaustiveness", () => {
+  it("accepts type in […] filters on when-arms", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
@@ -1461,6 +1497,7 @@ describe("checkProgram — expression ops in / not in / !", () => {
         root Entry(id: pageId, locale: context.locale)
         on Entry e {
           when e.type in ["Menu", "Footer", "Hero"] { id }
+          default { }
         }
       }
     `);

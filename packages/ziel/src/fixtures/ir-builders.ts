@@ -42,7 +42,7 @@ export function arrayOf(of: TypeExpr): TypeExpr {
   return { kind: "array", of, span };
 }
 
-export function objectType(...fields: FieldDecl[]): TypeExpr {
+export function objectType(...fields: FieldDecl[]): Extract<TypeExpr, { kind: "object" }> {
   return { kind: "object", fields, span };
 }
 
@@ -155,7 +155,8 @@ export function projection(
   expansions: Expansion[] = [],
   arms: ResourceProjection["arms"] = null,
   include: ResourceProjection["include"] = null,
-  excludedFields: string[] = []
+  excludedFields: string[] = [],
+  defaultArm: ResourceProjection["defaultArm"] = null
 ): ResourceProjection {
   return {
     resource: resourceName,
@@ -165,18 +166,26 @@ export function projection(
     excludedFields,
     include,
     arms,
+    defaultArm,
     resolveArms: null,
     span,
   };
 }
 
-/** Armed projection helper: `on Entry e { when … { … } … }`. */
+/** Armed projection helper: `on Entry e { when … { … } … default { … } }`. */
 export function projectionWithArms(
   resourceName: string,
   binding: string,
   arms: NonNullable<ResourceProjection["arms"]>,
   include: ResourceProjection["include"] = null,
-  excludedFields: string[] = []
+  excludedFields: string[] = [],
+  defaultArm: ResourceProjection["defaultArm"] = {
+    selectedFields: [],
+    expansions: [],
+    excludedFields: [],
+    include: null,
+    span,
+  }
 ): ResourceProjection {
   return {
     resource: resourceName,
@@ -186,6 +195,7 @@ export function projectionWithArms(
     excludedFields,
     include,
     arms,
+    defaultArm,
     resolveArms: null,
     span,
   };
@@ -205,6 +215,7 @@ export function projectionWithResolve(
     excludedFields: [],
     include: null,
     arms: null,
+    defaultArm: null,
     resolveArms,
     span,
   };
@@ -219,6 +230,21 @@ export function projectionArm(
 ): NonNullable<ResourceProjection["arms"]>[number] {
   return {
     when,
+    selectedFields,
+    expansions,
+    excludedFields,
+    include,
+    span,
+  };
+}
+
+export function projectionDefaultArm(
+  selectedFields: string[] = [],
+  expansions: Expansion[] = [],
+  include: NonNullable<ResourceProjection["defaultArm"]>["include"] = null,
+  excludedFields: string[] = []
+): NonNullable<ResourceProjection["defaultArm"]> {
+  return {
     selectedFields,
     expansions,
     excludedFields,

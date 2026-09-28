@@ -107,8 +107,13 @@ query PageDetail(pageId: EntryId) {
       ...ChromeLogo
     }
 
+    when e.type == "Footer"
+      and !e.id {
+      cta
+    }
+
     when e.type == "Footer" {
-      ...ChromeLogo
+      cta
     }
 
     when e.type == "SiteInternalLink" {
@@ -120,9 +125,7 @@ query PageDetail(pageId: EntryId) {
       )
     }
 
-    when e.type == "Page" { }
-
-    when e.type == "Product" { }
+    default { }
   }
 
   on Asset a include properties { }

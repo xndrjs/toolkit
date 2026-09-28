@@ -1,6 +1,11 @@
 import type { Expr, TypeExpr } from "../ir";
 import { unwrapNullable, type ResourceTable } from "./symbols";
 
+/** Lookup that only needs `payloadType` (ResourceTable or codegen ResourceIndex). */
+export type PayloadTypeLookup = {
+  get(name: string): { payloadType: TypeExpr } | undefined;
+};
+
 /** Returns the set of `type` literal values when element is a closed disc. union; else null. */
 export function closedTypeDiscriminants(elementType: TypeExpr): Set<string> | null {
   const members =
@@ -27,7 +32,7 @@ export function closedTypeDiscriminants(elementType: TypeExpr): Set<string> | nu
  */
 export function closedPayloadDiscriminants(
   payloadType: TypeExpr,
-  resources: ResourceTable
+  resources: PayloadTypeLookup
 ): Set<string> | null {
   const members = expandPayloadObjectMembers(payloadType, resources);
   if (members === null || members.length === 0) return null;
@@ -45,11 +50,6 @@ export function closedPayloadDiscriminants(
  * Expand a payload type to object members (following resourceRefs). Returns
  * `null` when the shape is not a closed object / object-union.
  */
-/** Lookup that only needs `payloadType` (ResourceTable or codegen ResourceIndex). */
-export type PayloadTypeLookup = {
-  get(name: string): { payloadType: TypeExpr } | undefined;
-};
-
 export function expandPayloadObjectMembers(
   payloadType: TypeExpr,
   resources: PayloadTypeLookup

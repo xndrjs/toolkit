@@ -147,14 +147,6 @@ export type PageDetail_Entry_Tab = {
   strips: PageDetail_Entry[];
 };
 
-export type PageDetail_Entry_Product = {
-  $type: "Entry";
-  type: "Product";
-  id: EntryId;
-  sku: Sku;
-  title: string;
-};
-
 export type PageDetail_Entry_Menu = {
   $type: "Entry";
   type: "Menu";
@@ -181,14 +173,11 @@ export type PageDetail_Entry_SiteInternalLink = {
   target: PageDetail_Entry;
 };
 
-export type PageDetail_Entry_Page = {
+export type PageDetail_Entry_Default = {
   $type: "Entry";
-  type: "Page";
-  id: EntryId;
-  title: string;
 };
 
-export type PageDetail_Entry = PageDetail_Entry_Hero | PageDetail_Entry_Tabs | PageDetail_Entry_Tab | PageDetail_Entry_Product | PageDetail_Entry_Menu | PageDetail_Entry_Footer | PageDetail_Entry_SiteInternalLink | PageDetail_Entry_Page;
+export type PageDetail_Entry = PageDetail_Entry_Hero | PageDetail_Entry_Tabs | PageDetail_Entry_Tab | PageDetail_Entry_Menu | PageDetail_Entry_Footer | PageDetail_Entry_SiteInternalLink | PageDetail_Entry_Default;
 
 export type PageDetail_Asset = {
   $type: "Asset";
@@ -225,95 +214,61 @@ export function projectPageDetail(
   };
 
   const projectOnEntry = (resource: any, payload: any): any => {
-    switch ((payload as any).type) {
-      case "Hero":
-        {
-          const shell: any = { $type: "Entry" };
-          memo.set(resource.toString(), shell);
-          shell.type = payload.type;
-          shell.id = payload.id;
-          shell.title = payload.title;
-          shell.imageId = payload.imageId;
-          shell.image = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.imageId, locale: resource.key[0].locale }));
-          return shell;
-        }
-      case "Tabs":
-        {
-          const shell: any = { $type: "Entry" };
-          memo.set(resource.toString(), shell);
-          shell.type = payload.type;
-          shell.id = payload.id;
-          shell.title = payload.title;
-          shell.tabs = payload.tabs.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })));
-          return shell;
-        }
-      case "Tab":
-        {
-          const shell: any = { $type: "Entry" };
-          memo.set(resource.toString(), shell);
-          shell.type = payload.type;
-          shell.id = payload.id;
-          shell.title = payload.title;
-          shell.strips = payload.strips.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })));
-          return shell;
-        }
-      case "Product":
-        {
-          const shell: any = { $type: "Entry" };
-          memo.set(resource.toString(), shell);
-          shell.type = payload.type;
-          shell.id = payload.id;
-          shell.sku = payload.sku;
-          shell.title = payload.title;
-          return shell;
-        }
-      case "Menu":
-        {
-          const shell: any = { $type: "Entry" };
-          memo.set(resource.toString(), shell);
-          shell.type = payload.type;
-          shell.id = payload.id;
-          shell.title = payload.title;
-          shell.logoId = payload.logoId;
-          shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale }));
-          return shell;
-        }
-      case "Footer":
-        {
-          const shell: any = { $type: "Entry" };
-          memo.set(resource.toString(), shell);
-          shell.type = payload.type;
-          shell.id = payload.id;
-          shell.title = payload.title;
-          shell.logoId = payload.logoId;
-          shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale }));
-          return shell;
-        }
-      case "SiteInternalLink":
-        {
-          const shell: any = { $type: "Entry" };
-          memo.set(resource.toString(), shell);
-          shell.type = payload.type;
-          shell.id = payload.id;
-          shell.targetId = payload.targetId;
-          shell.target = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.targetId, locale: resource.key[0].locale }));
-          return shell;
-        }
-      case "Page":
-        {
-          const shell: any = { $type: "Entry" };
-          memo.set(resource.toString(), shell);
-          shell.type = payload.type;
-          shell.id = payload.id;
-          shell.title = payload.title;
-          return shell;
-        }
-      default:
-        throw new Error(
-          "projectOnEntry: cannot discriminate Entry payload (type=" +
-            JSON.stringify((payload as any).type) +
-            ")"
-        );
+    if (payload.type == "Hero") {
+      const shell: any = { $type: "Entry" };
+      memo.set(resource.toString(), shell);
+      shell.type = payload.type;
+      shell.id = payload.id;
+      shell.title = payload.title;
+      shell.imageId = payload.imageId;
+      shell.image = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.imageId, locale: resource.key[0].locale }));
+      return shell;
+    } else if (payload.type == "Tabs") {
+      const shell: any = { $type: "Entry" };
+      memo.set(resource.toString(), shell);
+      shell.type = payload.type;
+      shell.id = payload.id;
+      shell.title = payload.title;
+      shell.tabs = payload.tabs.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })));
+      return shell;
+    } else if (payload.type == "Tab") {
+      const shell: any = { $type: "Entry" };
+      memo.set(resource.toString(), shell);
+      shell.type = payload.type;
+      shell.id = payload.id;
+      shell.title = payload.title;
+      shell.strips = payload.strips.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })));
+      return shell;
+    } else if (payload.type == "Menu") {
+      const shell: any = { $type: "Entry" };
+      memo.set(resource.toString(), shell);
+      shell.type = payload.type;
+      shell.id = payload.id;
+      shell.title = payload.title;
+      shell.logoId = payload.logoId;
+      shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale }));
+      return shell;
+    } else if (payload.type == "Footer") {
+      const shell: any = { $type: "Entry" };
+      memo.set(resource.toString(), shell);
+      shell.type = payload.type;
+      shell.id = payload.id;
+      shell.title = payload.title;
+      shell.logoId = payload.logoId;
+      shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale }));
+      return shell;
+    } else if (payload.type == "SiteInternalLink") {
+      const shell: any = { $type: "Entry" };
+      memo.set(resource.toString(), shell);
+      shell.type = payload.type;
+      shell.id = payload.id;
+      shell.targetId = payload.targetId;
+      shell.target = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.targetId, locale: resource.key[0].locale }));
+      return shell;
+    } else {
+      const shell: any = { $type: "Entry" };
+      memo.set(resource.toString(), shell);
+      return shell;
     }
   };
 
@@ -465,7 +420,9 @@ describe("generateProjections golden", () => {
     expect(code).toContain("related: (PageDetail_Entry | PageDetail_Asset)[];");
     expect(code).toContain("tabs: PageDetail_Entry[];");
     expect(code).toContain("export type PageDetail_Entry_Hero = {");
-    expect(code).toContain("export type PageDetail_Entry_Page = {");
+    expect(code).toContain("export type PageDetail_Entry_Default = {");
+    expect(code).not.toContain("export type PageDetail_Entry_Page = {");
+    expect(code).not.toContain("export type PageDetail_Entry_Product = {");
     expect(code).not.toContain('case "EditorialModule":');
     expect(code).toContain(
       "payload.strips.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"

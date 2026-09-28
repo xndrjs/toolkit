@@ -1,12 +1,13 @@
-import type { Expansion, ProjectionArm, ResourceProjection, TypeExpr } from "../../../ir";
+import type {
+  Expansion,
+  ProjectionArm,
+  ProjectionArmBody,
+  ResourceProjection,
+  TypeExpr,
+} from "../../../ir";
 import { narrowPayloadByFilter } from "../../../check/discriminants";
 import { resolveSelectedFields } from "../../../check/projection-include";
-import {
-  emitConstruction,
-  emitExpr,
-  projectionArmDiscriminant,
-  projectionExprScope,
-} from "../shared";
+import { emitConstruction, emitExpr, projectionExprScope } from "../shared";
 import { ariFactoryName } from "../naming";
 import { collectionElement } from "../../../check/projection-graph";
 import { type ResourceIndex } from "./shared";
@@ -31,6 +32,16 @@ function armPayloadType(
     narrowPayloadByFilter(resource.payloadType, arm.when, projection.binding, resources) ??
     resource.payloadType
   );
+}
+
+function defaultArmPayloadType(projection: ResourceProjection, resources: ResourceIndex): TypeExpr {
+  const resource = resources.get(projection.resource);
+  if (!resource) {
+    throw new Error(
+      `emitProjections: unknown resource '${projection.resource}' while emitting default shell`
+    );
+  }
+  return resource.payloadType;
 }
 
 /**
@@ -205,40 +216,32 @@ export function emitProjectOnBody(
   );
 }
 
-export function emitArmedArmCase(
+function emitArmShell(
   projection: ResourceProjection,
-  arm: ProjectionArm,
-  armIndex: number,
+  arm: ProjectionArmBody,
+  payloadType: TypeExpr,
   resources: ResourceIndex,
   queryName: string,
-  contextFieldNames: ReadonlySet<string>
-): { labels: string[]; body: string } {
-  const disc = projectionArmDiscriminant(arm.when, projection.binding);
-  const labels = disc !== null ? [disc] : [];
-  const body = [
-    `        {`,
-    emitShellBody(
-      projection.resource,
-      arm.selectedFields,
-      arm.expansions,
-      resources,
-      queryName,
-      contextFieldNames,
-      "          ",
-      arm.include ?? projection.include,
-      armPayloadType(projection, arm, resources),
-      arm.excludedFields
-    ),
-    `        }`,
-  ].join("\n");
-
-  if (labels.length === 0) {
-    // Non-discriminant `when` — fall back to if-guard (caller handles).
-    return { labels: [`__arm${armIndex}`], body };
-  }
-  return { labels, body };
+  contextFieldNames: ReadonlySet<string>,
+  indent: string
+): string {
+  return emitShellBody(
+    projection.resource,
+    arm.selectedFields,
+    arm.expansions,
+    resources,
+    queryName,
+    contextFieldNames,
+    indent,
+    arm.include ?? projection.include,
+    payloadType,
+    arm.excludedFields
+  );
 }
 
+/**
+ * Ordered `if` / `else if` on when-arms, ending in the required `default` body.
+ */
 export function emitArmedProjectOnBody(
   projection: ResourceProjection,
   resources: ResourceIndex,
@@ -249,40 +252,13 @@ export function emitArmedProjectOnBody(
   if (arms === null) {
     throw new Error("emitProjections: emitArmedProjectOnBody called without arms");
   }
-
-  // Prefer switch on payload.type when every arm is `binding.type == "Lit"`.
-  const allDisc = arms.every(
-    (arm) => projectionArmDiscriminant(arm.when, projection.binding) !== null
-  );
-
-  if (allDisc) {
-    const cases: string[] = [];
-    for (let i = 0; i < arms.length; i++) {
-      const arm = arms[i]!;
-      const { labels, body } = emitArmedArmCase(
-        projection,
-        arm,
-        i,
-        resources,
-        queryName,
-        contextFieldNames
-      );
-      cases.push([`      case ${JSON.stringify(labels[0]!)}:`, body].join("\n"));
-    }
-    cases.push(
-      [
-        `      default:`,
-        `        throw new Error(`,
-        `          ${JSON.stringify(`projectOn${projection.resource}: cannot discriminate ${projection.resource} payload (type=`)} +`,
-        `            JSON.stringify((payload as any).type) +`,
-        `            ")"`,
-        `        );`,
-      ].join("\n")
+  const defaultArm = projection.defaultArm;
+  if (defaultArm === null) {
+    throw new Error(
+      `emitProjections: armed 'on ${projection.resource}' is missing defaultArm (checker should reject)`
     );
-    return [`    switch ((payload as any).type) {`, cases.join("\n"), `    }`].join("\n");
   }
 
-  // Mixed / non-discriminant filters → if/else chain.
   const branches: string[] = [];
   for (let i = 0; i < arms.length; i++) {
     const arm = arms[i]!;
@@ -291,17 +267,14 @@ export function emitArmedProjectOnBody(
     branches.push(
       [
         `    ${keyword} (${cond}) {`,
-        emitShellBody(
-          projection.resource,
-          arm.selectedFields,
-          arm.expansions,
+        emitArmShell(
+          projection,
+          arm,
+          armPayloadType(projection, arm, resources),
           resources,
           queryName,
           contextFieldNames,
-          "      ",
-          arm.include ?? projection.include,
-          armPayloadType(projection, arm, resources),
-          arm.excludedFields
+          "      "
         ),
       ].join("\n")
     );
@@ -309,9 +282,15 @@ export function emitArmedProjectOnBody(
   branches.push(
     [
       `    } else {`,
-      `      throw new Error(`,
-      `        ${JSON.stringify(`projectOn${projection.resource}: no when-arm matched for ${projection.resource}`)}`,
-      `      );`,
+      emitArmShell(
+        projection,
+        defaultArm,
+        defaultArmPayloadType(projection, resources),
+        resources,
+        queryName,
+        contextFieldNames,
+        "      "
+      ),
       `    }`,
     ].join("\n")
   );
