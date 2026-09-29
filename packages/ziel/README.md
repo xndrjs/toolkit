@@ -204,11 +204,12 @@ The same three modes apply on projection clauses (`on`) and projection `when` ar
 | `include properties` | That set minus fields whose `refers` is set (relationships)                        |
 | omitted              | No auto-include; explicit only. Does **not** override a parent clause              |
 
-Body-level `exclude name+` subtracts fields from the effective set:
+Body-level `exclude name` subtracts a field from the effective set (repeat the clause for more names):
 
 ```ziel
 on Entry e include all {
   exclude imageId
+  exclude title
 }
 ```
 

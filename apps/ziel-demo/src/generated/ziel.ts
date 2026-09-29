@@ -490,7 +490,6 @@ export type PageDetail_Entry_Arm3 = {
 export type PageDetail_Entry_Product = {
   __typename: "Entry";
   kind: "Product";
-  id: EntryId;
   sku: Sku;
   title: string;
 };
@@ -672,7 +671,6 @@ export function projectPageDetail(
       const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
       shell.kind = payload.kind;
-      shell.id = payload.id;
       shell.sku = payload.sku;
       shell.title = payload.title;
       return shell;

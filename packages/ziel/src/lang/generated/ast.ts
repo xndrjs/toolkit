@@ -327,7 +327,7 @@ export function isEqExpr(item: unknown): item is EqExpr {
   return reflection.isInstance(item, EqExpr.$type);
 }
 
-/** `exclude imageId` or `exclude imageId title` — subtract from include/selection. */
+/** `exclude imageId` — subtract from include/selection. Repeat the clause for more names. */
 export interface ExcludeClause extends langium.AstNode {
   readonly $container:
     | FragmentDeclaration

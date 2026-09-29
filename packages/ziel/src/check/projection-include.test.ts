@@ -504,6 +504,28 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     expect(code).not.toContain("shell.menuId");
   });
 
+  it("does not swallow selected fields after exclude (exclude takes one name)", () => {
+    const { program, diagnostics } = parseAndCheck(`
+      ${prelude}
+      query Q(id: Id) {
+        context { }
+        root Entry(id: id)
+        on Entry e {
+          when e.type == "Hero" {
+            exclude title
+            id
+          }
+          when e.type == "Page" { id title }
+          default { }
+        }
+      }
+    `);
+    expect(diagnostics).toEqual([]);
+    const arm = program!.queries[0]!.projections[0]!.arms![0]!;
+    expect(arm.excludedFields).toEqual(["title"]);
+    expect(arm.selectedFields).toEqual(["id"]);
+  });
+
   it("rejects selected + excluded, unknown exclude, and exclude of expand alias", () => {
     const clash = parseAndCheck(`
       ${prelude}

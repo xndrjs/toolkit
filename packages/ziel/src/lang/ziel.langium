@@ -37,9 +37,9 @@ FragmentDeclaration:
 FragmentSpread:
     '...' name=ID;
 
-/** `exclude imageId` or `exclude imageId title` — subtract from include/selection. */
+/** `exclude imageId` — subtract from include/selection. Repeat the clause for more names. */
 ExcludeClause:
-    'exclude' names+=ID+;
+    'exclude' names+=ID;
 
 // --- Scalars -----------------------------------------------------------------
 
