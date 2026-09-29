@@ -773,4 +773,43 @@ describe("datasource when path completions", () => {
     expect(labels).toEqual(expect.arrayContaining(["id", "locale"]));
     expect(labels).not.toContain("title");
   });
+
+  it("completes @c. identity fields when the when-clause is still incomplete", () => {
+    // Parser recovery often leaves the leaf outside DatasourceRoute here.
+    const incomplete = `
+scalar EntryId on string;
+scalar Locale on string;
+scalar Ref on string;
+
+resource CustomReference(ref: Ref, locale: Locale): { id: EntryId }
+
+datasource CmsCustomReferences {
+  context { locale: Locale }
+  for CustomReference c when context.locale == @c.
+}
+`;
+    const complete = `
+scalar EntryId on string;
+scalar Locale on string;
+scalar Ref on string;
+resource CustomReference(ref: Ref, locale: Locale): { id: EntryId }
+datasource CmsCustomReferences {
+  context { locale: Locale }
+  for CustomReference c when context.locale == @c.locale
+}
+`;
+    const { shared } = createZielServices(EmptyFileSystem);
+    const document = shared.workspace.LangiumDocumentFactory.fromString(
+      incomplete,
+      URI.parse("inmemory:///ds-incomplete.ziel")
+    );
+    const { scalars, resources } = tablesFrom(complete);
+
+    const offset = offsetAfter(incomplete, "== @c.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toEqual(expect.arrayContaining(["ref", "locale"]));
+    expect(labels).not.toContain("id");
+  });
 });
