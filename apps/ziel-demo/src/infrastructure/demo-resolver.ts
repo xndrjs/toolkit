@@ -4,8 +4,11 @@ import { loadCmsCustomReferences } from "./cms/custom-reference-data-adapter.js"
 import { loadCmsEntries } from "./cms/entries-data-adapter.js";
 import {
   createDataSources,
+  resolveErrorHandlingDetail,
   resolvePageDetail,
   type AssetPayload,
+  type ResolveErrorHandlingDetailInput,
+  type ResolveErrorHandlingDetailResult,
   type ResolvePageDetailInput,
   type ResolvePageDetailResult,
 } from "../generated";
@@ -34,6 +37,22 @@ export function resolveDemoPageDetail(
 ): Promise<ResolvePageDetailResult> {
   const { entries, assets, ...input } = options;
   return resolvePageDetail({
+    ...input,
+    sources: createDemoSources({ entries, assets }),
+  });
+}
+
+export type DemoResolveErrorHandlingOptions = Omit<ResolveErrorHandlingDetailInput, "sources"> &
+  DemoSourcesOptions;
+
+/**
+ * Closed façade: generated `resolveErrorHandlingDetail` + demo DataSources.
+ */
+export function resolveDemoErrorHandlingDetail(
+  options: DemoResolveErrorHandlingOptions
+): Promise<ResolveErrorHandlingDetailResult> {
+  const { entries, assets, ...input } = options;
+  return resolveErrorHandlingDetail({
     ...input,
     sources: createDemoSources({ entries, assets }),
   });

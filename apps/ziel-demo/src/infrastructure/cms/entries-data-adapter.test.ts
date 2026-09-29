@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assetAri, entryAri, pageAri } from "../../generated";
+import { assetAri, entryAri, errorLabAri, pageAri } from "../../generated";
 import { createDemoSources } from "../demo-resolver.js";
 import {
   DEMO_ENVIRONMENT,
@@ -27,10 +27,10 @@ function entrySource() {
 }
 
 describe("CmsEntries datasource", () => {
-  it("owns Page + Entry ARI families (not CustomReference / Asset)", () => {
+  it("owns Page + Entry + ErrorLab ARI families (not CustomReference / Asset)", () => {
     const source = entrySource();
     expect(source.id).toBe(ENTRY_SOURCE_ID);
-    expect(source.for.map((family) => family.type).sort()).toEqual(["Entry", "Page"]);
+    expect(source.for.map((family) => family.type).sort()).toEqual(["Entry", "ErrorLab", "Page"]);
   });
 
   it("returns positional Entry payload without rematerialize", async () => {
@@ -63,6 +63,18 @@ describe("CmsEntries datasource", () => {
       kind: "Page",
       id: demoIds.pageAbout,
       title: "About",
+    });
+  });
+
+  it("returns positional ErrorLab payload", async () => {
+    const load = loadCmsEntries();
+    const lab = errorLabAri(entryIdentity(demoIds.ehSoftSingle));
+
+    const payloads = await load([lab], loadContext);
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]).toMatchObject({
+      id: demoIds.ehSoftSingle,
+      title: "Soft single (set null)",
     });
   });
 

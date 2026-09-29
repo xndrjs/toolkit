@@ -1,0 +1,85 @@
+/**
+ * Showcase per-edge `on failure` policies on one query.
+ * Six fixture roots (`eh-*`) each break a single edge; see demo store + routes.
+ */
+query ErrorHandlingDetail(labId: EntryId) {
+  context {
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    locale: Locale
+  }
+
+  root ErrorLab(
+    spaceId: context.spaceId,
+    environmentId: context.environmentId,
+    id: labId,
+    locale: context.locale
+  )
+
+  on ErrorLab lab {
+    expand softSingle: Entry(
+      spaceId: @lab.spaceId,
+      environmentId: @lab.environmentId,
+      id: lab.softSingleId,
+      locale: @lab.locale
+    ) on failure set null
+
+    expand errorSingle: Entry(
+      spaceId: @lab.spaceId,
+      environmentId: @lab.environmentId,
+      id: lab.errorSingleId,
+      locale: @lab.locale
+    ) on failure set error
+
+    expand throwSingle: Entry(
+      spaceId: @lab.spaceId,
+      environmentId: @lab.environmentId,
+      id: lab.throwSingleId,
+      locale: @lab.locale
+    ) on failure throw
+
+    expand softItems: each link in lab.softItems (
+      Entry(
+        spaceId: @lab.spaceId,
+        environmentId: @lab.environmentId,
+        id: link.id,
+        locale: @lab.locale
+      ) on failure set null
+    )
+
+    expand errorItems: each link in lab.errorItems (
+      Entry(
+        spaceId: @lab.spaceId,
+        environmentId: @lab.environmentId,
+        id: link.id,
+        locale: @lab.locale
+      ) on failure set error
+    )
+
+    expand throwItems: each link in lab.throwItems (
+      Entry(
+        spaceId: @lab.spaceId,
+        environmentId: @lab.environmentId,
+        id: link.id,
+        locale: @lab.locale
+      ) on failure throw
+    )
+  }
+
+  on Entry e include properties {
+    when e.kind == "Hero" {
+      expand image: Asset(
+        spaceId: @e.spaceId,
+        environmentId: @e.environmentId,
+        id: e.imageId,
+        locale: @e.locale
+      ) on failure set null
+    }
+
+    when e.kind == "Page" { }
+
+    default { }
+  }
+
+  on Asset a include properties { }
+}

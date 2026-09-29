@@ -21,6 +21,7 @@ datasource CmsEntries {
 
   for Page
   for Entry
+  for ErrorLab
 }
 
 datasource CmsAssets {

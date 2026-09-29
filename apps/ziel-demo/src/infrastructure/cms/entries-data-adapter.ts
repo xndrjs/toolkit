@@ -1,13 +1,14 @@
 /**
- * Editorial entry source — one batch channel for CMS page + entry identities.
+ * Editorial entry source — one batch channel for CMS page + entry + ErrorLab identities.
  *
- * Looks up by `spaceId/environmentId/id`. Root `Page` ARIs load full page
+ * Looks up by `spaceId/environmentId/id`. Root `Page` / `ErrorLab` ARIs load their
  * documents; `Entry` ARIs return the stored Entry payload as-is.
  */
 import type { ResourceLoadContext } from "@xndrjs/ziel";
 
 import {
   entryAri,
+  errorLabAri,
   pageAri,
   Scalars,
   type CmsEntriesContext,
@@ -15,6 +16,8 @@ import {
   type EntryPayload,
   type EntryResource,
   type EnvironmentId,
+  type ErrorLabPayload,
+  type ErrorLabResource,
   type Locale,
   type PagePayload,
   type PageResource,
@@ -53,12 +56,15 @@ function entryIdentityOf(resource: { key: readonly unknown[] }): EntryIdentity |
   };
 }
 
+type CmsEntriesResource = PageResource | EntryResource | ErrorLabResource;
+type CmsEntriesPayload = PagePayload | EntryPayload | ErrorLabPayload;
+
 /** App `load` for the generated `CmsEntries` datasource. */
 export function loadCmsEntries(entries: ReadonlyMap<string, EditorialDocument> = demoEntries) {
   return async (
-    batch: readonly (PageResource | EntryResource)[],
+    batch: readonly CmsEntriesResource[],
     _context: ResourceLoadContext<CmsEntriesContext>
-  ): Promise<readonly (PagePayload | EntryPayload | undefined)[]> =>
+  ): Promise<readonly (CmsEntriesPayload | undefined)[]> =>
     batch.map((resource) => {
       const identity = entryIdentityOf(resource);
       if (identity === null) {
@@ -78,6 +84,10 @@ export function loadCmsEntries(entries: ReadonlyMap<string, EditorialDocument> =
 
       if (pageAri.matches(resource)) {
         return doc.kind === "page" ? doc.payload : undefined;
+      }
+
+      if (errorLabAri.matches(resource)) {
+        return doc.kind === "error-lab" ? doc.payload : undefined;
       }
 
       if (entryAri.matches(resource)) {

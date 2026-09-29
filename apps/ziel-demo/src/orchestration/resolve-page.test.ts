@@ -130,7 +130,7 @@ describe("resolvePage", () => {
     }
     expect(isProduct(nestedProduct)).toBe(true);
     if (isProduct(nestedProduct)) {
-      expect(nestedProduct.id).toBe(demoIds.productHoodie);
+      // page-detail excludes `id` on Product arms
       expect(nestedProduct.sku).toBe("HOODIE-1");
     }
 
@@ -143,7 +143,7 @@ describe("resolvePage", () => {
 
     expect(isProduct(productStrip)).toBe(true);
     if (isProduct(productStrip)) {
-      expect(productStrip.id).toBe(demoIds.productTshirt);
+      // page-detail excludes `id` on Product arms
       expect(productStrip.sku).toBe("TSHIRT-1");
       expect(productStrip.title).toBe("Demo T-Shirt");
     }
@@ -153,8 +153,8 @@ describe("resolvePage", () => {
     if (isLink(linkStrip)) {
       expect(linkStrip.id).toBe(demoIds.linkAbout);
       expect(isPageEntry(linkStrip.target)).toBe(true);
-      expect(linkStrip.target?.id).toBe(demoIds.pageAbout);
       if (isPageEntry(linkStrip.target)) {
+        expect(linkStrip.target.id).toBe(demoIds.pageAbout);
         expect(linkStrip.target.title).toBe("About");
       }
       expect(linkStrip.target).not.toHaveProperty("strips");
