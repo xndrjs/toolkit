@@ -7,7 +7,7 @@ import {
   type ContentMap,
   type ApplicationResourceIdentifier,
   type ResourceKey,
-  type ResolutionError,
+  ResolutionError,
   defineDataSourceFor,
   type DataSource,
   type ResourceLoadContext,
@@ -69,6 +69,12 @@ export const pageAri = ari(
   s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
 );
 export type PageResource = ReturnType<typeof pageAri>;
+
+export const errorLabAri = ari(
+  "ErrorLab",
+  s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
+);
+export type ErrorLabResource = ReturnType<typeof errorLabAri>;
 
 export type EntryPayload =
   | {
@@ -156,11 +162,29 @@ export type PagePayload = {
   related: CustomReferenceValue[];
 };
 
+export type ErrorLabPayload = {
+  id: EntryId;
+  title: string;
+  softSingleId: EntryId;
+  errorSingleId: EntryId;
+  throwSingleId: EntryId;
+  softItems: {
+    id: EntryId;
+  }[];
+  errorItems: {
+    id: EntryId;
+  }[];
+  throwItems: {
+    id: EntryId;
+  }[];
+};
+
 export type ContentRegistry = {
   Entry: EntryPayload;
   Asset: AssetPayload;
   CustomReference: CustomReferencePayload;
   Page: PagePayload;
+  ErrorLab: ErrorLabPayload;
 };
 
 export type CmsCustomReferencesContext = {
@@ -199,9 +223,9 @@ type CmsCustomReferencesConfig = {
 
 type CmsEntriesConfig = {
   load: (
-    batch: readonly (PageResource | EntryResource)[],
+    batch: readonly (PageResource | EntryResource | ErrorLabResource)[],
     context: ResourceLoadContext<CmsEntriesContext>
-  ) => Promise<readonly (PagePayload | EntryPayload | undefined)[]>;
+  ) => Promise<readonly (PagePayload | EntryPayload | ErrorLabPayload | undefined)[]>;
   batchSize?: number;
   concurrency?: number;
   when?: (context: SourceRouteContext<CmsEntriesContext>) => boolean;
@@ -239,15 +263,18 @@ export function createDataSources<C extends ZielExecutionContext>(config: {
     }),
     defineSource({
       id: "CmsEntries",
-      for: [pageAri, entryAri],
+      for: [pageAri, entryAri, errorLabAri],
       batchSize: config.CmsEntries.batchSize,
       concurrency: config.CmsEntries.concurrency,
       when: config.CmsEntries.when,
       load: (batch, ctx) =>
-        config.CmsEntries.load(batch as readonly (PageResource | EntryResource)[], {
-          ...ctx,
-          executionContext: ctx.executionContext,
-        }),
+        config.CmsEntries.load(
+          batch as readonly (PageResource | EntryResource | ErrorLabResource)[],
+          {
+            ...ctx,
+            executionContext: ctx.executionContext,
+          }
+        ),
     }),
     defineSource({
       id: "CmsAssets",
@@ -262,6 +289,109 @@ export function createDataSources<C extends ZielExecutionContext>(config: {
         }),
     }),
   ];
+}
+
+export type ErrorHandlingDetailParams = {
+  labId: EntryId;
+};
+
+export type ErrorHandlingDetailExecutionContext = {
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
+};
+
+export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailParams) {
+  const strategy = createGraphResolutionStrategy<
+    ErrorHandlingDetailExecutionContext,
+    ContentRegistry
+  >();
+
+  strategy.expansion.on(errorLabAri).expand((predicate) => {
+    const __resources: any[] = [];
+    const __onFailureByKey = new Map<string, "throw" | "setNull" | "setError">();
+    const __r0 = entryAri({
+      spaceId: predicate.resource.key[0].spaceId,
+      environmentId: predicate.resource.key[0].environmentId,
+      id: predicate.payload.softSingleId,
+      locale: predicate.resource.key[0].locale,
+    });
+    __resources.push(__r0);
+    __onFailureByKey.set(__r0.toString(), "setNull");
+    const __r1 = entryAri({
+      spaceId: predicate.resource.key[0].spaceId,
+      environmentId: predicate.resource.key[0].environmentId,
+      id: predicate.payload.errorSingleId,
+      locale: predicate.resource.key[0].locale,
+    });
+    __resources.push(__r1);
+    __onFailureByKey.set(__r1.toString(), "setError");
+    const __r2 = entryAri({
+      spaceId: predicate.resource.key[0].spaceId,
+      environmentId: predicate.resource.key[0].environmentId,
+      id: predicate.payload.throwSingleId,
+      locale: predicate.resource.key[0].locale,
+    });
+    __resources.push(__r2);
+    __onFailureByKey.set(__r2.toString(), "throw");
+    const __many3 = predicate.payload.softItems.map((link: any) =>
+      entryAri({
+        spaceId: predicate.resource.key[0].spaceId,
+        environmentId: predicate.resource.key[0].environmentId,
+        id: link.id,
+        locale: predicate.resource.key[0].locale,
+      })
+    );
+    for (const __item of __many3) {
+      __resources.push(__item);
+      __onFailureByKey.set(__item.toString(), "setNull");
+    }
+    const __many4 = predicate.payload.errorItems.map((link: any) =>
+      entryAri({
+        spaceId: predicate.resource.key[0].spaceId,
+        environmentId: predicate.resource.key[0].environmentId,
+        id: link.id,
+        locale: predicate.resource.key[0].locale,
+      })
+    );
+    for (const __item of __many4) {
+      __resources.push(__item);
+      __onFailureByKey.set(__item.toString(), "setError");
+    }
+    const __many5 = predicate.payload.throwItems.map((link: any) =>
+      entryAri({
+        spaceId: predicate.resource.key[0].spaceId,
+        environmentId: predicate.resource.key[0].environmentId,
+        id: link.id,
+        locale: predicate.resource.key[0].locale,
+      })
+    );
+    for (const __item of __many5) {
+      __resources.push(__item);
+      __onFailureByKey.set(__item.toString(), "throw");
+    }
+    return { resources: __resources, onFailureByKey: __onFailureByKey };
+  });
+
+  strategy.expansion
+    .on(entryAri)
+    .when((predicate) => predicate.payload.kind == "Hero")
+    .expand((predicate) => {
+      const payload = predicate.payload as any;
+      return {
+        resources: [
+          assetAri({
+            spaceId: predicate.resource.key[0].spaceId,
+            environmentId: predicate.resource.key[0].environmentId,
+            id: payload.imageId,
+            locale: predicate.resource.key[0].locale,
+          }),
+        ],
+        onFailure: "setNull",
+      };
+    });
+
+  return strategy;
 }
 
 export type PageDetailParams = {
@@ -434,6 +564,68 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   return strategy;
 }
 
+export type ErrorHandlingDetail_ErrorLab = {
+  __typename: "ErrorLab";
+  softSingle:
+    | (
+        | ErrorHandlingDetail_Entry_Hero
+        | ErrorHandlingDetail_Entry_Page
+        | ErrorHandlingDetail_Entry_Default
+      )
+    | null;
+  errorSingle:
+    | (
+        | ErrorHandlingDetail_Entry_Hero
+        | ErrorHandlingDetail_Entry_Page
+        | ErrorHandlingDetail_Entry_Default
+      )
+    | ResolutionError;
+  throwSingle:
+    | ErrorHandlingDetail_Entry_Hero
+    | ErrorHandlingDetail_Entry_Page
+    | ErrorHandlingDetail_Entry_Default;
+  softItems: (ErrorHandlingDetail_Entry | null)[];
+  errorItems: (ErrorHandlingDetail_Entry | ResolutionError)[];
+  throwItems: ErrorHandlingDetail_Entry[];
+};
+
+export type ErrorHandlingDetail_Entry_Hero = {
+  __typename: "Entry";
+  kind: "Hero";
+  id: EntryId;
+  title: string;
+  image: ErrorHandlingDetail_Asset | null;
+};
+
+export type ErrorHandlingDetail_Entry_Page = {
+  __typename: "Entry";
+  kind: "Page";
+  id: EntryId;
+  title: string;
+};
+
+export type ErrorHandlingDetail_Entry_Default = {
+  __typename: "Entry";
+  kind: "Hero" | "Tabs" | "Tab" | "Product" | "Menu" | "Footer" | "Page" | "SiteInternalLink";
+  id: EntryId;
+};
+
+export type ErrorHandlingDetail_Entry =
+  | ErrorHandlingDetail_Entry_Hero
+  | ErrorHandlingDetail_Entry_Page
+  | ErrorHandlingDetail_Entry_Default;
+
+export type ErrorHandlingDetail_Asset = {
+  __typename: "Asset";
+  kind: "Asset";
+  id: AssetId;
+  url: string;
+  title: string;
+  asset_type: "image" | "video" | "document";
+};
+
+export type ErrorHandlingDetailResult = ErrorHandlingDetail_ErrorLab;
+
 export type PageDetail_Page = {
   __typename: "Page";
   id: EntryId;
@@ -544,6 +736,155 @@ export type PageDetail_Asset = {
 };
 
 export type PageDetailResult = PageDetail_Page;
+
+export function projectErrorHandlingDetail(
+  root: ReturnType<typeof errorLabAri>,
+  contentMap: ContentMap<ContentRegistry>,
+  args: {
+    params: ErrorHandlingDetailParams;
+    executionContext: ErrorHandlingDetailExecutionContext;
+    failures: ReadonlyMap<ResourceKey, ResolutionError>;
+  }
+): ErrorHandlingDetailResult {
+  const memo = new Map<string, object>();
+  const failures = args.failures;
+
+  const projectOnErrorLab = (resource: any, payload: any): any => {
+    const shell: any = { __typename: "ErrorLab" };
+    memo.set(resource.toString(), shell);
+    shell.softSingle = projectEdge(
+      entryAri({
+        spaceId: resource.key[0].spaceId,
+        environmentId: resource.key[0].environmentId,
+        id: payload.softSingleId,
+        locale: resource.key[0].locale,
+      }),
+      "setNull"
+    );
+    shell.errorSingle = projectEdge(
+      entryAri({
+        spaceId: resource.key[0].spaceId,
+        environmentId: resource.key[0].environmentId,
+        id: payload.errorSingleId,
+        locale: resource.key[0].locale,
+      }),
+      "setError"
+    );
+    shell.throwSingle = projectNode(
+      entryAri({
+        spaceId: resource.key[0].spaceId,
+        environmentId: resource.key[0].environmentId,
+        id: payload.throwSingleId,
+        locale: resource.key[0].locale,
+      })
+    );
+    shell.softItems = payload.softItems.map((link: any) =>
+      projectEdge(
+        entryAri({
+          spaceId: resource.key[0].spaceId,
+          environmentId: resource.key[0].environmentId,
+          id: link.id,
+          locale: resource.key[0].locale,
+        }),
+        "setNull"
+      )
+    );
+    shell.errorItems = payload.errorItems.map((link: any) =>
+      projectEdge(
+        entryAri({
+          spaceId: resource.key[0].spaceId,
+          environmentId: resource.key[0].environmentId,
+          id: link.id,
+          locale: resource.key[0].locale,
+        }),
+        "setError"
+      )
+    );
+    shell.throwItems = payload.throwItems.map((link: any) =>
+      projectNode(
+        entryAri({
+          spaceId: resource.key[0].spaceId,
+          environmentId: resource.key[0].environmentId,
+          id: link.id,
+          locale: resource.key[0].locale,
+        })
+      )
+    );
+    return shell;
+  };
+
+  const projectOnEntry = (resource: any, payload: any): any => {
+    if (payload.kind == "Hero") {
+      const shell: any = { __typename: "Entry" };
+      memo.set(resource.toString(), shell);
+      shell.kind = payload.kind;
+      shell.id = payload.id;
+      shell.title = payload.title;
+      shell.image = projectEdge(
+        assetAri({
+          spaceId: resource.key[0].spaceId,
+          environmentId: resource.key[0].environmentId,
+          id: payload.imageId,
+          locale: resource.key[0].locale,
+        }),
+        "setNull"
+      );
+      return shell;
+    } else if (payload.kind == "Page") {
+      const shell: any = { __typename: "Entry" };
+      memo.set(resource.toString(), shell);
+      shell.kind = payload.kind;
+      shell.id = payload.id;
+      shell.title = payload.title;
+      return shell;
+    } else {
+      const shell: any = { __typename: "Entry" };
+      memo.set(resource.toString(), shell);
+      shell.kind = payload.kind;
+      shell.id = payload.id;
+      return shell;
+    }
+  };
+
+  const projectOnAsset = (resource: any, payload: any): any => {
+    const shell: any = { __typename: "Asset" };
+    memo.set(resource.toString(), shell);
+    shell.kind = payload.kind;
+    shell.id = payload.id;
+    shell.url = payload.url;
+    shell.title = payload.title;
+    shell.asset_type = payload.asset_type;
+    return shell;
+  };
+
+  const projectNode = (ari: any): unknown => {
+    const key = ari.toString();
+    if (memo.has(key)) return memo.get(key);
+    const payload = contentMap.get(ari as never);
+    if (payload === undefined) return undefined;
+    switch (ari.type) {
+      case "ErrorLab":
+        return projectOnErrorLab(ari, payload);
+      case "Entry":
+        return projectOnEntry(ari, payload);
+      case "Asset":
+        return projectOnAsset(ari, payload);
+      default:
+        throw new Error(
+          "projectErrorHandlingDetail: unexpected resource type " + JSON.stringify(ari.type)
+        );
+    }
+  };
+
+  const projectEdge = (ari: any, onFailure: "setNull" | "setError"): unknown => {
+    const value = projectNode(ari);
+    if (value !== undefined) return value;
+    if (onFailure === "setNull") return null;
+    return failures.get(ari.toString());
+  };
+
+  return projectNode(root) as ErrorHandlingDetailResult;
+}
 
 export function projectPageDetail(
   root: ReturnType<typeof pageAri>,
@@ -746,6 +1087,75 @@ export function projectPageDetail(
   };
 
   return projectNode(root) as PageDetailResult;
+}
+
+export type ResolveErrorHandlingDetailInput = {
+  params: ErrorHandlingDetailParams;
+  sources: readonly DataSource<ContentRegistry, ErrorHandlingDetailExecutionContext>[];
+  schedulingMode?: SchedulingMode;
+  observer?: ResolutionObserver;
+  executionContext: ErrorHandlingDetailExecutionContext;
+  backingResources?: ReadonlyMap<ResourceKey, unknown>;
+  signal?: AbortSignal;
+};
+
+export type ResolveErrorHandlingDetailResult = {
+  errorHandlingDetail: ErrorHandlingDetailResult;
+  contentMap: ContentMap<ContentRegistry>;
+  islands: IslandMap;
+  islandDependencies: IslandDependencyMap;
+  errors: readonly ResolutionError[];
+  promotedResourceKeys: readonly ResourceKey[];
+};
+
+export async function resolveErrorHandlingDetail(
+  input: ResolveErrorHandlingDetailInput
+): Promise<ResolveErrorHandlingDetailResult> {
+  const root = errorLabAri({
+    spaceId: input.executionContext.spaceId,
+    environmentId: input.executionContext.environmentId,
+    id: input.params.labId,
+    locale: input.executionContext.locale,
+  });
+  const resolver = createResourceGraphResolver<
+    ContentRegistry,
+    ErrorHandlingDetailExecutionContext
+  >({
+    sources: input.sources,
+    strategy: createErrorHandlingDetailStrategy(input.params).build(),
+    schedulingMode: input.schedulingMode,
+    observer: input.observer,
+  });
+
+  const { contentMap, islands, islandDependencies, errors, promotedResourceKeys, redirects } =
+    await resolver.resolve({
+      roots: [root],
+      executionContext: input.executionContext,
+      backingResources: input.backingResources,
+      signal: input.signal,
+    });
+
+  const failures = new Map<ResourceKey, ResolutionError>();
+  for (const error of errors) {
+    if (error.resourceKey !== undefined) {
+      failures.set(error.resourceKey, error);
+    }
+  }
+
+  const errorHandlingDetail = projectErrorHandlingDetail(root, contentMap, {
+    params: input.params,
+    executionContext: input.executionContext,
+    failures,
+  });
+
+  return {
+    errorHandlingDetail,
+    contentMap,
+    islands,
+    islandDependencies,
+    errors,
+    promotedResourceKeys,
+  };
 }
 
 export type ResolvePageDetailInput = {

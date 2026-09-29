@@ -136,3 +136,29 @@ resource Page(
   // Legacy custom references (same target may also appear as a standard link).
   related: CustomReferenceValue[] refers CustomReference
 }
+
+/**
+ * Demo-only root for per-edge `on failure` showcase (soft null / soft error / throw).
+ * Identity shares the EntryId namespace with Page / Entry fixtures.
+ */
+resource ErrorLab(
+  spaceId: SpaceId,
+  environmentId: EnvironmentId,
+  id: EntryId,
+  locale: Locale
+): {
+  id
+  title: string
+  softSingleId: EntryId refers Entry
+  errorSingleId: EntryId refers Entry
+  throwSingleId: EntryId refers Entry
+  softItems: {
+    id: EntryId
+  }[] refers Entry
+  errorItems: {
+    id: EntryId
+  }[] refers Entry
+  throwItems: {
+    id: EntryId
+  }[] refers Entry
+}

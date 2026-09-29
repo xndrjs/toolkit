@@ -66,7 +66,8 @@ export default async function LocaleDemoPage({ params }: Props) {
       <p className="lead">
         Resolved {meta.resolvedCount} resources for <strong>{meta.locale}</strong> ({meta.pageId})
         with <strong>{meta.schedulingMode}</strong> scheduling — <code>projectPageDetail</code>{" "}
-        aggregate below.
+        aggregate below.{" "}
+        <Link href="/error-handling/eh-soft-single">Error-handling showcase →</Link>
       </p>
       <section className="panel">
         <pre>
