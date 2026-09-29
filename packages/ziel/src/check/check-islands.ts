@@ -2,7 +2,7 @@ import type { IslandClause } from "../ir";
 import { formatType } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
 import { inferPayloadWhenExprType, isBooleanWhenType } from "./expressions";
-import { type QueryScope, type ResourceTable } from "./symbols";
+import { type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
 
 /**
  * Validate query `islands { on Resource [binding] [when …] }` clauses.
@@ -13,7 +13,8 @@ export function checkIslands(
   path: string,
   scope: QueryScope,
   resources: ResourceTable,
-  sink: DiagnosticSink
+  sink: DiagnosticSink,
+  scalars: ScalarTable
 ): void {
   for (let i = 0; i < islands.length; i++) {
     const clause = islands[i]!;
@@ -57,7 +58,8 @@ export function checkIslands(
       resource.payloadType,
       whenScope,
       resources,
-      sink
+      sink,
+      scalars
     );
     if (!whenType) continue;
 

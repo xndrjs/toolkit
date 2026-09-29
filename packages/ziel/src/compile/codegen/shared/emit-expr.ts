@@ -72,6 +72,7 @@ function memberAccess(base: string, path: readonly string[]): string {
  * | `literal`       | JSON / `null`                              |
  * | `arrayLiteral`  | `[…]`                                      |
  * | `unary` `!`     | `!(operand)`                               |
+ * | `cast`          | operand (erase; branded scalars are TS-only) |
  * | `binary` `==`/`!=` | `left op right`                         |
  * | `binary` `in`   | `right.includes(left)`                     |
  * | `binary` `not in` | `!right.includes(left)`                  |
@@ -98,6 +99,9 @@ export function emitExpr(expr: Expr, scope: EmitExprScope = projectionExprScope)
       return `[${expr.elements.map((el) => emitExpr(el, scope)).join(", ")}]`;
     case "unary":
       return `!(${emitExpr(expr.operand, scope)})`;
+    case "cast":
+      // Nominal scalars erase at runtime — cast is a type-check-only operation.
+      return emitExpr(expr.operand, scope);
     case "binary":
       if (expr.op === "in") {
         return `${emitExpr(expr.right, scope)}.includes(${emitExpr(expr.left, scope)})`;

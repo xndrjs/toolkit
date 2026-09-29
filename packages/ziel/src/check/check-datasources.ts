@@ -140,6 +140,7 @@ function checkDatasource(
       route.alias,
       route.resource,
       context,
+      scalars,
       resources,
       sink
     );
@@ -180,6 +181,7 @@ function checkDatasourceWhen(
   alias: string,
   resource: string,
   context: FieldMap,
+  scalars: ScalarTable,
   resources: ResourceTable,
   sink: DiagnosticSink
 ): void {
@@ -196,7 +198,7 @@ function checkDatasourceWhen(
     payloadNarrowing: new Map(),
   };
 
-  const whenType = inferExprType(when, path, scope, resources, sink);
+  const whenType = inferExprType(when, path, scope, resources, sink, scalars);
   if (!whenType) return;
 
   const prim = unwrapNullable(whenType);
@@ -249,6 +251,9 @@ function rejectDatasourceWhenExprs(expr: Expr, path: string, sink: DiagnosticSin
         rejected = true;
         return;
       case "unary":
+        visit(node.operand);
+        return;
+      case "cast":
         visit(node.operand);
         return;
       case "binary":

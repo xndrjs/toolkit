@@ -98,7 +98,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -160,7 +160,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -172,7 +172,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             },
@@ -223,7 +223,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -239,7 +239,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -251,7 +251,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -292,7 +292,7 @@ export const ZielGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@62"
+                    "$ref": "#/rules@63"
                   },
                   "arguments": []
                 }
@@ -363,7 +363,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -391,7 +391,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             },
@@ -421,7 +421,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -494,7 +494,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -582,7 +582,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -622,7 +622,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -743,7 +743,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -820,7 +820,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -836,7 +836,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@63"
+                "$ref": "#/rules@64"
               },
               "arguments": []
             }
@@ -855,7 +855,7 @@ export const ZielGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@63"
+                    "$ref": "#/rules@64"
                   },
                   "arguments": []
                 }
@@ -1080,7 +1080,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -1096,7 +1096,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -1118,7 +1118,7 @@ export const ZielGrammar = (): Grammar =>
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@62"
+            "$ref": "#/rules@63"
           },
           "arguments": []
         }
@@ -1191,7 +1191,7 @@ export const ZielGrammar = (): Grammar =>
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@63"
+            "$ref": "#/rules@64"
           },
           "arguments": []
         }
@@ -1249,7 +1249,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -1477,7 +1477,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -1489,7 +1489,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             },
@@ -1601,7 +1601,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -1645,7 +1645,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -1657,7 +1657,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -1729,7 +1729,7 @@ export const ZielGrammar = (): Grammar =>
                         "terminal": {
                           "$type": "RuleCall",
                           "rule": {
-                            "$ref": "#/rules@62"
+                            "$ref": "#/rules@63"
                           },
                           "arguments": []
                         }
@@ -1916,7 +1916,7 @@ export const ZielGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@62"
+                    "$ref": "#/rules@63"
                   },
                   "arguments": []
                 }
@@ -2008,7 +2008,7 @@ export const ZielGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@62"
+                    "$ref": "#/rules@63"
                   },
                   "arguments": []
                 }
@@ -2209,7 +2209,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -2288,7 +2288,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -2430,7 +2430,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -2502,7 +2502,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -2697,7 +2697,7 @@ export const ZielGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@52"
+                    "$ref": "#/rules@53"
                   },
                   "arguments": []
                 }
@@ -2859,9 +2859,9 @@ export const ZielGrammar = (): Grammar =>
     },
     {
       "$type": "ParserRule",
-      "name": "Primary",
+      "name": "CastExpr",
       "definition": {
-        "$type": "Alternatives",
+        "$type": "Group",
         "elements": [
           {
             "$type": "RuleCall",
@@ -2870,6 +2870,50 @@ export const ZielGrammar = (): Grammar =>
             },
             "arguments": []
           },
+          {
+            "$type": "Group",
+            "elements": [
+              {
+                "$type": "Action",
+                "inferredType": {
+                  "$type": "InferredType",
+                  "name": "CastExpr"
+                },
+                "feature": "operand",
+                "operator": "="
+              },
+              {
+                "$type": "Keyword",
+                "value": "as"
+              },
+              {
+                "$type": "Assignment",
+                "feature": "type",
+                "operator": "=",
+                "terminal": {
+                  "$type": "RuleCall",
+                  "rule": {
+                    "$ref": "#/rules@8"
+                  },
+                  "arguments": []
+                }
+              }
+            ],
+            "cardinality": "*"
+          }
+        ]
+      },
+      "entry": false,
+      "fragment": false,
+      "parameters": [],
+      "$comment": "/** \`locale as string\` — erase a scalar (or matching primitive) to its representation. */"
+    },
+    {
+      "$type": "ParserRule",
+      "name": "Primary",
+      "definition": {
+        "$type": "Alternatives",
+        "elements": [
           {
             "$type": "RuleCall",
             "rule": {
@@ -2887,7 +2931,7 @@ export const ZielGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@58"
+              "$ref": "#/rules@54"
             },
             "arguments": []
           },
@@ -2902,6 +2946,13 @@ export const ZielGrammar = (): Grammar =>
             "$type": "RuleCall",
             "rule": {
               "$ref": "#/rules@60"
+            },
+            "arguments": []
+          },
+          {
+            "$type": "RuleCall",
+            "rule": {
+              "$ref": "#/rules@61"
             },
             "arguments": []
           }
@@ -2963,7 +3014,7 @@ export const ZielGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@53"
+                    "$ref": "#/rules@54"
                   },
                   "arguments": []
                 }
@@ -2982,7 +3033,7 @@ export const ZielGrammar = (): Grammar =>
                     "terminal": {
                       "$type": "RuleCall",
                       "rule": {
-                        "$ref": "#/rules@53"
+                        "$ref": "#/rules@54"
                       },
                       "arguments": []
                     }
@@ -3013,13 +3064,6 @@ export const ZielGrammar = (): Grammar =>
           {
             "$type": "RuleCall",
             "rule": {
-              "$ref": "#/rules@54"
-            },
-            "arguments": []
-          },
-          {
-            "$type": "RuleCall",
-            "rule": {
               "$ref": "#/rules@55"
             },
             "arguments": []
@@ -3035,6 +3079,13 @@ export const ZielGrammar = (): Grammar =>
             "$type": "RuleCall",
             "rule": {
               "$ref": "#/rules@57"
+            },
+            "arguments": []
+          },
+          {
+            "$type": "RuleCall",
+            "rule": {
+              "$ref": "#/rules@58"
             },
             "arguments": []
           }
@@ -3054,7 +3105,7 @@ export const ZielGrammar = (): Grammar =>
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@63"
+            "$ref": "#/rules@64"
           },
           "arguments": []
         }
@@ -3073,7 +3124,7 @@ export const ZielGrammar = (): Grammar =>
         "terminal": {
           "$type": "RuleCall",
           "rule": {
-            "$ref": "#/rules@64"
+            "$ref": "#/rules@65"
           },
           "arguments": []
         }
@@ -3147,7 +3198,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -3166,7 +3217,7 @@ export const ZielGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@62"
+                    "$ref": "#/rules@63"
                   },
                   "arguments": []
                 }
@@ -3201,7 +3252,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -3220,7 +3271,7 @@ export const ZielGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@62"
+                    "$ref": "#/rules@63"
                   },
                   "arguments": []
                 }
@@ -3247,7 +3298,7 @@ export const ZielGrammar = (): Grammar =>
             "terminal": {
               "$type": "RuleCall",
               "rule": {
-                "$ref": "#/rules@62"
+                "$ref": "#/rules@63"
               },
               "arguments": []
             }
@@ -3266,7 +3317,7 @@ export const ZielGrammar = (): Grammar =>
                 "terminal": {
                   "$type": "RuleCall",
                   "rule": {
-                    "$ref": "#/rules@62"
+                    "$ref": "#/rules@63"
                   },
                   "arguments": []
                 }

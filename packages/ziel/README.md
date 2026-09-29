@@ -273,16 +273,24 @@ when e.visible and e.type in ["Hero", "Tabs"]
 when !(e.hidden or e.type == "Draft")
 ```
 
-| Op           | Meaning                                                | Emitted JS                              |
-| ------------ | ------------------------------------------------------ | --------------------------------------- |
-| `==` / `!=`  | equality                                               | `left == right`                         |
-| `in […]`     | membership (literal list)                              | `[…].includes(left)`                    |
-| `not in […]` | negated membership                                     | `![…].includes(left)`                   |
-| `!`          | JS falsy (`null` / `undefined` / `false` / `0` / `""`) | `!(operand)`                            |
-| `and` / `or` | boolean connectives                                    | `(left && right)` / `(left \|\| right)` |
-| `(…)`        | grouping                                               | lowered away                            |
+| Op           | Meaning                                                     | Emitted JS                              |
+| ------------ | ----------------------------------------------------------- | --------------------------------------- |
+| `==` / `!=`  | equality (operands must be compatible; use `as`)            | `left == right`                         |
+| `in […]`     | membership (literal list)                                   | `[…].includes(left)`                    |
+| `not in […]` | negated membership                                          | `![…].includes(left)`                   |
+| `as`         | erase scalar / matching type to `string`/`number`/`boolean` | operand (runtime erase)                 |
+| `!`          | JS falsy (`null` / `undefined` / `false` / `0` / `""`)      | `!(operand)`                            |
+| `and` / `or` | boolean connectives                                         | `(left && right)` / `(left \|\| right)` |
+| `(…)`        | grouping                                                    | lowered away                            |
 
-Precedence: `!` > `==`/`!=` > `in`/`not in` > `and` > `or`. So `!e.x in […]` is `(!e.x) in […]`. Array literals on the right of `in` / `not in` hold literals only. Filters may narrow payloads for field checks (best-effort); they do **not** drive static arm exhaustiveness — use ordered `when` + required `default` on armed projections.
+Precedence: `as` > `!` > `==`/`!=` > `in`/`not in` > `and` > `or`. So `!e.x in […]` is `(!e.x) in […]`. Array literals on the right of `in` / `not in` hold literals only. Filters may narrow payloads for field checks (best-effort); they do **not** drive static arm exhaustiveness — use ordered `when` + required `default` on armed projections.
+
+Scalars are nominal: `Locale` and `CustomReferenceValue` are not comparable even when both wrap `string`. Erase explicitly:
+
+```ziel
+when context.locale as string == @c.ref as string
+when e.kind == "Hero"   # stringLiteral still inhabits a string/scalar discriminant field
+```
 
 Islands are flat clauses (one policy each):
 

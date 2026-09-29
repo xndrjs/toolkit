@@ -248,7 +248,8 @@ NamedArg:
 // Path shapes are classified during lowering (param / payloadRef / itemRef).
 // `context.path` and `@binding[.path]` are dedicated forms (context is a keyword).
 // When filters: `or` / `and` / `==`/`!=` / `in`/`not in` / unary `!` (JS falsy).
-// Precedence: `!` > `==`/`!=` > `in`/`not in` > `and` > `or`. Parentheses group.
+// Scalar → representation cast: `expr as string` (postfix, binds tighter than `==`).
+// Precedence: `as` > `!` > `==`/`!=` > `in`/`not in` > `and` > `or`. Parentheses group.
 
 Expression:
     OrExpr;
@@ -270,7 +271,11 @@ EqExpr:
 
 UnaryExpr:
     {infer UnaryExpr} op='!' operand=UnaryExpr
-  | Primary;
+  | CastExpr;
+
+/** `locale as string` — erase a scalar (or matching primitive) to its representation. */
+CastExpr:
+    Primary ({infer CastExpr.operand=current} 'as' type=PrimitiveName)*;
 
 Primary:
     GroupedExpr | ArrayLiteral | Literal | IdentityRef | ContextRef | PathRef;

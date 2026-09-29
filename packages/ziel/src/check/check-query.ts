@@ -252,7 +252,7 @@ export function checkQuery(
     }
   }
 
-  checkIslands(query.islands, path, scope, resources, sink);
+  checkIslands(query.islands, path, scope, resources, sink, scalars);
   checkRequiredOn(query, path, resources, sink);
 }
 
@@ -323,7 +323,8 @@ function checkResolveArm(
       payloadType,
       scope,
       resources,
-      sink
+      sink,
+      scalars
     );
     if (whenType && !isBooleanWhenType(whenType)) {
       sink.push({
@@ -363,7 +364,8 @@ function checkProjectionArm(
     payloadType,
     scope,
     resources,
-    sink
+    sink,
+    scalars
   );
   if (whenType && !isBooleanWhenType(whenType)) {
     sink.push({

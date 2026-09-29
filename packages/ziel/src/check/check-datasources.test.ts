@@ -393,4 +393,93 @@ describe("checkDatasources", () => {
       })
     );
   });
+
+  it("rejects comparing distinct scalars without as", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar Ref on string;
+      scalar EntryId on string;
+      resource CustomReference(ref: Ref): { ref }
+      resource Entry(id: EntryId): { id }
+
+      datasource Cms {
+        context { locale: Locale }
+        for CustomReference c when context.locale == @c.ref
+        for Entry
+      }
+
+      query Q(id: EntryId) {
+        context { locale: Locale }
+        root Entry(id: id)
+        on Entry e { id }
+        on CustomReference c { ref }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INCOMPATIBLE_COMPARISON",
+        message: expect.stringMatching(/Locale.*Ref|Ref.*Locale/),
+      })
+    );
+  });
+
+  it("accepts distinct scalars erased to the same primitive", () => {
+    const { diagnostics, program } = parseAndCheck(`
+      scalar Locale on string;
+      scalar Ref on string;
+      scalar EntryId on string;
+      resource CustomReference(ref: Ref): { ref }
+      resource Entry(id: EntryId): { id }
+
+      datasource Cms {
+        context { locale: Locale }
+        for CustomReference c when context.locale as string == @c.ref as string
+        for Entry
+      }
+
+      query Q(id: EntryId) {
+        context { locale: Locale }
+        root Entry(id: id)
+        on Entry e { id }
+        on CustomReference c { ref }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+    expect(program.datasources[0]!.routes[0]!.when).toEqual(
+      expect.objectContaining({
+        kind: "binary",
+        op: "==",
+        left: expect.objectContaining({ kind: "cast", type: "string" }),
+        right: expect.objectContaining({ kind: "cast", type: "string" }),
+      })
+    );
+  });
+
+  it("rejects casting a scalar to the wrong representation", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Locale on string;
+      scalar EntryId on string;
+      resource Entry(id: EntryId, locale: Locale): { id locale }
+
+      datasource Cms {
+        context { locale: Locale }
+        for Entry e when context.locale as number == 1
+      }
+
+      query Q(id: EntryId) {
+        context { locale: Locale }
+        root Entry(id: id, locale: context.locale)
+        on Entry e { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_CAST",
+        message: expect.stringMatching(/Locale.*number/),
+      })
+    );
+  });
 });

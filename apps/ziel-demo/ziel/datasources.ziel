@@ -10,7 +10,7 @@ datasource CmsCustomReferences {
     locale: Locale
   }
 
-  for CustomReference
+  for CustomReference c
 }
 
 datasource CmsEntries {

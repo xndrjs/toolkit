@@ -11,6 +11,7 @@ import {
   type FieldMap,
   type QueryScope,
   type ResourceTable,
+  type ScalarTable,
 } from "../check/symbols";
 import { lowerExpr } from "../compile/lower/expr";
 import { lowerTypedField, type NameTables } from "../compile/lower/types";
@@ -28,6 +29,7 @@ import {
 
 export type ExprScopeTables = {
   resources: ResourceTable;
+  scalars: ScalarTable;
   nameTables: NameTables;
 };
 
@@ -51,7 +53,14 @@ function inferEachElementType(
   const itemBindings = new Set(scope.items.keys());
   const sourceExpr = lowerExpr(each.source, itemBindings);
   const sink = createDiagnosticSink();
-  const sourceType = inferExprType(sourceExpr, "expr.each", scope, tables.resources, sink);
+  const sourceType = inferExprType(
+    sourceExpr,
+    "expr.each",
+    scope,
+    tables.resources,
+    sink,
+    tables.scalars
+  );
   if (!sourceType) return undefined;
   const unwrapped = unwrapNullable(sourceType);
   if (unwrapped.kind !== "array") return undefined;

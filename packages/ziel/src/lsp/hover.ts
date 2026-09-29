@@ -167,6 +167,7 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
   // Expression paths first — PathRef / IdentityRef / ContextRef (incl. nested).
   const exprHover = hoverMarkdownForExprPath(leaf, feature, {
     resources: tables.resources,
+    scalars: tables.scalars,
     nameTables: nameTablesFrom(tables),
   });
   if (exprHover) {

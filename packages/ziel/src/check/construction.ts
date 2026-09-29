@@ -20,7 +20,7 @@ export function checkConstruction(
       span: construction.span,
     });
     for (const arg of construction.args) {
-      inferExprType(arg.value, `${path}.args.${arg.name}`, scope, resources, sink);
+      inferExprType(arg.value, `${path}.args.${arg.name}`, scope, resources, sink, scalars);
     }
     return;
   }
@@ -47,7 +47,7 @@ export function checkConstruction(
         path: argPath,
         span: arg.span,
       });
-      inferExprType(arg.value, argPath, scope, resources, sink);
+      inferExprType(arg.value, argPath, scope, resources, sink, scalars);
       continue;
     }
 

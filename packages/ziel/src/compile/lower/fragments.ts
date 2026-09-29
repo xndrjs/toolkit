@@ -532,6 +532,11 @@ export function rebindExpr(expr: Expr, from: string, to: string): Expr {
         ...expr,
         operand: rebindExpr(expr.operand, from, to),
       };
+    case "cast":
+      return {
+        ...expr,
+        operand: rebindExpr(expr.operand, from, to),
+      };
     case "binary":
       return {
         ...expr,

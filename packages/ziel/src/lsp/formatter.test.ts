@@ -142,6 +142,21 @@ default { }
     expect(formatted).toMatch(/when !e\.visible \{[\s\S]*?\}\n\n {4}when e\.type in/);
   });
 
+  it("formats scalar erase casts with spaces around as", async () => {
+    const messy = `
+scalar Locale on string;
+scalar Ref on string;
+resource CustomReference(ref:Ref):{ref}
+datasource Cms{
+context{locale:Locale}
+for CustomReference c when context.locale as string==@c.ref as string
+}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain("context.locale as string == @c.ref as string");
+  });
+
   it("breaks and/or onto separate lines", async () => {
     const messy = `
 scalar Id on string;

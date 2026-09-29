@@ -57,7 +57,8 @@ export function checkFragment(
       payloadType,
       scope,
       resources,
-      sink
+      sink,
+      scalars
     );
     if (whenType && !isBooleanWhenType(whenType)) {
       sink.push({

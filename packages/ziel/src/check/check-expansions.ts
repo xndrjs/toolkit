@@ -140,7 +140,8 @@ export function checkManyExpansion(
     `${expPath}.source`,
     scope,
     resources,
-    sink
+    sink,
+    scalars
   );
   if (!sourceType) {
     return;
@@ -189,7 +190,14 @@ export function checkExpandArm(
       ...scope,
       items: new Map([[itemBinding, elementType]]),
     };
-    const whenType = inferExprType(arm.when, `${armPath}.when`, whenScope, resources, sink);
+    const whenType = inferExprType(
+      arm.when,
+      `${armPath}.when`,
+      whenScope,
+      resources,
+      sink,
+      scalars
+    );
     if (whenType) {
       const prim = unwrapNullable(whenType);
       if (prim.kind !== "primitive" || prim.name !== "boolean") {

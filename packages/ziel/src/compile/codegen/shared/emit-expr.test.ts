@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   and,
+  cast,
   ctx,
   eq,
   identity,
@@ -88,6 +89,13 @@ describe("emitExpr", () => {
     expect(
       emitExpr(or(eq(payload("e", "type"), lit("Menu")), eq(payload("e", "type"), lit("Footer"))))
     ).toBe('(payload.type == "Menu" || payload.type == "Footer")');
+  });
+
+  it("erases cast to the operand (runtime no-op)", () => {
+    expect(emitExpr(cast(ctx("locale"), "string"))).toBe("args.executionContext.locale");
+    expect(emitExpr(eq(cast(ctx("locale"), "string"), cast(identity("c", "ref"), "string")))).toBe(
+      "args.executionContext.locale == resource.key[0].ref"
+    );
   });
 });
 

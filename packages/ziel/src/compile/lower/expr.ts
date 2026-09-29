@@ -1,8 +1,9 @@
-import type { Expr, NamedArg, ResourceConstruction } from "../../ir";
+import type { Expr, NamedArg, PrimitiveTypeName, ResourceConstruction } from "../../ir";
 import {
   isArrayLiteral,
   isBinaryExpr,
   isBooleanLiteral,
+  isCastExpr,
   isContextRef,
   isGroupedExpr,
   isIdentityRef,
@@ -25,6 +26,10 @@ function normalizeBinaryOp(op: string): BinaryOp {
     return op;
   }
   throw new Error(`Unexpected binary op '${op}'`);
+}
+
+function isPrimitiveName(name: string): name is PrimitiveTypeName {
+  return name === "string" || name === "number" || name === "boolean";
 }
 
 export function lowerConstruction(
@@ -65,6 +70,19 @@ export function lowerExpr(expr: AstExpression, itemBindings = new Set<string>())
       kind: "unary",
       op: "!",
       operand: lowerExpr(expr.operand, itemBindings),
+      span,
+    };
+  }
+
+  if (isCastExpr(expr) && expr.$type === "CastExpr") {
+    const typeName = expr.type;
+    if (!isPrimitiveName(typeName)) {
+      throw new Error(`Unexpected cast target '${typeName}'`);
+    }
+    return {
+      kind: "cast",
+      operand: lowerExpr(expr.operand, itemBindings),
+      type: typeName,
       span,
     };
   }
