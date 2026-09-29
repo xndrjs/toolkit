@@ -18,7 +18,6 @@ import type { Expr, TypeExpr } from "../ir";
 import {
   isBinaryExpr,
   isDatasourceDeclaration,
-  isDatasourceRoute,
   isEachComprehension,
   isFragmentDeclaration,
   isProjectionWhenArm,
@@ -240,9 +239,13 @@ export function buildExprScope(node: AstNode, tables: ExprScopeTables): QuerySco
         context.set(field.name, lowerTypedField(field, tables.nameTables));
       }
     }
-    const route = AstUtils.getContainerOfType(node, isDatasourceRoute);
-    if (route?.binding) {
-      bindings.set(route.binding, route.resource);
+    // Register every route binding on the datasource — not only the enclosing
+    // route. Incomplete `when` recovery often leaves the cursor leaf outside
+    // DatasourceRoute, which would otherwise drop `@c.` completions.
+    for (const route of datasource.routes) {
+      if (route.binding) {
+        bindings.set(route.binding, route.resource);
+      }
     }
   }
 
