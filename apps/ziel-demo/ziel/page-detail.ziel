@@ -110,13 +110,10 @@ query PageDetail(pageId: EntryId) {
     }
 
     when e.kind == "Product" {
-      sku
-      title
+      exclude id
     }
 
-    when e.kind == "Page" {
-      id
-    }
+    when e.kind == "Page" { }
 
     when e.kind == "SiteInternalLink" {
       expand target: Entry(

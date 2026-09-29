@@ -394,15 +394,14 @@ export const ZielGrammar = (): Grammar =>
                 "$ref": "#/rules@63"
               },
               "arguments": []
-            },
-            "cardinality": "+"
+            }
           }
         ]
       },
       "entry": false,
       "fragment": false,
       "parameters": [],
-      "$comment": "/** \`exclude imageId\` or \`exclude imageId title\` — subtract from include/selection. */"
+      "$comment": "/** \`exclude imageId\` — subtract from include/selection. Repeat the clause for more names. */"
     },
     {
       "$type": "ParserRule",

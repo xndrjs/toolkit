@@ -283,14 +283,15 @@ resource Entry(id:Id):{id title:string imageId:string}
 query Q(id:Id){
 root Entry(id:id)
 on Entry e include all{
-exclude imageId title
+exclude imageId
+exclude title
 }
 }
 `.trim();
 
     const formatted = await formatSource(messy);
     expect(formatted).toContain("on Entry e include all {");
-    expect(formatted).toMatch(/\n {4}exclude imageId title\n/);
+    expect(formatted).toMatch(/\n {4}exclude imageId\n {4}exclude title\n/);
   });
 
   it("formats optional fields and `| null` without extra spaces around `?`", async () => {
