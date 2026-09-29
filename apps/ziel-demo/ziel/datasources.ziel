@@ -2,7 +2,6 @@
  * Routing metadata for demo DataSources.
  * App code supplies `load` / batchSize / concurrency via `createDataSources`.
  */
-
 datasource CmsCustomReferences {
   context {
     spaceId: SpaceId
