@@ -49,6 +49,7 @@ export default async function ErrorHandlingDemoPage({ params }: Props) {
         lab <code>{rawId}</code>
         {result.ok ? ` · resolved ${result.meta.resolvedCount} resources` : " · hard failure"}
       </p>
+      <p className="lead">{caseMeta.hint}</p>
 
       <section className="panel">
         <h2>Errors</h2>

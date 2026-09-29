@@ -1,7 +1,6 @@
 import type { IslandMap, ResolutionError, SchedulingMode } from "@xndrjs/ziel";
 
 import {
-  Scalars,
   type EntryId,
   type EnvironmentId,
   type ErrorHandlingDetailResult,
