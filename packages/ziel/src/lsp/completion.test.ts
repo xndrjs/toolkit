@@ -734,3 +734,43 @@ query Q(entryId: EntryId) {
     expect(labels).toContain("title");
   });
 });
+
+const DATASOURCE_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+scalar SpaceId on string;
+
+resource Entry(id: EntryId, locale: Locale): { id title: string }
+resource Asset(id: EntryId, locale: Locale): { id url: string }
+
+datasource CmsEntries {
+  context {
+    spaceId: SpaceId
+    locale: Locale
+  }
+  for Entry e when context.locale == @e.locale
+  for Asset
+}
+`;
+
+describe("datasource when path completions", () => {
+  it("completes datasource context fields after context.", () => {
+    const { document, scalars, resources } = tablesFrom(DATASOURCE_FIXTURE);
+    const offset = offsetAfter(DATASOURCE_FIXTURE, "when context.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toEqual(expect.arrayContaining(["spaceId", "locale"]));
+    expect(labels).not.toContain("Entry");
+  });
+
+  it("completes route identity fields after @e.", () => {
+    const { document, scalars, resources } = tablesFrom(DATASOURCE_FIXTURE);
+    const offset = offsetAfter(DATASOURCE_FIXTURE, "== @e.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).toEqual(expect.arrayContaining(["id", "locale"]));
+    expect(labels).not.toContain("title");
+  });
+});

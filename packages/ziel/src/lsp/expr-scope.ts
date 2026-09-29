@@ -17,6 +17,8 @@ import { lowerTypedField, type NameTables } from "../compile/lower/types";
 import type { Expr, TypeExpr } from "../ir";
 import {
   isBinaryExpr,
+  isDatasourceDeclaration,
+  isDatasourceRoute,
   isEachComprehension,
   isFragmentDeclaration,
   isProjectionWhenArm,
@@ -198,8 +200,12 @@ function applyWhenArmNarrowing(node: AstNode, scope: QueryScope, resources: Reso
 
 /**
  * Build a QueryScope at `node` for path hover / completion:
- * params, context, projection/fragment/island bindings, enclosing `each` items,
- * and payload narrowing when inside a projection `when` arm or fragment `when`.
+ * params, context, projection/fragment/island/datasource-route bindings,
+ * enclosing `each` items, and payload narrowing when inside a projection
+ * `when` arm or fragment `when`.
+ *
+ * Datasource `when` clauses get the datasource `context { … }` fields and the
+ * route binding (`for Entry e when …`) so `context.` / `@e.` complete like queries.
  */
 export function buildExprScope(node: AstNode, tables: ExprScopeTables): QueryScope {
   const params: FieldMap = new Map();
@@ -224,6 +230,19 @@ export function buildExprScope(node: AstNode, tables: ExprScopeTables): QuerySco
       if (clause.binding) {
         bindings.set(clause.binding, clause.resource);
       }
+    }
+  }
+
+  const datasource = AstUtils.getContainerOfType(node, isDatasourceDeclaration);
+  if (datasource) {
+    if (datasource.context) {
+      for (const field of datasource.context.fields) {
+        context.set(field.name, lowerTypedField(field, tables.nameTables));
+      }
+    }
+    const route = AstUtils.getContainerOfType(node, isDatasourceRoute);
+    if (route?.binding) {
+      bindings.set(route.binding, route.resource);
     }
   }
 

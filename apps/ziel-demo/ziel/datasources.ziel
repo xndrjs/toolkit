@@ -9,6 +9,7 @@ datasource CmsCustomReferences {
     environmentId: EnvironmentId
     locale: Locale
   }
+
   for CustomReference
 }
 
@@ -18,6 +19,7 @@ datasource CmsEntries {
     environmentId: EnvironmentId
     locale: Locale
   }
+
   for Page
   for Entry
 }
@@ -28,5 +30,6 @@ datasource CmsAssets {
     environmentId: EnvironmentId
     locale: Locale
   }
+
   for Asset
 }
