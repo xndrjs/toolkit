@@ -234,6 +234,37 @@ describe("hover expression paths", () => {
     );
   });
 
+  it("hovers context fields inside datasource when clauses", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+scalar SpaceId on string;
+
+resource Entry(id: EntryId, locale: Locale): { id }
+
+datasource CmsEntries {
+  context {
+    spaceId: SpaceId
+    locale: Locale
+  }
+  for Entry e when context.locale == @e.locale
+}
+`;
+    const { document, scalars, resources } = tablesFrom(source);
+    const contextKw = offsetOf(source, "context", 1); // context.locale in when
+    expect(hoverMarkdownAtOffset(document, contextKw, { scalars, resources })).toContain(
+      "context: {"
+    );
+    expect(hoverMarkdownAtOffset(document, contextKw, { scalars, resources })).toContain(
+      "locale: Locale"
+    );
+
+    const locale = offsetOf(source, "locale", 3); // context.locale
+    expect(hoverMarkdownAtOffset(document, locale, { scalars, resources })).toContain(
+      "locale: Locale"
+    );
+  });
+
   it("hovers item paths inside each", () => {
     const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
     const linkId = offsetOf(PATH_FIXTURE, "id", 6); // link.id
