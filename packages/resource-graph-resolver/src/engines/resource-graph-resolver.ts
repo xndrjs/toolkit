@@ -185,11 +185,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       throw error;
     }
 
-    if (ref.onFailure === "setNull") {
-      session.registerAbsent(ref);
-      return;
-    }
-
+    // setNull and setError both record into `errors`; projection chooses null vs ResolutionError.
     session.registerMissing(ref, toCollectedResolutionError(ref, error));
   };
 
@@ -404,14 +400,10 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
         const onFailure = session.onFailureOf(ref.resource);
         for (const inheritedIslandId of islandsWaitingOn(ref)) {
           const attributed = walkRef(ref.resource, inheritedIslandId, onFailure);
-          if (onFailure === "setNull") {
-            session.registerAbsent(attributed);
-          } else {
-            session.registerMissing(
-              attributed,
-              thrown.withAttribution(ref.resource.toString(), [inheritedIslandId])
-            );
-          }
+          session.registerMissing(
+            attributed,
+            thrown.withAttribution(ref.resource.toString(), [inheritedIslandId])
+          );
         }
       }
       return;
@@ -430,17 +422,13 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       const onFailure = session.onFailureOf(ref.resource);
       for (const inheritedIslandId of islandsWaitingOn(ref)) {
         const attributed = walkRef(ref.resource, inheritedIslandId, onFailure);
-        if (onFailure === "setNull") {
-          session.registerAbsent(attributed);
-        } else {
-          session.registerMissing(
-            attributed,
-            new ResolutionError("load_failed", failure.message, thrown, {
-              resourceKey: ref.resource.toString(),
-              inheritedIslandIds: [inheritedIslandId],
-            })
-          );
-        }
+        session.registerMissing(
+          attributed,
+          new ResolutionError("load_failed", failure.message, thrown, {
+            resourceKey: ref.resource.toString(),
+            inheritedIslandIds: [inheritedIslandId],
+          })
+        );
       }
     }
   };

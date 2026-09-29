@@ -45,8 +45,10 @@ export type ComposeContentRegistry<Slices extends readonly ContentRegistry[]> = 
  * Per-edge policy for a child discovered by expansion when its load fails.
  *
  * - `throw` — abort resolution (default when omitted).
- * - `setNull` — omit the payload and continue; projectors treat the alias as `null`.
- * - `setError` — record a {@link ResolutionError} in `errors` / failures and continue.
+ * - `setNull` — record a {@link ResolutionError} in `errors` / failures, omit the
+ *   payload, and continue; projectors treat the alias as `null`.
+ * - `setError` — record a {@link ResolutionError} in `errors` / failures and continue;
+ *   projectors place that instance on the alias.
  *
  * Roots always throw. When the same ARI is reached by several edges, the
  * strictest policy wins (`throw` > `setError` > `setNull`).

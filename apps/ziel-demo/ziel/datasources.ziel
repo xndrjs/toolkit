@@ -21,6 +21,19 @@ datasource CmsEntries {
 
   for Page
   for Entry
+}
+
+/**
+ * Demo-only ErrorLab roots for the error-handling showcase.
+ * Kept separate from CmsEntries so page-detail CMS loading stays clean.
+ */
+datasource ErrorLabStore {
+  context {
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    locale: Locale
+  }
+
   for ErrorLab
 }
 

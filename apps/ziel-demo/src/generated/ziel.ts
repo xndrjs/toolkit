@@ -199,6 +199,12 @@ export type CmsEntriesContext = {
   locale: Locale;
 };
 
+export type ErrorLabStoreContext = {
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
+};
+
 export type CmsAssetsContext = {
   spaceId: SpaceId;
   environmentId: EnvironmentId;
@@ -223,12 +229,22 @@ type CmsCustomReferencesConfig = {
 
 type CmsEntriesConfig = {
   load: (
-    batch: readonly (PageResource | EntryResource | ErrorLabResource)[],
+    batch: readonly (PageResource | EntryResource)[],
     context: ResourceLoadContext<CmsEntriesContext>
-  ) => Promise<readonly (PagePayload | EntryPayload | ErrorLabPayload | undefined)[]>;
+  ) => Promise<readonly (PagePayload | EntryPayload | undefined)[]>;
   batchSize?: number;
   concurrency?: number;
   when?: (context: SourceRouteContext<CmsEntriesContext>) => boolean;
+};
+
+type ErrorLabStoreConfig = {
+  load: (
+    batch: readonly ErrorLabResource[],
+    context: ResourceLoadContext<ErrorLabStoreContext>
+  ) => Promise<readonly (ErrorLabPayload | undefined)[]>;
+  batchSize?: number;
+  concurrency?: number;
+  when?: (context: SourceRouteContext<ErrorLabStoreContext>) => boolean;
 };
 
 type CmsAssetsConfig = {
@@ -244,6 +260,7 @@ type CmsAssetsConfig = {
 export function createDataSources<C extends ZielExecutionContext>(config: {
   CmsCustomReferences: CmsCustomReferencesConfig;
   CmsEntries: CmsEntriesConfig;
+  ErrorLabStore: ErrorLabStoreConfig;
   CmsAssets: CmsAssetsConfig;
 }): DataSource<ContentRegistry, C>[] {
   const defineSource = defineDataSourceFor<ContentRegistry, C>();
@@ -263,18 +280,27 @@ export function createDataSources<C extends ZielExecutionContext>(config: {
     }),
     defineSource({
       id: "CmsEntries",
-      for: [pageAri, entryAri, errorLabAri],
+      for: [pageAri, entryAri],
       batchSize: config.CmsEntries.batchSize,
       concurrency: config.CmsEntries.concurrency,
       when: config.CmsEntries.when,
       load: (batch, ctx) =>
-        config.CmsEntries.load(
-          batch as readonly (PageResource | EntryResource | ErrorLabResource)[],
-          {
-            ...ctx,
-            executionContext: ctx.executionContext,
-          }
-        ),
+        config.CmsEntries.load(batch as readonly (PageResource | EntryResource)[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "ErrorLabStore",
+      for: [errorLabAri],
+      batchSize: config.ErrorLabStore.batchSize,
+      concurrency: config.ErrorLabStore.concurrency,
+      when: config.ErrorLabStore.when,
+      load: (batch, ctx) =>
+        config.ErrorLabStore.load(batch as readonly ErrorLabResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
     }),
     defineSource({
       id: "CmsAssets",

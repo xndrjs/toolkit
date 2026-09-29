@@ -48,8 +48,11 @@ export type ResolveErrorHandlingMeta = {
 export type ResolveErrorHandlingSuccess = {
   ok: true;
   lab: ErrorHandlingDetailResult;
-  /** Soft `set error` failures recorded during resolve (projection still succeeded). */
-  softErrors: readonly { resourceKey: string; message: string; code?: string }[];
+  /**
+   * Soft failures (`set null` / `set error`) collected during resolve.
+   * Projection still succeeded; inspect aliases for local `null` / `ResolutionError`.
+   */
+  errors: readonly { resourceKey: string; message: string; code?: string }[];
   meta: ResolveErrorHandlingMeta;
 };
 
@@ -106,7 +109,7 @@ export async function resolveErrorHandling(
     return {
       ok: true,
       lab: errorHandlingDetail,
-      softErrors: serializeErrors(errors),
+      errors: serializeErrors(errors),
       meta: {
         islands,
         locale,

@@ -73,7 +73,11 @@ export class ResolutionSession<
   readonly islandDependencies = new IslandDependencyMap();
 
   private readonly failuresByResource = new Map<ResourceKey, FailureAccumulator>();
-  /** Resources omitted under `onFailure: "setNull"` (not listed in {@link errors}). */
+  /**
+   * Legacy setNull-only omission set. Soft failures now go through
+   * {@link registerMissing} so they appear in {@link errors}; this set remains
+   * for `isAbsent` / waiter bookkeeping if anything still marks absence alone.
+   */
   private readonly absentResources = new Set<ResourceKey>();
   private readonly pendingByKey = new Map<ResourceKey, PendingEntry>();
   /**
@@ -335,7 +339,7 @@ export class ResolutionSession<
    *
    * Prefer passing a {@link ResolutionError} (preserved from a datasource or
    * wrapped from a load failure). A plain message becomes `code: "missing"`.
-   * Used for `onFailure: "setError"` (and throw paths that collect before rethrowing).
+   * Used for soft `onFailure` (`setNull` / `setError`); both appear in `errors`.
    */
   registerMissing(ref: GraphWalkRef, failure?: ResolutionError | string): void {
     const resourceKey = ref.resource.toString();
@@ -379,13 +383,14 @@ export class ResolutionSession<
   }
 
   /**
-   * Marks a resource as omitted under `onFailure: "setNull"` and clears its pending entry.
-   * Does not appear in {@link ResolveResourceGraphOutput.errors}.
+   * Marks a resource as omitted without recording into `errors`. Soft `setNull`
+   * failures normally use {@link registerMissing} instead so they appear in the
+   * global error list; this remains for rare omission-only bookkeeping.
    */
   registerAbsent(ref: GraphWalkRef): void {
     const resourceKey = ref.resource.toString();
     if (this.failuresByResource.has(resourceKey)) {
-      // setError already recorded — keep the stricter outcome.
+      // setError / setNull already recorded — keep the recorded outcome.
       this.pendingByKey.delete(resourceKey);
       return;
     }

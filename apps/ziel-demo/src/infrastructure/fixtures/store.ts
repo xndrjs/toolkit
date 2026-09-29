@@ -99,10 +99,9 @@ export const demoLogoAssetCustomRef: CustomReferenceValue = encodeCustomReferenc
   id: demoIds.assetLogo,
 });
 
-/** Root Page / ErrorLab document vs polymorphic Entry payload. */
+/** Root Page document vs polymorphic Entry payload (CMS / page-detail store). */
 export type EditorialDocument =
   | { kind: "page"; payload: PagePayload }
-  | { kind: "error-lab"; payload: ErrorLabPayload }
   | { kind: "entry"; payload: EntryPayload };
 
 export function entryLookupKey(parts: {
@@ -119,24 +118,21 @@ const environmentId = DEMO_ENVIRONMENT;
 const okEntry = Scalars.EntryId(demoIds.heroWelcome);
 const missingEntry = Scalars.EntryId(MISSING_ENTRY_ID);
 
-function errorLabDoc(
+function errorLabPayload(
   id: string,
   title: string,
   overrides: Partial<Omit<ErrorLabPayload, "id" | "title">>
-): EditorialDocument {
+): ErrorLabPayload {
   return {
-    kind: "error-lab",
-    payload: {
-      id: Scalars.EntryId(id),
-      title,
-      softSingleId: okEntry,
-      errorSingleId: okEntry,
-      throwSingleId: okEntry,
-      softItems: [],
-      errorItems: [],
-      throwItems: [],
-      ...overrides,
-    },
+    id: Scalars.EntryId(id),
+    title,
+    softSingleId: okEntry,
+    errorSingleId: okEntry,
+    throwSingleId: okEntry,
+    softItems: [],
+    errorItems: [],
+    throwItems: [],
+    ...overrides,
   };
 }
 
@@ -286,39 +282,46 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
       },
     },
   ],
+]);
+
+/**
+ * ErrorLab showcase roots keyed by `space/environment/id`.
+ * Served by `ErrorLabStore`, not `CmsEntries`.
+ */
+export const demoErrorLabs: ReadonlyMap<string, ErrorLabPayload> = new Map([
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.ehSoftSingle }),
-    errorLabDoc(demoIds.ehSoftSingle, "Soft single (set null)", {
+    errorLabPayload(demoIds.ehSoftSingle, "Soft single (set null)", {
       softSingleId: missingEntry,
     }),
   ],
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.ehErrorSingle }),
-    errorLabDoc(demoIds.ehErrorSingle, "Error single (set error)", {
+    errorLabPayload(demoIds.ehErrorSingle, "Error single (set error)", {
       errorSingleId: missingEntry,
     }),
   ],
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.ehThrowSingle }),
-    errorLabDoc(demoIds.ehThrowSingle, "Throw single", {
+    errorLabPayload(demoIds.ehThrowSingle, "Throw single", {
       throwSingleId: missingEntry,
     }),
   ],
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.ehSoftItems }),
-    errorLabDoc(demoIds.ehSoftItems, "Soft items (set null)", {
+    errorLabPayload(demoIds.ehSoftItems, "Soft items (set null)", {
       softItems: [{ id: okEntry }, { id: missingEntry }],
     }),
   ],
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.ehErrorItems }),
-    errorLabDoc(demoIds.ehErrorItems, "Error items (set error)", {
+    errorLabPayload(demoIds.ehErrorItems, "Error items (set error)", {
       errorItems: [{ id: okEntry }, { id: missingEntry }],
     }),
   ],
   [
     entryLookupKey({ spaceId, environmentId, id: demoIds.ehThrowItems }),
-    errorLabDoc(demoIds.ehThrowItems, "Throw items", {
+    errorLabPayload(demoIds.ehThrowItems, "Throw items", {
       throwItems: [{ id: missingEntry }],
     }),
   ],

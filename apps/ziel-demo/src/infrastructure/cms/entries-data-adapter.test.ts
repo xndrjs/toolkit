@@ -27,10 +27,10 @@ function entrySource() {
 }
 
 describe("CmsEntries datasource", () => {
-  it("owns Page + Entry + ErrorLab ARI families (not CustomReference / Asset)", () => {
+  it("owns Page + Entry ARI families (not ErrorLab / CustomReference / Asset)", () => {
     const source = entrySource();
     expect(source.id).toBe(ENTRY_SOURCE_ID);
-    expect(source.for.map((family) => family.type).sort()).toEqual(["Entry", "ErrorLab", "Page"]);
+    expect(source.for.map((family) => family.type).sort()).toEqual(["Entry", "Page"]);
   });
 
   it("returns positional Entry payload without rematerialize", async () => {
@@ -66,16 +66,10 @@ describe("CmsEntries datasource", () => {
     });
   });
 
-  it("returns positional ErrorLab payload", async () => {
+  it("does not serve ErrorLab (routed to ErrorLabStore)", async () => {
     const load = loadCmsEntries();
     const lab = errorLabAri(entryIdentity(demoIds.ehSoftSingle));
-
-    const payloads = await load([lab], loadContext);
-    expect(payloads).toHaveLength(1);
-    expect(payloads[0]).toMatchObject({
-      id: demoIds.ehSoftSingle,
-      title: "Soft single (set null)",
-    });
+    expect(await load([lab as never], loadContext)).toEqual([undefined]);
   });
 
   it("returns undefined for Entry/Page kind mismatches (same length as batch)", async () => {
