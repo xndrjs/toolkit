@@ -53,7 +53,7 @@ export default async function ErrorHandlingDemoPage({ params }: Props) {
       <section className="panel">
         <h2>Errors</h2>
         <pre>
-          <code>{JSON.stringify(result.ok ? result.softErrors : result.errors, null, 2)}</code>
+          <code>{JSON.stringify(result.errors, null, 2)}</code>
         </pre>
       </section>
 

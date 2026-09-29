@@ -233,7 +233,7 @@ describe("resolvePage", () => {
       assets: assetsWithoutLogo,
     });
 
-    expect(output.errors).toEqual([]);
+    expect(output.errors.length).toBeGreaterThan(0);
     expect(isMenu(output.pageDetail.menu)).toBe(true);
     if (isMenu(output.pageDetail.menu)) {
       expect(output.pageDetail.menu.logo).toBeNull();

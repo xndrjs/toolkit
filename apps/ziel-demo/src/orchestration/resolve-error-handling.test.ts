@@ -22,7 +22,7 @@ describe("resolveErrorHandling", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.softErrors).toEqual([]);
+    expect(result.errors.length).toBeGreaterThan(0);
     expect(result.lab.softSingle).toBeNull();
     expect(result.lab.errorSingle).toMatchObject({ kind: "Hero", title: "Welcome" });
   });
@@ -36,7 +36,7 @@ describe("resolveErrorHandling", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.softErrors.length).toBeGreaterThan(0);
+    expect(result.errors.length).toBeGreaterThan(0);
     expect(result.lab.errorSingle).toBeInstanceOf(ResolutionError);
     expect(result.lab.softSingle).toMatchObject({ kind: "Hero", title: "Welcome" });
   });
@@ -62,7 +62,7 @@ describe("resolveErrorHandling", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.softErrors).toEqual([]);
+    expect(result.errors.length).toBeGreaterThan(0);
     expect(result.lab.softItems).toHaveLength(2);
     expect(result.lab.softItems[0]).toMatchObject({ kind: "Hero", title: "Welcome" });
     expect(result.lab.softItems[1]).toBeNull();
@@ -77,7 +77,7 @@ describe("resolveErrorHandling", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.softErrors.length).toBeGreaterThan(0);
+    expect(result.errors.length).toBeGreaterThan(0);
     expect(result.lab.errorItems).toHaveLength(2);
     expect(result.lab.errorItems[0]).toMatchObject({ kind: "Hero", title: "Welcome" });
     expect(result.lab.errorItems[1]).toBeInstanceOf(ResolutionError);

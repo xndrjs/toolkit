@@ -1084,14 +1084,16 @@ describe("multi-root seeds", () => {
 });
 
 describe("per-edge onFailure", () => {
-  it("omits a missing child under setNull without recording errors", async () => {
+  it("records a missing child under setNull into errors while omitting the payload", async () => {
     const source = createStoreSource({ for: pageGraphFamilies, omit: [asset] });
     const output = await resolvePageGraph("lane", {
       source,
       onFailure: "setNull",
     });
 
-    expect(output.errors).toEqual([]);
+    expect(output.errors).toHaveLength(1);
+    expect(output.errors[0]?.resourceKey).toBe(asset.toString());
+    expect(output.errors[0]?.code).toBe("missing");
     expect(output.contentMap.has(asset)).toBe(false);
     expect(output.contentMap.has(page)).toBe(true);
     expect(output.contentMap.has(hero)).toBe(true);
@@ -1177,8 +1179,10 @@ describe("per-edge onFailure", () => {
     expect(output.contentMap.get(keep)).toEqual({ title: "ok" });
     expect(output.contentMap.has(soft)).toBe(false);
     expect(output.contentMap.has(hard)).toBe(false);
-    expect(output.errors).toHaveLength(1);
-    expect(output.errors[0]?.resourceKey).toBe(hard.toString());
-    expect(output.errors[0]?.code).toBe("missing");
+    expect(output.errors).toHaveLength(2);
+    expect(output.errors.map((e) => e.resourceKey).sort()).toEqual(
+      [soft.toString(), hard.toString()].sort()
+    );
+    expect(output.errors.every((e) => e.code === "missing")).toBe(true);
   });
 });

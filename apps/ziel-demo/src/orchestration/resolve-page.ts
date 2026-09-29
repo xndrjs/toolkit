@@ -42,6 +42,8 @@ export type ResolvePageMeta = {
 export type ResolvePageSuccess = {
   ok: true;
   page: PageDetailResult;
+  /** Soft failures (`set null` / `set error`) collected during resolve. */
+  errors: readonly { resourceKey: string; message: string; code?: string }[];
   meta: ResolvePageMeta;
 };
 
@@ -55,7 +57,7 @@ export type ResolvePageFailure = {
     schedulingMode: SchedulingMode;
     resolvedCount?: number;
   };
-  errors: readonly { resourceKey: string; message: string }[];
+  errors: readonly { resourceKey: string; message: string; code?: string }[];
 };
 
 export type ResolvePageResult = ResolvePageSuccess | ResolvePageFailure;
@@ -63,6 +65,8 @@ export type ResolvePageResult = ResolvePageSuccess | ResolvePageFailure;
 /**
  * Vertical-slice path via generated `resolvePageDetail`
  * (closed strategy → resolve → project) + demo DataSources.
+ * Soft policies (`set null` / `set error`) return `ok: true` even when
+ * `errors` is non-empty; only thrown hard failures become `ok: false`.
  */
 export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageResult> {
   const locale = input.locale;
@@ -81,27 +85,14 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
       signal: input.signal,
     });
 
-    if (errors.length > 0) {
-      return {
-        ok: false,
-        meta: {
-          locale,
-          pageId,
-          spaceId,
-          environmentId,
-          schedulingMode,
-          resolvedCount: contentMap.size,
-        },
-        errors: errors.map(({ resourceKey, message }) => ({
-          resourceKey: resourceKey ?? "",
-          message,
-        })),
-      };
-    }
-
     return {
       ok: true,
       page: pageDetail,
+      errors: errors.map((error) => ({
+        resourceKey: error.resourceKey ?? "",
+        message: error.message,
+        ...(error.code !== undefined ? { code: String(error.code) } : {}),
+      })),
       meta: {
         islands,
         locale,

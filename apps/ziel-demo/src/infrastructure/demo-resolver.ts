@@ -2,11 +2,13 @@ import type { EditorialDocument } from "./fixtures/store.js";
 import { loadCmsAssets } from "./cms/asset-data-adapter.js";
 import { loadCmsCustomReferences } from "./cms/custom-reference-data-adapter.js";
 import { loadCmsEntries } from "./cms/entries-data-adapter.js";
+import { loadErrorLabStore } from "./cms/error-lab-data-adapter.js";
 import {
   createDataSources,
   resolveErrorHandlingDetail,
   resolvePageDetail,
   type AssetPayload,
+  type ErrorLabPayload,
   type ResolveErrorHandlingDetailInput,
   type ResolveErrorHandlingDetailResult,
   type ResolvePageDetailInput,
@@ -15,6 +17,7 @@ import {
 
 export type DemoSourcesOptions = {
   entries?: ReadonlyMap<string, EditorialDocument>;
+  errorLabs?: ReadonlyMap<string, ErrorLabPayload>;
   assets?: ReadonlyMap<string, AssetPayload>;
 };
 
@@ -23,6 +26,7 @@ export function createDemoSources(options: DemoSourcesOptions = {}) {
   return createDataSources({
     CmsCustomReferences: { load: loadCmsCustomReferences },
     CmsEntries: { load: loadCmsEntries(options.entries) },
+    ErrorLabStore: { load: loadErrorLabStore(options.errorLabs) },
     CmsAssets: { load: loadCmsAssets(options.assets) },
   });
 }
@@ -35,10 +39,10 @@ export type DemoResolveOptions = Omit<ResolvePageDetailInput, "sources"> & DemoS
 export function resolveDemoPageDetail(
   options: DemoResolveOptions
 ): Promise<ResolvePageDetailResult> {
-  const { entries, assets, ...input } = options;
+  const { entries, errorLabs, assets, ...input } = options;
   return resolvePageDetail({
     ...input,
-    sources: createDemoSources({ entries, assets }),
+    sources: createDemoSources({ entries, errorLabs, assets }),
   });
 }
 
@@ -51,9 +55,9 @@ export type DemoResolveErrorHandlingOptions = Omit<ResolveErrorHandlingDetailInp
 export function resolveDemoErrorHandlingDetail(
   options: DemoResolveErrorHandlingOptions
 ): Promise<ResolveErrorHandlingDetailResult> {
-  const { entries, assets, ...input } = options;
+  const { entries, errorLabs, assets, ...input } = options;
   return resolveErrorHandlingDetail({
     ...input,
-    sources: createDemoSources({ entries, assets }),
+    sources: createDemoSources({ entries, errorLabs, assets }),
   });
 }
