@@ -226,7 +226,7 @@ describe("checkDatasources", () => {
     expect(diagnostics.filter((d) => d.code === "RESOURCE_MISSING_DATASOURCE")).toEqual([]);
   });
 
-  it("requires query context to include aggregate datasource fields", () => {
+  it("requires query context to include fields from datasources used by the query", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
@@ -247,7 +247,67 @@ describe("checkDatasources", () => {
     expect(diagnostics).toContainEqual(
       expect.objectContaining({
         code: "QUERY_CONTEXT_MISSING_DATASOURCE_FIELD",
-        message: expect.stringContaining("locale"),
+        message: expect.stringMatching(/locale.*CmsSource/),
+      })
+    );
+  });
+
+  it("does not require context fields from datasources the query does not use", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      datasource CmsEntries {
+        context { locale: Locale }
+        for Entry
+      }
+
+      datasource CmsAssets {
+        context {
+          locale: Locale
+          apiKey: string
+        }
+        for Asset
+      }
+
+      query Q(id: EntryId) {
+        context { locale: Locale }
+        root Entry(id: id, locale: context.locale)
+        on Entry e { id type }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("requires merged context when the query also references another datasource's resource", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      datasource CmsEntries {
+        context { locale: Locale }
+        for Entry
+      }
+
+      datasource CmsAssets {
+        context {
+          locale: Locale
+          apiKey: string
+        }
+        for Asset
+      }
+
+      query Q(id: EntryId) {
+        context { locale: Locale }
+        root Entry(id: id, locale: context.locale)
+        on Entry e { id type }
+        on Asset a { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_CONTEXT_MISSING_DATASOURCE_FIELD",
+        message: expect.stringMatching(/apiKey.*CmsAssets/),
       })
     );
   });
@@ -294,7 +354,7 @@ describe("checkDatasources", () => {
     );
   });
 
-  it("rejects query context fields incompatible with aggregate datasource types", () => {
+  it("rejects query context fields incompatible with used datasource types", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 

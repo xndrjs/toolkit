@@ -141,7 +141,7 @@ datasource CmsSource {
 - **`context`** — fields available as `executionContext` on that source (and merged into aggregate `ZielExecutionContext`).
 - **`for Resource [binding] [when …]`** — routes; `when` may use `context.…` and identity `@binding.…` only (no payload / params / items). Binding is required when `when` is present.
 - **Coverage** — if the program declares ≥1 datasource, every resource must appear in at least one `for` route (hand-wired apps with zero datasources stay valid).
-- **Query context** — when datasources exist, each query context must include every aggregate field with a compatible type (`C extends ZielExecutionContext`).
+- **Query context** — when datasources exist, each query context must include every field from the datasources whose routes intersect resources that query references (roots, islands, `on` clauses, expand / resolve targets), with compatible types. Unused datasources do not constrain that query. Aggregate `ZielExecutionContext` (for `createDataSources`) remains the merge of all datasource contexts.
 
 Codegen (`generateDataSources` / compose) emits per-source `*Context` types, aggregate `ZielExecutionContext`, and:
 

@@ -5,8 +5,19 @@
  *
  * Coverage / aggregate / query-context rules apply only when
  * `program.datasources.length > 0` (hand-wired apps stay valid).
+ *
+ * Query context must cover the merge of datasources whose routes intersect
+ * resources referenced by that query (not the global aggregate).
  */
-import type { DatasourceDefinition, Expr, FieldDecl, Program } from "../ir";
+import type {
+  DatasourceDefinition,
+  Expansion,
+  Expr,
+  FieldDecl,
+  Program,
+  QueryDefinition,
+  ResourceProjection,
+} from "../ir";
 import { formatType, isAssignable, typesSemanticallyEqual } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
 import { inferExprType } from "./expressions";
@@ -63,7 +74,116 @@ export function checkDatasources(
     }
   }
 
-  checkQueryContextsAgainstAggregate(program, aggregate, scalars, resources, sink);
+  checkQueryContextsAgainstUsedDatasources(program, scalars, resources, sink);
+}
+
+/**
+ * Resources mentioned by a query: roots, islands, projection resources,
+ * expand / resolve construction targets. Fragment spreads are already inlined
+ * into projections at lower.
+ */
+export function queryReferencedResources(query: QueryDefinition): Set<string> {
+  const out = new Set<string>();
+
+  for (const root of query.roots) {
+    out.add(root.construction.resource);
+  }
+  for (const island of query.islands) {
+    out.add(island.resource);
+  }
+  for (const projection of query.projections) {
+    collectProjectionResources(projection, out);
+  }
+
+  return out;
+}
+
+function collectProjectionResources(projection: ResourceProjection, out: Set<string>): void {
+  out.add(projection.resource);
+
+  for (const expansion of projection.expansions) {
+    collectExpansionResources(expansion, out);
+  }
+  if (projection.arms) {
+    for (const arm of projection.arms) {
+      for (const expansion of arm.expansions) {
+        collectExpansionResources(expansion, out);
+      }
+    }
+  }
+  if (projection.defaultArm) {
+    for (const expansion of projection.defaultArm.expansions) {
+      collectExpansionResources(expansion, out);
+    }
+  }
+  if (projection.resolveArms) {
+    for (const arm of projection.resolveArms) {
+      out.add(arm.target.resource);
+    }
+  }
+}
+
+function collectExpansionResources(expansion: Expansion, out: Set<string>): void {
+  if (expansion.target) {
+    out.add(expansion.target.resource);
+  }
+  if (expansion.comprehension) {
+    for (const arm of expansion.comprehension.arms) {
+      out.add(arm.target.resource);
+    }
+  }
+}
+
+/** Datasources with at least one route resource in `referenced`. */
+function usedDatasources(
+  program: Program,
+  referenced: ReadonlySet<string>
+): DatasourceDefinition[] {
+  return program.datasources.filter((ds) =>
+    ds.routes.some((route) => referenced.has(route.resource))
+  );
+}
+
+/**
+ * First-wins merge of context fields from `datasources` (program order).
+ * Also records which datasource names first contributed each field
+ * (and later DS that also declare it, for diagnostics).
+ */
+function mergeUsedContextFields(datasources: readonly DatasourceDefinition[]): {
+  fields: FieldMap;
+  requiredBy: Map<string, string[]>;
+} {
+  const fields: FieldMap = new Map();
+  const requiredBy = new Map<string, string[]>();
+
+  for (const ds of datasources) {
+    for (const field of ds.contextFields) {
+      const sources = requiredBy.get(field.name);
+      if (sources) {
+        sources.push(ds.name);
+      } else {
+        requiredBy.set(field.name, [ds.name]);
+      }
+      if (!fields.has(field.name)) {
+        fields.set(field.name, field);
+      }
+    }
+  }
+
+  return { fields, requiredBy };
+}
+
+function formatDatasourceList(names: readonly string[]): string {
+  if (names.length === 0) return "";
+  if (names.length === 1) return `datasource '${names[0]}'`;
+  if (names.length === 2) {
+    return `datasources '${names[0]}' and '${names[1]}'`;
+  }
+  const head = names
+    .slice(0, -1)
+    .map((n) => `'${n}'`)
+    .join(", ");
+  return `datasources ${head}, and '${names[names.length - 1]}'`;
 }
 
 function checkDatasource(
@@ -274,40 +394,46 @@ function rejectDatasourceWhenExprs(expr: Expr, path: string, sink: DiagnosticSin
   return rejected;
 }
 
-function checkQueryContextsAgainstAggregate(
+/**
+ * Each query context must include fields from datasources whose routes
+ * intersect resources referenced by that query (types assignable).
+ */
+function checkQueryContextsAgainstUsedDatasources(
   program: Program,
-  aggregate: FieldMap,
   scalars: ScalarTable,
   resources: ResourceTable,
   sink: DiagnosticSink
 ): void {
-  if (aggregate.size === 0) return;
-
   for (const query of program.queries) {
+    const referenced = queryReferencedResources(query);
+    const used = usedDatasources(program, referenced);
+    const { fields: required, requiredBy } = mergeUsedContextFields(used);
+    if (required.size === 0) continue;
+
     const queryContext = new Map(query.context.map((f) => [f.name, f]));
-    for (const [name, aggField] of aggregate) {
+    for (const [name, reqField] of required) {
       const queryField = queryContext.get(name);
       const fieldPath = `queries.${query.name}.context.${name}`;
+      const via = formatDatasourceList(requiredBy.get(name) ?? []);
 
       if (!queryField) {
         sink.push({
           code: "QUERY_CONTEXT_MISSING_DATASOURCE_FIELD",
-          message: `Query '${query.name}' context is missing datasource execution-context field '${name}'`,
+          message: `Query '${query.name}' context is missing datasource execution-context field '${name}' (required by ${via})`,
           path: fieldPath,
           span: query.span,
         });
         continue;
       }
 
-      const expected = concreteType(aggField.type, fieldPath, scalars, resources, sink);
+      const expected = concreteType(reqField.type, fieldPath, scalars, resources, sink);
       const actual = concreteType(queryField.type, fieldPath, scalars, resources, sink);
       if (!expected || !actual) continue;
 
-      // Query context must satisfy the aggregate (`C extends ZielExecutionContext`).
       if (!isAssignable(actual, expected)) {
         sink.push({
           code: "QUERY_CONTEXT_MISSING_DATASOURCE_FIELD",
-          message: `Query '${query.name}' context field '${name}' has type ${formatType(actual)}, incompatible with datasource execution context ${formatType(expected)}`,
+          message: `Query '${query.name}' context field '${name}' has type ${formatType(actual)}, incompatible with datasource execution context ${formatType(expected)} (required by ${via})`,
           path: fieldPath,
           span: queryField.span,
         });
