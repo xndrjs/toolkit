@@ -1,5 +1,10 @@
 export type { Diagnostic } from "./diagnostic";
-export { analyzeProgram, checkProgram, type ProgramAnalysis } from "./check-program";
+export {
+  analyzeProgram,
+  checkProgram,
+  type AnalyzeProgramOptions,
+  type ProgramAnalysis,
+} from "./check-program";
 export {
   memberMatchesRefersPattern,
   membersMatchingRefersPattern,

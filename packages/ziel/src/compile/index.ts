@@ -6,6 +6,7 @@ export * from "../ir";
 export {
   analyzeProgram,
   checkProgram,
+  type AnalyzeProgramOptions,
   type Diagnostic,
   type ProgramAnalysis,
   type ResourceTable,

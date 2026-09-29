@@ -226,6 +226,27 @@ describe("checkDatasources", () => {
     expect(diagnostics.filter((d) => d.code === "RESOURCE_MISSING_DATASOURCE")).toEqual([]);
   });
 
+  it("skips RESOURCE_MISSING_DATASOURCE when requireDatasourceCoverage is false", () => {
+    const { program, diagnostics: parseDiags } = parseAndCheck(`
+      ${prelude}
+
+      datasource CmsSource {
+        for Entry
+      }
+
+      ${coveredQuery}
+    `);
+    expect(parseDiags).toContainEqual(
+      expect.objectContaining({ code: "RESOURCE_MISSING_DATASOURCE" })
+    );
+
+    expect(
+      checkProgram(program, { requireDatasourceCoverage: false }).filter(
+        (d) => d.code === "RESOURCE_MISSING_DATASOURCE"
+      )
+    ).toEqual([]);
+  });
+
   it("requires query context to include fields from datasources used by the query", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}

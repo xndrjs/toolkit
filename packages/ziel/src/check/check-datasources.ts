@@ -36,11 +36,14 @@ export function checkDatasources(
   program: Program,
   scalars: ScalarTable,
   resources: ResourceTable,
-  sink: DiagnosticSink
+  sink: DiagnosticSink,
+  options: { requireDatasourceCoverage?: boolean } = {}
 ): void {
   if (program.datasources.length === 0) {
     return;
   }
+
+  const requireDatasourceCoverage = options.requireDatasourceCoverage ?? true;
 
   const names = new Set<string>();
   /** Merged execution-context fields across all datasources (first wins for span). */
@@ -63,14 +66,16 @@ export function checkDatasources(
     checkDatasource(ds, path, scalars, resources, aggregate, covered, sink);
   }
 
-  for (const resourceName of resources.keys()) {
-    if (!covered.has(resourceName)) {
-      sink.push({
-        code: "RESOURCE_MISSING_DATASOURCE",
-        message: `Resource '${resourceName}' has no datasource route`,
-        path: `resources.${resourceName}`,
-        span: null,
-      });
+  if (requireDatasourceCoverage) {
+    for (const resourceName of resources.keys()) {
+      if (!covered.has(resourceName)) {
+        sink.push({
+          code: "RESOURCE_MISSING_DATASOURCE",
+          message: `Resource '${resourceName}' has no datasource route`,
+          path: `resources.${resourceName}`,
+          span: null,
+        });
+      }
     }
   }
 
