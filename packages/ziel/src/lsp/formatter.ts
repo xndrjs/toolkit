@@ -1,7 +1,7 @@
 /**
  * Ziel document formatter — Langium AbstractFormatter (no Prettier).
  * Style: 2-space indent (via LSP options), blank line between top-level decls
- * and query sections / when arms, multiline constructions (2+ args),
+ * and query sections / when arms / sibling expands, multiline constructions (2+ args),
  * `and`/`or` and object-union `|` broken across lines (leading pipe),
  * braced blocks with indented interiors.
  */
@@ -133,6 +133,15 @@ export class ZielFormatter extends AbstractFormatter {
     }
     f.keywords(",").prepend(Formatting.noSpace());
     f.keyword(")").prepend(Formatting.newLine());
+  }
+
+  /** Blank line before each expand after the first in a body. */
+  private blankLineBetweenExpansions(parent: AstNode, expansions: readonly AstNode[]): void {
+    if (expansions.length < 2) return;
+    const f = this.getNodeFormatter(parent);
+    for (let i = 1; i < expansions.length; i++) {
+      f.node(expansions[i]!).prepend(blankLineIndent);
+    }
   }
 
   protected format(node: AstNode): void {
@@ -270,6 +279,7 @@ export class ZielFormatter extends AbstractFormatter {
         f.keyword("{").prepend(Formatting.oneSpace());
       }
       this.formatBracedBlock(node);
+      this.blankLineBetweenExpansions(node, node.expansions);
       return;
     }
 
@@ -390,6 +400,7 @@ export class ZielFormatter extends AbstractFormatter {
           node.whenArms.length === 0 &&
           !node.defaultArm;
         this.formatBracedBlock(node, empty);
+        this.blankLineBetweenExpansions(node, node.expansions);
         const preceding =
           node.selectedFields.length +
           node.expansions.length +
@@ -435,6 +446,7 @@ export class ZielFormatter extends AbstractFormatter {
         node.spreads.length === 0 &&
         node.excludes.length === 0;
       this.formatBracedBlock(node, empty);
+      this.blankLineBetweenExpansions(node, node.expansions);
       return;
     }
 

@@ -34,12 +34,14 @@ query PageDetail(pageId: EntryId) {
       id: p.menuId,
       locale: @p.locale
     ) on failure set null
+
     expand footer: Entry(
       spaceId: @p.spaceId,
       environmentId: @p.environmentId,
       id: p.footerId,
       locale: @p.locale
     ) on failure set null
+
     expand strips: each link in p.strips (
       Entry(
         spaceId: @p.spaceId,
@@ -48,6 +50,7 @@ query PageDetail(pageId: EntryId) {
         locale: @p.locale
       ) on failure set null
     )
+
     expand related: each ref in p.related (
       CustomReference(
         ref: ref,
