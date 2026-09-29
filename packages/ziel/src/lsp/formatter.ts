@@ -11,6 +11,7 @@ import { AbstractFormatter, Formatting, type FormattingAction } from "langium/ls
 import {
   isArrayLiteral,
   isBinaryExpr,
+  isCastExpr,
   isContextBlock,
   isDatasourceDeclaration,
   isDatasourceRoute,
@@ -514,6 +515,12 @@ export class ZielFormatter extends AbstractFormatter {
       } else {
         f.keywords("==", "!=", "in", "not").surround(Formatting.oneSpace());
       }
+      return;
+    }
+
+    if (isCastExpr(node) && node.$type === "CastExpr") {
+      const f = this.getNodeFormatter(node);
+      f.keyword("as").surround(Formatting.oneSpace());
       return;
     }
 

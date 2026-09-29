@@ -34,6 +34,7 @@ export type ZielKeywordNames =
   | "]"
   | "all"
   | "and"
+  | "as"
   | "boolean"
   | "context"
   | "datasource"
@@ -88,7 +89,7 @@ export function isAndExpr(item: unknown): item is AndExpr {
 
 /** Value list for membership (`e.type in ["Menu", "Footer"]`). Literals only. */
 export interface ArrayLiteral extends langium.AstNode {
-  readonly $container: BinaryExpr;
+  readonly $container: BinaryExpr | CastExpr;
   readonly $type: "ArrayLiteral";
   elements: Array<Literal>;
 }
@@ -169,7 +170,7 @@ export function isBinaryExpr(item: unknown): item is BinaryExpr {
 }
 
 export interface BooleanLiteral extends langium.AstNode {
-  readonly $container: ArrayLiteral;
+  readonly $container: ArrayLiteral | CastExpr;
   readonly $type: "BooleanLiteral";
   value: "false" | "true";
 }
@@ -181,6 +182,36 @@ export const BooleanLiteral = {
 
 export function isBooleanLiteral(item: unknown): item is BooleanLiteral {
   return reflection.isInstance(item, BooleanLiteral.$type);
+}
+
+/** `locale as string` — erase a scalar (or matching primitive) to its representation. */
+export interface CastExpr extends UnaryExpr {
+  readonly $type:
+    | "ArrayLiteral"
+    | "BooleanLiteral"
+    | "CastExpr"
+    | "ContextRef"
+    | "GroupedExpr"
+    | "IdentityRef"
+    | "Literal"
+    | "NullLiteral"
+    | "NumberLiteral"
+    | "PathRef"
+    | "Primary"
+    | "StringLiteral";
+  operand: Primary;
+  type: PrimitiveName;
+}
+
+export const CastExpr = {
+  $type: "CastExpr",
+  op: "op",
+  operand: "operand",
+  type: "type",
+} as const;
+
+export function isCastExpr(item: unknown): item is CastExpr {
+  return reflection.isInstance(item, CastExpr.$type);
 }
 
 export interface ContextBlock extends langium.AstNode {
@@ -199,6 +230,7 @@ export function isContextBlock(item: unknown): item is ContextBlock {
 }
 
 export interface ContextRef extends langium.AstNode {
+  readonly $container: CastExpr;
   readonly $type: "ContextRef";
   path: Array<string>;
 }
@@ -418,6 +450,7 @@ export function isFragmentSpread(item: unknown): item is FragmentSpread {
 }
 
 export interface GroupedExpr extends langium.AstNode {
+  readonly $container: CastExpr;
   readonly $type: "GroupedExpr";
   expr: Expression;
 }
@@ -453,6 +486,7 @@ export function isGroupedTypeExpr(item: unknown): item is GroupedTypeExpr {
 }
 
 export interface IdentityRef extends langium.AstNode {
+  readonly $container: CastExpr;
   readonly $type: "IdentityRef";
   binding: string;
   path: Array<string>;
@@ -596,7 +630,7 @@ export function isNamedTypeExpr(item: unknown): item is NamedTypeExpr {
 }
 
 export interface NullLiteral extends langium.AstNode {
-  readonly $container: ArrayLiteral;
+  readonly $container: ArrayLiteral | CastExpr;
   readonly $type: "NullLiteral";
 }
 
@@ -629,7 +663,7 @@ export function isNullTypeExpr(item: unknown): item is NullTypeExpr {
 }
 
 export interface NumberLiteral extends langium.AstNode {
-  readonly $container: ArrayLiteral;
+  readonly $container: ArrayLiteral | CastExpr;
   readonly $type: "NumberLiteral";
   value: string;
 }
@@ -769,6 +803,7 @@ export function isOrExpr(item: unknown): item is OrExpr {
 }
 
 export interface PathRef extends langium.AstNode {
+  readonly $container: CastExpr;
   readonly $type: "PathRef";
   segments: Array<string>;
 }
@@ -1114,7 +1149,7 @@ export function isScalarDeclaration(item: unknown): item is ScalarDeclaration {
 }
 
 export interface StringLiteral extends langium.AstNode {
-  readonly $container: ArrayLiteral;
+  readonly $container: ArrayLiteral | CastExpr;
   readonly $type: "StringLiteral";
   value: string;
 }
@@ -1226,6 +1261,7 @@ export interface UnaryExpr extends langium.AstNode {
   readonly $type:
     | "ArrayLiteral"
     | "BooleanLiteral"
+    | "CastExpr"
     | "ContextRef"
     | "GroupedExpr"
     | "IdentityRef"
@@ -1288,6 +1324,7 @@ export type ZielAstType = {
   AtomicTypeExpr: AtomicTypeExpr;
   BinaryExpr: BinaryExpr;
   BooleanLiteral: BooleanLiteral;
+  CastExpr: CastExpr;
   ContextBlock: ContextBlock;
   ContextRef: ContextRef;
   DatasourceDeclaration: DatasourceDeclaration;
@@ -1403,6 +1440,22 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         },
       },
       superTypes: [Literal.$type],
+    },
+    CastExpr: {
+      name: CastExpr.$type,
+      properties: {
+        op: {
+          name: CastExpr.op,
+          optional: true,
+        },
+        operand: {
+          name: CastExpr.operand,
+        },
+        type: {
+          name: CastExpr.type,
+        },
+      },
+      superTypes: [UnaryExpr.$type],
     },
     ContextBlock: {
       name: ContextBlock.$type,
@@ -1777,7 +1830,7 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
     Primary: {
       name: Primary.$type,
       properties: {},
-      superTypes: [UnaryExpr.$type],
+      superTypes: [CastExpr.$type],
     },
     PrimitiveTypeExpr: {
       name: PrimitiveTypeExpr.$type,

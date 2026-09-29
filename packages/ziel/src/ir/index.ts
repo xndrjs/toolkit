@@ -21,7 +21,8 @@ export type PrimitiveTypeName = "string" | "number" | "boolean";
 /**
  * Nominal custom scalar: semantic name backed by a primitive representation.
  * Do not lower `scalarRef` to `primitive` in IR or during semantic analysis —
- * representation is consulted only for literal inhabitance and (later) codegen.
+ * representation is consulted for literal inhabitance, `expr as Primitive` casts,
+ * and codegen.
  */
 export type ScalarDefinition = {
   name: string;
@@ -137,6 +138,13 @@ export type Expr =
       kind: "unary";
       op: "!";
       operand: Expr;
+      span: SourceSpan | null;
+    }
+  | {
+      /** Erase a scalar (or matching primitive / string literal) to a primitive. */
+      kind: "cast";
+      operand: Expr;
+      type: PrimitiveTypeName;
       span: SourceSpan | null;
     }
   | {

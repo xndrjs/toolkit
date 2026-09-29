@@ -336,6 +336,10 @@ export function not(operand: Expr): Expr {
   return { kind: "unary", op: "!", operand, span };
 }
 
+export function cast(operand: Expr, type: "string" | "number" | "boolean"): Expr {
+  return { kind: "cast", operand, type, span };
+}
+
 export function and(left: Expr, right: Expr): Expr {
   return { kind: "binary", op: "and", left, right, span };
 }

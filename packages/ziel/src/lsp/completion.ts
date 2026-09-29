@@ -408,6 +408,7 @@ export function completionsAtOffset(
 ): SemanticCompletionItem[] {
   const exprTables = {
     resources: tables.resources,
+    scalars: tables.scalars,
     nameTables: nameTablesFrom(tables),
   };
 

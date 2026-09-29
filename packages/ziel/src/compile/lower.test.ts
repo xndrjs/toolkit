@@ -1113,6 +1113,40 @@ describe("lowerProgram — fragments", () => {
     });
   });
 
+  it("lowers expr as Primitive casts", () => {
+    const program = lowerProgram(
+      parseSource(`
+      scalar Locale on string;
+      scalar Ref on string;
+
+      resource CustomReference(ref: Ref): { ref }
+
+      datasource Cms {
+        context { locale: Locale }
+        for CustomReference c when context.locale as string == @c.ref as string
+      }
+    `)
+    );
+
+    expect(stripSpans(program.datasources[0]!.routes[0]!.when)).toEqual({
+      kind: "binary",
+      op: "==",
+      left: {
+        kind: "cast",
+        type: "string",
+        operand: { kind: "context", path: ["locale"], span: null },
+        span: null,
+      },
+      right: {
+        kind: "cast",
+        type: "string",
+        operand: { kind: "identityRef", binding: "c", path: ["ref"], span: null },
+        span: null,
+      },
+      span: null,
+    });
+  });
+
   it("lowers optional object fields and normalizes `| null` to nullable", () => {
     const program = lowerProgram(
       parseSource(`
