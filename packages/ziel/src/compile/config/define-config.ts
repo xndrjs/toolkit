@@ -31,10 +31,16 @@ export type ZielCodegenConfig = {
    * and types (e.g. `"$type"` or `"__resource"`). Default: unset (no stamp).
    */
   resourceTag?: string;
+  /**
+   * When the program declares ≥1 datasource, require every resource to appear
+   * in at least one `for` route (`RESOURCE_MISSING_DATASOURCE`). Default: `true`.
+   */
+  requireDatasourceCoverage?: boolean;
 };
 
 /**
- * Normalize a codegen config: fills `include` / `exclude` defaults.
+ * Normalize a codegen config: fills `include` / `exclude` /
+ * `requireDatasourceCoverage` defaults.
  * Identity for other fields (resolved later by collect / generateResources / CLI).
  */
 export function defineConfig(config: ZielCodegenConfig): ZielCodegenConfig {
@@ -42,5 +48,6 @@ export function defineConfig(config: ZielCodegenConfig): ZielCodegenConfig {
     ...config,
     include: config.include ?? [...DEFAULT_ZIEL_INCLUDE],
     exclude: config.exclude ?? [...DEFAULT_ZIEL_EXCLUDE],
+    requireDatasourceCoverage: config.requireDatasourceCoverage ?? true,
   };
 }

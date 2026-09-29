@@ -63,6 +63,7 @@ type CollectPlan =
       include?: string[];
       exclude?: string[];
       pathFilter?: string | RegExp;
+      requireDatasourceCoverage?: boolean;
     }
   | {
       kind: "single-file";
@@ -132,6 +133,7 @@ async function resolveCollectPlan(
       include: config.include,
       exclude: config.exclude,
       pathFilter: config.pathFilter,
+      requireDatasourceCoverage: config.requireDatasourceCoverage,
     };
   }
 
@@ -208,7 +210,10 @@ export async function validateWorkspace(
   let semantic: WorkspaceSemanticResult | undefined;
   if (programs.length > 0) {
     const merged = mergePrograms(programs);
-    const analysis = analyzeProgram(merged);
+    const analysis = analyzeProgram(merged, {
+      requireDatasourceCoverage:
+        plan.kind === "project" ? plan.requireDatasourceCoverage : undefined,
+    });
     semantic = {
       program: merged,
       scalars: analysis.scalars,

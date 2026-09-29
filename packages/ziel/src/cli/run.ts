@@ -59,6 +59,7 @@ function generateOnce(
     importFrom: config?.importFrom,
     registryTypeName: config?.registryTypeName,
     resourceTag: config?.resourceTag,
+    requireDatasourceCoverage: config?.requireDatasourceCoverage,
   });
 
   if (diagnostics.length > 0) {

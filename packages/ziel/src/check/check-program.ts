@@ -12,15 +12,28 @@ export type ProgramAnalysis = {
   resources: ResourceTable;
 };
 
+/** Options for {@link analyzeProgram} / {@link checkProgram}. */
+export type AnalyzeProgramOptions = {
+  /**
+   * When the program declares ≥1 datasource, require every resource to appear
+   * in at least one `for` route. Default: `true`.
+   */
+  requireDatasourceCoverage?: boolean;
+};
+
 /**
  * Collect scalar/resource tables and run semantic checks.
  * Prefer this when callers need the tables (e.g. LSP snapshot); use
  * {@link checkProgram} when only diagnostics matter.
  */
-export function analyzeProgram(program: Program): ProgramAnalysis {
+export function analyzeProgram(
+  program: Program,
+  options: AnalyzeProgramOptions = {}
+): ProgramAnalysis {
   const sink = createDiagnosticSink();
   const scalars = collectScalars(program, sink);
   const resources = collectResources(program, scalars, sink);
+  const requireDatasourceCoverage = options.requireDatasourceCoverage ?? true;
 
   for (const scalar of program.scalars) {
     if (resources.has(scalar.name)) {
@@ -49,7 +62,7 @@ export function analyzeProgram(program: Program): ProgramAnalysis {
     checkFragment(fragment, path, scalars, resources, sink);
   }
 
-  checkDatasources(program, scalars, resources, sink);
+  checkDatasources(program, scalars, resources, sink, { requireDatasourceCoverage });
 
   const queryNames = new Set<string>();
   for (const query of program.queries) {
@@ -73,6 +86,6 @@ export function analyzeProgram(program: Program): ProgramAnalysis {
 /**
  * Check a Ziel program. Returns all diagnostics (does not throw).
  */
-export function checkProgram(program: Program): Diagnostic[] {
-  return analyzeProgram(program).diagnostics;
+export function checkProgram(program: Program, options: AnalyzeProgramOptions = {}): Diagnostic[] {
+  return analyzeProgram(program, options).diagnostics;
 }

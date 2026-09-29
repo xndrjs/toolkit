@@ -35,6 +35,7 @@ export default defineConfig({
   // include defaults to ["**/*.ziel"]
   // exclude defaults to ["**/node_modules/**"]
   // pathFilter?: string | RegExp  — optional filter on posix path relative to root
+  // requireDatasourceCoverage defaults to true — every resource needs a `for` route when datasources exist
   out: "./src/generated/resources.ts",
   // importFrom / registryTypeName optional → generateResources
 });
@@ -55,7 +56,7 @@ pnpm ziel-codegen --config ./ziel.config.ts --dry-run
 pnpm ziel-codegen --config ./ziel.config.ts --watch   # or --dev
 ```
 
-Flags: `--config`, `--out`, `--root`, `--dry-run`, `--watch` / `--dev`, `--help`. CLI wins over config (with a warning). `include` / `exclude` / `pathFilter` are config-only. Diagnostics → exit `1` and no write (in `--watch` / `--dev`, errors are logged and the watcher keeps running).
+Flags: `--config`, `--out`, `--root`, `--dry-run`, `--watch` / `--dev`, `--help`. CLI wins over config (with a warning). `include` / `exclude` / `pathFilter` / `requireDatasourceCoverage` are config-only. Diagnostics → exit `1` and no write (in `--watch` / `--dev`, errors are logged and the watcher keeps running).
 
 `--watch` / `--dev` regenerate when any `.ziel` under `root` (or the config) changes. The output file is ignored so writes do not loop. Unchanged content is not rewritten (stable mtimes).
 
@@ -140,7 +141,7 @@ datasource CmsSource {
 
 - **`context`** — fields available as `executionContext` on that source (and merged into aggregate `ZielExecutionContext`).
 - **`for Resource [binding] [when …]`** — routes; `when` may use `context.…` and identity `@binding.…` only (no payload / params / items). Binding is required when `when` is present.
-- **Coverage** — if the program declares ≥1 datasource, every resource must appear in at least one `for` route (hand-wired apps with zero datasources stay valid).
+- **Coverage** — if the program declares ≥1 datasource, every resource must appear in at least one `for` route (hand-wired apps with zero datasources stay valid). Disable with `requireDatasourceCoverage: false` in `ziel.config.ts` (default `true`; honored by CLI and LSP).
 - **Query context** — when datasources exist, each query context must include every field from the datasources whose routes intersect resources that query references (roots, islands, `on` clauses, expand / resolve targets), with compatible types. Unused datasources do not constrain that query. Aggregate `ZielExecutionContext` (for `createDataSources`) remains the merge of all datasource contexts.
 
 Codegen (`generateDataSources` / compose) emits per-source `*Context` types, aggregate `ZielExecutionContext`, and:

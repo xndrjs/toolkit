@@ -16,7 +16,14 @@ import {
   type ComposeGeneratedModuleOptions,
 } from "./compose-generated-module";
 
-export type BuildResourcesOptions = CollectZielFilesOptions & ComposeGeneratedModuleOptions;
+export type BuildResourcesOptions = CollectZielFilesOptions &
+  ComposeGeneratedModuleOptions & {
+    /**
+     * When the program declares ≥1 datasource, require every resource to appear
+     * in at least one `for` route. Default: `true`.
+     */
+    requireDatasourceCoverage?: boolean;
+  };
 
 export type BuildResourcesResult = {
   /** Generated TypeScript; empty when diagnostics are non-empty. */
@@ -45,7 +52,13 @@ function withFileUri(diagnostic: Diagnostic, uri: string): Diagnostic {
  * On any diagnostics (syntax or semantic), `code` is `""` and nothing is written.
  */
 export function buildResources(options: BuildResourcesOptions = {}): BuildResourcesResult {
-  const { importFrom, registryTypeName, resourceTag, ...collectOptions } = options;
+  const {
+    importFrom,
+    registryTypeName,
+    resourceTag,
+    requireDatasourceCoverage,
+    ...collectOptions
+  } = options;
   const files = collectZielFiles(collectOptions);
 
   const programs: Program[] = [];
@@ -79,7 +92,10 @@ export function buildResources(options: BuildResourcesOptions = {}): BuildResour
   }
 
   const merged = mergePrograms(programs);
-  const diagnostics = [...perFileDiagnostics, ...checkProgram(merged)];
+  const diagnostics = [
+    ...perFileDiagnostics,
+    ...checkProgram(merged, { requireDatasourceCoverage }),
+  ];
 
   if (diagnostics.length > 0) {
     return { code: "", diagnostics, files };
