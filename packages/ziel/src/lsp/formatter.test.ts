@@ -119,6 +119,8 @@ expand menu:Entry(spaceId:a,environmentId:b,id:p.menuId,locale:c)
     expect(formatted).toMatch(
       /Entry\(\n {6}spaceId: a,\n {6}environmentId: b,\n {6}id: p\.menuId,\n {6}locale: c\n {4}\)/
     );
+    // Blank line between sibling expands
+    expect(formatted).toMatch(/expand strips:[\s\S]*?\n\n {4}expand menu:/);
   });
 
   it("formats ! and array membership", async () => {
