@@ -33,7 +33,8 @@ export interface ResolvePort<
   TExecutionContext = unknown,
 > {
   /**
-   * First matching policy wins. `undefined` means no redirect — expand as usual.
+   * First matching resolve policy wins (declaration order). Later overlapping
+   * policies are not consulted. `undefined` means no redirect — expand as usual.
    */
   resolve(context: ResolveContext<R, TExecutionContext>): ResolveResult | undefined;
 }
@@ -84,8 +85,9 @@ export function defineResolvePolicy<
 }
 
 /**
- * Builds a {@link ResolvePort} that takes the first matching policy.
- * When no policy matches, returns `undefined` (no redirect).
+ * Builds a {@link ResolvePort} with first-match policy order: the first policy
+ * whose `matches` returns true wins; later overlaps are ignored. When no policy
+ * matches, returns `undefined` (no redirect).
  */
 export function createResolvePolicyChain<
   R extends ContentRegistry = ContentRegistry,

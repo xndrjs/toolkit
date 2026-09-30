@@ -104,4 +104,15 @@ describe("CmsEntries datasource", () => {
     // Asset is not in `for`; if somehow asked, map yields undefined slots.
     expect(await load([asset as never], loadContext)).toEqual([undefined]);
   });
+
+  it("rejects corrupt store documents at the loader boundary", async () => {
+    const corrupt = new Map(demoEntries);
+    corrupt.set(entryLookupKey({ spaceId, environmentId, id: demoIds.heroWelcome }), {
+      kind: "entry",
+      payload: { broken: true } as never,
+    });
+    const load = loadCmsEntries(corrupt);
+    const entry = entryAri(entryIdentity(demoIds.heroWelcome));
+    await expect(load([entry], loadContext)).rejects.toThrow(/Invalid Entry payload/);
+  });
 });

@@ -62,6 +62,7 @@ export interface SourceRouteContext<TExecutionContext = unknown> {
  *
  * When several sources can handle the same ARI, the resolver picks the first
  * match in `sources` order whose optional {@link when} predicate passes.
+ * Overlaps are not validated — declare one owner per ARI family.
  *
  * Redirects / identity hops are **not** expressed from `load` — use strategy
  * `resolve` policies after a decode payload is committed.

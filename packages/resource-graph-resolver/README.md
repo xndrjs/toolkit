@@ -69,6 +69,15 @@ const output = await resolver.resolve({
 
 Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave.
 
+## Routing (first-match)
+
+Datasource and redirect routing are both **first-match in declaration order**:
+
+- **`sources`** — for each ARI, the resolver walks `sources` and picks the first whose optional `when` passes and whose `for` list contains a matching family. Later overlapping sources are never consulted.
+- **Strategy `.resolve` policies** — the first matching resolve policy wins; `undefined` means no redirect.
+
+Overlapping owners are not detected or validated. Declare **one owner per ARI family** (and keep resolve-policy order intentional). Payloads returned by `load` are trusted by the engine — validate untrusted transport data inside the loader before returning.
+
 ## Runtime budgets
 
 Every resolution has finite defaults: 10,000 distinct nodes, 50,000 distinct expansion/redirect edges, 1,000 datasource batches, and 30 seconds. Override only the limits appropriate for your topology through `ResourceGraphResolverConfig.budget`; omitted fields keep their defaults.
@@ -89,7 +98,7 @@ Crossing a limit aborts the resolution with `ResourceGraphBudgetExceededError` a
 
 ## Redirect invariants
 
-Strategy `.resolve` policies run after a locator payload has been decoded and before that resource expands. Redirect chains are canonicalized: if `A → B → C`, resolution loads and expands `C`, `output.redirects` contains both `A → C` and `B → C`, and the canonical payload is available from `contentMap` through all three ARIs.
+Strategy `.resolve` policies run after a locator payload has been decoded and before that resource expands. Policy order is first-match (see [Routing](#routing-first-match)). Redirect chains are canonicalized: if `A → B → C`, resolution loads and expands `C`, `output.redirects` contains both `A → C` and `B → C`, and the canonical payload is available from `contentMap` through all three ARIs.
 
 Redirects obey the same invariants for normal loads and `backingResources`. Several locators converging on one target still load that target once. Self-cycles and longer redirect cycles always throw `ResourceRedirectCycleError`; they are structural strategy errors and are not softened by per-edge failure policies.
 

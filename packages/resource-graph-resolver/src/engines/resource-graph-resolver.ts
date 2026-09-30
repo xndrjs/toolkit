@@ -63,10 +63,9 @@ export interface ResourceGraphResolverConfig<
   /**
    * Backends that own the ARI families in this graph.
    *
-   * Routing walks `sources` in order. For each ARI, the first source whose
-   * optional `when` predicate passes and whose `for` list contains a matching
-   * family wins. Overlapping sources are not detected — declare one owner per
-   * ARI type.
+   * First-match routing: walks `sources` in order and picks the first source
+   * whose optional `when` passes and whose `for` list contains a matching
+   * family. Later overlaps are ignored — declare one owner per ARI family.
    */
   readonly sources: readonly DataSource<R, TExecutionContext>[];
   readonly strategy: GraphResolutionStrategy<R, TExecutionContext>;
@@ -262,10 +261,6 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       return;
     }
 
-    if (session.isAbsent(ref.resource)) {
-      return;
-    }
-
     if (!session.rememberWaiter(ref)) {
       // Already pending; this island is now recorded as a waiter (policy upgraded).
       return;
@@ -318,7 +313,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
         continue;
       }
 
-      if (session.hasFailure(ref.resource) || session.isAbsent(ref.resource)) {
+      if (session.hasFailure(ref.resource)) {
         continue;
       }
 

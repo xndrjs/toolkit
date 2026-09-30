@@ -455,27 +455,6 @@ export function rejectPreambleArmFieldClash(
   }
 }
 
-/** @deprecated Prefer {@link expandBody} + {@link rejectPreambleArmFieldClash}. */
-export function rejectDuplicateBody(
-  body: FlattenedBody,
-  span: SourceSpan | null,
-  sink: DiagnosticSink
-): void {
-  const seenFields = new Set<string>();
-  for (const field of body.selectedFields) {
-    if (seenFields.has(field)) {
-      sink.push({
-        code: "DUPLICATE_SELECTED_FIELD",
-        message: `Duplicate selected field '${field}'`,
-        span,
-      });
-    }
-    seenFields.add(field);
-  }
-  // Expansion alias duplicates surface via checkProgram (DUPLICATE_EXPANSION_ALIAS)
-  // on the flattened IR.
-}
-
 export function rebindExpansion(expansion: Expansion, from: string, to: string): Expansion {
   if (from === to) return expansion;
   return {
