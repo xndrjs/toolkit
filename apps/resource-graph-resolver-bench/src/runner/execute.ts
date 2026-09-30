@@ -5,9 +5,10 @@ import { generateBenchGraph, type GeneratedBenchGraph } from "../graph/generate"
 import { generatePagebuilderGraph } from "../graph/pagebuilder";
 import { createMetricsCollector, type ResolutionRunMetrics } from "../metrics/collect";
 import { summarizeRuns } from "../metrics/summarize";
+import { walkBatched, walkNaive } from "../orchestration/handwritten";
 import { createCmsSource, CMS_SOURCE_ID } from "../sources/cms-source";
 import { createIntegrationSource, INTEGRATION_SOURCE_ID } from "../sources/integration-source";
-import type { BenchCaseConfig, BenchCaseResult } from "./types";
+import type { BenchCaseConfig, BenchCaseResult, OrchestrationMode } from "./types";
 
 function generateGraphForCase(config: BenchCaseConfig): GeneratedBenchGraph {
   if (config.profile === "pagebuilder") {
@@ -27,7 +28,7 @@ function generateGraphForCase(config: BenchCaseConfig): GeneratedBenchGraph {
   });
 }
 
-async function resolveOnce(
+async function resolveWithResolver(
   graph: GeneratedBenchGraph,
   config: BenchCaseConfig
 ): Promise<ResolutionRunMetrics> {
@@ -64,6 +65,24 @@ async function resolveOnce(
   return collector.snapshot();
 }
 
+async function resolveOnce(
+  graph: GeneratedBenchGraph,
+  config: BenchCaseConfig
+): Promise<ResolutionRunMetrics> {
+  switch (config.orchestration) {
+    case "naive":
+      return walkNaive(graph, config);
+    case "batched":
+      return walkBatched(graph, config);
+    case "resolver":
+      return resolveWithResolver(graph, config);
+    default: {
+      const _exhaustive: never = config.orchestration;
+      throw new Error(`Unknown orchestration mode: ${String(_exhaustive)}`);
+    }
+  }
+}
+
 /**
  * Runs one matrix cell: generate graph once, warmup resolves (discarded), then
  * measured repeats → summarized metrics.
@@ -96,6 +115,7 @@ export function formatCaseLabel(config: {
   readonly modules: number;
   readonly productStride: number;
   readonly schedulingMode: SchedulingMode;
+  readonly orchestration: OrchestrationMode;
   readonly cmsBatchSize: number;
   readonly integrationBatchSize: number;
   readonly cmsLatencyMs: number;
@@ -110,6 +130,7 @@ export function formatCaseLabel(config: {
 
   return [
     shape,
+    `orchestration=${config.orchestration}`,
     `schedulingMode=${config.schedulingMode}`,
     `cmsBatch=${config.cmsBatchSize}`,
     `intBatch=${config.integrationBatchSize}`,

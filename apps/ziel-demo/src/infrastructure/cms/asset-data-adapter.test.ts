@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { assetAri } from "../../generated";
-import { createDemoSources } from "../demo-resolver.js";
+import { createDemoPageDetailSources } from "../demo-resolver.js";
 import { DEMO_ENVIRONMENT, DEMO_LOCALE, DEMO_SPACE, demoIds } from "../fixtures/store.js";
 import { ASSET_SOURCE_ID, loadCmsAssets } from "./asset-data-adapter.js";
 
@@ -17,7 +17,7 @@ const loadContext = {
 
 describe("CmsAssets datasource", () => {
   it("owns only assetAri", () => {
-    const source = createDemoSources().find((s) => s.id === ASSET_SOURCE_ID)!;
+    const source = createDemoPageDetailSources().find((s) => s.id === ASSET_SOURCE_ID)!;
     expect(source.id).toBe(ASSET_SOURCE_ID);
     expect(source.for.map((family) => family.type)).toEqual(["Asset"]);
   });

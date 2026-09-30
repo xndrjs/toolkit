@@ -6,7 +6,11 @@
  */
 import type { ProgramAnalysis } from "../../check";
 import type { Program } from "../../ir";
-import { datasourcesNeedSourceRouteContext, emitDataSources } from "./datasources";
+import {
+  datasourcesNeedSourceRouteContext,
+  emitDataSourceTypes,
+  emitQueryDataSourceFactories,
+} from "./datasources";
 import type { GenerateResourcesOptions } from "./generators/generate-resources";
 import { emitProjectionTypes, emitProjections } from "./projections";
 import { emitPayloadTypes, emitRegistry, emitResources, emitScalars } from "./resources";
@@ -52,8 +56,8 @@ function emitRuntimeImport(importFrom: string, symbols: string[]): string {
 
 /**
  * Compose a single generated module: scalars / ARIs / payloads / registry,
- * plus `createDataSources` when datasources are declared, and open strategy
- * builders, projectors, and resolve façades when the program has queries.
+ * plus per-query `create*DataSources` when datasources are declared, and open
+ * strategy builders, projectors, and resolve façades when the program has queries.
  *
  * Uses one header and one runtime import (`ari`, `s`,
  * `createGraphResolutionStrategy`, `defineDataSourceFor`,
@@ -89,14 +93,20 @@ export function composeGeneratedModule(
     bodyParts.push(registry);
   }
 
-  const datasources = emitDataSources(program, registryTypeName);
-  if (datasources.length > 0) {
-    bodyParts.push(datasources);
+  const datasourceTypes = emitDataSourceTypes(program);
+  if (datasourceTypes.length > 0) {
+    bodyParts.push(datasourceTypes);
   }
 
   const strategies = emitStrategies(analysis, registryTypeName);
   if (strategies.length > 0) {
     bodyParts.push(strategies);
+  }
+
+  // After strategies so `{Query}ExecutionContext` aliases exist for factory return types.
+  const queryDataSources = emitQueryDataSourceFactories(program, registryTypeName);
+  if (queryDataSources.length > 0) {
+    bodyParts.push(queryDataSources);
   }
 
   const projectionTypes = emitProjectionTypes(analysis, resourceTag);
@@ -151,7 +161,7 @@ export function composeGeneratedModule(
     }
   }
 
-  if (datasources.length > 0) {
+  if (datasourceTypes.length > 0) {
     for (const symbol of ["defineDataSourceFor", "type DataSource", "type ResourceLoadContext"]) {
       if (!importSymbols.includes(symbol)) {
         importSymbols.push(symbol);

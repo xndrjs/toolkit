@@ -1,5 +1,3 @@
-import type { SchedulingMode } from "@xndrjs/resource-graph-resolver";
-
 import { DEFAULT_MAX_NODES, type GraphProfile } from "../graph/generate";
 import type { BenchCaseConfig, MatrixDimensions, RunnerCliArgs } from "./types";
 
@@ -14,6 +12,8 @@ export const DEFAULT_MATRIX_DIMENSIONS: MatrixDimensions = {
   arity: [3],
   productStride: [3],
   schedulingMode: ["lane", "barrier"],
+  /** Baseline matrix stays on the resolver; use `--orchestration` (or compare runs) for naive/batched. */
+  orchestration: ["resolver"],
   cmsBatchSize: [50, 100, 200],
   integrationBatchSize: [100],
   cmsLatencyMs: [20],
@@ -29,6 +29,7 @@ export const TREE_MATRIX_DIMENSIONS: Omit<MatrixDimensions, "profile"> = {
   arity: [1, 2, 3],
   productStride: [0],
   schedulingMode: ["lane", "barrier"],
+  orchestration: ["resolver"],
   cmsBatchSize: [50, 100, 200],
   integrationBatchSize: [100],
   cmsLatencyMs: [20],
@@ -38,15 +39,14 @@ export const TREE_MATRIX_DIMENSIONS: Omit<MatrixDimensions, "profile"> = {
 };
 
 /** Defaults for a single-run (non-matrix) pagebuilder invocation — ~1.2k total. */
-export const DEFAULT_SINGLE_RUN: Omit<BenchCaseConfig, "schedulingMode"> & {
-  readonly schedulingMode: SchedulingMode;
-} = {
+export const DEFAULT_SINGLE_RUN: BenchCaseConfig = {
   profile: "pagebuilder",
   modules: 48,
   depth: 5,
   arity: 3,
   productStride: 3,
   schedulingMode: "lane",
+  orchestration: "resolver",
   cmsBatchSize: 100,
   integrationBatchSize: 100,
   cmsLatencyMs: 20,
@@ -95,6 +95,7 @@ export function resolveMatrixDimensions(args: RunnerCliArgs): MatrixDimensions {
     arity: singletonOrDefault(args.arity, base.arity),
     productStride: singletonOrDefault(args.productStride, base.productStride),
     schedulingMode: singletonOrDefault(args.schedulingMode, base.schedulingMode),
+    orchestration: singletonOrDefault(args.orchestration, base.orchestration),
     cmsBatchSize: singletonOrDefault(args.cmsBatchSize, base.cmsBatchSize),
     integrationBatchSize: singletonOrDefault(args.integrationBatchSize, base.integrationBatchSize),
     cmsLatencyMs: singletonOrDefault(args.cmsLatencyMs, base.cmsLatencyMs),
@@ -124,29 +125,32 @@ export function expandMatrix(
         for (const arity of dimensions.arity) {
           for (const productStride of dimensions.productStride) {
             for (const schedulingMode of dimensions.schedulingMode) {
-              for (const cmsBatchSize of dimensions.cmsBatchSize) {
-                for (const integrationBatchSize of dimensions.integrationBatchSize) {
-                  for (const cmsLatencyMs of dimensions.cmsLatencyMs) {
-                    for (const integrationLatencyMs of dimensions.integrationLatencyMs) {
-                      for (const cmsConcurrency of dimensions.cmsConcurrency) {
-                        for (const integrationConcurrency of dimensions.integrationConcurrency) {
-                          cells.push({
-                            profile,
-                            modules,
-                            depth,
-                            arity,
-                            productStride,
-                            schedulingMode,
-                            cmsBatchSize,
-                            integrationBatchSize,
-                            cmsLatencyMs,
-                            integrationLatencyMs,
-                            cmsConcurrency,
-                            integrationConcurrency,
-                            maxNodes: shared.maxNodes,
-                            warmup: shared.warmup,
-                            repeats: shared.repeats,
-                          });
+              for (const orchestration of dimensions.orchestration) {
+                for (const cmsBatchSize of dimensions.cmsBatchSize) {
+                  for (const integrationBatchSize of dimensions.integrationBatchSize) {
+                    for (const cmsLatencyMs of dimensions.cmsLatencyMs) {
+                      for (const integrationLatencyMs of dimensions.integrationLatencyMs) {
+                        for (const cmsConcurrency of dimensions.cmsConcurrency) {
+                          for (const integrationConcurrency of dimensions.integrationConcurrency) {
+                            cells.push({
+                              profile,
+                              modules,
+                              depth,
+                              arity,
+                              productStride,
+                              schedulingMode,
+                              orchestration,
+                              cmsBatchSize,
+                              integrationBatchSize,
+                              cmsLatencyMs,
+                              integrationLatencyMs,
+                              cmsConcurrency,
+                              integrationConcurrency,
+                              maxNodes: shared.maxNodes,
+                              warmup: shared.warmup,
+                              repeats: shared.repeats,
+                            });
+                          }
                         }
                       }
                     }
@@ -176,6 +180,7 @@ export function singleRunConfig(args: RunnerCliArgs): BenchCaseConfig {
     productStride:
       args.productStride ?? treeDefaults?.productStride ?? DEFAULT_SINGLE_RUN.productStride,
     schedulingMode: args.schedulingMode ?? DEFAULT_SINGLE_RUN.schedulingMode,
+    orchestration: args.orchestration ?? DEFAULT_SINGLE_RUN.orchestration,
     cmsBatchSize: args.cmsBatchSize ?? DEFAULT_SINGLE_RUN.cmsBatchSize,
     integrationBatchSize: args.integrationBatchSize ?? DEFAULT_SINGLE_RUN.integrationBatchSize,
     cmsLatencyMs: args.cmsLatencyMs ?? DEFAULT_SINGLE_RUN.cmsLatencyMs,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { entryAri, errorLabAri, pageAri } from "../../generated";
-import { createDemoSources } from "../demo-resolver.js";
+import { createDemoErrorHandlingDetailSources } from "../demo-resolver.js";
 import { DEMO_ENVIRONMENT, DEMO_LOCALE, DEMO_SPACE, demoIds } from "../fixtures/store.js";
 import { ERROR_LAB_SOURCE_ID, loadErrorLabStore } from "./error-lab-data-adapter.js";
 
@@ -16,7 +16,9 @@ const loadContext = {
 const labIdentity = (id: string) => ({ spaceId, environmentId, id, locale });
 
 function errorLabSource() {
-  return createDemoSources().find((source) => source.id === ERROR_LAB_SOURCE_ID)!;
+  return createDemoErrorHandlingDetailSources().find(
+    (source) => source.id === ERROR_LAB_SOURCE_ID
+  )!;
 }
 
 describe("ErrorLabStore datasource", () => {

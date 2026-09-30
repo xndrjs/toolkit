@@ -1,0 +1,41 @@
+/**
+ * Non-CMS commerce vertical: catalog + pricing + inventory + media backends.
+ * Semantic market / locale / tenant live in identity or execution context — not secrets.
+ */
+
+scalar Market on string;
+
+scalar TenantId on string;
+
+scalar CatalogProductId on string;
+
+scalar PriceId on string;
+
+scalar InventorySku on string;
+
+scalar MediaId on string;
+
+resource CatalogProduct(id: CatalogProductId, market: Market, locale: Locale): {
+  id
+  title: string
+  priceId: PriceId refers OfferPrice
+  sku: InventorySku refers StockLevel
+  mediaId: MediaId refers ProductMedia
+}
+
+resource OfferPrice(id: PriceId, market: Market): {
+  id
+  amountCents: number
+  currency: string
+}
+
+resource StockLevel(sku: InventorySku, warehouse: string): {
+  sku
+  available: number
+}
+
+resource ProductMedia(id: MediaId): {
+  id
+  url: string
+  alt: string
+}

@@ -1,6 +1,6 @@
 /**
  * Datasource codegen entry: checked `Program` → TypeScript source string.
- * Emits context types, `createDataSources`, and `defineDataSourceFor` wiring.
+ * Emits context types and per-query `create*DataSources` factories.
  * Generated code imports runtime only from `@xndrjs/ziel`.
  */
 import type { Program } from "../../../ir";

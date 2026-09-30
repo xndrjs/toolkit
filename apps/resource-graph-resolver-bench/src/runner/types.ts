@@ -4,6 +4,9 @@ import type { BenchGraphCounts, GraphProfile } from "../graph/generate";
 import type { ResolutionRunMetrics } from "../metrics/collect";
 import type { RunsMetricsSummary } from "../metrics/summarize";
 
+/** How the graph is walked: resolver engine vs handwritten baselines. */
+export type OrchestrationMode = "resolver" | "naive" | "batched";
+
 /** One matrix cell / single-run configuration. */
 export type BenchCaseConfig = {
   readonly profile: GraphProfile;
@@ -14,6 +17,8 @@ export type BenchCaseConfig = {
   /** Early-product stride; unused (`0`) for `tree`. */
   readonly productStride: number;
   readonly schedulingMode: SchedulingMode;
+  /** How the graph is walked: resolver engine vs handwritten baselines. */
+  readonly orchestration: OrchestrationMode;
   readonly cmsBatchSize: number;
   readonly integrationBatchSize: number;
   readonly cmsLatencyMs: number;
@@ -35,6 +40,7 @@ export type MatrixDimensions = {
   readonly modules: readonly number[];
   readonly productStride: readonly number[];
   readonly schedulingMode: readonly SchedulingMode[];
+  readonly orchestration: readonly OrchestrationMode[];
   readonly cmsBatchSize: readonly number[];
   readonly integrationBatchSize: readonly number[];
   readonly cmsLatencyMs: readonly number[];
@@ -87,6 +93,7 @@ export type RunnerCliArgs = {
   readonly modules?: number;
   readonly productStride?: number;
   readonly schedulingMode?: SchedulingMode;
+  readonly orchestration?: OrchestrationMode;
   readonly cmsBatchSize?: number;
   readonly integrationBatchSize?: number;
   readonly cmsLatencyMs?: number;

@@ -1,17 +1,24 @@
 /**
- * Emit `createDataSources` + per-datasource context/config types from checked
- * `datasource` IR. Adapts app `load` / `batchSize` / `concurrency` onto
- * `defineDataSourceFor` (one datasource = one scheduler lane).
+ * Emit per-datasource context/config types and per-query `create*DataSources`
+ * factories from checked `datasource` IR. Adapts app `load` / `batchSize` /
+ * `concurrency` onto `defineDataSourceFor` (one datasource = one scheduler lane).
+ *
+ * Each query gets its own factory typed on that query's execution context and
+ * including only datasources whose routes intersect resources the query
+ * references — matching checker coverage rules (no global `createDataSources`).
  *
  * DSL `when` becomes a single runtime predicate; when every route omits `when`,
  * the config type may supply an implementation `when` instead.
  */
-import type { DatasourceDefinition, FieldDecl, Program } from "../../../ir";
+import { queryReferencedResources } from "../../../check/check-datasources";
+import type { DatasourceDefinition, FieldDecl, Program, QueryDefinition } from "../../../ir";
 import { printTypeExpr } from "../resources";
 import {
   ariFactoryName,
+  dataSourcesFactoryName,
   datasourceConfigTypeName,
   datasourceContextTypeName,
+  executionContextTypeName,
   payloadTypeName,
   resourceTypeName,
   ZIEL_EXECUTION_CONTEXT_TYPE_NAME,
@@ -142,13 +149,20 @@ function emitDatasourceDefinition(ds: DatasourceDefinition, configAccess: string
   return lines.join("\n");
 }
 
+/** Datasources whose routes intersect resources referenced by `query` (program order). */
+export function datasourcesForQuery(
+  query: QueryDefinition,
+  datasources: readonly DatasourceDefinition[]
+): DatasourceDefinition[] {
+  const referenced = queryReferencedResources(query);
+  return datasources.filter((ds) => ds.routes.some((route) => referenced.has(route.resource)));
+}
+
 /**
- * Emit context types, config types, and `createDataSources` for each datasource.
- * Returns an empty string when the program has no datasources.
- *
- * @param registryTypeName - Registry generic on `DataSource` / `defineDataSourceFor`.
+ * Per-datasource context types, aggregate `ZielExecutionContext`, and config types.
+ * Empty when the program has no datasources.
  */
-export function emitDataSources(program: Program, registryTypeName = "ContentRegistry"): string {
+export function emitDataSourceTypes(program: Program): string {
   if (program.datasources.length === 0) {
     return "";
   }
@@ -170,31 +184,96 @@ export function emitDataSources(program: Program, registryTypeName = "ContentReg
     parts.push(emitDatasourceConfigType(ds));
   }
 
-  const configFields = program.datasources
+  return parts.join("\n\n");
+}
+
+function emitQueryDataSourcesFactory(
+  query: QueryDefinition,
+  datasources: readonly DatasourceDefinition[],
+  registryTypeName: string
+): string {
+  const covered = datasourcesForQuery(query, datasources);
+  const factory = dataSourcesFactoryName(query.name);
+  const contextType = query.context.length > 0 ? executionContextTypeName(query.name) : "unknown";
+
+  const configFields = covered
     .map((ds) => `    ${ds.name}: ${datasourceConfigTypeName(ds.name)};`)
     .join("\n");
 
-  const sourceDefs = program.datasources
-    .map((ds) => emitDatasourceDefinition(ds, `config.${ds.name}`))
-    .join(",\n");
+  const sourceDefs =
+    covered.length === 0
+      ? ""
+      : covered.map((ds) => emitDatasourceDefinition(ds, `config.${ds.name}`)).join(",\n");
 
-  parts.push(
-    [
-      `export function createDataSources<C extends ${ZIEL_EXECUTION_CONTEXT_TYPE_NAME}>(`,
-      `  config: {`,
-      configFields,
-      `  }`,
-      `): DataSource<${registryTypeName}, C>[] {`,
-      `  const defineSource = defineDataSourceFor<${registryTypeName}, C>();`,
-      ``,
-      `  return [`,
-      sourceDefs,
-      `  ];`,
-      `}`,
-    ].join("\n")
-  );
+  return [
+    `export function ${factory}(`,
+    `  config: {`,
+    configFields,
+    `  }`,
+    `): DataSource<${registryTypeName}, ${contextType}>[] {`,
+    `  const defineSource = defineDataSourceFor<${registryTypeName}, ${contextType}>();`,
+    ``,
+    `  return [`,
+    sourceDefs,
+    `  ];`,
+    `}`,
+  ].join("\n");
+}
+
+/**
+ * Emit `create{Query}DataSources` for each query. Empty when there are no
+ * datasources or no queries.
+ *
+ * Callers that also emit strategies must place this **after** strategy emission
+ * so `{Query}ExecutionContext` aliases exist.
+ *
+ * @param emitQueryContexts - When true (standalone `generateDataSources`), also
+ *   emit `{Query}ExecutionContext` aliases before factories. Compose leaves this
+ *   false because strategies already emit those types.
+ */
+export function emitQueryDataSourceFactories(
+  program: Program,
+  registryTypeName = "ContentRegistry",
+  options: { emitQueryContexts?: boolean } = {}
+): string {
+  if (program.datasources.length === 0 || program.queries.length === 0) {
+    return "";
+  }
+
+  const emitQueryContexts = options.emitQueryContexts ?? false;
+  const parts: string[] = [];
+
+  for (const query of program.queries) {
+    if (emitQueryContexts && query.context.length > 0) {
+      parts.push(
+        emitObjectTypeAlias(
+          executionContextTypeName(query.name),
+          query.context,
+          /* exported */ true
+        )
+      );
+    }
+    parts.push(emitQueryDataSourcesFactory(query, program.datasources, registryTypeName));
+  }
 
   return parts.join("\n\n");
+}
+
+/**
+ * Full datasource section for standalone `generateDataSources`: types + per-query
+ * factories (with query execution-context aliases).
+ */
+export function emitDataSources(program: Program, registryTypeName = "ContentRegistry"): string {
+  const types = emitDataSourceTypes(program);
+  if (types.length === 0) {
+    return "";
+  }
+
+  const factories = emitQueryDataSourceFactories(program, registryTypeName, {
+    emitQueryContexts: true,
+  });
+
+  return factories.length > 0 ? `${types}\n\n${factories}` : types;
 }
 
 /** True when any datasource may accept an implementation `when` on its config. */

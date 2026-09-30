@@ -1,0 +1,250 @@
+{
+  "meta": {
+    "timestamp": "2026-09-30T20:08:40.619Z",
+    "matrix": false,
+    "cellCount": 1,
+    "runtime": {
+      "node": "v24.16.0",
+      "platform": "darwin",
+      "arch": "arm64"
+    }
+  },
+  "runs": [
+    {
+      "config": {
+        "profile": "pagebuilder",
+        "modules": 32,
+        "depth": 5,
+        "arity": 3,
+        "productStride": 3,
+        "schedulingMode": "lane",
+        "orchestration": "resolver",
+        "cmsBatchSize": 100,
+        "integrationBatchSize": 100,
+        "cmsLatencyMs": 20,
+        "integrationLatencyMs": 80,
+        "cmsConcurrency": 1,
+        "integrationConcurrency": 1,
+        "maxNodes": 10000,
+        "warmup": 0,
+        "repeats": 1
+      },
+      "graph": {
+        "cmsNodeCount": 474,
+        "productCount": 326,
+        "edgeCount": 799
+      },
+      "repeatIndex": 1,
+      "metrics": {
+        "schedulingMode": "lane",
+        "wallMs": 458,
+        "resolvedCount": 800,
+        "errorCount": 0,
+        "promotedCount": 0,
+        "batchCount": 12,
+        "batches": [
+          {
+            "sourceId": "cms",
+            "batchNumber": 1,
+            "startedAt": 183.29625,
+            "endedAt": 205.583833,
+            "resourceCount": 1,
+            "durationMs": 23,
+            "ok": true,
+            "resourcesByType": {
+              "bench.node": 1
+            }
+          },
+          {
+            "sourceId": "cms",
+            "batchNumber": 2,
+            "startedAt": 206.20375,
+            "endedAt": 226.465667,
+            "resourceCount": 32,
+            "durationMs": 21,
+            "ok": true,
+            "resourcesByType": {
+              "bench.node": 32
+            }
+          },
+          {
+            "sourceId": "cms",
+            "batchNumber": 3,
+            "startedAt": 227.316667,
+            "endedAt": 249.620417,
+            "resourceCount": 63,
+            "durationMs": 23,
+            "ok": true,
+            "resourcesByType": {
+              "bench.node": 63
+            }
+          },
+          {
+            "sourceId": "cms",
+            "batchNumber": 4,
+            "startedAt": 250.588958,
+            "endedAt": 272.844458,
+            "resourceCount": 100,
+            "durationMs": 22,
+            "ok": true,
+            "resourcesByType": {
+              "bench.node": 100
+            }
+          },
+          {
+            "sourceId": "cms",
+            "batchNumber": 5,
+            "startedAt": 274.878833,
+            "endedAt": 296.023,
+            "resourceCount": 100,
+            "durationMs": 21,
+            "ok": true,
+            "resourcesByType": {
+              "bench.node": 100
+            }
+          },
+          {
+            "sourceId": "integration",
+            "batchNumber": 1,
+            "startedAt": 227.359625,
+            "endedAt": 309.993792,
+            "resourceCount": 11,
+            "durationMs": 83,
+            "ok": true,
+            "resourcesByType": {
+              "bench.product": 11
+            }
+          },
+          {
+            "sourceId": "cms",
+            "batchNumber": 6,
+            "startedAt": 296.8905,
+            "endedAt": 317.793458,
+            "resourceCount": 100,
+            "durationMs": 21,
+            "ok": true,
+            "resourcesByType": {
+              "bench.node": 100
+            }
+          },
+          {
+            "sourceId": "cms",
+            "batchNumber": 7,
+            "startedAt": 318.437083,
+            "endedAt": 341.142458,
+            "resourceCount": 78,
+            "durationMs": 23,
+            "ok": true,
+            "resourcesByType": {
+              "bench.node": 78
+            }
+          },
+          {
+            "sourceId": "integration",
+            "batchNumber": 2,
+            "startedAt": 310.144542,
+            "endedAt": 392.864333,
+            "resourceCount": 100,
+            "durationMs": 83,
+            "ok": true,
+            "resourcesByType": {
+              "bench.product": 100
+            }
+          },
+          {
+            "sourceId": "integration",
+            "batchNumber": 3,
+            "startedAt": 393.597958,
+            "endedAt": 476.105375,
+            "resourceCount": 100,
+            "durationMs": 82,
+            "ok": true,
+            "resourcesByType": {
+              "bench.product": 100
+            }
+          },
+          {
+            "sourceId": "integration",
+            "batchNumber": 4,
+            "startedAt": 476.817167,
+            "endedAt": 558.49125,
+            "resourceCount": 100,
+            "durationMs": 82,
+            "ok": true,
+            "resourcesByType": {
+              "bench.product": 100
+            }
+          },
+          {
+            "sourceId": "integration",
+            "batchNumber": 5,
+            "startedAt": 558.766125,
+            "endedAt": 641.025708,
+            "resourceCount": 15,
+            "durationMs": 82,
+            "ok": true,
+            "resourcesByType": {
+              "bench.product": 15
+            }
+          }
+        ],
+        "bySource": {
+          "cms": {
+            "sourceId": "cms",
+            "batchCount": 7,
+            "effectiveBatchSizes": [1, 32, 63, 100, 100, 100, 78],
+            "batchDurationMs": [23, 21, 23, 22, 21, 21, 23],
+            "sumBatchDurationMs": 154,
+            "maxBatchDurationMs": 23,
+            "effectiveBatchSize": {
+              "median": 78,
+              "p95": 100,
+              "p99": 100,
+              "mean": 67.71428571428571,
+              "min": 1,
+              "max": 100,
+              "count": 7
+            },
+            "fillHistogram": {
+              "configuredMax": 100,
+              "eq1": 1,
+              "lteHalf": 1,
+              "belowFull": 2,
+              "full": 3,
+              "unknown": 0,
+              "total": 7
+            }
+          },
+          "integration": {
+            "sourceId": "integration",
+            "batchCount": 5,
+            "effectiveBatchSizes": [11, 100, 100, 100, 15],
+            "batchDurationMs": [83, 83, 82, 82, 82],
+            "sumBatchDurationMs": 412,
+            "maxBatchDurationMs": 83,
+            "effectiveBatchSize": {
+              "median": 100,
+              "p95": 100,
+              "p99": 100,
+              "mean": 65.2,
+              "min": 11,
+              "max": 100,
+              "count": 5
+            },
+            "fillHistogram": {
+              "configuredMax": 100,
+              "eq1": 0,
+              "lteHalf": 2,
+              "belowFull": 0,
+              "full": 3,
+              "unknown": 0,
+              "total": 5
+            }
+          }
+        },
+        "maxInFlightBatches": 2,
+        "overlapMs": 109.11804200000003
+      }
+    }
+  ]
+}

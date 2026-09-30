@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { assetAri, entryAri, errorLabAri, pageAri } from "../../generated";
-import { createDemoSources } from "../demo-resolver.js";
+import { createDemoPageDetailSources } from "../demo-resolver.js";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,
@@ -23,7 +23,7 @@ const loadContext = {
 const entryIdentity = (id: string) => ({ spaceId, environmentId, id, locale });
 
 function entrySource() {
-  return createDemoSources().find((source) => source.id === ENTRY_SOURCE_ID)!;
+  return createDemoPageDetailSources().find((source) => source.id === ENTRY_SOURCE_ID)!;
 }
 
 describe("CmsEntries datasource", () => {

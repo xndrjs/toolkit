@@ -87,6 +87,7 @@ export default defineConfig({
                   label: "Resource graph resolver",
                   slug: "v0/infrastructure/resource-graph-resolver",
                 },
+                { label: "Ziel", slug: "v0/infrastructure/ziel" },
                 { label: "Contentful to Zod", slug: "v0/infrastructure/contentful-to-zod" },
                 {
                   label: "i18n",
