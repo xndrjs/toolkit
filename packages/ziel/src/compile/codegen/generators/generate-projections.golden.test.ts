@@ -196,7 +196,7 @@ export function projectPageDetail(
     shell.title = payload.title;
     shell.menu = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale }));
     shell.footer = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.footerId, locale: resource.key[0].locale }));
-    shell.strips = payload.strips.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })));
+    shell.strips = payload.strips.map((pageLink: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: pageLink.id, locale: resource.key[0].locale })));
     shell.related = payload.related.map((ref: any) => projectNode(customReferenceAri({ ref: ref, locale: resource.key[0].locale })));
     return shell;
   };
@@ -217,7 +217,7 @@ export function projectPageDetail(
       shell.type = payload.type;
       shell.id = payload.id;
       shell.title = payload.title;
-      shell.tabs = payload.tabs.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })));
+      shell.tabs = payload.tabs.map((tabLink: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: tabLink.id, locale: resource.key[0].locale })));
       return shell;
     } else if (payload.type == "Tab") {
       const shell: any = {};
@@ -225,7 +225,7 @@ export function projectPageDetail(
       shell.type = payload.type;
       shell.id = payload.id;
       shell.title = payload.title;
-      shell.strips = payload.strips.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })));
+      shell.strips = payload.strips.map((entryLink: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: entryLink.id, locale: resource.key[0].locale })));
       return shell;
     } else if (payload.type == "Menu") {
       const shell: any = {};
@@ -411,10 +411,10 @@ describe("generateProjections golden", () => {
     expect(code).not.toContain("export type PageDetail_Entry_Product = {");
     expect(code).not.toContain('case "EditorialModule":');
     expect(code).toContain(
-      "payload.strips.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"
+      "payload.strips.map((pageLink: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: pageLink.id, locale: resource.key[0].locale })))"
     );
     expect(code).toContain(
-      "payload.tabs.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"
+      "payload.tabs.map((tabLink: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: tabLink.id, locale: resource.key[0].locale })))"
     );
     expect(code).toContain('case "Entry":');
     expect(code).toContain('case "CustomReference":');

@@ -150,11 +150,11 @@ query PageDetail(pageId: EntryId) {
       id: p.footerId,
       locale: @p.locale
     )
-    expand strips: each link in p.strips (
+    expand strips: each pageLink in p.strips (
       Entry(
         spaceId: @p.spaceId,
         environmentId: @p.environmentId,
-        id: link.id,
+        id: pageLink.id,
         locale: @p.locale
       )
     )
@@ -191,21 +191,21 @@ query PageDetail(pageId: EntryId) {
       )
     }
     when e.type == "Tabs" include properties {
-      expand tabs: each link in e.tabs (
+      expand tabs: each tabLink in e.tabs (
         Entry(
           spaceId: @e.spaceId,
           environmentId: @e.environmentId,
-          id: link.id,
+          id: tabLink.id,
           locale: @e.locale
         )
       )
     }
     when e.type == "Tab" include properties {
-      expand strips: each link in e.strips (
+      expand strips: each entryLink in e.strips (
         Entry(
           spaceId: @e.spaceId,
           environmentId: @e.environmentId,
-          id: link.id,
+          id: entryLink.id,
           locale: @e.locale
         )
       )
@@ -240,6 +240,6 @@ query PageDetail(pageId: EntryId) {
   on Asset a include properties { }
 
   islands {
-    on Entry e when e.type == "Menu" or e.type == "Footer"
+    on Entry islandEntry when islandEntry.type == "Menu" or islandEntry.type == "Footer"
   }
 }

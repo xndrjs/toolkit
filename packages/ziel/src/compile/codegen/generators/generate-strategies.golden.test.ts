@@ -94,7 +94,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
       resources: [
         entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.menuId, locale: predicate.resource.key[0].locale }),
         entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.footerId, locale: predicate.resource.key[0].locale }),
-        ...predicate.payload.strips.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale })),
+        ...predicate.payload.strips.map((pageLink: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: pageLink.id, locale: predicate.resource.key[0].locale })),
         ...predicate.payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale })),
       ],
     }));
@@ -115,7 +115,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
-        resources: payload.tabs.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale })),
+        resources: payload.tabs.map((tabLink: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: tabLink.id, locale: predicate.resource.key[0].locale })),
       };
     });
 
@@ -125,7 +125,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
-        resources: payload.strips.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale })),
+        resources: payload.strips.map((entryLink: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: entryLink.id, locale: predicate.resource.key[0].locale })),
       };
     });
 
@@ -224,10 +224,10 @@ describe("generateStrategies golden", () => {
     expect(code).toContain('.when((predicate) => predicate.payload.type == "Hero")');
     expect(code).toContain('.when((predicate) => predicate.payload.type == "SiteInternalLink")');
     expect(code).toContain(
-      "payload.tabs.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale }))"
+      "payload.tabs.map((tabLink: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: tabLink.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain(
-      "predicate.payload.strips.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.strips.map((pageLink: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: pageLink.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain(
       "predicate.payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale }))"

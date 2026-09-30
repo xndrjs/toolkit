@@ -222,7 +222,7 @@ describe("emitStrategies", () => {
         root Entry(id: pageId, locale: context.locale)
         on Entry e { id type }
         islands {
-          on Entry e when e.type == "Menu" or e.type == "Footer"
+          on Entry islandEntry when islandEntry.type == "Menu" or islandEntry.type == "Footer"
         }
       }
     `;
@@ -273,7 +273,7 @@ describe("generateStrategies", () => {
       "entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.footerId, locale: predicate.resource.key[0].locale })"
     );
     expect(code).toContain(
-      "predicate.payload.strips.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.strips.map((pageLink: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: pageLink.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain(
       "predicate.payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale }))"
@@ -282,7 +282,7 @@ describe("generateStrategies", () => {
     expect(code).toContain('.when((predicate) => predicate.payload.type == "Hero")');
     expect(code).toContain('.when((predicate) => predicate.payload.type == "Tabs")');
     expect(code).toContain(
-      "payload.tabs.map((link: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: link.id, locale: predicate.resource.key[0].locale }))"
+      "payload.tabs.map((tabLink: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: tabLink.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).not.toContain("heroAri");
     expect(code).not.toContain("tabAri");
@@ -390,7 +390,7 @@ describe("generateStrategies", () => {
           default { }
         }
         islands {
-          on Entry e when e.type not in ["Hero"] or !e.visible
+          on Entry islandEntry when islandEntry.type not in ["Hero"] or !islandEntry.visible
         }
       }
     `;

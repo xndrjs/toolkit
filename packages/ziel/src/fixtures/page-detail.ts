@@ -73,10 +73,10 @@ function entryConstruct(sourceBinding: string, idExpr: Expr) {
   ]);
 }
 
-function stripsEach(sourceBinding: string, sourceField: string) {
-  return expandEach("strips", "link", payload(sourceBinding, sourceField), [
+function stripsEach(sourceBinding: string, sourceField: string, itemBinding: string) {
+  return expandEach("strips", itemBinding, payload(sourceBinding, sourceField), [
     {
-      target: entryConstruct(sourceBinding, item("link", "id")),
+      target: entryConstruct(sourceBinding, item(itemBinding, "id")),
       when: null,
     },
   ]);
@@ -251,7 +251,7 @@ export function pageDetailProgram(): Program {
             [
               expand("menu", entryConstruct("p", payload("p", "menuId"))),
               expand("footer", entryConstruct("p", payload("p", "footerId"))),
-              stripsEach("p", "strips"),
+              stripsEach("p", "strips", "pageLink"),
               expandEach("related", "ref", payload("p", "related"), [
                 {
                   target: construct("CustomReference", [
@@ -296,9 +296,9 @@ export function pageDetailProgram(): Program {
               eq(payload("e", "type"), lit("Tabs")),
               [],
               [
-                expandEach("tabs", "link", payload("e", "tabs"), [
+                expandEach("tabs", "tabLink", payload("e", "tabs"), [
                   {
-                    target: entryConstruct("e", item("link", "id")),
+                    target: entryConstruct("e", item("tabLink", "id")),
                     when: null,
                   },
                 ]),
@@ -308,7 +308,7 @@ export function pageDetailProgram(): Program {
             projectionArm(
               eq(payload("e", "type"), lit("Tab")),
               [],
-              [stripsEach("e", "strips")],
+              [stripsEach("e", "strips", "entryLink")],
               "properties"
             ),
             projectionArm(
@@ -335,10 +335,10 @@ export function pageDetailProgram(): Program {
         islands: [
           {
             resource: "Entry",
-            binding: "e",
+            binding: "islandEntry",
             when: or(
-              eq(payload("e", "type"), lit("Menu")),
-              eq(payload("e", "type"), lit("Footer"))
+              eq(payload("islandEntry", "type"), lit("Menu")),
+              eq(payload("islandEntry", "type"), lit("Footer"))
             ),
             span: null,
           },

@@ -1,9 +1,11 @@
 import type {
+  Expansion,
   ProjectionArm,
   ProjectionArmBody,
   QueryDefinition,
   QueryRoot,
   ResolveArm,
+  ResourceProjection,
   SourceSpan,
   TypeExpr,
 } from "../ir";
@@ -23,6 +25,90 @@ import {
   type ResourceTable,
   type ScalarTable,
 } from "./symbols";
+
+/** Role of a name in the query-local flat binding namespace. */
+type QueryBindingRole = "parameter" | "projection binding" | "island binding" | "each item binding";
+
+/**
+ * Params, `on` bindings, island bindings, and `each` item bindings share one
+ * flat query-local namespace after fragment rebind. Collisions →
+ * `QUERY_BINDING_NAME_CLASH` (distinct from `DUPLICATE_PARAM` / `DUPLICATE_BINDING`).
+ */
+function checkQueryBindingNameClash(
+  query: QueryDefinition,
+  path: string,
+  sink: DiagnosticSink
+): void {
+  const claimed = new Map<string, QueryBindingRole>();
+
+  const claim = (
+    name: string,
+    role: QueryBindingRole,
+    claimPath: string,
+    span: SourceSpan | null
+  ): void => {
+    const existing = claimed.get(name);
+    if (existing !== undefined) {
+      const message =
+        existing === role
+          ? `Name '${name}' is used as ${role} more than once in query '${query.name}'`
+          : `Name '${name}' is used as both ${existing} and ${role} in query '${query.name}'`;
+      sink.push({
+        code: "QUERY_BINDING_NAME_CLASH",
+        message,
+        path: claimPath,
+        span,
+      });
+      return;
+    }
+    claimed.set(name, role);
+  };
+
+  for (const field of query.parameters) {
+    claim(field.name, "parameter", `${path}.parameters.${field.name}`, field.span);
+  }
+
+  for (let i = 0; i < query.projections.length; i++) {
+    const projection = query.projections[i]!;
+    claim(
+      projection.binding,
+      "projection binding",
+      `${path}.projections.${projection.binding || i}`,
+      projection.span
+    );
+  }
+
+  for (let i = 0; i < query.islands.length; i++) {
+    const island = query.islands[i]!;
+    if (island.binding === null) continue;
+    claim(island.binding, "island binding", `${path}.islands.${i}`, island.span);
+  }
+
+  for (const projection of query.projections) {
+    for (const expansion of expansionsForBindingClash(projection)) {
+      if (expansion.comprehension === null) continue;
+      claim(
+        expansion.comprehension.itemBinding,
+        "each item binding",
+        `${path}.projections.${projection.binding}.expansions.${expansion.alias}`,
+        expansion.span
+      );
+    }
+  }
+}
+
+/** Flat body, when-arms, and default arm expansions (resolve-only → none). */
+function expansionsForBindingClash(projection: ResourceProjection): Expansion[] {
+  if (projection.resolveArms !== null) {
+    return [];
+  }
+  if (projection.arms !== null) {
+    const fromArms = projection.arms.flatMap((arm) => arm.expansions);
+    const fromDefault = projection.defaultArm?.expansions ?? [];
+    return [...fromArms, ...fromDefault];
+  }
+  return projection.expansions;
+}
 
 export function checkQuery(
   query: QueryDefinition,
@@ -85,6 +171,8 @@ export function checkQuery(
     }
     bindings.set(projection.binding, projection.resource);
   }
+
+  checkQueryBindingNameClash(query, path, sink);
 
   const scope: QueryScope = {
     path,

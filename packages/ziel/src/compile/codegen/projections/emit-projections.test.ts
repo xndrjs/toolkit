@@ -179,13 +179,13 @@ describe("emitProjections", () => {
 
     expect(code).toContain("export function projectPageDetail(");
     expect(code).toContain(
-      "payload.strips.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"
+      "payload.strips.map((pageLink: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: pageLink.id, locale: resource.key[0].locale })))"
     );
     expect(code).toContain(
       "payload.related.map((ref: any) => projectNode(customReferenceAri({ ref: ref, locale: resource.key[0].locale })))"
     );
     expect(code).toContain(
-      "payload.tabs.map((link: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: link.id, locale: resource.key[0].locale })))"
+      "payload.tabs.map((tabLink: any) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: tabLink.id, locale: resource.key[0].locale })))"
     );
     expect(code).toContain("const projectOnEntry = (resource: any, payload: any): any => {");
     expect(code).toContain('if (payload.type == "Hero") {');
