@@ -82,7 +82,7 @@ describe("Ziel MVP grammar", () => {
       (d): d is ResourceDeclaration => isResourceDeclaration(d) && d.name === "Page"
     );
     const stripsExpand = query.projections[0]?.expansions.find((e) => e.alias === "strips");
-    expect(stripsExpand?.each?.itemBinding).toBe("link");
+    expect(stripsExpand?.each?.itemBinding).toBe("pageLink");
     expect(stripsExpand?.each?.arms.map((a) => a.target.resource)).toEqual(["Entry"]);
     expect(stripsExpand?.target).toBeUndefined();
 
@@ -97,7 +97,7 @@ describe("Ziel MVP grammar", () => {
     expect(entry?.whenArms.every((arm) => arm.include?.includes("properties"))).toBe(true);
     const tabsArm = entry?.whenArms.find((arm) => arm.expansions.some((e) => e.alias === "tabs"));
     const tabsExpand = tabsArm?.expansions.find((e) => e.alias === "tabs");
-    expect(tabsExpand?.each?.itemBinding).toBe("link");
+    expect(tabsExpand?.each?.itemBinding).toBe("tabLink");
     expect(tabsExpand?.each?.arms.map((a) => a.target.resource)).toEqual(["Entry"]);
     expect(tabsExpand?.target).toBeUndefined();
 

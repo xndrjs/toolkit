@@ -1446,6 +1446,169 @@ describe("checkProgram — scalar / resource name clash", () => {
   });
 });
 
+describe("checkProgram — query binding name clash", () => {
+  const prelude = `
+    scalar PageId on string;
+    scalar EntryId on string;
+    scalar Locale on string;
+
+    resource Page(id: PageId, locale: Locale): {
+      id
+      strips: { id: EntryId }[]
+      related: { id: EntryId }[]
+    }
+
+    resource Entry(id: EntryId, locale: Locale): {
+      id
+      imageId: EntryId
+    }
+  `;
+
+  it("rejects param vs projection binding homonym", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      query Q(p: PageId) {
+        context { locale: Locale }
+        root Page(id: p, locale: context.locale)
+        on Page p { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_BINDING_NAME_CLASH",
+        message: expect.stringMatching(
+          /parameter.*projection binding|projection binding.*parameter/
+        ),
+      })
+    );
+  });
+
+  it("rejects param vs each item binding homonym", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      query Q(link: PageId) {
+        context { locale: Locale }
+        root Page(id: link, locale: context.locale)
+        on Page p {
+          expand strips: each link in p.strips (
+            Entry(id: link.id, locale: context.locale)
+          )
+        }
+        on Entry e { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_BINDING_NAME_CLASH",
+        message: expect.stringMatching(/parameter.*each item binding|each item binding.*parameter/),
+      })
+    );
+  });
+
+  it("rejects param vs island binding homonym", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      query Q(e: PageId) {
+        context { locale: Locale }
+        root Page(id: e, locale: context.locale)
+        on Page p { id }
+        on Entry entry { id }
+        islands {
+          on Entry e when true
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_BINDING_NAME_CLASH",
+        message: expect.stringMatching(/parameter.*island binding|island binding.*parameter/),
+      })
+    );
+  });
+
+  it("rejects two sibling each item bindings reusing the same name", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      query Q(pageId: PageId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          expand strips: each link in p.strips (
+            Entry(id: link.id, locale: context.locale)
+          )
+          expand related: each link in p.related (
+            Entry(id: link.id, locale: context.locale)
+          )
+        }
+        on Entry e { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_BINDING_NAME_CLASH",
+        message: expect.stringMatching(/each item binding/),
+      })
+    );
+  });
+
+  it("allows fragment declaration binding that matches a param after rebind onto a distinct host", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      fragment EntryBase on Entry e {
+        expand image: Entry(id: e.imageId, locale: context.locale)
+      }
+
+      query Q(e: PageId) {
+        context { locale: Locale }
+        root Page(id: e, locale: context.locale)
+        on Page p { id }
+        on Entry entry {
+          ...EntryBase
+        }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "QUERY_BINDING_NAME_CLASH")).toEqual([]);
+  });
+
+  it("rejects fragment spread onto a host binding that equals a param", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      fragment EntryBase on Entry e {
+        id
+      }
+
+      query Q(entry: PageId) {
+        context { locale: Locale }
+        root Page(id: entry, locale: context.locale)
+        on Page p { id }
+        on Entry entry {
+          ...EntryBase
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_BINDING_NAME_CLASH",
+        message: expect.stringMatching(
+          /parameter.*projection binding|projection binding.*parameter/
+        ),
+      })
+    );
+  });
+});
+
 describe("checkProgram — multi-root queries", () => {
   it("rejects duplicate root aliases", () => {
     const program: Program = {
@@ -1621,7 +1784,7 @@ describe("checkProgram — islands", () => {
         on Page p { id }
         on Entry e { id type }
         islands {
-          on Entry e when e.type == "Menu" or e.type == "Footer"
+          on Entry islandEntry when islandEntry.type == "Menu" or islandEntry.type == "Footer"
           on Page
         }
       }
@@ -1684,7 +1847,7 @@ describe("checkProgram — islands", () => {
         on Page p { id }
         on Entry e { id type }
         islands {
-          on Entry e when e.type == "Menu"
+          on Entry islandEntry when islandEntry.type == "Menu"
         }
       }
     `);
@@ -1737,7 +1900,7 @@ describe("checkProgram — expression ops in / not in / !", () => {
           Entry(id: r.id, locale: context.locale) when r.type not in ["Entry"]
         }
         islands {
-          on Entry e when e.type in ["Menu", "Footer"] or !e.visible
+          on Entry islandEntry when islandEntry.type in ["Menu", "Footer"] or !islandEntry.visible
         }
       }
     `);

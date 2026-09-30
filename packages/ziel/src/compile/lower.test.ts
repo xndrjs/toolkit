@@ -1003,7 +1003,7 @@ describe("lowerProgram — fragments", () => {
           on Page p { id }
           on Entry e { id type }
           islands {
-            on Entry e when e.type == "Menu" or e.type == "Footer"
+            on Entry islandEntry when islandEntry.type == "Menu" or islandEntry.type == "Footer"
             on Page
           }
         }
@@ -1014,21 +1014,21 @@ describe("lowerProgram — fragments", () => {
     expect(stripSpans(program.queries[0]!.islands)).toEqual([
       {
         resource: "Entry",
-        binding: "e",
+        binding: "islandEntry",
         when: {
           kind: "binary",
           op: "or",
           left: {
             kind: "binary",
             op: "==",
-            left: { kind: "payloadRef", binding: "e", path: ["type"], span: null },
+            left: { kind: "payloadRef", binding: "islandEntry", path: ["type"], span: null },
             right: { kind: "literal", value: "Menu", span: null },
             span: null,
           },
           right: {
             kind: "binary",
             op: "==",
-            left: { kind: "payloadRef", binding: "e", path: ["type"], span: null },
+            left: { kind: "payloadRef", binding: "islandEntry", path: ["type"], span: null },
             right: { kind: "literal", value: "Footer", span: null },
             span: null,
           },
@@ -1068,7 +1068,7 @@ describe("lowerProgram — fragments", () => {
           default { }
         }
         islands {
-          on Entry e when e.type in ["Menu", "Footer"] or !e.visible
+          on Entry islandEntry when islandEntry.type in ["Menu", "Footer"] or !islandEntry.visible
         }
       }
     `)
