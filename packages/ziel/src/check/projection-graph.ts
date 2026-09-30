@@ -28,7 +28,7 @@ export type ResolveTargetInfo = {
 };
 
 /** resource → resolve strip info (1→1 arms or resolve-to-each). */
-export type ResolveTargetIndex = Map<string, ResolveTargetInfo>;
+export type ResolveTargetIndex = ReadonlyMap<string, ResolveTargetInfo>;
 
 /** Concrete members + outermost strip multiplicity from {@link stripToConcreteMembers}. */
 export type ResolveStripResult = {
@@ -37,7 +37,7 @@ export type ResolveStripResult = {
 };
 
 export function resolveTargetIndex(query: QueryDefinition): ResolveTargetIndex {
-  const out: ResolveTargetIndex = new Map();
+  const out = new Map<string, ResolveTargetInfo>();
   for (const projection of query.projections) {
     if (projection.resolveArms !== null) {
       out.set(projection.resource, {

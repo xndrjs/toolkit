@@ -1,63 +1,19 @@
-import type {
-  Expansion,
-  OnFailurePolicy,
-  ProjectionArm,
-  ProjectionArmBody,
-  ResourceProjection,
-  TypeExpr,
-} from "../../../ir";
-import {
-  isObjectLikePayload,
-  narrowPayloadByFilter,
-  residualPayloadAfterFilters,
-} from "../../../check/discriminants";
-import { resolveSelectedFields } from "../../../check/projection-include";
+import type { Expansion, OnFailurePolicy } from "../../../ir";
+import type { PlannedProjectionBody, ProjectionPlan } from "../../../check";
+import { isObjectLikePayload } from "../../../check/discriminants";
 import { emitConstruction, emitExpr, projectionExprScope } from "../shared";
-import { ariFactoryName, payloadTypeName, projectionTypeName } from "../naming";
+import { projectionArmDiscriminant } from "../shared";
+import {
+  ariFactoryName,
+  payloadTypeName,
+  projectionTypeName,
+  projectionVariantTypeName,
+} from "../naming";
+import { printTypeExpr } from "../resources";
 import { type ResourceIndex } from "./shared";
 
 export function projectOnFnName(resourceName: string): string {
   return `projectOn${resourceName}`;
-}
-
-/** Payload type for include resolution on a when-arm (narrowed when possible). */
-function armPayloadType(
-  projection: ResourceProjection,
-  arm: ProjectionArm,
-  resources: ResourceIndex
-): TypeExpr {
-  const resource = resources.get(projection.resource);
-  if (!resource) {
-    throw new Error(
-      `emitProjections: unknown resource '${projection.resource}' while emitting armed shell`
-    );
-  }
-  return (
-    narrowPayloadByFilter(resource.payloadType, arm.when, projection.binding, resources) ??
-    resource.payloadType
-  );
-}
-
-function defaultArmPayloadType(
-  projection: ResourceProjection,
-  resources: ResourceIndex
-): { payloadType: TypeExpr; unreachable: boolean } {
-  const resource = resources.get(projection.resource);
-  if (!resource) {
-    throw new Error(
-      `emitProjections: unknown resource '${projection.resource}' while emitting default shell`
-    );
-  }
-  const residual = residualPayloadAfterFilters(
-    resource.payloadType,
-    projection.arms?.map((arm) => arm.when) ?? [],
-    projection.binding,
-    resources
-  );
-  return {
-    payloadType: residual ?? resource.payloadType,
-    unreachable: residual === null,
-  };
 }
 
 function emitProjectEdgeCall(ariExpr: string, onFailure: OnFailurePolicy): string {
@@ -137,45 +93,33 @@ export function emitExpansionValue(
 
 export function emitShellBody(
   resourceName: string,
-  selectedFields: string[],
-  expansions: Expansion[],
+  body: PlannedProjectionBody,
+  shellType: string,
   resources: ResourceIndex,
   queryName: string,
   indent: string,
-  include: ResourceProjection["include"] = null,
-  payloadType?: TypeExpr,
-  excludedFields: readonly string[] = [],
+  narrowPayload: boolean,
   resourceTag?: string
 ): string {
   const lines: string[] = [];
-  const resolvedPayload =
-    payloadType ??
-    (() => {
-      const resource = resources.get(resourceName);
-      if (!resource) {
-        throw new Error(`emitProjections: unknown resource '${resourceName}' while emitting shell`);
-      }
-      return resource.payloadType;
-    })();
-  const effectiveFields = resolveSelectedFields(
-    selectedFields,
-    expansions,
-    include,
-    resolvedPayload,
-    resources,
-    excludedFields
-  );
-
   const shellInit =
     resourceTag === undefined ? "{}" : `{ ${resourceTag}: ${JSON.stringify(resourceName)} }`;
-  lines.push(`${indent}const shell: any = ${shellInit};`);
+  lines.push(
+    `${indent}const shell: Partial<${shellType}> = ${shellInit} satisfies Partial<${shellType}>;`
+  );
   lines.push(`${indent}memo.set(resource.toString(), shell);`);
+  lines.push(
+    narrowPayload
+      ? `${indent}const payload = inputPayload as ${printTypeExpr(body.payloadType)};`
+      : `${indent}const payload = inputPayload;`
+  );
 
-  for (const fieldName of effectiveFields) {
+  for (const fieldName of body.selectedFields) {
     lines.push(`${indent}shell.${fieldName} = payload.${fieldName};`);
   }
 
-  for (const expansion of expansions) {
+  for (const plannedExpansion of body.expansions) {
+    const expansion = plannedExpansion.source;
     const value = emitExpansionValue(expansion, resources, queryName);
     const indented = value.includes("\n")
       ? value
@@ -183,19 +127,22 @@ export function emitShellBody(
           .map((line, i) => (i === 0 ? line : `${indent}${line}`))
           .join("\n")
       : value;
-    lines.push(`${indent}shell.${expansion.alias} = ${indented};`);
+    lines.push(
+      `${indent}shell.${expansion.alias} = ${indented} as ${shellType}[${JSON.stringify(expansion.alias)}];`
+    );
   }
 
-  lines.push(`${indent}return shell;`);
+  lines.push(`${indent}return shell as ${shellType};`);
   return lines.join("\n");
 }
 
 export function emitProjectOnBody(
-  projection: ResourceProjection,
+  projectionPlan: ProjectionPlan,
   resources: ResourceIndex,
   queryName: string,
   resourceTag?: string
 ): string {
+  const projection = projectionPlan.source;
   const resource = resources.get(projection.resource);
   if (!resource) {
     throw new Error(
@@ -215,42 +162,40 @@ export function emitProjectOnBody(
         `emitProjections: cannot project fields/expands on non-object payload of '${projection.resource}' in query '${queryName}'`
       );
     }
-    return [`    memo.set(resource.toString(), payload);`, `    return payload;`].join("\n");
+    return [`    memo.set(resource.toString(), inputPayload);`, `    return inputPayload;`].join(
+      "\n"
+    );
   }
 
   return emitShellBody(
     projection.resource,
-    projection.selectedFields,
-    projection.expansions,
+    projectionPlan.flatBody!,
+    projectionTypeName(queryName, projection.resource),
     resources,
     queryName,
     "    ",
-    projection.include,
-    resource.payloadType,
-    projection.excludedFields,
+    false,
     resourceTag
   );
 }
 
 function emitArmShell(
-  projection: ResourceProjection,
-  arm: ProjectionArmBody,
-  payloadType: TypeExpr,
+  projection: ProjectionPlan,
+  arm: PlannedProjectionBody,
+  shellType: string,
   resources: ResourceIndex,
   queryName: string,
   indent: string,
   resourceTag?: string
 ): string {
   return emitShellBody(
-    projection.resource,
-    arm.selectedFields,
-    arm.expansions,
+    projection.source.resource,
+    arm,
+    shellType,
     resources,
     queryName,
     indent,
-    arm.include ?? projection.include,
-    payloadType,
-    arm.excludedFields,
+    true,
     resourceTag
   );
 }
@@ -259,16 +204,17 @@ function emitArmShell(
  * Ordered `if` / `else if` on when-arms, ending in the required `default` body.
  */
 export function emitArmedProjectOnBody(
-  projection: ResourceProjection,
+  projectionPlan: ProjectionPlan,
   resources: ResourceIndex,
   queryName: string,
   resourceTag?: string
 ): string {
-  const arms = projection.arms;
-  if (arms === null) {
+  const projection = projectionPlan.source;
+  const arms = projectionPlan.arms;
+  if (projection.arms === null) {
     throw new Error("emitProjections: emitArmedProjectOnBody called without arms");
   }
-  const defaultArm = projection.defaultArm;
+  const defaultArm = projectionPlan.defaultArm;
   if (defaultArm === null) {
     throw new Error(
       `emitProjections: armed 'on ${projection.resource}' is missing defaultArm (checker should reject)`
@@ -287,63 +233,73 @@ export function emitArmedProjectOnBody(
     );
   }
 
-  const defaultPayload = defaultArmPayloadType(projection, resources);
-  const defaultShell = emitArmShell(
-    projection,
-    defaultArm,
-    defaultPayload.payloadType,
-    resources,
-    queryName,
-    "      ",
-    resourceTag
-  );
-  const defaultBody = defaultPayload.unreachable
-    ? [
-        `      const defaultPayload = payload as ${payloadTypeName(projection.resource)};`,
-        defaultShell.replaceAll("payload.", "defaultPayload."),
-      ].join("\n")
-    : defaultShell;
+  const defaultType = projectionVariantTypeName(queryName, projection.resource, "Default");
+  const exhaustiveError = `project${queryName}: exhaustive projection default reached for ${projection.resource}`;
 
   const branches: string[] = [];
-  for (let i = 0; i < arms.length; i++) {
-    const arm = arms[i]!;
-    const cond = emitExpr(arm.when, projectionExprScope);
-    const keyword = i === 0 ? "if" : "} else if";
+  for (const arm of arms) {
+    if (!arm.reachable) continue;
+    const cond = emitExpr(arm.source.when, projectionExprScope);
+    const keyword = branches.length === 0 ? "if" : "} else if";
+    const disc = projectionArmDiscriminant(arm.source.when, projection.binding);
+    const armType = projectionVariantTypeName(
+      queryName,
+      projection.resource,
+      disc ?? `Arm${arm.index}`
+    );
     branches.push(
       [
         `    ${keyword} (${cond}) {`,
-        emitArmShell(
-          projection,
-          arm,
-          armPayloadType(projection, arm, resources),
-          resources,
-          queryName,
-          "      ",
-          resourceTag
-        ),
+        emitArmShell(projectionPlan, arm, armType, resources, queryName, "      ", resourceTag),
       ].join("\n")
     );
   }
+  if (branches.length === 0) {
+    return defaultArm.reachable
+      ? emitArmShell(
+          projectionPlan,
+          defaultArm,
+          defaultType,
+          resources,
+          queryName,
+          "    ",
+          resourceTag
+        )
+      : `    throw new Error(${JSON.stringify(exhaustiveError)});`;
+  }
+
+  const defaultBody = defaultArm.reachable
+    ? emitArmShell(
+        projectionPlan,
+        defaultArm,
+        defaultType,
+        resources,
+        queryName,
+        "      ",
+        resourceTag
+      )
+    : `      throw new Error(${JSON.stringify(exhaustiveError)});`;
   branches.push([`    } else {`, defaultBody, `    }`].join("\n"));
-  return branches.join("\n");
+  return [`    const payload = inputPayload;`, branches.join("\n")].join("\n");
 }
 
 export function emitProjectOnHelper(
-  projection: ResourceProjection,
+  projection: ProjectionPlan,
   resources: ResourceIndex,
   queryName: string,
   resourceTag?: string
 ): string {
-  const name = projectOnFnName(projection.resource);
+  const source = projection.source;
+  const name = projectOnFnName(source.resource);
   const body =
-    projection.arms !== null
+    projection.kind === "armed"
       ? emitArmedProjectOnBody(projection, resources, queryName, resourceTag)
       : emitProjectOnBody(projection, resources, queryName, resourceTag);
-  const resourceType = `ReturnType<typeof ${ariFactoryName(projection.resource)}>`;
-  const payloadType = payloadTypeName(projection.resource);
-  const resultType = projectionTypeName(queryName, projection.resource);
+  const resourceType = `ReturnType<typeof ${ariFactoryName(source.resource)}>`;
+  const payloadType = payloadTypeName(source.resource);
+  const resultType = projectionTypeName(queryName, source.resource);
   return [
-    `  const ${name} = (resource: ${resourceType}, payload: ${payloadType}): ${resultType} => {`,
+    `  const ${name} = (resource: ${resourceType}, inputPayload: ${payloadType}): ${resultType} => {`,
     body,
     `  };`,
   ].join("\n");

@@ -67,22 +67,24 @@ export function projectPostDetail(
 ): PostDetailResult {
   const memo = new Map<string, unknown>();
 
-  const projectOnPost = (resource: ReturnType<typeof postAri>, payload: PostPayload): PostDetail_Post => {
-    const shell: any = {};
+  const projectOnPost = (resource: ReturnType<typeof postAri>, inputPayload: PostPayload): PostDetail_Post => {
+    const shell: Partial<PostDetail_Post> = {} satisfies Partial<PostDetail_Post>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.id = payload.id;
     shell.title = payload.title;
     shell.content = payload.content;
-    shell.author = projectNode(userAri({ id: payload.authorId }));
-    return shell;
+    shell.author = projectNode(userAri({ id: payload.authorId })) as PostDetail_Post["author"];
+    return shell as PostDetail_Post;
   };
 
-  const projectOnUser = (resource: ReturnType<typeof userAri>, payload: UserPayload): PostDetail_User => {
-    const shell: any = {};
+  const projectOnUser = (resource: ReturnType<typeof userAri>, inputPayload: UserPayload): PostDetail_User => {
+    const shell: Partial<PostDetail_User> = {} satisfies Partial<PostDetail_User>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.id = payload.id;
     shell.username = payload.username;
-    return shell;
+    return shell as PostDetail_User;
   };
 
   const projectNode = (ari: ApplicationResourceIdentifier): unknown => {
@@ -101,6 +103,7 @@ export function projectPostDetail(
         );
     }
   };
+
 
   return projectNode(root) as PostDetailResult;
 }
@@ -189,86 +192,138 @@ export function projectPageDetail(
 ): PageDetailResult {
   const memo = new Map<string, unknown>();
 
-  const projectOnPage = (resource: ReturnType<typeof pageAri>, payload: PagePayload): PageDetail_Page => {
-    const shell: any = {};
+  const projectOnPage = (resource: ReturnType<typeof pageAri>, inputPayload: PagePayload): PageDetail_Page => {
+    const shell: Partial<PageDetail_Page> = {} satisfies Partial<PageDetail_Page>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.id = payload.id;
     shell.title = payload.title;
-    shell.menu = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale }));
-    shell.footer = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.footerId, locale: resource.key[0].locale }));
-    shell.strips = payload.strips.map((pageLink) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: pageLink.id, locale: resource.key[0].locale })));
-    shell.related = payload.related.map((ref) => projectNode(customReferenceAri({ ref: ref, locale: resource.key[0].locale })));
-    return shell;
+    shell.menu = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale })) as PageDetail_Page["menu"];
+    shell.footer = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.footerId, locale: resource.key[0].locale })) as PageDetail_Page["footer"];
+    shell.strips = payload.strips.map((pageLink) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: pageLink.id, locale: resource.key[0].locale }))) as PageDetail_Page["strips"];
+    shell.related = payload.related.map((ref) => projectNode(customReferenceAri({ ref: ref, locale: resource.key[0].locale }))) as PageDetail_Page["related"];
+    return shell as PageDetail_Page;
   };
 
-  const projectOnEntry = (resource: ReturnType<typeof entryAri>, payload: EntryPayload): PageDetail_Entry => {
+  const projectOnEntry = (resource: ReturnType<typeof entryAri>, inputPayload: EntryPayload): PageDetail_Entry => {
+    const payload = inputPayload;
     if (payload.type == "Hero") {
-      const shell: any = {};
+      const shell: Partial<PageDetail_Entry_Hero> = {} satisfies Partial<PageDetail_Entry_Hero>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+  type: "Hero";
+  id: EntryId;
+  title: string;
+  imageId: AssetId;
+};
       shell.type = payload.type;
       shell.id = payload.id;
       shell.title = payload.title;
       shell.imageId = payload.imageId;
-      shell.image = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.imageId, locale: resource.key[0].locale }));
-      return shell;
+      shell.image = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.imageId, locale: resource.key[0].locale })) as PageDetail_Entry_Hero["image"];
+      return shell as PageDetail_Entry_Hero;
     } else if (payload.type == "Tabs") {
-      const shell: any = {};
+      const shell: Partial<PageDetail_Entry_Tabs> = {} satisfies Partial<PageDetail_Entry_Tabs>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+  type: "Tabs";
+  id: EntryId;
+  title: string;
+  tabs: {
+    id: EntryId;
+  }[];
+};
       shell.type = payload.type;
       shell.id = payload.id;
       shell.title = payload.title;
-      shell.tabs = payload.tabs.map((tabLink) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: tabLink.id, locale: resource.key[0].locale })));
-      return shell;
+      shell.tabs = payload.tabs.map((tabLink) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: tabLink.id, locale: resource.key[0].locale }))) as PageDetail_Entry_Tabs["tabs"];
+      return shell as PageDetail_Entry_Tabs;
     } else if (payload.type == "Tab") {
-      const shell: any = {};
+      const shell: Partial<PageDetail_Entry_Tab> = {} satisfies Partial<PageDetail_Entry_Tab>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+  type: "Tab";
+  id: EntryId;
+  title: string;
+  strips: {
+    id: EntryId;
+  }[];
+};
       shell.type = payload.type;
       shell.id = payload.id;
       shell.title = payload.title;
-      shell.strips = payload.strips.map((entryLink) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: entryLink.id, locale: resource.key[0].locale })));
-      return shell;
+      shell.strips = payload.strips.map((entryLink) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: entryLink.id, locale: resource.key[0].locale }))) as PageDetail_Entry_Tab["strips"];
+      return shell as PageDetail_Entry_Tab;
     } else if (payload.type == "Menu") {
-      const shell: any = {};
+      const shell: Partial<PageDetail_Entry_Menu> = {} satisfies Partial<PageDetail_Entry_Menu>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+  type: "Menu";
+  id: EntryId;
+  title: string;
+  logoId: AssetId;
+};
       shell.type = payload.type;
       shell.id = payload.id;
       shell.title = payload.title;
       shell.logoId = payload.logoId;
-      shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale }));
-      return shell;
+      shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale })) as PageDetail_Entry_Menu["logo"];
+      return shell as PageDetail_Entry_Menu;
     } else if (payload.type == "Footer") {
-      const shell: any = {};
+      const shell: Partial<PageDetail_Entry_Footer> = {} satisfies Partial<PageDetail_Entry_Footer>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+  type: "Footer";
+  id: EntryId;
+  title: string;
+  logoId: AssetId;
+};
       shell.type = payload.type;
       shell.id = payload.id;
       shell.title = payload.title;
       shell.logoId = payload.logoId;
-      shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale }));
-      return shell;
+      shell.logo = projectNode(assetAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.logoId, locale: resource.key[0].locale })) as PageDetail_Entry_Footer["logo"];
+      return shell as PageDetail_Entry_Footer;
     } else if (payload.type == "SiteInternalLink") {
-      const shell: any = {};
+      const shell: Partial<PageDetail_Entry_SiteInternalLink> = {} satisfies Partial<PageDetail_Entry_SiteInternalLink>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+  type: "SiteInternalLink";
+  id: EntryId;
+  targetId: EntryId;
+};
       shell.type = payload.type;
       shell.id = payload.id;
       shell.targetId = payload.targetId;
-      shell.target = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.targetId, locale: resource.key[0].locale }));
-      return shell;
+      shell.target = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.targetId, locale: resource.key[0].locale })) as PageDetail_Entry_SiteInternalLink["target"];
+      return shell as PageDetail_Entry_SiteInternalLink;
     } else {
-      const shell: any = {};
+      const shell: Partial<PageDetail_Entry_Default> = {} satisfies Partial<PageDetail_Entry_Default>;
       memo.set(resource.toString(), shell);
-      return shell;
+      const payload = inputPayload as {
+  type: "Product";
+  id: EntryId;
+  sku: Sku;
+  title: string;
+} | {
+  type: "Page";
+  id: EntryId;
+  title: string;
+};
+      return shell as PageDetail_Entry_Default;
     }
   };
 
-  const projectOnAsset = (resource: ReturnType<typeof assetAri>, payload: AssetPayload): PageDetail_Asset => {
-    const shell: any = {};
+  const projectOnAsset = (resource: ReturnType<typeof assetAri>, inputPayload: AssetPayload): PageDetail_Asset => {
+    const shell: Partial<PageDetail_Asset> = {} satisfies Partial<PageDetail_Asset>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.type = payload.type;
     shell.id = payload.id;
     shell.url = payload.url;
     shell.title = payload.title;
     shell.kind = payload.kind;
-    return shell;
+    return shell as PageDetail_Asset;
   };
 
   const projectNode = (ari: ApplicationResourceIdentifier): unknown => {
@@ -294,6 +349,7 @@ export function projectPageDetail(
         );
     }
   };
+
 
   return projectNode(root) as PageDetailResult;
 }
@@ -329,20 +385,22 @@ export function projectHomepage(
 ): HomepageResult {
   const memo = new Map<string, unknown>();
 
-  const projectOnPage = (resource: ReturnType<typeof pageAri>, payload: PagePayload): Homepage_Page => {
-    const shell: any = {};
+  const projectOnPage = (resource: ReturnType<typeof pageAri>, inputPayload: PagePayload): Homepage_Page => {
+    const shell: Partial<Homepage_Page> = {} satisfies Partial<Homepage_Page>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.id = payload.id;
     shell.title = payload.title;
-    return shell;
+    return shell as Homepage_Page;
   };
 
-  const projectOnUserSession = (resource: ReturnType<typeof userSessionAri>, payload: UserSessionPayload): Homepage_UserSession => {
-    const shell: any = {};
+  const projectOnUserSession = (resource: ReturnType<typeof userSessionAri>, inputPayload: UserSessionPayload): Homepage_UserSession => {
+    const shell: Partial<Homepage_UserSession> = {} satisfies Partial<Homepage_UserSession>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.id = payload.id;
     shell.userId = payload.userId;
-    return shell;
+    return shell as Homepage_UserSession;
   };
 
   const projectNode = (ari: ApplicationResourceIdentifier): unknown => {
@@ -361,6 +419,7 @@ export function projectHomepage(
         );
     }
   };
+
 
   return {
     page: projectNode(roots.page),
@@ -384,7 +443,9 @@ describe("generateProjections golden", () => {
     expect(code).toContain("export type PostDetail_Post");
     expect(code).toContain("export type PostDetail_User");
     expect(code).toContain("export type PostDetailResult = PostDetail_Post");
-    expect(code).toContain("shell.author = projectNode(userAri({ id: payload.authorId }));");
+    expect(code).toContain(
+      'shell.author = projectNode(userAri({ id: payload.authorId })) as PostDetail_Post["author"];'
+    );
     expect(code).toContain("const memo = new Map<string, unknown>();");
     expect(code).toContain("if (memo.has(key)) return memo.get(key);");
     expect(code).not.toContain(".when(");
@@ -420,7 +481,7 @@ describe("generateProjections golden", () => {
     expect(code).toContain('case "CustomReference":');
     expect(code).toContain("const canonical = args.redirects.get(ari.toString());");
     expect(code).toContain(
-      "const projectOnEntry = (resource: ReturnType<typeof entryAri>, payload: EntryPayload): PageDetail_Entry => {"
+      "const projectOnEntry = (resource: ReturnType<typeof entryAri>, inputPayload: EntryPayload): PageDetail_Entry => {"
     );
     expect(code).not.toContain("PageDetail_EditorialModule");
     expect(code).not.toContain("TabCollection");

@@ -12,8 +12,9 @@
  * Armed `on` projections discriminate on payload fields and build variant shells.
  * Optional `resourceTag` stamps the resource name onto each shell (off by default).
  */
-import type { Program, QueryDefinition } from "../../../ir";
+import type { ProgramAnalysis, QueryPlan } from "../../../check";
 import { isSingleRootQuery } from "../../../ir";
+import { codegenAnalysis, type CodegenInput } from "../analysis";
 import { ariFactoryName, projectFnName, queryResultTypeName } from "../naming";
 import {
   emitArgsType,
@@ -22,24 +23,21 @@ import {
   emitProjectNode,
   emitRootsParamType,
 } from "./emit-project-node";
-import {
-  projectableProjections,
-  queryNeedsFailureProjection,
-} from "../../../check/projection-graph";
 import { emitProjectOnHelper } from "./emit-project-on";
-import { resourceIndex, type ResourceIndex } from "./shared";
+import { type ResourceIndex } from "./shared";
 
 function emitQueryProjection(
-  query: QueryDefinition,
+  plan: QueryPlan,
   resources: ResourceIndex,
   registryTypeName: string,
   resourceTag?: string
 ): string {
+  const query = plan.query;
   const fnName = projectFnName(query.name);
   const resultType = queryResultTypeName(query.name);
   const singleRoot = isSingleRootQuery(query);
-  const argsType = emitArgsType(query);
-  const needsFailures = queryNeedsFailureProjection(query);
+  const argsType = emitArgsType(plan);
+  const needsFailures = plan.needsFailureProjection;
 
   const rootParam = singleRoot
     ? `root: ReturnType<typeof ${ariFactoryName(query.roots[0]!.construction.resource)}>`
@@ -52,11 +50,11 @@ function emitQueryProjection(
 
   const helpers: string[] = [];
 
-  for (const projection of projectableProjections(query)) {
+  for (const projection of plan.projectableProjections) {
     helpers.push(emitProjectOnHelper(projection, resources, query.name, resourceTag));
   }
 
-  const projectNode = emitProjectNode(query, resources, fnName);
+  const projectNode = emitProjectNode(plan, resources, fnName);
   const projectEdge = needsFailures ? emitProjectEdgeHelper(fnName) : null;
   const failuresBinding = needsFailures ? `  const failures = args.failures;\n` : "";
   const returnStmt = singleRoot
@@ -88,16 +86,16 @@ function emitQueryProjection(
  * @param resourceTag - Optional property name for a resource-name stamp on shells.
  */
 export function emitProjections(
-  program: Program,
+  input: CodegenInput,
   registryTypeName = "ContentRegistry",
   resourceTag?: string
 ): string {
-  if (program.queries.length === 0) {
+  const analysis: ProgramAnalysis = codegenAnalysis(input);
+  if (analysis.queries.length === 0) {
     return "";
   }
 
-  const resources = resourceIndex(program);
-  return program.queries
-    .map((query) => emitQueryProjection(query, resources, registryTypeName, resourceTag))
+  return analysis.queries
+    .map((query) => emitQueryProjection(query, analysis.resources, registryTypeName, resourceTag))
     .join("\n\n");
 }

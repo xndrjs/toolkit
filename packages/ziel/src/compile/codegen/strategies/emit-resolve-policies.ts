@@ -3,23 +3,25 @@
  * Many-resolve (`resolveEach`) is expansion-backed — see
  * {@link emitProjectionExpansions}; redirects map is unused for those locators.
  */
-import type { ResolveArm, ResourceProjection } from "../../../ir";
+import type { PlannedResolveArm, ProjectionPlan } from "../../../check";
+import type { ResourceProjection } from "../../../ir";
 import { emitConstruction, emitExpr, strategyArmedBodyScope, strategyExprScope } from "../shared";
 import { ariFactoryName } from "../naming";
+import { printTypeExpr } from "../resources";
 
-function emitResolveArm(projection: ResourceProjection, arm: ResolveArm): string {
+function emitResolveArm(projection: ResourceProjection, arm: PlannedResolveArm): string {
   const ari = ariFactoryName(projection.resource);
 
-  if (arm.when !== null) {
-    const whenPred = emitExpr(arm.when, strategyExprScope);
-    const construction = emitConstruction(arm.target, strategyArmedBodyScope);
-    // Same cast as armed expands: `.when()` is a runtime filter only.
+  if (arm.source.when !== null) {
+    const whenPred = emitExpr(arm.source.when, strategyExprScope);
+    const construction = emitConstruction(arm.source.target, strategyArmedBodyScope);
+    const payloadType = printTypeExpr(arm.payloadType);
     return [
       `  strategy.resolve`,
       `    .on(${ari})`,
       `    .when((predicate) => ${whenPred})`,
       `    .to((predicate) => {`,
-      `      const payload = predicate.payload as any;`,
+      `      const payload = predicate.payload as ${payloadType};`,
       `      return {`,
       `        resource: ${construction},`,
       `      };`,
@@ -27,7 +29,7 @@ function emitResolveArm(projection: ResourceProjection, arm: ResolveArm): string
     ].join("\n");
   }
 
-  const construction = emitConstruction(arm.target, strategyExprScope);
+  const construction = emitConstruction(arm.source.target, strategyExprScope);
   return [
     `  strategy.resolve`,
     `    .on(${ari})`,
@@ -41,9 +43,12 @@ function emitResolveArm(projection: ResourceProjection, arm: ResolveArm): string
  * 1→1 resolve policy blocks for one resolve-only `on` projection.
  * Skips `resolveEach` (handled as expansion).
  */
-export function emitProjectionResolves(projection: ResourceProjection): string[] {
+export function emitProjectionResolves(plan: ProjectionPlan): string[] {
+  const projection = plan.source;
   if (projection.resolveArms === null) {
     return [];
   }
-  return projection.resolveArms.map((arm) => emitResolveArm(projection, arm));
+  return plan.resolveArms
+    .filter((arm) => arm.reachable)
+    .map((arm) => emitResolveArm(projection, arm));
 }

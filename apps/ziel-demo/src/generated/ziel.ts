@@ -4,8 +4,8 @@ import {
   ari,
   s,
   createGraphResolutionStrategy,
-  type ContentMap,
   type ApplicationResourceIdentifier,
+  type ContentMap,
   type ResourceKey,
   type ResolutionError,
   toResolutionErrorData,
@@ -337,7 +337,7 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
   >();
 
   strategy.expansion.on(errorLabAri).expand((predicate) => {
-    const __resources: any[] = [];
+    const __resources: ApplicationResourceIdentifier[] = [];
     const __onFailureByKey = new Map<string, "throw" | "setNull" | "setError">();
     const __r0 = entryAri({
       spaceId: predicate.resource.key[0].spaceId,
@@ -363,7 +363,7 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
     });
     __resources.push(__r2);
     __onFailureByKey.set(__r2.toString(), "throw");
-    const __many3 = predicate.payload.softItems.map((softLink: any) =>
+    const __many3 = predicate.payload.softItems.map((softLink) =>
       entryAri({
         spaceId: predicate.resource.key[0].spaceId,
         environmentId: predicate.resource.key[0].environmentId,
@@ -375,7 +375,7 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
       __resources.push(__item);
       __onFailureByKey.set(__item.toString(), "setNull");
     }
-    const __many4 = predicate.payload.errorItems.map((errorLink: any) =>
+    const __many4 = predicate.payload.errorItems.map((errorLink) =>
       entryAri({
         spaceId: predicate.resource.key[0].spaceId,
         environmentId: predicate.resource.key[0].environmentId,
@@ -387,7 +387,7 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
       __resources.push(__item);
       __onFailureByKey.set(__item.toString(), "setError");
     }
-    const __many5 = predicate.payload.throwItems.map((throwLink: any) =>
+    const __many5 = predicate.payload.throwItems.map((throwLink) =>
       entryAri({
         spaceId: predicate.resource.key[0].spaceId,
         environmentId: predicate.resource.key[0].environmentId,
@@ -406,7 +406,12 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
     .on(entryAri)
     .when((predicate) => predicate.payload.kind == "Hero")
     .expand((predicate) => {
-      const payload = predicate.payload as any;
+      const payload = predicate.payload as {
+        kind: "Hero";
+        id: EntryId;
+        title: string;
+        imageId: AssetId;
+      };
       return {
         resources: [
           assetAri({
@@ -450,7 +455,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
         id: predicate.payload.footerId,
         locale: predicate.resource.key[0].locale,
       }),
-      ...predicate.payload.strips.map((pageLink: any) =>
+      ...predicate.payload.strips.map((pageLink) =>
         entryAri({
           spaceId: predicate.resource.key[0].spaceId,
           environmentId: predicate.resource.key[0].environmentId,
@@ -458,7 +463,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
           locale: predicate.resource.key[0].locale,
         })
       ),
-      ...predicate.payload.related.map((ref: any) =>
+      ...predicate.payload.related.map((ref) =>
         customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale })
       ),
     ],
@@ -469,7 +474,12 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     .on(entryAri)
     .when((predicate) => predicate.payload.kind == "Hero")
     .expand((predicate) => {
-      const payload = predicate.payload as any;
+      const payload = predicate.payload as {
+        kind: "Hero";
+        id: EntryId;
+        title: string;
+        imageId: AssetId;
+      };
       return {
         resources: [
           assetAri({
@@ -485,11 +495,18 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when((predicate) => predicate.payload.kind == "Tabs")
+    .when((predicate) => !(predicate.payload.kind == "Hero") && predicate.payload.kind == "Tabs")
     .expand((predicate) => {
-      const payload = predicate.payload as any;
+      const payload = predicate.payload as {
+        kind: "Tabs";
+        id: EntryId;
+        title: string;
+        tabs: {
+          id: EntryId;
+        }[];
+      };
       return {
-        resources: payload.tabs.map((tabLink: any) =>
+        resources: payload.tabs.map((tabLink) =>
           entryAri({
             spaceId: predicate.resource.key[0].spaceId,
             environmentId: predicate.resource.key[0].environmentId,
@@ -503,11 +520,23 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when((predicate) => predicate.payload.kind == "Tab")
+    .when(
+      (predicate) =>
+        !(predicate.payload.kind == "Hero") &&
+        !(predicate.payload.kind == "Tabs") &&
+        predicate.payload.kind == "Tab"
+    )
     .expand((predicate) => {
-      const payload = predicate.payload as any;
+      const payload = predicate.payload as {
+        kind: "Tab";
+        id: EntryId;
+        title: string;
+        strips: {
+          id: EntryId;
+        }[];
+      };
       return {
-        resources: payload.strips.map((entryLink: any) =>
+        resources: payload.strips.map((entryLink) =>
           entryAri({
             spaceId: predicate.resource.key[0].spaceId,
             environmentId: predicate.resource.key[0].environmentId,
@@ -521,9 +550,28 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when((predicate) => predicate.payload.kind == "Menu" || predicate.payload.kind == "Footer")
+    .when(
+      (predicate) =>
+        !(predicate.payload.kind == "Hero") &&
+        !(predicate.payload.kind == "Tabs") &&
+        !(predicate.payload.kind == "Tab") &&
+        (predicate.payload.kind == "Menu" || predicate.payload.kind == "Footer")
+    )
     .expand((predicate) => {
-      const payload = predicate.payload as any;
+      const payload = predicate.payload as
+        | {
+            kind: "Menu";
+            id: EntryId;
+            title: string;
+            logoId: AssetId;
+          }
+        | {
+            kind: "Footer";
+            id: EntryId;
+            cta: string;
+            title: string;
+            logoId: AssetId;
+          };
       return {
         resources: [
           assetAri({
@@ -539,9 +587,22 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
   strategy.expansion
     .on(entryAri)
-    .when((predicate) => predicate.payload.kind == "SiteInternalLink")
+    .when(
+      (predicate) =>
+        !(predicate.payload.kind == "Hero") &&
+        !(predicate.payload.kind == "Tabs") &&
+        !(predicate.payload.kind == "Tab") &&
+        !(predicate.payload.kind == "Menu" || predicate.payload.kind == "Footer") &&
+        !(predicate.payload.kind == "Product") &&
+        !(predicate.payload.kind == "Page") &&
+        predicate.payload.kind == "SiteInternalLink"
+    )
     .expand((predicate) => {
-      const payload = predicate.payload as any;
+      const payload = predicate.payload as {
+        kind: "SiteInternalLink";
+        id: EntryId;
+        targetId: EntryId;
+      };
       return {
         resources: [
           entryAri({
@@ -559,7 +620,12 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     .on(customReferenceAri)
     .when((predicate) => predicate.payload.kind == "Entry")
     .to((predicate) => {
-      const payload = predicate.payload as any;
+      const payload = predicate.payload as {
+        kind: "Entry";
+        spaceId: SpaceId;
+        environmentId: EnvironmentId;
+        id: EntryId;
+      };
       return {
         resource: entryAri({
           spaceId: payload.spaceId,
@@ -574,7 +640,12 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     .on(customReferenceAri)
     .when((predicate) => predicate.payload.kind == "Asset")
     .to((predicate) => {
-      const payload = predicate.payload as any;
+      const payload = predicate.payload as {
+        kind: "Asset";
+        spaceId: SpaceId;
+        environmentId: EnvironmentId;
+        id: AssetId;
+      };
       return {
         resource: assetAri({
           spaceId: payload.spaceId,
@@ -776,10 +847,13 @@ export function projectErrorHandlingDetail(
 
   const projectOnErrorLab = (
     resource: ReturnType<typeof errorLabAri>,
-    payload: ErrorLabPayload
+    inputPayload: ErrorLabPayload
   ): ErrorHandlingDetail_ErrorLab => {
-    const shell: any = { __typename: "ErrorLab" };
+    const shell: Partial<ErrorHandlingDetail_ErrorLab> = {
+      __typename: "ErrorLab",
+    } satisfies Partial<ErrorHandlingDetail_ErrorLab>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.softSingle = projectEdge(
       entryAri({
         spaceId: resource.key[0].spaceId,
@@ -788,7 +862,7 @@ export function projectErrorHandlingDetail(
         locale: resource.key[0].locale,
       }),
       "setNull"
-    );
+    ) as ErrorHandlingDetail_ErrorLab["softSingle"];
     shell.errorSingle = projectEdge(
       entryAri({
         spaceId: resource.key[0].spaceId,
@@ -797,7 +871,7 @@ export function projectErrorHandlingDetail(
         locale: resource.key[0].locale,
       }),
       "setError"
-    );
+    ) as ErrorHandlingDetail_ErrorLab["errorSingle"];
     shell.throwSingle = projectNode(
       entryAri({
         spaceId: resource.key[0].spaceId,
@@ -805,7 +879,7 @@ export function projectErrorHandlingDetail(
         id: payload.throwSingleId,
         locale: resource.key[0].locale,
       })
-    );
+    ) as ErrorHandlingDetail_ErrorLab["throwSingle"];
     shell.softItems = payload.softItems.map((softLink) =>
       projectEdge(
         entryAri({
@@ -816,7 +890,7 @@ export function projectErrorHandlingDetail(
         }),
         "setNull"
       )
-    );
+    ) as ErrorHandlingDetail_ErrorLab["softItems"];
     shell.errorItems = payload.errorItems.map((errorLink) =>
       projectEdge(
         entryAri({
@@ -827,7 +901,7 @@ export function projectErrorHandlingDetail(
         }),
         "setError"
       )
-    );
+    ) as ErrorHandlingDetail_ErrorLab["errorItems"];
     shell.throwItems = payload.throwItems.map((throwLink) =>
       projectNode(
         entryAri({
@@ -837,17 +911,26 @@ export function projectErrorHandlingDetail(
           locale: resource.key[0].locale,
         })
       )
-    );
-    return shell;
+    ) as ErrorHandlingDetail_ErrorLab["throwItems"];
+    return shell as ErrorHandlingDetail_ErrorLab;
   };
 
   const projectOnEntry = (
     resource: ReturnType<typeof entryAri>,
-    payload: EntryPayload
+    inputPayload: EntryPayload
   ): ErrorHandlingDetail_Entry => {
+    const payload = inputPayload;
     if (payload.kind == "Hero") {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<ErrorHandlingDetail_Entry_Hero> = {
+        __typename: "Entry",
+      } satisfies Partial<ErrorHandlingDetail_Entry_Hero>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+        kind: "Hero";
+        id: EntryId;
+        title: string;
+        imageId: AssetId;
+      };
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
@@ -859,36 +942,89 @@ export function projectErrorHandlingDetail(
           locale: resource.key[0].locale,
         }),
         "setNull"
-      );
-      return shell;
+      ) as ErrorHandlingDetail_Entry_Hero["image"];
+      return shell as ErrorHandlingDetail_Entry_Hero;
     } else if (payload.kind == "Page") {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<ErrorHandlingDetail_Entry_Page> = {
+        __typename: "Entry",
+      } satisfies Partial<ErrorHandlingDetail_Entry_Page>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+        kind: "Page";
+        id: EntryId;
+        title: string;
+      };
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
-      return shell;
+      return shell as ErrorHandlingDetail_Entry_Page;
     } else {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<ErrorHandlingDetail_Entry_Default> = {
+        __typename: "Entry",
+      } satisfies Partial<ErrorHandlingDetail_Entry_Default>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as
+        | {
+            kind: "Tabs";
+            id: EntryId;
+            title: string;
+            tabs: {
+              id: EntryId;
+            }[];
+          }
+        | {
+            kind: "Tab";
+            id: EntryId;
+            title: string;
+            strips: {
+              id: EntryId;
+            }[];
+          }
+        | {
+            kind: "Product";
+            id: EntryId;
+            sku: Sku;
+            title: string;
+          }
+        | {
+            kind: "Menu";
+            id: EntryId;
+            title: string;
+            logoId: AssetId;
+          }
+        | {
+            kind: "Footer";
+            id: EntryId;
+            cta: string;
+            title: string;
+            logoId: AssetId;
+          }
+        | {
+            kind: "SiteInternalLink";
+            id: EntryId;
+            targetId: EntryId;
+          };
       shell.kind = payload.kind;
       shell.id = payload.id;
-      return shell;
+      return shell as ErrorHandlingDetail_Entry_Default;
     }
   };
 
   const projectOnAsset = (
     resource: ReturnType<typeof assetAri>,
-    payload: AssetPayload
+    inputPayload: AssetPayload
   ): ErrorHandlingDetail_Asset => {
-    const shell: any = { __typename: "Asset" };
+    const shell: Partial<ErrorHandlingDetail_Asset> = {
+      __typename: "Asset",
+    } satisfies Partial<ErrorHandlingDetail_Asset>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.kind = payload.kind;
     shell.id = payload.id;
     shell.url = payload.url;
     shell.title = payload.title;
     shell.asset_type = payload.asset_type;
-    return shell;
+    return shell as ErrorHandlingDetail_Asset;
   };
 
   const projectNode = (ari: ApplicationResourceIdentifier): unknown => {
@@ -947,10 +1083,13 @@ export function projectPageDetail(
 
   const projectOnPage = (
     resource: ReturnType<typeof pageAri>,
-    payload: PagePayload
+    inputPayload: PagePayload
   ): PageDetail_Page => {
-    const shell: any = { __typename: "Page" };
+    const shell: Partial<PageDetail_Page> = {
+      __typename: "Page",
+    } satisfies Partial<PageDetail_Page>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.id = payload.id;
     shell.title = payload.title;
     shell.menu = projectEdge(
@@ -961,7 +1100,7 @@ export function projectPageDetail(
         locale: resource.key[0].locale,
       }),
       "setNull"
-    );
+    ) as PageDetail_Page["menu"];
     shell.footer = projectEdge(
       entryAri({
         spaceId: resource.key[0].spaceId,
@@ -970,7 +1109,7 @@ export function projectPageDetail(
         locale: resource.key[0].locale,
       }),
       "setNull"
-    );
+    ) as PageDetail_Page["footer"];
     shell.strips = payload.strips.map((pageLink) =>
       projectEdge(
         entryAri({
@@ -981,20 +1120,29 @@ export function projectPageDetail(
         }),
         "setNull"
       )
-    );
+    ) as PageDetail_Page["strips"];
     shell.related = payload.related.map((ref) =>
       projectEdge(customReferenceAri({ ref: ref, locale: resource.key[0].locale }), "setNull")
-    );
-    return shell;
+    ) as PageDetail_Page["related"];
+    return shell as PageDetail_Page;
   };
 
   const projectOnEntry = (
     resource: ReturnType<typeof entryAri>,
-    payload: EntryPayload
+    inputPayload: EntryPayload
   ): PageDetail_Entry => {
+    const payload = inputPayload;
     if (payload.kind == "Hero") {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<PageDetail_Entry_Hero> = {
+        __typename: "Entry",
+      } satisfies Partial<PageDetail_Entry_Hero>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+        kind: "Hero";
+        id: EntryId;
+        title: string;
+        imageId: AssetId;
+      };
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
@@ -1006,11 +1154,21 @@ export function projectPageDetail(
           locale: resource.key[0].locale,
         }),
         "setNull"
-      );
-      return shell;
+      ) as PageDetail_Entry_Hero["image"];
+      return shell as PageDetail_Entry_Hero;
     } else if (payload.kind == "Tabs") {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<PageDetail_Entry_Tabs> = {
+        __typename: "Entry",
+      } satisfies Partial<PageDetail_Entry_Tabs>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+        kind: "Tabs";
+        id: EntryId;
+        title: string;
+        tabs: {
+          id: EntryId;
+        }[];
+      };
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
@@ -1024,11 +1182,21 @@ export function projectPageDetail(
           }),
           "setNull"
         )
-      );
-      return shell;
+      ) as PageDetail_Entry_Tabs["tabs"];
+      return shell as PageDetail_Entry_Tabs;
     } else if (payload.kind == "Tab") {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<PageDetail_Entry_Tab> = {
+        __typename: "Entry",
+      } satisfies Partial<PageDetail_Entry_Tab>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+        kind: "Tab";
+        id: EntryId;
+        title: string;
+        strips: {
+          id: EntryId;
+        }[];
+      };
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
@@ -1042,11 +1210,27 @@ export function projectPageDetail(
           }),
           "setNull"
         )
-      );
-      return shell;
+      ) as PageDetail_Entry_Tab["strips"];
+      return shell as PageDetail_Entry_Tab;
     } else if (payload.kind == "Menu" || payload.kind == "Footer") {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<PageDetail_Entry_Arm3> = {
+        __typename: "Entry",
+      } satisfies Partial<PageDetail_Entry_Arm3>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as
+        | {
+            kind: "Menu";
+            id: EntryId;
+            title: string;
+            logoId: AssetId;
+          }
+        | {
+            kind: "Footer";
+            id: EntryId;
+            cta: string;
+            title: string;
+            logoId: AssetId;
+          };
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
@@ -1058,25 +1242,47 @@ export function projectPageDetail(
           locale: resource.key[0].locale,
         }),
         "setNull"
-      );
-      return shell;
+      ) as PageDetail_Entry_Arm3["logo"];
+      return shell as PageDetail_Entry_Arm3;
     } else if (payload.kind == "Product") {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<PageDetail_Entry_Product> = {
+        __typename: "Entry",
+      } satisfies Partial<PageDetail_Entry_Product>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+        kind: "Product";
+        id: EntryId;
+        sku: Sku;
+        title: string;
+      };
       shell.kind = payload.kind;
       shell.sku = payload.sku;
       shell.title = payload.title;
-      return shell;
+      return shell as PageDetail_Entry_Product;
     } else if (payload.kind == "Page") {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<PageDetail_Entry_Page> = {
+        __typename: "Entry",
+      } satisfies Partial<PageDetail_Entry_Page>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+        kind: "Page";
+        id: EntryId;
+        title: string;
+      };
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
-      return shell;
+      return shell as PageDetail_Entry_Page;
     } else if (payload.kind == "SiteInternalLink") {
-      const shell: any = { __typename: "Entry" };
+      const shell: Partial<PageDetail_Entry_SiteInternalLink> = {
+        __typename: "Entry",
+      } satisfies Partial<PageDetail_Entry_SiteInternalLink>;
       memo.set(resource.toString(), shell);
+      const payload = inputPayload as {
+        kind: "SiteInternalLink";
+        id: EntryId;
+        targetId: EntryId;
+      };
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.target = projectEdge(
@@ -1087,30 +1293,28 @@ export function projectPageDetail(
           locale: resource.key[0].locale,
         }),
         "setNull"
-      );
-      return shell;
+      ) as PageDetail_Entry_SiteInternalLink["target"];
+      return shell as PageDetail_Entry_SiteInternalLink;
     } else {
-      const defaultPayload = payload as EntryPayload;
-      const shell: any = { __typename: "Entry" };
-      memo.set(resource.toString(), shell);
-      shell.kind = defaultPayload.kind;
-      shell.id = defaultPayload.id;
-      return shell;
+      throw new Error("projectPageDetail: exhaustive projection default reached for Entry");
     }
   };
 
   const projectOnAsset = (
     resource: ReturnType<typeof assetAri>,
-    payload: AssetPayload
+    inputPayload: AssetPayload
   ): PageDetail_Asset => {
-    const shell: any = { __typename: "Asset" };
+    const shell: Partial<PageDetail_Asset> = {
+      __typename: "Asset",
+    } satisfies Partial<PageDetail_Asset>;
     memo.set(resource.toString(), shell);
+    const payload = inputPayload;
     shell.kind = payload.kind;
     shell.id = payload.id;
     shell.url = payload.url;
     shell.title = payload.title;
     shell.asset_type = payload.asset_type;
-    return shell;
+    return shell as PageDetail_Asset;
   };
 
   const projectNode = (ari: ApplicationResourceIdentifier): unknown => {

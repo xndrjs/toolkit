@@ -81,7 +81,7 @@ export function buildResources(options: BuildResourcesOptions = {}): BuildResour
     return { code: "", diagnostics, files };
   }
 
-  const { code } = composeGeneratedModule(compilation.program, {
+  const { code } = composeGeneratedModule(compilation.analysis, {
     importFrom,
     registryTypeName,
     resourceTag,

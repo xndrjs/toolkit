@@ -49,10 +49,14 @@ describe("emitProjections", () => {
     expect(code).toContain("executionContext: PostDetailExecutionContext");
     expect(code).toContain(": PostDetailResult");
     expect(code).toContain("const memo = new Map<string, unknown>();");
-    expect(code).toContain("const shell: any = {};");
+    expect(code).toContain(
+      "const shell: Partial<PostDetail_Post> = {} satisfies Partial<PostDetail_Post>;"
+    );
     expect(code).not.toContain("$type");
     expect(code).toContain("memo.set(resource.toString(), shell);");
-    expect(code).toContain("shell.author = projectNode(userAri({ id: payload.authorId }));");
+    expect(code).toContain(
+      'shell.author = projectNode(userAri({ id: payload.authorId })) as PostDetail_Post["author"];'
+    );
     expect(code).toContain("if (memo.has(key)) return memo.get(key);");
     expect(code).toContain("if (loadedPayload === undefined) return undefined;");
     expect(code).toContain('case "Post":');
@@ -65,11 +69,17 @@ describe("emitProjections", () => {
     expect(diagnostics).toEqual([]);
 
     const withType = emitProjections(program!, "ContentRegistry", "$type");
-    expect(withType).toContain('const shell: any = { $type: "Post" };');
-    expect(withType).toContain('const shell: any = { $type: "User" };');
+    expect(withType).toContain(
+      'const shell: Partial<PostDetail_Post> = { $type: "Post" } satisfies Partial<PostDetail_Post>;'
+    );
+    expect(withType).toContain(
+      'const shell: Partial<PostDetail_User> = { $type: "User" } satisfies Partial<PostDetail_User>;'
+    );
 
     const withAlt = emitProjections(program!, "ContentRegistry", "__resource");
-    expect(withAlt).toContain('const shell: any = { __resource: "Post" };');
+    expect(withAlt).toContain(
+      'const shell: Partial<PostDetail_Post> = { __resource: "Post" } satisfies Partial<PostDetail_Post>;'
+    );
     expect(withAlt).not.toContain("$type");
   });
 
@@ -149,15 +159,15 @@ describe("emitProjections", () => {
     const code = emitProjections(program!);
 
     expect(code).toContain(
-      "const projectOnEntry = (resource: ReturnType<typeof entryAri>, payload: EntryPayload): EntryDetail_Entry => {"
+      "const projectOnEntry = (resource: ReturnType<typeof entryAri>, inputPayload: EntryPayload): EntryDetail_Entry => {"
     );
     expect(code).toContain('if (payload.type == "Hero") {');
     expect(code).toContain('} else if (payload.type == "Page") {');
     expect(code).toContain("} else {");
     expect(code).not.toContain("switch ((payload as any).type)");
-    expect(code).toContain("const shell: any = {};");
+    expect(code).toContain("const shell: Partial<EntryDetail_Entry_Hero>");
     expect(code).toContain(
-      "shell.image = projectNode(assetAri({ id: payload.imageId, locale: args.executionContext.locale }));"
+      'shell.image = projectNode(assetAri({ id: payload.imageId, locale: args.executionContext.locale })) as EntryDetail_Entry_Hero["image"];'
     );
     expect(code).toContain('case "Entry":');
     expect(code).toContain(
@@ -166,15 +176,14 @@ describe("emitProjections", () => {
     // No rematerialize-to-Hero ARI cases.
     expect(code).not.toContain('case "Hero":\n        return projectOnHero');
     expect(code).not.toContain("projectOnHero");
-    // Default arm projects an empty shell (no throw).
+    // A statically exhaustive default has type never and is an invariant failure at runtime.
     const onEntry = code.slice(
       code.indexOf("const projectOnEntry"),
       code.indexOf("const projectOnAsset")
     );
-    expect(onEntry).toMatch(
-      /\} else \{\s*const defaultPayload = payload as EntryPayload;\s*const shell: any = \{\};/
+    expect(onEntry).toContain(
+      'throw new Error("projectEntryDetail: exhaustive projection default reached for Entry")'
     );
-    expect(onEntry).not.toContain("throw new Error");
   });
 
   it("emits Entry/CustomReference strips and armed Entry if/else for page-detail", () => {
@@ -194,7 +203,7 @@ describe("emitProjections", () => {
       "payload.tabs.map((tabLink) => projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: tabLink.id, locale: resource.key[0].locale })))"
     );
     expect(code).toContain(
-      "const projectOnEntry = (resource: ReturnType<typeof entryAri>, payload: EntryPayload): PageDetail_Entry => {"
+      "const projectOnEntry = (resource: ReturnType<typeof entryAri>, inputPayload: EntryPayload): PageDetail_Entry => {"
     );
     expect(code).toContain('if (payload.type == "Hero") {');
     expect(code).toContain('} else if (payload.type == "SiteInternalLink") {');
@@ -205,7 +214,7 @@ describe("emitProjections", () => {
     expect(code).toContain("const canonical = args.redirects.get(ari.toString());");
     expect(code).toContain("return projectNode(canonical);");
     expect(code).toContain(
-      "shell.menu = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale }));"
+      'shell.menu = projectNode(entryAri({ spaceId: resource.key[0].spaceId, environmentId: resource.key[0].environmentId, id: payload.menuId, locale: resource.key[0].locale })) as PageDetail_Page["menu"];'
     );
     expect(code).toContain("redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;");
     expect(code).not.toContain("editorialModuleAri");
@@ -285,10 +294,10 @@ describe("emitProjections", () => {
     expect(code).toContain("return projectNode(canonical);");
     expect(code).not.toContain("projectOnCustomReference");
     expect(code).toContain(
-      "const projectOnEntry = (resource: ReturnType<typeof entryAri>, payload: EntryPayload): PageDetail_Entry => {"
+      "const projectOnEntry = (resource: ReturnType<typeof entryAri>, inputPayload: EntryPayload): PageDetail_Entry => {"
     );
     expect(code).toContain(
-      "const projectOnAsset = (resource: ReturnType<typeof assetAri>, payload: AssetPayload): PageDetail_Asset => {"
+      "const projectOnAsset = (resource: ReturnType<typeof assetAri>, inputPayload: AssetPayload): PageDetail_Asset => {"
     );
   });
 
@@ -331,7 +340,9 @@ describe("emitProjections", () => {
 
     expect(code).toContain("args: {\n    params: PostDetailParams;\n  }");
     expect(code).not.toContain("executionContext");
-    expect(code).toContain("shell.author = projectNode(userAri({ id: payload.authorId }));");
+    expect(code).toContain(
+      'shell.author = projectNode(userAri({ id: payload.authorId })) as PostDetail_Post["author"];'
+    );
     expect(code).toContain("shell.username = payload.username;");
   });
 
@@ -374,7 +385,9 @@ describe("emitProjections", () => {
     expect(onNode.indexOf("memo.set(resource.toString(), shell);")).toBeLessThan(
       onNode.indexOf("shell.next = projectNode(")
     );
-    expect(onNode).toContain("shell.next = projectNode(nodeAri({ id: payload.nextId }));");
+    expect(onNode).toContain(
+      'shell.next = projectNode(nodeAri({ id: payload.nextId })) as Cycle_Node["next"];'
+    );
   });
 });
 
@@ -393,7 +406,9 @@ describe("generateProjections", () => {
     expect(code).toContain("export type PostDetail_Post");
     expect(code).toContain("export type PostDetailResult");
     expect(code).toContain("export function projectPostDetail(");
-    expect(code).toContain("shell.author = projectNode(userAri({ id: payload.authorId }));");
+    expect(code).toContain(
+      'shell.author = projectNode(userAri({ id: payload.authorId })) as PostDetail_Post["author"];'
+    );
   });
 
   it("omits import when there are no queries", () => {
@@ -491,8 +506,8 @@ describe("generateProjections", () => {
       code.indexOf("const projectOnTabCollection"),
       code.indexOf("const projectNode")
     );
-    expect(onCollection).toContain("memo.set(resource.toString(), payload);");
-    expect(onCollection).toContain("return payload;");
+    expect(onCollection).toContain("memo.set(resource.toString(), inputPayload);");
+    expect(onCollection).toContain("return inputPayload;");
     expect(onCollection).not.toContain("const shell");
   });
 

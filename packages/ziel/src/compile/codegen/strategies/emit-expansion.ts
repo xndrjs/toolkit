@@ -7,14 +7,8 @@
  * `on failure` policies are emitted as `ExpansionResult.onFailure` (uniform) or
  * `onFailureByKey` when edges in the same expand disagree.
  */
-import type {
-  ExpandArm,
-  Expansion,
-  OnFailurePolicy,
-  ProjectionArm,
-  ResolveEach,
-  ResourceProjection,
-} from "../../../ir";
+import type { ExpandArm, Expansion, OnFailurePolicy, ResourceProjection } from "../../../ir";
+import type { PlannedProjectionArm, ProjectionPlan } from "../../../check";
 import {
   emitConstruction,
   emitExpr,
@@ -23,6 +17,7 @@ import {
   type EmitExprScope,
 } from "../shared";
 import { ariFactoryName } from "../naming";
+import { printTypeExpr } from "../resources";
 
 function emitArmManyExpr(
   sourceExpr: string,
@@ -31,9 +26,9 @@ function emitArmManyExpr(
   scope: EmitExprScope
 ): string {
   const construction = emitConstruction(arm.target, scope);
-  const mapFn = `(${itemBinding}: any) => ${construction}`;
+  const mapFn = `(${itemBinding}) => ${construction}`;
   if (arm.when !== null) {
-    return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when, scope)}).map(${mapFn})`;
+    return `${sourceExpr}.filter((${itemBinding}) => ${emitExpr(arm.when, scope)}).map(${mapFn})`;
   }
   return `${sourceExpr}.map(${mapFn})`;
 }
@@ -54,7 +49,7 @@ function emitMultiArmFlatMap(
   });
   // Trailing empty return covers non-matching items when every arm has `when`.
   const body = [...branches, `return [];`].join("\n          ");
-  return `${sourceExpr}.flatMap((${itemBinding}: any): any[] => {\n          ${body}\n        })`;
+  return `${sourceExpr}.flatMap((${itemBinding}) => {\n          ${body}\n        })`;
 }
 
 /**
@@ -146,8 +141,8 @@ function emitManyPushStmts(expansion: Expansion, scope: EmitExprScope, index: nu
     const construction = emitConstruction(arm.target, scope);
     const listExpr =
       arm.when !== null
-        ? `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when, scope)}).map((${itemBinding}: any) => ${construction})`
-        : `${sourceExpr}.map((${itemBinding}: any) => ${construction})`;
+        ? `${sourceExpr}.filter((${itemBinding}) => ${emitExpr(arm.when, scope)}).map((${itemBinding}) => ${construction})`
+        : `${sourceExpr}.map((${itemBinding}) => ${construction})`;
     stmts.push(`const ${listVar} = ${listExpr};`);
     stmts.push(`for (const __item of ${listVar}) {`);
     stmts.push(`  __resources.push(__item);`);
@@ -190,7 +185,7 @@ function emitManyPushStmts(expansion: Expansion, scope: EmitExprScope, index: nu
  */
 function emitMixedExpandBody(expansions: Expansion[], scope: EmitExprScope): string {
   const stmts: string[] = [
-    `const __resources: any[] = [];`,
+    `const __resources: ApplicationResourceIdentifier[] = [];`,
     `const __onFailureByKey = new Map<string, "throw" | "setNull" | "setError">();`,
   ];
 
@@ -245,10 +240,14 @@ function emitFlatProjectionExpansion(projection: ResourceProjection): string {
   ].join("\n");
 }
 
-function emitArmedProjectionExpansion(projection: ResourceProjection, arm: ProjectionArm): string {
+function emitConditionalProjectionExpansion(
+  projection: ResourceProjection,
+  whenPred: string,
+  expansions: Expansion[],
+  payloadType: string
+): string {
   const ari = ariFactoryName(projection.resource);
-  const whenPred = emitExpr(arm.when, strategyExprScope);
-  const uniform = uniformOnFailure(arm.expansions);
+  const uniform = uniformOnFailure(expansions);
 
   // `.when()` is a runtime filter; TypeScript still sees the full payload union.
   // Cast so arm-specific fields (imageId, tabs, …) typecheck in the expand body.
@@ -258,19 +257,19 @@ function emitArmedProjectionExpansion(projection: ResourceProjection, arm: Proje
       `    .on(${ari})`,
       `    .when((predicate) => ${whenPred})`,
       `    .expand((predicate) => {`,
-      `      const payload = predicate.payload as any;`,
-      `      ${emitMixedExpandBody(arm.expansions, strategyArmedBodyScope)}`,
+      `      const payload = predicate.payload as ${payloadType};`,
+      `      ${emitMixedExpandBody(expansions, strategyArmedBodyScope)}`,
       `    });`,
     ].join("\n");
   }
 
-  const resources = emitResourcesArray(arm.expansions, strategyArmedBodyScope);
+  const resources = emitResourcesArray(expansions, strategyArmedBodyScope);
   return [
     `  strategy.expansion`,
     `    .on(${ari})`,
     `    .when((predicate) => ${whenPred})`,
     `    .expand((predicate) => {`,
-    `      const payload = predicate.payload as any;`,
+    `      const payload = predicate.payload as ${payloadType};`,
     `      return {`,
     `        resources: ${resources},`,
     ...emitOnFailureField(uniform, "        "),
@@ -279,22 +278,43 @@ function emitArmedProjectionExpansion(projection: ResourceProjection, arm: Proje
   ].join("\n");
 }
 
-/** Synthetic many-expand so resolve-to-each reuses emitMany / onFailure helpers. */
-function resolveEachAsExpansion(resolveEach: ResolveEach): Expansion {
-  return {
-    alias: "",
-    target: null,
-    multiplicity: "many",
-    comprehension: {
-      itemBinding: resolveEach.itemBinding,
-      source: resolveEach.source,
-      arms: resolveEach.arms,
-    },
-    onFailure: "throw",
-    span: null,
-  };
+function firstMatchPredicate(plan: ProjectionPlan, arm: PlannedProjectionArm): string {
+  const projection = plan.source;
+  const current = emitExpr(arm.source.when, strategyExprScope);
+  if (arm.index === 0) return current;
+  const previous = projection
+    .arms!.slice(0, arm.index)
+    .map((candidate) => `!(${emitExpr(candidate.when, strategyExprScope)})`);
+  return `${previous.join(" && ")} && (${current})`;
 }
 
+function emitArmedProjectionExpansion(plan: ProjectionPlan, arm: PlannedProjectionArm): string {
+  return emitConditionalProjectionExpansion(
+    plan.source,
+    firstMatchPredicate(plan, arm),
+    arm.source.expansions,
+    printTypeExpr(arm.payloadType)
+  );
+}
+
+function emitDefaultProjectionExpansion(plan: ProjectionPlan): string | null {
+  const projection = plan.source;
+  const defaultArm = plan.defaultArm;
+  if (defaultArm === null || !defaultArm.reachable || defaultArm.source.expansions.length === 0) {
+    return null;
+  }
+  const whenPred = projection
+    .arms!.map((arm) => `!(${emitExpr(arm.when, strategyExprScope)})`)
+    .join(" && ");
+  return emitConditionalProjectionExpansion(
+    projection,
+    whenPred,
+    defaultArm.source.expansions,
+    printTypeExpr(defaultArm.payloadType)
+  );
+}
+
+/** Synthetic many-expand so resolve-to-each reuses emitMany / onFailure helpers. */
 /**
  * Expansion policy blocks for one `on` projection.
  * Armed projections contribute one policy per arm that has expansions;
@@ -303,22 +323,23 @@ function resolveEachAsExpansion(resolveEach: ResolveEach): Expansion {
  * {@link emitProjectionResolves}); many-resolve (`resolveEach`) emits one
  * expansion-backed `.on(ari).expand(…)` using the each body.
  */
-export function emitProjectionExpansions(projection: ResourceProjection): string[] {
+export function emitProjectionExpansions(plan: ProjectionPlan): string[] {
+  const projection = plan.source;
   if (projection.resolveArms !== null) {
     return [];
   }
   if (projection.resolveEach !== null) {
-    return [
-      emitFlatProjectionExpansion({
-        ...projection,
-        expansions: [resolveEachAsExpansion(projection.resolveEach)],
-      }),
-    ];
+    if (plan.resolveEach === null) {
+      throw new Error("emitStrategies: missing planned resolve-each expansion");
+    }
+    return [emitFlatProjectionExpansion({ ...projection, expansions: [plan.resolveEach.source] })];
   }
   if (projection.arms !== null) {
-    return projection.arms
-      .filter((arm) => arm.expansions.length > 0)
-      .map((arm) => emitArmedProjectionExpansion(projection, arm));
+    const arms = plan.arms
+      .filter((arm) => arm.reachable && arm.source.expansions.length > 0)
+      .map((arm) => emitArmedProjectionExpansion(plan, arm));
+    const defaultExpansion = emitDefaultProjectionExpansion(plan);
+    return defaultExpansion === null ? arms : [...arms, defaultExpansion];
   }
   if (projection.expansions.length === 0) {
     return [];

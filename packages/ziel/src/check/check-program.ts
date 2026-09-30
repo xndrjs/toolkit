@@ -5,11 +5,14 @@ import { checkQuery } from "./check-query";
 import { collectResources, collectScalars } from "./collect";
 import { createDiagnosticSink, type Diagnostic } from "./diagnostic";
 import type { ResourceTable, ScalarTable } from "./symbols";
+import { buildQueryPlans, type QueryPlan } from "./program-analysis";
 
 export type ProgramAnalysis = {
-  diagnostics: Diagnostic[];
-  scalars: ScalarTable;
-  resources: ResourceTable;
+  readonly program: Program;
+  readonly diagnostics: readonly Diagnostic[];
+  readonly scalars: ScalarTable;
+  readonly resources: ResourceTable;
+  readonly queries: readonly QueryPlan[];
 };
 
 /** Options for {@link analyzeProgram} / {@link checkProgram}. */
@@ -80,12 +83,18 @@ export function analyzeProgram(
     checkQuery(query, path, scalars, resources, sink);
   }
 
-  return { diagnostics: sink.diagnostics, scalars, resources };
+  return Object.freeze({
+    program,
+    diagnostics: Object.freeze([...sink.diagnostics]),
+    scalars,
+    resources,
+    queries: buildQueryPlans(program, resources),
+  });
 }
 
 /**
  * Check a Ziel program. Returns all diagnostics (does not throw).
  */
 export function checkProgram(program: Program, options: AnalyzeProgramOptions = {}): Diagnostic[] {
-  return analyzeProgram(program, options).diagnostics;
+  return [...analyzeProgram(program, options).diagnostics];
 }

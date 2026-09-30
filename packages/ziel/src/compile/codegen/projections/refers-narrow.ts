@@ -3,6 +3,7 @@
  * projection alias types to the matching variant union.
  */
 import { expandPayloadObjectMembers, narrowPayloadByFilter } from "../../../check/discriminants";
+import type { ProjectionPlan } from "../../../check";
 import { createDiagnosticSink } from "../../../check/diagnostic";
 import { resolvePathOnPayloadType } from "../../../check/expr-paths";
 import { memberMatchesRefersPattern, type ObjectMember } from "../../../check/refers";
@@ -24,7 +25,9 @@ export type ExpansionAliasContext = {
   /** Enclosing `on` payload (arm-narrowed when inside a when-arm). */
   sourcePayload: TypeExpr;
   /** Projectable query projections keyed by resource name. */
-  projectionsByResource: Map<string, ResourceProjection>;
+  projectionsByResource:
+    | ReadonlyMap<string, ProjectionPlan>
+    | ReadonlyMap<string, ResourceProjection>;
 };
 
 /**
@@ -122,10 +125,19 @@ export function printNarrowedArmedAliasType(
   queryName: string,
   targetName: string,
   matchedMembers: ObjectMember[],
-  projection: ResourceProjection,
+  projection: ProjectionPlan | ResourceProjection,
   resources: ResourceTable
 ): string | null {
-  if (projection.arms === null || matchedMembers.length === 0) {
+  if (!("source" in projection)) {
+    return printLegacyNarrowedArmedAliasType(
+      queryName,
+      targetName,
+      matchedMembers,
+      projection,
+      resources
+    );
+  }
+  if (projection.kind !== "armed" || matchedMembers.length === 0) {
     return null;
   }
 
@@ -135,21 +147,18 @@ export function printNarrowedArmedAliasType(
   const variantTypes: string[] = [];
   const coveredMembers = new Set<ObjectMember>();
 
-  for (let i = 0; i < projection.arms.length; i++) {
-    const arm = projection.arms[i]!;
-    if (
-      !armMatchesAnyMember(arm, projection.binding, matchedMembers, resource.payloadType, resources)
-    ) {
+  for (const arm of projection.arms) {
+    if (!arm.reachable || !armMatchesAnyMember(arm.payloadType, matchedMembers, resources)) {
       continue;
     }
-    const disc = projectionArmDiscriminant(arm.when, projection.binding);
-    const variant = disc ?? `Arm${i}`;
+    const disc = projectionArmDiscriminant(arm.source.when, projection.source.binding);
+    const variant = disc ?? `Arm${arm.index}`;
     const typeName = projectionVariantTypeName(queryName, targetName, variant);
     if (!variantTypes.includes(typeName)) {
       variantTypes.push(typeName);
     }
     for (const member of matchedMembers) {
-      if (memberMatchesArm(member, arm, projection.binding, resource.payloadType, resources)) {
+      if (memberMatchesArm(member, arm.payloadType, resources)) {
         coveredMembers.add(member);
       }
     }
@@ -157,7 +166,7 @@ export function printNarrowedArmedAliasType(
 
   const uncovered = matchedMembers.filter((m) => !coveredMembers.has(m));
   if (uncovered.length > 0) {
-    if (projection.defaultArm === null) {
+    if (projection.defaultArm === null || !projection.defaultArm.reachable) {
       const labels = uncovered.map(memberLabel).join(", ");
       throw new Error(
         `emitProjectionTypes: REFERS_ARM_NOT_PROJECTED: refers matches payload member(s) of '${targetName}' ` +
@@ -176,14 +185,66 @@ export function printNarrowedArmedAliasType(
   return variantTypes.join(" | ");
 }
 
-function armMatchesAnyMember(
+function printLegacyNarrowedArmedAliasType(
+  queryName: string,
+  targetName: string,
+  matchedMembers: ObjectMember[],
+  projection: ResourceProjection,
+  resources: ResourceTable
+): string | null {
+  if (projection.arms === null || matchedMembers.length === 0) return null;
+  const resource = resources.get(targetName);
+  if (!resource) return null;
+
+  const variantTypes: string[] = [];
+  const coveredMembers = new Set<ObjectMember>();
+  for (let i = 0; i < projection.arms.length; i++) {
+    const arm = projection.arms[i]!;
+    if (
+      !matchedMembers.some((member) =>
+        legacyMemberMatchesArm(member, arm, projection.binding, resource.payloadType, resources)
+      )
+    ) {
+      continue;
+    }
+    const disc = projectionArmDiscriminant(arm.when, projection.binding);
+    const typeName = projectionVariantTypeName(queryName, targetName, disc ?? `Arm${i}`);
+    if (!variantTypes.includes(typeName)) variantTypes.push(typeName);
+    for (const member of matchedMembers) {
+      if (
+        legacyMemberMatchesArm(member, arm, projection.binding, resource.payloadType, resources)
+      ) {
+        coveredMembers.add(member);
+      }
+    }
+  }
+  if (matchedMembers.some((member) => !coveredMembers.has(member))) {
+    if (projection.defaultArm === null) return null;
+    const defaultType = projectionVariantTypeName(queryName, targetName, "Default");
+    if (!variantTypes.includes(defaultType)) variantTypes.push(defaultType);
+  }
+  return variantTypes.length === 0 ? null : variantTypes.join(" | ");
+}
+
+function legacyMemberMatchesArm(
+  member: ObjectMember,
   arm: ProjectionArm,
   binding: string,
-  members: ObjectMember[],
   payloadType: TypeExpr,
   resources: ResourceTable
 ): boolean {
-  return members.some((m) => memberMatchesArm(m, arm, binding, payloadType, resources));
+  const narrowed = narrowPayloadByFilter(payloadType, arm.when, binding, resources);
+  if (narrowed === undefined) return false;
+  const members = expandPayloadObjectMembers(narrowed, resources);
+  return members?.some((candidate) => sameObjectMember(candidate, member)) ?? false;
+}
+
+function armMatchesAnyMember(
+  armPayloadType: TypeExpr,
+  members: ObjectMember[],
+  resources: ResourceTable
+): boolean {
+  return members.some((member) => memberMatchesArm(member, armPayloadType, resources));
 }
 
 /**
@@ -192,16 +253,10 @@ function armMatchesAnyMember(
  */
 function memberMatchesArm(
   member: ObjectMember,
-  arm: ProjectionArm,
-  binding: string,
-  payloadType: TypeExpr,
+  armPayloadType: TypeExpr,
   resources: ResourceTable
 ): boolean {
-  const narrowed = narrowPayloadByFilter(payloadType, arm.when, binding, resources);
-  if (narrowed === undefined) {
-    return false;
-  }
-  const members = expandPayloadObjectMembers(narrowed, resources);
+  const members = expandPayloadObjectMembers(armPayloadType, resources);
   if (members === null) return false;
   return members.some((m) => sameObjectMember(m, member));
 }
