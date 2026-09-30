@@ -1,6 +1,6 @@
 # xndrjs Toolkit
 
-This repo is a **pnpm workspace** for **xndrjs**: TypeScript libraries that help you model domains with explicit validation boundaries, optional schema adapters (Zod, Valibot, AJV), and small helpers for async work.
+This repo is a **pnpm workspace** for **xndrjs**: Clean Architecture libraries for fullstack TypeScript.
 
 - **`packages/<name>`** — libraries meant to be **published to npm** (scoped `@xndrjs/*`).
 - **`apps/<name>`** — **not published** as libraries; things like the **documentation site** (`xndrjs-documentation`), **examples** (`interop-demo`, `oas-core-validator-demo`), and **internal tooling** (`bench-perf`, `resource-graph-resolver-bench`). They are in Changesets `ignore` and marked `"private": true` so they never ship on stable or alpha.
