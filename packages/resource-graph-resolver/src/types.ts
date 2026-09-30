@@ -84,6 +84,11 @@ export interface ResolveResourceGraphOutput<R extends ContentRegistry = ContentR
   islands: IslandMap;
   islandDependencies: IslandDependencyMap;
   errors: readonly ResolutionError[];
+  /**
+   * Failure lookup by canonical key and every redirect alias. Alias entries
+   * point at the same canonically attributed {@link ResolutionError} instance.
+   */
+  failures: ReadonlyMap<ResourceKey, ResolutionError>;
   /** Backing keys the walk actually reached, in promotion order. */
   promotedResourceKeys: readonly ResourceKey[];
   /**

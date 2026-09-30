@@ -143,6 +143,7 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
   const strategyFactory = strategyFactoryName(query.name);
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
+  const hasRedirects = query.projections.some((p) => p.resolveArms !== null);
   const hasFailures = queryNeedsFailureProjection(query);
   const contextType = hasContext ? executionContextTypeName(query.name) : "unknown";
 
@@ -153,18 +154,15 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
   const projectCall = emitProjectCall(query);
   const engineRoots = emitEngineRootsExpr(query);
   const rootBindings = emitRootBindings(query);
-  const failuresBinding = hasFailures
-    ? [
-        ``,
-        `  const failures = new Map<ResourceKey, ResolutionError>();`,
-        `  for (const error of errors) {`,
-        `    if (error.resourceKey !== undefined) {`,
-        `      failures.set(error.resourceKey, error);`,
-        `    }`,
-        `  }`,
-        ``,
-      ].join("\n")
-    : `\n`;
+  const outputBindings = [
+    `    contentMap,`,
+    `    islands,`,
+    `    islandDependencies,`,
+    `    errors,`,
+    ...(hasFailures ? [`    failures,`] : []),
+    `    promotedResourceKeys,`,
+    ...(hasRedirects ? [`    redirects,`] : []),
+  ];
 
   return [
     emitResolveInputType(query, registryTypeName),
@@ -183,19 +181,14 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
     `  });`,
     ``,
     `  const {`,
-    `    contentMap,`,
-    `    islands,`,
-    `    islandDependencies,`,
-    `    errors,`,
-    `    promotedResourceKeys,`,
-    `    redirects,`,
+    ...outputBindings,
     `  } = await resolver.resolve({`,
     `    roots: ${engineRoots},`,
     `    executionContext: input.executionContext,`,
     `    backingResources: input.backingResources,`,
     `    signal: input.signal,`,
     `  });`,
-    failuresBinding,
+    ``,
     `  const ${resultField} = ${projectCall};`,
     ``,
     `  return {`,

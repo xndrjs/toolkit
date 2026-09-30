@@ -220,8 +220,20 @@ When several sources can handle the same ARI `type`, the **first** match in `sou
 | `contentMap`           | Resolved payloads keyed by ARI                                         |
 | `islands`              | Per-island resource membership                                         |
 | `islandDependencies`   | Direct edges between islands (child island opened by an island policy) |
-| `errors`               | `ResolutionError` instances from edges with `onFailure: "setError"`    |
+| `errors`               | One canonical `ResolutionError` per soft-failed resource               |
+| `failures`             | Failure lookup by canonical key and every redirect alias               |
 | `promotedResourceKeys` | Backing keys the walk actually reached, in promotion order             |
+| `redirects`            | Flattened locator-key → canonical-target map                           |
+
+### Redirects and canonical identity
+
+Strategy `.resolve` policies run after a locator payload is decoded and before expansion. The locator is not expanded; its target is enqueued instead. Chains are flattened, so `A → B → C` produces `A → C` and `B → C` in `output.redirects`. When `C` resolves, its payload is available from `contentMap` through `A`, `B`, and `C`.
+
+The same rules apply when either the locator decode payload or canonical target comes from `backingResources`. Several aliases converging on one canonical target do not duplicate its load.
+
+A soft target failure occurs once in `output.errors`, attributed to the canonical target. `output.failures` also indexes that same `ResolutionError` instance under every alias, which lets generated projectors implement `on failure set error` without losing redirect information. Temporary locator decode payloads are removed when the canonical target fails.
+
+Redirect cycles are invalid. Self-cycles, two-node cycles, and longer cycles throw `ResourceRedirectCycleError` regardless of the edge's `onFailure` policy.
 
 ### Missing resources and termination
 
@@ -298,12 +310,13 @@ export function createDemoStrategy() {
 }
 ```
 
-`createGraphResolutionStrategy<ExecutionContext, ContentRegistry>()` returns a builder with two namespaces:
+`createGraphResolutionStrategy<ExecutionContext, ContentRegistry>()` returns a builder with three namespaces:
 
 | Namespace    | Chain                             | Semantics                                                                 |
 | ------------ | --------------------------------- | ------------------------------------------------------------------------- |
 | `.expansion` | `.on(ari).when(…).expand(…)`      | Every matching policy contributes children; duplicates removed by ARI key |
 | `.islands`   | `.on(ari).when(…).startIsland(…)` | Any matching policy may open an island boundary                           |
+| `.resolve`   | `.on(ari).when(…).to(…)`          | First match redirects a decoded locator to a canonical ARI                |
 
 `.on(ari)` narrows **both** `resource` and `payload` to the matched ARI family. `.when(…)` is optional on both namespaces.
 
@@ -395,7 +408,7 @@ Exported symbols:
 - **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceOfFamily`, `ResourceUnionFromFamilies`, `SourcePayloadSlot`, `ResourceLoadContext`, `SourceRouteContext`
 - **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**
-- Errors: **`ResourceGraphError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceBatchLengthError`**, **`ResourceGraphAbortedError`**
+- Errors: **`ResourceGraphError`**, **`ResolutionError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceBatchLengthError`**, **`ResourceGraphAbortedError`**, **`ResourceRedirectCycleError`**
 - Observability: **`ResolutionObserver`** and its event types
 - Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`SchedulingMode`**, **`ResolutionError`**, **`OnFailurePolicy`**, **`SerializedIsland`**, **`ExpansionResult`**, **`IslandResult`**, **`ExpansionContext`**, **`IslandContext`**, **`ResolveContext`**, **`ResolveResult`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 
