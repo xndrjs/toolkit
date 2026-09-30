@@ -1,5 +1,7 @@
 /**
- * Resolve policy emit helpers: `.resolve.on(ari)[.when(…)].to(…)`.
+ * 1→1 resolve policy emit helpers: `.resolve.on(ari)[.when(…)].to(…)`.
+ * Many-resolve (`resolveEach`) is expansion-backed — see
+ * {@link emitProjectionExpansions}; redirects map is unused for those locators.
  */
 import type { ResolveArm, ResourceProjection } from "../../../ir";
 import { emitConstruction, emitExpr, strategyArmedBodyScope, strategyExprScope } from "../shared";
@@ -35,7 +37,10 @@ function emitResolveArm(projection: ResourceProjection, arm: ResolveArm): string
   ].join("\n");
 }
 
-/** Resolve policy blocks for one resolve-only `on` projection. */
+/**
+ * 1→1 resolve policy blocks for one resolve-only `on` projection.
+ * Skips `resolveEach` (handled as expansion).
+ */
 export function emitProjectionResolves(projection: ResourceProjection): string[] {
   if (projection.resolveArms === null) {
     return [];

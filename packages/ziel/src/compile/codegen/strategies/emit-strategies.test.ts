@@ -447,6 +447,87 @@ describe("generateStrategies", () => {
     expect(code).not.toMatch(/tabCollectionAri[\s\S]*\.map\(/);
   });
 
+  it("emits expansion-backed each for resolve to each (no .resolve.to)", () => {
+    const source = `
+      scalar TabsId on string;
+      scalar TabId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): {
+        tabsIds: { id: TabId }[]
+        locale: Locale
+      }
+      resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
+
+      query Q(tabsId: TabsId) {
+        context { locale: Locale }
+        root Tabs(tabsId: tabsId, locale: context.locale)
+        on Tabs t {
+          expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
+        }
+        on TabCollection tc resolve to each link in tc.tabsIds (
+          Tab(id: link.id, locale: @tc.locale) on failure set null
+        )
+        on Tab tab { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitStrategies(program!);
+
+    expect(code).toContain("strategy.expansion");
+    expect(code).toContain(".on(tabCollectionAri)");
+    expect(code).toContain(
+      "predicate.payload.tabsIds.map((link: any) => tabAri({ id: link.id, locale: predicate.resource.key[0].locale }))"
+    );
+    expect(code).toContain('onFailure: "setNull"');
+    expect(code).not.toContain("strategy.resolve");
+    expect(code).not.toContain(".to((predicate)");
+  });
+
+  it("emits multi-arm flatMap for polymorphic resolve to each", () => {
+    const source = `
+      scalar CollectionId on string;
+      scalar Id on string;
+      scalar Locale on string;
+
+      resource Tab(id: Id, locale: Locale): { id }
+      resource Strip(id: Id, locale: Locale): { id }
+      resource MixedCollection(id: CollectionId, locale: Locale): {
+        items: { kind: "Tab" | "Strip", id: Id }[]
+      }
+      resource Page(id: string, locale: Locale): { id collectionId: CollectionId }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          expand items: MixedCollection(id: p.collectionId, locale: @p.locale)
+        }
+        on MixedCollection c resolve to each item in c.items (
+          Tab(id: item.id, locale: @c.locale) when item.kind == "Tab",
+          Strip(id: item.id, locale: @c.locale) when item.kind == "Strip"
+        )
+        on Tab tab { id }
+        on Strip s { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitStrategies(program!);
+
+    expect(code).toContain(".on(mixedCollectionAri)");
+    expect(code).toContain("flatMap((item: any)");
+    expect(code).toContain('item.kind == "Tab"');
+    expect(code).toContain('item.kind == "Strip"');
+    expect(code).toContain("tabAri({ id: item.id");
+    expect(code).toContain("stripAri({ id: item.id");
+    expect(code).not.toContain("strategy.resolve");
+  });
+
   it("emits ExpansionResult.onFailure for uniform set-null expands", () => {
     const source = `
       scalar EntryId on string;
