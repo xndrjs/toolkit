@@ -42,11 +42,11 @@ query PageDetail(pageId: EntryId) {
       locale: @p.locale
     ) on failure set null
 
-    expand strips: each link in p.strips (
+    expand strips: each pageLink in p.strips (
       Entry(
         spaceId: @p.spaceId,
         environmentId: @p.environmentId,
-        id: link.id,
+        id: pageLink.id,
         locale: @p.locale
       ) on failure set null
     )
@@ -86,22 +86,22 @@ query PageDetail(pageId: EntryId) {
     }
 
     when e.kind == "Tabs" {
-      expand tabs: each link in e.tabs (
+      expand tabs: each tabLink in e.tabs (
         Entry(
           spaceId: @e.spaceId,
           environmentId: @e.environmentId,
-          id: link.id,
+          id: tabLink.id,
           locale: @e.locale
         ) on failure set null
       )
     }
 
     when e.kind == "Tab" {
-      expand strips: each link in e.strips (
+      expand strips: each entryLink in e.strips (
         Entry(
           spaceId: @e.spaceId,
           environmentId: @e.environmentId,
-          id: link.id,
+          id: entryLink.id,
           locale: @e.locale
         ) on failure set null
       )

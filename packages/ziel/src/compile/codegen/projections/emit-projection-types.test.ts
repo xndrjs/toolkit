@@ -181,13 +181,96 @@ export type EntryDetail_Entry_Page = {
   id: EntryId;
 };
 
-export type EntryDetail_Entry_Default = {};
+export type EntryDetail_Entry_Default = never;
 
 export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page | EntryDetail_Entry_Default;
 `)
     );
     expect(code).toContain("export type EntryDetailResult = EntryDetail_Entry;");
     expect(code).not.toContain("EntryDetail_Hero");
+  });
+
+  it("narrows the default variant to members not consumed by prior arms", () => {
+    const source = `
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId):
+        { type: "Hero", id, title: string }
+        | { type: "Page", id, slug: string }
+        | { type: "Footer", id, legal: string }
+
+      query EntryDetail(entryId: EntryId) {
+        context { }
+        root Entry(id: entryId)
+        on Entry e {
+          when e.type == "Hero" { type id title }
+          when e.type == "Page" { type id slug }
+          default include properties { }
+        }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+    expect(normalizeWhitespace(code)).toContain(
+      normalizeWhitespace(`
+export type EntryDetail_Entry_Default = {
+  type: "Footer";
+  id: EntryId;
+  legal: string;
+};
+`)
+    );
+  });
+
+  it("keeps members in default when a prior predicate is not provably true", () => {
+    const source = `
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId):
+        { type: "Hero", id, title: string }
+        | { type: "Footer", id, title: string }
+
+      query EntryDetail(entryId: EntryId) {
+        context { }
+        root Entry(id: entryId)
+        on Entry e {
+          when e.type == "Hero" and e.title == "Featured" { type id }
+          default include properties { }
+        }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain('type: "Hero" | "Footer";');
+  });
+
+  it("emits never for a statically unreachable default variant", () => {
+    const source = `
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId):
+        { type: "Hero", id }
+        | { type: "Footer", id }
+
+      query EntryDetail(entryId: EntryId) {
+        context { }
+        root Entry(id: entryId)
+        on Entry e {
+          when e.type == "Hero" { type id }
+          when e.type == "Footer" { type id }
+          default { }
+        }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain("export type EntryDetail_Entry_Default = never;");
   });
 
   it("emits union strip and Entry variant aliases for page-detail", () => {
@@ -288,7 +371,7 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page 
 
     expect(code).toContain("related: (PageDetail_Entry | PageDetail_Asset)[];");
     expect(code).toContain("export type PageDetail_Entry_Hero = {");
-    expect(code).toContain("export type PageDetail_Entry_Default = {");
+    expect(code).toContain("export type PageDetail_Entry_Default = never;");
     expect(code).toContain(
       "export type PageDetail_Entry = PageDetail_Entry_Hero | PageDetail_Entry_Default;"
     );
@@ -755,7 +838,7 @@ describe("printExpansionAliasType", () => {
       "PageDetail_Entry | null"
     );
     expect(printExpansionAliasType("PageDetail", page.expansions[1]!, resources, projected)).toBe(
-      "PageDetail_Entry | ResolutionError"
+      "PageDetail_Entry | ResolutionErrorData"
     );
     expect(printExpansionAliasType("PageDetail", page.expansions[2]!, resources, projected)).toBe(
       "(PageDetail_Entry | null)[]"

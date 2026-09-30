@@ -47,9 +47,9 @@ function resolveOptions(options?: GenerateProjectionsOptions): ResolvedOptions {
 }
 
 function emitRuntimeImport(importFrom: string, program: Program): string {
-  const symbols = ["type ContentMap"];
+  const symbols = ["type ContentMap", "type ApplicationResourceIdentifier"];
   if (program.queries.some((q) => q.projections.some((p) => p.resolveArms !== null))) {
-    symbols.push("type ApplicationResourceIdentifier", "type ResourceKey");
+    symbols.push("type ResourceKey");
   }
   if (program.queries.some((q) => queryNeedsFailureProjection(q))) {
     if (!symbols.includes("type ResourceKey")) {
@@ -58,14 +58,10 @@ function emitRuntimeImport(importFrom: string, program: Program): string {
     if (!symbols.includes("type ResolutionError") && !symbols.includes("ResolutionError")) {
       symbols.push("type ResolutionError");
     }
+    symbols.push("toResolutionErrorData");
   }
   if (program.queries.some((q) => queryUsesSetError(q))) {
-    const typeIdx = symbols.indexOf("type ResolutionError");
-    if (typeIdx >= 0) {
-      symbols[typeIdx] = "ResolutionError";
-    } else if (!symbols.includes("ResolutionError")) {
-      symbols.push("ResolutionError");
-    }
+    symbols.push("type ResolutionErrorData");
   }
   return `import { ${symbols.join(", ")} } from ${JSON.stringify(importFrom)};`;
 }

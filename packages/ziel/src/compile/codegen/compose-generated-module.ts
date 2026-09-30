@@ -121,9 +121,9 @@ export function composeGeneratedModule(
   }
 
   if (projections.length > 0) {
-    importSymbols.push("type ContentMap");
+    importSymbols.push("type ContentMap", "type ApplicationResourceIdentifier");
     if (program.queries.some((q) => q.projections.some((p) => p.resolveArms !== null))) {
-      importSymbols.push("type ApplicationResourceIdentifier", "type ResourceKey");
+      importSymbols.push("type ResourceKey");
     }
     if (program.queries.some((q) => queryNeedsFailureProjection(q))) {
       if (!importSymbols.includes("type ResourceKey")) {
@@ -135,15 +135,10 @@ export function composeGeneratedModule(
       ) {
         importSymbols.push("type ResolutionError");
       }
+      importSymbols.push("toResolutionErrorData");
     }
     if (program.queries.some((q) => queryUsesSetError(q))) {
-      // Value import so consumers can `instanceof ResolutionError` from generated types.
-      const typeIdx = importSymbols.indexOf("type ResolutionError");
-      if (typeIdx >= 0) {
-        importSymbols[typeIdx] = "ResolutionError";
-      } else if (!importSymbols.includes("ResolutionError")) {
-        importSymbols.push("ResolutionError");
-      }
+      importSymbols.push("type ResolutionErrorData");
     }
   }
 

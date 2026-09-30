@@ -209,13 +209,13 @@ expand items: each link in p.items (
 )
 ```
 
-| Policy      | Resolver                                                     | Projected alias type     |
-| ----------- | ------------------------------------------------------------ | ------------------------ |
-| `throw`     | throw (`MissingResourceError` / load errors)                 | `Foo`                    |
-| `set null`  | record `ResolutionError` in `errors`, omit payload, continue | `Foo \| null`            |
-| `set error` | record `ResolutionError` in `errors`, continue               | `Foo \| ResolutionError` |
+| Policy      | Resolver                                                     | Projected alias type         |
+| ----------- | ------------------------------------------------------------ | ---------------------------- |
+| `throw`     | throw (`MissingResourceError` / load errors)                 | `Foo`                        |
+| `set null`  | record `ResolutionError` in `errors`, omit payload, continue | `Foo \| null`                |
+| `set error` | record `ResolutionError` in `errors`, continue               | `Foo \| ResolutionErrorData` |
 
-Both soft policies populate global `errors` (detect any failure without walking the tree). Projection stays local: `null` vs the `ResolutionError` instance. Many-expand array elements follow each arm’s policy (`(Foo | null)[]`, …). Same ARI discovered by several edges → strictest wins (`throw` > `setError` > `setNull`). Datasources may `throw new ResolutionError(code, message, cause)`; under `set error` consumers use `instanceof ResolutionError`.
+Both soft policies populate global `errors` with `ResolutionError` instances (detect any failure without walking the tree). Projection stays local: `null` vs the JSON-safe `ResolutionErrorData` value. Many-expand array elements follow each arm’s policy (`(Foo | null)[]`, …). Same ARI discovered by several edges → strictest wins (`throw` > `setError` > `setNull`). Datasources may still `throw new ResolutionError(code, message, cause)`; generated projectors convert collected failures with `toResolutionErrorData`.
 
 ### `refers` field annotations
 

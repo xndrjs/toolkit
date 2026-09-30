@@ -167,6 +167,49 @@ function memberMatchesFilter(
   return memberMatchesConstraint(member, filter);
 }
 
+type FilterTruth = true | false | "unknown";
+
+function memberConstraintTruth(
+  member: Extract<TypeExpr, { kind: "object" }>,
+  constraint: DiscConstraint
+): FilterTruth {
+  const field = member.fields.find((candidate) => candidate.name === constraint.field);
+  if (!field || field.type.kind !== "stringLiteral") return "unknown";
+
+  const includes = constraint.values.includes(field.type.value);
+  switch (constraint.mode) {
+    case "eq":
+    case "in":
+      return includes;
+    case "neq":
+    case "not in":
+      return !includes;
+  }
+}
+
+function andTruth(left: FilterTruth, right: FilterTruth): FilterTruth {
+  if (left === false || right === false) return false;
+  if (left === true && right === true) return true;
+  return "unknown";
+}
+
+function orTruth(left: FilterTruth, right: FilterTruth): FilterTruth {
+  if (left === true || right === true) return true;
+  if (left === false && right === false) return false;
+  return "unknown";
+}
+
+function memberFilterTruth(
+  member: Extract<TypeExpr, { kind: "object" }>,
+  filter: DiscFilter
+): FilterTruth {
+  if (isDiscAtom(filter)) return memberConstraintTruth(member, filter);
+
+  const left = memberFilterTruth(member, filter.left);
+  const right = memberFilterTruth(member, filter.right);
+  return filter.op === "and" ? andTruth(left, right) : orTruth(left, right);
+}
+
 function matchMembers(
   members: Extract<TypeExpr, { kind: "object" }>[],
   filter: DiscFilter
@@ -222,6 +265,39 @@ export function narrowPayloadByFilter(
   if (!members) return undefined;
 
   return matchMembers(members, match);
+}
+
+/**
+ * Closed payload members that can still reach an ordered projection `default` arm.
+ *
+ * A member is removed only when a prior filter is provably true from its literal
+ * fields. Predicates involving non-literal data remain conservative, so codegen
+ * never excludes a runtime-possible member merely because it recognized part of
+ * a condition.
+ *
+ * `undefined` means no filter could be analyzed, while `null` means every closed
+ * member is consumed and the default arm is unreachable.
+ */
+export function residualPayloadAfterFilters(
+  payloadType: TypeExpr,
+  filters: readonly Expr[],
+  binding: string,
+  resources: PayloadTypeLookup
+): TypeExpr | null | undefined {
+  const matches = filters
+    .map((filter) => payloadDiscriminantMatch(filter, binding))
+    .filter((match): match is DiscFilter => match !== undefined);
+  if (matches.length === 0) return undefined;
+
+  const members = expandPayloadObjectMembers(payloadType, resources);
+  if (members === null) return undefined;
+
+  const residual = members.filter(
+    (member) => !matches.some((match) => memberFilterTruth(member, match) === true)
+  );
+  if (residual.length === 0) return null;
+  if (residual.length === 1) return residual[0]!;
+  return { kind: "union", members: residual, span: null };
 }
 
 /** String labels covered by a positive discriminant filter (`==` or `in`). */

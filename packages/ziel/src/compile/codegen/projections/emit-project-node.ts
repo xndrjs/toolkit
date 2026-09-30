@@ -5,21 +5,32 @@ import {
   queryNeedsFailureProjection,
   resolveTargetIndex,
 } from "../../../check/projection-graph";
-import { ariFactoryName, executionContextTypeName, paramsTypeName } from "../naming";
+import {
+  ariFactoryName,
+  executionContextTypeName,
+  paramsTypeName,
+  payloadTypeName,
+} from "../naming";
 import { emitManyProject, projectOnFnName } from "./emit-project-on";
 import { type ResourceIndex } from "./shared";
 
 /** Shared helper for `on failure set null` / `set error` edges. */
-export function emitProjectEdgeHelper(): string {
+export function emitProjectEdgeHelper(fnName: string): string {
   return [
     `  const projectEdge = (`,
-    `    ari: any,`,
+    `    ari: ApplicationResourceIdentifier,`,
     `    onFailure: "setNull" | "setError",`,
     `  ): unknown => {`,
     `    const value = projectNode(ari);`,
     `    if (value !== undefined) return value;`,
     `    if (onFailure === "setNull") return null;`,
-    `    return failures.get(ari.toString());`,
+    `    const failure = failures.get(ari.toString());`,
+    `    if (failure === undefined) {`,
+    `      throw new Error(`,
+    `        ${JSON.stringify(`${fnName}: missing collected failure for `)} + ari.toString()`,
+    `      );`,
+    `    }`,
+    `    return toResolutionErrorData(failure);`,
     `  };`,
   ].join("\n");
 }
@@ -62,10 +73,12 @@ export function emitProjectNode(
 
   for (const projection of projectable) {
     const helper = projectOnFnName(projection.resource);
+    const ari = ariFactoryName(projection.resource);
+    const payloadType = payloadTypeName(projection.resource);
     cases.push(
       [
         `      case ${JSON.stringify(projection.resource)}:`,
-        `        return ${helper}(ari, payload);`,
+        `        return ${helper}(ari as ReturnType<typeof ${ari}>, loadedPayload as ${payloadType});`,
       ].join("\n")
     );
   }
@@ -86,6 +99,8 @@ export function emitProjectNode(
   // Many-resolve: map locator payload through the each body (no redirects).
   for (const projection of query.projections) {
     if (projection.resolveEach === null) continue;
+    const ari = ariFactoryName(projection.resource);
+    const payload = payloadTypeName(projection.resource);
     const mapExpr = indentMultilineExpr(
       emitManyProject(resolveEachAsExpansion(projection.resolveEach)),
       "        "
@@ -93,7 +108,8 @@ export function emitProjectNode(
     cases.push(
       [
         `      case ${JSON.stringify(projection.resource)}: {`,
-        `        const resource = ari;`,
+        `        const resource = ari as ReturnType<typeof ${ari}>;`,
+        `        const payload = loadedPayload as ${payload};`,
         `        const result = ${mapExpr};`,
         `        memo.set(key, result);`,
         `        return result;`,
@@ -112,11 +128,11 @@ export function emitProjectNode(
   );
 
   return [
-    `  const projectNode = (ari: any): unknown => {`,
+    `  const projectNode = (ari: ApplicationResourceIdentifier): unknown => {`,
     `    const key = ari.toString();`,
     `    if (memo.has(key)) return memo.get(key);`,
-    `    const payload = contentMap.get(ari as never);`,
-    `    if (payload === undefined) return undefined;`,
+    `    const loadedPayload = contentMap.get(ari as never);`,
+    `    if (loadedPayload === undefined) return undefined;`,
     `    switch (ari.type) {`,
     cases.join("\n"),
     `    }`,

@@ -7,7 +7,9 @@ import {
   type ContentMap,
   type ApplicationResourceIdentifier,
   type ResourceKey,
-  ResolutionError,
+  type ResolutionError,
+  toResolutionErrorData,
+  type ResolutionErrorData,
   defineDataSourceFor,
   type DataSource,
   type ResourceLoadContext,
@@ -361,11 +363,11 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
     });
     __resources.push(__r2);
     __onFailureByKey.set(__r2.toString(), "throw");
-    const __many3 = predicate.payload.softItems.map((link: any) =>
+    const __many3 = predicate.payload.softItems.map((softLink: any) =>
       entryAri({
         spaceId: predicate.resource.key[0].spaceId,
         environmentId: predicate.resource.key[0].environmentId,
-        id: link.id,
+        id: softLink.id,
         locale: predicate.resource.key[0].locale,
       })
     );
@@ -373,11 +375,11 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
       __resources.push(__item);
       __onFailureByKey.set(__item.toString(), "setNull");
     }
-    const __many4 = predicate.payload.errorItems.map((link: any) =>
+    const __many4 = predicate.payload.errorItems.map((errorLink: any) =>
       entryAri({
         spaceId: predicate.resource.key[0].spaceId,
         environmentId: predicate.resource.key[0].environmentId,
-        id: link.id,
+        id: errorLink.id,
         locale: predicate.resource.key[0].locale,
       })
     );
@@ -385,11 +387,11 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
       __resources.push(__item);
       __onFailureByKey.set(__item.toString(), "setError");
     }
-    const __many5 = predicate.payload.throwItems.map((link: any) =>
+    const __many5 = predicate.payload.throwItems.map((throwLink: any) =>
       entryAri({
         spaceId: predicate.resource.key[0].spaceId,
         environmentId: predicate.resource.key[0].environmentId,
-        id: link.id,
+        id: throwLink.id,
         locale: predicate.resource.key[0].locale,
       })
     );
@@ -448,11 +450,11 @@ export function createPageDetailStrategy(params: PageDetailParams) {
         id: predicate.payload.footerId,
         locale: predicate.resource.key[0].locale,
       }),
-      ...predicate.payload.strips.map((link: any) =>
+      ...predicate.payload.strips.map((pageLink: any) =>
         entryAri({
           spaceId: predicate.resource.key[0].spaceId,
           environmentId: predicate.resource.key[0].environmentId,
-          id: link.id,
+          id: pageLink.id,
           locale: predicate.resource.key[0].locale,
         })
       ),
@@ -487,11 +489,11 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
-        resources: payload.tabs.map((link: any) =>
+        resources: payload.tabs.map((tabLink: any) =>
           entryAri({
             spaceId: predicate.resource.key[0].spaceId,
             environmentId: predicate.resource.key[0].environmentId,
-            id: link.id,
+            id: tabLink.id,
             locale: predicate.resource.key[0].locale,
           })
         ),
@@ -505,11 +507,11 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     .expand((predicate) => {
       const payload = predicate.payload as any;
       return {
-        resources: payload.strips.map((link: any) =>
+        resources: payload.strips.map((entryLink: any) =>
           entryAri({
             spaceId: predicate.resource.key[0].spaceId,
             environmentId: predicate.resource.key[0].environmentId,
-            id: link.id,
+            id: entryLink.id,
             locale: predicate.resource.key[0].locale,
           })
         ),
@@ -606,13 +608,13 @@ export type ErrorHandlingDetail_ErrorLab = {
         | ErrorHandlingDetail_Entry_Page
         | ErrorHandlingDetail_Entry_Default
       )
-    | ResolutionError;
+    | ResolutionErrorData;
   throwSingle:
     | ErrorHandlingDetail_Entry_Hero
     | ErrorHandlingDetail_Entry_Page
     | ErrorHandlingDetail_Entry_Default;
   softItems: (ErrorHandlingDetail_Entry | null)[];
-  errorItems: (ErrorHandlingDetail_Entry | ResolutionError)[];
+  errorItems: (ErrorHandlingDetail_Entry | ResolutionErrorData)[];
   throwItems: ErrorHandlingDetail_Entry[];
 };
 
@@ -633,7 +635,7 @@ export type ErrorHandlingDetail_Entry_Page = {
 
 export type ErrorHandlingDetail_Entry_Default = {
   __typename: "Entry";
-  kind: "Hero" | "Tabs" | "Tab" | "Product" | "Menu" | "Footer" | "Page" | "SiteInternalLink";
+  kind: "Tabs" | "Tab" | "Product" | "Menu" | "Footer" | "SiteInternalLink";
   id: EntryId;
 };
 
@@ -737,11 +739,7 @@ export type PageDetail_Entry_SiteInternalLink = {
     | null;
 };
 
-export type PageDetail_Entry_Default = {
-  __typename: "Entry";
-  kind: "Hero" | "Tabs" | "Tab" | "Product" | "Menu" | "Footer" | "Page" | "SiteInternalLink";
-  id: EntryId;
-};
+export type PageDetail_Entry_Default = never;
 
 export type PageDetail_Entry =
   | PageDetail_Entry_Hero
@@ -773,10 +771,13 @@ export function projectErrorHandlingDetail(
     failures: ReadonlyMap<ResourceKey, ResolutionError>;
   }
 ): ErrorHandlingDetailResult {
-  const memo = new Map<string, object>();
+  const memo = new Map<string, unknown>();
   const failures = args.failures;
 
-  const projectOnErrorLab = (resource: any, payload: any): any => {
+  const projectOnErrorLab = (
+    resource: ReturnType<typeof errorLabAri>,
+    payload: ErrorLabPayload
+  ): ErrorHandlingDetail_ErrorLab => {
     const shell: any = { __typename: "ErrorLab" };
     memo.set(resource.toString(), shell);
     shell.softSingle = projectEdge(
@@ -805,34 +806,34 @@ export function projectErrorHandlingDetail(
         locale: resource.key[0].locale,
       })
     );
-    shell.softItems = payload.softItems.map((link: any) =>
+    shell.softItems = payload.softItems.map((softLink) =>
       projectEdge(
         entryAri({
           spaceId: resource.key[0].spaceId,
           environmentId: resource.key[0].environmentId,
-          id: link.id,
+          id: softLink.id,
           locale: resource.key[0].locale,
         }),
         "setNull"
       )
     );
-    shell.errorItems = payload.errorItems.map((link: any) =>
+    shell.errorItems = payload.errorItems.map((errorLink) =>
       projectEdge(
         entryAri({
           spaceId: resource.key[0].spaceId,
           environmentId: resource.key[0].environmentId,
-          id: link.id,
+          id: errorLink.id,
           locale: resource.key[0].locale,
         }),
         "setError"
       )
     );
-    shell.throwItems = payload.throwItems.map((link: any) =>
+    shell.throwItems = payload.throwItems.map((throwLink) =>
       projectNode(
         entryAri({
           spaceId: resource.key[0].spaceId,
           environmentId: resource.key[0].environmentId,
-          id: link.id,
+          id: throwLink.id,
           locale: resource.key[0].locale,
         })
       )
@@ -840,7 +841,10 @@ export function projectErrorHandlingDetail(
     return shell;
   };
 
-  const projectOnEntry = (resource: any, payload: any): any => {
+  const projectOnEntry = (
+    resource: ReturnType<typeof entryAri>,
+    payload: EntryPayload
+  ): ErrorHandlingDetail_Entry => {
     if (payload.kind == "Hero") {
       const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
@@ -873,7 +877,10 @@ export function projectErrorHandlingDetail(
     }
   };
 
-  const projectOnAsset = (resource: any, payload: any): any => {
+  const projectOnAsset = (
+    resource: ReturnType<typeof assetAri>,
+    payload: AssetPayload
+  ): ErrorHandlingDetail_Asset => {
     const shell: any = { __typename: "Asset" };
     memo.set(resource.toString(), shell);
     shell.kind = payload.kind;
@@ -884,18 +891,21 @@ export function projectErrorHandlingDetail(
     return shell;
   };
 
-  const projectNode = (ari: any): unknown => {
+  const projectNode = (ari: ApplicationResourceIdentifier): unknown => {
     const key = ari.toString();
     if (memo.has(key)) return memo.get(key);
-    const payload = contentMap.get(ari as never);
-    if (payload === undefined) return undefined;
+    const loadedPayload = contentMap.get(ari as never);
+    if (loadedPayload === undefined) return undefined;
     switch (ari.type) {
       case "ErrorLab":
-        return projectOnErrorLab(ari, payload);
+        return projectOnErrorLab(
+          ari as ReturnType<typeof errorLabAri>,
+          loadedPayload as ErrorLabPayload
+        );
       case "Entry":
-        return projectOnEntry(ari, payload);
+        return projectOnEntry(ari as ReturnType<typeof entryAri>, loadedPayload as EntryPayload);
       case "Asset":
-        return projectOnAsset(ari, payload);
+        return projectOnAsset(ari as ReturnType<typeof assetAri>, loadedPayload as AssetPayload);
       default:
         throw new Error(
           "projectErrorHandlingDetail: unexpected resource type " + JSON.stringify(ari.type)
@@ -903,11 +913,20 @@ export function projectErrorHandlingDetail(
     }
   };
 
-  const projectEdge = (ari: any, onFailure: "setNull" | "setError"): unknown => {
+  const projectEdge = (
+    ari: ApplicationResourceIdentifier,
+    onFailure: "setNull" | "setError"
+  ): unknown => {
     const value = projectNode(ari);
     if (value !== undefined) return value;
     if (onFailure === "setNull") return null;
-    return failures.get(ari.toString());
+    const failure = failures.get(ari.toString());
+    if (failure === undefined) {
+      throw new Error(
+        "projectErrorHandlingDetail: missing collected failure for " + ari.toString()
+      );
+    }
+    return toResolutionErrorData(failure);
   };
 
   return projectNode(root) as ErrorHandlingDetailResult;
@@ -923,10 +942,13 @@ export function projectPageDetail(
     failures: ReadonlyMap<ResourceKey, ResolutionError>;
   }
 ): PageDetailResult {
-  const memo = new Map<string, object>();
+  const memo = new Map<string, unknown>();
   const failures = args.failures;
 
-  const projectOnPage = (resource: any, payload: any): any => {
+  const projectOnPage = (
+    resource: ReturnType<typeof pageAri>,
+    payload: PagePayload
+  ): PageDetail_Page => {
     const shell: any = { __typename: "Page" };
     memo.set(resource.toString(), shell);
     shell.id = payload.id;
@@ -949,24 +971,27 @@ export function projectPageDetail(
       }),
       "setNull"
     );
-    shell.strips = payload.strips.map((link: any) =>
+    shell.strips = payload.strips.map((pageLink) =>
       projectEdge(
         entryAri({
           spaceId: resource.key[0].spaceId,
           environmentId: resource.key[0].environmentId,
-          id: link.id,
+          id: pageLink.id,
           locale: resource.key[0].locale,
         }),
         "setNull"
       )
     );
-    shell.related = payload.related.map((ref: any) =>
+    shell.related = payload.related.map((ref) =>
       projectEdge(customReferenceAri({ ref: ref, locale: resource.key[0].locale }), "setNull")
     );
     return shell;
   };
 
-  const projectOnEntry = (resource: any, payload: any): any => {
+  const projectOnEntry = (
+    resource: ReturnType<typeof entryAri>,
+    payload: EntryPayload
+  ): PageDetail_Entry => {
     if (payload.kind == "Hero") {
       const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
@@ -989,12 +1014,12 @@ export function projectPageDetail(
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
-      shell.tabs = payload.tabs.map((link: any) =>
+      shell.tabs = payload.tabs.map((tabLink) =>
         projectEdge(
           entryAri({
             spaceId: resource.key[0].spaceId,
             environmentId: resource.key[0].environmentId,
-            id: link.id,
+            id: tabLink.id,
             locale: resource.key[0].locale,
           }),
           "setNull"
@@ -1007,12 +1032,12 @@ export function projectPageDetail(
       shell.kind = payload.kind;
       shell.id = payload.id;
       shell.title = payload.title;
-      shell.strips = payload.strips.map((link: any) =>
+      shell.strips = payload.strips.map((entryLink) =>
         projectEdge(
           entryAri({
             spaceId: resource.key[0].spaceId,
             environmentId: resource.key[0].environmentId,
-            id: link.id,
+            id: entryLink.id,
             locale: resource.key[0].locale,
           }),
           "setNull"
@@ -1065,15 +1090,19 @@ export function projectPageDetail(
       );
       return shell;
     } else {
+      const defaultPayload = payload as EntryPayload;
       const shell: any = { __typename: "Entry" };
       memo.set(resource.toString(), shell);
-      shell.kind = payload.kind;
-      shell.id = payload.id;
+      shell.kind = defaultPayload.kind;
+      shell.id = defaultPayload.id;
       return shell;
     }
   };
 
-  const projectOnAsset = (resource: any, payload: any): any => {
+  const projectOnAsset = (
+    resource: ReturnType<typeof assetAri>,
+    payload: AssetPayload
+  ): PageDetail_Asset => {
     const shell: any = { __typename: "Asset" };
     memo.set(resource.toString(), shell);
     shell.kind = payload.kind;
@@ -1084,18 +1113,18 @@ export function projectPageDetail(
     return shell;
   };
 
-  const projectNode = (ari: any): unknown => {
+  const projectNode = (ari: ApplicationResourceIdentifier): unknown => {
     const key = ari.toString();
     if (memo.has(key)) return memo.get(key);
-    const payload = contentMap.get(ari as never);
-    if (payload === undefined) return undefined;
+    const loadedPayload = contentMap.get(ari as never);
+    if (loadedPayload === undefined) return undefined;
     switch (ari.type) {
       case "Page":
-        return projectOnPage(ari, payload);
+        return projectOnPage(ari as ReturnType<typeof pageAri>, loadedPayload as PagePayload);
       case "Entry":
-        return projectOnEntry(ari, payload);
+        return projectOnEntry(ari as ReturnType<typeof entryAri>, loadedPayload as EntryPayload);
       case "Asset":
-        return projectOnAsset(ari, payload);
+        return projectOnAsset(ari as ReturnType<typeof assetAri>, loadedPayload as AssetPayload);
       case "CustomReference": {
         const canonical = args.redirects.get(ari.toString());
         if (canonical === undefined) return undefined;
@@ -1106,11 +1135,18 @@ export function projectPageDetail(
     }
   };
 
-  const projectEdge = (ari: any, onFailure: "setNull" | "setError"): unknown => {
+  const projectEdge = (
+    ari: ApplicationResourceIdentifier,
+    onFailure: "setNull" | "setError"
+  ): unknown => {
     const value = projectNode(ari);
     if (value !== undefined) return value;
     if (onFailure === "setNull") return null;
-    return failures.get(ari.toString());
+    const failure = failures.get(ari.toString());
+    if (failure === undefined) {
+      throw new Error("projectPageDetail: missing collected failure for " + ari.toString());
+    }
+    return toResolutionErrorData(failure);
   };
 
   return projectNode(root) as PageDetailResult;

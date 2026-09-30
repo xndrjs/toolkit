@@ -21,6 +21,8 @@ export {
   ResourceGraphError,
   ResourceLoadFailedError,
   ResourceRedirectCycleError,
+  toResolutionErrorData,
+  type ResolutionErrorData,
 } from "./errors";
 export {
   createGraphResolutionStrategy,

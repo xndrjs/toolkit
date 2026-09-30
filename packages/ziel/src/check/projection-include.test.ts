@@ -374,10 +374,7 @@ describe("include all / include properties — parseAndCheck + codegen", () => {
     `);
     expect(diagnostics).toEqual([]);
     const types = emitProjectionTypes(program!);
-    expect(types).toMatch(/export type Q_Entry_Default = \{[^}]*kind: "Hero" \| "Page";[^}]*\};/s);
-    expect(types).toMatch(/export type Q_Entry_Default = \{[^}]*\bid:/s);
-    expect(types).toMatch(/export type Q_Entry_Default = \{[^}]*title: string;[^}]*\};/s);
-    expect(types).not.toMatch(/export type Q_Entry_Default = \{[^}]*headline:/s);
+    expect(types).toContain("export type Q_Entry_Default = never;");
     const code = emitProjections(program!);
     expect(code).toContain("shell.kind = payload.kind;");
     expect(code).toContain("shell.id = payload.id;");
