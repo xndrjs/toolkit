@@ -299,7 +299,7 @@ export function isDeclaration(item: unknown): item is Declaration {
 
 /** `each item in source ( Constr when …, … )` — polymorphic many-expand. */
 export interface EachComprehension extends langium.AstNode {
-  readonly $container: Expansion;
+  readonly $container: Expansion | ProjectionClause;
   readonly $type: "EachComprehension";
   arms: Array<ExpandArm>;
   itemBinding: string;
@@ -859,13 +859,15 @@ export function isPrimitiveTypeExpr(item: unknown): item is PrimitiveTypeExpr {
  *   1. Flat: items* (no when / default)
  *   2. Armed: whenArms+ defaultArm
  *   3. Preamble + armed: items+ whenArms+ defaultArm
- *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
+ *   4. Resolve-only: `resolve to { ResolveArm+ }` or `resolve to each …` —
+ *      no fields / expands / spreads / whenArms
  * Shapes 1–3 may optionally use `include all`, `include properties`, or
  * `include none` before `{`.
  * Items after the first `when` are a parse error (whenArms / default only follow).
  * When whenArms are present, `default { … }` is required by check (optional in grammar
  * so missing-default can be diagnosed).
  * Resolve form is mutually exclusive with projection body at parse time.
+ * Brace arms and `each` are mutually exclusive in one `resolve to`.
  * IR-built programs that mix root fields with arms are still rejected by check.
  */
 export interface ProjectionClause extends langium.AstNode {
@@ -877,6 +879,7 @@ export interface ProjectionClause extends langium.AstNode {
   expansions: Array<Expansion>;
   include?: IncludeMode;
   resolveArms: Array<ResolveArm>;
+  resolveEach?: EachComprehension;
   resource: string;
   selectedFields: Array<string>;
   spreads: Array<FragmentSpread>;
@@ -891,6 +894,7 @@ export const ProjectionClause = {
   expansions: "expansions",
   include: "include",
   resolveArms: "resolveArms",
+  resolveEach: "resolveEach",
   resource: "resource",
   selectedFields: "selectedFields",
   spreads: "spreads",
@@ -1868,6 +1872,10 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         resolveArms: {
           name: ProjectionClause.resolveArms,
           defaultValue: [],
+          optional: true,
+        },
+        resolveEach: {
+          name: ProjectionClause.resolveEach,
           optional: true,
         },
         resource: {

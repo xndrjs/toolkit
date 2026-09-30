@@ -374,7 +374,10 @@ export class ZielFormatter extends AbstractFormatter {
       const f = this.getNodeFormatter(node);
       f.keyword("on").append(Formatting.oneSpace());
       f.property("binding").append(Formatting.oneSpace());
-      if (node.resolveArms.length > 0) {
+      if (node.resolveEach) {
+        f.keyword("resolve").surround(Formatting.oneSpace());
+        f.keyword("to").append(Formatting.oneSpace());
+      } else if (node.resolveArms.length > 0) {
         f.keyword("resolve").surround(Formatting.oneSpace());
         f.keyword("to").append(Formatting.oneSpace());
         this.formatBracedBlock(node);

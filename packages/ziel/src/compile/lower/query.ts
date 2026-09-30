@@ -1,4 +1,5 @@
 import type {
+  ExpandArm,
   Expansion,
   IslandClause,
   OnFailurePolicy,
@@ -7,11 +8,13 @@ import type {
   QueryDefinition,
   QueryRoot,
   ResolveArm,
+  ResolveEach,
   ResourceProjection,
 } from "../../ir";
 import type { PayloadTypeLookup } from "../../check/discriminants";
 import type { DiagnosticSink } from "../../check/diagnostic";
 import {
+  type EachComprehension as AstEachComprehension,
   type Expansion as AstExpansion,
   isOnFailureSetError,
   isOnFailureSetNull,
@@ -40,6 +43,22 @@ function lowerOnFailure(clause: AstOnFailureClause | undefined): OnFailurePolicy
   if (isOnFailureSetNull(clause)) return "setNull";
   if (isOnFailureSetError(clause)) return "setError";
   return "throw";
+}
+
+/** Shared by expand-`each` and `resolve to each`. */
+function lowerEachComprehension(each: AstEachComprehension): ResolveEach {
+  const itemBindings = new Set([each.itemBinding]);
+  return {
+    itemBinding: each.itemBinding,
+    source: lowerExpr(each.source, /* itemBindings */ new Set()),
+    arms: each.arms.map(
+      (arm): ExpandArm => ({
+        target: lowerConstruction(arm.target, itemBindings),
+        when: arm.when ? lowerExpr(arm.when, itemBindings) : null,
+        onFailure: lowerOnFailure(arm.onFailure),
+      })
+    ),
+  };
 }
 
 export function lowerQuery(
@@ -103,6 +122,22 @@ export function lowerProjection(
 ): ResourceProjection {
   const include = normalizeIncludeMode(clause.include);
 
+  if (clause.resolveEach) {
+    return {
+      resource: clause.resource,
+      binding: clause.binding,
+      selectedFields: [],
+      expansions: [],
+      excludedFields: [],
+      include: null,
+      arms: null,
+      defaultArm: null,
+      resolveArms: null,
+      resolveEach: lowerEachComprehension(clause.resolveEach),
+      span: spanOf(clause),
+    };
+  }
+
   if (clause.resolveArms.length > 0) {
     return {
       resource: clause.resource,
@@ -114,6 +149,7 @@ export function lowerProjection(
       arms: null,
       defaultArm: null,
       resolveArms: clause.resolveArms.map(lowerResolveArm),
+      resolveEach: null,
       span: spanOf(clause),
     };
   }
@@ -154,6 +190,7 @@ export function lowerProjection(
       arms,
       defaultArm,
       resolveArms: null,
+      resolveEach: null,
       span: spanOf(clause),
     };
   }
@@ -180,6 +217,7 @@ export function lowerProjection(
         )
       : null,
     resolveArms: null,
+    resolveEach: null,
     span: spanOf(clause),
   };
 }
@@ -242,20 +280,11 @@ export function lowerProjectionDefaultArm(
 export function lowerExpansion(expansion: AstExpansion): Expansion {
   const each = expansion.each;
   if (each) {
-    const itemBindings = new Set([each.itemBinding]);
     return {
       alias: expansion.alias,
       target: null,
       multiplicity: "many",
-      comprehension: {
-        itemBinding: each.itemBinding,
-        source: lowerExpr(each.source, /* itemBindings */ new Set()),
-        arms: each.arms.map((arm) => ({
-          target: lowerConstruction(arm.target, itemBindings),
-          when: arm.when ? lowerExpr(arm.when, itemBindings) : null,
-          onFailure: lowerOnFailure(arm.onFailure),
-        })),
-      },
+      comprehension: lowerEachComprehension(each),
       /** Many-expand policy lives on arms; keep throw as a inert default. */
       onFailure: "throw",
       span: spanOf(expansion),

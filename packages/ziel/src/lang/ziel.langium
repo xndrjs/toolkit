@@ -169,20 +169,23 @@ RootEntry:
  *   1. Flat: items* (no when / default)
  *   2. Armed: whenArms+ defaultArm
  *   3. Preamble + armed: items+ whenArms+ defaultArm
- *   4. Resolve-only: `resolve to { ResolveArm+ }` — no fields / expands / spreads / whenArms
+ *   4. Resolve-only: `resolve to { ResolveArm+ }` or `resolve to each …` —
+ *      no fields / expands / spreads / whenArms
  * Shapes 1–3 may optionally use `include all`, `include properties`, or
  * `include none` before `{`.
  * Items after the first `when` are a parse error (whenArms / default only follow).
  * When whenArms are present, `default { … }` is required by check (optional in grammar
  * so missing-default can be diagnosed).
  * Resolve form is mutually exclusive with projection body at parse time.
+ * Brace arms and `each` are mutually exclusive in one `resolve to`.
  * IR-built programs that mix root fields with arms are still rejected by check.
  */
 ProjectionClause:
     'on' resource=ID binding=ID (
-        'resolve' 'to' '{'
-            resolveArms+=ResolveArm+
-        '}'
+        'resolve' 'to' (
+            '{' resolveArms+=ResolveArm+ '}'
+          | resolveEach=EachComprehension
+        )
       | (include=IncludeMode)? '{'
             (selectedFields+=ID | expansions+=Expansion | spreads+=FragmentSpread | excludes+=ExcludeClause)*
             whenArms+=ProjectionWhenArm*

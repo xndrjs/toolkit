@@ -188,7 +188,7 @@ export type ExpandArm = {
  * - `"many"`: `each item in source ( arms )` — polymorphic constructions.
  * Loading a collection resource returns its payload (e.g. `Tab[]`) as-is;
  * member ARIs are not inferred — hop only via explicit `expand` / `each` /
- * `on` / `resolve to`.
+ * `on` / `resolve to` / `resolve to each`.
  */
 export type Expansion = {
   alias: string;
@@ -246,16 +246,28 @@ export type ResolveArm = {
   span: SourceSpan | null;
 };
 
+/**
+ * Many-resolve: `on R b resolve to each item in source ( arms )`.
+ * Expansion-backed 1→N strip — same arm shape as expand `each`, not RGR redirects.
+ */
+export type ResolveEach = {
+  itemBinding: string;
+  source: Expr;
+  arms: ExpandArm[];
+};
+
 export type ResourceProjection = {
   resource: string;
   binding: string;
   /**
-   * Flat body fields. Empty when `arms !== null` or `resolveArms !== null`
-   * (armed / resolve-only projections keep fields off the root body).
+   * Flat body fields. Empty when `arms !== null`, `resolveArms !== null`, or
+   * `resolveEach !== null` (armed / resolve-only projections keep fields off
+   * the root body).
    */
   selectedFields: string[];
   /**
-   * Flat body expansions. Empty when `arms !== null` or `resolveArms !== null`.
+   * Flat body expansions. Empty when `arms !== null`, `resolveArms !== null`,
+   * or `resolveEach !== null`.
    */
   expansions: Expansion[];
   /**
@@ -278,7 +290,7 @@ export type ResourceProjection = {
    * Ordered `when` arms, or `null` for an unconditional flat `on` body.
    * Mixing flat fields/expansions with arms is rejected by the checker.
    * When non-null and non-empty, `defaultArm` is required by check.
-   * Mutually exclusive with `resolveArms`.
+   * Mutually exclusive with `resolveArms` / `resolveEach`.
    */
   arms: ProjectionArm[] | null;
   /**
@@ -287,11 +299,15 @@ export type ResourceProjection = {
    */
   defaultArm: ProjectionArmBody | null;
   /**
-   * Resolve-only redirect arms (`on R b resolve to { … }`), or `null` for
-   * normal projections. Mutually exclusive with projection body (`selectedFields`,
-   * `expansions`, `arms`).
+   * 1→1 resolve-only redirect arms (`on R b resolve to { … }`), or `null`.
+   * Mutually exclusive with projection body and with {@link resolveEach}.
    */
   resolveArms: ResolveArm[] | null;
+  /**
+   * 1→N resolve-to-each (`on R b resolve to each …`), or `null`.
+   * Mutually exclusive with projection body and with {@link resolveArms}.
+   */
+  resolveEach: ResolveEach | null;
   span: SourceSpan | null;
 };
 

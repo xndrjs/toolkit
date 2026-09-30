@@ -101,6 +101,14 @@ function checkQueryBindingNameClash(
   }
 
   for (const projection of query.projections) {
+    if (projection.resolveEach !== null) {
+      claimExpression(
+        projection.resolveEach.itemBinding,
+        "each item binding",
+        `${path}.projections.${projection.binding}.resolveEach`,
+        projection.span
+      );
+    }
     for (const expansion of expansionsForBindingClash(projection)) {
       if (expansion.comprehension === null) continue;
       claimExpression(
@@ -132,7 +140,7 @@ function checkQueryBindingNameClash(
 
 /** Flat body, when-arms, and default arm expansions (resolve-only → none). */
 function expansionsForBindingClash(projection: ResourceProjection): Expansion[] {
-  if (projection.resolveArms !== null) {
+  if (projection.resolveArms !== null || projection.resolveEach !== null) {
     return [];
   }
   if (projection.arms !== null) {

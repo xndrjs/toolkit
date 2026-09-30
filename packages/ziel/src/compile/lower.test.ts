@@ -826,6 +826,7 @@ describe("lowerProgram — fragments", () => {
       selectedFields: [],
       expansions: [],
       arms: null,
+      resolveEach: null,
       resolveArms: [
         {
           target: { resource: "Entry" },
@@ -848,6 +849,65 @@ describe("lowerProgram — fragments", () => {
       ],
     });
     expect(checkProgram(program)).toEqual([]);
+  });
+
+  it("lowers resolve-to-each into resolveEach (no projection body / resolveArms)", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar TabsId on string;
+        scalar TabId on string;
+        scalar Locale on string;
+
+        resource Tab(id: TabId, locale: Locale): {
+          id
+        }
+        resource TabCollection(tabsId: TabsId, locale: Locale): {
+          tabsIds: { id: TabId }[]
+          locale: Locale
+        }
+
+        query Q(tabsId: TabsId) {
+          context { locale: Locale }
+          root TabCollection(tabsId: tabsId, locale: context.locale)
+          on TabCollection tc resolve to each link in tc.tabsIds (
+            Tab(id: link.id, locale: @tc.locale) on failure set null
+          )
+          on Tab tab { id }
+        }
+      `)
+    );
+
+    expect(program.queries[0]!.projections[0]).toMatchObject({
+      resource: "TabCollection",
+      binding: "tc",
+      selectedFields: [],
+      expansions: [],
+      arms: null,
+      resolveArms: null,
+      resolveEach: {
+        itemBinding: "link",
+        source: { kind: "payloadRef", binding: "tc", path: ["tabsIds"] },
+        arms: [
+          {
+            target: {
+              resource: "Tab",
+              args: [
+                {
+                  name: "id",
+                  value: { kind: "itemRef", binding: "link", path: ["id"] },
+                },
+                {
+                  name: "locale",
+                  value: { kind: "identityRef", binding: "tc", path: ["locale"] },
+                },
+              ],
+            },
+            when: null,
+            onFailure: "setNull",
+          },
+        ],
+      },
+    });
   });
 
   it("rejects mixing resolve to with a projection body at parse time", () => {
