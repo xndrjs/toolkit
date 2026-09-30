@@ -108,6 +108,10 @@ const result = buildResources({ root: process.cwd() });
 
 `generateResources` emits branded scalar types, a `Scalars` factory namespace, ARI factories (`postAri`), payload types (`PostPayload`), and a `ContentRegistry` slice from a checked `Program`. Queries are ignored.
 
+### Resources and payloads
+
+`resource Name(identity): PayloadType` — the RHS is always a **payload type**. Writing `TabsCollection(…): Tab[]` means the datasource returns an array of Tab’s payload shape, not that the resolver should fan out to Tab ARIs. Traversal exists only via explicit `expand` / `each` / `on` / `resolve to`. Loading a collection resource returns that payload as-is; projecting it (e.g. empty `on TabsCollection`) keeps the payload type.
+
 **Scalar factories** — each scalar gets a PascalCase key on `Scalars` whose param is the representation (`string` | `number` | `boolean`) and return type is the branded alias. Prefer factories over casts in adapters and fixtures:
 
 ```ts
@@ -119,7 +123,7 @@ const locale: Locale = Scalars.Locale("en-US");
 
 There are no uncapitalized top-level helpers (`entryId(…)`). An empty scalars program emits nothing for this section.
 
-`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`, plus `islands.on(…)[.when(…)].startIsland()` when the query declares an `islands` block). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`); collection expand targets fan out member ARIs. Per-edge `on failure` policies land on `ExpansionResult.onFailure` (or `onFailureByKey` when edges disagree). The factory returns the builder **without** `.build()`, so apps can still attach extra island policies by hand before calling `.build()`.
+`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`, plus `islands.on(…)[.when(…)].startIsland()` when the query declares an `islands` block). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`). Per-edge `on failure` policies land on `ExpansionResult.onFailure` (or `onFailureByKey` when edges disagree). The factory returns the builder **without** `.build()`, so apps can still attach extra island policies by hand before calling `.build()`.
 
 `generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …). Projection shapes follow the DSL only — there is no default resource-name stamp. Pass `resourceTag` (e.g. `"$type"` or `"__resource"`) on codegen options / `ziel.config.ts` to opt into stamping the resource name on shells and types. Apps pass a resolved `ContentMap` and seed ARI(s); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/ziel` only — no extra runtime helper.
 
