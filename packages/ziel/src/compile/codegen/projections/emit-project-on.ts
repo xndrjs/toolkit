@@ -6,7 +6,7 @@ import type {
   ResourceProjection,
   TypeExpr,
 } from "../../../ir";
-import { narrowPayloadByFilter } from "../../../check/discriminants";
+import { isObjectLikePayload, narrowPayloadByFilter } from "../../../check/discriminants";
 import { resolveSelectedFields } from "../../../check/projection-include";
 import { emitConstruction, emitExpr, projectionExprScope } from "../shared";
 import { type ResourceIndex } from "./shared";
@@ -185,6 +185,22 @@ export function emitProjectOnBody(
       `emitProjections: unknown resource '${projection.resource}' while emitting flat shell`
     );
   }
+
+  // Array / scalar / primitive: empty `on R` returns the payload as-is.
+  if (!isObjectLikePayload(resource.payloadType, resources)) {
+    const hasBody =
+      projection.selectedFields.length > 0 ||
+      projection.expansions.length > 0 ||
+      projection.include === "all" ||
+      projection.include === "properties";
+    if (hasBody) {
+      throw new Error(
+        `emitProjections: cannot project fields/expands on non-object payload of '${projection.resource}' in query '${queryName}'`
+      );
+    }
+    return [`    memo.set(resource.toString(), payload);`, `    return payload;`].join("\n");
+  }
+
   return emitShellBody(
     projection.resource,
     projection.selectedFields,
@@ -239,6 +255,18 @@ export function emitArmedProjectOnBody(
   if (defaultArm === null) {
     throw new Error(
       `emitProjections: armed 'on ${projection.resource}' is missing defaultArm (checker should reject)`
+    );
+  }
+
+  const resource = resources.get(projection.resource);
+  if (!resource) {
+    throw new Error(
+      `emitProjections: unknown resource '${projection.resource}' while emitting armed shell`
+    );
+  }
+  if (!isObjectLikePayload(resource.payloadType, resources)) {
+    throw new Error(
+      `emitProjections: cannot arm when-clauses on non-object payload of '${projection.resource}' in query '${queryName}'`
     );
   }
 

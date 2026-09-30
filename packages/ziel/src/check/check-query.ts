@@ -9,13 +9,17 @@ import type {
   SourceSpan,
   TypeExpr,
 } from "../ir";
-import { checkExpansions, checkSelectedFields } from "./check-expansions";
+import {
+  checkExpansions,
+  checkNonObjectProjectionBody,
+  checkSelectedFields,
+} from "./check-expansions";
 import { checkIslands } from "./check-islands";
 import { checkRequiredOn } from "./check-required-on";
 import { checkConstruction } from "./construction";
 import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
-import { narrowPayloadByFilter } from "./discriminants";
+import { isObjectLikePayload, narrowPayloadByFilter } from "./discriminants";
 import { exprsEqual, inferPayloadWhenExprType, isBooleanWhenType } from "./expressions";
 import { checkExcludedFields, resolveSelectedFields } from "./projection-include";
 import {
@@ -268,66 +272,75 @@ export function checkQuery(
         );
       }
     } else if (projection.arms !== null) {
-      if (projection.arms.length === 0) {
+      if (!isObjectLikePayload(resource.payloadType, resources)) {
         sink.push({
-          code: "EMPTY_PROJECTION_ARMS",
-          message: `Projection 'on ${projection.resource}' has an empty when-arm list`,
+          code: "ARMED_ON_NON_OBJECT",
+          message: `Cannot use when-arms on non-object payload of '${projection.resource}'`,
           path: projPath,
           span: projection.span,
         });
-      } else if (projection.defaultArm === null) {
-        sink.push({
-          code: "MISSING_PROJECTION_DEFAULT",
-          message: `Projection 'on ${projection.resource}' with when-arms must include a default arm`,
-          path: projPath,
-          span: projection.span,
-        });
-      }
+      } else {
+        if (projection.arms.length === 0) {
+          sink.push({
+            code: "EMPTY_PROJECTION_ARMS",
+            message: `Projection 'on ${projection.resource}' has an empty when-arm list`,
+            path: projPath,
+            span: projection.span,
+          });
+        } else if (projection.defaultArm === null) {
+          sink.push({
+            code: "MISSING_PROJECTION_DEFAULT",
+            message: `Projection 'on ${projection.resource}' with when-arms must include a default arm`,
+            path: projPath,
+            span: projection.span,
+          });
+        }
 
-      for (let i = 0; i < projection.arms.length; i++) {
-        checkProjectionArm(
-          projection.arms[i]!,
-          `${projPath}.arms.${i}`,
-          projection.binding,
-          projection.resource,
-          projection.include,
-          resource.payloadType,
-          scope,
-          scalars,
-          resources,
-          sink
-        );
-      }
+        for (let i = 0; i < projection.arms.length; i++) {
+          checkProjectionArm(
+            projection.arms[i]!,
+            `${projPath}.arms.${i}`,
+            projection.binding,
+            projection.resource,
+            projection.include,
+            resource.payloadType,
+            scope,
+            scalars,
+            resources,
+            sink
+          );
+        }
 
-      for (let i = 0; i < projection.arms.length; i++) {
-        for (let j = 0; j < i; j++) {
-          if (exprsEqual(projection.arms[i]!.when, projection.arms[j]!.when)) {
-            sink.push({
-              code: "DUPLICATE_PROJECTION_WHEN",
-              message:
-                `Projection 'on ${projection.resource}' when-arm ${i} has the same condition ` +
-                `as when-arm ${j} (unreachable / zombie arm)`,
-              path: `${projPath}.arms.${i}.when`,
-              span: projection.arms[i]!.when.span ?? projection.arms[i]!.span,
-            });
-            break;
+        for (let i = 0; i < projection.arms.length; i++) {
+          for (let j = 0; j < i; j++) {
+            if (exprsEqual(projection.arms[i]!.when, projection.arms[j]!.when)) {
+              sink.push({
+                code: "DUPLICATE_PROJECTION_WHEN",
+                message:
+                  `Projection 'on ${projection.resource}' when-arm ${i} has the same condition ` +
+                  `as when-arm ${j} (unreachable / zombie arm)`,
+                path: `${projPath}.arms.${i}.when`,
+                span: projection.arms[i]!.when.span ?? projection.arms[i]!.span,
+              });
+              break;
+            }
           }
         }
-      }
 
-      if (projection.defaultArm !== null) {
-        checkProjectionArmBody(
-          projection.defaultArm,
-          `${projPath}.defaultArm`,
-          projection.binding,
-          projection.resource,
-          projection.include,
-          resource.payloadType,
-          scope,
-          scalars,
-          resources,
-          sink
-        );
+        if (projection.defaultArm !== null) {
+          checkProjectionArmBody(
+            projection.defaultArm,
+            `${projPath}.defaultArm`,
+            projection.binding,
+            projection.resource,
+            projection.include,
+            resource.payloadType,
+            scope,
+            scalars,
+            resources,
+            sink
+          );
+        }
       }
     } else {
       if (projection.defaultArm !== null) {
@@ -348,24 +361,38 @@ export function checkQuery(
         projection.span,
         sink
       );
-      const effectiveFields = resolveSelectedFields(
-        projection.selectedFields,
-        projection.expansions,
-        projection.include,
-        resource.payloadType,
-        resources,
-        projection.excludedFields
-      );
-      checkSelectedFields(
-        effectiveFields,
-        resource.payloadType,
-        projection.resource,
-        projPath,
-        projection.span,
-        resources,
-        sink
-      );
-      checkExpansions(projection.expansions, projPath, scope, scalars, resources, sink);
+      if (!isObjectLikePayload(resource.payloadType, resources)) {
+        checkNonObjectProjectionBody(
+          projection.resource,
+          resource.payloadType,
+          projection.selectedFields,
+          projection.expansions,
+          projection.include,
+          projPath,
+          projection.span,
+          resources,
+          sink
+        );
+      } else {
+        const effectiveFields = resolveSelectedFields(
+          projection.selectedFields,
+          projection.expansions,
+          projection.include,
+          resource.payloadType,
+          resources,
+          projection.excludedFields
+        );
+        checkSelectedFields(
+          effectiveFields,
+          resource.payloadType,
+          projection.resource,
+          projPath,
+          projection.span,
+          resources,
+          sink
+        );
+        checkExpansions(projection.expansions, projPath, scope, scalars, resources, sink);
+      }
     }
   }
 
@@ -541,6 +568,22 @@ function checkProjectionArmBody(
     arm.span,
     sink
   );
+
+  if (!isObjectLikePayload(payloadType, resources)) {
+    checkNonObjectProjectionBody(
+      resourceName,
+      payloadType,
+      arm.selectedFields,
+      arm.expansions,
+      effectiveInclude,
+      armPath,
+      arm.span,
+      resources,
+      sink
+    );
+    return;
+  }
+
   const effectiveFields = resolveSelectedFields(
     arm.selectedFields,
     arm.expansions,

@@ -297,6 +297,36 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page 
     expect(code).not.toContain("PageDetail_CustomReference");
   });
 
+  it("aliases empty on TabCollection to TabCollectionPayload (opaque passthrough)", () => {
+    const source = `
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+      resource Page(id: string, locale: Locale): { id tabsId: TabsId }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+        }
+        on TabCollection t { }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain("export type Q_TabCollection = TabCollectionPayload;");
+    expect(code).toContain("tabs: Q_TabCollection;");
+    expect(code).not.toContain("export type Q_TabCollection = {");
+    expect(code).not.toContain("Q_Tab[]");
+  });
+
   it("matches pageDetailProgram() IR path to the fixture emit", () => {
     const fromIr = emitProjectionTypes(pageDetailProgram());
     const { program, diagnostics } = parseAndCheck(
