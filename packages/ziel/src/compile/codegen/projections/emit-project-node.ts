@@ -1,4 +1,4 @@
-import type { QueryDefinition } from "../../../ir";
+import type { Expansion, QueryDefinition, ResolveEach } from "../../../ir";
 import {
   projectableProjections,
   queryHasRedirectResolves,
@@ -6,7 +6,7 @@ import {
   resolveTargetIndex,
 } from "../../../check/projection-graph";
 import { ariFactoryName, executionContextTypeName, paramsTypeName } from "../naming";
-import { projectOnFnName } from "./emit-project-on";
+import { emitManyProject, projectOnFnName } from "./emit-project-on";
 import { type ResourceIndex } from "./shared";
 
 /** Shared helper for `on failure set null` / `set error` edges. */
@@ -24,11 +24,37 @@ export function emitProjectEdgeHelper(): string {
   ].join("\n");
 }
 
+/** Synthetic many-expand so resolve-to-each reuses {@link emitManyProject}. */
+function resolveEachAsExpansion(resolveEach: ResolveEach): Expansion {
+  return {
+    alias: "",
+    target: null,
+    multiplicity: "many",
+    comprehension: {
+      itemBinding: resolveEach.itemBinding,
+      source: resolveEach.source,
+      arms: resolveEach.arms,
+    },
+    onFailure: "throw",
+    span: null,
+  };
+}
+
+/** Indent continuation lines of a multi-line map/flatMap expression. */
+function indentMultilineExpr(expr: string, indent: string): string {
+  if (!expr.includes("\n")) return expr;
+  return expr
+    .split("\n")
+    .map((line, i) => (i === 0 ? line : `${indent}${line}`))
+    .join("\n");
+}
+
 export function emitProjectNode(
   query: QueryDefinition,
   resources: ResourceIndex,
   fnName: string
 ): string {
+  void resources;
   const projectable = projectableProjections(query);
   const resolveTargets = resolveTargetIndex(query);
 
@@ -45,8 +71,6 @@ export function emitProjectNode(
   }
 
   for (const [locator, info] of resolveTargets) {
-    // Many-resolve locators are expansion-backed; projectNode strip lands in a
-    // later emit pass. 1→1 locators still follow redirects.
     if (info.multiplicity === "many") continue;
     cases.push(
       [
@@ -54,6 +78,25 @@ export function emitProjectNode(
         `        const canonical = args.redirects.get(ari.toString());`,
         `        if (canonical === undefined) return undefined;`,
         `        return projectNode(canonical);`,
+        `      }`,
+      ].join("\n")
+    );
+  }
+
+  // Many-resolve: map locator payload through the each body (no redirects).
+  for (const projection of query.projections) {
+    if (projection.resolveEach === null) continue;
+    const mapExpr = indentMultilineExpr(
+      emitManyProject(resolveEachAsExpansion(projection.resolveEach)),
+      "        "
+    );
+    cases.push(
+      [
+        `      case ${JSON.stringify(projection.resource)}: {`,
+        `        const resource = ari;`,
+        `        const result = ${mapExpr};`,
+        `        memo.set(key, result);`,
+        `        return result;`,
         `      }`,
       ].join("\n")
     );

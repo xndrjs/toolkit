@@ -453,4 +453,98 @@ describe("generateProjections", () => {
     expect(onCollection).toContain("return payload;");
     expect(onCollection).not.toContain("const shell");
   });
+
+  it("maps resolve-to-each TabCollection via projectNode case (no redirects)", () => {
+    const source = `
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+      scalar StripId on string;
+
+      resource Strip(id: StripId, locale: Locale): { id }
+      resource Tab(id: TabId, locale: Locale): {
+        id
+        stripsIds: StripId[]
+      }
+      resource TabCollection(tabsId: TabsId, locale: Locale): {
+        tabsIds: { id: TabId }[]
+      }
+      resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
+
+      query Q(tabsId: TabsId) {
+        context { locale: Locale }
+        root Tabs(tabsId: tabsId, locale: context.locale)
+        on Tabs t {
+          expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
+        }
+        on TabCollection tc resolve to each link in tc.tabsIds (
+          Tab(id: link.id, locale: @tc.locale) on failure set null
+        )
+        on Tab tab {
+          id
+          expand strips: each id in tab.stripsIds (
+            Strip(id: id, locale: @tab.locale)
+          )
+        }
+        on Strip s { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjections(program!);
+    expect(code).toContain('case "TabCollection": {');
+    expect(code).toContain("const resource = ari;");
+    expect(code).toContain(
+      'payload.tabsIds.map((link: any) => projectEdge(tabAri({ id: link.id, locale: resource.key[0].locale }), "setNull"))'
+    );
+    expect(code).toContain("shell.tabs = projectNode(tabCollectionAri(");
+    expect(code).toContain(
+      "shell.strips = payload.stripsIds.map((id: any) => projectNode(stripAri({ id: id, locale: resource.key[0].locale })))"
+    );
+    expect(code).toContain("failures: ReadonlyMap<ResourceKey, ResolutionError>");
+    expect(code).toContain("const projectEdge = (");
+    expect(code).not.toContain("projectOnTabCollection");
+    expect(code).not.toContain("args.redirects");
+    expect(code).not.toContain('case "TabCollection": {\n        const canonical');
+  });
+
+  it("maps polymorphic resolve-to-each via flatMap in projectNode", () => {
+    const source = `
+      scalar ItemId on string;
+      scalar CollectionId on string;
+      scalar Locale on string;
+
+      resource Tab(id: ItemId, locale: Locale): { id }
+      resource Strip(id: ItemId, locale: Locale): { id }
+      resource MixedCollection(id: CollectionId, locale: Locale): {
+        items: { id: ItemId, kind: "Tab" | "Strip" }[]
+      }
+      resource Page(id: string, locale: Locale): { collectionId: CollectionId }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          expand items: MixedCollection(id: p.collectionId, locale: @p.locale)
+        }
+        on MixedCollection c resolve to each item in c.items (
+          Tab(id: item.id, locale: @c.locale) when item.kind == "Tab",
+          Strip(id: item.id, locale: @c.locale) when item.kind == "Strip"
+        )
+        on Tab t { id }
+        on Strip s { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjections(program!);
+    expect(code).toContain('case "MixedCollection": {');
+    expect(code).toContain("payload.items.flatMap((item: any): any[] => {");
+    expect(code).toContain('if (item.kind == "Tab") return [projectNode(tabAri(');
+    expect(code).toContain('if (item.kind == "Strip") return [projectNode(stripAri(');
+    expect(code).not.toContain("projectOnMixedCollection");
+    expect(code).not.toContain("args.redirects");
+  });
 });

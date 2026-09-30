@@ -327,6 +327,120 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page 
     expect(code).not.toContain("Q_Tab[]");
   });
 
+  it("strips resolve-to-each TabCollection aliases to Tab[] (no TabCollection type)", () => {
+    const source = `
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+      scalar StripId on string;
+
+      resource Strip(id: StripId, locale: Locale): { id }
+      resource Tab(id: TabId, locale: Locale): {
+        id
+        stripsIds: StripId[]
+      }
+      resource TabCollection(tabsId: TabsId, locale: Locale): {
+        tabsIds: { id: TabId }[]
+      }
+      resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
+
+      query Q(tabsId: TabsId) {
+        context { locale: Locale }
+        root Tabs(tabsId: tabsId, locale: context.locale)
+        on Tabs t {
+          expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
+        }
+        on TabCollection tc resolve to each link in tc.tabsIds (
+          Tab(id: link.id, locale: @tc.locale)
+        )
+        on Tab tab {
+          id
+          expand strips: each id in tab.stripsIds (
+            Strip(id: id, locale: @tab.locale)
+          )
+        }
+        on Strip s { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain("tabs: Q_Tab[];");
+    expect(code).toContain("strips: Q_Strip[];");
+    expect(code).toContain("export type Q_Tab = {");
+    expect(code).toContain("export type Q_Strip = {");
+    expect(code).not.toContain("Q_TabCollection");
+    expect(code).not.toContain("items.tabs");
+  });
+
+  it("widens resolve-to-each strip for on failure set null", () => {
+    const source = `
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): {
+        tabsIds: { id: TabId }[]
+      }
+      resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
+
+      query Q(tabsId: TabsId) {
+        context { locale: Locale }
+        root Tabs(tabsId: tabsId, locale: context.locale)
+        on Tabs t {
+          expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
+        }
+        on TabCollection tc resolve to each link in tc.tabsIds (
+          Tab(id: link.id, locale: @tc.locale) on failure set null
+        )
+        on Tab tab { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain("tabs: (Q_Tab | null)[];");
+    expect(code).not.toContain("Q_TabCollection");
+  });
+
+  it("strips polymorphic resolve-to-each to (Tab | Strip)[]", () => {
+    const source = `
+      scalar ItemId on string;
+      scalar CollectionId on string;
+      scalar Locale on string;
+
+      resource Tab(id: ItemId, locale: Locale): { id }
+      resource Strip(id: ItemId, locale: Locale): { id }
+      resource MixedCollection(id: CollectionId, locale: Locale): {
+        items: { id: ItemId, kind: "Tab" | "Strip" }[]
+      }
+      resource Page(id: string, locale: Locale): { collectionId: CollectionId }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          expand items: MixedCollection(id: p.collectionId, locale: @p.locale)
+        }
+        on MixedCollection c resolve to each item in c.items (
+          Tab(id: item.id, locale: @c.locale) when item.kind == "Tab",
+          Strip(id: item.id, locale: @c.locale) when item.kind == "Strip"
+        )
+        on Tab t { id }
+        on Strip s { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain("items: (Q_Tab | Q_Strip)[];");
+    expect(code).not.toContain("Q_MixedCollection");
+  });
+
   it("matches pageDetailProgram() IR path to the fixture emit", () => {
     const fromIr = emitProjectionTypes(pageDetailProgram());
     const { program, diagnostics } = parseAndCheck(
