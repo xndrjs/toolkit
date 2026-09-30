@@ -83,6 +83,39 @@ resource User(id: UserId): {
     expect(result.code).toContain("export type PostId");
   });
 
+  it("resolves resource payloads and fragment spreads across files", () => {
+    const root = setupRoot();
+    writeFileSync(
+      join(root, "a-resources.ziel"),
+      `
+        scalar Id on string;
+        resource Entry(id: Id): { id title: string }
+        resource EntryCollection(id: Id): Entry[]
+      `
+    );
+    writeFileSync(
+      join(root, "b-fragment.ziel"),
+      `fragment EntrySummary on Entry entry { id title }`
+    );
+    writeFileSync(
+      join(root, "c-query.ziel"),
+      `
+        query EntryDetail(id: Id) {
+          context { }
+          root Entry(id: id)
+          on Entry entry { ...EntrySummary }
+        }
+      `
+    );
+
+    const result = buildResources({ root });
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.code).toContain("export type EntryCollectionPayload = EntryPayload[];");
+    expect(result.code).toContain("export type EntryDetail_Entry = {");
+    expect(result.code).toContain("title: string;");
+  });
+
   it("returns all SYNTAX_ERROR diagnostics and empty code without emitting", () => {
     const root = setupRoot();
     writeFileSync(join(root, "ok.ziel"), "scalar Ok on string;");

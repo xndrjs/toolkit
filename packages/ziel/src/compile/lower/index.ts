@@ -1,1 +1,1 @@
-export { lowerProgram, LOWER_DIAGNOSTIC_CODES, isLowerDiagnostic } from "./program";
+export { lowerProgram, lowerWorkspace, LOWER_DIAGNOSTIC_CODES, isLowerDiagnostic } from "./program";

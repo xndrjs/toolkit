@@ -2,12 +2,12 @@
 
 **Product entry** for Ziel with these surfaces:
 
-| Export                 | Use for                                                                                                                                                                                                                           |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@xndrjs/ziel`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                                                     |
-| `@xndrjs/ziel/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `generateResources`, `generateStrategies`, `generateProjections`, `generateDataSources`, `defineConfig`, `buildResources` — Node / CI / build only    |
-| `@xndrjs/ziel/lsp`     | Language server helpers + `ziel-language-server` bin (stdio) — workspace collect/merge → diagnostics + IntelliSense (hover / completion / definition)                                                                             |
-| `ziel-codegen` (bin)   | CLI: load `ziel.config.ts`, collect `.ziel` files, emit TypeScript (resources + strategies + datasources + `project*` + `resolve*` façades) — writes `out`, `--dry-run` to stdout, or `--watch` / `--dev` to regenerate on change |
+| Export                 | Use for                                                                                                                                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@xndrjs/ziel`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                                                                      |
+| `@xndrjs/ziel/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `compileWorkspace`, `generateResources`, `generateStrategies`, `generateProjections`, `generateDataSources`, `defineConfig`, `buildResources` — Node / CI / build only |
+| `@xndrjs/ziel/lsp`     | Language server helpers + `ziel-language-server` bin (stdio) — workspace collect/merge → diagnostics + IntelliSense (hover / completion / definition)                                                                                              |
+| `ziel-codegen` (bin)   | CLI: load `ziel.config.ts`, collect `.ziel` files, emit TypeScript (resources + strategies + datasources + `project*` + `resolve*` façades) — writes `out`, `--dry-run` to stdout, or `--watch` / `--dev` to regenerate on change                  |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
@@ -105,6 +105,8 @@ if (diagnostics.length === 0) {
 // Multi-file pipeline (no FS write — CLI persists when diagnostics are empty):
 const result = buildResources({ root: process.cwd() });
 ```
+
+`compileWorkspace([{ uri, source }, …])` is the filesystem-free multi-file entry point. It parses every document first, then lowers resource/scalar references and fragment spreads against one global workspace before running semantic analysis. `parseAndCheck(source, uri)` remains the single-file convenience API.
 
 `generateResources` emits branded scalar types, a `Scalars` factory namespace, ARI factories (`postAri`), payload types (`PostPayload`), and a `ContentRegistry` slice from a checked `Program`. Queries are ignored.
 
