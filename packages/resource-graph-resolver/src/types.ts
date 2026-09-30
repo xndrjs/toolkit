@@ -48,7 +48,7 @@ export type ComposeContentRegistry<Slices extends readonly ContentRegistry[]> = 
  * - `setNull` — record a {@link ResolutionError} in `errors` / failures, omit the
  *   payload, and continue; projectors treat the alias as `null`.
  * - `setError` — record a {@link ResolutionError} in `errors` / failures and continue;
- *   projectors place that instance on the alias.
+ *   generated projectors place its JSON-safe data representation on the alias.
  *
  * Roots always throw. When the same ARI is reached by several edges, the
  * strictest policy wins (`throw` > `setError` > `setNull`).

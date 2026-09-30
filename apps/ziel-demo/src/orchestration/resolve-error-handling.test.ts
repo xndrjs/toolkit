@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { ResolutionError } from "@xndrjs/ziel";
 
 import { Scalars } from "../generated";
 import { DEMO_LOCALE, ERROR_HANDLING_CASES, demoIds } from "../infrastructure/fixtures/store.js";
@@ -37,7 +36,15 @@ describe("resolveErrorHandling", () => {
     if (!result.ok) return;
 
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.lab.errorSingle).toBeInstanceOf(ResolutionError);
+    expect(result.lab.errorSingle).toEqual(
+      expect.objectContaining({
+        kind: "ResolutionError",
+        code: "missing",
+        message: expect.any(String),
+        resourceKey: expect.any(String),
+      })
+    );
+    expect(result.lab.errorSingle).not.toBeInstanceOf(Error);
     expect(result.lab.softSingle).toMatchObject({ kind: "Hero", title: "Welcome" });
   });
 
@@ -80,7 +87,15 @@ describe("resolveErrorHandling", () => {
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.lab.errorItems).toHaveLength(2);
     expect(result.lab.errorItems[0]).toMatchObject({ kind: "Hero", title: "Welcome" });
-    expect(result.lab.errorItems[1]).toBeInstanceOf(ResolutionError);
+    expect(result.lab.errorItems[1]).toEqual(
+      expect.objectContaining({
+        kind: "ResolutionError",
+        code: "missing",
+        message: expect.any(String),
+        resourceKey: expect.any(String),
+      })
+    );
+    expect(result.lab.errorItems[1]).not.toBeInstanceOf(Error);
   });
 
   it("hard-fails a missing array item with throw", async () => {

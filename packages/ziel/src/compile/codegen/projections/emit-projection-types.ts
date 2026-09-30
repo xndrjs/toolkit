@@ -38,6 +38,7 @@ import {
   expandPayloadObjectMembers,
   isObjectLikePayload,
   narrowPayloadByFilter,
+  residualPayloadAfterFilters,
 } from "../../../check/discriminants";
 import {
   projectableProjections,
@@ -127,7 +128,7 @@ function resolveForEmit(
  * - union / resolve-only resource → `Query_A | Query_B | …` (member projections)
  * - `many` / multi-arm → union of arm targets, wrapped in an array
  * - with `refers` + armed `on R` → narrowed variant union (e.g. `Query_Entry_Menu`)
- * - `on failure set null` / `set error` widen each edge (`T | null` / `T | ResolutionError`)
+ * - `on failure set null` / `set error` widen each edge (`T | null` / `T | ResolutionErrorData`)
  */
 export function printExpansionAliasType(
   queryName: string,
@@ -192,7 +193,7 @@ export function wrapOnFailureType(base: string, onFailure: OnFailurePolicy): str
   if (onFailure === "throw") return base;
   const inner = base.includes("|") ? `(${base})` : base;
   if (onFailure === "setNull") return `${inner} | null`;
-  return `${inner} | ResolutionError`;
+  return `${inner} | ResolutionErrorData`;
 }
 
 function printTargetAliasType(
@@ -464,12 +465,22 @@ function emitDefaultArmVariantType(
       `emitProjectionTypes: unknown resource '${projection.resource}' in query '${queryName}'`
     );
   }
+  const typeName = projectionVariantTypeName(queryName, projection.resource, "Default");
+  const residual = residualPayloadAfterFilters(
+    resource.payloadType,
+    projection.arms?.map((arm) => arm.when) ?? [],
+    projection.binding,
+    resources
+  );
+  if (residual === null) {
+    return { typeName, source: `export type ${typeName} = never;` };
+  }
   return emitArmBodyVariantType(
     queryName,
     projection,
     defaultArm,
     "Default",
-    resource.payloadType,
+    residual ?? resource.payloadType,
     `queries.${queryName}.projections.${projection.binding}.defaultArm`,
     scalars,
     resources,

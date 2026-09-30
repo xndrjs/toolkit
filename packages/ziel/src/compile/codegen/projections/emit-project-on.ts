@@ -6,9 +6,14 @@ import type {
   ResourceProjection,
   TypeExpr,
 } from "../../../ir";
-import { isObjectLikePayload, narrowPayloadByFilter } from "../../../check/discriminants";
+import {
+  isObjectLikePayload,
+  narrowPayloadByFilter,
+  residualPayloadAfterFilters,
+} from "../../../check/discriminants";
 import { resolveSelectedFields } from "../../../check/projection-include";
 import { emitConstruction, emitExpr, projectionExprScope } from "../shared";
+import { ariFactoryName, payloadTypeName, projectionTypeName } from "../naming";
 import { type ResourceIndex } from "./shared";
 
 export function projectOnFnName(resourceName: string): string {
@@ -33,14 +38,26 @@ function armPayloadType(
   );
 }
 
-function defaultArmPayloadType(projection: ResourceProjection, resources: ResourceIndex): TypeExpr {
+function defaultArmPayloadType(
+  projection: ResourceProjection,
+  resources: ResourceIndex
+): { payloadType: TypeExpr; unreachable: boolean } {
   const resource = resources.get(projection.resource);
   if (!resource) {
     throw new Error(
       `emitProjections: unknown resource '${projection.resource}' while emitting default shell`
     );
   }
-  return resource.payloadType;
+  const residual = residualPayloadAfterFilters(
+    resource.payloadType,
+    projection.arms?.map((arm) => arm.when) ?? [],
+    projection.binding,
+    resources
+  );
+  return {
+    payloadType: residual ?? resource.payloadType,
+    unreachable: residual === null,
+  };
 }
 
 function emitProjectEdgeCall(ariExpr: string, onFailure: OnFailurePolicy): string {
@@ -66,9 +83,9 @@ export function emitManyProject(expansion: Expansion): string {
   if (arms.length === 1) {
     const arm = arms[0]!;
     const construction = emitConstruction(arm.target, projectionExprScope);
-    const mapFn = `(${itemBinding}: any) => ${emitProjectEdgeCall(construction, arm.onFailure)}`;
+    const mapFn = `(${itemBinding}) => ${emitProjectEdgeCall(construction, arm.onFailure)}`;
     if (arm.when !== null) {
-      return `${sourceExpr}.filter((${itemBinding}: any) => ${emitExpr(arm.when, projectionExprScope)}).map(${mapFn})`;
+      return `${sourceExpr}.filter((${itemBinding}) => ${emitExpr(arm.when, projectionExprScope)}).map(${mapFn})`;
     }
     return `${sourceExpr}.map(${mapFn})`;
   }
@@ -83,7 +100,7 @@ export function emitManyProject(expansion: Expansion): string {
     return `return [${projected}];`;
   });
   const body = [...branches, `return [];`].join("\n        ");
-  return `${sourceExpr}.flatMap((${itemBinding}: any): any[] => {\n        ${body}\n      })`;
+  return `${sourceExpr}.flatMap((${itemBinding}) => {\n        ${body}\n      })`;
 }
 
 /**
@@ -270,6 +287,23 @@ export function emitArmedProjectOnBody(
     );
   }
 
+  const defaultPayload = defaultArmPayloadType(projection, resources);
+  const defaultShell = emitArmShell(
+    projection,
+    defaultArm,
+    defaultPayload.payloadType,
+    resources,
+    queryName,
+    "      ",
+    resourceTag
+  );
+  const defaultBody = defaultPayload.unreachable
+    ? [
+        `      const defaultPayload = payload as ${payloadTypeName(projection.resource)};`,
+        defaultShell.replaceAll("payload.", "defaultPayload."),
+      ].join("\n")
+    : defaultShell;
+
   const branches: string[] = [];
   for (let i = 0; i < arms.length; i++) {
     const arm = arms[i]!;
@@ -290,21 +324,7 @@ export function emitArmedProjectOnBody(
       ].join("\n")
     );
   }
-  branches.push(
-    [
-      `    } else {`,
-      emitArmShell(
-        projection,
-        defaultArm,
-        defaultArmPayloadType(projection, resources),
-        resources,
-        queryName,
-        "      ",
-        resourceTag
-      ),
-      `    }`,
-    ].join("\n")
-  );
+  branches.push([`    } else {`, defaultBody, `    }`].join("\n"));
   return branches.join("\n");
 }
 
@@ -319,5 +339,12 @@ export function emitProjectOnHelper(
     projection.arms !== null
       ? emitArmedProjectOnBody(projection, resources, queryName, resourceTag)
       : emitProjectOnBody(projection, resources, queryName, resourceTag);
-  return [`  const ${name} = (resource: any, payload: any): any => {`, body, `  };`].join("\n");
+  const resourceType = `ReturnType<typeof ${ariFactoryName(projection.resource)}>`;
+  const payloadType = payloadTypeName(projection.resource);
+  const resultType = projectionTypeName(queryName, projection.resource);
+  return [
+    `  const ${name} = (resource: ${resourceType}, payload: ${payloadType}): ${resultType} => {`,
+    body,
+    `  };`,
+  ].join("\n");
 }

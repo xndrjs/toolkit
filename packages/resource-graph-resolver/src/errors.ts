@@ -65,6 +65,32 @@ export class ResolutionError extends ResourceGraphError {
   }
 }
 
+/**
+ * JSON-safe value exposed by generated projections for `on failure set error`.
+ *
+ * The throwable {@link ResolutionError} remains available in resolver output for
+ * diagnostics. Projected aggregates deliberately omit `originalError`, `cause`,
+ * and stack state so they can cross serialization and cache boundaries safely.
+ */
+export type ResolutionErrorData = Readonly<{
+  kind: "ResolutionError";
+  code: number | string;
+  message: string;
+  resourceKey?: ResourceKey;
+  inheritedIslandIds: readonly IslandId[];
+}>;
+
+/** Convert a runtime resolution exception into its projected data representation. */
+export function toResolutionErrorData(error: ResolutionError): ResolutionErrorData {
+  return {
+    kind: "ResolutionError",
+    code: error.code,
+    message: error.message,
+    ...(error.resourceKey === undefined ? {} : { resourceKey: error.resourceKey }),
+    inheritedIslandIds: [...error.inheritedIslandIds],
+  };
+}
+
 /** Thrown when {@link import("./types").ResolveResourceGraphInput.signal} aborts resolution. */
 export class ResourceGraphAbortedError extends ResourceGraphError {
   constructor(message = "Resource graph resolution was aborted", options?: { cause?: unknown }) {

@@ -57,7 +57,7 @@ function emitQueryProjection(
   }
 
   const projectNode = emitProjectNode(query, resources, fnName);
-  const projectEdge = needsFailures ? emitProjectEdgeHelper() : null;
+  const projectEdge = needsFailures ? emitProjectEdgeHelper(fnName) : null;
   const failuresBinding = needsFailures ? `  const failures = args.failures;\n` : "";
   const returnStmt = singleRoot
     ? `  return projectNode(root) as ${resultType};`

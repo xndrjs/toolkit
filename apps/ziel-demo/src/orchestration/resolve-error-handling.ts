@@ -49,7 +49,7 @@ export type ResolveErrorHandlingSuccess = {
   lab: ErrorHandlingDetailResult;
   /**
    * Soft failures (`set null` / `set error`) collected during resolve.
-   * Projection still succeeded; inspect aliases for local `null` / `ResolutionError`.
+   * Projection still succeeded; inspect aliases for local `null` / projected errors.
    */
   errors: readonly { resourceKey: string; message: string; code?: string }[];
   meta: ResolveErrorHandlingMeta;

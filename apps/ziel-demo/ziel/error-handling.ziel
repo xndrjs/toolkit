@@ -38,29 +38,29 @@ query ErrorHandlingDetail(labId: EntryId) {
       locale: @lab.locale
     ) on failure throw
 
-    expand softItems: each link in lab.softItems (
+    expand softItems: each softLink in lab.softItems (
       Entry(
         spaceId: @lab.spaceId,
         environmentId: @lab.environmentId,
-        id: link.id,
+        id: softLink.id,
         locale: @lab.locale
       ) on failure set null
     )
 
-    expand errorItems: each link in lab.errorItems (
+    expand errorItems: each errorLink in lab.errorItems (
       Entry(
         spaceId: @lab.spaceId,
         environmentId: @lab.environmentId,
-        id: link.id,
+        id: errorLink.id,
         locale: @lab.locale
       ) on failure set error
     )
 
-    expand throwItems: each link in lab.throwItems (
+    expand throwItems: each throwLink in lab.throwItems (
       Entry(
         spaceId: @lab.spaceId,
         environmentId: @lab.environmentId,
-        id: link.id,
+        id: throwLink.id,
         locale: @lab.locale
       ) on failure throw
     )
