@@ -53,6 +53,7 @@ export {
   formatFragmentSignature,
   formatResourceSignature,
   formatScalarSignature,
+  formatTypePretty,
   fragmentHoverMarkdown,
   hoverCodeBlock,
   namedTypeHoverMarkdown,
