@@ -2,6 +2,8 @@
  * Expansion policy emit helpers for open `createGraphResolutionStrategy` builders.
  * Armed `on` projections emit one `.on(ari).when(…).expand(…)` per arm that
  * expands; flat `on` stays `.on(ari).expand(…)`.
+ * Many-resolve (`resolve to each`) is expansion-backed: same `.on(ari).expand(…)`
+ * shape as flat `each` — no `.resolve.to` / redirects map.
  * `on failure` policies are emitted as `ExpansionResult.onFailure` (uniform) or
  * `onFailureByKey` when edges in the same expand disagree.
  */
@@ -10,6 +12,7 @@ import type {
   Expansion,
   OnFailurePolicy,
   ProjectionArm,
+  ResolveEach,
   ResourceProjection,
 } from "../../../ir";
 import {
@@ -276,15 +279,41 @@ function emitArmedProjectionExpansion(projection: ResourceProjection, arm: Proje
   ].join("\n");
 }
 
+/** Synthetic many-expand so resolve-to-each reuses emitMany / onFailure helpers. */
+function resolveEachAsExpansion(resolveEach: ResolveEach): Expansion {
+  return {
+    alias: "",
+    target: null,
+    multiplicity: "many",
+    comprehension: {
+      itemBinding: resolveEach.itemBinding,
+      source: resolveEach.source,
+      arms: resolveEach.arms,
+    },
+    onFailure: "throw",
+    span: null,
+  };
+}
+
 /**
  * Expansion policy blocks for one `on` projection.
  * Armed projections contribute one policy per arm that has expansions;
  * arms with fields only (no expand) are omitted from the strategy.
- * Resolve-only projections contribute no expansions.
+ * 1→1 resolve-only (`resolveArms`) contributes no expansions (see
+ * {@link emitProjectionResolves}); many-resolve (`resolveEach`) emits one
+ * expansion-backed `.on(ari).expand(…)` using the each body.
  */
 export function emitProjectionExpansions(projection: ResourceProjection): string[] {
-  if (projection.resolveArms !== null || projection.resolveEach !== null) {
+  if (projection.resolveArms !== null) {
     return [];
+  }
+  if (projection.resolveEach !== null) {
+    return [
+      emitFlatProjectionExpansion({
+        ...projection,
+        expansions: [resolveEachAsExpansion(projection.resolveEach)],
+      }),
+    ];
   }
   if (projection.arms !== null) {
     return projection.arms

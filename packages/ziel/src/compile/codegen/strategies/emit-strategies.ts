@@ -4,7 +4,9 @@
  * or `.build()`.
  * Armed `on` projections emit one `.on(ari).when(…).expand(…)` per arm that
  * expands; flat `on` stays `.on(ari).expand(…)`.
- * Resolve-only `on R resolve to` emits `.resolve.on(ari)[.when(…)].to(…)`.
+ * 1→1 resolve-only `on R resolve to { … }` emits `.resolve.on(ari)[.when(…)].to(…)`.
+ * Many-resolve `on R resolve to each …` emits expansion-backed
+ * `.expansion.on(ari).expand(…)` (same each/flatMap shape; no redirects).
  * Query `islands` emit `.islands.on(ari)[.when(…)].startIsland()` before return.
  *
  * Callbacks take a single `predicate` and use dot access (no destructuring).
