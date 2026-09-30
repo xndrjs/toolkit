@@ -4,13 +4,27 @@ import type { PayloadTypeLookup } from "./discriminants";
 export type { PayloadTypeLookup };
 
 /**
+ * One arm of a resolve-to-each strip (resource + per-arm `on failure` for alias typing).
+ */
+export type ResolveEachArmStrip = {
+  resource: string;
+  onFailure: OnFailurePolicy;
+};
+
+/**
  * Resolve-only locator strip: unique settle-target resource names + multiplicity.
  * - `"one"`: 1→1 `resolve to { … }` → alias is a union of member projection types.
- * - `"many"`: `resolve to each …` → alias is an **array** of those member types.
+ * - `"many"`: `resolve to each …` → alias is an **array** of those member types
+ *   (per-arm `onFailure` widen via {@link eachArms}).
  */
 export type ResolveTargetInfo = {
   targets: string[];
   multiplicity: "one" | "many";
+  /**
+   * Per-arm strip for `resolve to each` (order + onFailure). `null` for 1→1
+   * brace resolve.
+   */
+  eachArms: ResolveEachArmStrip[] | null;
 };
 
 /** resource → resolve strip info (1→1 arms or resolve-to-each). */
@@ -29,11 +43,16 @@ export function resolveTargetIndex(query: QueryDefinition): ResolveTargetIndex {
       out.set(projection.resource, {
         targets: [...new Set(projection.resolveArms.map((arm) => arm.target.resource))],
         multiplicity: "one",
+        eachArms: null,
       });
     } else if (projection.resolveEach !== null) {
       out.set(projection.resource, {
         targets: [...new Set(projection.resolveEach.arms.map((arm) => arm.target.resource))],
         multiplicity: "many",
+        eachArms: projection.resolveEach.arms.map((arm) => ({
+          resource: arm.target.resource,
+          onFailure: arm.onFailure,
+        })),
       });
     }
   }

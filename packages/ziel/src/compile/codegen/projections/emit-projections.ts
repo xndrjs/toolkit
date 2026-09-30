@@ -6,8 +6,9 @@
  * Resource-union payloads (`EditorialModule: Hero | Tabs`) require an explicit
  * `on EditorialModule` — indirection to member resources uses `resolve to`,
  * same as CustomReference.
- * Resolve-only `on R resolve to` is not a `projectOn*` shell — settled payload
- * under the locator key is stripped via resolve targets.
+ * Resolve-only `on R resolve to` is not a `projectOn*` shell — 1→1 strips via
+ * redirects; resolve-to-each maps locator payload through `projectNode` /
+ * `projectEdge` (no redirect entry).
  * Armed `on` projections discriminate on payload fields and build variant shells.
  * Optional `resourceTag` stamps the resource name onto each shell (off by default).
  */

@@ -26,11 +26,12 @@
  * Optional `resourceTag` (e.g. `"$type"`) stamps the resource name onto each
  * projection type. Off by default — payload/resource shape stays DSL-driven.
  *
- * Alias types restore expansion names. Resolve-only locators strip to the union of
- * settle-target projection types. Resource-union payloads require an explicit
- * projectable `on` (no silent strip to member resource projectors). Resolve-only
- * `on R resolve to` is not a projection type — strip aliases follow resolve targets
- * (e.g. `related: PageDetail_Entry | PageDetail_Asset`).
+ * Alias types restore expansion names. Resolve-only locators strip to settle-target
+ * projection types: 1→1 → union (`Entry | Asset`); resolve-to-each → array
+ * (`Tab[]` / `(Tab | Strip)[]`) with per-arm `on failure` widen. Resource-union
+ * payloads require an explicit projectable `on` (no silent strip to member
+ * projectors). Resolve-only `on R resolve to` / `resolve to each` is not itself a
+ * projection type.
  */
 import { createDiagnosticSink } from "../../../check/diagnostic";
 import {
@@ -219,8 +220,35 @@ function printTargetAliasType(
     return projectionTypeName(queryName, targetName);
   }
 
-  // Resolve-only locator → alias is the union (1→1) or array (resolve-to-each)
-  // of settle-target projection types.
+  // resolve-to-each → `(T1 | T2 | …)[]` with per-arm onFailure (same as many-expand).
+  const resolveInfo = resolveTargets.get(targetName);
+  if (
+    resolveInfo !== undefined &&
+    resolveInfo.multiplicity === "many" &&
+    resolveInfo.eachArms !== null &&
+    resolveInfo.eachArms.length > 0
+  ) {
+    const armTypes = resolveInfo.eachArms.map((arm) => {
+      const base = printTargetAliasType(
+        queryName,
+        arm.resource,
+        resources,
+        projected,
+        resolveTargets,
+        refers,
+        context
+      );
+      return wrapOnFailureType(base, arm.onFailure);
+    });
+    const unique: string[] = [];
+    for (const t of armTypes) {
+      if (!unique.includes(t)) unique.push(t);
+    }
+    const joined = unique.join(" | ");
+    return joined.includes("|") ? `(${joined})[]` : `${joined}[]`;
+  }
+
+  // 1→1 resolve-only locator → union of settle-target projection types.
   const stripped = stripToConcreteMembers(targetName, resources, projected, resolveTargets);
   if (stripped !== null && stripped.members.length > 0) {
     for (const member of stripped.members) {
