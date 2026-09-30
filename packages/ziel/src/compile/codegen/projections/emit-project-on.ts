@@ -9,8 +9,6 @@ import type {
 import { narrowPayloadByFilter } from "../../../check/discriminants";
 import { resolveSelectedFields } from "../../../check/projection-include";
 import { emitConstruction, emitExpr, projectionExprScope } from "../shared";
-import { ariFactoryName } from "../naming";
-import { collectionElement } from "../../../check/projection-graph";
 import { type ResourceIndex } from "./shared";
 
 export function projectOnFnName(resourceName: string): string {
@@ -91,15 +89,13 @@ export function emitManyProject(expansion: Expansion): string {
 /**
  * Expression that yields the projected value for one expansion alias.
  * - ordinary target → `projectNode(ari)` (requires projectable `on` for that resource)
- * - collection target → lookup collection payload, map member ARIs through `projectNode`
  * - `many` → each-comprehension map of the above
  * - `on failure set null` / `set error` → `projectEdge` when payload/failure is absent
  */
 export function emitExpansionValue(
   expansion: Expansion,
   resources: ResourceIndex,
-  queryName: string,
-  contextFieldNames: ReadonlySet<string>
+  queryName: string
 ): string {
   if (expansion.multiplicity === "many" && expansion.comprehension !== null) {
     return emitManyProject(expansion);
@@ -110,45 +106,10 @@ export function emitExpansionValue(
   }
 
   const targetName = expansion.target.resource;
-  const target = resources.get(targetName);
-  if (!target) {
+  if (!resources.get(targetName)) {
     throw new Error(
       `emitProjections: unknown expansion target '${targetName}' in query '${queryName}'`
     );
-  }
-
-  const element = collectionElement(target.payloadType);
-  if (element !== null) {
-    const construction = emitConstruction(expansion.target, projectionExprScope);
-    const elementResource = resources.get(element);
-    if (!elementResource) {
-      throw new Error(
-        `emitProjections: collection '${targetName}' element '${element}' is unknown in query '${queryName}'`
-      );
-    }
-    const elementAri = ariFactoryName(element);
-    const argParts = elementResource.identity.fields.map((field) => {
-      if (contextFieldNames.has(field.name)) {
-        return `${field.name}: args.executionContext.${field.name}`;
-      }
-      return `${field.name}: item.${field.name}`;
-    });
-    const onFailure = expansion.onFailure;
-    const missingReturn =
-      onFailure === "setNull"
-        ? "return null;"
-        : onFailure === "setError"
-          ? "return failures.get(__collectionAri.toString());"
-          : "return undefined;";
-    // Same member ARI construction as strategy fan-out so nested `@id` expansions work.
-    return [
-      `(() => {`,
-      `  const __collectionAri = ${construction};`,
-      `  const __collectionPayload = contentMap.get(__collectionAri as never) as any;`,
-      `  if (__collectionPayload === undefined) ${missingReturn}`,
-      `  return __collectionPayload.map((item: any) => projectNode(${elementAri}({ ${argParts.join(", ")} })));`,
-      `})()`,
-    ].join("\n");
   }
 
   return emitProjectEdgeCall(
@@ -163,7 +124,6 @@ export function emitShellBody(
   expansions: Expansion[],
   resources: ResourceIndex,
   queryName: string,
-  contextFieldNames: ReadonlySet<string>,
   indent: string,
   include: ResourceProjection["include"] = null,
   payloadType?: TypeExpr,
@@ -199,7 +159,7 @@ export function emitShellBody(
   }
 
   for (const expansion of expansions) {
-    const value = emitExpansionValue(expansion, resources, queryName, contextFieldNames);
+    const value = emitExpansionValue(expansion, resources, queryName);
     const indented = value.includes("\n")
       ? value
           .split("\n")
@@ -217,7 +177,6 @@ export function emitProjectOnBody(
   projection: ResourceProjection,
   resources: ResourceIndex,
   queryName: string,
-  contextFieldNames: ReadonlySet<string>,
   resourceTag?: string
 ): string {
   const resource = resources.get(projection.resource);
@@ -232,7 +191,6 @@ export function emitProjectOnBody(
     projection.expansions,
     resources,
     queryName,
-    contextFieldNames,
     "    ",
     projection.include,
     resource.payloadType,
@@ -247,7 +205,6 @@ function emitArmShell(
   payloadType: TypeExpr,
   resources: ResourceIndex,
   queryName: string,
-  contextFieldNames: ReadonlySet<string>,
   indent: string,
   resourceTag?: string
 ): string {
@@ -257,7 +214,6 @@ function emitArmShell(
     arm.expansions,
     resources,
     queryName,
-    contextFieldNames,
     indent,
     arm.include ?? projection.include,
     payloadType,
@@ -273,7 +229,6 @@ export function emitArmedProjectOnBody(
   projection: ResourceProjection,
   resources: ResourceIndex,
   queryName: string,
-  contextFieldNames: ReadonlySet<string>,
   resourceTag?: string
 ): string {
   const arms = projection.arms;
@@ -301,7 +256,6 @@ export function emitArmedProjectOnBody(
           armPayloadType(projection, arm, resources),
           resources,
           queryName,
-          contextFieldNames,
           "      ",
           resourceTag
         ),
@@ -317,7 +271,6 @@ export function emitArmedProjectOnBody(
         defaultArmPayloadType(projection, resources),
         resources,
         queryName,
-        contextFieldNames,
         "      ",
         resourceTag
       ),
@@ -331,13 +284,12 @@ export function emitProjectOnHelper(
   projection: ResourceProjection,
   resources: ResourceIndex,
   queryName: string,
-  contextFieldNames: ReadonlySet<string>,
   resourceTag?: string
 ): string {
   const name = projectOnFnName(projection.resource);
   const body =
     projection.arms !== null
-      ? emitArmedProjectOnBody(projection, resources, queryName, contextFieldNames, resourceTag)
-      : emitProjectOnBody(projection, resources, queryName, contextFieldNames, resourceTag);
+      ? emitArmedProjectOnBody(projection, resources, queryName, resourceTag)
+      : emitProjectOnBody(projection, resources, queryName, resourceTag);
   return [`  const ${name} = (resource: any, payload: any): any => {`, body, `  };`].join("\n");
 }

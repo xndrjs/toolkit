@@ -27,10 +27,10 @@
  * projection type. Off by default — payload/resource shape stays DSL-driven.
  *
  * Alias types restore expansion names. Resolve-only locators strip to the union of
- * settle-target projection types; collection resources (`Tab[]`) become member arrays.
- * Resource-union payloads require an explicit projectable `on` (no silent strip to
- * member resource projectors). Resolve-only `on R resolve to` is not a projection
- * type — strip aliases follow resolve targets (e.g. `related: PageDetail_Entry | PageDetail_Asset`).
+ * settle-target projection types. Resource-union payloads require an explicit
+ * projectable `on` (no silent strip to member resource projectors). Resolve-only
+ * `on R resolve to` is not a projection type — strip aliases follow resolve targets
+ * (e.g. `related: PageDetail_Entry | PageDetail_Asset`).
  */
 import { createDiagnosticSink } from "../../../check/diagnostic";
 import { expandPayloadObjectMembers, narrowPayloadByFilter } from "../../../check/discriminants";
@@ -115,7 +115,6 @@ function resolveForEmit(
  * TypeScript type string for an expansion alias under `queryName`.
  * - ordinary resource → `Query_Resource`
  * - union / resolve-only resource → `Query_A | Query_B | …` (member projections)
- * - collection (`R[]`) → `Query_R[]`
  * - `many` / multi-arm → union of arm targets, wrapped in an array
  * - with `refers` + armed `on R` → narrowed variant union (e.g. `Query_Entry_Menu`)
  * - `on failure set null` / `set error` widen each edge (`T | null` / `T | ResolutionError`)
@@ -196,19 +195,10 @@ function printTargetAliasType(
   context: ExpansionAliasContext | null = null
 ): string {
   const targetName = typeof target === "string" ? target : target.resource;
-  const resource = resources.get(targetName);
-  if (!resource) {
+  if (!resources.has(targetName)) {
     throw new Error(
       `emitProjectionTypes: unknown expansion target '${targetName}' in query '${queryName}'`
     );
-  }
-
-  const payload = resource.payloadType;
-
-  if (payload.kind === "array" && payload.of.kind === "resourceRef") {
-    const element = payload.of.name;
-    requireProjected(queryName, element, projected, `collection element of '${targetName}'`);
-    return `${projectionTypeName(queryName, element)}[]`;
   }
 
   // Prefer an explicit projectable `on Target` projection (armed Entry, flat object, …).
@@ -229,8 +219,9 @@ function printTargetAliasType(
     return stripped.map((m) => projectionTypeName(queryName, m)).join(" | ");
   }
 
-  // Object / resource-union / resourceRef payloads require an explicit `on Target`
-  // (no silent strip of `EditorialModule: Hero | Tabs` onto member projectors).
+  // Object / collection / resource-union / resourceRef payloads require an explicit `on Target`
+  // (no silent strip of `EditorialModule: Hero | Tabs` onto member projectors;
+  // no collection → element array fan-out).
   requireProjected(queryName, targetName, projected, `expansion target '${targetName}'`);
   return projectionTypeName(queryName, targetName);
 }

@@ -1,10 +1,4 @@
-import type {
-  Expansion,
-  OnFailurePolicy,
-  QueryDefinition,
-  ResourceProjection,
-  TypeExpr,
-} from "../ir";
+import type { Expansion, OnFailurePolicy, QueryDefinition, ResourceProjection } from "../ir";
 import type { PayloadTypeLookup } from "./discriminants";
 
 export type { PayloadTypeLookup };
@@ -65,14 +59,6 @@ export function queryNeedsFailureProjection(query: QueryDefinition): boolean {
 /** True when any expand uses `on failure set error` (types reference `ResolutionError`). */
 export function queryUsesSetError(query: QueryDefinition): boolean {
   return allOnFailurePolicies(query).some((p) => p === "setError");
-}
-
-/** Collection resource (`TabCollection: Tab[]`) → element resource name. */
-export function collectionElement(payload: TypeExpr): string | null {
-  if (payload.kind === "array" && payload.of.kind === "resourceRef") {
-    return payload.of.name;
-  }
-  return null;
 }
 
 /**

@@ -5,15 +5,14 @@
  * Armed `on` projections emit one `.on(ari).when(…).expand(…)` per arm that
  * expands; flat `on` stays `.on(ari).expand(…)`.
  * Resolve-only `on R resolve to` emits `.resolve.on(ari)[.when(…)].to(…)`.
- * Collection expand targets get an auto member-ARI fan-out `.on(collectionAri)`.
  * Query `islands` emit `.islands.on(ari)[.when(…)].startIsland()` before return.
  *
  * Callbacks take a single `predicate` and use dot access (no destructuring).
  */
-import type { FieldDecl, Program, QueryDefinition, ResourceDefinition } from "../../../ir";
+import type { FieldDecl, Program, QueryDefinition } from "../../../ir";
 import { printTypeExpr } from "../resources";
 import { executionContextTypeName, paramsTypeName, strategyFactoryName } from "../naming";
-import { collectCollectionFanOuts, emitProjectionExpansions } from "./emit-expansion";
+import { emitProjectionExpansions } from "./emit-expansion";
 import { emitIslands } from "./emit-islands";
 import { emitProjectionResolves } from "./emit-resolve-policies";
 
@@ -22,11 +21,7 @@ function emitObjectTypeAlias(name: string, fields: FieldDecl[]): string {
   return `export type ${name} = ${body};`;
 }
 
-function emitQueryStrategy(
-  query: QueryDefinition,
-  registryTypeName: string,
-  resourceIndex: Map<string, ResourceDefinition>
-): string {
+function emitQueryStrategy(query: QueryDefinition, registryTypeName: string): string {
   const factory = strategyFactoryName(query.name);
   const paramsName = paramsTypeName(query.name);
   const contextName = executionContextTypeName(query.name);
@@ -49,7 +44,6 @@ function emitQueryStrategy(
 
   const expansionBlocks = query.projections.flatMap(emitProjectionExpansions);
   const resolveBlocks = query.projections.flatMap(emitProjectionResolves);
-  const fanOutBlocks = collectCollectionFanOuts(query, resourceIndex);
   const islandBlocks = emitIslands(query.islands);
 
   const bodyLines: string[] = [
@@ -59,7 +53,7 @@ function emitQueryStrategy(
     `  >();`,
   ];
 
-  const policyBlocks = [...expansionBlocks, ...fanOutBlocks, ...resolveBlocks, ...islandBlocks];
+  const policyBlocks = [...expansionBlocks, ...resolveBlocks, ...islandBlocks];
   if (policyBlocks.length > 0) {
     bodyLines.push("");
     bodyLines.push(policyBlocks.join("\n\n"));
@@ -84,8 +78,5 @@ export function emitStrategies(program: Program, registryTypeName = "ContentRegi
     return "";
   }
 
-  const resourceIndex = new Map(program.resources.map((r) => [r.name, r]));
-  return program.queries
-    .map((query) => emitQueryStrategy(query, registryTypeName, resourceIndex))
-    .join("\n\n");
+  return program.queries.map((query) => emitQueryStrategy(query, registryTypeName)).join("\n\n");
 }
