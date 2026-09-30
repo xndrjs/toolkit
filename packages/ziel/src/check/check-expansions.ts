@@ -4,6 +4,7 @@ import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
 import { narrowItemTypeByFilter, payloadHasField } from "./discriminants";
 import { inferExprType } from "./expressions";
+import type { IncludeMode } from "./projection-include";
 import { unwrapNullable, type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
 
 export function checkSelectedFields(
@@ -38,6 +39,51 @@ export function checkSelectedFields(
         });
       }
     }
+  }
+}
+
+/**
+ * Reject field selection, `include all|properties`, and expands on array /
+ * scalar / primitive (non-object-like) projection bodies. Empty / `include none`
+ * bodies are allowed (payload passthrough).
+ */
+export function checkNonObjectProjectionBody(
+  resourceName: string,
+  payloadType: TypeExpr,
+  selectedFields: readonly string[],
+  expansions: readonly Expansion[],
+  include: IncludeMode | null,
+  basePath: string,
+  span: SourceSpan | null,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  if (include === "all" || include === "properties") {
+    sink.push({
+      code: "INCLUDE_ON_NON_OBJECT",
+      message: `Cannot use 'include ${include}' on non-object payload of '${resourceName}'`,
+      path: `${basePath}.include`,
+      span,
+    });
+  }
+
+  checkSelectedFields(
+    [...selectedFields],
+    payloadType,
+    resourceName,
+    basePath,
+    span,
+    resources,
+    sink
+  );
+
+  for (const expansion of expansions) {
+    sink.push({
+      code: "EXPAND_ON_NON_OBJECT",
+      message: `Cannot expand '${expansion.alias}' on non-object payload of '${resourceName}'`,
+      path: `${basePath}.expansions.${expansion.alias}`,
+      span: expansion.span,
+    });
   }
 }
 

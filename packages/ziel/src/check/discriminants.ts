@@ -78,6 +78,14 @@ function inferClosedLiteralDiscriminant(
 }
 
 /**
+ * True when the payload expands to object / object-union members (field selection
+ * and expands are meaningful). False for arrays, scalars, primitives, etc.
+ */
+export function isObjectLikePayload(payloadType: TypeExpr, resources: PayloadTypeLookup): boolean {
+  return expandPayloadObjectMembers(payloadType, resources) !== null;
+}
+
+/**
  * Expand a payload type to object members (following resourceRefs). Returns
  * `null` when the shape is not a closed object / object-union.
  */

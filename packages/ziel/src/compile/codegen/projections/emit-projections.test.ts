@@ -48,7 +48,7 @@ describe("emitProjections", () => {
     expect(code).toContain("params: PostDetailParams");
     expect(code).toContain("executionContext: PostDetailExecutionContext");
     expect(code).toContain(": PostDetailResult");
-    expect(code).toContain("const memo = new Map<string, object>();");
+    expect(code).toContain("const memo = new Map<string, unknown>();");
     expect(code).toContain("const shell: any = {};");
     expect(code).not.toContain("$type");
     expect(code).toContain("memo.set(resource.toString(), shell);");
@@ -102,7 +102,7 @@ describe("emitProjections", () => {
     expect(code).toContain("contentMap: ContentMap<ContentRegistry>");
     expect(code).toContain("params: HomepageParams");
     expect(code).toContain(": HomepageResult");
-    expect(code).toContain("const memo = new Map<string, object>();");
+    expect(code).toContain("const memo = new Map<string, unknown>();");
     expect(code).toContain('case "Page":');
     expect(code).toContain('case "UserSession":');
     expect(code).toContain("page: projectNode(roots.page),");
@@ -414,5 +414,43 @@ describe("generateProjections", () => {
     expect(code).toContain("shell.menu = projectEdge(");
     expect(code).toContain('"setNull"');
     expect(code).toContain("const projectEdge = (");
+  });
+
+  it("returns collection payload as-is for empty on TabCollection", () => {
+    const source = `
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+      resource Page(id: string, locale: Locale): { id tabsId: TabsId }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+        }
+        on TabCollection t { }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjections(program!);
+    expect(code).toContain("const memo = new Map<string, unknown>();");
+    expect(code).toContain("shell.tabs = projectNode(tabCollectionAri(");
+    expect(code).not.toContain("__collectionPayload");
+    expect(code).not.toContain("elementAri");
+    expect(code).not.toMatch(/payload\.map\(\([^)]*\)\s*=>\s*tabAri/);
+    const onCollection = code.slice(
+      code.indexOf("const projectOnTabCollection"),
+      code.indexOf("const projectNode")
+    );
+    expect(onCollection).toContain("memo.set(resource.toString(), payload);");
+    expect(onCollection).toContain("return payload;");
+    expect(onCollection).not.toContain("const shell");
   });
 });

@@ -65,7 +65,7 @@ export function projectPostDetail(
     executionContext: PostDetailExecutionContext;
   },
 ): PostDetailResult {
-  const memo = new Map<string, object>();
+  const memo = new Map<string, unknown>();
 
   const projectOnPost = (resource: any, payload: any): any => {
     const shell: any = {};
@@ -187,7 +187,7 @@ export function projectPageDetail(
     redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;
   },
 ): PageDetailResult {
-  const memo = new Map<string, object>();
+  const memo = new Map<string, unknown>();
 
   const projectOnPage = (resource: any, payload: any): any => {
     const shell: any = {};
@@ -327,7 +327,7 @@ export function projectHomepage(
     params: HomepageParams;
   },
 ): HomepageResult {
-  const memo = new Map<string, object>();
+  const memo = new Map<string, unknown>();
 
   const projectOnPage = (resource: any, payload: any): any => {
     const shell: any = {};
@@ -385,7 +385,7 @@ describe("generateProjections golden", () => {
     expect(code).toContain("export type PostDetail_User");
     expect(code).toContain("export type PostDetailResult = PostDetail_Post");
     expect(code).toContain("shell.author = projectNode(userAri({ id: payload.authorId }));");
-    expect(code).toContain("const memo = new Map<string, object>();");
+    expect(code).toContain("const memo = new Map<string, unknown>();");
     expect(code).toContain("if (memo.has(key)) return memo.get(key);");
     expect(code).not.toContain(".when(");
     expect(code).not.toContain("islands");

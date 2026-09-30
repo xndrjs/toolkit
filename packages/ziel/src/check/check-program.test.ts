@@ -1009,6 +1009,127 @@ describe("checkProgram — missing on projection", () => {
     expect(diagnostics.filter((d) => d.code === "MISSING_ON_PROJECTION")).toEqual([]);
   });
 
+  it("rejects field selection on non-object collection payload", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+      resource Page(id: string, locale: Locale): { id tabsId: TabsId }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+        }
+        on TabCollection t { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_SELECTED_FIELD",
+        message: expect.stringContaining("non-object payload"),
+      })
+    );
+  });
+
+  it("rejects include all on non-object collection payload", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+      resource Page(id: string, locale: Locale): { id tabsId: TabsId }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+        }
+        on TabCollection t include all { }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INCLUDE_ON_NON_OBJECT",
+        message: expect.stringContaining("include all"),
+      })
+    );
+  });
+
+  it("rejects expands on non-object collection payload", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+      resource Page(id: string, locale: Locale): { id tabsId: TabsId }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+        }
+        on TabCollection t {
+          expand first: Tab(id: "x", locale: context.locale)
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "EXPAND_ON_NON_OBJECT",
+        message: expect.stringContaining("first"),
+      })
+    );
+  });
+
+  it("rejects when-arms on non-object collection payload", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+      resource Page(id: string, locale: Locale): { id tabsId: TabsId }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+        }
+        on TabCollection t {
+          when true { }
+          default { }
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "ARMED_ON_NON_OBJECT",
+        message: expect.stringContaining("when-arms"),
+      })
+    );
+  });
+
   it("errors when a resource-union expand has no on for the wrapper (does not strip to members)", () => {
     const { diagnostics } = parseAndCheck(`
       scalar Locale on string;

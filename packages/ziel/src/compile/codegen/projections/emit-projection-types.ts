@@ -33,7 +33,11 @@
  * (e.g. `related: PageDetail_Entry | PageDetail_Asset`).
  */
 import { createDiagnosticSink } from "../../../check/diagnostic";
-import { expandPayloadObjectMembers, narrowPayloadByFilter } from "../../../check/discriminants";
+import {
+  expandPayloadObjectMembers,
+  isObjectLikePayload,
+  narrowPayloadByFilter,
+} from "../../../check/discriminants";
 import {
   projectableProjections,
   resolveTargetIndex,
@@ -62,7 +66,12 @@ import type {
 import { isSingleRootQuery } from "../../../ir";
 import { printTypeExpr } from "../resources";
 import { projectionArmDiscriminant } from "../shared";
-import { projectionTypeName, projectionVariantTypeName, queryResultTypeName } from "../naming";
+import {
+  payloadTypeName,
+  projectionTypeName,
+  projectionVariantTypeName,
+  queryResultTypeName,
+} from "../naming";
 import {
   collectApplicableRefers,
   comprehensionElementType,
@@ -458,6 +467,18 @@ function emitArmedResourceProjectionTypes(
     );
   }
 
+  const resource = resources.get(projection.resource);
+  if (!resource) {
+    throw new Error(
+      `emitProjectionTypes: unknown resource '${projection.resource}' in query '${queryName}'`
+    );
+  }
+  if (!isObjectLikePayload(resource.payloadType, resources)) {
+    throw new Error(
+      `emitProjectionTypes: cannot arm when-clauses on non-object payload of '${projection.resource}' in query '${queryName}'`
+    );
+  }
+
   const variants: string[] = [];
   const parts: string[] = [];
 
@@ -512,13 +533,24 @@ function emitFlatResourceProjectionType(
       `emitProjectionTypes: unknown resource '${projection.resource}' in query '${queryName}'`
     );
   }
-  if (resource.payloadType.kind !== "object") {
-    throw new Error(
-      `emitProjectionTypes: cannot project non-object payload of '${projection.resource}' in query '${queryName}'`
-    );
-  }
 
   const typeName = projectionTypeName(queryName, projection.resource);
+
+  // Array / scalar / primitive payloads: empty `on R` is a payload passthrough.
+  if (!isObjectLikePayload(resource.payloadType, resources)) {
+    const hasBody =
+      projection.selectedFields.length > 0 ||
+      projection.expansions.length > 0 ||
+      projection.include === "all" ||
+      projection.include === "properties";
+    if (hasBody) {
+      throw new Error(
+        `emitProjectionTypes: cannot project fields/expands on non-object payload of '${projection.resource}' in query '${queryName}'`
+      );
+    }
+    return `export type ${typeName} = ${payloadTypeName(projection.resource)};`;
+  }
+
   const lines: string[] = [];
   if (resourceTag !== undefined) {
     lines.push(`  ${resourceTag}: ${JSON.stringify(projection.resource)};`);
@@ -537,8 +569,9 @@ function emitFlatResourceProjectionType(
     projection.excludedFields
   );
 
+  const payloadFields = fieldMapFromPayload(resource.payloadType, resource.payload, resources);
   for (const fieldName of effectiveFields) {
-    const field = resource.payload.get(fieldName);
+    const field = payloadFields.get(fieldName);
     if (!field) {
       throw new Error(
         `emitProjectionTypes: selected field '${fieldName}' is not on payload of '${projection.resource}'`

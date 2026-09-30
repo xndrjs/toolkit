@@ -10,8 +10,12 @@
  */
 import type { FragmentDefinition } from "../ir";
 import { formatType } from "./assignability";
-import { checkExpansions, checkSelectedFields } from "./check-expansions";
-import { narrowPayloadByFilter } from "./discriminants";
+import {
+  checkExpansions,
+  checkNonObjectProjectionBody,
+  checkSelectedFields,
+} from "./check-expansions";
+import { isObjectLikePayload, narrowPayloadByFilter } from "./discriminants";
 import { createDiagnosticSink, type DiagnosticSink } from "./diagnostic";
 import { inferPayloadWhenExprType, isBooleanWhenType } from "./expressions";
 import { checkExcludedFields, resolveSelectedFields } from "./projection-include";
@@ -83,6 +87,22 @@ export function checkFragment(
     fragment.span,
     sink
   );
+
+  if (!isObjectLikePayload(bodyPayload, resources)) {
+    checkNonObjectProjectionBody(
+      fragment.resource,
+      bodyPayload,
+      fragment.selectedFields,
+      fragment.expansions,
+      null,
+      path,
+      fragment.span,
+      resources,
+      sink
+    );
+    return;
+  }
+
   const effectiveFields = resolveSelectedFields(
     fragment.selectedFields,
     fragment.expansions,

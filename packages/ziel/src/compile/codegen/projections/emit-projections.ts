@@ -63,7 +63,7 @@ function emitQueryProjection(
     : emitMultiRootReturn(query, resultType);
 
   const body = [
-    `  const memo = new Map<string, object>();`,
+    `  const memo = new Map<string, unknown>();`,
     failuresBinding,
     helpers.join("\n\n"),
     "",
