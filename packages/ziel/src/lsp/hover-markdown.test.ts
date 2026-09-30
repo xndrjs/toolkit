@@ -8,6 +8,7 @@ import {
   formatFragmentSignature,
   formatResourceSignature,
   formatScalarSignature,
+  formatTypePretty,
   fragmentHoverMarkdown,
   namedTypeHoverMarkdown,
   projectedFieldsType,
@@ -92,19 +93,124 @@ function entrySymbols(): ResourceSymbols {
   };
 }
 
+function errorLabSymbols(): ResourceSymbols {
+  const spaceId: TypeExpr = { kind: "scalarRef", name: "SpaceId", span: null };
+  const environmentId: TypeExpr = { kind: "scalarRef", name: "EnvironmentId", span: null };
+  const entryId: TypeExpr = { kind: "scalarRef", name: "EntryId", span: null };
+  const locale: TypeExpr = { kind: "scalarRef", name: "Locale", span: null };
+  const title: TypeExpr = { kind: "primitive", name: "string", span: null };
+  const linkRow = objectPayload([{ name: "id", type: entryId }]);
+  const linkArray: TypeExpr = { kind: "array", of: linkRow, span: null };
+
+  const identity = (name: string, type: TypeExpr): FieldDecl => ({
+    name,
+    type,
+    optional: false,
+    inheritedFromIdentity: false,
+    refers: null,
+    span: null,
+  });
+
+  return {
+    identity: new Map([
+      ["spaceId", identity("spaceId", spaceId)],
+      ["environmentId", identity("environmentId", environmentId)],
+      ["id", identity("id", entryId)],
+      ["locale", identity("locale", locale)],
+    ]),
+    payload: new Map(),
+    payloadType: objectPayload([
+      { name: "id", type: entryId },
+      { name: "title", type: title },
+      { name: "softSingleId", type: entryId },
+      { name: "errorSingleId", type: entryId },
+      { name: "throwSingleId", type: entryId },
+      { name: "softItems", type: linkArray },
+      { name: "errorItems", type: linkArray },
+      { name: "throwItems", type: linkArray },
+    ]),
+  };
+}
+
 describe("hover-markdown builders", () => {
   it("formats scalar signatures", () => {
     expect(formatScalarSignature("EntryId", "string")).toBe("scalar EntryId on string");
     expect(scalarHoverMarkdown("EntryId", "string")).toContain("scalar EntryId on string");
   });
 
-  it("formats resource signatures with identity + formatType(payload)", () => {
+  it("pretty-prints resource signatures (multiline identity + payload)", () => {
     const sig = formatResourceSignature("Entry", entrySymbols());
-    expect(sig).toBe("resource Entry(id: EntryId, locale: Locale): { id: EntryId, title: string }");
+    expect(sig).toBe(
+      [
+        "resource Entry(",
+        "  id: EntryId,",
+        "  locale: Locale",
+        "): {",
+        "  id: EntryId",
+        "  title: string",
+        "}",
+      ].join("\n")
+    );
     expect(resourceHoverMarkdown("Entry", entrySymbols())).toContain(sig);
   });
 
-  it("formats field signatures via formatType", () => {
+  it("pretty-prints nested object arrays like ErrorLab softItems", () => {
+    const sig = formatResourceSignature("ErrorLab", errorLabSymbols());
+    expect(sig).toBe(
+      [
+        "resource ErrorLab(",
+        "  spaceId: SpaceId,",
+        "  environmentId: EnvironmentId,",
+        "  id: EntryId,",
+        "  locale: Locale",
+        "): {",
+        "  id: EntryId",
+        "  title: string",
+        "  softSingleId: EntryId",
+        "  errorSingleId: EntryId",
+        "  throwSingleId: EntryId",
+        "  softItems: {",
+        "    id: EntryId",
+        "  }[]",
+        "  errorItems: {",
+        "    id: EntryId",
+        "  }[]",
+        "  throwItems: {",
+        "    id: EntryId",
+        "  }[]",
+        "}",
+      ].join("\n")
+    );
+  });
+
+  it("keeps single-identity resources compact on the head line", () => {
+    const idType: TypeExpr = { kind: "scalarRef", name: "Sku", span: null };
+    const symbols: ResourceSymbols = {
+      identity: new Map([
+        [
+          "sku",
+          {
+            name: "sku",
+            type: idType,
+            optional: false,
+            inheritedFromIdentity: false,
+            refers: null,
+            span: null,
+          },
+        ],
+      ]),
+      payload: new Map(),
+      payloadType: objectPayload([
+        { name: "sku", type: idType },
+        { name: "title", type: { kind: "primitive", name: "string", span: null } },
+      ]),
+    };
+    expect(formatResourceSignature("Product", symbols)).toBe(
+      ["resource Product(sku: Sku): {", "  sku: Sku", "  title: string", "}"].join("\n")
+    );
+  });
+
+  it("formats field signatures via formatTypePretty", () => {
     const type: TypeExpr = {
       kind: "array",
       of: { kind: "resourceRef", name: "Entry", span: null },
@@ -114,6 +220,13 @@ describe("hover-markdown builders", () => {
     expect(
       fieldHoverMarkdown("title", { kind: "primitive", name: "string", span: null })
     ).toContain("title: string");
+
+    const nested = objectPayload([
+      { name: "id", type: { kind: "scalarRef", name: "EntryId", span: null } },
+    ]);
+    expect(formatTypePretty({ kind: "array", of: nested, span: null })).toBe(
+      ["{", "  id: EntryId", "}[]"].join("\n")
+    );
   });
 
   it("resolves named types from scalar / resource tables", () => {
@@ -134,7 +247,7 @@ describe("hover-markdown builders", () => {
       "scalar EntryId on string"
     );
     expect(namedTypeHoverMarkdown("Entry", scalars, resources)).toContain(
-      "resource Entry(id: EntryId, locale: Locale)"
+      "resource Entry(\n  id: EntryId,"
     );
     expect(namedTypeHoverMarkdown("Unknown", scalars, resources)).toBeUndefined();
   });
@@ -179,10 +292,8 @@ describe("hover-markdown builders", () => {
     const resources = new Map<string, ResourceSymbols>([["Entry", symbols]]);
     const projected = projectedFieldsType(["type", "id"], "Entry", resources)!;
     expect(formatFragmentSignature("EntryBase", "Entry", projected)).toBe(
-      "fragment EntryBase on Entry: { type: string, id: EntryId }"
+      ["fragment EntryBase on Entry: {", "  type: string", "  id: EntryId", "}"].join("\n")
     );
-    expect(fragmentHoverMarkdown("EntryBase", "Entry", projected)).toContain(
-      "{ type: string, id: EntryId }"
-    );
+    expect(fragmentHoverMarkdown("EntryBase", "Entry", projected)).toContain("type: string");
   });
 });

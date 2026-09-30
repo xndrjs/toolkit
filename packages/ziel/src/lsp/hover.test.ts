@@ -77,7 +77,7 @@ describe("hoverMarkdownAtOffset", () => {
     const { document, scalars, resources } = tablesFrom(FIXTURE);
     const offset = offsetOf(FIXTURE, "Entry", 0); // `resource Entry`
     const md = hoverMarkdownAtOffset(document, offset, { scalars, resources });
-    expect(md).toContain("resource Entry(id: EntryId, locale: Locale)");
+    expect(md).toContain("resource Entry(\n  id: EntryId,\n  locale: Locale\n)");
     expect(md).toContain("title: string");
   });
 
@@ -203,7 +203,7 @@ describe("hover expression paths", () => {
 
     const binding = offsetOf(PATH_FIXTURE, "p", 2); // @p in @p.locale
     expect(hoverMarkdownAtOffset(document, binding, { scalars, resources })).toContain(
-      "p: { id: EntryId, locale: Locale }"
+      "p: {\n  id: EntryId\n  locale: Locale\n}"
     );
   });
 
@@ -225,7 +225,7 @@ describe("hover expression paths", () => {
 
     const meta = offsetOf(PATH_FIXTURE, "meta", 2); // context.meta.something
     expect(hoverMarkdownAtOffset(document, meta, { scalars, resources })).toContain(
-      "meta: { something: string }"
+      "meta: {\n  something: string\n}"
     );
 
     const something = offsetOf(PATH_FIXTURE, "something", 2);
@@ -274,7 +274,7 @@ datasource CmsEntries {
 
     const link = offsetOf(PATH_FIXTURE, "link", 1); // link.id head
     expect(hoverMarkdownAtOffset(document, link, { scalars, resources })).toContain(
-      "link: { id: EntryId }"
+      "link: {\n  id: EntryId\n}"
     );
   });
 
@@ -282,7 +282,7 @@ datasource CmsEntries {
     const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
     const itemBinding = offsetOf(PATH_FIXTURE, "link", 0); // each link in
     expect(hoverMarkdownAtOffset(document, itemBinding, { scalars, resources })).toContain(
-      "link: { id: EntryId }"
+      "link: {\n  id: EntryId\n}"
     );
   });
 
@@ -306,7 +306,7 @@ query Q(pageId: EntryId) {
     const { document, scalars, resources } = tablesFrom(loose);
     const meta = offsetOf(loose, "meta", 1); // p.meta.something
     expect(hoverMarkdownAtOffset(document, meta, { scalars, resources })).toContain(
-      "meta: { something: string }"
+      "meta: {\n  something: string\n}"
     );
     const something = offsetOf(loose, "something", 1);
     expect(hoverMarkdownAtOffset(document, something, { scalars, resources })).toContain(
@@ -349,7 +349,7 @@ describe("hover fragments", () => {
     const { document, scalars, resources } = tablesFrom(FRAGMENT_FIXTURE);
     const name = offsetOf(FRAGMENT_FIXTURE, "EntryBase", 0); // fragment EntryBase
     expect(hoverMarkdownAtOffset(document, name, { scalars, resources })).toContain(
-      "fragment EntryBase on Entry: { type: string, id: EntryId }"
+      "fragment EntryBase on Entry: {\n  type: string\n  id: EntryId\n}"
     );
   });
 
@@ -357,7 +357,7 @@ describe("hover fragments", () => {
     const { document, scalars, resources } = tablesFrom(FRAGMENT_FIXTURE);
     const spread = offsetOf(FRAGMENT_FIXTURE, "EntryBase", 2); // ...EntryBase in query
     expect(hoverMarkdownAtOffset(document, spread, { scalars, resources })).toContain(
-      "{ type: string, id: EntryId }"
+      "{\n  type: string\n  id: EntryId\n}"
     );
   });
 
@@ -379,7 +379,7 @@ describe("hover fragments", () => {
     const { document, scalars, resources } = tablesFrom(FRAGMENT_FIXTURE);
     const name = offsetOf(FRAGMENT_FIXTURE, "EntryTitle", 0);
     expect(hoverMarkdownAtOffset(document, name, { scalars, resources })).toContain(
-      "fragment EntryTitle on Entry: { type: string, id: EntryId, title: string }"
+      "fragment EntryTitle on Entry: {\n  type: string\n  id: EntryId\n  title: string\n}"
     );
   });
 });
