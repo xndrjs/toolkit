@@ -26,51 +26,69 @@ import {
   type ScalarTable,
 } from "./symbols";
 
-/** Role of a name in the query-local flat binding namespace. */
+/** Role of a name in the query-local binding namespaces. */
 type QueryBindingRole = "parameter" | "projection binding" | "island binding" | "each item binding";
 
 /**
- * Params, `on` bindings, island bindings, and `each` item bindings share one
- * flat query-local namespace after fragment rebind. Collisions →
- * `QUERY_BINDING_NAME_CLASH` (distinct from `DUPLICATE_PARAM` / `DUPLICATE_BINDING`).
+ * After fragment rebind, query-local names collide as follows:
+ * - **Expression namespace:** params ∪ `on` bindings ∪ `each` item bindings
+ * - **Island namespace:** island bindings ∪ params (island `when` can see params;
+ *   reuse of an `on` / `each` name is fine — different scopes)
+ *
+ * Collisions → `QUERY_BINDING_NAME_CLASH` (distinct from `DUPLICATE_PARAM` /
+ * `DUPLICATE_BINDING`).
  */
 function checkQueryBindingNameClash(
   query: QueryDefinition,
   path: string,
   sink: DiagnosticSink
 ): void {
-  const claimed = new Map<string, QueryBindingRole>();
+  const expressionNames = new Map<string, QueryBindingRole>();
+  const islandNames = new Map<string, QueryBindingRole>();
+  /** Params only — shared by both namespaces for island↔param checks. */
+  const parameters = new Set<string>();
 
-  const claim = (
+  const pushClash = (
     name: string,
+    existing: QueryBindingRole,
     role: QueryBindingRole,
     claimPath: string,
     span: SourceSpan | null
   ): void => {
-    const existing = claimed.get(name);
+    const message =
+      existing === role
+        ? `Name '${name}' is used as ${role} more than once in query '${query.name}'`
+        : `Name '${name}' is used as both ${existing} and ${role} in query '${query.name}'`;
+    sink.push({
+      code: "QUERY_BINDING_NAME_CLASH",
+      message,
+      path: claimPath,
+      span,
+    });
+  };
+
+  const claimExpression = (
+    name: string,
+    role: Exclude<QueryBindingRole, "island binding">,
+    claimPath: string,
+    span: SourceSpan | null
+  ): void => {
+    const existing = expressionNames.get(name);
     if (existing !== undefined) {
-      const message =
-        existing === role
-          ? `Name '${name}' is used as ${role} more than once in query '${query.name}'`
-          : `Name '${name}' is used as both ${existing} and ${role} in query '${query.name}'`;
-      sink.push({
-        code: "QUERY_BINDING_NAME_CLASH",
-        message,
-        path: claimPath,
-        span,
-      });
+      pushClash(name, existing, role, claimPath, span);
       return;
     }
-    claimed.set(name, role);
+    expressionNames.set(name, role);
   };
 
   for (const field of query.parameters) {
-    claim(field.name, "parameter", `${path}.parameters.${field.name}`, field.span);
+    parameters.add(field.name);
+    claimExpression(field.name, "parameter", `${path}.parameters.${field.name}`, field.span);
   }
 
   for (let i = 0; i < query.projections.length; i++) {
     const projection = query.projections[i]!;
-    claim(
+    claimExpression(
       projection.binding,
       "projection binding",
       `${path}.projections.${projection.binding || i}`,
@@ -78,22 +96,33 @@ function checkQueryBindingNameClash(
     );
   }
 
-  for (let i = 0; i < query.islands.length; i++) {
-    const island = query.islands[i]!;
-    if (island.binding === null) continue;
-    claim(island.binding, "island binding", `${path}.islands.${i}`, island.span);
-  }
-
   for (const projection of query.projections) {
     for (const expansion of expansionsForBindingClash(projection)) {
       if (expansion.comprehension === null) continue;
-      claim(
+      claimExpression(
         expansion.comprehension.itemBinding,
         "each item binding",
         `${path}.projections.${projection.binding}.expansions.${expansion.alias}`,
         expansion.span
       );
     }
+  }
+
+  for (let i = 0; i < query.islands.length; i++) {
+    const island = query.islands[i]!;
+    if (island.binding === null) continue;
+    const name = island.binding;
+    const claimPath = `${path}.islands.${i}`;
+    if (parameters.has(name)) {
+      pushClash(name, "parameter", "island binding", claimPath, island.span);
+      continue;
+    }
+    const existingIsland = islandNames.get(name);
+    if (existingIsland !== undefined) {
+      pushClash(name, existingIsland, "island binding", claimPath, island.span);
+      continue;
+    }
+    islandNames.set(name, "island binding");
   }
 }
 

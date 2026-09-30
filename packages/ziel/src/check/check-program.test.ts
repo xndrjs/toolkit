@@ -1532,6 +1532,70 @@ describe("checkProgram — query binding name clash", () => {
     );
   });
 
+  it("allows island binding to reuse a projection binding", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      query Q(pageId: PageId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p { id }
+        on Entry e { id }
+        islands {
+          on Entry e when true
+        }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "QUERY_BINDING_NAME_CLASH")).toEqual([]);
+  });
+
+  it("allows island binding to reuse an each item binding", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      query Q(pageId: PageId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          expand strips: each link in p.strips (
+            Entry(id: link.id, locale: context.locale)
+          )
+        }
+        on Entry e { id }
+        islands {
+          on Entry link when true
+        }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "QUERY_BINDING_NAME_CLASH")).toEqual([]);
+  });
+
+  it("rejects two island bindings reusing the same name", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      query Q(pageId: PageId) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p { id }
+        on Entry e { id }
+        islands {
+          on Entry e when true
+          on Page e when true
+        }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_BINDING_NAME_CLASH",
+        message: expect.stringMatching(/island binding/),
+      })
+    );
+  });
+
   it("rejects two sibling each item bindings reusing the same name", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
@@ -1784,7 +1848,7 @@ describe("checkProgram — islands", () => {
         on Page p { id }
         on Entry e { id type }
         islands {
-          on Entry islandEntry when islandEntry.type == "Menu" or islandEntry.type == "Footer"
+          on Entry e when e.type == "Menu" or e.type == "Footer"
           on Page
         }
       }
@@ -1847,7 +1911,7 @@ describe("checkProgram — islands", () => {
         on Page p { id }
         on Entry e { id type }
         islands {
-          on Entry islandEntry when islandEntry.type == "Menu"
+          on Entry e when e.type == "Menu"
         }
       }
     `);
@@ -1900,7 +1964,7 @@ describe("checkProgram — expression ops in / not in / !", () => {
           Entry(id: r.id, locale: context.locale) when r.type not in ["Entry"]
         }
         islands {
-          on Entry islandEntry when islandEntry.type in ["Menu", "Footer"] or !islandEntry.visible
+          on Entry e when e.type in ["Menu", "Footer"] or !e.visible
         }
       }
     `);

@@ -335,10 +335,10 @@ export function pageDetailProgram(): Program {
         islands: [
           {
             resource: "Entry",
-            binding: "islandEntry",
+            binding: "e",
             when: or(
-              eq(payload("islandEntry", "type"), lit("Menu")),
-              eq(payload("islandEntry", "type"), lit("Footer"))
+              eq(payload("e", "type"), lit("Menu")),
+              eq(payload("e", "type"), lit("Footer"))
             ),
             span: null,
           },

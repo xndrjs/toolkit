@@ -222,7 +222,7 @@ describe("emitStrategies", () => {
         root Entry(id: pageId, locale: context.locale)
         on Entry e { id type }
         islands {
-          on Entry islandEntry when islandEntry.type == "Menu" or islandEntry.type == "Footer"
+          on Entry e when e.type == "Menu" or e.type == "Footer"
         }
       }
     `;
@@ -390,7 +390,7 @@ describe("generateStrategies", () => {
           default { }
         }
         islands {
-          on Entry islandEntry when islandEntry.type not in ["Hero"] or !islandEntry.visible
+          on Entry e when e.type not in ["Hero"] or !e.visible
         }
       }
     `;
