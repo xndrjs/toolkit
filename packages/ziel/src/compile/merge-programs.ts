@@ -13,6 +13,10 @@ const EMPTY_PROGRAM: Program = {
  * Merge programs in input order by concatenating top-level declarations.
  * Name collisions are not resolved here — leave that to `checkProgram`.
  * The result's `span` is always `null`; node spans (and their URIs) are preserved.
+ *
+ * This is an IR utility, not a source compilation pipeline: programs lowered in
+ * isolation have already resolved named types and fragment spreads. Use
+ * `compileWorkspace` when source files may reference declarations in each other.
  */
 export function mergePrograms(programs: Program[]): Program {
   if (programs.length === 0) {

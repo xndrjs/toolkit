@@ -118,6 +118,33 @@ describe("validateWorkspace", () => {
     expect(result.semantic!.program.queries).toHaveLength(1);
   });
 
+  it("lowers a fragment declared in a third workspace file before checking", async () => {
+    const { root, resourcesUri, queryUri } = setupTwoFiles(`
+      query PostDetail(postId: PostId) {
+        context { locale: Locale }
+        root Post(id: postId, locale: context.locale)
+        on Post post { ...PostSummary }
+      }
+    `);
+    const fragmentPath = join(root, "fragment.ziel");
+    const fragmentUri = pathToFileURL(fragmentPath).href;
+    writeFileSync(fragmentPath, `fragment PostSummary on Post post { id title }`);
+
+    const result = await validateWorkspace({
+      triggerUri: queryUri,
+      openSources: new Map(),
+      workspaceFolders: [root],
+    });
+
+    expect(result.byUri.get(resourcesUri)).toEqual([]);
+    expect(result.byUri.get(fragmentUri)).toEqual([]);
+    expect(result.byUri.get(queryUri)).toEqual([]);
+    expect(result.semantic?.program.queries[0]?.projections[0]?.selectedFields).toEqual([
+      "id",
+      "title",
+    ]);
+  });
+
   it("reports UNKNOWN_RESOURCE with a range in the query file only", async () => {
     const { root, resourcesUri, queryUri } = setupTwoFiles(QUERY_UNKNOWN);
 

@@ -1,16 +1,13 @@
 /**
- * Multi-file orchestration: collect → parse/lower per file → merge → check → emit.
+ * Multi-file orchestration: collect → parse workspace → global lower/check → emit.
  * No filesystem writes — callers (CLI) persist `code` when diagnostics are empty.
  */
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-import { checkProgram, type Diagnostic } from "../../check";
-import type { Program } from "../../ir";
+import type { Diagnostic } from "../../check";
 import { collectZielFiles, type CollectZielFilesOptions } from "../collect/collect-ziel-files";
-import { isLowerDiagnostic } from "../lower";
-import { mergePrograms } from "../merge-programs";
-import { parseAndCheck } from "../parse-and-check";
+import { compileWorkspace } from "../compile-workspace";
 import {
   composeGeneratedModule,
   type ComposeGeneratedModuleOptions,
@@ -41,13 +38,8 @@ function withFileUri(diagnostic: Diagnostic, uri: string): Diagnostic {
 }
 
 /**
- * Collect `.ziel` files, parse/lower each, merge IR, check once, then emit
+ * Collect `.ziel` files, parse them, lower against one global workspace, then emit
  * a single module (resources + strategy builders + projectors when queries exist).
- *
- * Per-file semantic diagnostics from `parseAndCheck` are ignored — only
- * `SYNTAX_ERROR` and lower-time fragment diagnostics are kept from that phase
- * so cross-file references work. Semantic checking runs once on the merged
- * program.
  *
  * On any diagnostics (syntax or semantic), `code` is `""` and nothing is written.
  */
@@ -61,46 +53,38 @@ export function buildResources(options: BuildResourcesOptions = {}): BuildResour
   } = options;
   const files = collectZielFiles(collectOptions);
 
-  const programs: Program[] = [];
-  const perFileDiagnostics: Diagnostic[] = [];
+  const sources = files.map((absPath) => ({
+    source: readFileSync(absPath, "utf8"),
+    uri: pathToFileURL(absPath).href,
+  }));
+  const compilation = compileWorkspace(sources, { requireDatasourceCoverage });
+  const withOrigin = (diagnostic: Diagnostic): Diagnostic => {
+    const uri = diagnostic.span?.uri;
+    return uri ? withFileUri(diagnostic, uri) : diagnostic;
+  };
+  const syntaxDiagnostics = compilation.syntaxDiagnostics.map(withOrigin);
 
-  for (const absPath of files) {
-    const source = readFileSync(absPath, "utf8");
-    const uri = pathToFileURL(absPath).href;
-    const { program, diagnostics } = parseAndCheck(source, uri);
-
-    // Keep syntax errors and lower-time fragment diagnostics; drop other
-    // per-file semantic errors so cross-file refs work until merge+check.
-    const preserved = diagnostics.filter((d) => d.code === "SYNTAX_ERROR" || isLowerDiagnostic(d));
-    if (preserved.length > 0) {
-      perFileDiagnostics.push(...preserved.map((d) => withFileUri(d, uri)));
-    }
-
-    if (preserved.some((d) => d.code === "SYNTAX_ERROR")) {
-      continue;
-    }
-
-    programs.push(program);
-  }
-
-  if (perFileDiagnostics.some((d) => d.code === "SYNTAX_ERROR")) {
+  if (syntaxDiagnostics.length > 0) {
     return {
       code: "",
-      diagnostics: perFileDiagnostics.filter((d) => d.code === "SYNTAX_ERROR"),
+      diagnostics: syntaxDiagnostics,
       files,
     };
   }
 
-  const merged = mergePrograms(programs);
   const diagnostics = [
-    ...perFileDiagnostics,
-    ...checkProgram(merged, { requireDatasourceCoverage }),
+    ...compilation.lowerDiagnostics.map(withOrigin),
+    ...compilation.analysis.diagnostics,
   ];
 
   if (diagnostics.length > 0) {
     return { code: "", diagnostics, files };
   }
 
-  const { code } = composeGeneratedModule(merged, { importFrom, registryTypeName, resourceTag });
+  const { code } = composeGeneratedModule(compilation.program, {
+    importFrom,
+    registryTypeName,
+    resourceTag,
+  });
   return { code, diagnostics: [], files };
 }

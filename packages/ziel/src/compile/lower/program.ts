@@ -21,6 +21,7 @@ import type {
   ScalarDefinition,
   QueryDefinition,
 } from "../../ir";
+import type { PayloadTypeLookup } from "../../check/discriminants";
 import { createDiagnosticSink, type Diagnostic, type DiagnosticSink } from "../../check/diagnostic";
 import {
   isDatasourceDeclaration,
@@ -33,7 +34,6 @@ import {
   type ResourceDeclaration as AstResourceDeclaration,
   type ScalarDeclaration as AstScalarDeclaration,
 } from "../../lang/generated/ast";
-import type { PayloadTypeLookup } from "../../check/discriminants";
 import { lowerDatasource } from "./datasources";
 import { expandBody, lowerEnclosingWhen, type FragmentTable } from "./fragments";
 import { lowerQuery } from "./query";
@@ -48,38 +48,62 @@ import { lowerTypeExpr, lowerTypedField, type NameTables } from "./types";
  * narrowing and `FRAGMENT_WHEN_MISMATCH` can consult payload types.
  */
 export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnosticSink()): Program {
-  const tables = collectNameTables(ast);
-  const fragmentTable = collectFragments(ast, sink);
+  return lowerModels([ast], spanOf(ast), sink);
+}
+
+/** Lower multiple parsed documents against one global declaration workspace. */
+export function lowerWorkspace(
+  models: readonly Model[],
+  sink: DiagnosticSink = createDiagnosticSink()
+): Program {
+  return lowerModels(models, null, sink);
+}
+
+function lowerModels(
+  models: readonly Model[],
+  programSpan: Program["span"],
+  sink: DiagnosticSink
+): Program {
+  const tables = collectWorkspaceNameTables(models);
+  const fragmentTable = collectWorkspaceFragments(models, sink);
   const scalars: ScalarDefinition[] = [];
   const resources: ResourceDefinition[] = [];
 
-  for (const decl of ast.declarations) {
-    if (isScalarDeclaration(decl)) {
-      scalars.push(lowerScalar(decl));
-    } else if (isResourceDeclaration(decl)) {
-      resources.push(lowerResource(decl, tables));
+  for (const ast of models) {
+    for (const decl of ast.declarations) {
+      if (isScalarDeclaration(decl)) {
+        scalars.push(lowerScalar(decl));
+      } else if (isResourceDeclaration(decl)) {
+        resources.push(lowerResource(decl, tables));
+      }
     }
   }
 
-  const payloadLookup: PayloadTypeLookup = new Map(
-    resources.map((r) => [r.name, { payloadType: r.payloadType }])
-  );
+  // Match checker symbol ownership: the first declaration is canonical.
+  const payloadLookup = new Map<string, { payloadType: ResourceDefinition["payloadType"] }>();
+  for (const resource of resources) {
+    if (!payloadLookup.has(resource.name)) {
+      payloadLookup.set(resource.name, { payloadType: resource.payloadType });
+    }
+  }
 
   const fragments: FragmentDefinition[] = [];
   const datasources: DatasourceDefinition[] = [];
   const queries: QueryDefinition[] = [];
 
-  for (const decl of ast.declarations) {
-    if (isFragmentDeclaration(decl)) {
-      // Skip duplicates already reported by collectFragments.
-      if (fragmentTable.get(decl.name) !== decl) {
-        continue;
+  for (const ast of models) {
+    for (const decl of ast.declarations) {
+      if (isFragmentDeclaration(decl)) {
+        // Skip duplicates already reported by collectWorkspaceFragments.
+        if (fragmentTable.get(decl.name) !== decl) {
+          continue;
+        }
+        fragments.push(lowerFragment(decl, fragmentTable, payloadLookup, sink));
+      } else if (isDatasourceDeclaration(decl)) {
+        datasources.push(lowerDatasource(decl, tables));
+      } else if (isQueryDeclaration(decl)) {
+        queries.push(lowerQuery(decl, tables, fragmentTable, payloadLookup, sink));
       }
-      fragments.push(lowerFragment(decl, fragmentTable, payloadLookup, sink));
-    } else if (isDatasourceDeclaration(decl)) {
-      datasources.push(lowerDatasource(decl, tables));
-    } else if (isQueryDeclaration(decl)) {
-      queries.push(lowerQuery(decl, tables, fragmentTable, payloadLookup, sink));
     }
   }
 
@@ -89,7 +113,7 @@ export function lowerProgram(ast: Model, sink: DiagnosticSink = createDiagnostic
     fragments,
     datasources,
     queries,
-    span: spanOf(ast),
+    span: programSpan,
   };
 }
 
@@ -108,28 +132,43 @@ export function isLowerDiagnostic(diagnostic: Pick<Diagnostic, "code">): boolean
 }
 
 export function collectNameTables(ast: Model): NameTables {
+  return collectWorkspaceNameTables([ast]);
+}
+
+export function collectWorkspaceNameTables(models: readonly Model[]): NameTables {
   const resources = new Set<string>();
   const scalars = new Set<string>();
-  for (const decl of ast.declarations) {
-    if (isResourceDeclaration(decl)) resources.add(decl.name);
-    else if (isScalarDeclaration(decl)) scalars.add(decl.name);
+  for (const ast of models) {
+    for (const decl of ast.declarations) {
+      if (isResourceDeclaration(decl)) resources.add(decl.name);
+      else if (isScalarDeclaration(decl)) scalars.add(decl.name);
+    }
   }
   return { resources, scalars };
 }
 
 export function collectFragments(ast: Model, sink: DiagnosticSink): FragmentTable {
+  return collectWorkspaceFragments([ast], sink);
+}
+
+export function collectWorkspaceFragments(
+  models: readonly Model[],
+  sink: DiagnosticSink
+): FragmentTable {
   const fragments: FragmentTable = new Map();
-  for (const decl of ast.declarations) {
-    if (!isFragmentDeclaration(decl)) continue;
-    if (fragments.has(decl.name)) {
-      sink.push({
-        code: "DUPLICATE_FRAGMENT",
-        message: `Duplicate fragment '${decl.name}'`,
-        span: spanOf(decl),
-      });
-      continue;
+  for (const ast of models) {
+    for (const decl of ast.declarations) {
+      if (!isFragmentDeclaration(decl)) continue;
+      if (fragments.has(decl.name)) {
+        sink.push({
+          code: "DUPLICATE_FRAGMENT",
+          message: `Duplicate fragment '${decl.name}'`,
+          span: spanOf(decl),
+        });
+        continue;
+      }
+      fragments.set(decl.name, decl);
     }
-    fragments.set(decl.name, decl);
   }
   return fragments;
 }

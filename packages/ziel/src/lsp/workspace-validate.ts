@@ -1,5 +1,5 @@
 /**
- * Multi-file collect → parse → merge → check for the language server.
+ * Multi-file collect → parse workspace → global lower/check for the language server.
  * Prefers open editor buffers over disk; same collect rules as codegen
  * when a `ziel.config.*` is found. Without a config, validates only the
  * trigger document (no workspace-root glob).
@@ -9,16 +9,14 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadConfigFile } from "../cli/load-config";
-import { analyzeProgram, type Diagnostic, type ResourceTable, type ScalarTable } from "../check";
+import type { Diagnostic, ResourceTable, ScalarTable } from "../check";
+import { compileWorkspace, type WorkspaceSource } from "../compile/compile-workspace";
 import {
   collectZielFiles,
   DEFAULT_ZIEL_EXCLUDE,
   DEFAULT_ZIEL_INCLUDE,
 } from "../compile/collect/collect-ziel-files";
 import type { ZielCodegenConfig } from "../compile/config/define-config";
-import { isLowerDiagnostic } from "../compile/lower";
-import { mergePrograms } from "../compile/merge-programs";
-import { parseAndCheck } from "../compile/parse-and-check";
 import type { Program } from "../ir";
 import { findZielConfigFile } from "./resolve-config-root";
 
@@ -164,18 +162,17 @@ function pushByUri(byUri: Map<string, Diagnostic[]>, uri: string, diagnostics: D
 }
 
 /**
- * Collect workspace `.ziel` files, parse each (preferring open buffers), merge
- * programs that parse cleanly, and run `analyzeProgram` once.
+ * Collect workspace `.ziel` files, parse each (preferring open buffers), lower
+ * all valid ASTs against global symbols, and run `analyzeProgram` once.
  *
  * Without a nearby `ziel.config.*`, only the trigger document is checked —
  * no workspace-root glob of every `.ziel` file.
  *
- * Files with `SYNTAX_ERROR` are excluded from the merge but their syntax
- * diagnostics are still published. Lower-phase diagnostics (fragments /
- * duplicate selected fields) are published per file. Semantic diagnostics from
- * the merged program are grouped by `span.uri` (fallback: `triggerUri`).
+ * Files with `SYNTAX_ERROR` are excluded from lowering but their diagnostics are
+ * still published. Every diagnostic is grouped by `span.uri` (fallback:
+ * `triggerUri`).
  *
- * When the merge succeeds, `result.semantic` carries the merged program plus
+ * When lowering succeeds, `result.semantic` carries the workspace program plus
  * scalar/resource tables for the LSP snapshot cache.
  */
 export async function validateWorkspace(
@@ -185,44 +182,33 @@ export async function validateWorkspace(
   const plan = await resolveCollectPlan(triggerUri, workspaceFolders);
   const files = filesForPlan(plan);
 
-  const programs: Program[] = [];
   const byUri = new Map<string, Diagnostic[]>();
   const sourcesByUri = new Map<string, string>();
+  const sources: WorkspaceSource[] = [];
 
   for (const absPath of files) {
     const uri = pathToUri(absPath);
     const source = readSource(absPath, openSources);
     sourcesByUri.set(uri, source);
-    const { program, diagnostics } = parseAndCheck(source, uri);
-    const syntax = diagnostics.filter((d) => d.code === "SYNTAX_ERROR");
-    if (syntax.length > 0) {
-      pushByUri(byUri, uri, syntax);
-      continue;
-    }
-    // Fragment / duplicate-field diagnostics from lower (not re-emitted by check).
-    const lower = diagnostics.filter(isLowerDiagnostic);
-    if (lower.length > 0) {
-      pushByUri(byUri, uri, lower);
-    }
-    programs.push(program);
+    sources.push({ uri, source });
+  }
+
+  const compilation = compileWorkspace(sources, {
+    requireDatasourceCoverage: plan.kind === "project" ? plan.requireDatasourceCoverage : undefined,
+  });
+
+  for (const diagnostic of compilation.diagnostics) {
+    const uri = diagnostic.span?.uri ?? triggerUri;
+    pushByUri(byUri, uri, [diagnostic]);
   }
 
   let semantic: WorkspaceSemanticResult | undefined;
-  if (programs.length > 0) {
-    const merged = mergePrograms(programs);
-    const analysis = analyzeProgram(merged, {
-      requireDatasourceCoverage:
-        plan.kind === "project" ? plan.requireDatasourceCoverage : undefined,
-    });
+  if (compilation.validSourceCount > 0) {
     semantic = {
-      program: merged,
-      scalars: analysis.scalars,
-      resources: analysis.resources,
+      program: compilation.program,
+      scalars: compilation.analysis.scalars,
+      resources: compilation.analysis.resources,
     };
-    for (const diagnostic of analysis.diagnostics) {
-      const uri = diagnostic.span?.uri ?? triggerUri;
-      pushByUri(byUri, uri, [diagnostic]);
-    }
   }
 
   // Ensure every collected file has an entry (empty = clear previous squiggles).

@@ -13,7 +13,12 @@ export {
   type ScalarTable,
 } from "../check";
 export { createZielServices, ZielModule, type ZielServices } from "../lang";
-export { lowerProgram, isLowerDiagnostic, LOWER_DIAGNOSTIC_CODES } from "./lower";
+export { lowerProgram, lowerWorkspace, isLowerDiagnostic, LOWER_DIAGNOSTIC_CODES } from "./lower";
+export {
+  compileWorkspace,
+  type CompileWorkspaceResult,
+  type WorkspaceSource,
+} from "./compile-workspace";
 export {
   defineConfig,
   DEFAULT_ZIEL_EXCLUDE,
