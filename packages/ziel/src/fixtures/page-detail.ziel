@@ -240,6 +240,6 @@ query PageDetail(pageId: EntryId) {
   on Asset a include properties { }
 
   islands {
-    on Entry islandEntry when islandEntry.type == "Menu" or islandEntry.type == "Footer"
+    on Entry e when e.type == "Menu" or e.type == "Footer"
   }
 }
