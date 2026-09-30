@@ -1,10 +1,12 @@
 /**
  * Require a projectable `on R` for every expansion / root site that materializes
- * an object projection (mirrors emit's `printTargetAliasType` coverage).
+ * a projection (mirrors emit's `printTargetAliasType` coverage).
  *
- * Collections require the element `on` (`TabCollection` → `on Tab`). Resolve-only
- * locators require settle-target `on`s. Resource-union payloads require `on` for
- * the wrapper resource itself (`EditorialModule: Hero | Tabs` → `on EditorialModule`).
+ * Collection resources require `on` for the collection itself (`TabCollection: Tab[]`
+ * → `on TabCollection`), same as object resources — the payload RHS is not traversed.
+ * Resolve-only locators require settle-target `on`s. Resource-union payloads require
+ * `on` for the wrapper resource itself (`EditorialModule: Hero | Tabs` →
+ * `on EditorialModule`).
  *
  * Diagnostics are query-scoped: missing `on` is a property of the query as a
  * whole, not of any particular expand / root construction.
@@ -13,7 +15,6 @@ import type { Expansion, QueryDefinition, ResourceConstruction } from "../ir";
 import type { DiagnosticSink } from "./diagnostic";
 import {
   allProjectionExpansions,
-  collectionElement,
   projectableProjections,
   resolveTargetIndex,
   stripToConcreteMembers,
@@ -58,15 +59,6 @@ export function checkRequiredOn(
       return;
     }
 
-    const payload = resource.payloadType;
-
-    // Collection resource (`TabCollection: Tab[]`) → require element `on`.
-    const element = collectionElement(payload);
-    if (element !== null) {
-      requireProjected(element);
-      return;
-    }
-
     if (projected.has(site.targetName)) {
       return;
     }
@@ -80,8 +72,8 @@ export function checkRequiredOn(
       return;
     }
 
-    // Object payload, resource-union payload (`EditorialModule: Hero | Tabs`), or
-    // any other non-collection target → require `on` for this resource itself.
+    // Object / collection / resource-union / scalar payload → require `on` for
+    // this resource itself (no collection → element fan-out).
     requireProjected(site.targetName);
   };
 

@@ -931,7 +931,7 @@ describe("checkProgram — missing on projection", () => {
     );
   });
 
-  it("errors when a collection expand has no on for the element resource", () => {
+  it("errors when a collection expand has no on for the collection resource", () => {
     const { diagnostics } = parseAndCheck(`
       scalar TabId on string;
       scalar TabsId on string;
@@ -961,16 +961,52 @@ describe("checkProgram — missing on projection", () => {
     expect(diagnostics).toContainEqual(
       expect.objectContaining({
         code: "MISSING_ON_PROJECTION",
-        message: expect.stringContaining("Tab"),
+        message: expect.stringContaining("TabCollection"),
         path: "queries.Q",
-        data: { missingResource: "Tab" },
+        data: { missingResource: "TabCollection" },
       })
     );
-    const tabDiag = diagnostics.find(
-      (d) => d.code === "MISSING_ON_PROJECTION" && d.data?.missingResource === "Tab"
+    const collectionDiag = diagnostics.find(
+      (d) => d.code === "MISSING_ON_PROJECTION" && d.data?.missingResource === "TabCollection"
     );
-    expect(tabDiag?.span).not.toBeNull();
-    expect(tabDiag?.path).toBe("queries.Q");
+    expect(collectionDiag?.span).not.toBeNull();
+    expect(collectionDiag?.path).toBe("queries.Q");
+    expect(
+      diagnostics.some(
+        (d) => d.code === "MISSING_ON_PROJECTION" && d.data?.missingResource === "Tab"
+      )
+    ).toBe(false);
+  });
+
+  it("accepts expand TabCollection with empty on TabCollection", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar TabId on string;
+      scalar TabsId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): {
+        id
+      }
+
+      resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
+
+      resource Page(id: string, locale: Locale): {
+        id
+        tabsId: TabsId
+      }
+
+      query Q(pageId: string) {
+        context { locale: Locale }
+        root Page(id: pageId, locale: context.locale)
+        on Page p {
+          id
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+        }
+        on TabCollection t { }
+      }
+    `);
+
+    expect(diagnostics.filter((d) => d.code === "MISSING_ON_PROJECTION")).toEqual([]);
   });
 
   it("errors when a resource-union expand has no on for the wrapper (does not strip to members)", () => {

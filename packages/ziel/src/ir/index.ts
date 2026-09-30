@@ -35,8 +35,8 @@ export type ScalarDefinition = {
 /**
  * Semantic types. `resourceRef` is a resource *instance* contract (identity +
  * payload of that resource) — never lower to a structural object.
- * `R[]` stays `array { of: resourceRef("R") }` so collections remain distinct
- * from arrays of ordinary values.
+ * `R[]` lowers to `array { of: resourceRef("R") }` as **payload typing only**
+ * (an array of R’s payload shape) — not a traversal / fan-out construct.
  *
  * `typeProjection` (`Resource.field` in a type position) is preserved through
  * lowering; the checker resolves it to the payload field's semantic type.
@@ -99,9 +99,9 @@ export type FieldDecl = {
 };
 
 /**
- * `resource Name(identity): payloadType`
- * - identity / ARI key before `:`
- * - resolved payload type after `:` (object, `OtherResource[]`, …)
+ * `resource Name(identity): PayloadType` — RHS is always a **payload type**.
+ * A resource name there (`TabsCollection(…): Tab[]`) means an array of Tab’s
+ * payload shape, not “fan out to Tab ARIs”. Identity / ARI key is before `:`.
  */
 export type ResourceDefinition = {
   /**
@@ -186,8 +186,9 @@ export type ExpandArm = {
  * Local expansion edge.
  * - `"one"`: single target ARI (`target` set; `comprehension` null).
  * - `"many"`: `each item in source ( arms )` — polymorphic constructions.
- * Expanding a collection resource (`TabCollection` → `Tab[]`) is still one `"one"`
- * edge to that resource; strategy codegen fans out member ARIs so `on Tab` runs.
+ * Loading a collection resource returns its payload (e.g. `Tab[]`) as-is;
+ * member ARIs are not inferred — hop only via explicit `expand` / `each` /
+ * `on` / `resolve to`.
  */
 export type Expansion = {
   alias: string;
