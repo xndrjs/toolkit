@@ -441,6 +441,40 @@ export type EntryDetail_Entry = EntryDetail_Entry_Hero | EntryDetail_Entry_Page 
     expect(code).not.toContain("Q_MixedCollection");
   });
 
+  // Expected-failure regression: stripping a 1-to-1 locator must preserve the
+  // array cardinality introduced by a nested resolve-to-each locator.
+  it.fails("preserves nested resolve-to-each cardinality through a 1-to-1 locator", () => {
+    const source = `
+      scalar Id on string;
+
+      resource Target(id: Id): { id }
+      resource Batch(id: Id): { ids: Id[] }
+      resource Locator(id: Id): { batchId: Id }
+      resource Page(id: Id): { locatorId: Id }
+
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page page {
+          expand items: Locator(id: page.locatorId)
+        }
+        on Locator locator resolve to {
+          Batch(id: locator.batchId)
+        }
+        on Batch batch resolve to each item in batch.ids (
+          Target(id: item)
+        )
+        on Target target { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjectionTypes(program!);
+    expect(code).toContain("items: Q_Target[];");
+    expect(code).not.toContain("items: Q_Target;");
+  });
+
   it("matches pageDetailProgram() IR path to the fixture emit", () => {
     const fromIr = emitProjectionTypes(pageDetailProgram());
     const { program, diagnostics } = parseAndCheck(

@@ -1140,6 +1140,108 @@ describe("checkProgram — resolve to each", () => {
 
     expect(diagnostics).toEqual([]);
   });
+
+  it("rejects a resolve-to-each cycle with no projectable settle target", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Id on string;
+
+      resource A(id: Id): { ids: Id[] }
+      resource B(id: Id): { ids: Id[] }
+
+      query Q(id: Id) {
+        context { }
+        root A(id: id)
+        on A a resolve to each childId in a.ids (
+          B(id: childId)
+        )
+        on B b resolve to each childId in b.ids (
+          A(id: childId)
+        )
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "MISSING_ON_PROJECTION",
+        data: { missingResource: "A" },
+      })
+    );
+  });
+
+  // Expected-failure regression: a projection binding should be usable as the
+  // whole payload when the resource payload itself is an array.
+  it.fails("accepts a raw array payload as the resolve-to-each source", () => {
+    const { diagnostics, program } = parseAndCheck(`
+      scalar Id on string;
+
+      resource Item(id: Id): { id }
+      resource Batch(id: Id): { id: Id }[]
+
+      query Q(id: Id) {
+        context { }
+        root Batch(id: id)
+        on Batch batch resolve to each item in batch (
+          Item(id: item.id)
+        )
+        on Item itemProjection { id }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+    expect(program.queries[0]!.projections[0]!.resolveEach?.source).toMatchObject({
+      kind: "payloadRef",
+      binding: "batch",
+      path: [],
+    });
+  });
+
+  // Expected-failure regression: codegen evaluates payload references against
+  // the current node, so references to another projection binding must be rejected.
+  it.fails("rejects a resolve-to-each source from another projection binding", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Id on string;
+
+      resource Item(id: Id): { id }
+      resource Collection(id: Id): { items: Id[] }
+      resource Other(id: Id): { items: Id[] }
+      resource Page(id: Id): { collectionId: Id otherId: Id }
+
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page page {
+          expand collection: Collection(id: page.collectionId)
+          expand other: Other(id: page.otherId)
+        }
+        on Collection collection resolve to each item in other.items (
+          Item(id: item)
+        )
+        on Other other { }
+        on Item itemProjection { id }
+      }
+    `);
+
+    expect(diagnostics.length).toBeGreaterThan(0);
+  });
+
+  // Expected-failure regression: codegen indexes and dispatches projections by
+  // resource name, so two `on` clauses for one resource are not representable.
+  it.fails("rejects duplicate projections for the same resource", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Id on string;
+
+      resource Item(id: Id): { id }
+
+      query Q(id: Id) {
+        context { }
+        root Item(id: id)
+        on Item first { id }
+        on Item second { id }
+      }
+    `);
+
+    expect(diagnostics.length).toBeGreaterThan(0);
+  });
 });
 
 describe("checkProgram — missing on projection", () => {
