@@ -51,6 +51,7 @@ const resolver = createResourceGraphResolver({
   sources: [cmsSource, productSource],
   strategy,
   schedulingMode: "lane",
+  budget: { maxNodes: 2_000, maxDurationMs: 5_000 },
 });
 
 const output = await resolver.resolve({
@@ -68,6 +69,12 @@ const output = await resolver.resolve({
 
 Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave.
 
+## Runtime budgets
+
+Every resolution has finite defaults: 10,000 distinct nodes, 50,000 distinct expansion/redirect edges, 1,000 datasource batches, and 30 seconds. Override only the limits appropriate for your topology through `ResourceGraphResolverConfig.budget`; omitted fields keep their defaults.
+
+Crossing a limit aborts the resolution with `ResourceGraphBudgetExceededError` and emits `onBudgetExceeded`. Datasource calls receive a signal that aborts on either the caller's cancellation or the internal deadline. Loaders should forward it to their transport; a loader that ignores cancellation may continue its own work, but the resolver stops waiting for it at the deadline.
+
 ## Concepts
 
 - **`ContentRegistry`** — maps ARI `type` literals to payload shapes; `ContentMap.get` follows `resource.type`. Compose per-source slices with `ComposeContentRegistry`.
@@ -75,8 +82,8 @@ Under `lane`, a fast source keeps walking its own subgraph while a slow peer's r
 - **`createGraphResolutionStrategy()`** — fluent builder for expansion, island, and resolve policies; `.build()` returns a `GraphResolutionStrategy` for the resolver. Use `.resolve.on(ari).when(…).to(…)` for post-decode redirects (identity hops belong here, not in `load`).
 - **`IslandDependencyMap`** — direct edges between islands; `getFlatDependencies` builds transitive cache manifests (cycles excluded from the start island).
 - **`backingResources`** — pre-resolved payloads consulted before any source is asked. The map is never mutated; keys the walk actually reached come back as `promotedResourceKeys`.
-- **`ResolutionObserver`** — optional hooks for batches, expansions, promotions and misses. Observer failures never affect resolution.
-- **Errors** — `ResourceGraphError` base, plus `MissingResourceError`, `NoDataSourceError` (no source declares a matching family — a wiring bug, not missing data), `ResourceLoadFailedError` (wraps a rejected `load`), `ResourceBatchLengthError` (wrong result length), and `ResourceGraphAbortedError`. `ResolutionError` is a class (not a plain object): datasources can `throw new ResolutionError(code, message, cause)`; the resolver preserves it (`instanceof`), attributes `resourceKey` / island ids, and collects instances into `output.errors` under soft `onFailure` (`setNull` and `setError`). Projection chooses local shape (`null` vs the `ResolutionError` instance).
+- **`ResolutionObserver`** — optional hooks for batches, expansions, promotions, misses and budget exhaustion. Observer failures never affect resolution.
+- **Errors** — `ResourceGraphError` base, plus `MissingResourceError`, `NoDataSourceError` (no source declares a matching family — a wiring bug, not missing data), `ResourceLoadFailedError` (wraps a rejected `load`), `ResourceBatchLengthError` (wrong result length), `ResourceGraphAbortedError`, `ResourceGraphBudgetExceededError`, and `ResourceRedirectCycleError`. `ResolutionError` is a class (not a plain object): datasources can `throw new ResolutionError(code, message, cause)`; the resolver preserves it (`instanceof`), attributes `resourceKey` / island ids, and collects instances into `output.errors` under soft `onFailure` (`setNull` and `setError`). Projection chooses local shape (`null` vs the `ResolutionError` instance).
 - **`onFailure`** — per expansion edge (`ExpansionResult.onFailure`: `"throw"` | `"setNull"` | `"setError"`, default `"throw"`). Roots always throw. Same ARI from multiple edges → strictest wins (`throw` > `setError` > `setNull`). Soft policies always populate `output.errors` (global signal) while projection stays local (`null` / `ResolutionError`). There is no global `missingResourceMode` on `ResolveResourceGraphInput` — soft failures are declared on the discovering edge (Ziel: `on failure set null` / `set error`).
 - **`serializeAllIslands`** — cache-ready payloads (`SerializedIsland`, schema v1).
 

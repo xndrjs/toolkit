@@ -66,6 +66,7 @@ function emitResolveInputType(query: QueryDefinition, registryTypeName: string):
   fields.push(
     `  sources: readonly DataSource<${registryTypeName}, ${contextType}>[];`,
     `  schedulingMode?: SchedulingMode;`,
+    `  budget?: ResolutionBudgetOptions;`,
     `  observer?: ResolutionObserver;`,
     `  executionContext: ${contextType};`,
     `  backingResources?: ReadonlyMap<ResourceKey, unknown>;`,
@@ -177,6 +178,7 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
     `    sources: input.sources,`,
     `    strategy: ${strategyCall},`,
     `    schedulingMode: input.schedulingMode,`,
+    `    budget: input.budget,`,
     `    observer: input.observer,`,
     `  });`,
     ``,

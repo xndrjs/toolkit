@@ -4,7 +4,11 @@ import { ContentMap } from "../model/content-map";
 import { IslandDependencyMap } from "../model/island-dependency-map";
 import { IslandMap } from "../model/island-map";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
-import { ResolutionError, ResourceGraphAbortedError } from "../errors";
+import {
+  ResolutionError,
+  ResourceGraphAbortedError,
+  ResourceGraphBudgetExceededError,
+} from "../errors";
 import {
   stricterOnFailure,
   type ExpansionContext,
@@ -106,6 +110,9 @@ export class ResolutionSession<
   assertNotAborted(): void {
     const signal = this.input.signal;
     if (signal?.aborted === true) {
+      if (signal.reason instanceof ResourceGraphBudgetExceededError) {
+        throw signal.reason;
+      }
       throw new ResourceGraphAbortedError("Resource graph resolution was aborted", {
         cause: signal.reason,
       });

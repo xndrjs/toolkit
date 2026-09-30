@@ -272,7 +272,11 @@ describe.each(schedulingModes)("resolver semantics (%s scheduling mode)", (sched
       signal: controller.signal,
     });
 
-    expect(seenSignal).toBe(controller.signal);
+    expect(seenSignal).toBeInstanceOf(AbortSignal);
+    const reason = new Error("cancelled");
+    controller.abort(reason);
+    expect(seenSignal?.aborted).toBe(true);
+    expect(seenSignal?.reason).toBe(reason);
   });
 
   it("wraps a rejected load in ResourceLoadFailedError with the original cause", async () => {

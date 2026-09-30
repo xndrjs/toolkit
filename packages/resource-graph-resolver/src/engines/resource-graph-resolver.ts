@@ -6,6 +6,7 @@ import {
   ResolutionError,
   ResourceBatchLengthError,
   ResourceGraphError,
+  ResourceGraphBudgetExceededError,
   ResourceLoadFailedError,
 } from "../errors";
 import { notifyObserver, type ResolutionObserver } from "../observability/resolution-observer";
@@ -16,10 +17,13 @@ import type {
   ContentRegistry,
   IslandId,
   OnFailurePolicy,
+  ResolutionBudget,
+  ResolutionBudgetOptions,
   SchedulingMode,
   ResolveResourceGraphInput,
   ResolveResourceGraphOutput,
 } from "../types";
+import { normalizeResolutionBudget, ResolutionBudgetTracker } from "./resolution-budget";
 
 /** Per-source scheduling state: one pending queue plus in-flight accounting. */
 interface SourceLane<R extends ContentRegistry, TExecutionContext> {
@@ -68,6 +72,8 @@ export interface ResourceGraphResolverConfig<
   readonly strategy: GraphResolutionStrategy<R, TExecutionContext>;
   /** Defaults to `"lane"`. */
   readonly schedulingMode?: SchedulingMode;
+  /** Hard per-resolution limits. Omitted fields use safe finite defaults. */
+  readonly budget?: ResolutionBudgetOptions;
   readonly observer?: ResolutionObserver;
 }
 
@@ -93,26 +99,42 @@ export function createResourceGraphResolver<
   config: ResourceGraphResolverConfig<R, TExecutionContext>
 ): ResourceGraphResolver<R, TExecutionContext> {
   const schedulingMode = config.schedulingMode ?? "lane";
+  const budget = normalizeResolutionBudget(config.budget);
 
   return {
-    resolve: (input) => resolveResourceGraph(config, schedulingMode, input),
+    resolve: (input) => resolveResourceGraph(config, schedulingMode, budget, input),
   };
 }
 
 async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext>(
   config: ResourceGraphResolverConfig<R, TExecutionContext>,
   schedulingMode: SchedulingMode,
+  budget: Readonly<ResolutionBudget>,
   input: ResolveResourceGraphInput<TExecutionContext>
 ): Promise<ResolveResourceGraphOutput<R>> {
   const observer = config.observer;
+  const resolutionStartedAt = Date.now();
+  const budgetAbortController = new AbortController();
+  const effectiveSignal =
+    input.signal === undefined
+      ? budgetAbortController.signal
+      : AbortSignal.any([input.signal, budgetAbortController.signal]);
+  const effectiveInput = { ...input, signal: effectiveSignal };
+  const budgetTracker = new ResolutionBudgetTracker(budget, resolutionStartedAt, (error) => {
+    notifyObserver(observer, "onBudgetExceeded", () => ({
+      budget: error.budget,
+      limit: error.limit,
+      actual: error.actual,
+      usage: error.usage,
+    }));
+  });
   const session = new ResolutionSession<R, TExecutionContext>(
-    input,
+    effectiveInput,
     config.strategy.expansion,
     config.strategy.islands,
     config.strategy.resolve,
     observer
   );
-  const resolutionStartedAt = Date.now();
 
   session.assertNotAborted();
 
@@ -132,6 +154,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     roots: input.roots,
     schedulingMode,
     sourceIds: config.sources.map((source) => source.id),
+    budget,
   }));
 
   const workQueue: GraphWalkRef[] = [];
@@ -140,6 +163,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
   const enqueue = (refs: readonly GraphWalkRef[]): void => {
     for (const ref of refs) {
+      budgetTracker.discoverNode(ref.resource);
       workQueue.push(ref);
     }
   };
@@ -149,7 +173,11 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     islandIds: readonly IslandId[]
   ): void => {
     for (const inheritedIslandId of islandIds) {
-      enqueue(session.expand(walkRef(resource, inheritedIslandId, ROOT_ON_FAILURE)));
+      const children = session.expand(walkRef(resource, inheritedIslandId, ROOT_ON_FAILURE));
+      for (const child of children) {
+        budgetTracker.discoverExpansion(resource, inheritedIslandId, child.resource);
+      }
+      enqueue(children);
     }
   };
 
@@ -164,6 +192,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   ): void => {
     const redirectTo = session.applyResolvePolicies(resource);
     if (redirectTo !== undefined) {
+      budgetTracker.discoverRedirect(resource, redirectTo);
       for (const inheritedIslandId of islandIds) {
         enqueue([walkRef(redirectTo, inheritedIslandId, onFailure)]);
       }
@@ -301,6 +330,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       return;
     }
 
+    budgetTracker.startBatch();
     lane.batchNumber += 1;
     lane.inFlight += 1;
 
@@ -318,7 +348,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
 
     const completion = lane.source
       .load(resources, {
-        signal: input.signal,
+        signal: effectiveSignal,
         executionContext: input.executionContext,
         batchNumber,
       })
@@ -481,12 +511,26 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     }
   };
 
+  let rejectDeadline!: (error: ResourceGraphBudgetExceededError) => void;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    rejectDeadline = reject;
+  });
+  const deadlineTimer = setTimeout(
+    () => {
+      const error = budgetTracker.exceedDuration();
+      budgetAbortController.abort(error);
+      rejectDeadline(error);
+    },
+    Math.max(0, budget.maxDurationMs - (Date.now() - resolutionStartedAt))
+  );
+
   try {
     for (const root of input.roots) {
       enqueue([walkRef(root, root.toString(), ROOT_ON_FAILURE)]);
     }
 
     while (true) {
+      budgetTracker.assertDuration();
       session.assertNotAborted();
       drain();
       startEligibleLoads();
@@ -503,30 +547,48 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       if (schedulingMode === "barrier") {
         const round = [...inFlight.values()];
         inFlight.clear();
-        for (const completion of await Promise.all(round)) {
+        for (const completion of await Promise.race([Promise.all(round), deadline])) {
           handleCompletion(completion);
         }
         continue;
       }
 
-      const completion = await Promise.race([...inFlight.values()]);
+      const completion = await Promise.race([...inFlight.values(), deadline]);
       inFlight.delete(completion.loadId);
       handleCompletion(completion);
     }
+    budgetTracker.assertDuration();
   } catch (error) {
-    await settleRemainingLoads();
+    if (error instanceof ResourceGraphBudgetExceededError) {
+      budgetAbortController.abort(error);
+      inFlight.clear();
+      throw error;
+    }
+    try {
+      await Promise.race([settleRemainingLoads(), deadline]);
+    } catch (cleanupError) {
+      if (cleanupError instanceof ResourceGraphBudgetExceededError) {
+        budgetAbortController.abort(cleanupError);
+        inFlight.clear();
+      }
+      throw cleanupError;
+    }
     throw error;
+  } finally {
+    clearTimeout(deadlineTimer);
   }
 
   session.assertNotAborted();
 
   const output = session.toOutput();
 
+  const resolutionEndedAt = Date.now();
   notifyObserver(observer, "onResolutionEnd", () => ({
-    durationMs: Date.now() - resolutionStartedAt,
+    durationMs: resolutionEndedAt - resolutionStartedAt,
     resolvedCount: output.contentMap.size,
     errorCount: output.errors.length,
     promotedCount: output.promotedResourceKeys.length,
+    budgetUsage: budgetTracker.usage(resolutionEndedAt),
   }));
 
   return output;

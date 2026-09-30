@@ -5,6 +5,7 @@ export {
   type BackingResourcesFromIslandsOptions,
 } from "./islands/build-backing-resources";
 export { ContentMap } from "./model/content-map";
+export { DEFAULT_RESOLUTION_BUDGET } from "./engines/resolution-budget";
 export {
   createResourceGraphResolver,
   type ResourceGraphResolver,
@@ -16,6 +17,7 @@ export {
   ResolutionError,
   ResourceBatchLengthError,
   ResourceGraphAbortedError,
+  ResourceGraphBudgetExceededError,
   ResourceGraphError,
   ResourceLoadFailedError,
   ResourceRedirectCycleError,
@@ -35,6 +37,7 @@ export type {
   BackingPromoteEvent,
   MissingResourceEvent,
   ResolutionEndEvent,
+  ResolutionBudgetExceededEvent,
   ResolutionObserver,
   ResolutionStartEvent,
   ResourceBatchEndEvent,
@@ -59,6 +62,10 @@ export type {
   ContentRegistry,
   IslandId,
   OnFailurePolicy,
+  ResolutionBudget,
+  ResolutionBudgetKind,
+  ResolutionBudgetOptions,
+  ResolutionBudgetUsage,
   RegistryPayloadFor,
   SchedulingMode,
   ResolveResourceGraphInput,

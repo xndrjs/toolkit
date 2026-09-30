@@ -65,6 +65,32 @@ export type OnFailurePolicy = "throw" | "setNull" | "setError";
  */
 export type SchedulingMode = "lane" | "barrier";
 
+/** Hard limits applied to one resource-graph resolution. */
+export interface ResolutionBudget {
+  /** Maximum distinct ARIs discovered, including roots and redirect locators. */
+  maxNodes: number;
+  /** Maximum distinct expansion and redirect edges discovered. */
+  maxEdges: number;
+  /** Maximum datasource `load` calls started across every source. */
+  maxBatches: number;
+  /** Maximum wall-clock duration of one resolution. */
+  maxDurationMs: number;
+}
+
+/** Per-resolver overrides; omitted fields retain the safe defaults. */
+export type ResolutionBudgetOptions = Partial<ResolutionBudget>;
+
+/** Counters captured when resolution completes or exceeds a budget. */
+export interface ResolutionBudgetUsage {
+  nodes: number;
+  edges: number;
+  batches: number;
+  durationMs: number;
+}
+
+/** The limit that stopped resolution. */
+export type ResolutionBudgetKind = keyof ResolutionBudget;
+
 export interface ResolveResourceGraphInput<TExecutionContext = unknown> {
   /** Seed ARIs for one resolution session; must be non-empty. */
   roots: readonly ApplicationResourceIdentifier[];
