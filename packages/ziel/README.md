@@ -13,7 +13,7 @@ Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](
 
 **Vertical-slice example:** [`apps/ziel-demo`](../../apps/ziel-demo) — `.ziel` → codegen → `resolvePageDetail` (closed strategy → multi-DataSource `resolve` → `projectPageDetail`; low-level `create*Strategy` / `project*` still exported).
 
-**Editor:** [`.ziel` syntax highlighting + LSP diagnostics + IntelliSense + Format Document](../ziel-vscode) (VS Code / Cursor extension `xndrjs.ziel-vscode`). Live squiggles, hover, completion, go-to-definition, and formatting share the language server in `@xndrjs/ziel` (semantic features use the same multi-file snapshot as codegen: multi-file when a nearby `ziel.config.*` scopes the collect; otherwise single-file only). Build `@xndrjs/ziel` first so `ziel-language-server` exists under `dist/lsp/` (required for F5 / Install from Location).
+**Editor:** [`.ziel` syntax highlighting + LSP diagnostics + IntelliSense + Format Document](../ziel-vscode) (VS Code / Cursor extension `xndrjs.ziel-vscode`). Live squiggles, hover, completion, go-to-definition, quick fixes, and formatting share Ziel's language-server bootstrap (semantic features use the same multi-file snapshot as codegen: multi-file when a nearby `ziel.config.*` scopes the collect; otherwise single-file only). The extension bundles its own server; consuming projects do not need to build this package for editor support.
 
 Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
 

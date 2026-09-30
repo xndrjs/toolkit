@@ -78,6 +78,11 @@ export {
   type SemanticSnapshotCache,
 } from "./semantic-snapshot";
 export {
+  startZielLanguageServer,
+  startZielStdioLanguageServer,
+  type ZielLanguageServer,
+} from "./start-language-server";
+export {
   validateWorkspace,
   type WorkspaceSemanticResult,
   type WorkspaceValidateOptions,

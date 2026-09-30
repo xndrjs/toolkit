@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { createJiti } from "jiti";
 
@@ -20,7 +21,7 @@ function hasConfigExport(mod: ConfigModule): mod is {
 
 export async function loadConfigFile(configPath: string): Promise<ZielCodegenConfig> {
   const absolute = resolve(configPath);
-  const jiti = createJiti(import.meta.url);
+  const jiti = createJiti(pathToFileURL(absolute).href);
   const mod = (await jiti.import(absolute)) as ConfigModule;
 
   const raw = hasConfigExport(mod) ? (mod.default ?? mod.config) : mod;

@@ -18,11 +18,11 @@ Publishing to one store does **not** publish to the other. For Cursor users, pre
 1. Bump `version` in `package.json` for every release (semver). You cannot republish the same version.
 2. Ensure `publisher` is `xndrjs` (or change it everywhere if that namespace is taken).
 3. Do not commit marketplace / Open VSX tokens.
-4. **Build before packaging:** `pnpm run build` (or `pnpm run vsix`, which builds first). The extension `main` is `dist/extension.js`.
+4. **Build before packaging:** `pnpm run build` (or `pnpm run vsix`, which builds first). The extension client is `dist/extension.js`; its bundled language server is `dist/server.js`.
 
 ### Language server and `.vsix`
 
-The client resolves `@xndrjs/ziel`’s `dist/lsp/main.js` at runtime (workspace dependency in the monorepo). Packaged marketplace `.vsix` files currently use `--no-dependencies` and **do not** embed the language server; diagnostics work under F5 / Install from Location after `pnpm --filter @xndrjs/ziel build`. Shipping an absolute server path or bundling `ziel-language-server` into the vsix is follow-up work.
+The build emits both the extension client and a self-contained language server. The client resolves `dist/server.js` through VS Code's `ExtensionContext`, so a packaged extension has no runtime dependency on the monorepo or on an application-installed `@xndrjs/ziel` package.
 
 ### Visual Studio Marketplace
 
@@ -46,10 +46,10 @@ From this package directory:
 ```bash
 cd packages/ziel-vscode
 pnpm run vsix
-# → builds dist/extension.js, then ziel-vscode-<version>.vsix
+# → builds dist/extension.js + dist/server.js, then artifacts/ziel-vscode.vsix
 ```
 
-`--no-dependencies` packages the bundled client (`vscode-languageclient` is compiled into `dist/extension.js`) without shipping `node_modules`.
+`--no-dependencies` is intentional: `vscode-languageclient`, Ziel, Langium, and the server's remaining dependencies are compiled into the two `dist` artifacts. Only VS Code's own `vscode` module remains external.
 
 Install locally for a smoke test:
 
@@ -61,7 +61,7 @@ cursor --install-extension ./ziel-vscode-0.0.1.vsix
 code --install-extension ./ziel-vscode-0.0.1.vsix
 ```
 
-Then reload the window and open a `.ziel` file. For **diagnostics**, prefer monorepo F5 / Install from Location until the server is packaged into the vsix.
+Then reload the window and open a `.ziel` file. Diagnostics and IntelliSense work directly from the installed VSIX.
 
 ---
 
@@ -121,7 +121,7 @@ Cursor’s Extensions view indexes Open VSX; search for **Ziel** or `xndrjs.ziel
 
 1. Update `version` in `package.json`.
 2. Update `README.md` if user-facing behavior changed.
-3. `pnpm --filter @xndrjs/ziel build` (server) and `pnpm run vsix` (client + package); smoke-test in Cursor and/or VS Code.
+3. `pnpm run test:vsix` (build, package, stdio handshake, and multi-file diagnostic smoke test); optionally smoke-test the resulting VSIX in Cursor and/or VS Code.
 4. Publish to Open VSX (`npm run publish:ovsx`) if Cursor users need the release.
 5. Publish to VS Marketplace (`npm run publish:vscode`) if VS Code users need the release.
 6. Tag the release in git if your monorepo workflow expects it (optional).
@@ -130,21 +130,21 @@ Cursor’s Extensions view indexes Open VSX; search for **Ziel** or `xndrjs.ziel
 
 ## Common failures
 
-| Symptom                         | Fix                                                 |
-| ------------------------------- | --------------------------------------------------- |
-| Namespace / publisher not found | Create or claim `xndrjs` on the target store        |
-| Unauthorized / 401              | Regenerate PAT/token; check `VSCE_PAT` / `OVSX_PAT` |
-| Version already exists          | Bump `version` and rebuild                          |
-| `private: true` blocked publish | Keep `private` unset (this package is publishable)  |
-| Missing LICENSE                 | Keep the `LICENSE` file in this folder              |
-| Missing `dist/extension.js`     | Run `pnpm run build` before `vsce` / `ovsx`         |
-| No diagnostics / server missing | Build `@xndrjs/ziel` (`dist/lsp/main.js`)           |
+| Symptom                                         | Fix                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------- |
+| Namespace / publisher not found                 | Create or claim `xndrjs` on the target store                        |
+| Unauthorized / 401                              | Regenerate PAT/token; check `VSCE_PAT` / `OVSX_PAT`                 |
+| Version already exists                          | Bump `version` and rebuild                                          |
+| `private: true` blocked publish                 | Keep `private` unset (this package is publishable)                  |
+| Missing LICENSE                                 | Keep the `LICENSE` file in this folder                              |
+| Missing `dist/extension.js` or `dist/server.js` | Run `pnpm run build` before `vsce` / `ovsx`                         |
+| No diagnostics / server missing                 | Rebuild or reinstall the VSIX; both artifacts are packaged together |
 
 ---
 
 ## Local development (not marketplace)
 
-- **Extension Development Host**: build `ziel` + this package, open the monorepo and launch with `--extensionDevelopmentPath` pointing at this folder (F5), or open this folder alone and press F5.
+- **Extension Development Host**: build this package, open the monorepo and launch with `--extensionDevelopmentPath` pointing at this folder (F5), or open this folder alone and press F5.
 - **Install from Location**: Command Palette → _Extensions: Install from Location…_ → select this folder → reload.
 - **Symlink** into `~/.cursor/extensions/xndrjs.ziel-vscode-<version>` (or `~/.vscode/extensions/...`) then reload.
 
