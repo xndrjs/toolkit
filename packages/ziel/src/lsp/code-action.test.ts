@@ -424,7 +424,7 @@ query Q(id: Id) {
   on Page p { id }
 }
 `.trim();
-    const { document, snapshot } = snapshotFrom(source);
+    const { document } = snapshotFrom(source);
     const query = (document.parseResult.value as Model).declarations.find(isQueryDeclaration)!;
     const text = document.textDocument.getText();
     const offset = missingRootInsertOffset(query, text)!;

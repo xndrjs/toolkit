@@ -6,7 +6,7 @@
   "publisher": "xndrjs",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.91.0"
+    "vscode": "^1.123.0"
   },
   "categories": [
     "Programming Languages"

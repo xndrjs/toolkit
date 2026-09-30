@@ -13,7 +13,7 @@ import {
   type ResolvedCliOptions,
 } from "./args";
 import { loadConfigFile } from "./load-config";
-import { waitForSignal, watchCodegenInputs } from "./watch";
+import { waitForSignal, watchCodegenInputs, type WatchCodegenPaths } from "./watch";
 import { writeFileIfChanged } from "./write-file-if-changed";
 
 /** Default config filename looked up in cwd when `--config` is omitted. */
@@ -24,18 +24,21 @@ function formatDiagnostic(diagnostic: Diagnostic): string {
   return `ziel-codegen: ${diagnostic.code}: ${diagnostic.message}${loc}`;
 }
 
-async function resolveConfig(cliOptions: CliOptions): Promise<{
+async function resolveConfig(
+  cliOptions: CliOptions,
+  allowMissing = false
+): Promise<{
   config: ZielCodegenConfig | undefined;
-  configPath: string | undefined;
+  configPath: string;
 }> {
   const configPath = cliOptions.configPath ?? DEFAULT_CONFIG_PATH;
   const absolute = resolve(configPath);
 
   if (!existsSync(absolute)) {
-    if (cliOptions.configPath) {
+    if (cliOptions.configPath && !allowMissing) {
       throw new Error(`Config file not found: ${configPath}`);
     }
-    return { config: undefined, configPath: undefined };
+    return { config: undefined, configPath: absolute };
   }
 
   return { config: await loadConfigFile(configPath), configPath: absolute };
@@ -83,16 +86,23 @@ function logDiagnostics(diagnostics: readonly Diagnostic[]): void {
 }
 
 async function runWatchMode(cliOptions: CliOptions): Promise<number> {
-  const runPass = async (reason: string): Promise<number> => {
-    const { config, configPath } = await resolveConfig(cliOptions);
+  const runPass = async (
+    reason: string
+  ): Promise<{ exitCode: number; paths: WatchCodegenPaths }> => {
+    const { config, configPath } = await resolveConfig(cliOptions, true);
     const options = resolveCliOptions(cliOptions, config);
     validateCliOptions(options);
+    const paths = {
+      root: resolve(options.root ?? process.cwd()),
+      configPath,
+      outPath: options.dryRun || !options.out ? undefined : resolve(options.out),
+    };
 
     const result = generateOnce(options, config);
     if (result.diagnostics.length > 0) {
       logDiagnostics(result.diagnostics);
       console.error(`ziel-codegen: watch (${reason}) — generation failed`);
-      return 1;
+      return { exitCode: 1, paths };
     }
 
     if (options.dryRun) {
@@ -102,35 +112,28 @@ async function runWatchMode(cliOptions: CliOptions): Promise<number> {
     } else {
       console.error(`ziel-codegen: watch (${reason}) — unchanged ${resolve(options.out!)}`);
     }
-    return 0;
+    return { exitCode: 0, paths };
   };
 
   // Initial pass before arming watchers.
   const initial = await runPass("initial");
+  console.error(`ziel-codegen: watching ${initial.paths.root} for .ziel changes (Ctrl+C to stop)`);
 
-  const { config, configPath } = await resolveConfig(cliOptions);
-  const options = resolveCliOptions(cliOptions, config);
-  const root = resolve(options.root ?? process.cwd());
-  const outPath = options.dryRun || !options.out ? undefined : resolve(options.out);
-
-  console.error(`ziel-codegen: watching ${root} for .ziel changes (Ctrl+C to stop)`);
-
-  const dispose = watchCodegenInputs({
-    root,
-    configPath,
-    outPath,
+  const controller = await watchCodegenInputs({
+    ...initial.paths,
     onChange: async (reason) => {
-      await runPass(reason);
+      const next = await runPass(reason);
+      await controller.reconfigure(next.paths);
     },
   });
 
   try {
     await waitForSignal();
   } finally {
-    dispose();
+    await controller.close();
   }
 
-  return initial;
+  return initial.exitCode;
 }
 
 export async function runCli(argv: string[]): Promise<number> {
