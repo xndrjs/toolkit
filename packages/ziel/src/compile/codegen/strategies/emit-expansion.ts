@@ -2,21 +2,16 @@
  * Expansion policy emit helpers for open `createGraphResolutionStrategy` builders.
  * Armed `on` projections emit one `.on(ari).when(…).expand(…)` per arm that
  * expands; flat `on` stays `.on(ari).expand(…)`.
- * Collection expand targets get an auto member-ARI fan-out `.on(collectionAri)`.
  * `on failure` policies are emitted as `ExpansionResult.onFailure` (uniform) or
  * `onFailureByKey` when edges in the same expand disagree.
  */
 import type {
   ExpandArm,
   Expansion,
-  FieldDecl,
   OnFailurePolicy,
   ProjectionArm,
-  QueryDefinition,
-  ResourceDefinition,
   ResourceProjection,
 } from "../../../ir";
-import { allProjectionExpansions, collectionElement } from "../../../check/projection-graph";
 import {
   emitConstruction,
   emitExpr,
@@ -300,64 +295,4 @@ export function emitProjectionExpansions(projection: ResourceProjection): string
     return [];
   }
   return [emitFlatProjectionExpansion(projection)];
-}
-
-/**
- * After expanding a collection ARI, enqueue member ARIs so `on Member` runs.
- * Identity args: payload field when present on the element resource identity name,
- * else `predicate.executionContext.<name>` when the query declares that context field.
- */
-function emitCollectionFanOut(
-  collection: ResourceDefinition,
-  element: ResourceDefinition,
-  contextFields: FieldDecl[]
-): string {
-  const collectionAri = ariFactoryName(collection.name);
-  const elementAri = ariFactoryName(element.name);
-  const contextNames = new Set(contextFields.map((f) => f.name));
-
-  const argParts = element.identity.fields.map((field) => {
-    if (contextNames.has(field.name)) {
-      return `${field.name}: predicate.executionContext.${field.name}`;
-    }
-    return `${field.name}: item.${field.name}`;
-  });
-
-  return [
-    `  strategy.expansion`,
-    `    .on(${collectionAri})`,
-    `    .expand((predicate) => ({`,
-    `      resources: predicate.payload.map((item: any) => ${elementAri}({ ${argParts.join(", ")} })),`,
-    `    }));`,
-  ].join("\n");
-}
-
-export function collectCollectionFanOuts(
-  query: QueryDefinition,
-  resourceIndex: Map<string, ResourceDefinition>
-): string[] {
-  const seen = new Set<string>();
-  const blocks: string[] = [];
-
-  for (const projection of query.projections) {
-    for (const expansion of allProjectionExpansions(projection)) {
-      if (expansion.multiplicity !== "one" || expansion.target === null) continue;
-      const collection = resourceIndex.get(expansion.target.resource);
-      if (!collection) continue;
-      const elementName = collectionElement(collection.payloadType);
-      if (elementName === null) continue;
-      if (seen.has(collection.name)) continue;
-      seen.add(collection.name);
-
-      const element = resourceIndex.get(elementName);
-      if (!element) {
-        throw new Error(
-          `emitStrategies: collection '${collection.name}' element '${elementName}' is unknown`
-        );
-      }
-      blocks.push(emitCollectionFanOut(collection, element, query.context));
-    }
-  }
-
-  return blocks;
 }

@@ -1,7 +1,5 @@
 import type { QueryDefinition } from "../../../ir";
 import {
-  allProjectionExpansions,
-  collectionElement,
   projectableProjections,
   queryNeedsFailureProjection,
   resolveTargetIndex,
@@ -9,28 +7,6 @@ import {
 import { ariFactoryName, executionContextTypeName, paramsTypeName } from "../naming";
 import { projectOnFnName } from "./emit-project-on";
 import { type ResourceIndex } from "./shared";
-
-/**
- * Resources that appear as collection-edge elements in this query (must have `on`).
- */
-export function collectionElementResources(
-  query: QueryDefinition,
-  resources: ResourceIndex
-): Set<string> {
-  const out = new Set<string>();
-  for (const projection of query.projections) {
-    for (const expansion of allProjectionExpansions(projection)) {
-      if (expansion.target === null) continue;
-      const target = resources.get(expansion.target.resource);
-      if (!target) continue;
-      const element = collectionElement(target.payloadType);
-      if (element !== null) {
-        out.add(element);
-      }
-    }
-  }
-  return out;
-}
 
 /** Shared helper for `on failure set null` / `set error` edges. */
 export function emitProjectEdgeHelper(): string {

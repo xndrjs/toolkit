@@ -2,8 +2,7 @@
  * Emit memoized `project*` materializers from checked queries.
  *
  * Restores expansion aliases over a resolved `ContentMap` and memos by
- * `ari.toString()` with shell-before-edges (cycle-safe). Collection expansion
- * targets strip to the element resource (`TabCollection` → `on Tab`).
+ * `ari.toString()` with shell-before-edges (cycle-safe).
  * Resource-union payloads (`EditorialModule: Hero | Tabs`) require an explicit
  * `on EditorialModule` — indirection to member resources uses `resolve to`,
  * same as CustomReference.
@@ -16,7 +15,6 @@ import type { Program, QueryDefinition } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";
 import { ariFactoryName, projectFnName, queryResultTypeName } from "../naming";
 import {
-  collectionElementResources,
   emitArgsType,
   emitMultiRootReturn,
   emitProjectEdgeHelper,
@@ -51,23 +49,10 @@ function emitQueryProjection(
     sigParams.push(`args: ${argsType}`);
   }
 
-  const embedded = collectionElementResources(query, resources);
-  const contextFieldNames = new Set(query.context.map((f) => f.name));
   const helpers: string[] = [];
 
   for (const projection of projectableProjections(query)) {
-    helpers.push(
-      emitProjectOnHelper(projection, resources, query.name, contextFieldNames, resourceTag)
-    );
-  }
-
-  // Collection elements must have an `on` projection (projected via ContentMap).
-  for (const element of embedded) {
-    if (!query.projections.some((p) => p.resource === element && p.resolveArms === null)) {
-      throw new Error(
-        `emitProjections: query '${query.name}' expands collection element '${element}' but has no 'on ${element}' projection`
-      );
-    }
+    helpers.push(emitProjectOnHelper(projection, resources, query.name, resourceTag));
   }
 
   const projectNode = emitProjectNode(query, resources, fnName);
