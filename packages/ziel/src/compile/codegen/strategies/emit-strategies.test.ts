@@ -525,7 +525,36 @@ describe("generateStrategies", () => {
     expect(code).toContain('item.kind == "Strip"');
     expect(code).toContain("tabAri({ id: item.id");
     expect(code).toContain("stripAri({ id: item.id");
+    expect(code).toContain("return [];");
     expect(code).not.toContain("strategy.resolve");
+  });
+
+  // Expected-failure regression: duplicate ARIs inside one generated expansion
+  // result must retain the strictest edge policy, independent of source order.
+  it.fails("merges duplicate generated ARI policies with strictest-wins", () => {
+    const source = `
+      scalar Id on string;
+
+      resource Entry(id: Id): { id }
+      resource Collection(id: Id): {
+        items: { id: Id, mode: "required" | "optional" }[]
+      }
+
+      query Q(id: Id) {
+        context { }
+        root Collection(id: id)
+        on Collection collection resolve to each item in collection.items (
+          Entry(id: item.id) when item.mode == "required",
+          Entry(id: item.id) when item.mode == "optional" on failure set null
+        )
+        on Entry entry { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitStrategies(program!);
+    expect(code).toContain("stricterOnFailure");
   });
 
   it("emits ExpansionResult.onFailure for uniform set-null expands", () => {
