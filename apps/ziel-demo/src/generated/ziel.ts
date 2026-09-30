@@ -15,6 +15,7 @@ import {
   createResourceGraphResolver,
   type IslandDependencyMap,
   type IslandMap,
+  type ResolutionBudgetOptions,
   type ResolutionObserver,
   type SchedulingMode,
 } from "@xndrjs/ziel";
@@ -1119,6 +1120,7 @@ export type ResolveErrorHandlingDetailInput = {
   params: ErrorHandlingDetailParams;
   sources: readonly DataSource<ContentRegistry, ErrorHandlingDetailExecutionContext>[];
   schedulingMode?: SchedulingMode;
+  budget?: ResolutionBudgetOptions;
   observer?: ResolutionObserver;
   executionContext: ErrorHandlingDetailExecutionContext;
   backingResources?: ReadonlyMap<ResourceKey, unknown>;
@@ -1150,6 +1152,7 @@ export async function resolveErrorHandlingDetail(
     sources: input.sources,
     strategy: createErrorHandlingDetailStrategy(input.params).build(),
     schedulingMode: input.schedulingMode,
+    budget: input.budget,
     observer: input.observer,
   });
 
@@ -1181,6 +1184,7 @@ export type ResolvePageDetailInput = {
   params: PageDetailParams;
   sources: readonly DataSource<ContentRegistry, PageDetailExecutionContext>[];
   schedulingMode?: SchedulingMode;
+  budget?: ResolutionBudgetOptions;
   observer?: ResolutionObserver;
   executionContext: PageDetailExecutionContext;
   backingResources?: ReadonlyMap<ResourceKey, unknown>;
@@ -1209,6 +1213,7 @@ export async function resolvePageDetail(
     sources: input.sources,
     strategy: createPageDetailStrategy(input.params).build(),
     schedulingMode: input.schedulingMode,
+    budget: input.budget,
     observer: input.observer,
   });
 

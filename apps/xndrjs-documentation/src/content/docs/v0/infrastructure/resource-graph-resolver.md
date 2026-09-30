@@ -191,6 +191,7 @@ const resolver = createResourceGraphResolver<DemoContentRegistry, DemoExecutionC
   sources: [cmsEntrySource, cmsAssetSource, integrationSource],
   strategy: createDemoStrategy(),
   schedulingMode: "lane", // or "barrier"
+  budget: { maxNodes: 2_000, maxDurationMs: 5_000 }, // optional partial override
   observer, // optional
 });
 
@@ -212,6 +213,21 @@ Both scheduling modes produce **identical** graph output — same `ContentMap`, 
 Under `lane`, a fast source keeps walking its own subgraph while a slow peer's request is still open, so wall clock stops tracking the slowest backend in every wave.
 
 When several sources can handle the same ARI `type`, the **first** match in `sources` order wins; declare one owner per type.
+
+### Runtime budgets
+
+Resolution is bounded by default. `ResourceGraphResolverConfig.budget` accepts a partial override; every omitted field retains its safe default:
+
+| Budget          | Default  | Counts                                                         |
+| --------------- | -------- | -------------------------------------------------------------- |
+| `maxNodes`      | `10_000` | Distinct ARIs, including roots, locators and canonical targets |
+| `maxEdges`      | `50_000` | Distinct expansion and redirect edges                          |
+| `maxBatches`    | `1_000`  | Datasource `load` calls started across all sources             |
+| `maxDurationMs` | `30_000` | Wall-clock time for one resolution                             |
+
+All values must be positive integers. Crossing a limit throws `ResourceGraphBudgetExceededError`, regardless of per-edge `onFailure`. The error identifies `budget`, `limit`, `actual`, and the final `usage` counters. The resolver also emits `onBudgetExceeded` once and does not emit `onResolutionEnd` for the failed walk.
+
+The deadline aborts the signal passed to datasource loaders and stops waiting even if a loader ignores it. Forward `context.signal` to the underlying transport so in-flight I/O is cancelled too.
 
 `resolve` returns:
 
@@ -249,7 +265,7 @@ Set `onFailure` on `ExpansionResult` (Ziel: `on failure set null` / `set error` 
 
 ### Cancellation
 
-Pass `signal: AbortSignal` on the resolve input. The resolver checks it around every load and forwards it to sources. Abort throws `ResourceGraphAbortedError` independent of per-edge `onFailure`, and outstanding loads are always observed first, so a cancellation never leaves unhandled rejections behind.
+Pass `signal: AbortSignal` on the resolve input. Sources receive a composite signal covering both caller cancellation and the runtime deadline. Caller abort throws `ResourceGraphAbortedError` independent of per-edge `onFailure`, and outstanding loads are always observed first, so a cancellation never leaves unhandled rejections behind.
 
 ### Optional backing resources
 
@@ -275,6 +291,9 @@ const observer: ResolutionObserver = {
   },
   onMissingResource: ({ resourceKey, message }) => {
     /* … */
+  },
+  onBudgetExceeded: ({ budget, limit, actual, usage }) => {
+    /* record bounded-failure metrics */
   },
 };
 ```
@@ -408,7 +427,8 @@ Exported symbols:
 - **`defineDataSourceFor`** — and types `DataSource`, `DataSourceDefinition`, `ResourceFamily`, `ResourceOfFamily`, `ResourceUnionFromFamilies`, `SourcePayloadSlot`, `ResourceLoadContext`, `SourceRouteContext`
 - **`ContentMap`**, **`IslandMap`**, **`IslandDependencyMap`**
 - **`serializeIsland`** / **`serializeAllIslands`** / **`buildBackingResourcesFromIslands`**
-- Errors: **`ResourceGraphError`**, **`ResolutionError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceBatchLengthError`**, **`ResourceGraphAbortedError`**, **`ResourceRedirectCycleError`**
+- Runtime budgets: **`DEFAULT_RESOLUTION_BUDGET`**, **`ResolutionBudget`**, **`ResolutionBudgetOptions`**, **`ResolutionBudgetUsage`**, **`ResolutionBudgetKind`**
+- Errors: **`ResourceGraphError`**, **`ResolutionError`**, **`MissingResourceError`**, **`NoDataSourceError`**, **`ResourceLoadFailedError`**, **`ResourceBatchLengthError`**, **`ResourceGraphAbortedError`**, **`ResourceGraphBudgetExceededError`**, **`ResourceRedirectCycleError`**
 - Observability: **`ResolutionObserver`** and its event types
 - Types: **`ContentRegistry`**, **`ComposeContentRegistry`**, **`ResolveResourceGraphInput`**, **`ResolveResourceGraphOutput`**, **`SchedulingMode`**, **`ResolutionError`**, **`OnFailurePolicy`**, **`SerializedIsland`**, **`ExpansionResult`**, **`IslandResult`**, **`ExpansionContext`**, **`IslandContext`**, **`ResolveContext`**, **`ResolveResult`**, **`ResourceKey`**, **`IslandId`**, **`RegistryPayloadFor`**
 

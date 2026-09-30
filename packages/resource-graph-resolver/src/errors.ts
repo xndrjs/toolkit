@@ -1,4 +1,4 @@
-import type { IslandId, ResourceKey } from "./types";
+import type { IslandId, ResolutionBudgetKind, ResolutionBudgetUsage, ResourceKey } from "./types";
 
 const MAX_LISTED_KEYS = 5;
 
@@ -70,6 +70,28 @@ export class ResourceGraphAbortedError extends ResourceGraphError {
   constructor(message = "Resource graph resolution was aborted", options?: { cause?: unknown }) {
     super(message, options);
     this.name = "ResourceGraphAbortedError";
+  }
+}
+
+/** Thrown when a resolution exceeds one of its configured runtime budgets. */
+export class ResourceGraphBudgetExceededError extends ResourceGraphError {
+  readonly budget: ResolutionBudgetKind;
+  readonly limit: number;
+  readonly actual: number;
+  readonly usage: ResolutionBudgetUsage;
+
+  constructor(
+    budget: ResolutionBudgetKind,
+    limit: number,
+    actual: number,
+    usage: ResolutionBudgetUsage
+  ) {
+    super(`Resource graph budget ${budget} exceeded: limit ${limit}, observed ${actual}`);
+    this.name = "ResourceGraphBudgetExceededError";
+    this.budget = budget;
+    this.limit = limit;
+    this.actual = actual;
+    this.usage = usage;
   }
 }
 

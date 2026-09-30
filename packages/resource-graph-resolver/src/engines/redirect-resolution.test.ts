@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { MissingResourceError, ResourceRedirectCycleError } from "../errors";
+import {
+  MissingResourceError,
+  ResourceGraphBudgetExceededError,
+  ResourceRedirectCycleError,
+} from "../errors";
 import { createGraphResolutionStrategy } from "../strategy/create-graph-resolution-strategy";
 import { createStoreSource } from "../testing/resolver-test-helpers";
 import { pageAri, testAriFactory } from "../testing/test-fixtures";
@@ -271,6 +275,31 @@ describe.each(schedulingModes)("redirect invariants (%s scheduling mode)", (sche
 });
 
 describe("redirect cycle safety", () => {
+  it("counts redirect links against the edge budget", async () => {
+    const first = locatorAri({ id: "A" });
+    const second = locatorAri({ id: "B" });
+    const target = targetAri({ id: "T" });
+    const source = createStoreSource({
+      for: [locatorAri, targetAri],
+      store: redirectStore([
+        [first.toString(), { kind: "locator", id: "B" }],
+        [second.toString(), { kind: "target", id: "T" }],
+        [target.toString(), {}],
+      ]),
+    });
+    const resolver = createResourceGraphResolver({
+      sources: [source],
+      strategy: createRedirectStrategy([]),
+      budget: { maxEdges: 1 },
+    });
+
+    await expect(resolver.resolve({ roots: [first], executionContext: {} })).rejects.toMatchObject({
+      name: "ResourceGraphBudgetExceededError",
+      budget: "maxEdges",
+      actual: 2,
+    } satisfies Partial<ResourceGraphBudgetExceededError>);
+  });
+
   it("rejects a self redirect", async () => {
     const locator = locatorAri({ id: "A" });
     const source = createStoreSource({

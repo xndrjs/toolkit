@@ -36,6 +36,7 @@ describe("emitResolves", () => {
       "sources: readonly DataSource<ContentRegistry, PostDetailExecutionContext>[]"
     );
     expect(code).toContain("schedulingMode?: SchedulingMode;");
+    expect(code).toContain("budget?: ResolutionBudgetOptions;");
     expect(code).toContain("observer?: ResolutionObserver;");
     expect(code).not.toContain("root: ReturnType<typeof");
     expect(code).not.toContain("roots: {");
@@ -44,6 +45,7 @@ describe("emitResolves", () => {
     expect(code).toContain(
       "createResourceGraphResolver<ContentRegistry, PostDetailExecutionContext>"
     );
+    expect(code).toContain("budget: input.budget,");
     expect(code).toContain(
       "const postDetail = projectPostDetail(root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n  });"
     );

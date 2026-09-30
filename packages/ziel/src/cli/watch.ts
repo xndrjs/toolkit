@@ -182,7 +182,7 @@ export async function watchCodegenInputs(options: WatchCodegenOptions): Promise<
           stabilityThreshold: Math.max(25, debounceMs),
           pollInterval: 10,
         },
-        depth: index === 0 ? undefined : 0,
+        depth: index === 0 ? undefined : 1,
         ignoreInitial: true,
         ignored: (filename, stats) => isIgnoredByChokidar(filename, stats, paths),
         interval: 20,

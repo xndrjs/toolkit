@@ -1,11 +1,19 @@
 import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
 
-import type { IslandId, ResourceKey, SchedulingMode } from "../types";
+import type {
+  IslandId,
+  ResolutionBudget,
+  ResolutionBudgetKind,
+  ResolutionBudgetUsage,
+  ResourceKey,
+  SchedulingMode,
+} from "../types";
 
 export interface ResolutionStartEvent {
   roots: readonly ApplicationResourceIdentifier[];
   schedulingMode: SchedulingMode;
   sourceIds: readonly string[];
+  budget: ResolutionBudget;
 }
 
 export interface ResolutionEndEvent {
@@ -13,6 +21,14 @@ export interface ResolutionEndEvent {
   resolvedCount: number;
   errorCount: number;
   promotedCount: number;
+  budgetUsage: ResolutionBudgetUsage;
+}
+
+export interface ResolutionBudgetExceededEvent {
+  budget: ResolutionBudgetKind;
+  limit: number;
+  actual: number;
+  usage: ResolutionBudgetUsage;
 }
 
 export interface ResourceBatchStartEvent {
@@ -59,7 +75,7 @@ export interface MissingResourceEvent {
 }
 
 /**
- * Optional resolution hooks for tracing and metrics.
+ * Optional resolution hooks for tracing, metrics, and budget exhaustion.
  *
  * Every callback is optional, and a callback that throws never affects
  * resolution — failures are swallowed on purpose so a logging bug cannot corrupt
@@ -74,6 +90,7 @@ export interface ResolutionObserver {
   onExpand?(event: ResourceExpandEvent): void;
   onBackingPromote?(event: BackingPromoteEvent): void;
   onMissingResource?(event: MissingResourceEvent): void;
+  onBudgetExceeded?(event: ResolutionBudgetExceededEvent): void;
 }
 
 /**
