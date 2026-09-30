@@ -913,6 +913,235 @@ describe("checkProgram — resolve to", () => {
   });
 });
 
+describe("checkProgram — resolve to each", () => {
+  const tabsResolveEachSource = `
+    scalar TabsId on string;
+    scalar TabId on string;
+    scalar StripId on string;
+    scalar Locale on string;
+
+    resource Strip(id: StripId, locale: Locale): {
+      id
+    }
+    resource Tab(id: TabId, locale: Locale): {
+      id
+      stripsIds: { id: StripId }[]
+    }
+    resource TabCollection(tabsId: TabsId, locale: Locale): {
+      tabsIds: { id: TabId }[]
+      locale: Locale
+    }
+    resource Tabs(tabsId: TabsId, locale: Locale): {
+      tabsId: TabsId
+    }
+
+    query Q(tabsId: TabsId) {
+      context { locale: Locale }
+      root Tabs(tabsId: tabsId, locale: context.locale)
+      on Tabs t {
+        expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
+      }
+      on TabCollection tc resolve to each link in tc.tabsIds (
+        Tab(id: link.id, locale: @tc.locale) on failure set null
+      )
+      on Tab tab {
+        id
+        expand strips: each id in tab.stripsIds (
+          Strip(id: id.id, locale: @tab.locale)
+        )
+      }
+      on Strip s { id }
+    }
+  `;
+
+  it("typechecks Tabs → TabCollection resolve-to-each → Tab → strips", () => {
+    const { diagnostics, program } = parseAndCheck(tabsResolveEachSource);
+    expect(diagnostics).toEqual([]);
+    expect(
+      program.queries[0]!.projections.find((p) => p.resource === "TabCollection")
+    ).toMatchObject({
+      resolveArms: null,
+      resolveEach: {
+        itemBinding: "link",
+        arms: [{ target: { resource: "Tab" }, onFailure: "setNull" }],
+      },
+    });
+  });
+
+  it("errors MISSING_ON for settle-target Tab, not projectable TabCollection", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar TabsId on string;
+      scalar TabId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): {
+        tabsIds: { id: TabId }[]
+        locale: Locale
+      }
+      resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
+
+      query Q(tabsId: TabsId) {
+        context { locale: Locale }
+        root Tabs(tabsId: tabsId, locale: context.locale)
+        on Tabs t {
+          expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
+        }
+        on TabCollection tc resolve to each link in tc.tabsIds (
+          Tab(id: link.id, locale: @tc.locale)
+        )
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "MISSING_ON_PROJECTION",
+        data: { missingResource: "Tab" },
+      })
+    );
+    expect(
+      diagnostics.some(
+        (d) => d.code === "MISSING_ON_PROJECTION" && d.data?.missingResource === "TabCollection"
+      )
+    ).toBe(false);
+  });
+
+  it("rejects hand-built IR that mixes resolveEach with a projection body", () => {
+    const { diagnostics, program } = parseAndCheck(tabsResolveEachSource);
+    expect(diagnostics).toEqual([]);
+
+    const projection = program.queries[0]!.projections.find((p) => p.resource === "TabCollection")!;
+    projection.selectedFields = ["locale"];
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({ code: "MIXED_RESOLVE_PROJECTION" })
+    );
+  });
+
+  it("rejects hand-built IR that mixes resolveEach with include", () => {
+    const { diagnostics, program } = parseAndCheck(tabsResolveEachSource);
+    expect(diagnostics).toEqual([]);
+
+    const projection = program.queries[0]!.projections.find((p) => p.resource === "TabCollection")!;
+    projection.include = "all";
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({ code: "INCLUDE_ON_RESOLVE" })
+    );
+  });
+
+  it("rejects hand-built IR that mixes resolveArms with resolveEach", () => {
+    const { diagnostics, program } = parseAndCheck(tabsResolveEachSource);
+    expect(diagnostics).toEqual([]);
+
+    const projection = program.queries[0]!.projections.find((p) => p.resource === "TabCollection")!;
+    projection.resolveArms = [
+      {
+        target: {
+          resource: "Tab",
+          args: [],
+          span,
+        },
+        when: null,
+        span,
+      },
+    ];
+
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({
+        code: "MIXED_RESOLVE_PROJECTION",
+        message: expect.stringContaining("resolve to each"),
+      })
+    );
+  });
+
+  it("rejects resolveEach item binding that clashes with a parameter", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar TabsId on string;
+      scalar TabId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): {
+        tabsIds: { id: TabId }[]
+        locale: Locale
+      }
+
+      query Q(link: TabsId) {
+        context { locale: Locale }
+        root TabCollection(tabsId: link, locale: context.locale)
+        on TabCollection tc resolve to each link in tc.tabsIds (
+          Tab(id: link.id, locale: @tc.locale)
+        )
+        on Tab tab { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_BINDING_NAME_CLASH",
+        message: expect.stringMatching(/parameter.*each item binding|each item binding.*parameter/),
+      })
+    );
+  });
+
+  it("rejects non-array resolveEach source", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar TabsId on string;
+      scalar TabId on string;
+      scalar Locale on string;
+
+      resource Tab(id: TabId, locale: Locale): { id }
+      resource TabCollection(tabsId: TabsId, locale: Locale): {
+        tabsId: TabsId
+        locale: Locale
+      }
+
+      query Q(tabsId: TabsId) {
+        context { locale: Locale }
+        root TabCollection(tabsId: tabsId, locale: context.locale)
+        on TabCollection tc resolve to each link in tc.tabsId (
+          Tab(id: link, locale: @tc.locale)
+        )
+        on Tab tab { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "COMPREHENSION_SOURCE_NOT_ARRAY",
+      })
+    );
+  });
+
+  it("typechecks polymorphic resolve-to-each when-arms", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Id on string;
+      scalar Locale on string;
+
+      resource Tab(id: Id, locale: Locale): { id }
+      resource Strip(id: Id, locale: Locale): { id }
+      resource MixedCollection(id: Id, locale: Locale): {
+        items: { kind: "Tab" | "Strip", id: Id }[]
+        locale: Locale
+      }
+
+      query Q(id: Id) {
+        context { locale: Locale }
+        root MixedCollection(id: id, locale: context.locale)
+        on MixedCollection c resolve to each item in c.items (
+          Tab(id: item.id, locale: @c.locale) when item.kind == "Tab",
+          Strip(id: item.id, locale: @c.locale) when item.kind == "Strip"
+        )
+        on Tab tab { id }
+        on Strip s { id }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
+});
+
 describe("checkProgram — missing on projection", () => {
   it("errors when an object expand has no projectable on Asset", () => {
     const program = withMutatedPageDetail((p) => {

@@ -1,4 +1,4 @@
-import type { ExpandArm, Expansion, SourceSpan, TypeExpr } from "../ir";
+import type { ExpandArm, Expansion, Expr, ResolveEach, SourceSpan, TypeExpr } from "../ir";
 import { checkConstruction } from "./construction";
 import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
@@ -181,14 +181,64 @@ export function checkManyExpansion(
     return;
   }
 
-  const sourceType = inferExprType(
+  checkEachComprehension(
+    comprehension.itemBinding,
     comprehension.source,
-    `${expPath}.source`,
+    comprehension.arms,
+    expPath,
     scope,
+    scalars,
     resources,
-    sink,
-    scalars
+    sink
   );
+}
+
+/**
+ * Validate `resolve to each` — same source/arm rules as expand-`each`, under the
+ * projection binding as payload scope (no selected fields / include / expands).
+ */
+export function checkResolveEach(
+  resolveEach: ResolveEach,
+  path: string,
+  span: SourceSpan | null,
+  scope: QueryScope,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  if (resolveEach.arms.length === 0) {
+    sink.push({
+      code: "INVALID_COMPREHENSION",
+      message: "Resolve-to-each comprehension has no arms",
+      path,
+      span,
+    });
+    return;
+  }
+
+  checkEachComprehension(
+    resolveEach.itemBinding,
+    resolveEach.source,
+    resolveEach.arms,
+    path,
+    scope,
+    scalars,
+    resources,
+    sink
+  );
+}
+
+function checkEachComprehension(
+  itemBinding: string,
+  source: Expr,
+  arms: ExpandArm[],
+  path: string,
+  scope: QueryScope,
+  scalars: ScalarTable,
+  resources: ResourceTable,
+  sink: DiagnosticSink
+): void {
+  const sourceType = inferExprType(source, `${path}.source`, scope, resources, sink, scalars);
   if (!sourceType) {
     return;
   }
@@ -198,19 +248,19 @@ export function checkManyExpansion(
     sink.push({
       code: "COMPREHENSION_SOURCE_NOT_ARRAY",
       message: `Comprehension source must be an array, got ${formatType(sourceType)}`,
-      path: `${expPath}.source`,
-      span: comprehension.source.span,
+      path: `${path}.source`,
+      span: source.span,
     });
     return;
   }
 
   const elementType = unwrapped.of;
 
-  for (let i = 0; i < comprehension.arms.length; i++) {
+  for (let i = 0; i < arms.length; i++) {
     checkExpandArm(
-      comprehension.arms[i]!,
-      `${expPath}.arms.${i}`,
-      comprehension.itemBinding,
+      arms[i]!,
+      `${path}.arms.${i}`,
+      itemBinding,
       elementType,
       scope,
       scalars,
