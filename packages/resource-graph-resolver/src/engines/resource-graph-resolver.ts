@@ -467,15 +467,6 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
       const onFailure = session.onFailureOf(ref.resource);
       session.settle(ref.resource);
 
-      // Strategy resolve (post-decode): enqueue target; do not expand the locator.
-      const redirectTo = session.applyResolvePolicies(ref.resource);
-      if (redirectTo !== undefined) {
-        for (const inheritedIslandId of islandIds) {
-          enqueue([walkRef(redirectTo, inheritedIslandId, onFailure)]);
-        }
-        continue;
-      }
-
       if (!session.isResolved(ref.resource)) {
         for (const inheritedIslandId of islandIds) {
           failResource(
@@ -486,7 +477,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
         continue;
       }
 
-      expandInto(ref.resource, islandIds);
+      continueAfterPayload(ref.resource, islandIds, onFailure);
     }
   };
 

@@ -126,8 +126,8 @@ describe("emitResolves", () => {
     expect(diagnostics).toEqual([]);
 
     const code = emitResolves(program!);
-    expect(code).toContain("const failures = new Map<ResourceKey, ResolutionError>();");
-    expect(code).toContain("failures");
+    expect(code).toContain("    failures,\n    promotedResourceKeys,");
+    expect(code).not.toContain("const failures = new Map<ResourceKey, ResolutionError>();");
     expect(code).toContain(
       "const pageDetail = projectPageDetail(root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n    failures,\n  });"
     );

@@ -1153,20 +1153,13 @@ export async function resolveErrorHandlingDetail(
     observer: input.observer,
   });
 
-  const { contentMap, islands, islandDependencies, errors, promotedResourceKeys, redirects } =
+  const { contentMap, islands, islandDependencies, errors, failures, promotedResourceKeys } =
     await resolver.resolve({
       roots: [root],
       executionContext: input.executionContext,
       backingResources: input.backingResources,
       signal: input.signal,
     });
-
-  const failures = new Map<ResourceKey, ResolutionError>();
-  for (const error of errors) {
-    if (error.resourceKey !== undefined) {
-      failures.set(error.resourceKey, error);
-    }
-  }
 
   const errorHandlingDetail = projectErrorHandlingDetail(root, contentMap, {
     params: input.params,
@@ -1219,20 +1212,20 @@ export async function resolvePageDetail(
     observer: input.observer,
   });
 
-  const { contentMap, islands, islandDependencies, errors, promotedResourceKeys, redirects } =
-    await resolver.resolve({
-      roots: [root],
-      executionContext: input.executionContext,
-      backingResources: input.backingResources,
-      signal: input.signal,
-    });
-
-  const failures = new Map<ResourceKey, ResolutionError>();
-  for (const error of errors) {
-    if (error.resourceKey !== undefined) {
-      failures.set(error.resourceKey, error);
-    }
-  }
+  const {
+    contentMap,
+    islands,
+    islandDependencies,
+    errors,
+    failures,
+    promotedResourceKeys,
+    redirects,
+  } = await resolver.resolve({
+    roots: [root],
+    executionContext: input.executionContext,
+    backingResources: input.backingResources,
+    signal: input.signal,
+  });
 
   const pageDetail = projectPageDetail(root, contentMap, {
     params: input.params,

@@ -74,6 +74,22 @@ export class ResourceGraphAbortedError extends ResourceGraphError {
 }
 
 /**
+ * A strategy redirect would create an identity cycle.
+ *
+ * Redirect cycles are structural graph errors and always abort resolution;
+ * per-edge missing-resource policies do not soften them.
+ */
+export class ResourceRedirectCycleError extends ResourceGraphError {
+  readonly resourceKeys: readonly ResourceKey[];
+
+  constructor(resourceKeys: readonly ResourceKey[]) {
+    super(`Resource redirect cycle detected: ${resourceKeys.join(" -> ")}`);
+    this.name = "ResourceRedirectCycleError";
+    this.resourceKeys = [...resourceKeys];
+  }
+}
+
+/**
  * A resource was requested but never resolved: either a source returned
  * `undefined` for its batch slot, or a source rejected while loading it.
  *

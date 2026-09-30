@@ -20,6 +20,7 @@ import type {
   ResolveResourceGraphOutput,
   ResourceKey,
 } from "../types";
+import { RedirectGraph } from "./redirect-graph";
 
 /** One walk step: a resource discovered from a specific island. */
 export interface GraphWalkRef {
@@ -80,12 +81,7 @@ export class ResolutionSession<
    */
   private readonly absentResources = new Set<ResourceKey>();
   private readonly pendingByKey = new Map<ResourceKey, PendingEntry>();
-  /**
-   * Abstract ARI key → canonical ARI to load next (e.g. CustomReference → Entry).
-   * Decode payload stays until the target lands and {@link propagateRedirectPayloads}
-   * overwrites it.
-   */
-  private readonly redirects = new Map<ResourceKey, ApplicationResourceIdentifier>();
+  private readonly redirects = new RedirectGraph();
   /** `(islandId, resourceKey)` pairs already expanded — kept out of {@link islands}. */
   private readonly visited = new Set<string>();
   private readonly backingResources: Map<ResourceKey, unknown>;
@@ -121,12 +117,12 @@ export class ResolutionSession<
   }
 
   hasFailure(resource: ApplicationResourceIdentifier): boolean {
-    return this.failuresByResource.has(resource.toString());
+    return this.failuresByResource.has(this.redirects.canonicalOf(resource).toString());
   }
 
   /** True when the resource was omitted under `onFailure: "setNull"`. */
   isAbsent(resource: ApplicationResourceIdentifier): boolean {
-    return this.absentResources.has(resource.toString());
+    return this.absentResources.has(this.redirects.canonicalOf(resource).toString());
   }
 
   /**
@@ -134,7 +130,7 @@ export class ResolutionSession<
    * Defaults to `"throw"` when the ARI is not tracked.
    */
   onFailureOf(resource: ApplicationResourceIdentifier): OnFailurePolicy {
-    const key = resource.toString();
+    const key = this.redirects.canonicalOf(resource).toString();
     const pending = this.pendingByKey.get(key);
     if (pending !== undefined) {
       return pending.onFailure;
@@ -157,18 +153,25 @@ export class ResolutionSession<
    * `on failure set error` to place the same instance into the projected alias.
    */
   failureOf(resource: ApplicationResourceIdentifier): ResolutionError | undefined {
-    const accumulated = this.failuresByResource.get(resource.toString());
+    const accumulated = this.failuresByResource.get(
+      this.redirects.canonicalOf(resource).toString()
+    );
     return accumulated?.error;
   }
 
-  /** Snapshot of failures keyed by resource, for projection / set-error wiring. */
+  /** Snapshot keyed by canonical resources and every redirect alias. */
   failures(): ReadonlyMap<ResourceKey, ResolutionError> {
     const out = new Map<ResourceKey, ResolutionError>();
-    for (const [resourceKey, accumulated] of this.failuresByResource) {
-      out.set(
+    for (const resourceKey of [...this.failuresByResource.keys()].sort(compareStrings)) {
+      const accumulated = this.failuresByResource.get(resourceKey)!;
+      const error = accumulated.error.withAttribution(
         resourceKey,
-        accumulated.error.withAttribution(resourceKey, sortedCopy(accumulated.inheritedIslandIds))
+        sortedCopy(accumulated.inheritedIslandIds)
       );
+      out.set(resourceKey, error);
+      for (const aliasKey of this.redirects.aliasesOfKey(resourceKey)) {
+        out.set(aliasKey, error);
+      }
     }
     return out;
   }
@@ -246,10 +249,7 @@ export class ResolutionSession<
       return false;
     }
 
-    this.contentMap.set(
-      resource as ApplicationResourceIdentifier<keyof R & string>,
-      this.backingResources.get(key) as R[keyof R & string]
-    );
+    this.commitPayload(resource, this.backingResources.get(key) as R[keyof R & string]);
     this.backingResources.delete(key);
     this.promotedResourceKeys.push(key);
     return true;
@@ -266,15 +266,15 @@ export class ResolutionSession<
    * Canonical ARI a prior strategy redirect pointed at (e.g. CustomReference → Entry).
    */
   redirectOf(resource: ApplicationResourceIdentifier): ApplicationResourceIdentifier | undefined {
-    return this.redirects.get(resource.toString());
+    return this.redirects.redirectOf(resource);
   }
 
   /**
    * After a decode payload is in {@link contentMap}, apply strategy resolve policies.
    *
    * Returns an existing redirect, a newly registered strategy redirect target, or
-   * `undefined` when the resource should expand as usual. Decode payload stays until
-   * the target lands and {@link propagateRedirectPayloads} overwrites it.
+   * `undefined` when the resource should expand as usual. A locator decode payload is
+   * replaced across the alias set when the canonical target settles.
    */
   applyResolvePolicies(
     resource: ApplicationResourceIdentifier
@@ -294,8 +294,9 @@ export class ResolutionSession<
       return undefined;
     }
 
-    this.redirects.set(resourceKey, result.resource);
-    return result.resource;
+    const canonical = this.redirects.link(resource, result.resource);
+    this.synchronizeAliases(canonical);
+    return canonical;
   }
 
   /**
@@ -313,24 +314,37 @@ export class ResolutionSession<
         continue;
       }
 
-      this.contentMap.set(
-        resource as ApplicationResourceIdentifier<keyof R & string>,
-        payload as R[keyof R & string]
-      );
-      this.propagateRedirectPayloads(resource, payload as R[keyof R & string]);
+      this.commitPayload(resource, payload as R[keyof R & string]);
     }
   }
 
-  private propagateRedirectPayloads(
+  private commitPayload(
     resource: ApplicationResourceIdentifier,
     payload: R[keyof R & string]
   ): void {
-    const settledKey = resource.toString();
-    for (const [fromKey, toAri] of this.redirects) {
-      if (toAri.toString() !== settledKey) {
-        continue;
+    this.contentMap.set(
+      resource as ApplicationResourceIdentifier<keyof R & string>,
+      payload as R[keyof R & string]
+    );
+    for (const aliasKey of this.redirects.aliasesOf(resource)) {
+      this.contentMap.setByKey(aliasKey, payload);
+    }
+  }
+
+  private synchronizeAliases(canonical: ApplicationResourceIdentifier): void {
+    const canonicalKey = canonical.toString();
+    const payload = this.contentMap.getByKey(canonicalKey);
+    if (payload !== undefined) {
+      for (const aliasKey of this.redirects.aliasesOf(canonical)) {
+        this.contentMap.setByKey(aliasKey, payload);
       }
-      this.contentMap.setByKey(fromKey, payload);
+      return;
+    }
+
+    if (this.failuresByResource.has(canonicalKey) || this.absentResources.has(canonicalKey)) {
+      for (const aliasKey of this.redirects.aliasesOf(canonical)) {
+        this.contentMap.deleteByKey(aliasKey);
+      }
     }
   }
 
@@ -342,7 +356,7 @@ export class ResolutionSession<
    * Used for soft `onFailure` (`setNull` / `setError`); both appear in `errors`.
    */
   registerMissing(ref: GraphWalkRef, failure?: ResolutionError | string): void {
-    const resourceKey = ref.resource.toString();
+    const resourceKey = this.redirects.canonicalOf(ref.resource).toString();
     const pending = this.pendingByKey.get(resourceKey);
     const existing = this.failuresByResource.get(resourceKey);
     const onFailure = stricterOnFailure(
@@ -369,6 +383,10 @@ export class ResolutionSession<
     this.failuresByResource.set(resourceKey, accumulated);
     this.absentResources.delete(resourceKey);
     this.pendingByKey.delete(resourceKey);
+    this.contentMap.deleteByKey(resourceKey);
+    for (const aliasKey of this.redirects.aliasesOfKey(resourceKey)) {
+      this.contentMap.deleteByKey(aliasKey);
+    }
 
     if (existing !== undefined) {
       // Additional islands reaching the same failure are not new failures.
@@ -388,7 +406,7 @@ export class ResolutionSession<
    * global error list; this remains for rare omission-only bookkeeping.
    */
   registerAbsent(ref: GraphWalkRef): void {
-    const resourceKey = ref.resource.toString();
+    const resourceKey = this.redirects.canonicalOf(ref.resource).toString();
     if (this.failuresByResource.has(resourceKey)) {
       // setError / setNull already recorded — keep the recorded outcome.
       this.pendingByKey.delete(resourceKey);
@@ -397,6 +415,10 @@ export class ResolutionSession<
 
     this.absentResources.add(resourceKey);
     this.pendingByKey.delete(resourceKey);
+    this.contentMap.deleteByKey(resourceKey);
+    for (const aliasKey of this.redirects.aliasesOfKey(resourceKey)) {
+      this.contentMap.deleteByKey(aliasKey);
+    }
   }
 
   /**
@@ -460,17 +482,19 @@ export class ResolutionSession<
   }
 
   toOutput(): ResolveResourceGraphOutput<R> {
-    const errors = [...this.failures().values()].sort((left, right) =>
-      compareStrings(left.resourceKey ?? "", right.resourceKey ?? "")
-    );
+    const failures = this.failures();
+    const errors = [...this.failuresByResource.keys()]
+      .sort(compareStrings)
+      .map((resourceKey) => failures.get(resourceKey)!);
 
     return {
       contentMap: this.contentMap,
       islands: this.islands,
       islandDependencies: this.islandDependencies,
       errors,
+      failures,
       promotedResourceKeys: [...this.promotedResourceKeys],
-      redirects: new Map(this.redirects),
+      redirects: this.redirects.snapshot(),
     };
   }
 }

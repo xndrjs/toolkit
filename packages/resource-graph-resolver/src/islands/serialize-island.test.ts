@@ -78,6 +78,7 @@ function createPageGraphOutput(options?: {
           }),
         ]
       : [],
+    failures: new Map(),
     promotedResourceKeys: [],
     redirects: new Map(),
   };

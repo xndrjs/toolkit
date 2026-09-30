@@ -17,8 +17,9 @@ export type ResolveContext<
 > = ExpansionContext<R, TExecutionContext, Resource>;
 
 /**
- * Redirect target for the current resource. The engine registers
- * `current → resource`, then enqueues the target without expanding the locator.
+ * Redirect target for the current resource. The engine registers and
+ * canonicalizes `current → resource`, then enqueues the final target without
+ * expanding the locator.
  */
 export interface ResolveResult {
   readonly resource: ApplicationResourceIdentifier;

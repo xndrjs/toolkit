@@ -80,6 +80,14 @@ Under `lane`, a fast source keeps walking its own subgraph while a slow peer's r
 - **`onFailure`** — per expansion edge (`ExpansionResult.onFailure`: `"throw"` | `"setNull"` | `"setError"`, default `"throw"`). Roots always throw. Same ARI from multiple edges → strictest wins (`throw` > `setError` > `setNull`). Soft policies always populate `output.errors` (global signal) while projection stays local (`null` / `ResolutionError`). There is no global `missingResourceMode` on `ResolveResourceGraphInput` — soft failures are declared on the discovering edge (Ziel: `on failure set null` / `set error`).
 - **`serializeAllIslands`** — cache-ready payloads (`SerializedIsland`, schema v1).
 
+## Redirect invariants
+
+Strategy `.resolve` policies run after a locator payload has been decoded and before that resource expands. Redirect chains are canonicalized: if `A → B → C`, resolution loads and expands `C`, `output.redirects` contains both `A → C` and `B → C`, and the canonical payload is available from `contentMap` through all three ARIs.
+
+Redirects obey the same invariants for normal loads and `backingResources`. Several locators converging on one target still load that target once. Self-cycles and longer redirect cycles always throw `ResourceRedirectCycleError`; they are structural strategy errors and are not softened by per-edge failure policies.
+
+Soft target failures appear once in `output.errors`, attributed to the canonical target. `output.failures` is the projection-oriented lookup: it contains the canonical key and every redirect alias, all pointing to the same `ResolutionError` instance. Failed aliases do not retain their temporary decode payloads in `contentMap`.
+
 ## Demo
 
 See [`apps/resource-graph-resolver-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) for Contentful-shaped fixtures, tiered island cache, and domain-zod aggregation.

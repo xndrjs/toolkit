@@ -37,6 +37,11 @@ export class ContentMap<R extends ContentRegistry = ContentRegistry> {
     this.resources.set(resourceKey, value);
   }
 
+  /** Opaque key removal used when a canonical redirect target fails. */
+  deleteByKey(resourceKey: ResourceKey): boolean {
+    return this.resources.delete(resourceKey);
+  }
+
   get size(): number {
     return this.resources.size;
   }
