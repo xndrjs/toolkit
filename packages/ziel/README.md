@@ -110,7 +110,7 @@ const result = buildResources({ root: process.cwd() });
 
 ### Resources and payloads
 
-`resource Name(identity): PayloadType` — the RHS is always a **payload type**. Writing `TabsCollection(…): Tab[]` means the datasource returns an array of Tab’s payload shape, not that the resolver should fan out to Tab ARIs. Traversal exists only via explicit `expand` / `each` / `on` / `resolve to`. Loading a collection resource returns that payload as-is; projecting it (e.g. empty `on TabsCollection`) keeps the payload type.
+`resource Name(identity): PayloadType` — the RHS is always a **payload type**. Writing `TabsCollection(…): Tab[]` means the datasource returns an array of Tab’s payload shape, not that the resolver should fan out to Tab ARIs. Traversal exists only via explicit `expand` / `each` / `on` / `resolve to` / `resolve to each`. Loading a collection resource returns that payload as-is; projecting it (e.g. empty `on TabsCollection`) keeps the payload type. `R[]` on a payload RHS is never an auto-fanout.
 
 **Scalar factories** — each scalar gets a PascalCase key on `Scalars` whose param is the representation (`string` | `number` | `boolean`) and return type is the branded alias. Prefer factories over casts in adapters and fixtures:
 
@@ -123,13 +123,43 @@ const locale: Locale = Scalars.Locale("en-US");
 
 There are no uncapitalized top-level helpers (`entryId(…)`). An empty scalars program emits nothing for this section.
 
-`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`, plus `islands.on(…)[.when(…)].startIsland()` when the query declares an `islands` block). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`). Per-edge `on failure` policies land on `ExpansionResult.onFailure` (or `onFailureByKey` when edges disagree). The factory returns the builder **without** `.build()`, so apps can still attach extra island policies by hand before calling `.build()`.
+`generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`, plus `islands.on(…)[.when(…)].startIsland()` when the query declares an `islands` block). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`). 1→1 `resolve to { … }` emits `.resolve.on(…).to(…)`; `resolve to each` is expansion-backed (same `.expansion.on(…).expand(…)` shape, no redirects). Per-edge `on failure` policies land on `ExpansionResult.onFailure` (or `onFailureByKey` when edges disagree). The factory returns the builder **without** `.build()`, so apps can still attach extra island policies by hand before calling `.build()`.
 
 `generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …). Projection shapes follow the DSL only — there is no default resource-name stamp. Pass `resourceTag` (e.g. `"$type"` or `"__resource"`) on codegen options / `ziel.config.ts` to opt into stamping the resource name on shells and types. Apps pass a resolved `ContentMap` and seed ARI(s); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/ziel` only — no extra runtime helper.
 
 `buildResources` / `ziel-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy` (including optional runtime `budget` overrides), plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. There is **no** global `missingResourceMode` on resolve input — roots always throw; child load failures follow each expand’s `on failure` policy. `create*Strategy` and `project*` remain exported for low-level use.
 
 `buildResources` / `ziel-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. When the program declares one or more `datasource` blocks, the same compose path also emits `createDataSources`. Generated imports stay on `@xndrjs/ziel` only.
+
+### `resolve to` (1→1 and 1→N)
+
+Resolve-only `on` clauses strip a locator resource to settle targets. Mutually exclusive with fields / expands / `include` / when-arms on that clause. Brace arms and `each` cannot mix in one `resolve to`.
+
+**1→1** — `resolve to { … }` redirects via the resolver’s redirect graph (one canonical ARI). The parent expand alias type is the settle-target projection (or a union of arms). Locators are not projectable shells.
+
+```ziel
+on CustomReference c resolve to {
+  Entry(…) when c.kind == "Entry"
+  Asset(…) when c.kind == "Asset"
+}
+```
+
+**1→N** — `resolve to each …` is expansion-backed (same arm shape as expand-`each`, including `on failure` and multi-arm `when`). Strategy emits `.expansion.on(locatorAri).expand(…)`, not `.resolve.to`. Projection maps the locator payload through `projectNode` / `projectEdge`; the parent alias is an **array** of settle-target types (`Tab[]`, `(Tab | Strip)[]`, …) — flat, not a nested `items.tabs` shell. Expanding the locator requires settle-target `on`s (e.g. `on Tab`), not a projectable `on TabCollection`.
+
+```ziel
+on TabCollection tc resolve to each link in tc.tabsIds (
+  Tab(id: link.id, locale: @tc.locale) on failure set null
+)
+
+on Tabs t {
+  expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
+}
+on Tab tab {
+  expand strips: each id in tab.stripsIds ( Strip(id: id, …) )
+}
+```
+
+Result path on `Tabs`: `tabs: Tab[]`. Payload-RHS `Tab[]` still does not auto-fan out — use `resolve to each` or expand-`each` explicitly.
 
 ### Datasource declarations
 
@@ -167,7 +197,7 @@ createDataSources({
 
 ### `on failure` (per-expand load policy)
 
-After a one-expand target or an `each` arm, declare what happens when that child fails to load. Omitted → **`throw`** (same as the resolver default). There is no global soft-fail mode on `resolve*` input.
+After a one-expand target or an `each` / `resolve to each` arm, declare what happens when that child fails to load. Omitted → **`throw`** (same as the resolver default). There is no global soft-fail mode on `resolve*` input.
 
 ```ziel
 expand menu: Entry(id: p.menuId, locale: @p.locale) on failure set null
@@ -239,7 +269,7 @@ fragment MenuChrome on Entry e when e.type == "Menu" {
 
 - On a `when` arm, the include set uses the **narrowed** payload. Effective mode is `arm.include ?? clause.include` — so an inner `include none` **overrides** an outer `include properties` / `include all`.
 - Expand aliases with the same name as a payload field **shadow** the native field (silent drop; expand wins). Explicit duplicate field names stay errors. `exclude` of an expand alias is an error.
-- Allowed on normal `on R b { … }` and its `when` / `default` arms (not fragments, not `resolve to`). Fragments contribute explicit fields / expands / excludes only; the enclosing clause owns `include`.
+- Allowed on normal `on R b { … }` and its `when` / `default` arms (not fragments, not resolve-only `resolve to` / `resolve to each`). Fragments contribute explicit fields / expands / excludes only; the enclosing clause owns `include`.
 - `when` arms are applied **in source order** (first match wins). They are **not** checked for discriminant exhaustiveness. If the clause has one or more `when` arms, a trailing `default { … }` is **required**.
 - `expand … using Fragment` is **not** in this release (deferred).
 
@@ -266,7 +296,7 @@ on Entry e {
 
 ### When expressions
 
-Every `when` (projection arms, fragment declarations, `resolve to`, expand arms, islands) shares one expression language:
+Every `when` (projection arms, fragment declarations, `resolve to` / `resolve to each`, expand arms, islands) shares one expression language:
 
 ```ziel
 when e.type == "Menu"

@@ -37,6 +37,8 @@ export type ScalarDefinition = {
  * payload of that resource) — never lower to a structural object.
  * `R[]` lowers to `array { of: resourceRef("R") }` as **payload typing only**
  * (an array of R’s payload shape) — not a traversal / fan-out construct.
+ * Hop to member ARIs only via explicit `expand` / `each` / `resolve to each`
+ * (1→1 `resolve to { … }` is a redirect, not array fan-out).
  *
  * `typeProjection` (`Resource.field` in a type position) is preserved through
  * lowering; the checker resolves it to the payload field's semantic type.
@@ -248,7 +250,10 @@ export type ResolveArm = {
 
 /**
  * Many-resolve: `on R b resolve to each item in source ( arms )`.
- * Expansion-backed 1→N strip — same arm shape as expand `each`, not RGR redirects.
+ * Expansion-backed 1→N strip — same arm shape as expand `each`, not RGR
+ * redirects. Parent alias type is `(arm targets)[]`; locator is not
+ * projectable. Mutually exclusive with {@link ResourceProjection.resolveArms}
+ * and with a projection body.
  */
 export type ResolveEach = {
   itemBinding: string;
