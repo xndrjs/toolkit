@@ -38,10 +38,10 @@
     "README.md"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=24 <26"
   },
   "scripts": {
-    "langium:generate": "langium generate",
+    "langium:generate": "langium generate && prettier --write src/lang/generated",
     "build": "pnpm run langium:generate && tsup",
     "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
     "prepublishOnly": "pnpm run build",
@@ -53,6 +53,7 @@
   "dependencies": {
     "@xndrjs/application-resources": "workspace:^",
     "@xndrjs/resource-graph-resolver": "workspace:^",
+    "chokidar": "^5.0.0",
     "jiti": "^2.7.0",
     "langium": "~4.4.0",
     "tinyglobby": "^0.2.17",
