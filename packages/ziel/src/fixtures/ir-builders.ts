@@ -182,6 +182,7 @@ export function projection(
     arms,
     defaultArm,
     resolveArms: null,
+    resolveEach: null,
     span,
   };
 }
@@ -211,6 +212,7 @@ export function projectionWithArms(
     arms,
     defaultArm,
     resolveArms: null,
+    resolveEach: null,
     span,
   };
 }
@@ -231,6 +233,28 @@ export function projectionWithResolve(
     arms: null,
     defaultArm: null,
     resolveArms,
+    resolveEach: null,
+    span,
+  };
+}
+
+/** Many-resolve projection helper: `on TabCollection tc resolve to each …`. */
+export function projectionWithResolveEach(
+  resourceName: string,
+  binding: string,
+  resolveEach: NonNullable<ResourceProjection["resolveEach"]>
+): ResourceProjection {
+  return {
+    resource: resourceName,
+    binding,
+    selectedFields: [],
+    expansions: [],
+    excludedFields: [],
+    include: null,
+    arms: null,
+    defaultArm: null,
+    resolveArms: null,
+    resolveEach,
     span,
   };
 }
