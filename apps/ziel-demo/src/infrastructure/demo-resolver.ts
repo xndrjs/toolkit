@@ -21,7 +21,8 @@ export type DemoSourcesOptions = {
   assets?: ReadonlyMap<string, AssetPayload>;
 };
 
-/** Demo DataSources via generated `createDataSources` (DSL routing + app loaders). */
+/** Demo DataSources via generated `createDataSources` (DSL routing + app loaders).
+ * Loaders validate payloads at the boundary — the resolver does not. */
 export function createDemoSources(options: DemoSourcesOptions = {}) {
   return createDataSources({
     CmsCustomReferences: { load: loadCmsCustomReferences },

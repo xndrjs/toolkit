@@ -78,12 +78,6 @@ export class ResolutionSession<
   readonly islandDependencies = new IslandDependencyMap();
 
   private readonly failuresByResource = new Map<ResourceKey, FailureAccumulator>();
-  /**
-   * Legacy setNull-only omission set. Soft failures now go through
-   * {@link registerMissing} so they appear in {@link errors}; this set remains
-   * for `isAbsent` / waiter bookkeeping if anything still marks absence alone.
-   */
-  private readonly absentResources = new Set<ResourceKey>();
   private readonly pendingByKey = new Map<ResourceKey, PendingEntry>();
   private readonly redirects = new RedirectGraph();
   /** `(islandId, resourceKey)` pairs already expanded — kept out of {@link islands}. */
@@ -127,11 +121,6 @@ export class ResolutionSession<
     return this.failuresByResource.has(this.redirects.canonicalOf(resource).toString());
   }
 
-  /** True when the resource was omitted under `onFailure: "setNull"`. */
-  isAbsent(resource: ApplicationResourceIdentifier): boolean {
-    return this.absentResources.has(this.redirects.canonicalOf(resource).toString());
-  }
-
   /**
    * Effective failure policy for a pending or already-failed resource.
    * Defaults to `"throw"` when the ARI is not tracked.
@@ -146,10 +135,6 @@ export class ResolutionSession<
     const failure = this.failuresByResource.get(key);
     if (failure !== undefined) {
       return failure.onFailure;
-    }
-
-    if (this.absentResources.has(key)) {
-      return "setNull";
     }
 
     return "throw";
@@ -198,10 +183,6 @@ export class ResolutionSession<
     const key = ref.resource.toString();
 
     if (this.contentMap.hasKey(key)) {
-      return false;
-    }
-
-    if (this.absentResources.has(key)) {
       return false;
     }
 
@@ -348,7 +329,7 @@ export class ResolutionSession<
       return;
     }
 
-    if (this.failuresByResource.has(canonicalKey) || this.absentResources.has(canonicalKey)) {
+    if (this.failuresByResource.has(canonicalKey)) {
       for (const aliasKey of this.redirects.aliasesOf(canonical)) {
         this.contentMap.deleteByKey(aliasKey);
       }
@@ -388,7 +369,6 @@ export class ResolutionSession<
     accumulated.inheritedIslandIds.add(ref.inheritedIslandId);
     accumulated.onFailure = stricterOnFailure(accumulated.onFailure, onFailure);
     this.failuresByResource.set(resourceKey, accumulated);
-    this.absentResources.delete(resourceKey);
     this.pendingByKey.delete(resourceKey);
     this.contentMap.deleteByKey(resourceKey);
     for (const aliasKey of this.redirects.aliasesOfKey(resourceKey)) {
@@ -405,27 +385,6 @@ export class ResolutionSession<
       inheritedIslandIds: sortedCopy(accumulated.inheritedIslandIds),
       message: accumulated.error.message,
     }));
-  }
-
-  /**
-   * Marks a resource as omitted without recording into `errors`. Soft `setNull`
-   * failures normally use {@link registerMissing} instead so they appear in the
-   * global error list; this remains for rare omission-only bookkeeping.
-   */
-  registerAbsent(ref: GraphWalkRef): void {
-    const resourceKey = this.redirects.canonicalOf(ref.resource).toString();
-    if (this.failuresByResource.has(resourceKey)) {
-      // setError / setNull already recorded — keep the recorded outcome.
-      this.pendingByKey.delete(resourceKey);
-      return;
-    }
-
-    this.absentResources.add(resourceKey);
-    this.pendingByKey.delete(resourceKey);
-    this.contentMap.deleteByKey(resourceKey);
-    for (const aliasKey of this.redirects.aliasesOfKey(resourceKey)) {
-      this.contentMap.deleteByKey(aliasKey);
-    }
   }
 
   /**

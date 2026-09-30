@@ -21,6 +21,7 @@ import {
   type SpaceId,
 } from "../../generated";
 import { demoEntries, entryLookupKey, type EditorialDocument } from "../fixtures/store.js";
+import { validateEntryPayload, validatePagePayload } from "./validate-cms-payload.js";
 
 export const ENTRY_SOURCE_ID = "CmsEntries";
 
@@ -56,7 +57,10 @@ function entryIdentityOf(resource: { key: readonly unknown[] }): EntryIdentity |
 type CmsEntriesResource = PageResource | EntryResource;
 type CmsEntriesPayload = PagePayload | EntryPayload;
 
-/** App `load` for the generated `CmsEntries` datasource. */
+/**
+ * App `load` for the generated `CmsEntries` datasource.
+ * Validates store documents at the loader boundary before returning them.
+ */
 export function loadCmsEntries(entries: ReadonlyMap<string, EditorialDocument> = demoEntries) {
   return async (
     batch: readonly CmsEntriesResource[],
@@ -80,11 +84,11 @@ export function loadCmsEntries(entries: ReadonlyMap<string, EditorialDocument> =
       }
 
       if (pageAri.matches(resource)) {
-        return doc.kind === "page" ? doc.payload : undefined;
+        return doc.kind === "page" ? validatePagePayload(doc.payload) : undefined;
       }
 
       if (entryAri.matches(resource)) {
-        return doc.kind === "entry" ? doc.payload : undefined;
+        return doc.kind === "entry" ? validateEntryPayload(doc.payload) : undefined;
       }
 
       return undefined;

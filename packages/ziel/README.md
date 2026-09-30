@@ -177,6 +177,7 @@ datasource CmsSource {
 
 - **`context`** — fields available as `executionContext` on that source (and merged into aggregate `ZielExecutionContext`).
 - **`for Resource [binding] [when …]`** — routes; `when` may use `context.…` and identity `@binding.…` only (no payload / params / items). Binding is required when `when` is present.
+- **Runtime routing** — generated datasources use the resolver’s first-match `sources` order; declare one owner per resource family (see `@xndrjs/resource-graph-resolver` README).
 - **Coverage** — if the program declares ≥1 datasource, every resource must appear in at least one `for` route (hand-wired apps with zero datasources stay valid). Disable with `requireDatasourceCoverage: false` in `ziel.config.ts` (default `true`; honored by CLI and LSP).
 - **Query context** — when datasources exist, each query context must include every field from the datasources whose routes intersect resources that query references (roots, islands, `on` clauses, expand / resolve targets), with compatible types. Unused datasources do not constrain that query. Aggregate `ZielExecutionContext` (for `createDataSources`) remains the merge of all datasource contexts.
 
@@ -195,7 +196,7 @@ createDataSources({
 });
 ```
 
-`load` keeps `(batch, context: ResourceLoadContext<DsContext>)` and returns the payload union (`EntryPayload | AssetPayload | undefined`)[]. DSL `when` compiles to a single runtime predicate over `defineDataSourceFor` lanes; if every route omits DSL `when`, an optional implementation `when` may be supplied on the config instead.
+`load` keeps `(batch, context: ResourceLoadContext<DsContext>)` and returns the payload union (`EntryPayload | AssetPayload | undefined`)[]. DSL `when` compiles to a single runtime predicate over `defineDataSourceFor` lanes; if every route omits DSL `when`, an optional implementation `when` may be supplied on the config instead. Validate untrusted transport data inside `load` — the resolver treats returned payloads as trusted.
 
 ### `on failure` (per-expand load policy)
 
