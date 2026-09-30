@@ -1,18 +1,31 @@
-import { defineConfig } from "tsup";
+import { defineConfig, type Options } from "tsup";
 
-export default defineConfig({
-  entry: ["src/extension.ts"],
-  format: ["cjs"],
+const shared: Options = {
   outDir: "dist",
   platform: "node",
   target: "node24",
   dts: false,
   sourcemap: true,
-  clean: true,
   treeshake: true,
   splitting: false,
-  // Bundle vscode-languageclient; resolve @xndrjs/ziel at runtime (workspace / Install from Location).
-  external: ["vscode", "@xndrjs/ziel"],
-  noExternal: ["vscode-languageclient"],
   skipNodeModulesBundle: false,
-});
+};
+
+export default defineConfig([
+  {
+    ...shared,
+    entry: { extension: "src/extension.ts" },
+    format: ["cjs"],
+    clean: true,
+    external: ["vscode"],
+    noExternal: ["vscode-languageclient"],
+  },
+  {
+    ...shared,
+    entry: { server: "src/server.ts" },
+    format: ["cjs"],
+    clean: false,
+    // The VSIX must carry the complete server. Only Node built-ins remain external.
+    noExternal: [/.*/],
+  },
+]);

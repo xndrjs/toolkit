@@ -58,6 +58,9 @@ jobs:
       - name: Build publishable packages
         run: pnpm run build:packages
 
+      - name: Smoke test packaged Ziel extension
+        run: pnpm --filter ziel-vscode test:vsix
+
       - name: Verify generated and built sources are current
         run: git diff --exit-code
 
