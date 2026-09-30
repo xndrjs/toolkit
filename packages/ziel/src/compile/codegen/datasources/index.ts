@@ -1,1 +1,7 @@
-export { datasourcesNeedSourceRouteContext, emitDataSources } from "./emit-datasources";
+export {
+  datasourcesForQuery,
+  datasourcesNeedSourceRouteContext,
+  emitDataSources,
+  emitDataSourceTypes,
+  emitQueryDataSourceFactories,
+} from "./emit-datasources";

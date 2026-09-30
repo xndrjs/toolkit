@@ -1,0 +1,38 @@
+/**
+ * Commerce product-detail aggregate: catalog + price + inventory + media.
+ */
+query ProductDetail(productId: CatalogProductId) {
+  context {
+    market: Market
+    locale: Locale
+    tenantId: TenantId
+  }
+
+  root CatalogProduct(
+    id: productId,
+    market: context.market,
+    locale: context.locale
+  )
+
+  on CatalogProduct p include properties {
+    expand price: OfferPrice(
+      id: p.priceId,
+      market: @p.market
+    ) on failure set null
+
+    expand stock: StockLevel(
+      sku: p.sku,
+      warehouse: "eu-central"
+    ) on failure set null
+
+    expand media: ProductMedia(
+      id: p.mediaId
+    ) on failure set null
+  }
+
+  on OfferPrice o include properties { }
+
+  on StockLevel s include properties { }
+
+  on ProductMedia m include properties { }
+}

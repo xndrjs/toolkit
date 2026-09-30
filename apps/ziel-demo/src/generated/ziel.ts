@@ -39,6 +39,18 @@ export type CustomReferenceValue = Branded<"CustomReferenceValue", string>;
 
 export type Sku = Branded<"Sku", string>;
 
+export type Market = Branded<"Market", string>;
+
+export type TenantId = Branded<"TenantId", string>;
+
+export type CatalogProductId = Branded<"CatalogProductId", string>;
+
+export type PriceId = Branded<"PriceId", string>;
+
+export type InventorySku = Branded<"InventorySku", string>;
+
+export type MediaId = Branded<"MediaId", string>;
+
 export const Scalars = {
   Locale: (value: string): Locale => value as Locale,
   SpaceId: (value: string): SpaceId => value as SpaceId,
@@ -47,6 +59,12 @@ export const Scalars = {
   AssetId: (value: string): AssetId => value as AssetId,
   CustomReferenceValue: (value: string): CustomReferenceValue => value as CustomReferenceValue,
   Sku: (value: string): Sku => value as Sku,
+  Market: (value: string): Market => value as Market,
+  TenantId: (value: string): TenantId => value as TenantId,
+  CatalogProductId: (value: string): CatalogProductId => value as CatalogProductId,
+  PriceId: (value: string): PriceId => value as PriceId,
+  InventorySku: (value: string): InventorySku => value as InventorySku,
+  MediaId: (value: string): MediaId => value as MediaId,
 } as const;
 
 export const entryAri = ari(
@@ -78,6 +96,24 @@ export const errorLabAri = ari(
   s.object({ spaceId: s.string(), environmentId: s.string(), id: s.string(), locale: s.string() })
 );
 export type ErrorLabResource = ReturnType<typeof errorLabAri>;
+
+export const catalogProductAri = ari(
+  "CatalogProduct",
+  s.object({ id: s.string(), market: s.string(), locale: s.string() })
+);
+export type CatalogProductResource = ReturnType<typeof catalogProductAri>;
+
+export const offerPriceAri = ari("OfferPrice", s.object({ id: s.string(), market: s.string() }));
+export type OfferPriceResource = ReturnType<typeof offerPriceAri>;
+
+export const stockLevelAri = ari(
+  "StockLevel",
+  s.object({ sku: s.string(), warehouse: s.string() })
+);
+export type StockLevelResource = ReturnType<typeof stockLevelAri>;
+
+export const productMediaAri = ari("ProductMedia", s.object({ id: s.string() }));
+export type ProductMediaResource = ReturnType<typeof productMediaAri>;
 
 export type EntryPayload =
   | {
@@ -182,12 +218,41 @@ export type ErrorLabPayload = {
   }[];
 };
 
+export type CatalogProductPayload = {
+  id: CatalogProductId;
+  title: string;
+  priceId: PriceId;
+  sku: InventorySku;
+  mediaId: MediaId;
+};
+
+export type OfferPricePayload = {
+  id: PriceId;
+  amountCents: number;
+  currency: string;
+};
+
+export type StockLevelPayload = {
+  sku: InventorySku;
+  available: number;
+};
+
+export type ProductMediaPayload = {
+  id: MediaId;
+  url: string;
+  alt: string;
+};
+
 export type ContentRegistry = {
   Entry: EntryPayload;
   Asset: AssetPayload;
   CustomReference: CustomReferencePayload;
   Page: PagePayload;
   ErrorLab: ErrorLabPayload;
+  CatalogProduct: CatalogProductPayload;
+  OfferPrice: OfferPricePayload;
+  StockLevel: StockLevelPayload;
+  ProductMedia: ProductMediaPayload;
 };
 
 export type CmsCustomReferencesContext = {
@@ -214,10 +279,29 @@ export type CmsAssetsContext = {
   locale: Locale;
 };
 
+export type CatalogApiContext = {
+  market: Market;
+  locale: Locale;
+};
+
+export type PricingApiContext = {
+  market: Market;
+};
+
+export type InventoryApiContext = {
+  tenantId: TenantId;
+};
+
+export type MediaCdnContext = {
+  market: Market;
+};
+
 export type ZielExecutionContext = {
   spaceId: SpaceId;
   environmentId: EnvironmentId;
   locale: Locale;
+  market: Market;
+  tenantId: TenantId;
 };
 
 type CmsCustomReferencesConfig = {
@@ -260,65 +344,45 @@ type CmsAssetsConfig = {
   when?: (context: SourceRouteContext<CmsAssetsContext>) => boolean;
 };
 
-export function createDataSources<C extends ZielExecutionContext>(config: {
-  CmsCustomReferences: CmsCustomReferencesConfig;
-  CmsEntries: CmsEntriesConfig;
-  ErrorLabStore: ErrorLabStoreConfig;
-  CmsAssets: CmsAssetsConfig;
-}): DataSource<ContentRegistry, C>[] {
-  const defineSource = defineDataSourceFor<ContentRegistry, C>();
+type CatalogApiConfig = {
+  load: (
+    batch: readonly CatalogProductResource[],
+    context: ResourceLoadContext<CatalogApiContext>
+  ) => Promise<readonly (CatalogProductPayload | undefined)[]>;
+  batchSize?: number;
+  concurrency?: number;
+  when?: (context: SourceRouteContext<CatalogApiContext>) => boolean;
+};
 
-  return [
-    defineSource({
-      id: "CmsCustomReferences",
-      for: [customReferenceAri],
-      batchSize: config.CmsCustomReferences.batchSize,
-      concurrency: config.CmsCustomReferences.concurrency,
-      when: config.CmsCustomReferences.when,
-      load: (batch, ctx) =>
-        config.CmsCustomReferences.load(batch as readonly CustomReferenceResource[], {
-          ...ctx,
-          executionContext: ctx.executionContext,
-        }),
-    }),
-    defineSource({
-      id: "CmsEntries",
-      for: [pageAri, entryAri],
-      batchSize: config.CmsEntries.batchSize,
-      concurrency: config.CmsEntries.concurrency,
-      when: config.CmsEntries.when,
-      load: (batch, ctx) =>
-        config.CmsEntries.load(batch as readonly (PageResource | EntryResource)[], {
-          ...ctx,
-          executionContext: ctx.executionContext,
-        }),
-    }),
-    defineSource({
-      id: "ErrorLabStore",
-      for: [errorLabAri],
-      batchSize: config.ErrorLabStore.batchSize,
-      concurrency: config.ErrorLabStore.concurrency,
-      when: config.ErrorLabStore.when,
-      load: (batch, ctx) =>
-        config.ErrorLabStore.load(batch as readonly ErrorLabResource[], {
-          ...ctx,
-          executionContext: ctx.executionContext,
-        }),
-    }),
-    defineSource({
-      id: "CmsAssets",
-      for: [assetAri],
-      batchSize: config.CmsAssets.batchSize,
-      concurrency: config.CmsAssets.concurrency,
-      when: config.CmsAssets.when,
-      load: (batch, ctx) =>
-        config.CmsAssets.load(batch as readonly AssetResource[], {
-          ...ctx,
-          executionContext: ctx.executionContext,
-        }),
-    }),
-  ];
-}
+type PricingApiConfig = {
+  load: (
+    batch: readonly OfferPriceResource[],
+    context: ResourceLoadContext<PricingApiContext>
+  ) => Promise<readonly (OfferPricePayload | undefined)[]>;
+  batchSize?: number;
+  concurrency?: number;
+  when?: (context: SourceRouteContext<PricingApiContext>) => boolean;
+};
+
+type InventoryApiConfig = {
+  load: (
+    batch: readonly StockLevelResource[],
+    context: ResourceLoadContext<InventoryApiContext>
+  ) => Promise<readonly (StockLevelPayload | undefined)[]>;
+  batchSize?: number;
+  concurrency?: number;
+  when?: (context: SourceRouteContext<InventoryApiContext>) => boolean;
+};
+
+type MediaCdnConfig = {
+  load: (
+    batch: readonly ProductMediaResource[],
+    context: ResourceLoadContext<MediaCdnContext>
+  ) => Promise<readonly (ProductMediaPayload | undefined)[]>;
+  batchSize?: number;
+  concurrency?: number;
+  when?: (context: SourceRouteContext<MediaCdnContext>) => boolean;
+};
 
 export type ErrorHandlingDetailParams = {
   labId: EntryId;
@@ -664,6 +728,185 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   return strategy;
 }
 
+export type ProductDetailParams = {
+  productId: CatalogProductId;
+};
+
+export type ProductDetailExecutionContext = {
+  market: Market;
+  locale: Locale;
+  tenantId: TenantId;
+};
+
+export function createProductDetailStrategy(params: ProductDetailParams) {
+  const strategy = createGraphResolutionStrategy<ProductDetailExecutionContext, ContentRegistry>();
+
+  strategy.expansion.on(catalogProductAri).expand((predicate) => ({
+    resources: [
+      offerPriceAri({ id: predicate.payload.priceId, market: predicate.resource.key[0].market }),
+      stockLevelAri({ sku: predicate.payload.sku, warehouse: "eu-central" }),
+      productMediaAri({ id: predicate.payload.mediaId }),
+    ],
+    onFailure: "setNull",
+  }));
+
+  return strategy;
+}
+
+export function createErrorHandlingDetailDataSources(config: {
+  CmsEntries: CmsEntriesConfig;
+  ErrorLabStore: ErrorLabStoreConfig;
+  CmsAssets: CmsAssetsConfig;
+}): DataSource<ContentRegistry, ErrorHandlingDetailExecutionContext>[] {
+  const defineSource = defineDataSourceFor<ContentRegistry, ErrorHandlingDetailExecutionContext>();
+
+  return [
+    defineSource({
+      id: "CmsEntries",
+      for: [pageAri, entryAri],
+      batchSize: config.CmsEntries.batchSize,
+      concurrency: config.CmsEntries.concurrency,
+      when: config.CmsEntries.when,
+      load: (batch, ctx) =>
+        config.CmsEntries.load(batch as readonly (PageResource | EntryResource)[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "ErrorLabStore",
+      for: [errorLabAri],
+      batchSize: config.ErrorLabStore.batchSize,
+      concurrency: config.ErrorLabStore.concurrency,
+      when: config.ErrorLabStore.when,
+      load: (batch, ctx) =>
+        config.ErrorLabStore.load(batch as readonly ErrorLabResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "CmsAssets",
+      for: [assetAri],
+      batchSize: config.CmsAssets.batchSize,
+      concurrency: config.CmsAssets.concurrency,
+      when: config.CmsAssets.when,
+      load: (batch, ctx) =>
+        config.CmsAssets.load(batch as readonly AssetResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+  ];
+}
+
+export function createPageDetailDataSources(config: {
+  CmsCustomReferences: CmsCustomReferencesConfig;
+  CmsEntries: CmsEntriesConfig;
+  CmsAssets: CmsAssetsConfig;
+}): DataSource<ContentRegistry, PageDetailExecutionContext>[] {
+  const defineSource = defineDataSourceFor<ContentRegistry, PageDetailExecutionContext>();
+
+  return [
+    defineSource({
+      id: "CmsCustomReferences",
+      for: [customReferenceAri],
+      batchSize: config.CmsCustomReferences.batchSize,
+      concurrency: config.CmsCustomReferences.concurrency,
+      when: config.CmsCustomReferences.when,
+      load: (batch, ctx) =>
+        config.CmsCustomReferences.load(batch as readonly CustomReferenceResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "CmsEntries",
+      for: [pageAri, entryAri],
+      batchSize: config.CmsEntries.batchSize,
+      concurrency: config.CmsEntries.concurrency,
+      when: config.CmsEntries.when,
+      load: (batch, ctx) =>
+        config.CmsEntries.load(batch as readonly (PageResource | EntryResource)[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "CmsAssets",
+      for: [assetAri],
+      batchSize: config.CmsAssets.batchSize,
+      concurrency: config.CmsAssets.concurrency,
+      when: config.CmsAssets.when,
+      load: (batch, ctx) =>
+        config.CmsAssets.load(batch as readonly AssetResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+  ];
+}
+
+export function createProductDetailDataSources(config: {
+  CatalogApi: CatalogApiConfig;
+  PricingApi: PricingApiConfig;
+  InventoryApi: InventoryApiConfig;
+  MediaCdn: MediaCdnConfig;
+}): DataSource<ContentRegistry, ProductDetailExecutionContext>[] {
+  const defineSource = defineDataSourceFor<ContentRegistry, ProductDetailExecutionContext>();
+
+  return [
+    defineSource({
+      id: "CatalogApi",
+      for: [catalogProductAri],
+      batchSize: config.CatalogApi.batchSize,
+      concurrency: config.CatalogApi.concurrency,
+      when: config.CatalogApi.when,
+      load: (batch, ctx) =>
+        config.CatalogApi.load(batch as readonly CatalogProductResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "PricingApi",
+      for: [offerPriceAri],
+      batchSize: config.PricingApi.batchSize,
+      concurrency: config.PricingApi.concurrency,
+      when: config.PricingApi.when,
+      load: (batch, ctx) =>
+        config.PricingApi.load(batch as readonly OfferPriceResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "InventoryApi",
+      for: [stockLevelAri],
+      batchSize: config.InventoryApi.batchSize,
+      concurrency: config.InventoryApi.concurrency,
+      when: config.InventoryApi.when,
+      load: (batch, ctx) =>
+        config.InventoryApi.load(batch as readonly StockLevelResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+    defineSource({
+      id: "MediaCdn",
+      for: [productMediaAri],
+      batchSize: config.MediaCdn.batchSize,
+      concurrency: config.MediaCdn.concurrency,
+      when: config.MediaCdn.when,
+      load: (batch, ctx) =>
+        config.MediaCdn.load(batch as readonly ProductMediaResource[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+  ];
+}
+
 export type ErrorHandlingDetail_ErrorLab = {
   __typename: "ErrorLab";
   softSingle:
@@ -832,6 +1075,37 @@ export type PageDetail_Asset = {
 };
 
 export type PageDetailResult = PageDetail_Page;
+
+export type ProductDetail_CatalogProduct = {
+  __typename: "CatalogProduct";
+  id: CatalogProductId;
+  title: string;
+  price: ProductDetail_OfferPrice | null;
+  stock: ProductDetail_StockLevel | null;
+  media: ProductDetail_ProductMedia | null;
+};
+
+export type ProductDetail_OfferPrice = {
+  __typename: "OfferPrice";
+  id: PriceId;
+  amountCents: number;
+  currency: string;
+};
+
+export type ProductDetail_StockLevel = {
+  __typename: "StockLevel";
+  sku: InventorySku;
+  available: number;
+};
+
+export type ProductDetail_ProductMedia = {
+  __typename: "ProductMedia";
+  id: MediaId;
+  url: string;
+  alt: string;
+};
+
+export type ProductDetailResult = ProductDetail_CatalogProduct;
 
 export function projectErrorHandlingDetail(
   root: ReturnType<typeof errorLabAri>,
@@ -1356,6 +1630,138 @@ export function projectPageDetail(
   return projectNode(root) as PageDetailResult;
 }
 
+export function projectProductDetail(
+  root: ReturnType<typeof catalogProductAri>,
+  contentMap: ContentMap<ContentRegistry>,
+  args: {
+    params: ProductDetailParams;
+    executionContext: ProductDetailExecutionContext;
+    failures: ReadonlyMap<ResourceKey, ResolutionError>;
+  }
+): ProductDetailResult {
+  const memo = new Map<string, unknown>();
+  const failures = args.failures;
+
+  const projectOnCatalogProduct = (
+    resource: ReturnType<typeof catalogProductAri>,
+    inputPayload: CatalogProductPayload
+  ): ProductDetail_CatalogProduct => {
+    const shell: Partial<ProductDetail_CatalogProduct> = {
+      __typename: "CatalogProduct",
+    } satisfies Partial<ProductDetail_CatalogProduct>;
+    memo.set(resource.toString(), shell);
+    const payload = inputPayload;
+    shell.id = payload.id;
+    shell.title = payload.title;
+    shell.price = projectEdge(
+      offerPriceAri({ id: payload.priceId, market: resource.key[0].market }),
+      "setNull"
+    ) as ProductDetail_CatalogProduct["price"];
+    shell.stock = projectEdge(
+      stockLevelAri({ sku: payload.sku, warehouse: "eu-central" }),
+      "setNull"
+    ) as ProductDetail_CatalogProduct["stock"];
+    shell.media = projectEdge(
+      productMediaAri({ id: payload.mediaId }),
+      "setNull"
+    ) as ProductDetail_CatalogProduct["media"];
+    return shell as ProductDetail_CatalogProduct;
+  };
+
+  const projectOnOfferPrice = (
+    resource: ReturnType<typeof offerPriceAri>,
+    inputPayload: OfferPricePayload
+  ): ProductDetail_OfferPrice => {
+    const shell: Partial<ProductDetail_OfferPrice> = {
+      __typename: "OfferPrice",
+    } satisfies Partial<ProductDetail_OfferPrice>;
+    memo.set(resource.toString(), shell);
+    const payload = inputPayload;
+    shell.id = payload.id;
+    shell.amountCents = payload.amountCents;
+    shell.currency = payload.currency;
+    return shell as ProductDetail_OfferPrice;
+  };
+
+  const projectOnStockLevel = (
+    resource: ReturnType<typeof stockLevelAri>,
+    inputPayload: StockLevelPayload
+  ): ProductDetail_StockLevel => {
+    const shell: Partial<ProductDetail_StockLevel> = {
+      __typename: "StockLevel",
+    } satisfies Partial<ProductDetail_StockLevel>;
+    memo.set(resource.toString(), shell);
+    const payload = inputPayload;
+    shell.sku = payload.sku;
+    shell.available = payload.available;
+    return shell as ProductDetail_StockLevel;
+  };
+
+  const projectOnProductMedia = (
+    resource: ReturnType<typeof productMediaAri>,
+    inputPayload: ProductMediaPayload
+  ): ProductDetail_ProductMedia => {
+    const shell: Partial<ProductDetail_ProductMedia> = {
+      __typename: "ProductMedia",
+    } satisfies Partial<ProductDetail_ProductMedia>;
+    memo.set(resource.toString(), shell);
+    const payload = inputPayload;
+    shell.id = payload.id;
+    shell.url = payload.url;
+    shell.alt = payload.alt;
+    return shell as ProductDetail_ProductMedia;
+  };
+
+  const projectNode = (ari: ApplicationResourceIdentifier): unknown => {
+    const key = ari.toString();
+    if (memo.has(key)) return memo.get(key);
+    const loadedPayload = contentMap.get(ari as never);
+    if (loadedPayload === undefined) return undefined;
+    switch (ari.type) {
+      case "CatalogProduct":
+        return projectOnCatalogProduct(
+          ari as ReturnType<typeof catalogProductAri>,
+          loadedPayload as CatalogProductPayload
+        );
+      case "OfferPrice":
+        return projectOnOfferPrice(
+          ari as ReturnType<typeof offerPriceAri>,
+          loadedPayload as OfferPricePayload
+        );
+      case "StockLevel":
+        return projectOnStockLevel(
+          ari as ReturnType<typeof stockLevelAri>,
+          loadedPayload as StockLevelPayload
+        );
+      case "ProductMedia":
+        return projectOnProductMedia(
+          ari as ReturnType<typeof productMediaAri>,
+          loadedPayload as ProductMediaPayload
+        );
+      default:
+        throw new Error(
+          "projectProductDetail: unexpected resource type " + JSON.stringify(ari.type)
+        );
+    }
+  };
+
+  const projectEdge = (
+    ari: ApplicationResourceIdentifier,
+    onFailure: "setNull" | "setError"
+  ): unknown => {
+    const value = projectNode(ari);
+    if (value !== undefined) return value;
+    if (onFailure === "setNull") return null;
+    const failure = failures.get(ari.toString());
+    if (failure === undefined) {
+      throw new Error("projectProductDetail: missing collected failure for " + ari.toString());
+    }
+    return toResolutionErrorData(failure);
+  };
+
+  return projectNode(root) as ProductDetailResult;
+}
+
 export type ResolveErrorHandlingDetailInput = {
   params: ErrorHandlingDetailParams;
   sources: readonly DataSource<ContentRegistry, ErrorHandlingDetailExecutionContext>[];
@@ -1481,6 +1887,66 @@ export async function resolvePageDetail(
 
   return {
     pageDetail,
+    contentMap,
+    islands,
+    islandDependencies,
+    errors,
+    promotedResourceKeys,
+  };
+}
+
+export type ResolveProductDetailInput = {
+  params: ProductDetailParams;
+  sources: readonly DataSource<ContentRegistry, ProductDetailExecutionContext>[];
+  schedulingMode?: SchedulingMode;
+  budget?: ResolutionBudgetOptions;
+  observer?: ResolutionObserver;
+  executionContext: ProductDetailExecutionContext;
+  backingResources?: ReadonlyMap<ResourceKey, unknown>;
+  signal?: AbortSignal;
+};
+
+export type ResolveProductDetailResult = {
+  productDetail: ProductDetailResult;
+  contentMap: ContentMap<ContentRegistry>;
+  islands: IslandMap;
+  islandDependencies: IslandDependencyMap;
+  errors: readonly ResolutionError[];
+  promotedResourceKeys: readonly ResourceKey[];
+};
+
+export async function resolveProductDetail(
+  input: ResolveProductDetailInput
+): Promise<ResolveProductDetailResult> {
+  const root = catalogProductAri({
+    id: input.params.productId,
+    market: input.executionContext.market,
+    locale: input.executionContext.locale,
+  });
+  const resolver = createResourceGraphResolver<ContentRegistry, ProductDetailExecutionContext>({
+    sources: input.sources,
+    strategy: createProductDetailStrategy(input.params).build(),
+    schedulingMode: input.schedulingMode,
+    budget: input.budget,
+    observer: input.observer,
+  });
+
+  const { contentMap, islands, islandDependencies, errors, failures, promotedResourceKeys } =
+    await resolver.resolve({
+      roots: [root],
+      executionContext: input.executionContext,
+      backingResources: input.backingResources,
+      signal: input.signal,
+    });
+
+  const productDetail = projectProductDetail(root, contentMap, {
+    params: input.params,
+    executionContext: input.executionContext,
+    failures,
+  });
+
+  return {
+    productDetail,
     contentMap,
     islands,
     islandDependencies,

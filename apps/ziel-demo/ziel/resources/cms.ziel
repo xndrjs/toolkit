@@ -1,3 +1,7 @@
+/**
+ * Shared CMS / editorial identity and resource shapes.
+ */
+
 scalar Locale on string;
 
 scalar SpaceId on string;

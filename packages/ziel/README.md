@@ -15,7 +15,7 @@ Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](
 
 **Editor:** [`.ziel` syntax highlighting + LSP diagnostics + IntelliSense + Format Document](../ziel-vscode) (VS Code / Cursor extension `xndrjs.ziel-vscode`). Live squiggles, hover, completion, go-to-definition, quick fixes, and formatting share Ziel's language-server bootstrap (semantic features use the same multi-file snapshot as codegen: multi-file when a nearby `ziel.config.*` scopes the collect; otherwise single-file only). The extension bundles its own server; consuming projects do not need to build this package for editor support.
 
-Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
+Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site. Ziel laws, stability matrix, when-not-to-use, and runbook: [Ziel](https://www.xndrjs.dev/v0/infrastructure/ziel/).
 
 ## Installation
 
@@ -131,7 +131,7 @@ There are no uncapitalized top-level helpers (`entryId(…)`). An empty scalars 
 
 `buildResources` / `ziel-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy` (including optional runtime `budget` overrides), plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. There is **no** global `missingResourceMode` on resolve input — roots always throw; child load failures follow each expand’s `on failure` policy. `create*Strategy` and `project*` remain exported for low-level use.
 
-`buildResources` / `ziel-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. When the program declares one or more `datasource` blocks, the same compose path also emits `createDataSources`. Generated imports stay on `@xndrjs/ziel` only.
+`buildResources` / `ziel-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. When the program declares one or more `datasource` blocks, the same compose path also emits a per-query `create{Query}DataSources` factory. Generated imports stay on `@xndrjs/ziel` only.
 
 ### `resolve to` (1→1 and 1→N)
 
@@ -179,12 +179,13 @@ datasource CmsSource {
 - **`for Resource [binding] [when …]`** — routes; `when` may use `context.…` and identity `@binding.…` only (no payload / params / items). Binding is required when `when` is present.
 - **Runtime routing** — generated datasources use the resolver’s first-match `sources` order; declare one owner per resource family (see `@xndrjs/resource-graph-resolver` README).
 - **Coverage** — if the program declares ≥1 datasource, every resource must appear in at least one `for` route (hand-wired apps with zero datasources stay valid). Disable with `requireDatasourceCoverage: false` in `ziel.config.ts` (default `true`; honored by CLI and LSP).
-- **Query context** — when datasources exist, each query context must include every field from the datasources whose routes intersect resources that query references (roots, islands, `on` clauses, expand / resolve targets), with compatible types. Unused datasources do not constrain that query. Aggregate `ZielExecutionContext` (for `createDataSources`) remains the merge of all datasource contexts.
+- **Query context** — when datasources exist, each query context must include every field from the datasources whose routes intersect resources that query references (roots, islands, `on` clauses, expand / resolve targets), with compatible types. Unused datasources do not constrain that query. Aggregate `ZielExecutionContext` remains the merge of all datasource contexts (documentation / app wiring); each query factory is typed on that query’s execution context.
+- **Per-query factories** — codegen emits `create{Query}DataSources` (e.g. `createPageDetailDataSources`) with only the datasources that cover resources referenced by that query.
 
 Codegen (`generateDataSources` / compose) emits per-source `*Context` types, aggregate `ZielExecutionContext`, and:
 
 ```ts
-createDataSources({
+createPageDetailDataSources({
   CmsSource: {
     load: (batch, context) => {
       /* app IO */

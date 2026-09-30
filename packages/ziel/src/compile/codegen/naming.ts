@@ -86,6 +86,11 @@ export function projectionVariantTypeName(
 /** Aggregate execution context merged from all datasource `context` blocks. */
 export const ZIEL_EXECUTION_CONTEXT_TYPE_NAME = "ZielExecutionContext";
 
+/** `PageDetail` → `createPageDetailDataSources` */
+export function dataSourcesFactoryName(queryName: string): string {
+  return `create${queryName}DataSources`;
+}
+
 /** `CmsSource` → `CmsSourceContext` */
 export function datasourceContextTypeName(datasourceName: string): string {
   return `${datasourceName}Context`;

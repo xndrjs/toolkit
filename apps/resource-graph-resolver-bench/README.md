@@ -1,6 +1,6 @@
 # @xndrjs/resource-graph-resolver-bench
 
-CLI for comparing **lane** vs **barrier** scheduling in `@xndrjs/resource-graph-resolver` on synthetic CMS graphs plus product leaves.
+CLI for comparing **lane** vs **barrier** scheduling in `@xndrjs/resource-graph-resolver` on synthetic CMS graphs plus product leaves — and for comparing the resolver against handwritten **naive** / **batched** walks.
 
 This is a private workspace app (not published). It reuses the _style_ of `@xndrjs/bench-perf` (matrix, warmup/repeats, JSON + markdown under `results/`), not its validation-engine domain.
 
@@ -18,6 +18,14 @@ Two graph **profiles**:
 | --------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | **`pagebuilder`** (default) | Wide page fan-out (`modules`), shallow nesting (`depth`), section branch factor (`arity`) | Mixed depths: every `productStride`-th sibling terminates early as a product module |
 | **`tree`**                  | Regular tree (`depth` × `arity`)                                                          | Only at leaves                                                                      |
+
+Three **orchestration** modes (`--orchestration`):
+
+| Mode                     | What runs                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| **`resolver`** (default) | `createResourceGraphResolver` — `schedulingMode` (lane/barrier) applies              |
+| **`naive`**              | Handwritten BFS — one RTT per resource (batch size 1)                                |
+| **`batched`**            | Handwritten BFS — DataLoader-style frontier flush, chunked by configured batch sizes |
 
 CMS and integration sources apply a **per-load** sleep (`cmsLatencyMs` / `integrationLatencyMs`) so cost tracks batch RTT, not per-item work.
 
@@ -55,6 +63,21 @@ pnpm --filter @xndrjs/resource-graph-resolver-bench bench -- --modules 32 --sche
 
 `bench` builds `@xndrjs/application-resources`, `@xndrjs/resource-graph-resolver`, and this app, then runs `dist/index.js`.
 
+### Compare orchestration modes
+
+```bash
+# Resolver (default)
+pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --orchestration resolver --repeats 1 --warmup 0
+
+# Naive (one RTT per resource)
+pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --orchestration naive --repeats 1 --warmup 0
+
+# Batched frontier walk
+pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --orchestration batched --repeats 1 --warmup 0
+```
+
+Baseline `--matrix` keeps `orchestration=resolver` only. Pass `--orchestration naive` or `batched` to shrink that axis for comparison runs.
+
 ### Default matrix (pagebuilder)
 
 ```bash
@@ -70,6 +93,7 @@ Baseline `--matrix` uses **pagebuilder** with `modules ∈ {32,48,64}` (~0.8–1
 | `depth`                | `5`                |
 | `arity`                | `3`                |
 | `productStride`        | `3`                |
+| `orchestration`        | `resolver`         |
 | `schedulingMode`       | `lane`, `barrier`  |
 | `cmsBatchSize`         | `50`, `100`, `200` |
 | `integrationBatchSize` | `100`              |
@@ -92,7 +116,7 @@ pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --matrix --prof
 
 ### Single-run flags
 
-`--profile`, `--modules`, `--depth`, `--arity`, `--product-stride`, `--scheduling-mode`, `--cms-batch-size`, `--integration-batch-size`, `--cms-latency-ms`, `--integration-latency-ms`, `--warmup` (default 1), `--repeats` (default 5), `--max-nodes`, `--output-dir`.
+`--profile`, `--modules`, `--depth`, `--arity`, `--product-stride`, `--orchestration`, `--scheduling-mode`, `--cms-batch-size`, `--integration-batch-size`, `--cms-latency-ms`, `--integration-latency-ms`, `--warmup` (default 1), `--repeats` (default 5), `--max-nodes`, `--output-dir`.
 
 `--list` lists matrix cells without running them.
 
@@ -109,6 +133,7 @@ Each run writes under `results/<iso-stamp>/` (override with `--output-dir`):
 1. At the same graph and configured batch size, does **lane reduce wall clock** vs barrier when `integrationLatency ≫ cmsLatency`?
 2. How do **`batchCount` and wall** scale as `modules` (page size) grows and `cmsBatchSize` changes?
 3. At the same configured `cmsBatchSize` max, how do **effective** batch sizes (mean / median / p95) differ between lane and barrier — including the share of full vs under-filled batches?
+4. Against the same graph, how do **`naive` / `batched`** wall and batch counts compare to **`resolver`** (lane)?
 
 Effective size is `onBatchStart.resourceCount` (the real load size), not the configured cap. On pagebuilder graphs, early product modules should increase CMS∥integration overlap for lane.
 
@@ -124,4 +149,7 @@ Effective size is `onBatchStart.resourceCount` (the real load size), not the con
 ```bash
 pnpm --filter @xndrjs/resource-graph-resolver-bench typecheck
 pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --scheduling-mode lane --repeats 1 --warmup 0
+# Use zero latency for orchestration smoke (naive is O(resources) RTTs otherwise)
+pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --orchestration naive --cms-latency-ms 0 --integration-latency-ms 0 --repeats 1 --warmup 0
+pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --orchestration batched --cms-latency-ms 0 --integration-latency-ms 0 --repeats 1 --warmup 0
 ```

@@ -33,7 +33,7 @@ Then reload the window (`Developer: Reload Window`). The VSIX is self-contained;
 2. Open the monorepo, **or** use a launch config with  
    `"args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/ziel-vscode"]`.
 3. Press **F5**.
-4. Open any `.ziel` file (e.g. `apps/ziel-demo/ziel/page-detail.ziel`).
+4. Open any `.ziel` file (e.g. `apps/ziel-demo/ziel/queries/page-detail.ziel`).
 
 After editing the TextMate grammar or language configuration, reload the Extension Development Host. After editing `src/extension.ts`, rebuild (`pnpm run build`) then reload.
 

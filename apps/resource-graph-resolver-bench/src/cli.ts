@@ -6,7 +6,7 @@ import { DEFAULT_MAX_NODES, type GraphProfile } from "./graph/generate";
 import { executeBenchCase, formatCaseLabel } from "./runner/execute";
 import { casesFromArgs, DEFAULT_MATRIX_DIMENSIONS, DEFAULT_SINGLE_RUN } from "./runner/matrix";
 import { defaultResultDir, writeBenchArtifacts } from "./runner/report";
-import type { RunnerCliArgs } from "./runner/types";
+import type { OrchestrationMode, RunnerCliArgs } from "./runner/types";
 
 const HELP_TEXT = `Usage:
   pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- [options]
@@ -17,13 +17,19 @@ Profiles:
   pagebuilder (default)  Wide page fan-out, shallow nesting, products at mixed depths
   tree                   Regular synthetic tree (depth × arity); products only at leaves
 
+Orchestration:
+  resolver (default)  createResourceGraphResolver (lane/barrier scheduling applies)
+  naive               Handwritten BFS — one RTT per resource (no batching)
+  batched             Handwritten BFS — DataLoader-style frontier batching
+
 Options:
   --profile <name>              Graph profile (default: ${DEFAULT_SINGLE_RUN.profile})
   --modules <n>                 Page root fan-out (pagebuilder; default single: ${DEFAULT_SINGLE_RUN.modules}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.modules.join(",")})
   --depth <n>                   Max CMS depth (default single: ${DEFAULT_SINGLE_RUN.depth}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.depth.join(",")})
   --arity <n>                   Section/tree branch factor (default single: ${DEFAULT_SINGLE_RUN.arity}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.arity.join(",")})
   --product-stride <n>          Early product every Nth sibling (pagebuilder; default: ${DEFAULT_SINGLE_RUN.productStride})
-  --scheduling-mode <lane|barrier>  Walk scheduling mode (default single: ${DEFAULT_SINGLE_RUN.schedulingMode}; matrix: both)
+  --orchestration <mode>        Walk engine: resolver|naive|batched (default: ${DEFAULT_SINGLE_RUN.orchestration})
+  --scheduling-mode <lane|barrier>  Resolver scheduling (ignored for naive/batched; default single: ${DEFAULT_SINGLE_RUN.schedulingMode}; matrix: both)
   --cms-batch-size <n>          Max CMS batch size (default single: ${DEFAULT_SINGLE_RUN.cmsBatchSize}; matrix: ${DEFAULT_MATRIX_DIMENSIONS.cmsBatchSize.join(",")})
   --integration-batch-size <n>  Max integration batch size (default: ${DEFAULT_SINGLE_RUN.integrationBatchSize})
   --cms-latency-ms <n>          Simulated CMS RTT per load (default: ${DEFAULT_SINGLE_RUN.cmsLatencyMs})
@@ -105,6 +111,11 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerCliArgs {
     ["lane", "barrier"],
     "scheduling-mode"
   ) as SchedulingMode | undefined;
+  const orchestration = ensureEnum(
+    map.get("orchestration") as string | undefined,
+    ["resolver", "naive", "batched"],
+    "orchestration"
+  ) as OrchestrationMode | undefined;
   const profile = ensureEnum(
     map.get("profile") as string | undefined,
     ["pagebuilder", "tree"],
@@ -130,6 +141,7 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerCliArgs {
       parseOptionalIntegerFlag(map.get("product-stride") as string | undefined, "--product-stride")
     ),
     ...(schedulingMode ? { schedulingMode } : {}),
+    ...(orchestration ? { orchestration } : {}),
     ...optionalNumberField(
       "cmsBatchSize",
       parseOptionalIntegerFlag(map.get("cms-batch-size") as string | undefined, "--cms-batch-size")

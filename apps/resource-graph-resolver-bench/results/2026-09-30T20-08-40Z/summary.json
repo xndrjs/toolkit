@@ -1,0 +1,221 @@
+{
+  "meta": {
+    "timestamp": "2026-09-30T20:08:40.619Z",
+    "matrix": false,
+    "cellCount": 1,
+    "runtime": {
+      "node": "v24.16.0",
+      "platform": "darwin",
+      "arch": "arm64"
+    }
+  },
+  "cells": [
+    {
+      "config": {
+        "profile": "pagebuilder",
+        "modules": 32,
+        "depth": 5,
+        "arity": 3,
+        "productStride": 3,
+        "schedulingMode": "lane",
+        "orchestration": "resolver",
+        "cmsBatchSize": 100,
+        "integrationBatchSize": 100,
+        "cmsLatencyMs": 20,
+        "integrationLatencyMs": 80,
+        "cmsConcurrency": 1,
+        "integrationConcurrency": 1,
+        "maxNodes": 10000,
+        "warmup": 0,
+        "repeats": 1
+      },
+      "graph": {
+        "cmsNodeCount": 474,
+        "productCount": 326,
+        "edgeCount": 799
+      },
+      "summary": {
+        "repeats": 1,
+        "wallMs": {
+          "median": 458,
+          "p95": 458,
+          "p99": 458,
+          "mean": 458,
+          "min": 458,
+          "max": 458,
+          "count": 1
+        },
+        "batchCount": {
+          "median": 12,
+          "p95": 12,
+          "p99": 12,
+          "mean": 12,
+          "min": 12,
+          "max": 12,
+          "count": 1
+        },
+        "resolvedCount": {
+          "median": 800,
+          "p95": 800,
+          "p99": 800,
+          "mean": 800,
+          "min": 800,
+          "max": 800,
+          "count": 1
+        },
+        "maxInFlightBatches": {
+          "median": 2,
+          "p95": 2,
+          "p99": 2,
+          "mean": 2,
+          "min": 2,
+          "max": 2,
+          "count": 1
+        },
+        "overlapMs": {
+          "median": 109.11804200000003,
+          "p95": 109.11804200000003,
+          "p99": 109.11804200000003,
+          "mean": 109.11804200000003,
+          "min": 109.11804200000003,
+          "max": 109.11804200000003,
+          "count": 1
+        },
+        "bySource": {
+          "cms": {
+            "sourceId": "cms",
+            "batchCount": {
+              "median": 7,
+              "p95": 7,
+              "p99": 7,
+              "mean": 7,
+              "min": 7,
+              "max": 7,
+              "count": 1
+            },
+            "effectiveBatchSizeMean": {
+              "median": 67.71428571428571,
+              "p95": 67.71428571428571,
+              "p99": 67.71428571428571,
+              "mean": 67.71428571428571,
+              "min": 67.71428571428571,
+              "max": 67.71428571428571,
+              "count": 1
+            },
+            "effectiveBatchSizeMedian": {
+              "median": 78,
+              "p95": 78,
+              "p99": 78,
+              "mean": 78,
+              "min": 78,
+              "max": 78,
+              "count": 1
+            },
+            "effectiveBatchSizeP95": {
+              "median": 100,
+              "p95": 100,
+              "p99": 100,
+              "mean": 100,
+              "min": 100,
+              "max": 100,
+              "count": 1
+            },
+            "sumBatchDurationMs": {
+              "median": 154,
+              "p95": 154,
+              "p99": 154,
+              "mean": 154,
+              "min": 154,
+              "max": 154,
+              "count": 1
+            },
+            "maxBatchDurationMs": {
+              "median": 23,
+              "p95": 23,
+              "p99": 23,
+              "mean": 23,
+              "min": 23,
+              "max": 23,
+              "count": 1
+            },
+            "fillHistogram": {
+              "configuredMax": 100,
+              "eq1": 1,
+              "lteHalf": 1,
+              "belowFull": 2,
+              "full": 3,
+              "unknown": 0,
+              "total": 7
+            }
+          },
+          "integration": {
+            "sourceId": "integration",
+            "batchCount": {
+              "median": 5,
+              "p95": 5,
+              "p99": 5,
+              "mean": 5,
+              "min": 5,
+              "max": 5,
+              "count": 1
+            },
+            "effectiveBatchSizeMean": {
+              "median": 65.2,
+              "p95": 65.2,
+              "p99": 65.2,
+              "mean": 65.2,
+              "min": 65.2,
+              "max": 65.2,
+              "count": 1
+            },
+            "effectiveBatchSizeMedian": {
+              "median": 100,
+              "p95": 100,
+              "p99": 100,
+              "mean": 100,
+              "min": 100,
+              "max": 100,
+              "count": 1
+            },
+            "effectiveBatchSizeP95": {
+              "median": 100,
+              "p95": 100,
+              "p99": 100,
+              "mean": 100,
+              "min": 100,
+              "max": 100,
+              "count": 1
+            },
+            "sumBatchDurationMs": {
+              "median": 412,
+              "p95": 412,
+              "p99": 412,
+              "mean": 412,
+              "min": 412,
+              "max": 412,
+              "count": 1
+            },
+            "maxBatchDurationMs": {
+              "median": 83,
+              "p95": 83,
+              "p99": 83,
+              "mean": 83,
+              "min": 83,
+              "max": 83,
+              "count": 1
+            },
+            "fillHistogram": {
+              "configuredMax": 100,
+              "eq1": 0,
+              "lteHalf": 2,
+              "belowFull": 0,
+              "full": 3,
+              "unknown": 0,
+              "total": 5
+            }
+          }
+        }
+      }
+    }
+  ]
+}

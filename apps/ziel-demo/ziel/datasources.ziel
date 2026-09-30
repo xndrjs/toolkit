@@ -1,7 +1,9 @@
 /**
  * Routing metadata for demo DataSources.
- * App code supplies `load` / batchSize / concurrency via `createDataSources`.
+ * App code supplies `load` / batchSize / concurrency via per-query
+ * `create{Query}DataSources` (e.g. `createPageDetailDataSources`).
  */
+
 datasource CmsCustomReferences {
   context {
     spaceId: SpaceId
@@ -45,4 +47,37 @@ datasource CmsAssets {
   }
 
   for Asset
+}
+
+datasource CatalogApi {
+  context {
+    market: Market
+    locale: Locale
+  }
+
+  for CatalogProduct
+}
+
+datasource PricingApi {
+  context {
+    market: Market
+  }
+
+  for OfferPrice
+}
+
+datasource InventoryApi {
+  context {
+    tenantId: TenantId
+  }
+
+  for StockLevel
+}
+
+datasource MediaCdn {
+  context {
+    market: Market
+  }
+
+  for ProductMedia
 }
