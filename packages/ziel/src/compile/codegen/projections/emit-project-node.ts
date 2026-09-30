@@ -1,6 +1,7 @@
 import type { QueryDefinition } from "../../../ir";
 import {
   projectableProjections,
+  queryHasRedirectResolves,
   queryNeedsFailureProjection,
   resolveTargetIndex,
 } from "../../../check/projection-graph";
@@ -43,7 +44,10 @@ export function emitProjectNode(
     );
   }
 
-  for (const locator of resolveTargets.keys()) {
+  for (const [locator, info] of resolveTargets) {
+    // Many-resolve locators are expansion-backed; projectNode strip lands in a
+    // later emit pass. 1→1 locators still follow redirects.
+    if (info.multiplicity === "many") continue;
     cases.push(
       [
         `      case ${JSON.stringify(locator)}: {`,
@@ -80,7 +84,7 @@ export function emitProjectNode(
 export function emitArgsType(query: QueryDefinition): string | null {
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
-  const hasRedirects = resolveTargetIndex(query).size > 0;
+  const hasRedirects = queryHasRedirectResolves(query);
   const hasFailures = queryNeedsFailureProjection(query);
   if (!hasParams && !hasContext && !hasRedirects && !hasFailures) {
     return null;

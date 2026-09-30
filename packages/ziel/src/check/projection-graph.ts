@@ -3,28 +3,56 @@ import type { PayloadTypeLookup } from "./discriminants";
 
 export type { PayloadTypeLookup };
 
-/** resource → unique resolve-arm target resource names. */
-export type ResolveTargetIndex = Map<string, string[]>;
+/**
+ * Resolve-only locator strip: unique settle-target resource names + multiplicity.
+ * - `"one"`: 1→1 `resolve to { … }` → alias is a union of member projection types.
+ * - `"many"`: `resolve to each …` → alias is an **array** of those member types.
+ */
+export type ResolveTargetInfo = {
+  targets: string[];
+  multiplicity: "one" | "many";
+};
+
+/** resource → resolve strip info (1→1 arms or resolve-to-each). */
+export type ResolveTargetIndex = Map<string, ResolveTargetInfo>;
+
+/** Concrete members + outermost strip multiplicity from {@link stripToConcreteMembers}. */
+export type ResolveStripResult = {
+  members: string[];
+  multiplicity: "one" | "many";
+};
 
 export function resolveTargetIndex(query: QueryDefinition): ResolveTargetIndex {
   const out: ResolveTargetIndex = new Map();
   for (const projection of query.projections) {
-    if (projection.resolveArms === null) continue;
-    out.set(projection.resource, [
-      ...new Set(projection.resolveArms.map((arm) => arm.target.resource)),
-    ]);
+    if (projection.resolveArms !== null) {
+      out.set(projection.resource, {
+        targets: [...new Set(projection.resolveArms.map((arm) => arm.target.resource))],
+        multiplicity: "one",
+      });
+    } else if (projection.resolveEach !== null) {
+      out.set(projection.resource, {
+        targets: [...new Set(projection.resolveEach.arms.map((arm) => arm.target.resource))],
+        multiplicity: "many",
+      });
+    }
   }
   return out;
 }
 
+/** True when the query has at least one 1→1 resolve-only locator (redirect map). */
+export function queryHasRedirectResolves(query: QueryDefinition): boolean {
+  return [...resolveTargetIndex(query).values()].some((info) => info.multiplicity === "one");
+}
+
 /** Projections that emit a `projectOn*` shell / result type (excludes resolve-only). */
 export function projectableProjections(query: QueryDefinition): ResourceProjection[] {
-  return query.projections.filter((p) => p.resolveArms === null);
+  return query.projections.filter((p) => p.resolveArms === null && p.resolveEach === null);
 }
 
 /** All expansions under a projection (flat body or flattened when-arms). */
 export function allProjectionExpansions(projection: ResourceProjection): Expansion[] {
-  if (projection.resolveArms !== null) {
+  if (projection.resolveArms !== null || projection.resolveEach !== null) {
     return [];
   }
   if (projection.arms !== null) {
@@ -37,6 +65,11 @@ export function allProjectionExpansions(projection: ResourceProjection): Expansi
 export function allOnFailurePolicies(query: QueryDefinition): OnFailurePolicy[] {
   const policies: OnFailurePolicy[] = [];
   for (const projection of query.projections) {
+    if (projection.resolveEach !== null) {
+      for (const arm of projection.resolveEach.arms) {
+        policies.push(arm.onFailure);
+      }
+    }
     for (const expansion of allProjectionExpansions(projection)) {
       if (expansion.multiplicity === "one") {
         policies.push(expansion.onFailure);
@@ -63,13 +96,17 @@ export function queryUsesSetError(query: QueryDefinition): boolean {
 
 /**
  * Concrete projectable resource names when expanding a **resolve-only** locator
- * (`CustomReference resolve to Entry | Asset`). Does **not** strip resource-union
- * payloads (`EditorialModule: Hero | Tabs`) — those require an explicit
- * `on EditorialModule` (indirection goes through `resolve to`, like CustomReference).
+ * (`CustomReference resolve to Entry | Asset`, or `TabCollection resolve to each …`).
+ * Does **not** strip resource-union payloads (`EditorialModule: Hero | Tabs`) —
+ * those require an explicit `on EditorialModule` (indirection goes through
+ * `resolve to`, like CustomReference).
  *
- * Returns `null` when `targetName` is already projectable, has no resolve arms,
+ * Returns `null` when `targetName` is already projectable, has no resolve strip,
  * or is not a resolve-only locator. Stops at resources that have an explicit
  * projectable projection.
+ *
+ * `multiplicity` is taken from the **outermost** resolve locator (`"many"` ⇒
+ * strip alias type is an array of member projection types).
  */
 export function stripToConcreteMembers(
   targetName: string,
@@ -77,7 +114,7 @@ export function stripToConcreteMembers(
   projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
   seen = new Set<string>()
-): string[] | null {
+): ResolveStripResult | null {
   if (seen.has(targetName)) {
     return null;
   }
@@ -88,19 +125,22 @@ export function stripToConcreteMembers(
     return null;
   }
 
-  const resolveRefs = resolveTargets.get(targetName);
-  if (resolveRefs === undefined || resolveRefs.length === 0) {
+  const entry = resolveTargets.get(targetName);
+  if (entry === undefined || entry.targets.length === 0) {
     return null;
   }
 
   const members: string[] = [];
-  for (const ref of resolveRefs) {
+  for (const ref of entry.targets) {
     const nested = stripToConcreteMembers(ref, resources, projected, resolveTargets, new Set(seen));
     if (nested === null) {
       members.push(ref);
     } else {
-      members.push(...nested);
+      members.push(...nested.members);
     }
   }
-  return [...new Set(members)];
+  return {
+    members: [...new Set(members)],
+    multiplicity: entry.multiplicity,
+  };
 }

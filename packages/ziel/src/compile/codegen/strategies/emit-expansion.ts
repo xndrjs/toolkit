@@ -283,7 +283,7 @@ function emitArmedProjectionExpansion(projection: ResourceProjection, arm: Proje
  * Resolve-only projections contribute no expansions.
  */
 export function emitProjectionExpansions(projection: ResourceProjection): string[] {
-  if (projection.resolveArms !== null) {
+  if (projection.resolveArms !== null || projection.resolveEach !== null) {
     return [];
   }
   if (projection.arms !== null) {

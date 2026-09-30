@@ -219,13 +219,18 @@ function printTargetAliasType(
     return projectionTypeName(queryName, targetName);
   }
 
-  // Resolve-only locator → alias is the union of settle-target projection types.
+  // Resolve-only locator → alias is the union (1→1) or array (resolve-to-each)
+  // of settle-target projection types.
   const stripped = stripToConcreteMembers(targetName, resources, projected, resolveTargets);
-  if (stripped !== null && stripped.length > 0) {
-    for (const member of stripped) {
+  if (stripped !== null && stripped.members.length > 0) {
+    for (const member of stripped.members) {
       requireProjected(queryName, member, projected, `resolve target of '${targetName}'`);
     }
-    return stripped.map((m) => projectionTypeName(queryName, m)).join(" | ");
+    const union = stripped.members.map((m) => projectionTypeName(queryName, m)).join(" | ");
+    if (stripped.multiplicity === "many") {
+      return stripped.members.length === 1 ? `${union}[]` : `(${union})[]`;
+    }
+    return union;
   }
 
   // Object / collection / resource-union / resourceRef payloads require an explicit `on Target`

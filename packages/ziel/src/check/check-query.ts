@@ -12,6 +12,7 @@ import type {
 import {
   checkExpansions,
   checkNonObjectProjectionBody,
+  checkResolveEach,
   checkSelectedFields,
 } from "./check-expansions";
 import { checkIslands } from "./check-islands";
@@ -247,8 +248,10 @@ export function checkQuery(
     }
 
     // Resolve-only clauses cannot also carry projection body / when-arms
-    // (parse rejects the mix; this catches hand-built IR).
-    if (projection.resolveArms !== null && (hasFlatBody || projection.arms !== null)) {
+    // (parse rejects the mix; this catches hand-built IR). Same for both
+    // 1→1 `resolve to { … }` and `resolve to each`.
+    const isResolveOnly = projection.resolveArms !== null || projection.resolveEach !== null;
+    if (isResolveOnly && (hasFlatBody || projection.arms !== null)) {
       sink.push({
         code: "MIXED_RESOLVE_PROJECTION",
         message: `Projection 'on ${projection.resource}' cannot mix 'resolve to' with selected fields, expansions, or when-arms`,
@@ -257,7 +260,16 @@ export function checkQuery(
       });
     }
 
-    if (projection.resolveArms !== null && projection.include !== null) {
+    if (projection.resolveArms !== null && projection.resolveEach !== null) {
+      sink.push({
+        code: "MIXED_RESOLVE_PROJECTION",
+        message: `Projection 'on ${projection.resource}' cannot mix 'resolve to { … }' arms with 'resolve to each'`,
+        path: projPath,
+        span: projection.span,
+      });
+    }
+
+    if (isResolveOnly && projection.include !== null) {
       sink.push({
         code: "INCLUDE_ON_RESOLVE",
         message: `Projection 'on ${projection.resource}' cannot use 'include' with 'resolve to'`,
@@ -279,6 +291,16 @@ export function checkQuery(
           sink
         );
       }
+    } else if (projection.resolveEach !== null) {
+      checkResolveEach(
+        projection.resolveEach,
+        `${projPath}.resolveEach`,
+        projection.span,
+        scope,
+        scalars,
+        resources,
+        sink
+      );
     } else if (projection.arms !== null) {
       if (!isObjectLikePayload(resource.payloadType, resources)) {
         sink.push({

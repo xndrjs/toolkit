@@ -126,6 +126,11 @@ function collectProjectionResources(projection: ResourceProjection, out: Set<str
       out.add(arm.target.resource);
     }
   }
+  if (projection.resolveEach) {
+    for (const arm of projection.resolveEach.arms) {
+      out.add(arm.target.resource);
+    }
+  }
 }
 
 function collectExpansionResources(expansion: Expansion, out: Set<string>): void {

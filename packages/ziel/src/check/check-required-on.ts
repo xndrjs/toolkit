@@ -4,9 +4,10 @@
  *
  * Collection resources require `on` for the collection itself (`TabCollection: Tab[]`
  * → `on TabCollection`), same as object resources — the payload RHS is not traversed.
- * Resolve-only locators require settle-target `on`s. Resource-union payloads require
- * `on` for the wrapper resource itself (`EditorialModule: Hero | Tabs` →
- * `on EditorialModule`).
+ * Resolve-only locators (1→1 or `resolve to each`) require settle-target `on`s
+ * (e.g. expand `TabCollection` with `resolve to each … Tab` → `on Tab`, not a
+ * projectable `on TabCollection`). Resource-union payloads require `on` for the
+ * wrapper resource itself (`EditorialModule: Hero | Tabs` → `on EditorialModule`).
  *
  * Diagnostics are query-scoped: missing `on` is a property of the query as a
  * whole, not of any particular expand / root construction.
@@ -63,10 +64,10 @@ export function checkRequiredOn(
       return;
     }
 
-    // Resolve-only locator (`resolve to Entry | Asset`) → require settle targets.
+    // Resolve-only locator (1→1 or resolve-to-each) → require settle targets.
     const stripped = stripToConcreteMembers(site.targetName, resources, projected, resolveTargets);
-    if (stripped !== null && stripped.length > 0) {
-      for (const member of stripped) {
+    if (stripped !== null && stripped.members.length > 0) {
+      for (const member of stripped.members) {
         requireProjected(member);
       }
       return;
