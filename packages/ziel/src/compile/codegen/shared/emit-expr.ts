@@ -30,8 +30,8 @@ export const strategyExprScope: EmitExprScope = {
 };
 
 /**
- * Armed expand/to after `const payload = predicate.payload as any` — payload is
- * local; resource / executionContext stay on `predicate`.
+ * Armed expand/to after rebinding `predicate.payload` to the semantic arm type;
+ * resource / executionContext stay on `predicate`.
  */
 export const strategyArmedBodyScope: EmitExprScope = {
   params: "params",

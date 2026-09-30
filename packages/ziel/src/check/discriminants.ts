@@ -258,13 +258,43 @@ export function narrowPayloadByFilter(
   binding: string,
   resources: PayloadTypeLookup
 ): TypeExpr | undefined {
+  const result = analyzePayloadFilter(payloadType, filter, binding, resources);
+  return result.analyzable && result.payloadType !== null ? result.payloadType : undefined;
+}
+
+export type PayloadFilterAnalysis =
+  | { analyzable: false; payloadType: TypeExpr }
+  | { analyzable: true; payloadType: TypeExpr | null; precise: boolean };
+
+/**
+ * Analyze a payload filter without conflating an unsupported predicate with a
+ * predicate that provably matches no closed-union member.
+ */
+export function analyzePayloadFilter(
+  payloadType: TypeExpr,
+  filter: Expr,
+  binding: string,
+  resources: PayloadTypeLookup
+): PayloadFilterAnalysis {
   const match = payloadDiscriminantMatch(filter, binding);
-  if (!match) return undefined;
+  if (!match) return { analyzable: false, payloadType };
 
   const members = expandPayloadObjectMembers(payloadType, resources);
-  if (!members) return undefined;
+  if (!members) return { analyzable: false, payloadType };
 
-  return matchMembers(members, match);
+  const truths = members.map((member) => memberFilterTruth(member, match));
+  const matched = members.filter((_, index) => truths[index] !== false);
+  const narrowed: TypeExpr | null =
+    matched.length === 0
+      ? null
+      : matched.length === 1
+        ? matched[0]!
+        : { kind: "union", members: matched, span: null };
+  return {
+    analyzable: true,
+    payloadType: narrowed,
+    precise: truths.every((truth) => truth !== "unknown"),
+  };
 }
 
 /**

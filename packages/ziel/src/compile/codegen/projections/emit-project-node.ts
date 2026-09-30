@@ -1,10 +1,5 @@
-import type { Expansion, QueryDefinition, ResolveEach } from "../../../ir";
-import {
-  projectableProjections,
-  queryHasRedirectResolves,
-  queryNeedsFailureProjection,
-  resolveTargetIndex,
-} from "../../../check/projection-graph";
+import type { QueryPlan } from "../../../check";
+import type { QueryDefinition } from "../../../ir";
 import {
   ariFactoryName,
   executionContextTypeName,
@@ -35,22 +30,6 @@ export function emitProjectEdgeHelper(fnName: string): string {
   ].join("\n");
 }
 
-/** Synthetic many-expand so resolve-to-each reuses {@link emitManyProject}. */
-function resolveEachAsExpansion(resolveEach: ResolveEach): Expansion {
-  return {
-    alias: "",
-    target: null,
-    multiplicity: "many",
-    comprehension: {
-      itemBinding: resolveEach.itemBinding,
-      source: resolveEach.source,
-      arms: resolveEach.arms,
-    },
-    onFailure: "throw",
-    span: null,
-  };
-}
-
 /** Indent continuation lines of a multi-line map/flatMap expression. */
 function indentMultilineExpr(expr: string, indent: string): string {
   if (!expr.includes("\n")) return expr;
@@ -60,30 +39,23 @@ function indentMultilineExpr(expr: string, indent: string): string {
     .join("\n");
 }
 
-export function emitProjectNode(
-  query: QueryDefinition,
-  resources: ResourceIndex,
-  fnName: string
-): string {
+export function emitProjectNode(plan: QueryPlan, resources: ResourceIndex, fnName: string): string {
   void resources;
-  const projectable = projectableProjections(query);
-  const resolveTargets = resolveTargetIndex(query);
-
   const cases: string[] = [];
 
-  for (const projection of projectable) {
-    const helper = projectOnFnName(projection.resource);
-    const ari = ariFactoryName(projection.resource);
-    const payloadType = payloadTypeName(projection.resource);
+  for (const projection of plan.projectableProjections) {
+    const helper = projectOnFnName(projection.source.resource);
+    const ari = ariFactoryName(projection.source.resource);
+    const payloadType = payloadTypeName(projection.source.resource);
     cases.push(
       [
-        `      case ${JSON.stringify(projection.resource)}:`,
+        `      case ${JSON.stringify(projection.source.resource)}:`,
         `        return ${helper}(ari as ReturnType<typeof ${ari}>, loadedPayload as ${payloadType});`,
       ].join("\n")
     );
   }
 
-  for (const [locator, info] of resolveTargets) {
+  for (const [locator, info] of plan.redirectTargets) {
     if (info.multiplicity === "many") continue;
     cases.push(
       [
@@ -97,17 +69,14 @@ export function emitProjectNode(
   }
 
   // Many-resolve: map locator payload through the each body (no redirects).
-  for (const projection of query.projections) {
+  for (const projection of plan.projections) {
     if (projection.resolveEach === null) continue;
-    const ari = ariFactoryName(projection.resource);
-    const payload = payloadTypeName(projection.resource);
-    const mapExpr = indentMultilineExpr(
-      emitManyProject(resolveEachAsExpansion(projection.resolveEach)),
-      "        "
-    );
+    const ari = ariFactoryName(projection.source.resource);
+    const payload = payloadTypeName(projection.source.resource);
+    const mapExpr = indentMultilineExpr(emitManyProject(projection.resolveEach.source), "        ");
     cases.push(
       [
-        `      case ${JSON.stringify(projection.resource)}: {`,
+        `      case ${JSON.stringify(projection.source.resource)}: {`,
         `        const resource = ari as ReturnType<typeof ${ari}>;`,
         `        const payload = loadedPayload as ${payload};`,
         `        const result = ${mapExpr};`,
@@ -140,11 +109,12 @@ export function emitProjectNode(
   ].join("\n");
 }
 
-export function emitArgsType(query: QueryDefinition): string | null {
+export function emitArgsType(plan: QueryPlan): string | null {
+  const query = plan.query;
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
-  const hasRedirects = queryHasRedirectResolves(query);
-  const hasFailures = queryNeedsFailureProjection(query);
+  const hasRedirects = plan.hasRedirects;
+  const hasFailures = plan.needsFailureProjection;
   if (!hasParams && !hasContext && !hasRedirects && !hasFailures) {
     return null;
   }

@@ -34,32 +34,22 @@
  * projection type.
  */
 import { createDiagnosticSink } from "../../../check/diagnostic";
-import {
-  expandPayloadObjectMembers,
-  isObjectLikePayload,
-  narrowPayloadByFilter,
-  residualPayloadAfterFilters,
-} from "../../../check/discriminants";
-import {
-  projectableProjections,
-  resolveTargetIndex,
-  stripToConcreteMembers,
-  type ResolveTargetIndex,
-} from "../../../check/projection-graph";
-import {
-  payloadIntersectionFields,
-  resolveSelectedFields,
-} from "../../../check/projection-include";
+import { expandPayloadObjectMembers, isObjectLikePayload } from "../../../check/discriminants";
+import { stripToConcreteMembers, type ResolveTargetIndex } from "../../../check/projection-graph";
+import type {
+  PlannedProjectionArm,
+  PlannedProjectionBody,
+  ProgramAnalysis,
+  ProjectionPlan,
+  QueryPlan,
+} from "../../../check";
+import { payloadIntersectionFields } from "../../../check/projection-include";
 import { resolveTypeExpr } from "../../../check/resolve-type";
 import type { ResourceTable, ScalarTable } from "../../../check/symbols";
 import type {
   Expansion,
   FieldDecl,
   OnFailurePolicy,
-  Program,
-  ProjectionArm,
-  ProjectionArmBody,
-  QueryDefinition,
   ResourceConstruction,
   ResourceProjection,
   RefersTarget,
@@ -67,6 +57,7 @@ import type {
 } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";
 import { printTypeExpr } from "../resources";
+import { codegenAnalysis, type CodegenInput } from "../analysis";
 import { projectionArmDiscriminant } from "../shared";
 import {
   payloadTypeName,
@@ -83,28 +74,6 @@ import {
 } from "./refers-narrow";
 
 export type { ExpansionAliasContext } from "./refers-narrow";
-
-function tablesFromProgram(program: Program): {
-  scalars: ScalarTable;
-  resources: ResourceTable;
-} {
-  const scalars: ScalarTable = new Map(program.scalars.map((s) => [s.name, s]));
-  const resources: ResourceTable = new Map();
-  // First pass: register names so union / resourceRef payloads can expand.
-  for (const resource of program.resources) {
-    resources.set(resource.name, {
-      identity: new Map(resource.identity.fields.map((f) => [f.name, f])),
-      payload: new Map(),
-      payloadType: resource.payloadType,
-    });
-  }
-  // Second pass: object fields, or intersection fields for closed object unions.
-  for (const resource of program.resources) {
-    const entry = resources.get(resource.name)!;
-    entry.payload = fieldMapFromPayload(resource.payloadType, entry.payload, resources);
-  }
-  return { scalars, resources };
-}
 
 function resolveForEmit(
   type: TypeExpr,
@@ -134,7 +103,7 @@ export function printExpansionAliasType(
   queryName: string,
   expansion: Expansion,
   resources: ResourceTable,
-  projected: Set<string>,
+  projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex = new Map(),
   context: ExpansionAliasContext | null = null
 ): string {
@@ -200,7 +169,7 @@ function printTargetAliasType(
   queryName: string,
   target: ResourceConstruction | string,
   resources: ResourceTable,
-  projected: Set<string>,
+  projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
   refers: RefersTarget[] = [],
   context: ExpansionAliasContext | null = null
@@ -296,7 +265,7 @@ function tryNarrowArmedAlias(
 function requireProjected(
   queryName: string,
   resourceName: string,
-  projected: Set<string>,
+  projected: ReadonlySet<string>,
   label: string
 ): void {
   if (!projected.has(resourceName)) {
@@ -331,15 +300,14 @@ function fieldMap(fields: FieldDecl[]): Map<string, FieldDecl> {
 function emitArmBodyVariantType(
   queryName: string,
   projection: ResourceProjection,
-  arm: ProjectionArmBody,
+  arm: PlannedProjectionBody,
   variant: string,
-  sourcePayload: TypeExpr,
   fieldPath: string,
   scalars: ScalarTable,
   resources: ResourceTable,
-  projected: Set<string>,
+  projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>,
+  projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
   resourceTag?: string
 ): { typeName: string; source: string } {
   const typeName = projectionVariantTypeName(queryName, projection.resource, variant);
@@ -350,9 +318,9 @@ function emitArmBodyVariantType(
     );
   }
 
-  const payloadFields = fieldMapFromPayload(sourcePayload, resource.payload, resources);
+  const payloadFields = fieldMapFromPayload(arm.payloadType, resource.payload, resources);
   const expansionContext: ExpansionAliasContext = {
-    sourcePayload,
+    sourcePayload: arm.payloadType,
     projectionsByResource,
   };
 
@@ -361,16 +329,7 @@ function emitArmBodyVariantType(
     lines.push(`  ${resourceTag}: ${JSON.stringify(projection.resource)};`);
   }
 
-  const effectiveFields = resolveSelectedFields(
-    arm.selectedFields,
-    arm.expansions,
-    arm.include ?? projection.include,
-    sourcePayload,
-    resources,
-    arm.excludedFields
-  );
-
-  for (const fieldName of effectiveFields) {
+  for (const fieldName of arm.selectedFields) {
     const field = payloadFields.get(fieldName);
     if (!field) {
       throw new Error(
@@ -382,7 +341,8 @@ function emitArmBodyVariantType(
     lines.push(`  ${fieldName}${field.optional ? "?" : ""}: ${printTypeExpr(resolved)};`);
   }
 
-  for (const expansion of arm.expansions) {
+  for (const plannedExpansion of arm.expansions) {
+    const expansion = plannedExpansion.source;
     const aliasType = printExpansionAliasType(
       queryName,
       expansion,
@@ -406,17 +366,16 @@ function emitArmBodyVariantType(
 function emitArmVariantType(
   queryName: string,
   projection: ResourceProjection,
-  arm: ProjectionArm,
-  armIndex: number,
+  arm: PlannedProjectionArm,
   scalars: ScalarTable,
   resources: ResourceTable,
-  projected: Set<string>,
+  projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>,
+  projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
   resourceTag?: string
 ): { typeName: string; source: string } {
-  const disc = projectionArmDiscriminant(arm.when, projection.binding);
-  const variant = disc ?? `Arm${armIndex}`;
+  const disc = projectionArmDiscriminant(arm.source.when, projection.binding);
+  const variant = disc ?? `Arm${arm.index}`;
 
   const resource = resources.get(projection.resource);
   if (!resource) {
@@ -425,17 +384,12 @@ function emitArmVariantType(
     );
   }
 
-  const narrowed =
-    narrowPayloadByFilter(resource.payloadType, arm.when, projection.binding, resources) ??
-    resource.payloadType;
-
   return emitArmBodyVariantType(
     queryName,
     projection,
     arm,
     variant,
-    narrowed,
-    `queries.${queryName}.projections.${projection.binding}.arms.${armIndex}`,
+    `queries.${queryName}.projections.${projection.binding}.arms.${arm.index}`,
     scalars,
     resources,
     projected,
@@ -447,41 +401,34 @@ function emitArmVariantType(
 
 function emitDefaultArmVariantType(
   queryName: string,
-  projection: ResourceProjection,
+  projection: ProjectionPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
-  projected: Set<string>,
+  projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>,
+  projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
   resourceTag?: string
 ): { typeName: string; source: string } {
   const defaultArm = projection.defaultArm;
   if (defaultArm === null) {
     throw new Error("emitProjectionTypes: emitDefaultArmVariantType called without defaultArm");
   }
-  const resource = resources.get(projection.resource);
+  const resource = resources.get(projection.source.resource);
   if (!resource) {
     throw new Error(
-      `emitProjectionTypes: unknown resource '${projection.resource}' in query '${queryName}'`
+      `emitProjectionTypes: unknown resource '${projection.source.resource}' in query '${queryName}'`
     );
   }
-  const typeName = projectionVariantTypeName(queryName, projection.resource, "Default");
-  const residual = residualPayloadAfterFilters(
-    resource.payloadType,
-    projection.arms?.map((arm) => arm.when) ?? [],
-    projection.binding,
-    resources
-  );
-  if (residual === null) {
+  const typeName = projectionVariantTypeName(queryName, projection.source.resource, "Default");
+  if (!defaultArm.reachable) {
     return { typeName, source: `export type ${typeName} = never;` };
   }
   return emitArmBodyVariantType(
     queryName,
-    projection,
+    projection.source,
     defaultArm,
     "Default",
-    residual ?? resource.payloadType,
-    `queries.${queryName}.projections.${projection.binding}.defaultArm`,
+    `queries.${queryName}.projections.${projection.source.binding}.defaultArm`,
     scalars,
     resources,
     projected,
@@ -493,19 +440,20 @@ function emitDefaultArmVariantType(
 
 function emitArmedResourceProjectionTypes(
   queryName: string,
-  projection: ResourceProjection,
+  projectionPlan: ProjectionPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
-  projected: Set<string>,
+  projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>,
+  projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
   resourceTag?: string
 ): string {
-  const arms = projection.arms;
-  if (arms === null) {
+  const projection = projectionPlan.source;
+  const arms = projectionPlan.arms;
+  if (projection.arms === null) {
     throw new Error("emitProjectionTypes: emitArmedResourceProjectionTypes called without arms");
   }
-  if (projection.defaultArm === null) {
+  if (projectionPlan.defaultArm === null) {
     throw new Error(
       `emitProjectionTypes: armed 'on ${projection.resource}' missing defaultArm in query '${queryName}'`
     );
@@ -526,12 +474,12 @@ function emitArmedResourceProjectionTypes(
   const variants: string[] = [];
   const parts: string[] = [];
 
-  for (let i = 0; i < arms.length; i++) {
+  for (const arm of arms) {
+    if (!arm.reachable) continue;
     const { typeName, source } = emitArmVariantType(
       queryName,
       projection,
-      arms[i]!,
-      i,
+      arm,
       scalars,
       resources,
       projected,
@@ -545,7 +493,7 @@ function emitArmedResourceProjectionTypes(
 
   const { typeName: defaultName, source: defaultSource } = emitDefaultArmVariantType(
     queryName,
-    projection,
+    projectionPlan,
     scalars,
     resources,
     projected,
@@ -563,14 +511,15 @@ function emitArmedResourceProjectionTypes(
 
 function emitFlatResourceProjectionType(
   queryName: string,
-  projection: ResourceProjection,
+  projectionPlan: ProjectionPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
-  projected: Set<string>,
+  projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>,
+  projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
   resourceTag?: string
 ): string {
+  const projection = projectionPlan.source;
   const resource = resources.get(projection.resource);
   if (!resource) {
     throw new Error(
@@ -604,17 +553,13 @@ function emitFlatResourceProjectionType(
     projectionsByResource,
   };
 
-  const effectiveFields = resolveSelectedFields(
-    projection.selectedFields,
-    projection.expansions,
-    projection.include,
-    resource.payloadType,
-    resources,
-    projection.excludedFields
-  );
+  const flatBody = projectionPlan.flatBody;
+  if (flatBody === null) {
+    throw new Error("emitProjectionTypes: flat projection is missing its semantic body");
+  }
 
   const payloadFields = fieldMapFromPayload(resource.payloadType, resource.payload, resources);
-  for (const fieldName of effectiveFields) {
+  for (const fieldName of flatBody.selectedFields) {
     const field = payloadFields.get(fieldName);
     if (!field) {
       throw new Error(
@@ -645,15 +590,15 @@ function emitFlatResourceProjectionType(
 
 function emitResourceProjectionType(
   queryName: string,
-  projection: ResourceProjection,
+  projection: ProjectionPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
-  projected: Set<string>,
+  projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
-  projectionsByResource: Map<string, ResourceProjection>,
+  projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
   resourceTag?: string
 ): string {
-  if (projection.arms !== null) {
+  if (projection.kind === "armed") {
     return emitArmedResourceProjectionTypes(
       queryName,
       projection,
@@ -678,15 +623,16 @@ function emitResourceProjectionType(
 }
 
 function emitQueryProjectionTypes(
-  query: QueryDefinition,
+  plan: QueryPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
   resourceTag?: string
 ): string {
-  const projectable = projectableProjections(query);
-  const projected = new Set(projectable.map((p) => p.resource));
-  const resolveTargets = resolveTargetIndex(query);
-  const projectionsByResource = new Map(projectable.map((p) => [p.resource, p]));
+  const query = plan.query;
+  const projectable = plan.projectableProjections;
+  const projected = plan.projectedResources;
+  const resolveTargets = plan.redirectTargets;
+  const projectionsByResource = plan.projectionsByResource;
   const parts: string[] = [];
 
   for (const projection of projectable) {
@@ -743,13 +689,15 @@ function emitQueryProjectionTypes(
  *
  * @param resourceTag - Optional property name for a resource-name stamp on types.
  */
-export function emitProjectionTypes(program: Program, resourceTag?: string): string {
-  if (program.queries.length === 0) {
+export function emitProjectionTypes(input: CodegenInput, resourceTag?: string): string {
+  const analysis: ProgramAnalysis = codegenAnalysis(input);
+  if (analysis.queries.length === 0) {
     return "";
   }
 
-  const { scalars, resources } = tablesFromProgram(program);
-  return program.queries
-    .map((query) => emitQueryProjectionTypes(query, scalars, resources, resourceTag))
+  return analysis.queries
+    .map((query) =>
+      emitQueryProjectionTypes(query, analysis.scalars, analysis.resources, resourceTag)
+    )
     .join("\n\n");
 }

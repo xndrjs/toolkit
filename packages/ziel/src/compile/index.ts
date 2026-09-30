@@ -9,6 +9,10 @@ export {
   type AnalyzeProgramOptions,
   type Diagnostic,
   type ProgramAnalysis,
+  type QueryPlan,
+  type ProjectionPlan,
+  type PlannedProjectionArm,
+  type PlannedProjectionBody,
   type ResourceTable,
   type ScalarTable,
 } from "../check";

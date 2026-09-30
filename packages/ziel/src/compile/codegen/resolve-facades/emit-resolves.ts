@@ -7,9 +7,10 @@
  *
  * Strategy factories and projectors stay exported for low-level use.
  */
-import type { Program, QueryDefinition } from "../../../ir";
+import type { ProgramAnalysis, QueryPlan } from "../../../check";
+import type { QueryDefinition } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";
-import { queryNeedsFailureProjection } from "../../../check/projection-graph";
+import { codegenAnalysis, type CodegenInput } from "../analysis";
 import {
   executionContextTypeName,
   paramsTypeName,
@@ -108,12 +109,13 @@ function emitEngineRootsExpr(query: QueryDefinition): string {
   return `[${parts.join(", ")}]`;
 }
 
-function emitProjectCall(query: QueryDefinition): string {
+function emitProjectCall(plan: QueryPlan): string {
+  const query = plan.query;
   const projectFn = projectFnName(query.name);
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
-  const hasRedirects = query.projections.some((p) => p.resolveArms !== null);
-  const hasFailures = queryNeedsFailureProjection(query);
+  const hasRedirects = plan.hasRedirects;
+  const hasFailures = plan.needsFailureProjection;
   const seedArg = isSingleRootQuery(query) ? "root" : "roots";
 
   if (!hasParams && !hasContext && !hasRedirects && !hasFailures) {
@@ -136,7 +138,8 @@ function emitProjectCall(query: QueryDefinition): string {
   return `${projectFn}(${seedArg}, contentMap, {\n    ${argFields.join(",\n    ")},\n  })`;
 }
 
-function emitQueryResolve(query: QueryDefinition, registryTypeName: string): string {
+function emitQueryResolve(plan: QueryPlan, registryTypeName: string): string {
+  const query = plan.query;
   const fnName = resolveFnName(query.name);
   const resultType = resolveResultTypeName(query.name);
   const inputType = resolveInputTypeName(query.name);
@@ -144,15 +147,15 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
   const strategyFactory = strategyFactoryName(query.name);
   const hasParams = query.parameters.length > 0;
   const hasContext = query.context.length > 0;
-  const hasRedirects = query.projections.some((p) => p.resolveArms !== null);
-  const hasFailures = queryNeedsFailureProjection(query);
+  const hasRedirects = plan.hasRedirects;
+  const hasFailures = plan.needsFailureProjection;
   const contextType = hasContext ? executionContextTypeName(query.name) : "unknown";
 
   const strategyCall = hasParams
     ? `${strategyFactory}(input.params).build()`
     : `${strategyFactory}().build()`;
 
-  const projectCall = emitProjectCall(query);
+  const projectCall = emitProjectCall(plan);
   const engineRoots = emitEngineRootsExpr(query);
   const rootBindings = emitRootBindings(query);
   const outputBindings = [
@@ -213,10 +216,11 @@ function emitQueryResolve(query: QueryDefinition, registryTypeName: string): str
  *
  * @param registryTypeName - Registry generic (default `ContentRegistry`).
  */
-export function emitResolves(program: Program, registryTypeName = "ContentRegistry"): string {
-  if (program.queries.length === 0) {
+export function emitResolves(input: CodegenInput, registryTypeName = "ContentRegistry"): string {
+  const analysis: ProgramAnalysis = codegenAnalysis(input);
+  if (analysis.queries.length === 0) {
     return "";
   }
 
-  return program.queries.map((query) => emitQueryResolve(query, registryTypeName)).join("\n\n");
+  return analysis.queries.map((query) => emitQueryResolve(query, registryTypeName)).join("\n\n");
 }

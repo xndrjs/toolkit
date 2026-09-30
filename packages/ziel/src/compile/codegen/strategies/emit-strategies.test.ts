@@ -175,8 +175,51 @@ describe("emitStrategies", () => {
 
     expect(code).toContain("export function createPageDetailStrategy()");
     expect(code).toContain(
-      'predicate.payload.strips.filter((s: any) => s.type == "Hero").map((s: any) => heroAri({ id: s.id, locale: predicate.executionContext.locale }))'
+      'predicate.payload.strips.filter((s) => s.type == "Hero").map((s) => heroAri({ id: s.id, locale: predicate.executionContext.locale }))'
     );
+  });
+
+  it("preserves first-match expansion semantics and emits default expansions", () => {
+    const source = `
+      scalar EntryId on string;
+
+      resource Entry(id: EntryId): {
+        id
+        kind: "Hero" | "Page"
+        title: string
+        childId: EntryId
+      }
+      resource Asset(id: EntryId): { id }
+
+      query Q(id: EntryId) {
+        context { }
+        root Entry(id: id)
+        on Entry e {
+          when e.title == "featured" {
+            expand featured: Asset(id: e.childId)
+          }
+          when e.kind == "Hero" {
+            expand hero: Asset(id: e.childId)
+          }
+          default {
+            expand fallback: Asset(id: e.childId)
+          }
+        }
+        on Asset a { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitStrategies(program);
+    expect(code).toContain('.when((predicate) => predicate.payload.title == "featured")');
+    expect(code).toContain(
+      '.when((predicate) => !(predicate.payload.title == "featured") && (predicate.payload.kind == "Hero"))'
+    );
+    expect(code).toContain(
+      '.when((predicate) => !(predicate.payload.title == "featured") && !(predicate.payload.kind == "Hero"))'
+    );
+    expect(code.match(/\.on\(entryAri\)/g)).toHaveLength(3);
   });
 
   it("emits unconditional startIsland for island without when", () => {
@@ -273,16 +316,18 @@ describe("generateStrategies", () => {
       "entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.footerId, locale: predicate.resource.key[0].locale })"
     );
     expect(code).toContain(
-      "predicate.payload.strips.map((pageLink: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: pageLink.id, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.strips.map((pageLink) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: pageLink.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain(
-      "predicate.payload.related.map((ref: any) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.related.map((ref) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain(".on(entryAri)");
     expect(code).toContain('.when((predicate) => predicate.payload.type == "Hero")');
-    expect(code).toContain('.when((predicate) => predicate.payload.type == "Tabs")');
     expect(code).toContain(
-      "payload.tabs.map((tabLink: any) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: tabLink.id, locale: predicate.resource.key[0].locale }))"
+      '.when((predicate) => !(predicate.payload.type == "Hero") && (predicate.payload.type == "Tabs"))'
+    );
+    expect(code).toContain(
+      "payload.tabs.map((tabLink) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: tabLink.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).not.toContain("heroAri");
     expect(code).not.toContain("tabAri");
@@ -480,7 +525,7 @@ describe("generateStrategies", () => {
     expect(code).toContain("strategy.expansion");
     expect(code).toContain(".on(tabCollectionAri)");
     expect(code).toContain(
-      "predicate.payload.tabsIds.map((link: any) => tabAri({ id: link.id, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.tabsIds.map((link) => tabAri({ id: link.id, locale: predicate.resource.key[0].locale }))"
     );
     expect(code).toContain('onFailure: "setNull"');
     expect(code).not.toContain("strategy.resolve");
@@ -520,7 +565,7 @@ describe("generateStrategies", () => {
     const code = emitStrategies(program!);
 
     expect(code).toContain(".on(mixedCollectionAri)");
-    expect(code).toContain("flatMap((item: any)");
+    expect(code).toContain("flatMap((item)");
     expect(code).toContain('item.kind == "Tab"');
     expect(code).toContain('item.kind == "Strip"');
     expect(code).toContain("tabAri({ id: item.id");

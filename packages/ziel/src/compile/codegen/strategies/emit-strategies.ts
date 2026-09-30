@@ -11,7 +11,9 @@
  *
  * Callbacks take a single `predicate` and use dot access (no destructuring).
  */
-import type { FieldDecl, Program, QueryDefinition } from "../../../ir";
+import type { ProgramAnalysis, QueryPlan } from "../../../check";
+import type { FieldDecl } from "../../../ir";
+import { codegenAnalysis, type CodegenInput } from "../analysis";
 import { printTypeExpr } from "../resources";
 import { executionContextTypeName, paramsTypeName, strategyFactoryName } from "../naming";
 import { emitProjectionExpansions } from "./emit-expansion";
@@ -23,7 +25,8 @@ function emitObjectTypeAlias(name: string, fields: FieldDecl[]): string {
   return `export type ${name} = ${body};`;
 }
 
-function emitQueryStrategy(query: QueryDefinition, registryTypeName: string): string {
+function emitQueryStrategy(plan: QueryPlan, registryTypeName: string): string {
+  const query = plan.query;
   const factory = strategyFactoryName(query.name);
   const paramsName = paramsTypeName(query.name);
   const contextName = executionContextTypeName(query.name);
@@ -44,8 +47,8 @@ function emitQueryStrategy(query: QueryDefinition, registryTypeName: string): st
     ? `function ${factory}(params: ${paramsName})`
     : `function ${factory}()`;
 
-  const expansionBlocks = query.projections.flatMap(emitProjectionExpansions);
-  const resolveBlocks = query.projections.flatMap(emitProjectionResolves);
+  const expansionBlocks = plan.projections.flatMap(emitProjectionExpansions);
+  const resolveBlocks = plan.projections.flatMap(emitProjectionResolves);
   const islandBlocks = emitIslands(query.islands);
 
   const bodyLines: string[] = [
@@ -75,10 +78,11 @@ function emitQueryStrategy(query: QueryDefinition, registryTypeName: string): st
  *
  * @param registryTypeName - Registry generic on `createGraphResolutionStrategy` (default `ContentRegistry`).
  */
-export function emitStrategies(program: Program, registryTypeName = "ContentRegistry"): string {
-  if (program.queries.length === 0) {
+export function emitStrategies(input: CodegenInput, registryTypeName = "ContentRegistry"): string {
+  const analysis: ProgramAnalysis = codegenAnalysis(input);
+  if (analysis.queries.length === 0) {
     return "";
   }
 
-  return program.queries.map((query) => emitQueryStrategy(query, registryTypeName)).join("\n\n");
+  return analysis.queries.map((query) => emitQueryStrategy(query, registryTypeName)).join("\n\n");
 }
