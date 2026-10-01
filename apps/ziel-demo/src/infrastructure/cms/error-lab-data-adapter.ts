@@ -10,7 +10,9 @@ import {
   type ErrorLabResource,
   type ErrorLabStoreContext,
 } from "../../generated";
-import { demoErrorLabs, entryLookupKey } from "../fixtures/store.js";
+import { entryLookupKey } from "../fixtures/cms-store.js";
+import { demoErrorLabs } from "../fixtures/error-lab-store.js";
+import type { ErrorLabPayloadWire } from "./schemas/error-lab.js";
 import { parsePayload } from "../schemas/parse-payload.js";
 import { mapWireToErrorLabPayload } from "./mappers/index.js";
 import { errorLabPayloadSchema } from "./schemas/index.js";
@@ -18,7 +20,7 @@ import { errorLabPayloadSchema } from "./schemas/index.js";
 export const ERROR_LAB_SOURCE_ID = "ErrorLabStore";
 
 /** App `load` for the generated `ErrorLabStore` datasource. */
-export function loadErrorLabStore(labs: ReadonlyMap<string, ErrorLabPayload> = demoErrorLabs) {
+export function loadErrorLabStore(labs: ReadonlyMap<string, ErrorLabPayloadWire> = demoErrorLabs) {
   return async (
     batch: readonly ErrorLabResource[],
     _context: ResourceLoadContext<ErrorLabStoreContext>

@@ -1,12 +1,18 @@
-import type { EditorialDocument } from "./fixtures/store.js";
-import { loadCmsAssets } from "./cms/asset-data-adapter.js";
-import { loadCmsCustomReferences } from "./cms/custom-reference-data-adapter.js";
-import { loadCmsEntries } from "./cms/entries-data-adapter.js";
-import { loadErrorLabStore } from "./cms/error-lab-data-adapter.js";
-import { loadCatalogProducts } from "./commerce/catalog-data-adapter.js";
-import { loadOfferPrices } from "./commerce/pricing-data-adapter.js";
-import { loadStockLevels } from "./commerce/inventory-data-adapter.js";
-import { loadProductMedia } from "./commerce/media-data-adapter.js";
+import type { EditorialDocument } from "../infrastructure/fixtures/cms-store.js";
+import type { AssetPayloadWire } from "../infrastructure/cms/schemas/asset.js";
+import type { ErrorLabPayloadWire } from "../infrastructure/cms/schemas/error-lab.js";
+import type { CatalogProductPayloadWire } from "../infrastructure/commerce/schemas/catalog-product.js";
+import type { OfferPricePayloadWire } from "../infrastructure/commerce/schemas/offer-price.js";
+import type { ProductMediaPayloadWire } from "../infrastructure/commerce/schemas/product-media.js";
+import type { StockLevelPayloadWire } from "../infrastructure/commerce/schemas/stock-level.js";
+import { loadCmsAssets } from "../infrastructure/cms/asset-data-adapter.js";
+import { loadCmsCustomReferences } from "../infrastructure/cms/custom-reference-data-adapter.js";
+import { loadCmsEntries } from "../infrastructure/cms/entries-data-adapter.js";
+import { loadErrorLabStore } from "../infrastructure/cms/error-lab-data-adapter.js";
+import { loadCatalogProducts } from "../infrastructure/commerce/catalog-data-adapter.js";
+import { loadOfferPrices } from "../infrastructure/commerce/pricing-data-adapter.js";
+import { loadStockLevels } from "../infrastructure/commerce/inventory-data-adapter.js";
+import { loadProductMedia } from "../infrastructure/commerce/media-data-adapter.js";
 import {
   createErrorHandlingDetailDataSources,
   createPageDetailDataSources,
@@ -14,28 +20,22 @@ import {
   resolveErrorHandlingDetail,
   resolvePageDetail,
   resolveProductDetail,
-  type AssetPayload,
-  type CatalogProductPayload,
-  type ErrorLabPayload,
-  type OfferPricePayload,
-  type ProductMediaPayload,
   type ResolveErrorHandlingDetailInput,
   type ResolveErrorHandlingDetailResult,
   type ResolvePageDetailInput,
   type ResolvePageDetailResult,
   type ResolveProductDetailInput,
   type ResolveProductDetailResult,
-  type StockLevelPayload,
 } from "../generated";
 
 export type DemoSourcesOptions = {
   entries?: ReadonlyMap<string, EditorialDocument>;
-  errorLabs?: ReadonlyMap<string, ErrorLabPayload>;
-  assets?: ReadonlyMap<string, AssetPayload>;
-  catalogProducts?: ReadonlyMap<string, CatalogProductPayload>;
-  prices?: ReadonlyMap<string, OfferPricePayload>;
-  stock?: ReadonlyMap<string, StockLevelPayload>;
-  media?: ReadonlyMap<string, ProductMediaPayload>;
+  errorLabs?: ReadonlyMap<string, ErrorLabPayloadWire>;
+  assets?: ReadonlyMap<string, AssetPayloadWire>;
+  catalogProducts?: ReadonlyMap<string, CatalogProductPayloadWire>;
+  prices?: ReadonlyMap<string, OfferPricePayloadWire>;
+  stock?: ReadonlyMap<string, StockLevelPayloadWire>;
+  media?: ReadonlyMap<string, ProductMediaPayloadWire>;
 };
 
 /** PageDetail sources (CMS entries / assets / custom refs). */

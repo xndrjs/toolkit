@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { Scalars } from "../generated";
-import { DEMO_LOCALE, ERROR_HANDLING_CASES, demoIds } from "../infrastructure/fixtures/store.js";
+import { DEMO_LOCALE, demoIds } from "../infrastructure/fixtures/cms-store.js";
+import { ERROR_HANDLING_CASES } from "./error-handling-cases.js";
 import { isErrorHandlingCaseId, resolveErrorHandling } from "./resolve-error-handling.js";
 
 describe("resolveErrorHandling", () => {
@@ -13,30 +14,24 @@ describe("resolveErrorHandling", () => {
   });
 
   it("soft-fails a missing single expand with set null", async () => {
-    const result = await resolveErrorHandling({
+    const { errorHandlingDetail, errors } = await resolveErrorHandling({
       labId: Scalars.EntryId(demoIds.ehSoftSingle),
       locale: DEMO_LOCALE,
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.lab.softSingle).toBeNull();
-    expect(result.lab.errorSingle).toMatchObject({ kind: "Hero", title: "Welcome" });
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errorHandlingDetail.softSingle).toBeNull();
+    expect(errorHandlingDetail.errorSingle).toMatchObject({ kind: "Hero", title: "Welcome" });
   });
 
   it("soft-fails a missing single expand with set error", async () => {
-    const result = await resolveErrorHandling({
+    const { errorHandlingDetail, errors } = await resolveErrorHandling({
       labId: Scalars.EntryId(demoIds.ehErrorSingle),
       locale: DEMO_LOCALE,
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.lab.errorSingle).toEqual(
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errorHandlingDetail.errorSingle).toEqual(
       expect.objectContaining({
         kind: "ResolutionError",
         code: "missing",
@@ -44,50 +39,41 @@ describe("resolveErrorHandling", () => {
         resourceKey: expect.any(String),
       })
     );
-    expect(result.lab.errorSingle).not.toBeInstanceOf(Error);
-    expect(result.lab.softSingle).toMatchObject({ kind: "Hero", title: "Welcome" });
+    expect(errorHandlingDetail.errorSingle).not.toBeInstanceOf(Error);
+    expect(errorHandlingDetail.softSingle).toMatchObject({ kind: "Hero", title: "Welcome" });
   });
 
   it("hard-fails a missing single expand with throw", async () => {
-    const result = await resolveErrorHandling({
-      labId: Scalars.EntryId(demoIds.ehThrowSingle),
-      locale: DEMO_LOCALE,
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors[0]!.message.length).toBeGreaterThan(0);
+    await expect(
+      resolveErrorHandling({
+        labId: Scalars.EntryId(demoIds.ehThrowSingle),
+        locale: DEMO_LOCALE,
+      })
+    ).rejects.toThrow();
   });
 
   it("soft-fails a missing array item with set null (keeps the ok sibling)", async () => {
-    const result = await resolveErrorHandling({
+    const { errorHandlingDetail, errors } = await resolveErrorHandling({
       labId: Scalars.EntryId(demoIds.ehSoftItems),
       locale: DEMO_LOCALE,
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.lab.softItems).toHaveLength(2);
-    expect(result.lab.softItems[0]).toMatchObject({ kind: "Hero", title: "Welcome" });
-    expect(result.lab.softItems[1]).toBeNull();
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errorHandlingDetail.softItems).toHaveLength(2);
+    expect(errorHandlingDetail.softItems[0]).toMatchObject({ kind: "Hero", title: "Welcome" });
+    expect(errorHandlingDetail.softItems[1]).toBeNull();
   });
 
   it("soft-fails a missing array item with set error (keeps the ok sibling)", async () => {
-    const result = await resolveErrorHandling({
+    const { errorHandlingDetail, errors } = await resolveErrorHandling({
       labId: Scalars.EntryId(demoIds.ehErrorItems),
       locale: DEMO_LOCALE,
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.lab.errorItems).toHaveLength(2);
-    expect(result.lab.errorItems[0]).toMatchObject({ kind: "Hero", title: "Welcome" });
-    expect(result.lab.errorItems[1]).toEqual(
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errorHandlingDetail.errorItems).toHaveLength(2);
+    expect(errorHandlingDetail.errorItems[0]).toMatchObject({ kind: "Hero", title: "Welcome" });
+    expect(errorHandlingDetail.errorItems[1]).toEqual(
       expect.objectContaining({
         kind: "ResolutionError",
         code: "missing",
@@ -95,17 +81,15 @@ describe("resolveErrorHandling", () => {
         resourceKey: expect.any(String),
       })
     );
-    expect(result.lab.errorItems[1]).not.toBeInstanceOf(Error);
+    expect(errorHandlingDetail.errorItems[1]).not.toBeInstanceOf(Error);
   });
 
   it("hard-fails a missing array item with throw", async () => {
-    const result = await resolveErrorHandling({
-      labId: Scalars.EntryId(demoIds.ehThrowItems),
-      locale: DEMO_LOCALE,
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.errors.length).toBeGreaterThan(0);
+    await expect(
+      resolveErrorHandling({
+        labId: Scalars.EntryId(demoIds.ehThrowItems),
+        locale: DEMO_LOCALE,
+      })
+    ).rejects.toThrow();
   });
 });

@@ -14,7 +14,7 @@ import {
   type PageDetail_Entry_Tab,
   type PageDetail_Entry_Tabs,
 } from "../generated";
-import { resolveDemoPageDetail } from "../infrastructure/demo-resolver.js";
+import { resolveDemoPageDetail } from "../composition/demo-sources.js";
 import { parseCustomReference } from "../infrastructure/cms/custom-reference.js";
 import {
   DEMO_ENVIRONMENT,
@@ -23,7 +23,7 @@ import {
   demoAssets,
   demoHeroWelcomeCustomRef,
   demoIds,
-} from "../infrastructure/fixtures/store.js";
+} from "../infrastructure/fixtures/cms-store.js";
 import { parseDemoLocaleParam, resolvePage } from "./resolve-page.js";
 
 /** Default arm shares `kind` literals — narrow via a distinctive field. */
@@ -71,42 +71,36 @@ function isAsset(e: PageDetail_Entry | PageDetail_Asset | null | undefined): e i
 
 describe("resolvePage", () => {
   it("projects the fixture page with Entry variants and Assets", async () => {
-    const result = await resolvePage({ locale: DEMO_LOCALE });
+    const { pageDetail, contentMap, context } = await resolvePage({ locale: DEMO_LOCALE });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-
-    expect(result.meta).toMatchObject({
+    expect(context).toMatchObject({
       locale: DEMO_LOCALE,
       pageId: demoIds.page,
       spaceId: DEMO_SPACE,
       environmentId: DEMO_ENVIRONMENT,
       schedulingMode: "lane",
     });
-    expect(result.meta.resolvedCount).toBeGreaterThan(0);
+    expect(contentMap.size).toBeGreaterThan(0);
 
-    const { page } = result;
-    expect(page.id).toBe(demoIds.page);
-    expect(page.title).toBe("Homepage");
+    expect(pageDetail.id).toBe(demoIds.page);
+    expect(pageDetail.title).toBe("Homepage");
 
-    expect(isMenu(page.menu)).toBe(true);
-    if (!isMenu(page.menu)) {
+    expect(isMenu(pageDetail.menu)).toBe(true);
+    if (!isMenu(pageDetail.menu)) {
       return;
     }
-    expect(page.menu.id).toBe(demoIds.menu);
-    expect(page.menu.logo?.id).toBe(demoIds.assetLogo);
+    expect(pageDetail.menu.id).toBe(demoIds.menu);
+    expect(pageDetail.menu.logo?.id).toBe(demoIds.assetLogo);
 
-    expect(isFooter(page.footer)).toBe(true);
-    if (!isFooter(page.footer)) {
+    expect(isFooter(pageDetail.footer)).toBe(true);
+    if (!isFooter(pageDetail.footer)) {
       return;
     }
-    expect(page.footer.id).toBe(demoIds.footer);
+    expect(pageDetail.footer.id).toBe(demoIds.footer);
 
     // strips: no content-type discriminant in the link — variant from Entry payload.
-    expect(page.strips).toHaveLength(4);
-    const [tabsStrip, heroStrip, productStrip, linkStrip] = page.strips;
+    expect(pageDetail.strips).toHaveLength(4);
+    const [tabsStrip, heroStrip, productStrip, linkStrip] = pageDetail.strips;
 
     expect(isTabs(tabsStrip)).toBe(true);
     if (!isTabs(tabsStrip)) {
@@ -163,29 +157,25 @@ describe("resolvePage", () => {
     }
 
     // CustomReference → Entry → Hero / Asset (no wrapper).
-    expect(page.related).toHaveLength(2);
-    const relatedHero = page.related[0];
+    expect(pageDetail.related).toHaveLength(2);
+    const relatedHero = pageDetail.related[0];
     expect(isHero(relatedHero)).toBe(true);
     if (isHero(relatedHero)) {
       expect(relatedHero.id).toBe(demoIds.heroWelcome);
       expect(relatedHero.image?.id).toBe(demoIds.assetHero);
     }
-    expect(isAsset(page.related[1])).toBe(true);
-    if (isAsset(page.related[1])) {
-      expect(page.related[1].id).toBe(demoIds.assetLogo);
-      expect(page.related[1].url).toContain("logo.svg");
+    expect(isAsset(pageDetail.related[1])).toBe(true);
+    if (isAsset(pageDetail.related[1])) {
+      expect(pageDetail.related[1].id).toBe(demoIds.assetLogo);
+      expect(pageDetail.related[1].url).toContain("logo.svg");
     }
   });
 
   it("converges standard Entry link and CustomReference onto the same Hero", async () => {
-    const result = await resolvePage({ locale: DEMO_LOCALE });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
+    const { pageDetail } = await resolvePage({ locale: DEMO_LOCALE });
 
-    const fromStrip = result.page.strips.find((s) => isHero(s));
-    const fromRelated = result.page.related.find((r) => isHero(r));
+    const fromStrip = pageDetail.strips.find((s) => isHero(s));
+    const fromRelated = pageDetail.related.find((r) => isHero(r));
     expect(isHero(fromStrip)).toBe(true);
     expect(isHero(fromRelated)).toBe(true);
     if (isHero(fromStrip) && isHero(fromRelated)) {

@@ -7,11 +7,12 @@ import {
   type ProductMediaResource,
 } from "../../generated";
 import { demoMedia } from "../fixtures/commerce-store.js";
+import type { ProductMediaPayloadWire } from "./schemas/product-media.js";
 import { parsePayload } from "../schemas/parse-payload.js";
 import { mapWireToProductMediaPayload } from "./mappers/index.js";
 import { productMediaPayloadSchema } from "./schemas/index.js";
 
-export function loadProductMedia(media: ReadonlyMap<string, ProductMediaPayload> = demoMedia) {
+export function loadProductMedia(media: ReadonlyMap<string, ProductMediaPayloadWire> = demoMedia) {
   return async (
     batch: readonly ProductMediaResource[],
     _context: ResourceLoadContext<MediaCdnContext>

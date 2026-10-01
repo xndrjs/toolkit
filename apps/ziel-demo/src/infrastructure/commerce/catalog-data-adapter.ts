@@ -7,12 +7,13 @@ import {
   type CatalogProductResource,
 } from "../../generated";
 import { demoCatalogProducts } from "../fixtures/commerce-store.js";
+import type { CatalogProductPayloadWire } from "./schemas/catalog-product.js";
 import { parsePayload } from "../schemas/parse-payload.js";
 import { mapWireToCatalogProductPayload } from "./mappers/index.js";
 import { catalogProductPayloadSchema } from "./schemas/index.js";
 
 export function loadCatalogProducts(
-  products: ReadonlyMap<string, CatalogProductPayload> = demoCatalogProducts
+  products: ReadonlyMap<string, CatalogProductPayloadWire> = demoCatalogProducts
 ) {
   return async (
     batch: readonly CatalogProductResource[],

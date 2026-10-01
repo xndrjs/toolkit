@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { entryAri, errorLabAri, pageAri } from "../../generated";
-import { createDemoErrorHandlingDetailSources } from "../demo-resolver.js";
-import { DEMO_ENVIRONMENT, DEMO_LOCALE, DEMO_SPACE, demoIds } from "../fixtures/store.js";
+import { createDemoErrorHandlingDetailSources } from "../../composition/demo-sources.js";
+import { DEMO_ENVIRONMENT, DEMO_LOCALE, DEMO_SPACE, demoIds } from "../fixtures/cms-store.js";
 import { ERROR_LAB_SOURCE_ID, loadErrorLabStore } from "./error-lab-data-adapter.js";
 
 const locale = DEMO_LOCALE;
