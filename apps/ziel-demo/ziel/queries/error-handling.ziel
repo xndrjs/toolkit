@@ -2,18 +2,23 @@
  * Showcase per-edge `on failure` policies on one query.
  * Six fixture roots (`eh-*`) each break a single edge; see demo store + routes.
  */
-query ErrorHandlingDetail(labId: EntryId) {
+query ErrorHandlingDetail(
+  labId: EntryId,
+  spaceId: SpaceId,
+  environmentId: EnvironmentId,
+  locale: Locale
+) {
   context {
-    spaceId: SpaceId
-    environmentId: EnvironmentId
-    locale: Locale
+    spaceId
+    environmentId
+    locale
   }
 
   root ErrorLab(
-    spaceId: context.spaceId,
-    environmentId: context.environmentId,
+    spaceId: spaceId,
+    environmentId: environmentId,
     id: labId,
-    locale: context.locale
+    locale: locale
   )
 
   on ErrorLab lab {

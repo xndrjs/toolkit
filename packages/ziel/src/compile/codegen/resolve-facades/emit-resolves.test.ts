@@ -38,17 +38,21 @@ describe("emitResolves", () => {
     expect(code).toContain("schedulingMode?: SchedulingMode;");
     expect(code).toContain("budget?: ResolutionBudgetOptions;");
     expect(code).toContain("observer?: ResolutionObserver;");
+    expect(code).not.toContain("executionContext: PostDetailExecutionContext;");
     expect(code).not.toContain("root: ReturnType<typeof");
     expect(code).not.toContain("roots: {");
     expect(code).toContain("const root = postAri({");
+    expect(code).toContain("const executionContext = {");
+    expect(code).toContain("locale: input.params.locale,");
     expect(code).toContain("createPostDetailStrategy(input.params).build()");
     expect(code).toContain(
       "createResourceGraphResolver<ContentRegistry, PostDetailExecutionContext>"
     );
     expect(code).toContain("budget: input.budget,");
     expect(code).toContain(
-      "const postDetail = projectPostDetail(root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n  });"
+      "const postDetail = projectPostDetail(root, contentMap, {\n    params: input.params,\n  });"
     );
+    expect(code).toContain("executionContext,");
     expect(code).toContain("roots: [root],");
     expect(code).toContain("postDetail: PostDetailResult;");
     expect(code).toContain("islandDependencies: IslandDependencyMap;");
@@ -114,9 +118,11 @@ describe("emitResolves", () => {
       resource Entry(id: EntryId, locale: Locale): { id title: string }
       resource Page(id: EntryId, locale: Locale): { id menuId: EntryId }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand menu: Entry(id: p.menuId, locale: @p.locale) on failure set null
@@ -131,7 +137,7 @@ describe("emitResolves", () => {
     expect(code).toContain("    failures,\n    promotedResourceKeys,");
     expect(code).not.toContain("const failures = new Map<ResourceKey, ResolutionError>();");
     expect(code).toContain(
-      "const pageDetail = projectPageDetail(root, contentMap, {\n    params: input.params,\n    executionContext: input.executionContext,\n    failures,\n  });"
+      "const pageDetail = projectPageDetail(root, contentMap, {\n    params: input.params,\n    failures,\n  });"
     );
     expect(code).not.toContain("missingResourceMode");
   });

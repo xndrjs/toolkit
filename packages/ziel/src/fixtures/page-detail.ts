@@ -12,7 +12,6 @@ import {
   arg,
   arrayOf,
   construct,
-  ctx,
   defScalar,
   eq,
   expand,
@@ -229,18 +228,23 @@ export function pageDetailProgram(): Program {
     datasources: [],
     queries: [
       query("PageDetail", {
-        parameters: [field("pageId", EntryId)],
-        context: [
+        parameters: [
+          field("pageId", EntryId),
           field("spaceId", SpaceId),
           field("environmentId", EnvironmentId),
           field("locale", Locale),
         ],
+        contextProjections: [
+          { contextName: "spaceId", paramName: "spaceId", span },
+          { contextName: "environmentId", paramName: "environmentId", span },
+          { contextName: "locale", paramName: "locale", span },
+        ],
         roots: singleRoot(
           construct("Page", [
-            arg("spaceId", ctx("spaceId")),
-            arg("environmentId", ctx("environmentId")),
+            arg("spaceId", param("spaceId")),
+            arg("environmentId", param("environmentId")),
             arg("id", param("pageId")),
-            arg("locale", ctx("locale")),
+            arg("locale", param("locale")),
           ])
         ),
         projections: [

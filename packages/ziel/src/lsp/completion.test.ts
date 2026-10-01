@@ -30,9 +30,11 @@ resource Entry(id: EntryId, locale: Locale): {
   logoId: EntryId
 }
 
-query EntryDetail(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query EntryDetail(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     id
     when e.type == "Hero" {
@@ -128,9 +130,11 @@ scalar EntryId on string;
 scalar Locale on string;
 resource Entry(id: EntryId, locale: Locale): { id }
 resource Page(id: EntryId, locale: Locale): { id }
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on 
 }
 `;
@@ -156,11 +160,13 @@ resource Entry(id: EntryId, locale: Locale): {
   id
   authorId: EntryId refers Entry with { type: "Hero" }
 }
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
-    expand author: Entry(id: e.authorId, locale: context.locale)
+    expand author: Entry(id: e.authorId, locale: locale)
   }
 }
 `;
@@ -230,8 +236,10 @@ query Q(entryId: EntryId) {
 scalar EntryId on string;
 scalar Locale on string;
 resource Entry(id: EntryId, locale: Locale): { id }
-query Q(entryId: EntryId) {
-  context { locale: Locale }
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
   root Entry(
     
   )
@@ -252,9 +260,11 @@ query Q(entryId: EntryId) {
 scalar EntryId on string;
 scalar Locale on string;
 resource Entry(id: EntryId, locale: Locale): { id }
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on En
 }
 `;
@@ -305,9 +315,11 @@ describe("selectableFieldNames via when narrowing", () => {
 scalar EntryId on string;
 scalar Locale on string;
 resource Entry(id: EntryId, locale: Locale): { id title: string }
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     
   }
@@ -341,16 +353,15 @@ resource Entry(id: EntryId, locale: Locale): {
   strips: { id: EntryId }[]
 }
 
-query PageDetail(pageId: EntryId) {
+query PageDetail(pageId: EntryId, locale: Locale) {
   context {
-    locale: Locale
-    meta: { something: string }
+    locale
   }
-  root Entry(id: pageId, locale: context.locale)
+  root Entry(id: pageId, locale: locale)
   on Entry p {
     expand author: Entry(id: p.authorId, locale: @p.locale)
     expand strips: each link in p.strips (
-      Entry(id: link.id, locale: context.locale)
+      Entry(id: link.id, locale: locale)
     )
     when p.type == "Hero" {
       title
@@ -385,33 +396,41 @@ describe("path property completions", () => {
     expect(labels).not.toContain("title");
   });
 
-  it("completes context fields after context.", () => {
-    const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
-    const offset = offsetAfter(PATH_FIXTURE, "locale: context.");
-    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
-      (i) => i.label
-    );
-    expect(labels).toEqual(expect.arrayContaining(["locale", "meta"]));
-  });
-
-  it("completes nested context.meta.", () => {
+  it("does not complete context fields after context. in query bodies", () => {
     const source = `
 scalar EntryId on string;
 scalar Locale on string;
 resource Entry(id: EntryId, locale: Locale): { id }
-query Q(pageId: EntryId) {
-  context {
-    locale: Locale
-    meta: { something: string }
-  }
-  root Entry(id: pageId, locale: context.meta.)
+query Q(pageId: EntryId, locale: Locale) {
+  context { locale }
+  root Entry(id: pageId, locale: context.)
   on Entry p { id }
 }
 `;
-    // Incomplete trailing dot — may have parse errors
     const document = parseDocument(source);
     const { scalars, resources } = tablesFrom(PATH_FIXTURE);
-    const offset = offsetAfter(source, "context.meta.");
+    const offset = offsetAfter(source, "context.");
+    const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
+      (i) => i.label
+    );
+    expect(labels).not.toEqual(expect.arrayContaining(["locale"]));
+  });
+
+  it("completes nested payload meta.", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id meta: { something: string } }
+query Q(pageId: EntryId, locale: Locale) {
+  context { locale }
+  root Entry(id: pageId, locale: locale)
+  on Entry p {
+    expand x: Entry(id: p.meta.something, locale: locale)
+  }
+}
+`;
+    const { document, scalars, resources } = tablesFrom(source);
+    const offset = offsetAfter(source, "p.meta.");
     const labels = completionsAtOffset(document, offset, { scalars, resources }).map(
       (i) => i.label
     );
@@ -473,9 +492,11 @@ resource Page(id: EntryId, locale: Locale): {
   id
 }
 
-query PageDetail(pageId: EntryId) {
-  context { locale: Locale }
-  root Page(id: pageId, locale: context.locale)
+query PageDetail(pageId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Page(id: pageId, locale: locale)
   on Page p {
     id
   }
@@ -534,9 +555,11 @@ fragment Unnarrowed on Entry e {
   id
 }
 
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     ...MenuOnly
   }
@@ -595,9 +618,11 @@ resource Entry(id: EntryId, locale: Locale): {
   title: string
   cta: string
 }
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     when e.kind == "Footer" and e.cta == "x" { }
     default { }
@@ -645,9 +670,11 @@ resource Entry(id: EntryId, locale: Locale): {
   type: "Menu"
   id
 }
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     when e.type == "
 `;
@@ -675,9 +702,11 @@ resource Entry(id: EntryId, locale: Locale): {
   type: "Menu"
   id
 }
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     when e.type in ("
     default { }
@@ -704,9 +733,11 @@ resource Entry(id: EntryId, locale: Locale): {
   kind: "Footer"
   id
 }
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     when e.kind == "Hero" { }
     default { }

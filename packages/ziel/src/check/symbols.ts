@@ -18,6 +18,11 @@ export type QueryScope = {
   path: string;
   params: FieldMap;
   context: FieldMap;
+  /**
+   * When false (query / fragment / island bodies), `context.*` is rejected —
+   * use bare params. Datasource `when` keeps this true.
+   */
+  allowContext: boolean;
   /** Projection binding → resource name */
   bindings: Map<string, string>;
   /** Comprehension item binding → element type (narrowed by filter when possible) */

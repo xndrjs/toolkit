@@ -17,6 +17,21 @@ Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](
 
 Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site. Ziel laws, stability matrix, when-not-to-use, and runbook: [Ziel](https://www.xndrjs.dev/v0/infrastructure/ziel/).
 
+## Compiler layout
+
+Source under `src/` follows the compile pipeline:
+
+| Folder             | Owns                                                                       |
+| ------------------ | -------------------------------------------------------------------------- |
+| `lang/`            | Grammar and Langium-generated AST / services                               |
+| `compile/lower/`   | AST → IR                                                                   |
+| `check/`           | Semantic rules and diagnostics                                             |
+| `analyze/`         | Query plans / planning IR for codegen (not diagnostics)                    |
+| `compile/codegen/` | Emit TypeScript (resources, strategies, projections, datasources, façades) |
+| `lsp/`             | Language server: validate, hover, completion, definition, format           |
+
+Pipeline order: parse → lower → check → analyze → codegen. `check/*` also holds the shared semantic tables (symbols, discriminants, diagnostics, expressions, …) reused by lower, codegen, and LSP — that reuse is intentional, not a layering bug.
+
 ## Installation
 
 ```bash
@@ -181,7 +196,7 @@ datasource CmsSource {
 - **`for Resource [binding] [when …]`** — routes; `when` may use `context.…` and identity `@binding.…` only (no payload / params / items). Binding is required when `when` is present.
 - **Runtime routing** — generated datasources use the resolver’s first-match `sources` order; declare one owner per resource family (see `@xndrjs/resource-graph-resolver` README).
 - **Coverage** — if the program declares ≥1 datasource, every resource must appear in at least one `for` route (hand-wired apps with zero datasources stay valid). Disable with `requireDatasourceCoverage: false` in `ziel.config.ts` (default `true`; honored by CLI and LSP).
-- **Query context** — when datasources exist, each query context must include every field from the datasources whose routes intersect resources that query references (roots, islands, `on` clauses, expand / resolve targets), with compatible types. Unused datasources do not constrain that query. Aggregate `ZielExecutionContext` remains the merge of all datasource contexts (documentation / app wiring); each query factory is typed on that query’s execution context.
+- **Query context** — a projection of query params (allowlist + optional aliases) exposed to datasources as `executionContext`. Declare ambient values as params, then `context { locale spaceId }` (or `env: environmentId` to rename). Query bodies use bare param names — not `context.*`. When datasources exist, the projection must cover every field from datasources whose routes intersect resources that query references. Extra projection entries unused by those datasources are warnings. Aggregate `ZielExecutionContext` remains the merge of all datasource contexts; each query factory is typed on that query’s execution context. Resolve façades take a single `params` bag and materialize `executionContext` from the projection.
 - **Per-query factories** — codegen emits `create{Query}DataSources` (e.g. `createPageDetailDataSources`) with only the datasources that cover resources referenced by that query.
 
 Codegen (`generateDataSources` / compose) emits per-source `*Context` types, aggregate `ZielExecutionContext`, and:
@@ -286,7 +301,7 @@ Reusable projection bodies: `fragment Name on Resource binding [when …] { … 
 ```ziel
 fragment MenuOnly on Entry e when e.type == "Menu" {
   logoId
-  expand logo: Asset(id: e.logoId, locale: context.locale)
+  expand logo: Asset(id: e.logoId, locale: locale)
 }
 
 on Entry e {
@@ -367,12 +382,12 @@ query Homepage(pageId: PageId, sessionId: SessionId) {
 
 Codegen preserves single-root ergonomics and keys multi-root APIs by alias:
 
-| Surface          | Single-root                               | Multi-root                                                 |
-| ---------------- | ----------------------------------------- | ---------------------------------------------------------- |
-| `*Result`        | `PageDetailResult = PageDetail_Page`      | `{ page: Homepage_Page; session: Homepage_UserSession }`   |
-| `project*`       | `projectPageDetail(root, contentMap, …)`  | `projectHomepage(roots: { page; session }, contentMap, …)` |
-| `resolve*` input | `params` + `executionContext` (no `root`) | same — façade builds each root ARI from the query DSL      |
-| Engine call      | `resolve({ roots: [root], … })`           | `resolve({ roots: [roots.page, …], … })`                   |
+| Surface          | Single-root                                                | Multi-root                                                                                                |
+| ---------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `*Result`        | `PageDetailResult = PageDetail_Page`                       | `{ page: Homepage_Page; session: Homepage_UserSession }`                                                  |
+| `project*`       | `projectPageDetail(root, contentMap, …)`                   | `projectHomepage(roots: { page; session }, contentMap, …)`                                                |
+| `resolve*` input | `params` only (no `root` / no separate `executionContext`) | façade builds each root ARI and materializes `executionContext` from the query `context { … }` projection |
+| Engine call      | `resolve({ roots: [root], … })`                            | `resolve({ roots: [roots.page, …], … })`                                                                  |
 
 Generated app code should import runtime symbols from `@xndrjs/ziel`, never from `/compile`. Langium, the checker, and codegen live under `./compile` only so they do not land in client bundles.
 

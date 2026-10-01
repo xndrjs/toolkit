@@ -1,9 +1,8 @@
 /**
  * Emit high-level `resolve*` façades: closed strategy → resolve → project.
  *
- * Apps pass resolver config minus `strategy`, plus query params and
- * `executionContext`. Root ARIs are built inside the façade from the query’s
- * `root` / `roots` constructions (params + context) — callers do not pass them.
+ * Apps pass resolver config minus `strategy`, plus query params. Root ARIs and
+ * `executionContext` (param projection) are built inside the façade.
  *
  * Strategy factories and projectors stay exported for low-level use.
  */
@@ -25,10 +24,10 @@ import {
 import { emitConstruction } from "../shared/emit-construction";
 import type { EmitExprScope } from "../shared/emit-expr";
 
-/** Scope for root constructions inside `resolve*`: params + executionContext on `input`. */
+/** Scope for root constructions inside `resolve*`: params on `input` (no context.*). */
 const resolveFacadeExprScope: EmitExprScope = {
   params: "input.params",
-  executionContext: "input.executionContext",
+  executionContext: "executionContext",
   payload: "payload",
   resource: "resource",
 };
@@ -58,7 +57,7 @@ function emitResolveResultType(
 
 function emitResolveInputType(query: QueryDefinition, registryTypeName: string): string {
   const hasParams = query.parameters.length > 0;
-  const hasContext = query.context.length > 0;
+  const hasContext = query.contextProjections.length > 0;
   const contextType = hasContext ? executionContextTypeName(query.name) : "unknown";
 
   const fields: string[] = [];
@@ -70,7 +69,6 @@ function emitResolveInputType(query: QueryDefinition, registryTypeName: string):
     `  schedulingMode?: SchedulingMode;`,
     `  budget?: ResolutionBudgetOptions;`,
     `  observer?: ResolutionObserver;`,
-    `  executionContext: ${contextType};`,
     `  backingResources?: ReadonlyMap<ResourceKey, unknown>;`,
     `  signal?: AbortSignal;`
   );
@@ -96,6 +94,17 @@ function emitRootBindings(query: QueryDefinition): string[] {
   return [`  const roots = {`, ...entries, `  };`];
 }
 
+/** Materialize `executionContext` from params via context projections (pick + alias). */
+function emitExecutionContextBinding(query: QueryDefinition): string[] {
+  if (query.contextProjections.length === 0) {
+    return [`  const executionContext = undefined as unknown;`];
+  }
+  const fields = query.contextProjections.map(
+    (proj) => `    ${proj.contextName}: input.params.${proj.paramName},`
+  );
+  return [`  const executionContext = {`, ...fields, `  };`];
+}
+
 function emitEngineRootsExpr(query: QueryDefinition): string {
   if (isSingleRootQuery(query)) {
     return `[root]`;
@@ -114,21 +123,17 @@ function emitProjectCall(plan: QueryPlan): string {
   const query = plan.query;
   const projectFn = projectFnName(query.name);
   const hasParams = query.parameters.length > 0;
-  const hasContext = query.context.length > 0;
   const hasRedirects = plan.hasRedirects;
   const hasFailures = plan.needsFailureProjection;
   const seedArg = isSingleRootQuery(query) ? "root" : "roots";
 
-  if (!hasParams && !hasContext && !hasRedirects && !hasFailures) {
+  if (!hasParams && !hasRedirects && !hasFailures) {
     return `${projectFn}(${seedArg}, contentMap)`;
   }
 
   const argFields: string[] = [];
   if (hasParams) {
     argFields.push("params: input.params");
-  }
-  if (hasContext) {
-    argFields.push("executionContext: input.executionContext");
   }
   if (hasRedirects) {
     argFields.push("redirects");
@@ -147,8 +152,7 @@ function emitQueryResolve(plan: QueryPlan, registryTypeName: string): string {
   const resultField = resolveResultFieldName(query.name);
   const strategyFactory = strategyFactoryName(query.name);
   const hasParams = query.parameters.length > 0;
-  const hasContext = query.context.length > 0;
-  const hasRedirects = plan.hasRedirects;
+  const hasContext = query.contextProjections.length > 0;
   const hasFailures = plan.needsFailureProjection;
   const contextType = hasContext ? executionContextTypeName(query.name) : "unknown";
 
@@ -159,6 +163,7 @@ function emitQueryResolve(plan: QueryPlan, registryTypeName: string): string {
   const projectCall = emitProjectCall(plan);
   const engineRoots = emitEngineRootsExpr(query);
   const rootBindings = emitRootBindings(query);
+  const ecBindings = emitExecutionContextBinding(query);
   const outputBindings = [
     `    contentMap,`,
     `    islands,`,
@@ -166,7 +171,7 @@ function emitQueryResolve(plan: QueryPlan, registryTypeName: string): string {
     `    errors,`,
     ...(hasFailures ? [`    failures,`] : []),
     `    promotedResourceKeys,`,
-    ...(hasRedirects ? [`    redirects,`] : []),
+    ...(plan.hasRedirects ? [`    redirects,`] : []),
   ];
 
   return [
@@ -177,6 +182,7 @@ function emitQueryResolve(plan: QueryPlan, registryTypeName: string): string {
     `export async function ${fnName}(`,
     `  input: ${inputType},`,
     `): Promise<${resultType}> {`,
+    ...ecBindings,
     ...rootBindings,
     `  const resolver = createResourceGraphResolver<${registryTypeName}, ${contextType}>({`,
     `    sources: input.sources,`,
@@ -190,7 +196,7 @@ function emitQueryResolve(plan: QueryPlan, registryTypeName: string): string {
     ...outputBindings,
     `  } = await resolver.resolve({`,
     `    roots: ${engineRoots},`,
-    `    executionContext: input.executionContext,`,
+    `    executionContext,`,
     `    backingResources: input.backingResources,`,
     `    signal: input.signal,`,
     `  });`,

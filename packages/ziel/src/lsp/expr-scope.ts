@@ -226,11 +226,7 @@ export function buildExprScope(node: AstNode, tables: ExprScopeTables): QuerySco
     for (const field of query.parameters) {
       params.set(field.name, lowerTypedField(field, tables.nameTables));
     }
-    if (query.context) {
-      for (const field of query.context.fields) {
-        context.set(field.name, lowerTypedField(field, tables.nameTables));
-      }
-    }
+    // Query context is a param projection — not a separate expression namespace.
     for (const projection of query.projections) {
       bindings.set(projection.binding, projection.resource);
     }
@@ -267,6 +263,8 @@ export function buildExprScope(node: AstNode, tables: ExprScopeTables): QuerySco
     path: "expr",
     params,
     context,
+    // Datasource `when` may use `context.*`; query bodies use bare params only.
+    allowContext: datasource !== undefined && query === undefined,
     bindings,
     items,
     payloadNarrowing: new Map(),

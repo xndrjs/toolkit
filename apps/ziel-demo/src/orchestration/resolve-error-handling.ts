@@ -60,9 +60,8 @@ export async function resolveErrorHandling(
   const schedulingMode = input.schedulingMode ?? DEFAULT_SCHEDULING_MODE;
 
   const resolved = await resolveDemoErrorHandlingDetail({
-    params: { labId },
+    params: { labId, spaceId, environmentId, locale },
     schedulingMode,
-    executionContext: { spaceId, environmentId, locale },
     signal: input.signal,
   });
 

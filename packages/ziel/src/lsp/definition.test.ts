@@ -20,13 +20,15 @@ resource Entry(id: EntryId, locale: Locale): {
   authorId: EntryId
 }
 
-query EntryDetail(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query EntryDetail(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     id
     title
-    expand author: Entry(id: e.authorId, locale: context.locale)
+    expand author: Entry(id: e.authorId, locale: locale)
   }
 }
 `;
@@ -183,9 +185,11 @@ resource Page(id: EntryId, locale: Locale): {
   id
 }
 
-query PageDetail(pageId: EntryId) {
-  context { locale: Locale }
-  root Page(id: pageId, locale: context.locale)
+query PageDetail(pageId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Page(id: pageId, locale: locale)
   on Page p {
     id
   }

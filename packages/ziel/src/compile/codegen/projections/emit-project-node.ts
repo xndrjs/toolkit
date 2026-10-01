@@ -1,11 +1,6 @@
 import type { QueryPlan } from "../../../analyze";
 import type { QueryDefinition } from "../../../ir";
-import {
-  ariFactoryName,
-  executionContextTypeName,
-  paramsTypeName,
-  payloadTypeName,
-} from "../naming";
+import { ariFactoryName, paramsTypeName, payloadTypeName } from "../naming";
 import { emitManyProject, projectOnFnName } from "./emit-project-on";
 import { type ResourceIndex } from "./resource-index";
 
@@ -112,19 +107,15 @@ export function emitProjectNode(plan: QueryPlan, resources: ResourceIndex, fnNam
 export function emitArgsType(plan: QueryPlan): string | null {
   const query = plan.query;
   const hasParams = query.parameters.length > 0;
-  const hasContext = query.context.length > 0;
   const hasRedirects = plan.hasRedirects;
   const hasFailures = plan.needsFailureProjection;
-  if (!hasParams && !hasContext && !hasRedirects && !hasFailures) {
+  if (!hasParams && !hasRedirects && !hasFailures) {
     return null;
   }
 
   const fields: string[] = [];
   if (hasParams) {
     fields.push(`    params: ${paramsTypeName(query.name)};`);
-  }
-  if (hasContext) {
-    fields.push(`    executionContext: ${executionContextTypeName(query.name)};`);
   }
   if (hasRedirects) {
     fields.push(`    redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;`);

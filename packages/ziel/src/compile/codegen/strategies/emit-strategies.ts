@@ -14,6 +14,7 @@
 import type { QueryPlan } from "../../../analyze";
 import type { ProgramAnalysis } from "../../../check";
 import type { FieldDecl } from "../../../ir";
+import { resolvedQueryContext } from "../../../ir";
 import { codegenAnalysis, type CodegenInput } from "../analysis";
 import { printTypeExpr } from "../resources";
 import { executionContextTypeName, paramsTypeName, strategyFactoryName } from "../naming";
@@ -32,7 +33,8 @@ function emitQueryStrategy(plan: QueryPlan, registryTypeName: string): string {
   const paramsName = paramsTypeName(query.name);
   const contextName = executionContextTypeName(query.name);
   const hasParams = query.parameters.length > 0;
-  const hasContext = query.context.length > 0;
+  const contextFields = resolvedQueryContext(query);
+  const hasContext = contextFields.length > 0;
 
   const parts: string[] = [];
 
@@ -40,7 +42,7 @@ function emitQueryStrategy(plan: QueryPlan, registryTypeName: string): string {
     parts.push(emitObjectTypeAlias(paramsName, query.parameters));
   }
   if (hasContext) {
-    parts.push(emitObjectTypeAlias(contextName, query.context));
+    parts.push(emitObjectTypeAlias(contextName, contextFields));
   }
 
   const executionContextType = hasContext ? contextName : "unknown";

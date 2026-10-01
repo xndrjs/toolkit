@@ -12,6 +12,7 @@
  */
 import { queryReferencedResources } from "../../../check/check-datasources";
 import type { DatasourceDefinition, FieldDecl, Program, QueryDefinition } from "../../../ir";
+import { resolvedQueryContext } from "../../../ir";
 import { printTypeExpr } from "../resources";
 import {
   ariFactoryName,
@@ -194,7 +195,8 @@ function emitQueryDataSourcesFactory(
 ): string {
   const covered = datasourcesForQuery(query, datasources);
   const factory = dataSourcesFactoryName(query.name);
-  const contextType = query.context.length > 0 ? executionContextTypeName(query.name) : "unknown";
+  const contextType =
+    query.contextProjections.length > 0 ? executionContextTypeName(query.name) : "unknown";
 
   const configFields = covered
     .map((ds) => `    ${ds.name}: ${datasourceConfigTypeName(ds.name)};`)
@@ -244,11 +246,11 @@ export function emitQueryDataSourceFactories(
   const parts: string[] = [];
 
   for (const query of program.queries) {
-    if (emitQueryContexts && query.context.length > 0) {
+    if (emitQueryContexts && query.contextProjections.length > 0) {
       parts.push(
         emitObjectTypeAlias(
           executionContextTypeName(query.name),
-          query.context,
+          resolvedQueryContext(query),
           /* exported */ true
         )
       );

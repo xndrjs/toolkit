@@ -21,14 +21,14 @@ resource Post(id: PostId, locale: Locale): {
 `;
 
 const QUERY_OK = `
-query PostDetail(postId: PostId) {
+query PostDetail(postId: PostId, locale: Locale) {
   context {
-    locale: Locale
+    locale
   }
 
   root Post(
     id: postId,
-    locale: context.locale
+    locale: locale
   )
 
   on Post p {
@@ -39,14 +39,14 @@ query PostDetail(postId: PostId) {
 `;
 
 const QUERY_UNKNOWN = `
-query PostDetail(postId: PostId) {
+query PostDetail(postId: PostId, locale: Locale) {
   context {
-    locale: Locale
+    locale
   }
 
   root MissingPost(
     id: postId,
-    locale: context.locale
+    locale: locale
   )
 
   on Post p {
@@ -120,9 +120,11 @@ describe("validateWorkspace", () => {
 
   it("lowers a fragment declared in a third workspace file before checking", async () => {
     const { root, resourcesUri, queryUri } = setupTwoFiles(`
-      query PostDetail(postId: PostId) {
-        context { locale: Locale }
-        root Post(id: postId, locale: context.locale)
+      query PostDetail(postId: PostId, locale: Locale) {
+        context {
+    locale
+  }
+        root Post(id: postId, locale: locale)
         on Post post { ...PostSummary }
       }
     `);
@@ -250,14 +252,14 @@ describe("validateWorkspace", () => {
 
   it("publishes DUPLICATE_SELECTED_FIELD from lower (not only checkProgram)", async () => {
     const queryWithDup = `
-query PostDetail(postId: PostId) {
+query PostDetail(postId: PostId, locale: Locale) {
   context {
-    locale: Locale
+    locale
   }
 
   root Post(
     id: postId,
-    locale: context.locale
+    locale: locale
   )
 
   on Post p {

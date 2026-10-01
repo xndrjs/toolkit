@@ -18,6 +18,7 @@ import type {
   QueryDefinition,
   ResourceProjection,
 } from "../ir";
+import { resolvedQueryContext } from "../ir";
 import { formatType, isAssignable, typesSemanticallyEqual } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
 import { inferExprType } from "./expressions";
@@ -323,6 +324,7 @@ function checkDatasourceWhen(
     path,
     params: new Map(),
     context,
+    allowContext: true,
     bindings: new Map([[alias, resource]]),
     items: new Map(),
     payloadNarrowing: new Map(),
@@ -405,8 +407,9 @@ function rejectDatasourceWhenExprs(expr: Expr, path: string, sink: DiagnosticSin
 }
 
 /**
- * Each query context must include fields from datasources whose routes
+ * Each query context projection must cover fields from datasources whose routes
  * intersect resources referenced by that query (types assignable).
+ * Extra projection entries (not required by any used datasource) are warnings.
  */
 function checkQueryContextsAgainstUsedDatasources(
   program: Program,
@@ -418,9 +421,8 @@ function checkQueryContextsAgainstUsedDatasources(
     const referenced = queryReferencedResources(query);
     const used = usedDatasources(program, referenced);
     const { fields: required, requiredBy } = mergeUsedContextFields(used);
-    if (required.size === 0) continue;
+    const queryContext = new Map(resolvedQueryContext(query).map((f) => [f.name, f]));
 
-    const queryContext = new Map(query.context.map((f) => [f.name, f]));
     for (const [name, reqField] of required) {
       const queryField = queryContext.get(name);
       const fieldPath = `queries.${query.name}.context.${name}`;
@@ -448,6 +450,17 @@ function checkQueryContextsAgainstUsedDatasources(
           span: queryField.span,
         });
       }
+    }
+
+    for (const proj of query.contextProjections) {
+      if (required.has(proj.contextName)) continue;
+      sink.push({
+        code: "QUERY_CONTEXT_UNUSED_FIELD",
+        severity: "warning",
+        message: `Query '${query.name}' context field '${proj.contextName}' is not required by any datasource used by this query`,
+        path: `queries.${query.name}.context.${proj.contextName}`,
+        span: proj.span,
+      });
     }
   }
 }

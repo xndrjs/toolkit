@@ -12,18 +12,18 @@ resource Hero(id: HeroId, locale: Locale): {
   id
 }
 
-query Bad(pageId: PageId) {
+query Bad(pageId: PageId, locale: Locale) {
   context {
-    locale: Locale
+    locale
   }
 
   root Page(
     id: pageId,
-    locale: context.locale
+    locale: locale
   )
 
   on Page p {
     id
-    expand hero: Hero(id: @p.id, locale: context.locale)
+    expand hero: Hero(id: @p.id, locale: locale)
   }
 }

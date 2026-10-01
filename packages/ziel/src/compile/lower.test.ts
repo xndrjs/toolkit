@@ -168,9 +168,11 @@ describe("lowerProgram", () => {
           tags: string[]
         }
 
-        query MenuDetail(menuId: MenuId) {
-          context { locale: Locale }
-          root Menu(id: menuId, locale: context.locale)
+        query MenuDetail(menuId: MenuId, locale: Locale) {
+          context {
+    locale
+  }
+          root Menu(id: menuId, locale: locale)
           on Menu m { id title }
         }
       `)
@@ -214,13 +216,15 @@ describe("lowerProgram", () => {
 
         resource Hero(id: HeroId, locale: Locale): { type: "Hero", id }
 
-        query Q(pageId: PageId) {
-          context { locale: Locale }
-          root Page(id: pageId, locale: context.locale)
+        query Q(pageId: PageId, locale: Locale) {
+          context {
+    locale
+  }
+          root Page(id: pageId, locale: locale)
           on Page p {
             id
             expand strips: each s in p.strips (
-              Hero(id: s.id, locale: context.locale) when s.type == "Hero"
+              Hero(id: s.id, locale: locale) when s.type == "Hero"
             )
           }
           on Hero h { id }
@@ -249,7 +253,7 @@ describe("lowerProgram", () => {
               resource: "Hero",
               args: [
                 { name: "id", value: { kind: "itemRef", binding: "s", path: ["id"] } },
-                { name: "locale", value: { kind: "context", path: ["locale"] } },
+                { name: "locale", value: { kind: "param", name: "locale" } },
               ],
             },
             onFailure: "throw",
@@ -273,13 +277,15 @@ describe("lowerProgram", () => {
           strips: { id: EntryId }[]
         }
 
-        query Q(pageId: EntryId) {
-          context { locale: Locale }
-          root Page(id: pageId, locale: context.locale)
+        query Q(pageId: EntryId, locale: Locale) {
+          context {
+    locale
+  }
+          root Page(id: pageId, locale: locale)
           on Page p {
-            expand menu: Entry(id: p.menuId, locale: context.locale) on failure set null
+            expand menu: Entry(id: p.menuId, locale: locale) on failure set null
             expand strips: each s in p.strips (
-              Entry(id: s.id, locale: context.locale) on failure set error
+              Entry(id: s.id, locale: locale) on failure set error
             )
           }
           on Entry e { id }
@@ -316,13 +322,15 @@ describe("lowerProgram", () => {
 
         resource Asset(id: AssetId, locale: Locale): { id }
 
-        query Q(entryId: EntryId) {
-          context { locale: Locale }
-          root Entry(id: entryId, locale: context.locale)
+        query Q(entryId: EntryId, locale: Locale) {
+          context {
+    locale
+  }
+          root Entry(id: entryId, locale: locale)
           on Entry e {
             when e.type == "Hero" {
               id
-              expand image: Asset(id: e.imageId, locale: context.locale)
+              expand image: Asset(id: e.imageId, locale: locale)
             }
             when e.type == "Page" {
               id
@@ -364,7 +372,7 @@ describe("lowerProgram", () => {
             resource: "Asset",
             args: [
               { name: "id", value: { kind: "payloadRef", binding: "e", path: ["imageId"] } },
-              { name: "locale", value: { kind: "context", path: ["locale"] } },
+              { name: "locale", value: { kind: "param", name: "locale" } },
             ],
           },
         },
@@ -404,9 +412,11 @@ describe("lowerProgram — fragments", () => {
 
         fragment EntryBase on Entry e { type id }
 
-        query Q(entryId: EntryId) {
-          context { locale: Locale }
-          root Entry(id: entryId, locale: context.locale)
+        query Q(entryId: EntryId, locale: Locale) {
+          context {
+    locale
+  }
+          root Entry(id: entryId, locale: locale)
           on Entry e {
             ...EntryBase
             when e.type == "Hero" { title }
@@ -448,12 +458,14 @@ describe("lowerProgram — fragments", () => {
         fragment EntryLogo on Entry x when x.type == "Menu" {
           ...EntryBase
           title
-          expand logo: Asset(id: x.logoId, locale: context.locale)
+          expand logo: Asset(id: x.logoId, locale: locale)
         }
 
-        query Q(entryId: EntryId) {
-          context { locale: Locale }
-          root Entry(id: entryId, locale: context.locale)
+        query Q(entryId: EntryId, locale: Locale) {
+          context {
+    locale
+  }
+          root Entry(id: entryId, locale: locale)
           on Entry e {
             when e.type == "Hero" { type id title }
             when e.type == "Menu" {
@@ -478,7 +490,7 @@ describe("lowerProgram — fragments", () => {
         resource: "Asset",
         args: [
           { name: "id", value: { kind: "payloadRef", binding: "e", path: ["logoId"] } },
-          { name: "locale", value: { kind: "context", path: ["locale"] } },
+          { name: "locale", value: { kind: "param", name: "locale" } },
         ],
       },
     });
@@ -491,9 +503,11 @@ describe("lowerProgram — fragments", () => {
         scalar Locale on string;
         resource Asset(id: AssetId, locale: Locale): { id title: string }
         fragment AssetBase on Asset a { id title }
-        query Q(id: AssetId) {
-          context { locale: Locale }
-          root Asset(id: id, locale: context.locale)
+        query Q(id: AssetId, locale: Locale) {
+          context {
+    locale
+  }
+          root Asset(id: id, locale: locale)
           on Asset b { ...AssetBase }
         }
       `)
@@ -607,9 +621,11 @@ describe("lowerProgram — fragments", () => {
         fragment AssetOnly on Asset a { id }
         fragment MenuOnly on Entry e when e.type == "Menu" { title }
 
-        query Q(entryId: EntryId) {
-          context { locale: Locale }
-          root Entry(id: entryId, locale: context.locale)
+        query Q(entryId: EntryId, locale: Locale) {
+          context {
+    locale
+  }
+          root Entry(id: entryId, locale: locale)
           on Entry e {
             when e.type == "Hero" {
               ...Missing
@@ -716,9 +732,11 @@ describe("lowerProgram — fragments", () => {
       parseSource(`
         ${FRAGMENT_PRELUDE}
 
-        query Q(entryId: EntryId) {
-          context { locale: Locale }
-          root Entry(id: entryId, locale: context.locale)
+        query Q(entryId: EntryId, locale: Locale) {
+          context {
+    locale
+  }
+          root Entry(id: entryId, locale: locale)
           on Entry e {
             when e.type == "Hero" {
               title
@@ -750,9 +768,11 @@ describe("lowerProgram — fragments", () => {
 
         fragment EntryBase on Entry e { type id }
 
-        query Q(entryId: EntryId) {
-          context { locale: Locale }
-          root Entry(id: entryId, locale: context.locale)
+        query Q(entryId: EntryId, locale: Locale) {
+          context {
+    locale
+  }
+          root Entry(id: entryId, locale: locale)
           on Entry e {
             ...EntryBase
             when e.type == "Hero" {
@@ -797,9 +817,11 @@ describe("lowerProgram — fragments", () => {
           locale: Locale
         }
 
-        query Q(ref: Ref) {
-          context { locale: Locale }
-          root CustomReference(ref: ref, locale: context.locale)
+        query Q(ref: Ref, locale: Locale) {
+          context {
+    locale
+  }
+          root CustomReference(ref: ref, locale: locale)
           on CustomReference c resolve to {
             Entry(
               spaceId: c.spaceId,
@@ -866,9 +888,11 @@ describe("lowerProgram — fragments", () => {
           locale: Locale
         }
 
-        query Q(tabsId: TabsId) {
-          context { locale: Locale }
-          root TabCollection(tabsId: tabsId, locale: context.locale)
+        query Q(tabsId: TabsId, locale: Locale) {
+          context {
+    locale
+  }
+          root TabCollection(tabsId: tabsId, locale: locale)
           on TabCollection tc resolve to each link in tc.tabsIds (
             Tab(id: link.id, locale: @tc.locale) on failure set null
           )
@@ -1057,9 +1081,11 @@ describe("lowerProgram — fragments", () => {
           id
         }
 
-        query Q(pageId: EntryId) {
-          context { locale: Locale }
-          root Page(id: pageId, locale: context.locale)
+        query Q(pageId: EntryId, locale: Locale) {
+          context {
+    locale
+  }
+          root Page(id: pageId, locale: locale)
           on Page p { id }
           on Entry e { id type }
           islands {
@@ -1118,9 +1144,11 @@ describe("lowerProgram — fragments", () => {
         visible: boolean
       }
 
-      query Q(pageId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: pageId, locale: context.locale)
+      query Q(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: pageId, locale: locale)
         on Entry e {
           when e.type in ["Menu", "Footer"] { id }
           when e.type not in ["Hero"] { id }

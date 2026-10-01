@@ -1,4 +1,5 @@
-export type { Diagnostic } from "./diagnostic";
+export type { Diagnostic, DiagnosticSeverity } from "./diagnostic";
+export { isErrorDiagnostic } from "./diagnostic";
 export {
   analyzeProgram,
   checkProgram,

@@ -4,6 +4,8 @@
  */
 import type { SourceSpan } from "../ir";
 
+export type DiagnosticSeverity = "error" | "warning";
+
 export type Diagnostic = {
   code: string;
   message: string;
@@ -11,11 +13,20 @@ export type Diagnostic = {
   /** Source range for editor squiggles; `null`/absent when unknown. */
   span?: SourceSpan | null;
   /**
+   * Defaults to `"error"`. Warnings do not block codegen; LSP maps them to Warning.
+   */
+  severity?: DiagnosticSeverity;
+  /**
    * Structured payload for code actions / tooling (e.g. quick-fix resource name).
    * Forwarded as LSP `diagnostic.data` when present.
    */
   data?: { missingResource: string };
 };
+
+/** True when the diagnostic should fail compile / block codegen. */
+export function isErrorDiagnostic(diagnostic: Pick<Diagnostic, "severity">): boolean {
+  return diagnostic.severity !== "warning";
+}
 
 export type DiagnosticSink = {
   push(diagnostic: Diagnostic): void;

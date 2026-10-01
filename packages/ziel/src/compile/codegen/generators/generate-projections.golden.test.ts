@@ -62,7 +62,6 @@ export function projectPostDetail(
   contentMap: ContentMap<ContentRegistry>,
   args: {
     params: PostDetailParams;
-    executionContext: PostDetailExecutionContext;
   },
 ): PostDetailResult {
   const memo = new Map<string, unknown>();
@@ -186,7 +185,6 @@ export function projectPageDetail(
   contentMap: ContentMap<ContentRegistry>,
   args: {
     params: PageDetailParams;
-    executionContext: PageDetailExecutionContext;
     redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;
   },
 ): PageDetailResult {

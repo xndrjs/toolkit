@@ -162,6 +162,16 @@ export function inferExprType(
       return field.type;
     }
     case "context": {
+      if (!scope.allowContext) {
+        sink.push({
+          code: "CONTEXT_FORBIDDEN_IN_QUERY",
+          message:
+            "Query bodies cannot use `context.*`; reference the query parameter by name instead",
+          path,
+          span: expr.span,
+        });
+        return undefined;
+      }
       return resolvePathOnFields(
         expr.path,
         scope.context,

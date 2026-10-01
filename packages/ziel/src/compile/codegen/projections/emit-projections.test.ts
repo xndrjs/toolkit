@@ -46,7 +46,7 @@ describe("emitProjections", () => {
     expect(code).toContain("root: ReturnType<typeof postAri>");
     expect(code).toContain("contentMap: ContentMap<ContentRegistry>");
     expect(code).toContain("params: PostDetailParams");
-    expect(code).toContain("executionContext: PostDetailExecutionContext");
+    expect(code).not.toContain("executionContext: PostDetailExecutionContext");
     expect(code).toContain(": PostDetailResult");
     expect(code).toContain("const memo = new Map<string, unknown>();");
     expect(code).toContain(
@@ -136,14 +136,16 @@ describe("emitProjections", () => {
         url: string
       }
 
-      query EntryDetail(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query EntryDetail(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" {
             id
             title
-            expand image: Asset(id: e.imageId, locale: context.locale)
+            expand image: Asset(id: e.imageId, locale: locale)
           }
           when e.type == "Page" {
             id
@@ -167,7 +169,7 @@ describe("emitProjections", () => {
     expect(code).not.toContain("switch ((payload as any).type)");
     expect(code).toContain("const shell: Partial<EntryDetail_Entry_Hero>");
     expect(code).toContain(
-      'shell.image = projectNode(assetAri({ id: payload.imageId, locale: args.executionContext.locale })) as EntryDetail_Entry_Hero["image"];'
+      'shell.image = projectNode(assetAri({ id: payload.imageId, locale: args.params.locale })) as EntryDetail_Entry_Hero["image"];'
     );
     expect(code).toContain('case "Entry":');
     expect(code).toContain(
@@ -251,9 +253,11 @@ describe("emitProjections", () => {
         related: Ref[]
       }
 
-      query PageDetail(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand related: each ref in p.related (
@@ -321,7 +325,7 @@ describe("emitProjections", () => {
       queries: [
         query("PostDetail", {
           parameters: [field("postId", scalarRef("PostId"))],
-          context: [],
+          contextProjections: [],
           roots: singleRoot(construct("Post", [arg("id", param("postId"))])),
           projections: [
             projection(
@@ -361,7 +365,7 @@ describe("emitProjections", () => {
       queries: [
         query("Cycle", {
           parameters: [field("nodeId", scalarRef("NodeId"))],
-          context: [],
+          contextProjections: [],
           roots: singleRoot(construct("Node", [arg("id", param("nodeId"))])),
           projections: [
             projection(
@@ -424,9 +428,11 @@ describe("generateProjections", () => {
       resource Entry(id: EntryId, locale: Locale): { id title: string }
       resource Page(id: EntryId, locale: Locale): { id menuId: EntryId }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand menu: Entry(id: p.menuId, locale: @p.locale) on failure set null
@@ -483,12 +489,14 @@ describe("generateProjections", () => {
       resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
       resource Page(id: string, locale: Locale): { id tabsId: TabsId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: locale)
         }
         on TabCollection t { }
       }
@@ -528,9 +536,11 @@ describe("generateProjections", () => {
       }
       resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
 
-      query Q(tabsId: TabsId) {
-        context { locale: Locale }
-        root Tabs(tabsId: tabsId, locale: context.locale)
+      query Q(tabsId: TabsId, locale: Locale) {
+        context {
+    locale
+  }
+        root Tabs(tabsId: tabsId, locale: locale)
         on Tabs t {
           expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
         }
@@ -580,9 +590,11 @@ describe("generateProjections", () => {
       }
       resource Page(id: string, locale: Locale): { collectionId: CollectionId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           expand items: MixedCollection(id: p.collectionId, locale: @p.locale)
         }

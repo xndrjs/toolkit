@@ -26,9 +26,11 @@ const prelude = `
 `;
 
 const coveredQuery = `
-  query Q(id: EntryId) {
-    context { locale: Locale }
-    root Entry(id: id, locale: context.locale)
+  query Q(id: EntryId, locale: Locale) {
+    context {
+    locale
+  }
+    root Entry(id: id, locale: locale)
     on Entry e { id type }
     on Asset a { id }
   }
@@ -233,12 +235,12 @@ export function createQDataSources(
         for Entry
       }
 
-      query Q(id: EntryId) {
+      query Q(id: EntryId, locale: Locale, apiKey: ApiKey) {
         context {
-          locale: Locale
-          apiKey: ApiKey
-        }
-        root Entry(id: id, locale: context.locale)
+    locale
+    apiKey
+  }
+        root Entry(id: id, locale: locale)
         on Entry e { id }
       }
     `);
@@ -285,15 +287,19 @@ export function createQDataSources(
         for Product
       }
 
-      query PageDetail(id: EntryId) {
-        context { locale: Locale }
-        root Entry(id: id, locale: context.locale)
+      query PageDetail(id: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: id, locale: locale)
         on Entry e { id }
         on Asset a { id }
       }
 
-      query ProductDetail(sku: Sku) {
-        context { locale: Locale }
+      query ProductDetail(sku: Sku, locale: Locale) {
+        context {
+    locale
+  }
         root Product(sku: sku)
         on Product p { sku title }
       }

@@ -214,8 +214,9 @@ export function isCastExpr(item: unknown): item is CastExpr {
   return reflection.isInstance(item, CastExpr.$type);
 }
 
+/** Datasource typed context fields (independent of query params). */
 export interface ContextBlock extends langium.AstNode {
-  readonly $container: DatasourceDeclaration | QueryDeclaration;
+  readonly $container: DatasourceDeclaration;
   readonly $type: "ContextBlock";
   fields: Array<TypedField>;
 }
@@ -227,6 +228,23 @@ export const ContextBlock = {
 
 export function isContextBlock(item: unknown): item is ContextBlock {
   return reflection.isInstance(item, ContextBlock.$type);
+}
+
+export interface ContextProjectionEntry extends langium.AstNode {
+  readonly $container: QueryContextBlock;
+  readonly $type: "ContextProjectionEntry";
+  contextName: string;
+  paramName?: string;
+}
+
+export const ContextProjectionEntry = {
+  $type: "ContextProjectionEntry",
+  contextName: "contextName",
+  paramName: "paramName",
+} as const;
+
+export function isContextProjectionEntry(item: unknown): item is ContextProjectionEntry {
+  return reflection.isInstance(item, ContextProjectionEntry.$type);
 }
 
 export interface ContextRef extends langium.AstNode {
@@ -955,10 +973,30 @@ export function isProjectionWhenArm(item: unknown): item is ProjectionWhenArm {
   return reflection.isInstance(item, ProjectionWhenArm.$type);
 }
 
+/**
+ * Query execution-context projection: which params are visible to datasources.
+ * Shorthand `locale` ≡ `locale: locale`. Alias form: `environment: environmentId`
+ * (left = context key / DS vocabulary, right = param source).
+ */
+export interface QueryContextBlock extends langium.AstNode {
+  readonly $container: QueryDeclaration;
+  readonly $type: "QueryContextBlock";
+  projections: Array<ContextProjectionEntry>;
+}
+
+export const QueryContextBlock = {
+  $type: "QueryContextBlock",
+  projections: "projections",
+} as const;
+
+export function isQueryContextBlock(item: unknown): item is QueryContextBlock {
+  return reflection.isInstance(item, QueryContextBlock.$type);
+}
+
 export interface QueryDeclaration extends langium.AstNode {
   readonly $container: Model;
   readonly $type: "QueryDeclaration";
-  context?: ContextBlock;
+  context?: QueryContextBlock;
   islands?: IslandsBlock;
   name: string;
   parameters: Array<TypedField>;
@@ -1330,6 +1368,7 @@ export type ZielAstType = {
   BooleanLiteral: BooleanLiteral;
   CastExpr: CastExpr;
   ContextBlock: ContextBlock;
+  ContextProjectionEntry: ContextProjectionEntry;
   ContextRef: ContextRef;
   DatasourceDeclaration: DatasourceDeclaration;
   DatasourceRoute: DatasourceRoute;
@@ -1368,6 +1407,7 @@ export type ZielAstType = {
   ProjectionClause: ProjectionClause;
   ProjectionDefaultArm: ProjectionDefaultArm;
   ProjectionWhenArm: ProjectionWhenArm;
+  QueryContextBlock: QueryContextBlock;
   QueryDeclaration: QueryDeclaration;
   RefersClause: RefersClause;
   RefersPatternField: RefersPatternField;
@@ -1467,6 +1507,19 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         fields: {
           name: ContextBlock.fields,
           defaultValue: [],
+          optional: true,
+        },
+      },
+      superTypes: [],
+    },
+    ContextProjectionEntry: {
+      name: ContextProjectionEntry.$type,
+      properties: {
+        contextName: {
+          name: ContextProjectionEntry.contextName,
+        },
+        paramName: {
+          name: ContextProjectionEntry.paramName,
           optional: true,
         },
       },
@@ -1958,6 +2011,17 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
         },
         when: {
           name: ProjectionWhenArm.when,
+        },
+      },
+      superTypes: [],
+    },
+    QueryContextBlock: {
+      name: QueryContextBlock.$type,
+      properties: {
+        projections: {
+          name: QueryContextBlock.projections,
+          defaultValue: [],
+          optional: true,
         },
       },
       superTypes: [],

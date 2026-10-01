@@ -136,12 +136,24 @@ QueryDeclaration:
     'query' name=ID
         '(' (parameters+=TypedField (',' parameters+=TypedField)*)? ')'
         '{'
-            context=ContextBlock?
+            context=QueryContextBlock?
             (root=RootClause | roots=RootsBlock)?
             projections+=ProjectionClause*
             islands=IslandsBlock?
         '}';
 
+/**
+ * Query execution-context projection: which params are visible to datasources.
+ * Shorthand `locale` ≡ `locale: locale`. Alias form: `environment: environmentId`
+ * (left = context key / DS vocabulary, right = param source).
+ */
+QueryContextBlock:
+    'context' '{' projections+=ContextProjectionEntry* '}';
+
+ContextProjectionEntry:
+    contextName=ID (':' paramName=ID)?;
+
+/** Datasource typed context fields (independent of query params). */
 ContextBlock:
     'context' '{' fields+=TypedField* '}';
 

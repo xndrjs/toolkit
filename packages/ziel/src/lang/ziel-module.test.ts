@@ -3,7 +3,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  isContextRef,
   isFragmentDeclaration,
   isFragmentSpread,
   isIdentityRef,
@@ -43,13 +42,13 @@ describe("Ziel MVP grammar", () => {
 
     const query = model.declarations.find(isQueryDeclaration) as QueryDeclaration;
     expect(query.name).toBe("PostDetail");
-    expect(query.parameters.map((p) => p.name)).toEqual(["postId"]);
-    expect(query.context?.fields.map((f) => f.name)).toEqual(["locale"]);
+    expect(query.parameters.map((p) => p.name)).toEqual(["postId", "locale"]);
+    expect(query.context?.projections.map((f) => f.contextName)).toEqual(["locale"]);
     expect(query.root?.construction.resource).toBe("Post");
     const localeArg = query.root?.construction.args.find((a) => a.name === "locale")?.value;
-    expect(localeArg && isContextRef(localeArg)).toBe(true);
-    if (localeArg && isContextRef(localeArg)) {
-      expect(localeArg.path).toEqual(["locale"]);
+    expect(localeArg && isPathRef(localeArg)).toBe(true);
+    if (localeArg && isPathRef(localeArg)) {
+      expect(localeArg.segments).toEqual(["locale"]);
     }
     expect(query.projections).toHaveLength(2);
     expect(query.projections[0]?.binding).toBe("p");
@@ -119,14 +118,16 @@ describe("Ziel MVP grammar", () => {
         url: string
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" {
             id
             title
-            expand image: Asset(id: e.imageId, locale: context.locale)
+            expand image: Asset(id: e.imageId, locale: locale)
           }
           when e.type == "Page" {
             id
@@ -307,9 +308,11 @@ describe("Ziel MVP grammar", () => {
         expand logo: Asset(id: e.logoId, locale: context.locale)
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Menu" { ...EntryLogo }
           default { }
@@ -344,9 +347,11 @@ describe("Ziel MVP grammar", () => {
 
       fragment EntryBase on Entry e { type id }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           ...EntryBase
           when e.type == "Hero" { }
@@ -372,9 +377,11 @@ describe("Ziel MVP grammar", () => {
       scalar EntryId on string;
       scalar Locale on string;
       resource Entry(id: EntryId, locale: Locale): { type: "Hero", id }
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" { id }
           title

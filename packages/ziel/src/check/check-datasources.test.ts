@@ -22,9 +22,11 @@ const prelude = `
 `;
 
 const coveredQuery = `
-  query Q(id: EntryId) {
-    context { locale: Locale }
-    root Entry(id: id, locale: context.locale)
+  query Q(id: EntryId, locale: Locale) {
+    context {
+      locale
+    }
+    root Entry(id: id, locale: locale)
     on Entry e { id type }
     on Asset a { id }
   }
@@ -290,9 +292,11 @@ describe("checkDatasources", () => {
         for Asset
       }
 
-      query Q(id: EntryId) {
-        context { locale: Locale }
-        root Entry(id: id, locale: context.locale)
+      query Q(id: EntryId, locale: Locale) {
+        context {
+          locale
+        }
+        root Entry(id: id, locale: locale)
         on Entry e { id type }
       }
     `);
@@ -317,9 +321,11 @@ describe("checkDatasources", () => {
         for Asset
       }
 
-      query Q(id: EntryId) {
-        context { locale: Locale }
-        root Entry(id: id, locale: context.locale)
+      query Q(id: EntryId, locale: Locale) {
+        context {
+          locale
+        }
+        root Entry(id: id, locale: locale)
         on Entry e { id type }
         on Asset a { id }
       }
@@ -385,8 +391,10 @@ describe("checkDatasources", () => {
         for Asset
       }
 
-      query Q(id: EntryId) {
-        context { locale: string }
+      query Q(id: EntryId, locale: string) {
+        context {
+          locale
+        }
         root Entry(id: id, locale: "en")
         on Entry e { id type }
         on Asset a { id }
@@ -489,8 +497,10 @@ describe("checkDatasources", () => {
         for Entry
       }
 
-      query Q(id: EntryId) {
-        context { locale: Locale }
+      query Q(id: EntryId, locale: Locale) {
+        context {
+          locale
+        }
         root Entry(id: id)
         on Entry e { id }
         on CustomReference c { ref }
@@ -519,8 +529,10 @@ describe("checkDatasources", () => {
         for Entry
       }
 
-      query Q(id: EntryId) {
-        context { locale: Locale }
+      query Q(id: EntryId, locale: Locale) {
+        context {
+          locale
+        }
         root Entry(id: id)
         on Entry e { id }
         on CustomReference c { ref }
@@ -549,9 +561,11 @@ describe("checkDatasources", () => {
         for Entry e when context.locale as number == 1
       }
 
-      query Q(id: EntryId) {
-        context { locale: Locale }
-        root Entry(id: id, locale: context.locale)
+      query Q(id: EntryId, locale: Locale) {
+        context {
+          locale
+        }
+        root Entry(id: id, locale: locale)
         on Entry e { id }
       }
     `);
@@ -561,6 +575,83 @@ describe("checkDatasources", () => {
         code: "INVALID_CAST",
         message: expect.stringMatching(/Locale.*number/),
       })
+    );
+  });
+
+  it("warns on query context fields unused by any datasource the query uses", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      datasource CmsSource {
+        context { locale: Locale }
+        for Entry
+        for Asset
+      }
+
+      query Q(id: EntryId, locale: Locale, unused: string) {
+        context {
+          locale
+          unused
+        }
+        root Entry(id: id, locale: locale)
+        on Entry e { id type }
+        on Asset a { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "QUERY_CONTEXT_UNUSED_FIELD",
+        severity: "warning",
+        message: expect.stringMatching(/unused/),
+      })
+    );
+    expect(diagnostics.filter((d) => d.severity !== "warning")).toEqual([]);
+  });
+
+  it("accepts context aliases that map params onto datasource field names", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      datasource CmsSource {
+        context { locale: Locale }
+        for Entry
+        for Asset
+      }
+
+      query Q(id: EntryId, lang: Locale) {
+        context {
+          locale: lang
+        }
+        root Entry(id: id, locale: lang)
+        on Entry e { id type }
+        on Asset a { id }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("rejects context.* in query bodies", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${prelude}
+
+      datasource CmsSource {
+        context { locale: Locale }
+        for Entry
+        for Asset
+      }
+
+      query Q(id: EntryId, locale: Locale) {
+        context { locale }
+        root Entry(id: id, locale: context.locale)
+        on Entry e { id type }
+        on Asset a { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({ code: "CONTEXT_FORBIDDEN_IN_QUERY" })
     );
   });
 });
