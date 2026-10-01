@@ -1,6 +1,6 @@
 /**
  * Merge resource + datasource + strategy + projection + resolve façade codegen
- * into one TypeScript module for the product path (`buildResources` / CLI).
+ * into one TypeScript module for the product path (`buildGeneratedModule` / CLI).
  * Keeps `generateResources` / `generateStrategies` / `generateProjections` /
  * `generateDataSources` as focused unit-test entry points with separate imports.
  */

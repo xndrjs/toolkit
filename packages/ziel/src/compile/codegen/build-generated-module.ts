@@ -1,5 +1,5 @@
 /**
- * Multi-file orchestration: collect → parse workspace → global lower/check → emit.
+ * Multi-file orchestration: collect → compileWorkspace → analyze → compose.
  * No filesystem writes — callers (CLI) persist `code` when diagnostics are empty.
  */
 import { readFileSync } from "node:fs";
@@ -13,7 +13,7 @@ import {
   type ComposeGeneratedModuleOptions,
 } from "./compose-generated-module";
 
-export type BuildResourcesOptions = CollectZielFilesOptions &
+export type BuildGeneratedModuleOptions = CollectZielFilesOptions &
   ComposeGeneratedModuleOptions & {
     /**
      * When the program declares ≥1 datasource, require every resource to appear
@@ -22,13 +22,19 @@ export type BuildResourcesOptions = CollectZielFilesOptions &
     requireDatasourceCoverage?: boolean;
   };
 
-export type BuildResourcesResult = {
+export type BuildGeneratedModuleResult = {
   /** Generated TypeScript; empty when diagnostics are non-empty. */
   code: string;
   diagnostics: Diagnostic[];
   /** Absolute paths collected for this run (stable order). */
   files: string[];
 };
+
+/** @deprecated Use {@link BuildGeneratedModuleOptions}. */
+export type BuildResourcesOptions = BuildGeneratedModuleOptions;
+
+/** @deprecated Use {@link BuildGeneratedModuleResult}. */
+export type BuildResourcesResult = BuildGeneratedModuleResult;
 
 function withFileUri(diagnostic: Diagnostic, uri: string): Diagnostic {
   return {
@@ -43,7 +49,9 @@ function withFileUri(diagnostic: Diagnostic, uri: string): Diagnostic {
  *
  * On any diagnostics (syntax or semantic), `code` is `""` and nothing is written.
  */
-export function buildResources(options: BuildResourcesOptions = {}): BuildResourcesResult {
+export function buildGeneratedModule(
+  options: BuildGeneratedModuleOptions = {}
+): BuildGeneratedModuleResult {
   const {
     importFrom,
     registryTypeName,
@@ -88,3 +96,6 @@ export function buildResources(options: BuildResourcesOptions = {}): BuildResour
   });
   return { code, diagnostics: [], files };
 }
+
+/** @deprecated Use {@link buildGeneratedModule}. */
+export const buildResources = buildGeneratedModule;

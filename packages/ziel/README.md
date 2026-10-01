@@ -2,12 +2,12 @@
 
 **Product entry** for Ziel with these surfaces:
 
-| Export                 | Use for                                                                                                                                                                                                                                            |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@xndrjs/ziel`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                                                                      |
-| `@xndrjs/ziel/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `compileWorkspace`, `generateResources`, `generateStrategies`, `generateProjections`, `generateDataSources`, `defineConfig`, `buildResources` — Node / CI / build only |
-| `@xndrjs/ziel/lsp`     | Language server helpers + `ziel-language-server` bin (stdio) — workspace collect/merge → diagnostics + IntelliSense (hover / completion / definition)                                                                                              |
-| `ziel-codegen` (bin)   | CLI: load `ziel.config.ts`, collect `.ziel` files, emit TypeScript (resources + strategies + datasources + `project*` + `resolve*` façades) — writes `out`, `--dry-run` to stdout, or `--watch` / `--dev` to regenerate on change                  |
+| Export                 | Use for                                                                                                                                                                                                                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@xndrjs/ziel`         | Runtime façade: resource graph resolver + application-resource (ARI) primitives + `ContentMap` — browser-safe                                                                                                                                                                      |
+| `@xndrjs/ziel/compile` | Compile-time DSL: IR, `checkProgram`, Langium parse/lower, `parseAndCheck`, `compileWorkspace`, `generateResources`, `generateStrategies`, `generateProjections`, `generateDataSources`, `defineConfig`, `buildGeneratedModule`, `composeGeneratedModule` — Node / CI / build only |
+| `@xndrjs/ziel/lsp`     | Language server helpers + `ziel-language-server` bin (stdio) — workspace collect/merge → diagnostics + IntelliSense (hover / completion / definition)                                                                                                                              |
+| `ziel-codegen` (bin)   | CLI: load `ziel.config.ts`, collect `.ziel` files, emit TypeScript (resources + strategies + datasources + `project*` + `resolve*` façades) — writes `out`, `--dry-run` to stdout, or `--watch` / `--dev` to regenerate on change                                                  |
 
 Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](../resource-graph-resolver) directly only when you need the engine without the DSL.
 
@@ -89,7 +89,8 @@ import {
   generateStrategies,
   generateProjections,
   generateDataSources,
-  buildResources,
+  composeGeneratedModule,
+  buildGeneratedModule,
   type Program,
 } from "@xndrjs/ziel/compile";
 
@@ -99,11 +100,12 @@ if (diagnostics.length === 0) {
   const { code: strategies } = generateStrategies(program);
   const { code: projections } = generateProjections(program);
   const { code: datasources } = generateDataSources(program);
-  // Pure TypeScript source strings — CLI / buildResources compose + write.
+  // Pure TypeScript source strings — or composeGeneratedModule(program) for one module.
 }
 
-// Multi-file pipeline (no FS write — CLI persists when diagnostics are empty):
-const result = buildResources({ root: process.cwd() });
+// Multi-file pipeline (collect → compileWorkspace → analyze → compose; no FS write —
+// CLI persists when diagnostics are empty):
+const result = buildGeneratedModule({ root: process.cwd() });
 ```
 
 `compileWorkspace([{ uri, source }, …])` is the filesystem-free multi-file entry point. It parses every document first, then lowers resource/scalar references and fragment spreads against one global workspace before running semantic analysis. `parseAndCheck(source, uri)` remains the single-file convenience API.
@@ -129,9 +131,9 @@ There are no uncapitalized top-level helpers (`entryId(…)`). An empty scalars 
 
 `generateProjections` emits memoized `project*` materializers and query-scoped result types (`PostDetailResult`, `PostDetail_Post`, …). Projection shapes follow the DSL only — there is no default resource-name stamp. Pass `resourceTag` (e.g. `"$type"` or `"__resource"`) on codegen options / `ziel.config.ts` to opt into stamping the resource name on shells and types. Apps pass a resolved `ContentMap` and seed ARI(s); aliases are restored. Generated code imports `ContentMap` from `@xndrjs/ziel` only — no extra runtime helper.
 
-`buildResources` / `ziel-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy` (including optional runtime `budget` overrides), plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. There is **no** global `missingResourceMode` on resolve input — roots always throw; child load failures follow each expand’s `on failure` policy. `create*Strategy` and `project*` remain exported for low-level use.
+`buildGeneratedModule` / `ziel-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy` (including optional runtime `budget` overrides), plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. There is **no** global `missingResourceMode` on resolve input — roots always throw; child load failures follow each expand’s `on failure` policy. `create*Strategy` and `project*` remain exported for low-level use.
 
-`buildResources` / `ziel-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist. When the program declares one or more `datasource` blocks, the same compose path also emits a per-query `create{Query}DataSources` factory. Generated imports stay on `@xndrjs/ziel` only.
+`buildGeneratedModule` / `ziel-codegen` compose resources + strategies + projections + resolve façades into one module when queries exist (`composeGeneratedModule` is the pure compose step). When the program declares one or more `datasource` blocks, the same compose path also emits a per-query `create{Query}DataSources` factory. Generated imports stay on `@xndrjs/ziel` only. (`buildResources` remains a deprecated alias of `buildGeneratedModule`.)
 
 ### `resolve to` (1→1 and 1→N)
 
