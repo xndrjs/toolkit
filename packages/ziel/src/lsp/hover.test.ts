@@ -51,7 +51,7 @@ function tablesFrom(source: string) {
   const program = lowerProgram(model, sink);
   expect(sink.diagnostics.filter((d) => d.code.startsWith("LOWER"))).toEqual([]);
   const { scalars, resources } = analyzeProgram(program);
-  return { document, scalars, resources };
+  return { document, scalars, resources, program };
 }
 
 /** Offset of the `occurrence`-th whole-word match of `needle` (ID token). */
@@ -470,5 +470,73 @@ describe("hover fragment when narrowing", () => {
     const authorPath = offsetOf(source, "authorId", 2); // e.authorId (after Hero + Page decls)
     const md = hoverMarkdownAtOffset(document, authorPath, { scalars, resources });
     expect(md ?? "").not.toContain("authorId: EntryId");
+  });
+});
+
+describe("hover query context projections", () => {
+  it("hovers shorthand context fields with the param type", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+scalar SpaceId on string;
+
+resource Entry(id: EntryId, locale: Locale): { id }
+
+datasource Cms {
+  context { locale: Locale spaceId: SpaceId }
+  for Entry
+}
+
+query Q(id: EntryId, locale: Locale, spaceId: SpaceId) {
+  context {
+    locale
+    spaceId
+  }
+  root Entry(id: id, locale: locale)
+  on Entry e { id }
+}
+`;
+    const { document, scalars, resources, program } = tablesFrom(source);
+    const localeOff = offsetOf(source, "locale", 3); // context { locale }
+    expect(hoverMarkdownAtOffset(document, localeOff, { scalars, resources, program })).toContain(
+      "locale: Locale"
+    );
+
+    const spaceOff = offsetOf(source, "spaceId", 2); // context { spaceId }
+    expect(hoverMarkdownAtOffset(document, spaceOff, { scalars, resources, program })).toContain(
+      "spaceId: SpaceId"
+    );
+  });
+
+  it("hovers aliased context name and param with types", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): { id }
+
+datasource Cms {
+  context { locale: Locale }
+  for Entry
+}
+
+query Q(id: EntryId, lang: Locale) {
+  context {
+    locale: lang
+  }
+  root Entry(id: id, locale: lang)
+  on Entry e { id }
+}
+`;
+    const { document, scalars, resources, program } = tablesFrom(source);
+    const localeOff = offsetOf(source, "locale", 2); // context { locale: lang }
+    expect(hoverMarkdownAtOffset(document, localeOff, { scalars, resources, program })).toContain(
+      "locale: Locale"
+    );
+
+    const langOff = offsetOf(source, "lang", 1); // RHS of locale: lang
+    expect(hoverMarkdownAtOffset(document, langOff, { scalars, resources, program })).toContain(
+      "lang: Locale"
+    );
   });
 });

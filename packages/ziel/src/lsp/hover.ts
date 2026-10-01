@@ -7,9 +7,10 @@ import type { HoverProvider, LangiumServices } from "langium/lsp";
 import type { Hover, HoverParams } from "vscode-languageserver";
 
 import type { ResourceTable, ScalarTable } from "../check/symbols";
-import type { FieldDecl, TypeExpr } from "../ir";
+import type { FieldDecl, Program, TypeExpr } from "../ir";
 import { lowerObjectField, lowerTypedField, type NameTables } from "../compile/lower/types";
 import {
+  isContextProjectionEntry,
   isFragmentDeclaration,
   isFragmentSpread,
   isIslandClause,
@@ -17,11 +18,13 @@ import {
   isObjectField,
   isProjectionClause,
   isProjectionWhenArm,
+  isQueryDeclaration,
   isResourceConstruction,
   isResourceDeclaration,
   isScalarDeclaration,
   isTypedField,
   isTypeProjection,
+  type ContextProjectionEntry,
   type ObjectField,
   type TypedField,
 } from "../lang/generated/ast";
@@ -43,6 +46,8 @@ import type { SemanticSnapshot, SemanticSnapshotCache } from "./semantic-snapsho
 type HoverTables = {
   scalars: ScalarTable;
   resources: ResourceTable;
+  /** Merged program when available (query context projection types). */
+  program?: Program;
   documentsByUri?: ReadonlyMap<string, LangiumDocument>;
 };
 
@@ -138,6 +143,32 @@ function hoverForResourceName(name: string, tables: HoverTables): string | undef
   return symbols ? resourceHoverMarkdown(name, symbols) : undefined;
 }
 
+/** Query `context { name }` / `context { name: param }` — type from the source param. */
+function hoverForContextProjectionEntry(
+  entry: ContextProjectionEntry,
+  feature: string | undefined,
+  text: string,
+  tables: HoverTables
+): string | undefined {
+  if (!tables.program) return undefined;
+  const queryAst = AstUtils.getContainerOfType(entry, isQueryDeclaration);
+  if (!queryAst?.name) return undefined;
+  const ir = tables.program.queries.find((q) => q.name === queryAst.name);
+  if (!ir) return undefined;
+
+  const sourceParamName = entry.paramName ?? entry.contextName;
+  const param = ir.parameters.find((p) => p.name === sourceParamName);
+  if (!param) return undefined;
+
+  if (feature === "paramName" || (entry.paramName !== undefined && entry.paramName === text)) {
+    return fieldHoverMarkdown(param.name, param.type, param.optional);
+  }
+  if (feature === "contextName" || entry.contextName === text) {
+    return fieldHoverMarkdown(entry.contextName, param.type, param.optional);
+  }
+  return undefined;
+}
+
 /**
  * Build hover markdown for the AST / CST at `offset`.
  * Exported for unit tests (no full LSP harness).
@@ -172,6 +203,11 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
   });
   if (exprHover) {
     return exprHover;
+  }
+
+  if (isContextProjectionEntry(node)) {
+    const ctxHover = hoverForContextProjectionEntry(node, feature, text, tables);
+    if (ctxHover) return ctxHover;
   }
 
   if (isFragmentDeclaration(node)) {
