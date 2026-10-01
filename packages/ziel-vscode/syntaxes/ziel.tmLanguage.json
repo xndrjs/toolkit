@@ -89,7 +89,7 @@
       "patterns": [
         {
           "name": "keyword.control.ziel",
-          "match": "\\b(?:scalar|resource|fragment|datasource|query|context|roots|root|on|for|resolve|to|expand|each|in|not|and|or|when|default|islands|refers|include|exclude|all|none|properties)\\b"
+          "match": "\\b(?:scalar|resource|fragment|datasource|query|context|roots|root|on|failure|set|throw|error|for|resolve|to|expand|each|in|not|and|or|when|default|islands|refers|include|exclude|all|none|properties|as)\\b"
         },
         {
           "name": "constant.language.boolean.ziel",

@@ -8,12 +8,14 @@ import type { ResourceLoadContext } from "@xndrjs/ziel";
 
 import {
   customReferenceAri,
-  Scalars,
   type CmsCustomReferencesContext,
   type CustomReferencePayload,
   type CustomReferenceResource,
 } from "../../generated";
+import { parsePayload } from "../schemas/parse-payload.js";
 import { parseCustomReference } from "./custom-reference.js";
+import { mapWireToCustomReferencePayload } from "./mappers/index.js";
+import { customReferencePayloadSchema } from "./schemas/index.js";
 
 export const CUSTOM_REFERENCE_SOURCE_ID = "CmsCustomReferences";
 
@@ -26,24 +28,20 @@ export async function loadCmsCustomReferences(
     if (!customReferenceAri.matches(resource)) {
       return undefined;
     }
-    const key = resource.key[0];
-    const parsed = parseCustomReference(key.ref);
+    const parsed = parseCustomReference(resource.key[0].ref);
     if (parsed === null) {
       return undefined;
     }
-
-    return parsed.kind === "ENTRY"
-      ? {
-          kind: "Entry" as const,
-          spaceId: parsed.spaceId,
-          environmentId: parsed.environmentId,
-          id: Scalars.EntryId(parsed.id),
-        }
-      : {
-          kind: "Asset" as const,
-          spaceId: parsed.spaceId,
-          environmentId: parsed.environmentId,
-          id: Scalars.AssetId(parsed.id),
-        };
+    const wire = parsePayload(
+      customReferencePayloadSchema,
+      {
+        kind: parsed.kind === "ENTRY" ? "Entry" : "Asset",
+        spaceId: parsed.spaceId,
+        environmentId: parsed.environmentId,
+        id: parsed.id,
+      },
+      "CustomReference"
+    );
+    return mapWireToCustomReferencePayload(wire);
   });
 }

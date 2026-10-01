@@ -7,6 +7,9 @@ import {
   type PricingApiContext,
 } from "../../generated";
 import { demoPrices } from "../fixtures/commerce-store.js";
+import { parsePayload } from "../schemas/parse-payload.js";
+import { mapWireToOfferPricePayload } from "./mappers/index.js";
+import { offerPricePayloadSchema } from "./schemas/index.js";
 
 export function loadOfferPrices(prices: ReadonlyMap<string, OfferPricePayload> = demoPrices) {
   return async (
@@ -18,6 +21,9 @@ export function loadOfferPrices(prices: ReadonlyMap<string, OfferPricePayload> =
         return undefined;
       }
       const { id, market } = resource.key[0];
-      return prices.get(`${id}/${market}`);
+      const raw = prices.get(`${id}/${market}`);
+      return raw === undefined
+        ? undefined
+        : mapWireToOfferPricePayload(parsePayload(offerPricePayloadSchema, raw, "OfferPrice"));
     });
 }

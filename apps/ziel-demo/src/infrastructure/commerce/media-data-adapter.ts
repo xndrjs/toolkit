@@ -7,6 +7,9 @@ import {
   type ProductMediaResource,
 } from "../../generated";
 import { demoMedia } from "../fixtures/commerce-store.js";
+import { parsePayload } from "../schemas/parse-payload.js";
+import { mapWireToProductMediaPayload } from "./mappers/index.js";
+import { productMediaPayloadSchema } from "./schemas/index.js";
 
 export function loadProductMedia(media: ReadonlyMap<string, ProductMediaPayload> = demoMedia) {
   return async (
@@ -18,6 +21,11 @@ export function loadProductMedia(media: ReadonlyMap<string, ProductMediaPayload>
         return undefined;
       }
       const { id } = resource.key[0];
-      return media.get(id);
+      const raw = media.get(id);
+      return raw === undefined
+        ? undefined
+        : mapWireToProductMediaPayload(
+            parsePayload(productMediaPayloadSchema, raw, "ProductMedia")
+          );
     });
 }

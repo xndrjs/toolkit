@@ -11,6 +11,9 @@ import {
   type CmsAssetsContext,
 } from "../../generated";
 import { demoAssets } from "../fixtures/store.js";
+import { parsePayload } from "../schemas/parse-payload.js";
+import { mapWireToAssetPayload } from "./mappers/index.js";
+import { assetPayloadSchema } from "./schemas/index.js";
 
 export const ASSET_SOURCE_ID = "CmsAssets";
 
@@ -25,6 +28,9 @@ export function loadCmsAssets(assets: ReadonlyMap<string, AssetPayload> = demoAs
         return undefined;
       }
       const id = String(resource.key[0].id);
-      return assets.get(id);
+      const raw = assets.get(id);
+      if (raw === undefined) return undefined;
+      const wire = parsePayload(assetPayloadSchema, raw, "Asset");
+      return mapWireToAssetPayload(wire);
     });
 }
