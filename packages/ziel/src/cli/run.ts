@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Diagnostic } from "../check";
-import { buildResources } from "../compile/codegen/build-resources";
+import { buildGeneratedModule } from "../compile/codegen/build-generated-module";
 import type { ZielCodegenConfig } from "../compile/config/define-config";
 import {
   parseCliArgs,
@@ -54,7 +54,7 @@ function generateOnce(
   options: ResolvedCliOptions,
   config: ZielCodegenConfig | undefined
 ): GenerateResult {
-  const { code, diagnostics } = buildResources({
+  const { code, diagnostics } = buildGeneratedModule({
     root: options.root,
     include: config?.include,
     exclude: config?.exclude,

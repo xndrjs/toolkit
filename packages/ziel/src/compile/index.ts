@@ -55,7 +55,15 @@ export {
   type GenerateDataSourcesResult,
 } from "./codegen/generators/generate-datasources";
 export {
+  buildGeneratedModule,
   buildResources,
+  type BuildGeneratedModuleOptions,
+  type BuildGeneratedModuleResult,
   type BuildResourcesOptions,
   type BuildResourcesResult,
-} from "./codegen/build-resources";
+} from "./codegen/build-generated-module";
+export {
+  composeGeneratedModule,
+  type ComposeGeneratedModuleOptions,
+  type ComposeGeneratedModuleResult,
+} from "./codegen/compose-generated-module";

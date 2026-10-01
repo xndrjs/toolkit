@@ -38,6 +38,8 @@ describe("main entry isolation", () => {
     expect(source).not.toMatch(/\bcollectZielFiles\b/);
     expect(source).not.toMatch(/\brunCli\b/);
     expect(source).not.toMatch(/\bbuildResources\b/);
+    expect(source).not.toMatch(/\bbuildGeneratedModule\b/);
+    expect(source).not.toMatch(/\bcomposeGeneratedModule\b/);
     expect(source).not.toMatch(/\bcreateZielLspServices\b/);
     expect(source).not.toMatch(/\bstartLanguageServer\b/);
   });
