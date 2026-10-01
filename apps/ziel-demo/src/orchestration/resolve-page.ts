@@ -1,19 +1,20 @@
+import type { SchedulingMode } from "@xndrjs/ziel";
+
 import {
   Scalars,
   type EntryId,
   type EnvironmentId,
   type Locale,
-  type PageDetailResult,
+  type ResolvePageDetailResult,
   type SpaceId,
 } from "../generated";
-import { resolveDemoPageDetail } from "../infrastructure/demo-resolver.js";
+import { resolveDemoPageDetail } from "../composition/demo-sources.js";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,
   DEMO_SPACE,
   demoIds,
-} from "../infrastructure/fixtures/store.js";
-import type { IslandMap, SchedulingMode } from "@xndrjs/ziel";
+} from "../infrastructure/fixtures/cms-store.js";
 
 const DEFAULT_SCHEDULING_MODE: SchedulingMode = "lane";
 
@@ -29,44 +30,23 @@ export type ResolvePageInput = {
   signal?: AbortSignal;
 };
 
-export type ResolvePageMeta = {
+export type ResolvePageContext = {
   locale: Locale;
-  islands?: IslandMap;
   pageId: EntryId;
   spaceId: SpaceId;
   environmentId: EnvironmentId;
   schedulingMode: SchedulingMode;
-  resolvedCount: number;
 };
 
-export type ResolvePageSuccess = {
-  ok: true;
-  page: PageDetailResult;
-  /** Soft failures (`set null` / `set error`) collected during resolve. */
-  errors: readonly { resourceKey: string; message: string; code?: string }[];
-  meta: ResolvePageMeta;
+/** Raw Ziel resolve output + demo defaults applied as `context`. Throws on hard failure. */
+export type ResolvePageResult = ResolvePageDetailResult & {
+  context: ResolvePageContext;
 };
-
-export type ResolvePageFailure = {
-  ok: false;
-  meta: {
-    locale: Locale;
-    pageId: EntryId;
-    spaceId: SpaceId;
-    environmentId: EnvironmentId;
-    schedulingMode: SchedulingMode;
-    resolvedCount?: number;
-  };
-  errors: readonly { resourceKey: string; message: string; code?: string }[];
-};
-
-export type ResolvePageResult = ResolvePageSuccess | ResolvePageFailure;
 
 /**
  * Vertical-slice path via generated `resolvePageDetail`
  * (closed strategy → resolve → project) + demo DataSources.
- * Soft policies (`set null` / `set error`) return `ok: true` even when
- * `errors` is non-empty; only thrown hard failures become `ok: false`.
+ * Soft policies leave `errors` non-empty; hard `throw` policies propagate.
  */
 export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageResult> {
   const locale = input.locale;
@@ -74,47 +54,18 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
   const spaceId = input.spaceId ?? DEMO_SPACE;
   const environmentId = input.environmentId ?? DEMO_ENVIRONMENT;
   const schedulingMode = input.schedulingMode ?? DEFAULT_SCHEDULING_MODE;
-  const params = { pageId };
-  const executionContext = { spaceId, environmentId, locale };
 
-  try {
-    const { pageDetail, contentMap, errors, islands } = await resolveDemoPageDetail({
-      params,
-      schedulingMode,
-      executionContext,
-      signal: input.signal,
-    });
+  const resolved = await resolveDemoPageDetail({
+    params: { pageId },
+    schedulingMode,
+    executionContext: { spaceId, environmentId, locale },
+    signal: input.signal,
+  });
 
-    return {
-      ok: true,
-      page: pageDetail,
-      errors: errors.map((error) => ({
-        resourceKey: error.resourceKey ?? "",
-        message: error.message,
-        ...(error.code !== undefined ? { code: String(error.code) } : {}),
-      })),
-      meta: {
-        islands,
-        locale,
-        pageId,
-        spaceId,
-        environmentId,
-        schedulingMode,
-        resolvedCount: contentMap.size,
-      },
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      meta: { locale, pageId, spaceId, environmentId, schedulingMode },
-      errors: [
-        {
-          resourceKey: `page/${pageId}`,
-          message: error instanceof Error ? error.message : String(error),
-        },
-      ],
-    };
-  }
+  return {
+    ...resolved,
+    context: { locale, pageId, spaceId, environmentId, schedulingMode },
+  };
 }
 
 /** Map `/en` or `/en-US` onto the fixture locale (`en-US`). */

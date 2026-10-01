@@ -8,7 +8,7 @@ import {
   demoHeroWelcomeCustomRef,
   demoIds,
   demoLogoAssetCustomRef,
-} from "../fixtures/store.js";
+} from "../fixtures/cms-store.js";
 import { loadCmsCustomReferences } from "./custom-reference-data-adapter.js";
 
 const locale = DEMO_LOCALE;

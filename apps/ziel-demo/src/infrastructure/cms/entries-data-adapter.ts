@@ -15,7 +15,7 @@ import {
   type PagePayload,
   type PageResource,
 } from "../../generated";
-import { demoEntries, entryLookupKey, type EditorialDocument } from "../fixtures/store.js";
+import { demoEntries, entryLookupKey, type EditorialDocument } from "../fixtures/cms-store.js";
 import { parsePayload } from "../schemas/parse-payload.js";
 import { mapWireToEntryPayload, mapWireToPagePayload } from "./mappers/index.js";
 import { entryPayloadSchema, pagePayloadSchema } from "./schemas/index.js";

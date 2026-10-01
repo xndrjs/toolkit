@@ -10,7 +10,8 @@ import {
   type AssetResource,
   type CmsAssetsContext,
 } from "../../generated";
-import { demoAssets } from "../fixtures/store.js";
+import { demoAssets } from "../fixtures/cms-store.js";
+import type { AssetPayloadWire } from "./schemas/asset.js";
 import { parsePayload } from "../schemas/parse-payload.js";
 import { mapWireToAssetPayload } from "./mappers/index.js";
 import { assetPayloadSchema } from "./schemas/index.js";
@@ -18,7 +19,7 @@ import { assetPayloadSchema } from "./schemas/index.js";
 export const ASSET_SOURCE_ID = "CmsAssets";
 
 /** App `load` for the generated `CmsAssets` datasource. */
-export function loadCmsAssets(assets: ReadonlyMap<string, AssetPayload> = demoAssets) {
+export function loadCmsAssets(assets: ReadonlyMap<string, AssetPayloadWire> = demoAssets) {
   return async (
     batch: readonly AssetResource[],
     _context: ResourceLoadContext<CmsAssetsContext>

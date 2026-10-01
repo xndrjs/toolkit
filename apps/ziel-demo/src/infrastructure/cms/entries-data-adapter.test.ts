@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { assetAri, entryAri, errorLabAri, pageAri } from "../../generated";
-import { createDemoPageDetailSources } from "../demo-resolver.js";
+import { createDemoPageDetailSources } from "../../composition/demo-sources.js";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,
@@ -9,7 +9,7 @@ import {
   demoEntries,
   demoIds,
   entryLookupKey,
-} from "../fixtures/store.js";
+} from "../fixtures/cms-store.js";
 import { ENTRY_SOURCE_ID, loadCmsEntries } from "./entries-data-adapter.js";
 
 const locale = DEMO_LOCALE;

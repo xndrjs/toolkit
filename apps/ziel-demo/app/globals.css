@@ -24,10 +24,34 @@ body {
   color: var(--text);
 }
 
-main {
+.shell {
   max-width: 1400px;
   margin: 0 auto;
   padding: 1.5rem;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.site-nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.site-nav a:hover {
+  color: var(--text);
+}
+
+main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 h1 {

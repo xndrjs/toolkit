@@ -7,11 +7,12 @@ import {
   type PricingApiContext,
 } from "../../generated";
 import { demoPrices } from "../fixtures/commerce-store.js";
+import type { OfferPricePayloadWire } from "./schemas/offer-price.js";
 import { parsePayload } from "../schemas/parse-payload.js";
 import { mapWireToOfferPricePayload } from "./mappers/index.js";
 import { offerPricePayloadSchema } from "./schemas/index.js";
 
-export function loadOfferPrices(prices: ReadonlyMap<string, OfferPricePayload> = demoPrices) {
+export function loadOfferPrices(prices: ReadonlyMap<string, OfferPricePayloadWire> = demoPrices) {
   return async (
     batch: readonly OfferPriceResource[],
     _context: ResourceLoadContext<PricingApiContext>

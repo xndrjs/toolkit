@@ -1,27 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveDemoProductDetail } from "../infrastructure/demo-resolver.js";
 import {
   DEMO_MARKET,
   DEMO_MEDIA_ID,
   DEMO_PRODUCT_ID,
   DEMO_TENANT,
 } from "../infrastructure/fixtures/commerce-store.js";
-import { DEMO_LOCALE } from "../infrastructure/fixtures/store.js";
+import { DEMO_LOCALE } from "../infrastructure/fixtures/cms-store.js";
+import { parseDemoProductIdParam, resolveProduct } from "./resolve-product.js";
 
-describe("resolveDemoProductDetail", () => {
+describe("resolveProduct", () => {
   it("assembles catalog, price, stock, and media from separate backends", async () => {
-    const result = await resolveDemoProductDetail({
-      params: { productId: DEMO_PRODUCT_ID },
-      executionContext: {
-        market: DEMO_MARKET,
-        locale: DEMO_LOCALE,
-        tenantId: DEMO_TENANT,
-      },
+    const { productDetail, contentMap, errors, context } = await resolveProduct({
+      productId: DEMO_PRODUCT_ID,
+      market: DEMO_MARKET,
+      locale: DEMO_LOCALE,
+      tenantId: DEMO_TENANT,
     });
 
-    expect(result.errors).toEqual([]);
-    expect(result.productDetail).toMatchObject({
+    expect(errors).toEqual([]);
+    expect(context).toMatchObject({
+      productId: DEMO_PRODUCT_ID,
+      market: DEMO_MARKET,
+      locale: DEMO_LOCALE,
+      tenantId: DEMO_TENANT,
+      schedulingMode: "lane",
+    });
+    expect(contentMap.size).toBeGreaterThan(0);
+    expect(productDetail).toMatchObject({
       id: DEMO_PRODUCT_ID,
       title: "Organic tee",
       price: {
@@ -36,5 +42,10 @@ describe("resolveDemoProductDetail", () => {
         url: "https://cdn.example/tee-front.webp",
       },
     });
+  });
+
+  it("maps the demo product route id onto the fixture catalog id", () => {
+    expect(parseDemoProductIdParam(DEMO_PRODUCT_ID)).toBe(DEMO_PRODUCT_ID);
+    expect(parseDemoProductIdParam("unknown")).toBeNull();
   });
 });

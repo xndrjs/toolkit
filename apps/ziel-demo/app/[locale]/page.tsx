@@ -6,6 +6,7 @@ import {
   parseDemoLocaleParam,
   resolvePage,
 } from "../../src/orchestration/resolve-page";
+import { jsonForDisplay } from "../../src/presentation/serialize-for-display";
 
 /** Re-run resolve on every navigation (in-memory fixtures; no cache). */
 export const dynamic = "force-dynamic";
@@ -26,58 +27,41 @@ export default async function LocaleDemoPage({ params }: Props) {
     notFound();
   }
 
-  const result = await resolvePage({ locale });
-
-  if (!result.ok) {
-    return (
-      <main>
-        <header>
-          <h1>Ziel demo</h1>
-          <LocaleSwitcher active={localeParam} />
-        </header>
-        <p className="lead">
-          Resolution failed ({result.meta.schedulingMode}
-          {result.meta.resolvedCount !== undefined
-            ? `, ${result.meta.resolvedCount} resources loaded`
-            : ""}
-          ).
-        </p>
-        <section className="panel">
-          <pre>
-            <code>{JSON.stringify(result.errors, null, 2)}</code>
-          </pre>
-        </section>
-      </main>
-    );
-  }
-
-  const { page, meta } = result;
+  const { pageDetail, contentMap, errors, islands, context } = await resolvePage({ locale });
 
   const islandsJson = Object.fromEntries(
-    (meta.islands?.islandIds() ?? []).map((id) => [id, [...(meta.islands!.get(id) ?? [])].sort()])
+    (islands?.islandIds() ?? []).map((id) => [id, [...(islands!.get(id) ?? [])].sort()])
   );
 
   return (
     <main>
       <header>
-        <h1>Ziel demo</h1>
+        <h1>Page detail demo</h1>
         <LocaleSwitcher active={localeParam} />
       </header>
       <p className="lead">
-        Resolved {meta.resolvedCount} resources for <strong>{meta.locale}</strong> ({meta.pageId})
-        with <strong>{meta.schedulingMode}</strong> scheduling — <code>projectPageDetail</code>{" "}
-        aggregate below.{" "}
-        <Link href="/error-handling/eh-soft-single">Error-handling showcase →</Link>
+        Resolved {contentMap.size} resources for <strong>{context.locale}</strong> ({context.pageId}
+        ) with <strong>{context.schedulingMode}</strong> scheduling — <code>projectPageDetail</code>{" "}
+        aggregate below
+        {errors.length > 0 ? ` · ${errors.length} soft error(s)` : ""}.
       </p>
+      {errors.length > 0 ? (
+        <section className="panel">
+          <h2>Soft errors</h2>
+          <pre>
+            <code>{jsonForDisplay(errors)}</code>
+          </pre>
+        </section>
+      ) : null}
       <section className="panel">
         <pre>
-          <code>{JSON.stringify(page, null, 2)}</code>
+          <code>{jsonForDisplay(pageDetail)}</code>
         </pre>
       </section>
       <h3 className="lead">Islands</h3>
       <section className="panel">
         <pre>
-          <code>{JSON.stringify(islandsJson, null, 2)}</code>
+          <code>{jsonForDisplay(islandsJson)}</code>
         </pre>
       </section>
     </main>
