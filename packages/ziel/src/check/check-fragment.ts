@@ -21,7 +21,11 @@ import { inferPayloadWhenExprType, isBooleanWhenType } from "./expressions";
 import { checkExcludedFields, resolveSelectedFields } from "./projection-include";
 import { type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
 
-const SUPPRESSED_IN_FRAGMENT = new Set(["UNKNOWN_CONTEXT_PATH", "UNKNOWN_PARAM"]);
+const SUPPRESSED_IN_FRAGMENT = new Set([
+  "UNKNOWN_CONTEXT_PATH",
+  "UNKNOWN_PARAM",
+  "CONTEXT_FORBIDDEN_IN_QUERY",
+]);
 
 export function checkFragment(
   fragment: FragmentDefinition,
@@ -47,6 +51,7 @@ export function checkFragment(
     path,
     params: new Map(),
     context: new Map(),
+    allowContext: false,
     bindings: new Map([[fragment.binding, fragment.resource]]),
     items: new Map(),
     payloadNarrowing: new Map(),

@@ -45,6 +45,7 @@ import { createGraphResolutionStrategy } from "@xndrjs/ziel";
 
 export type PostDetailParams = {
   postId: PostId;
+  locale: Locale;
 };
 
 export type PostDetailExecutionContext = {
@@ -73,6 +74,9 @@ import { createGraphResolutionStrategy } from "@xndrjs/ziel";
 
 export type PageDetailParams = {
   pageId: EntryId;
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
 };
 
 export type PageDetailExecutionContext = {

@@ -26,10 +26,43 @@ import { checkExcludedFields, resolveSelectedFields } from "./projection-include
 import {
   checkTypeExpr,
   checkUniqueFields,
+  type FieldMap,
   type QueryScope,
   type ResourceTable,
   type ScalarTable,
 } from "./symbols";
+
+/** Validate `context { … }` as a projection of query params (names + aliases). */
+function checkContextProjections(
+  query: QueryDefinition,
+  path: string,
+  params: FieldMap,
+  sink: DiagnosticSink
+): void {
+  const seenContextNames = new Set<string>();
+  for (const proj of query.contextProjections) {
+    const projPath = `${path}.context.${proj.contextName}`;
+    if (seenContextNames.has(proj.contextName)) {
+      sink.push({
+        code: "DUPLICATE_CONTEXT_FIELD",
+        message: `Duplicate context projection '${proj.contextName}'`,
+        path: projPath,
+        span: proj.span,
+      });
+      continue;
+    }
+    seenContextNames.add(proj.contextName);
+
+    if (!params.has(proj.paramName)) {
+      sink.push({
+        code: "UNKNOWN_CONTEXT_PARAM",
+        message: `Context projection '${proj.contextName}' references unknown parameter '${proj.paramName}'`,
+        path: projPath,
+        span: proj.span,
+      });
+    }
+  }
+}
 
 /** Role of a name in the query-local binding namespaces. */
 type QueryBindingRole = "parameter" | "projection binding" | "island binding" | "each item binding";
@@ -175,20 +208,11 @@ export function checkQuery(
     "parameter",
     sink
   );
-  const context = checkUniqueFields(
-    query.context,
-    `${path}.context`,
-    "DUPLICATE_CONTEXT_FIELD",
-    "context",
-    sink
-  );
-
   for (const field of query.parameters) {
     checkTypeExpr(field.type, `${path}.parameters.${field.name}`, scalars, resources, sink);
   }
-  for (const field of query.context) {
-    checkTypeExpr(field.type, `${path}.context.${field.name}`, scalars, resources, sink);
-  }
+
+  checkContextProjections(query, path, params, sink);
 
   const bindings = new Map<string, string>();
   for (let i = 0; i < query.projections.length; i++) {
@@ -216,10 +240,12 @@ export function checkQuery(
 
   checkQueryBindingNameClash(query, path, sink);
 
+  // Query bodies use bare params only — context map stays empty; allowContext false.
   const scope: QueryScope = {
     path,
     params,
-    context,
+    context: new Map(),
+    allowContext: false,
     bindings,
     items: new Map(),
     payloadNarrowing: new Map(),

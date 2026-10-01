@@ -123,18 +123,18 @@ resource Page(
   related: CustomReferenceValue[] refers CustomReference
 }
 
-query PageDetail(pageId: EntryId) {
+query PageDetail(pageId: EntryId, spaceId: SpaceId, environmentId: EnvironmentId, locale: Locale) {
   context {
-    spaceId: SpaceId
-    environmentId: EnvironmentId
-    locale: Locale
+    spaceId
+    environmentId
+    locale
   }
 
   root Page(
-    spaceId: context.spaceId,
-    environmentId: context.environmentId,
+    spaceId: spaceId,
+    environmentId: environmentId,
     id: pageId,
-    locale: context.locale
+    locale: locale
   )
 
   on Page p include properties {

@@ -56,9 +56,8 @@ export async function resolvePage(input: ResolvePageInput): Promise<ResolvePageR
   const schedulingMode = input.schedulingMode ?? DEFAULT_SCHEDULING_MODE;
 
   const resolved = await resolveDemoPageDetail({
-    params: { pageId },
+    params: { pageId, spaceId, environmentId, locale },
     schedulingMode,
-    executionContext: { spaceId, environmentId, locale },
     signal: input.signal,
   });
 

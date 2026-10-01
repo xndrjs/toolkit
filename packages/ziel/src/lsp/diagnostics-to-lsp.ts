@@ -20,7 +20,8 @@ export function diagnosticToLsp(diagnostic: Diagnostic, positionAt: PositionAt):
   const startOffset = diagnostic.span?.start ?? 0;
   const endOffset = Math.max(diagnostic.span?.end ?? startOffset, startOffset);
   return {
-    severity: DiagnosticSeverity.Error,
+    severity:
+      diagnostic.severity === "warning" ? DiagnosticSeverity.Warning : DiagnosticSeverity.Error,
     range: {
       start: positionAt(startOffset),
       end: positionAt(endOffset),

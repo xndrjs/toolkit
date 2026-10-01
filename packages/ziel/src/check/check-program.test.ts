@@ -80,13 +80,15 @@ describe("checkProgram — each-expand arms", () => {
         id
       }
 
-      query Q(pageId: PageId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand strips: each s in p.strips (
-            Hero(id: s.id, locale: context.locale) when s.type == "Hero"
+            Hero(id: s.id, locale: locale) when s.type == "Hero"
           )
         }
         on Hero h { id }
@@ -115,14 +117,16 @@ describe("checkProgram — projection when-arms", () => {
         url: string
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" {
             id
             title
-            expand image: Asset(id: e.imageId, locale: context.locale)
+            expand image: Asset(id: e.imageId, locale: locale)
           }
           when e.type == "Page" {
             id
@@ -145,9 +149,11 @@ describe("checkProgram — projection when-arms", () => {
         { type: "Hero", id, title: string }
         | { type: "Page", id, title: string }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" {
             id
@@ -174,9 +180,11 @@ describe("checkProgram — projection when-arms", () => {
         { type: "Hero", id, title: string }
         | { type: "Page", id, title: string }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" {
             id
@@ -199,9 +207,11 @@ describe("checkProgram — projection when-arms", () => {
         { kind: "Hero", id, title: string }
         | { kind: "Footer", id, title: string }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.kind == "Footer" { }
           when e.kind == "Footer" { }
@@ -228,9 +238,11 @@ describe("checkProgram — projection when-arms", () => {
         | { kind: "Footer", id }
         | { kind: "Hero", id }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.kind == "Menu" or e.kind == "Footer" { }
           when e.kind == "Menu" or e.kind == "Footer" { }
@@ -254,9 +266,11 @@ describe("checkProgram — projection when-arms", () => {
         | { kind: "Footer", id }
         | { kind: "Hero", id }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.kind == "Menu" or e.kind == "Footer" { }
           when e.kind == "Footer" or e.kind == "Menu" { }
@@ -279,9 +293,11 @@ describe("checkProgram — projection when-arms", () => {
         { kind: "Hero", id, title: string }
         | { kind: "Footer", id, title: string, cta: string }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.kind == "Footer" and e.cta == "ciao" {
             cta
@@ -303,9 +319,11 @@ describe("checkProgram — projection when-arms", () => {
         { kind: "Hero", id, title: string }
         | { kind: "Footer", id, title: string, cta: string }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.cta == "ciao" {
             id
@@ -327,9 +345,11 @@ describe("checkProgram — projection when-arms", () => {
         { type: "Hero", id }
         | { type: "Page", id }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" { id }
           when e.type == "Page" { id }
@@ -358,9 +378,11 @@ describe("checkProgram — projection when-arms", () => {
         { type: "Hero", id }
         | { type: "Page", id }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           ...EntryBase
           when e.type == "Hero" { }
@@ -400,9 +422,11 @@ describe("checkProgram — projection when-arms", () => {
         )
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e { id }
       }
     `);
@@ -439,9 +463,11 @@ describe("checkProgram — projection when-arms", () => {
         )
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e { id }
       }
     `);
@@ -458,9 +484,11 @@ describe("checkProgram — projection when-arms", () => {
         { type: "Hero", id, title: string }
         | { type: "Page", id }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           title
           when e.type == "Hero" { id }
@@ -493,12 +521,14 @@ describe("checkProgram — projection when-arms", () => {
 
       fragment EntryLogo on Entry e when e.type == "Menu" {
         title
-        expand logo: Asset(id: e.logoId, locale: context.locale)
+        expand logo: Asset(id: e.logoId, locale: locale)
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" { ...EntryLogo }
           when e.type == "Menu" { type id }
@@ -530,12 +560,14 @@ describe("checkProgram — projection when-arms", () => {
 
       fragment EntryLogo on Entry e when e.type == "Menu" {
         title
-        expand logo: Asset(id: e.logoId, locale: context.locale)
+        expand logo: Asset(id: e.logoId, locale: locale)
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" { type id title }
           when e.type == "Menu" { type id ...EntryLogo }
@@ -563,12 +595,14 @@ describe("checkProgram — projection when-arms", () => {
 
       fragment MenuOnly on Entry e when e.type == "Menu" {
         logoId
-        expand logo: Asset(id: e.logoId, locale: context.locale)
+        expand logo: Asset(id: e.logoId, locale: locale)
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" { type id }
           when e.type == "Menu" { type id ...MenuOnly }
@@ -594,9 +628,11 @@ describe("checkProgram — projection when-arms", () => {
         logoId
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" { type id }
           when e.type == "Menu" { type id }
@@ -625,9 +661,11 @@ describe("checkProgram — projection when-arms", () => {
         logoId
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" { type id }
           when e.type == "Menu" { type id }
@@ -716,9 +754,11 @@ describe("checkProgram — projection when-arms", () => {
         { type: "Hero", id, title: string, imageId: AssetId }
         | { type: "Page", id, title: string }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Page" {
             id
@@ -762,9 +802,11 @@ describe("checkProgram — resolve to", () => {
       locale: Locale
     }
 
-    query Q(ref: Ref) {
-      context { locale: Locale }
-      root CustomReference(ref: ref, locale: context.locale)
+    query Q(ref: Ref, locale: Locale) {
+      context {
+    locale
+  }
+      root CustomReference(ref: ref, locale: locale)
       on CustomReference c resolve to {
         Entry(
           spaceId: c.spaceId,
@@ -871,9 +913,11 @@ describe("checkProgram — resolve to", () => {
         { type: "Entry", spaceId: SpaceId, id: string, locale: Locale }
         | { type: "Asset", spaceId: SpaceId, id: string, locale: Locale }
 
-      query Q(ref: Ref) {
-        context { locale: Locale }
-        root Locator(ref: ref, locale: context.locale)
+      query Q(ref: Ref, locale: Locale) {
+        context {
+    locale
+  }
+        root Locator(ref: ref, locale: locale)
         on Locator c resolve to {
           Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
           Asset(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Asset"
@@ -898,9 +942,11 @@ describe("checkProgram — resolve to", () => {
         { type: "Entry", spaceId: SpaceId, id: string, locale: Locale }
         | { type: "Asset", spaceId: SpaceId, id: string, locale: Locale }
 
-      query Q(ref: Ref) {
-        context { locale: Locale }
-        root Locator(ref: ref, locale: context.locale)
+      query Q(ref: Ref, locale: Locale) {
+        context {
+    locale
+  }
+        root Locator(ref: ref, locale: locale)
         on Locator c resolve to {
           Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
         }
@@ -935,9 +981,11 @@ describe("checkProgram — resolve to each", () => {
       tabsId: TabsId
     }
 
-    query Q(tabsId: TabsId) {
-      context { locale: Locale }
-      root Tabs(tabsId: tabsId, locale: context.locale)
+    query Q(tabsId: TabsId, locale: Locale) {
+      context {
+    locale
+  }
+      root Tabs(tabsId: tabsId, locale: locale)
       on Tabs t {
         expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
       }
@@ -981,9 +1029,11 @@ describe("checkProgram — resolve to each", () => {
       }
       resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
 
-      query Q(tabsId: TabsId) {
-        context { locale: Locale }
-        root Tabs(tabsId: tabsId, locale: context.locale)
+      query Q(tabsId: TabsId, locale: Locale) {
+        context {
+    locale
+  }
+        root Tabs(tabsId: tabsId, locale: locale)
         on Tabs t {
           expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
         }
@@ -1067,9 +1117,11 @@ describe("checkProgram — resolve to each", () => {
         locale: Locale
       }
 
-      query Q(link: TabsId) {
-        context { locale: Locale }
-        root TabCollection(tabsId: link, locale: context.locale)
+      query Q(link: TabsId, locale: Locale) {
+        context {
+    locale
+  }
+        root TabCollection(tabsId: link, locale: locale)
         on TabCollection tc resolve to each link in tc.tabsIds (
           Tab(id: link.id, locale: @tc.locale)
         )
@@ -1097,9 +1149,11 @@ describe("checkProgram — resolve to each", () => {
         locale: Locale
       }
 
-      query Q(tabsId: TabsId) {
-        context { locale: Locale }
-        root TabCollection(tabsId: tabsId, locale: context.locale)
+      query Q(tabsId: TabsId, locale: Locale) {
+        context {
+    locale
+  }
+        root TabCollection(tabsId: tabsId, locale: locale)
         on TabCollection tc resolve to each link in tc.tabsId (
           Tab(id: link, locale: @tc.locale)
         )
@@ -1126,9 +1180,11 @@ describe("checkProgram — resolve to each", () => {
         locale: Locale
       }
 
-      query Q(id: Id) {
-        context { locale: Locale }
-        root MixedCollection(id: id, locale: context.locale)
+      query Q(id: Id, locale: Locale) {
+        context {
+    locale
+  }
+        root MixedCollection(id: id, locale: locale)
         on MixedCollection c resolve to each item in c.items (
           Tab(id: item.id, locale: @c.locale) when item.kind == "Tab",
           Strip(id: item.id, locale: @c.locale) when item.kind == "Strip"
@@ -1279,12 +1335,14 @@ describe("checkProgram — missing on projection", () => {
         tabsId: TabsId
       }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: locale)
         }
       }
     `);
@@ -1326,12 +1384,14 @@ describe("checkProgram — missing on projection", () => {
         tabsId: TabsId
       }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: locale)
         }
         on TabCollection t { }
       }
@@ -1350,12 +1410,14 @@ describe("checkProgram — missing on projection", () => {
       resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
       resource Page(id: string, locale: Locale): { id tabsId: TabsId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: locale)
         }
         on TabCollection t { id }
       }
@@ -1379,12 +1441,14 @@ describe("checkProgram — missing on projection", () => {
       resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
       resource Page(id: string, locale: Locale): { id tabsId: TabsId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: locale)
         }
         on TabCollection t include all { }
       }
@@ -1408,15 +1472,17 @@ describe("checkProgram — missing on projection", () => {
       resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
       resource Page(id: string, locale: Locale): { id tabsId: TabsId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: locale)
         }
         on TabCollection t {
-          expand first: Tab(id: "x", locale: context.locale)
+          expand first: Tab(id: "x", locale: locale)
         }
       }
     `);
@@ -1439,12 +1505,14 @@ describe("checkProgram — missing on projection", () => {
       resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
       resource Page(id: string, locale: Locale): { id tabsId: TabsId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: locale)
         }
         on TabCollection t {
           when true { }
@@ -1487,12 +1555,14 @@ describe("checkProgram — missing on projection", () => {
         moduleId: ModuleId
       }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand mod: EditorialModule(id: p.moduleId, locale: context.locale)
+          expand mod: EditorialModule(id: p.moduleId, locale: locale)
         }
         on Hero h { id title }
         on Tabs t { id title }
@@ -1537,12 +1607,14 @@ describe("checkProgram — missing on projection", () => {
         moduleId: ModuleId
       }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand mod: EditorialModule(id: p.moduleId, locale: context.locale)
+          expand mod: EditorialModule(id: p.moduleId, locale: locale)
         }
         on EditorialModule m {
           // payload is Hero | Tabs — fields must be shared / selected carefully;
@@ -1569,9 +1641,11 @@ describe("checkProgram — missing on projection", () => {
         locale: Locale
       }
 
-      query Q(ref: Ref) {
-        context { locale: Locale }
-        root CustomReference(ref: ref, locale: context.locale)
+      query Q(ref: Ref, locale: Locale) {
+        context {
+    locale
+  }
+        root CustomReference(ref: ref, locale: locale)
         on CustomReference c resolve to {
           Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
           Asset(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Asset"
@@ -1606,9 +1680,11 @@ describe("checkProgram — missing on projection", () => {
         locale: Locale
       }
 
-      query Q(ref: Ref) {
-        context { locale: Locale }
-        root CustomReference(ref: ref, locale: context.locale)
+      query Q(ref: Ref, locale: Locale) {
+        context {
+    locale
+  }
+        root CustomReference(ref: ref, locale: locale)
         on CustomReference c resolve to {
           Entry(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Entry"
           Asset(spaceId: c.spaceId, id: c.id, locale: c.locale) when c.type == "Asset"
@@ -1643,12 +1719,14 @@ describe("checkProgram — missing on projection", () => {
         url: string
       }
 
-      query Q(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query Q(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           id
-          expand image: Asset(id: e.imageId, locale: context.locale)
+          expand image: Asset(id: e.imageId, locale: locale)
         }
         on Asset a { id url }
       }
@@ -1885,7 +1963,7 @@ describe("checkProgram — scalar / resource name clash", () => {
       queries: [
         query("Q", {
           parameters: [],
-          context: [],
+          contextProjections: [],
           roots: singleRoot(construct("Page", [arg("id", lit("x"))])),
           projections: [],
         }),
@@ -1920,9 +1998,11 @@ describe("checkProgram — query binding name clash", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
-      query Q(p: PageId) {
-        context { locale: Locale }
-        root Page(id: p, locale: context.locale)
+      query Q(p: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: p, locale: locale)
         on Page p { id }
       }
     `);
@@ -1941,12 +2021,14 @@ describe("checkProgram — query binding name clash", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
-      query Q(link: PageId) {
-        context { locale: Locale }
-        root Page(id: link, locale: context.locale)
+      query Q(link: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: link, locale: locale)
         on Page p {
           expand strips: each link in p.strips (
-            Entry(id: link.id, locale: context.locale)
+            Entry(id: link.id, locale: locale)
           )
         }
         on Entry e { id }
@@ -1965,9 +2047,11 @@ describe("checkProgram — query binding name clash", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
-      query Q(e: PageId) {
-        context { locale: Locale }
-        root Page(id: e, locale: context.locale)
+      query Q(e: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: e, locale: locale)
         on Page p { id }
         on Entry entry { id }
         islands {
@@ -1988,9 +2072,11 @@ describe("checkProgram — query binding name clash", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
-      query Q(pageId: PageId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p { id }
         on Entry e { id }
         islands {
@@ -2006,12 +2092,14 @@ describe("checkProgram — query binding name clash", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
-      query Q(pageId: PageId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           expand strips: each link in p.strips (
-            Entry(id: link.id, locale: context.locale)
+            Entry(id: link.id, locale: locale)
           )
         }
         on Entry e { id }
@@ -2028,9 +2116,11 @@ describe("checkProgram — query binding name clash", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
-      query Q(pageId: PageId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p { id }
         on Entry e { id }
         islands {
@@ -2052,15 +2142,17 @@ describe("checkProgram — query binding name clash", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
-      query Q(pageId: PageId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           expand strips: each link in p.strips (
-            Entry(id: link.id, locale: context.locale)
+            Entry(id: link.id, locale: locale)
           )
           expand related: each link in p.related (
-            Entry(id: link.id, locale: context.locale)
+            Entry(id: link.id, locale: locale)
           )
         }
         on Entry e { id }
@@ -2080,12 +2172,14 @@ describe("checkProgram — query binding name clash", () => {
       ${prelude}
 
       fragment EntryBase on Entry e {
-        expand image: Entry(id: e.imageId, locale: context.locale)
+        expand image: Entry(id: e.imageId, locale: locale)
       }
 
-      query Q(e: PageId) {
-        context { locale: Locale }
-        root Page(id: e, locale: context.locale)
+      query Q(e: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: e, locale: locale)
         on Page p { id }
         on Entry entry {
           ...EntryBase
@@ -2104,9 +2198,11 @@ describe("checkProgram — query binding name clash", () => {
         id
       }
 
-      query Q(entry: PageId) {
-        context { locale: Locale }
-        root Page(id: entry, locale: context.locale)
+      query Q(entry: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: entry, locale: locale)
         on Page p { id }
         on Entry entry {
           ...EntryBase
@@ -2142,7 +2238,7 @@ describe("checkProgram — multi-root queries", () => {
       queries: [
         query("Homepage", {
           parameters: [field("id", scalarRef("Id"))],
-          context: [],
+          contextProjections: [],
           roots: [
             { alias: "page", construction: construct("R", [arg("id", param("id"))]), span },
             { alias: "page", construction: construct("R", [arg("id", param("id"))]), span },
@@ -2173,7 +2269,7 @@ describe("checkProgram — multi-root queries", () => {
       queries: [
         query("Homepage", {
           parameters: [field("id", scalarRef("Id"))],
-          context: [],
+          contextProjections: [],
           roots: [
             {
               alias: "page",
@@ -2212,7 +2308,7 @@ describe("checkProgram — multi-root queries", () => {
       queries: [
         query("Q", {
           parameters: [],
-          context: [],
+          contextProjections: [],
           roots: [],
           projections: [],
         }),
@@ -2294,9 +2390,11 @@ describe("checkProgram — islands", () => {
     const { diagnostics } = parseAndCheck(`
       ${islandsPrelude}
 
-      query Q(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p { id }
         on Entry e { id type }
         islands {
@@ -2313,9 +2411,11 @@ describe("checkProgram — islands", () => {
     const { diagnostics } = parseAndCheck(`
       ${islandsPrelude}
 
-      query Q(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p { id }
         islands {
           on Missing
@@ -2335,9 +2435,11 @@ describe("checkProgram — islands", () => {
     const { diagnostics } = parseAndCheck(`
       ${islandsPrelude}
 
-      query Q(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p { id }
         islands {
           on Entry when true
@@ -2357,9 +2459,11 @@ describe("checkProgram — islands", () => {
     const { diagnostics, program } = parseAndCheck(`
       ${islandsPrelude}
 
-      query Q(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p { id }
         on Entry e { id type }
         islands {
@@ -2401,9 +2505,11 @@ describe("checkProgram — expression ops in / not in / !", () => {
         { type: "Entry" id: EntryId }
         | { type: "Asset" id: EntryId }
 
-      query Q(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p { id }
         on Entry e {
           when e.type in ["Menu", "Footer"] { id }
@@ -2412,8 +2518,8 @@ describe("checkProgram — expression ops in / not in / !", () => {
           default { }
         }
         on Ref r resolve to {
-          Entry(id: r.id, locale: context.locale) when r.type == "Entry"
-          Entry(id: r.id, locale: context.locale) when r.type not in ["Entry"]
+          Entry(id: r.id, locale: locale) when r.type == "Entry"
+          Entry(id: r.id, locale: locale) when r.type not in ["Entry"]
         }
         islands {
           on Entry e when e.type in ["Menu", "Footer"] or !e.visible
@@ -2428,9 +2534,11 @@ describe("checkProgram — expression ops in / not in / !", () => {
     const { diagnostics } = parseAndCheck(`
       ${prelude}
 
-      query Q(pageId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: pageId, locale: context.locale)
+      query Q(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: pageId, locale: locale)
         on Entry e {
           when e.type in ["Menu", "Footer", "Hero"] { id }
           default { }

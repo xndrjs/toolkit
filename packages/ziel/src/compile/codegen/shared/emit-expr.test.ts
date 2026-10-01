@@ -92,10 +92,10 @@ describe("emitExpr", () => {
   });
 
   it("erases cast to the operand (runtime no-op)", () => {
-    expect(emitExpr(cast(ctx("locale"), "string"))).toBe("args.executionContext.locale");
-    expect(emitExpr(eq(cast(ctx("locale"), "string"), cast(identity("c", "ref"), "string")))).toBe(
-      "args.executionContext.locale == resource.key[0].ref"
-    );
+    expect(emitExpr(cast(param("locale"), "string"))).toBe("args.params.locale");
+    expect(
+      emitExpr(eq(cast(param("locale"), "string"), cast(identity("c", "ref"), "string")))
+    ).toBe("args.params.locale == resource.key[0].ref");
   });
 });
 

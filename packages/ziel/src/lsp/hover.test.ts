@@ -19,13 +19,15 @@ resource Entry(id: EntryId, locale: Locale): {
   authorId: EntryId
 }
 
-query EntryDetail(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query EntryDetail(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     id
     title
-    expand author: Entry(id: e.authorId, locale: context.locale)
+    expand author: Entry(id: e.authorId, locale: locale)
   }
 }
 `;
@@ -165,16 +167,15 @@ resource Entry(id: EntryId, locale: Locale): {
   meta: { something: string }
 }
 
-query PageDetail(pageId: EntryId) {
+query PageDetail(pageId: EntryId, locale: Locale) {
   context {
-    locale: Locale
-    meta: { something: string }
+    locale
   }
-  root Entry(id: pageId, locale: context.locale)
+  root Entry(id: pageId, locale: locale)
   on Entry p {
     expand footer: Entry(id: p.footerId, locale: @p.locale)
     expand strips: each link in p.strips (
-      Entry(id: link.id, locale: context.meta.something)
+      Entry(id: link.id, locale: locale)
     )
   }
 }
@@ -196,7 +197,7 @@ describe("hover expression paths", () => {
 
   it("hovers identity paths like @p.locale", () => {
     const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
-    const locale = offsetOf(PATH_FIXTURE, "locale", 5); // @p.locale
+    const locale = offsetOf(PATH_FIXTURE, "locale", 4); // @p.locale
     expect(hoverMarkdownAtOffset(document, locale, { scalars, resources })).toContain(
       "locale: Locale"
     );
@@ -207,31 +208,12 @@ describe("hover expression paths", () => {
     );
   });
 
-  it("hovers context keyword and nested context paths", () => {
+  it("does not expose context.* hover in query bodies", () => {
     const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
-
-    const contextKw = offsetOf(PATH_FIXTURE, "context", 1); // context.locale in root
-    expect(hoverMarkdownAtOffset(document, contextKw, { scalars, resources })).toContain(
-      "context: {"
-    );
-    expect(hoverMarkdownAtOffset(document, contextKw, { scalars, resources })).toContain(
-      "locale: Locale"
-    );
-
-    const locale = offsetOf(PATH_FIXTURE, "locale", 3); // context.locale
-    expect(hoverMarkdownAtOffset(document, locale, { scalars, resources })).toContain(
-      "locale: Locale"
-    );
-
-    const meta = offsetOf(PATH_FIXTURE, "meta", 2); // context.meta.something
-    expect(hoverMarkdownAtOffset(document, meta, { scalars, resources })).toContain(
-      "meta: {\n  something: string\n}"
-    );
-
-    const something = offsetOf(PATH_FIXTURE, "something", 2);
-    expect(hoverMarkdownAtOffset(document, something, { scalars, resources })).toContain(
-      "something: string"
-    );
+    // Param locale in root — not a context path.
+    const locale = offsetOf(PATH_FIXTURE, "locale", 3);
+    const md = hoverMarkdownAtOffset(document, locale, { scalars, resources });
+    expect(md === null || !String(md).includes("context: {")).toBe(true);
   });
 
   it("hovers context fields inside datasource when clauses", () => {
@@ -251,7 +233,7 @@ datasource CmsEntries {
 }
 `;
     const { document, scalars, resources } = tablesFrom(source);
-    const contextKw = offsetOf(source, "context", 1); // context.locale in when
+    const contextKw = offsetOf(source, "context", 1); // locale in when
     expect(hoverMarkdownAtOffset(document, contextKw, { scalars, resources })).toContain(
       "context: {"
     );
@@ -259,7 +241,7 @@ datasource CmsEntries {
       "locale: Locale"
     );
 
-    const locale = offsetOf(source, "locale", 3); // context.locale
+    const locale = offsetOf(source, "locale", 3); // locale
     expect(hoverMarkdownAtOffset(document, locale, { scalars, resources })).toContain(
       "locale: Locale"
     );
@@ -295,9 +277,11 @@ resource Entry(id: EntryId, locale: Locale): {
   id
   meta: { something: string }
 }
-query Q(pageId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: pageId, locale: context.locale)
+query Q(pageId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: pageId, locale: locale)
   on Entry p {
     expand x: Entry(id: p.meta.something, locale: @p.locale)
   }
@@ -335,9 +319,11 @@ fragment EntryTitle on Entry e {
   title
 }
 
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     ...EntryBase
   }
@@ -398,9 +384,11 @@ resource Page(id: EntryId, locale: Locale): {
   id
 }
 
-query PageDetail(pageId: EntryId) {
-  context { locale: Locale }
-  root Page(id: pageId, locale: context.locale)
+query PageDetail(pageId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Page(id: pageId, locale: locale)
   on Page p {
     id
   }
@@ -455,9 +443,11 @@ fragment MenuOnly on Entry e when e.type == "Menu" {
   expand related: Entry(id: e.logoId, locale: @e.locale)
 }
 
-query Q(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query Q(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     ...MenuOnly
   }

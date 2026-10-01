@@ -1,9 +1,9 @@
 /**
  * Ziel document formatter — Langium AbstractFormatter (no Prettier).
  * Style: 2-space indent (via LSP options), blank line between top-level decls
- * and query sections / when arms / sibling expands, multiline constructions (2+ args),
- * `and`/`or` and object-union `|` broken across lines (leading pipe),
- * braced blocks with indented interiors.
+ * and query sections / when arms / sibling expands, multiline constructions /
+ * query params / resource identity (2+ items), `and`/`or` and object-union `|`
+ * broken across lines (leading pipe), braced blocks with indented interiors.
  */
 import type { AstNode } from "langium";
 import { AbstractFormatter, Formatting, type FormattingAction } from "langium/lsp";
@@ -13,6 +13,7 @@ import {
   isBinaryExpr,
   isCastExpr,
   isContextBlock,
+  isContextProjectionEntry,
   isDatasourceDeclaration,
   isDatasourceRoute,
   isEachComprehension,
@@ -31,6 +32,7 @@ import {
   isProjectionClause,
   isProjectionDefaultArm,
   isProjectionWhenArm,
+  isQueryContextBlock,
   isQueryDeclaration,
   isRefersClause,
   isRefersPatternField,
@@ -286,9 +288,13 @@ export class ZielFormatter extends AbstractFormatter {
     if (isQueryDeclaration(node)) {
       const f = this.getNodeFormatter(node);
       f.keyword("query").append(Formatting.oneSpace());
-      f.keyword("(").prepend(Formatting.noSpace()).append(Formatting.noSpace());
-      f.keyword(")").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
-      f.keywords(",").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+      if (node.parameters.length >= 2) {
+        this.formatMultilineParens(node, node.parameters);
+        f.keyword(")").append(Formatting.oneSpace());
+      } else {
+        f.keyword("(").prepend(Formatting.noSpace()).append(Formatting.noSpace());
+        f.keyword(")").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+      }
       this.formatBracedBlock(node);
       const sections = [
         node.context,
@@ -329,6 +335,21 @@ export class ZielFormatter extends AbstractFormatter {
       const f = this.getNodeFormatter(node);
       f.keyword("context").append(Formatting.oneSpace());
       this.formatBracedBlock(node);
+      return;
+    }
+
+    if (isQueryContextBlock(node)) {
+      const f = this.getNodeFormatter(node);
+      f.keyword("context").append(Formatting.oneSpace());
+      this.formatBracedBlock(node);
+      return;
+    }
+
+    if (isContextProjectionEntry(node)) {
+      const f = this.getNodeFormatter(node);
+      if (node.paramName) {
+        f.keyword(":").prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+      }
       return;
     }
 

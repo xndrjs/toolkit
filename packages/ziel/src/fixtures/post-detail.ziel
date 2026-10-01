@@ -14,14 +14,14 @@ resource User(id: UserId): {
   username: string
 }
 
-query PostDetail(postId: PostId) {
+query PostDetail(postId: PostId, locale: Locale) {
   context {
-    locale: Locale
+    locale
   }
 
   root Post(
     id: postId,
-    locale: context.locale
+    locale: locale
   )
 
   on Post p {

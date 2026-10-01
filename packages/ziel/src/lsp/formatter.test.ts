@@ -58,8 +58,10 @@ describe("ZielFormatter", () => {
     const messy = `
 scalar EntryId on string;
 resource Entry(id:EntryId):{id title:string}
-query Q(id:EntryId){
-context{locale:string}
+query Q(id:EntryId, locale: string){
+context{
+    locale
+  }
 root Entry(id:id)
 on Entry e{
 id
@@ -75,7 +77,7 @@ on Entry e when e.type=="Menu" or e.type=="Footer"
     const formatted = await formatSource(messy);
 
     expect(formatted).toContain("resource Entry(id: EntryId): {");
-    expect(formatted).toContain("query Q(id: EntryId) {");
+    expect(formatted).toContain("query Q(\n  id: EntryId,\n  locale: string\n) {");
     expect(formatted).toContain("context {");
     expect(formatted).toContain("on Entry e {");
     expect(formatted).toContain('when e.type == "Hero" {');
@@ -97,6 +99,37 @@ resource R(id:A): { id }`;
     const formatted = await formatSource(messy);
     expect(formatted).toContain("scalar A on string;\n\nscalar B on string;");
     expect(formatted).toContain("scalar B on string;\n\nresource R");
+  });
+
+  it("wraps multi-parameter query signatures", async () => {
+    const messy = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id:EntryId):{id}
+query Q(id:EntryId, spaceId: string, locale: Locale){
+root Entry(id:id)
+on Entry e{id}
+}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain(
+      "query Q(\n  id: EntryId,\n  spaceId: string,\n  locale: Locale\n) {"
+    );
+  });
+
+  it("keeps single-parameter query signatures inline", async () => {
+    const messy = `
+scalar Id on string;
+resource Entry(id:Id):{id}
+query Q(id:Id){
+root Entry(id:id)
+on Entry e{id}
+}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain("query Q(id: Id) {");
   });
 
   it("formats each-expand and wraps multi-arg constructions", async () => {
@@ -156,7 +189,7 @@ for CustomReference c when context.locale as string==@c.ref as string
 `.trim();
 
     const formatted = await formatSource(messy);
-    expect(formatted).toContain("context.locale as string == @c.ref as string");
+    expect(formatted).toContain("locale as string == @c.ref as string");
   });
 
   it("breaks and/or onto separate lines", async () => {

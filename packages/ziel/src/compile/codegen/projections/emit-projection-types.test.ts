@@ -147,14 +147,16 @@ export type HomepageResult = {
         url: string
       }
 
-      query EntryDetail(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query EntryDetail(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" {
             id
             title
-            expand image: Asset(id: e.imageId, locale: context.locale)
+            expand image: Asset(id: e.imageId, locale: locale)
           }
           when e.type == "Page" {
             id
@@ -331,9 +333,11 @@ export type EntryDetail_Entry_Default = {
         related: Ref[]
       }
 
-      query PageDetail(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand related: each ref in p.related (
@@ -390,12 +394,14 @@ export type EntryDetail_Entry_Default = {
       resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
       resource Page(id: string, locale: Locale): { id tabsId: TabsId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: locale)
         }
         on TabCollection t { }
       }
@@ -427,9 +433,11 @@ export type EntryDetail_Entry_Default = {
       }
       resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
 
-      query Q(tabsId: TabsId) {
-        context { locale: Locale }
-        root Tabs(tabsId: tabsId, locale: context.locale)
+      query Q(tabsId: TabsId, locale: Locale) {
+        context {
+    locale
+  }
+        root Tabs(tabsId: tabsId, locale: locale)
         on Tabs t {
           expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
         }
@@ -469,9 +477,11 @@ export type EntryDetail_Entry_Default = {
       }
       resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
 
-      query Q(tabsId: TabsId) {
-        context { locale: Locale }
-        root Tabs(tabsId: tabsId, locale: context.locale)
+      query Q(tabsId: TabsId, locale: Locale) {
+        context {
+    locale
+  }
+        root Tabs(tabsId: tabsId, locale: locale)
         on Tabs t {
           expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
         }
@@ -502,9 +512,11 @@ export type EntryDetail_Entry_Default = {
       }
       resource Page(id: string, locale: Locale): { collectionId: CollectionId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           expand items: MixedCollection(id: p.collectionId, locale: @p.locale)
         }
@@ -659,9 +671,11 @@ describe("printExpansionAliasType", () => {
         }[]
       }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand menu: Entry(id: p.menuId, locale: @p.locale)
@@ -706,9 +720,11 @@ describe("printExpansionAliasType", () => {
         menuId: EntryId refers Entry with { type: "Menu" }
       }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand menu: Entry(id: p.menuId, locale: @p.locale)
@@ -737,9 +753,11 @@ describe("printExpansionAliasType", () => {
         menuId: EntryId refers Entry with { type: "Menu" | "Footer" }
       }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand menu: Entry(id: p.menuId, locale: @p.locale)
@@ -770,9 +788,11 @@ describe("printExpansionAliasType", () => {
         menuId: EntryId refers Entry with { type: "Menu" | "Footer" }
       }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand menu: Entry(id: p.menuId, locale: @p.locale)
@@ -801,9 +821,11 @@ describe("printExpansionAliasType", () => {
         related: { id: EntryId }[]
       }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand menu: Entry(id: p.menuId, locale: @p.locale) on failure set null

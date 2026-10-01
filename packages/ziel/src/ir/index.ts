@@ -339,13 +339,29 @@ export type IslandClause = {
 };
 
 /**
+ * One entry in a query `context { … }` projection.
+ * `locale` lowers with `contextName === paramName`; `env: environmentId` aliases.
+ */
+export type ContextProjection = {
+  /** Key in `executionContext` / datasource vocabulary. */
+  contextName: string;
+  /** Query parameter that supplies the value. */
+  paramName: string;
+  span: SourceSpan | null;
+};
+
+/**
  * Top-level Ziel unit (`query Name(…) { … }`).
  * Distinct from the engine's resolution *strategy* (expansion policies).
  */
 export type QueryDefinition = {
   name: string;
   parameters: FieldDecl[];
-  context: FieldDecl[];
+  /**
+   * Projection of params into datasource execution context (names + aliases).
+   * Types come from the referenced params via {@link resolvedQueryContext}.
+   */
+  contextProjections: ContextProjection[];
   /**
    * True when the source wrote a `context { … }` block (possibly empty).
    * False when the block was omitted — check emits `MISSING_CONTEXT`.
@@ -359,6 +375,28 @@ export type QueryDefinition = {
   islands: IslandClause[];
   span: SourceSpan | null;
 };
+
+/**
+ * Resolve query context field decls from params + projections.
+ * Unknown params yield no entry (checker reports separately).
+ */
+export function resolvedQueryContext(query: QueryDefinition): FieldDecl[] {
+  const params = new Map(query.parameters.map((p) => [p.name, p]));
+  const fields: FieldDecl[] = [];
+  for (const proj of query.contextProjections) {
+    const param = params.get(proj.paramName);
+    if (!param) continue;
+    fields.push({
+      name: proj.contextName,
+      type: param.type,
+      optional: param.optional,
+      inheritedFromIdentity: false,
+      refers: null,
+      span: proj.span,
+    });
+  }
+  return fields;
+}
 
 /** True when the query used singular `root` syntax (one entry, `alias: null`). */
 export function isSingleRootQuery(query: QueryDefinition): boolean {

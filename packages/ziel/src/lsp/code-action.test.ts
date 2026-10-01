@@ -51,12 +51,14 @@ resource Asset(id: AssetId, locale: Locale): {
   url: string
 }
 
-query EntryDetail(entryId: EntryId) {
-  context { locale: Locale }
-  root Entry(id: entryId, locale: context.locale)
+query EntryDetail(entryId: EntryId, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: entryId, locale: locale)
   on Entry e {
     id
-    expand image: Asset(id: e.imageId, locale: context.locale)
+    expand image: Asset(id: e.imageId, locale: locale)
   }
 
   islands {
@@ -161,9 +163,11 @@ describe("missingOnInsertOffset / placement", () => {
     const source = `
 scalar Locale on string;
 resource Entry(id: string, locale: Locale): { id }
-query Q(id: string) {
-  context { locale: Locale }
-  root Entry(id: id, locale: context.locale)
+query Q(id: string, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: id, locale: locale)
   on Entry e { id }
 }
 `;
@@ -197,9 +201,11 @@ describe("missingOnEditsForQuery", () => {
 scalar Locale on string;
 resource Entry(id: string, locale: Locale): { id }
 resource Asset(id: string, locale: Locale): { id }
-query Q(id: string) {
-  context { locale: Locale }
-  root Entry(id: id, locale: context.locale)
+query Q(id: string, locale: Locale) {
+  context {
+    locale
+  }
+  root Entry(id: id, locale: locale)
   on Entry a { id }
   on Asset asset { id }
 }
@@ -260,12 +266,14 @@ scalar Locale on string;
 resource Page(id: string, locale: Locale): { id entryId: string assetId: string }
 resource Entry(id: string, locale: Locale): { id }
 resource Asset(id: string, locale: Locale): { id }
-query Q(id: string) {
-  context { locale: Locale }
-  root Page(id: id, locale: context.locale)
+query Q(id: string, locale: Locale) {
+  context {
+    locale
+  }
+  root Page(id: id, locale: locale)
   on Page p {
-    expand entry: Entry(id: p.entryId, locale: context.locale)
-    expand asset: Asset(id: p.assetId, locale: context.locale)
+    expand entry: Entry(id: p.entryId, locale: locale)
+    expand asset: Asset(id: p.assetId, locale: locale)
   }
 }
 `;

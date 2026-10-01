@@ -214,8 +214,8 @@ describe("resolvePage", () => {
     assetsWithoutLogo.delete(demoIds.assetLogo);
 
     const output = await resolveDemoPageDetail({
-      params: { pageId: Scalars.EntryId(demoIds.page) },
-      executionContext: {
+      params: {
+        pageId: Scalars.EntryId(demoIds.page),
         spaceId: DEMO_SPACE,
         environmentId: DEMO_ENVIRONMENT,
         locale: DEMO_LOCALE,

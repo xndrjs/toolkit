@@ -1,17 +1,22 @@
 /**
  * Commerce product-detail aggregate: catalog + price + inventory + media.
  */
-query ProductDetail(productId: CatalogProductId) {
+query ProductDetail(
+  productId: CatalogProductId,
+  market: Market,
+  locale: Locale,
+  tenantId: TenantId
+) {
   context {
-    market: Market
-    locale: Locale
-    tenantId: TenantId
+    market
+    locale
+    tenantId
   }
 
   root CatalogProduct(
     id: productId,
-    market: context.market,
-    locale: context.locale
+    market: market,
+    locale: locale
   )
 
   on CatalogProduct p include properties {

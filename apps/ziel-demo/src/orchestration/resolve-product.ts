@@ -54,9 +54,8 @@ export async function resolveProduct(
   const schedulingMode = input.schedulingMode ?? DEFAULT_SCHEDULING_MODE;
 
   const resolved = await resolveDemoProductDetail({
-    params: { productId },
+    params: { productId, market, locale, tenantId },
     schedulingMode,
-    executionContext: { market, locale, tenantId },
     signal: input.signal,
   });
 

@@ -282,15 +282,17 @@ describe("type projection Resource.field", () => {
         id
       }
 
-      query Q(pageId: PageId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: PageId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand strips: each s in p.strips (
-            Hero(id: s.id, locale: context.locale) when s.type == "Hero",
-            Tabs(id: s.id, locale: context.locale) when s.type == "Tabs",
-            Product(id: s.id, locale: context.locale) when s.type == "Product"
+            Hero(id: s.id, locale: locale) when s.type == "Hero",
+            Tabs(id: s.id, locale: locale) when s.type == "Tabs",
+            Product(id: s.id, locale: locale) when s.type == "Product"
           )
         }
         on Hero h { id }

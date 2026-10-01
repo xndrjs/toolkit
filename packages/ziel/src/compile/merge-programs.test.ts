@@ -57,7 +57,7 @@ function programB(): Program {
     queries: [
       query("QB", {
         parameters: [],
-        context: [],
+        contextProjections: [],
         roots: singleRoot(construct("B", [])),
         projections: [],
       }),

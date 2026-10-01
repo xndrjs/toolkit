@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 import type { Diagnostic } from "../../check";
+import { isErrorDiagnostic } from "../../check";
 import { collectZielFiles, type CollectZielFilesOptions } from "../collect/collect-ziel-files";
 import { compileWorkspace } from "../compile-workspace";
 import {
@@ -85,7 +86,8 @@ export function buildGeneratedModule(
     ...compilation.analysis.diagnostics,
   ];
 
-  if (diagnostics.length > 0) {
+  const errors = diagnostics.filter(isErrorDiagnostic);
+  if (errors.length > 0) {
     return { code: "", diagnostics, files };
   }
 
@@ -94,7 +96,7 @@ export function buildGeneratedModule(
     registryTypeName,
     resourceTag,
   });
-  return { code, diagnostics: [], files };
+  return { code, diagnostics, files };
 }
 
 /** @deprecated Use {@link buildGeneratedModule}. */

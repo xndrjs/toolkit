@@ -10,6 +10,7 @@ import type {
   ResolveArm,
   ResolveEach,
   ResourceProjection,
+  ContextProjection,
 } from "../../ir";
 import type { PayloadTypeLookup } from "../../check/discriminants";
 import type { DiagnosticSink } from "../../check/diagnostic";
@@ -24,6 +25,7 @@ import {
   type ProjectionDefaultArm as AstProjectionDefaultArm,
   type ProjectionWhenArm as AstProjectionWhenArm,
   type QueryDeclaration as AstQueryDeclaration,
+  type QueryContextBlock as AstQueryContextBlock,
   type ResolveArm as AstResolveArm,
 } from "../../lang/generated/ast";
 import { lowerConstruction, lowerExpr } from "./expr";
@@ -61,6 +63,15 @@ function lowerEachComprehension(each: AstEachComprehension): ResolveEach {
   };
 }
 
+function lowerContextProjections(block: AstQueryContextBlock | undefined): ContextProjection[] {
+  if (!block) return [];
+  return block.projections.map((entry) => ({
+    contextName: entry.contextName,
+    paramName: entry.paramName ?? entry.contextName,
+    span: spanOf(entry),
+  }));
+}
+
 export function lowerQuery(
   decl: AstQueryDeclaration,
   tables: NameTables,
@@ -71,7 +82,7 @@ export function lowerQuery(
   return {
     name: decl.name,
     parameters: decl.parameters.map((f) => lowerTypedField(f, tables)),
-    context: decl.context ? decl.context.fields.map((f) => lowerTypedField(f, tables)) : [],
+    contextProjections: lowerContextProjections(decl.context),
     contextDeclared: decl.context !== undefined,
     roots: lowerQueryRoots(decl),
     projections: decl.projections.map((p) => lowerProjection(p, fragments, resources, sink)),

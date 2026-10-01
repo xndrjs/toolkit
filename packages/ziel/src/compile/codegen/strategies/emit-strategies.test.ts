@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 import {
   arg,
   construct,
-  ctx,
   eq,
   expand,
   expandEach,
@@ -61,8 +60,8 @@ describe("emitStrategies", () => {
       datasources: [],
       queries: [
         query("PostDetail", {
-          parameters: [field("postId", scalarRef("PostId"))],
-          context: [field("locale", scalarRef("Locale"))],
+          parameters: [field("postId", scalarRef("PostId")), field("locale", scalarRef("Locale"))],
+          contextProjections: [{ contextName: "locale", paramName: "locale", span: null }],
           roots: singleRoot(construct("Post", [arg("id", param("postId"))])),
           projections: [
             projection(
@@ -106,14 +105,16 @@ describe("emitStrategies", () => {
         url: string
       }
 
-      query EntryDetail(entryId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: entryId, locale: context.locale)
+      query EntryDetail(entryId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: entryId, locale: locale)
         on Entry e {
           when e.type == "Hero" {
             id
             title
-            expand image: Asset(id: e.imageId, locale: context.locale)
+            expand image: Asset(id: e.imageId, locale: locale)
           }
           when e.type == "Page" {
             id
@@ -130,9 +131,7 @@ describe("emitStrategies", () => {
 
     expect(code).toContain(".on(entryAri)");
     expect(code).toContain('.when((predicate) => predicate.payload.type == "Hero")');
-    expect(code).toContain(
-      "assetAri({ id: payload.imageId, locale: predicate.executionContext.locale })"
-    );
+    expect(code).toContain("assetAri({ id: payload.imageId, locale: params.locale })");
     // Page arm has no expansions — no second .when / empty expand.
     expect(code).not.toContain('payload.type == "Page"');
     expect(code.match(/\.on\(entryAri\)/g)).toHaveLength(1);
@@ -146,8 +145,8 @@ describe("emitStrategies", () => {
       datasources: [],
       queries: [
         query("PageDetail", {
-          parameters: [],
-          context: [field("locale", scalarRef("Locale"))],
+          parameters: [field("locale", scalarRef("Locale"))],
+          contextProjections: [{ contextName: "locale", paramName: "locale", span: null }],
           roots: singleRoot(construct("Page", [])),
           projections: [
             projection(
@@ -159,7 +158,7 @@ describe("emitStrategies", () => {
                   {
                     target: construct("Hero", [
                       arg("id", item("s", "id")),
-                      arg("locale", ctx("locale")),
+                      arg("locale", param("locale")),
                     ]),
                     when: eq(item("s", "type"), lit("Hero")),
                   },
@@ -173,9 +172,9 @@ describe("emitStrategies", () => {
 
     const code = emitStrategies(program);
 
-    expect(code).toContain("export function createPageDetailStrategy()");
+    expect(code).toContain("export function createPageDetailStrategy(params: PageDetailParams)");
     expect(code).toContain(
-      'predicate.payload.strips.filter((s) => s.type == "Hero").map((s) => heroAri({ id: s.id, locale: predicate.executionContext.locale }))'
+      'predicate.payload.strips.filter((s) => s.type == "Hero").map((s) => heroAri({ id: s.id, locale: params.locale }))'
     );
   });
 
@@ -229,9 +228,11 @@ describe("emitStrategies", () => {
 
       resource Page(id: EntryId, locale: Locale): { id }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p { id }
         islands {
           on Page
@@ -260,9 +261,11 @@ describe("emitStrategies", () => {
         id
       }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: pageId, locale: locale)
         on Entry e { id type }
         islands {
           on Entry e when e.type == "Menu" or e.type == "Footer"
@@ -364,9 +367,11 @@ describe("generateStrategies", () => {
         locale: Locale
       }
 
-      query RefDetail(ref: Ref) {
-        context { locale: Locale }
-        root CustomReference(ref: ref, locale: context.locale)
+      query RefDetail(ref: Ref, locale: Locale) {
+        context {
+    locale
+  }
+        root CustomReference(ref: ref, locale: locale)
         on CustomReference c resolve to {
           Entry(
             spaceId: c.spaceId,
@@ -422,12 +427,14 @@ describe("generateStrategies", () => {
         id
       }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Entry(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Entry(id: pageId, locale: locale)
         on Entry e {
           when e.type in ["Menu", "Footer"] {
-            expand logo: Asset(id: e.logoId, locale: context.locale)
+            expand logo: Asset(id: e.logoId, locale: locale)
           }
           when !e.visible {
             id
@@ -467,12 +474,14 @@ describe("generateStrategies", () => {
       resource TabCollection(tabsId: TabsId, locale: Locale): Tab[]
       resource Page(id: string, locale: Locale): { id tabsId: TabsId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
-          expand tabs: TabCollection(tabsId: p.tabsId, locale: context.locale)
+          expand tabs: TabCollection(tabsId: p.tabsId, locale: locale)
         }
         on TabCollection t { }
       }
@@ -484,7 +493,7 @@ describe("generateStrategies", () => {
 
     expect(code).toContain(".on(pageAri)");
     expect(code).toContain(
-      "tabCollectionAri({ tabsId: predicate.payload.tabsId, locale: predicate.executionContext.locale })"
+      "tabCollectionAri({ tabsId: predicate.payload.tabsId, locale: params.locale })"
     );
     // Empty on TabCollection contributes no further expansion policy.
     expect(code).not.toContain(".on(tabCollectionAri)");
@@ -505,9 +514,11 @@ describe("generateStrategies", () => {
       }
       resource Tabs(tabsId: TabsId, locale: Locale): { tabsId: TabsId }
 
-      query Q(tabsId: TabsId) {
-        context { locale: Locale }
-        root Tabs(tabsId: tabsId, locale: context.locale)
+      query Q(tabsId: TabsId, locale: Locale) {
+        context {
+    locale
+  }
+        root Tabs(tabsId: tabsId, locale: locale)
         on Tabs t {
           expand tabs: TabCollection(tabsId: t.tabsId, locale: @t.locale)
         }
@@ -545,9 +556,11 @@ describe("generateStrategies", () => {
       }
       resource Page(id: string, locale: Locale): { id collectionId: CollectionId }
 
-      query Q(pageId: string) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query Q(pageId: string, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           expand items: MixedCollection(id: p.collectionId, locale: @p.locale)
         }
@@ -610,9 +623,11 @@ describe("generateStrategies", () => {
       resource Entry(id: EntryId, locale: Locale): { id title: string }
       resource Page(id: EntryId, locale: Locale): { id menuId: EntryId footerId: EntryId }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand menu: Entry(id: p.menuId, locale: @p.locale) on failure set null
@@ -637,9 +652,11 @@ describe("generateStrategies", () => {
       resource Entry(id: EntryId, locale: Locale): { id title: string }
       resource Page(id: EntryId, locale: Locale): { id menuId: EntryId footerId: EntryId }
 
-      query PageDetail(pageId: EntryId) {
-        context { locale: Locale }
-        root Page(id: pageId, locale: context.locale)
+      query PageDetail(pageId: EntryId, locale: Locale) {
+        context {
+    locale
+  }
+        root Page(id: pageId, locale: locale)
         on Page p {
           id
           expand menu: Entry(id: p.menuId, locale: @p.locale) on failure set null

@@ -304,10 +304,20 @@ export function resolveArm(
 
 export function query(
   name: string,
-  partial: Omit<QueryDefinition, "name" | "span" | "islands" | "contextDeclared"> &
-    Partial<Pick<QueryDefinition, "islands" | "contextDeclared">>
+  partial: Omit<
+    QueryDefinition,
+    "name" | "span" | "islands" | "contextDeclared" | "contextProjections"
+  > &
+    Partial<Pick<QueryDefinition, "islands" | "contextDeclared" | "contextProjections">>
 ): QueryDefinition {
-  return { name, span, islands: [], contextDeclared: true, ...partial };
+  return {
+    name,
+    span,
+    islands: [],
+    contextDeclared: true,
+    contextProjections: [],
+    ...partial,
+  };
 }
 
 /** One `for Resource [binding] [when …]` route. */

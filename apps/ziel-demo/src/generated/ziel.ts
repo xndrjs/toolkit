@@ -386,6 +386,9 @@ type MediaCdnConfig = {
 
 export type ErrorHandlingDetailParams = {
   labId: EntryId;
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
 };
 
 export type ErrorHandlingDetailExecutionContext = {
@@ -494,6 +497,9 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
 
 export type PageDetailParams = {
   pageId: EntryId;
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
 };
 
 export type PageDetailExecutionContext = {
@@ -730,6 +736,9 @@ export function createPageDetailStrategy(params: PageDetailParams) {
 
 export type ProductDetailParams = {
   productId: CatalogProductId;
+  market: Market;
+  locale: Locale;
+  tenantId: TenantId;
 };
 
 export type ProductDetailExecutionContext = {
@@ -1112,7 +1121,6 @@ export function projectErrorHandlingDetail(
   contentMap: ContentMap<ContentRegistry>,
   args: {
     params: ErrorHandlingDetailParams;
-    executionContext: ErrorHandlingDetailExecutionContext;
     failures: ReadonlyMap<ResourceKey, ResolutionError>;
   }
 ): ErrorHandlingDetailResult {
@@ -1347,7 +1355,6 @@ export function projectPageDetail(
   contentMap: ContentMap<ContentRegistry>,
   args: {
     params: PageDetailParams;
-    executionContext: PageDetailExecutionContext;
     redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;
     failures: ReadonlyMap<ResourceKey, ResolutionError>;
   }
@@ -1635,7 +1642,6 @@ export function projectProductDetail(
   contentMap: ContentMap<ContentRegistry>,
   args: {
     params: ProductDetailParams;
-    executionContext: ProductDetailExecutionContext;
     failures: ReadonlyMap<ResourceKey, ResolutionError>;
   }
 ): ProductDetailResult {
@@ -1768,7 +1774,6 @@ export type ResolveErrorHandlingDetailInput = {
   schedulingMode?: SchedulingMode;
   budget?: ResolutionBudgetOptions;
   observer?: ResolutionObserver;
-  executionContext: ErrorHandlingDetailExecutionContext;
   backingResources?: ReadonlyMap<ResourceKey, unknown>;
   signal?: AbortSignal;
 };
@@ -1785,11 +1790,16 @@ export type ResolveErrorHandlingDetailResult = {
 export async function resolveErrorHandlingDetail(
   input: ResolveErrorHandlingDetailInput
 ): Promise<ResolveErrorHandlingDetailResult> {
+  const executionContext = {
+    spaceId: input.params.spaceId,
+    environmentId: input.params.environmentId,
+    locale: input.params.locale,
+  };
   const root = errorLabAri({
-    spaceId: input.executionContext.spaceId,
-    environmentId: input.executionContext.environmentId,
+    spaceId: input.params.spaceId,
+    environmentId: input.params.environmentId,
     id: input.params.labId,
-    locale: input.executionContext.locale,
+    locale: input.params.locale,
   });
   const resolver = createResourceGraphResolver<
     ContentRegistry,
@@ -1805,14 +1815,13 @@ export async function resolveErrorHandlingDetail(
   const { contentMap, islands, islandDependencies, errors, failures, promotedResourceKeys } =
     await resolver.resolve({
       roots: [root],
-      executionContext: input.executionContext,
+      executionContext,
       backingResources: input.backingResources,
       signal: input.signal,
     });
 
   const errorHandlingDetail = projectErrorHandlingDetail(root, contentMap, {
     params: input.params,
-    executionContext: input.executionContext,
     failures,
   });
 
@@ -1832,7 +1841,6 @@ export type ResolvePageDetailInput = {
   schedulingMode?: SchedulingMode;
   budget?: ResolutionBudgetOptions;
   observer?: ResolutionObserver;
-  executionContext: PageDetailExecutionContext;
   backingResources?: ReadonlyMap<ResourceKey, unknown>;
   signal?: AbortSignal;
 };
@@ -1849,11 +1857,16 @@ export type ResolvePageDetailResult = {
 export async function resolvePageDetail(
   input: ResolvePageDetailInput
 ): Promise<ResolvePageDetailResult> {
+  const executionContext = {
+    spaceId: input.params.spaceId,
+    environmentId: input.params.environmentId,
+    locale: input.params.locale,
+  };
   const root = pageAri({
-    spaceId: input.executionContext.spaceId,
-    environmentId: input.executionContext.environmentId,
+    spaceId: input.params.spaceId,
+    environmentId: input.params.environmentId,
     id: input.params.pageId,
-    locale: input.executionContext.locale,
+    locale: input.params.locale,
   });
   const resolver = createResourceGraphResolver<ContentRegistry, PageDetailExecutionContext>({
     sources: input.sources,
@@ -1873,14 +1886,13 @@ export async function resolvePageDetail(
     redirects,
   } = await resolver.resolve({
     roots: [root],
-    executionContext: input.executionContext,
+    executionContext,
     backingResources: input.backingResources,
     signal: input.signal,
   });
 
   const pageDetail = projectPageDetail(root, contentMap, {
     params: input.params,
-    executionContext: input.executionContext,
     redirects,
     failures,
   });
@@ -1901,7 +1913,6 @@ export type ResolveProductDetailInput = {
   schedulingMode?: SchedulingMode;
   budget?: ResolutionBudgetOptions;
   observer?: ResolutionObserver;
-  executionContext: ProductDetailExecutionContext;
   backingResources?: ReadonlyMap<ResourceKey, unknown>;
   signal?: AbortSignal;
 };
@@ -1918,10 +1929,15 @@ export type ResolveProductDetailResult = {
 export async function resolveProductDetail(
   input: ResolveProductDetailInput
 ): Promise<ResolveProductDetailResult> {
+  const executionContext = {
+    market: input.params.market,
+    locale: input.params.locale,
+    tenantId: input.params.tenantId,
+  };
   const root = catalogProductAri({
     id: input.params.productId,
-    market: input.executionContext.market,
-    locale: input.executionContext.locale,
+    market: input.params.market,
+    locale: input.params.locale,
   });
   const resolver = createResourceGraphResolver<ContentRegistry, ProductDetailExecutionContext>({
     sources: input.sources,
@@ -1934,14 +1950,13 @@ export async function resolveProductDetail(
   const { contentMap, islands, islandDependencies, errors, failures, promotedResourceKeys } =
     await resolver.resolve({
       roots: [root],
-      executionContext: input.executionContext,
+      executionContext,
       backingResources: input.backingResources,
       signal: input.signal,
     });
 
   const productDetail = projectProductDetail(root, contentMap, {
     params: input.params,
-    executionContext: input.executionContext,
     failures,
   });
 
