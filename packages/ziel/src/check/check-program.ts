@@ -5,7 +5,7 @@ import { checkQuery } from "./check-query";
 import { collectResources, collectScalars } from "./collect";
 import { createDiagnosticSink, type Diagnostic } from "./diagnostic";
 import type { ResourceTable, ScalarTable } from "./symbols";
-import { buildQueryPlans, type QueryPlan } from "./program-analysis";
+import { buildQueryPlans, type QueryPlan } from "../analyze";
 
 export type ProgramAnalysis = {
   readonly program: Program;

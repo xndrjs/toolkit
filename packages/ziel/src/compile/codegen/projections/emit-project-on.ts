@@ -1,5 +1,5 @@
 import type { Expansion, OnFailurePolicy } from "../../../ir";
-import type { PlannedProjectionBody, ProjectionPlan } from "../../../check";
+import type { PlannedProjectionBody, ProjectionPlan } from "../../../analyze";
 import { isObjectLikePayload } from "../../../check/discriminants";
 import { emitConstruction, emitExpr, projectionExprScope } from "../shared";
 import { projectionArmDiscriminant } from "../shared";

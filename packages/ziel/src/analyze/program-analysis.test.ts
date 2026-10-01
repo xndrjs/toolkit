@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseAndCheck } from "../compile/parse-and-check";
-import { analyzeProgram } from "./check-program";
+import { analyzeProgram } from "../check/check-program";
 
 describe("ProgramAnalysis query plans", () => {
   it("models ordered arms, residual default reachability, and datasource coverage", () => {

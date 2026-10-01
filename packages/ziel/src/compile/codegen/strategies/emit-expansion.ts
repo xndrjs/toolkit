@@ -8,7 +8,7 @@
  * `onFailureByKey` when edges in the same expand disagree.
  */
 import type { ExpandArm, Expansion, OnFailurePolicy, ResourceProjection } from "../../../ir";
-import type { PlannedProjectionArm, ProjectionPlan } from "../../../check";
+import type { PlannedProjectionArm, ProjectionPlan } from "../../../analyze";
 import {
   emitConstruction,
   emitExpr,

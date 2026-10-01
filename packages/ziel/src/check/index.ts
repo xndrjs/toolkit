@@ -5,16 +5,6 @@ export {
   type AnalyzeProgramOptions,
   type ProgramAnalysis,
 } from "./check-program";
-export type {
-  DatasourceCoveragePlan,
-  PlannedExpansion,
-  PlannedProjectionArm,
-  PlannedProjectionBody,
-  PlannedResolveArm,
-  ProjectionPlan,
-  QueryPlan,
-  ResolvedConstruction,
-} from "./program-analysis";
 export {
   memberMatchesRefersPattern,
   membersMatchingRefersPattern,

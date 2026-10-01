@@ -11,7 +11,8 @@
  *
  * Callbacks take a single `predicate` and use dot access (no destructuring).
  */
-import type { ProgramAnalysis, QueryPlan } from "../../../check";
+import type { QueryPlan } from "../../../analyze";
+import type { ProgramAnalysis } from "../../../check";
 import type { FieldDecl } from "../../../ir";
 import { codegenAnalysis, type CodegenInput } from "../analysis";
 import { printTypeExpr } from "../resources";

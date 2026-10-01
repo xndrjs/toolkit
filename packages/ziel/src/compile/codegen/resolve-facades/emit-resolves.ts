@@ -7,7 +7,8 @@
  *
  * Strategy factories and projectors stay exported for low-level use.
  */
-import type { ProgramAnalysis, QueryPlan } from "../../../check";
+import type { QueryPlan } from "../../../analyze";
+import type { ProgramAnalysis } from "../../../check";
 import type { QueryDefinition } from "../../../ir";
 import { isSingleRootQuery } from "../../../ir";
 import { codegenAnalysis, type CodegenInput } from "../analysis";
