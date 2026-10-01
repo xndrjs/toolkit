@@ -7,6 +7,9 @@ import {
   type StockLevelResource,
 } from "../../generated";
 import { demoStock } from "../fixtures/commerce-store.js";
+import { parsePayload } from "../schemas/parse-payload.js";
+import { mapWireToStockLevelPayload } from "./mappers/index.js";
+import { stockLevelPayloadSchema } from "./schemas/index.js";
 
 export function loadStockLevels(stock: ReadonlyMap<string, StockLevelPayload> = demoStock) {
   return async (
@@ -18,6 +21,9 @@ export function loadStockLevels(stock: ReadonlyMap<string, StockLevelPayload> = 
         return undefined;
       }
       const { sku, warehouse } = resource.key[0];
-      return stock.get(`${sku}/${warehouse}`);
+      const raw = stock.get(`${sku}/${warehouse}`);
+      return raw === undefined
+        ? undefined
+        : mapWireToStockLevelPayload(parsePayload(stockLevelPayloadSchema, raw, "StockLevel"));
     });
 }

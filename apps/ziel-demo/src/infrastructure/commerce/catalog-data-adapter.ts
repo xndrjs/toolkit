@@ -7,6 +7,9 @@ import {
   type CatalogProductResource,
 } from "../../generated";
 import { demoCatalogProducts } from "../fixtures/commerce-store.js";
+import { parsePayload } from "../schemas/parse-payload.js";
+import { mapWireToCatalogProductPayload } from "./mappers/index.js";
+import { catalogProductPayloadSchema } from "./schemas/index.js";
 
 export function loadCatalogProducts(
   products: ReadonlyMap<string, CatalogProductPayload> = demoCatalogProducts
@@ -20,6 +23,11 @@ export function loadCatalogProducts(
         return undefined;
       }
       const { id, market, locale } = resource.key[0];
-      return products.get(`${id}/${market}/${locale}`);
+      const raw = products.get(`${id}/${market}/${locale}`);
+      return raw === undefined
+        ? undefined
+        : mapWireToCatalogProductPayload(
+            parsePayload(catalogProductPayloadSchema, raw, "CatalogProduct")
+          );
     });
 }

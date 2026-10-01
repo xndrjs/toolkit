@@ -74,8 +74,7 @@ export default async function LocaleDemoPage({ params }: Props) {
           <code>{JSON.stringify(page, null, 2)}</code>
         </pre>
       </section>
-      <br />
-      <p className="lead">Islands</p>
+      <h3 className="lead">Islands</h3>
       <section className="panel">
         <pre>
           <code>{JSON.stringify(islandsJson, null, 2)}</code>
