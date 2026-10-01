@@ -12,7 +12,8 @@
  * Armed `on` projections discriminate on payload fields and build variant shells.
  * Optional `resourceTag` stamps the resource name onto each shell (off by default).
  */
-import type { ProgramAnalysis, QueryPlan } from "../../../check";
+import type { QueryPlan } from "../../../analyze";
+import type { ProgramAnalysis } from "../../../check";
 import { isSingleRootQuery } from "../../../ir";
 import { codegenAnalysis, type CodegenInput } from "../analysis";
 import { ariFactoryName, projectFnName, queryResultTypeName } from "../naming";

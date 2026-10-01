@@ -9,13 +9,15 @@ export {
   type AnalyzeProgramOptions,
   type Diagnostic,
   type ProgramAnalysis,
-  type QueryPlan,
-  type ProjectionPlan,
-  type PlannedProjectionArm,
-  type PlannedProjectionBody,
   type ResourceTable,
   type ScalarTable,
 } from "../check";
+export type {
+  QueryPlan,
+  ProjectionPlan,
+  PlannedProjectionArm,
+  PlannedProjectionBody,
+} from "../analyze";
 export { createZielServices, ZielModule, type ZielServices } from "../lang";
 export { lowerProgram, lowerWorkspace, isLowerDiagnostic, LOWER_DIAGNOSTIC_CODES } from "./lower";
 export {

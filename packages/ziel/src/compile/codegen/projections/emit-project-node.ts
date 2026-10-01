@@ -1,4 +1,4 @@
-import type { QueryPlan } from "../../../check";
+import type { QueryPlan } from "../../../analyze";
 import type { QueryDefinition } from "../../../ir";
 import {
   ariFactoryName,

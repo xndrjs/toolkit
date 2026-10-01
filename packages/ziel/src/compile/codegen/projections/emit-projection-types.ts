@@ -39,10 +39,10 @@ import { stripToConcreteMembers, type ResolveTargetIndex } from "../../../check/
 import type {
   PlannedProjectionArm,
   PlannedProjectionBody,
-  ProgramAnalysis,
   ProjectionPlan,
   QueryPlan,
-} from "../../../check";
+} from "../../../analyze";
+import type { ProgramAnalysis } from "../../../check";
 import { payloadIntersectionFields } from "../../../check/projection-include";
 import { resolveTypeExpr } from "../../../check/resolve-type";
 import type { ResourceTable, ScalarTable } from "../../../check/symbols";

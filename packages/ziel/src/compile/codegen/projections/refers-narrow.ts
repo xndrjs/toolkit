@@ -3,7 +3,7 @@
  * projection alias types to the matching variant union.
  */
 import { expandPayloadObjectMembers, narrowPayloadByFilter } from "../../../check/discriminants";
-import type { ProjectionPlan } from "../../../check";
+import type { ProjectionPlan } from "../../../analyze";
 import { createDiagnosticSink } from "../../../check/diagnostic";
 import { resolvePathOnPayloadType } from "../../../check/expr-paths";
 import { memberMatchesRefersPattern, type ObjectMember } from "../../../check/refers";

@@ -3,7 +3,7 @@
  * Many-resolve (`resolveEach`) is expansion-backed — see
  * {@link emitProjectionExpansions}; redirects map is unused for those locators.
  */
-import type { PlannedResolveArm, ProjectionPlan } from "../../../check";
+import type { PlannedResolveArm, ProjectionPlan } from "../../../analyze";
 import type { ResourceProjection } from "../../../ir";
 import { emitConstruction, emitExpr, strategyArmedBodyScope, strategyExprScope } from "../shared";
 import { ariFactoryName } from "../naming";

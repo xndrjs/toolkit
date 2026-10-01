@@ -11,15 +11,15 @@ import type {
   ResolveArm,
   TypeExpr,
 } from "../ir";
-import { analyzePayloadFilter, residualPayloadAfterFilters } from "./discriminants";
-import { queryReferencedResources } from "./check-datasources";
+import { analyzePayloadFilter, residualPayloadAfterFilters } from "../check/discriminants";
+import { queryReferencedResources } from "../check/check-datasources";
 import {
   projectableProjections,
   type ResolveTargetIndex,
   type ResolveTargetInfo,
-} from "./projection-graph";
-import { resolveSelectedFields } from "./projection-include";
-import type { ResourceSymbols, ResourceTable } from "./symbols";
+} from "../check/projection-graph";
+import { resolveSelectedFields } from "../check/projection-include";
+import type { ResourceSymbols, ResourceTable } from "../check/symbols";
 
 export type ResolvedConstruction = Readonly<{
   source: ResourceConstruction;
