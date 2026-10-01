@@ -22,4 +22,5 @@ export {
   type SelectableField,
 } from "./projection-include";
 export { resolveTypeExpr } from "./resolve-type";
-export type { ResourceSymbols, ResourceTable, ScalarTable } from "./symbols";
+export type { ResourceSymbols, ResourceTable, ScalarTable, FieldMap } from "./symbols";
+export { queryReferencedResources, requiredQueryContextFields } from "./check-datasources";

@@ -7,12 +7,14 @@ import { DefaultCompletionProvider, type LangiumServices } from "langium/lsp";
 import type { CompletionItem, CompletionList, CompletionParams } from "vscode-languageserver";
 import { CompletionItemKind, CompletionList as CompletionListFactory } from "vscode-languageserver";
 
-import { formatType } from "../check/assignability";
+import { formatType, isAssignable } from "../check/assignability";
+import { requiredQueryContextFields } from "../check/check-datasources";
 import { expandPayloadObjectMembers, narrowPayloadByFilter } from "../check/discriminants";
 import type { ResourceTable, ScalarTable } from "../check/symbols";
 import { lowerExpr } from "../compile/lower/expr";
-import type { TypeExpr } from "../ir";
+import type { Program, TypeExpr } from "../ir";
 import {
+  isContextProjectionEntry,
   isExpandArm,
   isExpansion,
   isFragmentDeclaration,
@@ -22,12 +24,15 @@ import {
   isObjectField,
   isProjectionClause,
   isProjectionWhenArm,
+  isQueryContextBlock,
+  isQueryDeclaration,
   isRefersTarget,
   isResolveArm,
   isResourceConstruction,
   isTypeProjection,
   isTypedField,
   type Expression,
+  type QueryDeclaration,
   type ResourceConstruction,
 } from "../lang/generated/ast";
 import { pathCompletionsAtOffset } from "./completion-path";
@@ -37,6 +42,8 @@ import type { SemanticSnapshotCache } from "./semantic-snapshot";
 export type CompletionTables = {
   scalars: ScalarTable;
   resources: ResourceTable;
+  /** Merged program when available (query-context proposals). */
+  program?: Program;
 };
 
 function nameTablesFrom(tables: CompletionTables) {
@@ -51,6 +58,8 @@ export type SemanticCompletionItem = {
   label: string;
   kind: CompletionItemKind;
   detail?: string;
+  /** Sort key — lower sorts first (defaults to `0_${label}`). */
+  sortText?: string;
 };
 
 type SemanticContext =
@@ -62,7 +71,9 @@ type SemanticContext =
       binding: string;
       when?: Expression;
     }
-  | { kind: "identityArgs"; resourceName: string; used: ReadonlySet<string> };
+  | { kind: "identityArgs"; resourceName: string; used: ReadonlySet<string> }
+  | { kind: "query-context-projection"; query: QueryDeclaration }
+  | { kind: "query-context-alias-param"; query: QueryDeclaration };
 
 function assignmentFeature(cstNode: CstNode): string | undefined {
   let current: AstNode | undefined = cstNode.grammarSource as AstNode | undefined;
@@ -206,7 +217,75 @@ function proposalsForContext(
       );
     case "identityArgs":
       return identityArgCompletions(context.resourceName, context.used, tables.resources);
+    case "query-context-projection":
+      return queryContextProjectionCompletions(context.query, tables);
+    case "query-context-alias-param":
+      return queryContextAliasParamCompletions(context.query);
   }
+}
+
+/** Params / required DS fields suggestable as new `context { … }` projection entries. */
+function queryContextProjectionCompletions(
+  query: QueryDeclaration,
+  tables: CompletionTables
+): SemanticCompletionItem[] {
+  const projectedNames = new Set(
+    (query.context?.projections ?? []).map((p) => p.contextName).filter(Boolean)
+  );
+  const usedParamNames = new Set(
+    (query.context?.projections ?? []).map((p) => p.paramName ?? p.contextName).filter(Boolean)
+  );
+  const items: SemanticCompletionItem[] = [];
+  const seen = new Set<string>();
+
+  const irQuery = tables.program?.queries.find((q) => q.name === query.name);
+  if (tables.program && irQuery) {
+    const { fields: required, requiredBy } = requiredQueryContextFields(tables.program, irQuery);
+    const paramsByName = new Map(irQuery.parameters.map((p) => [p.name, p]));
+    for (const [name, reqField] of required) {
+      if (projectedNames.has(name) || seen.has(name)) continue;
+      const param = paramsByName.get(name);
+      if (!param || !isAssignable(param.type, reqField.type)) continue;
+      const via = (requiredBy.get(name) ?? []).join(", ");
+      items.push({
+        label: name,
+        kind: CompletionItemKind.Field,
+        detail: via ? `required by ${via}` : "required by datasource",
+        sortText: `0_${name}`,
+      });
+      seen.add(name);
+    }
+  }
+
+  for (const param of query.parameters) {
+    if (!param.name || usedParamNames.has(param.name) || seen.has(param.name)) continue;
+    items.push({
+      label: param.name,
+      kind: CompletionItemKind.Property,
+      detail: "query param",
+      sortText: `1_${param.name}`,
+    });
+    seen.add(param.name);
+  }
+
+  return items;
+}
+
+/** After `contextName:` — suggest unused query params as alias sources. */
+function queryContextAliasParamCompletions(query: QueryDeclaration): SemanticCompletionItem[] {
+  const usedParamNames = new Set(
+    (query.context?.projections ?? [])
+      .map((p) => p.paramName ?? p.contextName)
+      .filter((n): n is string => Boolean(n))
+  );
+  // Current entry being edited may already reserve its paramName — still allow it.
+  return query.parameters
+    .filter((p) => p.name && !usedParamNames.has(p.name))
+    .map((p) => ({
+      label: p.name,
+      kind: CompletionItemKind.Property,
+      detail: "query param",
+    }));
 }
 
 /** Identity args already present, excluding the name currently being edited. */
@@ -384,6 +463,25 @@ export function classifyCompletionContext(
     }
   }
 
+  // Query `context { … }` projection entries (not datasource typed context).
+  // Before the TypedField `:` heuristic — `name: param` looks like a type slot.
+  const queryContextBlock = AstUtils.getContainerOfType(node, isQueryContextBlock);
+  if (queryContextBlock) {
+    const query = AstUtils.getContainerOfType(queryContextBlock, isQueryDeclaration);
+    if (query) {
+      const entry = AstUtils.getContainerOfType(node, isContextProjectionEntry);
+      const recent = before.slice(Math.max(0, offset - 48), offset);
+      if (
+        (entry && (feature === "paramName" || entry.paramName === leaf.text)) ||
+        (entry && /:\s*[\w_]*$/.test(recent)) ||
+        (!entry && /:\s*[\w_]*$/.test(recent))
+      ) {
+        return { kind: "query-context-alias-param", query };
+      }
+      return { kind: "query-context-projection", query };
+    }
+  }
+
   // After `:` in TypedField / ObjectField before NamedTypeExpr exists.
   if (/:\s*[\w_]*$/.test(before.slice(Math.max(0, offset - 48), offset))) {
     if (
@@ -443,7 +541,7 @@ function toLspItem(
     label: item.label,
     kind: item.kind,
     detail: item.detail,
-    sortText: `0_${item.label}`,
+    sortText: item.sortText ?? `0_${item.label}`,
     textEdit: {
       range: { start, end },
       newText: item.label,

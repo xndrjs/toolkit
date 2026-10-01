@@ -17,10 +17,13 @@ export type Diagnostic = {
    */
   severity?: DiagnosticSeverity;
   /**
-   * Structured payload for code actions / tooling (e.g. quick-fix resource name).
+   * Structured payload for code actions / tooling.
    * Forwarded as LSP `diagnostic.data` when present.
    */
-  data?: { missingResource: string };
+  data?: {
+    missingResource?: string;
+    contextField?: string;
+  };
 };
 
 /** True when the diagnostic should fail compile / block codegen. */

@@ -32,6 +32,8 @@ import {
   uniqueProjectionBinding,
   usedBindingsInQuery,
   ZielCodeActionProvider,
+  addContextFieldEditsForQuery,
+  removeContextFieldEditsForQuery,
 } from "./code-action";
 import { createZielLspServices } from "./create-services";
 import { createSemanticSnapshotCache } from "./semantic-snapshot";
@@ -364,6 +366,103 @@ query Q(id: Id) {
     );
   });
 
+  it("offers Add context field for QUERY_CONTEXT_MISSING_DATASOURCE_FIELD", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id }
+datasource CmsEntries {
+  context { locale: Locale }
+  for Entry
+}
+query Q(id: EntryId) {
+  context { }
+  root Entry(id: id, locale: "en")
+  on Entry e { id }
+}
+`;
+    const { document, snapshot } = snapshotFrom(source);
+    const cache = createSemanticSnapshotCache();
+    cache.set(snapshot);
+    const { Ziel } = createZielLspServices(EmptyFileSystem);
+    const provider = new ZielCodeActionProvider(Ziel, cache);
+
+    const text = document.textDocument.getText();
+    const contextOff = text.indexOf("context { }");
+    const diagnostic: Diagnostic = {
+      severity: DiagnosticSeverity.Error,
+      range: {
+        start: document.textDocument.positionAt(contextOff),
+        end: document.textDocument.positionAt(contextOff + 11),
+      },
+      message: "Query context is missing required field 'locale' (from CmsEntries)",
+      code: "QUERY_CONTEXT_MISSING_DATASOURCE_FIELD",
+      source: "ziel",
+      data: { contextField: "locale" },
+    };
+
+    const actions = provider.getCodeActions(document, {
+      textDocument: { uri: document.uri.toString() },
+      range: diagnostic.range,
+      context: { diagnostics: [diagnostic] },
+    }) as CodeAction[];
+
+    expect(actions.map((a) => a.title)).toEqual(["Add context field 'locale'"]);
+    const edits = actions[0]!.edit?.changes?.[document.textDocument.uri] ?? [];
+    expect(edits.some((e) => e.newText.includes("locale: Locale"))).toBe(true);
+    expect(edits.some((e) => e.newText.includes("locale"))).toBe(true);
+  });
+
+  it("offers Remove unused context field for QUERY_CONTEXT_UNUSED_FIELD", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id }
+datasource CmsEntries {
+  context { locale: Locale }
+  for Entry
+}
+query Q(id: EntryId, locale: Locale, unused: string) {
+  context {
+    locale
+    unused
+  }
+  root Entry(id: id, locale: locale)
+  on Entry e { id }
+}
+`;
+    const { document, snapshot } = snapshotFrom(source);
+    const cache = createSemanticSnapshotCache();
+    cache.set(snapshot);
+    const { Ziel } = createZielLspServices(EmptyFileSystem);
+    const provider = new ZielCodeActionProvider(Ziel, cache);
+
+    const text = document.textDocument.getText();
+    const unusedOff = text.lastIndexOf("unused");
+    const diagnostic: Diagnostic = {
+      severity: DiagnosticSeverity.Warning,
+      range: {
+        start: document.textDocument.positionAt(unusedOff),
+        end: document.textDocument.positionAt(unusedOff + 6),
+      },
+      message: "Query context field 'unused' is not required by any datasource used by this query",
+      code: "QUERY_CONTEXT_UNUSED_FIELD",
+      source: "ziel",
+      data: { contextField: "unused" },
+    };
+
+    const actions = provider.getCodeActions(document, {
+      textDocument: { uri: document.uri.toString() },
+      range: diagnostic.range,
+      context: { diagnostics: [diagnostic] },
+    }) as CodeAction[];
+
+    expect(actions.map((a) => a.title)).toEqual(["Remove unused context field 'unused'"]);
+    const edits = actions[0]!.edit?.changes?.[document.textDocument.uri] ?? [];
+    expect(edits).toHaveLength(1);
+    expect(edits[0]!.newText).toBe("");
+  });
+
   it("offers Add empty roots block for EMPTY_ROOTS", () => {
     const source = `
 scalar Id on string;
@@ -402,6 +501,63 @@ query Q(id: Id) {
     expect(actions[0]!.edit?.changes?.[document.textDocument.uri]?.[0]?.newText).toBe(
       "  roots { }\n\n"
     );
+  });
+});
+
+describe("add / remove context field edits", () => {
+  it("adds param and projection when both are missing", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id }
+datasource CmsEntries {
+  context { locale: Locale }
+  for Entry
+}
+query Q(id: EntryId) {
+  context { }
+  root Entry(id: id, locale: "en")
+  on Entry e { id }
+}
+`.trim();
+    const { document, snapshot } = snapshotFrom(source);
+    const query = (document.parseResult.value as Model).declarations.find(isQueryDeclaration)!;
+    const edits = addContextFieldEditsForQuery(document, query, "locale", snapshot)!;
+    expect(edits.length).toBeGreaterThanOrEqual(2);
+    const joined = edits.map((e) => e.newText).join("|");
+    expect(joined).toContain("locale: Locale");
+    expect(joined).toMatch(/locale/);
+  });
+
+  it("removes unused projection without touching params", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id }
+datasource CmsEntries {
+  context { locale: Locale }
+  for Entry
+}
+query Q(id: EntryId, locale: Locale, unused: string) {
+  context {
+    locale
+    unused
+  }
+  root Entry(id: id, locale: locale)
+  on Entry e { id }
+}
+`.trim();
+    const { document } = snapshotFrom(source);
+    const query = (document.parseResult.value as Model).declarations.find(isQueryDeclaration)!;
+    const text = document.textDocument.getText();
+    const edits = removeContextFieldEditsForQuery(document, query, "unused")!;
+    expect(edits).toHaveLength(1);
+    const start = document.textDocument.offsetAt(edits[0]!.range.start);
+    const end = document.textDocument.offsetAt(edits[0]!.range.end);
+    const next = text.slice(0, start) + edits[0]!.newText + text.slice(end);
+    expect(next).toContain("unused: string");
+    expect(next).not.toMatch(/context \{\s*locale\s*unused/);
+    expect(next).toMatch(/context \{\s*locale\s*\}/);
   });
 });
 
