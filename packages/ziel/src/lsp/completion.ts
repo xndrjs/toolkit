@@ -31,6 +31,7 @@ import {
   isResourceConstruction,
   isTypeProjection,
   isTypedField,
+  type ContextProjectionEntry,
   type Expression,
   type QueryDeclaration,
   type ResourceConstruction,
@@ -72,8 +73,17 @@ type SemanticContext =
       when?: Expression;
     }
   | { kind: "identityArgs"; resourceName: string; used: ReadonlySet<string> }
-  | { kind: "query-context-projection"; query: QueryDeclaration }
-  | { kind: "query-context-alias-param"; query: QueryDeclaration };
+  | {
+      kind: "query-context-projection";
+      query: QueryDeclaration;
+      /** Entry under the cursor — excluded from "already projected" so replace works. */
+      editing?: ContextProjectionEntry;
+    }
+  | {
+      kind: "query-context-alias-param";
+      query: QueryDeclaration;
+      editing?: ContextProjectionEntry;
+    };
 
 function assignmentFeature(cstNode: CstNode): string | undefined {
   let current: AstNode | undefined = cstNode.grammarSource as AstNode | undefined;
@@ -218,22 +228,29 @@ function proposalsForContext(
     case "identityArgs":
       return identityArgCompletions(context.resourceName, context.used, tables.resources);
     case "query-context-projection":
-      return queryContextProjectionCompletions(context.query, tables);
+      return queryContextProjectionCompletions(context.query, tables, context.editing);
     case "query-context-alias-param":
-      return queryContextAliasParamCompletions(context.query);
+      return queryContextAliasParamCompletions(context.query, context.editing);
   }
 }
 
 /** Params / required DS fields suggestable as new `context { … }` projection entries. */
 function queryContextProjectionCompletions(
   query: QueryDeclaration,
-  tables: CompletionTables
+  tables: CompletionTables,
+  editing?: ContextProjectionEntry
 ): SemanticCompletionItem[] {
   const projectedNames = new Set(
-    (query.context?.projections ?? []).map((p) => p.contextName).filter(Boolean)
+    (query.context?.projections ?? [])
+      .filter((p) => p !== editing)
+      .map((p) => p.contextName)
+      .filter(Boolean)
   );
   const usedParamNames = new Set(
-    (query.context?.projections ?? []).map((p) => p.paramName ?? p.contextName).filter(Boolean)
+    (query.context?.projections ?? [])
+      .filter((p) => p !== editing)
+      .map((p) => p.paramName ?? p.contextName)
+      .filter(Boolean)
   );
   const items: SemanticCompletionItem[] = [];
   const seen = new Set<string>();
@@ -272,13 +289,16 @@ function queryContextProjectionCompletions(
 }
 
 /** After `contextName:` — suggest unused query params as alias sources. */
-function queryContextAliasParamCompletions(query: QueryDeclaration): SemanticCompletionItem[] {
+function queryContextAliasParamCompletions(
+  query: QueryDeclaration,
+  editing?: ContextProjectionEntry
+): SemanticCompletionItem[] {
   const usedParamNames = new Set(
     (query.context?.projections ?? [])
+      .filter((p) => p !== editing)
       .map((p) => p.paramName ?? p.contextName)
       .filter((n): n is string => Boolean(n))
   );
-  // Current entry being edited may already reserve its paramName — still allow it.
   return query.parameters
     .filter((p) => p.name && !usedParamNames.has(p.name))
     .map((p) => ({
@@ -476,9 +496,13 @@ export function classifyCompletionContext(
         (entry && /:\s*[\w_]*$/.test(recent)) ||
         (!entry && /:\s*[\w_]*$/.test(recent))
       ) {
-        return { kind: "query-context-alias-param", query };
+        return { kind: "query-context-alias-param", query, editing: entry };
       }
-      return { kind: "query-context-projection", query };
+      return {
+        kind: "query-context-projection",
+        query,
+        editing: entry,
+      };
     }
   }
 

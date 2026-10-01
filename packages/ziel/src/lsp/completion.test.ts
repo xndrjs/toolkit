@@ -852,6 +852,32 @@ query Q(id: EntryId, locale: Locale, extra: string) {
     expect(labels).toEqual(expect.arrayContaining(["extra", "id"]));
   });
 
+  it("suggests the current entry when replacing an existing projection name", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id }
+datasource CmsEntries {
+  context { locale: Locale }
+  for Entry
+}
+query Q(id: EntryId, locale: Locale, extra: string) {
+  context {
+    locale
+  }
+  root Entry(id: id, locale: locale)
+  on Entry e { id }
+}
+`;
+    const { document, scalars, resources, program } = tablesFrom(source);
+    // Mid-token on existing query-context `locale` — still propose it (required).
+    const offset = offsetAfter(source, "context {\n    loc");
+    expect(classifyCompletionContext(document, offset)?.kind).toBe("query-context-projection");
+    const items = completionsAtOffset(document, offset, { scalars, resources, program });
+    expect(items.map((i) => i.label)).toContain("locale");
+    expect(items.find((i) => i.label === "locale")?.detail).toMatch(/required by/);
+  });
+
   it("suggests unused params on alias RHS", () => {
     const incomplete = `
 scalar EntryId on string;
