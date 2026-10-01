@@ -25,7 +25,7 @@ import {
   emitRootsParamType,
 } from "./emit-project-node";
 import { emitProjectOnHelper } from "./emit-project-on";
-import { type ResourceIndex } from "./shared";
+import { type ResourceIndex } from "./resource-index";
 
 function emitQueryProjection(
   plan: QueryPlan,

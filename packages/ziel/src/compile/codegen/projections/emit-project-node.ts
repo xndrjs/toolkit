@@ -7,7 +7,7 @@ import {
   payloadTypeName,
 } from "../naming";
 import { emitManyProject, projectOnFnName } from "./emit-project-on";
-import { type ResourceIndex } from "./shared";
+import { type ResourceIndex } from "./resource-index";
 
 /** Shared helper for `on failure set null` / `set error` edges. */
 export function emitProjectEdgeHelper(fnName: string): string {

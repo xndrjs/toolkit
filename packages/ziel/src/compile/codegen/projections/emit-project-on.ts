@@ -10,7 +10,7 @@ import {
   projectionVariantTypeName,
 } from "../naming";
 import { printTypeExpr } from "../resources";
-import { type ResourceIndex } from "./shared";
+import { type ResourceIndex } from "./resource-index";
 
 export function projectOnFnName(resourceName: string): string {
   return `projectOn${resourceName}`;
