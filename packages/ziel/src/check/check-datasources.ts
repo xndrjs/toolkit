@@ -184,6 +184,22 @@ function mergeUsedContextFields(datasources: readonly DatasourceDefinition[]): {
   return { fields, requiredBy };
 }
 
+/**
+ * Datasource execution-context fields required by a query: merge of context
+ * fields from datasources whose routes intersect resources the query references.
+ */
+export function requiredQueryContextFields(
+  program: Program,
+  query: QueryDefinition
+): {
+  fields: FieldMap;
+  requiredBy: Map<string, string[]>;
+} {
+  const referenced = queryReferencedResources(query);
+  const used = usedDatasources(program, referenced);
+  return mergeUsedContextFields(used);
+}
+
 function formatDatasourceList(names: readonly string[]): string {
   if (names.length === 0) return "";
   if (names.length === 1) return `datasource '${names[0]}'`;
@@ -418,9 +434,7 @@ function checkQueryContextsAgainstUsedDatasources(
   sink: DiagnosticSink
 ): void {
   for (const query of program.queries) {
-    const referenced = queryReferencedResources(query);
-    const used = usedDatasources(program, referenced);
-    const { fields: required, requiredBy } = mergeUsedContextFields(used);
+    const { fields: required, requiredBy } = requiredQueryContextFields(program, query);
     const queryContext = new Map(resolvedQueryContext(query).map((f) => [f.name, f]));
 
     for (const [name, reqField] of required) {
@@ -434,6 +448,7 @@ function checkQueryContextsAgainstUsedDatasources(
           message: `Query '${query.name}' context is missing datasource execution-context field '${name}' (required by ${via})`,
           path: fieldPath,
           span: query.span,
+          data: { contextField: name },
         });
         continue;
       }
@@ -448,6 +463,7 @@ function checkQueryContextsAgainstUsedDatasources(
           message: `Query '${query.name}' context field '${name}' has type ${formatType(actual)}, incompatible with datasource execution context ${formatType(expected)} (required by ${via})`,
           path: fieldPath,
           span: queryField.span,
+          data: { contextField: name },
         });
       }
     }
@@ -460,6 +476,7 @@ function checkQueryContextsAgainstUsedDatasources(
         message: `Query '${query.name}' context field '${proj.contextName}' is not required by any datasource used by this query`,
         path: `queries.${query.name}.context.${proj.contextName}`,
         span: proj.span,
+        data: { contextField: proj.contextName },
       });
     }
   }

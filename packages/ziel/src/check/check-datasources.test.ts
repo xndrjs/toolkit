@@ -271,6 +271,7 @@ describe("checkDatasources", () => {
       expect.objectContaining({
         code: "QUERY_CONTEXT_MISSING_DATASOURCE_FIELD",
         message: expect.stringMatching(/locale.*CmsSource/),
+        data: { contextField: "locale" },
       })
     );
   });
@@ -604,6 +605,7 @@ describe("checkDatasources", () => {
         code: "QUERY_CONTEXT_UNUSED_FIELD",
         severity: "warning",
         message: expect.stringMatching(/unused/),
+        data: { contextField: "unused" },
       })
     );
     expect(diagnostics.filter((d) => d.severity !== "warning")).toEqual([]);

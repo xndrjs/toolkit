@@ -495,6 +495,25 @@ export function createErrorHandlingDetailStrategy(params: ErrorHandlingDetailPar
   return strategy;
 }
 
+export type FooQParams = {
+  pageId: EntryId;
+  spaceId: SpaceId;
+  environmentId: EnvironmentId;
+  locale: Locale;
+};
+
+export type FooQExecutionContext = {
+  environmentId: EnvironmentId;
+  spaceId: SpaceId;
+  locale: Locale;
+};
+
+export function createFooQStrategy(params: FooQParams) {
+  const strategy = createGraphResolutionStrategy<FooQExecutionContext, ContentRegistry>();
+
+  return strategy;
+}
+
 export type PageDetailParams = {
   pageId: EntryId;
   spaceId: SpaceId;
@@ -809,6 +828,27 @@ export function createErrorHandlingDetailDataSources(config: {
   ];
 }
 
+export function createFooQDataSources(config: {
+  CmsEntries: CmsEntriesConfig;
+}): DataSource<ContentRegistry, FooQExecutionContext>[] {
+  const defineSource = defineDataSourceFor<ContentRegistry, FooQExecutionContext>();
+
+  return [
+    defineSource({
+      id: "CmsEntries",
+      for: [pageAri, entryAri],
+      batchSize: config.CmsEntries.batchSize,
+      concurrency: config.CmsEntries.concurrency,
+      when: config.CmsEntries.when,
+      load: (batch, ctx) =>
+        config.CmsEntries.load(batch as readonly (PageResource | EntryResource)[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    }),
+  ];
+}
+
 export function createPageDetailDataSources(config: {
   CmsCustomReferences: CmsCustomReferencesConfig;
   CmsEntries: CmsEntriesConfig;
@@ -977,6 +1017,12 @@ export type ErrorHandlingDetail_Asset = {
 };
 
 export type ErrorHandlingDetailResult = ErrorHandlingDetail_ErrorLab;
+
+export type FooQ_Page = {
+  __typename: "Page";
+};
+
+export type FooQResult = FooQ_Page;
 
 export type PageDetail_Page = {
   __typename: "Page";
@@ -1348,6 +1394,41 @@ export function projectErrorHandlingDetail(
   };
 
   return projectNode(root) as ErrorHandlingDetailResult;
+}
+
+export function projectFooQ(
+  root: ReturnType<typeof pageAri>,
+  contentMap: ContentMap<ContentRegistry>,
+  args: {
+    params: FooQParams;
+  }
+): FooQResult {
+  const memo = new Map<string, unknown>();
+
+  const projectOnPage = (
+    resource: ReturnType<typeof pageAri>,
+    inputPayload: PagePayload
+  ): FooQ_Page => {
+    const shell: Partial<FooQ_Page> = { __typename: "Page" } satisfies Partial<FooQ_Page>;
+    memo.set(resource.toString(), shell);
+    const payload = inputPayload;
+    return shell as FooQ_Page;
+  };
+
+  const projectNode = (ari: ApplicationResourceIdentifier): unknown => {
+    const key = ari.toString();
+    if (memo.has(key)) return memo.get(key);
+    const loadedPayload = contentMap.get(ari as never);
+    if (loadedPayload === undefined) return undefined;
+    switch (ari.type) {
+      case "Page":
+        return projectOnPage(ari as ReturnType<typeof pageAri>, loadedPayload as PagePayload);
+      default:
+        throw new Error("projectFooQ: unexpected resource type " + JSON.stringify(ari.type));
+    }
+  };
+
+  return projectNode(root) as FooQResult;
 }
 
 export function projectPageDetail(
@@ -1827,6 +1908,67 @@ export async function resolveErrorHandlingDetail(
 
   return {
     errorHandlingDetail,
+    contentMap,
+    islands,
+    islandDependencies,
+    errors,
+    promotedResourceKeys,
+  };
+}
+
+export type ResolveFooQInput = {
+  params: FooQParams;
+  sources: readonly DataSource<ContentRegistry, FooQExecutionContext>[];
+  schedulingMode?: SchedulingMode;
+  budget?: ResolutionBudgetOptions;
+  observer?: ResolutionObserver;
+  backingResources?: ReadonlyMap<ResourceKey, unknown>;
+  signal?: AbortSignal;
+};
+
+export type ResolveFooQResult = {
+  fooQ: FooQResult;
+  contentMap: ContentMap<ContentRegistry>;
+  islands: IslandMap;
+  islandDependencies: IslandDependencyMap;
+  errors: readonly ResolutionError[];
+  promotedResourceKeys: readonly ResourceKey[];
+};
+
+export async function resolveFooQ(input: ResolveFooQInput): Promise<ResolveFooQResult> {
+  const executionContext = {
+    environmentId: input.params.environmentId,
+    spaceId: input.params.spaceId,
+    locale: input.params.locale,
+  };
+  const root = pageAri({
+    spaceId: input.params.spaceId,
+    environmentId: input.params.environmentId,
+    id: input.params.pageId,
+    locale: input.params.locale,
+  });
+  const resolver = createResourceGraphResolver<ContentRegistry, FooQExecutionContext>({
+    sources: input.sources,
+    strategy: createFooQStrategy(input.params).build(),
+    schedulingMode: input.schedulingMode,
+    budget: input.budget,
+    observer: input.observer,
+  });
+
+  const { contentMap, islands, islandDependencies, errors, promotedResourceKeys } =
+    await resolver.resolve({
+      roots: [root],
+      executionContext,
+      backingResources: input.backingResources,
+      signal: input.signal,
+    });
+
+  const fooQ = projectFooQ(root, contentMap, {
+    params: input.params,
+  });
+
+  return {
+    fooQ,
     contentMap,
     islands,
     islandDependencies,

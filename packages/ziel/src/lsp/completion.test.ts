@@ -67,7 +67,7 @@ function tablesFrom(source: string) {
   const program = lowerProgram(model, sink);
   expect(sink.diagnostics.filter((d) => d.code.startsWith("LOWER"))).toEqual([]);
   const { scalars, resources } = analyzeProgram(program);
-  return { document, scalars, resources };
+  return { document, scalars, resources, program };
 }
 
 /** Offset immediately after `needle` (occurrence-th match). */
@@ -97,12 +97,15 @@ function offsetOf(source: string, needle: string, occurrence = 0): number {
 function labelsAt(
   source: string,
   offset: number,
-  tables?: ReturnType<typeof tablesFrom>
+  tables?: Omit<ReturnType<typeof tablesFrom>, "program"> & {
+    program?: ReturnType<typeof tablesFrom>["program"];
+  }
 ): string[] {
   const ctx = tables ?? tablesFrom(source);
   return completionsAtOffset(ctx.document, offset, {
     scalars: ctx.scalars,
     resources: ctx.resources,
+    program: ctx.program,
   }).map((i) => i.label);
 }
 
@@ -783,6 +786,115 @@ datasource CmsEntries {
   for Asset
 }
 `;
+
+describe("query context block completions", () => {
+  const QUERY_CONTEXT_FIXTURE = `
+scalar EntryId on string;
+scalar Locale on string;
+
+resource Entry(id: EntryId, locale: Locale): { id type: string }
+
+datasource CmsEntries {
+  context { locale: Locale }
+  for Entry
+}
+
+query Q(id: EntryId, locale: Locale, extra: string) {
+  context {
+    
+  }
+  root Entry(id: id, locale: locale)
+  on Entry e { id type }
+}
+`;
+
+  it("classifies inside query context as query-context-projection", () => {
+    const document = parseDocument(QUERY_CONTEXT_FIXTURE);
+    const offset = offsetAfter(QUERY_CONTEXT_FIXTURE, "context {\n    ");
+    const ctx = classifyCompletionContext(document, offset);
+    expect(ctx?.kind).toBe("query-context-projection");
+  });
+
+  it("suggests required missing fields and unused params", () => {
+    const { document, scalars, resources, program } = tablesFrom(QUERY_CONTEXT_FIXTURE);
+    const offset = offsetAfter(QUERY_CONTEXT_FIXTURE, "context {\n    ");
+    const items = completionsAtOffset(document, offset, { scalars, resources, program });
+    const byLabel = Object.fromEntries(items.map((i) => [i.label, i]));
+    expect(byLabel.locale?.detail).toMatch(/required by/);
+    expect(byLabel.locale?.kind).toBe(CompletionItemKind.Field);
+    expect(byLabel.extra?.detail).toBe("query param");
+    expect(byLabel.id?.detail).toBe("query param");
+  });
+
+  it("omits params already projected", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id }
+datasource CmsEntries {
+  context { locale: Locale }
+  for Entry
+}
+query Q(id: EntryId, locale: Locale, extra: string) {
+  context {
+    locale
+  }
+  root Entry(id: id, locale: locale)
+  on Entry e { id }
+}
+`;
+    const { document, scalars, resources, program } = tablesFrom(source);
+    const offset = offsetAfter(source, "locale\n  ");
+    const labels = completionsAtOffset(document, offset, { scalars, resources, program }).map(
+      (i) => i.label
+    );
+    expect(labels).not.toContain("locale");
+    expect(labels).toEqual(expect.arrayContaining(["extra", "id"]));
+  });
+
+  it("suggests unused params on alias RHS", () => {
+    const incomplete = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id }
+datasource CmsEntries {
+  context { locale: Locale }
+  for Entry
+}
+query Q(id: EntryId, lang: Locale, extra: string) {
+  context {
+    locale: 
+  }
+  root Entry(id: id, locale: lang)
+  on Entry e { id }
+}
+`;
+    const complete = `
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId, locale: Locale): { id }
+datasource CmsEntries {
+  context { locale: Locale }
+  for Entry
+}
+query Q(id: EntryId, lang: Locale, extra: string) {
+  context {
+    locale: lang
+  }
+  root Entry(id: id, locale: lang)
+  on Entry e { id }
+}
+`;
+    const document = parseDocument(incomplete);
+    const { scalars, resources, program } = tablesFrom(complete);
+    const offset = offsetAfter(incomplete, "context {\n    locale: ");
+    expect(classifyCompletionContext(document, offset)?.kind).toBe("query-context-alias-param");
+    const labels = completionsAtOffset(document, offset, { scalars, resources, program }).map(
+      (i) => i.label
+    );
+    expect(labels).toEqual(expect.arrayContaining(["lang", "extra", "id"]));
+  });
+});
 
 describe("datasource when path completions", () => {
   it("completes datasource context fields after context.", () => {

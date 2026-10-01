@@ -3,6 +3,8 @@
  * - MISSING_ON_PROJECTION → insert stub `on R b include properties { }`
  * - MISSING_CONTEXT → insert empty `context { }`
  * - EMPTY_ROOTS → insert empty `roots { }`
+ * - QUERY_CONTEXT_MISSING_DATASOURCE_FIELD → add param (if needed) + projection entry
+ * - QUERY_CONTEXT_UNUSED_FIELD → remove projection entry
  */
 import { AstUtils, CstUtils, type LangiumDocument } from "langium";
 import type { CodeActionProvider, LangiumServices } from "langium/lsp";
@@ -15,16 +17,24 @@ import type {
 } from "vscode-languageserver";
 import { CodeActionKind } from "vscode-languageserver";
 
-import type { QueryDefinition } from "../ir";
+import { formatType } from "../check/assignability";
+import { requiredQueryContextFields } from "../check/check-datasources";
+import type { FieldDecl, QueryDefinition, TypeExpr } from "../ir";
 import { isQueryDeclaration, type QueryDeclaration } from "../lang/generated/ast";
 import type { SemanticSnapshot, SemanticSnapshotCache } from "./semantic-snapshot";
 
 const MISSING_ON_CODE = "MISSING_ON_PROJECTION";
 const MISSING_CONTEXT_CODE = "MISSING_CONTEXT";
 const EMPTY_ROOTS_CODE = "EMPTY_ROOTS";
+const QUERY_CONTEXT_MISSING_CODE = "QUERY_CONTEXT_MISSING_DATASOURCE_FIELD";
+const QUERY_CONTEXT_UNUSED_CODE = "QUERY_CONTEXT_UNUSED_FIELD";
 
 type MissingOnDiagnostic = Diagnostic & {
   data: { missingResource: string };
+};
+
+type ContextFieldDiagnostic = Diagnostic & {
+  data: { contextField: string };
 };
 
 /** True when the LSP diagnostic carries structured `missingResource` data. */
@@ -42,6 +52,26 @@ export function isMissingContextDiagnostic(diagnostic: Diagnostic): boolean {
 
 export function isEmptyRootsDiagnostic(diagnostic: Diagnostic): boolean {
   return diagnostic.code === EMPTY_ROOTS_CODE;
+}
+
+export function isQueryContextMissingDiagnostic(
+  diagnostic: Diagnostic
+): diagnostic is ContextFieldDiagnostic {
+  if (diagnostic.code !== QUERY_CONTEXT_MISSING_CODE) {
+    return false;
+  }
+  const data = diagnostic.data as { contextField?: unknown } | undefined;
+  return typeof data?.contextField === "string" && data.contextField.length > 0;
+}
+
+export function isQueryContextUnusedDiagnostic(
+  diagnostic: Diagnostic
+): diagnostic is ContextFieldDiagnostic {
+  if (diagnostic.code !== QUERY_CONTEXT_UNUSED_CODE) {
+    return false;
+  }
+  const data = diagnostic.data as { contextField?: unknown } | undefined;
+  return typeof data?.contextField === "string" && data.contextField.length > 0;
 }
 
 /**
@@ -327,6 +357,149 @@ export function missingRootEditsForQuery(
   return [textEditAt(document, offset, emptyRootsInsertText())];
 }
 
+/** Print a type for insertion into `.ziel` source (scalar / primitive / simple shapes). */
+export function zielTypeSource(type: TypeExpr): string {
+  return formatType(type);
+}
+
+/**
+ * Offset just before the closing `}` of `query.context`, after the last projection
+ * (or after `{` when empty).
+ */
+export function contextProjectionInsertOffset(
+  query: QueryDeclaration,
+  source: string
+): number | undefined {
+  const block = query.context;
+  if (!block?.$cstNode) {
+    return undefined;
+  }
+  const last = block.projections[block.projections.length - 1];
+  if (last?.$cstNode) {
+    let i = last.$cstNode.end;
+    if (source[i] === "\r") i++;
+    if (source[i] === "\n") i++;
+    return i;
+  }
+  // Empty `context { }` — insert after `{` newline if present.
+  const open = block.$cstNode;
+  const text = source.slice(open.offset, open.end);
+  const brace = text.indexOf("{");
+  if (brace < 0) return undefined;
+  let i = open.offset + brace + 1;
+  if (source[i] === "\r") i++;
+  if (source[i] === "\n") i++;
+  return i;
+}
+
+/** Offset to insert a new parameter before the closing `)` of the query signature. */
+export function queryParamInsertOffset(query: QueryDeclaration): number | undefined {
+  const cst = query.$cstNode;
+  if (!cst) return undefined;
+  // Find the `)` that closes the parameter list — first `)` after `query Name`.
+  const text = cst.text;
+  const open = text.indexOf("(");
+  if (open < 0) return undefined;
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    const ch = text[i]!;
+    if (ch === "(") depth++;
+    else if (ch === ")") {
+      depth--;
+      if (depth === 0) {
+        return cst.offset + i;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Edits to add a missing context projection field (and param if absent).
+ * Uses required DS field type from the snapshot program when adding a param.
+ */
+export function addContextFieldEditsForQuery(
+  document: LangiumDocument,
+  query: QueryDeclaration,
+  contextField: string,
+  snapshot: SemanticSnapshot | undefined
+): TextEdit[] | undefined {
+  const source = document.textDocument.getText();
+  const edits: TextEdit[] = [];
+  const existingParams = new Set(query.parameters.map((p) => p.name));
+  const existingProjections = new Set((query.context?.projections ?? []).map((p) => p.contextName));
+
+  if (existingProjections.has(contextField)) {
+    return undefined;
+  }
+
+  // Ensure context block exists first (insert at body start).
+  if (!query.context) {
+    const ctxEdits = missingContextEditsForQuery(document, query);
+    if (!ctxEdits) return undefined;
+    edits.push(...ctxEdits);
+  }
+
+  if (!existingParams.has(contextField)) {
+    const ir = queryIr(query, snapshot);
+    let fieldType: FieldDecl | undefined;
+    if (snapshot && ir) {
+      fieldType = requiredQueryContextFields(snapshot.program, ir).fields.get(contextField);
+    }
+    const typeSrc = fieldType ? zielTypeSource(fieldType.type) : "string";
+    const paramOffset = queryParamInsertOffset(query);
+    if (paramOffset === undefined) return undefined;
+    const needsComma = query.parameters.length > 0;
+    const insertion = needsComma ? `, ${contextField}: ${typeSrc}` : `${contextField}: ${typeSrc}`;
+    edits.push(textEditAt(document, paramOffset, insertion));
+  }
+
+  // Re-resolve context block after potential empty insert is awkward in one shot —
+  // if we just inserted empty context, query.context is still undefined on AST.
+  // Insert projection into existing block, or into the freshly inserted stub via
+  // a combined edit when block was missing.
+  if (query.context) {
+    const insertAt = contextProjectionInsertOffset(query, source);
+    if (insertAt === undefined) return undefined;
+    edits.push(textEditAt(document, insertAt, `    ${contextField}\n`));
+  } else {
+    // Replace empty `context { }\n\n` we queued with a populated block.
+    const ctxEdit = edits.find((e) => e.newText === missingContextInsertText());
+    if (ctxEdit) {
+      ctxEdit.newText = `  context {\n    ${contextField}\n  }\n\n`;
+    }
+  }
+
+  // Apply later offsets first so earlier inserts stay valid when multiple edits.
+  return edits.sort(
+    (a, b) =>
+      document.textDocument.offsetAt(b.range.start) - document.textDocument.offsetAt(a.range.start)
+  );
+}
+
+/** Delete a single unused `ContextProjectionEntry` (and following newline). */
+export function removeContextFieldEditsForQuery(
+  document: LangiumDocument,
+  query: QueryDeclaration,
+  contextField: string
+): TextEdit[] | undefined {
+  const entry = query.context?.projections.find((p) => p.contextName === contextField);
+  const cst = entry?.$cstNode;
+  if (!cst) return undefined;
+  const source = document.textDocument.getText();
+  let end = cst.end;
+  if (source[end] === "\r") end++;
+  if (source[end] === "\n") end++;
+  const startPos = document.textDocument.positionAt(cst.offset);
+  const endPos = document.textDocument.positionAt(end);
+  return [
+    {
+      range: { start: startPos, end: endPos },
+      newText: "",
+    },
+  ];
+}
+
 export class ZielCodeActionProvider implements CodeActionProvider {
   constructor(
     _services: LangiumServices,
@@ -440,6 +613,48 @@ export class ZielCodeActionProvider implements CodeActionProvider {
         continue;
       }
       actions.push(quickFix("Add empty roots block", [diagnostic], uri, edits));
+    }
+
+    const missingContextFields = params.context.diagnostics.filter(isQueryContextMissingDiagnostic);
+    for (const diagnostic of missingContextFields) {
+      const offset = document.textDocument.offsetAt(diagnostic.range.start);
+      const query = queryAtOffset(document, offset);
+      if (!query) {
+        continue;
+      }
+      const edits = addContextFieldEditsForQuery(
+        document,
+        query,
+        diagnostic.data.contextField,
+        snapshot
+      );
+      if (!edits || edits.length === 0) {
+        continue;
+      }
+      actions.push(
+        quickFix(`Add context field '${diagnostic.data.contextField}'`, [diagnostic], uri, edits)
+      );
+    }
+
+    const unusedContextFields = params.context.diagnostics.filter(isQueryContextUnusedDiagnostic);
+    for (const diagnostic of unusedContextFields) {
+      const offset = document.textDocument.offsetAt(diagnostic.range.start);
+      const query = queryAtOffset(document, offset);
+      if (!query) {
+        continue;
+      }
+      const edits = removeContextFieldEditsForQuery(document, query, diagnostic.data.contextField);
+      if (!edits) {
+        continue;
+      }
+      actions.push(
+        quickFix(
+          `Remove unused context field '${diagnostic.data.contextField}'`,
+          [diagnostic],
+          uri,
+          edits
+        )
+      );
     }
 
     return actions.length > 0 ? actions : undefined;
