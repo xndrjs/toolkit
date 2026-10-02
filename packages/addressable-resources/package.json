@@ -1,13 +1,13 @@
 {
-  "name": "@xndrjs/application-resources",
+  "name": "@xndrjs/addressable-resources",
   "version": "0.2.0",
-  "description": "Framework-agnostic Application Resource Identifiers for core/application layers.",
+  "description": "Framework-agnostic Addressable Resource Identifiers (ARI) for typed resource identity.",
   "private": false,
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xndrjs/toolkit.git",
-    "directory": "packages/application-resources"
+    "directory": "packages/addressable-resources"
   },
   "type": "module",
   "types": "./dist/index.d.ts",

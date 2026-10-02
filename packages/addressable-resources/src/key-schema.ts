@@ -1,10 +1,10 @@
 /**
- * Minimal key-schema DSL for Application Resource Identifier coordinates.
- * Covers string/int/boolean/literal/enum/nullable/optional, flat objects, tuples, and unions.
+ * Minimal key-schema DSL for Addressable Resource Identifier coordinates.
+ * Covers string/int/boolean/literal/enum/nullable/optional, flat objects, and unions.
  * Not a general validation library — no refine, transform, or nested objects.
  */
 
-import type { ApplicationResourceKey } from "./types";
+import type { AddressableResourceKey } from "./types";
 
 export type KeySchemaIssue = {
   readonly path: readonly (string | number)[];
@@ -58,22 +58,14 @@ export type UnionSchema<Options extends readonly unknown[] = readonly unknown[]>
   readonly options: Options;
 };
 
-/** A single key part: leaf, flat object, or union of parts. */
-export type KeyPartSchema = LeafSchema | ObjectSchema | UnionSchema<readonly KeyPartSchema[]>;
-
-export type TupleSchema<Items extends readonly KeyPartSchema[] = readonly KeyPartSchema[]> = {
-  readonly kind: "tuple";
-  readonly items: Items;
-};
-
-/** Variable-length ARI key array (transport / wire shape). */
+/** Variable-length flat key object (transport / wire shape). */
 export type WireKeySchema = { readonly kind: "wireKey" };
 
-/** Full key schema: typically a tuple, or a union of locator shapes. */
+/** Full key schema: typically a flat object, or a union of locator shapes. */
 export type AnyKeySchema =
-  | KeyPartSchema
-  | TupleSchema
-  | UnionSchema<readonly (KeyPartSchema | TupleSchema)[]>
+  | LeafSchema
+  | ObjectSchema
+  | UnionSchema<readonly (LeafSchema | ObjectSchema)[]>
   | WireKeySchema;
 
 type InferNonNullLeafSchema<S> = S extends { readonly kind: "string" }
@@ -120,33 +112,18 @@ type InferObjectSchema<S> = S extends {
       >
   : never;
 
-type InferPartSchema<S> = S extends { readonly kind: "object" }
-  ? InferObjectSchema<S>
-  : S extends { readonly kind: "union"; readonly options: readonly (infer Option)[] }
-    ? InferPartSchema<Option>
-    : InferLeafSchema<S>;
-
-type InferTupleSchema<Items extends readonly unknown[]> = Items extends readonly [
-  infer Head,
-  ...infer Tail,
-]
-  ? readonly [InferPartSchema<Head>, ...InferTupleSchema<Tail>]
-  : readonly [];
-
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
 export type InferKeySchema<S> = S extends {
-  readonly kind: "tuple";
-  readonly items: infer Items extends readonly unknown[];
+  readonly kind: "union";
+  readonly options: readonly (infer Option)[];
 }
-  ? InferTupleSchema<Items>
-  : S extends { readonly kind: "union"; readonly options: readonly (infer Option)[] }
-    ? InferKeySchema<Option>
-    : S extends { readonly kind: "object" }
-      ? Simplify<InferObjectSchema<S>>
-      : S extends { readonly kind: "wireKey" }
-        ? ApplicationResourceKey
-        : InferLeafSchema<S>;
+  ? InferKeySchema<Option>
+  : S extends { readonly kind: "object" }
+    ? Simplify<InferObjectSchema<S>>
+    : S extends { readonly kind: "wireKey" }
+      ? AddressableResourceKey
+      : InferLeafSchema<S>;
 
 function fail(path: readonly (string | number)[], message: string): KeySchemaParseResult<never> {
   return { success: false, issues: [{ path, message }] };
@@ -271,44 +248,6 @@ function parseObject(
   return { success: true, value: data };
 }
 
-function parseKeyPart(
-  schema: KeyPartSchema,
-  input: unknown,
-  path: readonly (string | number)[]
-): KeySchemaParseResult<unknown> {
-  if (schema.kind === "object") {
-    return parseObject(schema, input, path);
-  }
-  if (schema.kind === "union") {
-    return parseUnion(schema as UnionSchema<readonly KeyPartSchema[]>, input, path);
-  }
-  return parseLeaf(schema, input, path);
-}
-
-function parseTuple(
-  schema: TupleSchema,
-  input: unknown,
-  path: readonly (string | number)[]
-): KeySchemaParseResult<readonly unknown[]> {
-  if (!Array.isArray(input)) {
-    return fail(path, "Expected array");
-  }
-  if (input.length !== schema.items.length) {
-    return fail(path, `Expected tuple of length ${schema.items.length}`);
-  }
-
-  const data: unknown[] = [];
-  for (let i = 0; i < schema.items.length; i++) {
-    const itemResult = parseKeyPart(schema.items[i]!, input[i], [...path, i]);
-    if (!itemResult.success) {
-      return itemResult;
-    }
-    data.push(itemResult.value);
-  }
-
-  return { success: true, value: data };
-}
-
 function parseUnion(
   schema: UnionSchema,
   input: unknown,
@@ -346,16 +285,16 @@ function parseWirePrimitive(
   return fail(path, "Expected string, number, boolean, or null");
 }
 
-function parseWireKeyObject(
+function parseWireKey(
   input: unknown,
   path: readonly (string | number)[]
-): KeySchemaParseResult<Record<string, string | number | boolean | null>> {
+): KeySchemaParseResult<AddressableResourceKey> {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     return fail(path, "Expected flat object");
   }
 
   const record = input as Record<string, unknown>;
-  const data: Record<string, string | number | boolean | null> = {};
+  const data: AddressableResourceKey = {};
 
   for (const key of Object.keys(record)) {
     const valueResult = parseWirePrimitive(record[key], [...path, key]);
@@ -368,46 +307,12 @@ function parseWireKeyObject(
   return { success: true, value: data };
 }
 
-function parseWireKeyPart(
-  input: unknown,
-  path: readonly (string | number)[]
-): KeySchemaParseResult<ApplicationResourceKey[number]> {
-  const primitiveResult = parseWirePrimitive(input, path);
-  if (primitiveResult.success) {
-    return primitiveResult;
-  }
-
-  return parseWireKeyObject(input, path);
-}
-
-function parseWireKey(
-  input: unknown,
-  path: readonly (string | number)[]
-): KeySchemaParseResult<ApplicationResourceKey> {
-  if (!Array.isArray(input)) {
-    return fail(path, "Expected array");
-  }
-
-  const data: ApplicationResourceKey[number][] = [];
-  for (let index = 0; index < input.length; index += 1) {
-    const partResult = parseWireKeyPart(input[index], [...path, index]);
-    if (!partResult.success) {
-      return partResult;
-    }
-    data.push(partResult.value);
-  }
-
-  return { success: true, value: data };
-}
-
 function parseAny(
   schema: AnyKeySchema,
   input: unknown,
   path: readonly (string | number)[] = []
 ): KeySchemaParseResult<unknown> {
   switch (schema.kind) {
-    case "tuple":
-      return parseTuple(schema, input, path);
     case "union":
       return parseUnion(schema, input, path);
     case "object":
@@ -415,7 +320,7 @@ function parseAny(
     case "wireKey":
       return parseWireKey(input, path);
     default:
-      return parseKeyPart(schema, input, path);
+      return parseLeaf(schema, input, path);
   }
 }
 
@@ -424,8 +329,8 @@ export function safeParse(schema: AnyKeySchema, input: unknown): KeySchemaParseR
   return parseAny(schema, input);
 }
 
-/** Schema for the transport shape of any ARI key (`ApplicationResourceKey`). */
-export const applicationResourceKeySchema: WireKeySchema = { kind: "wireKey" };
+/** Schema for the transport shape of any ARI key (`AddressableResourceKey`). */
+export const addressableResourceKeySchema: WireKeySchema = { kind: "wireKey" };
 
 export const s = {
   string(): StringSchema {
@@ -454,16 +359,13 @@ export const s = {
   object<const Shape extends Record<string, LeafSchema>>(shape: Shape): ObjectSchema<Shape> {
     return { kind: "object", shape };
   },
-  tuple<const Items extends readonly KeyPartSchema[]>(items: Items): TupleSchema<Items> {
-    return { kind: "tuple", items };
-  },
-  union<const Options extends readonly (KeyPartSchema | TupleSchema)[]>(
+  union<const Options extends readonly (LeafSchema | ObjectSchema)[]>(
     options: Options
   ): UnionSchema<Options> {
     return { kind: "union", options };
   },
-  /** Variable-length ARI key array (transport / wire shape). */
+  /** Flat ARI key object (transport / wire shape). */
   wireKey(): WireKeySchema {
-    return applicationResourceKeySchema;
+    return addressableResourceKeySchema;
   },
 } as const;

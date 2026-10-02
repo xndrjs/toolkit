@@ -9,19 +9,19 @@ describe("createAri", () => {
     expectTypeOf(resource.type).toEqualTypeOf<"task-permissions">();
   });
 
-  it("preserves the tuple type of key", () => {
+  it("preserves the object type of key", () => {
     const resource = createAri("task-permissions", {
       taskId: "task-123",
       userId: "user-456",
     });
 
-    expectTypeOf(resource.key[0]).toEqualTypeOf<{
+    expectTypeOf(resource.key).toEqualTypeOf<{
       readonly taskId: "task-123";
       readonly userId: "user-456";
     }>();
   });
 
-  it("returns [type, ...key] from toArray()", () => {
+  it("returns [type, key] from toArray()", () => {
     const resource = createAri("task-permissions", {
       taskId: "task-123",
       userId: "user-456",
@@ -36,15 +36,13 @@ describe("createAri", () => {
     ]);
   });
 
-  it("uses stable serialization in toString()", () => {
+  it("uses Type(field=value) serialization in toString()", () => {
     const resource = createAri("task-permissions", {
       taskId: "task-123",
       userId: "user-456",
     });
 
-    expect(resource.toString()).toBe(
-      '"task-permissions":[{"taskId":"task-123","userId":"user-456"}]'
-    );
+    expect(resource.toString()).toBe('task-permissions(taskId="task-123",userId="user-456")');
   });
 
   it("produces the same string when object keys are in different order", () => {
@@ -52,7 +50,24 @@ describe("createAri", () => {
     const right = createAri("task-permissions", { a: 1, b: 2 });
 
     expect(left.toString()).toBe(right.toString());
-    expect(left.toString()).toBe('"task-permissions":[{"a":1,"b":2}]');
+    expect(left.toString()).toBe("task-permissions(a=1,b=2)");
+  });
+
+  it("distinguishes string and number scalars in identity", () => {
+    const asString = createAri("Thing", { id: "42" });
+    const asNumber = createAri("Thing", { id: 42 });
+
+    expect(asString.toString()).toBe('Thing(id="42")');
+    expect(asNumber.toString()).toBe("Thing(id=42)");
+    expect(asString.equals(asNumber)).toBe(false);
+  });
+
+  it("formats empty object keys as Type()", () => {
+    const resource = createAri("tasks", {});
+
+    expect(resource.toString()).toBe("tasks()");
+    expect(resource.key).toEqual({});
+    expect(resource.toArray()).toEqual(["tasks", {}]);
   });
 
   it("compares equivalent resources with equals()", () => {
@@ -65,44 +80,25 @@ describe("createAri", () => {
   });
 
   it("clones the key so caller mutations do not affect the resource", () => {
-    const keyPart = { taskId: "task-123", userId: "user-456" as string | null };
+    const key = { taskId: "task-123", userId: "user-456" as string | null };
 
-    const resource = createAri("task-permissions", keyPart);
+    const resource = createAri("task-permissions", key);
 
-    keyPart.taskId = "mutated";
-    keyPart.userId = "mutated";
+    key.taskId = "mutated";
+    key.userId = "mutated";
 
-    expect(resource.key[0]).toEqual({ taskId: "task-123", userId: "user-456" });
-    expect(resource.key[0]).not.toBe(keyPart);
-    expect(Object.isFrozen(keyPart)).toBe(false);
+    expect(resource.key).toEqual({ taskId: "task-123", userId: "user-456" });
+    expect(resource.key).not.toBe(key);
+    expect(Object.isFrozen(key)).toBe(false);
   });
 
-  it("accepts multiple key parts as rest arguments", () => {
-    const resource = createAri("task-permissions", { taskId: "task-123" }, "scope");
-
-    expect(resource.key).toEqual([{ taskId: "task-123" }, "scope"]);
-    expect(resource.toArray()).toEqual(["task-permissions", { taskId: "task-123" }, "scope"]);
-  });
-
-  it("accepts an empty key via no rest arguments", () => {
-    const resource = createAri("tasks");
-
-    expect(resource.key).toEqual([]);
-    expect(resource.toArray()).toEqual(["tasks"]);
-  });
-
-  it("freezes the stored key array and object parts", () => {
-    const resource = createAri("task-permissions", { taskId: "task-123" }, "scope");
+  it("freezes the stored key object", () => {
+    const resource = createAri("task-permissions", { taskId: "task-123" });
 
     expect(Object.isFrozen(resource.key)).toBe(true);
-    expect(Object.isFrozen(resource.key[0])).toBe(true);
 
     expect(() => {
-      (resource.key[0] as { taskId: string }).taskId = "mutated";
-    }).toThrow(TypeError);
-
-    expect(() => {
-      (resource.key as unknown as string[]).push("extra");
+      (resource.key as { taskId: string }).taskId = "mutated";
     }).toThrow(TypeError);
   });
 });

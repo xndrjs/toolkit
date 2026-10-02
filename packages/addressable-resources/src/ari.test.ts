@@ -11,9 +11,9 @@ describe("ari factory", () => {
     const resource = integrationProductAri({ sku: "TSHIRT-1" });
 
     expect(resource.type).toBe("integration.product");
-    expect(resource.key).toEqual([{ sku: "TSHIRT-1" }]);
+    expect(resource.key).toEqual({ sku: "TSHIRT-1" });
     expectTypeOf(resource.type).toEqualTypeOf<"integration.product">();
-    expectTypeOf(resource.key[0]!.sku).toEqualTypeOf<string>();
+    expectTypeOf(resource.key.sku).toEqualTypeOf<string>();
   });
 
   it("throws AriKeySchemaError when create key is invalid", () => {
@@ -30,24 +30,29 @@ describe("ari factory", () => {
     expect(integrationProductAri.matches(wrongKey)).toBe(false);
 
     if (integrationProductAri.matches(ok)) {
-      expectTypeOf(ok.key[0].sku).toEqualTypeOf<string>();
+      expectTypeOf(ok.key.sku).toEqualTypeOf<string>();
     }
   });
 
-  it("exposes type and keySchema as an auto-wrapped tuple", () => {
+  it("exposes type and the object identity schema (not a tuple)", () => {
     expect(integrationProductAri.type).toBe("integration.product");
-    expect(integrationProductAri.keySchema.kind).toBe("tuple");
-    expect(integrationProductAri.keySchema.items).toHaveLength(1);
+    expect(integrationProductAri.keySchema.kind).toBe("object");
+    expect(Object.keys(integrationProductAri.keySchema.shape)).toEqual(["sku"]);
   });
 
-  it("supports empty family keys and multi-part keys via rest schemas", () => {
-    const postsAll = ari("posts");
-    const postsById = ari("posts", s.object({ id: s.string() }));
-    const scoped = ari("scoped", s.object({ id: s.string() }), s.literal("v1"));
+  it("rejects multi-schema / empty-key factory forms at the type level", () => {
+    // @ts-expect-error -- ari requires exactly one object identity schema
+    ari("posts");
 
-    expect(postsAll().key).toEqual([]);
-    expect(postsById({ id: "1" }).key).toEqual([{ id: "1" }]);
-    expect(scoped({ id: "1" }, "v1").key).toEqual([{ id: "1" }, "v1"]);
+    // @ts-expect-error -- multi-segment schemas are not allowed
+    ari("scoped", s.object({ id: s.string() }), s.literal("v1"));
+
+    // @ts-expect-error -- leaf schemas are not identity keys
+    ari("count", s.int());
+  });
+
+  it("rejects types that contain parentheses", () => {
+    expect(() => ari("bad(type)", s.object({ id: s.string() }))).toThrow(/must not contain/);
   });
 
   it("parseString round-trips toString()", () => {
@@ -71,7 +76,7 @@ describe("ari factory", () => {
     );
     expect(invalidSku.success).toBe(false);
     if (!invalidSku.success) {
-      expect(invalidSku.issues[0]?.path).toEqual([0, "sku"]);
+      expect(invalidSku.issues[0]?.path).toEqual(["sku"]);
     }
 
     const wrongType = integrationProductAri.safeParseString(

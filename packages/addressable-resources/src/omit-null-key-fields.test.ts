@@ -4,7 +4,7 @@ import { createAri } from "./create-ari";
 import { omitNullKeyFields } from "./omit-null-key-fields";
 
 describe("omitNullKeyFields", () => {
-  it("removes null fields from object key parts in a toArray() projection", () => {
+  it("removes null fields from the identity key in a toArray() projection", () => {
     const resource = createAri("task-permissions", {
       taskId: "task-123",
       userId: null,
@@ -23,8 +23,8 @@ describe("omitNullKeyFields", () => {
     >();
   });
 
-  it("leaves non-null object fields and primitive key parts unchanged", () => {
-    const resource = createAri("task-permissions", "scope", {
+  it("leaves non-null object fields unchanged", () => {
+    const resource = createAri("task-permissions", {
       taskId: "task-123",
       userId: "user-456",
       archived: false,
@@ -32,7 +32,6 @@ describe("omitNullKeyFields", () => {
 
     expect(omitNullKeyFields(resource.toArray())).toEqual([
       "task-permissions",
-      "scope",
       {
         taskId: "task-123",
         userId: "user-456",

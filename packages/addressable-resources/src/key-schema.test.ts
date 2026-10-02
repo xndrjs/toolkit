@@ -60,51 +60,36 @@ describe("key schema DSL", () => {
     expect(safeParse(schema, { id: "x", n: 1, extra: true }).success).toBe(false);
   });
 
-  it("parses key tuples", () => {
-    const schema = s.tuple([s.object({ sku: s.string() })]);
-    expect(safeParse(schema, [{ sku: "TSHIRT-1" }])).toEqual({
-      success: true,
-      value: [{ sku: "TSHIRT-1" }],
-    });
-    expect(safeParse(schema, []).success).toBe(false);
-    expect(safeParse(s.tuple([]), [])).toEqual({ success: true, value: [] });
-  });
-
-  it("parses wire keys for transport shape", () => {
+  it("parses wire keys as flat objects", () => {
     const schema = s.wireKey();
-    expect(safeParse(schema, [])).toEqual({ success: true, value: [] });
-    expect(safeParse(schema, [{ id: "1" }, "scope", 42, true, null])).toEqual({
+    expect(safeParse(schema, {})).toEqual({ success: true, value: {} });
+    expect(safeParse(schema, { id: "1", scope: "x", n: 42, on: true, archived: null })).toEqual({
       success: true,
-      value: [{ id: "1" }, "scope", 42, true, null],
+      value: { id: "1", scope: "x", n: 42, on: true, archived: null },
     });
-    expect(safeParse(schema, [[1]]).success).toBe(false);
-    expect(safeParse(schema, [{ nested: { id: "1" } }]).success).toBe(false);
-    expect(safeParse(schema, "not-array").success).toBe(false);
+    expect(safeParse(schema, [{ id: "1" }]).success).toBe(false);
+    expect(safeParse(schema, { nested: { id: "1" } }).success).toBe(false);
+    expect(safeParse(schema, "not-object").success).toBe(false);
   });
 
   it("parses unions first-success", () => {
-    const schema = s.union([
-      s.tuple([s.object({ id: s.string() })]),
-      s.tuple([s.object({ userId: s.string() })]),
-      s.tuple([]),
-    ]);
+    const schema = s.union([s.object({ id: s.string() }), s.object({ userId: s.string() })]);
 
-    expect(safeParse(schema, [{ id: "1" }])).toEqual({
+    expect(safeParse(schema, { id: "1" })).toEqual({
       success: true,
-      value: [{ id: "1" }],
+      value: { id: "1" },
     });
-    expect(safeParse(schema, [{ userId: "u" }])).toEqual({
+    expect(safeParse(schema, { userId: "u" })).toEqual({
       success: true,
-      value: [{ userId: "u" }],
+      value: { userId: "u" },
     });
-    expect(safeParse(schema, [])).toEqual({ success: true, value: [] });
-    expect(safeParse(schema, [{ other: "x" }]).success).toBe(false);
+    expect(safeParse(schema, { other: "x" }).success).toBe(false);
   });
 
   it("infers output types", () => {
-    const _schema = s.tuple([s.object({ sku: s.string() })]);
+    const _schema = s.object({ sku: s.string() });
     type Out = InferKeySchema<typeof _schema>;
-    expectTypeOf<Out[number]>().toEqualTypeOf<{ readonly sku: string }>();
+    expectTypeOf<Out>().toEqualTypeOf<{ readonly sku: string }>();
 
     const _enumSchema = s.enum(["EUR", "USD"] as const);
     expectTypeOf<InferKeySchema<typeof _enumSchema>>().toEqualTypeOf<"EUR" | "USD">();

@@ -2,27 +2,25 @@ export { ari, AriKeySchemaError, AriParseError, type AriFactory, type AriKeySche
 export {
   s,
   safeParse,
-  applicationResourceKeySchema,
+  addressableResourceKeySchema,
   type AnyKeySchema,
   type InferKeySchema,
   type KeySchemaIssue,
   type KeySchemaParseResult,
   type LeafSchema,
-  type TupleSchema,
+  type ObjectSchema,
   type WireKeySchema,
 } from "./key-schema";
 export { omitNullKeyFields } from "./omit-null-key-fields";
 export {
   formatKeySchemaIssues,
-  parseStableStringifyResource,
-  safeParseStableStringifyResource,
-  type StableStringifyResource,
-} from "./parse-stable-stringify";
-export { stableStringifyResource } from "./stable-stringify";
+  parseAriString,
+  safeParseAriString,
+  type ParsedAriString,
+} from "./parse-ari-string";
+export { formatAriString } from "./format-ari-string";
 export type {
-  ApplicationResourceIdentifier,
-  ApplicationResourceKey,
-  ApplicationResourceKeyObject,
-  ApplicationResourceKeyPart,
-  ApplicationResourcePrimitive,
+  AddressableResourceIdentifier,
+  AddressableResourceKey,
+  AddressableResourcePrimitive,
 } from "./types";
