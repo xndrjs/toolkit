@@ -373,6 +373,18 @@ Prefer cohesive paragraphs over sequences of isolated one-line statements.
 
 Short standalone sentences are useful for emphasis, but should be rare enough to remain effective.
 
+Avoid **staccato prose**: a sequence of short declarative sentences that all have the same shape, repeat the same modal verb, or read like bullet points separated by periods. This is especially mechanical when several adjacent sentences enumerate possibilities one at a time:
+
+> The root may come from one system. A child may come from another. A link may require decoding. A product may require another API.
+
+When those observations belong to one thought, connect them into a naturally paced sentence or paragraph:
+
+> The root may come from one system while its children come from another; some links can be followed directly, whereas others must be decoded before the target resource is even known.
+
+Vary sentence length and structure. Let clauses express relationships such as contrast, consequence, qualification, and accumulation instead of resetting the rhythm with a full stop after every fact. Do not merely join unrelated sentences to make them longer: the goal is natural argumentative flow, not syntactic bulk.
+
+Use a short sentence when it creates deliberate emphasis. Avoid several emphatic short sentences in succession, because the effect quickly becomes mechanical.
+
 Avoid excessively long paragraphs.
 
 Technical density is acceptable, but the reasoning should remain easy to follow.
@@ -443,5 +455,6 @@ Before finalizing an article, ask:
 - Is there at least one idea the reader can carry into systems unrelated to the specific technology?
 - Does the conclusion follow from the journey rather than merely repeat the introduction?
 - Are names introduced only after the thing has been demonstrated?
+- Does the prose have a natural rhythm, or do any paragraphs read like bullet lists with periods?
 
 If the article could have been written without any real engineering experience behind it, it is probably still too generic.
