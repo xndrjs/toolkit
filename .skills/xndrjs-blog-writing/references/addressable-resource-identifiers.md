@@ -1,0 +1,1 @@
+../../../apps/xndrjs-documentation/src/content/docs/blog/from-query-keys-to-addressable-resource-identifiers.md

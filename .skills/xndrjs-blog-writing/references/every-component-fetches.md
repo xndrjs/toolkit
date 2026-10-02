@@ -1,0 +1,1 @@
+../../../apps/xndrjs-documentation/src/content/docs/blog/every-component-fetches-its-own-data-until-it-cant.md

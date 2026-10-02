@@ -1,0 +1,1 @@
+../../../apps/xndrjs-documentation/src/content/docs/blog/five-elements-of-resource-graph-resolution-in-a-clean-architecture-monorepo.md

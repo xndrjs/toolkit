@@ -1,0 +1,7 @@
+interface:
+  display_name: "xndrjs Blog Writing"
+  short_description: "Architectural discovery-style blog writing"
+  default_prompt: "Use $xndrjs-blog-writing to draft or edit this article in the blog's architectural discovery style."
+
+policy:
+  allow_implicit_invocation: true
