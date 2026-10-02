@@ -1,13 +1,13 @@
 ---
 /**
- * Graphic Clean Architecture map for the splash homepage.
- * Core → edge (top → bottom): Modeling → Application → Infrastructure.
+ * Capability-oriented package map for the splash homepage.
+ * Groups packages by problem domain rather than architectural layer.
  */
-const layers = [
+const sections = [
   {
-    id: "domain",
-    label: "Domain Layer",
-    blurb: "Business meaning, trusted data, and the rules that keep them correct",
+    id: "modeling",
+    label: "Modeling",
+    blurb: "Domain models, invariants, and schema-backed guarantees",
     href: "/latest/domain/overview/",
     packages: [
       { name: "domain", href: "/latest/domain/overview/" },
@@ -17,44 +17,61 @@ const layers = [
     ],
   },
   {
-    id: "application",
-    label: "Application Layer",
-    blurb: "Application-level contracts, independent of UI and IO details",
+    id: "resource-orchestration",
+    label: "Resource Orchestration",
+    blurb: "Addressable resources, graph resolution, and declarative orchestration",
     href: "/latest/application/application-resources/",
     packages: [
-      { name: "application-resources", href: "/latest/application/application-resources/" },
+      { name: "addressable-resources", href: "/latest/application/application-resources/" },
+      { name: "resource-graph-resolver", href: "/latest/infrastructure/resource-graph-resolver/" },
+      { name: "ziel", href: "/latest/infrastructure/ziel/" },
     ],
   },
   {
-    id: "infrastructure",
-    label: "Infrastructure Layer",
-    blurb: "Frameworks, IO, and external systems that plug into the layers above",
+    id: "localization",
+    label: "Localization",
+    blurb: "Localization primitives and framework integrations",
+    href: "/latest/infrastructure/i18n/",
+    packages: [
+      { name: "i18n", href: "/latest/infrastructure/i18n/" },
+      { name: "i18n-react", href: "/latest/infrastructure/i18n/react/" },
+    ],
+  },
+  {
+    id: "integrations",
+    label: "Integrations",
+    blurb: "Bridges between external systems and xndrjs",
+    href: "/latest/infrastructure/contentful-to-zod/",
+    packages: [
+      { name: "contentful-to-zod", href: "/latest/infrastructure/contentful-to-zod/" },
+    ],
+  },
+  {
+    id: "concurrency",
+    label: "Concurrency / Workflows",
+    blurb: "Task composition and controlled concurrent execution",
     href: "/latest/infrastructure/tasks/",
     packages: [
       { name: "tasks", href: "/latest/infrastructure/tasks/" },
-      { name: "resource-graph-resolver", href: "/latest/infrastructure/resource-graph-resolver/" },
-      { name: "i18n", href: "/latest/infrastructure/i18n/" },
-      { name: "i18n-react", href: "/latest/infrastructure/i18n/react/" },
-      { name: "contentful-to-zod", href: "/latest/infrastructure/contentful-to-zod/" },
     ],
   },
 ] as const;
 ---
 
-<figure class="arch-map not-content" aria-label="Clean Architecture package map">
+<figure class="arch-map not-content" aria-label="xndrjs package map by capability">
   <div class="arch-map__rings">
     {
-      layers.map((layer) => (
-        <div class:list={["arch-map__ring", `arch-map__ring--${layer.id}`]}>
+      sections.map((section) => (
+        <div class:list={["arch-map__ring", `arch-map__ring--${section.id}`]}>
           <div class="arch-map__ring-head">
-            <a class="arch-map__layer-link" href={layer.href}>
-              <span class="arch-map__layer-name">{layer.label}</span>
-              <span class="arch-map__layer-blurb">{layer.blurb}</span>
+            <a class="arch-map__layer-link" href={section.href}>
+              <span class="arch-map__layer-name">{section.label}</span>
+              <span class="arch-map__layer-blurb">{section.blurb}</span>
             </a>
           </div>
           {/* div grid — avoid Starlight markdown `ul`/`li` spacing that misaligns the first item */}
           <div class="arch-map__packages">
-            {layer.packages.map((pkg) => (
+            {section.packages.map((pkg) => (
               <a class="arch-map__package" href={pkg.href}>
                 <span class="arch-map__scope">@xndrjs/</span>
                 <span class="arch-map__pkg">{pkg.name}</span>
@@ -90,16 +107,24 @@ const layers = [
     border-color: var(--ring-accent);
   }
 
-  .arch-map__ring--domain {
+  .arch-map__ring--modeling {
     --ring-accent: var(--sl-color-green, #3dd68c);
   }
 
-  .arch-map__ring--application {
+  .arch-map__ring--resource-orchestration {
     --ring-accent: var(--sl-color-orange, #f5a524);
   }
 
-  .arch-map__ring--infrastructure {
+  .arch-map__ring--localization {
     --ring-accent: var(--sl-color-accent-high, #7c9cff);
+  }
+
+  .arch-map__ring--integrations {
+    --ring-accent: var(--sl-color-purple, #b57bff);
+  }
+
+  .arch-map__ring--concurrency {
+    --ring-accent: var(--sl-color-red, #f76c6c);
   }
 
   .arch-map__ring-head {
