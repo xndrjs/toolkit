@@ -422,6 +422,66 @@ The compiler does not invent application behavior; it keeps several interpretati
 
 ---
 
+## Ziel is not a GraphQL clone
+
+At this point, the resemblance to GraphQL is hard to ignore.
+
+Both languages let an application describe a shape of data instead of manually orchestrating every request. Both can express nested relationships, conditional structure, and a result whose type follows the declaration. If Ziel had emerged without GraphQL existing, some of its ideas would still look familiar for good reason.
+
+> **The important difference is not syntax. It is the execution boundary.**
+
+A GraphQL operation is evaluated against a GraphQL schema. However the server obtains the underlying data (through database queries, REST calls, other services, or further GraphQL requests) that integration sits behind the GraphQL execution layer.
+
+Ziel starts from a different situation: the application already has several independently addressable resource families and several ways of materializing them, but no single backend exposes the aggregate it needs.
+
+```text
+GraphQL
+
+operation
+   ↓
+GraphQL execution boundary
+   ↓
+resolvers / subgraphs / connectors
+   ↓
+data sources
+   ↓
+response
+```
+
+```text
+Ziel
+
+resource-graph query
+   ↓
+resolution session
+   ↓
+resource identities are discovered progressively
+   ↓
+data sources / loaders
+   ↓
+more identities may be discovered
+   ↓
+closure
+   ↓
+projection
+```
+
+This distinction matters when the shape of the work is itself discovered while resources are being resolved. A Ziel query does not need to become one progressively larger transport query: loading an Entry may reveal ten more Entries, which may in turn reveal Assets or resources owned by another system. The resolver can schedule that work incrementally, batch compatible identities, deduplicate branches that converge on the same address, and stop when no further work remains.
+
+GraphQL can of course orchestrate heterogeneous systems as well. A well-designed GraphQL API or BFF may be exactly the right solution, especially when several clients should share one stable application schema.
+
+> **That was simply not the boundary I needed.**
+
+The systems I was working with already exposed REST APIs, GraphQL APIs, SDKs, caches, and integration services. Building another backend solely to move orchestration away from the frontend would have solved the ownership problem by relocating it, but it would also have introduced another service to design, deploy, operate, and evolve.
+
+Ziel lets that orchestration live with the application while keeping transport-specific work behind data sources. This also means that GraphQL is not something Ziel needs to replace: a GraphQL endpoint can be one of its loaders just as easily as a REST API, database adapter, SDK, filesystem reader, or in-memory fixture.
+
+The relationship is therefore less **"Ziel versus GraphQL"** and more **"GraphQL can be one way of materializing resources inside a Ziel resolution".**
+
+The two abstractions overlap, but they make different things primary. GraphQL starts from a schema exposed through a GraphQL execution boundary, whereas Ziel starts from addressable resources and asks how an application can resolve the aggregate it needs across whatever execution boundaries already exist.
+
+---
+
 ## Ziel is intentionally not a general-purpose language
 
 Once a language can describe recursive expansion, conditional branches, and intermediate redirects, it is easy to ask whether every calculation should move into it.
