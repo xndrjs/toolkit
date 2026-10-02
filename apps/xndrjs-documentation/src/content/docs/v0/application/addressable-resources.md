@@ -1,15 +1,21 @@
 ---
-title: Application resources
-description: The @xndrjs/application-resources package — framework-agnostic resource identifiers for the application layer.
+title: Addressable resources
+description: The @xndrjs/addressable-resources package — framework-agnostic resource identifiers for the application layer.
 ---
 
-`@xndrjs/application-resources` models **Application Resource Identifiers** (ARIs): small, stable values that name _what_ became stale in your app — without importing cache libraries, UI frameworks, HTTP clients, or other infrastructure.
+`@xndrjs/addressable-resources` models **Addressable Resource Identifiers** (ARIs): small, stable values that name _what_ became stale in your app — without importing cache libraries, UI frameworks, HTTP clients, or other infrastructure.
 
 Use them when different parts of the app need to refer to the same logical resource — loaders, invalidators, logs, events — without each layer inventing its own tuple or string.
 
 Every layer of the application should refer to the same resource using the same identifier.
 
-For motivation and layer boundaries, see [From Query Keys to Application Resource Identifiers](/blog/from-query-keys-to-application-resource-identifiers/).
+For motivation and layer boundaries, see [From Query Keys to Addressable Resource Identifiers](/blog/from-query-keys-to-addressable-resource-identifiers/).
+
+:::note[Package rename]
+
+`@xndrjs/application-resources` is succeeded by `@xndrjs/addressable-resources`. Deprecate the old package on npm yourself (`npm deprecate …`); do not unpublish. There is no re-export shim under the old name.
+
+:::
 
 ## Where it fits
 
@@ -18,30 +24,30 @@ For motivation and layer boundaries, see [From Query Keys to Application Resourc
 | **Application**    | Define resource factories, use cases, and ports such as `ResourceInvalidator`           |
 | **Infrastructure** | Implement invalidation adapters (client cache, SSR store, …) using `resource.toArray()` |
 
-`@xndrjs/application-resources` belongs in the **application layer**. It has zero runtime dependencies and no opinion about how stale data is refreshed.
+`@xndrjs/addressable-resources` belongs in the **application layer**. It has zero runtime dependencies and no opinion about how stale data is refreshed.
 
 ## Installation
 
 ```bash
-pnpm add @xndrjs/application-resources
+pnpm add @xndrjs/addressable-resources
 ```
 
 ## Concepts
 
 An ARI has:
 
-- **`type`** — a stable string literal for the resource family (`"post-comments"`, `"post-list"`, …);
-- **`key`** — a readonly array of structural parts that identify a specific instance or scope;
-- **`toArray()`** — returns `[type, ...key]` for adapters;
+- **`type`** — a stable string naming the resource family (may contain dots; must not contain `(` / `)`);
+- **`key`** — a frozen flat object that identifies a specific instance;
+- **`toArray()`** — returns `[type, key]` for external adapters (for example TanStack Query);
 - **`toString()`** — canonical stable identity string (map keys, cache, dedup, logs);
 - **`equals(other)`** — structural equality via the same stable serialization.
 
-`type` and `key` stay separate in the public model. Define a typed family with **`ari(type, ...schemas)`**; create instances with **`factory(...keyParts)`**.
+Define typed resource families with **`ari(type, objectSchema)`** and the key-schema DSL **`s`**. Each factory validates keys on create, exposes **`matches`**, and can **`parseString`** / **`safeParseString`** round-trip instances from `toString()` output.
 
 ## Defining resources
 
 ```ts
-import { ari, s } from "@xndrjs/application-resources";
+import { ari, s } from "@xndrjs/addressable-resources";
 
 export const postCommentsAri = ari(
   "post-comments",
@@ -65,49 +71,44 @@ Factory helpers:
 - **`parseString(formatted)`** — rebuild from `toString()` output (throws on invalid input);
 - **`safeParseString(formatted)`** — same round-trip with structured `{ success, value }` or `{ success, issues }`.
 
-### Stable identity string
+### Canonical identity string
 
-`toString()` is the canonical wire form for map keys, cache entries, logs, and dedup. Format:
-
-```
-"<type>":<json-key-array>
-```
-
-Example:
+`toString()` returns `Type(field=value,field=value,...)` with **lexicographic** field order and JSON scalar encoding (`"str"`, `42`, `true`, `null`):
 
 ```ts
 const resource = postCommentsAri({ postId: "p1", authorId: "a1" });
 
 resource.toString();
-// "\"post-comments\":[{\"postId\":\"p1\",\"authorId\":\"a1\"}]"
+// post-comments(authorId="a1",postId="p1")
 
 postCommentsAri.parseString(resource.toString()).equals(resource); // true
 
 const parsed = postCommentsAri.safeParseString(resource.toString());
 if (parsed.success) {
-  parsed.value; // ApplicationResourceIdentifier
+  parsed.value; // AddressableResourceIdentifier
 }
 ```
 
-For untyped parse/build (for example log replay or generic caches), use **`parseStableStringifyResource`** / **`safeParseStableStringifyResource`** and **`stableStringifyResource`**.
+`Thing(id="42")` and `Thing(id=42)` are distinct identities.
 
-:::note[Migration from earlier previews]
+For untyped parse/build (for example log replay or generic caches), use **`formatAriString`**, **`parseAriString`**, and **`safeParseAriString`**.
 
-- **`defineAri`** → **`ari`**
-- **`format()`** → **`toString()`**
-- Low-level **`ari(type, ...keyParts)`** → **`ari(type, schema)(...keyParts)`**
-  :::
+### Allowed keys
 
-### Allowed key parts
+The identity key is a flat object whose values may be:
 
-Each key part may be:
+- a serializable primitive: `string`, `number`, `boolean`, `null`.
 
-- a serializable primitive: `string`, `number`, `boolean`, `null`;
-- a simple object whose values are only those primitives (no nesting).
+Not allowed:
 
-Not allowed: `undefined`, nested arrays, nested objects, functions, symbols, `Date`, `Map`, `Set`, class instances.
+- `undefined`;
+- nested arrays or objects;
+- functions, symbols, `Date`, `Map`, `Set`, class instances;
+- multi-segment / tuple keys.
 
-Normalize optional values to `null` or an explicit wildcard instead of leaving them `undefined`.
+Normalize optional values to `null` or an explicit wildcard instead of leaving them `undefined`. Access fields as `resource.key.postId` — not `resource.key[0]`.
+
+`ari` requires exactly one `s.object({...})` identity schema. Key schema builders (`s`): `string`, `int`, `boolean`, `nullable`, `optional`, `literal`, `enum`, `object` (flat), plus `union` when you need alternate locator shapes for `safeParse`.
 
 ## Invalidation port
 
@@ -177,7 +178,7 @@ export class TanStackResourceInvalidator implements ResourceInvalidator {
 }
 ```
 
-When an adapter needs a wider cache match (for example an open dimension represented as `null` in a canonical key), project with `omitNullKeyFields(resource.toArray())` — that policy belongs in the adapter, not in the resource factory. The package does not depend on TanStack Query.
+`resource.toArray()` is `[type, keyObject]`. When an adapter needs a wider cache match (for example an open dimension represented as `null` in a canonical key), project with `omitNullKeyFields(resource.toArray())` — that policy belongs in the adapter, not in the resource factory. The package does not depend on TanStack Query.
 
 ## API
 
@@ -186,10 +187,8 @@ Exported symbols:
 - **`ari`** / **`AriFactory`** / **`AriKeySchemaError`** / **`AriParseError`**
 - **`s`** / **`safeParse`** / **`InferKeySchema`**
 - **`parseString`** / **`safeParseString`** on factories
-- **`stableStringifyResource`** / **`parseStableStringifyResource`** / **`safeParseStableStringifyResource`**
+- **`formatAriString`** / **`parseAriString`** / **`safeParseAriString`**
 - **`omitNullKeyFields`**
-- **`ApplicationResourceIdentifier`**
-- **`ApplicationResourceKey`**
-- **`ApplicationResourceKeyPart`**
-- **`ApplicationResourcePrimitive`**
-- **`ApplicationResourceKeyObject`**
+- **`AddressableResourceIdentifier`**
+- **`AddressableResourceKey`**
+- **`AddressableResourcePrimitive`**

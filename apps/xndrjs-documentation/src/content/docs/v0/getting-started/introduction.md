@@ -85,7 +85,7 @@ See the map on the [homepage](/) for the full package layout.
 
 **Application**
 
-- `@xndrjs/application-resources`: application resource identifiers shared across use cases and adapters, without cache or UI coupling.
+- `@xndrjs/addressable-resources`: addressable resource identifiers shared across use cases and adapters, without cache or UI coupling.
 
 **Infrastructure**
 
@@ -106,4 +106,4 @@ Use `xndrjs` when you want:
 - small libraries you can adopt one responsibility at a time
 - adapters and delivery tools that stay replaceable at the edge
 
-Next: explore the [homepage map](/), then dive into the layer that matches your need — [Domain overview](/v0/domain/overview/), [Application resources](/v0/application/application-resources/), or [Tasks](/v0/infrastructure/tasks/).
+Next: explore the [homepage map](/), then dive into the layer that matches your need — [Domain overview](/v0/domain/overview/), [Addressable resources](/v0/application/addressable-resources/), or [Tasks](/v0/infrastructure/tasks/).

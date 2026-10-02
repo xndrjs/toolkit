@@ -25,14 +25,14 @@ Workspace-wide scripts (install, build, test, release) run from the **repository
 
 ## Packages
 
-| Package                           | Description                                                                      |
-| --------------------------------- | -------------------------------------------------------------------------------- |
-| `@xndrjs/domain`                  | Validator-agnostic shapes, primitives, proofs, capabilities (`packages/domain`)  |
-| `@xndrjs/domain-zod`              | Zod 4 adapter; re-exports domain (`packages/domain-zod`)                         |
-| `@xndrjs/domain-valibot`          | Valibot adapter; re-exports domain (`packages/domain-valibot`)                   |
-| `@xndrjs/tasks`                   | Lazy async tasks with retry (`packages/tasks`)                                   |
-| `@xndrjs/orchestration`           | Orchestration ports (`packages/orchestration`)                                   |
-| `@xndrjs/react-adapter`           | React hooks for orchestration ports (`packages/react-adapter`)                   |
-| `@xndrjs/addressable-resources`   | Addressable resource identifiers (`packages/addressable-resources`)              |
-| `@xndrjs/resource-graph-resolver` | Resource graph resolver, islands, expansion (`packages/resource-graph-resolver`) |
-| `@xndrjs/contentful-to-zod`       | Zod 4 codegen from Contentful content types (`packages/contentful-to-zod`)       |
+| Package                           | Description                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `@xndrjs/domain`                  | Validator-agnostic shapes, primitives, proofs, capabilities (`packages/domain`)                               |
+| `@xndrjs/domain-zod`              | Zod 4 adapter; re-exports domain (`packages/domain-zod`)                                                      |
+| `@xndrjs/domain-valibot`          | Valibot adapter; re-exports domain (`packages/domain-valibot`)                                                |
+| `@xndrjs/tasks`                   | Lazy async tasks with retry (`packages/tasks`)                                                                |
+| `@xndrjs/orchestration`           | Orchestration ports (`packages/orchestration`)                                                                |
+| `@xndrjs/react-adapter`           | React hooks for orchestration ports (`packages/react-adapter`)                                                |
+| `@xndrjs/addressable-resources`   | Addressable resource identifiers; succeeds `@xndrjs/application-resources` (`packages/addressable-resources`) |
+| `@xndrjs/resource-graph-resolver` | Resource graph resolver, islands, expansion (`packages/resource-graph-resolver`)                              |
+| `@xndrjs/contentful-to-zod`       | Zod 4 codegen from Contentful content types (`packages/contentful-to-zod`)                                    |

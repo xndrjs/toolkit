@@ -12,7 +12,7 @@
     "@config/eslint": "1.0.4",
     "@config/typescript": "1.0.4",
     "@config/vitest": "1.0.4",
-    "@xndrjs/application-resources": "0.2.0",
+    "@xndrjs/addressable-resources": "0.2.0",
     "@xndrjs/contentful-to-zod": "0.3.1",
     "@xndrjs/domain": "0.3.0",
     "@xndrjs/domain-ajv": "0.2.1",

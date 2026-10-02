@@ -427,16 +427,16 @@ The application only needs a port that can provide the aggregate it needs.
 
 ## A resource needs an identity
 
-The graph needs a common language. That is where [Application Resource Identifiers](/v0/application/application-resources/) come in.
+The graph needs a common language. That is where [Addressable Resource Identifiers](/v0/application/addressable-resources/) come in.
 
 An ARI identifies one addressable resource.
 
 For example:
 
 ```text
-"cms.entry":[{"id":"page-123","locale":"en-GB"}]
-"cms.asset":[{"id":"asset-456","locale":"en-GB"}]
-"integration.product":[{"locale":"en-GB","sku":"SKU-789"}]
+cms.entry(id="page-123",locale="en-GB")
+cms.asset(id="asset-456",locale="en-GB")
+integration.product(locale="en-GB",sku="SKU-789")
 ```
 
 The important thing is that the resolver does not need to understand what those resources _mean_.
@@ -773,18 +773,18 @@ This separation also gives us a better place to solve batching.
 Suppose the frontier contains:
 
 ```text
-"cms.entry":[{"id":"A","locale":"en-GB"}]
-"cms.entry":[{"id":"B","locale":"en-GB"}]
-"cms.asset":[{"id":"C","locale":"en-GB"}]
-"integration.product":[{"locale":"en-GB","sku":"X"}]
-"integration.product":[{"locale":"en-GB","sku":"Y"}]
+cms.entry(id="A",locale="en-GB")
+cms.entry(id="B",locale="en-GB")
+cms.asset(id="C",locale="en-GB")
+integration.product(locale="en-GB",sku="X")
+integration.product(locale="en-GB",sku="Y")
 ```
 
 The entry source receives:
 
 ```text
-"cms.entry":[{"id":"A","locale":"en-GB"}]
-"cms.entry":[{"id":"B","locale":"en-GB"}]
+cms.entry(id="A",locale="en-GB")
+cms.entry(id="B",locale="en-GB")
 ```
 
 and issues one `/entries` request (or as many as `batchSize` requires).
@@ -792,7 +792,7 @@ and issues one `/entries` request (or as many as `batchSize` requires).
 The asset source independently receives:
 
 ```text
-"cms.asset":[{"id":"C","locale":"en-GB"}]
+cms.asset(id="C",locale="en-GB")
 ```
 
 and issues one `/assets` request.
@@ -800,8 +800,8 @@ and issues one `/assets` request.
 The integration source independently receives:
 
 ```text
-"integration.product":[{"locale":"en-GB","sku":"X"}]
-"integration.product":[{"locale":"en-GB","sku":"Y"}]
+integration.product(locale="en-GB",sku="X")
+integration.product(locale="en-GB",sku="Y")
 ```
 
 and issues its own batch.
@@ -886,10 +886,10 @@ Its job is to give us all the resolved infrastructure resources in one place:
 ```text
 ContentMap
 
-"cms.entry":[{"id":"page-123","locale":"en-GB"}]
-"cms.asset":[{"id":"asset-456","locale":"en-GB"}]
-"integration.product":[{"locale":"en-GB","sku":"SKU-789"}]
-"integration.news":[{"id":"news-123","locale":"en-GB"}]
+cms.entry(id="page-123",locale="en-GB")
+cms.asset(id="asset-456",locale="en-GB")
+integration.product(locale="en-GB",sku="SKU-789")
+integration.news(id="news-123",locale="en-GB")
 ```
 
 Now we must map that into the model the application actually wants.
@@ -971,13 +971,13 @@ This is the same architectural instinct behind the rest of `xndrjs`:
 Imagine that news currently lives in Contentful:
 
 ```text
-"cms.entry":[{"id":"news-123","locale":"en-GB"}]
+cms.entry(id="news-123",locale="en-GB")
 ```
 
 Six months later, the organization moves news into an internal API:
 
 ```text
-"integration.news":[{"id":"news-123","locale":"en-GB"}]
+integration.news(id="news-123",locale="en-GB")
 ```
 
 With a "component-driven" architecture, this kind of migration tends to spread through the codebase.
@@ -1213,7 +1213,7 @@ This is also why the resource graph resolver is not an isolated utility in the t
 
 It fits into a broader architectural model.
 
-[Application Resource Identifiers](/v0/application/application-resources/) provide stable identities for resources.
+[Addressable Resource Identifiers](/v0/application/addressable-resources/) provide stable identities for resources.
 
 [`contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) provides trustworthy transport parsing and generated link metadata, if you're using Contentful.
 
@@ -1284,6 +1284,6 @@ Infrastructure should serve the application, not the other way around.
 ## Further reading
 
 - [Resource graph resolver (docs)](/v0/infrastructure/resource-graph-resolver/)
-- [Application resources](/v0/application/application-resources/)
+- [Addressable resources](/v0/application/addressable-resources/)
 - [Contentful to Zod](/v0/infrastructure/contentful-to-zod/)
 - [We're Not "Frontend Developers" Anymore](/blog/were-not-frontend-developers-anymore/)

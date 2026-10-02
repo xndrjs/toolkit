@@ -1,5 +1,5 @@
 ---
-"@xndrjs/ziel": minor
+"@xndrjs/ziel": major
 ---
 
 Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, debounced, serialized regeneration and clean asynchronous shutdown.
@@ -20,6 +20,7 @@ Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, 
 - Generated Ziel projectors consume the resolver's canonical failure map directly (redirect graph invariants).
 - Bound every graph resolution with configurable node, edge, batch, and duration budgets; generated façades support finite defaults, typed budget errors, observer telemetry, and deadline cancellation.
 - Align with positional `DataSource.load`: return `(payload | undefined)[]` matching `batch` order (`undefined` = miss; `null` remains a legal payload). Identity hops use strategy `.resolve` only.
+- Depend on `@xndrjs/addressable-resources` (renamed from `@xndrjs/application-resources`); generated modules and façades use `AddressableResource*` types and `resource.key` object access.
 
 ### LSP / editor
 

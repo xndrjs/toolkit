@@ -6,6 +6,16 @@ import mermaid from "astro-mermaid";
 // https://astro.build/config
 export default defineConfig({
   site: "https://www.xndrjs.dev",
+  redirects: {
+    "/v0/application/application-resources": "/v0/application/addressable-resources",
+    "/v0/application/application-resources/": "/v0/application/addressable-resources/",
+    "/latest/application/application-resources": "/latest/application/addressable-resources",
+    "/latest/application/application-resources/": "/latest/application/addressable-resources/",
+    "/blog/from-query-keys-to-application-resource-identifiers":
+      "/blog/from-query-keys-to-addressable-resource-identifiers",
+    "/blog/from-query-keys-to-application-resource-identifiers/":
+      "/blog/from-query-keys-to-addressable-resource-identifiers/",
+  },
   integrations: [
     mermaid(),
     starlight({
@@ -74,8 +84,8 @@ export default defineConfig({
               label: "Application toolkit",
               items: [
                 {
-                  label: "Application resources",
-                  slug: "v0/application/application-resources",
+                  label: "Addressable resources",
+                  slug: "v0/application/addressable-resources",
                 },
               ],
             },

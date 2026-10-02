@@ -417,3 +417,5 @@ npm install @xndrjs/addressable-resources
 ```
 
 Package docs: [Addressable resources](/v0/application/addressable-resources/).
+
+`@xndrjs/application-resources` is succeeded by this package.

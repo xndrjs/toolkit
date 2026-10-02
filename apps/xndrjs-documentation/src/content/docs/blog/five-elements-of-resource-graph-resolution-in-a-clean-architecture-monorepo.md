@@ -111,7 +111,7 @@ An identity might represent a CMS entry, a CMS asset, a product, a news item, or
 
 The payload is the resource itself.
 
-The identity — an Application Resource Identifier (ARI) — is how the graph refers to it.
+The identity — an Addressable Resource Identifier (ARI) — is how the graph refers to it.
 
 The important distinction is that these are infrastructure resources, not domain objects.
 
@@ -789,7 +789,7 @@ And the component can finally do the thing it was supposed to do in the first pl
 
 - [Every component fetches its own data, until it can't](/blog/every-component-fetches-its-own-data-until-it-cant/) — the resolution problem and the generic graph resolver
 - [Resource graph resolver](/v0/infrastructure/resource-graph-resolver/) — API and scheduling reference
-- [From Query Keys to Application Resource Identifiers](/blog/from-query-keys-to-application-resource-identifiers/) — why infrastructure identities exist
+- [From Query Keys to Addressable Resource Identifiers](/blog/from-query-keys-to-addressable-resource-identifiers/) — why infrastructure identities exist
 - [A Clean Architecture monorepo template](/blog/clean-architecture-monorepo-template/) — workspace governance and dependency boundaries
 - [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) — transport schemas and generated link metadata
 - [xndrjs monorepo](https://github.com/xndrjs/monorepo) — the production-shaped workspace template

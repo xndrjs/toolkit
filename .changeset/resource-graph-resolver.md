@@ -6,7 +6,8 @@ Require Node.js 24 or 25 (`>=24 <26`).
 
 ### Breaking
 
-- `ResolveResourceGraphInput.root` is now `roots: readonly ApplicationResourceIdentifier[]` (non-empty). Pass a single seed as `roots: [root]`. `ResolutionStartEvent.root` is likewise `roots`.
+- `ResolveResourceGraphInput.root` is now `roots: readonly AddressableResourceIdentifier[]` (non-empty). Pass a single seed as `roots: [root]`. `ResolutionStartEvent.root` is likewise `roots`.
+- Depends on `@xndrjs/addressable-resources` (renamed from `@xndrjs/application-resources`); use `resource.key` (object), not `resource.key[0]`.
 - `DataSource.load` is positional — return `(payload | undefined)[]` with the same length and order as `batch` (`undefined` = miss; `null` remains a legal payload). Remove `ResourceRedirectRecord` / rematerialize-via-`resolves` from load; identity hops use strategy `.resolve` only.
 
 ### Redirects and resolve strategy
