@@ -35,7 +35,7 @@
  */
 import { createDiagnosticSink } from "../../../check/diagnostic";
 import { expandPayloadObjectMembers, isObjectLikePayload } from "../../../check/discriminants";
-import { stripToConcreteMembers, type ResolveTargetIndex } from "../../../check/projection-graph";
+import type { ResolveTargetIndex } from "../../../check/projection-graph";
 import type {
   PlannedProjectionArm,
   PlannedProjectionBody,
@@ -172,7 +172,8 @@ function printTargetAliasType(
   projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
   refers: RefersTarget[] = [],
-  context: ExpansionAliasContext | null = null
+  context: ExpansionAliasContext | null = null,
+  seenResolveTargets: ReadonlySet<string> = new Set()
 ): string {
   const targetName = typeof target === "string" ? target : target.resource;
   if (!resources.has(targetName)) {
@@ -190,8 +191,19 @@ function printTargetAliasType(
     return projectionTypeName(queryName, targetName);
   }
 
-  // resolve-to-each → `(T1 | T2 | …)[]` with per-arm onFailure (same as many-expand).
   const resolveInfo = resolveTargets.get(targetName);
+  if (resolveInfo !== undefined && seenResolveTargets.has(targetName)) {
+    throw new Error(
+      `emitProjectionTypes: resolve-only cycle involving '${targetName}' in query '${queryName}'`
+    );
+  }
+  const nextSeenResolveTargets = new Set(seenResolveTargets).add(targetName);
+
+  // Resolve target types compose recursively:
+  // - 1→1 is transparent and unions its possible target values;
+  // - 1→N wraps each recursively projected arm value in one array layer.
+  // This preserves nested cardinality (Locator 1→1 Batch 1→N Target → Target[])
+  // and mixed branches (Target | Batch 1→N Target → Target | Target[]).
   if (
     resolveInfo !== undefined &&
     resolveInfo.multiplicity === "many" &&
@@ -206,7 +218,8 @@ function printTargetAliasType(
         projected,
         resolveTargets,
         refers,
-        context
+        context,
+        nextSeenResolveTargets
       );
       return wrapOnFailureType(base, arm.onFailure);
     });
@@ -218,17 +231,28 @@ function printTargetAliasType(
     return joined.includes("|") ? `(${joined})[]` : `${joined}[]`;
   }
 
-  // 1→1 resolve-only locator → union of settle-target projection types.
-  const stripped = stripToConcreteMembers(targetName, resources, projected, resolveTargets);
-  if (stripped !== null && stripped.members.length > 0) {
-    for (const member of stripped.members) {
-      requireProjected(queryName, member, projected, `resolve target of '${targetName}'`);
+  if (
+    resolveInfo !== undefined &&
+    resolveInfo.multiplicity === "one" &&
+    resolveInfo.targets.length > 0
+  ) {
+    const targetTypes = resolveInfo.targets.map((resolveTarget) =>
+      printTargetAliasType(
+        queryName,
+        resolveTarget,
+        resources,
+        projected,
+        resolveTargets,
+        refers,
+        context,
+        nextSeenResolveTargets
+      )
+    );
+    const unique: string[] = [];
+    for (const type of targetTypes) {
+      if (!unique.includes(type)) unique.push(type);
     }
-    const union = stripped.members.map((m) => projectionTypeName(queryName, m)).join(" | ");
-    if (stripped.multiplicity === "many") {
-      return stripped.members.length === 1 ? `${union}[]` : `(${union})[]`;
-    }
-    return union;
+    return unique.join(" | ");
   }
 
   // Object / collection / resource-union / resourceRef payloads require an explicit `on Target`
