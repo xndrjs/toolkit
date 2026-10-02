@@ -84,6 +84,25 @@ query PageDetail(
         locale: @p.locale
       ) on failure set null
     )
+
+    // Singular object link whose fields jointly address TaxonomyTerm identity.
+    expand primaryTerm: TaxonomyTerm(
+      spaceId: @p.spaceId,
+      environmentId: @p.environmentId,
+      kind: p.primaryTerm.kind,
+      id: p.primaryTerm.id,
+      locale: @p.locale
+    ) on failure set null
+
+    expand relatedTerms: each termLink in p.relatedTerms (
+      TaxonomyTerm(
+        spaceId: @p.spaceId,
+        environmentId: @p.environmentId,
+        kind: termLink.kind,
+        id: termLink.id,
+        locale: @p.locale
+      ) on failure set null
+    )
   }
 
   on CustomReference c resolve to {
@@ -158,6 +177,8 @@ query PageDetail(
   }
 
   on Asset a include properties { }
+
+  on TaxonomyTerm t include properties { }
 
   islands {
     on Entry e when e.kind == "Menu"

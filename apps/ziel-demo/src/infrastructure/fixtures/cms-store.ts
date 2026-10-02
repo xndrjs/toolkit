@@ -6,6 +6,7 @@ import { Scalars, type CustomReferenceValue } from "../../generated";
 import type { AssetPayloadWire } from "../cms/schemas/asset.js";
 import type { EntryPayloadWire } from "../cms/schemas/entry.js";
 import type { PagePayloadWire } from "../cms/schemas/page.js";
+import type { TaxonomyTermPayloadWire } from "../cms/schemas/taxonomy-term.js";
 import { encodeCustomReference } from "../cms/custom-reference.js";
 
 /** Default locale / space / environment for the in-memory fixture graph. */
@@ -29,6 +30,10 @@ export const demoIds = {
   assetLogo: "asset-logo",
   assetHero: "asset-hero",
   assetHeroNested: "asset-hero-nested",
+  /** Taxonomy terms addressed by composite `(kind, id)`. */
+  termCategoryApparel: "apparel",
+  termTagFeatured: "featured",
+  termTagNew: "new",
   /** Error-handling showcase roots (`/error-handling/[id]`). */
   ehSoftSingle: "eh-soft-single",
   ehErrorSingle: "eh-error-single",
@@ -67,6 +72,21 @@ export function entryLookupKey(parts: {
   return `${parts.spaceId}/${parts.environmentId}/${parts.id}`;
 }
 
+export function taxonomyTermLookupKey(parts: {
+  spaceId: string;
+  environmentId: string;
+  kind: string;
+  id: string;
+}): string {
+  return `${parts.spaceId}/${parts.environmentId}/${parts.kind}/${parts.id}`;
+}
+
+/** Demo taxonomy kinds used in composite-key links. */
+export const demoTaxonomyKinds = {
+  category: "category",
+  tag: "tag",
+} as const;
+
 const spaceId = DEMO_SPACE;
 const environmentId = DEMO_ENVIRONMENT;
 
@@ -91,6 +111,14 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
           { id: demoIds.linkAbout },
         ],
         related: [demoHeroWelcomeCustomRef, demoLogoAssetCustomRef],
+        primaryTerm: {
+          kind: demoTaxonomyKinds.category,
+          id: demoIds.termCategoryApparel,
+        },
+        relatedTerms: [
+          { kind: demoTaxonomyKinds.tag, id: demoIds.termTagFeatured },
+          { kind: demoTaxonomyKinds.tag, id: demoIds.termTagNew },
+        ],
       },
     },
   ],
@@ -245,6 +273,52 @@ export const demoAssets: ReadonlyMap<string, AssetPayloadWire> = new Map([
       url: "https://cdn.example.com/hero-nested.jpg",
       title: "Nested hero",
       asset_type: "image",
+    },
+  ],
+]);
+
+/** Taxonomy terms keyed by `space/environment/kind/id` (composite identity). */
+export const demoTaxonomyTerms: ReadonlyMap<string, TaxonomyTermPayloadWire> = new Map([
+  [
+    taxonomyTermLookupKey({
+      spaceId,
+      environmentId,
+      kind: demoTaxonomyKinds.category,
+      id: demoIds.termCategoryApparel,
+    }),
+    {
+      kind: demoTaxonomyKinds.category,
+      id: demoIds.termCategoryApparel,
+      label: "Apparel",
+      slug: "apparel",
+    },
+  ],
+  [
+    taxonomyTermLookupKey({
+      spaceId,
+      environmentId,
+      kind: demoTaxonomyKinds.tag,
+      id: demoIds.termTagFeatured,
+    }),
+    {
+      kind: demoTaxonomyKinds.tag,
+      id: demoIds.termTagFeatured,
+      label: "Featured",
+      slug: "featured",
+    },
+  ],
+  [
+    taxonomyTermLookupKey({
+      spaceId,
+      environmentId,
+      kind: demoTaxonomyKinds.tag,
+      id: demoIds.termTagNew,
+    }),
+    {
+      kind: demoTaxonomyKinds.tag,
+      id: demoIds.termTagNew,
+      label: "New",
+      slug: "new",
     },
   ],
 ]);

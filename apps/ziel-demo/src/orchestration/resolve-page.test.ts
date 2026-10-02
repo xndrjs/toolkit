@@ -23,6 +23,7 @@ import {
   demoAssets,
   demoHeroWelcomeCustomRef,
   demoIds,
+  demoTaxonomyKinds,
 } from "../infrastructure/fixtures/cms-store.js";
 import { parseDemoLocaleParam, resolvePage } from "./resolve-page.js";
 
@@ -169,6 +170,31 @@ describe("resolvePage", () => {
       expect(pageDetail.related[1].id).toBe(demoIds.assetLogo);
       expect(pageDetail.related[1].url).toContain("logo.svg");
     }
+
+    // Composite-key refers: singular object + array of { kind, id } → TaxonomyTerm.
+    expect(pageDetail.primaryTerm).toEqual({
+      __typename: "TaxonomyTerm",
+      kind: demoTaxonomyKinds.category,
+      id: demoIds.termCategoryApparel,
+      label: "Apparel",
+      slug: "apparel",
+    });
+    expect(pageDetail.relatedTerms).toEqual([
+      {
+        __typename: "TaxonomyTerm",
+        kind: demoTaxonomyKinds.tag,
+        id: demoIds.termTagFeatured,
+        label: "Featured",
+        slug: "featured",
+      },
+      {
+        __typename: "TaxonomyTerm",
+        kind: demoTaxonomyKinds.tag,
+        id: demoIds.termTagNew,
+        label: "New",
+        slug: "new",
+      },
+    ]);
   });
 
   it("converges standard Entry link and CustomReference onto the same Hero", async () => {

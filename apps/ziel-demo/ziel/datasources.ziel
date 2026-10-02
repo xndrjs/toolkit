@@ -49,6 +49,16 @@ datasource CmsAssets {
   for Asset
 }
 
+datasource CmsTaxonomyTerms {
+  context {
+    spaceId: SpaceId
+    environmentId: EnvironmentId
+    locale: Locale
+  }
+
+  for TaxonomyTerm
+}
+
 datasource CatalogApi {
   context {
     market: Market

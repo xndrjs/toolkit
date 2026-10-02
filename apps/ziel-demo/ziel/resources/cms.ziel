@@ -16,6 +16,10 @@ scalar CustomReferenceValue on string;
 
 scalar Sku on string;
 
+scalar TermId on string;
+
+scalar TaxonomyKind on string;
+
 /**
  * Canonical CMS entry address — content type is not part of identity.
  * Payload is a closed discriminated object union (not rematerialized ARIs).
@@ -93,6 +97,23 @@ resource Asset(
 }
 
 /**
+ * Taxonomy node addressed by a composite key (`kind` + `id`), not Entry identity.
+ * Link objects carry both parts; space / environment / locale come from context.
+ */
+resource TaxonomyTerm(
+  spaceId: SpaceId,
+  environmentId: EnvironmentId,
+  kind: TaxonomyKind,
+  id: TermId,
+  locale: Locale
+): {
+  kind
+  id
+  label: string
+  slug: string
+}
+
+/**
  * Legacy encoded locator (`{environmentId}@{spaceId}|ENTRY|id` or `|ASSET|id`).
  * Decode payload only — redirect hops are declared in the query via `resolve to`.
  */
@@ -139,6 +160,15 @@ resource Page(
   }[] refers Entry
   // Legacy custom references (same target may also appear as a standard link).
   related: CustomReferenceValue[] refers CustomReference
+  // Composite-key link: both `kind` and `id` are identity parts of TaxonomyTerm.
+  primaryTerm: {
+    kind: TaxonomyKind
+    id: TermId
+  } refers TaxonomyTerm
+  relatedTerms: {
+    kind: TaxonomyKind
+    id: TermId
+  }[] refers TaxonomyTerm
 }
 
 /**
