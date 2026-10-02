@@ -39,11 +39,15 @@ The build emits both the extension client and a self-contained language server. 
 
 ---
 
-## Build a `.vsix` (optional but recommended)
+## Build a `.vsix`
 
 From this package directory:
 
 ```bash
+# from monorepo root (also runs via build:packages)
+pnpm run build:packages
+
+# or only this package
 cd packages/ziel-vscode
 pnpm run vsix
 # → builds dist/extension.js + dist/server.js, then artifacts/ziel-vscode.vsix

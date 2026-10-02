@@ -63,7 +63,3 @@ Hover, completion, and go to definition read the same multi-file semantic snapsh
 | **Format Document**  | Langium `AbstractFormatter` in the language server (2-space indent by default; respects editor `tabSize` / `insertSpaces`). Range formatting included.                  |
 
 Keywords still come from the Langium grammar follow-set. Rename and find-references are not implemented yet.
-
-## Publishing
-
-See [PUBLISHING.md](./PUBLISHING.md) for Visual Studio Marketplace and Open VSX steps. Always **build before** packaging a `.vsix`.

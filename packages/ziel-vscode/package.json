@@ -2,7 +2,7 @@
   "name": "ziel-vscode",
   "displayName": "Ziel",
   "description": "Syntax highlighting and diagnostics for Ziel (.ziel) files.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "xndrjs",
   "license": "MIT",
   "engines": {
@@ -33,7 +33,8 @@
     "build:server": "pnpm --filter @xndrjs/ziel build",
     "build": "pnpm run build:server && tsup",
     "typecheck": "pnpm run build:server && tsc --noEmit",
-    "vsix": "pnpm run build && node -e \"require('node:fs').mkdirSync('artifacts', { recursive: true })\" && vsce package --no-dependencies --out artifacts/ziel-vscode.vsix",
+    "package:vsix": "node -e \"require('node:fs').mkdirSync('artifacts', { recursive: true })\" && vsce package --no-dependencies --out artifacts/ziel-vscode.vsix",
+    "vsix": "pnpm run build && pnpm run package:vsix",
     "test:vsix": "pnpm run vsix && node --test test/vsix-smoke.mjs",
     "publish:vscode": "pnpm run build && vsce publish --no-dependencies",
     "publish:ovsx": "pnpm run build && npx --yes ovsx publish --no-dependencies"
