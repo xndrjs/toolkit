@@ -40,7 +40,7 @@ function resolveOptions(options?: GenerateStrategiesOptions): ResolvedOptions {
 
 function emitRuntimeImport(importFrom: string, needsAriType: boolean): string {
   const symbols = needsAriType
-    ? "createGraphResolutionStrategy, type ApplicationResourceIdentifier"
+    ? "createGraphResolutionStrategy, type AddressableResourceIdentifier"
     : "createGraphResolutionStrategy";
   return `import { ${symbols} } from ${JSON.stringify(importFrom)};`;
 }
@@ -62,7 +62,7 @@ export function generateStrategies(
   const parts: string[] = [GENERATED_HEADER];
 
   if (body.length > 0) {
-    parts.push(emitRuntimeImport(importFrom, body.includes("ApplicationResourceIdentifier")));
+    parts.push(emitRuntimeImport(importFrom, body.includes("AddressableResourceIdentifier")));
     parts.push(body);
   }
 

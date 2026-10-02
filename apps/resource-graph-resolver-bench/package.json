@@ -15,14 +15,14 @@
   },
   "scripts": {
     "bench:dev": "tsx src/index.ts",
-    "bench:prepare": "pnpm --filter @xndrjs/application-resources --filter @xndrjs/resource-graph-resolver --filter @xndrjs/resource-graph-resolver-bench run build",
+    "bench:prepare": "pnpm --filter @xndrjs/addressable-resources --filter @xndrjs/resource-graph-resolver --filter @xndrjs/resource-graph-resolver-bench run build",
     "bench": "pnpm run bench:prepare && node dist/index.js",
     "bench:matrix": "pnpm run bench:prepare && node dist/index.js --matrix",
     "build": "tsup src/index.ts --dts --format esm",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@xndrjs/application-resources": "workspace:^",
+    "@xndrjs/addressable-resources": "workspace:^",
     "@xndrjs/resource-graph-resolver": "workspace:^"
   },
   "devDependencies": {

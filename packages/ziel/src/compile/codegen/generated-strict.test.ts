@@ -24,7 +24,7 @@ function compileStrict(source: string): readonly ts.Diagnostic[] {
     baseUrl: repoRoot,
     paths: {
       "@xndrjs/ziel": ["packages/ziel/src/index.ts"],
-      "@xndrjs/application-resources": ["packages/application-resources/src/index.ts"],
+      "@xndrjs/addressable-resources": ["packages/addressable-resources/src/index.ts"],
       "@xndrjs/resource-graph-resolver": ["packages/resource-graph-resolver/src/index.ts"],
     },
   };

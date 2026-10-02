@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 import {
   createGraphResolutionStrategy,
   type GraphResolutionStrategy,
@@ -27,7 +27,7 @@ const ISLAND_CONTENT_TYPES = [
 function linkReferenceToAri(
   link: { linkType: "Entry" | "Asset"; id: string },
   locale: ContentfulLocaleCode
-): ApplicationResourceIdentifier {
+): AddressableResourceIdentifier {
   return link.linkType === "Entry"
     ? cmsEntryAri({ id: link.id, locale })
     : cmsAssetAri({ id: link.id, locale });
@@ -63,7 +63,7 @@ type ExpansionOverride = {
   expand: (
     entry: ContentfulResolvedLocalizedEntry,
     locale: ContentfulLocaleCode
-  ) => typeof EMPTY_EXPANSION | { resources: ApplicationResourceIdentifier[] };
+  ) => typeof EMPTY_EXPANSION | { resources: AddressableResourceIdentifier[] };
 };
 
 const expansionOverrides: Partial<Record<ContentfulContentTypeId, ExpansionOverride>> = {
@@ -90,7 +90,7 @@ export function createDemoStrategy(): GraphResolutionStrategy<
 
   s.expansion
     .on(cmsEntryAri)
-    .when(({ resource, executionContext }) => resource.key[0].locale === executionContext.locale)
+    .when(({ resource, executionContext }) => resource.key.locale === executionContext.locale)
     .expand(({ payload, executionContext }) =>
       expandForContentType(payload.sys.contentType.sys.id, payload, executionContext.locale)
     );
@@ -99,7 +99,7 @@ export function createDemoStrategy(): GraphResolutionStrategy<
     .on(cmsEntryAri)
     .when(
       ({ resource, payload, executionContext }) =>
-        resource.key[0].locale === executionContext.locale &&
+        resource.key.locale === executionContext.locale &&
         (ISLAND_CONTENT_TYPES as readonly string[]).includes(payload.sys.contentType.sys.id)
     )
     .startIsland();

@@ -21,7 +21,7 @@ export function loadOfferPrices(prices: ReadonlyMap<string, OfferPricePayloadWir
       if (!offerPriceAri.matches(resource)) {
         return undefined;
       }
-      const { id, market } = resource.key[0];
+      const { id, market } = resource.key;
       const raw = prices.get(`${id}/${market}`);
       return raw === undefined
         ? undefined

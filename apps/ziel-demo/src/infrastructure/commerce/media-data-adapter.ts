@@ -21,7 +21,7 @@ export function loadProductMedia(media: ReadonlyMap<string, ProductMediaPayloadW
       if (!productMediaAri.matches(resource)) {
         return undefined;
       }
-      const { id } = resource.key[0];
+      const { id } = resource.key;
       const raw = media.get(id);
       return raw === undefined
         ? undefined

@@ -1,6 +1,6 @@
 /**
  * Product entry for Ziel: re-exports the resource graph resolver and
- * application-resources (browser-safe runtime façade).
+ * addressable-resources (browser-safe runtime façade).
  *
  * For IR, `checkProgram`, `parseAndCheck`, and `generateResources`, use `@xndrjs/ziel/compile`.
  */
@@ -11,12 +11,12 @@ export {
   AriParseError,
   s,
   safeParse,
-  applicationResourceKeySchema,
+  addressableResourceKeySchema,
   omitNullKeyFields,
   formatKeySchemaIssues,
-  parseStableStringifyResource,
-  safeParseStableStringifyResource,
-  stableStringifyResource,
+  formatAriString,
+  parseAriString,
+  safeParseAriString,
   type AriFactory,
   type AriKeySchema,
   type AnyKeySchema,
@@ -24,12 +24,10 @@ export {
   type KeySchemaIssue,
   type KeySchemaParseResult,
   type LeafSchema,
-  type TupleSchema,
+  type ObjectSchema,
   type WireKeySchema,
-  type StableStringifyResource,
-  type ApplicationResourceKey,
-  type ApplicationResourceKeyObject,
-  type ApplicationResourceKeyPart,
-  type ApplicationResourcePrimitive,
-} from "@xndrjs/application-resources";
-// `ApplicationResourceIdentifier` is already re-exported by resource-graph-resolver.
+  type ParsedAriString,
+  type AddressableResourceKey,
+  type AddressableResourcePrimitive,
+} from "@xndrjs/addressable-resources";
+// `AddressableResourceIdentifier` is already re-exported by resource-graph-resolver.

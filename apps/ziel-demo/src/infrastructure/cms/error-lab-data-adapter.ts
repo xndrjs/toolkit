@@ -29,7 +29,7 @@ export function loadErrorLabStore(labs: ReadonlyMap<string, ErrorLabPayloadWire>
       if (!errorLabAri.matches(resource)) {
         return undefined;
       }
-      const { spaceId, environmentId, id } = resource.key[0];
+      const { spaceId, environmentId, id } = resource.key;
       const raw = labs.get(entryLookupKey({ spaceId, environmentId, id }));
       if (raw === undefined) return undefined;
       const wire = parsePayload(errorLabPayloadSchema, raw, "ErrorLab");

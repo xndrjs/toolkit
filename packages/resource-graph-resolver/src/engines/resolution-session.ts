@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import { ContentMap } from "../model/content-map";
 import { IslandDependencyMap } from "../model/island-dependency-map";
@@ -28,7 +28,7 @@ import { RedirectGraph } from "./redirect-graph";
 
 /** One walk step: a resource discovered from a specific island. */
 export interface GraphWalkRef {
-  resource: ApplicationResourceIdentifier;
+  resource: AddressableResourceIdentifier;
   inheritedIslandId: IslandId;
   /** Failure policy for this edge. Roots always use `"throw"`. */
   onFailure: OnFailurePolicy;
@@ -42,7 +42,7 @@ interface FailureAccumulator {
 
 /** An ARI awaiting a load, plus every island currently waiting for it. */
 interface PendingEntry {
-  resource: ApplicationResourceIdentifier;
+  resource: AddressableResourceIdentifier;
   inheritedIslandIds: Set<IslandId>;
   onFailure: OnFailurePolicy;
 }
@@ -113,11 +113,11 @@ export class ResolutionSession<
     }
   }
 
-  isResolved(resource: ApplicationResourceIdentifier): boolean {
+  isResolved(resource: AddressableResourceIdentifier): boolean {
     return this.contentMap.has(resource);
   }
 
-  hasFailure(resource: ApplicationResourceIdentifier): boolean {
+  hasFailure(resource: AddressableResourceIdentifier): boolean {
     return this.failuresByResource.has(this.redirects.canonicalOf(resource).toString());
   }
 
@@ -125,7 +125,7 @@ export class ResolutionSession<
    * Effective failure policy for a pending or already-failed resource.
    * Defaults to `"throw"` when the ARI is not tracked.
    */
-  onFailureOf(resource: ApplicationResourceIdentifier): OnFailurePolicy {
+  onFailureOf(resource: AddressableResourceIdentifier): OnFailurePolicy {
     const key = this.redirects.canonicalOf(resource).toString();
     const pending = this.pendingByKey.get(key);
     if (pending !== undefined) {
@@ -144,7 +144,7 @@ export class ResolutionSession<
    * Failure recorded for `resource`, if any. Used by projectors under
    * `on failure set error` to place the same instance into the projected alias.
    */
-  failureOf(resource: ApplicationResourceIdentifier): ResolutionError | undefined {
+  failureOf(resource: AddressableResourceIdentifier): ResolutionError | undefined {
     const accumulated = this.failuresByResource.get(
       this.redirects.canonicalOf(resource).toString()
     );
@@ -168,7 +168,7 @@ export class ResolutionSession<
     return out;
   }
 
-  isPending(resource: ApplicationResourceIdentifier): boolean {
+  isPending(resource: AddressableResourceIdentifier): boolean {
     return this.pendingByKey.has(resource.toString());
   }
 
@@ -209,7 +209,7 @@ export class ResolutionSession<
   }
 
   /** Islands currently waiting on `resource`, without clearing the pending entry. */
-  waitersFor(resource: ApplicationResourceIdentifier): readonly IslandId[] {
+  waitersFor(resource: AddressableResourceIdentifier): readonly IslandId[] {
     const entry = this.pendingByKey.get(resource.toString());
     return entry === undefined ? [] : [...entry.inheritedIslandIds];
   }
@@ -220,7 +220,7 @@ export class ResolutionSession<
    * @returns the islands that were waiting on it. Callers must expand once per
    * returned island so multi-island membership stays complete.
    */
-  settle(resource: ApplicationResourceIdentifier): readonly IslandId[] {
+  settle(resource: AddressableResourceIdentifier): readonly IslandId[] {
     const key = resource.toString();
     const entry = this.pendingByKey.get(key);
     this.pendingByKey.delete(key);
@@ -231,7 +231,7 @@ export class ResolutionSession<
    * Promotes a backing payload into {@link contentMap} if one exists for
    * `resource`. Does not settle: the caller reads waiters and expands.
    */
-  promoteFromBacking(resource: ApplicationResourceIdentifier): boolean {
+  promoteFromBacking(resource: AddressableResourceIdentifier): boolean {
     const key = resource.toString();
     if (!this.backingResources.has(key) || this.contentMap.hasKey(key)) {
       return false;
@@ -244,7 +244,7 @@ export class ResolutionSession<
   }
 
   notifyBackingPromotion(
-    resource: ApplicationResourceIdentifier,
+    resource: AddressableResourceIdentifier,
     islandIds: readonly IslandId[]
   ): void {
     notifyObserver(this.observer, "onBackingPromote", () => ({ resource, islandIds }));
@@ -253,7 +253,7 @@ export class ResolutionSession<
   /**
    * Canonical ARI a prior strategy redirect pointed at (e.g. CustomReference → Entry).
    */
-  redirectOf(resource: ApplicationResourceIdentifier): ApplicationResourceIdentifier | undefined {
+  redirectOf(resource: AddressableResourceIdentifier): AddressableResourceIdentifier | undefined {
     return this.redirects.redirectOf(resource);
   }
 
@@ -265,8 +265,8 @@ export class ResolutionSession<
    * replaced across the alias set when the canonical target settles.
    */
   applyResolvePolicies(
-    resource: ApplicationResourceIdentifier
-  ): ApplicationResourceIdentifier | undefined {
+    resource: AddressableResourceIdentifier
+  ): AddressableResourceIdentifier | undefined {
     const existing = this.redirectOf(resource);
     if (existing !== undefined) {
       return existing;
@@ -292,7 +292,7 @@ export class ResolutionSession<
    * `undefined` slots are skips (caller treats as missing).
    */
   commitPayloads(
-    resources: readonly ApplicationResourceIdentifier[],
+    resources: readonly AddressableResourceIdentifier[],
     payloads: readonly (R[keyof R & string] | undefined)[]
   ): void {
     for (let i = 0; i < resources.length; i++) {
@@ -307,11 +307,11 @@ export class ResolutionSession<
   }
 
   private commitPayload(
-    resource: ApplicationResourceIdentifier,
+    resource: AddressableResourceIdentifier,
     payload: R[keyof R & string]
   ): void {
     this.contentMap.set(
-      resource as ApplicationResourceIdentifier<keyof R & string>,
+      resource as AddressableResourceIdentifier<keyof R & string>,
       payload as R[keyof R & string]
     );
     for (const aliasKey of this.redirects.aliasesOf(resource)) {
@@ -319,7 +319,7 @@ export class ResolutionSession<
     }
   }
 
-  private synchronizeAliases(canonical: ApplicationResourceIdentifier): void {
+  private synchronizeAliases(canonical: AddressableResourceIdentifier): void {
     const canonicalKey = canonical.toString();
     const payload = this.contentMap.getByKey(canonicalKey);
     if (payload !== undefined) {
@@ -438,7 +438,7 @@ export class ResolutionSession<
    */
   private policyContextOf(
     resourceKey: ResourceKey,
-    resource: ApplicationResourceIdentifier
+    resource: AddressableResourceIdentifier
   ): ExpansionContext<R, TExecutionContext> {
     return {
       resource,

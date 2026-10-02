@@ -75,4 +75,4 @@ export type {
   ResourceKey,
   SerializedIsland,
 } from "./types";
-export type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+export type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";

@@ -21,7 +21,7 @@ export function loadStockLevels(stock: ReadonlyMap<string, StockLevelPayloadWire
       if (!stockLevelAri.matches(resource)) {
         return undefined;
       }
-      const { sku, warehouse } = resource.key[0];
+      const { sku, warehouse } = resource.key;
       const raw = stock.get(`${sku}/${warehouse}`);
       return raw === undefined
         ? undefined

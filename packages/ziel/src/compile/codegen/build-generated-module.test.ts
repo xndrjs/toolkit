@@ -182,7 +182,7 @@ resource User(id: UserId): {
     expect(result.code).toContain("export async function resolvePostDetail");
     expect(result.code).toContain("createResourceGraphResolver");
     expect(result.code).toContain(
-      'import { ari, s, createGraphResolutionStrategy, type ContentMap, type ApplicationResourceIdentifier, createResourceGraphResolver, type DataSource, type IslandDependencyMap, type IslandMap, type ResolutionError, type ResolutionBudgetOptions, type ResolutionObserver, type ResourceKey, type SchedulingMode } from "@xndrjs/ziel";'
+      'import { ari, s, createGraphResolutionStrategy, type ContentMap, type AddressableResourceIdentifier, createResourceGraphResolver, type DataSource, type IslandDependencyMap, type IslandMap, type ResolutionError, type ResolutionBudgetOptions, type ResolutionObserver, type ResourceKey, type SchedulingMode } from "@xndrjs/ziel";'
     );
     expect(result.code).not.toMatch(/from ["'][^"']*\/compile["']/);
     // Resource-only generateResources still ignores queries.

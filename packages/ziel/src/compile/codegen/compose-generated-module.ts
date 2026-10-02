@@ -131,15 +131,15 @@ export function composeGeneratedModule(
 
   if (strategies.length > 0) {
     importSymbols.push("createGraphResolutionStrategy");
-    if (strategies.includes("ApplicationResourceIdentifier")) {
-      importSymbols.push("type ApplicationResourceIdentifier");
+    if (strategies.includes("AddressableResourceIdentifier")) {
+      importSymbols.push("type AddressableResourceIdentifier");
     }
   }
 
   if (projections.length > 0) {
     importSymbols.push("type ContentMap");
-    if (!importSymbols.includes("type ApplicationResourceIdentifier")) {
-      importSymbols.push("type ApplicationResourceIdentifier");
+    if (!importSymbols.includes("type AddressableResourceIdentifier")) {
+      importSymbols.push("type AddressableResourceIdentifier");
     }
     if (analysis.queries.some((query) => query.hasRedirects)) {
       importSymbols.push("type ResourceKey");

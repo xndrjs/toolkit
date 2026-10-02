@@ -1,4 +1,4 @@
-import { ari, s } from "@xndrjs/application-resources";
+import { ari, s } from "@xndrjs/addressable-resources";
 
 import { CONTENTFUL_LOCALE_CODES } from "./generated/contentful.schemas.js";
 

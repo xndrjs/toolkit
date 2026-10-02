@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import {
   createExpansionPolicyChain,
@@ -49,7 +49,7 @@ export interface GraphResolutionStrategyBuilder<
 class ExpansionClauseBuilder<
   R extends ContentRegistry,
   TExecutionContext,
-  Resource extends ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier,
 > {
   private whenPredicate?: (context: ExpansionContext<R, TExecutionContext, Resource>) => boolean;
 
@@ -82,7 +82,7 @@ class ExpansionClauseBuilder<
 class IslandClauseBuilder<
   R extends ContentRegistry,
   TExecutionContext,
-  Resource extends ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier,
 > {
   private whenPredicate?: (context: IslandContext<R, TExecutionContext, Resource>) => boolean;
 
@@ -119,7 +119,7 @@ class IslandClauseBuilder<
 class ResolveClauseBuilder<
   R extends ContentRegistry,
   TExecutionContext,
-  Resource extends ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier,
 > {
   private whenPredicate?: (context: ResolveContext<R, TExecutionContext, Resource>) => boolean;
 
@@ -155,7 +155,7 @@ class ExpansionActions<R extends ContentRegistry, TExecutionContext> {
     private readonly getBuilder: () => GraphResolutionStrategyBuilder<R, TExecutionContext>
   ) {}
 
-  on<Resource extends ApplicationResourceIdentifier>(
+  on<Resource extends AddressableResourceIdentifier>(
     forResource: ExpansionResourceFor<Resource>
   ): ExpansionClauseBuilder<R, TExecutionContext, Resource> {
     return new ExpansionClauseBuilder(this.registerPolicy, this.getBuilder, forResource);
@@ -168,7 +168,7 @@ class IslandActions<R extends ContentRegistry, TExecutionContext> {
     private readonly getBuilder: () => GraphResolutionStrategyBuilder<R, TExecutionContext>
   ) {}
 
-  on<Resource extends ApplicationResourceIdentifier>(
+  on<Resource extends AddressableResourceIdentifier>(
     forResource: ExpansionResourceFor<Resource>
   ): IslandClauseBuilder<R, TExecutionContext, Resource> {
     return new IslandClauseBuilder(this.registerPolicy, this.getBuilder, forResource);
@@ -181,7 +181,7 @@ class ResolveActions<R extends ContentRegistry, TExecutionContext> {
     private readonly getBuilder: () => GraphResolutionStrategyBuilder<R, TExecutionContext>
   ) {}
 
-  on<Resource extends ApplicationResourceIdentifier>(
+  on<Resource extends AddressableResourceIdentifier>(
     forResource: ExpansionResourceFor<Resource>
   ): ResolveClauseBuilder<R, TExecutionContext, Resource> {
     return new ResolveClauseBuilder(this.registerPolicy, this.getBuilder, forResource);

@@ -28,7 +28,7 @@ export async function loadCmsCustomReferences(
     if (!customReferenceAri.matches(resource)) {
       return undefined;
     }
-    const parsed = parseCustomReference(resource.key[0].ref);
+    const parsed = parseCustomReference(resource.key.ref);
     if (parsed === null) {
       return undefined;
     }

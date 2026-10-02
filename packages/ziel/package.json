@@ -1,7 +1,7 @@
 {
   "name": "@xndrjs/ziel",
   "version": "0.1.0-alpha.0",
-  "description": "Ziel product entry: browser-safe resource graph resolver + application resources; compile-time DSL via ./compile.",
+  "description": "Ziel product entry: browser-safe resource graph resolver + addressable resources; compile-time DSL via ./compile.",
   "private": false,
   "license": "MIT",
   "repository": {
@@ -51,7 +51,7 @@
     "typecheck": "pnpm run langium:generate && tsc --noEmit"
   },
   "dependencies": {
-    "@xndrjs/application-resources": "workspace:^",
+    "@xndrjs/addressable-resources": "workspace:^",
     "@xndrjs/resource-graph-resolver": "workspace:^",
     "chokidar": "^5.0.0",
     "jiti": "^2.7.0",

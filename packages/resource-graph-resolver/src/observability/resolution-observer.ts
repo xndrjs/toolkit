@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import type {
   IslandId,
@@ -10,7 +10,7 @@ import type {
 } from "../types";
 
 export interface ResolutionStartEvent {
-  roots: readonly ApplicationResourceIdentifier[];
+  roots: readonly AddressableResourceIdentifier[];
   schedulingMode: SchedulingMode;
   sourceIds: readonly string[];
   budget: ResolutionBudget;
@@ -35,7 +35,7 @@ export interface ResourceBatchStartEvent {
   sourceId: string;
   batchNumber: number;
   /** Flat batch exactly as handed to the source. */
-  resources: readonly ApplicationResourceIdentifier[];
+  resources: readonly AddressableResourceIdentifier[];
   resourceCount: number;
 }
 
@@ -56,15 +56,15 @@ export interface ResourceBatchErrorEvent {
 }
 
 export interface ResourceExpandEvent {
-  resource: ApplicationResourceIdentifier;
+  resource: AddressableResourceIdentifier;
   /** Effective island, which is the resource itself when it opens a new island. */
   islandId: IslandId;
   isIsland: boolean;
-  children: readonly ApplicationResourceIdentifier[];
+  children: readonly AddressableResourceIdentifier[];
 }
 
 export interface BackingPromoteEvent {
-  resource: ApplicationResourceIdentifier;
+  resource: AddressableResourceIdentifier;
   islandIds: readonly IslandId[];
 }
 

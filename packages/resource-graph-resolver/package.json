@@ -36,7 +36,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@xndrjs/application-resources": "workspace:^"
+    "@xndrjs/addressable-resources": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

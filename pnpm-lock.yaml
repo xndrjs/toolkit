@@ -193,9 +193,9 @@ importers:
 
   apps/resource-graph-resolver-bench:
     dependencies:
-      '@xndrjs/application-resources':
+      '@xndrjs/addressable-resources':
         specifier: workspace:^
-        version: link:../../packages/application-resources
+        version: link:../../packages/addressable-resources
       '@xndrjs/resource-graph-resolver':
         specifier: workspace:^
         version: link:../../packages/resource-graph-resolver
@@ -206,9 +206,9 @@ importers:
 
   apps/resource-graph-resolver-demo:
     dependencies:
-      '@xndrjs/application-resources':
+      '@xndrjs/addressable-resources':
         specifier: workspace:^
-        version: link:../../packages/application-resources
+        version: link:../../packages/addressable-resources
       '@xndrjs/domain-zod':
         specifier: workspace:^
         version: link:../../packages/domain-zod
@@ -328,7 +328,7 @@ importers:
 
   configs/config-vitest: {}
 
-  packages/application-resources:
+  packages/addressable-resources:
     devDependencies:
       tsup:
         specifier: ^8.5.1
@@ -479,9 +479,9 @@ importers:
 
   packages/resource-graph-resolver:
     dependencies:
-      '@xndrjs/application-resources':
+      '@xndrjs/addressable-resources':
         specifier: workspace:^
-        version: link:../application-resources
+        version: link:../addressable-resources
     devDependencies:
       '@types/node':
         specifier: ^25.5.0
@@ -504,9 +504,9 @@ importers:
 
   packages/ziel:
     dependencies:
-      '@xndrjs/application-resources':
+      '@xndrjs/addressable-resources':
         specifier: workspace:^
-        version: link:../application-resources
+        version: link:../addressable-resources
       '@xndrjs/resource-graph-resolver':
         specifier: workspace:^
         version: link:../resource-graph-resolver

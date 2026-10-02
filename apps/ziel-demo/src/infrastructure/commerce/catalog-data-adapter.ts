@@ -23,7 +23,7 @@ export function loadCatalogProducts(
       if (!catalogProductAri.matches(resource)) {
         return undefined;
       }
-      const { id, market, locale } = resource.key[0];
+      const { id, market, locale } = resource.key;
       const raw = products.get(`${id}/${market}/${locale}`);
       return raw === undefined
         ? undefined

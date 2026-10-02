@@ -47,7 +47,7 @@ function resolveOptions(options?: GenerateProjectionsOptions): ResolvedOptions {
 }
 
 function emitRuntimeImport(importFrom: string, analysis: ProgramAnalysis): string {
-  const symbols = ["type ContentMap", "type ApplicationResourceIdentifier"];
+  const symbols = ["type ContentMap", "type AddressableResourceIdentifier"];
   if (analysis.queries.some((query) => query.hasRedirects)) {
     symbols.push("type ResourceKey");
   }

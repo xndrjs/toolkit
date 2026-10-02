@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 import type { ResolveResourceGraphOutput } from "@xndrjs/resource-graph-resolver";
 
 import { cmsEntryAri } from "../cms/index.js";
@@ -21,7 +21,7 @@ import { requireCmsEntry, type MapperContext } from "./mapper-context.js";
 
 export type MapContentMapToPageAggregateInput = {
   result: ResolveResourceGraphOutput<DemoContentRegistry>;
-  root: ApplicationResourceIdentifier<"cms.entry">;
+  root: AddressableResourceIdentifier<"cms.entry">;
   locale?: ContentfulLocaleCode;
 };
 

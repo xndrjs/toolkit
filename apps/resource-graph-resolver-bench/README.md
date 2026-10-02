@@ -61,7 +61,7 @@ pnpm --filter @xndrjs/resource-graph-resolver-bench bench:dev -- --modules 32 --
 pnpm --filter @xndrjs/resource-graph-resolver-bench bench -- --modules 32 --scheduling-mode lane --repeats 1
 ```
 
-`bench` builds `@xndrjs/application-resources`, `@xndrjs/resource-graph-resolver`, and this app, then runs `dist/index.js`.
+`bench` builds `@xndrjs/addressable-resources`, `@xndrjs/resource-graph-resolver`, and this app, then runs `dist/index.js`.
 
 ### Compare orchestration modes
 

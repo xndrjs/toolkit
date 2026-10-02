@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import type { ContentRegistry } from "../types";
 import type { ExpansionContext, ExpansionResourceFor } from "./expansion-port";
@@ -13,7 +13,7 @@ import type { ExpansionContext, ExpansionResourceFor } from "./expansion-port";
 export type ResolveContext<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
-  Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier = AddressableResourceIdentifier,
 > = ExpansionContext<R, TExecutionContext, Resource>;
 
 /**
@@ -22,7 +22,7 @@ export type ResolveContext<
  * expanding the locator.
  */
 export interface ResolveResult {
-  readonly resource: ApplicationResourceIdentifier;
+  readonly resource: AddressableResourceIdentifier;
 }
 
 /**
@@ -57,7 +57,7 @@ export interface ResolvePolicy<
  * - `to` — canonical ARI to enqueue for matched resources
  */
 export function defineResolvePolicy<
-  Resource extends ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier,
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
 >(policy: {

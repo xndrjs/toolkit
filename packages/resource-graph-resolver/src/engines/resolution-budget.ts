@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import { ResourceGraphBudgetExceededError, ResourceGraphError } from "../errors";
 import type {
@@ -62,7 +62,7 @@ export class ResolutionBudgetTracker {
     private readonly onExceeded: BudgetExceededCallback
   ) {}
 
-  discoverNode(resource: ApplicationResourceIdentifier): void {
+  discoverNode(resource: AddressableResourceIdentifier): void {
     this.assertDuration();
     const key = resource.toString();
     if (this.nodeKeys.has(key)) return;
@@ -71,9 +71,9 @@ export class ResolutionBudgetTracker {
   }
 
   discoverExpansion(
-    source: ApplicationResourceIdentifier,
+    source: AddressableResourceIdentifier,
     islandId: IslandId,
-    target: ApplicationResourceIdentifier
+    target: AddressableResourceIdentifier
   ): void {
     this.discoverEdge(
       `expand\u0000${islandId}\u0000${source.toString()}\u0000${target.toString()}`
@@ -82,8 +82,8 @@ export class ResolutionBudgetTracker {
   }
 
   discoverRedirect(
-    source: ApplicationResourceIdentifier,
-    target: ApplicationResourceIdentifier
+    source: AddressableResourceIdentifier,
+    target: AddressableResourceIdentifier
   ): void {
     this.discoverEdge(`redirect\u0000${source.toString()}\u0000${target.toString()}`);
     this.discoverNode(target);

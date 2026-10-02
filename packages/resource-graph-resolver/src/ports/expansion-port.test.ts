@@ -1,4 +1,4 @@
-import { ari, s, type ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import { ari, s, type AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
@@ -15,7 +15,7 @@ const menuAri = ari("menu", s.object({ id: s.string() }));
 type MenuRegistry = ContentRegistry & { menu: { kind?: string } };
 
 function createContext(
-  resource: ApplicationResourceIdentifier = testAri("page", "P"),
+  resource: AddressableResourceIdentifier = testAri("page", "P"),
   payload: unknown = {}
 ): ExpansionContext<ContentRegistry, { locale: string }> {
   return {

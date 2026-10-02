@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 import type { ResolutionObserver } from "@xndrjs/resource-graph-resolver";
 
 export type ResolveTrace = {
@@ -51,7 +51,7 @@ export function createConsoleResolveTrace(): ResolveTrace {
         `\n[${stamp()}] ▶ Batch ${batchCount} (${label}, ${resourceCount} resources) · in-flight: ${formatInFlight(inFlight)}`
       );
 
-      const byType = new Map<string, ApplicationResourceIdentifier[]>();
+      const byType = new Map<string, AddressableResourceIdentifier[]>();
       for (const resource of resources) {
         const group = byType.get(resource.type) ?? [];
         group.push(resource);

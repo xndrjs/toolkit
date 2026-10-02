@@ -67,7 +67,7 @@ function memberAccess(base: string, path: readonly string[]): string {
  * | `param`         | `args.params.name`                         |
  * | `context`       | `args.executionContext.field…`             |
  * | `payloadRef`    | `payload.field…` (binding discarded)       |
- * | `identityRef`   | `resource.key[0].field…`                   |
+ * | `identityRef`   | `resource.key.field…`                      |
  * | `itemRef`       | `binding.field…` (comprehension item)      |
  * | `literal`       | JSON / `null`                              |
  * | `arrayLiteral`  | `[…]`                                      |
@@ -92,7 +92,7 @@ export function emitExpr(expr: Expr, scope: EmitExprScope = projectionExprScope)
     case "payloadRef":
       return memberAccess(scope.payload, expr.path);
     case "identityRef":
-      return memberAccess(`${scope.resource}.key[0]`, expr.path);
+      return memberAccess(`${scope.resource}.key`, expr.path);
     case "itemRef":
       return memberAccess(expr.binding, expr.path);
     case "arrayLiteral":

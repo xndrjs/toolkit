@@ -1,4 +1,4 @@
-import { ari, s } from "@xndrjs/application-resources";
+import { ari, s } from "@xndrjs/addressable-resources";
 
 /** Synthetic CMS tree node for scheduler benches. */
 export const benchNodeAri = ari("bench.node", s.object({ id: s.string() }));

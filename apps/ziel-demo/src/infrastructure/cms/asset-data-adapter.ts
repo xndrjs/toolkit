@@ -28,7 +28,7 @@ export function loadCmsAssets(assets: ReadonlyMap<string, AssetPayloadWire> = de
       if (!assetAri.matches(resource)) {
         return undefined;
       }
-      const id = String(resource.key[0].id);
+      const id = String(resource.key.id);
       const raw = assets.get(id);
       if (raw === undefined) return undefined;
       const wire = parsePayload(assetPayloadSchema, raw, "Asset");

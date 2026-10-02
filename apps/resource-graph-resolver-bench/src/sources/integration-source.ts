@@ -53,5 +53,5 @@ export async function loadIntegrationProducts(
 
   await simulateNetworkLatency(latencyMs);
 
-  return resources.map((resource) => catalog.get(resource.key[0].sku));
+  return resources.map((resource) => catalog.get(resource.key.sku));
 }

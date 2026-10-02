@@ -62,9 +62,9 @@ export function createCmsSource(
 
       return batch.map((resource) => {
         if (cmsEntryAri.matches(resource)) {
-          return store.entries.get(resource.key[0].id);
+          return store.entries.get(resource.key.id);
         }
-        return store.assets.get(resource.key[0].id);
+        return store.assets.get(resource.key.id);
       });
     },
   });
@@ -84,7 +84,7 @@ export async function loadCmsEntries(
 
   const records: CmsEntryRecord[] = [];
   for (const resource of resources) {
-    const payload = store.entries.get(resource.key[0].id);
+    const payload = store.entries.get(resource.key.id);
     if (payload !== undefined) {
       records.push({ resource, payload });
     }
@@ -107,7 +107,7 @@ export async function loadCmsAssets(
 
   const records: CmsAssetRecord[] = [];
   for (const resource of resources) {
-    const payload = store.assets.get(resource.key[0].id);
+    const payload = store.assets.get(resource.key.id);
     if (payload !== undefined) {
       records.push({ resource, payload });
     }

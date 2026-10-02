@@ -1,4 +1,4 @@
-import { ari, s } from "@xndrjs/application-resources";
+import { ari, s } from "@xndrjs/addressable-resources";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
@@ -47,10 +47,10 @@ describe("defineDataSourceFor", () => {
 
         return batch.map((resource) => {
           if (cmsEntryAri.matches(resource)) {
-            return { title: `entry:${resource.key[0].id}` };
+            return { title: `entry:${resource.key.id}` };
           }
 
-          return { url: `https://cdn.example.com/${resource.key[0].id}` };
+          return { url: `https://cdn.example.com/${resource.key.id}` };
         });
       },
     });

@@ -36,7 +36,7 @@ export function loadCmsEntries(entries: ReadonlyMap<string, EditorialDocument> =
   ): Promise<readonly (CmsEntriesPayload | undefined)[]> =>
     batch.map((resource) => {
       if (pageAri.matches(resource)) {
-        const { spaceId, environmentId, id } = resource.key[0];
+        const { spaceId, environmentId, id } = resource.key;
         const doc = entries.get(entryLookupKey({ spaceId, environmentId, id }));
         if (doc?.kind !== "page") return undefined;
         const wire = parsePayload(pagePayloadSchema, doc.payload, "Page");
@@ -44,7 +44,7 @@ export function loadCmsEntries(entries: ReadonlyMap<string, EditorialDocument> =
       }
 
       if (entryAri.matches(resource)) {
-        const { spaceId, environmentId, id } = resource.key[0];
+        const { spaceId, environmentId, id } = resource.key;
         const doc = entries.get(entryLookupKey({ spaceId, environmentId, id }));
         if (doc?.kind !== "entry") return undefined;
         const wire = parsePayload(entryPayloadSchema, doc.payload, "Entry");

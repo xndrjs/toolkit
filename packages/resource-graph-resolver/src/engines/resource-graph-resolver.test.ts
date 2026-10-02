@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import { createResourceGraphResolver } from "./resource-graph-resolver";
 import {
@@ -819,7 +819,7 @@ describe("multi-root seeds", () => {
       [b.toString(), {}],
     ]);
 
-    let seenRoots: readonly ApplicationResourceIdentifier[] | undefined;
+    let seenRoots: readonly AddressableResourceIdentifier[] | undefined;
     const resolver = createResourceGraphResolver({
       sources: [createStoreSource({ id: "pages", for: [pageAri], store })],
       strategy: graphStrategy(createExpansionPolicyChain([]), createIslandPolicyChain([])),

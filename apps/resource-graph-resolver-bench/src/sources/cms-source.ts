@@ -53,5 +53,5 @@ export async function loadCmsNodes(
 
   await simulateNetworkLatency(latencyMs);
 
-  return resources.map((resource) => store.get(resource.key[0].id));
+  return resources.map((resource) => store.get(resource.key.id));
 }

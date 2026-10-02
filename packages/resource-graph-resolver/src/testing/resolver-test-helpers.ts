@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 import { vi, type Mock } from "vitest";
 
 import { createResourceGraphResolver } from "../engines/resource-graph-resolver";
@@ -104,7 +104,7 @@ export function createDeferred<T>(): Deferred<T> {
 }
 
 export function recordsFromStore(
-  resources: readonly ApplicationResourceIdentifier[],
+  resources: readonly AddressableResourceIdentifier[],
   store: ReadonlyMap<string, unknown>
 ): (unknown | undefined)[] {
   return resources.map((resource) => {
@@ -124,11 +124,11 @@ export interface StoreSourceOptions {
   /** Simulated latency, so lane and barrier schedule differently. */
   readonly delayMs?: number;
   /** Omitted from results even when present in the store. */
-  readonly omit?: readonly ApplicationResourceIdentifier[];
+  readonly omit?: readonly AddressableResourceIdentifier[];
 }
 
 export interface StoreSource extends DataSource {
-  readonly batches: ApplicationResourceIdentifier[][];
+  readonly batches: AddressableResourceIdentifier[][];
   readonly load: Mock<DataSource["load"]>;
   readonly inFlightPeak: { value: number };
 }
@@ -137,12 +137,12 @@ export interface StoreSource extends DataSource {
 export function createStoreSource(options: StoreSourceOptions): StoreSource {
   const store = options.store ?? pageGraphValues;
   const omitted = new Set((options.omit ?? []).map((resource) => resource.toString()));
-  const batches: ApplicationResourceIdentifier[][] = [];
+  const batches: AddressableResourceIdentifier[][] = [];
   const inFlightPeak = { value: 0 };
   let inFlight = 0;
 
   const load = vi.fn(
-    async (batch: readonly ApplicationResourceIdentifier[], _context: ResourceLoadContext) => {
+    async (batch: readonly AddressableResourceIdentifier[], _context: ResourceLoadContext) => {
       const requested = [...batch];
       batches.push(requested);
 

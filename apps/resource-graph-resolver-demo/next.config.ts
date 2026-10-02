@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: [
-    "@xndrjs/application-resources",
+    "@xndrjs/addressable-resources",
     "@xndrjs/domain-zod",
     "@xndrjs/resource-graph-resolver",
   ],

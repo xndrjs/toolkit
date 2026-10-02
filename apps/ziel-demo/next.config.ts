@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: [
     "@xndrjs/ziel",
-    "@xndrjs/application-resources",
+    "@xndrjs/addressable-resources",
     "@xndrjs/resource-graph-resolver",
   ],
   webpack: (config) => {

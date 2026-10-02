@@ -8,7 +8,7 @@ import { type ResourceIndex } from "./resource-index";
 export function emitProjectEdgeHelper(fnName: string): string {
   return [
     `  const projectEdge = (`,
-    `    ari: ApplicationResourceIdentifier,`,
+    `    ari: AddressableResourceIdentifier,`,
     `    onFailure: "setNull" | "setError",`,
     `  ): unknown => {`,
     `    const value = projectNode(ari);`,
@@ -92,7 +92,7 @@ export function emitProjectNode(plan: QueryPlan, resources: ResourceIndex, fnNam
   );
 
   return [
-    `  const projectNode = (ari: ApplicationResourceIdentifier): unknown => {`,
+    `  const projectNode = (ari: AddressableResourceIdentifier): unknown => {`,
     `    const key = ari.toString();`,
     `    if (memo.has(key)) return memo.get(key);`,
     `    const loadedPayload = contentMap.get(ari as never);`,
@@ -118,7 +118,7 @@ export function emitArgsType(plan: QueryPlan): string | null {
     fields.push(`    params: ${paramsTypeName(query.name)};`);
   }
   if (hasRedirects) {
-    fields.push(`    redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;`);
+    fields.push(`    redirects: ReadonlyMap<ResourceKey, AddressableResourceIdentifier>;`);
   }
   if (hasFailures) {
     fields.push(`    failures: ReadonlyMap<ResourceKey, ResolutionError>;`);

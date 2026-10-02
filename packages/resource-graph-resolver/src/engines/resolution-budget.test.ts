@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 import { describe, expect, it, vi } from "vitest";
 
 import { ResourceGraphBudgetExceededError, ResourceGraphError } from "../errors";
@@ -15,7 +15,7 @@ import type { SchedulingMode } from "../types";
 import { createResourceGraphResolver } from "./resource-graph-resolver";
 import { DEFAULT_RESOLUTION_BUDGET } from "./resolution-budget";
 
-function staticGraphStrategy(children: readonly ApplicationResourceIdentifier[]) {
+function staticGraphStrategy(children: readonly AddressableResourceIdentifier[]) {
   return graphStrategy(
     createExpansionPolicyChain([
       {

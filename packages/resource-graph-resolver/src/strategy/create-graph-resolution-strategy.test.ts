@@ -1,4 +1,4 @@
-import { ari, s } from "@xndrjs/application-resources";
+import { ari, s } from "@xndrjs/addressable-resources";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { createGraphResolutionStrategy } from "./create-graph-resolution-strategy";

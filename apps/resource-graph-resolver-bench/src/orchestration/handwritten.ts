@@ -5,7 +5,7 @@
  * - `batched`: DataLoader-style — flush pending ARIs per family in chunks of
  *   `batchSize` (still a level-by-level BFS over the expansion graph).
  */
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import {
   benchNodeAri,
@@ -34,20 +34,20 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
   return out;
 }
 
-function resourceKey(resource: ApplicationResourceIdentifier): string {
+function resourceKey(resource: AddressableResourceIdentifier): string {
   return resource.toString();
 }
 
 type ExpandResult = {
-  readonly children: readonly ApplicationResourceIdentifier[];
+  readonly children: readonly AddressableResourceIdentifier[];
 };
 
 function expandNode(
-  resource: ApplicationResourceIdentifier,
+  resource: AddressableResourceIdentifier,
   graph: GeneratedBenchGraph
 ): ExpandResult {
   if (benchNodeAri.matches(resource)) {
-    const payload = graph.cmsStore.get(resource.key[0].id);
+    const payload = graph.cmsStore.get(resource.key.id);
     if (payload === undefined) {
       return { children: [] };
     }
@@ -56,7 +56,7 @@ function expandNode(
         children: payload.children.map((id) => benchNodeAri({ id })),
       };
     }
-    return { children: [benchProductAri({ sku: resource.key[0].id })] };
+    return { children: [benchProductAri({ sku: resource.key.id })] };
   }
   return { children: [] };
 }
@@ -155,7 +155,7 @@ export async function walkNaive(
   const wallStart = performance.now();
   const batches: BatchInterval[] = [];
   const seen = new Set<string>();
-  const queue: ApplicationResourceIdentifier[] = [graph.root];
+  const queue: AddressableResourceIdentifier[] = [graph.root];
   let cmsBatchNumber = 0;
   let integrationBatchNumber = 0;
   let resolvedCount = 0;
@@ -223,7 +223,7 @@ export async function walkBatched(
   const wallStart = performance.now();
   const batches: BatchInterval[] = [];
   const seen = new Set<string>();
-  let frontier: ApplicationResourceIdentifier[] = [graph.root];
+  let frontier: AddressableResourceIdentifier[] = [graph.root];
   let cmsBatchNumber = 0;
   let integrationBatchNumber = 0;
   let resolvedCount = 0;

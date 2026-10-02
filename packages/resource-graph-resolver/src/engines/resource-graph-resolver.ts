@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import {
   MissingResourceError,
@@ -40,7 +40,7 @@ type LoadCompletion<R extends ContentRegistry, TExecutionContext> = {
   readonly refs: readonly GraphWalkRef[];
   readonly batchNumber: number;
   readonly startedAt: number;
-  readonly resources: readonly ApplicationResourceIdentifier[];
+  readonly resources: readonly AddressableResourceIdentifier[];
 } & (
   | { readonly ok: true; readonly payloads: readonly (R[keyof R & string] | undefined)[] }
   | { readonly ok: false; readonly error: unknown }
@@ -49,7 +49,7 @@ type LoadCompletion<R extends ContentRegistry, TExecutionContext> = {
 const ROOT_ON_FAILURE: OnFailurePolicy = "throw";
 
 function walkRef(
-  resource: ApplicationResourceIdentifier,
+  resource: AddressableResourceIdentifier,
   inheritedIslandId: IslandId,
   onFailure: OnFailurePolicy
 ): GraphWalkRef {
@@ -168,7 +168,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   };
 
   const expandInto = (
-    resource: ApplicationResourceIdentifier,
+    resource: AddressableResourceIdentifier,
     islandIds: readonly IslandId[]
   ): void => {
     for (const inheritedIslandId of islandIds) {
@@ -185,7 +185,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
    * Does not treat a missing payload as an error — callers check that first when needed.
    */
   const continueAfterPayload = (
-    resource: ApplicationResourceIdentifier,
+    resource: AddressableResourceIdentifier,
     islandIds: readonly IslandId[],
     onFailure: OnFailurePolicy
   ): void => {
@@ -218,7 +218,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
   };
 
   const routeOf = (
-    resource: ApplicationResourceIdentifier
+    resource: AddressableResourceIdentifier
   ): SourceLane<R, TExecutionContext> | undefined => {
     for (const lane of lanes) {
       const source = lane.source;
@@ -301,7 +301,7 @@ async function resolveResourceGraph<R extends ContentRegistry, TExecutionContext
     lane.pendingCount -= slice.length;
 
     const refs: GraphWalkRef[] = [];
-    const resources: ApplicationResourceIdentifier[] = [];
+    const resources: AddressableResourceIdentifier[] = [];
 
     for (const ref of slice) {
       // Another batch (or backing promote) may have settled this ARI while it

@@ -1,13 +1,13 @@
-import { ari, s, type ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import { ari, s, type AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 const idKeySchema = s.object({ id: s.string() });
 
-/** Builds a test ARI factory whose key is a single `{ id }` object part. */
+/** Builds a test ARI factory whose key is `{ id }`. */
 export function testAriFactory<const Type extends string>(type: Type) {
   return ari(type, idKeySchema);
 }
 
-/** Builds a test ARI with a single `{ id }` object key part. */
+/** Builds a test ARI with an `{ id }` key. */
 export function testAri<const Type extends string>(type: Type, id: string) {
   return testAriFactory(type)({ id });
 }
@@ -20,12 +20,7 @@ export const assetAri = testAriFactory("asset");
 export const productAri = testAriFactory("product");
 export const orphanAri = testAriFactory("orphan");
 
-/** Reads the `{ id }` key part of a test ARI without narrowing to a factory type. */
-export function idOf(resource: ApplicationResourceIdentifier): string {
-  const part = resource.key[0];
-  if (typeof part === "object" && part !== null && "id" in part) {
-    return String(part.id);
-  }
-
-  return String(part);
+/** Reads the `id` key field of a test ARI without narrowing to a factory type. */
+export function idOf(resource: AddressableResourceIdentifier): string {
+  return String(resource.key.id);
 }

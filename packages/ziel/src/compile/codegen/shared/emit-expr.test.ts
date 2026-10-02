@@ -40,9 +40,9 @@ describe("emitExpr", () => {
     expect(emitExpr(payload("p", "meta", "title"))).toBe("payload.meta.title");
   });
 
-  it("emits identityRef as resource.key[0].path", () => {
-    expect(emitExpr(identity("p", "id"))).toBe("resource.key[0].id");
-    expect(emitExpr(identity("p"))).toBe("resource.key[0]");
+  it("emits identityRef as resource.key.path", () => {
+    expect(emitExpr(identity("p", "id"))).toBe("resource.key.id");
+    expect(emitExpr(identity("p"))).toBe("resource.key");
   });
 
   it("emits itemRef via the comprehension binding", () => {
@@ -95,7 +95,7 @@ describe("emitExpr", () => {
     expect(emitExpr(cast(param("locale"), "string"))).toBe("args.params.locale");
     expect(
       emitExpr(eq(cast(param("locale"), "string"), cast(identity("c", "ref"), "string")))
-    ).toBe("args.params.locale == resource.key[0].ref");
+    ).toBe("args.params.locale == resource.key.ref");
   });
 });
 

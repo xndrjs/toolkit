@@ -118,7 +118,7 @@ export function createQDataSources(
       concurrency: config.CmsSource.concurrency,
       when: ({ executionContext, resource }) => {
         if (entryAri.matches(resource)) {
-          return executionContext.locale == resource.key[0].locale;
+          return executionContext.locale == resource.key.locale;
         }
         if (assetAri.matches(resource)) {
           return true;

@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import type { ResolutionError } from "./errors";
 import type { ContentMap } from "./model/content-map";
@@ -11,8 +11,8 @@ export type ResourceKey = string;
 /** Payload shape for a narrowed ARI within a project {@link ContentRegistry}. */
 export type RegistryPayloadFor<
   R extends ContentRegistry,
-  Resource extends ApplicationResourceIdentifier,
-> = Resource extends ApplicationResourceIdentifier<infer T extends keyof R & string> ? R[T] : never;
+  Resource extends AddressableResourceIdentifier,
+> = Resource extends AddressableResourceIdentifier<infer T extends keyof R & string> ? R[T] : never;
 
 /** Stable island identifier; equal to the root resource's {@link ResourceKey}. */
 export type IslandId = string;
@@ -93,7 +93,7 @@ export type ResolutionBudgetKind = keyof ResolutionBudget;
 
 export interface ResolveResourceGraphInput<TExecutionContext = unknown> {
   /** Seed ARIs for one resolution session; must be non-empty. */
-  roots: readonly ApplicationResourceIdentifier[];
+  roots: readonly AddressableResourceIdentifier[];
   executionContext: TExecutionContext;
   /**
    * Opaque pre-resolved payloads consulted before any source is asked.
@@ -121,7 +121,7 @@ export interface ResolveResourceGraphOutput<R extends ContentRegistry = ContentR
    * Locator ARI key → canonical settle target (strategy `resolve` redirects).
    * Projectors follow this so `@binding` identity refs use the canonical ARI key.
    */
-  redirects: ReadonlyMap<ResourceKey, ApplicationResourceIdentifier>;
+  redirects: ReadonlyMap<ResourceKey, AddressableResourceIdentifier>;
 }
 
 /** Portable island payload for cache/JSON (schema v1). */

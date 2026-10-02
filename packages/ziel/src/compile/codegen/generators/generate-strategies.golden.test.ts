@@ -95,10 +95,10 @@ export function createPageDetailStrategy(params: PageDetailParams) {
     .on(pageAri)
     .expand((predicate) => ({
       resources: [
-        entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.menuId, locale: predicate.resource.key[0].locale }),
-        entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.footerId, locale: predicate.resource.key[0].locale }),
-        ...predicate.payload.strips.map((pageLink) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: pageLink.id, locale: predicate.resource.key[0].locale })),
-        ...predicate.payload.related.map((ref) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale })),
+        entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: predicate.payload.menuId, locale: predicate.resource.key.locale }),
+        entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: predicate.payload.footerId, locale: predicate.resource.key.locale }),
+        ...predicate.payload.strips.map((pageLink) => entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: pageLink.id, locale: predicate.resource.key.locale })),
+        ...predicate.payload.related.map((ref) => customReferenceAri({ ref: ref, locale: predicate.resource.key.locale })),
       ],
     }));
 
@@ -113,7 +113,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   imageId: AssetId;
 };
       return {
-        resources: [assetAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: payload.imageId, locale: predicate.resource.key[0].locale })],
+        resources: [assetAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: payload.imageId, locale: predicate.resource.key.locale })],
       };
     });
 
@@ -130,7 +130,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   }[];
 };
       return {
-        resources: payload.tabs.map((tabLink) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: tabLink.id, locale: predicate.resource.key[0].locale })),
+        resources: payload.tabs.map((tabLink) => entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: tabLink.id, locale: predicate.resource.key.locale })),
       };
     });
 
@@ -147,7 +147,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   }[];
 };
       return {
-        resources: payload.strips.map((entryLink) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: entryLink.id, locale: predicate.resource.key[0].locale })),
+        resources: payload.strips.map((entryLink) => entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: entryLink.id, locale: predicate.resource.key.locale })),
       };
     });
 
@@ -162,7 +162,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   logoId: AssetId;
 };
       return {
-        resources: [assetAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: payload.logoId, locale: predicate.resource.key[0].locale })],
+        resources: [assetAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: payload.logoId, locale: predicate.resource.key.locale })],
       };
     });
 
@@ -177,7 +177,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   logoId: AssetId;
 };
       return {
-        resources: [assetAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: payload.logoId, locale: predicate.resource.key[0].locale })],
+        resources: [assetAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: payload.logoId, locale: predicate.resource.key.locale })],
       };
     });
 
@@ -191,7 +191,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   targetId: EntryId;
 };
       return {
-        resources: [entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: payload.targetId, locale: predicate.resource.key[0].locale })],
+        resources: [entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: payload.targetId, locale: predicate.resource.key.locale })],
       };
     });
 
@@ -206,7 +206,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   id: EntryId;
 };
       return {
-        resource: entryAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key[0].locale }),
+        resource: entryAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key.locale }),
       };
     });
 
@@ -221,7 +221,7 @@ export function createPageDetailStrategy(params: PageDetailParams) {
   id: AssetId;
 };
       return {
-        resource: assetAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key[0].locale }),
+        resource: assetAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key.locale }),
       };
     });
 
@@ -270,13 +270,13 @@ describe("generateStrategies golden", () => {
     expect(code).toContain('.when((predicate) => predicate.payload.type == "Hero")');
     expect(code).toContain('(predicate.payload.type == "SiteInternalLink"))');
     expect(code).toContain(
-      "payload.tabs.map((tabLink) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: tabLink.id, locale: predicate.resource.key[0].locale }))"
+      "payload.tabs.map((tabLink) => entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: tabLink.id, locale: predicate.resource.key.locale }))"
     );
     expect(code).toContain(
-      "predicate.payload.strips.map((pageLink) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: pageLink.id, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.strips.map((pageLink) => entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: pageLink.id, locale: predicate.resource.key.locale }))"
     );
     expect(code).toContain(
-      "predicate.payload.related.map((ref) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.related.map((ref) => customReferenceAri({ ref: ref, locale: predicate.resource.key.locale }))"
     );
     expect(code).not.toContain("editorialModuleAri");
     expect(code).not.toContain("tabCollectionAri");
@@ -287,10 +287,10 @@ describe("generateStrategies golden", () => {
     expect(code).toContain('.when((predicate) => predicate.payload.type == "Entry")');
     expect(code).toContain('.when((predicate) => predicate.payload.type == "Asset")');
     expect(code).toContain(
-      "entryAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key[0].locale })"
+      "entryAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key.locale })"
     );
     expect(code).toContain(
-      "assetAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key[0].locale })"
+      "assetAri({ spaceId: payload.spaceId, environmentId: payload.environmentId, id: payload.id, locale: predicate.resource.key.locale })"
     );
     expect(code).toContain("strategy.islands");
     expect(code).toContain(

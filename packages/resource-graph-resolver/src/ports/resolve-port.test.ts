@@ -1,4 +1,4 @@
-import { ari, s, type ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import { ari, s, type AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
@@ -17,7 +17,7 @@ type CustomRefRegistry = ContentRegistry & {
 };
 
 function createContext(
-  resource: ApplicationResourceIdentifier = testAri("customRef", "C"),
+  resource: AddressableResourceIdentifier = testAri("customRef", "C"),
   payload: unknown = {}
 ): ResolveContext<ContentRegistry, { locale: string }> {
   return {

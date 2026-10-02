@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import type { IslandId, ResourceKey } from "../types";
 
@@ -11,11 +11,11 @@ import type { IslandId, ResourceKey } from "../types";
 export class IslandMap {
   private readonly islands = new Map<IslandId, Set<ResourceKey>>();
 
-  has(islandId: IslandId, resource: ApplicationResourceIdentifier): boolean {
+  has(islandId: IslandId, resource: AddressableResourceIdentifier): boolean {
     return this.islands.get(islandId)?.has(resource.toString()) ?? false;
   }
 
-  add(islandId: IslandId, resource: ApplicationResourceIdentifier): void {
+  add(islandId: IslandId, resource: AddressableResourceIdentifier): void {
     const resources = this.islands.get(islandId) ?? new Set<ResourceKey>();
 
     resources.add(resource.toString());

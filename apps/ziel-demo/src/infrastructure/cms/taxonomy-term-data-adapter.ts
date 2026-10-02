@@ -29,7 +29,7 @@ export function loadCmsTaxonomyTerms(
       if (!taxonomyTermAri.matches(resource)) {
         return undefined;
       }
-      const { spaceId, environmentId, kind, id } = resource.key[0];
+      const { spaceId, environmentId, kind, id } = resource.key;
       const raw = terms.get(
         taxonomyTermLookupKey({
           spaceId,

@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import { ResourceGraphError, ResourceRedirectCycleError } from "../errors";
 import type { ResourceKey } from "../types";
@@ -11,15 +11,15 @@ import type { ResourceKey } from "../types";
  * failures reach only aliases affected by a settled target.
  */
 export class RedirectGraph {
-  private readonly targetByAlias = new Map<ResourceKey, ApplicationResourceIdentifier>();
+  private readonly targetByAlias = new Map<ResourceKey, AddressableResourceIdentifier>();
   private readonly aliasesByTarget = new Map<ResourceKey, Set<ResourceKey>>();
-  private readonly resourcesByKey = new Map<ResourceKey, ApplicationResourceIdentifier>();
+  private readonly resourcesByKey = new Map<ResourceKey, AddressableResourceIdentifier>();
 
   /** Link one locator to a target and return the final canonical target. */
   link(
-    locator: ApplicationResourceIdentifier,
-    target: ApplicationResourceIdentifier
-  ): ApplicationResourceIdentifier {
+    locator: AddressableResourceIdentifier,
+    target: AddressableResourceIdentifier
+  ): AddressableResourceIdentifier {
     const locatorKey = this.remember(locator);
     const targetKey = this.remember(target);
     const existing = this.targetByAlias.get(locatorKey);
@@ -51,13 +51,13 @@ export class RedirectGraph {
   }
 
   /** Canonical target when `resource` is an alias; otherwise `undefined`. */
-  redirectOf(resource: ApplicationResourceIdentifier): ApplicationResourceIdentifier | undefined {
+  redirectOf(resource: AddressableResourceIdentifier): AddressableResourceIdentifier | undefined {
     const key = this.remember(resource);
     return this.targetByAlias.has(key) ? this.canonicalOf(resource) : undefined;
   }
 
   /** Resolve the final target and compress every traversed alias edge. */
-  canonicalOf(resource: ApplicationResourceIdentifier): ApplicationResourceIdentifier {
+  canonicalOf(resource: AddressableResourceIdentifier): AddressableResourceIdentifier {
     this.remember(resource);
     const path = this.pathFrom(resource);
     const canonical = path.at(-1)!;
@@ -77,7 +77,7 @@ export class RedirectGraph {
   }
 
   /** Every direct or transitive alias of `resource`'s canonical identity. */
-  aliasesOf(resource: ApplicationResourceIdentifier): readonly ResourceKey[] {
+  aliasesOf(resource: AddressableResourceIdentifier): readonly ResourceKey[] {
     const canonical = this.canonicalOf(resource);
     return this.aliasesOfKey(canonical.toString());
   }
@@ -101,8 +101,8 @@ export class RedirectGraph {
   }
 
   /** Flattened alias → canonical target snapshot for resolver consumers. */
-  snapshot(): ReadonlyMap<ResourceKey, ApplicationResourceIdentifier> {
-    const redirects = new Map<ResourceKey, ApplicationResourceIdentifier>();
+  snapshot(): ReadonlyMap<ResourceKey, AddressableResourceIdentifier> {
+    const redirects = new Map<ResourceKey, AddressableResourceIdentifier>();
     for (const aliasKey of [...this.targetByAlias.keys()].sort()) {
       const alias = this.resourcesByKey.get(aliasKey)!;
       redirects.set(aliasKey, this.canonicalOf(alias));
@@ -110,7 +110,7 @@ export class RedirectGraph {
     return redirects;
   }
 
-  private pathFrom(resource: ApplicationResourceIdentifier): ApplicationResourceIdentifier[] {
+  private pathFrom(resource: AddressableResourceIdentifier): AddressableResourceIdentifier[] {
     const path = [resource];
     let current = resource;
 
@@ -122,7 +122,7 @@ export class RedirectGraph {
     }
   }
 
-  private remember(resource: ApplicationResourceIdentifier): ResourceKey {
+  private remember(resource: AddressableResourceIdentifier): ResourceKey {
     const key = resource.toString();
     this.resourcesByKey.set(key, resource);
     return key;

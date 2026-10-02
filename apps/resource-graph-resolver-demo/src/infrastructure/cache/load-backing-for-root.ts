@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 import {
   buildBackingResourcesFromIslands,
   type ResourceKey,
@@ -37,7 +37,7 @@ function manifestStatus(
  * dependency manifest. Builds backing resources from complete root and/or dependency islands.
  */
 export function loadBackingForRoot(
-  root: ApplicationResourceIdentifier,
+  root: AddressableResourceIdentifier,
   cache: IslandCachePort
 ): LoadBackingForRootResult {
   const rootIslandId = root.toString();

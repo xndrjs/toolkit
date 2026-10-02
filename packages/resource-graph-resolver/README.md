@@ -7,7 +7,7 @@ Full guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/r
 ## Installation
 
 ```bash
-npm install @xndrjs/resource-graph-resolver @xndrjs/application-resources
+npm install @xndrjs/resource-graph-resolver @xndrjs/addressable-resources
 ```
 
 ## Quick start

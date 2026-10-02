@@ -1,17 +1,17 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import type { ContentRegistry, RegistryPayloadFor } from "../types";
 
 /**
  * Matcher for one ARI family, used both for routing and for narrowing.
  *
- * Any `AriFactory` from `@xndrjs/application-resources` satisfies this shape.
+ * Any `AriFactory` from `@xndrjs/addressable-resources` satisfies this shape.
  */
 export interface ResourceFamily<
-  Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier = AddressableResourceIdentifier,
 > {
   readonly type: string;
-  matches(candidate: ApplicationResourceIdentifier): candidate is Resource;
+  matches(candidate: AddressableResourceIdentifier): candidate is Resource;
 }
 
 /** The narrowed ARI type behind a {@link ResourceFamily}. */
@@ -44,7 +44,7 @@ export interface ResourceLoadContext<TExecutionContext = unknown> {
 }
 
 export interface SourceRouteContext<TExecutionContext = unknown> {
-  readonly resource: ApplicationResourceIdentifier;
+  readonly resource: AddressableResourceIdentifier;
   readonly executionContext: TExecutionContext;
 }
 
@@ -107,7 +107,7 @@ export interface DataSource<
   readonly concurrency: number;
   readonly when?: (context: SourceRouteContext<TExecutionContext>) => boolean;
   load(
-    batch: readonly ApplicationResourceIdentifier[],
+    batch: readonly AddressableResourceIdentifier[],
     context: ResourceLoadContext<TExecutionContext>
   ): Promise<readonly (R[keyof R & string] | undefined)[]>;
 }

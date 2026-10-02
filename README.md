@@ -33,6 +33,6 @@ Workspace-wide scripts (install, build, test, release) run from the **repository
 | `@xndrjs/tasks`                   | Lazy async tasks with retry (`packages/tasks`)                                   |
 | `@xndrjs/orchestration`           | Orchestration ports (`packages/orchestration`)                                   |
 | `@xndrjs/react-adapter`           | React hooks for orchestration ports (`packages/react-adapter`)                   |
-| `@xndrjs/application-resources`   | Application resource identifiers (`packages/application-resources`)              |
+| `@xndrjs/addressable-resources`   | Addressable resource identifiers (`packages/addressable-resources`)              |
 | `@xndrjs/resource-graph-resolver` | Resource graph resolver, islands, expansion (`packages/resource-graph-resolver`) |
 | `@xndrjs/contentful-to-zod`       | Zod 4 codegen from Contentful content types (`packages/contentful-to-zod`)       |

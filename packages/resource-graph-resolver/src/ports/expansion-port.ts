@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import type { ContentRegistry, OnFailurePolicy, RegistryPayloadFor } from "../types";
 
@@ -28,7 +28,7 @@ export function stricterOnFailure(left: OnFailurePolicy, right: OnFailurePolicy)
 export interface ExpansionContext<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
-  Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier = AddressableResourceIdentifier,
 > {
   resource: Resource;
   /** Resolved payload for {@link resource} — policies must not observe other nodes. */
@@ -37,7 +37,7 @@ export interface ExpansionContext<
 }
 
 export interface ExpansionResult {
-  resources: readonly ApplicationResourceIdentifier[];
+  resources: readonly AddressableResourceIdentifier[];
   /**
    * Failure policy for every resource in this result. Defaults to `"throw"`.
    * After a policy-chain merge, prefer {@link onFailureByKey} when policies differ.
@@ -52,12 +52,12 @@ export interface ExpansionResult {
 
 /**
  * Resource matcher for `createGraphResolutionStrategy().expansion.on(ari)` /
- * `.islands.on(ari)` / `.resolve.on(ari)` (e.g. an {@link import("@xndrjs/application-resources").AriFactory}).
+ * `.islands.on(ari)` / `.resolve.on(ari)` (e.g. an {@link import("@xndrjs/addressable-resources").AriFactory}).
  */
 export type ExpansionResourceFor<
-  Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier = AddressableResourceIdentifier,
 > = {
-  matches(candidate: ApplicationResourceIdentifier): candidate is Resource;
+  matches(candidate: AddressableResourceIdentifier): candidate is Resource;
 };
 
 /**
@@ -89,7 +89,7 @@ export interface ExpansionPolicy<
  * - `expand` — child discovery for matched resources
  */
 export function defineExpansionPolicy<
-  Resource extends ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier,
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
 >(policy: {
@@ -138,7 +138,7 @@ export function createExpansionPolicyChain<
 >(policies: readonly ExpansionPolicy<R, TExecutionContext>[]): ExpansionPort<R, TExecutionContext> {
   return {
     expand(context) {
-      const merged: ApplicationResourceIdentifier[] = [];
+      const merged: AddressableResourceIdentifier[] = [];
       const onFailureByKey = new Map<string, OnFailurePolicy>();
 
       for (const policy of policies) {

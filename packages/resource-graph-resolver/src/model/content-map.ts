@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import type { ContentRegistry, ResourceKey } from "../types";
 
@@ -11,7 +11,7 @@ import type { ContentRegistry, ResourceKey } from "../types";
 export class ContentMap<R extends ContentRegistry = ContentRegistry> {
   private readonly resources = new Map<ResourceKey, unknown>();
 
-  has(resource: ApplicationResourceIdentifier): boolean {
+  has(resource: AddressableResourceIdentifier): boolean {
     return this.resources.has(resource.toString());
   }
 
@@ -19,7 +19,7 @@ export class ContentMap<R extends ContentRegistry = ContentRegistry> {
     return this.resources.has(resourceKey);
   }
 
-  get<T extends keyof R & string>(resource: ApplicationResourceIdentifier<T>): R[T] | undefined {
+  get<T extends keyof R & string>(resource: AddressableResourceIdentifier<T>): R[T] | undefined {
     return this.resources.get(resource.toString()) as R[T] | undefined;
   }
 
@@ -28,7 +28,7 @@ export class ContentMap<R extends ContentRegistry = ContentRegistry> {
     return this.resources.get(resourceKey) as R[keyof R] | undefined;
   }
 
-  set<T extends keyof R & string>(resource: ApplicationResourceIdentifier<T>, value: R[T]): void {
+  set<T extends keyof R & string>(resource: AddressableResourceIdentifier<T>, value: R[T]): void {
     this.resources.set(resource.toString(), value);
   }
 

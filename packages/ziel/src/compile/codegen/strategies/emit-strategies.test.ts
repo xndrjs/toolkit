@@ -313,16 +313,16 @@ describe("generateStrategies", () => {
 
     expect(code).toContain(".on(pageAri)");
     expect(code).toContain(
-      "entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.menuId, locale: predicate.resource.key[0].locale })"
+      "entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: predicate.payload.menuId, locale: predicate.resource.key.locale })"
     );
     expect(code).toContain(
-      "entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: predicate.payload.footerId, locale: predicate.resource.key[0].locale })"
+      "entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: predicate.payload.footerId, locale: predicate.resource.key.locale })"
     );
     expect(code).toContain(
-      "predicate.payload.strips.map((pageLink) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: pageLink.id, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.strips.map((pageLink) => entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: pageLink.id, locale: predicate.resource.key.locale }))"
     );
     expect(code).toContain(
-      "predicate.payload.related.map((ref) => customReferenceAri({ ref: ref, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.related.map((ref) => customReferenceAri({ ref: ref, locale: predicate.resource.key.locale }))"
     );
     expect(code).toContain(".on(entryAri)");
     expect(code).toContain('.when((predicate) => predicate.payload.type == "Hero")');
@@ -330,7 +330,7 @@ describe("generateStrategies", () => {
       '.when((predicate) => !(predicate.payload.type == "Hero") && (predicate.payload.type == "Tabs"))'
     );
     expect(code).toContain(
-      "payload.tabs.map((tabLink) => entryAri({ spaceId: predicate.resource.key[0].spaceId, environmentId: predicate.resource.key[0].environmentId, id: tabLink.id, locale: predicate.resource.key[0].locale }))"
+      "payload.tabs.map((tabLink) => entryAri({ spaceId: predicate.resource.key.spaceId, environmentId: predicate.resource.key.environmentId, id: tabLink.id, locale: predicate.resource.key.locale }))"
     );
     expect(code).not.toContain("heroAri");
     expect(code).not.toContain("tabAri");
@@ -536,7 +536,7 @@ describe("generateStrategies", () => {
     expect(code).toContain("strategy.expansion");
     expect(code).toContain(".on(tabCollectionAri)");
     expect(code).toContain(
-      "predicate.payload.tabsIds.map((link) => tabAri({ id: link.id, locale: predicate.resource.key[0].locale }))"
+      "predicate.payload.tabsIds.map((link) => tabAri({ id: link.id, locale: predicate.resource.key.locale }))"
     );
     expect(code).toContain('onFailure: "setNull"');
     expect(code).not.toContain("strategy.resolve");

@@ -185,7 +185,7 @@ function emitManyPushStmts(expansion: Expansion, scope: EmitExprScope, index: nu
  */
 function emitMixedExpandBody(expansions: Expansion[], scope: EmitExprScope): string {
   const stmts: string[] = [
-    `const __resources: ApplicationResourceIdentifier[] = [];`,
+    `const __resources: AddressableResourceIdentifier[] = [];`,
     `const __onFailureByKey = new Map<string, "throw" | "setNull" | "setError">();`,
   ];
 

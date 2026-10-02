@@ -81,7 +81,7 @@ describe("createDemoStrategy", () => {
         if (resource.type !== "cms.entry") {
           return true;
         }
-        return (resource as CmsEntryResource).key[0].locale === "en-US";
+        return (resource as CmsEntryResource).key.locale === "en-US";
       })
     ).toBe(true);
   });
@@ -109,7 +109,7 @@ describe("createDemoStrategy", () => {
     expect(resolveIslandEntry(menuEntryAri, menu)).toEqual({ startIsland: true });
     expect(menuExpansion.resources.map((r) => r.toString())).toEqual([logoAssetAri.toString()]);
     expect(menuExpansion.resources[0]?.type).toBe("cms.asset");
-    expect((menuExpansion.resources[0] as CmsAssetResource).key[0].locale).toBe("en-US");
+    expect((menuExpansion.resources[0] as CmsAssetResource).key.locale).toBe("en-US");
 
     expect(resolveIslandEntry(footerEntryAri, footer)).toEqual({ startIsland: true });
     expect(footerExpansion.resources.map((r) => r.toString())).toEqual([logoAssetAri.toString()]);

@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 import type { ResolveResourceGraphOutput } from "@xndrjs/resource-graph-resolver";
 
 import type { DemoContentRegistry } from "../content-registry.js";
@@ -11,7 +11,7 @@ export type MapperContext = {
 
 export function requireCmsEntry(
   context: MapperContext,
-  resource: ApplicationResourceIdentifier<"cms.entry">
+  resource: AddressableResourceIdentifier<"cms.entry">
 ) {
   const raw = context.result.contentMap.get(resource);
   if (!raw) {

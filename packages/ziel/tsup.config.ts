@@ -7,7 +7,7 @@ const shared: Options = {
   treeshake: true,
   splitting: false,
   external: [
-    "@xndrjs/application-resources",
+    "@xndrjs/addressable-resources",
     "@xndrjs/resource-graph-resolver",
     "langium",
     /^langium\//,

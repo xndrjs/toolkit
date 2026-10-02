@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@xndrjs/application-resources": "workspace:^",
+    "@xndrjs/addressable-resources": "workspace:^",
     "@xndrjs/domain-zod": "workspace:^",
     "@xndrjs/resource-graph-resolver": "workspace:^",
     "next": "^16.2.10",

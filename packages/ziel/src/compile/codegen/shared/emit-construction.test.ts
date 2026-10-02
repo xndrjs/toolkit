@@ -33,7 +33,7 @@ describe("emitConstruction", () => {
           arg("locale", param("locale")),
         ])
       )
-    ).toBe("tabCollectionAri({ tabsId: resource.key[0].id, locale: args.params.locale })");
+    ).toBe("tabCollectionAri({ tabsId: resource.key.id, locale: args.params.locale })");
 
     expect(
       emitConstruction(

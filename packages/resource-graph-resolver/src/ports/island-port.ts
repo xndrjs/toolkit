@@ -1,4 +1,4 @@
-import type { ApplicationResourceIdentifier } from "@xndrjs/application-resources";
+import type { AddressableResourceIdentifier } from "@xndrjs/addressable-resources";
 
 import type { ContentRegistry, IslandId } from "../types";
 import type { ExpansionContext, ExpansionResourceFor } from "./expansion-port";
@@ -13,7 +13,7 @@ import type { ExpansionContext, ExpansionResourceFor } from "./expansion-port";
 export type IslandContext<
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
-  Resource extends ApplicationResourceIdentifier = ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier = AddressableResourceIdentifier,
 > = ExpansionContext<R, TExecutionContext, Resource>;
 
 export interface IslandResult {
@@ -78,7 +78,7 @@ function normalizeIslandBoundary(boundary: IslandBoundary): IslandResult {
  * - `startIsland` — when matched, whether to open a boundary and with which id
  */
 export function defineIslandPolicy<
-  Resource extends ApplicationResourceIdentifier,
+  Resource extends AddressableResourceIdentifier,
   R extends ContentRegistry = ContentRegistry,
   TExecutionContext = unknown,
 >(policy: {

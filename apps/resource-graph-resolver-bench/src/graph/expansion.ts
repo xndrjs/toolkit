@@ -24,7 +24,7 @@ export function createBenchStrategy(): GraphResolutionStrategy<BenchContentRegis
     }
 
     return {
-      resources: [benchProductAri({ sku: resource.key[0].id })],
+      resources: [benchProductAri({ sku: resource.key.id })],
     };
   });
 
