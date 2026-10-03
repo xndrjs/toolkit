@@ -334,14 +334,14 @@ export class ZielFormatter extends AbstractFormatter {
     if (isContextBlock(node)) {
       const f = this.getNodeFormatter(node);
       f.keyword("context").append(Formatting.oneSpace());
-      this.formatBracedBlock(node);
+      this.formatBracedBlock(node, node.fields.length === 0);
       return;
     }
 
     if (isQueryContextBlock(node)) {
       const f = this.getNodeFormatter(node);
       f.keyword("context").append(Formatting.oneSpace());
-      this.formatBracedBlock(node);
+      this.formatBracedBlock(node, node.projections.length === 0);
       return;
     }
 

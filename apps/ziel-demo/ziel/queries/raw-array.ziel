@@ -3,8 +3,7 @@
  * used directly as the source of `resolve to each`, without an `items` wrapper.
  */
 query RawArrayExample(batchId: RawArrayBatchId) {
-  context {
-  }
+  context { }
 
   root RawArrayBatch(id: batchId)
 

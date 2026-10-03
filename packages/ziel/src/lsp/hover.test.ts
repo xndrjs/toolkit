@@ -96,6 +96,28 @@ describe("hoverMarkdownAtOffset", () => {
     );
   });
 
+  it("hovers projection binding on RawArrayBatch batch", () => {
+    const source = `
+scalar RawArrayBatchId on string;
+scalar RawArrayItemId on string;
+resource RawArrayBatch(id: RawArrayBatchId): RawArrayItemId[]
+resource RawArrayItem(id: RawArrayItemId): { id }
+query RawArrayExample(batchId: RawArrayBatchId) {
+  context { }
+  root RawArrayBatch(id: batchId)
+  on RawArrayBatch batch resolve to each member in batch (
+    RawArrayItem(id: member.id)
+  )
+  on RawArrayItem resolvedItem include properties { }
+}
+`;
+    const { document, scalars, resources } = tablesFrom(source);
+    const binding = offsetOf(source, "batch", 0); // `on RawArrayBatch batch`
+    expect(hoverMarkdownAtOffset(document, binding, { scalars, resources })).toContain(
+      "resource RawArrayBatch("
+    );
+  });
+
   it("hovers identity and payload fields", () => {
     const { document, scalars, resources } = tablesFrom(FIXTURE);
     // identity field name `id` in `Entry(id: EntryId`

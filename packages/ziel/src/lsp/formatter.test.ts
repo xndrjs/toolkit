@@ -254,6 +254,28 @@ on Asset a include properties{
     expect(formatted).toContain("on Asset a include properties { }");
   });
 
+  it("formats empty context as { }", async () => {
+    const messy = `
+scalar Id on string;
+resource Entry(id:Id):{id}
+query Q(id:Id){
+context{
+}
+root Entry(id:id)
+on Entry e include properties{ }
+}
+datasource EmptyCtx{
+context{}
+for Entry
+}
+`.trim();
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain("context { }");
+    expect(formatted).not.toMatch(/context \{\s*\n\s*\}/);
+    expect(formatted).toMatch(/datasource EmptyCtx \{\n {2}context \{ \}\n\n {2}for Entry\n\}/);
+  });
+
   it("spaces include on when arms before {", async () => {
     const messy = `
 scalar Id on string;
