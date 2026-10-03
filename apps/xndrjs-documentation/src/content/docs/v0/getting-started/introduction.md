@@ -24,7 +24,7 @@ It does not:
 - impose lifecycle hooks or conventions
 - require you to “buy into” a specific way of building apps
 
-Instead, it is a **toolkit of architectural primitives** organized by Clean Architecture layer. Packages help you:
+Instead, it is a **toolkit of architectural primitives** organized by the problem each package solves. Packages help you:
 
 - keep business meaning independent of UI frameworks and IO details
 - make trust boundaries explicit when data crosses processes, networks, forms, caches, or queues
@@ -49,7 +49,7 @@ As systems grow, responsibilities tend to blur:
 
 Without clear boundaries, the codebase becomes harder to navigate and reason about.
 
-`xndrjs` exists to make responsibility **explicit and predictable** across domain, application, and infrastructure — not by imposing a rigid folder layout, but by giving each concern a natural home and small APIs that fit that home.
+`xndrjs` exists to make responsibility **explicit and predictable** — not by imposing a rigid folder layout, but by giving each concern a natural home and small APIs that fit that home.
 
 ### Making good habits the easy path
 
@@ -62,48 +62,57 @@ Many practices are universally accepted as “good”:
 
 They are also easy to apply inconsistently. `xndrjs` turns selected habits into ergonomic primitives so the correct approach is the one that feels natural under delivery pressure.
 
-### Layers that stay independent of frameworks
+### Organized by capability
 
 Modern TypeScript apps span frontend, backend, server actions, edge runtimes, workers, and shared packages. Frameworks are useful entry points. They should not own your core meaning.
 
-`xndrjs` packages are grouped so dependencies can point inward:
+Docs and packages are grouped by capability — the same map as the [homepage](/):
 
-- **Domain** — business meaning and trusted data
-- **Application** — use cases and app-level contracts
-- **Infrastructure** — frameworks, IO, and external systems
+- **Modeling** — domain models, invariants, and schema-backed guarantees
+- **Resource Orchestration** — addressable resources, graph resolution, and declarative orchestration
+- **Localization** — type-safe i18n and framework integrations
+- **Integrations** — bridges between external systems and xndrjs
+- **Concurrency / Workflows** — task composition and controlled concurrent execution
 
-See the map on the [homepage](/) for the full package layout.
+That split keeps modeling separate from orchestration, localization, integrations, and concurrency so you can adopt one responsibility at a time.
 
 ## Package groups
 
-**Domain (modeling)**
+**Modeling**
 
 - `@xndrjs/domain`: validator-agnostic domain modeling core.
 - `@xndrjs/domain-zod`: Zod adapter plus domain re-exports.
 - `@xndrjs/domain-valibot`: Valibot adapter plus domain re-exports.
 - `@xndrjs/domain-ajv`: AJV adapter for JSON Schema and OpenAPI component schemas.
 
-**Application**
+**Resource Orchestration**
 
 - `@xndrjs/addressable-resources`: addressable resource identifiers shared across use cases and adapters, without cache or UI coupling.
-
-**Infrastructure**
-
 - `@xndrjs/resource-graph-resolver`: typed resource graph resolution across multiple data sources.
-- `@xndrjs/tasks`: lazy async task helpers with retry support and inflight Promise deduplication.
+- `@xndrjs/ziel`: declarative resource orchestration language and toolchain.
+
+**Localization**
+
 - `@xndrjs/i18n`: type-safe ICU i18n with codegen, namespaces, and lazy loading.
 - `@xndrjs/i18n-react`: React root and namespace gates for translation readiness.
+
+**Integrations**
+
 - `@xndrjs/contentful-to-zod`: Contentful CMA to Zod 4 codegen.
 
-Domain modeling is often where teams start, because it is where meaning concentrates. Application and infrastructure packages extend the same boundary-first approach outward. Install each package from its own guide — there is no single toolkit install.
+**Concurrency / Workflows**
+
+- `@xndrjs/tasks`: lazy async task helpers with retry support and inflight Promise deduplication.
+
+Modeling is often where teams start, because it is where meaning concentrates. The other groups extend the same boundary-first approach outward. Install each package from its own guide — there is no single toolkit install.
 
 ## The short version
 
 Use `xndrjs` when you want:
 
 - Clean Architecture habits without a heavy framework
-- fullstack TypeScript with explicit layer boundaries
+- fullstack TypeScript with explicit boundaries
 - small libraries you can adopt one responsibility at a time
 - adapters and delivery tools that stay replaceable at the edge
 
-Next: explore the [homepage map](/), then dive into the layer that matches your need — [Domain overview](/v0/modeling/overview/), [Addressable resources](/v0/resource-orchestration/addressable-resources/), or [Tasks](/v0/concurrency/tasks/).
+Next: explore the [homepage map](/), then open a section that matches your need — [Modeling overview](/v0/modeling/overview/), [Addressable resources](/v0/resource-orchestration/addressable-resources/), [i18n](/v0/localization/i18n/), or [Tasks](/v0/concurrency/tasks/).

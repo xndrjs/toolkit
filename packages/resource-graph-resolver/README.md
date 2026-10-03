@@ -2,7 +2,7 @@
 
 Infrastructure-layer **resource graph** resolution: typed `ContentMap`, island membership, expansion policies, declarative multi-backend sources, and portable island serialization.
 
-Full guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site.
+Full guide: [Resource graph resolver](https://www.xndrjs.dev/v0/resource-orchestration/resource-graph-resolver/) on the xndrjs docs site.
 
 ## Installation
 

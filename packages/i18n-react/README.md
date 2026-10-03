@@ -122,4 +122,4 @@ Apps normally use generated bindings. Advanced / library wiring can import from 
 
 ## Docs
 
-Full guide: [xndrjs i18n — React](https://xndrjs.dev/v0/infrastructure/i18n/react/) (or the docs app in this monorepo).
+Full guide: [xndrjs i18n — React](https://xndrjs.dev/v0/localization/i18n/react/) (or the docs app in this monorepo).
