@@ -57,6 +57,10 @@ export function resolvePathOnPayloadType(
   resources: ResourceTable,
   sink: DiagnosticSink
 ): TypeExpr | undefined {
+  if (pathSegments.length === 0) {
+    return payloadType;
+  }
+
   const inner = unwrapNullable(payloadType);
 
   if (inner.kind === "object") {

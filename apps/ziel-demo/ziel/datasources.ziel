@@ -91,3 +91,11 @@ datasource MediaCdn {
 
   for ProductMedia
 }
+
+/** In-memory source used by the minimal raw-array resolution example. */
+datasource RawArrayDemo {
+  context { }
+
+  for RawArrayBatch
+  for RawArrayItem
+}

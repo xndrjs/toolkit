@@ -21,6 +21,7 @@ import {
   isDatasourceDeclaration,
   isEachComprehension,
   isFragmentDeclaration,
+  isProjectionClause,
   isProjectionWhenArm,
   isQueryDeclaration,
   type EachComprehension,
@@ -45,13 +46,29 @@ function eachAncestorsOuterFirst(node: AstNode): EachComprehension[] {
   return chain.reverse();
 }
 
+/**
+ * Bare `in batch` lowers as `param`; rewrite to payloadRef when it names the
+ * enclosing `on R batch` binding (same rule as `lowerEachComprehension`).
+ */
+function rewriteBarePayloadBindingSource(each: EachComprehension, source: Expr): Expr {
+  if (source.kind !== "param") return source;
+  const projection = AstUtils.getContainerOfType(each, isProjectionClause);
+  if (!projection || source.name !== projection.binding) return source;
+  return {
+    kind: "payloadRef",
+    binding: projection.binding,
+    path: [],
+    span: source.span,
+  };
+}
+
 function inferEachElementType(
   each: EachComprehension,
   scope: QueryScope,
   tables: ExprScopeTables
 ): TypeExpr | undefined {
   const itemBindings = new Set(scope.items.keys());
-  const sourceExpr = lowerExpr(each.source, itemBindings);
+  const sourceExpr = rewriteBarePayloadBindingSource(each, lowerExpr(each.source, itemBindings));
   const sink = createDiagnosticSink();
   const sourceType = inferExprType(
     sourceExpr,

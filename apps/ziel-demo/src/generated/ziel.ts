@@ -35,6 +35,10 @@ export type InventorySku = Branded<"InventorySku", string>;
 
 export type MediaId = Branded<"MediaId", string>;
 
+export type RawArrayBatchId = Branded<"RawArrayBatchId", string>;
+
+export type RawArrayItemId = Branded<"RawArrayItemId", string>;
+
 export const Scalars = {
   Locale: (value: string): Locale => value as Locale,
   SpaceId: (value: string): SpaceId => value as SpaceId,
@@ -51,6 +55,8 @@ export const Scalars = {
   PriceId: (value: string): PriceId => value as PriceId,
   InventorySku: (value: string): InventorySku => value as InventorySku,
   MediaId: (value: string): MediaId => value as MediaId,
+  RawArrayBatchId: (value: string): RawArrayBatchId => value as RawArrayBatchId,
+  RawArrayItemId: (value: string): RawArrayItemId => value as RawArrayItemId,
 } as const;
 
 export const entryAri = ari(
@@ -112,6 +118,18 @@ export const productMediaAri = ari(
   s.object({ id: s.string() }),
 );
 export type ProductMediaResource = ReturnType<typeof productMediaAri>;
+
+export const rawArrayBatchAri = ari(
+  "RawArrayBatch",
+  s.object({ id: s.string() }),
+);
+export type RawArrayBatchResource = ReturnType<typeof rawArrayBatchAri>;
+
+export const rawArrayItemAri = ari(
+  "RawArrayItem",
+  s.object({ id: s.string() }),
+);
+export type RawArrayItemResource = ReturnType<typeof rawArrayItemAri>;
 
 export type EntryPayload = {
   kind: "Hero";
@@ -246,6 +264,15 @@ export type ProductMediaPayload = {
   alt: string;
 };
 
+export type RawArrayBatchPayload = {
+  id: RawArrayItemId;
+}[];
+
+export type RawArrayItemPayload = {
+  id: RawArrayItemId;
+  title: string;
+};
+
 export type ContentRegistry = {
   Entry: EntryPayload;
   Asset: AssetPayload;
@@ -257,6 +284,8 @@ export type ContentRegistry = {
   OfferPrice: OfferPricePayload;
   StockLevel: StockLevelPayload;
   ProductMedia: ProductMediaPayload;
+  RawArrayBatch: RawArrayBatchPayload;
+  RawArrayItem: RawArrayItemPayload;
 };
 
 export type CmsCustomReferencesContext = {
@@ -305,6 +334,8 @@ export type InventoryApiContext = {
 export type MediaCdnContext = {
   market: Market;
 };
+
+export type RawArrayDemoContext = {};
 
 export type ZielExecutionContext = {
   spaceId: SpaceId;
@@ -402,6 +433,16 @@ type MediaCdnConfig = {
   batchSize?: number;
   concurrency?: number;
   when?: (context: SourceRouteContext<MediaCdnContext>) => boolean;
+};
+
+type RawArrayDemoConfig = {
+  load: (
+    batch: readonly (RawArrayBatchResource | RawArrayItemResource)[],
+    context: ResourceLoadContext<RawArrayDemoContext>
+  ) => Promise<readonly (RawArrayBatchPayload | RawArrayItemPayload | undefined)[]>;
+  batchSize?: number;
+  concurrency?: number;
+  when?: (context: SourceRouteContext<RawArrayDemoContext>) => boolean;
 };
 
 export type ErrorHandlingDetailParams = {
@@ -689,6 +730,25 @@ export function createProductDetailStrategy(params: ProductDetailParams) {
   return strategy;
 }
 
+export type RawArrayExampleParams = {
+  batchId: RawArrayBatchId;
+};
+
+export function createRawArrayExampleStrategy(params: RawArrayExampleParams) {
+  const strategy = createGraphResolutionStrategy<
+    unknown,
+    ContentRegistry
+  >();
+
+  strategy.expansion
+    .on(rawArrayBatchAri)
+    .expand((predicate) => ({
+      resources: predicate.payload.map((member) => rawArrayItemAri({ id: member.id })),
+    }));
+
+  return strategy;
+}
+
 export function createErrorHandlingDetailDataSources(
   config: {
     CmsEntries: CmsEntriesConfig;
@@ -885,6 +945,29 @@ export function createProductDetailDataSources(
   ];
 }
 
+export function createRawArrayExampleDataSources(
+  config: {
+    RawArrayDemo: RawArrayDemoConfig;
+  }
+): DataSource<ContentRegistry, unknown>[] {
+  const defineSource = defineDataSourceFor<ContentRegistry, unknown>();
+
+  return [
+    defineSource({
+      id: "RawArrayDemo",
+      for: [rawArrayBatchAri, rawArrayItemAri],
+      batchSize: config.RawArrayDemo.batchSize,
+      concurrency: config.RawArrayDemo.concurrency,
+      when: config.RawArrayDemo.when,
+      load: (batch, ctx) =>
+        config.RawArrayDemo.load(batch as readonly (RawArrayBatchResource | RawArrayItemResource)[], {
+          ...ctx,
+          executionContext: ctx.executionContext,
+        }),
+    })
+  ];
+}
+
 export type ErrorHandlingDetail_ErrorLab = {
   __typename: "ErrorLab";
   softSingle: (ErrorHandlingDetail_Entry_Hero | ErrorHandlingDetail_Entry_Page | ErrorHandlingDetail_Entry_Default) | null;
@@ -1053,6 +1136,14 @@ export type ProductDetail_ProductMedia = {
 };
 
 export type ProductDetailResult = ProductDetail_CatalogProduct;
+
+export type RawArrayExample_RawArrayItem = {
+  __typename: "RawArrayItem";
+  id: RawArrayItemId;
+  title: string;
+};
+
+export type RawArrayExampleResult = RawArrayExample_RawArrayItem[];
 
 export function projectErrorHandlingDetail(
   root: ReturnType<typeof errorLabAri>,
@@ -1532,6 +1623,50 @@ export function projectProductDetail(
   return projectNode(root) as ProductDetailResult;
 }
 
+export function projectRawArrayExample(
+  root: ReturnType<typeof rawArrayBatchAri>,
+  contentMap: ContentMap<ContentRegistry>,
+  args: {
+    params: RawArrayExampleParams;
+  },
+): RawArrayExampleResult {
+  const memo = new Map<string, unknown>();
+
+  const projectOnRawArrayItem = (resource: ReturnType<typeof rawArrayItemAri>, inputPayload: RawArrayItemPayload): RawArrayExample_RawArrayItem => {
+    const shell: Partial<RawArrayExample_RawArrayItem> = { __typename: "RawArrayItem" } satisfies Partial<RawArrayExample_RawArrayItem>;
+    memo.set(resource.toString(), shell);
+    const payload = inputPayload;
+    shell.id = payload.id;
+    shell.title = payload.title;
+    return shell as RawArrayExample_RawArrayItem;
+  };
+
+  const projectNode = (ari: AddressableResourceIdentifier): unknown => {
+    const key = ari.toString();
+    if (memo.has(key)) return memo.get(key);
+    const loadedPayload = contentMap.get(ari as never);
+    if (loadedPayload === undefined) return undefined;
+    switch (ari.type) {
+      case "RawArrayItem":
+        return projectOnRawArrayItem(ari as ReturnType<typeof rawArrayItemAri>, loadedPayload as RawArrayItemPayload);
+      case "RawArrayBatch": {
+        const resource = ari as ReturnType<typeof rawArrayBatchAri>;
+        const payload = loadedPayload as RawArrayBatchPayload;
+        const result = payload.map((member) => projectNode(rawArrayItemAri({ id: member.id })));
+        memo.set(key, result);
+        return result;
+      }
+      default:
+        throw new Error(
+          "projectRawArrayExample: unexpected resource type " + JSON.stringify(ari.type)
+        );
+    }
+  };
+
+
+  return projectNode(root) as RawArrayExampleResult;
+}
+
 export type ResolveErrorHandlingDetailInput = {
   params: ErrorHandlingDetailParams;
   sources: readonly DataSource<ContentRegistry, ErrorHandlingDetailExecutionContext>[];
@@ -1784,6 +1919,65 @@ export async function resolveProductDetail(
 
   return {
     productDetail,
+    contentMap,
+    islands,
+    islandDependencies,
+    errors,
+    promotedResourceKeys,
+  };
+}
+
+export type ResolveRawArrayExampleInput = {
+  params: RawArrayExampleParams;
+  sources: readonly DataSource<ContentRegistry, unknown>[];
+  schedulingMode?: SchedulingMode;
+  budget?: ResolutionBudgetOptions;
+  observer?: ResolutionObserver;
+  backingResources?: ReadonlyMap<ResourceKey, unknown>;
+  signal?: AbortSignal;
+};
+
+export type ResolveRawArrayExampleResult = {
+  rawArrayExample: RawArrayExampleResult;
+  contentMap: ContentMap<ContentRegistry>;
+  islands: IslandMap;
+  islandDependencies: IslandDependencyMap;
+  errors: readonly ResolutionError[];
+  promotedResourceKeys: readonly ResourceKey[];
+};
+
+export async function resolveRawArrayExample(
+  input: ResolveRawArrayExampleInput,
+): Promise<ResolveRawArrayExampleResult> {
+  const executionContext = undefined as unknown;
+  const root = rawArrayBatchAri({ id: input.params.batchId });
+  const resolver = createResourceGraphResolver<ContentRegistry, unknown>({
+    sources: input.sources,
+    strategy: createRawArrayExampleStrategy(input.params).build(),
+    schedulingMode: input.schedulingMode,
+    budget: input.budget,
+    observer: input.observer,
+  });
+
+  const {
+    contentMap,
+    islands,
+    islandDependencies,
+    errors,
+    promotedResourceKeys,
+  } = await resolver.resolve({
+    roots: [root],
+    executionContext,
+    backingResources: input.backingResources,
+    signal: input.signal,
+  });
+
+  const rawArrayExample = projectRawArrayExample(root, contentMap, {
+    params: input.params,
+  });
+
+  return {
+    rawArrayExample,
     contentMap,
     islands,
     islandDependencies,

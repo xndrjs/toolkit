@@ -543,6 +543,30 @@ describe("generateStrategies", () => {
     expect(code).not.toContain(".to((predicate)");
   });
 
+  it("maps the whole payload when resolve to each reads a raw array resource", () => {
+    const source = `
+      scalar Id on string;
+
+      resource Item(id: Id): { id }
+      resource Batch(id: Id): { id: Id }[]
+
+      query Q(id: Id) {
+        context { }
+        root Batch(id: id)
+        on Batch batch resolve to each item in batch (
+          Item(id: item.id)
+        )
+        on Item itemProjection { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitStrategies(program!);
+
+    expect(code).toContain("predicate.payload.map((item) => itemAri({ id: item.id }))");
+  });
+
   it("emits multi-arm flatMap for polymorphic resolve to each", () => {
     const source = `
       scalar CollectionId on string;

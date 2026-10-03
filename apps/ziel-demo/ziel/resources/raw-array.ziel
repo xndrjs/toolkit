@@ -1,0 +1,18 @@
+/** Minimal resource pair for the raw-array `resolve to each` example. */
+
+scalar RawArrayBatchId on string;
+
+scalar RawArrayItemId on string;
+
+resource RawArrayBatch(
+  id: RawArrayBatchId
+): {
+  id: RawArrayItemId
+}[]
+
+resource RawArrayItem(
+  id: RawArrayItemId
+): {
+  id
+  title: string
+}

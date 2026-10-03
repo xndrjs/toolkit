@@ -11,6 +11,7 @@ import type {
   ResolveEach,
   ResourceProjection,
   ContextProjection,
+  Expr,
 } from "../../ir";
 import type { PayloadTypeLookup } from "../../check/discriminants";
 import type { DiagnosticSink } from "../../check/diagnostic";
@@ -48,11 +49,26 @@ function lowerOnFailure(clause: AstOnFailureClause | undefined): OnFailurePolicy
 }
 
 /** Shared by expand-`each` and `resolve to each`. */
-function lowerEachComprehension(each: AstEachComprehension): ResolveEach {
+function lowerEachComprehension(
+  each: AstEachComprehension,
+  payloadBinding: string | null = null
+): ResolveEach {
   const itemBindings = new Set([each.itemBinding]);
+  const loweredSource = lowerExpr(each.source, /* itemBindings */ new Set());
+  const source: Expr =
+    payloadBinding !== null &&
+    loweredSource.kind === "param" &&
+    loweredSource.name === payloadBinding
+      ? {
+          kind: "payloadRef",
+          binding: payloadBinding,
+          path: [],
+          span: loweredSource.span,
+        }
+      : loweredSource;
   return {
     itemBinding: each.itemBinding,
-    source: lowerExpr(each.source, /* itemBindings */ new Set()),
+    source,
     arms: each.arms.map(
       (arm): ExpandArm => ({
         target: lowerConstruction(arm.target, itemBindings),
@@ -144,7 +160,7 @@ export function lowerProjection(
       arms: null,
       defaultArm: null,
       resolveArms: null,
-      resolveEach: lowerEachComprehension(clause.resolveEach),
+      resolveEach: lowerEachComprehension(clause.resolveEach, clause.binding),
       span: spanOf(clause),
     };
   }

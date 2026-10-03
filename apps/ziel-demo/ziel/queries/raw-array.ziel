@@ -1,0 +1,16 @@
+/**
+ * The RawArrayBatch payload is itself an array. Its projection binding can be
+ * used directly as the source of `resolve to each`, without an `items` wrapper.
+ */
+query RawArrayExample(batchId: RawArrayBatchId) {
+  context {
+  }
+
+  root RawArrayBatch(id: batchId)
+
+  on RawArrayBatch batch resolve to each member in batch (
+    RawArrayItem(id: member.id)
+  )
+
+  on RawArrayItem resolvedItem include properties { }
+}

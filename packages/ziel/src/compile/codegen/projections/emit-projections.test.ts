@@ -577,6 +577,30 @@ describe("generateProjections", () => {
     expect(code).not.toContain('case "TabCollection": {\n        const canonical');
   });
 
+  it("projects resolve to each from the whole raw array payload", () => {
+    const source = `
+      scalar Id on string;
+
+      resource Item(id: Id): { id }
+      resource Batch(id: Id): { id: Id }[]
+
+      query Q(id: Id) {
+        context { }
+        root Batch(id: id)
+        on Batch batch resolve to each item in batch (
+          Item(id: item.id)
+        )
+        on Item itemProjection { id }
+      }
+    `;
+    const { program, diagnostics } = parseAndCheck(source);
+    expect(diagnostics).toEqual([]);
+
+    const code = emitProjections(program!);
+
+    expect(code).toContain("payload.map((item) => projectNode(itemAri({ id: item.id })))");
+  });
+
   it("maps polymorphic resolve-to-each via flatMap in projectNode", () => {
     const source = `
       scalar ItemId on string;

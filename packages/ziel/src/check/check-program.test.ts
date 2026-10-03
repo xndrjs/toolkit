@@ -1224,9 +1224,7 @@ describe("checkProgram — resolve to each", () => {
     );
   });
 
-  // Expected-failure regression: a projection binding should be usable as the
-  // whole payload when the resource payload itself is an array.
-  it.fails("accepts a raw array payload as the resolve-to-each source", () => {
+  it("accepts a raw array payload as the resolve-to-each source", () => {
     const { diagnostics, program } = parseAndCheck(`
       scalar Id on string;
 
