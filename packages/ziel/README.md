@@ -15,7 +15,7 @@ Prefer this package for app code. Depend on [`@xndrjs/resource-graph-resolver`](
 
 **Editor:** [`.ziel` syntax highlighting + LSP diagnostics + IntelliSense + Format Document](../ziel-vscode) (VS Code / Cursor extension `xndrjs.ziel-vscode`). Live squiggles, hover, completion, go-to-definition, quick fixes, and formatting share Ziel's language-server bootstrap (semantic features use the same multi-file snapshot as codegen: multi-file when a nearby `ziel.config.*` scopes the collect; otherwise single-file only). The extension bundles its own server; consuming projects do not need to build this package for editor support.
 
-Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site. Ziel laws, stability matrix, when-not-to-use, and runbook: [Ziel](https://www.xndrjs.dev/v0/infrastructure/ziel/).
+Full engine guide: [Resource graph resolver](https://www.xndrjs.dev/v0/infrastructure/resource-graph-resolver/) on the xndrjs docs site. Ziel laws, when-not-to-use, and runbook: [Ziel](https://www.xndrjs.dev/v0/infrastructure/ziel/).
 
 ## Compiler layout
 

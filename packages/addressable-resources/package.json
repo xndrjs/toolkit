@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/addressable-resources",
-  "version": "0.2.0",
+  "version": "0.0.0",
   "description": "Framework-agnostic Addressable Resource Identifiers (ARI) for typed resource identity.",
   "private": false,
   "license": "MIT",
@@ -19,7 +19,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24 <26"

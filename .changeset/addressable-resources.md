@@ -1,7 +1,7 @@
 ---
-"@xndrjs/addressable-resources": major
-"@xndrjs/resource-graph-resolver": major
-"@xndrjs/ziel": major
+"@xndrjs/addressable-resources": minor
+"@xndrjs/resource-graph-resolver": minor
+"@xndrjs/ziel": minor
 ---
 
 Rename `@xndrjs/application-resources` → `@xndrjs/addressable-resources` with a breaking ARI API and wire format. There is **no** re-export shim under the old name; deprecate the published `@xndrjs/application-resources` package on npm manually (`npm deprecate …`) and do not unpublish.

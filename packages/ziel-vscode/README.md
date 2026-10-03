@@ -15,9 +15,9 @@ Syntax highlighting, language configuration, and an LSP client for `.ziel` files
 
 ```bash
 cd packages/ziel-vscode
-pnpm run vsix   # builds the client, then packages
-cursor --install-extension ./ziel-vscode-0.0.1.vsix
-# or: code --install-extension ./ziel-vscode-0.0.1.vsix
+pnpm run vsix   # builds version into artifacts/ziel-vscode.vsix
+cursor --install-extension ./artifacts/ziel-vscode.vsix
+# or: code --install-extension ./artifacts/ziel-vscode.vsix
 ```
 
 Then reload the window (`Developer: Reload Window`). The VSIX is self-contained; projects using the extension do not need to install or build `@xndrjs/ziel`.

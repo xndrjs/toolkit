@@ -59,10 +59,10 @@ Install locally for a smoke test:
 
 ```bash
 # Cursor
-cursor --install-extension ./ziel-vscode-0.0.1.vsix
+cursor --install-extension ./artifacts/ziel-vscode.vsix
 
 # VS Code
-code --install-extension ./ziel-vscode-0.0.1.vsix
+code --install-extension ./artifacts/ziel-vscode.vsix
 ```
 
 Then reload the window and open a `.ziel` file. Diagnostics and IntelliSense work directly from the installed VSIX.
@@ -85,7 +85,7 @@ npm run publish:vscode
 Or publish a prebuilt VSIX:
 
 ```bash
-npx @vscode/vsce publish --packagePath ./ziel-vscode-0.0.1.vsix -p "$VSCE_PAT"
+npx @vscode/vsce publish --packagePath ./artifacts/ziel-vscode.vsix -p "$VSCE_PAT"
 ```
 
 After publish, the extension appears at:
@@ -110,7 +110,7 @@ npm run publish:ovsx
 Or publish a prebuilt VSIX:
 
 ```bash
-npx ovsx publish ./ziel-vscode-0.0.1.vsix -p "$OVSX_PAT"
+npx ovsx publish ./artifacts/ziel-vscode.vsix -p "$OVSX_PAT"
 ```
 
 After publish, the extension appears at:

@@ -1,5 +1,5 @@
 ---
-"@xndrjs/ziel": major
+"@xndrjs/ziel": minor
 ---
 
 Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, debounced, serialized regeneration and clean asynchronous shutdown.
@@ -31,4 +31,4 @@ Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, 
 ### Docs / adoption
 
 - Document first-match datasource and redirect routing (one owner per ARI family). Clarify that loaders must validate untrusted payloads at the boundary.
-- Document Ziel laws, stability matrix, when-not-to-use guidance, and an operational runbook. Add a commerce product-detail demo and resolver-bench orchestration modes (naive / batched) for adoption trust.
+- Document Ziel laws, when-not-to-use guidance, and an operational runbook. Add a commerce product-detail demo and resolver-bench orchestration modes (naive / batched) for adoption trust.

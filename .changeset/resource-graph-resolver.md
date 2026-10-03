@@ -1,5 +1,5 @@
 ---
-"@xndrjs/resource-graph-resolver": major
+"@xndrjs/resource-graph-resolver": minor
 ---
 
 Require Node.js 24 or 25 (`>=24 <26`).
