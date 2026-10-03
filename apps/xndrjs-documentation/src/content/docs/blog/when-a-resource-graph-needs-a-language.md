@@ -10,7 +10,7 @@ tags:
   - dsl
 ---
 
-In [the previous article](/blog/every-component-fetches-its-own-data-until-it-cant/), I started from a problem that had initially looked like a frontend concern: the component tree had become the distributed place where a graph of resources was discovered. Letting each component load its own data was reasonable in isolation, but once nested components began discovering further dependencies, rendering also became responsible for orchestrating a process that extended far beyond the UI.
+In [the first article about graph resolution](/blog/every-component-fetches-its-own-data-until-it-cant/), I started from a problem that had initially looked like a frontend concern: the component tree had become the distributed place where a graph of resources was discovered. Letting each component load its own data was reasonable in isolation, but once nested components began discovering further dependencies, rendering also became responsible for orchestrating a process that extended far beyond the UI.
 
 To move that responsibility out of the rendering tree, I introduced a model based on [Addressable Resource Identifiers (ARIs)](/v0/resource-orchestration/addressable-resources/) and a resource graph resolution engine. Starting from one or more root identities, the engine discovers further resources from the payloads it loads, routes them to the appropriate data sources, batches and deduplicates the work, and continues until the graph has been resolved. The point was not to give the view a graph to traverse, but to deliver a purpose-built aggregate that it could simply render.
 
@@ -405,7 +405,7 @@ The actual `load` implementation remains TypeScript, and its contract is deliber
 
 ### A loader speaks resources, not vendor shapes
 
-A data source does not return whatever the vendor happens to return. Its contract is narrower: given a batch of resource identities, it provides the payloads declared by those `resource`s — validated and typed accordingly, with `undefined` for misses. The loader is therefore where the vendor's shape stops, and it can act as a small anti-corruption layer.
+A data source does not necessarily return whatever the vendor happens to return. Its contract is specific: given a batch of resource identities, it provides the payloads declared by those `resource`s — validated and typed accordingly, with `undefined` for misses. The loader is therefore where the vendor's shape stops, and it can act as a small anti-corruption layer.
 
 Take the `Page` resource declared earlier. A Contentful-backed `CmsEntries.load` fetches the whole batch once, then remaps each vendor document into the declared payload — same length and order as the input, like a DataLoader:
 

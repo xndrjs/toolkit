@@ -723,9 +723,7 @@ And that is the real architectural value.
 
 ## The important separation
 
-The resource graph resolver does not try to own all five elements.
-
-It only provides the generic mechanism for walking and resolving the graph.
+The resource graph resolver does not try to own all five elements: it only provides the generic mechanism for walking and resolving the graph.
 
 The infrastructure defines how resources are addressed and loaded.
 
