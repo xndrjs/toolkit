@@ -1337,9 +1337,9 @@ describe("checkProgram — resolve to each", () => {
     );
   });
 
-  // Expected-failure regression: codegen indexes and dispatches projections by
-  // resource name, so two `on` clauses for one resource are not representable.
-  it.fails("rejects duplicate projections for the same resource", () => {
+  // Codegen indexes and dispatches projections by resource name, so two `on`
+  // clauses for one resource are not representable.
+  it("rejects duplicate projections for the same resource", () => {
     const { diagnostics } = parseAndCheck(`
       scalar Id on string;
 
@@ -1353,7 +1353,12 @@ describe("checkProgram — resolve to each", () => {
       }
     `);
 
-    expect(diagnostics.length).toBeGreaterThan(0);
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "DUPLICATE_RESOURCE_PROJECTION",
+        message: expect.stringContaining("Item"),
+      })
+    );
   });
 });
 

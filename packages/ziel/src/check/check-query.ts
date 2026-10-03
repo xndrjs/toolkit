@@ -215,6 +215,7 @@ export function checkQuery(
   checkContextProjections(query, path, params, sink);
 
   const bindings = new Map<string, string>();
+  const resourcesSeen = new Map<string, string>();
   for (let i = 0; i < query.projections.length; i++) {
     const projection = query.projections[i]!;
     const projPath = `${path}.projections.${projection.binding || i}`;
@@ -234,6 +235,20 @@ export function checkQuery(
         path: projPath,
         span: projection.span,
       });
+    }
+    const priorBinding = resourcesSeen.get(projection.resource);
+    if (priorBinding !== undefined) {
+      sink.push({
+        code: "DUPLICATE_RESOURCE_PROJECTION",
+        message:
+          `Duplicate projection for resource '${projection.resource}' in query '${query.name}' ` +
+          `(bindings '${priorBinding}' and '${projection.binding}'); ` +
+          `at most one 'on ${projection.resource}' is allowed`,
+        path: projPath,
+        span: projection.span,
+      });
+    } else {
+      resourcesSeen.set(projection.resource, projection.binding);
     }
     bindings.set(projection.binding, projection.resource);
   }
