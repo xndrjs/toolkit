@@ -611,9 +611,9 @@ describe("generateStrategies", () => {
     expect(code).not.toContain("strategy.resolve");
   });
 
-  // Expected-failure regression: duplicate ARIs inside one generated expansion
-  // result must retain the strictest edge policy, independent of source order.
-  it.fails("merges duplicate generated ARI policies with strictest-wins", () => {
+  // Duplicate ARIs inside one generated expansion must retain the strictest
+  // edge policy (`throw` > `setError` > `setNull`), independent of source order.
+  it("merges duplicate generated ARI policies with strictest-wins", () => {
     const source = `
       scalar Id on string;
 
@@ -637,6 +637,12 @@ describe("generateStrategies", () => {
 
     const code = emitStrategies(program!);
     expect(code).toContain("stricterOnFailure");
+    expect(code).toContain("__existing === undefined");
+    expect(code).toMatch(/stricterOnFailure\(__existing,/);
+
+    const generated = generateStrategies(program!).code;
+    expect(generated).toContain("stricterOnFailure");
+    expect(generated).toMatch(/import \{[^}]*stricterOnFailure[^}]*\} from "@xndrjs\/ziel"/);
   });
 
   it("emits ExpansionResult.onFailure for uniform set-null expands", () => {

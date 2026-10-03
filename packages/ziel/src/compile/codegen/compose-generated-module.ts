@@ -134,6 +134,9 @@ export function composeGeneratedModule(
     if (strategies.includes("AddressableResourceIdentifier")) {
       importSymbols.push("type AddressableResourceIdentifier");
     }
+    if (strategies.includes("stricterOnFailure")) {
+      importSymbols.push("stricterOnFailure");
+    }
   }
 
   if (projections.length > 0) {

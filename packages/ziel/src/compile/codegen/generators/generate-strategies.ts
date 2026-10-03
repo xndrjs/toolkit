@@ -38,11 +38,19 @@ function resolveOptions(options?: GenerateStrategiesOptions): ResolvedOptions {
   };
 }
 
-function emitRuntimeImport(importFrom: string, needsAriType: boolean): string {
-  const symbols = needsAriType
-    ? "createGraphResolutionStrategy, type AddressableResourceIdentifier"
-    : "createGraphResolutionStrategy";
-  return `import { ${symbols} } from ${JSON.stringify(importFrom)};`;
+function emitRuntimeImport(
+  importFrom: string,
+  needsAriType: boolean,
+  needsStricterOnFailure: boolean
+): string {
+  const symbols = ["createGraphResolutionStrategy"];
+  if (needsAriType) {
+    symbols.push("type AddressableResourceIdentifier");
+  }
+  if (needsStricterOnFailure) {
+    symbols.push("stricterOnFailure");
+  }
+  return `import { ${symbols.join(", ")} } from ${JSON.stringify(importFrom)};`;
 }
 
 /**
@@ -62,7 +70,13 @@ export function generateStrategies(
   const parts: string[] = [GENERATED_HEADER];
 
   if (body.length > 0) {
-    parts.push(emitRuntimeImport(importFrom, body.includes("AddressableResourceIdentifier")));
+    parts.push(
+      emitRuntimeImport(
+        importFrom,
+        body.includes("AddressableResourceIdentifier"),
+        body.includes("stricterOnFailure")
+      )
+    );
     parts.push(body);
   }
 

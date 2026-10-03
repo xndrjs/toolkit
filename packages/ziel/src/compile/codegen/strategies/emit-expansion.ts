@@ -125,6 +125,27 @@ function uniformOnFailure(expansions: Expansion[]): OnFailurePolicy | null {
   return policies.every((p) => p === first) ? first : null;
 }
 
+/**
+ * Record one edge ARI: push once, merge duplicate keys with strictest-wins
+ * (`throw` > `setError` > `setNull`) via runtime `stricterOnFailure`.
+ */
+function emitRecordEdge(ariExpr: string, policy: OnFailurePolicy, indent: string): string[] {
+  const policyLit = JSON.stringify(policy);
+  return [
+    `${indent}{`,
+    `${indent}  const __key = ${ariExpr}.toString();`,
+    `${indent}  const __existing = __onFailureByKey.get(__key);`,
+    `${indent}  if (__existing === undefined) {`,
+    `${indent}    __resources.push(${ariExpr});`,
+    `${indent}  }`,
+    `${indent}  __onFailureByKey.set(`,
+    `${indent}    __key,`,
+    `${indent}    __existing === undefined ? ${policyLit} : stricterOnFailure(__existing, ${policyLit})`,
+    `${indent}  );`,
+    `${indent}}`,
+  ];
+}
+
 function emitManyPushStmts(expansion: Expansion, scope: EmitExprScope, index: number): string[] {
   const comprehension = expansion.comprehension;
   if (comprehension === null) {
@@ -145,8 +166,7 @@ function emitManyPushStmts(expansion: Expansion, scope: EmitExprScope, index: nu
         : `${sourceExpr}.map((${itemBinding}) => ${construction})`;
     stmts.push(`const ${listVar} = ${listExpr};`);
     stmts.push(`for (const __item of ${listVar}) {`);
-    stmts.push(`  __resources.push(__item);`);
-    stmts.push(`  __onFailureByKey.set(__item.toString(), ${JSON.stringify(arm.onFailure)});`);
+    stmts.push(...emitRecordEdge("__item", arm.onFailure, "  "));
     stmts.push(`}`);
     return stmts;
   }
@@ -158,19 +178,13 @@ function emitManyPushStmts(expansion: Expansion, scope: EmitExprScope, index: nu
     if (arm.when !== null) {
       stmts.push(`  if (${emitExpr(arm.when, scope)}) {`);
       stmts.push(`    const ${policyVar} = ${construction};`);
-      stmts.push(`    __resources.push(${policyVar});`);
-      stmts.push(
-        `    __onFailureByKey.set(${policyVar}.toString(), ${JSON.stringify(arm.onFailure)});`
-      );
+      stmts.push(...emitRecordEdge(policyVar, arm.onFailure, "    "));
       stmts.push(`    continue;`);
       stmts.push(`  }`);
     } else {
       stmts.push(`  {`);
       stmts.push(`    const ${policyVar} = ${construction};`);
-      stmts.push(`    __resources.push(${policyVar});`);
-      stmts.push(
-        `    __onFailureByKey.set(${policyVar}.toString(), ${JSON.stringify(arm.onFailure)});`
-      );
+      stmts.push(...emitRecordEdge(policyVar, arm.onFailure, "    "));
       stmts.push(`    continue;`);
       stmts.push(`  }`);
     }
@@ -181,7 +195,7 @@ function emitManyPushStmts(expansion: Expansion, scope: EmitExprScope, index: nu
 
 /**
  * Mixed per-edge policies: build `resources` + `onFailureByKey` imperatively so
- * many-expand source order is preserved.
+ * many-expand source order is preserved. Duplicate ARIs keep the strictest policy.
  */
 function emitMixedExpandBody(expansions: Expansion[], scope: EmitExprScope): string {
   const stmts: string[] = [
@@ -197,10 +211,7 @@ function emitMixedExpandBody(expansions: Expansion[], scope: EmitExprScope): str
       }
       const varName = `__r${i}`;
       stmts.push(`const ${varName} = ${emitConstruction(expansion.target, scope)};`);
-      stmts.push(`__resources.push(${varName});`);
-      stmts.push(
-        `__onFailureByKey.set(${varName}.toString(), ${JSON.stringify(expansion.onFailure)});`
-      );
+      stmts.push(...emitRecordEdge(varName, expansion.onFailure, ""));
       continue;
     }
     stmts.push(...emitManyPushStmts(expansion, scope, i));
