@@ -11,11 +11,14 @@ import type { FieldDecl, Program, TypeExpr } from "../ir";
 import { lowerObjectField, lowerTypedField, type NameTables } from "../compile/lower/types";
 import {
   isContextProjectionEntry,
+  isExpansion,
   isFragmentDeclaration,
   isFragmentSpread,
   isIslandClause,
   isNamedTypeExpr,
   isObjectField,
+  isOnFailureSetError,
+  isOnFailureSetNull,
   isProjectionClause,
   isProjectionWhenArm,
   isQueryDeclaration,
@@ -25,7 +28,9 @@ import {
   isTypedField,
   isTypeProjection,
   type ContextProjectionEntry,
+  type Expansion,
   type ObjectField,
+  type OnFailureClause,
   type TypedField,
 } from "../lang/generated/ast";
 import { hoverMarkdownForExprPath } from "./hover-expr";
@@ -136,6 +141,48 @@ function hoverForSelectedField(
   tables: HoverTables
 ): string | undefined {
   return resourceFieldHoverMarkdown(resourceName, fieldName, tables.resources);
+}
+
+function wrapExpandOnFailure(type: TypeExpr, onFailure: OnFailureClause | undefined): TypeExpr {
+  if (!onFailure || (!isOnFailureSetNull(onFailure) && !isOnFailureSetError(onFailure))) {
+    return type;
+  }
+  if (isOnFailureSetNull(onFailure)) {
+    return { kind: "nullable", of: type, span: null };
+  }
+  return {
+    kind: "union",
+    members: [type, { kind: "scalarRef", name: "ResolutionErrorData", span: null }],
+    span: null,
+  };
+}
+
+function payloadTypeForResource(name: string, tables: HoverTables): TypeExpr | undefined {
+  return tables.resources.get(name)?.payloadType;
+}
+
+/**
+ * Expand alias hover: projected edge type from target resource payload(s).
+ * `each` → array; per-arm / one-expand `on failure` widens like codegen.
+ */
+function hoverForExpansionAlias(expansion: Expansion, tables: HoverTables): string | undefined {
+  if (expansion.each) {
+    const armTypes: TypeExpr[] = [];
+    for (const arm of expansion.each.arms) {
+      const payload = payloadTypeForResource(arm.target.resource, tables);
+      if (!payload) continue;
+      armTypes.push(wrapExpandOnFailure(payload, arm.onFailure));
+    }
+    if (armTypes.length === 0) return undefined;
+    const element: TypeExpr =
+      armTypes.length === 1 ? armTypes[0]! : { kind: "union", members: armTypes, span: null };
+    return fieldHoverMarkdown(expansion.alias, { kind: "array", of: element, span: null });
+  }
+
+  if (!expansion.target) return undefined;
+  const payload = payloadTypeForResource(expansion.target.resource, tables);
+  if (!payload) return undefined;
+  return fieldHoverMarkdown(expansion.alias, wrapExpandOnFailure(payload, expansion.onFailure));
 }
 
 function hoverForResourceName(name: string, tables: HoverTables): string | undefined {
@@ -257,6 +304,11 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
     if (feature === "field" || (feature === undefined && node.field === text)) {
       return hoverForSelectedField(node.resource, node.field, tables);
     }
+  }
+
+  if (isExpansion(node) && (feature === "alias" || node.alias === text)) {
+    const expandHover = hoverForExpansionAlias(node, tables);
+    if (expandHover) return expandHover;
   }
 
   if (isProjectionClause(node)) {

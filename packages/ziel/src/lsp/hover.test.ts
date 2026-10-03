@@ -195,6 +195,48 @@ describe("hover expression paths", () => {
     );
   });
 
+  it("hovers expand alias with target payload type (each + on failure)", () => {
+    const source = `
+scalar EntryId on string;
+scalar Locale on string;
+scalar TaxonomyKind on string;
+scalar TermId on string;
+
+resource TaxonomyTerm(kind: TaxonomyKind, id: TermId, locale: Locale): {
+  kind
+  id
+  label: string
+}
+
+resource Page(id: EntryId, locale: Locale): {
+  relatedTerms: { kind: TaxonomyKind id: TermId }[] refers TaxonomyTerm
+}
+
+query PageDetail(pageId: EntryId, locale: Locale) {
+  context { locale }
+  root Page(id: pageId, locale: locale)
+  on Page p {
+    expand relatedTerms: each termLink in p.relatedTerms (
+      TaxonomyTerm(
+        kind: termLink.kind,
+        id: termLink.id,
+        locale: @p.locale
+      ) on failure set null
+    )
+  }
+  on TaxonomyTerm t include properties { }
+}
+`;
+    const { document, scalars, resources } = tablesFrom(source);
+    // expand alias (not the resource field / path segment)
+    const alias = offsetOf(source, "relatedTerms", 1);
+    const md = hoverMarkdownAtOffset(document, alias, { scalars, resources });
+    expect(md).toContain("relatedTerms:");
+    expect(md).toContain("label: string");
+    expect(md).toMatch(/\[\]/);
+    expect(md).toContain("| null");
+  });
+
   it("hovers identity paths like @p.locale", () => {
     const { document, scalars, resources } = tablesFrom(PATH_FIXTURE);
     const locale = offsetOf(PATH_FIXTURE, "locale", 4); // @p.locale
