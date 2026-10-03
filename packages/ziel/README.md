@@ -131,7 +131,7 @@ const result = buildGeneratedModule({ root: process.cwd() });
 
 `resource Name(identity): PayloadType` — the RHS is always a **payload type**. Writing `TabsCollection(…): Tab[]` means the datasource returns an array of Tab’s payload shape, not that the resolver should fan out to Tab ARIs. Traversal exists only via explicit `expand` / `each` / `on` / `resolve to` / `resolve to each`. Loading a collection resource returns that payload as-is; projecting it (e.g. empty `on TabsCollection`) keeps the payload type. `R[]` on a payload RHS is never an auto-fanout.
 
-**Scalar factories** — each scalar gets a PascalCase key on `Scalars` whose param is the representation (`string` | `number` | `boolean`) and return type is the branded alias. Prefer factories over casts in adapters and fixtures:
+**Scalar factories** — each scalar gets a PascalCase key on `Scalars` whose param is the representation (`string` | `number` | `boolean`) and return type is the branded alias. They are ergonomics helpers only: a cast from the primitive to the branded type, with **no runtime validation**. Prefer them over inline casts in adapters and fixtures:
 
 ```ts
 import { Scalars, type EntryId, type Locale } from "./generated/resources";

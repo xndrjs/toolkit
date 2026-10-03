@@ -17,6 +17,9 @@ function primitiveTsType(representation: PrimitiveTypeName): string {
  * Emit branded scalar type aliases and a `Scalars` factory namespace from
  * `program.scalars`.
  *
+ * Factories are cast-only ergonomics helpers (primitive → branded); no runtime
+ * validation.
+ *
  * ```ts
  * declare const __brand: unique symbol;
  * type Branded<Name extends string, T> = T & { readonly [__brand]: Name };
