@@ -86,6 +86,7 @@ query PageDetail(
     )
 
     // Singular object link whose fields jointly address TaxonomyTerm identity.
+
     expand primaryTerm: TaxonomyTerm(
       spaceId: @p.spaceId,
       environmentId: @p.environmentId,

@@ -127,7 +127,7 @@ export function checkFragment(
   );
 
   const bodySink = createDiagnosticSink();
-  checkExpansions(fragment.expansions, path, scope, scalars, resources, bodySink);
+  checkExpansions(fragment.expansions, path, fragment.binding, scope, scalars, resources, bodySink);
   for (const diagnostic of bodySink.diagnostics) {
     if (SUPPRESSED_IN_FRAGMENT.has(diagnostic.code)) {
       continue;

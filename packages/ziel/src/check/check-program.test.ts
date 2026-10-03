@@ -1249,9 +1249,9 @@ describe("checkProgram — resolve to each", () => {
     });
   });
 
-  // Expected-failure regression: codegen evaluates payload references against
-  // the current node, so references to another projection binding must be rejected.
-  it.fails("rejects a resolve-to-each source from another projection binding", () => {
+  // Codegen evaluates payload references against the current node, so
+  // references to another projection binding must be rejected.
+  it("rejects a resolve-to-each source from another projection binding", () => {
     const { diagnostics } = parseAndCheck(`
       scalar Id on string;
 
@@ -1275,7 +1275,66 @@ describe("checkProgram — resolve to each", () => {
       }
     `);
 
-    expect(diagnostics.length).toBeGreaterThan(0);
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "FOREIGN_PAYLOAD_BINDING",
+        message: expect.stringContaining("other"),
+      })
+    );
+  });
+
+  it("allows a resolve-to-each source from a query parameter", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Id on string;
+
+      resource Item(id: Id): { id }
+      resource Collection(id: Id): { items: Id[] }
+
+      query Q(id: Id, itemIds: Id[]) {
+        context { }
+        root Collection(id: id)
+        on Collection collection resolve to each item in itemIds (
+          Item(id: item)
+        )
+        on Item itemProjection { id }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("rejects an expand-each source from another projection binding", () => {
+    const { diagnostics } = parseAndCheck(`
+      scalar Id on string;
+
+      resource Item(id: Id): { id }
+      resource Collection(id: Id): { items: Id[] }
+      resource Other(id: Id): { items: Id[] }
+      resource Page(id: Id): { collectionId: Id otherId: Id }
+
+      query Q(id: Id) {
+        context { }
+        root Page(id: id)
+        on Page page {
+          expand collection: Collection(id: page.collectionId)
+          expand other: Other(id: page.otherId)
+        }
+        on Collection collection {
+          expand items: each item in other.items (
+            Item(id: item)
+          )
+        }
+        on Other other { }
+        on Item itemProjection { id }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "FOREIGN_PAYLOAD_BINDING",
+        message: expect.stringContaining("other"),
+      })
+    );
   });
 
   // Expected-failure regression: codegen indexes and dispatches projections by

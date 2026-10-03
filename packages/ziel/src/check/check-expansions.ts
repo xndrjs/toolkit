@@ -90,6 +90,11 @@ export function checkNonObjectProjectionBody(
 export function checkExpansions(
   expansions: Expansion[],
   basePath: string,
+  /**
+   * Projection / fragment binding whose payload is in scope for `each` sources
+   * (`payloadRef` must use this binding; other `on` bindings are not available).
+   */
+  enclosingPayloadBinding: string,
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
@@ -110,7 +115,15 @@ export function checkExpansions(
     aliases.add(expansion.alias);
 
     if (expansion.multiplicity === "many") {
-      checkManyExpansion(expansion, expPath, scope, scalars, resources, sink);
+      checkManyExpansion(
+        expansion,
+        expPath,
+        enclosingPayloadBinding,
+        scope,
+        scalars,
+        resources,
+        sink
+      );
     } else {
       if (expansion.comprehension !== null) {
         sink.push({
@@ -155,6 +168,7 @@ function checkOnFailure(
 export function checkManyExpansion(
   expansion: Expansion,
   expPath: string,
+  enclosingPayloadBinding: string,
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
@@ -186,6 +200,7 @@ export function checkManyExpansion(
     comprehension.source,
     comprehension.arms,
     expPath,
+    enclosingPayloadBinding,
     scope,
     scalars,
     resources,
@@ -201,6 +216,7 @@ export function checkResolveEach(
   resolveEach: ResolveEach,
   path: string,
   span: SourceSpan | null,
+  enclosingPayloadBinding: string,
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
@@ -221,6 +237,7 @@ export function checkResolveEach(
     resolveEach.source,
     resolveEach.arms,
     path,
+    enclosingPayloadBinding,
     scope,
     scalars,
     resources,
@@ -228,16 +245,71 @@ export function checkResolveEach(
   );
 }
 
+/**
+ * Codegen evaluates every `payloadRef` against the current node payload and
+ * discards the binding name. Comprehension sources may therefore only name the
+ * enclosing projection / fragment binding (query params remain allowed).
+ */
+function rejectForeignPayloadRefsInSource(
+  source: Expr,
+  enclosingPayloadBinding: string,
+  path: string,
+  sink: DiagnosticSink
+): boolean {
+  let found = false;
+  forEachExpr(source, (expr) => {
+    if (expr.kind !== "payloadRef" || expr.binding === enclosingPayloadBinding) {
+      return;
+    }
+    found = true;
+    sink.push({
+      code: "FOREIGN_PAYLOAD_BINDING",
+      message:
+        `Comprehension source cannot reference projection binding '${expr.binding}'; ` +
+        `only '${enclosingPayloadBinding}' payload is in scope for this node`,
+      path: `${path}.source`,
+      span: expr.span,
+    });
+  });
+  return found;
+}
+
+function forEachExpr(expr: Expr, visit: (expr: Expr) => void): void {
+  visit(expr);
+  switch (expr.kind) {
+    case "arrayLiteral":
+      for (const element of expr.elements) {
+        forEachExpr(element, visit);
+      }
+      return;
+    case "unary":
+    case "cast":
+      forEachExpr(expr.operand, visit);
+      return;
+    case "binary":
+      forEachExpr(expr.left, visit);
+      forEachExpr(expr.right, visit);
+      return;
+    default:
+      return;
+  }
+}
+
 function checkEachComprehension(
   itemBinding: string,
   source: Expr,
   arms: ExpandArm[],
   path: string,
+  enclosingPayloadBinding: string,
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
   sink: DiagnosticSink
 ): void {
+  if (rejectForeignPayloadRefsInSource(source, enclosingPayloadBinding, path, sink)) {
+    return;
+  }
+
   const sourceType = inferExprType(source, `${path}.source`, scope, resources, sink, scalars);
   if (!sourceType) {
     return;

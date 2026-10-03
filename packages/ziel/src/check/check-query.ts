@@ -322,6 +322,7 @@ export function checkQuery(
         projection.resolveEach,
         `${projPath}.resolveEach`,
         projection.span,
+        projection.binding,
         scope,
         scalars,
         resources,
@@ -447,7 +448,15 @@ export function checkQuery(
           resources,
           sink
         );
-        checkExpansions(projection.expansions, projPath, scope, scalars, resources, sink);
+        checkExpansions(
+          projection.expansions,
+          projPath,
+          projection.binding,
+          scope,
+          scalars,
+          resources,
+          sink
+        );
       }
     }
   }
@@ -657,5 +666,5 @@ function checkProjectionArmBody(
     resources,
     sink
   );
-  checkExpansions(arm.expansions, armPath, bodyScope, scalars, resources, sink);
+  checkExpansions(arm.expansions, armPath, binding, bodyScope, scalars, resources, sink);
 }
