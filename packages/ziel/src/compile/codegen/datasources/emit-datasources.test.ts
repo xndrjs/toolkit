@@ -161,6 +161,33 @@ export function createQDataSources(
     expect(moduleCode).toContain("type SourceRouteContext");
   });
 
+  it("uses unknown consistently for empty datasource and query contexts", () => {
+    const program = checked(`
+      scalar Id on string;
+      resource Item(id: Id): { id }
+
+      datasource InMemory {
+        context { }
+        for Item
+      }
+
+      query Q(id: Id) {
+        context { }
+        root Item(id: id)
+        on Item item { id }
+      }
+    `);
+
+    const code = emitDataSources(program);
+
+    expect(code).toContain("export type InMemoryContext = unknown;");
+    expect(code).toContain("export type ZielExecutionContext = unknown;");
+    expect(code).toContain("ResourceLoadContext<InMemoryContext>");
+    expect(code).toContain("SourceRouteContext<InMemoryContext>");
+    expect(code).toContain("DataSource<ContentRegistry, unknown>[]");
+    expect(code).toContain("defineDataSourceFor<ContentRegistry, unknown>()");
+  });
+
   it("omits config when when any route has a DSL when", () => {
     const program = checked(`
       ${prelude}

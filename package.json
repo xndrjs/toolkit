@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm --filter @xndrjs/i18n run build && vitest run",
-    "typecheck": "pnpm -r --filter './packages/*' run typecheck",
+    "typecheck": "pnpm -r --filter './packages/*' --filter './apps/*' run typecheck",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "prepare": "husky"

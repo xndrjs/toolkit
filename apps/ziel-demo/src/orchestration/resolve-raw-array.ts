@@ -1,5 +1,7 @@
 import {
   createRawArrayExampleDataSources,
+  rawArrayBatchAri,
+  rawArrayItemAri,
   resolveRawArrayExample,
   Scalars,
   type ResolveRawArrayExampleResult,
@@ -14,14 +16,19 @@ export function resolveRawArrayDemo(): Promise<ResolveRawArrayExampleResult> {
     RawArrayDemo: {
       load: async (batch) =>
         batch.map((resource) => {
-          if (resource.type === "RawArrayBatch") {
+          if (rawArrayBatchAri.matches(resource)) {
             return itemIds.map((id) => ({ id }));
           }
 
-          return {
-            id: resource.key.id,
-            title: `Item ${resource.key.id}`,
-          };
+          if (rawArrayItemAri.matches(resource)) {
+            const id = Scalars.RawArrayItemId(resource.key.id);
+            return {
+              id,
+              title: `Item ${id}`,
+            };
+          }
+
+          return undefined;
         }),
     },
   });

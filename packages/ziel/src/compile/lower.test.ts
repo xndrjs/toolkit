@@ -526,19 +526,31 @@ describe("lowerProgram — fragments", () => {
       parseSource(`
         scalar Id on string;
         resource Page(id: Id): { id title: string strips: { id: Id }[] }
-        query Q(id: Id) {
+        query IncludeAll(id: Id) {
           context { }
           root Page(id: id)
           on Page p include all { id }
+        }
+        query IncludeProperties(id: Id) {
+          context { }
+          root Page(id: id)
           on Page q include properties { title }
+        }
+        query IncludeNone(id: Id) {
+          context { }
+          root Page(id: id)
           on Page n include none { title }
+        }
+        query IncludeDefault(id: Id) {
+          context { }
+          root Page(id: id)
           on Page r { id }
         }
       `)
     );
 
     expect(checkProgram(program)).toEqual([]);
-    expect(program.queries[0]!.projections.map((p) => p.include)).toEqual([
+    expect(program.queries.flatMap((query) => query.projections).map((p) => p.include)).toEqual([
       "all",
       "properties",
       "none",
@@ -677,18 +689,26 @@ describe("lowerProgram — fragments", () => {
 
         fragment PageTitle on Page p { title }
 
-        query Q(id: Id) {
+        query Plain(id: Id) {
           context { }
           root Page(id: id)
           on Page a { ...PageTitle }
+        }
+        query IncludeAll(id: Id) {
+          context { }
+          root Page(id: id)
           on Page b include all { ...PageTitle }
+        }
+        query IncludeNone(id: Id) {
+          context { }
+          root Page(id: id)
           on Page c include none { ...PageTitle }
         }
       `)
     );
 
     expect(checkProgram(program)).toEqual([]);
-    const [plain, all, none] = program.queries[0]!.projections;
+    const [plain, all, none] = program.queries.map((query) => query.projections[0]!);
     expect(plain!.selectedFields).toEqual(["title"]);
     expect(plain!.include).toBeNull();
     expect(all!.selectedFields).toEqual(["title"]);

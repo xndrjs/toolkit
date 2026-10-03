@@ -27,8 +27,11 @@ import {
 import { datasourceExprScope, emitExpr } from "../shared";
 
 function emitObjectTypeAlias(name: string, fields: FieldDecl[], exported: boolean): string {
-  const body = printTypeExpr({ kind: "object", fields, span: null });
   const prefix = exported ? "export type" : "type";
+  if (fields.length === 0) {
+    return `${prefix} ${name} = unknown;`;
+  }
+  const body = printTypeExpr({ kind: "object", fields, span: null });
   return `${prefix} ${name} = ${body};`;
 }
 

@@ -122,4 +122,32 @@ describe("generated TypeScript", () => {
     expect(rendered).toEqual([]);
     expect(generated).toContain("return inputPayload;");
   });
+
+  it("strict-checks a datasource and query with empty contexts", () => {
+    const parsed = parseAndCheck(`
+      scalar Id on string;
+      resource Item(id: Id): { id }
+
+      datasource InMemory {
+        context { }
+        for Item
+      }
+
+      query Q(id: Id) {
+        context { }
+        root Item(id: id)
+        on Item item { id }
+      }
+    `);
+    expect(parsed.diagnostics).toEqual([]);
+
+    const generated = composeGeneratedModule(analyzeProgram(parsed.program)).code;
+    const rendered = compileStrict(generated).map((diagnostic) =>
+      ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
+    );
+
+    expect(rendered).toEqual([]);
+    expect(generated).toContain("export type InMemoryContext = unknown;");
+    expect(generated).toContain("DataSource<ContentRegistry, unknown>[]");
+  });
 });
