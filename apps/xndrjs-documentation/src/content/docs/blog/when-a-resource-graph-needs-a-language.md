@@ -467,6 +467,20 @@ The compiler does not invent application behavior; it keeps several interpretati
 
 ---
 
+## A DSL should help you write it
+
+Choosing a dedicated syntax instead of plain JSON or YAML only makes sense if the language also improves the authoring experience. Ziel therefore ships with a VS Code extension that provides syntax highlighting, live diagnostics, completion, hover information, go to definition, quick fixes, and document formatting.
+
+These features are driven by the same language server and semantic model used by codegen, so the editor understands concepts such as resource identities, scoped bindings, narrowed payloads, and cross-file declarations rather than treating a query as a generic object tree. JSON or YAML could store similar configuration, but the dedicated language makes those semantics available while the query is being written.
+
+The extension also works with Cursor. If **Ziel** does not appear in its extension search — Open VSX indexing may lag behind a release — it can be installed directly by identifier:
+
+```sh
+cursor --install-extension xndrjs.ziel-vscode
+```
+
+---
+
 ## Ziel is not a GraphQL clone
 
 At this point, the resemblance to GraphQL is hard to ignore.
