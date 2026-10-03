@@ -1,7 +1,20 @@
 // @ts-check
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import mermaid from "astro-mermaid";
+
+/** TextMate grammar from ziel-vscode; Shiki fence id is lowercase `ziel`. */
+const zielGrammarPath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../packages/ziel-vscode/syntaxes/ziel.tmLanguage.json"
+);
+const zielGrammar = {
+  ...JSON.parse(fs.readFileSync(zielGrammarPath, "utf-8")),
+  name: "ziel",
+};
 
 /**
  * Old docs paths → semantic IA (/v0 and /latest).
@@ -95,6 +108,14 @@ export default defineConfig({
     mermaid(),
     starlight({
       title: "xndrjs",
+      expressiveCode: {
+        shiki: {
+          langs: [zielGrammar],
+          langAlias: {
+            Ziel: "ziel",
+          },
+        },
+      },
       customCss: ["./src/styles/brand-typography.css", "./src/styles/blog-layout.css"],
       routeMiddleware: "./src/routeData.ts",
       social: [

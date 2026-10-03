@@ -12,7 +12,7 @@ tags:
 
 In [the previous article](/blog/every-component-fetches-its-own-data-until-it-cant/), I started from a problem that had initially looked like a frontend concern: the component tree had become the distributed place where a graph of resources was discovered. Letting each component load its own data was reasonable in isolation, but once nested components began discovering further dependencies, rendering also became responsible for orchestrating a process that extended far beyond the UI.
 
-To move that responsibility out of the rendering tree, I introduced a model based on Addressable Resource Identifiers (ARIs) and a resource graph resolution engine. Starting from one or more root identities, the engine discovers further resources from the payloads it loads, routes them to the appropriate data sources, batches and deduplicates the work, and continues until the graph has been resolved. The point was not to give the view a graph to traverse, but to deliver a purpose-built aggregate that it could simply render.
+To move that responsibility out of the rendering tree, I introduced a model based on [Addressable Resource Identifiers (ARIs)](/v0/resource-orchestration/addressable-resources/) and a resource graph resolution engine. Starting from one or more root identities, the engine discovers further resources from the payloads it loads, routes them to the appropriate data sources, batches and deduplicates the work, and continues until the graph has been resolved. The point was not to give the view a graph to traverse, but to deliver a purpose-built aggregate that it could simply render.
 
 Consider a page on a large institutional website. Most of its editorial structure may come from a headless CMS, yet some records can refer to SKUs owned by a commerce platform while others point to resources exposed by an integration layer. References do not necessarily share one convenient representation either: a custom format may need to be parsed, sometimes with something as specific as a regular expression, whereas a compound reference may carry several fields that jointly contribute to the target identity.
 
@@ -36,9 +36,9 @@ The resolver gave us the mechanism required to discover and load this graph with
 
 ---
 
-## The reasonable TypeScript implementation
+## Implementing the first graph resolver
 
-The first implementation was ordinary TypeScript: we defined an address for each kind of resource, registered the data sources, built a graph resolution strategy, and finally wrote a mapper that walked the resolved `ContentMap` to produce the object expected by the application.
+The first implementation of a Resource Graph Resolver (RGR) was ordinary TypeScript: we defined an address for each kind of resource, registered the data sources, built a graph resolution strategy, and finally wrote a mapper that walked the resolved `ContentMap` to produce the object expected by the application.
 
 Conceptually, the feature repository looked like this:
 
