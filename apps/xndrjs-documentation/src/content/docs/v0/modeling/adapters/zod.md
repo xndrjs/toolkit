@@ -115,4 +115,4 @@ Transport schemas describe what can arrive; domain rules define what you trust. 
 
 ## Next
 
-Build a complete kit with [First model](/v0/modeling/adapters/first-model/), or compare engines in [Choose an adapter](/v0/modeling/choosing-adapter/).
+Build a complete kit with [First model](/v0/modeling/first-model/), or compare engines in [Choose an adapter](/v0/modeling/choosing-adapter/).

@@ -3,27 +3,34 @@ title: Ziel
 description: Compile-time typed aggregate resolver — laws, stability, when not to use it, and an operational runbook.
 ---
 
-`@xndrjs/ziel` is a **compile-time, typed aggregate resolver** for TypeScript applications: resource identity (ARI), multi-backend batching, projection, and cache islands. It sits on [`@xndrjs/resource-graph-resolver`](/v0/resource-orchestration/resource-graph-resolver/) and is **not** a general GraphQL replacement.
+`@xndrjs/ziel` is a **compile-time, typed aggregate resolver** for TypeScript applications: resource identity (ARI), multi-backend batching, projection, and cache islands. It sits on [`@xndrjs/resource-graph-resolver`](/v0/resource-orchestration/resource-graph-resolver/).
 
 Package README and DSL reference: [`packages/ziel`](https://github.com/xndrjs/toolkit/tree/main/packages/ziel). Editor: [`ziel-vscode`](https://github.com/xndrjs/toolkit/tree/main/packages/ziel-vscode) (`xndrjs.ziel-vscode`). Vertical slices: CMS-shaped [`ziel-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/ziel-demo) and commerce-shaped product detail in the same app (`ziel/queries/product-detail.ziel`).
 
 ## Positioning
 
-| Use Ziel when…                                              | Prefer something else when…            |
-| ----------------------------------------------------------- | -------------------------------------- |
-| You own a **fixed** server read model (BFF / SSR aggregate) | Clients must invent arbitrary queries  |
-| Several backends must **batch** and share a typed graph     | One REST call already is the aggregate |
-| Cache boundaries (**islands**) matter                       | You only need a thin HTTP client       |
-| You want **compile-time** projection types                  | Runtime schema stitching is enough     |
+If your frontend is coordinating multiple resources to build one application view, Ziel gives that orchestration an explicit model instead of letting it emerge from components, hooks, and glue code.
+
+Ziel is designed for **aggregate resolution over resource graphs**. It is most useful when the system already has a resource graph, but no single backend owns the aggregate it needs.
+
+| Use Ziel when…                                                                                     | Prefer something else when…                                        |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Your application must assemble an aggregate across multiple addressable resources                  | A backend already exposes the aggregate in the shape you need      |
+| Resource relationships are discovered progressively from loaded payloads                           | The retrieval path is fixed and trivial                            |
+| You want orchestration to live outside the UI without building another bespoke BFF                 | A dedicated BFF is already the natural ownership boundary          |
+| You want traversal, projection, failure semantics, and result types to derive from one declaration | A few handwritten calls are clearer than introducing a graph model |
+| The same graph may be materialized through different loaders, caches, or environments              | Data acquisition is already stable and local to one client/API     |
+
+Don’t introduce Ziel when a single request already gives you the aggregate, or when the orchestration is too small to deserve its own model.
 
 ## Laws
 
-These invariants are part of the alpha contract. Engines and codegen must obey them; apps should design ARIs and queries accordingly.
+These invariants are part of the contract. Engines and codegen must obey them; apps should design ARIs and queries accordingly.
 
 ### 1. ARI identity
 
 - An ARI names **one** resource instance (`type` + identity fields).
-- String form (`resource.toString()` / `format()`) is the in-process and cache key unless you introduce a separate presentation encoding outside Ziel.
+- String form (`resource.toString()`) is the in-process and cache key unless you introduce a separate presentation encoding outside Ziel.
 - Secrets (tokens, credentials) are **never** identity or cache dimensions. Semantic audience / tenant / market / locale belong in identity or execution context when they change the payload.
 
 ### 2. Local traversal only

@@ -18,7 +18,8 @@ const docsPathRedirects = {
   "/v0/domain/compose-pipe": "/v0/modeling/compose-pipe",
 
   "/v0/adapters/zod": "/v0/modeling/adapters/zod",
-  "/v0/adapters/first-model": "/v0/modeling/adapters/first-model",
+  "/v0/adapters/first-model": "/v0/modeling/first-model",
+  "/v0/modeling/adapters/first-model": "/v0/modeling/first-model",
   "/v0/adapters/valibot": "/v0/modeling/adapters/valibot",
   "/v0/adapters/ajv": "/v0/modeling/adapters/ajv",
 
@@ -53,7 +54,8 @@ const docsPathRedirects = {
   "/latest/domain/compose-pipe": "/latest/modeling/compose-pipe",
 
   "/latest/adapters/zod": "/latest/modeling/adapters/zod",
-  "/latest/adapters/first-model": "/latest/modeling/adapters/first-model",
+  "/latest/adapters/first-model": "/latest/modeling/first-model",
+  "/latest/modeling/adapters/first-model": "/latest/modeling/first-model",
   "/latest/adapters/valibot": "/latest/modeling/adapters/valibot",
   "/latest/adapters/ajv": "/latest/modeling/adapters/ajv",
 
@@ -130,6 +132,7 @@ export default defineConfig({
                     { label: "Overview", slug: "v0/modeling/overview" },
                     { label: "Mental model", slug: "v0/modeling/mental-model" },
                     { label: "Choose an adapter", slug: "v0/modeling/choosing-adapter" },
+                    { label: "First model", slug: "v0/modeling/first-model" },
                     { label: "Validators and errors", slug: "v0/modeling/validators-errors" },
                     { label: "Primitives and shapes", slug: "v0/modeling/primitives-shapes" },
                     { label: "Capabilities", slug: "v0/modeling/capabilities" },
@@ -140,13 +143,7 @@ export default defineConfig({
                 {
                   label: "Validation adapters",
                   items: [
-                    {
-                      label: "Zod",
-                      items: [
-                        { label: "Overview", slug: "v0/modeling/adapters/zod" },
-                        { label: "First model", slug: "v0/modeling/adapters/first-model" },
-                      ],
-                    },
+                    { label: "Zod", slug: "v0/modeling/adapters/zod" },
                     { label: "Valibot", slug: "v0/modeling/adapters/valibot" },
                     { label: "AJV", slug: "v0/modeling/adapters/ajv" },
                   ],

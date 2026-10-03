@@ -59,7 +59,7 @@ The important part is that each boundary returns a `Validator<Input, Output>`. A
 
 Start with the adapter your project already uses. Reach for another adapter only when a boundary naturally speaks a different schema language.
 
-- [Zod adapter](/v0/modeling/adapters/zod/) — then [First model](/v0/modeling/adapters/first-model/) for a full walkthrough
+- [Zod adapter](/v0/modeling/adapters/zod/) — then [First model](/v0/modeling/first-model/) for a full walkthrough
 - [Valibot adapter](/v0/modeling/adapters/valibot/)
 - [AJV adapter](/v0/modeling/adapters/ajv/)
 - [Domain mental model](/v0/modeling/mental-model/) — trust boundaries behind the kits
