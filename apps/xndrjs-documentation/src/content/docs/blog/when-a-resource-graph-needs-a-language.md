@@ -130,7 +130,7 @@ The name **Ziel** comes from the German word for _goal_ or _destination_. That m
 
 When navigating by the stars, you do not steer by continuously inspecting the seabed beneath you. You orient yourself against stable points farther away and use them to determine where you are going.
 
-Ziel takes a similar view of data orchestration: instead of encoding every operational step of data acquisition or hardcoding the current infrastructure split — which resource lives in the CMS, which comes from an integration service, a database, or something else. A query describes the resource graph and projected aggregate the application is trying to reach. Where a resource happens to live is an implementation detail; the aggregate is the application concern. If that split changes, the ideal outcome is a routing or datasource change, not surgery across the orchestration code.
+Ziel takes a similar view of data orchestration: instead of encoding every operational step of data acquisition or hardcoding the current infrastructure split — which resource lives in the CMS, which comes from an integration service, a database, or something else — a query describes the resource graph and projected aggregate the application is trying to reach. Where a resource happens to live is an implementation detail; the aggregate is the application concern. If that split changes, the ideal outcome is a routing or datasource change, not surgery across the orchestration code.
 
 The query does not prescribe a sequence such as:
 

@@ -11,7 +11,7 @@ Workspace-wide scripts (install, build, test, release) run from the **repository
 
 ## Requirements
 
-- Node **25** (see `engines` in `package.json`)
+- Node **`>=24 <26`** (see `engines` in `package.json`)
 - [pnpm](https://pnpm.io) **9.15** (matches `packageManager`)
 
 ## Useful commands
@@ -35,4 +35,5 @@ Workspace-wide scripts (install, build, test, release) run from the **repository
 | `@xndrjs/react-adapter`           | React hooks for orchestration ports (`packages/react-adapter`)                                                |
 | `@xndrjs/addressable-resources`   | Addressable resource identifiers; succeeds `@xndrjs/application-resources` (`packages/addressable-resources`) |
 | `@xndrjs/resource-graph-resolver` | Resource graph resolver, islands, expansion (`packages/resource-graph-resolver`)                              |
+| `@xndrjs/ziel`                    | Ziel product entry: DSL compile + resolve façades over the resource graph resolver (`packages/ziel`)          |
 | `@xndrjs/contentful-to-zod`       | Zod 4 codegen from Contentful content types (`packages/contentful-to-zod`)                                    |
