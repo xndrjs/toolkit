@@ -3,7 +3,7 @@ title: Ziel
 description: Compile-time typed aggregate resolver — laws, stability, when not to use it, and an operational runbook.
 ---
 
-`@xndrjs/ziel` is a **compile-time, typed aggregate resolver** for TypeScript applications: resource identity (ARI), multi-backend batching, projection, and cache islands. It sits on [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) and is **not** a general GraphQL replacement.
+`@xndrjs/ziel` is a **compile-time, typed aggregate resolver** for TypeScript applications: resource identity (ARI), multi-backend batching, projection, and cache islands. It sits on [`@xndrjs/resource-graph-resolver`](/v0/resource-orchestration/resource-graph-resolver/) and is **not** a general GraphQL replacement.
 
 Package README and DSL reference: [`packages/ziel`](https://github.com/xndrjs/toolkit/tree/main/packages/ziel). Editor: [`ziel-vscode`](https://github.com/xndrjs/toolkit/tree/main/packages/ziel-vscode) (`xndrjs.ziel-vscode`). Vertical slices: CMS-shaped [`ziel-demo`](https://github.com/xndrjs/toolkit/tree/main/apps/ziel-demo) and commerce-shaped product detail in the same app (`ziel/queries/product-detail.ziel`).
 
@@ -65,7 +65,7 @@ These invariants are part of the alpha contract. Engines and codegen must obey t
 
 ## Runtime budgets
 
-Every resolve has finite defaults (nodes, edges, batches, duration). Override per execution via resolver / generated façade `budget`. Crossing a limit aborts with `ResourceGraphBudgetExceededError` and `onBudgetExceeded`. Details: [Resource graph resolver](/v0/infrastructure/resource-graph-resolver/).
+Every resolve has finite defaults (nodes, edges, batches, duration). Override per execution via resolver / generated façade `budget`. Crossing a limit aborts with `ResourceGraphBudgetExceededError` and `onBudgetExceeded`. Details: [Resource graph resolver](/v0/resource-orchestration/resource-graph-resolver/).
 
 ## Stability matrix (alpha)
 

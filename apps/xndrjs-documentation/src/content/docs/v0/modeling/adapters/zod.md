@@ -102,7 +102,7 @@ This avoids duplicating nested domain semantics in parent schemas.
 
 ## Generated CMS schemas
 
-When you use [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/), parse and flatten at the transport boundary first, then wire the flat field schema into domain:
+When you use [`@xndrjs/contentful-to-zod`](/v0/integrations/contentful-to-zod/), parse and flatten at the transport boundary first, then wire the flat field schema into domain:
 
 ```ts
 import { domain, zodToValidator } from "@xndrjs/domain-zod";
@@ -111,8 +111,8 @@ import { BlogPostFieldsSchema } from "./generated/contentful.schemas";
 export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostFieldsSchema));
 ```
 
-Transport schemas describe what can arrive; domain rules define what you trust. See [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) for the full pipeline.
+Transport schemas describe what can arrive; domain rules define what you trust. See [Contentful to Zod](/v0/integrations/contentful-to-zod/) for the full pipeline.
 
 ## Next
 
-Build a complete kit with [First model](/v0/adapters/first-model/), or compare engines in [Choose an adapter](/v0/domain/choosing-adapter/).
+Build a complete kit with [First model](/v0/modeling/adapters/first-model/), or compare engines in [Choose an adapter](/v0/modeling/choosing-adapter/).

@@ -29,7 +29,7 @@ A page loads its modules. A module loads its children. A product module loads it
 
 It's simple. It's also the quickest way to discover that the hard part of these sites is **resource graph resolution**. Rendering is only what happens after.
 
-That realization is why I built [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/).
+That realization is why I built [`@xndrjs/resource-graph-resolver`](/v0/resource-orchestration/resource-graph-resolver/).
 
 This article explains the problem first, the approaches that look reasonable but stop scaling, and the architectural model I ended up with.
 
@@ -376,7 +376,7 @@ Not a smarter UI component. Not a larger GraphQL query. Not a second CMS.
 
 A **graph resolution engine**.
 
-That is the problem [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) is designed to solve.
+That is the problem [`@xndrjs/resource-graph-resolver`](/v0/resource-orchestration/resource-graph-resolver/) is designed to solve.
 
 ---
 
@@ -427,7 +427,7 @@ The application only needs a port that can provide the aggregate it needs.
 
 ## A resource needs an identity
 
-The graph needs a common language. That is where [Addressable Resource Identifiers](/v0/application/addressable-resources/) come in.
+The graph needs a common language. That is where [Addressable Resource Identifiers](/v0/resource-orchestration/addressable-resources/) come in.
 
 An ARI identifies one addressable resource.
 
@@ -992,7 +992,7 @@ That is the real value of the abstraction, and it is measured in **knowledge tha
 
 ## Contentful and generated expansion metadata
 
-This is where [`contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) becomes particularly useful if you're using Contentful REST API (Delivery).
+This is where [`contentful-to-zod`](/v0/integrations/contentful-to-zod/) becomes particularly useful if you're using Contentful REST API (Delivery).
 
 A large CMS integration has another problem:
 
@@ -1213,11 +1213,11 @@ This is also why the resource graph resolver is not an isolated utility in the t
 
 It fits into a broader architectural model.
 
-[Addressable Resource Identifiers](/v0/application/addressable-resources/) provide stable identities for resources.
+[Addressable Resource Identifiers](/v0/resource-orchestration/addressable-resources/) provide stable identities for resources.
 
-[`contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) provides trustworthy transport parsing and generated link metadata, if you're using Contentful.
+[`contentful-to-zod`](/v0/integrations/contentful-to-zod/) provides trustworthy transport parsing and generated link metadata, if you're using Contentful.
 
-[`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) provides the infrastructure-level graph traversal.
+[`@xndrjs/resource-graph-resolver`](/v0/resource-orchestration/resource-graph-resolver/) provides the infrastructure-level graph traversal.
 
 The application maps the resulting infrastructure graph into domain aggregates.
 
@@ -1265,7 +1265,7 @@ Or...
 
 You can make the graph explicit, give resources stable identities, separate graph discovery from loading. You can let each backend decide how to batch its own work, and resolve the whole graph before rendering. Then map the result into a domain aggregate that your application can easily reason about.
 
-That's what [`@xndrjs/resource-graph-resolver`](/v0/infrastructure/resource-graph-resolver/) is for.
+That's what [`@xndrjs/resource-graph-resolver`](/v0/resource-orchestration/resource-graph-resolver/) is for.
 
 The [demo application](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo) shows one possible wiring using Contentful-shaped fixtures, an integration catalog, a single toy CMS channel (entries and assets merged), a product source with the opposite batching shape, a graph resolution strategy, and a Next.js consumer.
 
@@ -1283,7 +1283,7 @@ Infrastructure should serve the application, not the other way around.
 
 ## Further reading
 
-- [Resource graph resolver (docs)](/v0/infrastructure/resource-graph-resolver/)
-- [Addressable resources](/v0/application/addressable-resources/)
-- [Contentful to Zod](/v0/infrastructure/contentful-to-zod/)
+- [Resource graph resolver (docs)](/v0/resource-orchestration/resource-graph-resolver/)
+- [Addressable resources](/v0/resource-orchestration/addressable-resources/)
+- [Contentful to Zod](/v0/integrations/contentful-to-zod/)
 - [We're Not "Frontend Developers" Anymore](/blog/were-not-frontend-developers-anymore/)

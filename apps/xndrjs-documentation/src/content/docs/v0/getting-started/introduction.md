@@ -106,4 +106,4 @@ Use `xndrjs` when you want:
 - small libraries you can adopt one responsibility at a time
 - adapters and delivery tools that stay replaceable at the edge
 
-Next: explore the [homepage map](/), then dive into the layer that matches your need — [Domain overview](/v0/domain/overview/), [Addressable resources](/v0/application/addressable-resources/), or [Tasks](/v0/infrastructure/tasks/).
+Next: explore the [homepage map](/), then dive into the layer that matches your need — [Domain overview](/v0/modeling/overview/), [Addressable resources](/v0/resource-orchestration/addressable-resources/), or [Tasks](/v0/concurrency/tasks/).

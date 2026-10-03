@@ -7,12 +7,12 @@ Adapters let your domain model depend on one contract while each boundary keeps 
 
 ## Decision table
 
-| Situation                                 | Recommended package                               | Why                                                                      |
-| ----------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------ |
-| You already use Zod in app or shared code | [`@xndrjs/domain-zod`](/v0/adapters/zod/)         | Great parser ergonomics, transforms, and kit reuse inside parent schemas |
-| You prefer small function-first schemas   | [`@xndrjs/domain-valibot`](/v0/adapters/valibot/) | Good fit for composable parser pipelines and bundle-sensitive code       |
-| You consume JSON Schema or OpenAPI        | [`@xndrjs/domain-ajv`](/v0/adapters/ajv/)         | Compiles existing external contracts instead of rewriting them           |
-| Validation is very small or custom        | [`@xndrjs/domain`](/v0/domain/overview/)          | Use `compose` helpers or your own `Validator` implementation             |
+| Situation                                 | Recommended package                                        | Why                                                                      |
+| ----------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+| You already use Zod in app or shared code | [`@xndrjs/domain-zod`](/v0/modeling/adapters/zod/)         | Great parser ergonomics, transforms, and kit reuse inside parent schemas |
+| You prefer small function-first schemas   | [`@xndrjs/domain-valibot`](/v0/modeling/adapters/valibot/) | Good fit for composable parser pipelines and bundle-sensitive code       |
+| You consume JSON Schema or OpenAPI        | [`@xndrjs/domain-ajv`](/v0/modeling/adapters/ajv/)         | Compiles existing external contracts instead of rewriting them           |
+| Validation is very small or custom        | [`@xndrjs/domain`](/v0/modeling/overview/)                 | Use `compose` helpers or your own `Validator` implementation             |
 
 ## The adapter does not own the domain
 
@@ -59,7 +59,7 @@ The important part is that each boundary returns a `Validator<Input, Output>`. A
 
 Start with the adapter your project already uses. Reach for another adapter only when a boundary naturally speaks a different schema language.
 
-- [Zod adapter](/v0/adapters/zod/) — then [First model](/v0/adapters/first-model/) for a full walkthrough
-- [Valibot adapter](/v0/adapters/valibot/)
-- [AJV adapter](/v0/adapters/ajv/)
-- [Domain mental model](/v0/domain/mental-model/) — trust boundaries behind the kits
+- [Zod adapter](/v0/modeling/adapters/zod/) — then [First model](/v0/modeling/adapters/first-model/) for a full walkthrough
+- [Valibot adapter](/v0/modeling/adapters/valibot/)
+- [AJV adapter](/v0/modeling/adapters/ajv/)
+- [Domain mental model](/v0/modeling/mental-model/) — trust boundaries behind the kits

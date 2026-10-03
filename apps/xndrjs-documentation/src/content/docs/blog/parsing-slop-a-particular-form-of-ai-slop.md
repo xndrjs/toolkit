@@ -204,7 +204,7 @@ Views have shapes.
 
 Whenever data crosses a boundary, there should be a recognizable shape on each side.
 
-That idea is close to the [mental model](/v0/domain/mental-model/) behind `xndrjs`: external data starts as `unknown`, crosses a validation boundary once, and only then becomes something the rest of the system can treat as trustworthy.
+That idea is close to the [mental model](/v0/modeling/mental-model/) behind `xndrjs`: external data starts as `unknown`, crosses a validation boundary once, and only then becomes something the rest of the system can treat as trustworthy.
 
 This idea of "Shape-Driven Design" generalizes that instinct beyond any single library — to every layer where a contract exists but nobody named it.
 
@@ -273,15 +273,15 @@ The fix is not "never use `typeof`". It is **"name the shape once at the boundar
 
 When the contract comes from an external system, do not let every consumer rediscover it.
 
-- **Contentful** — [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) generates separate transport and flat schemas from your content model, including the single-locale vs multi-locale split from earlier. Parse with `BlogPostLocalizedEntrySchema`, flatten with the generated helper, and move on. The [Contentful codegen post](/blog/generating-zod-schemas-from-contentful/) walks through the full pattern.
-- **OpenAPI / JSON Schema** — [`@xndrjs/domain-ajv`](/v0/adapters/ajv/) fits ingress boundaries where the contract is already JSON Schema. The [OAS walkthrough](/blog/oas-jsonschema-ajv-domain/) shows compile-once validation without hand-written parsers.
-- **Everything else at the boundary** — pick the adapter that matches the tool already at that edge: [`@xndrjs/domain-zod`](/v0/adapters/zod/) or [`@xndrjs/domain-valibot`](/v0/adapters/valibot/). Not because one engine wins everywhere, but because the schema should **exist once** and live next to the boundary it protects.
+- **Contentful** — [`@xndrjs/contentful-to-zod`](/v0/integrations/contentful-to-zod/) generates separate transport and flat schemas from your content model, including the single-locale vs multi-locale split from earlier. Parse with `BlogPostLocalizedEntrySchema`, flatten with the generated helper, and move on. The [Contentful codegen post](/blog/generating-zod-schemas-from-contentful/) walks through the full pattern.
+- **OpenAPI / JSON Schema** — [`@xndrjs/domain-ajv`](/v0/modeling/adapters/ajv/) fits ingress boundaries where the contract is already JSON Schema. The [OAS walkthrough](/blog/oas-jsonschema-ajv-domain/) shows compile-once validation without hand-written parsers.
+- **Everything else at the boundary** — pick the adapter that matches the tool already at that edge: [`@xndrjs/domain-zod`](/v0/modeling/adapters/zod/) or [`@xndrjs/domain-valibot`](/v0/modeling/adapters/valibot/). Not because one engine wins everywhere, but because the schema should **exist once** and live next to the boundary it protects.
 
 The adapter is a doorway, not the model. What matters is that `unknown` becomes a **named shape** before it travels inward.
 
 ### Model the shapes your application actually uses
 
-Inside the boundary, use [`@xndrjs/domain`](/v0/domain/overview/) for trusted representations:
+Inside the boundary, use [`@xndrjs/domain`](/v0/modeling/overview/) for trusted representations:
 
 - **`primitive`** for semantic scalars (`Email`, `Slug`, `UserId`)
 - **`shape`** for immutable object representations (`Article`, `Order`)
@@ -305,7 +305,7 @@ Each arrow is a named transformation between named shapes — not a `typeof` bra
 
 Make shape modeling an **explicit step** in your workflow — not something you hope will emerge from the implementation.
 
-Through skills, rules, or deliberate prompts, make your AI assistant name the shapes at every boundary and agree on the [mental model](/v0/domain/mental-model/) **before** it writes handlers, use cases, or components. Do not let it produce behavioral code while contracts are still implicit. When that order is reversed, parsing-slop happens: orchestration code fills up with inline `typeof` checks and ad hoc guards instead of calling named shapes.
+Through skills, rules, or deliberate prompts, make your AI assistant name the shapes at every boundary and agree on the [mental model](/v0/modeling/mental-model/) **before** it writes handlers, use cases, or components. Do not let it produce behavioral code while contracts are still implicit. When that order is reversed, parsing-slop happens: orchestration code fills up with inline `typeof` checks and ad hoc guards instead of calling named shapes.
 
 You end up working at the wrong level of abstraction because of a foggy mental model.
 

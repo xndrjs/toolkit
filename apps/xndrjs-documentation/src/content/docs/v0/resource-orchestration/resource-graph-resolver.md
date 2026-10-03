@@ -3,7 +3,7 @@ title: Resource graph resolver
 description: The @xndrjs/resource-graph-resolver package — typed resource graphs, islands, expansion policies, declarative multi-backend sources, and a reusable resolver.
 ---
 
-`@xndrjs/resource-graph-resolver` resolves a **resource graph** from one or more seed [Addressable Resource Identifier](/v0/application/addressable-resources/)s (ARIs). It walks child resources discovered by your expansion rules, loads payloads through the backends you declare, tracks **island** membership and **dependencies**, and returns a typed `ContentMap` you can serialize for cache or map into domain aggregates.
+`@xndrjs/resource-graph-resolver` resolves a **resource graph** from one or more seed [Addressable Resource Identifier](/v0/resource-orchestration/addressable-resources/)s (ARIs). It walks child resources discovered by your expansion rules, loads payloads through the backends you declare, tracks **island** membership and **dependencies**, and returns a typed `ContentMap` you can serialize for cache or map into domain aggregates.
 
 ### What is an island?
 
@@ -55,7 +55,7 @@ flowchart TD
 
 The resolver sits in **infrastructure** because the split between external systems (CMS, commercial API, …) is an infrastructure concern. The application asks for a domain aggregate; it should not have to know how that aggregate is assembled from backends.
 
-[Addressable Resource Identifiers](/v0/application/addressable-resources/) still provide the identity vocabulary — but the ARIs that name nodes in **this** graph (`cms.entry`, `integration.product`, …) are **infrastructure resources**. Infrastructure may know where a product lives today; the domain should not. Mapping from the resolved `ContentMap` into domain shapes happens above this package:
+[Addressable Resource Identifiers](/v0/resource-orchestration/addressable-resources/) still provide the identity vocabulary — but the ARIs that name nodes in **this** graph (`cms.entry`, `integration.product`, …) are **infrastructure resources**. Infrastructure may know where a product lives today; the domain should not. Mapping from the resolved `ContentMap` into domain shapes happens above this package:
 
 ```text
 Transport
@@ -69,7 +69,7 @@ Domain aggregate
 UI / framework
 ```
 
-Pair with [`@xndrjs/contentful-to-zod`](/v0/infrastructure/contentful-to-zod/) for typed Contentful payloads and link-field metadata when authoring graph resolution strategies.
+Pair with [`@xndrjs/contentful-to-zod`](/v0/integrations/contentful-to-zod/) for typed Contentful payloads and link-field metadata when authoring graph resolution strategies.
 
 ## Install
 
@@ -434,6 +434,6 @@ Exported symbols:
 
 ## See also
 
-- [Addressable resources](/v0/application/addressable-resources/) — identity vocabulary (`toString()` keys); graph ARIs for this package are infrastructure-scoped factories
-- [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) — transport schemas and link-field metadata for expansion authoring
+- [Addressable resources](/v0/resource-orchestration/addressable-resources/) — identity vocabulary (`toString()` keys); graph ARIs for this package are infrastructure-scoped factories
+- [Contentful to Zod](/v0/integrations/contentful-to-zod/) — transport schemas and link-field metadata for expansion authoring
 - [Demo app](https://github.com/xndrjs/toolkit/tree/main/apps/resource-graph-resolver-demo)

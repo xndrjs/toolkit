@@ -7,7 +7,7 @@ description: Compiler-first, type-safe ICU MessageFormat i18n with JSON or YAML 
 
 Namespaces are always multi-namespace (`t(namespace, key, params?)`). Delivery is `split-by-locale` (default) or `custom` areas — there is no single-file / eager-bundle mode.
 
-For motivation and the developer journey (SSR/CSR, React gates, CMS refresh without rebuild), see [Type-safe i18n for TypeScript and React](/blog/type-safe-i18n-for-typescript-and-react/). React bindings live in [`@xndrjs/i18n-react`](/v0/infrastructure/i18n/react/).
+For motivation and the developer journey (SSR/CSR, React gates, CMS refresh without rebuild), see [Type-safe i18n for TypeScript and React](/blog/type-safe-i18n-for-typescript-and-react/). React bindings live in [`@xndrjs/i18n-react`](/v0/localization/i18n/react/).
 
 ```mermaid
 flowchart TD
@@ -29,18 +29,18 @@ flowchart TD
 
 ## In this section
 
-| Page                                                            | Topics                                                                      |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [Dictionaries](/v0/infrastructure/i18n/dictionaries/)           | JSON shape, YAML authoring, serving from `public/`                          |
-| [Delivery](/v0/infrastructure/i18n/delivery/)                   | Split-by-locale and custom areas                                            |
-| [Codegen](/v0/infrastructure/i18n/codegen/)                     | ICU inference, generated files, `runCodegen` vs `regenerateNamespaces`      |
-| [Runtime](/v0/infrastructure/i18n/runtime/)                     | Handle: `createI18n({ state?, fetchImpl? })`, `load` / `peek` / `serialize` |
-| [React](/v0/infrastructure/i18n/react/)                         | `@xndrjs/i18n-react`: `I18nRoot`, `withI18n`, `<I18n>`                      |
-| [Locale fallback](/v0/infrastructure/i18n/locale-fallback/)     | Fallback chains, locale projection helpers                                  |
-| [Lazy loading](/v0/infrastructure/i18n/lazy-loading/)           | Namespace loaders, `load({ namespaces, locale })`, fetch DI                 |
-| [External validation](/v0/infrastructure/i18n/validation/)      | CMS/API payloads before writing authoring files                             |
-| [Configuration](/v0/infrastructure/i18n/configuration/)         | `i18n.codegen.json` reference                                               |
-| [Errors & exports](/v0/infrastructure/i18n/errors-and-exports/) | Error prefixes, package exports                                             |
+| Page                                                          | Topics                                                                      |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [Dictionaries](/v0/localization/i18n/dictionaries/)           | JSON shape, YAML authoring, serving from `public/`                          |
+| [Delivery](/v0/localization/i18n/delivery/)                   | Split-by-locale and custom areas                                            |
+| [Codegen](/v0/localization/i18n/codegen/)                     | ICU inference, generated files, `runCodegen` vs `regenerateNamespaces`      |
+| [Runtime](/v0/localization/i18n/runtime/)                     | Handle: `createI18n({ state?, fetchImpl? })`, `load` / `peek` / `serialize` |
+| [React](/v0/localization/i18n/react/)                         | `@xndrjs/i18n-react`: `I18nRoot`, `withI18n`, `<I18n>`                      |
+| [Locale fallback](/v0/localization/i18n/locale-fallback/)     | Fallback chains, locale projection helpers                                  |
+| [Lazy loading](/v0/localization/i18n/lazy-loading/)           | Namespace loaders, `load({ namespaces, locale })`, fetch DI                 |
+| [External validation](/v0/localization/i18n/validation/)      | CMS/API payloads before writing authoring files                             |
+| [Configuration](/v0/localization/i18n/configuration/)         | `i18n.codegen.json` reference                                               |
+| [Errors & exports](/v0/localization/i18n/errors-and-exports/) | Error prefixes, package exports                                             |
 
 ## Install
 
@@ -49,7 +49,7 @@ pnpm add @xndrjs/i18n zod
 pnpm add -D tsx
 ```
 
-For React apps, also install `@xndrjs/i18n-react` (peer: `react` ≥ 19). See [React](/v0/infrastructure/i18n/react/).
+For React apps, also install `@xndrjs/i18n-react` (peer: `react` ≥ 19). See [React](/v0/localization/i18n/react/).
 
 | Dependency     | Role                                                                                                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |

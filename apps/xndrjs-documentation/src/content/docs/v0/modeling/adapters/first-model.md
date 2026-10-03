@@ -156,7 +156,7 @@ In the example above, `OrderDetail.confirm(...)` re-validates with the `OrderDet
 
 The idea of explicitly defining the interface on which the capabilities operate lines up with the **Interface Segregation** idea: you _can_ type `capabilities.forShape` with the full props of a particular shape, and TypeScript will accept it when you attach that shape. The more maintainable approach is to keep the generic parameter **minimal**—only the fields the methods actually touch (reads, `patch` payloads, or other invariants the capability logic assumes). A narrower type states the real contract, makes reuse across richer shapes (like `OrderDetail` next to `Order`) obvious instead of accidental, and avoids coupling capability bundles to one row shape when they only need a slice of it.
 
-For scalar primitives, use `capabilities.forPrimitive` with `create` instead of `patch` — see [Capabilities](/v0/domain/capabilities/).
+For scalar primitives, use `capabilities.forPrimitive` with `create` instead of `patch` — see [Capabilities](/v0/modeling/capabilities/).
 
 ## Add a proof when meaning gets stronger
 

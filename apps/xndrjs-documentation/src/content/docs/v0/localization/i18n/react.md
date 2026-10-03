@@ -24,7 +24,7 @@ xndrjs-i18n-react-codegen --config i18n/i18n.codegen.json
 
 Optional `i18n-react.codegen.json` next to the core config can override the bindings output path (`output`). Default: `{codegenPath}/react-bindings.generated.tsx`.
 
-Prefer one script that runs core first, then React — see [Overview — Codegen script](/v0/infrastructure/i18n/#codegen-script).
+Prefer one script that runs core first, then React — see [Overview — Codegen script](/v0/localization/i18n/#codegen-script).
 
 Generated exports typically include:
 
@@ -91,4 +91,4 @@ Missing namespaces show your fallback UI for **that gate only** while the load i
 
 **configure → codegen (core then React) → `load` on the server → `serialize` → `I18nRoot` → gate where you need more namespaces.**
 
-See also [Runtime](/v0/infrastructure/i18n/runtime/), [Lazy loading](/v0/infrastructure/i18n/lazy-loading/), and the [blog post](/blog/type-safe-i18n-for-typescript-and-react/).
+See also [Runtime](/v0/localization/i18n/runtime/), [Lazy loading](/v0/localization/i18n/lazy-loading/), and the [blog post](/blog/type-safe-i18n-for-typescript-and-react/).

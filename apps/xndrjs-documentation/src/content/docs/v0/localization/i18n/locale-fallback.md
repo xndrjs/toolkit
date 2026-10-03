@@ -24,7 +24,7 @@ Partial regional locales (for example `en-US` overriding only a subset of keys, 
 
 With `delivery: "split-by-locale"` or `custom`, codegen applies the same fallback rules when writing delivery JSON, so each artifact already contains the strings the runtime would resolve for that locale or area.
 
-Use `xndrjs-i18n-audit` to measure coverage: `missingDirectByLocale` lists keys without a template for that locale (translator backlog); `missingEffectiveByLocale` lists keys that would still fail at runtime after walking the fallback chain. See [Overview — Audit script](/v0/infrastructure/i18n/#audit-script).
+Use `xndrjs-i18n-audit` to measure coverage: `missingDirectByLocale` lists keys without a template for that locale (translator backlog); `missingEffectiveByLocale` lists keys that would still fail at runtime after walking the fallback chain. See [Overview — Audit script](/v0/localization/i18n/#audit-script).
 
 If the chain exhausts without a template, `t()` throws and includes the full chain:
 

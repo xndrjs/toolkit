@@ -386,7 +386,7 @@ A layout that hides complexity does not remove it. It only postpones the bill â€
 
 - Monorepo template: [github.com/xndrjs/monorepo](https://github.com/xndrjs/monorepo)
 - Architecture contract in that repo: `architecture/clean-architecture-oriented-monorepo.md`
-- Domain primitives: [`@xndrjs/domain`](/v0/domain/overview/) and the [Domain Algebra](/blog/xndrjs-domain-algebra-rich-anemic/) / [Trusted Shape Modeling](/blog/object-oriented-modeling-vs-trusted-shape-modeling/) posts
+- Domain primitives: [`@xndrjs/domain`](/v0/modeling/overview/) and the [Domain Algebra](/blog/xndrjs-domain-algebra-rich-anemic/) / [Trusted Shape Modeling](/blog/object-oriented-modeling-vs-trusted-shape-modeling/) posts
 - Toolkit overview: [Getting started](/v0/getting-started/introduction/)
 
 Interested in adopting this for your team, or want to walk through how it would fit a real codebase? Reach out on [LinkedIn](https://www.linkedin.com/in/fabio-fognani-ba461b51/).

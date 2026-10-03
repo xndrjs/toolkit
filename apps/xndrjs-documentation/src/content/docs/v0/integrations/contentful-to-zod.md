@@ -276,7 +276,7 @@ await writeFile("./src/generated/contentful.schemas.ts", source, "utf8");
 
 ## Wiring to domain-zod
 
-Transport schemas feed the domain; they do not replace it. See the [Zod adapter](/v0/adapters/zod/) for `zodToValidator`:
+Transport schemas feed the domain; they do not replace it. See the [Zod adapter](/v0/modeling/adapters/zod/) for `zodToValidator`:
 
 ```ts
 import { domain, zodToValidator } from "@xndrjs/domain-zod";
@@ -310,5 +310,5 @@ Entry/asset link objects and CMA validations (size, range, regex, etc.) are refl
 ## See also
 
 - [Your CMS schema is lying to TypeScript](/blog/your-cms-schema-is-lying-to-typescript/) — transport vs domain trust
-- [Resource graph resolver](/v0/infrastructure/resource-graph-resolver/) — graph resolution strategies often consume link-field metadata from generated schemas
+- [Resource graph resolver](/v0/resource-orchestration/resource-graph-resolver/) — graph resolution strategies often consume link-field metadata from generated schemas
 - [README in the monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/contentful-to-zod) — CLI details when working on the generator itself

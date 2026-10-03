@@ -27,7 +27,7 @@ Under `codegenPath/`:
 | `dictionary-schema.generated.ts` | `DICTIONARY_SPEC`, `validateExternal*` helpers                                                                                                           |
 | `namespace-loaders.generated.ts` | Typed `namespaceLoaders` (import) or `createNamespaceLoaders(fetchImpl)` (fetch)                                                                         |
 
-Delivery JSON is written under `{artifactsPath}/translations/` (default `artifactsPath` = `codegenPath`). See [Delivery](/v0/infrastructure/i18n/delivery/).
+Delivery JSON is written under `{artifactsPath}/translations/` (default `artifactsPath` = `codegenPath`). See [Delivery](/v0/localization/i18n/delivery/).
 
 `dictionary.generated.ts` is **not** emitted — every namespace loads through the handle.
 
@@ -62,7 +62,7 @@ t("default", "welcome"); // missing { name }
 t("billing", "login_button"); // key not in namespace
 ```
 
-Configure namespaces in `i18n.codegen.json` (there is no single-file `dictionary` field). See [Configuration](/v0/infrastructure/i18n/configuration/).
+Configure namespaces in `i18n.codegen.json` (there is no single-file `dictionary` field). See [Configuration](/v0/localization/i18n/configuration/).
 
 ## Full codegen vs content-only refresh
 
@@ -89,4 +89,4 @@ If authoring changes a key’s ICU parameter contract (or adds/removes keys), re
 
 ## React bindings
 
-After core codegen, run `xndrjs-i18n-react-codegen` (same `--config`) to emit `react-bindings.generated.tsx`. See [React](/v0/infrastructure/i18n/react/).
+After core codegen, run `xndrjs-i18n-react-codegen` (same `--config`) to emit `react-bindings.generated.tsx`. See [React](/v0/localization/i18n/react/).

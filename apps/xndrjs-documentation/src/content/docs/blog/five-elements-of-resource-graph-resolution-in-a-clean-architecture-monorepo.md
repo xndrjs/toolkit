@@ -788,8 +788,8 @@ And the component can finally do the thing it was supposed to do in the first pl
 ## Further reading
 
 - [Every component fetches its own data, until it can't](/blog/every-component-fetches-its-own-data-until-it-cant/) — the resolution problem and the generic graph resolver
-- [Resource graph resolver](/v0/infrastructure/resource-graph-resolver/) — API and scheduling reference
+- [Resource graph resolver](/v0/resource-orchestration/resource-graph-resolver/) — API and scheduling reference
 - [From Query Keys to Addressable Resource Identifiers](/blog/from-query-keys-to-addressable-resource-identifiers/) — why infrastructure identities exist
 - [A Clean Architecture monorepo template](/blog/clean-architecture-monorepo-template/) — workspace governance and dependency boundaries
-- [Contentful to Zod](/v0/infrastructure/contentful-to-zod/) — transport schemas and generated link metadata
+- [Contentful to Zod](/v0/integrations/contentful-to-zod/) — transport schemas and generated link metadata
 - [xndrjs monorepo](https://github.com/xndrjs/monorepo) — the production-shaped workspace template

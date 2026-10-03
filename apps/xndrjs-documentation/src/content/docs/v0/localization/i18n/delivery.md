@@ -66,4 +66,4 @@ t("billing", "invoice_summary", { count: 3 });
 }
 ```
 
-See [Configuration](/v0/infrastructure/i18n/configuration/) for the full field list.
+See [Configuration](/v0/localization/i18n/configuration/) for the full field list.

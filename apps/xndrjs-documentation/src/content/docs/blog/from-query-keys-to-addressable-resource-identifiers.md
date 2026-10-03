@@ -260,7 +260,7 @@ The check is about **resources**, not about how data was cached on the client.
 
 ### In-flight deduplication
 
-With [`@xndrjs/tasks`](/v0/infrastructure/tasks/), use a stable string form of the resource as a dedup key:
+With [`@xndrjs/tasks`](/v0/concurrency/tasks/), use a stable string form of the resource as a dedup key:
 
 ```ts
 const resource = postCommentsAri({ postId, authorId });
@@ -416,6 +416,6 @@ Zero runtime dependencies. Framework-agnostic. Boring on purpose — so the inte
 npm install @xndrjs/addressable-resources
 ```
 
-Package docs: [Addressable resources](/v0/application/addressable-resources/).
+Package docs: [Addressable resources](/v0/resource-orchestration/addressable-resources/).
 
 `@xndrjs/application-resources` is succeeded by this package.

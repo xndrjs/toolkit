@@ -84,7 +84,7 @@ A value only becomes trustworthy after crossing an explicit validation boundary:
 unknown → validate → trusted value
 ```
 
-That pattern is the starting point of the [mental model](/v0/domain/mental-model/) behind `xndrjs`, and the motivation behind posts like [What problems does @xndrjs/domain actually solve?](/blog/what-problems-xndrjs-domain-solves/).
+That pattern is the starting point of the [mental model](/v0/modeling/mental-model/) behind `xndrjs`, and the motivation behind posts like [What problems does @xndrjs/domain actually solve?](/blog/what-problems-xndrjs-domain-solves/).
 
 ---
 
@@ -141,7 +141,7 @@ from:
 “this is specifically a PostId”
 ```
 
-In `@xndrjs/domain`, primitives carry that distinction at the type level and enforce membership at runtime via a `Validator` — see [Primitives and shapes](/v0/domain/primitives-shapes/).
+In `@xndrjs/domain`, primitives carry that distinction at the type level and enforce membership at runtime via a `Validator` — see [Primitives and shapes](/v0/modeling/primitives-shapes/).
 
 The important insight is:
 
@@ -192,7 +192,7 @@ instead of:
 validate → mutable object → hope for the best
 ```
 
-`xndrjs` shapes are immutable after `create`, and evolution goes through [capabilities](/v0/domain/capabilities/) - named transitions instead of ad hoc property writes.
+`xndrjs` shapes are immutable after `create`, and evolution goes through [capabilities](/v0/modeling/capabilities/) - named transitions instead of ad hoc property writes.
 
 The goal is not "absolute safety”.
 
@@ -264,7 +264,7 @@ type VerifiedUser = User & {
 
 or a dedicated proof/refinement step.
 
-In `xndrjs`, that second path is a [`proof`](/v0/adapters/first-model/#add-a-proof-when-meaning-gets-stronger): an explicit **runtime** semantic step. You call `assert` or `test` when a workflow needs a stronger guarantee than the base shape already carries — usually after validation or a capability transition. The proof re-checks the value at that moment; only then does the system treat the stronger meaning as established.
+In `xndrjs`, that second path is a [`proof`](/v0/modeling/adapters/first-model/#add-a-proof-when-meaning-gets-stronger): an explicit **runtime** semantic step. You call `assert` or `test` when a workflow needs a stronger guarantee than the base shape already carries — usually after validation or a capability transition. The proof re-checks the value at that moment; only then does the system treat the stronger meaning as established.
 
 If you also want a narrower TypeScript view, you layer it on top with `refineType` — for example so that, after `VerifiedUser.test(user)` succeeds, `isVerified` is known to be `true`. The proof is the executed step; the narrowed type is what the compiler can infer **from** that step, not a substitute for it.
 
@@ -391,4 +391,4 @@ Because at scale, most correctness bugs are not caused by missing semicolons.
 
 They are caused by the system believing something that was never actually guaranteed.
 
-If you want the toolkit side of this story next, start with the [mental model](/v0/domain/mental-model/) and [first model](/v0/adapters/first-model/) guides, or the [interop demo](https://github.com/xndrjs/toolkit/tree/main/apps/interop-demo) for mixed validators (Zod, Valibot, core) on the same domain types.
+If you want the toolkit side of this story next, start with the [mental model](/v0/modeling/mental-model/) and [first model](/v0/modeling/adapters/first-model/) guides, or the [interop demo](https://github.com/xndrjs/toolkit/tree/main/apps/interop-demo) for mixed validators (Zod, Valibot, core) on the same domain types.

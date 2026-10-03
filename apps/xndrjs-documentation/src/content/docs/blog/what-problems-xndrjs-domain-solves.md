@@ -47,7 +47,7 @@ Rich domain models built from classes are elegant. But they also tend to accumul
 
 Nested structure does not force you to manually instantiate every sub-shape or primitive wrapper if the shape’s validator already composes its parts. The parent validation orchestrates the children. That keeps call sites readable and reduces “domain boilerplate theater.”
 
-Compare the **call site** for the same aggregate in a stylized rich OOP model (nested value objects) versus `domain.shape` as in [Primitives and shapes](/v0/domain/primitives-shapes/).
+Compare the **call site** for the same aggregate in a stylized rich OOP model (nested value objects) versus `domain.shape` as in [Primitives and shapes](/v0/modeling/primitives-shapes/).
 
 Rich OOP-style construction: every nested piece is its own type and constructor. For instance:
 

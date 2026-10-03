@@ -27,4 +27,4 @@ Validation runs in two phases:
 1. **Normalize** — parse ICU templates, extract variables, check required keys (missing keys fail; extra keys ignored; partial locales OK).
 2. **Validate** — compare extracted arguments against the static `Params` schema via Zod.
 
-Low-level helpers are also exported from `@xndrjs/i18n/validation` for custom wiring. See [Errors & exports](/v0/infrastructure/i18n/errors-and-exports/).
+Low-level helpers are also exported from `@xndrjs/i18n/validation` for custom wiring. See [Errors & exports](/v0/localization/i18n/errors-and-exports/).

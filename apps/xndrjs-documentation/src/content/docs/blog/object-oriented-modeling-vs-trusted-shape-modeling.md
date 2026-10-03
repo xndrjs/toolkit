@@ -35,7 +35,7 @@ The modeling approach adopted by [xndrjs](/latest/getting-started/introduction/)
 
 Behavior should indeed stay close to the data. But **close** doesn't necessarily mean **inside**.
 
-Domain operations live _alongside_ the model as [capabilities](/v0/domain/capabilities/) you bind to a shape through an explicit **`attach`** step — not as methods baked into the data itself.
+Domain operations live _alongside_ the model as [capabilities](/v0/modeling/capabilities/) you bind to a shape through an explicit **`attach`** step — not as methods baked into the data itself.
 
 **Attached** means that wiring is intentional: it is declared and bound to a named shape, so you know that capability **is meant** to be called on that data structure.
 

@@ -23,7 +23,7 @@ Its job is not to be a schema engine. Its job is to turn validation into a stabl
 pnpm add @xndrjs/domain
 ```
 
-Most projects pair the core with an adapter. See [Choose an adapter](/v0/domain/choosing-adapter/).
+Most projects pair the core with an adapter. See [Choose an adapter](/v0/modeling/choosing-adapter/).
 
 ## Semantics over structure
 
