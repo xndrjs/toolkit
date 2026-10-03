@@ -124,6 +124,51 @@ At this point, a nicer API around the strategy builder was no longer enough. Wha
 
 ---
 
+## Describe the destination, not the journey
+
+The name **Ziel** comes from the German word for _goal_ or _destination_. That meaning also captures the idea behind the language.
+
+When navigating by the stars, you do not steer by continuously inspecting the seabed beneath you. You orient yourself against stable points farther away and use them to determine where you are going.
+
+Ziel takes a similar view of data orchestration: instead of encoding every operational step of data acquisition or hardcoding the current infrastructure split — which resource lives in the CMS, which comes from an integration service, a database, or something else. A query describes the resource graph and projected aggregate the application is trying to reach. Where a resource happens to live is an implementation detail; the aggregate is the application concern. If that split changes, the ideal outcome is a routing or datasource change, not surgery across the orchestration code.
+
+The query does not prescribe a sequence such as:
+
+```text
+fetch page from CMS
+then fetch menu from CMS
+then fetch strips from CMS
+then extract product SKUs
+then fetch products from ecommerce
+then resolve recommendations through the integration layer
+then group entry IDs
+then batch assets from CMS
+then map everything into the page aggregate
+```
+
+It declares the destination:
+
+```text
+Page
+├── menu → Entry
+├── strips[] → Entry
+│   ├── Hero → Asset
+│   ├── Tabs → Entry[]
+│   └── Product → Product
+│                  └── recommendations → Recommendation[]
+└── footer → Entry
+```
+
+The first description bakes the current infrastructure split into the orchestration itself. The second describes only the resource relationships the application cares about; datasources decide where those resources happen to come from today.
+
+If Product moves from the ecommerce backend to an integration service, the aggregate should not need to be rewritten. Ideally, only the routing or datasource declaration changes.
+
+> **Procedural orchestration keeps looking at the ground: “what do I do next?” Declarative orchestration keeps looking at the stars: “what state am I trying to reach?”**
+
+The resolver, data sources, and loaders remain responsible for the walk. They route identities, batch compatible work, deduplicate resources, follow redirects, and continue until no newly discovered identities remain. The declaration stays focused on the destination: describe the graph you need and let the runtime determine how to get there.
+
+---
+
 ## Declaring the vocabulary of the graph
 
 Ziel starts with resources, whose declarations keep identity separate from payload:
