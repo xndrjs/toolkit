@@ -403,6 +403,84 @@ Routes can also be refined with an optional `when` clause — schematically, `fo
 
 The actual `load` implementation remains TypeScript, and its contract is deliberately agnostic about where the data comes from: a data source may issue HTTP requests, call a vendor SDK, query a database, read from the filesystem, or wrap an in-memory store. Authentication, validation, batching limits, retries, and vendor-specific errors therefore remain at that level, while Ziel describes routing metadata and the semantic graph without trying to become an IO language.
 
+### A loader speaks resources, not vendor shapes
+
+A data source does not return whatever the vendor happens to return. Its contract is narrower: given a batch of resource identities, it provides the payloads declared by those `resource`s — validated and typed accordingly, with `undefined` for misses. The loader is therefore where the vendor's shape stops, and it can act as a small anti-corruption layer.
+
+Take the `Page` resource declared earlier. A Contentful-backed `CmsEntries.load` fetches the whole batch once, then remaps each vendor document into the declared payload — same length and order as the input, like a DataLoader:
+
+```ts
+// Contentful CmsEntries.load (schematic)
+async load(
+  batch: readonly (PageResource | EntryResource)[],
+  context: ResourceLoadContext<CmsEntriesContext>
+): Promise<readonly (PagePayload | EntryPayload | undefined)[]> {
+  const ids = batch.map((resource) => resource.key.id);
+  const entries = await contentful.getEntries({
+    "sys.id[in]": ids,
+    locale: context.executionContext.locale,
+  });
+  const byId = new Map(entries.items.map((entry) => [entry.sys.id, entry]));
+
+  return batch.map((resource) => {
+    const entry = byId.get(resource.key.id);
+    if (!entry) return undefined;
+
+    if (pageAri.matches(resource)) {
+      return {
+        id: entry.sys.id,
+        title: entry.fields.title,
+        menuId: entry.fields.menu.sys.id,
+        strips: entry.fields.strips.map((link) => ({ id: link.sys.id })),
+      } satisfies PagePayload;
+    }
+
+    // Entry mapping omitted
+    return undefined;
+  });
+}
+```
+
+If the content later moves to DatoCMS, the batch shape stays the same; only the fetch and the mapping change:
+
+```ts
+// DatoCMS CmsEntries.load (schematic)
+async load(
+  batch: readonly (PageResource | EntryResource)[],
+  context: ResourceLoadContext<CmsEntriesContext>
+): Promise<readonly (PagePayload | EntryPayload | undefined)[]> {
+  const ids = batch.map((resource) => resource.key.id);
+  const records = await dato.Items.all({
+    filter: { ids: ids.join(",") },
+    locale: context.executionContext.locale,
+  });
+  const byId = new Map(records.map((record) => [record.id, record]));
+
+  return batch.map((resource) => {
+    const record = byId.get(resource.key.id);
+    if (!record) return undefined;
+
+    if (pageAri.matches(resource)) {
+      return {
+        id: record.id,
+        title: record.title,
+        menuId: record.menu.id,
+        strips: record.strips.map((item) => ({ id: item.id })),
+      } satisfies PagePayload;
+    }
+
+    // Entry mapping omitted
+    return undefined;
+  });
+}
+```
+
+The resource declaration, the queries, and the projected aggregate stay untouched. Because the loader's return type is generated from the same `.ziel` declaration, a mapping that drifts from the contract is flagged by the TypeScript compiler instead of surfacing later, inside a projection that has no way of knowing what went wrong.
+
+This is also why Ziel does not generate resources from vendor models. A `contentful-to-ziel` generator would make the resource graph exactly as volatile as the vendor format, which is the coupling the loader boundary exists to remove. The same reasoning applies one level up: the projected aggregate does not need to match the domain model. It can be a convenient intermediate representation that changes at its own pace, so that vendor, graph, and domain can each evolve independently.
+
+A BFF would offer similar protection, but through another service to design, deploy, and operate. Here the boundary is a function in the application.
+
 This boundary is deliberate:
 
 ```text
