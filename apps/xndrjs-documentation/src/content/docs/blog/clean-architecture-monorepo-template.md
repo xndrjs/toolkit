@@ -4,7 +4,6 @@ description: Recurring pain in custom fullstack apps — coupling, sprawling PRs
 date: 2026-08-01
 author: Fabio Fognani
 tags:
-  - architecture
   - monorepo
   - clean-architecture
   - typescript

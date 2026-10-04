@@ -5,7 +5,6 @@ date: 2026-06-04
 author: Fabio Fognani
 tags:
   - domain
-  - architecture
   - ai
   - ddd
 ---

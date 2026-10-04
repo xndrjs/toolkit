@@ -6,7 +6,6 @@ author: Fabio Fognani
 tags:
   - domain
   - typescript
-  - architecture
   - validation
 ---
 

@@ -4,12 +4,13 @@ description: Why large CMS-driven sites with deep pages, dozens of locales, and 
 date: 2026-08-23
 author: Fabio Fognani
 tags:
-  - architecture
   - cms
-  - typescript
   - nextjs
   - graphql
   - cache
+  - ari
+  - resource-graph-resolution
+  - ziel
 ---
 
 Over the last three years I had the chance to work on two large institutional websites.

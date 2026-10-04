@@ -4,10 +4,10 @@ description: How query key helpers lead to a framework-agnostic resource vocabul
 date: 2026-07-26
 author: Fabio Fognani
 tags:
-  - architecture
   - typescript
   - cache
   - react
+  - ari
 ---
 
 If you build React apps with TanStack Query, you have almost certainly written code like this:

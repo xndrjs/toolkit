@@ -4,7 +4,6 @@ description: Modern frontend work has become system work. Architectural thinking
 date: 2026-07-03
 author: Fabio Fognani
 tags:
-  - architecture
   - front-end
   - ai
   - typescript

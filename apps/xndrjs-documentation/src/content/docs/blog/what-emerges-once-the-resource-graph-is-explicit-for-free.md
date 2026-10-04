@@ -4,11 +4,10 @@ description: How explicit resource contracts turn loaders into anti-corruption b
 date: 2026-10-05
 author: Fabio Fognani
 tags:
-  - architecture
-  - resource-graph
-  - clean-architecture
-  - typescript
   - dsl
+  - ari
+  - resource-graph-resolution
+  - ziel
 ---
 
 In [the previous article](/blog/when-a-resource-graph-needs-a-language/), I described why repeated graph-resolution code led to Ziel.

@@ -4,11 +4,10 @@ description: Where resource identities, loaders, data sources, graph strategies,
 date: 2026-09-02
 author: Fabio Fognani
 tags:
-  - architecture
   - monorepo
-  - clean-architecture
-  - cms
-  - typescript
+  - ari
+  - resource-graph-resolution
+  - ziel
 ---
 
 In the previous post, I started from a deceptively simple problem:

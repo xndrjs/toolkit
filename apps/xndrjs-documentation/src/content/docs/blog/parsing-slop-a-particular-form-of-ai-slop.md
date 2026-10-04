@@ -5,7 +5,6 @@ date: 2026-06-16
 author: Fabio Fognani
 tags:
   - ai
-  - architecture
   - domain
   - validation
   - typescript

@@ -4,10 +4,10 @@ description: How testing a graph resolver against a large CMS-driven aggregate e
 date: 2026-10-03
 author: Fabio Fognani
 tags:
-  - architecture
-  - resource-graph
   - typescript
   - dsl
+  - resource-graph-resolution
+  - ziel
 ---
 
 This is the third article in a series about resource graph resolution.
