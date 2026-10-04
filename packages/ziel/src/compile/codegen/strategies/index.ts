@@ -1,1 +1,1 @@
-export { emitStrategies } from "./emit-strategies";
+export { emitQueryStrategy, emitStrategies } from "./emit-strategies";

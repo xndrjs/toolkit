@@ -27,7 +27,7 @@ import {
 import { emitProjectOnHelper } from "./emit-project-on";
 import { type ResourceIndex } from "./resource-index";
 
-function emitQueryProjection(
+export function emitQueryProjection(
   plan: QueryPlan,
   resources: ResourceIndex,
   registryTypeName: string,

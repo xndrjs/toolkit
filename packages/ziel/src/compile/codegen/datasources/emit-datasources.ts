@@ -97,7 +97,7 @@ function emitDatasourceConfigType(ds: DatasourceDefinition): string {
     fields.push(`  when?: (context: SourceRouteContext<${contextName}>) => boolean;`);
   }
 
-  return `type ${configName} = {\n${fields.join("\n")}\n};`;
+  return `export type ${configName} = {\n${fields.join("\n")}\n};`;
 }
 
 function emitDslWhenPredicate(ds: DatasourceDefinition): string {
@@ -163,7 +163,8 @@ export function datasourcesForQuery(
 }
 
 /**
- * Per-datasource context types, aggregate `ZielExecutionContext`, and config types.
+ * Per-datasource context types, aggregate `ZielExecutionContext`, and exported
+ * `{Source}Config` types for query factories to import from `resources.ts`.
  * Empty when the program has no datasources.
  */
 export function emitDataSourceTypes(program: Program): string {
@@ -191,7 +192,7 @@ export function emitDataSourceTypes(program: Program): string {
   return parts.join("\n\n");
 }
 
-function emitQueryDataSourcesFactory(
+export function emitQueryDataSourcesFactory(
   query: QueryDefinition,
   datasources: readonly DatasourceDefinition[],
   registryTypeName: string

@@ -65,6 +65,9 @@ export {
 } from "./codegen/build-generated-module";
 export {
   composeGeneratedModule,
+  composeGeneratedModules,
   type ComposeGeneratedModuleOptions,
   type ComposeGeneratedModuleResult,
+  type ComposeGeneratedModulesResult,
+  type GeneratedModuleFile,
 } from "./codegen/compose-generated-module";

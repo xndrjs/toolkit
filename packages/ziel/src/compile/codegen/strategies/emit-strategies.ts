@@ -27,7 +27,7 @@ function emitObjectTypeAlias(name: string, fields: FieldDecl[]): string {
   return `export type ${name} = ${body};`;
 }
 
-function emitQueryStrategy(plan: QueryPlan, registryTypeName: string): string {
+export function emitQueryStrategy(plan: QueryPlan, registryTypeName: string): string {
   const query = plan.query;
   const factory = strategyFactoryName(query.name);
   const paramsName = paramsTypeName(query.name);

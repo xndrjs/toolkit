@@ -144,7 +144,7 @@ function emitProjectCall(plan: QueryPlan): string {
   return `${projectFn}(${seedArg}, contentMap, {\n    ${argFields.join(",\n    ")},\n  })`;
 }
 
-function emitQueryResolve(plan: QueryPlan, registryTypeName: string): string {
+export function emitQueryResolve(plan: QueryPlan, registryTypeName: string): string {
   const query = plan.query;
   const fnName = resolveFnName(query.name);
   const resultType = resolveResultTypeName(query.name);

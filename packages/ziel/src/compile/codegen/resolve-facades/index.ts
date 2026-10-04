@@ -1,1 +1,1 @@
-export { emitResolves } from "./emit-resolves";
+export { emitQueryResolve, emitResolves } from "./emit-resolves";

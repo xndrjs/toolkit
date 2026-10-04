@@ -659,7 +659,7 @@ function emitResourceProjectionType(
   );
 }
 
-function emitQueryProjectionTypes(
+export function emitQueryProjectionTypes(
   plan: QueryPlan,
   scalars: ScalarTable,
   resources: ResourceTable,

@@ -1,6 +1,7 @@
-export { emitProjections } from "./emit-projections";
+export { emitQueryProjection, emitProjections } from "./emit-projections";
 export {
   emitProjectionTypes,
+  emitQueryProjectionTypes,
   printExpansionAliasType,
   wrapOnFailureType,
   type ExpansionAliasContext,

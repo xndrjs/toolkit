@@ -96,7 +96,46 @@ export function datasourceContextTypeName(datasourceName: string): string {
   return `${datasourceName}Context`;
 }
 
-/** `CmsSource` → `CmsSourceConfig` (module-private config shape). */
+/** `CmsSource` → `CmsSourceConfig` (exported from `resources.ts` for query factories). */
 export function datasourceConfigTypeName(datasourceName: string): string {
   return `${datasourceName}Config`;
+}
+
+/**
+ * PascalCase / camelCase identifier → kebab-case slug.
+ * `PageDetail` → `page-detail`; `XMLParser` → `xml-parser`.
+ */
+export function pascalToKebab(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
+    .toLowerCase();
+}
+
+/** `PageDetail` → `page-detail.query.ts` */
+export function queryModuleFileName(queryName: string): string {
+  return `${pascalToKebab(queryName)}.query.ts`;
+}
+
+/**
+ * Map each query name to its flat relative path under `out/`.
+ * Rejects collisions when two IR names kebab-slug to the same file.
+ */
+export function resolveQueryModulePaths(queryNames: readonly string[]): Map<string, string> {
+  const paths = new Map<string, string>();
+  const owners = new Map<string, string>();
+
+  for (const queryName of queryNames) {
+    const relativePath = queryModuleFileName(queryName);
+    const existing = owners.get(relativePath);
+    if (existing !== undefined) {
+      throw new Error(
+        `Query module filename collision: '${existing}' and '${queryName}' both map to '${relativePath}'`
+      );
+    }
+    owners.set(relativePath, queryName);
+    paths.set(queryName, relativePath);
+  }
+
+  return paths;
 }

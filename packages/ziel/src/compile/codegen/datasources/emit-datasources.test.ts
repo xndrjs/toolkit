@@ -90,7 +90,7 @@ export type ZielExecutionContext = {
   locale: Locale;
 };
 
-type CmsSourceConfig = {
+export type CmsSourceConfig = {
   load: (
     batch: readonly (EntryResource | AssetResource)[],
     context: ResourceLoadContext<CmsSourceContext>
