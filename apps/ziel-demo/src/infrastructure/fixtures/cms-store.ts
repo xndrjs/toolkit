@@ -166,6 +166,10 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
         kind: "Hero",
         id: demoIds.heroWelcome,
         title: "Welcome",
+        body: {
+          version: 1 as const,
+          blocks: [{ type: "paragraph" as const, text: "Welcome to the homepage hero." }],
+        },
         imageId: demoIds.assetHero,
       },
     },
@@ -178,6 +182,10 @@ export const demoEntries: ReadonlyMap<string, EditorialDocument> = new Map([
         kind: "Hero",
         id: demoIds.heroNested,
         title: "Nested hero",
+        body: {
+          version: 1 as const,
+          blocks: [{ type: "paragraph" as const, text: "Nested hero rich body." }],
+        },
         imageId: demoIds.assetHeroNested,
       },
     },
@@ -253,6 +261,12 @@ export const demoAssets: ReadonlyMap<string, AssetPayloadWire> = new Map([
       url: "https://cdn.example.com/logo.svg",
       title: "Logo",
       asset_type: "image",
+      descriptor: {
+        provider: "cdn" as const,
+        width: 256,
+        height: 256,
+        focalPoint: { x: 0.5, y: 0.5 },
+      },
     },
   ],
   [
@@ -263,6 +277,12 @@ export const demoAssets: ReadonlyMap<string, AssetPayloadWire> = new Map([
       url: "https://cdn.example.com/hero-welcome.jpg",
       title: "Welcome hero",
       asset_type: "image",
+      descriptor: {
+        provider: "cdn" as const,
+        width: 1600,
+        height: 900,
+        focalPoint: { x: 0.45, y: 0.35 },
+      },
     },
   ],
   [
@@ -273,6 +293,12 @@ export const demoAssets: ReadonlyMap<string, AssetPayloadWire> = new Map([
       url: "https://cdn.example.com/hero-nested.jpg",
       title: "Nested hero",
       asset_type: "image",
+      descriptor: {
+        provider: "cdn" as const,
+        width: 1200,
+        height: 800,
+        focalPoint: { x: 0.5, y: 0.4 },
+      },
     },
   ],
 ]);

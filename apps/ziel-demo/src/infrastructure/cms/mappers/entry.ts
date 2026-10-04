@@ -1,7 +1,7 @@
-import { Scalars, type EntryPayload } from "../../../generated";
+import { RichDocument, Scalars, type EntryPayload } from "../../../generated";
 import type { EntryPayloadWire } from "../schemas/entry.js";
 
-/** Map validated wire shape → Ziel `EntryPayload` (branded scalars). */
+/** Map validated wire shape → Ziel `EntryPayload` (branded scalars / opaque wrap). */
 export function mapWireToEntryPayload(wire: EntryPayloadWire): EntryPayload {
   switch (wire.kind) {
     case "Hero":
@@ -9,6 +9,7 @@ export function mapWireToEntryPayload(wire: EntryPayloadWire): EntryPayload {
         kind: "Hero",
         id: Scalars.EntryId(wire.id),
         title: wire.title,
+        body: RichDocument.wrap(wire.body),
         imageId: Scalars.AssetId(wire.imageId),
       };
     case "Tabs":

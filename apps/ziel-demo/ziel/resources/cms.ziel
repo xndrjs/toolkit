@@ -2,6 +2,10 @@
  * Shared CMS / editorial identity and resource shapes.
  */
 
+/** External payloads — Ziel carries them; composition root unwraps for UI. */
+opaque RichDocument;
+opaque MediaDescriptor;
+
 scalar Locale on string;
 
 scalar SpaceId on string;
@@ -35,6 +39,7 @@ resource Entry(
     kind: "Hero"
     id
     title: string
+    body: RichDocument
     imageId: AssetId refers Asset
   }
   | {
@@ -94,6 +99,7 @@ resource Asset(
   url: string
   title: string
   asset_type: "image" | "video" | "document"
+  descriptor: MediaDescriptor
 }
 
 /**

@@ -1,7 +1,7 @@
-import { Scalars, type AssetPayload } from "../../../generated";
+import { MediaDescriptor, Scalars, type AssetPayload } from "../../../generated";
 import type { AssetPayloadWire } from "../schemas/asset.js";
 
-/** Map validated wire shape → Ziel `AssetPayload` (branded scalars). */
+/** Map validated wire shape → Ziel `AssetPayload` (branded scalars / opaque wrap). */
 export function mapWireToAssetPayload(wire: AssetPayloadWire): AssetPayload {
   return {
     kind: "Asset",
@@ -9,5 +9,6 @@ export function mapWireToAssetPayload(wire: AssetPayloadWire): AssetPayload {
     url: wire.url,
     title: wire.title,
     asset_type: wire.asset_type,
+    descriptor: MediaDescriptor.wrap(wire.descriptor),
   };
 }

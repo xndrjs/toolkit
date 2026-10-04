@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { richDocumentWireSchema } from "./rich-document.js";
 import { entryLinkSchema } from "./scalars.js";
 
 export const entryPayloadSchema = z.discriminatedUnion("kind", [
@@ -7,6 +8,7 @@ export const entryPayloadSchema = z.discriminatedUnion("kind", [
     kind: z.literal("Hero"),
     id: z.string(),
     title: z.string(),
+    body: richDocumentWireSchema,
     imageId: z.string(),
   }),
   z.object({

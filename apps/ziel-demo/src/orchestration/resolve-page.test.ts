@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { unwrapMediaDescriptor, unwrapRichDocument } from "../composition/opaque-unwrap.js";
+import { resolveDemoPageDetail } from "../composition/demo-sources.js";
 import {
   customReferenceAri,
   entryAri,
@@ -14,7 +16,6 @@ import {
   type PageDetail_Entry_Tab,
   type PageDetail_Entry_Tabs,
 } from "../generated";
-import { resolveDemoPageDetail } from "../composition/demo-sources.js";
 import { parseCustomReference } from "../infrastructure/cms/custom-reference.js";
 import {
   DEMO_ENVIRONMENT,
@@ -31,7 +32,7 @@ import { parseDemoLocaleParam, resolvePage } from "./resolve-page.js";
 function isHero(
   e: PageDetail_Entry | PageDetail_Asset | null | undefined
 ): e is PageDetail_Entry_Hero {
-  return e != null && e.kind === "Hero" && "image" in e;
+  return e != null && e.kind === "Hero" && "image" in e && "body" in e;
 }
 
 function isTabs(e: PageDetail_Entry | null | undefined): e is PageDetail_Entry_Tabs {
@@ -134,6 +135,16 @@ describe("resolvePage", () => {
       expect(heroStrip.id).toBe(demoIds.heroWelcome);
       expect(heroStrip.image?.id).toBe(demoIds.assetHero);
       expect(heroStrip.image?.url).toContain("hero-welcome");
+      expect(unwrapRichDocument(heroStrip.body)).toEqual({
+        version: 1,
+        blocks: [{ type: "paragraph", text: "Welcome to the homepage hero." }],
+      });
+      expect(heroStrip.image && unwrapMediaDescriptor(heroStrip.image.descriptor)).toEqual({
+        provider: "cdn",
+        width: 1600,
+        height: 900,
+        focalPoint: { x: 0.45, y: 0.35 },
+      });
     }
 
     expect(isProduct(productStrip)).toBe(true);
