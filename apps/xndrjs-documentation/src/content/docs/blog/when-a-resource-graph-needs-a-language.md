@@ -461,7 +461,9 @@ That allows the VS Code and Cursor extension to provide:
 - hover information and go to definition across files;
 - quick fixes for declarations the compiler can complete safely.
 
-This authoring experience is not an extra feature added after choosing a custom file extension. It is part of the reason to make the language explicit. The compiler and the editor should disagree as rarely as the generated strategy and projection do.
+This authoring experience is not an extra feature added after choosing a custom file extension. It is part of the reason to make the language explicit.
+
+The editor should understand the same semantics the compiler enforces.
 
 ---
 
@@ -487,8 +489,10 @@ Putting that architecture under realistic pressure exposes the next missing laye
 
 Ziel gives that decision a semantic representation and lets the compiler lower it into the mechanisms the runtime already knows how to execute.
 
-The broader lesson is not that every configuration deserves a DSL. It is that repeated procedural glue can be evidence of a missing language in the architecture—especially when several pieces of correct code must keep rediscovering the same meaning independently.
+The broader lesson is: when several pieces of **correct** code keep re-encoding the same decision, the problem may no longer be duplication. It may be that the architecture is missing a semantic representation for that decision.
 
-Changing aggregation should mean editing a declaration, not refactoring a pipeline.
+That does not mean every configuration deserves a DSL. It means repeated procedural glue is sometimes a sign that the code is operating below the level where the real **intent** is actually understood.
+
+Changing the aggregate should mean editing one declaration, not coordinating the same change across several parts of the codebase.
 
 In [the next article](/blog/when-the-backend-changes-but-the-resource-graph-does-not/), I will look at what follows once that declaration exists: a typed anti-corruption boundary, replaceable data sources, gradual backend migrations, and operational resources that do not have to leak into the application aggregate.
