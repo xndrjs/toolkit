@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { entryAri, errorLabAri, pageAri } from "../../generated";
+import { entryAri, errorLabAri, pageAri } from "../../generated/resources";
 import { createDemoErrorHandlingDetailSources } from "../../composition/demo-sources.js";
 import { DEMO_ENVIRONMENT, DEMO_LOCALE, DEMO_SPACE, demoIds } from "../fixtures/cms-store.js";
 import { ERROR_LAB_SOURCE_ID, loadErrorLabStore } from "./error-lab-data-adapter.js";

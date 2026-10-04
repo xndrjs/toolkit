@@ -2,7 +2,7 @@
  * Editorial CMS fixtures as wire shapes (plain strings).
  * Adapters parse + map to branded Ziel payloads at the loader boundary.
  */
-import { Scalars, type CustomReferenceValue } from "../../generated";
+import { Scalars, type CustomReferenceValue } from "../../generated/resources";
 import type { AssetPayloadWire } from "../cms/schemas/asset.js";
 import type { EntryPayloadWire } from "../cms/schemas/entry.js";
 import type { PagePayloadWire } from "../cms/schemas/page.js";

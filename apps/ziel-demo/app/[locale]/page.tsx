@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import {
-  MediaDescriptor,
-  RichDocument,
-  type PageDetail_Entry,
-  type PageDetail_Entry_Hero,
-} from "../../src/generated";
+import type {
+  PageDetail_Entry,
+  PageDetail_Entry_Hero,
+} from "../../src/generated/page-detail.query";
+import { MediaDescriptor, RichDocument } from "../../src/generated/resources";
 import type { MediaDescriptorWire } from "../../src/infrastructure/cms/schemas/media-descriptor";
 import type { RichDocumentWire } from "../../src/infrastructure/cms/schemas/rich-document";
 import {

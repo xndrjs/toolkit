@@ -1,4 +1,4 @@
-import { Scalars, type StockLevelPayload } from "../../../generated";
+import { Scalars, type StockLevelPayload } from "../../../generated/resources";
 import type { StockLevelPayloadWire } from "../schemas/stock-level.js";
 
 /** Map validated wire shape → Ziel `StockLevelPayload` (branded scalars). */

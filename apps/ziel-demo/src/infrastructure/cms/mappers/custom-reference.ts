@@ -1,4 +1,4 @@
-import { Scalars, type CustomReferencePayload } from "../../../generated";
+import { Scalars, type CustomReferencePayload } from "../../../generated/resources";
 import type { CustomReferencePayloadWire } from "../schemas/custom-reference.js";
 
 /** Map validated wire shape → Ziel `CustomReferencePayload` (branded scalars). */

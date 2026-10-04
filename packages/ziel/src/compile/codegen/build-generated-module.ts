@@ -26,7 +26,7 @@ export type BuildGeneratedModuleOptions = CollectZielFilesOptions &
 
 export type BuildGeneratedModuleResult = {
   /**
-   * Generated modules relative to `out` (`resources.ts`, `*.query.ts`, `index.ts`).
+   * Generated modules relative to `out` (`resources.ts`, `*.query.ts`).
    * Empty when diagnostics contain errors.
    */
   files: GeneratedModuleFile[];
@@ -50,7 +50,7 @@ function withFileUri(diagnostic: Diagnostic, uri: string): Diagnostic {
 
 /**
  * Collect `.ziel` files, parse them, lower against one global workspace, then emit
- * the multi-file product (resources + per-query modules + barrel).
+ * the multi-file product (resources + per-query modules).
  *
  * On any diagnostics (syntax or semantic), `files` is `[]` and nothing is written.
  */

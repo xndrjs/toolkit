@@ -6,4 +6,4 @@ pnpm-lock.yaml
 .git
 **/*.hbs
 
-apps/ziel-demo/src/generated/ziel.ts
+apps/ziel-demo/src/generated/**

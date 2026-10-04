@@ -301,6 +301,23 @@ These rules matter once you cache or reuse subgraphs; they do not change how res
 - **`backingResources`** are opaque pre-resolved payloads the engine may consult before calling sources. The map is never mutated; promoted keys are reported separately. Freshness, TTL, and invalidation stay in application infrastructure.
 - **`SerializedIsland` schema v1** is the portable island envelope. Projected JavaScript object cycles are a separate concern from graph visitation (the walk already dedupes by ARI).
 
+## Codegen output
+
+`ziel-codegen` / `buildGeneratedModule` write a **directory** (`out` in `ziel.config.ts`), not a single `.ts` file:
+
+```text
+src/generated/
+  resources.ts           # scalars, opaques, ARIs, payloads, ContentRegistry, shared DS types
+  page-detail.query.ts   # one file per query (kebab-case of `Query.name` + `.query.ts`)
+  product-detail.query.ts
+```
+
+There is no generated barrel — import modules by path (`./generated/resources`, `./generated/page-detail.query`). Query modules pull shared symbols from `./resources` and never import each other. Filename collisions (two queries mapping to the same slug) are rejected.
+
+After a successful emit, the CLI removes only stale **managed** files under `out` that still carry the generated header (`resources.ts`, `*.query.ts`, and a legacy `index.ts` barrel). Hand-written neighbors are left alone. Watch mode ignores the entire `out` directory.
+
+Full CLI / API notes: [`packages/ziel` README](https://github.com/xndrjs/toolkit/tree/main/packages/ziel).
+
 ## Runtime budgets
 
 Every resolve has finite defaults (nodes, edges, batches, duration). Override per execution via resolver / generated façade `budget`. Crossing a limit aborts with `ResourceGraphBudgetExceededError` and `onBudgetExceeded`. Details: [Resource graph resolver](/v0/resource-orchestration/resource-graph-resolver/).

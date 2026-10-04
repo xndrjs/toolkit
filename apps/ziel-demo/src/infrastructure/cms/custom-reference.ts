@@ -7,7 +7,7 @@ import {
   type CustomReferenceValue,
   type EnvironmentId,
   type SpaceId,
-} from "../../generated";
+} from "../../generated/resources";
 
 export type CustomReferenceKind = "ENTRY" | "ASSET";
 

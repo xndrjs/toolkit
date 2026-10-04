@@ -5,7 +5,7 @@ import {
   type OfferPricePayload,
   type OfferPriceResource,
   type PricingApiContext,
-} from "../../generated";
+} from "../../generated/resources";
 import { demoPrices } from "../fixtures/commerce-store.js";
 import type { OfferPricePayloadWire } from "./schemas/offer-price.js";
 import { parsePayload } from "../schemas/parse-payload.js";

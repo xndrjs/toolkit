@@ -4,9 +4,10 @@ import { join } from "node:path";
 import { isManagedGeneratedOutput } from "../compile/codegen/compose-generated-module";
 
 /**
- * Delete stale Ziel-managed files under `outDir`: flat `resources.ts`, `index.ts`,
- * and `*.query.ts` that still carry the generated header and are not in
- * `emitRelativePaths`. Never deletes hand-written or nested files.
+ * Delete stale Ziel-managed files under `outDir`: flat `resources.ts`,
+ * `*.query.ts`, and a legacy barrel `index.ts` that still carry the generated
+ * header and are not in `emitRelativePaths`. Never deletes hand-written or
+ * nested files.
  *
  * @returns Relative paths that were removed (stable readdir order).
  */

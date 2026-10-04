@@ -9,7 +9,7 @@ import {
   type ErrorLabPayload,
   type ErrorLabResource,
   type ErrorLabStoreContext,
-} from "../../generated";
+} from "../../generated/resources";
 import { entryLookupKey } from "../fixtures/cms-store.js";
 import { demoErrorLabs } from "../fixtures/error-lab-store.js";
 import type { ErrorLabPayloadWire } from "./schemas/error-lab.js";

@@ -5,7 +5,7 @@ import {
   type InventoryApiContext,
   type StockLevelPayload,
   type StockLevelResource,
-} from "../../generated";
+} from "../../generated/resources";
 import { demoStock } from "../fixtures/commerce-store.js";
 import type { StockLevelPayloadWire } from "./schemas/stock-level.js";
 import { parsePayload } from "../schemas/parse-payload.js";

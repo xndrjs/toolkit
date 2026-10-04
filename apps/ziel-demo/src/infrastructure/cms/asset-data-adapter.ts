@@ -9,7 +9,7 @@ import {
   type AssetPayload,
   type AssetResource,
   type CmsAssetsContext,
-} from "../../generated";
+} from "../../generated/resources";
 import { demoAssets } from "../fixtures/cms-store.js";
 import type { AssetPayloadWire } from "./schemas/asset.js";
 import { parsePayload } from "../schemas/parse-payload.js";

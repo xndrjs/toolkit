@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assetAri, entryAri, errorLabAri, pageAri } from "../../generated";
+import { assetAri, entryAri, errorLabAri, pageAri } from "../../generated/resources";
 import { createDemoPageDetailSources } from "../../composition/demo-sources.js";
 import {
   DEMO_ENVIRONMENT,

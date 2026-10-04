@@ -1,4 +1,4 @@
-import { Scalars, type OfferPricePayload } from "../../../generated";
+import { Scalars, type OfferPricePayload } from "../../../generated/resources";
 import type { OfferPricePayloadWire } from "../schemas/offer-price.js";
 
 /** Map validated wire shape → Ziel `OfferPricePayload` (branded scalars). */

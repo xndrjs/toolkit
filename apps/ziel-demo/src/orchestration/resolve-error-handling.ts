@@ -1,12 +1,7 @@
 import type { SchedulingMode } from "@xndrjs/ziel";
 
-import {
-  type EntryId,
-  type EnvironmentId,
-  type Locale,
-  type ResolveErrorHandlingDetailResult,
-  type SpaceId,
-} from "../generated";
+import type { ResolveErrorHandlingDetailResult } from "../generated/error-handling-detail.query";
+import type { EntryId, EnvironmentId, Locale, SpaceId } from "../generated/resources";
 import { resolveDemoErrorHandlingDetail } from "../composition/demo-sources.js";
 import {
   DEMO_ENVIRONMENT,

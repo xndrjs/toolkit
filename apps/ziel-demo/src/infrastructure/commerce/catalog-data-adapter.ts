@@ -5,7 +5,7 @@ import {
   type CatalogApiContext,
   type CatalogProductPayload,
   type CatalogProductResource,
-} from "../../generated";
+} from "../../generated/resources";
 import { demoCatalogProducts } from "../fixtures/commerce-store.js";
 import type { CatalogProductPayloadWire } from "./schemas/catalog-product.js";
 import { parsePayload } from "../schemas/parse-payload.js";

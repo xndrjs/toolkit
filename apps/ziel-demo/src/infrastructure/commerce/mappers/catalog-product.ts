@@ -1,4 +1,4 @@
-import { Scalars, type CatalogProductPayload } from "../../../generated";
+import { Scalars, type CatalogProductPayload } from "../../../generated/resources";
 import type { CatalogProductPayloadWire } from "../schemas/catalog-product.js";
 
 /** Map validated wire shape → Ziel `CatalogProductPayload` (branded scalars). */

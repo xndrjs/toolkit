@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assetAri } from "../../generated";
+import { assetAri } from "../../generated/resources";
 import { createDemoPageDetailSources } from "../../composition/demo-sources.js";
 import { DEMO_ENVIRONMENT, DEMO_LOCALE, DEMO_SPACE, demoIds } from "../fixtures/cms-store.js";
 import { ASSET_SOURCE_ID, loadCmsAssets } from "./asset-data-adapter.js";

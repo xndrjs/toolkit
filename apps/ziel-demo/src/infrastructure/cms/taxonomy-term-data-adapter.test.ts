@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { taxonomyTermAri } from "../../generated";
+import { taxonomyTermAri } from "../../generated/resources";
 import { createDemoPageDetailSources } from "../../composition/demo-sources.js";
 import {
   DEMO_ENVIRONMENT,

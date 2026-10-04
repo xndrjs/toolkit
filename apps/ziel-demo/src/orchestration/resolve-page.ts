@@ -1,13 +1,13 @@
 import type { SchedulingMode } from "@xndrjs/ziel";
 
+import type { ResolvePageDetailResult } from "../generated/page-detail.query";
 import {
   Scalars,
   type EntryId,
   type EnvironmentId,
   type Locale,
-  type ResolvePageDetailResult,
   type SpaceId,
-} from "../generated";
+} from "../generated/resources";
 import { resolveDemoPageDetail } from "../composition/demo-sources.js";
 import {
   DEMO_ENVIRONMENT,

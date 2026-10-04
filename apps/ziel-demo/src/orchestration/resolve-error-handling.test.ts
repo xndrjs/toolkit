@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Scalars } from "../generated";
+import { Scalars } from "../generated/resources";
 import { DEMO_LOCALE, demoIds } from "../infrastructure/fixtures/cms-store.js";
 import { ERROR_HANDLING_CASES } from "./error-handling-cases.js";
 import { isErrorHandlingCaseId, resolveErrorHandling } from "./resolve-error-handling.js";

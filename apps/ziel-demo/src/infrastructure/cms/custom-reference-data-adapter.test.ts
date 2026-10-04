@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { customReferenceAri } from "../../generated";
+import { customReferenceAri } from "../../generated/resources";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { Scalars } from "../../../src/generated";
+import { Scalars } from "../../../src/generated/resources";
 import { ERROR_HANDLING_CASES } from "../../../src/orchestration/error-handling-cases";
 import {
   isErrorHandlingCaseId,

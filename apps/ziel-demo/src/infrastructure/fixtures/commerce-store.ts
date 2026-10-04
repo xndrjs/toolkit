@@ -2,7 +2,7 @@
  * In-memory commerce fixtures for the non-CMS ProductDetail vertical.
  * Documents are wire shapes; branded scalars stay at orchestration input.
  */
-import { Scalars } from "../../generated";
+import { Scalars } from "../../generated/resources";
 import type { CatalogProductPayloadWire } from "../commerce/schemas/catalog-product.js";
 import type { OfferPricePayloadWire } from "../commerce/schemas/offer-price.js";
 import type { ProductMediaPayloadWire } from "../commerce/schemas/product-media.js";

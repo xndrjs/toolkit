@@ -1,18 +1,37 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { analyzeProgram } from "../../check";
 import { parseAndCheck } from "../parse-and-check";
-import { composeGeneratedModule } from "./compose-generated-module";
+import { composeGeneratedModules, type GeneratedModuleFile } from "./compose-generated-module";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../../../..");
 
-function compileStrict(source: string): readonly ts.Diagnostic[] {
-  const virtualPath = join(repoRoot, "packages/ziel/src/__generated-strict-fixture.ts");
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop()!;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function compileStrictFiles(files: readonly GeneratedModuleFile[]): readonly ts.Diagnostic[] {
+  const outDir = mkdtempSync(join(tmpdir(), "xndrjs-ziel-strict-"));
+  tempDirs.push(outDir);
+
+  const entryPaths: string[] = [];
+  for (const file of files) {
+    const absolute = join(outDir, file.relativePath);
+    writeFileSync(absolute, file.code);
+    entryPaths.push(absolute);
+  }
+
   const options: ts.CompilerOptions = {
     target: ts.ScriptTarget.ES2022,
     lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
@@ -28,37 +47,37 @@ function compileStrict(source: string): readonly ts.Diagnostic[] {
       "@xndrjs/resource-graph-resolver": ["packages/resource-graph-resolver/src/index.ts"],
     },
   };
-  const host = ts.createCompilerHost(options);
-  const originalGetSourceFile = host.getSourceFile.bind(host);
-  const originalFileExists = host.fileExists.bind(host);
-  const originalReadFile = host.readFile.bind(host);
-  host.fileExists = (path) => path === virtualPath || originalFileExists(path);
-  host.readFile = (path) => (path === virtualPath ? source : originalReadFile(path));
-  host.getSourceFile = (path, languageVersion, onError, shouldCreateNewSourceFile) =>
-    path === virtualPath
-      ? ts.createSourceFile(path, source, languageVersion, true, ts.ScriptKind.TS)
-      : originalGetSourceFile(path, languageVersion, onError, shouldCreateNewSourceFile);
 
-  const program = ts.createProgram([virtualPath], options, host);
+  const host = ts.createCompilerHost(options);
+  const program = ts.createProgram(entryPaths, options, host);
   return ts.getPreEmitDiagnostics(program);
 }
 
+function expectNoAny(code: string): void {
+  expect(code).not.toMatch(/\bas any\b|:\s*any\b|any\[\]/);
+}
+
 describe("generated TypeScript", () => {
-  it("passes the TypeScript strict checker", () => {
+  it("passes the TypeScript strict checker (multi-file product path)", () => {
     const fixture = readFileSync(join(here, "../../fixtures/page-detail.ziel"), "utf8");
     const parsed = parseAndCheck(fixture);
     expect(parsed.diagnostics).toEqual([]);
 
     const analysis = analyzeProgram(parsed.program);
-    const generated = composeGeneratedModule(analysis).code;
-    const diagnostics = compileStrict(generated);
+    const { files } = composeGeneratedModules(analysis);
+    expect(files.map((f) => f.relativePath)).toEqual(["resources.ts", "page-detail.query.ts"]);
+
+    const diagnostics = compileStrictFiles(files);
     const rendered = diagnostics.map((diagnostic) =>
       ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
     );
 
     expect(rendered).toEqual([]);
-    expect(generated).not.toMatch(/\bas any\b|:\s*any\b|any\[\]/);
-    expect(generated).toContain("satisfies Partial<PageDetail_Page>");
+    for (const file of files) {
+      expectNoAny(file.code);
+    }
+    const page = files.find((f) => f.relativePath === "page-detail.query.ts")!;
+    expect(page.code).toContain("satisfies Partial<PageDetail_Page>");
   });
 
   it("strict-checks overlapping first-match arms with a default expansion", () => {
@@ -91,14 +110,15 @@ describe("generated TypeScript", () => {
     `);
     expect(parsed.diagnostics).toEqual([]);
 
-    const generated = composeGeneratedModule(analyzeProgram(parsed.program)).code;
-    const rendered = compileStrict(generated).map((diagnostic) =>
+    const { files } = composeGeneratedModules(analyzeProgram(parsed.program));
+    const rendered = compileStrictFiles(files).map((diagnostic) =>
       ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
     );
 
     expect(rendered).toEqual([]);
-    expect(generated).not.toMatch(/\bas any\b|:\s*any\b|any\[\]/);
-    expect(generated).toContain('&& !(predicate.payload.kind == "Hero")');
+    const query = files.find((f) => f.relativePath === "q.query.ts")!;
+    expectNoAny(query.code);
+    expect(query.code).toContain('&& !(predicate.payload.kind == "Hero")');
   });
 
   it("strict-checks non-object payload passthrough", () => {
@@ -114,13 +134,14 @@ describe("generated TypeScript", () => {
     `);
     expect(parsed.diagnostics).toEqual([]);
 
-    const generated = composeGeneratedModule(analyzeProgram(parsed.program)).code;
-    const rendered = compileStrict(generated).map((diagnostic) =>
+    const { files } = composeGeneratedModules(analyzeProgram(parsed.program));
+    const rendered = compileStrictFiles(files).map((diagnostic) =>
       ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
     );
 
     expect(rendered).toEqual([]);
-    expect(generated).toContain("return inputPayload;");
+    const query = files.find((f) => f.relativePath === "q.query.ts")!;
+    expect(query.code).toContain("return inputPayload;");
   });
 
   it("strict-checks a datasource and query with empty contexts", () => {
@@ -141,14 +162,16 @@ describe("generated TypeScript", () => {
     `);
     expect(parsed.diagnostics).toEqual([]);
 
-    const generated = composeGeneratedModule(analyzeProgram(parsed.program)).code;
-    const rendered = compileStrict(generated).map((diagnostic) =>
+    const { files } = composeGeneratedModules(analyzeProgram(parsed.program));
+    const rendered = compileStrictFiles(files).map((diagnostic) =>
       ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
     );
 
     expect(rendered).toEqual([]);
-    expect(generated).toContain("export type InMemoryContext = unknown;");
-    expect(generated).toContain("DataSource<ContentRegistry, unknown>[]");
+    const resources = files.find((f) => f.relativePath === "resources.ts")!;
+    const query = files.find((f) => f.relativePath === "q.query.ts")!;
+    expect(resources.code).toContain("export type InMemoryContext = unknown;");
+    expect(query.code).toContain("DataSource<ContentRegistry, unknown>[]");
   });
 
   it("strict-checks opaque tokens, payload fields, datasource, and projection typing", () => {
@@ -179,20 +202,25 @@ describe("generated TypeScript", () => {
     `);
     expect(parsed.diagnostics).toEqual([]);
 
-    const generated = composeGeneratedModule(analyzeProgram(parsed.program)).code;
-    const rendered = compileStrict(generated).map((diagnostic) =>
+    const { files } = composeGeneratedModules(analyzeProgram(parsed.program));
+    const rendered = compileStrictFiles(files).map((diagnostic) =>
       ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
     );
 
     expect(rendered).toEqual([]);
-    expect(generated).not.toMatch(/\bas any\b|:\s*any\b|any\[\]/);
-    expect(generated).toContain(
-      "import { ari, s, defineOpaqueType, type OpaqueValueOf, createGraphResolutionStrategy"
+    for (const file of files) {
+      expectNoAny(file.code);
+    }
+    const resources = files.find((f) => f.relativePath === "resources.ts")!;
+    expect(resources.code).toContain("import { ari, s, defineOpaqueType, type OpaqueValueOf");
+    expect(resources.code).toContain(
+      'export const RichDocument = defineOpaqueType("RichDocument");'
     );
-    expect(generated).toContain('export const RichDocument = defineOpaqueType("RichDocument");');
-    expect(generated).toContain("export type RichDocument = OpaqueValueOf<typeof RichDocument>;");
-    expect(generated).toContain("body: RichDocument;");
-    expect(generated).toContain("media?: MediaDescriptor | null;");
+    expect(resources.code).toContain(
+      "export type RichDocument = OpaqueValueOf<typeof RichDocument>;"
+    );
+    expect(resources.code).toContain("body: RichDocument;");
+    expect(resources.code).toContain("media?: MediaDescriptor | null;");
   });
 
   it("strict-checks opaque-only programs without ari/s imports", () => {
@@ -202,17 +230,20 @@ describe("generated TypeScript", () => {
     `);
     expect(parsed.diagnostics).toEqual([]);
 
-    const generated = composeGeneratedModule(analyzeProgram(parsed.program)).code;
-    const rendered = compileStrict(generated).map((diagnostic) =>
+    const { files } = composeGeneratedModules(analyzeProgram(parsed.program));
+    expect(files.map((f) => f.relativePath)).toEqual(["resources.ts"]);
+
+    const rendered = compileStrictFiles(files).map((diagnostic) =>
       ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
     );
 
     expect(rendered).toEqual([]);
-    expect(generated).toContain(
+    const resources = files.find((f) => f.relativePath === "resources.ts")!;
+    expect(resources.code).toContain(
       'import { defineOpaqueType, type OpaqueValueOf } from "@xndrjs/ziel";'
     );
-    expect(generated).not.toContain("ari");
-    expect(generated).not.toMatch(/[{,]\s*s\s*[,}]/);
-    expect(generated).not.toMatch(/\bas any\b|:\s*any\b|any\[\]/);
+    expect(resources.code).not.toContain("ari");
+    expect(resources.code).not.toMatch(/[{,]\s*s\s*[,}]/);
+    expectNoAny(resources.code);
   });
 });

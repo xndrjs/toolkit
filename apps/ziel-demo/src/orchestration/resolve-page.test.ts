@@ -1,22 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import { resolveDemoPageDetail } from "../composition/demo-sources.js";
+import type {
+  PageDetail_Asset,
+  PageDetail_Entry,
+  PageDetail_Entry_Arm3,
+  PageDetail_Entry_Hero,
+  PageDetail_Entry_Page,
+  PageDetail_Entry_Product,
+  PageDetail_Entry_SiteInternalLink,
+  PageDetail_Entry_Tab,
+  PageDetail_Entry_Tabs,
+} from "../generated/page-detail.query";
 import {
   customReferenceAri,
   entryAri,
   MediaDescriptor,
   RichDocument,
   Scalars,
-  type PageDetail_Asset,
-  type PageDetail_Entry,
-  type PageDetail_Entry_Arm3,
-  type PageDetail_Entry_Hero,
-  type PageDetail_Entry_Page,
-  type PageDetail_Entry_Product,
-  type PageDetail_Entry_SiteInternalLink,
-  type PageDetail_Entry_Tab,
-  type PageDetail_Entry_Tabs,
-} from "../generated";
+} from "../generated/resources";
 import { parseCustomReference } from "../infrastructure/cms/custom-reference.js";
 import type { MediaDescriptorWire } from "../infrastructure/cms/schemas/media-descriptor.js";
 import type { RichDocumentWire } from "../infrastructure/cms/schemas/rich-document.js";

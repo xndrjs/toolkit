@@ -5,7 +5,7 @@ import {
   type MediaCdnContext,
   type ProductMediaPayload,
   type ProductMediaResource,
-} from "../../generated";
+} from "../../generated/resources";
 import { demoMedia } from "../fixtures/commerce-store.js";
 import type { ProductMediaPayloadWire } from "./schemas/product-media.js";
 import { parsePayload } from "../schemas/parse-payload.js";

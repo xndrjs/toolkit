@@ -21,9 +21,9 @@ export type ZielCodegenConfig = {
    */
   pathFilter?: string | RegExp;
   /**
-   * Output **directory** for multi-file codegen (`resources.ts`, `*.query.ts`,
-   * `index.ts`). Must not end in `.ts` / `.js`. The CLI rejects an existing
-   * non-directory path at that location.
+   * Output **directory** for multi-file codegen (`resources.ts`, `*.query.ts`).
+   * Must not end in `.ts` / `.js`. The CLI rejects an existing non-directory
+   * path at that location. Import generated modules by path — no barrel.
    */
   out?: string;
   /** Module specifier for runtime imports in generated code → `generateResources`. */

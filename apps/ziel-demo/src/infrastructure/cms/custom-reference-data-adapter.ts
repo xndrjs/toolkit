@@ -11,7 +11,7 @@ import {
   type CmsCustomReferencesContext,
   type CustomReferencePayload,
   type CustomReferenceResource,
-} from "../../generated";
+} from "../../generated/resources";
 import { parsePayload } from "../schemas/parse-payload.js";
 import { parseCustomReference } from "./custom-reference.js";
 import { mapWireToCustomReferencePayload } from "./mappers/index.js";

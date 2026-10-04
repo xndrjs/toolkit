@@ -1,4 +1,4 @@
-import { Scalars, type TaxonomyTermPayload } from "../../../generated";
+import { Scalars, type TaxonomyTermPayload } from "../../../generated/resources";
 import type { TaxonomyTermPayloadWire } from "../schemas/taxonomy-term.js";
 
 /** Map validated wire shape → Ziel `TaxonomyTermPayload` (branded scalars). */

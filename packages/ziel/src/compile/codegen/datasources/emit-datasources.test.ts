@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseAndCheck } from "../../parse-and-check";
-import { composeGeneratedModule } from "../compose-generated-module";
+import { composeGeneratedModules } from "../compose-generated-module";
 import { generateDataSources } from "../generators/generate-datasources";
 import { emitDataSources } from "./emit-datasources";
 
@@ -354,7 +354,7 @@ export function createQDataSources(
     expect(productFactory).toContain("DataSource<ContentRegistry, ProductDetailExecutionContext>");
   });
 
-  it("wires into composeGeneratedModule with exact config keys", () => {
+  it("wires into composeGeneratedModules with exact config keys", () => {
     const program = checked(`
       ${prelude}
 
@@ -367,19 +367,21 @@ export function createQDataSources(
       ${coveredQuery}
     `);
 
-    const { code } = composeGeneratedModule(program);
+    const { files } = composeGeneratedModules(program);
+    const resources = files.find((f) => f.relativePath === "resources.ts")!;
+    const query = files.find((f) => f.relativePath === "q.query.ts")!;
 
-    expect(code).toContain("export function createQDataSources");
-    expect(code).not.toContain("export function createDataSources");
-    expect(code).toContain("defineDataSourceFor");
-    expect(code).toContain("type ResourceLoadContext");
-    expect(code).toContain("type SourceRouteContext");
-    expect(code).toContain("CmsSource: CmsSourceConfig");
-    expect(code).toContain("export const entryAri");
-    expect(code).toContain("export type ContentRegistry");
-    // Compose emits ExecutionContext once (from strategies), before the factory.
-    expect(code.indexOf("export type QExecutionContext")).toBeLessThan(
-      code.indexOf("export function createQDataSources")
+    expect(query.code).toContain("export function createQDataSources");
+    expect(query.code).not.toContain("export function createDataSources");
+    expect(query.code).toContain("defineDataSourceFor");
+    expect(resources.code).toContain("type ResourceLoadContext");
+    expect(resources.code).toContain("type SourceRouteContext");
+    expect(query.code).toContain("CmsSource: CmsSourceConfig");
+    expect(resources.code).toContain("export const entryAri");
+    expect(resources.code).toContain("export type ContentRegistry");
+    // Query module emits ExecutionContext (from strategies) before the factory.
+    expect(query.code.indexOf("export type QExecutionContext")).toBeLessThan(
+      query.code.indexOf("export function createQDataSources")
     );
   });
 });

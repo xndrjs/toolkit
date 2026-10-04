@@ -1,5 +1,5 @@
 /**
- * Multi-file compose: resources.ts + kebab.query.ts + index.ts.
+ * Multi-file compose: resources.ts + kebab.query.ts (no barrel).
  */
 import { describe, expect, it } from "vitest";
 
@@ -19,21 +19,17 @@ function checked(source: string) {
 }
 
 describe("composeGeneratedModules", () => {
-  it("emits resources.ts + index.ts when there are no queries", () => {
+  it("emits only resources.ts when there are no queries", () => {
     const program = checked(`
       scalar Id on string;
       resource Post(id: Id): { id title: string }
     `);
 
     const { files } = composeGeneratedModules(program);
-    expect(files.map((f) => f.relativePath)).toEqual(["resources.ts", "index.ts"]);
+    expect(files.map((f) => f.relativePath)).toEqual(["resources.ts"]);
 
     const resources = files.find((f) => f.relativePath === "resources.ts")!;
     expect(resources.code).toBe(generateResources(program).code);
-
-    const index = files.find((f) => f.relativePath === "index.ts")!;
-    expect(index.code).toContain('export * from "./resources";');
-    expect(index.code).not.toContain(".query");
   });
 
   it("splits queries into kebab-case .query.ts files with per-query imports", () => {
@@ -88,7 +84,6 @@ describe("composeGeneratedModules", () => {
       "resources.ts",
       "page-detail.query.ts",
       "product-detail.query.ts",
-      "index.ts",
     ]);
 
     const resources = files.find((f) => f.relativePath === "resources.ts")!;
@@ -122,11 +117,6 @@ describe("composeGeneratedModules", () => {
     expect(product.code).not.toContain("createPageDetail");
     expect(product.code).not.toMatch(/^(?:export )?type CatalogApiConfig\b/m);
     expect(product.code).toMatch(/import \{[^}]*type CatalogApiConfig[^}]*\} from "\.\/resources"/);
-
-    const index = files.find((f) => f.relativePath === "index.ts")!;
-    expect(index.code).toContain('export * from "./resources";');
-    expect(index.code).toContain('export * from "./page-detail.query";');
-    expect(index.code).toContain('export * from "./product-detail.query";');
   });
 
   it("keeps resources body aligned with the former resources slice when queries exist", () => {

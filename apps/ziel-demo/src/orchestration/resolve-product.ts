@@ -1,12 +1,7 @@
 import type { SchedulingMode } from "@xndrjs/ziel";
 
-import {
-  type CatalogProductId,
-  type Locale,
-  type Market,
-  type ResolveProductDetailResult,
-  type TenantId,
-} from "../generated";
+import type { ResolveProductDetailResult } from "../generated/product-detail.query";
+import type { CatalogProductId, Locale, Market, TenantId } from "../generated/resources";
 import { resolveDemoProductDetail } from "../composition/demo-sources.js";
 import {
   DEMO_MARKET,

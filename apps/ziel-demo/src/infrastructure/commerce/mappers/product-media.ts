@@ -1,4 +1,4 @@
-import { Scalars, type ProductMediaPayload } from "../../../generated";
+import { Scalars, type ProductMediaPayload } from "../../../generated/resources";
 import type { ProductMediaPayloadWire } from "../schemas/product-media.js";
 
 /** Map validated wire shape → Ziel `ProductMediaPayload` (branded scalars). */

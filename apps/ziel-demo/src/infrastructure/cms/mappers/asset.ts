@@ -1,4 +1,4 @@
-import { MediaDescriptor, Scalars, type AssetPayload } from "../../../generated";
+import { MediaDescriptor, Scalars, type AssetPayload } from "../../../generated/resources";
 import type { AssetPayloadWire } from "../schemas/asset.js";
 
 /** Map validated wire shape → Ziel `AssetPayload` (branded scalars / opaque wrap). */

@@ -17,18 +17,22 @@ import { loadStockLevels } from "../infrastructure/commerce/inventory-data-adapt
 import { loadProductMedia } from "../infrastructure/commerce/media-data-adapter.js";
 import {
   createErrorHandlingDetailDataSources,
-  createPageDetailDataSources,
-  createProductDetailDataSources,
   resolveErrorHandlingDetail,
-  resolvePageDetail,
-  resolveProductDetail,
   type ResolveErrorHandlingDetailInput,
   type ResolveErrorHandlingDetailResult,
+} from "../generated/error-handling-detail.query";
+import {
+  createPageDetailDataSources,
+  resolvePageDetail,
   type ResolvePageDetailInput,
   type ResolvePageDetailResult,
+} from "../generated/page-detail.query";
+import {
+  createProductDetailDataSources,
+  resolveProductDetail,
   type ResolveProductDetailInput,
   type ResolveProductDetailResult,
-} from "../generated";
+} from "../generated/product-detail.query";
 
 export type DemoSourcesOptions = {
   entries?: ReadonlyMap<string, EditorialDocument>;

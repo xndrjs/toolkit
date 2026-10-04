@@ -1,11 +1,9 @@
 import {
   createRawArrayExampleDataSources,
-  rawArrayBatchAri,
-  rawArrayItemAri,
   resolveRawArrayExample,
-  Scalars,
   type ResolveRawArrayExampleResult,
-} from "../generated";
+} from "../generated/raw-array-example.query";
+import { rawArrayBatchAri, rawArrayItemAri, Scalars } from "../generated/resources";
 
 const batchId = Scalars.RawArrayBatchId("demo-batch");
 const itemIds = [Scalars.RawArrayItemId("first"), Scalars.RawArrayItemId("second")];

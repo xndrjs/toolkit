@@ -1,4 +1,4 @@
-import { Scalars, type PagePayload } from "../../../generated";
+import { Scalars, type PagePayload } from "../../../generated/resources";
 import type { PagePayloadWire } from "../schemas/page.js";
 
 /** Map validated wire shape → Ziel `PagePayload` (branded scalars). */

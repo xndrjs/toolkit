@@ -1,4 +1,4 @@
-import { Scalars, type ErrorLabPayload } from "../../../generated";
+import { Scalars, type ErrorLabPayload } from "../../../generated/resources";
 import type { ErrorLabPayloadWire } from "../schemas/error-lab.js";
 
 /** Map validated wire shape → Ziel `ErrorLabPayload` (branded scalars). */

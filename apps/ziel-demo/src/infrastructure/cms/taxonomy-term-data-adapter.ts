@@ -8,7 +8,7 @@ import {
   type CmsTaxonomyTermsContext,
   type TaxonomyTermPayload,
   type TaxonomyTermResource,
-} from "../../generated";
+} from "../../generated/resources";
 import { demoTaxonomyTerms, taxonomyTermLookupKey } from "../fixtures/cms-store.js";
 import type { TaxonomyTermPayloadWire } from "./schemas/taxonomy-term.js";
 import { parsePayload } from "../schemas/parse-payload.js";

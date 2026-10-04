@@ -25,6 +25,7 @@ Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, 
 - Emit opaque runtime tokens via `defineOpaqueType` / `OpaqueValueOf` (conditional imports; opaque-only modules omit `ari` / `s`). Programs without opaques keep prior output.
 - Emit per-query `create{Query}DataSources` factories typed on each query's execution context instead of a single aggregate `createDataSources`.
 - Codegen emits a `Scalars` namespace of typed brand factories (`Scalars.EntryId(value)`) alongside scalar type aliases. Empty scalar programs still emit nothing; uncapitalized top-level helpers are not generated.
+- Multi-file product emit: `out` is a **directory** (`resources.ts` + kebab-case `{query}.query.ts` per query; no barrel). CLI rejects `.ts`/`.js` `out` paths, ignores the whole `out` dir in watch mode, and deletes only stale managed files that still carry the generated header.
 - Generated Ziel projectors consume the resolver's canonical failure map directly (redirect graph invariants).
 - Bound every graph resolution with configurable node, edge, batch, and duration budgets; generated façades support finite defaults, typed budget errors, observer telemetry, and deadline cancellation.
 - Align with positional `DataSource.load`: return `(payload | undefined)[]` matching `batch` order (`undefined` = miss; `null` remains a legal payload). Identity hops use strategy `.resolve` only.
@@ -42,3 +43,4 @@ Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, 
 - Document opaque payload leaves (DSL, adapter `.wrap`, composition-root `createOpaqueRegistry`) and clarify that resource payloads are not always object/union shapes.
 - Document first-match datasource and redirect routing (one owner per ARI family). Clarify that loaders must validate untrusted payloads at the boundary.
 - Document Ziel laws, when-not-to-use guidance, and an operational runbook. Add a commerce product-detail demo and resolver-bench orchestration modes (naive / batched) for adoption trust.
+- Document multi-file codegen layout, kebab query filenames, stale managed-file cleanup, and directory `out` semantics; migrate `ziel-demo` to `./src/generated` with direct module imports (no barrel).

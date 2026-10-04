@@ -1,4 +1,4 @@
-import { RichDocument, Scalars, type EntryPayload } from "../../../generated";
+import { RichDocument, Scalars, type EntryPayload } from "../../../generated/resources";
 import type { EntryPayloadWire } from "../schemas/entry.js";
 
 /** Map validated wire shape → Ziel `EntryPayload` (branded scalars / opaque wrap). */
