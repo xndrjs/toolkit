@@ -32,36 +32,31 @@ In other words, correctness was no longer the main concern. The next problem was
 
 For one page aggregate, the feature repository contains roughly this set of parts:
 
-```text
-Page repository
-├── resource identities and payload types
-├── data source composition
-├── graph resolution strategy
-├── ContentMap projection
-└── result types
-```
+- **Resource identities and payload types** define how each resource is addressed and which data it returns.
+- **Data source composition** connects resource families to the operational channels that can load them.
+- **Graph resolution strategy** decides which resource identities each resolved payload reveals next.
+- **`ContentMap` projection** turns the resolved graph into the aggregate expected by the application.
+- **Result types** describe the shape that the consumer receives.
 
 This is not accidental duplication caused by a careless design. Each part has a different job.
 
-The strategy answers:
+For example, the strategy answers:
 
 > Given this resolved resource, which resource identities should be loaded next?
 
-The projection answers:
+while the projection answers:
 
 > Given the resolved graph, which fields and relationships form the application aggregate?
 
-The resource declarations describe what can be addressed and what payload each address returns. Data source composition connects those resource families to operational channels. Result types describe what the consumer receives.
-
-For a small graph, the arrangement is easy to follow. A Page expands to its menu, footer, and strips. A Hero expands to an Asset. A Product strip expands to records from an integration API. The mapper follows the same relationships through the resolved `ContentMap` and places them under application-facing names such as `menu`, `image`, and `products`.
+For a small graph, the arrangement above is easy to follow. A Page expands to its menu, footer, and strips, a Hero expands to an Asset, and so on. The mapper follows the same relationships through the resolved `ContentMap` and places them under application-facing names such as `menu`, `image`, and `products`.
 
 The pressure appears when the specification changes.
 
-A one-to-one relationship becomes one-to-many. One CMS entry becomes polymorphic. A missing menu is allowed to become `null`, while a missing product still has to fail the aggregate. A custom encoded reference has to resolve first to an intermediate locator and only then to an Entry or Asset. The same resource starts appearing under different aliases in different parts of the result.
+A one-to-one relationship becomes one-to-many. One CMS entry becomes polymorphic. A missing menu is allowed to become `null`, while a missing product still has to fail the whole aggregate. A custom encoded reference has to resolve first to an intermediate parsed object, and only then we can resolve that value to an Entry or Asset.
 
-None of these changes is particularly difficult. More importantly, the architecture makes it clear where to implement each one. That is precisely what the separation described in the previous article gets right.
+None of these changes is particularly difficult. More importantly, the architecture makes it clear where to implement each one. That clarity is what's valuable about the separation described in the previous article.
 
-What makes me uneasy is the number of places that have to remain synchronized.
+What makes me uneasy now is the number of places that have to remain synchronized.
 
 Adding or changing one relationship can require editing:
 
@@ -74,9 +69,12 @@ Adding or changing one relationship can require editing:
 
 The code is aligned now. But what happens after the next specification change, and the one after that?
 
-I am no longer worried about finding the right file. I am worried that correctness depends on remembering every file that represents another interpretation of the same decision.
+I am no longer worried about finding the right file, and TypeScript catches many inconsistencies when those files drift apart. What bothers me is that I still have to keep several implementations of the **same decision** aligned by hand.
+The issue is not silent failure. It is that I am working one level too low: manually updating every mechanism that follows from a decision I should be able to express once.
 
 The graph is explicit at runtime, yet its application-specific meaning remains distributed across the implementation.
+
+I want to reason about the aggregate itself, not about every lower-level artifact required to keep that aggregate consistent.
 
 ---
 
@@ -100,7 +98,7 @@ The missing abstraction is not another builder. It is a query over the resource 
 
 ---
 
-## JSON and YAML look like the obvious answer
+## JSON or YAML look like the obvious answer
 
 Once the problem looks declarative, JSON or YAML seem like the obvious place to start.
 
@@ -108,7 +106,13 @@ I can describe resources, relationships, and policies in a configuration file, v
 
 But the document needs to express more than nested configuration.
 
-It needs bindings with scopes. It needs to distinguish fields read from a payload from fields read from a resource identity. It needs to narrow discriminated unions before accessing variant-specific fields. It needs to check that a target identity is complete, preserve nominal scalar types, understand one-to-one and one-to-many relationships, and derive the projected result type from the same declaration.
+It needs bindings with scopes, so a query can say “given this particular resource instance, expand this field into that target resource” without losing track of what this refers to.
+
+It needs to distinguish fields read from a payload from fields read from a resource identity, because a target address may be assembled from both.
+
+It needs to narrow discriminated unions before accessing variant-specific fields, because a Hero and a Tabs entry do not expose the same relationships.
+
+It needs to check that every constructed resource identity provides all of the fields required to address that resource, understand whether a relationship yields one resource or many, and derive the projected result type from those same decisions.
 
 JSON and YAML can certainly be the concrete syntax of such a system. JSON Schema can validate the shape of the configuration, but it does not provide those semantics by itself. I still have to build a compiler around a generic object format, encode references as strings, and reconstruct useful source locations and diagnostics after parsing.
 
@@ -122,23 +126,40 @@ At that point the conclusion is unavoidable: I am designing a small language reg
 
 At this point an obvious question is hard to avoid: am I just taking a very long route toward reinventing GraphQL?
 
-The resemblance is real. Both approaches let a consumer describe a shape of data instead of manually sequencing every request. Both can express nested relationships, conditional structure, and a result whose type follows from a declaration. This is not accidental: once a language describes nested resource relationships and derives a typed shape, some ideas inevitably look familiar.
+The resemblance is real. Both approaches let a consumer describe a shape of data instead of manually sequencing every request. Both can express nested relationships, conditional structure, and derive a typed result from a declaration.
 
-But the important difference is not the syntax. It is the execution boundary.
+But the important difference is not the syntax. It is what architectural boundary I am choosing to introduce.
+
+A GraphQL layer could absolutely solve this problem. It could sit in front of the CMS, integration APIs, SDKs, and other systems and expose the aggregate through one schema:
 
 ```text
 GraphQL operation
         ↓
-GraphQL execution boundary
+GraphQL schema + executor
         ↓
-resolvers / subgraphs / services
+resolvers / subgraphs / integrations
         ↓
-response
+underlying systems
+        ↓
+single response
 ```
 
-A GraphQL runtime can absolutely orchestrate heterogeneous systems, and when several clients need one stable application schema it may be the simplest boundary to own that work. Whether deployed as a separate API or embedded in the application, choosing it makes a GraphQL schema and executor the place where the aggregate is resolved; the integrations used to satisfy the operation live behind that execution layer.
+For a shared application API used by several clients, that can be a very good boundary.
 
-The model I need starts from a different situation:
+But it is still a boundary that has to be designed, owned, and maintained.
+
+If I put GraphQL in front of an existing CMS and integration landscape, I now have to decide how those systems map into the schema, write and maintain the resolver layer, define error semantics, authentication, caching and observability, and evolve that execution surface whenever the aggregate changes.
+
+That cost may be entirely justified.
+But in real projects, that kind of architectural firepower is not always available. You may not have a backend team ready to own a new execution layer, the budget to introduce and operate another service, or the organizational freedom to reshape several existing systems behind a new schema.
+
+The orchestration problem still exists anyway.
+
+The aggregates that led to Ziel were deeply nested and highly polymorphic. The next resources to load were often not known until previous payloads had been resolved at runtime. I already had resource identities, loaders, data sources, batching, deduplication, and a resolver capable of walking that graph to closure.
+
+What I was missing was not another universal data boundary.
+
+I was missing a concise way to describe the graph that this existing runtime should resolve.
 
 ```text
 resource-graph query
@@ -154,17 +175,25 @@ closure
 projection
 ```
 
-In this kind of architecture, REST APIs, GraphQL APIs, SDKs, caches, and integration services already exist. I am not looking to introduce a GraphQL schema and executor—either as another service or as an embedded runtime—as the owner of the aggregate. I need the application to resolve it across the boundaries that already exist, without letting that orchestration collapse back into the component tree.
+That distinction matters.
 
-> **Using GraphQL here makes its schema and executor the orchestration boundary. The language I need makes addressable resources and application-owned aggregate resolution primary.**
+Ziel does not require every data access path in the application to pass through it. A loader remains an ordinary TypeScript unit and can still be used directly when a simpler integration does not need graph resolution. A small feature can call one service. Another can use a more complex repository. Ziel appears only where the application actually has a resource-graph orchestration problem.
 
-GraphQL can still sit behind one of the data sources. The relationship is therefore less “this language versus GraphQL” and more “GraphQL can be one way of materializing resources during a resolution.”
+The language is therefore intentionally smaller than a general data execution platform. It describes the minimum semantics needed to resolve these aggregates: identities, relationships, traversal, projection, routing, and failure behavior. The existing loaders still own IO, and the resolver still owns execution.
+
+> **The goal was not to replace GraphQL. It was to avoid introducing a GraphQL execution boundary when the problem I actually had was application-level resource graph orchestration.**
+
+GraphQL can still sit behind one of those data sources. In that case it is simply one way of materializing a resource during resolution, alongside REST, an SDK, a database, or an in-memory loader.
+
+So the relationship is less “Ziel versus GraphQL” and more:
+
+> **GraphQL can own the aggregate boundary. Ziel lets the application resolve an aggregate across boundaries it already has.**
 
 ---
 
 ## What the language needs to say
 
-With that boundary clarified, I return to the original problem: what does this language actually need to express?
+With that distinction clarified, I return to the original problem: what does this language actually need to express?
 
 The query does not need to describe SQL tables, HTTP requests, SDK calls, or React components. Those concerns already have owners.
 
