@@ -150,16 +150,15 @@ But it is still a boundary that has to be designed, owned, and maintained.
 
 If I put GraphQL in front of an existing CMS and integration landscape, I now have to decide how those systems map into the schema, write and maintain the resolver layer, define error semantics, authentication, caching and observability, and evolve that execution surface whenever the aggregate changes.
 
-That cost may be entirely justified.
-But in real projects, that kind of architectural firepower is not always available. You may not have a backend team ready to own a new execution layer, the budget to introduce and operate another service, or the organizational freedom to reshape several existing systems behind a new schema.
+That cost may be entirely justified. But in real projects, that kind of firepower is not always available. You may not have a backend team ready to own a new execution layer, the budget to introduce and operate another service, or the organizational freedom to reshape several existing systems behind a new schema.
 
 The orchestration problem still exists anyway.
 
-The aggregates that led to Ziel were deeply nested and highly polymorphic. The next resources to load were often not known until previous payloads had been resolved at runtime. I already had resource identities, loaders, data sources, batching, deduplication, and a resolver capable of walking that graph to closure.
+The aggregates behind this problem are deeply nested and highly polymorphic. The next resources to load are often not known until previous payloads are resolved at runtime. I already have resource identities, loaders, data sources, batching, deduplication, and a resolver capable of walking that graph to closure.
 
-What I was missing was not another universal data boundary.
+What I am missing is not another universal data boundary.
 
-I was missing a concise way to describe the graph that this existing runtime should resolve.
+I am missing a concise way to describe the graph that "this existing runtime" should resolve.
 
 ```text
 resource-graph query
@@ -175,19 +174,19 @@ closure
 projection
 ```
 
-That distinction matters.
+In my opinion, this distinction matters.
 
-Ziel does not require every data access path in the application to pass through it. A loader remains an ordinary TypeScript unit and can still be used directly when a simpler integration does not need graph resolution. A small feature can call one service. Another can use a more complex repository. Ziel appears only where the application actually has a resource-graph orchestration problem.
+The model I need does not require every data access path in the application to pass through a new boundary. A loader remains an ordinary TypeScript unit and can still be used directly when a simpler integration does not need graph resolution. A small feature can call one service, while another can use a more complex repository. Resource-graph orchestration enters only where the application actually has that problem.
 
-The language is therefore intentionally smaller than a general data execution platform. It describes the minimum semantics needed to resolve these aggregates: identities, relationships, traversal, projection, routing, and failure behavior. The existing loaders still own IO, and the resolver still owns execution.
+What I need is therefore intentionally smaller than a general data execution platform. Existing loaders still own IO, and the resolver still owns execution; the language only has to describe the application-specific meaning of the graph.
 
-> **The goal was not to replace GraphQL. It was to avoid introducing a GraphQL execution boundary when the problem I actually had was application-level resource graph orchestration.**
+**The goal is not to replace GraphQL. It is to avoid introducing a GraphQL execution boundary when the actual problem is application-level resource graph orchestration.**
 
 GraphQL can still sit behind one of those data sources. In that case it is simply one way of materializing a resource during resolution, alongside REST, an SDK, a database, or an in-memory loader.
 
-So the relationship is less “Ziel versus GraphQL” and more:
+So the question is less “GraphQL versus another query language” and more “which boundary should own the orchestration?”
 
-> **GraphQL can own the aggregate boundary. Ziel lets the application resolve an aggregate across boundaries it already has.**
+**GraphQL can own the aggregate boundary. Here, the application needs to resolve the aggregate across boundaries it already has.**
 
 ---
 
@@ -204,7 +203,7 @@ It needs to say four things:
 3. which fields and relationships form the result;
 4. which intermediate resources exist only to compute the next address.
 
-To express those ideas without collapsing abstraction levels, the language also has to preserve a distinction that is fundamental to the resolver: a resource identity is not its payload.
+To express those ideas without collapsing abstraction levels, the language also has to preserve a distinction that is fundamental to the resolver: a resource identity is not the same thing as its payload.
 
 Consider a localized CMS entry:
 
@@ -224,15 +223,15 @@ When expanding from an Entry to an Asset, the Asset ID may come from the Entry p
 
 At this point, the model is no longer just configuration. It is a resource graph resolution program.
 
-I call the language that emerges from that model **Ziel**.
+I called the language that emerges from that model: **Ziel**.
 
 ---
 
 ## Describe the destination, not the sequence of requests
 
-The name **Ziel** comes from the German word for _goal_ or _destination_. It captures the main shift in the model.
+The name **Ziel** comes from the German word for _goal_ or _destination_. It captures the main idea in the model.
 
-Procedural orchestration describes a journey:
+Procedural orchestration describes a journey as a sequence of imperative steps:
 
 ```text
 load the page from the CMS
@@ -243,20 +242,20 @@ then load the referenced assets
 then map everything into a Page
 ```
 
-A Ziel query describes the graph and aggregate the application is trying to reach:
+A Ziel query describes the graph and aggregate the application is trying to reach.
 
-```text
-Page
-└── modules[] → Entry
-    ├── Hero → Asset
-    └── Product → Product
-```
+Conceptually, the query says:
 
-The query does not decide whether an Entry is loaded with REST, GraphQL, an SDK, a database client, or an in-memory fixture. It does not prescribe which batch should run first. Data sources and the graph resolver still own that work.
+- start from a Page and expand each of its modules as an Entry;
+- whenever an Entry is encountered, inspect its variant: a Hero expands its image as an Asset, while a Product expands its SKU as a Product resource.
+
+So far, we have described the aggregate without saying a single word about REST, GraphQL, HTTP, SDKs, databases, filesystems, or caches. That is deliberate.
+
+The query does not decide how an Entry is loaded, nor which batch should run first. Data sources and the graph resolver still own that work.
 
 It states which resources exist, how they are related for this aggregate, and which shape should emerge when resolution is complete.
 
-> **The language describes the destination. The runtime owns the walk.**
+**The language describes the destination. The runtime owns the walk.**
 
 ---
 
@@ -404,6 +403,10 @@ The compiler also generates the resolution strategy, projection materializer, qu
 
 ```ts
 export async function resolvePageDetail(input: ResolvePageDetailInput) {
+  const executionContext = {
+    locale: input.params.locale,
+  };
+
   const root = pageAri({
     id: input.params.pageId,
     locale: input.params.locale,
@@ -417,7 +420,7 @@ export async function resolvePageDetail(input: ResolvePageDetailInput) {
   const { contentMap, islands, islandDependencies, errors, failures, promotedResourceKeys } =
     await resolver.resolve({
       roots: [root],
-      executionContext: { locale: input.params.locale },
+      executionContext,
     });
 
   const pageDetail = projectPageDetail(root, contentMap, {
