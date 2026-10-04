@@ -22,6 +22,7 @@ import {
   scalarRef,
   singleRoot,
   span,
+  unresolvedNamedRef,
 } from "../fixtures";
 
 function cloneProgram(program: Program): Program {
@@ -1934,16 +1935,16 @@ describe("checkProgram — negative diagnostics", () => {
     );
   });
 
-  it("rejects unknown scalar ref", () => {
+  it("rejects unknown named type ref", () => {
     const program = withMutatedPageDetail((p) => {
       const page = p.resources.find((r) => r.name === "Page")!;
       expect(page.payloadType.kind).toBe("object");
       if (page.payloadType.kind !== "object") return;
-      page.payloadType.fields.push(field("weird", scalarRef("NotAScalar")));
+      page.payloadType.fields.push(field("weird", unresolvedNamedRef("NotAType")));
     });
 
     expect(checkProgram(program)).toContainEqual(
-      expect.objectContaining({ code: "UNKNOWN_SCALAR" })
+      expect.objectContaining({ code: "UNKNOWN_TYPE", message: "Unknown type 'NotAType'" })
     );
   });
 
@@ -2013,6 +2014,7 @@ describe("checkProgram — scalar / resource name clash", () => {
     const program: Program = {
       span,
       scalars: [defScalar("Page", "string")],
+      opaques: [],
       resources: [
         resource(
           "Page",
@@ -2288,6 +2290,7 @@ describe("checkProgram — multi-root queries", () => {
     const program: Program = {
       span,
       scalars: [defScalar("Id", "string")],
+      opaques: [],
       resources: [
         resource(
           "R",
@@ -2319,6 +2322,7 @@ describe("checkProgram — multi-root queries", () => {
     const program: Program = {
       span,
       scalars: [defScalar("Id", "string")],
+      opaques: [],
       resources: [
         resource(
           "R",
@@ -2358,6 +2362,7 @@ describe("checkProgram — multi-root queries", () => {
     const program: Program = {
       span,
       scalars: [defScalar("Id", "string")],
+      opaques: [],
       resources: [
         resource(
           "R",

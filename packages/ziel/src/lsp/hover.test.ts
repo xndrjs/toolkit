@@ -154,6 +154,7 @@ query RawArrayExample(batchId: RawArrayBatchId) {
     semanticSnapshot.set({
       program: {
         scalars: [],
+        opaques: [],
         resources: [],
         fragments: [],
         datasources: [],

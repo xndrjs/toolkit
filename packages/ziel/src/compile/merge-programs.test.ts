@@ -5,9 +5,11 @@ import {
   construct,
   datasource,
   datasourceRoute,
+  defOpaque,
   defScalar,
   field,
   objectType,
+  opaqueRef,
   query,
   resource,
   scalarRef,
@@ -22,12 +24,21 @@ function fileSpan(uri: string): SourceSpan {
 }
 
 function emptyProgram(): Program {
-  return { scalars: [], resources: [], fragments: [], datasources: [], queries: [], span: null };
+  return {
+    scalars: [],
+    opaques: [],
+    resources: [],
+    fragments: [],
+    datasources: [],
+    queries: [],
+    span: null,
+  };
 }
 
 function programA(): Program {
   return {
     scalars: [defScalar("AId", "string")],
+    opaques: [],
     resources: [
       resource(
         "A",
@@ -45,6 +56,7 @@ function programA(): Program {
 function programB(): Program {
   return {
     scalars: [defScalar("BId", "string")],
+    opaques: [],
     resources: [
       resource(
         "B",
@@ -93,12 +105,48 @@ describe("mergePrograms", () => {
 
     expect(merged.span).toBeNull();
     expect(merged.scalars.map((s) => s.name)).toEqual(["AId", "BId"]);
+    expect(merged.opaques).toEqual([]);
     expect(merged.resources.map((r) => r.name)).toEqual(["A", "B"]);
     expect(merged.datasources.map((d) => d.name)).toEqual(["SourceA"]);
     expect(merged.queries.map((q) => q.name)).toEqual(["QB"]);
     expect(merged.scalars[0]).toBe(a.scalars[0]);
     expect(merged.scalars[1]).toBe(b.scalars[0]);
     expect(merged.datasources[0]).toBe(a.datasources[0]);
+  });
+
+  it("concatenates opaque declarations in input order", () => {
+    const first: Program = {
+      scalars: [defScalar("Id", "string")],
+      opaques: [defOpaque("RichDocument")],
+      resources: [
+        resource(
+          "Doc",
+          [field("id", scalarRef("Id"))],
+          objectType(field("id", scalarRef("Id"), true), field("body", opaqueRef("RichDocument")))
+        ),
+      ],
+      fragments: [],
+      datasources: [],
+      queries: [],
+      span: null,
+    };
+    const second: Program = {
+      scalars: [],
+      opaques: [defOpaque("MediaDescriptor")],
+      resources: [],
+      fragments: [],
+      datasources: [],
+      queries: [],
+      span: null,
+    };
+
+    const merged = mergePrograms([first, second]);
+    expect(merged.opaques.map((opaque) => opaque.name)).toEqual([
+      "RichDocument",
+      "MediaDescriptor",
+    ]);
+    expect(merged.opaques[0]).toBe(first.opaques[0]);
+    expect(merged.opaques[1]).toBe(second.opaques[0]);
   });
 
   it("preserves per-node URIs from dual parse while clearing program span", () => {
@@ -126,6 +174,7 @@ describe("mergePrograms", () => {
   it("does not resolve name collisions — checkProgram reports DUPLICATE_*", () => {
     const first: Program = {
       scalars: [defScalar("Id", "string")],
+      opaques: [],
       resources: [
         resource(
           "Thing",
@@ -140,6 +189,7 @@ describe("mergePrograms", () => {
     };
     const second: Program = {
       scalars: [defScalar("Id", "string")],
+      opaques: [],
       resources: [
         resource(
           "Thing",

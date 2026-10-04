@@ -69,6 +69,7 @@ describe("emitPayloadTypes", () => {
   it("returns empty string when there are no resources", () => {
     const program: Program = {
       scalars: [],
+      opaques: [],
       resources: [],
       fragments: [],
       datasources: [],
@@ -183,6 +184,7 @@ export type PostPayload = {
   it("throws on unresolved typeProjection when the target resource is missing", () => {
     const program: Program = {
       scalars: [defScalar("Id", "string")],
+      opaques: [],
       resources: [
         resource(
           "Broken",

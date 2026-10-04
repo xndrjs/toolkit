@@ -1361,4 +1361,58 @@ describe("lowerProgram — fragments", () => {
       ])
     );
   });
+
+  it("lowers opaque declarations and same-file / forward opaque refs", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+
+        resource Doc(id: Id): {
+          id
+          body: RichDocument
+          media?: MediaDescriptor | null
+        }
+
+        opaque RichDocument;
+        opaque MediaDescriptor;
+      `)
+    );
+
+    expect(program.opaques.map((o) => o.name)).toEqual(["RichDocument", "MediaDescriptor"]);
+    expectSpan(program.opaques[0]?.span);
+    const fields = objectFields(program.resources.find((r) => r.name === "Doc")?.payloadType);
+    expect(fields.find((f) => f.name === "body")?.type).toMatchObject({
+      kind: "opaqueRef",
+      name: "RichDocument",
+    });
+    expect(fields.find((f) => f.name === "media")?.type).toMatchObject({
+      kind: "nullable",
+      of: { kind: "opaqueRef", name: "MediaDescriptor" },
+    });
+    expect(checkProgram(program)).toEqual([]);
+  });
+
+  it("lowers unknown named types to unresolvedNamedRef (UNKNOWN_TYPE)", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Id on string;
+        resource R(id: Id): {
+          id
+          body: MissingOpaque
+        }
+      `)
+    );
+
+    const fields = objectFields(program.resources.find((r) => r.name === "R")?.payloadType);
+    expect(fields.find((f) => f.name === "body")?.type).toMatchObject({
+      kind: "unresolvedNamedRef",
+      name: "MissingOpaque",
+    });
+    expect(checkProgram(program)).toContainEqual(
+      expect.objectContaining({
+        code: "UNKNOWN_TYPE",
+        message: "Unknown type 'MissingOpaque'",
+      })
+    );
+  });
 });

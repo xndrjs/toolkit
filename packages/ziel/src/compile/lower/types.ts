@@ -27,6 +27,7 @@ import { spanOf } from "./span";
 export type NameTables = {
   resources: Set<string>;
   scalars: Set<string>;
+  opaques: Set<string>;
 };
 
 function lowerRefersPatternField(field: AstRefersPatternField): RefersPatternField {
@@ -188,10 +189,18 @@ export function lowerTypeExpr(
     };
   }
   if (isNamedTypeExpr(type)) {
+    // Deterministic order: resource → scalar → opaque → unresolved.
+    // Name clashes are rejected later by check; lowering only needs a stable choice.
     if (tables.resources.has(type.name)) {
       return { kind: "resourceRef", name: type.name, span: spanOf(type) };
     }
-    return { kind: "scalarRef", name: type.name, span: spanOf(type) };
+    if (tables.scalars.has(type.name)) {
+      return { kind: "scalarRef", name: type.name, span: spanOf(type) };
+    }
+    if (tables.opaques.has(type.name)) {
+      return { kind: "opaqueRef", name: type.name, span: spanOf(type) };
+    }
+    return { kind: "unresolvedNamedRef", name: type.name, span: spanOf(type) };
   }
   const _never: never = type;
   return _never;
@@ -203,8 +212,12 @@ export function cloneTypeExpr(type: TypeExpr): TypeExpr {
       return { kind: "primitive", name: type.name, span: type.span };
     case "scalarRef":
       return { kind: "scalarRef", name: type.name, span: type.span };
+    case "opaqueRef":
+      return { kind: "opaqueRef", name: type.name, span: type.span };
     case "resourceRef":
       return { kind: "resourceRef", name: type.name, span: type.span };
+    case "unresolvedNamedRef":
+      return { kind: "unresolvedNamedRef", name: type.name, span: type.span };
     case "stringLiteral":
       return { kind: "stringLiteral", value: type.value, span: type.span };
     case "null":

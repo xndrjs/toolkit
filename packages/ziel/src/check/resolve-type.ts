@@ -21,9 +21,18 @@ export function resolveTypeExpr(
   switch (type.kind) {
     case "primitive":
     case "scalarRef":
+    case "opaqueRef":
     case "resourceRef":
     case "stringLiteral":
       return type;
+    case "unresolvedNamedRef":
+      sink.push({
+        code: "UNKNOWN_TYPE",
+        message: `Unknown type '${type.name}'`,
+        path,
+        span: type.span,
+      });
+      return undefined;
     case "null":
       sink.push({
         code: "INVALID_NULL_TYPE",

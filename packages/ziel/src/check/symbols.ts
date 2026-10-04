@@ -85,6 +85,10 @@ export function checkTypeExpr(
         });
       }
       return;
+    case "opaqueRef":
+      // OpaqueTable ownership lands with checker integration; lowering only emits
+      // opaqueRef for names present in declaration tables.
+      return;
     case "resourceRef":
       if (!resources.has(type.name)) {
         sink.push({
@@ -94,6 +98,14 @@ export function checkTypeExpr(
           span: type.span,
         });
       }
+      return;
+    case "unresolvedNamedRef":
+      sink.push({
+        code: "UNKNOWN_TYPE",
+        message: `Unknown type '${type.name}'`,
+        path,
+        span: type.span,
+      });
       return;
     case "typeProjection":
       // Validate by resolving; keep IR as typeProjection.

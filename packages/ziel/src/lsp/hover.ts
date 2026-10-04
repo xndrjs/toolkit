@@ -60,6 +60,7 @@ function nameTablesFrom(tables: HoverTables): NameTables {
   return {
     scalars: new Set(tables.scalars.keys()),
     resources: new Set(tables.resources.keys()),
+    opaques: new Set(tables.program?.opaques.map((opaque) => opaque.name) ?? []),
   };
 }
 

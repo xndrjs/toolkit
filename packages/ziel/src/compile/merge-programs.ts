@@ -2,6 +2,7 @@ import type { Program } from "../ir";
 
 const EMPTY_PROGRAM: Program = {
   scalars: [],
+  opaques: [],
   resources: [],
   fragments: [],
   datasources: [],
@@ -27,6 +28,7 @@ export function mergePrograms(programs: Program[]): Program {
     const program = programs[0]!;
     return {
       scalars: [...program.scalars],
+      opaques: [...program.opaques],
       resources: [...program.resources],
       fragments: [...program.fragments],
       datasources: [...program.datasources],
@@ -37,6 +39,7 @@ export function mergePrograms(programs: Program[]): Program {
 
   return {
     scalars: programs.flatMap((p) => p.scalars),
+    opaques: programs.flatMap((p) => p.opaques),
     resources: programs.flatMap((p) => p.resources),
     fragments: programs.flatMap((p) => p.fragments),
     datasources: programs.flatMap((p) => p.datasources),

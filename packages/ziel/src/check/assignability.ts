@@ -36,8 +36,12 @@ export function typesSemanticallyEqual(a: TypeExpr, b: TypeExpr): boolean {
       return b.kind === "primitive" && a.name === b.name;
     case "scalarRef":
       return b.kind === "scalarRef" && a.name === b.name;
+    case "opaqueRef":
+      return b.kind === "opaqueRef" && a.name === b.name;
     case "resourceRef":
       return b.kind === "resourceRef" && a.name === b.name;
+    case "unresolvedNamedRef":
+      return b.kind === "unresolvedNamedRef" && a.name === b.name;
     case "stringLiteral":
       return b.kind === "stringLiteral" && a.value === b.value;
     case "null":
@@ -96,6 +100,9 @@ export function isAssignable(source: TypeExpr, target: TypeExpr): boolean {
   if (source.kind === "scalarRef" && target.kind === "scalarRef") {
     return source.name === target.name;
   }
+  if (source.kind === "opaqueRef" && target.kind === "opaqueRef") {
+    return source.name === target.name;
+  }
   if (source.kind === "resourceRef" && target.kind === "resourceRef") {
     return source.name === target.name;
   }
@@ -133,9 +140,11 @@ export function literalInhabits(
     return typeof value === "string" && value === target.value;
   }
 
-  // Resource instances / structures / unresolved projections are not inhabited by raw literals.
+  // Resource instances / opaques / structures / unresolved names are not inhabited by raw literals.
   if (
     target.kind === "resourceRef" ||
+    target.kind === "opaqueRef" ||
+    target.kind === "unresolvedNamedRef" ||
     target.kind === "array" ||
     target.kind === "object" ||
     target.kind === "typeProjection"
@@ -161,7 +170,9 @@ export function formatType(type: TypeExpr): string {
     case "primitive":
       return type.name;
     case "scalarRef":
+    case "opaqueRef":
     case "resourceRef":
+    case "unresolvedNamedRef":
       return type.name;
     case "stringLiteral":
       return JSON.stringify(type.value);

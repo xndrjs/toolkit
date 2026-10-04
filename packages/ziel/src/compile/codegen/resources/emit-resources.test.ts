@@ -23,6 +23,7 @@ describe("emitResources", () => {
   it("returns empty string when there are no resources", () => {
     const program: Program = {
       scalars: [],
+      opaques: [],
       resources: [],
       fragments: [],
       datasources: [],
@@ -59,6 +60,7 @@ export type UserResource = ReturnType<typeof userAri>;
   it("maps number / boolean identity fields to s.int() / s.boolean()", () => {
     const program: Program = {
       scalars: [defScalar("Count", "number"), defScalar("Flag", "boolean")],
+      opaques: [],
       resources: [
         resource(
           "Counter",
@@ -83,6 +85,7 @@ export type UserResource = ReturnType<typeof userAri>;
   it("uses resource.ariType for the ari() type string", () => {
     const program: Program = {
       scalars: [defScalar("PostId", "string")],
+      opaques: [],
       resources: [
         {
           name: "Post",
@@ -104,6 +107,7 @@ export type UserResource = ReturnType<typeof userAri>;
   it("preserves identity field order", () => {
     const program: Program = {
       scalars: [defScalar("A", "string"), defScalar("B", "string")],
+      opaques: [],
       resources: [
         resource(
           "Pair",

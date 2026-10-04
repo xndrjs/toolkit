@@ -5,8 +5,9 @@
  * `inheritedFromIdentity`, expansions without `each` are multiplicity `"one"`,
  * `each … ( arms )` are `"many"`, scalar `metadata: null`.
  * PathRef is classified here as `param` / `payloadRef` / `itemRef`.
- * Named types resolve to `resourceRef` or `scalarRef` using declaration tables.
- * Do not collapse `scalarRef` / `resourceRef` to structural types.
+ * Named types resolve to `resourceRef` / `scalarRef` / `opaqueRef` (or
+ * `unresolvedNamedRef`) using declaration tables.
+ * Do not collapse `scalarRef` / `resourceRef` / `opaqueRef` to structural types.
  *
  * Fragments and on-level preambles desugar here: spreads expand with binding
  * rewrite, preamble fields/expansions distribute into every when-arm. Fragment
@@ -16,6 +17,7 @@
 import type {
   DatasourceDefinition,
   FragmentDefinition,
+  OpaqueDefinition,
   Program,
   ResourceDefinition,
   ScalarDefinition,
@@ -26,11 +28,13 @@ import { createDiagnosticSink, type Diagnostic, type DiagnosticSink } from "../.
 import {
   isDatasourceDeclaration,
   isFragmentDeclaration,
+  isOpaqueDeclaration,
   isQueryDeclaration,
   isResourceDeclaration,
   isScalarDeclaration,
   type Model,
   type FragmentDeclaration as AstFragmentDeclaration,
+  type OpaqueDeclaration as AstOpaqueDeclaration,
   type ResourceDeclaration as AstResourceDeclaration,
   type ScalarDeclaration as AstScalarDeclaration,
 } from "../../lang/generated/ast";
@@ -67,13 +71,23 @@ function lowerModels(
   const tables = collectWorkspaceNameTables(models);
   const fragmentTable = collectWorkspaceFragments(models, sink);
   const scalars: ScalarDefinition[] = [];
+  const opaques: OpaqueDefinition[] = [];
   const resources: ResourceDefinition[] = [];
 
+  // Opaques before resources/queries so named payload types can resolve to opaqueRef.
   for (const ast of models) {
     for (const decl of ast.declarations) {
       if (isScalarDeclaration(decl)) {
         scalars.push(lowerScalar(decl));
-      } else if (isResourceDeclaration(decl)) {
+      } else if (isOpaqueDeclaration(decl)) {
+        opaques.push(lowerOpaque(decl));
+      }
+    }
+  }
+
+  for (const ast of models) {
+    for (const decl of ast.declarations) {
+      if (isResourceDeclaration(decl)) {
         resources.push(lowerResource(decl, tables));
       }
     }
@@ -109,6 +123,7 @@ function lowerModels(
 
   return {
     scalars,
+    opaques,
     resources,
     fragments,
     datasources,
@@ -138,13 +153,15 @@ export function collectNameTables(ast: Model): NameTables {
 export function collectWorkspaceNameTables(models: readonly Model[]): NameTables {
   const resources = new Set<string>();
   const scalars = new Set<string>();
+  const opaques = new Set<string>();
   for (const ast of models) {
     for (const decl of ast.declarations) {
       if (isResourceDeclaration(decl)) resources.add(decl.name);
       else if (isScalarDeclaration(decl)) scalars.add(decl.name);
+      else if (isOpaqueDeclaration(decl)) opaques.add(decl.name);
     }
   }
-  return { resources, scalars };
+  return { resources, scalars, opaques };
 }
 
 export function collectFragments(ast: Model, sink: DiagnosticSink): FragmentTable {
@@ -212,6 +229,13 @@ export function lowerScalar(decl: AstScalarDeclaration): ScalarDefinition {
     name: decl.name,
     representation: decl.representation,
     metadata: null,
+    span: spanOf(decl),
+  };
+}
+
+export function lowerOpaque(decl: AstOpaqueDeclaration): OpaqueDefinition {
+  return {
+    name: decl.name,
     span: spanOf(decl),
   };
 }

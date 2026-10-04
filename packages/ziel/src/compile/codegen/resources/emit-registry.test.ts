@@ -23,6 +23,7 @@ describe("emitRegistry", () => {
   it("returns empty string when there are no resources", () => {
     const program: Program = {
       scalars: [],
+      opaques: [],
       resources: [],
       fragments: [],
       datasources: [],
@@ -52,6 +53,7 @@ export type ContentRegistry = {
   it("uses resource.ariType as keys and quotes non-identifiers", () => {
     const program: Program = {
       scalars: [defScalar("PostId", "string")],
+      opaques: [],
       resources: [
         {
           name: "Post",
@@ -81,6 +83,7 @@ export type ContentRegistry = {
   it("respects registryTypeName option", () => {
     const program: Program = {
       scalars: [],
+      opaques: [],
       resources: [resource("Tab", [field("id", scalarRef("PostId"))], objectType())],
       fragments: [],
       datasources: [],

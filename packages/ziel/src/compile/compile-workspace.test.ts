@@ -34,6 +34,34 @@ describe("compileWorkspace", () => {
     });
   });
 
+  it("resolves opaque payload types declared in another file", () => {
+    const result = compileWorkspace([
+      source(
+        "file:///opaques.ziel",
+        `
+          opaque RichDocument;
+        `
+      ),
+      source(
+        "file:///resources.ziel",
+        `
+          scalar Id on string;
+          resource Doc(id: Id): { id body: RichDocument }
+        `
+      ),
+    ]);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.program.opaques.map((opaque) => opaque.name)).toEqual(["RichDocument"]);
+    const doc = result.program.resources.find((resource) => resource.name === "Doc");
+    expect(doc?.payloadType.kind).toBe("object");
+    if (doc?.payloadType.kind !== "object") return;
+    expect(doc.payloadType.fields.find((field) => field.name === "body")?.type).toMatchObject({
+      kind: "opaqueRef",
+      name: "RichDocument",
+    });
+  });
+
   it("expands nested fragment spreads across files", () => {
     const result = compileWorkspace([
       source(

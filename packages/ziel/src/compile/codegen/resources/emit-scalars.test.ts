@@ -23,6 +23,7 @@ describe("emitScalars", () => {
   it("returns empty string when there are no scalars", () => {
     const program: Program = {
       scalars: [],
+      opaques: [],
       resources: [],
       fragments: [],
       datasources: [],
@@ -62,6 +63,7 @@ export const Scalars = {
   it("maps number / boolean representations to TS primitives", () => {
     const program: Program = {
       scalars: [defScalar("Count", "number"), defScalar("Flag", "boolean")],
+      opaques: [],
       resources: [],
       fragments: [],
       datasources: [],
@@ -81,6 +83,7 @@ export const Scalars = {
   it("does not emit uncapitalized top-level factory functions", () => {
     const program: Program = {
       scalars: [defScalar("EntryId", "string"), defScalar("Locale", "string")],
+      opaques: [],
       resources: [],
       fragments: [],
       datasources: [],
@@ -101,6 +104,7 @@ describe("generateResources — branded scalars", () => {
   it("includes scalar aliases, Scalars namespace, and does not import runtime when only scalars exist", () => {
     const program: Program = {
       scalars: [defScalar("PostId", "string")],
+      opaques: [],
       resources: [],
       fragments: [],
       datasources: [],

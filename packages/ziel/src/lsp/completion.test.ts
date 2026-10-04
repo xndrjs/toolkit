@@ -288,6 +288,7 @@ query Q(entryId: EntryId, locale: Locale) {
     semanticSnapshot.set({
       program: {
         scalars: [],
+        opaques: [],
         resources: [],
         fragments: [],
         datasources: [],

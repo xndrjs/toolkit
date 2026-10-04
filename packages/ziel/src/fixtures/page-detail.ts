@@ -105,6 +105,7 @@ export function pageDetailProgram(): Program {
       defScalar("CustomReferenceValue", "string"),
       defScalar("Sku", "string"),
     ],
+    opaques: [],
     resources: [
       resource(
         "Entry",

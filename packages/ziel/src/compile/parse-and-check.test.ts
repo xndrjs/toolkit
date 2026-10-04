@@ -30,6 +30,7 @@ describe("parseAndCheck", () => {
     expect(diagnostics.every((d) => d.code === "SYNTAX_ERROR")).toBe(true);
     expect(program).toEqual({
       scalars: [],
+      opaques: [],
       resources: [],
       fragments: [],
       datasources: [],

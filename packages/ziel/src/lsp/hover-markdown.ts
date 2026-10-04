@@ -28,7 +28,9 @@ export function formatTypePretty(type: TypeExpr, depth = 0): string {
     case "primitive":
       return type.name;
     case "scalarRef":
+    case "opaqueRef":
     case "resourceRef":
+    case "unresolvedNamedRef":
       return type.name;
     case "stringLiteral":
       return JSON.stringify(type.value);

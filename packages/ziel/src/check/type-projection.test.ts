@@ -34,6 +34,7 @@ describe("type projection Resource.field", () => {
     const program: Program = {
       span,
       scalars: [defScalar("Sku", "string"), defScalar("ProductId", "string")],
+      opaques: [],
       resources: [
         resource(
           "Product",
@@ -55,6 +56,7 @@ describe("type projection Resource.field", () => {
     const program: Program = {
       span,
       scalars: [defScalar("HeroId", "string")],
+      opaques: [],
       resources: [
         resource(
           "Hero",
@@ -76,6 +78,7 @@ describe("type projection Resource.field", () => {
     const program: Program = {
       span,
       scalars: [defScalar("HeroId", "string")],
+      opaques: [],
       resources: [
         resource(
           "Hero",
@@ -102,6 +105,7 @@ describe("type projection Resource.field", () => {
         defScalar("ProductId", "string"),
         defScalar("EditorialModuleId", "string"),
       ],
+      opaques: [],
       resources: [
         resource(
           "Tabs",
@@ -143,6 +147,7 @@ describe("type projection Resource.field", () => {
     const program: Program = {
       span,
       scalars: [defScalar("HeroId", "string")],
+      opaques: [],
       resources: [
         resource(
           "Hero",
@@ -174,6 +179,7 @@ describe("type projection Resource.field", () => {
         defScalar("EditorialModuleId", "string"),
         defScalar("Sku", "string"),
       ],
+      opaques: [],
       resources: [
         resource(
           "Tabs",

@@ -28,7 +28,15 @@ function loadFixture(name: string): string {
 }
 
 function emptyProgram(): Program {
-  return { scalars: [], resources: [], fragments: [], datasources: [], queries: [], span: null };
+  return {
+    scalars: [],
+    opaques: [],
+    resources: [],
+    fragments: [],
+    datasources: [],
+    queries: [],
+    span: null,
+  };
 }
 
 describe("emitProjections", () => {

@@ -40,6 +40,7 @@ describe("emitProjectionTypes", () => {
   it("returns empty string when there are no queries", () => {
     const program: Program = {
       scalars: [],
+      opaques: [],
       resources: [],
       fragments: [],
       datasources: [],

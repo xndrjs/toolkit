@@ -5,6 +5,7 @@ import type {
   Expansion,
   FieldDecl,
   NamedArg,
+  OpaqueDefinition,
   PrimitiveTypeName,
   QueryDefinition,
   QueryRoot,
@@ -24,6 +25,14 @@ export function prim(name: PrimitiveTypeName): TypeExpr {
 
 export function scalarRef(name: string): TypeExpr {
   return { kind: "scalarRef", name, span };
+}
+
+export function opaqueRef(name: string): TypeExpr {
+  return { kind: "opaqueRef", name, span };
+}
+
+export function unresolvedNamedRef(name: string): TypeExpr {
+  return { kind: "unresolvedNamedRef", name, span };
 }
 
 export function resourceRef(name: string): TypeExpr {
@@ -66,6 +75,10 @@ export function nullable(of: TypeExpr): TypeExpr {
 
 export function defScalar(name: string, representation: PrimitiveTypeName): ScalarDefinition {
   return { name, representation, metadata: null, span };
+}
+
+export function defOpaque(name: string): OpaqueDefinition {
+  return { name, span };
 }
 
 export function resource(

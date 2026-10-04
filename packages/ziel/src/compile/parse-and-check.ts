@@ -7,6 +7,7 @@ import { parseSource } from "./parse-source";
 
 const EMPTY_PROGRAM: Program = {
   scalars: [],
+  opaques: [],
   resources: [],
   fragments: [],
   datasources: [],

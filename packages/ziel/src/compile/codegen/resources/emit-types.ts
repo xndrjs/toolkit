@@ -54,9 +54,12 @@ export function printTypeExpr(type: TypeExpr, ctx: PrintContext = "root", indent
     case "primitive":
       return type.name;
     case "scalarRef":
+    case "opaqueRef":
       return type.name;
     case "resourceRef":
       return payloadTypeName(type.name);
+    case "unresolvedNamedRef":
+      throw new Error(`printTypeExpr: unresolved named type '${type.name}'`);
     case "stringLiteral":
       return JSON.stringify(type.value);
     case "null":
