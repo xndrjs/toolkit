@@ -41,7 +41,7 @@ The notation is:
 resource Name(...identityParams): Payload
 ```
 
-`Payload` is an object shape (or a union of shapes) declared inline. It is the TypeScript-facing type of the loaded value — not another ARI.
+`Payload` is the TypeScript-facing type of the loaded value — not another ARI. It is often an object shape or a discriminated union, but it may also be an array, a scalar or opaque type ref, or a type projection. Object-shaped payloads are what `include` / field selection / `refers` operate on; non-object roots still load and project as opaque pass-through leaves when selected or left empty.
 
 ```ziel
 // Name + identity → one addressable instance
@@ -75,6 +75,26 @@ resource Entry(
 ```
 
 `Entry(id, locale)` addresses the resource. The variants after `:` describe what may come back. `kind` lives on the **payload**, so it does not create a second address — Hero and Menu share the same identity vocabulary.
+
+### Opaque payload leaves
+
+When a payload field (or entire payload root) belongs to an external integration, declare a nominal leaf with `opaque Name;`. Ziel transports the value through resolution and projection without reading, cloning, or serializing it. There is no representation clause in the DSL — no `on json` or similar.
+
+```ziel
+opaque RichDocument;
+opaque MediaDescriptor;
+
+scalar ArticleId on string;
+
+resource Article(id: ArticleId): {
+  id
+  title: string
+  body: RichDocument
+  media?: MediaDescriptor | null
+}
+```
+
+Opaque types are **payload-only**. They must not appear in identity parameters, query parameters, datasource `context`, or `refers`. They are not inspectable in `when` expressions. Codegen emits a runtime token (`defineOpaqueType`) plus a branded type alias; adapters introduce values with `.wrap`, and the composition root maps tokens to translators via `createOpaqueRegistry` (separate from `ContentRegistry`). `wrap` / `unwrap` are identity trust boundaries — they do not validate or attach runtime brands. Full DSL and runtime notes: [`packages/ziel` README](https://github.com/xndrjs/toolkit/tree/main/packages/ziel).
 
 ### ARI identity
 

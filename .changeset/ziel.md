@@ -1,11 +1,14 @@
 ---
 "@xndrjs/ziel": minor
+"ziel-vscode": minor
 ---
 
 Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, debounced, serialized regeneration and clean asynchronous shutdown.
 
 ### Language / DSL
 
+- Add `opaque Name;` for nominal, non-inspectable payload leaves (no representation clause). Opaque types may appear in payloads (roots, fields, arrays, unions, type projections) but not in identity, query params, datasource `context`, or `refers`. Checker rejects inspectable uses in `when` expressions and name clashes with scalars/resources.
+- Unknown bare type names diagnose as `UNKNOWN_TYPE` (scalar / opaque / resource namespaces).
 - Add `and` / `or` / `(…)` to when-expressions; flatten islands to `on Resource [binding] [when expr]` (one startIsland per clause; combine conditions with `or`).
 - Add `in` / `not in` (literal array membership) and unary `!` (JS falsy) to shared when-expressions — projections, resolve arms, expand arms, and islands.
 - Add projection `include all` / `include properties` on clauses and `when` arms (payload field sets minus `refers` relationships; expand aliases shadow; arm include from narrowed payload with `arm ?? clause` inheritance). Allow bare `refers Entry` without a `with` pattern.
@@ -15,6 +18,7 @@ Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, 
 
 ### Codegen
 
+- Emit opaque runtime tokens via `defineOpaqueType` / `OpaqueValueOf` (conditional imports; opaque-only modules omit `ari` / `s`). Programs without opaques keep prior output.
 - Emit per-query `create{Query}DataSources` factories typed on each query's execution context instead of a single aggregate `createDataSources`.
 - Codegen emits a `Scalars` namespace of typed brand factories (`Scalars.EntryId(value)`) alongside scalar type aliases. Empty scalar programs still emit nothing; uncapitalized top-level helpers are not generated.
 - Generated Ziel projectors consume the resolver's canonical failure map directly (redirect graph invariants).
@@ -24,11 +28,13 @@ Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, 
 
 ### LSP / editor
 
+- Recognize `opaque` declarations: payload-only completion, hover signatures, cross-file go-to-definition, formatter, and TextMate keyword highlighting (`ziel-vscode`). Name resolution order matches lowering (resource → scalar → opaque).
 - Add Langium document formatting for `.ziel` (Format Document / range) via `ZielFormatter` in the language server.
 - Pretty-print resource/field/fragment hover signatures (multiline identity and payload).
 - LSP hover, completion, and go-to-definition understand island bindings and `when` paths.
 
 ### Docs / adoption
 
+- Document opaque payload leaves (DSL, adapter `.wrap`, composition-root `createOpaqueRegistry`) and clarify that resource payloads are not always object/union shapes.
 - Document first-match datasource and redirect routing (one owner per ARI family). Clarify that loaders must validate untrusted payloads at the boundary.
 - Document Ziel laws, when-not-to-use guidance, and an operational runbook. Add a commerce product-detail demo and resolver-bench orchestration modes (naive / batched) for adoption trust.

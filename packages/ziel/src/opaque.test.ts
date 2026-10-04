@@ -94,6 +94,7 @@ describe("opaque type safety", () => {
     expectTypeOf<RichDocumentValue>().toEqualTypeOf<Opaque<"RichDocument">>();
     expectTypeOf<MediaDescriptorValue>().toEqualTypeOf<Opaque<"MediaDescriptor">>();
     expectTypeOf<RichDocumentValue>().not.toEqualTypeOf<MediaDescriptorValue>();
+    expectTypeOf(MediaDescriptor.wrap({})).toEqualTypeOf<Opaque<"MediaDescriptor">>();
 
     const doc = RichDocument.wrap({ html: "<p/>" });
     expectTypeOf(doc).toEqualTypeOf<Opaque<"RichDocument">>();

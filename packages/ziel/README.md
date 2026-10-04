@@ -89,7 +89,10 @@ import {
   createGraphResolutionStrategy,
   ari,
   s,
+  defineOpaqueType,
+  createOpaqueRegistry,
   type ContentMap,
+  type OpaqueValueOf,
 } from "@xndrjs/ziel";
 ```
 
@@ -123,13 +126,13 @@ if (diagnostics.length === 0) {
 const result = buildGeneratedModule({ root: process.cwd() });
 ```
 
-`compileWorkspace([{ uri, source }, …])` is the filesystem-free multi-file entry point. It parses every document first, then lowers resource/scalar references and fragment spreads against one global workspace before running semantic analysis. `parseAndCheck(source, uri)` remains the single-file convenience API.
+`compileWorkspace([{ uri, source }, …])` is the filesystem-free multi-file entry point. It parses every document first, then lowers resource/scalar/opaque references and fragment spreads against one global workspace before running semantic analysis. `parseAndCheck(source, uri)` remains the single-file convenience API.
 
-`generateResources` emits branded scalar types, a `Scalars` factory namespace, ARI factories (`postAri`), payload types (`PostPayload`), and a `ContentRegistry` slice from a checked `Program`. Queries are ignored.
+`generateResources` emits branded scalar types, a `Scalars` factory namespace, opaque tokens (`defineOpaqueType`), ARI factories (`postAri`), payload types (`PostPayload`), and a `ContentRegistry` slice from a checked `Program`. Queries are ignored.
 
 ### Resources and payloads
 
-`resource Name(identity): PayloadType` — the RHS is always a **payload type**. Writing `TabsCollection(…): Tab[]` means the datasource returns an array of Tab’s payload shape, not that the resolver should fan out to Tab ARIs. Traversal exists only via explicit `expand` / `each` / `on` / `resolve to` / `resolve to each`. Loading a collection resource returns that payload as-is; projecting it (e.g. empty `on TabsCollection`) keeps the payload type. `R[]` on a payload RHS is never an auto-fanout.
+`resource Name(identity): PayloadType` — the RHS is always a **payload type**. That may be an object shape, a union, an array, a scalar/opaque ref, or a type projection — not necessarily an object. Writing `TabsCollection(…): Tab[]` means the datasource returns an array of Tab’s payload shape, not that the resolver should fan out to Tab ARIs. Traversal exists only via explicit `expand` / `each` / `on` / `resolve to` / `resolve to each`. Loading a collection resource returns that payload as-is; projecting it (e.g. empty `on TabsCollection`) keeps the payload type. `R[]` on a payload RHS is never an auto-fanout.
 
 **Scalar factories** — each scalar gets a PascalCase key on `Scalars` whose param is the representation (`string` | `number` | `boolean`) and return type is the branded alias. They are ergonomics helpers only: a cast from the primitive to the branded type, with **no runtime validation**. Prefer them over inline casts in adapters and fixtures:
 
@@ -141,6 +144,68 @@ const locale: Locale = Scalars.Locale("en-US");
 ```
 
 There are no uncapitalized top-level helpers (`entryId(…)`). An empty scalars program emits nothing for this section.
+
+### Opaque types
+
+Some payload values belong to an external integration. Ziel must carry them through the graph and projections without knowing their structure, interpreting them, or assuming JSON / a concrete runtime shape. Declaring them as plain `unknown` in generated TypeScript collapses distinct concepts and leaves no runtime token for composition-root translators.
+
+Declare a nominal, non-inspectable payload leaf with `opaque Name;` — no representation clause (`on json`, …). The concrete encoding stays outside the DSL:
+
+```ziel
+opaque RichDocument;
+opaque MediaDescriptor;
+
+scalar ArticleId on string;
+
+resource Article(id: ArticleId): {
+  id
+  title: string
+  body: RichDocument
+  media?: MediaDescriptor | null
+}
+```
+
+**Semantics** — an opaque is a payload leaf. It may appear as a resource payload root, an object field, or inside `[]` / `| null` / unions / type projections that resolve in a payload. Equality is same-name only. Ziel never reads, clones, or serializes the value; selection and empty-root projection pass the reference through unchanged.
+
+**Forbidden** — identity parameters, query parameters, datasource `context`, and `refers` on an opaque (directly or via type projection). Opaque values are not inspectable in `when` expressions: no property access, comparisons, `in` / `not in`, `as`, `!`, `and`, or `or`.
+
+**Codegen** — each opaque becomes a runtime token plus a branded type alias (imported from `@xndrjs/ziel`):
+
+```ts
+export const RichDocument = defineOpaqueType("RichDocument");
+export type RichDocument = OpaqueValueOf<typeof RichDocument>;
+```
+
+Programs without opaques emit nothing for this section (and do not import `defineOpaqueType` / `OpaqueValueOf`). Opaque-only programs omit `ari` / `s`.
+
+**Adapter** — introduce the external value at the trust boundary with `.wrap`. `wrap` / `unwrap` are identity (`Object.is`); they do **not** validate, brand at runtime, clone, or serialize:
+
+```ts
+import { RichDocument, Scalars } from "./generated/resources";
+
+return {
+  id: Scalars.ArticleId(source.id),
+  title: source.title,
+  body: RichDocument.wrap(source.body),
+};
+```
+
+**Composition root** — register translators with `createOpaqueRegistry` keyed by those tokens (distinct from generated `ContentRegistry`):
+
+```ts
+import { createOpaqueRegistry } from "@xndrjs/ziel";
+import { MediaDescriptor, RichDocument } from "./generated/resources";
+
+const renderers = createOpaqueRegistry<RenderNode>()
+  .register(RichDocument, (value) =>
+    renderRichDocument(parseRichDocument(RichDocument.unwrap(value)))
+  )
+  .register(MediaDescriptor, (value) =>
+    renderMedia(parseMediaDescriptor(MediaDescriptor.unwrap(value)))
+  );
+```
+
+There is no JSON or serialization contract for opaque values — that remains application / integration code after `unwrap`.
 
 `generateStrategies` emits one open `create*Strategy` fluent builder per query (params/context types + `.expansion.on(…).expand(…)`, plus `islands.on(…)[.when(…)].startIsland()` when the query declares an `islands` block). Armed `on` projections emit one `.on(ari).when(…).expand(…)` per expanding arm; flat `on` stays `.on(ari).expand(…)`. Many-expands use `each` (multi-arm `when` → order-preserving `flatMap`). 1→1 `resolve to { … }` emits `.resolve.on(…).to(…)`; `resolve to each` is expansion-backed (same `.expansion.on(…).expand(…)` shape, no redirects). Per-edge `on failure` policies land on `ExpansionResult.onFailure` (or `onFailureByKey` when edges disagree). The factory returns the builder **without** `.build()`, so apps can still attach extra island policies by hand before calling `.build()`.
 
