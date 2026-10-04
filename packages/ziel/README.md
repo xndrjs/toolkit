@@ -190,19 +190,22 @@ return {
 };
 ```
 
-**Composition root** — register translators with `createOpaqueRegistry` keyed by those tokens (distinct from generated `ContentRegistry`):
+**Composition root** — `unwrap` defaults to `unknown` (re-parse if you want). When the loader already validated the shape, pass a type argument as a trust shortcut — no separate cast helper:
+
+```ts
+const doc = RichDocument.unwrap<RichDocumentWire>(hero.body);
+const media = MediaDescriptor.unwrap<MediaDescriptorWire>(asset.descriptor);
+```
+
+For multi-token translators (DTO mapping, vendor bridges, …), register handlers with `createOpaqueRegistry` (distinct from generated `ContentRegistry`):
 
 ```ts
 import { createOpaqueRegistry } from "@xndrjs/ziel";
 import { MediaDescriptor, RichDocument } from "./generated/resources";
 
-const renderers = createOpaqueRegistry<RenderNode>()
-  .register(RichDocument, (value) =>
-    renderRichDocument(parseRichDocument(RichDocument.unwrap(value)))
-  )
-  .register(MediaDescriptor, (value) =>
-    renderMedia(parseMediaDescriptor(MediaDescriptor.unwrap(value)))
-  );
+const bridges = createOpaqueRegistry<BridgeDto>()
+  .register(RichDocument, (value) => toDocDto(RichDocument.unwrap(value)))
+  .register(MediaDescriptor, (value) => toMediaDto(MediaDescriptor.unwrap(value)));
 ```
 
 There is no JSON or serialization contract for opaque values — that remains application / integration code after `unwrap`.

@@ -99,6 +99,9 @@ describe("opaque type safety", () => {
     const doc = RichDocument.wrap({ html: "<p/>" });
     expectTypeOf(doc).toEqualTypeOf<Opaque<"RichDocument">>();
     expectTypeOf(RichDocument.unwrap(doc)).toEqualTypeOf<unknown>();
+
+    type Wire = { html: string };
+    expectTypeOf(RichDocument.unwrap<Wire>(doc)).toEqualTypeOf<Wire>();
   });
 
   it("rejects mismatched token/value pairs at the type level", () => {

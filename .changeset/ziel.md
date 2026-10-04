@@ -16,6 +16,10 @@ Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, 
 - Support multi-root queries via `roots { alias: Construction }` alongside singular `root`. IR uses `roots: QueryRoot[]`; codegen emits alias-keyed `*Result` / `project*` / `resolve*` façades while preserving single-root ergonomics. Requires `@xndrjs/resource-graph-resolver` `roots[]` resolve input.
 - Emit island policies from DSL `islands { on Resource … }` blocks into open `create*Strategy` builders (`islands.on(…)[.when(…)].startIsland()`), so `resolve*` / `.build()` pick them up without hand-wiring.
 
+### Runtime
+
+- `OpaqueType.unwrap` accepts an optional type argument (`unwrap<T = unknown>`) so trusted callers can assert the loader-validated shape without a separate cast; omit `T` to keep `unknown` for re-parse.
+
 ### Codegen
 
 - Emit opaque runtime tokens via `defineOpaqueType` / `OpaqueValueOf` (conditional imports; opaque-only modules omit `ari` / `s`). Programs without opaques keep prior output.

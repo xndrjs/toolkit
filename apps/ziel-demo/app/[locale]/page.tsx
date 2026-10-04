@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { unwrapMediaDescriptor, unwrapRichDocument } from "../../src/composition/opaque-unwrap";
-import type { PageDetail_Entry, PageDetail_Entry_Hero } from "../../src/generated";
+import {
+  MediaDescriptor,
+  RichDocument,
+  type PageDetail_Entry,
+  type PageDetail_Entry_Hero,
+} from "../../src/generated";
+import type { MediaDescriptorWire } from "../../src/infrastructure/cms/schemas/media-descriptor";
+import type { RichDocumentWire } from "../../src/infrastructure/cms/schemas/rich-document";
 import {
   DEMO_ROUTE_LOCALES,
   parseDemoLocaleParam,
@@ -65,8 +71,10 @@ export default async function LocaleDemoPage({ params }: Props) {
   const heroOpaques = collectHeroes(pageDetail.strips).map((hero) => ({
     id: hero.id,
     title: hero.title,
-    body: unwrapRichDocument(hero.body),
-    descriptor: hero.image ? unwrapMediaDescriptor(hero.image.descriptor) : null,
+    body: RichDocument.unwrap<RichDocumentWire>(hero.body),
+    descriptor: hero.image
+      ? MediaDescriptor.unwrap<MediaDescriptorWire>(hero.image.descriptor)
+      : null,
   }));
 
   return (

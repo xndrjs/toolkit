@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { unwrapMediaDescriptor, unwrapRichDocument } from "../composition/opaque-unwrap.js";
 import { resolveDemoPageDetail } from "../composition/demo-sources.js";
 import {
   customReferenceAri,
   entryAri,
+  MediaDescriptor,
+  RichDocument,
   Scalars,
   type PageDetail_Asset,
   type PageDetail_Entry,
@@ -17,6 +18,8 @@ import {
   type PageDetail_Entry_Tabs,
 } from "../generated";
 import { parseCustomReference } from "../infrastructure/cms/custom-reference.js";
+import type { MediaDescriptorWire } from "../infrastructure/cms/schemas/media-descriptor.js";
+import type { RichDocumentWire } from "../infrastructure/cms/schemas/rich-document.js";
 import {
   DEMO_ENVIRONMENT,
   DEMO_LOCALE,
@@ -135,11 +138,13 @@ describe("resolvePage", () => {
       expect(heroStrip.id).toBe(demoIds.heroWelcome);
       expect(heroStrip.image?.id).toBe(demoIds.assetHero);
       expect(heroStrip.image?.url).toContain("hero-welcome");
-      expect(unwrapRichDocument(heroStrip.body)).toEqual({
+      expect(RichDocument.unwrap<RichDocumentWire>(heroStrip.body)).toEqual({
         version: 1,
         blocks: [{ type: "paragraph", text: "Welcome to the homepage hero." }],
       });
-      expect(heroStrip.image && unwrapMediaDescriptor(heroStrip.image.descriptor)).toEqual({
+      expect(
+        heroStrip.image && MediaDescriptor.unwrap<MediaDescriptorWire>(heroStrip.image.descriptor)
+      ).toEqual({
         provider: "cdn",
         width: 1600,
         height: 900,

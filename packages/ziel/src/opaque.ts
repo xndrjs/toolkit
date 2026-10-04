@@ -15,7 +15,12 @@ export type Opaque<Name extends string> = unknown & { readonly [opaqueBrand]: Na
 export interface OpaqueType<Name extends string> {
   readonly name: Name;
   wrap(value: unknown): Opaque<Name>;
-  unwrap(value: Opaque<Name>): unknown;
+  /**
+   * Identity unwrap. Defaults to `unknown` so callers can re-parse;
+   * pass a type argument when the app trusts the loader-validated shape:
+   * `MediaDescriptor.unwrap<MediaDescriptorWire>(value)`.
+   */
+  unwrap<T = unknown>(value: Opaque<Name>): T;
 }
 
 /** Extract the branded value type from an {@link OpaqueType} token. */
@@ -32,8 +37,8 @@ export function defineOpaqueType<const Name extends string>(name: Name): OpaqueT
     wrap(value: unknown): Opaque<Name> {
       return value as Opaque<Name>;
     },
-    unwrap(value: Opaque<Name>): unknown {
-      return value;
+    unwrap<T = unknown>(value: Opaque<Name>): T {
+      return value as T;
     },
   });
 }

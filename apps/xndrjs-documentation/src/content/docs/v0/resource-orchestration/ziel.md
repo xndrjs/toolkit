@@ -94,7 +94,7 @@ resource Article(id: ArticleId): {
 }
 ```
 
-Opaque types are **payload-only**. They must not appear in identity parameters, query parameters, datasource `context`, or `refers`. They are not inspectable in `when` expressions. Codegen emits a runtime token (`defineOpaqueType`) plus a branded type alias; adapters introduce values with `.wrap`, and the composition root maps tokens to translators via `createOpaqueRegistry` (separate from `ContentRegistry`). `wrap` / `unwrap` are identity trust boundaries — they do not validate or attach runtime brands. Full DSL and runtime notes: [`packages/ziel` README](https://github.com/xndrjs/toolkit/tree/main/packages/ziel).
+Opaque types are **payload-only**. They must not appear in identity parameters, query parameters, datasource `context`, or `refers`. They are not inspectable in `when` expressions. Codegen emits a runtime token (`defineOpaqueType`) plus a branded type alias; adapters introduce values with `.wrap`. `unwrap` defaults to `unknown` (re-parse if needed); trusted callers can assert the loader-validated shape with `unwrap<Wire>(value)`. Optional multi-token bridges use `createOpaqueRegistry` (separate from `ContentRegistry`). Full DSL and runtime notes: [`packages/ziel` README](https://github.com/xndrjs/toolkit/tree/main/packages/ziel).
 
 ### ARI identity
 
