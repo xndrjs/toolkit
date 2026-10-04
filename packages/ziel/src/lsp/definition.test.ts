@@ -51,8 +51,8 @@ function tablesFrom(source: string) {
   const sink = createDiagnosticSink();
   const program = lowerProgram(model, sink);
   expect(sink.diagnostics.filter((d) => d.code.startsWith("LOWER"))).toEqual([]);
-  const { scalars, resources } = analyzeProgram(program);
-  return { document, program, scalars, resources };
+  const { scalars, opaques, resources } = analyzeProgram(program);
+  return { document, program, scalars, opaques, resources };
 }
 
 /** Offset of the `occurrence`-th whole-word match of `needle` (ID token). */
@@ -74,65 +74,66 @@ function expectSpanCovers(span: SourceSpan | undefined, source: string, needle: 
 
 describe("definitionSpanAtOffset", () => {
   it("jumps from scalar type refs to the scalar declaration", () => {
-    const { document, program, scalars, resources } = tablesFrom(FIXTURE);
+    const { document, program, scalars, opaques, resources } = tablesFrom(FIXTURE);
     // NamedTypeExpr in identity: `id: EntryId`
     const offset = offsetOf(FIXTURE, "EntryId", 1);
-    const span = definitionSpanAtOffset(document, offset, { program, scalars, resources });
+    const span = definitionSpanAtOffset(document, offset, { program, scalars, opaques, resources });
     expectSpanCovers(span, FIXTURE, "scalar EntryId");
     expect(span).toEqual(scalars.get("EntryId")!.span);
   });
 
   it("jumps from resource names to the resource declaration", () => {
-    const { document, program, scalars, resources } = tablesFrom(FIXTURE);
+    const { document, program, scalars, opaques, resources } = tablesFrom(FIXTURE);
     const onOffset = offsetOf(FIXTURE, "Entry", 2); // `on Entry e`
-    expect(definitionSpanAtOffset(document, onOffset, { program, scalars, resources })).toEqual(
-      program.resources.find((r) => r.name === "Entry")!.span
-    );
+    expect(
+      definitionSpanAtOffset(document, onOffset, { program, scalars, opaques, resources })
+    ).toEqual(program.resources.find((r) => r.name === "Entry")!.span);
 
     const ctorOffset = offsetOf(FIXTURE, "Entry", 3); // `expand author: Entry(`
-    expect(definitionSpanAtOffset(document, ctorOffset, { program, scalars, resources })).toEqual(
-      program.resources.find((r) => r.name === "Entry")!.span
-    );
+    expect(
+      definitionSpanAtOffset(document, ctorOffset, { program, scalars, opaques, resources })
+    ).toEqual(program.resources.find((r) => r.name === "Entry")!.span);
   });
 
   it("jumps from selected fields to payload / identity field decls", () => {
-    const { document, program, scalars, resources } = tablesFrom(FIXTURE);
+    const { document, program, scalars, opaques, resources } = tablesFrom(FIXTURE);
     const titleSelect = offsetOf(FIXTURE, "title", 1);
-    expect(definitionSpanAtOffset(document, titleSelect, { program, scalars, resources })).toEqual(
-      resources.get("Entry")!.payload.get("title")!.span
-    );
+    expect(
+      definitionSpanAtOffset(document, titleSelect, { program, scalars, opaques, resources })
+    ).toEqual(resources.get("Entry")!.payload.get("title")!.span);
 
     // whole-word `id`: identity, payload shorthand, root NamedArg, then projection select
     const idSelect = offsetOf(FIXTURE, "id", 3);
-    expect(definitionSpanAtOffset(document, idSelect, { program, scalars, resources })).toEqual(
-      resources.get("Entry")!.payload.get("id")!.span
-    );
+    expect(
+      definitionSpanAtOffset(document, idSelect, { program, scalars, opaques, resources })
+    ).toEqual(resources.get("Entry")!.payload.get("id")!.span);
   });
 
   it("jumps from construction arg names to identity fields", () => {
-    const { document, program, scalars, resources } = tablesFrom(FIXTURE);
+    const { document, program, scalars, opaques, resources } = tablesFrom(FIXTURE);
     // `root Entry(id: entryId` — NamedArg name
     const idArg = offsetOf(FIXTURE, "id", 2);
-    expect(definitionSpanAtOffset(document, idArg, { program, scalars, resources })).toEqual(
-      resources.get("Entry")!.identity.get("id")!.span
-    );
+    expect(
+      definitionSpanAtOffset(document, idArg, { program, scalars, opaques, resources })
+    ).toEqual(resources.get("Entry")!.identity.get("id")!.span);
   });
 
   it("jumps from field decl sites to themselves", () => {
-    const { document, program, scalars, resources } = tablesFrom(FIXTURE);
+    const { document, program, scalars, opaques, resources } = tablesFrom(FIXTURE);
     const titleDecl = offsetOf(FIXTURE, "title", 0);
-    expect(definitionSpanAtOffset(document, titleDecl, { program, scalars, resources })).toEqual(
-      resources.get("Entry")!.payload.get("title")!.span
-    );
+    expect(
+      definitionSpanAtOffset(document, titleDecl, { program, scalars, opaques, resources })
+    ).toEqual(resources.get("Entry")!.payload.get("title")!.span);
   });
 
   it("registers ZielDefinitionProvider on LSP services", async () => {
     const { Ziel, semanticSnapshot } = createZielLspServices(EmptyFileSystem);
     expect(Ziel.lsp.DefinitionProvider).toBeDefined();
-    const { document, program, scalars, resources } = tablesFrom(FIXTURE);
+    const { document, program, scalars, opaques, resources } = tablesFrom(FIXTURE);
     semanticSnapshot.set({
       program,
       scalars,
+      opaques,
       resources,
       documentsByUri: new Map([[document.uri.toString(), document]]),
     });
@@ -164,11 +165,11 @@ resource Entry(id: EntryId): {
 
 describe("definition refers targets", () => {
   it("jumps from refers resource name to the resource declaration", () => {
-    const { document, program, scalars, resources } = tablesFrom(REFERS_FIXTURE);
+    const { document, program, scalars, opaques, resources } = tablesFrom(REFERS_FIXTURE);
     const refersEntry = offsetOf(REFERS_FIXTURE, "Entry", 1); // `refers Entry with`
-    expect(definitionSpanAtOffset(document, refersEntry, { program, scalars, resources })).toEqual(
-      program.resources.find((r) => r.name === "Entry")!.span
-    );
+    expect(
+      definitionSpanAtOffset(document, refersEntry, { program, scalars, opaques, resources })
+    ).toEqual(program.resources.find((r) => r.name === "Entry")!.span);
   });
 });
 
@@ -201,10 +202,68 @@ query PageDetail(pageId: EntryId, locale: Locale) {
 
 describe("definition islands targets", () => {
   it("jumps from islands on-resource to the resource declaration", () => {
-    const { document, program, scalars, resources } = tablesFrom(ISLANDS_FIXTURE);
+    const { document, program, scalars, opaques, resources } = tablesFrom(ISLANDS_FIXTURE);
     const islandsEntry = offsetOf(ISLANDS_FIXTURE, "Entry", 1); // islands on Entry
-    expect(definitionSpanAtOffset(document, islandsEntry, { program, scalars, resources })).toEqual(
-      program.resources.find((r) => r.name === "Entry")!.span
+    expect(
+      definitionSpanAtOffset(document, islandsEntry, { program, scalars, opaques, resources })
+    ).toEqual(program.resources.find((r) => r.name === "Entry")!.span);
+  });
+});
+
+const OPAQUE_DEF_FIXTURE = `
+opaque RichDocument;
+scalar EntryId on string;
+
+resource Entry(id: EntryId): {
+  id
+  body: RichDocument
+}
+`;
+
+describe("definition opaque targets", () => {
+  it("jumps from opaque type refs to the opaque declaration", () => {
+    const { document, program, scalars, opaques, resources } = tablesFrom(OPAQUE_DEF_FIXTURE);
+    const ref = offsetOf(OPAQUE_DEF_FIXTURE, "RichDocument", 1);
+    expect(definitionSpanAtOffset(document, ref, { program, scalars, opaques, resources })).toEqual(
+      opaques.get("RichDocument")!.span
     );
+  });
+
+  it("jumps to opaque declarations across files via merged tables", () => {
+    const opaqueSource = `opaque RichDocument;\n`;
+    const resourceSource = `
+scalar EntryId on string;
+resource Entry(id: EntryId): {
+  id
+  body: RichDocument
+}
+`;
+    const opaqueDoc = parseDocument(opaqueSource, "inmemory:///opaques.ziel");
+    const resourceDoc = parseDocument(resourceSource, "inmemory:///resources.ziel");
+    const sink = createDiagnosticSink();
+    const opaqueProgram = lowerProgram(opaqueDoc.parseResult.value as Model, sink);
+    const resourceProgram = lowerProgram(resourceDoc.parseResult.value as Model, sink);
+    expect(sink.diagnostics.filter((d) => d.code.startsWith("LOWER"))).toEqual([]);
+
+    const program = {
+      scalars: resourceProgram.scalars,
+      opaques: opaqueProgram.opaques,
+      resources: resourceProgram.resources,
+      fragments: [],
+      datasources: [],
+      queries: [],
+      span: null,
+    };
+    const { scalars, opaques, resources } = analyzeProgram(program);
+
+    const ref = offsetOf(resourceSource, "RichDocument", 0);
+    const span = definitionSpanAtOffset(resourceDoc, ref, {
+      program,
+      scalars,
+      opaques,
+      resources,
+    });
+    expect(span).toEqual(opaques.get("RichDocument")!.span);
+    expect(span?.uri).toBe(opaqueDoc.uri.toString());
   });
 });

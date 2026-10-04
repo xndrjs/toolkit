@@ -66,8 +66,8 @@ function tablesFrom(source: string) {
   const sink = createDiagnosticSink();
   const program = lowerProgram(model, sink);
   expect(sink.diagnostics.filter((d) => d.code.startsWith("LOWER"))).toEqual([]);
-  const { scalars, resources } = analyzeProgram(program);
-  return { document, scalars, resources, program };
+  const { scalars, opaques, resources } = analyzeProgram(program);
+  return { document, scalars, opaques, resources, program };
 }
 
 /** Offset immediately after `needle` (occurrence-th match). */
@@ -97,13 +97,13 @@ function offsetOf(source: string, needle: string, occurrence = 0): number {
 function labelsAt(
   source: string,
   offset: number,
-  tables?: Omit<ReturnType<typeof tablesFrom>, "program"> & {
-    program?: ReturnType<typeof tablesFrom>["program"];
-  }
+  tables?: Partial<ReturnType<typeof tablesFrom>> &
+    Pick<ReturnType<typeof tablesFrom>, "document" | "scalars" | "resources">
 ): string[] {
   const ctx = tables ?? tablesFrom(source);
   return completionsAtOffset(ctx.document, offset, {
     scalars: ctx.scalars,
+    opaques: ctx.opaques,
     resources: ctx.resources,
     program: ctx.program,
   }).map((i) => i.label);
@@ -296,6 +296,7 @@ query Q(entryId: EntryId, locale: Locale) {
         span: null,
       },
       scalars,
+      opaques: new Map(),
       resources,
       documentsByUri: new Map([[document.uri.toString(), document]]),
     });
@@ -981,5 +982,138 @@ datasource CmsCustomReferences {
     );
     expect(labels).toEqual(expect.arrayContaining(["ref", "locale"]));
     expect(labels).not.toContain("id");
+  });
+});
+
+const OPAQUE_FIXTURE = `
+opaque RichDocument;
+opaque MediaDescriptor;
+scalar EntryId on string;
+
+resource Entry(id: EntryId): {
+  id
+  body: RichDocument
+  media?: MediaDescriptor | null
+}
+
+query EntryDetail(entryId: EntryId) {
+  root Entry(id: entryId)
+  on Entry e {
+    id
+    body
+  }
+}
+`;
+
+describe("completionsAtOffset — opaque types", () => {
+  it("suggests opaques in payload type positions with opaque detail", () => {
+    const { document, scalars, opaques, resources, program } = tablesFrom(OPAQUE_FIXTURE);
+    const offset = offsetOf(OPAQUE_FIXTURE, "RichDocument", 1); // body: RichDocument
+    const items = completionsAtOffset(document, offset, {
+      scalars,
+      opaques,
+      resources,
+      program,
+    });
+    const labels = items.map((i) => i.label);
+    expect(labels).toContain("RichDocument");
+    expect(labels).toContain("MediaDescriptor");
+    expect(labels).toContain("EntryId");
+    expect(items.find((i) => i.label === "RichDocument")?.detail).toBe("opaque RichDocument");
+  });
+
+  it("does not suggest opaques in identity type positions", () => {
+    const { document, scalars, opaques, resources, program } = tablesFrom(OPAQUE_FIXTURE);
+    const offset = offsetOf(OPAQUE_FIXTURE, "EntryId", 1); // id: EntryId in identity
+    const labels = completionsAtOffset(document, offset, {
+      scalars,
+      opaques,
+      resources,
+      program,
+    }).map((i) => i.label);
+    expect(labels).toContain("EntryId");
+    expect(labels).not.toContain("RichDocument");
+    expect(labels).not.toContain("MediaDescriptor");
+  });
+
+  it("does not suggest opaques in query parameter type positions", () => {
+    const source = `
+opaque RichDocument;
+scalar EntryId on string;
+resource Entry(id: EntryId): { id body: RichDocument }
+query Q(doc: RichDocument, id: EntryId) {
+  root Entry(id: id)
+  on Entry e { id }
+}
+`;
+    // Program is invalid (opaque in query param) but still lowers for IntelliSense tables.
+    const document = parseDocument(source);
+    const model = document.parseResult.value as Model;
+    const sink = createDiagnosticSink();
+    const program = lowerProgram(model, sink);
+    const { scalars, opaques, resources } = analyzeProgram(program);
+    // decl, payload field, then query param
+    const offset = offsetOf(source, "RichDocument", 2);
+    const labels = completionsAtOffset(document, offset, {
+      scalars,
+      opaques,
+      resources,
+      program,
+    }).map((i) => i.label);
+    expect(labels).toContain("EntryId");
+    expect(labels).not.toContain("RichDocument");
+  });
+
+  it("does not suggest opaques in datasource context type positions", () => {
+    const source = `
+opaque RichDocument;
+scalar EntryId on string;
+scalar Locale on string;
+resource Entry(id: EntryId): { id }
+datasource Entries {
+  context {
+    locale: Locale
+    payload: RichDocument
+  }
+  for Entry
+}
+`;
+    const document = parseDocument(source);
+    const model = document.parseResult.value as Model;
+    const sink = createDiagnosticSink();
+    const program = lowerProgram(model, sink);
+    const { scalars, opaques, resources } = analyzeProgram(program);
+    const offset = offsetOf(source, "RichDocument", 1); // datasource context field
+    const labels = completionsAtOffset(document, offset, {
+      scalars,
+      opaques,
+      resources,
+      program,
+    }).map((i) => i.label);
+    expect(labels).toContain("Locale");
+    expect(labels).not.toContain("RichDocument");
+  });
+
+  it("does not suggest opaques after on / refers (resource-only contexts)", () => {
+    const incomplete = `
+opaque RichDocument;
+scalar EntryId on string;
+resource Entry(id: EntryId): { id body: RichDocument }
+query Q(id: EntryId) {
+  root Entry(id: id)
+  on 
+}
+`;
+    const document = parseDocument(incomplete);
+    const { scalars, opaques, resources, program } = tablesFrom(OPAQUE_FIXTURE);
+    const offset = offsetAfter(incomplete, "on ");
+    const labels = completionsAtOffset(document, offset, {
+      scalars,
+      opaques,
+      resources,
+      program,
+    }).map((i) => i.label);
+    expect(labels).toContain("Entry");
+    expect(labels).not.toContain("RichDocument");
   });
 });

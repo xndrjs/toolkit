@@ -21,6 +21,7 @@ describe("SemanticSnapshotCache", () => {
     const snapshot = {
       program: EMPTY_PROGRAM,
       scalars: new Map(),
+      opaques: new Map(),
       resources: new Map(),
       documentsByUri: new Map(),
     };

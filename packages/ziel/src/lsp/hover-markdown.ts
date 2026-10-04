@@ -7,7 +7,7 @@
  */
 import { createDiagnosticSink } from "../check/diagnostic";
 import { resolvePathOnPayloadType } from "../check/expr-paths";
-import type { ResourceSymbols, ResourceTable, ScalarTable } from "../check/symbols";
+import type { OpaqueTable, ResourceSymbols, ResourceTable, ScalarTable } from "../check/symbols";
 import type { FieldDecl, TypeExpr } from "../ir";
 
 /** Wrap a Ziel signature in a fenced code block for LSP markdown hover. */
@@ -74,6 +74,10 @@ export function formatScalarSignature(name: string, representation: string): str
   return `scalar ${name} on ${representation}`;
 }
 
+export function formatOpaqueSignature(name: string): string {
+  return `opaque ${name}`;
+}
+
 /** `resource Name(…): Payload` — multiline when identity has ≥2 fields or payload is nested. */
 export function formatResourceSignature(name: string, symbols: ResourceSymbols): string {
   const identityFields = [...symbols.identity.values()];
@@ -112,6 +116,10 @@ export function scalarHoverMarkdown(name: string, representation: string): strin
   return hoverCodeBlock(formatScalarSignature(name, representation));
 }
 
+export function opaqueHoverMarkdown(name: string): string {
+  return hoverCodeBlock(formatOpaqueSignature(name));
+}
+
 export function resourceHoverMarkdown(name: string, symbols: ResourceSymbols): string {
   return hoverCodeBlock(formatResourceSignature(name, symbols));
 }
@@ -130,20 +138,25 @@ export function fragmentHoverMarkdown(
 
 /**
  * Resolve a bare type / resource name against workspace tables.
- * Scalars win only when present; otherwise resources; else undefined.
+ * Order matches lowering: resource → scalar → opaque.
  */
 export function namedTypeHoverMarkdown(
   name: string,
   scalars: ScalarTable,
-  resources: ResourceTable
+  resources: ResourceTable,
+  opaques?: OpaqueTable
 ): string | undefined {
+  const resource = resources.get(name);
+  if (resource) {
+    return resourceHoverMarkdown(name, resource);
+  }
   const scalar = scalars.get(name);
   if (scalar) {
     return scalarHoverMarkdown(scalar.name, scalar.representation);
   }
-  const resource = resources.get(name);
-  if (resource) {
-    return resourceHoverMarkdown(name, resource);
+  const opaque = opaques?.get(name);
+  if (opaque) {
+    return opaqueHoverMarkdown(opaque.name);
   }
   return undefined;
 }

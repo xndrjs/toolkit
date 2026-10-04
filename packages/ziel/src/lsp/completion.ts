@@ -1,5 +1,5 @@
 /**
- * Ziel CompletionProvider — scalars / resources / payload fields / construction args.
+ * Ziel CompletionProvider — scalars / opaques / resources / payload fields / construction args.
  * Keywords stay on Langium's DefaultCompletionProvider follow-set.
  */
 import { AstUtils, CstUtils, type AstNode, type CstNode, type LangiumDocument } from "langium";
@@ -10,7 +10,7 @@ import { CompletionItemKind, CompletionList as CompletionListFactory } from "vsc
 import { formatType, isAssignable } from "../check/assignability";
 import { requiredQueryContextFields } from "../check/check-datasources";
 import { expandPayloadObjectMembers, narrowPayloadByFilter } from "../check/discriminants";
-import type { ResourceTable, ScalarTable } from "../check/symbols";
+import type { OpaqueTable, ResourceTable, ScalarTable } from "../check/symbols";
 import { lowerExpr } from "../compile/lower/expr";
 import type { Program, TypeExpr } from "../ir";
 import {
@@ -29,6 +29,7 @@ import {
   isRefersTarget,
   isResolveArm,
   isResourceConstruction,
+  isResourceDeclaration,
   isTypeProjection,
   isTypedField,
   type ContextProjectionEntry,
@@ -43,15 +44,22 @@ import type { SemanticSnapshotCache } from "./semantic-snapshot";
 export type CompletionTables = {
   scalars: ScalarTable;
   resources: ResourceTable;
+  /** Opaque table; falls back to `program.opaques` when omitted. */
+  opaques?: OpaqueTable;
   /** Merged program when available (query-context proposals). */
   program?: Program;
 };
+
+function opaqueTableFrom(tables: CompletionTables): OpaqueTable {
+  if (tables.opaques) return tables.opaques;
+  return new Map((tables.program?.opaques ?? []).map((opaque) => [opaque.name, opaque]));
+}
 
 function nameTablesFrom(tables: CompletionTables) {
   return {
     scalars: new Set(tables.scalars.keys()),
     resources: new Set(tables.resources.keys()),
-    opaques: new Set(tables.program?.opaques.map((opaque) => opaque.name) ?? []),
+    opaques: new Set(opaqueTableFrom(tables).keys()),
   };
 }
 
@@ -65,7 +73,7 @@ export type SemanticCompletionItem = {
 };
 
 type SemanticContext =
-  | { kind: "types" }
+  | { kind: "types"; /** Opaque names only in payload type slots. */ allowOpaque: boolean }
   | { kind: "resources" }
   | {
       kind: "payloadFields";
@@ -85,6 +93,25 @@ type SemanticContext =
       query: QueryDeclaration;
       editing?: ContextProjectionEntry;
     };
+
+/**
+ * Opaque types are payload-only: object fields and resource payload roots.
+ * Identity, query params, and datasource context TypedFields are excluded.
+ */
+function typePositionAllowsOpaque(node: AstNode): boolean {
+  if (AstUtils.getContainerOfType(node, isObjectField)) {
+    return true;
+  }
+  const resource = AstUtils.getContainerOfType(node, isResourceDeclaration);
+  if (!resource) {
+    return false;
+  }
+  const typed = AstUtils.getContainerOfType(node, isTypedField);
+  if (typed && resource.identity.includes(typed)) {
+    return false;
+  }
+  return true;
+}
 
 function assignmentFeature(cstNode: CstNode): string | undefined {
   let current: AstNode | undefined = cstNode.grammarSource as AstNode | undefined;
@@ -167,7 +194,7 @@ function payloadFieldsForResource(
   }));
 }
 
-function typeCompletions(tables: CompletionTables): SemanticCompletionItem[] {
+function typeCompletions(tables: CompletionTables, allowOpaque: boolean): SemanticCompletionItem[] {
   const items: SemanticCompletionItem[] = [];
   for (const [name, scalar] of tables.scalars) {
     items.push({
@@ -175,6 +202,15 @@ function typeCompletions(tables: CompletionTables): SemanticCompletionItem[] {
       kind: CompletionItemKind.TypeParameter,
       detail: `scalar ${name} on ${scalar.representation}`,
     });
+  }
+  if (allowOpaque) {
+    for (const name of opaqueTableFrom(tables).keys()) {
+      items.push({
+        label: name,
+        kind: CompletionItemKind.TypeParameter,
+        detail: `opaque ${name}`,
+      });
+    }
   }
   for (const name of tables.resources.keys()) {
     items.push({
@@ -216,7 +252,7 @@ function proposalsForContext(
 ): SemanticCompletionItem[] {
   switch (context.kind) {
     case "types":
-      return typeCompletions(tables);
+      return typeCompletions(tables, context.allowOpaque);
     case "resources":
       return resourceCompletions(tables);
     case "payloadFields":
@@ -401,12 +437,12 @@ export function classifyCompletionContext(
   const feature = assignmentFeature(leaf);
 
   if (isNamedTypeExpr(node)) {
-    return { kind: "types" };
+    return { kind: "types", allowOpaque: typePositionAllowsOpaque(node) };
   }
 
   if (isTypedField(node) || isObjectField(node)) {
     if (feature === "type") {
-      return { kind: "types" };
+      return { kind: "types", allowOpaque: typePositionAllowsOpaque(node) };
     }
   }
 
@@ -509,11 +545,15 @@ export function classifyCompletionContext(
 
   // After `:` in TypedField / ObjectField before NamedTypeExpr exists.
   if (/:\s*[\w_]*$/.test(before.slice(Math.max(0, offset - 48), offset))) {
-    if (
-      AstUtils.getContainerOfType(node, isTypedField) ||
-      AstUtils.getContainerOfType(node, isObjectField)
-    ) {
-      return { kind: "types" };
+    const typed = AstUtils.getContainerOfType(node, isTypedField);
+    const objectField = AstUtils.getContainerOfType(node, isObjectField);
+    if (typed || objectField) {
+      return { kind: "types", allowOpaque: typePositionAllowsOpaque(node) };
+    }
+    // Root payload after `resource Name(…):`
+    const resource = AstUtils.getContainerOfType(node, isResourceDeclaration);
+    if (resource && !typed) {
+      return { kind: "types", allowOpaque: true };
     }
   }
 

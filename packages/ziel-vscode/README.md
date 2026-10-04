@@ -39,7 +39,7 @@ After editing the TextMate grammar or language configuration, reload the Extensi
 
 ## What it colors
 
-- Keywords: `scalar`, `resource`, `fragment`, `query`, `context`, `root`, `roots`, `on`, `resolve`, `to`, `expand`, `each`, `in`, `not`, `and`, `or`, `when`, `islands`, `refers`, `include`, `all`, `properties` (and `with` inside a `refers` clause)
+- Keywords: `scalar`, `opaque`, `resource`, `fragment`, `query`, `context`, `root`, `roots`, `on`, `resolve`, `to`, `expand`, `each`, `in`, `not`, `and`, `or`, `when`, `islands`, `refers`, `include`, `all`, `properties` (and `with` inside a `refers` clause)
 - Primitives: `string`, `number`, `boolean`
 - Strings, numbers, `true` / `false` / `null`
 - Operators: `==`, `!=`, `!`, `...`, `|`
@@ -52,14 +52,14 @@ On open/change of `.ziel` files, the language server looks upward for `ziel.conf
 
 ## IntelliSense
 
-Hover, completion, and go to definition read the same multi-file semantic snapshot as diagnostics (merged IR + scalar/resource tables).
+Hover, completion, and go to definition read the same multi-file semantic snapshot as diagnostics (merged IR + scalar/opaque/resource tables).
 
-| Feature              | Behavior                                                                                                                                                                |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Hover**            | Scalars (`scalar EntryId on string`), resources (identity + payload), fields, selected projection fields, expression path segments, and island `when` paths             |
-| **Completion**       | Type positions (scalar + resource names); `on` / construction / `refers` / islands targets (resources); projection body fields; construction args; island binding paths |
-| **Go to definition** | Jump to scalar, resource, and (best-effort) field declarations via IR/AST spans (including islands `on` resources)                                                      |
-| **Quick fixes**      | Add missing `on` projections (individually or together), an empty `context`, or an empty `roots` block from the corresponding diagnostic                                |
-| **Format Document**  | Langium `AbstractFormatter` in the language server (2-space indent by default; respects editor `tabSize` / `insertSpaces`). Range formatting included.                  |
+| Feature              | Behavior                                                                                                                                                                                                                                           |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hover**            | Scalars (`scalar EntryId on string`), opaques (`opaque RichDocument`), resources (identity + payload), fields, selected projection fields, expression path segments, and island `when` paths                                                       |
+| **Completion**       | Payload type positions (scalar + opaque + resource names); identity/query/datasource types (scalar + resource only); `on` / construction / `refers` / islands targets (resources); projection body fields; construction args; island binding paths |
+| **Go to definition** | Jump to scalar, opaque, resource, and (best-effort) field declarations via IR/AST spans (including islands `on` resources and cross-file opaque refs)                                                                                              |
+| **Quick fixes**      | Add missing `on` projections (individually or together), an empty `context`, or an empty `roots` block from the corresponding diagnostic                                                                                                           |
+| **Format Document**  | Langium `AbstractFormatter` in the language server (2-space indent by default; respects editor `tabSize` / `insertSpaces`). Range formatting included.                                                                                             |
 
 Keywords still come from the Langium grammar follow-set. Rename and find-references are not implemented yet.

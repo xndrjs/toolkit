@@ -98,12 +98,13 @@ function snapshotFrom(source: string) {
   const sink = createDiagnosticSink();
   const program = lowerProgram(model, sink);
   expect(sink.diagnostics.filter((d) => d.code.startsWith("LOWER"))).toEqual([]);
-  const { scalars, resources } = analyzeProgram(program);
+  const { scalars, opaques, resources } = analyzeProgram(program);
   return {
     document,
     snapshot: {
       program,
       scalars,
+      opaques,
       resources,
       documentsByUri: new Map([[document.uri.toString(), document]]),
     },

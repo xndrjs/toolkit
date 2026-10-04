@@ -113,9 +113,41 @@ describe("validateWorkspace", () => {
     expect(result.semantic).toBeDefined();
     expect(result.semantic!.scalars.has("PostId")).toBe(true);
     expect(result.semantic!.scalars.has("Locale")).toBe(true);
+    expect(result.semantic!.opaques.size).toBe(0);
     expect(result.semantic!.resources.has("Post")).toBe(true);
     expect(result.semantic!.program.resources).toHaveLength(1);
     expect(result.semantic!.program.queries).toHaveLength(1);
+  });
+
+  it("exposes cross-file opaque tables on the semantic snapshot", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "xndrjs-ziel-lsp-opaque-"));
+    const opaquesPath = join(tempDir, "opaques.ziel");
+    const resourcesPath = join(tempDir, "resources.ziel");
+    writeFileSync(opaquesPath, `opaque RichDocument;\n`);
+    writeFileSync(
+      resourcesPath,
+      `
+scalar PostId on string;
+resource Post(id: PostId): {
+  id
+  body: RichDocument
+}
+`
+    );
+    writeFileSync(join(tempDir, "ziel.config.ts"), PROJECT_CONFIG);
+
+    const result = await validateWorkspace({
+      triggerUri: pathToFileURL(resourcesPath).href,
+      openSources: new Map(),
+      workspaceFolders: [tempDir],
+    });
+
+    expect(result.byUri.get(pathToFileURL(resourcesPath).href)).toEqual([]);
+    expect(result.semantic).toBeDefined();
+    expect(result.semantic!.opaques.has("RichDocument")).toBe(true);
+    expect(result.semantic!.opaques.get("RichDocument")!.span?.uri).toBe(
+      pathToFileURL(opaquesPath).href
+    );
   });
 
   it("lowers a fragment declared in a third workspace file before checking", async () => {

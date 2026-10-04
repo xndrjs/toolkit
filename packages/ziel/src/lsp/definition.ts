@@ -1,5 +1,5 @@
 /**
- * Ziel DefinitionProvider — jump to scalar / resource / field declaration spans.
+ * Ziel DefinitionProvider — jump to scalar / opaque / resource / field declaration spans.
  * Uses the shared semantic snapshot (IR + tables); no Langium cross-refs.
  */
 import { AstUtils, CstUtils, type AstNode, type CstNode, type LangiumDocument } from "langium";
@@ -8,7 +8,7 @@ import type { DefinitionParams, LocationLink } from "vscode-languageserver";
 import { LocationLink as LocationLinkFactory } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import type { ResourceTable, ScalarTable } from "../check/symbols";
+import type { OpaqueTable, ResourceTable, ScalarTable } from "../check/symbols";
 import type { Program, SourceSpan } from "../ir";
 import {
   isFragmentDeclaration,
@@ -16,6 +16,7 @@ import {
   isNamedArg,
   isNamedTypeExpr,
   isObjectField,
+  isOpaqueDeclaration,
   isProjectionClause,
   isProjectionWhenArm,
   isRefersTarget,
@@ -30,6 +31,7 @@ import type { SemanticSnapshot, SemanticSnapshotCache } from "./semantic-snapsho
 export type DefinitionTables = {
   program: Program;
   scalars: ScalarTable;
+  opaques: OpaqueTable;
   resources: ResourceTable;
 };
 
@@ -67,6 +69,10 @@ function scalarDeclSpan(name: string, scalars: ScalarTable): SourceSpan | null {
   return scalars.get(name)?.span ?? null;
 }
 
+function opaqueDeclSpan(name: string, opaques: OpaqueTable): SourceSpan | null {
+  return opaques.get(name)?.span ?? null;
+}
+
 function identityFieldSpan(
   resourceName: string,
   fieldName: string,
@@ -86,8 +92,13 @@ function fieldDeclSpan(
   return symbols.payload.get(fieldName)?.span ?? symbols.identity.get(fieldName)?.span ?? null;
 }
 
+/** Order matches lowering: resource → scalar → opaque. */
 function namedTypeDeclSpan(name: string, tables: DefinitionTables): SourceSpan | null {
-  return scalarDeclSpan(name, tables.scalars) ?? resourceDeclSpan(name, tables.program);
+  return (
+    resourceDeclSpan(name, tables.program) ??
+    scalarDeclSpan(name, tables.scalars) ??
+    opaqueDeclSpan(name, tables.opaques)
+  );
 }
 
 /**
@@ -126,6 +137,11 @@ export function definitionSpanForCstLeaf(
 
   if (isScalarDeclaration(node) && (feature === "name" || node.name === text)) {
     const span = scalarDeclSpan(node.name, tables.scalars);
+    if (span) return span;
+  }
+
+  if (isOpaqueDeclaration(node) && (feature === "name" || node.name === text)) {
+    const span = opaqueDeclSpan(node.name, tables.opaques);
     if (span) return span;
   }
 
@@ -226,7 +242,7 @@ export function definitionSpanForCstLeaf(
     }
   }
 
-  // Fallback: token text looks like a known scalar / resource name.
+  // Fallback: token text looks like a known resource / scalar / opaque name.
   if (feature === undefined || feature === "name" || feature === "resource") {
     const byName = namedTypeDeclSpan(text, tables);
     if (byName) return byName;

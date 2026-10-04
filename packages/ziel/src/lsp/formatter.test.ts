@@ -101,6 +101,18 @@ resource R(id:A): { id }`;
     expect(formatted).toContain("scalar B on string;\n\nresource R");
   });
 
+  it("formats opaque declarations with a blank line between top-level decls", async () => {
+    const messy = `opaque RichDocument;
+opaque MediaDescriptor;
+scalar Id on string;
+resource Doc(id:Id):{id body:RichDocument}`;
+
+    const formatted = await formatSource(messy);
+    expect(formatted).toContain("opaque RichDocument;\n\nopaque MediaDescriptor;");
+    expect(formatted).toContain("opaque MediaDescriptor;\n\nscalar Id on string;");
+    expect(formatted).toContain("body: RichDocument");
+  });
+
   it("wraps multi-parameter query signatures", async () => {
     const messy = `
 scalar EntryId on string;

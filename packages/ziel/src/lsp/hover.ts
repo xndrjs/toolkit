@@ -6,7 +6,7 @@ import { AstUtils, CstUtils, type AstNode, type CstNode, type LangiumDocument } 
 import type { HoverProvider, LangiumServices } from "langium/lsp";
 import type { Hover, HoverParams } from "vscode-languageserver";
 
-import type { ResourceTable, ScalarTable } from "../check/symbols";
+import type { OpaqueTable, ResourceTable, ScalarTable } from "../check/symbols";
 import type { FieldDecl, Program, TypeExpr } from "../ir";
 import { lowerObjectField, lowerTypedField, type NameTables } from "../compile/lower/types";
 import {
@@ -19,6 +19,7 @@ import {
   isObjectField,
   isOnFailureSetError,
   isOnFailureSetNull,
+  isOpaqueDeclaration,
   isProjectionClause,
   isProjectionWhenArm,
   isQueryDeclaration,
@@ -42,6 +43,7 @@ import {
 import {
   fieldHoverMarkdown,
   namedTypeHoverMarkdown,
+  opaqueHoverMarkdown,
   resourceFieldHoverMarkdown,
   resourceHoverMarkdown,
   scalarHoverMarkdown,
@@ -51,16 +53,23 @@ import type { SemanticSnapshot, SemanticSnapshotCache } from "./semantic-snapsho
 type HoverTables = {
   scalars: ScalarTable;
   resources: ResourceTable;
+  /** Opaque table; falls back to `program.opaques` when omitted. */
+  opaques?: OpaqueTable;
   /** Merged program when available (query context projection types). */
   program?: Program;
   documentsByUri?: ReadonlyMap<string, LangiumDocument>;
 };
 
+function opaqueTableFrom(tables: HoverTables): OpaqueTable {
+  if (tables.opaques) return tables.opaques;
+  return new Map((tables.program?.opaques ?? []).map((opaque) => [opaque.name, opaque]));
+}
+
 function nameTablesFrom(tables: HoverTables): NameTables {
   return {
     scalars: new Set(tables.scalars.keys()),
     resources: new Set(tables.resources.keys()),
-    opaques: new Set(tables.program?.opaques.map((opaque) => opaque.name) ?? []),
+    opaques: new Set(opaqueTableFrom(tables).keys()),
   };
 }
 
@@ -279,7 +288,12 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
   }
 
   if (isNamedTypeExpr(node) && (feature === "name" || feature === undefined)) {
-    return namedTypeHoverMarkdown(node.name, tables.scalars, tables.resources);
+    return namedTypeHoverMarkdown(
+      node.name,
+      tables.scalars,
+      tables.resources,
+      opaqueTableFrom(tables)
+    );
   }
 
   if (isScalarDeclaration(node) && (feature === "name" || node.name === text)) {
@@ -288,6 +302,11 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
       return scalarHoverMarkdown(scalar.name, scalar.representation);
     }
     return scalarHoverMarkdown(node.name, node.representation);
+  }
+
+  if (isOpaqueDeclaration(node) && (feature === "name" || node.name === text)) {
+    const opaque = opaqueTableFrom(tables).get(node.name);
+    return opaqueHoverMarkdown(opaque?.name ?? node.name);
   }
 
   if (isResourceDeclaration(node) && (feature === "name" || node.name === text)) {
@@ -349,9 +368,14 @@ export function hoverMarkdownForCstLeaf(leaf: CstNode, tables: HoverTables): str
     }
   }
 
-  // Fallback: token text looks like a known scalar / resource / fragment name.
+  // Fallback: token text looks like a known scalar / opaque / resource / fragment name.
   if (feature === undefined || feature === "name" || feature === "resource") {
-    const byName = namedTypeHoverMarkdown(text, tables.scalars, tables.resources);
+    const byName = namedTypeHoverMarkdown(
+      text,
+      tables.scalars,
+      tables.resources,
+      opaqueTableFrom(tables)
+    );
     if (byName) return byName;
     const fragHover = lookupFragmentHoverMarkdown(
       text,

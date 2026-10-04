@@ -9,7 +9,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadConfigFile } from "../cli/load-config";
-import type { Diagnostic, ResourceTable, ScalarTable } from "../check";
+import type { Diagnostic, OpaqueTable, ResourceTable, ScalarTable } from "../check";
 import { compileWorkspace, type WorkspaceSource } from "../compile/compile-workspace";
 import {
   collectZielFiles,
@@ -33,6 +33,7 @@ export type WorkspaceValidateOptions = {
 export type WorkspaceSemanticResult = {
   program: Program;
   scalars: ScalarTable;
+  opaques: OpaqueTable;
   resources: ResourceTable;
 };
 
@@ -173,7 +174,7 @@ function pushByUri(byUri: Map<string, Diagnostic[]>, uri: string, diagnostics: D
  * `triggerUri`).
  *
  * When lowering succeeds, `result.semantic` carries the workspace program plus
- * scalar/resource tables for the LSP snapshot cache.
+ * scalar/opaque/resource tables for the LSP snapshot cache.
  */
 export async function validateWorkspace(
   options: WorkspaceValidateOptions
@@ -207,6 +208,7 @@ export async function validateWorkspace(
     semantic = {
       program: compilation.program,
       scalars: compilation.analysis.scalars,
+      opaques: compilation.analysis.opaques,
       resources: compilation.analysis.resources,
     };
   }

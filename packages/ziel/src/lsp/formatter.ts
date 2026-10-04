@@ -29,6 +29,7 @@ import {
   isObjectField,
   isObjectTypeExpr,
   isOnFailureClause,
+  isOpaqueDeclaration,
   isProjectionClause,
   isProjectionDefaultArm,
   isProjectionWhenArm,
@@ -159,6 +160,13 @@ export class ZielFormatter extends AbstractFormatter {
       const f = this.getNodeFormatter(node);
       f.keyword("scalar").append(Formatting.oneSpace());
       f.keyword("on").surround(Formatting.oneSpace());
+      f.keyword(";").prepend(Formatting.noSpace());
+      return;
+    }
+
+    if (isOpaqueDeclaration(node)) {
+      const f = this.getNodeFormatter(node);
+      f.keyword("opaque").append(Formatting.oneSpace());
       f.keyword(";").prepend(Formatting.noSpace());
       return;
     }

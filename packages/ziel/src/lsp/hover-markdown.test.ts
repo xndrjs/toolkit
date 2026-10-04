@@ -6,11 +6,13 @@ import {
   fieldHoverMarkdown,
   formatFieldSignature,
   formatFragmentSignature,
+  formatOpaqueSignature,
   formatResourceSignature,
   formatScalarSignature,
   formatTypePretty,
   fragmentHoverMarkdown,
   namedTypeHoverMarkdown,
+  opaqueHoverMarkdown,
   projectedFieldsType,
   resourceFieldHoverMarkdown,
   resourceHoverMarkdown,
@@ -229,7 +231,7 @@ describe("hover-markdown builders", () => {
     );
   });
 
-  it("resolves named types from scalar / resource tables", () => {
+  it("resolves named types from resource / scalar / opaque tables", () => {
     const scalars = new Map([
       [
         "EntryId",
@@ -241,15 +243,24 @@ describe("hover-markdown builders", () => {
         },
       ],
     ]);
+    const opaques = new Map([["RichDocument", { name: "RichDocument", span: null }]]);
     const resources = new Map([["Entry", entrySymbols()]]);
 
-    expect(namedTypeHoverMarkdown("EntryId", scalars, resources)).toContain(
+    expect(namedTypeHoverMarkdown("EntryId", scalars, resources, opaques)).toContain(
       "scalar EntryId on string"
     );
-    expect(namedTypeHoverMarkdown("Entry", scalars, resources)).toContain(
+    expect(namedTypeHoverMarkdown("Entry", scalars, resources, opaques)).toContain(
       "resource Entry(\n  id: EntryId,"
     );
-    expect(namedTypeHoverMarkdown("Unknown", scalars, resources)).toBeUndefined();
+    expect(namedTypeHoverMarkdown("RichDocument", scalars, resources, opaques)).toContain(
+      "opaque RichDocument"
+    );
+    expect(namedTypeHoverMarkdown("Unknown", scalars, resources, opaques)).toBeUndefined();
+  });
+
+  it("formats opaque signatures", () => {
+    expect(formatOpaqueSignature("RichDocument")).toBe("opaque RichDocument");
+    expect(opaqueHoverMarkdown("RichDocument")).toContain("opaque RichDocument");
   });
 
   it("resolves payload fields from a resource table", () => {

@@ -141,6 +141,7 @@ export function registerWorkspaceValidation(
       semanticSnapshot.set({
         program: result.semantic.program,
         scalars: result.semantic.scalars,
+        opaques: result.semantic.opaques,
         resources: result.semantic.resources,
         documentsByUri: documentsByUriFor(services, result.sourcesByUri.keys()),
       });

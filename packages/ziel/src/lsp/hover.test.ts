@@ -50,8 +50,8 @@ function tablesFrom(source: string) {
   const sink = createDiagnosticSink();
   const program = lowerProgram(model, sink);
   expect(sink.diagnostics.filter((d) => d.code.startsWith("LOWER"))).toEqual([]);
-  const { scalars, resources } = analyzeProgram(program);
-  return { document, scalars, resources, program };
+  const { scalars, opaques, resources } = analyzeProgram(program);
+  return { document, scalars, opaques, resources, program };
 }
 
 /** Offset of the `occurrence`-th whole-word match of `needle` (ID token). */
@@ -162,6 +162,7 @@ query RawArrayExample(batchId: RawArrayBatchId) {
         span: null,
       },
       scalars,
+      opaques: new Map(),
       resources,
       documentsByUri: new Map([[document.uri.toString(), document]]),
     });
@@ -603,5 +604,38 @@ query Q(id: EntryId, lang: Locale) {
     expect(hoverMarkdownAtOffset(document, langOff, { scalars, resources, program })).toContain(
       "lang: Locale"
     );
+  });
+});
+
+const OPAQUE_HOVER_FIXTURE = `
+opaque RichDocument;
+scalar EntryId on string;
+
+resource Entry(id: EntryId): {
+  id
+  body: RichDocument
+}
+`;
+
+describe("hoverMarkdownAtOffset — opaque types", () => {
+  it("hovers opaque declarations and type references", () => {
+    const { document, scalars, opaques, resources, program } = tablesFrom(OPAQUE_HOVER_FIXTURE);
+    const decl = offsetOf(OPAQUE_HOVER_FIXTURE, "RichDocument", 0);
+    expect(
+      hoverMarkdownAtOffset(document, decl, { scalars, opaques, resources, program })
+    ).toContain("opaque RichDocument");
+
+    const ref = offsetOf(OPAQUE_HOVER_FIXTURE, "RichDocument", 1);
+    expect(
+      hoverMarkdownAtOffset(document, ref, { scalars, opaques, resources, program })
+    ).toContain("opaque RichDocument");
+  });
+
+  it("hovers payload fields typed as opaque", () => {
+    const { document, scalars, opaques, resources, program } = tablesFrom(OPAQUE_HOVER_FIXTURE);
+    const body = offsetOf(OPAQUE_HOVER_FIXTURE, "body", 0);
+    expect(
+      hoverMarkdownAtOffset(document, body, { scalars, opaques, resources, program })
+    ).toContain("body: RichDocument");
   });
 });

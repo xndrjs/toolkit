@@ -4,13 +4,14 @@
  */
 import type { LangiumDocument } from "langium";
 
-import type { ResourceTable, ScalarTable } from "../check/symbols";
+import type { OpaqueTable, ResourceTable, ScalarTable } from "../check/symbols";
 import type { Program } from "../ir";
 
 export type SemanticSnapshot = {
   /** Merged IR from files that parsed cleanly. */
   program: Program;
   scalars: ScalarTable;
+  opaques: OpaqueTable;
   resources: ResourceTable;
   /** Langium documents keyed by URI (for AST / offset lookups). */
   documentsByUri: ReadonlyMap<string, LangiumDocument>;
