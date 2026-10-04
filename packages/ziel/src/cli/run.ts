@@ -1,8 +1,9 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Diagnostic } from "../check";
 import { buildGeneratedModule } from "../compile/codegen/build-generated-module";
+import type { GeneratedModuleFile } from "../compile/codegen/compose-generated-module";
 import type { ZielCodegenConfig } from "../compile/config/define-config";
 import {
   parseCliArgs,
@@ -13,6 +14,7 @@ import {
   type ResolvedCliOptions,
 } from "./args";
 import { loadConfigFile } from "./load-config";
+import { removeStaleManagedOutputs } from "./remove-stale-managed-outputs";
 import { waitForSignal, watchCodegenInputs, type WatchCodegenPaths } from "./watch";
 import { writeFileIfChanged } from "./write-file-if-changed";
 
@@ -44,17 +46,49 @@ async function resolveConfig(
   return { config: await loadConfigFile(configPath), configPath: absolute };
 }
 
+/**
+ * Reject `out` values that look like a single TypeScript/JavaScript file, or an
+ * existing non-directory path. `out` is always a directory for multi-file emit.
+ */
+export function validateOutDirectory(out: string): void {
+  if (/\.(?:[cm]?[jt]s|[jt]sx)$/i.test(out)) {
+    throw new Error(`--out must be a directory for multi-file codegen (got a file path: ${out})`);
+  }
+
+  const absolute = resolve(out);
+  if (!existsSync(absolute)) return;
+
+  if (!statSync(absolute).isDirectory()) {
+    throw new Error(
+      `--out must be a directory for multi-file codegen (existing path is not a directory: ${out})`
+    );
+  }
+}
+
 type GenerateResult = {
-  code: string;
+  files: GeneratedModuleFile[];
   diagnostics: readonly Diagnostic[];
-  wrote: boolean;
+  /** True when any file was written or a stale managed file was removed. */
+  changed: boolean;
+  writtenPaths: string[];
+  deletedPaths: string[];
 };
+
+function printDryRun(files: readonly GeneratedModuleFile[]): void {
+  for (const file of files) {
+    process.stdout.write(`// ===== ${file.relativePath} =====\n`);
+    process.stdout.write(file.code);
+    if (!file.code.endsWith("\n")) {
+      process.stdout.write("\n");
+    }
+  }
+}
 
 function generateOnce(
   options: ResolvedCliOptions,
   config: ZielCodegenConfig | undefined
 ): GenerateResult {
-  const { code, diagnostics } = buildGeneratedModule({
+  const { files, diagnostics } = buildGeneratedModule({
     root: options.root,
     include: config?.include,
     exclude: config?.exclude,
@@ -66,17 +100,35 @@ function generateOnce(
   });
 
   if (diagnostics.length > 0) {
-    return { code, diagnostics, wrote: false };
+    return { files, diagnostics, changed: false, writtenPaths: [], deletedPaths: [] };
   }
 
   if (options.dryRun) {
-    process.stdout.write(code);
-    return { code, diagnostics, wrote: false };
+    printDryRun(files);
+    return { files, diagnostics, changed: false, writtenPaths: [], deletedPaths: [] };
   }
 
-  const outPath = resolve(options.out!);
-  const wrote = writeFileIfChanged(outPath, code);
-  return { code, diagnostics, wrote };
+  const outDir = resolve(options.out!);
+  const writtenPaths: string[] = [];
+  for (const file of files) {
+    const absolutePath = resolve(outDir, file.relativePath);
+    if (writeFileIfChanged(absolutePath, file.code)) {
+      writtenPaths.push(file.relativePath);
+    }
+  }
+
+  const deletedPaths = removeStaleManagedOutputs(
+    outDir,
+    files.map((file) => file.relativePath)
+  );
+
+  return {
+    files,
+    diagnostics,
+    changed: writtenPaths.length > 0 || deletedPaths.length > 0,
+    writtenPaths,
+    deletedPaths,
+  };
 }
 
 function logDiagnostics(diagnostics: readonly Diagnostic[]): void {
@@ -92,6 +144,9 @@ async function runWatchMode(cliOptions: CliOptions): Promise<number> {
     const { config, configPath } = await resolveConfig(cliOptions, true);
     const options = resolveCliOptions(cliOptions, config);
     validateCliOptions(options);
+    if (options.out) {
+      validateOutDirectory(options.out);
+    }
     const paths = {
       root: resolve(options.root ?? process.cwd()),
       configPath,
@@ -105,12 +160,18 @@ async function runWatchMode(cliOptions: CliOptions): Promise<number> {
       return { exitCode: 1, paths };
     }
 
-    if (options.dryRun) {
-      console.error(`ziel-codegen: watch (${reason}) — wrote stdout (dry-run)`);
-    } else if (result.wrote) {
-      console.error(`ziel-codegen: watch (${reason}) — wrote ${resolve(options.out!)}`);
+    const outDir = resolve(options.out!);
+    if (result.changed) {
+      const parts: string[] = [];
+      if (result.writtenPaths.length > 0) {
+        parts.push(`wrote ${result.writtenPaths.length} file(s)`);
+      }
+      if (result.deletedPaths.length > 0) {
+        parts.push(`removed ${result.deletedPaths.length} stale file(s)`);
+      }
+      console.error(`ziel-codegen: watch (${reason}) — ${parts.join(", ")} under ${outDir}`);
     } else {
-      console.error(`ziel-codegen: watch (${reason}) — unchanged ${resolve(options.out!)}`);
+      console.error(`ziel-codegen: watch (${reason}) — unchanged ${outDir}`);
     }
     return { exitCode: 0, paths };
   };
@@ -151,6 +212,9 @@ export async function runCli(argv: string[]): Promise<number> {
   const { config } = await resolveConfig(cliOptions);
   const options = resolveCliOptions(cliOptions, config);
   validateCliOptions(options);
+  if (options.out) {
+    validateOutDirectory(options.out);
+  }
 
   const result = generateOnce(options, config);
   if (result.diagnostics.length > 0) {

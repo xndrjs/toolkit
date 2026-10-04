@@ -1,6 +1,6 @@
 /**
  * Multi-file orchestration: collect → compileWorkspace → analyze → compose.
- * No filesystem writes — callers (CLI) persist `code` when diagnostics are empty.
+ * No filesystem writes — callers (CLI) persist `files` when diagnostics are empty.
  */
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -10,8 +10,9 @@ import { isErrorDiagnostic } from "../../check";
 import { collectZielFiles, type CollectZielFilesOptions } from "../collect/collect-ziel-files";
 import { compileWorkspace } from "../compile-workspace";
 import {
-  composeGeneratedModule,
+  composeGeneratedModules,
   type ComposeGeneratedModuleOptions,
+  type GeneratedModuleFile,
 } from "./compose-generated-module";
 
 export type BuildGeneratedModuleOptions = CollectZielFilesOptions &
@@ -24,11 +25,14 @@ export type BuildGeneratedModuleOptions = CollectZielFilesOptions &
   };
 
 export type BuildGeneratedModuleResult = {
-  /** Generated TypeScript; empty when diagnostics are non-empty. */
-  code: string;
+  /**
+   * Generated modules relative to `out` (`resources.ts`, `*.query.ts`, `index.ts`).
+   * Empty when diagnostics contain errors.
+   */
+  files: GeneratedModuleFile[];
   diagnostics: Diagnostic[];
-  /** Absolute paths collected for this run (stable order). */
-  files: string[];
+  /** Absolute `.ziel` paths collected for this run (stable order). */
+  sourceFiles: string[];
 };
 
 /** @deprecated Use {@link BuildGeneratedModuleOptions}. */
@@ -46,9 +50,9 @@ function withFileUri(diagnostic: Diagnostic, uri: string): Diagnostic {
 
 /**
  * Collect `.ziel` files, parse them, lower against one global workspace, then emit
- * a single module (resources + strategy builders + projectors when queries exist).
+ * the multi-file product (resources + per-query modules + barrel).
  *
- * On any diagnostics (syntax or semantic), `code` is `""` and nothing is written.
+ * On any diagnostics (syntax or semantic), `files` is `[]` and nothing is written.
  */
 export function buildGeneratedModule(
   options: BuildGeneratedModuleOptions = {}
@@ -60,9 +64,9 @@ export function buildGeneratedModule(
     requireDatasourceCoverage,
     ...collectOptions
   } = options;
-  const files = collectZielFiles(collectOptions);
+  const sourceFiles = collectZielFiles(collectOptions);
 
-  const sources = files.map((absPath) => ({
+  const sources = sourceFiles.map((absPath) => ({
     source: readFileSync(absPath, "utf8"),
     uri: pathToFileURL(absPath).href,
   }));
@@ -75,9 +79,9 @@ export function buildGeneratedModule(
 
   if (syntaxDiagnostics.length > 0) {
     return {
-      code: "",
+      files: [],
       diagnostics: syntaxDiagnostics,
-      files,
+      sourceFiles,
     };
   }
 
@@ -88,15 +92,15 @@ export function buildGeneratedModule(
 
   const errors = diagnostics.filter(isErrorDiagnostic);
   if (errors.length > 0) {
-    return { code: "", diagnostics, files };
+    return { files: [], diagnostics, sourceFiles };
   }
 
-  const { code } = composeGeneratedModule(compilation.analysis, {
+  const { files } = composeGeneratedModules(compilation.analysis, {
     importFrom,
     registryTypeName,
     resourceTag,
   });
-  return { code, diagnostics, files };
+  return { files, diagnostics, sourceFiles };
 }
 
 /** @deprecated Use {@link buildGeneratedModule}. */

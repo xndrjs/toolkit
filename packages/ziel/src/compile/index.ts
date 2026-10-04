@@ -66,6 +66,10 @@ export {
 export {
   composeGeneratedModule,
   composeGeneratedModules,
+  GENERATED_MODULE_HEADER,
+  INDEX_FILE,
+  isManagedGeneratedOutput,
+  RESOURCES_FILE,
   type ComposeGeneratedModuleOptions,
   type ComposeGeneratedModuleResult,
   type ComposeGeneratedModulesResult,

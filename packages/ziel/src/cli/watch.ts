@@ -7,7 +7,7 @@ export type WatchCodegenPaths = {
   root: string;
   /** Absolute config candidate, even when the file does not exist yet. */
   configPath: string | undefined;
-  /** Absolute output path — ignored to avoid regenerate loops. */
+  /** Absolute output directory — ignored entirely to avoid regenerate loops. */
   outPath: string | undefined;
 };
 
@@ -75,6 +75,15 @@ function hasIgnoredDirectory(relativePath: string): boolean {
   return relativePath.split(sep).some((part) => IGNORED_DIRECTORY_NAMES.has(part));
 }
 
+/** True when `candidate` is the `out` directory itself or a path inside it. */
+export function isPathInsideOutDirectory(candidate: string, outPath: string | undefined): boolean {
+  if (outPath === undefined) return false;
+  const absolute = resolve(candidate);
+  const outDir = resolve(outPath);
+  if (absolute === outDir) return true;
+  return relativePathWithin(outDir, absolute) !== undefined;
+}
+
 /**
  * True when a watcher event should trigger codegen.
  * Config files are relevant even outside `root`; ordinary inputs must be `.ziel`
@@ -88,7 +97,7 @@ export function isRelevantWatchPath(
 
   const paths = normalizePaths(options);
   const absolute = absoluteWatchPath(filename, paths.root);
-  if (paths.outPath === absolute) return false;
+  if (isPathInsideOutDirectory(absolute, paths.outPath)) return false;
   if (paths.configPath === absolute) return true;
 
   const fromRoot = relativePathWithin(paths.root, absolute);
@@ -107,7 +116,7 @@ function isIgnoredByChokidar(
 ): boolean {
   const absolute = resolve(filename);
   if (paths.configPath === absolute) return false;
-  if (paths.outPath === absolute) return true;
+  if (isPathInsideOutDirectory(absolute, paths.outPath)) return true;
 
   const fromRoot = relativePathWithin(paths.root, absolute);
   if (fromRoot !== undefined && hasIgnoredDirectory(fromRoot)) return true;

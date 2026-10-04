@@ -5,7 +5,7 @@ export const DEFAULT_ZIEL_INCLUDE = ["**/*.ziel"] as const;
 export const DEFAULT_ZIEL_EXCLUDE = ["**/node_modules/**"] as const;
 
 /**
- * Single-target codegen config (one `out` per file / script).
+ * Single-target codegen config (one `out` directory per file / script).
  * Multi-target = multiple config files or scripts.
  */
 export type ZielCodegenConfig = {
@@ -20,7 +20,11 @@ export type ZielCodegenConfig = {
    * A string is treated as a `RegExp` source.
    */
   pathFilter?: string | RegExp;
-  /** Output path for generated TypeScript (CLI write). */
+  /**
+   * Output **directory** for multi-file codegen (`resources.ts`, `*.query.ts`,
+   * `index.ts`). Must not end in `.ts` / `.js`. The CLI rejects an existing
+   * non-directory path at that location.
+   */
   out?: string;
   /** Module specifier for runtime imports in generated code → `generateResources`. */
   importFrom?: string;

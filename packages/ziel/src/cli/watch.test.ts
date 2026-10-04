@@ -33,7 +33,7 @@ function changeCollector(): {
 describe("isRelevantWatchPath", () => {
   const root = "/proj";
   const configPath = "/outside/ziel.config.ts";
-  const outPath = "/proj/src/generated/ziel.ts";
+  const outPath = "/proj/src/generated";
 
   it("treats null/empty filename as relevant (unknown event)", () => {
     expect(isRelevantWatchPath(null, { root, configPath, outPath })).toBe(true);
@@ -50,8 +50,14 @@ describe("isRelevantWatchPath", () => {
     expect(isRelevantWatchPath(configPath, { root, configPath, outPath })).toBe(true);
   });
 
-  it("ignores generated output, dependency metadata, and unrelated files", () => {
+  it("ignores the entire out directory, dependency metadata, and unrelated files", () => {
     expect(isRelevantWatchPath(outPath, { root, configPath, outPath })).toBe(false);
+    expect(isRelevantWatchPath(`${outPath}/resources.ts`, { root, configPath, outPath })).toBe(
+      false
+    );
+    expect(
+      isRelevantWatchPath(`${outPath}/page-detail.query.ts`, { root, configPath, outPath })
+    ).toBe(false);
     expect(isRelevantWatchPath("node_modules/pkg/schema.ziel", { root, configPath, outPath })).toBe(
       false
     );
@@ -91,7 +97,7 @@ describe("watchCodegenInputs", () => {
     controller = await watchCodegenInputs({
       root,
       configPath: join(root, "ziel.config.ts"),
-      outPath: join(root, "generated.ts"),
+      outPath: join(root, "generated"),
       debounceMs: 20,
       onChange: changes.onChange,
     });
@@ -114,7 +120,7 @@ describe("watchCodegenInputs", () => {
     controller = await watchCodegenInputs({
       root,
       configPath: join(root, "ziel.config.ts"),
-      outPath: join(root, "generated.ts"),
+      outPath: join(root, "generated"),
       debounceMs: 10,
       onChange: changes.onChange,
     });
@@ -147,7 +153,7 @@ describe("watchCodegenInputs", () => {
     controller = await watchCodegenInputs({
       root,
       configPath,
-      outPath: join(root, "generated.ts"),
+      outPath: join(root, "generated"),
       debounceMs: 10,
       onChange: changes.onChange,
     });
@@ -157,25 +163,26 @@ describe("watchCodegenInputs", () => {
     expect(await changed).toContain("ziel.config.ts");
   });
 
-  it("ignores output, .git, node_modules, and non-Ziel files", async () => {
+  it("ignores the out directory, .git, node_modules, and non-Ziel files", async () => {
     const root = makeTempDir();
-    const output = join(root, "generated", "ziel.ts");
+    const outDir = join(root, "generated");
     const relevant = join(root, "schema.ziel");
     mkdirSync(join(root, ".git", "cache"), { recursive: true });
     mkdirSync(join(root, "node_modules", "dependency"), { recursive: true });
-    mkdirSync(join(root, "generated"), { recursive: true });
+    mkdirSync(outDir, { recursive: true });
     const changes = changeCollector();
 
     controller = await watchCodegenInputs({
       root,
       configPath: join(root, "ziel.config.ts"),
-      outPath: output,
+      outPath: outDir,
       debounceMs: 20,
       onChange: changes.onChange,
     });
 
     const changed = changes.next();
-    writeFileSync(output, "generated\n");
+    writeFileSync(join(outDir, "resources.ts"), "generated\n");
+    writeFileSync(join(outDir, "page-detail.query.ts"), "generated\n");
     writeFileSync(join(root, ".git", "cache", "ignored.ziel"), "ignored\n");
     writeFileSync(join(root, "node_modules", "dependency", "ignored.ziel"), "ignored\n");
     writeFileSync(join(root, "source.ts"), "ignored\n");
@@ -194,14 +201,14 @@ describe("watchCodegenInputs", () => {
     controller = await watchCodegenInputs({
       root: oldRoot,
       configPath: join(oldRoot, "ziel.config.ts"),
-      outPath: join(oldRoot, "generated.ts"),
+      outPath: join(oldRoot, "generated"),
       debounceMs: 10,
       onChange: changes.onChange,
     });
     await controller.reconfigure({
       root: newRoot,
       configPath: join(newRoot, "ziel.config.ts"),
-      outPath: join(newRoot, "different-output.ts"),
+      outPath: join(newRoot, "different-output"),
     });
 
     const changed = changes.next();
@@ -229,7 +236,7 @@ describe("watchCodegenInputs", () => {
     controller = await watchCodegenInputs({
       root,
       configPath: join(root, "ziel.config.ts"),
-      outPath: join(root, "generated.ts"),
+      outPath: join(root, "generated"),
       debounceMs: 10,
       onChange: async () => {
         signalStarted();

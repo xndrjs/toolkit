@@ -5,7 +5,11 @@ import { describe, expect, it } from "vitest";
 
 import { analyzeProgram } from "../../check";
 import { parseAndCheck } from "../parse-and-check";
-import { composeGeneratedModules } from "./compose-generated-module";
+import {
+  composeGeneratedModules,
+  GENERATED_MODULE_HEADER,
+  isManagedGeneratedOutput,
+} from "./compose-generated-module";
 import { generateResources } from "./generators/generate-resources";
 
 function checked(source: string) {
@@ -103,12 +107,12 @@ describe("composeGeneratedModules", () => {
     expect(page.code).toContain("CmsSource: CmsSourceConfig");
     expect(page.code).not.toContain("CatalogApi");
     expect(page.code).not.toContain("createProductDetail");
+    expect(page.code).not.toMatch(/^(?:export )?type CmsSourceConfig\b/m);
     expect(page.code).toMatch(
       /import \{[^}]*createGraphResolutionStrategy[^}]*\} from "@xndrjs\/ziel"/
     );
     expect(page.code).toMatch(/import \{[^}]*defineDataSourceFor[^}]*\} from "@xndrjs\/ziel"/);
-    expect(page.code).toMatch(/from "\.\/resources"/);
-    expect(page.code).toContain("CmsSourceConfig");
+    expect(page.code).toMatch(/import \{[^}]*type CmsSourceConfig[^}]*\} from "\.\/resources"/);
     expect(page.code).toContain("entryAri");
     expect(page.code).toContain("type ContentRegistry");
 
@@ -116,7 +120,8 @@ describe("composeGeneratedModules", () => {
     expect(product.code).toContain("CatalogApi: CatalogApiConfig");
     expect(product.code).not.toContain("CmsSource");
     expect(product.code).not.toContain("createPageDetail");
-    expect(product.code).toMatch(/from "\.\/resources"/);
+    expect(product.code).not.toMatch(/^(?:export )?type CatalogApiConfig\b/m);
+    expect(product.code).toMatch(/import \{[^}]*type CatalogApiConfig[^}]*\} from "\.\/resources"/);
 
     const index = files.find((f) => f.relativePath === "index.ts")!;
     expect(index.code).toContain('export * from "./resources";');
@@ -161,5 +166,15 @@ describe("composeGeneratedModules", () => {
     `);
 
     expect(() => composeGeneratedModules(program)).toThrow(/Query module filename collision/);
+  });
+
+  it("recognizes managed flat outputs only when the generated header is present", () => {
+    const withHeader = `${GENERATED_MODULE_HEADER}\nexport const x;\n`;
+    expect(isManagedGeneratedOutput("resources.ts", withHeader)).toBe(true);
+    expect(isManagedGeneratedOutput("index.ts", withHeader)).toBe(true);
+    expect(isManagedGeneratedOutput("page-detail.query.ts", withHeader)).toBe(true);
+    expect(isManagedGeneratedOutput("resources.ts", "export const x;\n")).toBe(false);
+    expect(isManagedGeneratedOutput("hand.ts", withHeader)).toBe(false);
+    expect(isManagedGeneratedOutput("nested/resources.ts", withHeader)).toBe(false);
   });
 });

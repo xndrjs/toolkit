@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { parseCliArgs, resolveCliOptions, validateCliOptions } from "./args";
+import {
+  looksLikeSourceFilePath,
+  parseCliArgs,
+  resolveCliOptions,
+  validateCliOptions,
+} from "./args";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -13,14 +18,14 @@ describe("parseCliArgs", () => {
         "--config",
         "./ziel.config.ts",
         "--out",
-        "./out.ts",
+        "./generated",
         "--root",
         "./schemas",
         "--dry-run",
       ])
     ).toEqual({
       configPath: "./ziel.config.ts",
-      out: "./out.ts",
+      out: "./generated",
       root: "./schemas",
       dryRun: true,
       watch: false,
@@ -38,11 +43,11 @@ describe("resolveCliOptions", () => {
   it("uses config values when CLI args are omitted", () => {
     expect(
       resolveCliOptions(parseCliArgs(["--config", "./ziel.config.ts"]), {
-        out: "./generated.ts",
+        out: "./generated",
         root: "./schemas",
       })
     ).toMatchObject({
-      out: "./generated.ts",
+      out: "./generated",
       root: "./schemas",
     });
   });
@@ -51,17 +56,28 @@ describe("resolveCliOptions", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     expect(
-      resolveCliOptions(parseCliArgs(["--out", "./cli.ts", "--root", "./cli-root"]), {
-        out: "./config.ts",
+      resolveCliOptions(parseCliArgs(["--out", "./cli-out", "--root", "./cli-root"]), {
+        out: "./config-out",
         root: "./config-root",
       })
     ).toMatchObject({
-      out: "./cli.ts",
+      out: "./cli-out",
       root: "./cli-root",
     });
 
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("--out overrides out"));
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("--root overrides root"));
+  });
+});
+
+describe("looksLikeSourceFilePath", () => {
+  it("detects common JS/TS extensions", () => {
+    expect(looksLikeSourceFilePath("./generated/resources.ts")).toBe(true);
+    expect(looksLikeSourceFilePath("./out.tsx")).toBe(true);
+    expect(looksLikeSourceFilePath("./out.mts")).toBe(true);
+    expect(looksLikeSourceFilePath("./out.js")).toBe(true);
+    expect(looksLikeSourceFilePath("./generated")).toBe(false);
+    expect(looksLikeSourceFilePath("./src/generated/")).toBe(false);
   });
 });
 
@@ -73,7 +89,13 @@ describe("validateCliOptions", () => {
 
   it("rejects --watch with --dry-run", () => {
     expect(() =>
-      validateCliOptions(parseCliArgs(["--watch", "--dry-run", "--out", "./x.ts"]))
+      validateCliOptions(parseCliArgs(["--watch", "--dry-run", "--out", "./generated"]))
     ).toThrow(/cannot be combined with --dry-run/);
+  });
+
+  it("rejects --out paths that look like a single source file", () => {
+    expect(() =>
+      validateCliOptions(parseCliArgs(["--out", "./generated/resources.ts", "--dry-run"]))
+    ).toThrow(/must be a directory/);
   });
 });

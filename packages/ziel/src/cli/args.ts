@@ -69,13 +69,13 @@ Usage:
   ziel-codegen --config ./ziel.config.ts --dry-run
   ziel-codegen --config ./ziel.config.ts --watch
   ziel-codegen --config ./ziel.config.ts --dev
-  ziel-codegen --out ./src/generated/resources.ts --dry-run
+  ziel-codegen --out ./src/generated --dry-run
 
 Options:
   --config <path>   Path to ziel.config.ts (default: ./ziel.config.ts when present)
-  --out <path>      Output TypeScript file (required unless --dry-run; can be set in config)
+  --out <path>      Output directory for multi-file codegen (required unless --dry-run; can be set in config)
   --root <path>     Root directory for globs (default: process.cwd(); can be set in config)
-  --dry-run         Print generated source to stdout instead of writing --out
+  --dry-run         Print generated modules to stdout (path banners) instead of writing --out
   --watch, --dev    Watch included .ziel files (and the config) and regenerate on change
   -h, --help        Show this help
 `);
@@ -92,6 +92,11 @@ export function resolveCliOptions(
   };
 }
 
+/** True when `out` looks like a single JS/TS module path rather than a directory. */
+export function looksLikeSourceFilePath(out: string): boolean {
+  return /\.(?:[cm]?[jt]s|[jt]sx)$/i.test(out);
+}
+
 export function validateCliOptions(options: ResolvedCliOptions): void {
   if (options.help) {
     return;
@@ -103,5 +108,11 @@ export function validateCliOptions(options: ResolvedCliOptions): void {
 
   if (!options.dryRun && !options.out) {
     throw new Error("--out is required unless --dry-run is set.");
+  }
+
+  if (options.out && looksLikeSourceFilePath(options.out)) {
+    throw new Error(
+      `--out must be a directory for multi-file codegen (got a file path: ${options.out})`
+    );
   }
 }
