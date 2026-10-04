@@ -9,6 +9,7 @@ import {
   field,
   nullable,
   objectType,
+  opaqueRef,
   pageDetailProgram,
   prim,
   resource,
@@ -18,6 +19,7 @@ import {
   strLit,
   typeProj,
   union,
+  unresolvedNamedRef,
 } from "../../../fixtures";
 import type { Program } from "../../../ir";
 import { parseAndCheck } from "../../parse-and-check";
@@ -35,14 +37,21 @@ function normalizeWhitespace(code: string): string {
 }
 
 describe("printTypeExpr", () => {
-  it("maps primitives, scalars, literals, nullable, array, union", () => {
+  it("maps primitives, scalars, opaques, literals, nullable, array, union", () => {
     expect(printTypeExpr(prim("string"))).toBe("string");
     expect(printTypeExpr(scalarRef("PostId"))).toBe("PostId");
+    expect(printTypeExpr(opaqueRef("RichDocument"))).toBe("RichDocument");
     expect(printTypeExpr(strLit("Hero"))).toBe('"Hero"');
     expect(printTypeExpr(nullable(prim("string")))).toBe("string | null");
     expect(printTypeExpr(arrayOf(prim("number")))).toBe("number[]");
     expect(printTypeExpr(union(strLit("a"), strLit("b")))).toBe('"a" | "b"');
     expect(printTypeExpr(resourceRef("Tab"))).toBe("TabPayload");
+  });
+
+  it("throws on unresolvedNamedRef (codegen internal error)", () => {
+    expect(() => printTypeExpr(unresolvedNamedRef("Missing"))).toThrow(
+      /unresolved named type 'Missing'/
+    );
   });
 
   it("parenthesizes union / nullable inside arrays", () => {

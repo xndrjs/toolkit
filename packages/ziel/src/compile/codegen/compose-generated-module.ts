@@ -13,7 +13,13 @@ import {
 } from "./datasources";
 import type { GenerateResourcesOptions } from "./generators/generate-resources";
 import { emitProjectionTypes, emitProjections } from "./projections";
-import { emitPayloadTypes, emitRegistry, emitResources, emitScalars } from "./resources";
+import {
+  emitOpaques,
+  emitPayloadTypes,
+  emitRegistry,
+  emitResources,
+  emitScalars,
+} from "./resources";
 import { emitResolves } from "./resolve-facades";
 import { emitStrategies } from "./strategies";
 import { codegenAnalysis } from "./analysis";
@@ -55,13 +61,17 @@ function emitRuntimeImport(importFrom: string, symbols: string[]): string {
 }
 
 /**
- * Compose a single generated module: scalars / ARIs / payloads / registry,
- * plus per-query `create*DataSources` when datasources are declared, and open
- * strategy builders, projectors, and resolve façades when the program has queries.
+ * Compose a single generated module: scalars / opaques / ARIs / payloads /
+ * registry, plus per-query `create*DataSources` when datasources are declared,
+ * and open strategy builders, projectors, and resolve façades when the program
+ * has queries.
  *
- * Uses one header and one runtime import (`ari`, `s`,
- * `createGraphResolutionStrategy`, `defineDataSourceFor`,
+ * Uses one header and one runtime import (`ari`, `s`, `defineOpaqueType`,
+ * `OpaqueValueOf`, `createGraphResolutionStrategy`, `defineDataSourceFor`,
  * `createResourceGraphResolver`, and related types as needed).
+ *
+ * Section order: scalars → opaques → ARI/resources → payload → ContentRegistry
+ * → datasource / strategy / projection / resolve.
  */
 export function composeGeneratedModule(
   input: Program | ProgramAnalysis,
@@ -76,6 +86,11 @@ export function composeGeneratedModule(
   const scalars = emitScalars(program);
   if (scalars.length > 0) {
     bodyParts.push(scalars);
+  }
+
+  const opaques = emitOpaques(program);
+  if (opaques.length > 0) {
+    bodyParts.push(opaques);
   }
 
   const resources = emitResources(program);
@@ -127,6 +142,9 @@ export function composeGeneratedModule(
   const importSymbols: string[] = [];
   if (resources.length > 0) {
     importSymbols.push("ari", "s");
+  }
+  if (opaques.length > 0) {
+    importSymbols.push("defineOpaqueType", "type OpaqueValueOf");
   }
 
   if (strategies.length > 0) {

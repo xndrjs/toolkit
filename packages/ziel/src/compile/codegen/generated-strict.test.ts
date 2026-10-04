@@ -150,4 +150,69 @@ describe("generated TypeScript", () => {
     expect(generated).toContain("export type InMemoryContext = unknown;");
     expect(generated).toContain("DataSource<ContentRegistry, unknown>[]");
   });
+
+  it("strict-checks opaque tokens, payload fields, datasource, and projection typing", () => {
+    const parsed = parseAndCheck(`
+      opaque RichDocument;
+      opaque MediaDescriptor;
+      scalar ArticleId on string;
+      resource Article(id: ArticleId): {
+        id
+        body: RichDocument
+        media?: MediaDescriptor | null
+      }
+
+      datasource InMemory {
+        context { }
+        for Article
+      }
+
+      query Q(id: ArticleId) {
+        context { }
+        root Article(id: id)
+        on Article a {
+          id
+          body
+          media
+        }
+      }
+    `);
+    expect(parsed.diagnostics).toEqual([]);
+
+    const generated = composeGeneratedModule(analyzeProgram(parsed.program)).code;
+    const rendered = compileStrict(generated).map((diagnostic) =>
+      ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
+    );
+
+    expect(rendered).toEqual([]);
+    expect(generated).not.toMatch(/\bas any\b|:\s*any\b|any\[\]/);
+    expect(generated).toContain(
+      "import { ari, s, defineOpaqueType, type OpaqueValueOf, createGraphResolutionStrategy"
+    );
+    expect(generated).toContain('export const RichDocument = defineOpaqueType("RichDocument");');
+    expect(generated).toContain("export type RichDocument = OpaqueValueOf<typeof RichDocument>;");
+    expect(generated).toContain("body: RichDocument;");
+    expect(generated).toContain("media?: MediaDescriptor | null;");
+  });
+
+  it("strict-checks opaque-only programs without ari/s imports", () => {
+    const parsed = parseAndCheck(`
+      opaque ExternalPayload;
+      opaque RichDocument;
+    `);
+    expect(parsed.diagnostics).toEqual([]);
+
+    const generated = composeGeneratedModule(analyzeProgram(parsed.program)).code;
+    const rendered = compileStrict(generated).map((diagnostic) =>
+      ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
+    );
+
+    expect(rendered).toEqual([]);
+    expect(generated).toContain(
+      'import { defineOpaqueType, type OpaqueValueOf } from "@xndrjs/ziel";'
+    );
+    expect(generated).not.toContain("ari");
+    expect(generated).not.toMatch(/[{,]\s*s\s*[,}]/);
+    expect(generated).not.toMatch(/\bas any\b|:\s*any\b|any\[\]/);
+  });
 });
