@@ -1,7 +1,7 @@
 ---
-title: "When the backend changes but the resource graph does not"
+title: "What emerges once the resource graph is explicit - for free"
 description: How explicit resource contracts turn loaders into anti-corruption boundaries and let infrastructure evolve without rewriting the aggregate.
-date: 2026-10-04
+date: 2026-10-05
 author: Fabio Fognani
 tags:
   - architecture
@@ -13,21 +13,19 @@ tags:
 
 In [the previous article](/blog/when-a-resource-graph-needs-a-language/), I described why repeated graph-resolution code led to Ziel.
 
-The immediate problem was synchronization. A handwritten expansion strategy, a `ContentMap` projection, a result type, and the data source composition were different mechanisms, but several of their decisions came from the same definition of an aggregate. A Ziel query made that definition explicit, and the compiler generated the lower-level interpretations from it.
+The immediate problem was synchronization between several moving parts. A handwritten expansion strategy, a `ContentMap` projection, a result type, and the data source composition were different mechanisms, but several of their decisions came from the same definition of an aggregate. A Ziel query made that definition explicit, and the compiler generated the lower-level interpretations from it.
 
 That was the benefit I was looking for.
 
 Once we had a language for the resource graph, however, another set of consequences became visible. The resource declarations were no longer only inputs to code generation. They formed a stable contract between the graph the application understood and the systems that happened to materialize it.
 
-That contract gave us something close to an anti-corruption layer by construction. It also made a useful promise precise:
+That contract gave us something close to an anti-corruption layer by construction. It also made a useful promise precise: if a resource keeps the same semantic identity and payload, changing the backend that provides it should not require changing its place in the graph.
 
-> If a resource keeps the same semantic identity and payload, changing the backend that provides it should not require changing its place in the graph.
-
-The condition in that sentence matters as much as the promise. Ziel cannot make two different resources identical by giving them the same TypeScript shape, and it cannot make a vendor migration free. What it can do is reveal exactly which knowledge is stable and confine the changing knowledge to the boundary that owns it.
+The condition in that sentence matters as much as the promise. Ziel cannot make two different resources identical by giving them the same TypeScript shape, and it cannot make a vendor migration "free". What it can do is reveal exactly which knowledge is stable and confine the changing knowledge to the boundary that owns it.
 
 ---
 
-## Three shapes that should not move together
+## The "three-shapes problem"
 
 An integration-heavy application usually deals with at least three representations of the same broad concept.
 
@@ -56,13 +54,13 @@ ProductResource
 The application aggregate may then project that resource together with other resolved resources:
 
 ```text
-ProductCard
+ProductView
 ├── title
 ├── price
 └── image
 ```
 
-These shapes have different reasons to change.
+These shapes will change in different moments, for different reasons.
 
 The vendor record changes when a provider evolves its API. The resource contract changes when the application changes what it considers an addressable Product. The projected aggregate changes when the consumer needs a different view of that graph.
 
@@ -131,11 +129,11 @@ A commerce-backed implementation might look schematically like this:
 ```ts
 async function loadProducts(
   batch: readonly ProductResource[],
-  context: ResourceLoadContext<ProductsContext>
+  { executionContext }: ResourceLoadContext<ProductsContext>
 ): Promise<readonly (ProductPayload | undefined)[]> {
   const response = await commerce.getProducts({
     skus: batch.map((product) => product.key.sku),
-    market: context.executionContext.market,
+    market: executionContext.market,
   });
 
   const records = CommerceProductList.parse(response);
@@ -158,20 +156,20 @@ Authentication, SDK calls, runtime validation, vendor error handling, and this m
 
 What comes almost for free is not the transformation itself. It is the boundary and its compiler-checked target.
 
-We do not need to invent a separate `ProductDTO`, manually keep it aligned with the graph, and hope loaders return it consistently. The resource declaration already says what a Product means inside resolution, and the generated loader signature makes drifting away from that contract a TypeScript error.
+We do not need to invent a separate `ProductDTO`, manually keep it aligned with the graph, and make loaders return it consistently. The resource declaration already says what a Product means inside resolution, and the generated loader signature makes drifting away from that contract a TypeScript error.
 
-> **Ziel does not write the anti-corruption layer for us. It makes every loader a natural place to have one.**
+**Ziel does not write the anti-corruption layer for us. It makes every loader a natural place to have one.**
 
-This only works if the resource model is genuinely application-owned. Copying every field and every naming convention from a vendor response into the `.ziel` declaration would preserve the coupling behind a different file extension.
+This only becomes an anti-corruption boundary if the resource model is genuinely application-owned. Mirroring the vendor response in `.ziel` would not break anything; it would simply preserve the coupling instead of containing it.
 
 ---
 
 ## The query does not know where Product lives
 
-The query constructs a Product identity because the aggregate needs a Product:
+The query constructs a Product identity because the aggregate needs a Product. In this simple example, `e` is a CMS `Entry` (`kind == "ProductCard"` is one variant of that entry), while `Product` is the separate e-commerce resource reached from its `sku`:
 
 ```ziel
-when e.kind == "Product" {
+when e.kind == "ProductCard" {
   expand product: Product(
     sku: e.sku,
     market: market
@@ -223,11 +221,9 @@ The new loader speaks a different protocol and may have different operational li
 
 The resource declaration does not change. The expansion still constructs Product. The graph topology, generated projection, result type, and consumer do not change. Product has not become a different resource merely because another system now materializes it.
 
-If naming a data source after its current backend is useful, the DSL can instead move `for Product` from `CommerceProducts` to `IntegrationProducts`. That changes routing metadata and the generated composition surface, but the query and aggregate still remain untouched.
+This small separation has a large architectural effect.
 
-This is a small distinction with a large architectural effect:
-
-> **The resource says what can be addressed. The data source says how it is materialized today.**
+**The resource says what can be addressed. The data source says how it is materialized today.**
 
 ---
 
@@ -241,14 +237,14 @@ The graph can remain unchanged only if the resource is still semantically the sa
 
 That gives us a useful way to classify migrations:
 
-| What changed                                 | Expected change surface                                                   |
-| -------------------------------------------- | ------------------------------------------------------------------------- |
-| Vendor protocol only                         | loader implementation and operational options                             |
-| Backend ownership, same identity and payload | loader/composition; routing only if ownership is renamed or repartitioned |
-| Vendor shape, stable resource payload        | validation and mapping inside the loader                                  |
-| Resource payload semantics                   | resource declaration, loaders, and affected queries                       |
-| Resource identity semantics                  | identity declaration and every construction of that identity              |
-| Application aggregate                        | query projection and generated result type                                |
+| What changed                                 | Expected change surface                                      |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| Vendor protocol only                         | loader implementation and operational options                |
+| Backend ownership, same identity and payload | loader/composition                                           |
+| Vendor shape, stable resource payload        | validation and mapping inside the loader                     |
+| Resource payload semantics                   | resource declaration, loaders, and affected queries          |
+| Resource identity semantics                  | identity declaration and every construction of that identity |
+| Application aggregate                        | query projection and generated result type                   |
 
 Suppose the first version of an Asset identity contains `spaceId`, `environmentId`, `id`, and `locale`. Those first two fields encode assumptions from the CMS. A new asset service may still be able to honor that address, perhaps through a lookup table, but the contract is not magically vendor-neutral because it was declared in Ziel.
 
@@ -280,15 +276,13 @@ That constraint is useful. Falling through after a miss would blur the differenc
 
 During a gradual migration, the query continues to ask for Product. Which provider currently owns a particular Product is kept in the routing layer, where that decision can later be removed without rewriting the aggregate.
 
-The predicate can inspect identity and declared execution context, but not the payload, because routing happens before the payload exists. If ownership can only be discovered by loading something first, that “something” is part of the resource graph rather than a hidden routing condition.
-
 ---
 
 ## The operational graph can be richer than the aggregate
 
 Backend migrations are not always a matter of changing one loader. Legacy systems often expose references that are not valid identities in the target system.
 
-One institutional site stored some links as encoded strings. Decoding the string revealed whether it referred to an Entry or an Asset and supplied the components required to construct that target address.
+One institutional site stored some links as encoded strings. Parsing the string with a regex revealed whether it referred to an Entry or an Asset and supplied the components required to construct that target address.
 
 The decoder was operationally real. It had to run, could fail, and produced information required by further resolution. But the application did not need a `CustomReference` object in the resulting Page.
 
@@ -327,6 +321,36 @@ The resolved graph is allowed to contain machinery that the application aggregat
 
 This is another form of anti-corruption. Stability does not require pretending the infrastructure is simple. It requires giving infrastructure complexity an explicit place from which it cannot leak accidentally into every consumer.
 
+### But sometimes the intermediate resource is the result
+
+What we just said does not mean `CustomReference` should always disappear from the result.
+
+In another query, the reference itself may be exactly what the application wants to inspect. A migration or validation tool, for example, may need to collect all custom references as stored and determine which of them still point to valid resources.
+
+In that case, the query would keep the `CustomReference` visible and expand its target explicitly instead of using `resolve to`:
+
+```ziel
+on CustomReference ref include properties {
+  when ref.kind == "Entry" {
+    expand target: Entry(
+      id: ref.id,
+      locale: @ref.locale
+    ) on failure set error
+  }
+
+  when ref.kind == "Asset" {
+    expand target: Asset(
+      id: ref.id,
+      locale: @ref.locale
+    ) on failure set error
+  }
+}
+```
+
+The projected result now preserves the original reference (automatically added by `include properties`) and adds the resource it claims to target. A failed expansion can remain visible as an error value, making it possible to distinguish valid references from stale ones.
+
+The same resource can therefore be collapsed away in one aggregate and deliberately preserved in another. So, `resolve to` is not an intrinsic property of `CustomReference`: it is one possible handling of that resource in a particular query.
+
 ---
 
 ## The language stops before IO and business logic
@@ -358,11 +382,11 @@ The DSL pays rent while it keeps those levels separate. Becoming a general-purpo
 
 A backend-for-frontend or a GraphQL API can expose the same stable aggregate behind a network boundary. If an organization already owns that service and several clients benefit from its schema, it may be the right place for the orchestration.
 
-Ziel starts from a different ownership situation: the application needs an aggregate composed from independently addressable resources, no single backend already owns it, and creating another deployed service is not the desired boundary.
+Ziel starts from a different ownership situation: the application needs an aggregate composed from independently addressable resources, no single backend already owns it, and creating another deployed service is not the desired solution. Maybe it's not an option at all.
 
 GraphQL can still be one of the loaders behind a data source, just like REST, an SDK, a database, or an in-memory fixture. The relevant question is not which technology can represent nested data. It is where the orchestration contract should live and who should own its operational cost.
 
-For a small frontend consuming one backend response, this separation may add little. For a CMS-driven or integration-heavy system in which resources already move across teams and providers, it turns infrastructure evolution into a set of explicit, local decisions.
+For a small frontend consuming responses from just one backend, this separation may add little. For a CMS-driven or integration-heavy system in which resources already move across teams and providers, it turns infrastructure evolution into a set of explicit, local decisions.
 
 ---
 

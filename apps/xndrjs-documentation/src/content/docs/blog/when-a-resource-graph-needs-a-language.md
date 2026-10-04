@@ -495,4 +495,4 @@ That does not mean every configuration deserves a DSL. It means repeated procedu
 
 Changing the aggregate should mean editing one declaration, not coordinating the same change across several parts of the codebase.
 
-In [the next article](/blog/when-the-backend-changes-but-the-resource-graph-does-not/), I will look at what follows once that declaration exists: a typed anti-corruption boundary, replaceable data sources, gradual backend migrations, and operational resources that do not have to leak into the application aggregate.
+In [the next article](/blog/what-emerges-once-the-resource-graph-is-explicit-for-free/), I will look at what follows once that declaration exists: a typed anti-corruption boundary, replaceable data sources, gradual backend migrations, and operational resources that do not have to leak into the application aggregate.
