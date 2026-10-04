@@ -1,6 +1,6 @@
 import { createDiagnosticSink } from "../../../check/diagnostic";
 import { resolveTypeExpr } from "../../../check/resolve-type";
-import type { ResourceTable, ScalarTable } from "../../../check/symbols";
+import type { OpaqueTable, ResourceTable, ScalarTable } from "../../../check/symbols";
 import type { Program, TypeExpr } from "../../../ir";
 import { payloadTypeName } from "../naming";
 
@@ -13,8 +13,10 @@ type PrintContext = "root" | "array-elem";
 function tablesFromProgram(program: Program): {
   scalars: ScalarTable;
   resources: ResourceTable;
+  opaques: OpaqueTable;
 } {
   const scalars: ScalarTable = new Map(program.scalars.map((s) => [s.name, s]));
+  const opaques: OpaqueTable = new Map(program.opaques.map((o) => [o.name, o]));
   const resources: ResourceTable = new Map();
   for (const resource of program.resources) {
     const payloadFields = resource.payloadType.kind === "object" ? resource.payloadType.fields : [];
@@ -24,17 +26,18 @@ function tablesFromProgram(program: Program): {
       payloadType: resource.payloadType,
     });
   }
-  return { scalars, resources };
+  return { scalars, resources, opaques };
 }
 
 function resolveForEmit(
   type: TypeExpr,
   path: string,
   scalars: ScalarTable,
-  resources: ResourceTable
+  resources: ResourceTable,
+  opaques: OpaqueTable
 ): TypeExpr {
   const sink = createDiagnosticSink();
-  const resolved = resolveTypeExpr(type, path, scalars, resources, sink);
+  const resolved = resolveTypeExpr(type, path, scalars, resources, opaques, sink);
   if (!resolved || sink.diagnostics.length > 0) {
     const detail =
       sink.diagnostics.map((d) => d.message).join("; ") || "resolution returned undefined";
@@ -115,12 +118,12 @@ export function emitPayloadTypes(program: Program): string {
     return "";
   }
 
-  const { scalars, resources } = tablesFromProgram(program);
+  const { scalars, resources, opaques } = tablesFromProgram(program);
 
   return program.resources
     .map((resource) => {
       const path = `resources.${resource.name}.payloadType`;
-      const resolved = resolveForEmit(resource.payloadType, path, scalars, resources);
+      const resolved = resolveForEmit(resource.payloadType, path, scalars, resources, opaques);
       const name = payloadTypeName(resource.name);
       const body = printTypeExpr(resolved);
       return `export type ${name} = ${body};`;

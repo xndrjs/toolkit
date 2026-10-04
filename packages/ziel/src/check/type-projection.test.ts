@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { checkProgram } from "../check";
 import { resolveTypeExpr } from "../check/resolve-type";
 import { createDiagnosticSink } from "../check/diagnostic";
-import { collectResources, collectScalars } from "../check/collect";
+import { collectOpaques, collectResources, collectScalars } from "../check/collect";
 import { parseAndCheck } from "../compile/parse-and-check";
 import { pageDetailProgram } from "../fixtures";
 import {
@@ -24,8 +24,9 @@ import type { Program } from "../ir";
 function resolveIn(program: Program, type: Program["resources"][0]["payloadType"]) {
   const sink = createDiagnosticSink();
   const scalars = collectScalars(program, sink);
-  const resources = collectResources(program, scalars, sink);
-  const resolved = resolveTypeExpr(type, "test", scalars, resources, sink);
+  const opaques = collectOpaques(program, sink);
+  const resources = collectResources(program, scalars, opaques, sink);
+  const resolved = resolveTypeExpr(type, "test", scalars, resources, opaques, sink);
   return { resolved, diagnostics: sink.diagnostics };
 }
 
@@ -240,6 +241,36 @@ describe("type projection Resource.field", () => {
     `);
 
     expect(diagnostics).toEqual([]);
+  });
+
+  it("resolves type projection to an opaque field", () => {
+    const { diagnostics, program } = parseAndCheck(`
+      opaque RichDocument;
+      scalar Id on string;
+
+      resource Article(id: Id): {
+        id
+        body: RichDocument
+      }
+
+      resource Mirror(id: Id): {
+        id
+        mirrored: Article.body
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+    const mirror = program.resources.find((r) => r.name === "Mirror");
+    expect(mirror?.payloadType.kind).toBe("object");
+    if (mirror?.payloadType.kind !== "object") return;
+    const mirrored = mirror.payloadType.fields.find((f) => f.name === "mirrored");
+    expect(mirrored?.type).toMatchObject({
+      kind: "typeProjection",
+      resource: "Article",
+      field: "body",
+    });
+    const { resolved } = resolveIn(program, mirrored!.type);
+    expect(resolved).toMatchObject({ kind: "opaqueRef", name: "RichDocument" });
   });
 
   it("integrates CMS link strip objects in pageDetailProgram", () => {

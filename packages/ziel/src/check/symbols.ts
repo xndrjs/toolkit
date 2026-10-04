@@ -1,4 +1,4 @@
-import type { FieldDecl, ScalarDefinition, TypeExpr } from "../ir";
+import type { FieldDecl, OpaqueDefinition, ScalarDefinition, TypeExpr } from "../ir";
 import type { DiagnosticSink } from "./diagnostic";
 import { resolveTypeExpr } from "./resolve-type";
 
@@ -35,6 +35,7 @@ export type QueryScope = {
 };
 
 export type ScalarTable = Map<string, ScalarDefinition>;
+export type OpaqueTable = Map<string, OpaqueDefinition>;
 export type ResourceTable = Map<string, ResourceSymbols>;
 
 export function checkUniqueFields(
@@ -69,6 +70,7 @@ export function checkTypeExpr(
   path: string,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   switch (type.kind) {
@@ -86,8 +88,14 @@ export function checkTypeExpr(
       }
       return;
     case "opaqueRef":
-      // OpaqueTable ownership lands with checker integration; lowering only emits
-      // opaqueRef for names present in declaration tables.
+      if (!opaques.has(type.name)) {
+        sink.push({
+          code: "UNKNOWN_TYPE",
+          message: `Unknown type '${type.name}'`,
+          path,
+          span: type.span,
+        });
+      }
       return;
     case "resourceRef":
       if (!resources.has(type.name)) {
@@ -109,7 +117,7 @@ export function checkTypeExpr(
       return;
     case "typeProjection":
       // Validate by resolving; keep IR as typeProjection.
-      resolveTypeExpr(type, path, scalars, resources, sink);
+      resolveTypeExpr(type, path, scalars, resources, opaques, sink);
       return;
     case "null":
       sink.push({
@@ -121,16 +129,16 @@ export function checkTypeExpr(
       return;
     case "nullable":
     case "array":
-      checkTypeExpr(type.of, path, scalars, resources, sink);
+      checkTypeExpr(type.of, path, scalars, resources, opaques, sink);
       return;
     case "object":
       for (const field of type.fields) {
-        checkTypeExpr(field.type, `${path}.${field.name}`, scalars, resources, sink);
+        checkTypeExpr(field.type, `${path}.${field.name}`, scalars, resources, opaques, sink);
       }
       return;
     case "union":
       for (let i = 0; i < type.members.length; i++) {
-        checkTypeExpr(type.members[i]!, `${path}|${i}`, scalars, resources, sink);
+        checkTypeExpr(type.members[i]!, `${path}|${i}`, scalars, resources, opaques, sink);
       }
       return;
   }
@@ -146,7 +154,8 @@ export function concreteType(
   path: string,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): TypeExpr | undefined {
-  return resolveTypeExpr(type, path, scalars, resources, sink);
+  return resolveTypeExpr(type, path, scalars, resources, opaques, sink);
 }

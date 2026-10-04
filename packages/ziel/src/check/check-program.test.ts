@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { checkProgram, type Program } from "../compile";
+import { analyzeProgram, checkProgram, type Program } from "../compile";
 import { parseAndCheck } from "../compile/parse-and-check";
 
 import {
@@ -2037,6 +2037,189 @@ describe("checkProgram — scalar / resource name clash", () => {
     expect(checkProgram(program)).toContainEqual(
       expect.objectContaining({ code: "SCALAR_RESOURCE_NAME_CLASH" })
     );
+  });
+});
+
+describe("checkProgram — opaque types", () => {
+  const opaquePrelude = `
+    opaque RichDocument;
+    scalar ArticleId on string;
+
+    resource Article(id: ArticleId): {
+      id
+      body: RichDocument
+    }
+  `;
+
+  it("accepts opaque payload fields and empty root opaque projections", () => {
+    const { diagnostics } = parseAndCheck(`
+      ${opaquePrelude}
+
+      resource ExternalDocument(id: ArticleId): RichDocument
+
+      query Document(id: ArticleId) {
+        context { }
+        root ExternalDocument(id: id)
+        on ExternalDocument document { }
+      }
+    `);
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("rejects duplicate opaque and name clashes", () => {
+    const duplicate = parseAndCheck(`
+      opaque RichDocument;
+      opaque RichDocument;
+    `);
+    expect(duplicate.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "DUPLICATE_OPAQUE" })
+    );
+
+    const withScalar = parseAndCheck(`
+      opaque ArticleId;
+      scalar ArticleId on string;
+    `);
+    expect(withScalar.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_SCALAR_NAME_CLASH" })
+    );
+
+    const withResource = parseAndCheck(`
+      opaque Article;
+      scalar Id on string;
+      resource Article(id: Id): { id }
+    `);
+    expect(withResource.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_RESOURCE_NAME_CLASH" })
+    );
+  });
+
+  it("rejects opaque in identity, including via type projection", () => {
+    const direct = parseAndCheck(`
+      opaque RichDocument;
+      scalar Id on string;
+      resource Bad(id: RichDocument): { id }
+    `);
+    expect(direct.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_TYPE_NOT_ALLOWED_IN_IDENTITY" })
+    );
+
+    const viaProjection = parseAndCheck(`
+      ${opaquePrelude}
+      resource Invalid(id: Article.body): { id }
+    `);
+    expect(viaProjection.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_TYPE_NOT_ALLOWED_IN_IDENTITY" })
+    );
+  });
+
+  it("rejects opaque in query parameters and datasource context", () => {
+    const queryParam = parseAndCheck(`
+      ${opaquePrelude}
+      query Q(body: RichDocument) {
+        context { }
+        root Article(id: "x")
+        on Article a { id }
+      }
+    `);
+    expect(queryParam.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_TYPE_NOT_ALLOWED_IN_QUERY_PARAMETER" })
+    );
+
+    const dsContext = parseAndCheck(`
+      ${opaquePrelude}
+      datasource Cms {
+        context { doc: RichDocument }
+        for Article
+      }
+      query Q(id: ArticleId) {
+        context { }
+        root Article(id: id)
+        on Article a { id }
+      }
+    `);
+    expect(dsContext.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_TYPE_NOT_ALLOWED_IN_DATASOURCE_CONTEXT" })
+    );
+  });
+
+  it("rejects refers on opaque leaf fields", () => {
+    const { diagnostics } = parseAndCheck(`
+      opaque RichDocument;
+      scalar EntryId on string;
+      scalar Locale on string;
+
+      resource Entry(id: EntryId, locale: Locale): {
+        type: "Menu"
+        id
+        title: string
+      }
+
+      resource Page(id: EntryId, locale: Locale): {
+        id
+        body: RichDocument refers Entry with { type: "Menu" }
+      }
+    `);
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_TYPE_NOT_ALLOWED_IN_REFERS" })
+    );
+  });
+
+  it("rejects inspecting opaque values in expressions and paths", () => {
+    const compare = parseAndCheck(`
+      ${opaquePrelude}
+      query Q(id: ArticleId) {
+        context { }
+        root Article(id: id)
+        on Article a {
+          when a.body == a.body { id }
+          default { id }
+        }
+      }
+    `);
+    expect(compare.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_VALUE_NOT_INSPECTABLE" })
+    );
+
+    const path = parseAndCheck(`
+      ${opaquePrelude}
+      query Q(id: ArticleId) {
+        context { }
+        root Article(id: id)
+        on Article a {
+          when a.body.nested == "x" { id }
+          default { id }
+        }
+      }
+    `);
+    expect(path.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_VALUE_NOT_INSPECTABLE" })
+    );
+
+    const cast = parseAndCheck(`
+      ${opaquePrelude}
+      query Q(id: ArticleId) {
+        context { }
+        root Article(id: id)
+        on Article a {
+          when (a.body as string) == "x" { id }
+          default { id }
+        }
+      }
+    `);
+    expect(cast.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "OPAQUE_VALUE_NOT_INSPECTABLE" })
+    );
+  });
+
+  it("exposes opaques on ProgramAnalysis", () => {
+    const { program } = parseAndCheck(`
+      opaque RichDocument;
+      opaque MediaDescriptor;
+    `);
+    const result = analyzeProgram(program);
+    expect([...result.opaques.keys()]).toEqual(["RichDocument", "MediaDescriptor"]);
   });
 });
 

@@ -3,9 +3,11 @@ import { formatType, isAssignable, literalInhabits, typesSemanticallyEqual } fro
 import type { DiagnosticSink } from "./diagnostic";
 import { narrowPayloadByFilter, type PayloadTypeLookup } from "./discriminants";
 import { resolveBindingPath, resolvePathOnFields, resolvePathOnItemType } from "./expr-paths";
+import { isOpaqueLeafType } from "./opaque-validation";
 import {
   concreteType,
   unwrapNullable,
+  type OpaqueTable,
   type QueryScope,
   type ResourceTable,
   type ScalarTable,
@@ -63,6 +65,7 @@ function scalarRepresentation(name: string, scalars: ScalarTable): PrimitiveType
  * Whether two operand types may be compared with `==` / `!=` / `in`.
  * Scalars stay nominal — use `as Primitive` to erase to representation.
  * String literals may inhabit a scalar / string on the other side (discriminant filters).
+ * Opaque values are never comparable — Ziel does not inspect them.
  */
 export function comparisonCompatible(
   left: TypeExpr,
@@ -71,6 +74,10 @@ export function comparisonCompatible(
 ): boolean {
   const a = unwrapNullable(left);
   const b = unwrapNullable(right);
+
+  if (isOpaqueLeafType(a) || isOpaqueLeafType(b)) {
+    return false;
+  }
 
   if (a.kind === "union") {
     return a.members.every((m) => comparisonCompatible(m, b, scalars));
@@ -104,6 +111,9 @@ function canCastToPrimitive(
 ): boolean {
   const t = unwrapNullable(operand);
 
+  if (isOpaqueLeafType(t)) {
+    return false;
+  }
   if (t.kind === "union") {
     return t.members.every((m) => canCastToPrimitive(m, target, scalars));
   }
@@ -117,6 +127,20 @@ function canCastToPrimitive(
     return target === "string";
   }
   return false;
+}
+
+function pushOpaqueNotInspectable(
+  type: TypeExpr,
+  path: string,
+  span: Expr["span"],
+  sink: DiagnosticSink
+): void {
+  sink.push({
+    code: "OPAQUE_VALUE_NOT_INSPECTABLE",
+    message: `Opaque type ${formatType(type)} is not inspectable`,
+    path,
+    span,
+  });
 }
 
 /**
@@ -263,6 +287,10 @@ export function inferExprType(
         scalars
       );
       if (!operand) return undefined;
+      if (isOpaqueLeafType(operand)) {
+        pushOpaqueNotInspectable(operand, path, expr.span, sink);
+        return undefined;
+      }
       // JS falsy — any typed operand yields boolean.
       return { kind: "primitive", name: "boolean", span: null };
     }
@@ -276,6 +304,11 @@ export function inferExprType(
         scalars
       );
       if (!operand) return undefined;
+
+      if (isOpaqueLeafType(operand)) {
+        pushOpaqueNotInspectable(operand, path, expr.span, sink);
+        return undefined;
+      }
 
       if (!canCastToPrimitive(operand, expr.type, scalars)) {
         sink.push({
@@ -307,10 +340,22 @@ export function inferExprType(
       if (!left || !right) return undefined;
 
       if (expr.op === "and" || expr.op === "or") {
+        if (isOpaqueLeafType(left)) {
+          pushOpaqueNotInspectable(left, path, expr.span, sink);
+          return undefined;
+        }
+        if (isOpaqueLeafType(right)) {
+          pushOpaqueNotInspectable(right, path, expr.span, sink);
+          return undefined;
+        }
         return { kind: "primitive", name: "boolean", span: null };
       }
 
       if (expr.op === "in" || expr.op === "not in") {
+        if (isOpaqueLeafType(left)) {
+          pushOpaqueNotInspectable(left, path, expr.span, sink);
+          return undefined;
+        }
         const rightInner = unwrapNullable(right);
         if (rightInner.kind !== "array") {
           sink.push({
@@ -319,6 +364,10 @@ export function inferExprType(
             path,
             span: expr.span,
           });
+          return undefined;
+        }
+        if (isOpaqueLeafType(rightInner.of)) {
+          pushOpaqueNotInspectable(rightInner.of, path, expr.span, sink);
           return undefined;
         }
         if (!comparisonCompatible(left, rightInner.of, scalars)) {
@@ -334,6 +383,10 @@ export function inferExprType(
       }
 
       // == / !=
+      if (isOpaqueLeafType(left) || isOpaqueLeafType(right)) {
+        pushOpaqueNotInspectable(isOpaqueLeafType(left) ? left : right, path, expr.span, sink);
+        return undefined;
+      }
       if (!comparisonCompatible(left, right, scalars)) {
         sink.push({
           code: "INCOMPATIBLE_COMPARISON",
@@ -375,6 +428,10 @@ export function inferPayloadWhenExprType(
       scalars
     );
     if (!left) return undefined;
+    if (isOpaqueLeafType(left)) {
+      pushOpaqueNotInspectable(left, path, expr.span, sink);
+      return undefined;
+    }
 
     const previous = scope.payloadNarrowing.get(binding);
     const base = previous ?? payloadType;
@@ -401,6 +458,10 @@ export function inferPayloadWhenExprType(
     }
 
     if (!right) return undefined;
+    if (isOpaqueLeafType(right)) {
+      pushOpaqueNotInspectable(right, path, expr.span, sink);
+      return undefined;
+    }
     return { kind: "primitive", name: "boolean", span: null };
   }
 
@@ -426,6 +487,14 @@ export function inferPayloadWhenExprType(
       scalars
     );
     if (!left || !right) return undefined;
+    if (isOpaqueLeafType(left)) {
+      pushOpaqueNotInspectable(left, path, expr.span, sink);
+      return undefined;
+    }
+    if (isOpaqueLeafType(right)) {
+      pushOpaqueNotInspectable(right, path, expr.span, sink);
+      return undefined;
+    }
     return { kind: "primitive", name: "boolean", span: null };
   }
 
@@ -441,6 +510,10 @@ export function inferPayloadWhenExprType(
       scalars
     );
     if (!operand) return undefined;
+    if (isOpaqueLeafType(operand)) {
+      pushOpaqueNotInspectable(operand, path, expr.span, sink);
+      return undefined;
+    }
     return { kind: "primitive", name: "boolean", span: null };
   }
 
@@ -460,9 +533,10 @@ export function checkExprAssignableTo(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
-  const expectedConcrete = concreteType(expected, path, scalars, resources, sink);
+  const expectedConcrete = concreteType(expected, path, scalars, resources, opaques, sink);
   if (!expectedConcrete) return;
 
   if (expr.kind === "literal") {
@@ -485,7 +559,7 @@ export function checkExprAssignableTo(
   const actual = inferExprType(expr, path, scope, resources, sink, scalars);
   if (!actual) return;
 
-  const actualConcrete = concreteType(actual, path, scalars, resources, sink);
+  const actualConcrete = concreteType(actual, path, scalars, resources, opaques, sink);
   if (!actualConcrete) return;
 
   if (!isAssignable(actualConcrete, expectedConcrete)) {

@@ -2,15 +2,16 @@ import type { Program } from "../ir";
 import { checkDatasources } from "./check-datasources";
 import { checkFragment } from "./check-fragment";
 import { checkQuery } from "./check-query";
-import { collectResources, collectScalars } from "./collect";
+import { collectOpaques, collectResources, collectScalars } from "./collect";
 import { createDiagnosticSink, type Diagnostic } from "./diagnostic";
-import type { ResourceTable, ScalarTable } from "./symbols";
+import type { OpaqueTable, ResourceTable, ScalarTable } from "./symbols";
 import { buildQueryPlans, type QueryPlan } from "../analyze";
 
 export type ProgramAnalysis = {
   readonly program: Program;
   readonly diagnostics: readonly Diagnostic[];
   readonly scalars: ScalarTable;
+  readonly opaques: OpaqueTable;
   readonly resources: ResourceTable;
   readonly queries: readonly QueryPlan[];
 };
@@ -25,7 +26,7 @@ export type AnalyzeProgramOptions = {
 };
 
 /**
- * Collect scalar/resource tables and run semantic checks.
+ * Collect scalar/opaque/resource tables and run semantic checks.
  * Prefer this when callers need the tables (e.g. LSP snapshot); use
  * {@link checkProgram} when only diagnostics matter.
  */
@@ -35,7 +36,8 @@ export function analyzeProgram(
 ): ProgramAnalysis {
   const sink = createDiagnosticSink();
   const scalars = collectScalars(program, sink);
-  const resources = collectResources(program, scalars, sink);
+  const opaques = collectOpaques(program, sink);
+  const resources = collectResources(program, scalars, opaques, sink);
   const requireDatasourceCoverage = options.requireDatasourceCoverage ?? true;
 
   for (const scalar of program.scalars) {
@@ -45,6 +47,25 @@ export function analyzeProgram(
         message: `Scalar '${scalar.name}' clashes with a resource of the same name`,
         path: `scalars.${scalar.name}`,
         span: scalar.span,
+      });
+    }
+  }
+
+  for (const opaque of program.opaques) {
+    if (scalars.has(opaque.name)) {
+      sink.push({
+        code: "OPAQUE_SCALAR_NAME_CLASH",
+        message: `Opaque '${opaque.name}' clashes with a scalar of the same name`,
+        path: `opaques.${opaque.name}`,
+        span: opaque.span,
+      });
+    }
+    if (resources.has(opaque.name)) {
+      sink.push({
+        code: "OPAQUE_RESOURCE_NAME_CLASH",
+        message: `Opaque '${opaque.name}' clashes with a resource of the same name`,
+        path: `opaques.${opaque.name}`,
+        span: opaque.span,
       });
     }
   }
@@ -62,10 +83,10 @@ export function analyzeProgram(
       continue;
     }
     fragmentNames.add(fragment.name);
-    checkFragment(fragment, path, scalars, resources, sink);
+    checkFragment(fragment, path, scalars, resources, opaques, sink);
   }
 
-  checkDatasources(program, scalars, resources, sink, { requireDatasourceCoverage });
+  checkDatasources(program, scalars, resources, opaques, sink, { requireDatasourceCoverage });
 
   const queryNames = new Set<string>();
   for (const query of program.queries) {
@@ -80,13 +101,14 @@ export function analyzeProgram(
       continue;
     }
     queryNames.add(query.name);
-    checkQuery(query, path, scalars, resources, sink);
+    checkQuery(query, path, scalars, resources, opaques, sink);
   }
 
   return Object.freeze({
     program,
     diagnostics: Object.freeze([...sink.diagnostics]),
     scalars,
+    opaques,
     resources,
     queries: buildQueryPlans(program, resources),
   });

@@ -22,11 +22,14 @@ import type { DiagnosticSink } from "./diagnostic";
 import { formatType } from "./assignability";
 import { isObjectLikePayload, narrowPayloadByFilter } from "./discriminants";
 import { exprsEqual, inferPayloadWhenExprType, isBooleanWhenType } from "./expressions";
+import { checkNoOpaqueInType, opaqueTypeBanMessage } from "./opaque-validation";
 import { checkExcludedFields, resolveSelectedFields } from "./projection-include";
 import {
   checkTypeExpr,
   checkUniqueFields,
+  concreteType,
   type FieldMap,
+  type OpaqueTable,
   type QueryScope,
   type ResourceTable,
   type ScalarTable,
@@ -190,6 +193,7 @@ export function checkQuery(
   path: string,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   if (!query.contextDeclared) {
@@ -209,7 +213,19 @@ export function checkQuery(
     sink
   );
   for (const field of query.parameters) {
-    checkTypeExpr(field.type, `${path}.parameters.${field.name}`, scalars, resources, sink);
+    const fieldPath = `${path}.parameters.${field.name}`;
+    checkTypeExpr(field.type, fieldPath, scalars, resources, opaques, sink);
+    const concrete = concreteType(field.type, fieldPath, scalars, resources, opaques, sink);
+    if (concrete) {
+      checkNoOpaqueInType(
+        concrete,
+        fieldPath,
+        "OPAQUE_TYPE_NOT_ALLOWED_IN_QUERY_PARAMETER",
+        opaqueTypeBanMessage(concrete, "query parameters"),
+        sink,
+        field.span
+      );
+    }
   }
 
   checkContextProjections(query, path, params, sink);
@@ -266,7 +282,7 @@ export function checkQuery(
     payloadNarrowing: new Map(),
   };
 
-  checkQueryRoots(query.roots, path, query.span, scope, scalars, resources, sink);
+  checkQueryRoots(query.roots, path, query.span, scope, scalars, resources, opaques, sink);
 
   for (const projection of query.projections) {
     const projPath = `${path}.projections.${projection.binding}`;
@@ -329,6 +345,7 @@ export function checkQuery(
           scope,
           scalars,
           resources,
+          opaques,
           sink
         );
       }
@@ -341,6 +358,7 @@ export function checkQuery(
         scope,
         scalars,
         resources,
+        opaques,
         sink
       );
     } else if (projection.arms !== null) {
@@ -379,6 +397,7 @@ export function checkQuery(
             scope,
             scalars,
             resources,
+            opaques,
             sink
           );
         }
@@ -410,6 +429,7 @@ export function checkQuery(
             scope,
             scalars,
             resources,
+            opaques,
             sink
           );
         }
@@ -470,6 +490,7 @@ export function checkQuery(
           scope,
           scalars,
           resources,
+          opaques,
           sink
         );
       }
@@ -491,6 +512,7 @@ function checkQueryRoots(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   if (roots.length === 0) {
@@ -520,7 +542,7 @@ function checkQueryRoots(
       seenAliases.add(root.alias);
     }
 
-    checkConstruction(root.construction, rootPath, scope, scalars, resources, sink);
+    checkConstruction(root.construction, rootPath, scope, scalars, resources, opaques, sink);
   }
 }
 
@@ -536,6 +558,7 @@ function checkResolveArm(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   let bodyScope = scope;
@@ -566,7 +589,7 @@ function checkResolveArm(
     };
   }
 
-  checkConstruction(arm.target, armPath, bodyScope, scalars, resources, sink);
+  checkConstruction(arm.target, armPath, bodyScope, scalars, resources, opaques, sink);
 }
 
 function checkProjectionArm(
@@ -579,6 +602,7 @@ function checkProjectionArm(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   const whenType = inferPayloadWhenExprType(
@@ -611,6 +635,7 @@ function checkProjectionArm(
     scope,
     scalars,
     resources,
+    opaques,
     sink,
     true
   );
@@ -627,6 +652,7 @@ function checkProjectionArmBody(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink,
   narrowedPayload = false
 ): void {
@@ -681,5 +707,5 @@ function checkProjectionArmBody(
     resources,
     sink
   );
-  checkExpansions(arm.expansions, armPath, binding, bodyScope, scalars, resources, sink);
+  checkExpansions(arm.expansions, armPath, binding, bodyScope, scalars, resources, opaques, sink);
 }

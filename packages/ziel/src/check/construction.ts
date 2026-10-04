@@ -1,7 +1,7 @@
 import type { ResourceConstruction } from "../ir";
 import type { DiagnosticSink } from "./diagnostic";
 import { checkExprAssignableTo, inferExprType } from "./expressions";
-import type { QueryScope, ResourceTable, ScalarTable } from "./symbols";
+import type { OpaqueTable, QueryScope, ResourceTable, ScalarTable } from "./symbols";
 
 export function checkConstruction(
   construction: ResourceConstruction,
@@ -9,6 +9,7 @@ export function checkConstruction(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   const resource = resources.get(construction.resource);
@@ -51,7 +52,16 @@ export function checkConstruction(
       continue;
     }
 
-    checkExprAssignableTo(arg.value, identityField.type, argPath, scope, scalars, resources, sink);
+    checkExprAssignableTo(
+      arg.value,
+      identityField.type,
+      argPath,
+      scope,
+      scalars,
+      resources,
+      opaques,
+      sink
+    );
   }
 
   for (const [fieldName] of resource.identity) {

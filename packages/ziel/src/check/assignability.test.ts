@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { formatType, isAssignable, typesSemanticallyEqual } from "./assignability";
-import { field, nullable, objectType, prim, span } from "../fixtures";
+import { formatType, isAssignable, literalInhabits, typesSemanticallyEqual } from "./assignability";
+import { field, nullable, objectType, opaqueRef, prim, span } from "../fixtures";
 
 describe("assignability — optional + nullable", () => {
   it("treats optional as part of object equality", () => {
@@ -27,5 +27,23 @@ describe("assignability — optional + nullable", () => {
     const bareNull = { kind: "null" as const, span };
     expect(isAssignable(bareNull, prim("string"))).toBe(false);
     expect(isAssignable(prim("string"), bareNull)).toBe(false);
+  });
+});
+
+describe("assignability — opaque", () => {
+  it("equates opaque refs only by name", () => {
+    expect(typesSemanticallyEqual(opaqueRef("RichDocument"), opaqueRef("RichDocument"))).toBe(true);
+    expect(typesSemanticallyEqual(opaqueRef("RichDocument"), opaqueRef("MediaDescriptor"))).toBe(
+      false
+    );
+    expect(isAssignable(opaqueRef("RichDocument"), opaqueRef("RichDocument"))).toBe(true);
+    expect(isAssignable(opaqueRef("RichDocument"), opaqueRef("MediaDescriptor"))).toBe(false);
+    expect(isAssignable(opaqueRef("RichDocument"), prim("string"))).toBe(false);
+  });
+
+  it("formats opaque names and rejects literal inhabitance", () => {
+    expect(formatType(opaqueRef("RichDocument"))).toBe("RichDocument");
+    expect(literalInhabits("x", opaqueRef("RichDocument"), () => undefined)).toBe(false);
+    expect(literalInhabits(null, nullable(opaqueRef("RichDocument")), () => undefined)).toBe(true);
   });
 });

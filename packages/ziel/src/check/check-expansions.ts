@@ -5,7 +5,13 @@ import { formatType } from "./assignability";
 import { narrowItemTypeByFilter, payloadHasField } from "./discriminants";
 import { inferExprType } from "./expressions";
 import type { IncludeMode } from "./projection-include";
-import { unwrapNullable, type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
+import {
+  unwrapNullable,
+  type QueryScope,
+  type OpaqueTable,
+  type ResourceTable,
+  type ScalarTable,
+} from "./symbols";
 
 export function checkSelectedFields(
   selectedFields: string[],
@@ -98,6 +104,7 @@ export function checkExpansions(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   const aliases = new Set<string>();
@@ -122,6 +129,7 @@ export function checkExpansions(
         scope,
         scalars,
         resources,
+        opaques,
         sink
       );
     } else {
@@ -142,7 +150,7 @@ export function checkExpansions(
         });
         continue;
       }
-      checkConstruction(expansion.target, expPath, scope, scalars, resources, sink);
+      checkConstruction(expansion.target, expPath, scope, scalars, resources, opaques, sink);
       checkOnFailure(expansion.onFailure, `${expPath}.onFailure`, expansion.span, sink);
     }
   }
@@ -172,6 +180,7 @@ export function checkManyExpansion(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   const comprehension = expansion.comprehension;
@@ -204,6 +213,7 @@ export function checkManyExpansion(
     scope,
     scalars,
     resources,
+    opaques,
     sink
   );
 }
@@ -220,6 +230,7 @@ export function checkResolveEach(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   if (resolveEach.arms.length === 0) {
@@ -241,6 +252,7 @@ export function checkResolveEach(
     scope,
     scalars,
     resources,
+    opaques,
     sink
   );
 }
@@ -304,6 +316,7 @@ function checkEachComprehension(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   if (rejectForeignPayloadRefsInSource(source, enclosingPayloadBinding, path, sink)) {
@@ -337,6 +350,7 @@ function checkEachComprehension(
       scope,
       scalars,
       resources,
+      opaques,
       sink
     );
   }
@@ -350,6 +364,7 @@ export function checkExpandArm(
   scope: QueryScope,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   let itemType = elementType;
@@ -387,6 +402,6 @@ export function checkExpandArm(
     ...scope,
     items: new Map([[itemBinding, itemType]]),
   };
-  checkConstruction(arm.target, armPath, bodyScope, scalars, resources, sink);
+  checkConstruction(arm.target, armPath, bodyScope, scalars, resources, opaques, sink);
   checkOnFailure(arm.onFailure, `${armPath}.onFailure`, arm.target.span, sink);
 }

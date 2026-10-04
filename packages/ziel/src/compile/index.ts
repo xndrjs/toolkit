@@ -9,6 +9,7 @@ export {
   type AnalyzeProgramOptions,
   type Diagnostic,
   type ProgramAnalysis,
+  type OpaqueTable,
   type ResourceTable,
   type ScalarTable,
 } from "../check";

@@ -45,7 +45,7 @@ import type {
 import type { ProgramAnalysis } from "../../../check";
 import { payloadIntersectionFields } from "../../../check/projection-include";
 import { resolveTypeExpr } from "../../../check/resolve-type";
-import type { ResourceTable, ScalarTable } from "../../../check/symbols";
+import type { OpaqueTable, ResourceTable, ScalarTable } from "../../../check/symbols";
 import type {
   Expansion,
   FieldDecl,
@@ -79,10 +79,11 @@ function resolveForEmit(
   type: TypeExpr,
   path: string,
   scalars: ScalarTable,
-  resources: ResourceTable
+  resources: ResourceTable,
+  opaques: OpaqueTable
 ): TypeExpr {
   const sink = createDiagnosticSink();
-  const resolved = resolveTypeExpr(type, path, scalars, resources, sink);
+  const resolved = resolveTypeExpr(type, path, scalars, resources, opaques, sink);
   if (!resolved || sink.diagnostics.length > 0) {
     const detail =
       sink.diagnostics.map((d) => d.message).join("; ") || "resolution returned undefined";
@@ -329,6 +330,7 @@ function emitArmBodyVariantType(
   fieldPath: string,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
   projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
@@ -361,7 +363,7 @@ function emitArmBodyVariantType(
       );
     }
     const path = `${fieldPath}.selectedFields.${fieldName}`;
-    const resolved = resolveForEmit(field.type, path, scalars, resources);
+    const resolved = resolveForEmit(field.type, path, scalars, resources, opaques);
     lines.push(`  ${fieldName}${field.optional ? "?" : ""}: ${printTypeExpr(resolved)};`);
   }
 
@@ -393,6 +395,7 @@ function emitArmVariantType(
   arm: PlannedProjectionArm,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
   projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
@@ -416,6 +419,7 @@ function emitArmVariantType(
     `queries.${queryName}.projections.${projection.binding}.arms.${arm.index}`,
     scalars,
     resources,
+    opaques,
     projected,
     resolveTargets,
     projectionsByResource,
@@ -428,6 +432,7 @@ function emitDefaultArmVariantType(
   projection: ProjectionPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
   projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
@@ -455,6 +460,7 @@ function emitDefaultArmVariantType(
     `queries.${queryName}.projections.${projection.source.binding}.defaultArm`,
     scalars,
     resources,
+    opaques,
     projected,
     resolveTargets,
     projectionsByResource,
@@ -467,6 +473,7 @@ function emitArmedResourceProjectionTypes(
   projectionPlan: ProjectionPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
   projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
@@ -506,6 +513,7 @@ function emitArmedResourceProjectionTypes(
       arm,
       scalars,
       resources,
+      opaques,
       projected,
       resolveTargets,
       projectionsByResource,
@@ -520,6 +528,7 @@ function emitArmedResourceProjectionTypes(
     projectionPlan,
     scalars,
     resources,
+    opaques,
     projected,
     resolveTargets,
     projectionsByResource,
@@ -538,6 +547,7 @@ function emitFlatResourceProjectionType(
   projectionPlan: ProjectionPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
   projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
@@ -591,7 +601,7 @@ function emitFlatResourceProjectionType(
       );
     }
     const path = `queries.${queryName}.projections.${projection.binding}.selectedFields.${fieldName}`;
-    const resolved = resolveForEmit(field.type, path, scalars, resources);
+    const resolved = resolveForEmit(field.type, path, scalars, resources, opaques);
     lines.push(`  ${fieldName}${field.optional ? "?" : ""}: ${printTypeExpr(resolved)};`);
   }
 
@@ -617,6 +627,7 @@ function emitResourceProjectionType(
   projection: ProjectionPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   projected: ReadonlySet<string>,
   resolveTargets: ResolveTargetIndex,
   projectionsByResource: ReadonlyMap<string, ProjectionPlan>,
@@ -628,6 +639,7 @@ function emitResourceProjectionType(
       projection,
       scalars,
       resources,
+      opaques,
       projected,
       resolveTargets,
       projectionsByResource,
@@ -639,6 +651,7 @@ function emitResourceProjectionType(
     projection,
     scalars,
     resources,
+    opaques,
     projected,
     resolveTargets,
     projectionsByResource,
@@ -650,6 +663,7 @@ function emitQueryProjectionTypes(
   plan: QueryPlan,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   resourceTag?: string
 ): string {
   const query = plan.query;
@@ -666,6 +680,7 @@ function emitQueryProjectionTypes(
         projection,
         scalars,
         resources,
+        opaques,
         projected,
         resolveTargets,
         projectionsByResource,
@@ -721,7 +736,13 @@ export function emitProjectionTypes(input: CodegenInput, resourceTag?: string): 
 
   return analysis.queries
     .map((query) =>
-      emitQueryProjectionTypes(query, analysis.scalars, analysis.resources, resourceTag)
+      emitQueryProjectionTypes(
+        query,
+        analysis.scalars,
+        analysis.resources,
+        analysis.opaques,
+        resourceTag
+      )
     )
     .join("\n\n");
 }

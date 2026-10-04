@@ -122,6 +122,16 @@ export function resolvePathOnPayloadType(
     return { kind: "union", members: unique, span: null };
   }
 
+  if (inner.kind === "opaqueRef") {
+    sink.push({
+      code: "OPAQUE_VALUE_NOT_INSPECTABLE",
+      message: `Opaque type '${inner.name}' is not inspectable; cannot access path '${pathSegments.join(".")}'`,
+      path: diagPath,
+      span,
+    });
+    return undefined;
+  }
+
   sink.push({
     code: "UNKNOWN_PAYLOAD_PATH",
     message: `Cannot access path on non-object payload type ${formatType(payloadType)}`,
@@ -179,6 +189,14 @@ export function resolvePathOnFields(
       const inner = unwrapNullable(currentType);
       if (inner.kind === "object") {
         fields = new Map(inner.fields.map((f) => [f.name, f]));
+      } else if (inner.kind === "opaqueRef") {
+        sink.push({
+          code: "OPAQUE_VALUE_NOT_INSPECTABLE",
+          message: `Opaque type '${inner.name}' is not inspectable; cannot access '${pathSegments[i + 1]}'`,
+          path: diagPath,
+          span,
+        });
+        return undefined;
       } else {
         fields = null;
       }
@@ -230,6 +248,16 @@ export function resolvePathOnItemType(
     }
     if (unique.length === 1) return unique[0];
     return { kind: "union", members: unique, span: null };
+  }
+
+  if (inner.kind === "opaqueRef") {
+    sink.push({
+      code: "OPAQUE_VALUE_NOT_INSPECTABLE",
+      message: `Opaque type '${inner.name}' is not inspectable; cannot access path '${pathSegments.join(".")}'`,
+      path: diagPath,
+      span,
+    });
+    return undefined;
   }
 
   sink.push({

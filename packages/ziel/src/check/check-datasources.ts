@@ -22,12 +22,14 @@ import { resolvedQueryContext } from "../ir";
 import { formatType, isAssignable, typesSemanticallyEqual } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
 import { inferExprType } from "./expressions";
+import { checkNoOpaqueInType, opaqueTypeBanMessage } from "./opaque-validation";
 import {
   checkTypeExpr,
   checkUniqueFields,
   concreteType,
   unwrapNullable,
   type FieldMap,
+  type OpaqueTable,
   type QueryScope,
   type ResourceTable,
   type ScalarTable,
@@ -37,6 +39,7 @@ export function checkDatasources(
   program: Program,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink,
   options: { requireDatasourceCoverage?: boolean } = {}
 ): void {
@@ -64,7 +67,7 @@ export function checkDatasources(
       continue;
     }
     names.add(ds.name);
-    checkDatasource(ds, path, scalars, resources, aggregate, covered, sink);
+    checkDatasource(ds, path, scalars, resources, opaques, aggregate, covered, sink);
   }
 
   if (requireDatasourceCoverage) {
@@ -80,7 +83,7 @@ export function checkDatasources(
     }
   }
 
-  checkQueryContextsAgainstUsedDatasources(program, scalars, resources, sink);
+  checkQueryContextsAgainstUsedDatasources(program, scalars, resources, opaques, sink);
 }
 
 /**
@@ -218,6 +221,7 @@ function checkDatasource(
   path: string,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   aggregate: FieldMap,
   covered: Set<string>,
   sink: DiagnosticSink
@@ -231,15 +235,20 @@ function checkDatasource(
   );
 
   for (const field of ds.contextFields) {
-    checkTypeExpr(field.type, `${path}.context.${field.name}`, scalars, resources, sink);
-    mergeAggregateField(
-      field,
-      `${path}.context.${field.name}`,
-      aggregate,
-      scalars,
-      resources,
-      sink
-    );
+    const fieldPath = `${path}.context.${field.name}`;
+    checkTypeExpr(field.type, fieldPath, scalars, resources, opaques, sink);
+    const concrete = concreteType(field.type, fieldPath, scalars, resources, opaques, sink);
+    if (concrete) {
+      checkNoOpaqueInType(
+        concrete,
+        fieldPath,
+        "OPAQUE_TYPE_NOT_ALLOWED_IN_DATASOURCE_CONTEXT",
+        opaqueTypeBanMessage(concrete, "datasource context"),
+        sink,
+        field.span
+      );
+    }
+    mergeAggregateField(field, fieldPath, aggregate, scalars, resources, opaques, sink);
   }
 
   const routeResources = new Set<string>();
@@ -300,6 +309,7 @@ function mergeAggregateField(
   aggregate: FieldMap,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   const existing = aggregate.get(field.name);
@@ -308,8 +318,8 @@ function mergeAggregateField(
     return;
   }
 
-  const a = concreteType(existing.type, path, scalars, resources, sink);
-  const b = concreteType(field.type, path, scalars, resources, sink);
+  const a = concreteType(existing.type, path, scalars, resources, opaques, sink);
+  const b = concreteType(field.type, path, scalars, resources, opaques, sink);
   if (!a || !b) return;
 
   if (!typesSemanticallyEqual(a, b)) {
@@ -431,6 +441,7 @@ function checkQueryContextsAgainstUsedDatasources(
   program: Program,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   for (const query of program.queries) {
@@ -453,8 +464,8 @@ function checkQueryContextsAgainstUsedDatasources(
         continue;
       }
 
-      const expected = concreteType(reqField.type, fieldPath, scalars, resources, sink);
-      const actual = concreteType(queryField.type, fieldPath, scalars, resources, sink);
+      const expected = concreteType(reqField.type, fieldPath, scalars, resources, opaques, sink);
+      const actual = concreteType(queryField.type, fieldPath, scalars, resources, opaques, sink);
       if (!expected || !actual) continue;
 
       if (!isAssignable(actual, expected)) {

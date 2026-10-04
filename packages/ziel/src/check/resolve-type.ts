@@ -5,7 +5,7 @@
 import type { SourceSpan, TypeExpr } from "../ir";
 import { formatType, typesSemanticallyEqual } from "./assignability";
 import type { DiagnosticSink } from "./diagnostic";
-import type { ResourceTable, ScalarTable } from "./symbols";
+import type { OpaqueTable, ResourceTable, ScalarTable } from "./symbols";
 
 function unwrapNullable(type: TypeExpr): TypeExpr {
   return type.kind === "nullable" ? unwrapNullable(type.of) : type;
@@ -15,6 +15,7 @@ export function resolveTypeExpr(
   path: string,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink,
   visiting = new Set<string>()
 ): TypeExpr | undefined {
@@ -42,11 +43,11 @@ export function resolveTypeExpr(
       });
       return undefined;
     case "nullable": {
-      const of = resolveTypeExpr(type.of, path, scalars, resources, sink, visiting);
+      const of = resolveTypeExpr(type.of, path, scalars, resources, opaques, sink, visiting);
       return of ? { kind: "nullable", of, span: type.span } : undefined;
     }
     case "array": {
-      const of = resolveTypeExpr(type.of, path, scalars, resources, sink, visiting);
+      const of = resolveTypeExpr(type.of, path, scalars, resources, opaques, sink, visiting);
       return of ? { kind: "array", of, span: type.span } : undefined;
     }
     case "object": {
@@ -57,6 +58,7 @@ export function resolveTypeExpr(
           `${path}.${field.name}`,
           scalars,
           resources,
+          opaques,
           sink,
           visiting
         );
@@ -73,6 +75,7 @@ export function resolveTypeExpr(
           `${path}|${i}`,
           scalars,
           resources,
+          opaques,
           sink,
           visiting
         );
@@ -83,7 +86,7 @@ export function resolveTypeExpr(
       return normalizeUnion(members, type.span);
     }
     case "typeProjection":
-      return resolveTypeProjection(type, path, scalars, resources, sink, visiting);
+      return resolveTypeProjection(type, path, scalars, resources, opaques, sink, visiting);
   }
 }
 
@@ -92,6 +95,7 @@ function resolveTypeProjection(
   path: string,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink,
   visiting: Set<string>
 ): TypeExpr | undefined {
@@ -132,7 +136,7 @@ function resolveTypeProjection(
   visiting.delete(key);
   if (!projected) return undefined;
 
-  return resolveTypeExpr(projected, path, scalars, resources, sink, visiting);
+  return resolveTypeExpr(projected, path, scalars, resources, opaques, sink, visiting);
 }
 
 /**

@@ -19,7 +19,7 @@ import { isObjectLikePayload, narrowPayloadByFilter } from "./discriminants";
 import { createDiagnosticSink, type DiagnosticSink } from "./diagnostic";
 import { inferPayloadWhenExprType, isBooleanWhenType } from "./expressions";
 import { checkExcludedFields, resolveSelectedFields } from "./projection-include";
-import { type QueryScope, type ResourceTable, type ScalarTable } from "./symbols";
+import { type QueryScope, type OpaqueTable, type ResourceTable, type ScalarTable } from "./symbols";
 
 const SUPPRESSED_IN_FRAGMENT = new Set([
   "UNKNOWN_CONTEXT_PATH",
@@ -32,6 +32,7 @@ export function checkFragment(
   path: string,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   if (!resources.has(fragment.resource)) {
@@ -127,7 +128,16 @@ export function checkFragment(
   );
 
   const bodySink = createDiagnosticSink();
-  checkExpansions(fragment.expansions, path, fragment.binding, scope, scalars, resources, bodySink);
+  checkExpansions(
+    fragment.expansions,
+    path,
+    fragment.binding,
+    scope,
+    scalars,
+    resources,
+    opaques,
+    bodySink
+  );
   for (const diagnostic of bodySink.diagnostics) {
     if (SUPPRESSED_IN_FRAGMENT.has(diagnostic.code)) {
       continue;

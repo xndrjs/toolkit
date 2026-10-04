@@ -2,11 +2,13 @@ import type { FieldDecl, Program, TypeExpr } from "../ir";
 import { formatType, objectPayloadFields, typesSemanticallyEqual } from "./assignability";
 import { expandPayloadObjectMembers } from "./discriminants";
 import type { DiagnosticSink } from "./diagnostic";
+import { checkNoOpaqueInType, isOpaqueLeafType, opaqueTypeBanMessage } from "./opaque-validation";
 import { memberMatchesRefersPattern, refersPatternFieldMissingOnAllMembers } from "./refers";
 import {
   checkTypeExpr,
   checkUniqueFields,
   concreteType,
+  type OpaqueTable,
   type ResourceTable,
   type ScalarTable,
 } from "./symbols";
@@ -38,9 +40,28 @@ export function collectScalars(program: Program, sink: DiagnosticSink): ScalarTa
   return scalars;
 }
 
+export function collectOpaques(program: Program, sink: DiagnosticSink): OpaqueTable {
+  const opaques: OpaqueTable = new Map();
+  for (const opaque of program.opaques) {
+    const path = `opaques.${opaque.name}`;
+    if (opaques.has(opaque.name)) {
+      sink.push({
+        code: "DUPLICATE_OPAQUE",
+        message: `Duplicate opaque '${opaque.name}'`,
+        path,
+        span: opaque.span,
+      });
+      continue;
+    }
+    opaques.set(opaque.name, opaque);
+  }
+  return opaques;
+}
+
 export function collectResources(
   program: Program,
   scalars: ScalarTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): ResourceTable {
   // First pass: register names so payload `resourceRef` can resolve forward refs.
@@ -76,7 +97,19 @@ export function collectResources(
     );
 
     for (const field of resource.identity.fields) {
-      checkTypeExpr(field.type, `${path}.identity.${field.name}`, scalars, resources, sink);
+      const fieldPath = `${path}.identity.${field.name}`;
+      checkTypeExpr(field.type, fieldPath, scalars, resources, opaques, sink);
+      const concrete = concreteType(field.type, fieldPath, scalars, resources, opaques, sink);
+      if (concrete) {
+        checkNoOpaqueInType(
+          concrete,
+          fieldPath,
+          "OPAQUE_TYPE_NOT_ALLOWED_IN_IDENTITY",
+          opaqueTypeBanMessage(concrete, "resource identity"),
+          sink,
+          field.span
+        );
+      }
     }
 
     checkPayloadType(
@@ -85,10 +118,11 @@ export function collectResources(
       identity,
       scalars,
       resources,
+      opaques,
       sink
     );
 
-    walkCheckRefers(resource.payloadType, `${path}.payloadType`, resources, sink);
+    walkCheckRefers(resource.payloadType, `${path}.payloadType`, scalars, resources, opaques, sink);
 
     const payloadFields = objectPayloadFields(resource.payloadType);
     const payload = checkUniqueFields(
@@ -106,6 +140,7 @@ export function collectResources(
       path,
       scalars,
       resources,
+      opaques,
       sink
     );
 
@@ -124,9 +159,10 @@ function checkPayloadType(
   _identity: Map<string, FieldDecl>,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
-  checkTypeExpr(type, path, scalars, resources, sink);
+  checkTypeExpr(type, path, scalars, resources, opaques, sink);
 
   // Nested object fields must not use identity shorthand (only root resource object payload).
   if (type.kind === "object") {
@@ -162,20 +198,22 @@ function walkForbidNestedShorthand(type: TypeExpr, path: string, sink: Diagnosti
 function walkCheckRefers(
   type: TypeExpr,
   path: string,
+  scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   if (type.kind === "object") {
     for (const field of type.fields) {
       const fieldPath = `${path}.${field.name}`;
-      checkFieldRefers(field, fieldPath, resources, sink);
-      walkCheckRefers(field.type, fieldPath, resources, sink);
+      checkFieldRefers(field, fieldPath, scalars, resources, opaques, sink);
+      walkCheckRefers(field.type, fieldPath, scalars, resources, opaques, sink);
     }
   } else if (type.kind === "array" || type.kind === "nullable") {
-    walkCheckRefers(type.of, path, resources, sink);
+    walkCheckRefers(type.of, path, scalars, resources, opaques, sink);
   } else if (type.kind === "union") {
     for (let i = 0; i < type.members.length; i++) {
-      walkCheckRefers(type.members[i]!, `${path}|${i}`, resources, sink);
+      walkCheckRefers(type.members[i]!, `${path}|${i}`, scalars, resources, opaques, sink);
     }
   }
 }
@@ -183,10 +221,22 @@ function walkCheckRefers(
 function checkFieldRefers(
   field: FieldDecl,
   fieldPath: string,
+  scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   if (!field.refers) return;
+
+  const concrete = concreteType(field.type, fieldPath, scalars, resources, opaques, sink);
+  if (concrete && isOpaqueLeafType(concrete)) {
+    sink.push({
+      code: "OPAQUE_TYPE_NOT_ALLOWED_IN_REFERS",
+      message: `Opaque type ${formatType(concrete)} cannot be used with refers`,
+      path: fieldPath,
+      span: field.span,
+    });
+  }
 
   for (let i = 0; i < field.refers.length; i++) {
     const target = field.refers[i]!;
@@ -247,6 +297,7 @@ function checkObjectPayloadShorthand(
   path: string,
   scalars: ScalarTable,
   resources: ResourceTable,
+  opaques: OpaqueTable,
   sink: DiagnosticSink
 ): void {
   for (const field of payloadFields) {
@@ -261,8 +312,15 @@ function checkObjectPayloadShorthand(
           span: field.span,
         });
       } else {
-        const left = concreteType(field.type, fieldPath, scalars, resources, sink);
-        const right = concreteType(identityField.type, fieldPath, scalars, resources, sink);
+        const left = concreteType(field.type, fieldPath, scalars, resources, opaques, sink);
+        const right = concreteType(
+          identityField.type,
+          fieldPath,
+          scalars,
+          resources,
+          opaques,
+          sink
+        );
         if (left && right && !typesSemanticallyEqual(left, right)) {
           sink.push({
             code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
@@ -273,8 +331,8 @@ function checkObjectPayloadShorthand(
         }
       }
     } else if (identityField) {
-      const left = concreteType(field.type, fieldPath, scalars, resources, sink);
-      const right = concreteType(identityField.type, fieldPath, scalars, resources, sink);
+      const left = concreteType(field.type, fieldPath, scalars, resources, opaques, sink);
+      const right = concreteType(identityField.type, fieldPath, scalars, resources, opaques, sink);
       if (left && right && !typesSemanticallyEqual(left, right)) {
         sink.push({
           code: "IDENTITY_PAYLOAD_TYPE_MISMATCH",
