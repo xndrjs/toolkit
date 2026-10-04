@@ -7,8 +7,8 @@ entry Model:
     declarations+=Declaration*;
 
 Declaration:
-    ScalarDeclaration | ResourceDeclaration | FragmentDeclaration
-  | DatasourceDeclaration | QueryDeclaration;
+    ScalarDeclaration | OpaqueDeclaration | ResourceDeclaration
+  | FragmentDeclaration | DatasourceDeclaration | QueryDeclaration;
 
 // --- Datasources -------------------------------------------------------------
 // Routing metadata only — load implementation lives in app codegen config.
@@ -45,6 +45,12 @@ ExcludeClause:
 
 ScalarDeclaration:
     'scalar' name=ID 'on' representation=PrimitiveName ';';
+
+// --- Opaques -----------------------------------------------------------------
+// Nominal non-inspectable payload leaf. Representation stays outside the DSL.
+
+OpaqueDeclaration:
+    'opaque' name=ID ';';
 
 PrimitiveName returns string:
     'string' | 'number' | 'boolean';
@@ -88,7 +94,7 @@ RefersPatternField:
 /**
  * Type precedence (tight → loose): atomic / `[]` / `|`.
  * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
- * Bare ID is scalar or resource — classified during lowering.
+ * Bare ID is scalar, opaque, or resource — classified during lowering.
  * `null` is a type atom; unions containing it lower to IR `nullable`.
  */
 TypeExpr:
@@ -116,7 +122,7 @@ NullTypeExpr:
 TypeProjection:
     resource=ID '.' field=ID;
 
-/** Scalar or resource name; resolved in lowering against declaration tables. */
+/** Scalar, opaque, or resource name; resolved in lowering against declaration tables. */
 NamedTypeExpr:
     name=ID;
 

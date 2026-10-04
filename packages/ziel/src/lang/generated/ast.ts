@@ -55,6 +55,7 @@ export type ZielKeywordNames =
   | "null"
   | "number"
   | "on"
+  | "opaque"
   | "or"
   | "properties"
   | "query"
@@ -303,6 +304,7 @@ export function isDatasourceRoute(item: unknown): item is DatasourceRoute {
 export type Declaration =
   | DatasourceDeclaration
   | FragmentDeclaration
+  | OpaqueDeclaration
   | QueryDeclaration
   | ResourceDeclaration
   | ScalarDeclaration;
@@ -625,7 +627,7 @@ export function isNamedArg(item: unknown): item is NamedArg {
   return reflection.isInstance(item, NamedArg.$type);
 }
 
-/** Scalar or resource name; resolved in lowering against declaration tables. */
+/** Scalar, opaque, or resource name; resolved in lowering against declaration tables. */
 export interface NamedTypeExpr extends langium.AstNode {
   readonly $container:
     | ArrayTypeExpr
@@ -808,6 +810,21 @@ export const OnFailureThrow = {
 
 export function isOnFailureThrow(item: unknown): item is OnFailureThrow {
   return reflection.isInstance(item, OnFailureThrow.$type);
+}
+
+export interface OpaqueDeclaration extends langium.AstNode {
+  readonly $container: Model;
+  readonly $type: "OpaqueDeclaration";
+  name: string;
+}
+
+export const OpaqueDeclaration = {
+  $type: "OpaqueDeclaration",
+  name: "name",
+} as const;
+
+export function isOpaqueDeclaration(item: unknown): item is OpaqueDeclaration {
+  return reflection.isInstance(item, OpaqueDeclaration.$type);
 }
 
 export type OrExpr = AndExpr | BinaryExpr;
@@ -1246,7 +1263,7 @@ export function isTypedField(item: unknown): item is TypedField {
 /**
  * Type precedence (tight → loose): atomic / `[]` / `|`.
  * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
- * Bare ID is scalar or resource — classified during lowering.
+ * Bare ID is scalar, opaque, or resource — classified during lowering.
  * `null` is a type atom; unions containing it lower to IR `nullable`.
  */
 export type TypeExpr = UnionMember | UnionTypeExpr;
@@ -1341,7 +1358,7 @@ export function isUnionMember(item: unknown): item is UnionMember {
 /**
  * Type precedence (tight → loose): atomic / `[]` / `|`.
  * Group with `(…)` for `(A | B)[]`. String literals are type atoms (`"Hero"`).
- * Bare ID is scalar or resource — classified during lowering.
+ * Bare ID is scalar, opaque, or resource — classified during lowering.
  * `null` is a type atom; unions containing it lower to IR `nullable`.
  */
 export interface UnionTypeExpr extends langium.AstNode {
@@ -1400,6 +1417,7 @@ export type ZielAstType = {
   OnFailureSetError: OnFailureSetError;
   OnFailureSetNull: OnFailureSetNull;
   OnFailureThrow: OnFailureThrow;
+  OpaqueDeclaration: OpaqueDeclaration;
   OrExpr: OrExpr;
   PathRef: PathRef;
   Primary: Primary;
@@ -1868,6 +1886,15 @@ export class ZielAstReflection extends langium.AbstractAstReflection {
       name: OnFailureThrow.$type,
       properties: {},
       superTypes: [OnFailureClause.$type],
+    },
+    OpaqueDeclaration: {
+      name: OpaqueDeclaration.$type,
+      properties: {
+        name: {
+          name: OpaqueDeclaration.name,
+        },
+      },
+      superTypes: [Declaration.$type],
     },
     OrExpr: {
       name: OrExpr.$type,

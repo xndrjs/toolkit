@@ -33,6 +33,15 @@ export type ScalarDefinition = {
 };
 
 /**
+ * Nominal opaque type: a non-inspectable payload leaf.
+ * Declared only by name in the DSL; representation and wrap/unwrap live outside Ziel.
+ */
+export type OpaqueDefinition = {
+  name: string;
+  span: SourceSpan | null;
+};
+
+/**
  * Semantic types. `resourceRef` is a resource *instance* contract (identity +
  * payload of that resource) — never lower to a structural object.
  * `R[]` lowers to `array { of: resourceRef("R") }` as **payload typing only**
@@ -40,13 +49,26 @@ export type ScalarDefinition = {
  * Hop to member ARIs only via explicit `expand` / `each` / `resolve to each`
  * (1→1 `resolve to { … }` is a redirect, not array fan-out).
  *
+ * `opaqueRef` is a nominal non-inspectable leaf; Ziel transports the value
+ * without reading, cloning, or serializing it.
+ *
+ * `unresolvedNamedRef` is a bare named type that matched none of resource /
+ * scalar / opaque tables at lower — preserved so check can emit `UNKNOWN_TYPE`
+ * instead of misclassifying the name as an unknown scalar.
+ *
  * `typeProjection` (`Resource.field` in a type position) is preserved through
  * lowering; the checker resolves it to the payload field's semantic type.
  */
 export type TypeExpr =
   | { kind: "primitive"; name: PrimitiveTypeName; span: SourceSpan | null }
   | { kind: "scalarRef"; name: string; span: SourceSpan | null }
+  | { kind: "opaqueRef"; name: string; span: SourceSpan | null }
   | { kind: "resourceRef"; name: string; span: SourceSpan | null }
+  | {
+      kind: "unresolvedNamedRef";
+      name: string;
+      span: SourceSpan | null;
+    }
   | { kind: "stringLiteral"; value: string; span: SourceSpan | null }
   /** Bare `null` type atom; valid only as a union member before lower normalizes to `nullable`. Surviving nodes are rejected by check (`INVALID_NULL_TYPE`). */
   | { kind: "null"; span: SourceSpan | null }
@@ -451,6 +473,8 @@ export type DatasourceDefinition = {
 
 export type Program = {
   scalars: ScalarDefinition[];
+  /** Top-level `opaque` declarations (nominal non-inspectable payload leaves). */
+  opaques: OpaqueDefinition[];
   resources: ResourceDefinition[];
   /** Top-level `fragment` declarations (after spread expansion within each body). */
   fragments: FragmentDefinition[];
