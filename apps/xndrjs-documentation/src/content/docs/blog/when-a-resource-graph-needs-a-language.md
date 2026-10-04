@@ -1,6 +1,6 @@
 ---
 title: "When a resource graph needs a language"
-description: How repeated graph-resolution code exposed a missing declarative boundary, and why that boundary became Ziel.
+description: How testing a graph resolver against a large CMS-driven aggregate exposes the glue code left behind by a well-structured architecture—and why that pressure leads to Ziel.
 date: 2026-10-03
 author: Fabio Fognani
 tags:
@@ -10,104 +10,177 @@ tags:
   - dsl
 ---
 
-In [the first article about graph resolution](/blog/every-component-fetches-its-own-data-until-it-cant/), I started from a problem that had initially looked like a frontend concern: the component tree had become the distributed place where a graph of resources was discovered. Letting each component load its own data was reasonable in isolation, but once nested components began discovering further dependencies, rendering also became responsible for orchestrating a process that extended far beyond the UI.
+This is the third article in a series about resource graph resolution.
 
-To move that responsibility out of the rendering tree, I introduced a model based on [Addressable Resource Identifiers (ARIs)](/v0/resource-orchestration/addressable-resources/) and a resource graph resolution engine. Starting from one or more root identities, the engine discovers further resources from the payloads it loads, routes them to the appropriate data sources, batches and deduplicates the work, and continues until the graph has been resolved. The point was not to give the view a graph to traverse, but to deliver a purpose-built aggregate that it could simply render.
+In [the first article](/blog/every-component-fetches-its-own-data-until-it-cant/), I start from the naive idea that every component should load its own data. That works well until a large CMS-driven page starts discovering resources recursively across a CMS, an integration layer, or other backends. At that point the component tree quietly becomes responsible for a distributed orchestration process. Making the resource graph explicit lets the application resolve it before rendering, batch and deduplicate work across the whole graph, and give the UI an aggregate it can simply represent.
 
-Consider a page on a large institutional website. Most of its editorial structure may come from a headless CMS, yet some records can refer to SKUs owned by a commerce platform while others point to resources exposed by an integration layer. References do not necessarily share one convenient representation either: a custom format may need to be parsed, sometimes with something as specific as a regular expression, whereas a compound reference may carry several fields that jointly contribute to the target identity.
+In [the second article](/blog/five-elements-of-resource-graph-resolution-in-a-clean-architecture-monorepo/), I look at where the code required by that process should live. Resource identities, vendor loaders, data sources, graph resolution strategies, and mapping do not carry the same kind of knowledge, so they should not all collapse into the same place. Separating those responsibilities gives each decision an explicit owner.
 
-What the application wants is still just a page:
+To see how it holds up, I tested that architecture against the page-rendering requirements of a large, CMS-driven institutional website.
 
-```text
-Page
-├── menu
-│   └── logo
-├── strips[]
-│   ├── Hero
-│   │   └── image
-│   ├── Tabs
-│   │   └── tabs[]
-│   └── Product
-└── footer
-    └── logo
-```
+Its pages are assembled from a headless CMS, but they also contain products, news, and other records owned by an integration layer. The content model is deeply nested and highly polymorphic; the same resources can appear through different branches, and the whole graph has to work across many locales. This is exactly the kind of pressure the resource graph resolver is designed to handle.
 
-The resolver gave us the mechanism required to discover and load this graph without turning the view into an orchestration layer. After using that model for real aggregates, however, another problem became difficult to ignore: we still had to describe the same graph several times, across several parts of the codebase, and write a considerable amount of glue code to keep those descriptions aligned.
+And it works. As expected, the UI stops discovering infrastructure dependencies. CMS and integration calls can be scheduled independently. Resource identities remain explicit, vendor code stays behind loaders, and the repository returns a `Page` rather than a bag of transport objects.
+
+But as we move beyond the first few resources, a different problem appears: the architecture tells me where every piece of knowledge belongs, but it does not prevent the same decision from being expressed in several of those places.
+
+In other words, correctness was no longer the main concern. The next problem was evolvability: how safely could the aggregate change without requiring several representations of the same decision to be updated by hand?
 
 ---
 
-## Implementing the first graph resolver
+## Everything is separated, and everything has to agree
 
-The first implementation of a Resource Graph Resolver (RGR) was ordinary TypeScript: we defined an address for each kind of resource, registered the data sources, built a graph resolution strategy, and finally wrote a mapper that walked the resolved `ContentMap` to produce the object expected by the application.
-
-Conceptually, the feature repository looked like this:
+For one page aggregate, the feature repository contains roughly this set of parts:
 
 ```text
 Page repository
-├── resource identities
+├── resource identities and payload types
 ├── data source composition
-├── expansion strategy
+├── graph resolution strategy
 ├── ContentMap projection
 └── result types
 ```
 
-This was not a bad design, because each piece had a clear responsibility: the resolver remained generic, vendor adapters owned transport details, and the feature repository owned both the topology of the aggregate and its final shape. For a small graph, the code was easy to follow as well. The strategy said that a `Page` expands to its menu, footer, and strips, another rule expanded a Hero to an Asset, and the mapper followed those relationships through the `ContentMap`, assigning them to properties such as `menu`, `footer`, and `image`.
-
-The pressure appeared as the graph evolved. A field that had contained a single entry ID became a list, some entries became polymorphic, and one link needed a soft failure policy while another still had to fail the entire aggregate. Elsewhere, a custom encoded reference first resolved to an intermediate locator and only then to an entry or asset, while the same resource began to appear under different aliases.
-
-None of these changes was individually dramatic; the problem was the number of places that had to agree about them.
-
-Adding one relationship could mean changing:
-
-- the expansion strategy that constructs the target identity;
-- the projection that follows the same relationship through the ContentMap and places the resolved target in the aggregate;
-- the TypeScript type describing the projected property;
-- the failure behavior of that edge;
-- the data source composition required by the query;
-
-The traversal code and the projection code were not identical, but they contained the same knowledge. When the strategy expanded `page.menuId` as an `Entry`, the projector had to know that the resulting Entry was supposed to have `kind: "Menu"`; when a `Tabs` entry expanded several tab IDs, it had to reconstruct an array of `Tab` at the same location.
-
-The graph was explicit at runtime, yet its meaning remained distributed across the implementation.
-
----
-
-## Type safety did not remove the duplication
-
-It was tempting to treat this as a TypeScript ergonomics problem: perhaps more generic helpers could infer the mapper, the strategy builder could carry additional type parameters, or the aliases used during expansion could somehow be threaded through the `ContentMap`. Those approaches can improve local APIs, but they do not remove the underlying duplication.
+This is not accidental duplication caused by a careless design. Each part has a different job.
 
 The strategy answers:
 
-> Given this resource, which resource identities should be resolved next?
+> Given this resolved resource, which resource identities should be loaded next?
 
 The projection answers:
 
-> Given the resolved graph, which fields and relationships form the result?
+> Given the resolved graph, which fields and relationships form the application aggregate?
 
-These are different operations, but they are not independent descriptions. Resolution determines how the graph unfolds through resource identities and dependencies, while projection determines what the resolved graph means to its consumer. Both derive from the same definition of the aggregate, yet the handwritten implementation forced us to express that definition separately and keep the two interpretations aligned ourselves.
+The resource declarations describe what can be addressed and what payload each address returns. Data source composition connects those resource families to operational channels. Result types describe what the consumer receives.
 
-Trying to encode all of this indirectly through TypeScript builder types meant asking the implementation language to recover an intention we had never represented directly. The missing abstraction was not another helper, but a query over the resource graph.
+For a small graph, the arrangement is easy to follow. A Page expands to its menu, footer, and strips. A Hero expands to an Asset. A Product strip expands to records from an integration API. The mapper follows the same relationships through the resolved `ContentMap` and places them under application-facing names such as `menu`, `image`, and `products`.
+
+The pressure appears when the specification changes.
+
+A one-to-one relationship becomes one-to-many. One CMS entry becomes polymorphic. A missing menu is allowed to become `null`, while a missing product still has to fail the aggregate. A custom encoded reference has to resolve first to an intermediate locator and only then to an Entry or Asset. The same resource starts appearing under different aliases in different parts of the result.
+
+None of these changes is particularly difficult. More importantly, the architecture makes it clear where to implement each one. That is precisely what the separation described in the previous article gets right.
+
+What makes me uneasy is the number of places that have to remain synchronized.
+
+Adding or changing one relationship can require editing:
+
+- the resource payload that carries the reference;
+- the expansion strategy that constructs the target identity;
+- the projection that follows the relationship through the `ContentMap`;
+- the TypeScript type describing the projected property;
+- the failure behavior of that edge;
+- and sometimes the data source composition required by the query.
+
+The code is aligned now. But what happens after the next specification change, and the one after that?
+
+I am no longer worried about finding the right file. I am worried that correctness depends on remembering every file that represents another interpretation of the same decision.
+
+The graph is explicit at runtime, yet its application-specific meaning remains distributed across the implementation.
 
 ---
 
-## What such a query would need to say
+## The code feels one level too low
 
-Such a query would not describe SQL tables, HTTP requests, or React components. It would need to describe four things:
+My first instinct is to improve the TypeScript API.
+
+Perhaps a more sophisticated strategy builder could carry enough generic parameters to infer the projected type. Perhaps aliases could be threaded through the `ContentMap`. Perhaps a family of helpers could generate the mapper from the expansion policies.
+
+Those ideas can make local code more pleasant, but they do not remove the underlying problem.
+
+Traversal and projection are different operations. The strategy decides how the graph unfolds through resource identities; the projection decides what the resolved graph means to its consumer. Data source composition is different again: it decides which operational channel can materialize each identity.
+
+They should remain separate mechanisms. What they lack is a shared semantic source.
+
+Trying to solve that only with TypeScript types means asking the implementation language to recover an intention that the code never represents directly. The implementation encodes how to execute several parts of the process, but not the aggregate definition from which those parts follow.
+
+That is why the implementation feels too low-level: every change forces me to translate one application decision into resolver machinery by hand.
+
+The missing abstraction is not another builder. It is a query over the resource graph.
+
+---
+
+## JSON and YAML look like the obvious answer
+
+Once the problem looks declarative, JSON or YAML seem like the obvious place to start.
+
+I can describe resources, relationships, and policies in a configuration file, validate it with a schema, then generate the TypeScript strategy and mapper. That at least creates one document from which the lower-level pieces can be produced.
+
+But the document needs to express more than nested configuration.
+
+It needs bindings with scopes. It needs to distinguish fields read from a payload from fields read from a resource identity. It needs to narrow discriminated unions before accessing variant-specific fields. It needs to check that a target identity is complete, preserve nominal scalar types, understand one-to-one and one-to-many relationships, and derive the projected result type from the same declaration.
+
+JSON and YAML can certainly be the concrete syntax of such a system. JSON Schema can validate the shape of the configuration, but it does not provide those semantics by itself. I still have to build a compiler around a generic object format, encode references as strings, and reconstruct useful source locations and diagnostics after parsing.
+
+The editor experience exposes the same limitation. Syntax highlighting for YAML is easy, but it does not know that `locale` refers to the identity of the current Entry, that a field exists only inside the `Hero` branch, or that an Asset construction is missing one part of its address. Completion, go to definition, semantic diagnostics, and useful quick fixes require a semantic model, not merely a serialization format.
+
+At that point the conclusion is unavoidable: I am designing a small language regardless of its concrete syntax. A dedicated syntax stops looking like ceremony because it can make bindings, identity reads, narrowing, and resource construction visible instead of encoding them indirectly inside strings and object keys.
+
+---
+
+## Am I just reinventing GraphQL?
+
+At this point an obvious question is hard to avoid: am I just taking a very long route toward reinventing GraphQL?
+
+The resemblance is real. Both approaches let a consumer describe a shape of data instead of manually sequencing every request. Both can express nested relationships, conditional structure, and a result whose type follows from a declaration. This is not accidental: once a language describes nested resource relationships and derives a typed shape, some ideas inevitably look familiar.
+
+But the important difference is not the syntax. It is the execution boundary.
+
+```text
+GraphQL operation
+        ↓
+GraphQL execution boundary
+        ↓
+resolvers / subgraphs / services
+        ↓
+response
+```
+
+A GraphQL runtime can absolutely orchestrate heterogeneous systems, and when several clients need one stable application schema it may be the simplest boundary to own that work. Whether deployed as a separate API or embedded in the application, choosing it makes a GraphQL schema and executor the place where the aggregate is resolved; the integrations used to satisfy the operation live behind that execution layer.
+
+The model I need starts from a different situation:
+
+```text
+resource-graph query
+        ↓
+resolution session
+        ↓
+resource identities discovered progressively
+        ↓
+existing data sources / loaders
+        ↓
+closure
+        ↓
+projection
+```
+
+In this kind of architecture, REST APIs, GraphQL APIs, SDKs, caches, and integration services already exist. I am not looking to introduce a GraphQL schema and executor—either as another service or as an embedded runtime—as the owner of the aggregate. I need the application to resolve it across the boundaries that already exist, without letting that orchestration collapse back into the component tree.
+
+> **Using GraphQL here makes its schema and executor the orchestration boundary. The language I need makes addressable resources and application-owned aggregate resolution primary.**
+
+GraphQL can still sit behind one of the data sources. The relationship is therefore less “this language versus GraphQL” and more “GraphQL can be one way of materializing resources during a resolution.”
+
+---
+
+## What the language needs to say
+
+With that boundary clarified, I return to the original problem: what does this language actually need to express?
+
+The query does not need to describe SQL tables, HTTP requests, SDK calls, or React components. Those concerns already have owners.
+
+It needs to say four things:
 
 1. where graph resolution starts;
-2. how a resolved resource reveals more resource identities;
-3. which parts of each payload belong in the result;
-4. how intermediate resources "redirect" to other resources.
+2. how a resolved resource reveals further resource identities;
+3. which fields and relationships form the result;
+4. which intermediate resources exist only to compute the next address.
 
-To do that without collapsing infrastructure concerns together, the query would also need to preserve a distinction that had already proved important in the resolver: a resource identity is not its payload.
+To express those ideas without collapsing abstraction levels, the language also has to preserve a distinction that is fundamental to the resolver: a resource identity is not its payload.
 
-Consider a localized CMS entry whose address contains a space, environment, entry ID, and locale, while its payload contains a title, an image reference, or a list of child entries.
-
-Those values live at different abstraction levels:
+Consider a localized CMS entry:
 
 ```text
 Entry identity
-├── spaceId
-├── environmentId
 ├── id
 └── locale
 
@@ -115,87 +188,64 @@ Entry payload
 ├── kind
 ├── title
 ├── imageId
-└── tabs[]
+└── children[]
 ```
 
-When expanding from an Entry to an Asset, some parts of the Asset identity may come from the Entry payload, while others come from the Entry identity or the query input. The query language therefore had to make those sources visible instead of pretending that every relationship was a foreign key stored in one field.
+When expanding from an Entry to an Asset, the Asset ID may come from the Entry payload while its locale comes from the Entry identity. The declaration has to make those sources visible; pretending that every relationship is a foreign key contained in one payload field would encode the wrong model.
 
-At this point, a nicer API around the strategy builder was no longer enough. What we were describing was a resource graph resolution program, and the language that emerged from that model became **Ziel**.
+At this point, the model is no longer just configuration. It is a resource graph resolution program.
+
+I call the language that emerges from that model **Ziel**.
 
 ---
 
-## Describe the destination, not the journey
+## Describe the destination, not the sequence of requests
 
-The name **Ziel** comes from the German word for _goal_ or _destination_. That meaning also captures the idea behind the language.
+The name **Ziel** comes from the German word for _goal_ or _destination_. It captures the main shift in the model.
 
-When navigating by the stars, you do not steer by continuously inspecting the seabed beneath you. You orient yourself against stable points farther away and use them to determine where you are going.
-
-Ziel takes a similar view of data orchestration: instead of encoding every operational step of data acquisition or hardcoding the current infrastructure split — which resource lives in the CMS, which comes from an integration service, a database, or something else — a query describes the resource graph and projected aggregate the application is trying to reach. Where a resource happens to live is an implementation detail; the aggregate is the application concern. If that split changes, the ideal outcome is a routing or datasource change, not surgery across the orchestration code.
-
-The query does not prescribe a sequence such as:
+Procedural orchestration describes a journey:
 
 ```text
-fetch page from CMS
-then fetch menu from CMS
-then fetch strips from CMS
-then extract product SKUs
-then fetch products from ecommerce
-then resolve recommendations through the integration layer
-then group entry IDs
-then batch assets from CMS
-then map everything into the page aggregate
+load the page from the CMS
+then load its modules from the CMS
+then extract product identifiers
+then load products from the integration API
+then load the referenced assets
+then map everything into a Page
 ```
 
-It declares the destination:
+A Ziel query describes the graph and aggregate the application is trying to reach:
 
 ```text
 Page
-├── menu → Entry
-├── strips[] → Entry
-│   ├── Hero → Asset
-│   ├── Tabs → Entry[]
-│   └── Product → Product
-│                  └── recommendations → Recommendation[]
-└── footer → Entry
+└── modules[] → Entry
+    ├── Hero → Asset
+    └── Product → Product
 ```
 
-The first description bakes the current infrastructure split into the orchestration itself. The second describes only the resource relationships the application cares about; datasources decide where those resources happen to come from today.
+The query does not decide whether an Entry is loaded with REST, GraphQL, an SDK, a database client, or an in-memory fixture. It does not prescribe which batch should run first. Data sources and the graph resolver still own that work.
 
-If Product moves from the ecommerce backend to an integration service, the aggregate should not need to be rewritten. Ideally, only the routing or datasource declaration changes.
+It states which resources exist, how they are related for this aggregate, and which shape should emerge when resolution is complete.
 
-> **Procedural orchestration keeps looking at the ground: “what do I do next?” Declarative orchestration keeps looking at the stars: “what state am I trying to reach?”**
-
-The resolver, data sources, and loaders remain responsible for the walk. They route identities, batch compatible work, deduplicate resources, follow redirects, and continue until no newly discovered identities remain. The declaration stays focused on the destination: describe the graph you need and let the runtime determine how to get there.
+> **The language describes the destination. The runtime owns the walk.**
 
 ---
 
 ## Declaring the vocabulary of the graph
 
-Ziel starts with resources, whose declarations keep identity separate from payload:
+The following is a deliberately small version of the page model:
 
 ```ziel
 scalar Locale on string;
 scalar EntryId on string;
 scalar AssetId on string;
 
-resource Asset(
-  id: AssetId,
-  locale: Locale
-): {
-  kind: "Asset"
-  id
-  title: string
-  url: string
-}
-
 resource Page(
   id: EntryId,
   locale: Locale
 ): {
-  id
   title: string
-  menuId: EntryId refers Entry with { kind: "Menu" }
-  strips: { id: EntryId }[] refers Entry
+  modules: { id: EntryId }[] refers Entry
 }
 
 resource Entry(
@@ -204,40 +254,36 @@ resource Entry(
 ):
   {
     kind: "Hero"
-    id
     title: string
     imageId: AssetId refers Asset
   }
   | {
-    kind: "Tabs"
-    id
-    title: string
-    tabs: { id: EntryId }[] refers Entry
+    kind: "Text"
+    body: string
   }
-  | {
-    kind: "Menu"
-    id
-    title: string
-  }
+
+resource Asset(
+  id: AssetId,
+  locale: Locale
+): {
+  url: string
+  title: string
+}
 ```
 
-`Entry(id, locale)` describes how an Entry is addressed, whereas the type after `:` describes the payload returned by its data source. The Entry variants share the same identity because `kind` belongs to the payload and therefore does not create a second resource address.
+The parameters before `:` describe how a resource is addressed. The type after `:` describes the payload returned when that address is loaded.
 
-The `refers` annotations identify relationship-bearing fields. An optional payload pattern such as `with { kind: "Menu" }` can also narrow the known target variant, but these annotations do not prescribe graph traversal by themselves.
+`Entry(id, locale)` therefore identifies one Entry. Its `kind`, `title`, `body`, and `imageId` belong to the loaded value; changing one of those fields does not create a different address.
 
-That last point matters. Writing:
+The `refers` annotations identify fields that participate in relationships, but they do not trigger resolution on their own. Different queries may traverse different relationships from the same resource vocabulary.
 
-```ziel
-imageId: AssetId refers Asset
-```
-
-does not load an Asset; it only says that this payload field participates in a relationship with `Asset`. Traversal remains explicit in the query.
+That distinction lets one query ask for a complete Page while another projects a smaller editorial preview without changing the loaders or the resource definitions.
 
 ---
 
-## Describing traversal and projection together
+## Traversal and projection come from one query
 
-A query chooses a root and defines what each encountered resource contributes to the aggregate:
+With the vocabulary in place, a query can describe the aggregate:
 
 ```ziel
 query PageDetail(
@@ -254,16 +300,11 @@ query PageDetail(
   )
 
   on Page p include properties {
-    expand menu: Entry(
-      id: p.menuId,
-      locale: @p.locale
-    ) on failure set null
-
-    expand strips: each stripLink in p.strips (
+    expand modules: each link in p.modules (
       Entry(
-        id: stripLink.id,
+        id: link.id,
         locale: @p.locale
-      ) on failure set null
+      )
     )
   }
 
@@ -275,15 +316,6 @@ query PageDetail(
       ) on failure set null
     }
 
-    when e.kind == "Tabs" {
-      expand tabs: each tabLink in e.tabs (
-        Entry(
-          id: tabLink.id,
-          locale: @e.locale
-        ) on failure set null
-      )
-    }
-
     default { }
   }
 
@@ -291,376 +323,140 @@ query PageDetail(
 }
 ```
 
-The example contains several ideas, but each corresponds to knowledge that already existed in the handwritten implementation. `root` constructs the first resource identity from query parameters, while `on Page` describes what happens once its payload is available. `include properties` keeps ordinary payload fields and leaves relationships to explicit expansions.
+`root` constructs the first resource identity from the query parameters. `on Page` describes what the Page contributes once its payload is available.
 
-Within that projection, `expand menu` both gives the relationship an aggregate-level name and constructs the target Entry identity: `p.menuId` reads from the Page payload, whereas `@p.locale` reads from its identity. The `each` form makes cardinality explicit, so the projected property is an array because the relationship is one-to-many, not because the Entry data source happens to load a batch.
+The `modules` expansion combines two decisions that otherwise live in separate files. It constructs the Entry identities the resolver must load, and it names the projected relationship that appears in the aggregate. `each` makes the cardinality explicit.
 
-The `when` arms narrow a polymorphic payload before referring to fields that exist only on one variant, and failure behavior remains attached to the relevant edge; a missing menu can therefore become `null` without making every failure in the query soft. Most importantly, the aliases declared by those expansions become the aliases in the result, which means the query describes not only what the resolver should load but also what those resolved relationships mean to the aggregate.
+Inside the Entry projection, `when` narrows the payload before the query reads `imageId`. The image identity combines a value from the payload with `locale` from the current Entry identity. The failure policy belongs to that edge, so a missing image becomes `null` without turning every load failure into a soft failure.
 
----
+These are not new responsibilities invented by the language. Every one of those decisions already exists in the handwritten strategy, mapper, result type, or resolver configuration.
 
-## A reference does not have to contain a complete identity
-
-Simple examples often make relationships look like one field pointing to one ID:
-
-```ziel
-assetId: AssetId refers Asset
-```
-
-Real references are not always that convenient. A taxonomy term, for example, may be addressed by `kind`, `id`, and `locale`, even though the source payload carries only the first two values and locale must come from the current resource identity:
-
-```ziel
-resource TaxonomyTerm(
-  kind: TaxonomyKind,
-  id: TermId,
-  locale: Locale
-): {
-  kind
-  id
-  label: string
-}
-
-resource Page(
-  id: EntryId,
-  locale: Locale
-): {
-  id
-  primaryTerm: {
-    kind: TaxonomyKind
-    id: TermId
-  } refers TaxonomyTerm
-}
-```
-
-The complete target identity is assembled where the relationship is expanded:
-
-```ziel
-expand primaryTerm: TaxonomyTerm(
-  kind: p.primaryTerm.kind,
-  id: p.primaryTerm.id,
-  locale: @p.locale
-)
-```
-
-Ziel does not require the object carrying `refers TaxonomyTerm` to contain every identity field, because that would enforce the wrong invariant. A reference may contribute only part of an identity, with the remaining components coming from the source identity or query parameters; completeness becomes checkable at the point where the target resource is actually constructed. If `locale` is missing, or one of the supplied values has the wrong nominal scalar type, the query does not typecheck.
-
-The relationship declaration identifies the target vocabulary, while the expansion defines the actual mapping.
+The query makes their common meaning explicit.
 
 ---
 
-## Some resources exist only to compute the next address
+## The compiler closes the synchronization gap
 
-Not every resource loaded during resolution belongs in the final aggregate. A production-shaped example is a custom reference stored as an encoded string: loading it produces a small payload that identifies the target as either an Entry or an Asset and supplies the fields needed to address that resource.
+A `.ziel` file is not interpreted inside every request. The compiler checks the declarations and emits ordinary TypeScript.
 
-The locator is operationally real - it must be loaded and inspected - but exposing it in the projected Page would leak an implementation detail.
-
-Ziel represents this with `resolve to`:
-
-```ziel
-on CustomReference c resolve to {
-  Entry(
-    id: c.id,
-    locale: @c.locale
-  ) when c.kind == "Entry"
-
-  Asset(
-    id: c.id,
-    locale: @c.locale
-  ) when c.kind == "Asset"
-}
-```
-
-An expansion can point to `CustomReference`, allowing the resolver to load it, after which projection follows the redirect and places the resulting Entry or Asset directly under the original alias. The intermediate computation remains part of graph resolution without entering the application-facing shape, so the resolved graph can contain machinery that the aggregate has no reason to expose.
-
----
-
-## Data sources still own the outside world
-
-A declarative graph query should not become a new place to hide HTTP calls.
-
-Ziel can declare which resource families belong to a data source and which execution context that source requires:
-
-```ziel
-datasource CmsEntries {
-  context {
-    locale: Locale
-  }
-
-  for Page
-  for Entry
-}
-
-datasource CmsAssets {
-  context {
-    locale: Locale
-  }
-
-  for Asset
-}
-```
-
-Routes can also be refined with an optional `when` clause — schematically, `for Entry e when <routing condition>` — when the same resource family may be served by more than one data source. Because the predicate is evaluated before loading begins, it can inspect the data source context and the resource identity through `@e`, but not the resource payload.
-
-The actual `load` implementation remains TypeScript, and its contract is deliberately agnostic about where the data comes from: a data source may issue HTTP requests, call a vendor SDK, query a database, read from the filesystem, or wrap an in-memory store. Authentication, validation, batching limits, retries, and vendor-specific errors therefore remain at that level, while Ziel describes routing metadata and the semantic graph without trying to become an IO language.
-
-### A loader speaks resources, not vendor shapes
-
-A data source does not necessarily return whatever the vendor happens to return. Its contract is specific: given a batch of resource identities, it provides the payloads declared by those `resource`s — validated and typed accordingly, with `undefined` for misses. The loader is therefore where the vendor's shape stops, and it can act as a small anti-corruption layer.
-
-Take the `Page` resource declared earlier. A Contentful-backed `CmsEntries.load` fetches the whole batch once, then remaps each vendor document into the declared payload — same length and order as the input, like a DataLoader:
+For a resource it generates the ARI factory and payload contract, among other artifacts. An abridged output for `Page` looks like this:
 
 ```ts
-// Contentful CmsEntries.load (schematic)
-async load(
-  batch: readonly (PageResource | EntryResource)[],
-  context: ResourceLoadContext<CmsEntriesContext>
-): Promise<readonly (PagePayload | EntryPayload | undefined)[]> {
-  const ids = batch.map((resource) => resource.key.id);
-  const entries = await contentful.getEntries({
-    "sys.id[in]": ids,
-    locale: context.executionContext.locale,
+export const pageAri = ari("Page", s.object({ id: s.string(), locale: s.string() }));
+
+export type PageResource = ReturnType<typeof pageAri>;
+
+export type PagePayload = {
+  title: string;
+  modules: { id: EntryId }[];
+};
+```
+
+From the query it derives the projected result shape. Again abridged, the relevant part is:
+
+```ts
+export type PageDetail_Page = {
+  title: string;
+  modules: PageDetail_Entry[];
+};
+
+export type PageDetail_Entry_Hero = {
+  kind: "Hero";
+  title: string;
+  image: PageDetail_Asset | null;
+};
+
+export type PageDetailResult = PageDetail_Page;
+```
+
+The array comes from `each`. The alias `image` comes from the expansion. Its `null` comes from `on failure set null`. If any of those decisions changes in the query, the generated type changes with it.
+
+The compiler also generates the resolution strategy, projection materializer, query-specific data source factory, and a closed façade that assembles the ordinary runtime pieces. An abridged version looks like this:
+
+```ts
+export async function resolvePageDetail(input: ResolvePageDetailInput) {
+  const root = pageAri({
+    id: input.params.pageId,
+    locale: input.params.locale,
   });
-  const byId = new Map(entries.items.map((entry) => [entry.sys.id, entry]));
 
-  return batch.map((resource) => {
-    const entry = byId.get(resource.key.id);
-    if (!entry) return undefined;
-
-    if (pageAri.matches(resource)) {
-      return {
-        id: entry.sys.id,
-        title: entry.fields.title,
-        menuId: entry.fields.menu.sys.id,
-        strips: entry.fields.strips.map((link) => ({ id: link.sys.id })),
-      } satisfies PagePayload;
-    }
-
-    // Entry mapping omitted
-    return undefined;
+  const resolver = createResourceGraphResolver({
+    sources: input.sources,
+    strategy: createPageDetailStrategy(input.params).build(),
   });
+
+  const { contentMap, islands, islandDependencies, errors, failures, promotedResourceKeys } =
+    await resolver.resolve({
+      roots: [root],
+      executionContext: { locale: input.params.locale },
+    });
+
+  const pageDetail = projectPageDetail(root, contentMap, {
+    params: input.params,
+    failures,
+  });
+
+  return {
+    pageDetail,
+    contentMap,
+    islands,
+    islandDependencies,
+    errors,
+    promotedResourceKeys,
+  };
 }
 ```
 
-If the content later moves to DatoCMS, the batch shape stays the same; only the fetch and the mapping change:
+This is essentially the glue code that otherwise has to be repeated by hand for every query.
 
-```ts
-// DatoCMS CmsEntries.load (schematic)
-async load(
-  batch: readonly (PageResource | EntryResource)[],
-  context: ResourceLoadContext<CmsEntriesContext>
-): Promise<readonly (PagePayload | EntryPayload | undefined)[]> {
-  const ids = batch.map((resource) => resource.key.id);
-  const records = await dato.Items.all({
-    filter: { ids: ids.join(",") },
-    locale: context.executionContext.locale,
-  });
-  const byId = new Map(records.map((record) => [record.id, record]));
+The compiler does not make application decisions. It produces several executable interpretations of one decision: an expansion strategy for the resolver, a projection for the consumer, and TypeScript contracts for both sides.
 
-  return batch.map((resource) => {
-    const record = byId.get(resource.key.id);
-    if (!record) return undefined;
-
-    if (pageAri.matches(resource)) {
-      return {
-        id: record.id,
-        title: record.title,
-        menuId: record.menu.id,
-        strips: record.strips.map((item) => ({ id: item.id })),
-      } satisfies PagePayload;
-    }
-
-    // Entry mapping omitted
-    return undefined;
-  });
-}
-```
-
-The resource declaration, the queries, and the projected aggregate stay untouched. Because the loader's return type is generated from the same `.ziel` declaration, a mapping that drifts from the contract is flagged by the TypeScript compiler instead of surfacing later, inside a projection that has no way of knowing what went wrong.
-
-This is also why Ziel does not generate resources from vendor models. A `contentful-to-ziel` generator would make the resource graph exactly as volatile as the vendor format, which is the coupling the loader boundary exists to remove. The same reasoning applies one level up: the projected aggregate does not need to match the domain model. It can be a convenient intermediate representation that changes at its own pace, so that vendor, graph, and domain can each evolve independently.
-
-A BFF would offer similar protection, but through another service to design, deploy, and operate. Here the boundary is a function in the application.
-
-This boundary is deliberate:
-
-```text
-Ziel query
-    │
-    │ declares identities, relationships and result shape
-    ▼
-Generated resolution strategy
-    │
-    │ constructs ARIs and discovers dependencies
-    ▼
-Resource graph resolver
-    │
-    │ routes, batches, schedules and deduplicates
-    ▼
-TypeScript data sources
-    │
-    │ perform IO
-    ▼
-ContentMap
-    │
-    │ projected using the same query declaration
-    ▼
-Application aggregate
-```
-
-The language raises the level at which the aggregate is described without pulling transport concerns into that level.
+Changing the aggregate now means editing the declaration from which those pieces follow, rather than editing a pipeline and hoping every representation still agrees.
 
 ---
 
-## The compiler closes the gap
+## If it is a language, the editor should understand it
 
-A `.ziel` file is not interpreted inside every request. The compiler parses and checks its declarations, analyzes each query, and generates ordinary TypeScript artifacts:
+A dedicated syntax only earns its place if it is better to work with than a generic configuration file.
 
-- nominal scalar types and ARI factories;
-- resource payload types and a registry that associates each ARI family with the payload returned for it;
-- graph resolution strategies;
-- query-specific data source factories;
-- cycle-safe projection materializers;
-- result types;
-- and a closed `resolve*` façade for each query.
+Ziel therefore uses the same semantic model for code generation and for its language server. The editor does not merely color keywords. It knows which resource is being constructed, which bindings are in scope, whether a payload has been narrowed, which fields belong to an identity, and whether declarations in another file are compatible.
 
-Application code supplies the data source implementations and invokes the generated façade:
+That allows the VS Code and Cursor extension to provide:
 
-```ts
-const result = await resolvePageDetail({
-  params: {
-    pageId,
-    locale,
-  },
-  sources,
-});
+- syntax highlighting and document formatting;
+- live syntax and semantic diagnostics;
+- completion for resources, fields, bindings, and identity components;
+- hover information and go to definition across files;
+- quick fixes for declarations the compiler can complete safely.
 
-result.pageDetail;
-```
-
-The façade constructs the root identity, creates the strategy, runs the resolver, and projects the resulting `ContentMap`, while the lower-level pieces remain available when an application needs more control. The default path simply stops asking every feature to reassemble that pipeline by hand.
-
-What matters is not the amount of generated code, but the fact that traversal, projection, and their types derive from the same semantic source. Changing an expansion from one resource to many turns the generated result into an array; adding a soft failure policy makes the affected edge nullable or error-valued; and changing the possible targets of a redirect updates the projected union.
-
-The compiler does not invent application behavior; it keeps several interpretations of one declaration aligned.
+This authoring experience is not an extra feature added after choosing a custom file extension. It is part of the reason to make the language explicit. The compiler and the editor should disagree as rarely as the generated strategy and projection do.
 
 ---
 
-## A DSL should help you write it
+## Where Ziel becomes useful
 
-Choosing a dedicated syntax instead of plain JSON or YAML only makes sense if the language also improves the authoring experience. Ziel therefore ships with a VS Code extension that provides syntax highlighting, live diagnostics, completion, hover information, go to definition, quick fixes, and document formatting.
+Ziel is designed for applications whose aggregate is intrinsically compositional: many addressable resource families, several backends, data-dependent traversal, repeated resources, failure policies on individual edges, and enough change that the same decisions keep resurfacing across handwritten strategies, mapping, and result types.
 
-These features are driven by the same language server and semantic model used by codegen, so the editor understands concepts such as resource identities, scoped bindings, narrowed payloads, and cross-file declarations rather than treating a query as a generic object tree. JSON or YAML could store similar configuration, but the dedicated language makes those semantics available while the query is being written.
+That is common in large CMS-driven websites, commerce experiences, integration-heavy applications, and other systems where no single backend already owns the aggregate the application needs.
 
-The extension also works with Cursor. If **Ziel** does not appear in its extension search — Open VSX indexing may lag behind a release — it can be installed directly by identifier:
+If one backend returns exactly the object a small frontend renders, Ziel may solve a problem that system does not have yet. But the threshold is not “wait until the codebase is unmanageable.” A useful way to evaluate the model is to express one real aggregate and see whether the query replaces knowledge that is currently duplicated across traversal, mapping, and types.
 
-```sh
-cursor --install-extension xndrjs.ziel-vscode
-```
-
----
-
-## Ziel is not a GraphQL clone
-
-At this point, the resemblance to GraphQL is hard to ignore.
-
-Both languages let an application describe a shape of data instead of manually orchestrating every request. Both can express nested relationships, conditional structure, and a result whose type follows the declaration. If Ziel had emerged without GraphQL existing, some of its ideas would still look familiar for good reason.
-
-> **The important difference is not syntax. It is the execution boundary.**
-
-A GraphQL operation is evaluated against a GraphQL schema. However the server obtains the underlying data (through database queries, REST calls, other services, or further GraphQL requests) that integration sits behind the GraphQL execution layer.
-
-Ziel starts from a different situation: the application already has several independently addressable resource families and several ways of materializing them, but no single backend exposes the aggregate it needs.
-
-```text
-GraphQL
-
-operation
-   ↓
-GraphQL execution boundary
-   ↓
-resolvers / subgraphs / connectors
-   ↓
-data sources
-   ↓
-response
-```
-
-```text
-Ziel
-
-resource-graph query
-   ↓
-resolution session
-   ↓
-resource identities are discovered progressively
-   ↓
-data sources / loaders
-   ↓
-more identities may be discovered
-   ↓
-closure
-   ↓
-projection
-```
-
-This distinction matters when the shape of the work is itself discovered while resources are being resolved. A Ziel query does not need to become one progressively larger transport query: loading an Entry may reveal ten more Entries, which may in turn reveal Assets or resources owned by another system. The resolver can schedule that work incrementally, batch compatible identities, deduplicate branches that converge on the same address, and stop when no further work remains.
-
-GraphQL can of course orchestrate heterogeneous systems as well. A well-designed GraphQL API or BFF may be exactly the right solution, especially when several clients should share one stable application schema.
-
-> **That was simply not the boundary I needed.**
-
-The systems I was working with already exposed REST APIs, GraphQL APIs, SDKs, caches, and integration services. Building another backend solely to move orchestration away from the frontend would have solved the ownership problem by relocating it, but it would also have introduced another service to design, deploy, operate, and evolve.
-
-Ziel lets that orchestration live with the application while keeping transport-specific work behind data sources. This also means that GraphQL is not something Ziel needs to replace: a GraphQL endpoint can be one of its loaders just as easily as a REST API, database adapter, SDK, filesystem reader, or in-memory fixture.
-
-The relationship is therefore less **"Ziel versus GraphQL"** and more **"GraphQL can be one way of materializing resources inside a Ziel resolution".**
-
-The two abstractions overlap, but they make different things primary. GraphQL starts from a schema exposed through a GraphQL execution boundary, whereas Ziel starts from addressable resources and asks how an application can resolve the aggregate it needs across whatever execution boundaries already exist.
-
----
-
-## Ziel is intentionally not a general-purpose language
-
-Once a language can describe recursive expansion, conditional branches, and intermediate redirects, it is easy to ask whether every calculation should move into it.
-
-That is not the goal. Ziel describes how an aggregate is resolved from addressable resources, so it has no reason to own arbitrary business logic, mutations, vendor SDKs, or unrestricted computation.
-
-If resolving an identity requires normalization or a calculation better expressed in TypeScript, a data source can expose a resource whose payload contains the normalized information and let the query continue expanding from there. The complete system remains expressive without turning the DSL itself into another application runtime.
-
-The distinction is useful:
-
-```text
-TypeScript computes values and talks to the outside world.
-Ziel gives resource-graph resolution an explicit semantic shape.
-```
-
-The abstraction pays rent only while it keeps those responsibilities separate.
-
----
-
-## When not to use it
-
-A BFF can absolutely expose a complete aggregate; if that endpoint is stable, owned by the right team, and cheap to evolve, adding a graph resolver and a DSL would be unnecessary. The same applies to a feature that loads two resources in a fixed sequence, where ordinary TypeScript stays easier to understand and operate.
-
-Ziel becomes interesting when the aggregate is intrinsically compositional:
-
-- its shape depends on the payloads encountered during traversal;
-- it spans several resource families or backends;
-- the same resource may appear through different relationships;
-- batching and deduplication matter;
-- intermediate calculations should not leak into the output;
-- or changes repeatedly require synchronized edits to strategy, mapping, and types.
-
-The cost is real: there is a language to learn, a compiler in the build and another semantic boundary to maintain. That cost is justified when the graph exists in the system; Ziel should make existing orchestration explicit, not encourage an application to manufacture a graph it does not need.
+The cost of learning a small language should buy back a higher level of reasoning. When it does, the value is not only fewer lines of glue code. It is having one place where a change to the aggregate can be understood before it is lowered into runtime machinery.
 
 ---
 
 ## Changing the aggregate at the level where it is understood
 
-The resource graph resolver gave us a generic mechanism for resolving addressable resources across heterogeneous data sources, but it did not provide a single place to express the feature-specific meaning of that graph. Handwritten strategies and mappers worked until the same relationships had to remain synchronized across traversal, projection, types, failure policies, and composition; more TypeScript abstractions could move that knowledge around, but they could not make it singular.
+The resource graph resolver provides the mechanism: discover addressable resources, route and batch them across heterogeneous data sources, and continue until the graph is resolved.
 
-Ziel is an attempt to place that knowledge at the level where it is understood. A query says where resolution begins, how resources reveal other resources, which intermediate computations disappear, and what aggregate shape should emerge, while the compiler lowers that declaration into mechanisms the runtime already knows how to execute.
+The architecture around it clarifies ownership: identities, loaders, data sources, strategies, and mapping stop bleeding into one another.
 
-The broader lesson is not that every orchestration problem needs a DSL, but that repeated procedural code sometimes points to a missing semantic representation. When the graph changes, the strategy, mapper, and result type should not have to rediscover the same decision independently.
+Putting that architecture under realistic pressure exposes the next missing layer. Although those responsibilities are correctly separated, traversal, projection, failure behavior, and result types remain several interpretations of the same aggregate definition. Keeping them aligned is manual work performed below the level at which the application decision is actually understood.
+
+Ziel gives that decision a semantic representation and lets the compiler lower it into the mechanisms the runtime already knows how to execute.
+
+The broader lesson is not that every configuration deserves a DSL. It is that repeated procedural glue can be evidence of a missing language in the architecture—especially when several pieces of correct code must keep rediscovering the same meaning independently.
 
 Changing aggregation should mean editing a declaration, not refactoring a pipeline.
+
+In [the next article](/blog/when-the-backend-changes-but-the-resource-graph-does-not/), I will look at what follows once that declaration exists: a typed anti-corruption boundary, replaceable data sources, gradual backend migrations, and operational resources that do not have to leak into the application aggregate.
