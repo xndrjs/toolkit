@@ -3,7 +3,7 @@
  * into generated TypeScript modules for the product path
  * (`buildGeneratedModule` / CLI).
  *
- * Product emit is multi-file: `resources.ts` plus one `{kebab}.query.ts` per
+ * Product emit is multi-file: `resources.ts` plus one `{QueryName}.query.ts` per
  * query (no barrel). Keeps `generateResources` / `generateStrategies` /
  * `generateProjections` / `generateDataSources` as focused unit-test entry
  * points with separate imports.
@@ -330,7 +330,7 @@ function composeQueryModule(
 
 /**
  * Compose the multi-file codegen product: shared `resources.ts` and one
- * `{kebab-query}.query.ts` per query. Apps import modules directly — there is
+ * `{QueryName}.query.ts` per query. Apps import modules directly — there is
  * no generated barrel.
  *
  * Query files import runtime from `importFrom` and shared symbols from

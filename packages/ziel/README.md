@@ -84,12 +84,12 @@ Each run emits a flat directory (no barrel `index.ts`):
 ```text
 out/
   resources.ts              # scalars, opaques, ARI, payloads, ContentRegistry, shared DS types
-  page-detail.query.ts      # strategy + DS factory + projection + resolve for that query
-  product-detail.query.ts
+  PageDetail.query.ts       # strategy + DS factory + projection + resolve for that query
+  ProductDetail.query.ts
 ```
 
-- **Query filenames** — kebab-case of the IR `Query.name` + `.query.ts` (`PageDetail` → `page-detail.query.ts`). Two queries that slug to the same path are rejected.
-- **Imports** — app code imports modules by path (`./generated/resources`, `./generated/page-detail.query`). Query modules import shared symbols from `./resources`; there are no cross-query imports.
+- **Query filenames** — IR `Query.name` as-is + `.query.ts` (`PageDetail` → `PageDetail.query.ts`). Case-insensitive collisions (e.g. `PageDetail` vs `pageDetail` on macOS) are rejected.
+- **Imports** — app code imports modules by path (`./generated/resources`, `./generated/PageDetail.query`). Query modules import shared symbols from `./resources`; there are no cross-query imports.
 - **Stale cleanup** — after a successful write, the CLI deletes only stale _managed_ files under `out` (`resources.ts`, `*.query.ts`, and a legacy barrel `index.ts`) that still carry the generated header and are not in the current emit set. Hand-written files are left alone.
 
 `--dry-run` prints each module with a path banner (`// ===== path =====`).
@@ -238,7 +238,7 @@ There is no JSON or serialization contract for opaque values — that remains ap
 
 `buildGeneratedModule` / `ziel-codegen` also emit a closed `resolve*` façade per query (`resolvePostDetail`, …): takes `createResourceGraphResolver` config minus `strategy` (including optional runtime `budget` overrides), plus `resolve` input and query params; runs strategy → resolve → project; returns `{ postDetail, contentMap, islands, islandDependencies, errors, promotedResourceKeys }`. There is **no** global `missingResourceMode` on resolve input — roots always throw; child load failures follow each expand’s `on failure` policy. `create*Strategy` and `project*` remain exported for low-level use.
 
-`buildGeneratedModule` / `ziel-codegen` compose resources + strategies + projections + resolve façades into multi-file modules when queries exist (`composeGeneratedModules` is the pure compose step: `resources.ts` + one `{kebab}.query.ts` per query). When the program declares one or more `datasource` blocks, each query module also emits its `create{Query}DataSources` factory; shared `*Config` / context types live in `resources.ts`. Generated runtime imports stay on `@xndrjs/ziel` only. (`buildResources` remains a deprecated alias of `buildGeneratedModule`.)
+`buildGeneratedModule` / `ziel-codegen` compose resources + strategies + projections + resolve façades into multi-file modules when queries exist (`composeGeneratedModules` is the pure compose step: `resources.ts` + one `{QueryName}.query.ts` per query). When the program declares one or more `datasource` blocks, each query module also emits its `create{Query}DataSources` factory; shared `*Config` / context types live in `resources.ts`. Generated runtime imports stay on `@xndrjs/ziel` only. (`buildResources` remains a deprecated alias of `buildGeneratedModule`.)
 
 ### `resolve to` (1→1 and 1→N)
 

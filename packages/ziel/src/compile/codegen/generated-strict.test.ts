@@ -65,7 +65,7 @@ describe("generated TypeScript", () => {
 
     const analysis = analyzeProgram(parsed.program);
     const { files } = composeGeneratedModules(analysis);
-    expect(files.map((f) => f.relativePath)).toEqual(["resources.ts", "page-detail.query.ts"]);
+    expect(files.map((f) => f.relativePath)).toEqual(["resources.ts", "PageDetail.query.ts"]);
 
     const diagnostics = compileStrictFiles(files);
     const rendered = diagnostics.map((diagnostic) =>
@@ -76,7 +76,7 @@ describe("generated TypeScript", () => {
     for (const file of files) {
       expectNoAny(file.code);
     }
-    const page = files.find((f) => f.relativePath === "page-detail.query.ts")!;
+    const page = files.find((f) => f.relativePath === "PageDetail.query.ts")!;
     expect(page.code).toContain("satisfies Partial<PageDetail_Page>");
   });
 
@@ -116,7 +116,7 @@ describe("generated TypeScript", () => {
     );
 
     expect(rendered).toEqual([]);
-    const query = files.find((f) => f.relativePath === "q.query.ts")!;
+    const query = files.find((f) => f.relativePath === "Q.query.ts")!;
     expectNoAny(query.code);
     expect(query.code).toContain('&& !(predicate.payload.kind == "Hero")');
   });
@@ -140,7 +140,7 @@ describe("generated TypeScript", () => {
     );
 
     expect(rendered).toEqual([]);
-    const query = files.find((f) => f.relativePath === "q.query.ts")!;
+    const query = files.find((f) => f.relativePath === "Q.query.ts")!;
     expect(query.code).toContain("return inputPayload;");
   });
 
@@ -169,7 +169,7 @@ describe("generated TypeScript", () => {
 
     expect(rendered).toEqual([]);
     const resources = files.find((f) => f.relativePath === "resources.ts")!;
-    const query = files.find((f) => f.relativePath === "q.query.ts")!;
+    const query = files.find((f) => f.relativePath === "Q.query.ts")!;
     expect(resources.code).toContain("export type InMemoryContext = unknown;");
     expect(query.code).toContain("DataSource<ContentRegistry, unknown>[]");
   });

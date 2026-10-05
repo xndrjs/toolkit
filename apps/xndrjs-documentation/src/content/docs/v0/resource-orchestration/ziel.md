@@ -308,11 +308,11 @@ These rules matter once you cache or reuse subgraphs; they do not change how res
 ```text
 src/generated/
   resources.ts           # scalars, opaques, ARIs, payloads, ContentRegistry, shared DS types
-  page-detail.query.ts   # one file per query (kebab-case of `Query.name` + `.query.ts`)
-  product-detail.query.ts
+  PageDetail.query.ts    # one file per query (IR `Query.name` as-is + `.query.ts`)
+  ProductDetail.query.ts
 ```
 
-There is no generated barrel — import modules by path (`./generated/resources`, `./generated/page-detail.query`). Query modules pull shared symbols from `./resources` and never import each other. Filename collisions (two queries mapping to the same slug) are rejected.
+There is no generated barrel — import modules by path (`./generated/resources`, `./generated/PageDetail.query`). Query modules pull shared symbols from `./resources` and never import each other. Case-insensitive filename collisions (e.g. `PageDetail` vs `pageDetail` on macOS) are rejected.
 
 After a successful emit, the CLI removes only stale **managed** files under `out` that still carry the generated header (`resources.ts`, `*.query.ts`, and a legacy `index.ts` barrel). Hand-written neighbors are left alone. Watch mode ignores the entire `out` directory.
 

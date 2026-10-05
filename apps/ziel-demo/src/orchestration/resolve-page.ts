@@ -1,6 +1,6 @@
 import type { SchedulingMode } from "@xndrjs/ziel";
 
-import type { ResolvePageDetailResult } from "../generated/page-detail.query";
+import type { ResolvePageDetailResult } from "../generated/PageDetail.query";
 import {
   Scalars,
   type EntryId,

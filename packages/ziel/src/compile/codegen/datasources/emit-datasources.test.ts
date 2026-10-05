@@ -369,7 +369,7 @@ export function createQDataSources(
 
     const { files } = composeGeneratedModules(program);
     const resources = files.find((f) => f.relativePath === "resources.ts")!;
-    const query = files.find((f) => f.relativePath === "q.query.ts")!;
+    const query = files.find((f) => f.relativePath === "Q.query.ts")!;
 
     expect(query.code).toContain("export function createQDataSources");
     expect(query.code).not.toContain("export function createDataSources");

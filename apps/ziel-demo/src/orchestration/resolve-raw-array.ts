@@ -2,7 +2,7 @@ import {
   createRawArrayExampleDataSources,
   resolveRawArrayExample,
   type ResolveRawArrayExampleResult,
-} from "../generated/raw-array-example.query";
+} from "../generated/RawArrayExample.query";
 import { rawArrayBatchAri, rawArrayItemAri, Scalars } from "../generated/resources";
 
 const batchId = Scalars.RawArrayBatchId("demo-batch");

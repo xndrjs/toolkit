@@ -121,8 +121,8 @@ resource User(id: UserId): {
     expect(byPath.get("resources.ts")).toContain(
       "export type EntryCollectionPayload = EntryPayload[];"
     );
-    expect(byPath.get("entry-detail.query.ts")).toContain("export type EntryDetail_Entry = {");
-    expect(byPath.get("entry-detail.query.ts")).toContain("title: string;");
+    expect(byPath.get("EntryDetail.query.ts")).toContain("export type EntryDetail_Entry = {");
+    expect(byPath.get("EntryDetail.query.ts")).toContain("title: string;");
   });
 
   it("returns all SYNTAX_ERROR diagnostics and empty files without emitting", () => {
@@ -189,16 +189,14 @@ resource User(id: UserId): {
     expect(result.files.map((f) => f.relativePath)).toEqual(expected.map((f) => f.relativePath));
     expect(result.files.map((f) => f.code)).toEqual(expected.map((f) => f.code));
     expect(byPath.get("resources.ts")).toContain("export const postAri");
-    expect(byPath.get("post-detail.query.ts")).toContain(
-      "export function createPostDetailStrategy"
-    );
-    expect(byPath.get("post-detail.query.ts")).toContain("export function projectPostDetail");
-    expect(byPath.get("post-detail.query.ts")).toContain("export async function resolvePostDetail");
-    expect(byPath.get("post-detail.query.ts")).toContain("createResourceGraphResolver");
-    expect(byPath.get("post-detail.query.ts")).toMatch(
+    expect(byPath.get("PostDetail.query.ts")).toContain("export function createPostDetailStrategy");
+    expect(byPath.get("PostDetail.query.ts")).toContain("export function projectPostDetail");
+    expect(byPath.get("PostDetail.query.ts")).toContain("export async function resolvePostDetail");
+    expect(byPath.get("PostDetail.query.ts")).toContain("createResourceGraphResolver");
+    expect(byPath.get("PostDetail.query.ts")).toMatch(
       /import \{[^}]*createGraphResolutionStrategy[^}]*\} from "@xndrjs\/ziel"/
     );
-    expect(byPath.get("post-detail.query.ts")).not.toMatch(/from ["'][^"']*\/compile["']/);
+    expect(byPath.get("PostDetail.query.ts")).not.toMatch(/from ["'][^"']*\/compile["']/);
     // Resource-only generateResources still ignores queries.
     expect(
       generateResources(parseAndCheck(loadFixture("post-detail.ziel")).program).code

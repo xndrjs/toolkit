@@ -20,19 +20,19 @@ import {
   resolveErrorHandlingDetail,
   type ResolveErrorHandlingDetailInput,
   type ResolveErrorHandlingDetailResult,
-} from "../generated/error-handling-detail.query";
+} from "../generated/ErrorHandlingDetail.query";
 import {
   createPageDetailDataSources,
   resolvePageDetail,
   type ResolvePageDetailInput,
   type ResolvePageDetailResult,
-} from "../generated/page-detail.query";
+} from "../generated/PageDetail.query";
 import {
   createProductDetailDataSources,
   resolveProductDetail,
   type ResolveProductDetailInput,
   type ResolveProductDetailResult,
-} from "../generated/product-detail.query";
+} from "../generated/ProductDetail.query";
 
 export type DemoSourcesOptions = {
   entries?: ReadonlyMap<string, EditorialDocument>;

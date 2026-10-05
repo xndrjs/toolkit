@@ -56,7 +56,7 @@ describe("isRelevantWatchPath", () => {
       false
     );
     expect(
-      isRelevantWatchPath(`${outPath}/page-detail.query.ts`, { root, configPath, outPath })
+      isRelevantWatchPath(`${outPath}/PageDetail.query.ts`, { root, configPath, outPath })
     ).toBe(false);
     expect(isRelevantWatchPath("node_modules/pkg/schema.ziel", { root, configPath, outPath })).toBe(
       false
@@ -182,7 +182,7 @@ describe("watchCodegenInputs", () => {
 
     const changed = changes.next();
     writeFileSync(join(outDir, "resources.ts"), "generated\n");
-    writeFileSync(join(outDir, "page-detail.query.ts"), "generated\n");
+    writeFileSync(join(outDir, "PageDetail.query.ts"), "generated\n");
     writeFileSync(join(root, ".git", "cache", "ignored.ziel"), "ignored\n");
     writeFileSync(join(root, "node_modules", "dependency", "ignored.ziel"), "ignored\n");
     writeFileSync(join(root, "source.ts"), "ignored\n");

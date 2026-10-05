@@ -1,5 +1,5 @@
 /**
- * Multi-file compose: resources.ts + kebab.query.ts (no barrel).
+ * Multi-file compose: resources.ts + {QueryName}.query.ts (no barrel).
  */
 import { describe, expect, it } from "vitest";
 
@@ -32,7 +32,7 @@ describe("composeGeneratedModules", () => {
     expect(resources.code).toBe(generateResources(program).code);
   });
 
-  it("splits queries into kebab-case .query.ts files with per-query imports", () => {
+  it("splits queries into IR-named .query.ts files with per-query imports", () => {
     const program = checked(`
       scalar Locale on string;
       scalar EntryId on string;
@@ -82,8 +82,8 @@ describe("composeGeneratedModules", () => {
     const { files } = composeGeneratedModules(analyzeProgram(program));
     expect(files.map((f) => f.relativePath)).toEqual([
       "resources.ts",
-      "page-detail.query.ts",
-      "product-detail.query.ts",
+      "PageDetail.query.ts",
+      "ProductDetail.query.ts",
     ]);
 
     const resources = files.find((f) => f.relativePath === "resources.ts")!;
@@ -94,7 +94,7 @@ describe("composeGeneratedModules", () => {
     expect(resources.code).not.toContain("defineDataSourceFor");
     expect(resources.code).not.toContain("createPageDetailStrategy");
 
-    const page = files.find((f) => f.relativePath === "page-detail.query.ts")!;
+    const page = files.find((f) => f.relativePath === "PageDetail.query.ts")!;
     expect(page.code).toContain("export function createPageDetailStrategy");
     expect(page.code).toContain("export function createPageDetailDataSources");
     expect(page.code).toContain("export function projectPageDetail");
@@ -111,7 +111,7 @@ describe("composeGeneratedModules", () => {
     expect(page.code).toContain("entryAri");
     expect(page.code).toContain("type ContentRegistry");
 
-    const product = files.find((f) => f.relativePath === "product-detail.query.ts")!;
+    const product = files.find((f) => f.relativePath === "ProductDetail.query.ts")!;
     expect(product.code).toContain("CatalogApi: CatalogApiConfig");
     expect(product.code).not.toContain("CmsSource");
     expect(product.code).not.toContain("createPageDetail");
@@ -138,8 +138,8 @@ describe("composeGeneratedModules", () => {
     expect(resources.code).toBe(expected);
   });
 
-  it("rejects query filename collisions", () => {
-    // IR names are distinct but kebab-slug to the same path.
+  it("rejects case-insensitive query filename collisions", () => {
+    // Distinct IR names that collide on a case-insensitive FS.
     const program = checked(`
       scalar Id on string;
       resource Post(id: Id): { id }
@@ -162,7 +162,7 @@ describe("composeGeneratedModules", () => {
     const withHeader = `${GENERATED_MODULE_HEADER}\nexport const x;\n`;
     expect(isManagedGeneratedOutput("resources.ts", withHeader)).toBe(true);
     expect(isManagedGeneratedOutput("index.ts", withHeader)).toBe(true);
-    expect(isManagedGeneratedOutput("page-detail.query.ts", withHeader)).toBe(true);
+    expect(isManagedGeneratedOutput("PageDetail.query.ts", withHeader)).toBe(true);
     expect(isManagedGeneratedOutput("resources.ts", "export const x;\n")).toBe(false);
     expect(isManagedGeneratedOutput("hand.ts", withHeader)).toBe(false);
     expect(isManagedGeneratedOutput("nested/resources.ts", withHeader)).toBe(false);

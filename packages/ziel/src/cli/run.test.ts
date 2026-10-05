@@ -113,7 +113,7 @@ query PostDetail(id: PostId) {
 
     expect(code).toBe(0);
     expect(existsSync(join(root, "generated", "resources.ts"))).toBe(true);
-    expect(existsSync(join(root, "generated", "post-detail.query.ts"))).toBe(true);
+    expect(existsSync(join(root, "generated", "PostDetail.query.ts"))).toBe(true);
     expect(existsSync(join(root, "generated", "index.ts"))).toBe(false);
     expect(existsSync(join(root, "generated", "old-query.query.ts"))).toBe(false);
     expect(readFileSync(join(root, "generated", "hand-written.ts"), "utf8")).toBe(

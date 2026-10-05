@@ -11,7 +11,7 @@ import type {
   PageDetail_Entry_SiteInternalLink,
   PageDetail_Entry_Tab,
   PageDetail_Entry_Tabs,
-} from "../generated/page-detail.query";
+} from "../generated/PageDetail.query";
 import {
   customReferenceAri,
   entryAri,
