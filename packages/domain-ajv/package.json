@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/domain-ajv",
-  "version": "0.2.1",
+  "version": "0.2.2-alpha.0",
   "description": "Ajv adapter for @xndrjs/domain with helpers for JSON Schema and OpenAPI components.",
   "private": false,
   "license": "MIT",

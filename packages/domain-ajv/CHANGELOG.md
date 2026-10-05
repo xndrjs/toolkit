@@ -1,5 +1,13 @@
 # @xndrjs/domain-ajv
 
+## 0.2.2-alpha.0
+
+### Patch Changes
+
+- 50df7a4: Require Node.js 24 or 25 (`>=24 <26`).
+- Updated dependencies [50df7a4]
+  - @xndrjs/domain@0.3.1-alpha.0
+
 ## 0.2.1
 
 ### Patch Changes

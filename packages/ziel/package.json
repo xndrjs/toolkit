@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/ziel",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Ziel product entry: browser-safe resource graph resolver + addressable resources; compile-time DSL via ./compile.",
   "private": false,
   "license": "MIT",

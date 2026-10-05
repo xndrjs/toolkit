@@ -1,5 +1,11 @@
 # @xndrjs/i18n
 
+## 0.8.3-alpha.0
+
+### Patch Changes
+
+- 50df7a4: Require Node.js 24 or 25 (`>=24 <26`).
+
 ## 0.8.2
 
 ### Patch Changes

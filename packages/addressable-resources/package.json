@@ -1,6 +1,6 @@
 {
   "name": "@xndrjs/addressable-resources",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Framework-agnostic Addressable Resource Identifiers (ARI) for typed resource identity.",
   "private": false,
   "license": "MIT",

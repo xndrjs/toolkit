@@ -27,5 +27,17 @@
     "@xndrjs/ziel": "0.0.0",
     "ziel-vscode": "0.0.5"
   },
-  "changesets": ["contentful-to-zod-values-first-ids", "resource-graph-resolver-strategy-dsl"]
+  "changesets": [
+    "addressable-resources",
+    "contentful-to-zod",
+    "domain-ajv",
+    "domain-valibot",
+    "domain-zod",
+    "domain",
+    "i18n-react",
+    "i18n",
+    "resource-graph-resolver",
+    "tasks",
+    "ziel"
+  ]
 }

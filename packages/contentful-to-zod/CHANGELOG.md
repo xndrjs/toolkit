@@ -1,5 +1,11 @@
 # @xndrjs/contentful-to-zod
 
+## 0.4.0-alpha.1
+
+### Patch Changes
+
+- 50df7a4: Require Node.js 24 or 25 (`>=24 <26`).
+
 ## 0.4.0-alpha.0
 
 ### Minor Changes
