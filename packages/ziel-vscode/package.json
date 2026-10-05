@@ -2,7 +2,7 @@
   "name": "ziel-vscode",
   "displayName": "Ziel",
   "description": "Syntax highlighting and diagnostics for Ziel (.ziel) files.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "xndrjs",
   "license": "MIT",
   "engines": {
