@@ -2,7 +2,12 @@
   "extends": "../../tsconfig.repo.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@xndrjs/i18n": ["../i18n/src/index.ts"],
+      "@xndrjs/i18n/codegen": ["../i18n/src/codegen-config/index.ts"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }
