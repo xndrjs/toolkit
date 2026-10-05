@@ -1,12 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "../../tsconfig.repo.json",
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@xndrjs/addressable-resources": ["../../packages/addressable-resources/src/index.ts"],
-      "@xndrjs/resource-graph-resolver": ["../../packages/resource-graph-resolver/src/index.ts"]
-    }
-  },
   "include": ["src/**/*.ts"]
 }

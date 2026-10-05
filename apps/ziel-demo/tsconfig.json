@@ -13,14 +13,7 @@
     "noEmit": true,
     "allowJs": true,
     "incremental": true,
-    "plugins": [{ "name": "next" }],
-    "baseUrl": ".",
-    "paths": {
-      "@xndrjs/ziel": ["../../packages/ziel/src/index.ts"],
-      "@xndrjs/ziel/compile": ["../../packages/ziel/src/compile/index.ts"],
-      "@xndrjs/addressable-resources": ["../../packages/addressable-resources/src/index.ts"],
-      "@xndrjs/resource-graph-resolver": ["../../packages/resource-graph-resolver/src/index.ts"]
-    }
+    "plugins": [{ "name": "next" }]
   },
   "include": ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx", "src/**/*.ts", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
