@@ -507,6 +507,10 @@ export const ZielGrammar = (): Grammar =>
           },
           {
             "$type": "Keyword",
+            "value": "integer"
+          },
+          {
+            "$type": "Keyword",
             "value": "boolean"
           }
         ]

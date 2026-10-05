@@ -30,6 +30,7 @@ Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, 
 - Bound every graph resolution with configurable node, edge, batch, and duration budgets; generated façades support finite defaults, typed budget errors, observer telemetry, and deadline cancellation.
 - Align with positional `DataSource.load`: return `(payload | undefined)[]` matching `batch` order (`undefined` = miss; `null` remains a legal payload). Identity hops use strategy `.resolve` only.
 - Depend on `@xndrjs/addressable-resources` (renamed from `@xndrjs/application-resources`); generated modules and façades use `AddressableResource*` types and `resource.key` object access.
+- Distinguish DSL `number` (finite float) from `integer` (finite int): identity emit maps to `s.number()` / `s.integer()`; both erase to TypeScript `number` in scalar brands and payload types. `integer` is assignable to `number`; the reverse is not.
 
 ### LSP / editor
 

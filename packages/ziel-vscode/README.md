@@ -40,7 +40,7 @@ After editing the TextMate grammar or language configuration, reload the Extensi
 ## What it colors
 
 - Keywords: `scalar`, `opaque`, `resource`, `fragment`, `query`, `context`, `root`, `roots`, `on`, `resolve`, `to`, `expand`, `each`, `in`, `not`, `and`, `or`, `when`, `islands`, `refers`, `include`, `all`, `properties` (and `with` inside a `refers` clause)
-- Primitives: `string`, `number`, `boolean`
+- Primitives: `string`, `number`, `integer`, `boolean`
 - Strings, numbers, `true` / `false` / `null`
 - Operators: `==`, `!=`, `!`, `...`, `|`
 - Comments: `//` and `/* */`

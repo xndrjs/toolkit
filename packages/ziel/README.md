@@ -152,7 +152,9 @@ const result = buildGeneratedModule({ root: process.cwd() });
 
 `resource Name(identity): PayloadType` — the RHS is always a **payload type**. That may be an object shape, a union, an array, a scalar/opaque ref, or a type projection — not necessarily an object. Writing `TabsCollection(…): Tab[]` means the datasource returns an array of Tab’s payload shape, not that the resolver should fan out to Tab ARIs. Traversal exists only via explicit `expand` / `each` / `on` / `resolve to` / `resolve to each`. Loading a collection resource returns that payload as-is; projecting it (e.g. empty `on TabsCollection`) keeps the payload type. `R[]` on a payload RHS is never an auto-fanout.
 
-**Scalar factories** — each scalar gets a PascalCase key on `Scalars` whose param is the representation (`string` | `number` | `boolean`) and return type is the branded alias. They are ergonomics helpers only: a cast from the primitive to the branded type, with **no runtime validation**. Prefer them over inline casts in adapters and fixtures:
+**Numeric primitives** — `number` is any finite float; `integer` is a finite int. Identity codegen maps them to `s.number()` / `s.integer()`. `integer` is assignable to `number`; the reverse is not. Both erase to TypeScript `number` in emitted brands and payload types.
+
+**Scalar factories** — each scalar gets a PascalCase key on `Scalars` whose param is the representation (`string` | `number` | `boolean`; DSL `integer` also erases to TS `number`) and return type is the branded alias. They are ergonomics helpers only: a cast from the primitive to the branded type, with **no runtime validation**. Prefer them over inline casts in adapters and fixtures:
 
 ```ts
 import { Scalars, type EntryId, type Locale } from "./generated/resources";
@@ -416,15 +418,15 @@ when e.visible and e.type in ["Hero", "Tabs"]
 when !(e.hidden or e.type == "Draft")
 ```
 
-| Op           | Meaning                                                     | Emitted JS                              |
-| ------------ | ----------------------------------------------------------- | --------------------------------------- |
-| `==` / `!=`  | equality (operands must be compatible; use `as`)            | `left == right`                         |
-| `in […]`     | membership (literal list)                                   | `[…].includes(left)`                    |
-| `not in […]` | negated membership                                          | `![…].includes(left)`                   |
-| `as`         | erase scalar / matching type to `string`/`number`/`boolean` | operand (runtime erase)                 |
-| `!`          | JS falsy (`null` / `undefined` / `false` / `0` / `""`)      | `!(operand)`                            |
-| `and` / `or` | boolean connectives                                         | `(left && right)` / `(left \|\| right)` |
-| `(…)`        | grouping                                                    | lowered away                            |
+| Op           | Meaning                                                               | Emitted JS                              |
+| ------------ | --------------------------------------------------------------------- | --------------------------------------- |
+| `==` / `!=`  | equality (operands must be compatible; use `as`)                      | `left == right`                         |
+| `in […]`     | membership (literal list)                                             | `[…].includes(left)`                    |
+| `not in […]` | negated membership                                                    | `![…].includes(left)`                   |
+| `as`         | erase scalar / matching type to `string`/`number`/`integer`/`boolean` | operand (runtime erase)                 |
+| `!`          | JS falsy (`null` / `undefined` / `false` / `0` / `""`)                | `!(operand)`                            |
+| `and` / `or` | boolean connectives                                                   | `(left && right)` / `(left \|\| right)` |
+| `(…)`        | grouping                                                              | lowered away                            |
 
 Precedence: `as` > `!` > `==`/`!=` > `in`/`not in` > `and` > `or`. So `!e.x in […]` is `(!e.x) in […]`. Array literals on the right of `in` / `not in` hold literals only. Filters may narrow payloads for field checks (best-effort); they do **not** drive static arm exhaustiveness — use ordered `when` + required `default` on armed projections.
 

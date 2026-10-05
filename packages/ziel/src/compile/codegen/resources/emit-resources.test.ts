@@ -57,9 +57,13 @@ export type UserResource = ReturnType<typeof userAri>;
     );
   });
 
-  it("maps number / boolean identity fields to s.int() / s.boolean()", () => {
+  it("maps number / integer / boolean identity fields to s.number() / s.integer() / s.boolean()", () => {
     const program: Program = {
-      scalars: [defScalar("Count", "number"), defScalar("Flag", "boolean")],
+      scalars: [
+        defScalar("Count", "number"),
+        defScalar("Qty", "integer"),
+        defScalar("Flag", "boolean"),
+      ],
       opaques: [],
       resources: [
         resource(
@@ -67,7 +71,13 @@ export type UserResource = ReturnType<typeof userAri>;
           [field("n", scalarRef("Count")), field("on", scalarRef("Flag"))],
           objectType(field("n", scalarRef("Count"), true))
         ),
+        resource(
+          "Stock",
+          [field("qty", scalarRef("Qty"))],
+          objectType(field("qty", scalarRef("Qty"), true))
+        ),
         resource("Raw", [field("n", prim("number")), field("on", prim("boolean"))], objectType()),
+        resource("RawInt", [field("n", prim("integer"))], objectType()),
       ],
       fragments: [],
       datasources: [],
@@ -76,10 +86,14 @@ export type UserResource = ReturnType<typeof userAri>;
     };
 
     const code = emitResources(program);
-    expect(code).toContain("s.object({ n: s.int(), on: s.boolean() })");
+    expect(code).toContain("s.object({ n: s.number(), on: s.boolean() })");
+    expect(code).toContain("s.object({ qty: s.integer() })");
+    expect(code).toContain("s.object({ n: s.integer() })");
     expect(code).toContain("export const counterAri = ari(");
     expect(code).toContain("export type CounterResource = ReturnType<typeof counterAri>;");
     expect(code).toContain("export const rawAri = ari(");
+    expect(code).toContain("export const stockAri = ari(");
+    expect(code).toContain("export const rawIntAri = ari(");
   });
 
   it("uses resource.ariType for the ari() type string", () => {

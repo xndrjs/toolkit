@@ -15,7 +15,11 @@ scalar InventorySku on string;
 
 scalar MediaId on string;
 
-resource CatalogProduct(id: CatalogProductId, market: Market, locale: Locale): {
+resource CatalogProduct(
+  id: CatalogProductId,
+  market: Market,
+  locale: Locale
+): {
   id
   title: string
   priceId: PriceId refers OfferPrice
@@ -23,13 +27,19 @@ resource CatalogProduct(id: CatalogProductId, market: Market, locale: Locale): {
   mediaId: MediaId refers ProductMedia
 }
 
-resource OfferPrice(id: PriceId, market: Market): {
+resource OfferPrice(
+  id: PriceId,
+  market: Market
+): {
   id
   amountCents: number
   currency: string
 }
 
-resource StockLevel(sku: InventorySku, warehouse: string): {
+resource StockLevel(
+  sku: InventorySku,
+  warehouse: string
+): {
   sku
   available: number
 }

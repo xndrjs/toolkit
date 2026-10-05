@@ -28,6 +28,19 @@ describe("assignability — optional + nullable", () => {
     expect(isAssignable(bareNull, prim("string"))).toBe(false);
     expect(isAssignable(prim("string"), bareNull)).toBe(false);
   });
+
+  it("treats integer as assignable to number but not the reverse", () => {
+    expect(isAssignable(prim("integer"), prim("number"))).toBe(true);
+    expect(isAssignable(prim("number"), prim("integer"))).toBe(false);
+    expect(typesSemanticallyEqual(prim("integer"), prim("number"))).toBe(false);
+  });
+
+  it("lets integer literals inhabit integer; floats only inhabit number", () => {
+    expect(literalInhabits(3, prim("integer"), () => undefined)).toBe(true);
+    expect(literalInhabits(1.5, prim("integer"), () => undefined)).toBe(false);
+    expect(literalInhabits(1.5, prim("number"), () => undefined)).toBe(true);
+    expect(literalInhabits(3, prim("number"), () => undefined)).toBe(true);
+  });
 });
 
 describe("assignability — opaque", () => {

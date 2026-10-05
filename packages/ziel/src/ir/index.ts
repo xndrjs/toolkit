@@ -16,7 +16,7 @@ export type SourceSpan = {
   uri: string | null;
 };
 
-export type PrimitiveTypeName = "string" | "number" | "boolean";
+export type PrimitiveTypeName = "string" | "number" | "integer" | "boolean";
 
 /**
  * Nominal custom scalar: semantic name backed by a primitive representation.

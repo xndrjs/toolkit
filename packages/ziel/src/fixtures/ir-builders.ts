@@ -383,7 +383,7 @@ export function not(operand: Expr): Expr {
   return { kind: "unary", op: "!", operand, span };
 }
 
-export function cast(operand: Expr, type: "string" | "number" | "boolean"): Expr {
+export function cast(operand: Expr, type: "string" | "number" | "integer" | "boolean"): Expr {
   return { kind: "cast", operand, type, span };
 }
 

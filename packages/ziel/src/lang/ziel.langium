@@ -53,7 +53,7 @@ OpaqueDeclaration:
     'opaque' name=ID ';';
 
 PrimitiveName returns string:
-    'string' | 'number' | 'boolean';
+    'string' | 'number' | 'integer' | 'boolean';
 
 // --- Resources ---------------------------------------------------------------
 // Identity (ARI key) before `:`; payload type after `:`.

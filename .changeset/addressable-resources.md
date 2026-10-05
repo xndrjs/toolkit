@@ -14,6 +14,7 @@ Rename `@xndrjs/application-resources` → `@xndrjs/addressable-resources` with 
 - Canonical `toString()` format is `Type(field=value,...)` (lexicographic fields, JSON scalars).
 - Replaced `stableStringifyResource` / `parseStableStringifyResource` with `formatAriString` / `parseAriString`.
 - Renamed types to `AddressableResource*` / `addressableResourceKeySchema`; removed `s.tuple` and `ApplicationResource*` aliases.
+- Add `s.number()` for finite floats (`NaN` / `±Infinity` rejected) and `s.integer()` for finite integers (renames former `s.int()`).
 
 ### Dependents
 

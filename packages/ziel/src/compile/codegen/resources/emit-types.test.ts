@@ -44,6 +44,7 @@ describe("printTypeExpr", () => {
     expect(printTypeExpr(strLit("Hero"))).toBe('"Hero"');
     expect(printTypeExpr(nullable(prim("string")))).toBe("string | null");
     expect(printTypeExpr(arrayOf(prim("number")))).toBe("number[]");
+    expect(printTypeExpr(prim("integer"))).toBe("number");
     expect(printTypeExpr(union(strLit("a"), strLit("b")))).toBe('"a" | "b"');
     expect(printTypeExpr(resourceRef("Tab"))).toBe("TabPayload");
   });

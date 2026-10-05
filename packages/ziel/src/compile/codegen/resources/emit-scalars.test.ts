@@ -60,9 +60,13 @@ export const Scalars = {
     );
   });
 
-  it("maps number / boolean representations to TS primitives", () => {
+  it("maps number / integer / boolean representations to TS primitives", () => {
     const program: Program = {
-      scalars: [defScalar("Count", "number"), defScalar("Flag", "boolean")],
+      scalars: [
+        defScalar("Count", "number"),
+        defScalar("Qty", "integer"),
+        defScalar("Flag", "boolean"),
+      ],
       opaques: [],
       resources: [],
       fragments: [],
@@ -73,10 +77,13 @@ export const Scalars = {
 
     const code = emitScalars(program);
     expect(code).toContain(`export type Count = Branded<"Count", number>;`);
+    expect(code).toContain(`export type Qty = Branded<"Qty", number>;`);
     expect(code).toContain(`export type Flag = Branded<"Flag", boolean>;`);
     expect(code).toContain(`Count: (value: number): Count => value as Count,`);
+    expect(code).toContain(`Qty: (value: number): Qty => value as Qty,`);
     expect(code).toContain(`Flag: (value: boolean): Flag => value as Flag,`);
     expect(code).not.toMatch(/\bcount\s*[:=]/);
+    expect(code).not.toMatch(/\bqty\s*[:=]/);
     expect(code).not.toMatch(/\bflag\s*[:=]/);
   });
 

@@ -4,6 +4,7 @@
 
 /** External payloads — Ziel carries them; composition root unwraps for UI. */
 opaque RichDocument;
+
 opaque MediaDescriptor;
 
 scalar Locale on string;
@@ -106,6 +107,7 @@ resource Asset(
  * Taxonomy node addressed by a composite key (`kind` + `id`), not Entry identity.
  * Link objects carry both parts; space / environment / locale come from context.
  */
+
 resource TaxonomyTerm(
   spaceId: SpaceId,
   environmentId: EnvironmentId,
@@ -181,6 +183,7 @@ resource Page(
  * Demo-only root for per-edge `on failure` showcase (soft null / soft error / throw).
  * Identity shares the EntryId namespace with Page / Entry fixtures.
  */
+
 resource ErrorLab(
   spaceId: SpaceId,
   environmentId: EnvironmentId,

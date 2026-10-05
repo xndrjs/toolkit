@@ -69,7 +69,10 @@ resource.toString(); // e.g. post-comments(authorId="author-456",postId="post-12
 resource.key; // { postId, authorId } — not key[0]
 ```
 
-`ari` requires exactly one `s.object({...})` identity schema. Key schema builders (`s`): `string`, `int`, `boolean`, `nullable`, `optional`, `literal`, `enum`, `object` (flat), plus `union` when you need alternate locator shapes for `safeParse`. No Zod dependency — intentionally small.
+`ari` requires exactly one `s.object({...})` identity schema. Key schema builders (`s`): `string`, `number`, `integer`, `boolean`, `nullable`, `optional`, `literal`, `enum`, `object` (flat), plus `union` when you need alternate locator shapes for `safeParse`. No Zod dependency — intentionally small.
+
+- **`s.number()`** — finite number (floats allowed; rejects `NaN` / `±Infinity`)
+- **`s.integer()`** — finite integer (rejects floats)
 
 ## TanStack Query (external)
 

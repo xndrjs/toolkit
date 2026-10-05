@@ -202,6 +202,32 @@ describe("lowerProgram", () => {
     });
   });
 
+  it("lowers integer as a distinct primitive", () => {
+    const program = lowerProgram(
+      parseSource(`
+        scalar Qty on integer;
+        scalar Score on number;
+
+        resource Bucket(qty: Qty, score: Score): {
+          qty
+          score
+          raw: integer
+        }
+      `)
+    );
+
+    expect(checkProgram(program)).toEqual([]);
+    expect(program.scalars.map((s) => [s.name, s.representation])).toEqual([
+      ["Qty", "integer"],
+      ["Score", "number"],
+    ]);
+    const fields = objectFields(program.resources.find((r) => r.name === "Bucket")?.payloadType);
+    expect(fields.find((f) => f.name === "raw")?.type).toMatchObject({
+      kind: "primitive",
+      name: "integer",
+    });
+  });
+
   it("lowers each-expand into multiplicity many + arms + itemRef", () => {
     const program = lowerProgram(
       parseSource(`

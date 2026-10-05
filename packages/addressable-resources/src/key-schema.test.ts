@@ -5,7 +5,9 @@ import { s, safeParse, type InferKeySchema } from "./key-schema";
 describe("key schema DSL", () => {
   it("parses leaf schemas", () => {
     expect(safeParse(s.string(), "ok")).toEqual({ success: true, value: "ok" });
-    expect(safeParse(s.int(), 3)).toEqual({ success: true, value: 3 });
+    expect(safeParse(s.number(), 1.5)).toEqual({ success: true, value: 1.5 });
+    expect(safeParse(s.number(), 3)).toEqual({ success: true, value: 3 });
+    expect(safeParse(s.integer(), 3)).toEqual({ success: true, value: 3 });
     expect(safeParse(s.boolean(), false)).toEqual({ success: true, value: false });
     expect(safeParse(s.literal("a"), "a")).toEqual({ success: true, value: "a" });
     expect(safeParse(s.enum(["EUR", "USD"] as const), "EUR")).toEqual({
@@ -14,8 +16,15 @@ describe("key schema DSL", () => {
     });
 
     expect(safeParse(s.string(), 1).success).toBe(false);
-    expect(safeParse(s.int(), 1.5).success).toBe(false);
+    expect(safeParse(s.number(), Number.NaN).success).toBe(false);
+    expect(safeParse(s.number(), Number.POSITIVE_INFINITY).success).toBe(false);
+    expect(safeParse(s.integer(), 1.5).success).toBe(false);
     expect(safeParse(s.enum(["EUR"] as const), "USD").success).toBe(false);
+  });
+
+  it("infers number vs integer leaf types", () => {
+    expectTypeOf<InferKeySchema<ReturnType<typeof s.number>>>().toEqualTypeOf<number>();
+    expectTypeOf<InferKeySchema<ReturnType<typeof s.integer>>>().toEqualTypeOf<number>();
   });
 
   it("parses nullable leaves", () => {
@@ -47,7 +56,7 @@ describe("key schema DSL", () => {
   });
 
   it("parses strict flat objects", () => {
-    const schema = s.object({ id: s.string(), n: s.int(), userId: s.nullable(s.string()) });
+    const schema = s.object({ id: s.string(), n: s.integer(), userId: s.nullable(s.string()) });
     expect(safeParse(schema, { id: "x", n: 1, userId: null })).toEqual({
       success: true,
       value: { id: "x", n: 1, userId: null },

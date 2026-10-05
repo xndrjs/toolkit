@@ -10,7 +10,8 @@ const BRANDED_HELPER = [
 ].join("\n");
 
 function primitiveTsType(representation: PrimitiveTypeName): string {
-  return representation;
+  // Both `number` and `integer` erase to TypeScript `number`.
+  return representation === "integer" ? "number" : representation;
 }
 
 /**

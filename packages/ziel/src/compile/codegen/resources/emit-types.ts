@@ -55,7 +55,7 @@ function resolveForEmit(
 export function printTypeExpr(type: TypeExpr, ctx: PrintContext = "root", indent = 0): string {
   switch (type.kind) {
     case "primitive":
-      return type.name;
+      return type.name === "integer" ? "number" : type.name;
     case "scalarRef":
     case "opaqueRef":
       return type.name;

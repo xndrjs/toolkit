@@ -6,7 +6,9 @@ function primitiveKeySchema(representation: PrimitiveTypeName): string {
     case "string":
       return "s.string()";
     case "number":
-      return "s.int()";
+      return "s.number()";
+    case "integer":
+      return "s.integer()";
     case "boolean":
       return "s.boolean()";
   }
@@ -56,7 +58,7 @@ function emitObjectKeySchema(
  * export type PostResource = ReturnType<typeof postAri>;
  * ```
  *
- * Key schemas use representation primitives only (`number` → `s.int()`).
+ * Key schemas use representation primitives only (`number` → `s.number()`, `integer` → `s.integer()`).
  * Field order matches IR `identity.fields`. ARI type string is `resource.ariType`.
  */
 export function emitResources(program: Program): string {

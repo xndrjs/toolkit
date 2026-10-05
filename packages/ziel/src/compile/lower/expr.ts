@@ -29,7 +29,7 @@ function normalizeBinaryOp(op: string): BinaryOp {
 }
 
 function isPrimitiveName(name: string): name is PrimitiveTypeName {
-  return name === "string" || name === "number" || name === "boolean";
+  return name === "string" || name === "number" || name === "integer" || name === "boolean";
 }
 
 export function lowerConstruction(

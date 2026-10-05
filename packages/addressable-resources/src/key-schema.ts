@@ -1,6 +1,6 @@
 /**
  * Minimal key-schema DSL for Addressable Resource Identifier coordinates.
- * Covers string/int/boolean/literal/enum/nullable/optional, flat objects, and unions.
+ * Covers string/number/integer/boolean/literal/enum/nullable/optional, flat objects, and unions.
  * Not a general validation library — no refine, transform, or nested objects.
  */
 
@@ -16,7 +16,8 @@ export type KeySchemaParseResult<T> =
   | { readonly success: false; readonly issues: readonly KeySchemaIssue[] };
 
 export type StringSchema = { readonly kind: "string" };
-export type IntSchema = { readonly kind: "int" };
+export type NumberSchema = { readonly kind: "number" };
+export type IntegerSchema = { readonly kind: "integer" };
 export type BooleanSchema = { readonly kind: "boolean" };
 export type LiteralSchema<V extends string | number | boolean = string | number | boolean> = {
   readonly kind: "literal";
@@ -30,7 +31,8 @@ export type EnumSchema<Values extends readonly string[] = readonly string[]> = {
 /** Non-null leaf schemas (nullable / optional wrap these). */
 export type NonNullLeafSchema =
   | StringSchema
-  | IntSchema
+  | NumberSchema
+  | IntegerSchema
   | BooleanSchema
   | LiteralSchema
   | EnumSchema;
@@ -70,18 +72,20 @@ export type AnyKeySchema =
 
 type InferNonNullLeafSchema<S> = S extends { readonly kind: "string" }
   ? string
-  : S extends { readonly kind: "int" }
+  : S extends { readonly kind: "number" }
     ? number
-    : S extends { readonly kind: "boolean" }
-      ? boolean
-      : S extends { readonly kind: "literal"; readonly value: infer V }
-        ? V
-        : S extends {
-              readonly kind: "enum";
-              readonly values: infer Values extends readonly string[];
-            }
-          ? Values[number]
-          : never;
+    : S extends { readonly kind: "integer" }
+      ? number
+      : S extends { readonly kind: "boolean" }
+        ? boolean
+        : S extends { readonly kind: "literal"; readonly value: infer V }
+          ? V
+          : S extends {
+                readonly kind: "enum";
+                readonly values: infer Values extends readonly string[];
+              }
+            ? Values[number]
+            : never;
 
 type InferLeafSchema<S> = S extends { readonly kind: "nullable"; readonly inner: infer Inner }
   ? InferNonNullLeafSchema<Inner> | null
@@ -151,7 +155,13 @@ function parseNonNullLeaf(
       }
       return { success: true, value: input };
     }
-    case "int": {
+    case "number": {
+      if (typeof input !== "number" || !Number.isFinite(input)) {
+        return fail(path, "Expected finite number");
+      }
+      return { success: true, value: input };
+    }
+    case "integer": {
       if (typeof input !== "number" || !Number.isInteger(input) || !Number.isFinite(input)) {
         return fail(path, "Expected finite integer");
       }
@@ -336,8 +346,13 @@ export const s = {
   string(): StringSchema {
     return { kind: "string" };
   },
-  int(): IntSchema {
-    return { kind: "int" };
+  /** Finite number (floats allowed; rejects `NaN` / `±Infinity`). */
+  number(): NumberSchema {
+    return { kind: "number" };
+  },
+  /** Finite integer (rejects floats, `NaN`, and `±Infinity`). */
+  integer(): IntegerSchema {
+    return { kind: "integer" };
   },
   boolean(): BooleanSchema {
     return { kind: "boolean" };

@@ -101,7 +101,7 @@
       "patterns": [
         {
           "name": "storage.type.primitive.ziel",
-          "match": "\\b(?:string|number|boolean)\\b"
+          "match": "\\b(?:string|number|integer|boolean)\\b"
         }
       ]
     },

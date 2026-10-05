@@ -30,7 +30,7 @@ export function collectScalars(program: Program, sink: DiagnosticSink): ScalarTa
     if (!isPrimitiveTypeName(scalar.representation)) {
       sink.push({
         code: "INVALID_SCALAR_REPRESENTATION",
-        message: `Scalar '${scalar.name}' representation must be string, number, or boolean`,
+        message: `Scalar '${scalar.name}' representation must be string, number, integer, or boolean`,
         path,
         span: scalar.span,
       });

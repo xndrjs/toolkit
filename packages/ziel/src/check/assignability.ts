@@ -1,6 +1,6 @@
 import type { PrimitiveTypeName, TypeExpr } from "../ir";
 
-const PRIMITIVES = new Set<PrimitiveTypeName>(["string", "number", "boolean"]);
+const PRIMITIVES = new Set<PrimitiveTypeName>(["string", "number", "integer", "boolean"]);
 
 export function isPrimitiveTypeName(name: string): name is PrimitiveTypeName {
   return PRIMITIVES.has(name as PrimitiveTypeName);
@@ -11,6 +11,28 @@ export function literalKind(value: string | number | boolean | null): PrimitiveT
   if (typeof value === "string") return "string";
   if (typeof value === "number") return "number";
   return "boolean";
+}
+
+function literalMatchesPrimitive(
+  value: string | number | boolean,
+  target: PrimitiveTypeName
+): boolean {
+  switch (target) {
+    case "string":
+      return typeof value === "string";
+    case "boolean":
+      return typeof value === "boolean";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "integer":
+      return typeof value === "number" && Number.isInteger(value) && Number.isFinite(value);
+  }
+}
+
+function isPrimitiveAssignable(source: PrimitiveTypeName, target: PrimitiveTypeName): boolean {
+  if (source === target) return true;
+  // integer is a subtype of number
+  return source === "integer" && target === "number";
 }
 
 /**
@@ -95,7 +117,7 @@ export function isAssignable(source: TypeExpr, target: TypeExpr): boolean {
     return source.members.every((member) => isAssignable(member, target));
   }
   if (source.kind === "primitive" && target.kind === "primitive") {
-    return source.name === target.name;
+    return isPrimitiveAssignable(source.name, target.name);
   }
   if (source.kind === "scalarRef" && target.kind === "scalarRef") {
     return source.name === target.name;
@@ -156,11 +178,11 @@ export function literalInhabits(
   if (kind === "null") return false;
 
   if (target.kind === "primitive") {
-    return target.name === kind;
+    return literalMatchesPrimitive(value, target.name);
   }
   if (target.kind === "scalarRef") {
     const representation = scalarRepresentation(target.name);
-    return representation !== undefined && representation === kind;
+    return representation !== undefined && literalMatchesPrimitive(value, representation);
   }
   return false;
 }

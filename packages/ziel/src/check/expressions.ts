@@ -118,10 +118,11 @@ function canCastToPrimitive(
     return t.members.every((m) => canCastToPrimitive(m, target, scalars));
   }
   if (t.kind === "scalarRef") {
-    return scalarRepresentation(t.name, scalars) === target;
+    const rep = scalarRepresentation(t.name, scalars);
+    return rep !== undefined && (rep === target || (rep === "integer" && target === "number"));
   }
   if (t.kind === "primitive") {
-    return t.name === target;
+    return t.name === target || (t.name === "integer" && target === "number");
   }
   if (t.kind === "stringLiteral") {
     return target === "string";

@@ -49,6 +49,7 @@ export type ZielKeywordNames =
   | "fragment"
   | "in"
   | "include"
+  | "integer"
   | "islands"
   | "none"
   | "not"
@@ -862,10 +863,10 @@ export function isPrimary(item: unknown): item is Primary {
   return reflection.isInstance(item, Primary.$type);
 }
 
-export type PrimitiveName = "boolean" | "number" | "string";
+export type PrimitiveName = "boolean" | "integer" | "number" | "string";
 
 export function isPrimitiveName(item: unknown): item is PrimitiveName {
-  return item === "string" || item === "number" || item === "boolean";
+  return item === "string" || item === "number" || item === "integer" || item === "boolean";
 }
 
 export interface PrimitiveTypeExpr extends langium.AstNode {

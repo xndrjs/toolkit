@@ -48,7 +48,7 @@ describe("ari factory", () => {
     ari("scoped", s.object({ id: s.string() }), s.literal("v1"));
 
     // @ts-expect-error -- leaf schemas are not identity keys
-    ari("count", s.int());
+    ari("count", s.integer());
   });
 
   it("rejects types that contain parentheses", () => {

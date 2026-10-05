@@ -108,7 +108,10 @@ Not allowed:
 
 Normalize optional values to `null` or an explicit wildcard instead of leaving them `undefined`. Access fields as `resource.key.postId` — not `resource.key[0]`.
 
-`ari` requires exactly one `s.object({...})` identity schema. Key schema builders (`s`): `string`, `int`, `boolean`, `nullable`, `optional`, `literal`, `enum`, `object` (flat), plus `union` when you need alternate locator shapes for `safeParse`.
+`ari` requires exactly one `s.object({...})` identity schema. Key schema builders (`s`): `string`, `number`, `integer`, `boolean`, `nullable`, `optional`, `literal`, `enum`, `object` (flat), plus `union` when you need alternate locator shapes for `safeParse`.
+
+- **`s.number()`** — finite number (floats allowed; rejects `NaN` / `±Infinity`)
+- **`s.integer()`** — finite integer (rejects floats)
 
 ## Invalidation port
 
