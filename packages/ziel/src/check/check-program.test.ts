@@ -2103,6 +2103,9 @@ describe("checkProgram — opaque types", () => {
     expect(direct.diagnostics).toContainEqual(
       expect.objectContaining({ code: "OPAQUE_TYPE_NOT_ALLOWED_IN_IDENTITY" })
     );
+    expect(direct.diagnostics).not.toContainEqual(
+      expect.objectContaining({ code: "INVALID_IDENTITY_TYPE" })
+    );
 
     const viaProjection = parseAndCheck(`
       ${opaquePrelude}
@@ -2110,6 +2113,83 @@ describe("checkProgram — opaque types", () => {
     `);
     expect(viaProjection.diagnostics).toContainEqual(
       expect.objectContaining({ code: "OPAQUE_TYPE_NOT_ALLOWED_IN_IDENTITY" })
+    );
+    expect(viaProjection.diagnostics).not.toContainEqual(
+      expect.objectContaining({ code: "INVALID_IDENTITY_TYPE" })
+    );
+  });
+
+  it("accepts primitive and scalar identity fields", () => {
+    const withScalars = parseAndCheck(`
+      scalar Id on string;
+      resource Post(id: Id, locale: string): {
+        id
+        title: string
+      }
+    `);
+    expect(withScalars.diagnostics).toEqual([]);
+
+    const shorthand = parseAndCheck(`
+      scalar Id on string;
+      resource E(id: Id): { id }
+    `);
+    expect(shorthand.diagnostics).toEqual([]);
+  });
+
+  it("rejects non-primitive identity field types", () => {
+    const nullableId = parseAndCheck(`
+      scalar Id on string;
+      resource A(id: Id | null): { id }
+    `);
+    expect(nullableId.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_IDENTITY_TYPE",
+        message: expect.stringContaining("Id | null"),
+      })
+    );
+
+    const arrayIds = parseAndCheck(`
+      scalar Id on string;
+      resource B(ids: Id[]): { }
+    `);
+    expect(arrayIds.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_IDENTITY_TYPE",
+        message: expect.stringContaining("Id[]"),
+      })
+    );
+
+    const unionPrims = parseAndCheck(`
+      resource C(id: string | number): { }
+    `);
+    expect(unionPrims.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_IDENTITY_TYPE",
+        message: expect.stringContaining("string | number"),
+      })
+    );
+
+    const nestedObject = parseAndCheck(`
+      resource D(meta: { k: string }): { }
+    `);
+    expect(nestedObject.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_IDENTITY_TYPE",
+        message: expect.stringContaining("{ k: string }"),
+      })
+    );
+
+    const resourceRef = parseAndCheck(`
+      scalar Id on string;
+      resource E(id: Id): { id }
+      resource F(ref: E): { }
+    `);
+    expect(resourceRef.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_IDENTITY_TYPE",
+        message: expect.stringContaining("E"),
+        path: "resources.F.identity.ref",
+      })
     );
   });
 

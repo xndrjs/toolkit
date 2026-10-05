@@ -1,8 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import { createDiagnosticSink } from "./diagnostic";
-import { checkNoOpaqueInType, containsOpaqueType, isOpaqueLeafType } from "./opaque-validation";
-import { arrayOf, field, nullable, objectType, opaqueRef, prim, union } from "../fixtures";
+import {
+  checkNoOpaqueInType,
+  containsOpaqueType,
+  isOpaqueLeafType,
+  isValidIdentityFieldType,
+} from "./opaque-validation";
+import {
+  arrayOf,
+  field,
+  nullable,
+  objectType,
+  opaqueRef,
+  prim,
+  scalarRef,
+  union,
+} from "../fixtures";
 
 describe("opaque-validation helpers", () => {
   it("containsOpaqueType walks wrappers and object fields", () => {
@@ -37,5 +51,16 @@ describe("opaque-validation helpers", () => {
       }),
     ]);
     expect(checkNoOpaqueInType(prim("string"), "path", "X", "y", sink)).toBe(false);
+  });
+
+  it("isValidIdentityFieldType accepts only primitive and scalarRef", () => {
+    expect(isValidIdentityFieldType(prim("string"))).toBe(true);
+    expect(isValidIdentityFieldType(prim("integer"))).toBe(true);
+    expect(isValidIdentityFieldType(scalarRef("Id"))).toBe(true);
+    expect(isValidIdentityFieldType(nullable(prim("string")))).toBe(false);
+    expect(isValidIdentityFieldType(arrayOf(prim("string")))).toBe(false);
+    expect(isValidIdentityFieldType(union(prim("string"), prim("number")))).toBe(false);
+    expect(isValidIdentityFieldType(objectType(field("k", prim("string"))))).toBe(false);
+    expect(isValidIdentityFieldType(opaqueRef("RichDocument"))).toBe(false);
   });
 });

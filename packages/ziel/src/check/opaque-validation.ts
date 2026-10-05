@@ -61,3 +61,12 @@ export function checkNoOpaqueInType(
 export function opaqueTypeBanMessage(type: TypeExpr, where: string): string {
   return `Opaque type ${formatType(type)} is not allowed in ${where}`;
 }
+
+/**
+ * Identity fields must be a primitive or a scalar (of a primitive).
+ * Callers should resolve `typeProjection` first; opaque leaves use a
+ * separate diagnostic (`OPAQUE_TYPE_NOT_ALLOWED_IN_IDENTITY`).
+ */
+export function isValidIdentityFieldType(type: TypeExpr): boolean {
+  return type.kind === "primitive" || type.kind === "scalarRef";
+}

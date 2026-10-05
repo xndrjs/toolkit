@@ -152,6 +152,8 @@ const result = buildGeneratedModule({ root: process.cwd() });
 
 `resource Name(identity): PayloadType` — the RHS is always a **payload type**. That may be an object shape, a union, an array, a scalar/opaque ref, or a type projection — not necessarily an object. Writing `TabsCollection(…): Tab[]` means the datasource returns an array of Tab’s payload shape, not that the resolver should fan out to Tab ARIs. Traversal exists only via explicit `expand` / `each` / `on` / `resolve to` / `resolve to each`. Loading a collection resource returns that payload as-is; projecting it (e.g. empty `on TabsCollection`) keeps the payload type. `R[]` on a payload RHS is never an auto-fanout.
 
+**Identity law** — each identity field must be a primitive (`string`, `number`, `integer`, `boolean`) or a scalar of one of those. Nested objects, arrays, nullables, unions, and resource refs are rejected as `INVALID_IDENTITY_TYPE` (opaques stay on `OPAQUE_TYPE_NOT_ALLOWED_IN_IDENTITY`). Emit maps identity fields to flat ARI key schemas only.
+
 **Numeric primitives** — `number` is any finite float; `integer` is a finite int. Identity codegen maps them to `s.number()` / `s.integer()`. `integer` is assignable to `number`; the reverse is not. Both erase to TypeScript `number` in emitted brands and payload types.
 
 **Scalar factories** — each scalar gets a PascalCase key on `Scalars` whose param is the representation (`string` | `number` | `boolean`; DSL `integer` also erases to TS `number`) and return type is the branded alias. They are ergonomics helpers only: a cast from the primitive to the branded type, with **no runtime validation**. Prefer them over inline casts in adapters and fixtures:

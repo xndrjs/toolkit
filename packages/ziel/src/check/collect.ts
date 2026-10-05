@@ -2,7 +2,12 @@ import type { FieldDecl, Program, TypeExpr } from "../ir";
 import { formatType, objectPayloadFields, typesSemanticallyEqual } from "./assignability";
 import { expandPayloadObjectMembers } from "./discriminants";
 import type { DiagnosticSink } from "./diagnostic";
-import { checkNoOpaqueInType, isOpaqueLeafType, opaqueTypeBanMessage } from "./opaque-validation";
+import {
+  checkNoOpaqueInType,
+  isOpaqueLeafType,
+  isValidIdentityFieldType,
+  opaqueTypeBanMessage,
+} from "./opaque-validation";
 import { memberMatchesRefersPattern, refersPatternFieldMissingOnAllMembers } from "./refers";
 import {
   checkTypeExpr,
@@ -101,7 +106,7 @@ export function collectResources(
       checkTypeExpr(field.type, fieldPath, scalars, resources, opaques, sink);
       const concrete = concreteType(field.type, fieldPath, scalars, resources, opaques, sink);
       if (concrete) {
-        checkNoOpaqueInType(
+        const hasOpaque = checkNoOpaqueInType(
           concrete,
           fieldPath,
           "OPAQUE_TYPE_NOT_ALLOWED_IN_IDENTITY",
@@ -109,6 +114,14 @@ export function collectResources(
           sink,
           field.span
         );
+        if (!hasOpaque && !isValidIdentityFieldType(concrete)) {
+          sink.push({
+            code: "INVALID_IDENTITY_TYPE",
+            message: `Identity field type ${formatType(concrete)} must be a primitive or scalar`,
+            path: fieldPath,
+            span: field.span,
+          });
+        }
       }
     }
 

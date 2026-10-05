@@ -23,5 +23,10 @@ export {
 } from "./projection-include";
 export { resolveTypeExpr } from "./resolve-type";
 export type { FieldMap, OpaqueTable, ResourceSymbols, ResourceTable, ScalarTable } from "./symbols";
-export { containsOpaqueType, isOpaqueLeafType, checkNoOpaqueInType } from "./opaque-validation";
+export {
+  containsOpaqueType,
+  isOpaqueLeafType,
+  isValidIdentityFieldType,
+  checkNoOpaqueInType,
+} from "./opaque-validation";
 export { queryReferencedResources, requiredQueryContextFields } from "./check-datasources";

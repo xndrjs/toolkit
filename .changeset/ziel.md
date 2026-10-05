@@ -8,6 +8,7 @@ Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, 
 ### Language / DSL
 
 - Add `opaque Name;` for nominal, non-inspectable payload leaves (no representation clause). Opaque types may appear in payloads (roots, fields, arrays, unions, type projections) but not in identity, query params, datasource `context`, or `refers`. Checker rejects inspectable uses in `when` expressions and name clashes with scalars/resources.
+- Reject non-primitive identity fields (`INVALID_IDENTITY_TYPE`): identity must be `string` | `number` | `integer` | `boolean` or a scalar of those — not nested objects, arrays, nullables, unions, or resource refs.
 - Unknown bare type names diagnose as `UNKNOWN_TYPE` (scalar / opaque / resource namespaces).
 - Add `and` / `or` / `(…)` to when-expressions; flatten islands to `on Resource [binding] [when expr]` (one startIsland per clause; combine conditions with `or`).
 - Add `in` / `not in` (literal array membership) and unary `!` (JS falsy) to shared when-expressions — projections, resolve arms, expand arms, and islands.
