@@ -2,7 +2,12 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "../../tsconfig.repo.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@xndrjs/addressable-resources": ["../addressable-resources/src/index.ts"],
+      "@xndrjs/resource-graph-resolver": ["../resource-graph-resolver/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts"]
 }
