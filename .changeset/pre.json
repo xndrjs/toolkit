@@ -25,7 +25,7 @@
     "@xndrjs/resource-graph-resolver": "0.2.0",
     "@xndrjs/tasks": "0.2.0",
     "@xndrjs/ziel": "0.0.0",
-    "ziel-vscode": "0.0.2"
+    "ziel-vscode": "0.0.5"
   },
   "changesets": ["contentful-to-zod-values-first-ids", "resource-graph-resolver-strategy-dsl"]
 }
