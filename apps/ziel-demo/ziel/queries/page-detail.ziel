@@ -13,28 +13,6 @@ fragment ChromeLogo on Entry e when e.kind == "Menu"
   ) on failure set null
 }
 
-query FooQ(
-  pageId: EntryId,
-  spaceId: SpaceId,
-  environmentId: EnvironmentId,
-  locale: Locale
-) {
-  context {
-    environmentId
-    spaceId
-    locale
-  }
-
-  root Page(
-    spaceId: spaceId,
-    environmentId: environmentId,
-    id: pageId,
-    locale: locale
-  )
-
-  on Page p { }
-}
-
 query PageDetail(
   pageId: EntryId,
   spaceId: SpaceId,
