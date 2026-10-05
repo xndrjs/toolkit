@@ -14,7 +14,8 @@ Workspace packages listed in `ignore` in [`config.json`](./config.json) are excl
 - `@xndrjs/resource-graph-resolver-bench` — resource-graph-resolver scheduler benchmark CLI
 - `@xndrjs/oas-core-validator-demo`
 - `@xndrjs/documentation`
+- `ziel-vscode` — VS Code / Open VSX extension (publish via `vsce` / `ovsx`, not npm)
 
-Those apps also set `"private": true` in `package.json` so an accidental `npm publish` is rejected by the registry.
+Those apps also set `"private": true` in `package.json` so an accidental `npm publish` is rejected by the registry. `ziel-vscode` stays non-private so its `version` can be bumped by hand for marketplace releases; Changesets `ignore` keeps it off `changeset publish`.
 
 `privatePackages.version` and `privatePackages.tag` are both `false` in [`config.json`](./config.json), so `pnpm changeset version` does not bump versions or changelogs for any private workspace package (apps, shared configs, etc.). The `ignore` list still blocks publish and changeset selection for those names.

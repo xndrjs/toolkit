@@ -1,6 +1,5 @@
 ---
 "@xndrjs/ziel": minor
-"ziel-vscode": minor
 ---
 
 Require Node.js 24 or 25 (`>=24 <26`). Watch mode uses Chokidar with recursive, debounced, serialized regeneration and clean asynchronous shutdown.

@@ -23,6 +23,7 @@
     "@xndrjs/contentful-to-zod-demo",
     "@xndrjs/resource-graph-resolver-demo",
     "@xndrjs/resource-graph-resolver-bench",
-    "@xndrjs/ziel-demo"
+    "@xndrjs/ziel-demo",
+    "ziel-vscode"
   ]
 }
