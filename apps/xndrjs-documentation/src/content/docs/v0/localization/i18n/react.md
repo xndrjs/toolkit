@@ -91,4 +91,4 @@ Missing namespaces show your fallback UI for **that gate only** while the load i
 
 **configure → codegen (core then React) → `load` on the server → `serialize` → `I18nRoot` → gate where you need more namespaces.**
 
-See also [Runtime](/v0/localization/i18n/runtime/), [Lazy loading](/v0/localization/i18n/lazy-loading/), and the [blog post](/blog/type-safe-i18n-for-typescript-and-react/).
+See also [Runtime](/v0/localization/i18n/runtime/) and [Lazy loading](/v0/localization/i18n/lazy-loading/).
