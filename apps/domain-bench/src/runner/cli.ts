@@ -12,7 +12,7 @@ import {
 } from "./report";
 
 const HELP_TEXT = `Usage:
-  pnpm --filter @xndrjs/bench-perf bench -- --scenario <name> --engine <engine> [options]
+  pnpm --filter @xndrjs/domain-bench bench -- --scenario <name> --engine <engine> [options]
 
 Options:
   --scenario <name>       Scenario name
@@ -207,7 +207,7 @@ export async function runCli(
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[bench-perf] ${message}`);
+    console.error(`[domain-bench] ${message}`);
     console.error(HELP_TEXT);
     return 1;
   }

@@ -3,7 +3,7 @@
 This repo is a **pnpm workspace** for **xndrjs**: Clean Architecture libraries for fullstack TypeScript.
 
 - **`packages/<name>`** — libraries meant to be **published to npm** (scoped `@xndrjs/*`).
-- **`apps/<name>`** — **not published** as libraries; things like the **documentation site** (`xndrjs-documentation`), **examples** (`interop-demo`, `oas-core-validator-demo`), and **internal tooling** (`bench-perf`, `resource-graph-resolver-bench`). They are in Changesets `ignore` and marked `"private": true` so they never ship on stable or alpha.
+- **`apps/<name>`** — **not published** as libraries; things like the **documentation site** (`xndrjs-documentation`), **examples** (`interop-demo`, `oas-core-validator-demo`), and **internal tooling** (`domain-bench`, `resource-graph-resolver-bench`). They are in Changesets `ignore` and marked `"private": true` so they never ship on stable or alpha.
 
 Workspace-wide scripts (install, build, test, release) run from the **repository root**; each package documents its own API in its `README.md` or in the docs app.
 

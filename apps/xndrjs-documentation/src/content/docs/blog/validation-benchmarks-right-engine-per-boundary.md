@@ -1,6 +1,6 @@
 ---
 title: "Validation benchmarks: pick the right engine per boundary"
-description: What @xndrjs/bench-perf shows about Zod, Valibot, AJV, and core validators—and why adapter interoperability lets you use each where it shines.
+description: What @xndrjs/domain-bench shows about Zod, Valibot, AJV, and core validators—and why adapter interoperability lets you use each where it shines.
 date: 2026-05-19
 author: Fabio Fognani
 tags:
@@ -15,7 +15,7 @@ tags:
 
 Choosing a validation library is often framed as a single project-wide decision: “we use Zod” or “we standardize on JSON Schema.” In practice, different boundaries have different constraints (OpenAPI contracts from another team, small form schemas on the client, bulk migration on the server) and **throughput is not the only variable**.
 
-`xndrjs` does not force one engine globally. Each adapter exposes the same `Validator` contract; the domain layer stays the same. To make trade-offs concrete, we added **`@xndrjs/bench-perf`** (private app under `apps/bench-perf`): reproducible scenarios that compare engines on realistic payloads, not oversimplified ones.
+`xndrjs` does not force one engine globally. Each adapter exposes the same `Validator` contract; the domain layer stays the same. To make trade-offs concrete, we added **`@xndrjs/domain-bench`** (private app under `apps/domain-bench`): reproducible scenarios that compare engines on realistic payloads, not oversimplified ones.
 
 This post summarizes baseline runs from that suite and how they support a **per-boundary** strategy: AJV where the contract already lives in OpenAPI, Zod where DX matters on the frontend, core validators where hot paths need predictable cost.
 
@@ -23,7 +23,7 @@ This post summarizes baseline runs from that suite and how they support a **per-
 
 ## What was measured (and what was not)
 
-The benchmark CLI runs the **same inputs** through each engine with fixed `seed`, `warmup`, and `repeats`, then writes JSON plus a markdown comparison under `apps/bench-perf/results/`.
+The benchmark CLI runs the **same inputs** through each engine with fixed `seed`, `warmup`, and `repeats`, then writes JSON plus a markdown comparison under `apps/domain-bench/results/`.
 
 Engines in scope:
 
@@ -35,20 +35,20 @@ Engines in scope:
 | **core**    | Hand-written `Validator` implementing the same rules        |
 | **raw**     | No real validation—baseline for “parse and move on”         |
 
-**Library versions** (resolved in the monorepo lockfile for `apps/bench-perf` at the time of these runs):
+**Library versions** (resolved in the monorepo lockfile for `apps/domain-bench` at the time of these runs):
 
-| Library | Version   | Notes                                                                                                                                                        |
-| ------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Zod** | **4.3.6** | Declared as `^4.1.12` in `apps/bench-perf/package.json`; Zod 4.x API (e.g. `z.email()`). Results below are **not** comparable to Zod 3.x without re-running. |
-| Valibot | 1.3.1     | Declared as `^1.1.0`                                                                                                                                         |
-| AJV     | 8.20.0    | Via `@xndrjs/domain-ajv` peer/dev dependency                                                                                                                 |
+| Library | Version   | Notes                                                                                                                                                          |
+| ------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Zod** | **4.3.6** | Declared as `^4.1.12` in `apps/domain-bench/package.json`; Zod 4.x API (e.g. `z.email()`). Results below are **not** comparable to Zod 3.x without re-running. |
+| Valibot | 1.3.1     | Declared as `^1.1.0`                                                                                                                                           |
+| AJV     | 8.20.0    | Via `@xndrjs/domain-ajv` peer/dev dependency                                                                                                                   |
 
 Two scenarios mirror common workloads:
 
 1. **`fe-medium-form`** — medium nested profile/contact payload (frontend form scale). Sizes: 2k / 10k records; parse-only profile.
 2. **`migration-batch`** — flatter migration row (bulk ETL). Sizes: 100k / 500k; optional invalid ratio (1% at 100k, 5% at 500k).
 
-Parameters for the runs cited below: `warmup=1000`, `repeats=7`, `seed=42`, **Zod 4.3.6**, built artifacts via `pnpm --filter @xndrjs/bench-perf bench:matrix` (see [`apps/bench-perf/README.md`](https://github.com/xndrjs/toolkit/tree/main/apps/bench-perf)).
+Parameters for the runs cited below: `warmup=1000`, `repeats=7`, `seed=42`, **Zod 4.3.6**, built artifacts via `pnpm --filter @xndrjs/domain-bench bench:matrix` (see [`apps/domain-bench/README.md`](https://github.com/xndrjs/toolkit/tree/main/apps/domain-bench)).
 
 **Non-goals:** absolute numbers on your laptop, “Zod is slow” slogans, or replacing profiling on your real hot path. The suite is for **architecture-oriented** comparisons when volume or latency budgets matter.
 
@@ -65,7 +65,7 @@ Parameters for the runs cited below: `warmup=1000`, `repeats=7`, `seed=42`, **Zo
 
 On this scenario, **Zod and Valibot are in the same ballpark** (Zod slightly ahead here). The custom **core** validator implementing the same constraints is roughly **nine times faster** on median throughput.
 
-Heap deltas in this run also favored core (lower median allocation trend than Zod/Valibot), though heap numbers are noisy and should be read comparatively—see the methodology notes in the bench-perf README.
+Heap deltas in this run also favored core (lower median allocation trend than Zod/Valibot), though heap numbers are noisy and should be read comparatively—see the methodology notes in the domain-bench README.
 
 **Takeaway for the FE boundary:** validating **one** medium form per submit is cheap with any engine—sub-millisecond per payload at these rates. Picking Zod or Valibot for ergonomics, transforms, and team familiarity is reasonable. Worry about engine choice when you validate **many** payloads per frame, replay large drafts, or run client-side batch checks—not for a typical single submit.
 
@@ -210,16 +210,16 @@ const UserProfile = domain.shape(
 Reproduce locally:
 
 ```bash
-pnpm --filter @xndrjs/bench-perf bench:matrix -- \
+pnpm --filter @xndrjs/domain-bench bench:matrix -- \
   --scenario fe-medium-form --mode valid --input-size 10000 \
   --warmup 1000 --repeats 7 --seed 42
 
-pnpm --filter @xndrjs/bench-perf bench:matrix -- \
+pnpm --filter @xndrjs/domain-bench bench:matrix -- \
   --scenario migration-batch --mode valid --input-size 100000 \
   --warmup 1000 --repeats 7 --seed 42
 ```
 
-Reports land under `apps/bench-perf/results/<scenario>/<timestamp>-<commit>/`.
+Reports land under `apps/domain-bench/results/<scenario>/<timestamp>-<commit>/`.
 
 ---
 

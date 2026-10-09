@@ -87,7 +87,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     })
     .catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[bench-perf] ${message}`);
+      console.error(`[domain-bench] ${message}`);
       process.exitCode = 1;
     });
 }

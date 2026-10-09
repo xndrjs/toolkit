@@ -1,6 +1,6 @@
-# @xndrjs/bench-perf
+# @xndrjs/domain-bench
 
-Benchmark suite for comparing validation engines across realistic workloads:
+Benchmark suite for comparing domain validation engines across realistic workloads:
 
 - `zod`
 - `valibot`
@@ -58,30 +58,30 @@ Comparability rules:
 ### Reproducible run on built artifacts (recommended)
 
 ```bash
-pnpm --filter @xndrjs/bench-perf bench -- --scenario fe-medium-form --engine zod --mode valid --input-size 10000 --warmup 1000 --repeats 7 --seed 42
+pnpm --filter @xndrjs/domain-bench bench -- --scenario fe-medium-form --engine zod --mode valid --input-size 10000 --warmup 1000 --repeats 7 --seed 42
 ```
 
 `bench` performs:
 
-1. `bench:prepare` (builds `@xndrjs/domain`, `@xndrjs/domain-zod`, `@xndrjs/domain-valibot`, `@xndrjs/domain-ajv`, `@xndrjs/bench-perf`);
+1. `bench:prepare` (builds `@xndrjs/domain`, `@xndrjs/domain-zod`, `@xndrjs/domain-valibot`, `@xndrjs/domain-ajv`, `@xndrjs/domain-bench`);
 2. benchmark execution from `dist/index.js`.
 
 ### Fast local iteration from source
 
 ```bash
-pnpm --filter @xndrjs/bench-perf bench:dev -- --scenario fe-medium-form --engine zod --mode valid --input-size 10000 --warmup 1000 --repeats 7 --seed 42
+pnpm --filter @xndrjs/domain-bench bench:dev -- --scenario fe-medium-form --engine zod --mode valid --input-size 10000 --warmup 1000 --repeats 7 --seed 42
 ```
 
 ### Full engine comparison with report generation
 
 ```bash
-pnpm --filter @xndrjs/bench-perf bench:matrix -- --scenario fe-medium-form --mode valid --input-size 10000 --warmup 1000 --repeats 7 --seed 42
+pnpm --filter @xndrjs/domain-bench bench:matrix -- --scenario fe-medium-form --mode valid --input-size 10000 --warmup 1000 --repeats 7 --seed 42
 ```
 
 Example (`migration-batch`, 100k records):
 
 ```bash
-pnpm --filter @xndrjs/bench-perf bench:matrix -- --scenario migration-batch --mode valid --input-size 100000 --warmup 1000 --repeats 7 --seed 42
+pnpm --filter @xndrjs/domain-bench bench:matrix -- --scenario migration-batch --mode valid --input-size 100000 --warmup 1000 --repeats 7 --seed 42
 ```
 
 This executes all supported engines for the scenario and saves:
@@ -96,13 +96,13 @@ Default output directory format:
 You can override it:
 
 ```bash
-pnpm --filter @xndrjs/bench-perf bench:matrix -- --scenario fe-medium-form --mode valid --input-size 10000 --output-dir results/manual/fe-valid
+pnpm --filter @xndrjs/domain-bench bench:matrix -- --scenario fe-medium-form --mode valid --input-size 10000 --output-dir results/manual/fe-valid
 ```
 
 ### Utility: list scenarios
 
 ```bash
-pnpm --filter @xndrjs/bench-perf bench -- --list-scenarios
+pnpm --filter @xndrjs/domain-bench bench -- --list-scenarios
 ```
 
 ## How to read results

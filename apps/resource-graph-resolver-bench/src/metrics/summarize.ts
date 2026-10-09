@@ -1,6 +1,6 @@
 /**
  * Percentile / distribution helpers for bench repeats.
- * Pattern matches `apps/bench-perf/src/runner/stats.ts` (linear interpolation).
+ * Pattern matches `apps/domain-bench/src/runner/stats.ts` (linear interpolation).
  */
 
 export type PercentileSummary = {

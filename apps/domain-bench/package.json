@@ -1,13 +1,13 @@
 {
-  "name": "@xndrjs/bench-perf",
+  "name": "@xndrjs/domain-bench",
   "version": "0.1.1",
-  "description": "Internal benchmark CLI for comparing validation engines.",
+  "description": "Internal benchmark CLI for comparing domain validation engines.",
   "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xndrjs/toolkit.git",
-    "directory": "apps/bench-perf"
+    "directory": "apps/domain-bench"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -26,7 +26,7 @@
   },
   "scripts": {
     "bench:dev": "tsx src/index.ts",
-    "bench:prepare": "pnpm --filter @xndrjs/domain --filter @xndrjs/domain-zod --filter @xndrjs/domain-valibot --filter @xndrjs/domain-ajv --filter @xndrjs/bench-perf run build",
+    "bench:prepare": "pnpm --filter @xndrjs/domain --filter @xndrjs/domain-zod --filter @xndrjs/domain-valibot --filter @xndrjs/domain-ajv --filter @xndrjs/domain-bench run build",
     "bench": "pnpm run bench:prepare && node dist/index.js",
     "bench:matrix": "pnpm run bench:prepare && node dist/index.js --matrix",
     "build": "tsup src/index.ts --dts --format esm",

@@ -15,7 +15,7 @@
     "@config/eslint",
     "@config/vitest",
     "@config/typescript",
-    "@xndrjs/bench-perf",
+    "@xndrjs/domain-bench",
     "@xndrjs/documentation",
     "@xndrjs/oas-core-validator-demo",
     "@xndrjs/interop-demo",

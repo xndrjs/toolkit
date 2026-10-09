@@ -2,7 +2,7 @@
   "mode": "pre",
   "tag": "alpha",
   "initialVersions": {
-    "@xndrjs/bench-perf": "0.1.1",
+    "@xndrjs/domain-bench": "0.1.1",
     "@xndrjs/contentful-to-zod-demo": "0.0.1",
     "@xndrjs/i18n-demo": "0.0.0",
     "@xndrjs/interop-demo": "0.0.1",
