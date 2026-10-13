@@ -177,23 +177,21 @@ Each arrow ends in a `Validator<Input, Output>`. After validation, **creation an
 Minimal cross-adapter sketch (email from JSON Schema, profile from Zod):
 
 ```ts
-import { domain, jsonSchemaToValidator } from "@xndrjs/domain-ajv";
-import { zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
+import { domain as ajvDomain, jsonSchemaToValidator } from "@xndrjs/domain-ajv";
+import { domain, zodFromKit } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const Email = domain.primitive(
+const Email = ajvDomain.core.primitive(
   "Email",
   jsonSchemaToValidator<string>({ type: "string", format: "email" })
 );
 
 const UserProfile = domain.shape(
   "UserProfile",
-  zodToValidator(
-    z.object({
-      displayName: z.string().min(1),
-      contact: zodFromKit(Email),
-    })
-  )
+  z.object({
+    displayName: z.string().min(1),
+    contact: zodFromKit(Email),
+  })
 );
 ```
 

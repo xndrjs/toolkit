@@ -33,22 +33,19 @@ function moneyValidator(): Validator<number> {
   };
 }
 
-describe("capabilities.forPrimitive on domain.primitive", () => {
-  const MoneyPrimitive = domain.primitive("Money", moneyValidator());
+describe("capabilities.forPrimitiveKit / forPrimitiveContract on domain.core.primitive", () => {
+  const MoneyPrimitive = domain.core.primitive("Money", moneyValidator());
 
-  const Money = domain.capabilities
-    .forPrimitive<number>()
-    .methods(({ create }) => ({
-      add(money, cents: number) {
-        return create(money + cents);
-      },
-      subtract(money, cents: number) {
-        return create(money - cents);
-      },
-    }))
-    .attach(MoneyPrimitive);
+  const Money = domain.capabilities.forPrimitiveKit(MoneyPrimitive).methods(({ create }) => ({
+    add(money, cents: number) {
+      return create(money + cents);
+    },
+    subtract(money, cents: number) {
+      return create(money - cents);
+    },
+  }));
 
-  it("attach exposes custom methods only; instances stay plain numbers", () => {
+  it("forPrimitiveKit exposes custom methods only; instances stay plain numbers", () => {
     const price = MoneyPrimitive.create(1_050);
     expect(price).toBe(1_050);
     expect(typeof price).toBe("number");
@@ -72,8 +69,8 @@ describe("capabilities.forPrimitive on domain.primitive", () => {
     expect(() => MoneyPrimitive.create(10.5)).toThrow(DomainValidationError);
   });
 
-  it("reusable primitive capability attaches to compatible primitives", () => {
-    const AddCents = capabilities.forPrimitive<number>().methods(({ create }) => ({
+  it("forPrimitiveContract reusable capability attaches to compatible primitives", () => {
+    const AddCents = capabilities.forPrimitiveContract<number>().methods(({ create }) => ({
       add(money, cents: number) {
         return create(money + cents);
       },
@@ -85,7 +82,7 @@ describe("capabilities.forPrimitive on domain.primitive", () => {
   });
 
   it("attach enforces scalar contract at type level", () => {
-    const AddCents = capabilities.forPrimitive<number>().methods(({ create }) => ({
+    const AddCents = capabilities.forPrimitiveContract<number>().methods(({ create }) => ({
       add(money, cents: number) {
         return create(money + cents);
       },
@@ -110,5 +107,21 @@ describe("capabilities.forPrimitive on domain.primitive", () => {
     // @ts-expect-error -- string primitive does not extend number contract
     const _invalid = AddCents.attach(Sku);
     expect(_invalid).toBeDefined();
+  });
+
+  it("forPrimitiveContract accepts branded value type via outer unwrap", () => {
+    type Money = ReturnType<(typeof MoneyPrimitive)["create"]>;
+
+    const FromBrand = capabilities
+      .forPrimitiveContract<Money>()
+      .methods(({ create }) => ({
+        add(money, cents: number) {
+          return create(money + cents);
+        },
+      }))
+      .attach(MoneyPrimitive);
+
+    const price = MoneyPrimitive.create(100);
+    expect(FromBrand.add(price, 25)).toBe(125);
   });
 });

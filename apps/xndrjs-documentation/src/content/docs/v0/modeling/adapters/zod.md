@@ -1,15 +1,16 @@
 ---
 title: Zod adapter
-description: Use Zod schemas as xndrjs domain validators.
+description: Use Zod schemas with xndrjs domain kits.
 ---
 
 `@xndrjs/domain-zod` integrates Zod 4 with `@xndrjs/domain`.
 
 It provides:
 
-- `zodToValidator(schema)` to convert a Zod schema into a domain validator
+- an adapted `domain` whose top-level `shape` / `primitive` / `proof` accept Zod schemas; `domain.core.*` still takes a `Validator`
+- `zodToValidator(schema)` when you need an explicit `Validator`
 - `zodFromKit(kit)` to embed domain kits inside Zod schemas
-- full re-export of `@xndrjs/domain` for single-entry imports
+- full re-export of `@xndrjs/domain` for single-entry imports (this package’s `domain` shadows core)
 
 ## Install
 
@@ -20,12 +21,12 @@ pnpm add @xndrjs/domain-zod zod
 ## Minimal example
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 const Email = domain.primitive(
   "Email",
-  zodToValidator(z.email().transform((value) => value.toLowerCase()))
+  z.email().transform((value) => value.toLowerCase())
 );
 
 const email = Email.create("ADA@EXAMPLE.COM");
@@ -34,7 +35,21 @@ const email = Email.create("ADA@EXAMPLE.COM");
 
 Zod handles parsing and transformation. The domain primitive materializes the trusted value.
 
-## zodToValidator
+## Passing schemas to `domain`
+
+Prefer passing Zod schemas directly:
+
+```ts
+const User = domain.shape(
+  "User",
+  z.object({
+    id: z.string(),
+    age: z.number().int().nonnegative(),
+  })
+);
+```
+
+Use `zodToValidator` when you need a standalone `Validator` (shared compose, core `@xndrjs/domain`, or documenting the adapter mapping):
 
 ```ts
 const userValidator = zodToValidator(
@@ -44,10 +59,10 @@ const userValidator = zodToValidator(
   })
 );
 
-const User = domain.shape("User", userValidator);
+const User = domain.core.shape("User", userValidator);
 ```
 
-Failure mapping:
+Failure mapping (via the adapter):
 
 - `engine: "zod"`
 - one domain issue per Zod issue
@@ -55,17 +70,15 @@ Failure mapping:
 
 ## zodFromKit
 
-`zodFromKit(kit)` turns a primitive or shape kit into a Zod field. Validation and transforms run **only** through the kit’s `validator` (typically from `zodToValidator` on the kit); the parent schema does not add a second parsing path for that field.
+`zodFromKit(kit)` turns a primitive or shape kit into a Zod field. Validation and transforms run **only** through the kit’s `validator`; the parent schema does not add a second parsing path for that field.
 
 ```ts
 const Invite = domain.shape(
   "Invite",
-  zodToValidator(
-    z.object({
-      recipient: zodFromKit(Email),
-      message: z.string().min(1),
-    })
-  )
+  z.object({
+    recipient: zodFromKit(Email),
+    message: z.string().min(1),
+  })
 );
 ```
 
@@ -74,22 +87,18 @@ const Invite = domain.shape(
 ```ts
 const Address = domain.shape(
   "Address",
-  zodToValidator(
-    z.object({
-      city: z.string().min(1),
-      country: z.string().length(2),
-    })
-  )
+  z.object({
+    city: z.string().min(1),
+    country: z.string().length(2),
+  })
 );
 
 const User = domain.shape(
   "User",
-  zodToValidator(
-    z.object({
-      id: z.string(),
-      address: zodFromKit(Address),
-    })
-  )
+  z.object({
+    id: z.string(),
+    address: zodFromKit(Address),
+  })
 );
 
 const user = User.create({
@@ -105,10 +114,10 @@ This avoids duplicating nested domain semantics in parent schemas.
 When you use [`@xndrjs/contentful-to-zod`](/v0/integrations/contentful-to-zod/), parse and flatten at the transport boundary first, then wire the flat field schema into domain:
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { BlogPostFieldsSchema } from "./generated/contentful.schemas";
 
-export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostFieldsSchema));
+export const BlogPost = domain.shape("BlogPost", BlogPostFieldsSchema);
 ```
 
 Transport schemas describe what can arrive; domain rules define what you trust. See [Contentful to Zod](/v0/integrations/contentful-to-zod/) for the full pipeline.

@@ -274,18 +274,15 @@ await writeFile("./src/generated/contentful.schemas.ts", source, "utf8");
 
 ## Wiring to domain-zod
 
-Transport schemas feed the domain; they do not replace it. See the [Zod adapter](/v0/modeling/adapters/zod/) for `zodToValidator`:
+Transport schemas feed the domain; they do not replace it. Prefer adapter top-level factories with the Zod schema, or `domain.core.*` with `zodToValidator` when you need an explicit `Validator`:
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { BlogPostFieldsSchema, ContentfulLocaleCodeSchema } from "./generated/contentful.schemas";
 
-export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostFieldsSchema));
+export const BlogPost = domain.shape("BlogPost", BlogPostFieldsSchema);
 
-export const SupportedLocale = domain.primitive(
-  "SupportedLocale",
-  zodToValidator(ContentfulLocaleCodeSchema)
-);
+export const SupportedLocale = domain.primitive("SupportedLocale", ContentfulLocaleCodeSchema);
 ```
 
 ## CMA field mapping

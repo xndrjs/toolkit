@@ -4,7 +4,7 @@ import { EmailPrimitive } from "../primitives/email.primitive.js";
 import { nonEmptyStringValidator } from "../validators/common.js";
 
 /** Slim contact view — core `compose` only, useful as a `project` target from `User`. */
-export const UserContactShape = domain.shape(
+export const UserContactShape = domain.core.shape(
   "UserContact",
   compose.object({
     email: EmailPrimitive.validator,

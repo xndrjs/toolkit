@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { domain, DomainValidationError, zodFromKit, zodToValidator } from "./index";
+import { domain, DomainValidationError, zodFromKit } from "./index";
 
 /**
  * Mirrors the nested User + Address + Email example domain (parity fixture).
  * with `zodFromKit(kit)` reusing each kit's `zodSchema` (no duplicated address/email Zod).
  */
 describe("aggregate domain parity (nested kits example)", () => {
-  const EmailPrimitive = domain.primitive("Email", zodToValidator(z.string().min(1)));
+  const EmailPrimitive = domain.primitive("Email", z.string().min(1));
 
   const AddressSchema = z.object({
     type: z.literal("Address").default("Address"),
     city: z.string(),
     street: z.string(),
   });
-  const AddressShape = domain.shape("Address", zodToValidator(AddressSchema));
+  const AddressShape = domain.shape("Address", AddressSchema);
 
   const UserShapeSchema = z.object({
     type: z.literal("User").default("User"),
@@ -23,19 +23,16 @@ describe("aggregate domain parity (nested kits example)", () => {
     address: zodFromKit(AddressShape),
   });
 
-  const UserShape = domain.shape("User", zodToValidator(UserShapeSchema));
+  const UserShape = domain.shape("User", UserShapeSchema);
 
-  const User = domain.capabilities
-    .forShape<z.output<typeof UserShapeSchema>>()
-    .methods(({ patch }) => ({
-      isCorporate(user) {
-        return user.email.endsWith("@company.com");
-      },
-      patchEmail(user, email: ReturnType<typeof EmailPrimitive.create>) {
-        return patch(user, { email });
-      },
-    }))
-    .attach(UserShape);
+  const User = domain.capabilities.forShapeKit(UserShape).methods(({ patch }) => ({
+    isCorporate(user) {
+      return user.email.endsWith("@company.com");
+    },
+    patchEmail(user, email: ReturnType<typeof EmailPrimitive.create>) {
+      return patch(user, { email });
+    },
+  }));
 
   it("creates nested aggregate with discriminants and frozen user", () => {
     const email = EmailPrimitive.create("ciao");

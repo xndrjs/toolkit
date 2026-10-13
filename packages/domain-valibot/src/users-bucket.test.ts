@@ -1,28 +1,24 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import * as v from "valibot";
 
-import { domain, type KitInstance, valibotFromKit, valibotToValidator } from "./index";
+import { domain, type KitInstance, valibotFromKit } from "./index";
 
 describe("UsersBucket: nested User[] is assignable to KitInstance<User>[]", () => {
   const UserModel = domain.shape(
     "User",
-    valibotToValidator(
-      v.object({
-        type: v.optional(v.literal("User"), "User"),
-        email: v.pipe(v.string(), v.email()),
-        username: v.pipe(v.string(), v.minLength(1)),
-      })
-    )
+    v.object({
+      type: v.optional(v.literal("User"), "User"),
+      email: v.pipe(v.string(), v.email()),
+      username: v.pipe(v.string(), v.minLength(1)),
+    })
   );
 
   const UsersBucket = domain.shape(
     "UsersBucket",
-    valibotToValidator(
-      v.object({
-        type: v.optional(v.literal("UsersBucket"), "UsersBucket"),
-        users: v.array(valibotFromKit(UserModel)),
-      })
-    )
+    v.object({
+      type: v.optional(v.literal("UsersBucket"), "UsersBucket"),
+      users: v.array(valibotFromKit(UserModel)),
+    })
   );
 
   type User = KitInstance<typeof UserModel>;

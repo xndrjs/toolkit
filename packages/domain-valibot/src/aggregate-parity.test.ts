@@ -1,23 +1,18 @@
 import { describe, expect, it } from "vitest";
 import * as v from "valibot";
 
-import { domain, DomainValidationError, valibotFromKit, valibotToValidator } from "./index";
+import { domain, DomainValidationError, valibotFromKit } from "./index";
 
 describe("aggregate domain parity (valibot)", () => {
-  const EmailPrimitive = domain.primitive(
-    "Email",
-    valibotToValidator(v.pipe(v.string(), v.minLength(1)))
-  );
+  const EmailPrimitive = domain.primitive("Email", v.pipe(v.string(), v.minLength(1)));
 
   const AddressShape = domain.shape(
     "Address",
-    valibotToValidator(
-      v.object({
-        type: v.optional(v.literal("Address"), "Address"),
-        city: v.string(),
-        street: v.string(),
-      })
-    )
+    v.object({
+      type: v.optional(v.literal("Address"), "Address"),
+      city: v.string(),
+      street: v.string(),
+    })
   );
 
   const UserShapeSchema = v.object({
@@ -26,19 +21,16 @@ describe("aggregate domain parity (valibot)", () => {
     address: valibotFromKit(AddressShape),
   });
 
-  const UserShape = domain.shape("User", valibotToValidator(UserShapeSchema));
+  const UserShape = domain.shape("User", UserShapeSchema);
 
-  const User = domain.capabilities
-    .forShape<v.InferOutput<typeof UserShapeSchema>>()
-    .methods(({ patch }) => ({
-      isCorporate(user) {
-        return user.email.endsWith("@company.com");
-      },
-      patchEmail(user, email: ReturnType<typeof EmailPrimitive.create>) {
-        return patch(user, { email });
-      },
-    }))
-    .attach(UserShape);
+  const User = domain.capabilities.forShapeKit(UserShape).methods(({ patch }) => ({
+    isCorporate(user) {
+      return user.email.endsWith("@company.com");
+    },
+    patchEmail(user, email: ReturnType<typeof EmailPrimitive.create>) {
+      return patch(user, { email });
+    },
+  }));
 
   it("creates nested aggregate with discriminants and frozen user", () => {
     const email = EmailPrimitive.create("ciao");

@@ -6,11 +6,17 @@ import { arrayOf, objectFromFields, optional } from "./validation-compose";
 
 /**
  * Primary runtime entry points. `pipe` and `DomainValidationError` are also root exports.
+ *
+ * Modeling factories that take a {@link Validator} live under {@link domain.core}.
+ * Adapter packages (`@xndrjs/domain-zod`, `@xndrjs/domain-valibot`) add top-level
+ * `shape` / `primitive` / `proof` that accept native schemas and keep `domain.core` for Validators.
  */
 export const domain = {
-  primitive,
-  shape,
-  proof,
+  core: {
+    primitive,
+    shape,
+    proof,
+  },
   capabilities,
 };
 
@@ -41,14 +47,20 @@ export type {
   CapabilityBundle,
   CapabilityMethods,
   CapabilityPatchFn,
+  CapabilityPrimitiveContract,
+  CapabilityShapeContract,
+  PrimitiveAttachMismatchError,
   PrimitiveCapabilityBundle,
   PrimitiveCapabilityFactoryContext,
   PrimitiveCapabilityKit,
   PrimitiveCapabilityMethods,
   PrimitiveCapabilitiesBuilder,
+  PrimitiveKitCapabilitiesBuilder,
+  ShapeAttachMismatchError,
   ShapeCapabilitiesBuilder,
   ShapeCapabilityFactoryContext,
   ShapeCapabilityKit,
+  ShapeKitCapabilitiesBuilder,
 } from "./capabilities";
 
 export type { Brand, BrandMap, Branded, BrandOf, Mutable, PatchDelta } from "./branded";

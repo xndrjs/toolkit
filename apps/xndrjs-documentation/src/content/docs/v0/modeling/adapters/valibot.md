@@ -1,15 +1,16 @@
 ---
 title: Valibot adapter
-description: Use Valibot schemas as xndrjs domain validators.
+description: Use Valibot schemas with xndrjs domain kits.
 ---
 
 `@xndrjs/domain-valibot` integrates Valibot schemas with `@xndrjs/domain`.
 
 It provides:
 
-- `valibotToValidator(schema)` to produce domain validators
+- an adapted `domain` whose top-level `shape` / `primitive` / `proof` accept Valibot schemas; `domain.core.*` still takes a `Validator`
+- `valibotToValidator(schema)` when you need an explicit `Validator`
 - `valibotFromKit(kit)` to use domain kits as Valibot schema fields
-- full re-export of `@xndrjs/domain` for convenient imports
+- full re-export of `@xndrjs/domain` for convenient imports (this package’s `domain` shadows core)
 
 ## Install
 
@@ -21,28 +22,28 @@ pnpm add @xndrjs/domain-valibot valibot
 
 ```ts
 import * as v from "valibot";
-import { domain, valibotToValidator } from "@xndrjs/domain-valibot";
+import { domain } from "@xndrjs/domain-valibot";
 
-const Email = domain.primitive("Email", valibotToValidator(v.pipe(v.string(), v.email())));
+const Email = domain.primitive("Email", v.pipe(v.string(), v.email()));
 
 const email = Email.create("dev@example.com");
 ```
 
-## valibotToValidator
+## Passing schemas to `domain`
 
-Wrap any compatible Valibot schema into the domain validator contract:
+Prefer passing Valibot schemas directly:
 
 ```ts
 const User = domain.shape(
   "User",
-  valibotToValidator(
-    v.object({
-      id: v.pipe(v.string(), v.minLength(1)),
-      email: valibotFromKit(Email),
-    })
-  )
+  v.object({
+    id: v.pipe(v.string(), v.minLength(1)),
+    email: valibotFromKit(Email),
+  })
 );
 ```
+
+Use `valibotToValidator` when you need a standalone `Validator`.
 
 ## valibotFromKit
 
@@ -51,22 +52,18 @@ Use `valibotFromKit` when a parent Valibot schema should materialize an existing
 ```ts
 const Address = domain.shape(
   "Address",
-  valibotToValidator(
-    v.object({
-      city: v.pipe(v.string(), v.minLength(1)),
-      country: v.pipe(v.string(), v.length(2)),
-    })
-  )
+  v.object({
+    city: v.pipe(v.string(), v.minLength(1)),
+    country: v.pipe(v.string(), v.length(2)),
+  })
 );
 
 const User = domain.shape(
   "User",
-  valibotToValidator(
-    v.object({
-      id: v.string(),
-      address: valibotFromKit(Address),
-    })
-  )
+  v.object({
+    id: v.string(),
+    address: valibotFromKit(Address),
+  })
 );
 
 const user = User.create({

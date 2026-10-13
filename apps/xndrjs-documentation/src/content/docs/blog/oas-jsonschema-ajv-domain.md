@@ -33,7 +33,7 @@ With `xndrjs`, we can use a more direct approach:
 2. turn it into a resolved bundle
 3. use the schemas as JSON Schema inputs compiled by AJV
 4. generate TypeScript types with `openapi-typescript`
-5. plug everything into `domain.shape`, `domain.primitive`, and `domain.proof`
+5. plug everything into `domain.core.shape`, `domain.core.primitive`, and `domain.core.proof`
 
 The result is a solid domain, statically typed and validated at runtime, without rewriting contracts by hand.
 
@@ -258,7 +258,7 @@ For a plain JSON Schema, you can use `jsonSchemaToValidator`:
 ```ts
 import { domain, jsonSchemaToValidator } from "@xndrjs/domain-ajv";
 
-const Tier = domain.primitive(
+const Tier = domain.core.primitive(
   "Tier",
   jsonSchemaToValidator<"free" | "pro">({
     type: "string",
@@ -295,9 +295,12 @@ This small helper connects the two worlds:
 From there, the domain becomes very small:
 
 ```ts
-const Tier = domain.primitive("Tier", openApiValidatorFor(bundle, "Tier"));
-const User = domain.shape("User", openApiValidatorFor(bundle, "User"));
-const VerifiedUserProof = domain.proof("VerifiedUser", openApiValidatorFor(bundle, "VerifiedUser"));
+const Tier = domain.core.primitive("Tier", openApiValidatorFor(bundle, "Tier"));
+const User = domain.core.shape("User", openApiValidatorFor(bundle, "User"));
+const VerifiedUserProof = domain.core.proof(
+  "VerifiedUser",
+  openApiValidatorFor(bundle, "VerifiedUser")
+);
 ```
 
 We now have three different concepts without duplicating the contract:
@@ -384,7 +387,7 @@ Backend OpenAPI
   -> JSON Schema-compatible component schemas
   -> AJV compile
   -> xndrjs Validator
-  -> domain.primitive / domain.shape / domain.proof
+  -> domain.core.primitive / domain.core.shape / domain.core.proof
 ```
 
 In parallel:

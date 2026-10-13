@@ -1,10 +1,8 @@
 # @xndrjs/domain-zod
 
-Zod **4.x** adapter for [@xndrjs/domain](../domain). Use **`zodToValidator(schema)`** for a `Validator<input, output>`, and **`zodFromKit(kit)`** to compose core kits as nested Zod fields.
+Zod **4.x** adapter for [@xndrjs/domain](../domain). Import `domain` from this package and pass Zod schemas directly to `domain.shape` / `primitive` / `proof`. Use **`zodFromKit(kit)`** to compose kits as nested Zod fields, and **`zodToValidator(schema)`** when you need an explicit `Validator`.
 
-Zod 4 adapter for [`@xndrjs/domain`](../domain): use `zodToValidator` and `zodFromKit` while keeping the domain core as the source of truth. **Further validation adapters** for `@xndrjs/domain` are **on the roadmap** (several likely in the near term).
-
-This package **re-exports `@xndrjs/domain`** (`domain`, `compose` + types), so you can import from one place when you use Zod.
+This package **re-exports `@xndrjs/domain`** (types, `compose`, `pipe`, …). Top-level `domain.shape` / `primitive` / `proof` accept Zod schemas; `domain.core.*` still takes a `Validator`.
 
 ## Install
 
@@ -16,34 +14,32 @@ pnpm add @xndrjs/domain-zod zod@^4
 
 ## Usage
 
-Import **`domain`**, **`zodToValidator`**, and **`zodFromKit`** from this package; import `z` from `"zod"`. Modeling factories live on **`domain`**; `compose`, `pipe`, and `DomainValidationError` come from the root re-export of `@xndrjs/domain`.
+Import **`domain`** and **`zodFromKit`** from this package; import `z` from `"zod"`. Modeling factories live on **`domain`**; `compose`, `pipe`, and `DomainValidationError` come from the root re-export of `@xndrjs/domain`.
 
-## Quickstart (step 2 in the stack)
+## Quickstart
 
 ### Primitive
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const Email = domain.primitive("Email", zodToValidator(z.email()));
+const Email = domain.primitive("Email", z.email());
 const email = Email.create("a@b.com");
 ```
 
 ### Shape
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 const User = domain.shape(
   "User",
-  zodToValidator(
-    z.object({
-      type: z.literal("User").default("User"),
-      id: z.string(),
-    })
-  )
+  z.object({
+    type: z.literal("User").default("User"),
+    id: z.string(),
+  })
 );
 const user = User.create({ id: "u-1" });
 ```
@@ -51,38 +47,36 @@ const user = User.create({ id: "u-1" });
 ### Nested composition from existing kits
 
 ```ts
-import { domain, zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
+import { domain, zodFromKit } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 const Address = domain.shape(
   "Address",
-  zodToValidator(z.object({ type: z.literal("Address").default("Address"), city: z.string() }))
+  z.object({ type: z.literal("Address").default("Address"), city: z.string() })
 );
 
 const User = domain.shape(
   "User",
-  zodToValidator(
-    z.object({
-      type: z.literal("User").default("User"),
-      address: zodFromKit(Address),
-    })
-  )
+  z.object({
+    type: z.literal("User").default("User"),
+    address: zodFromKit(Address),
+  })
 );
 ```
 
 ### Proof
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const Verified = domain.proof("Verified", zodToValidator(z.object({ ok: z.literal(true) })));
+const Verified = domain.proof("Verified", z.object({ ok: z.literal(true) }));
 ```
 
 ### Proof + refineType + pipe
 
 ```ts
-import { domain, pipe, zodToValidator } from "@xndrjs/domain-zod";
+import { domain, pipe } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 const ItemSchema = z.object({
@@ -92,11 +86,11 @@ const ItemSchema = z.object({
 });
 
 const ProTier = domain
-  .proof("ProTier", zodToValidator(ItemSchema))
+  .proof("ProTier", ItemSchema)
   .refineType((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
 
 const Stocked = domain
-  .proof("Stocked", zodToValidator(ItemSchema))
+  .proof("Stocked", ItemSchema)
   .refineType((row): row is typeof row & { count: number } => row.count > 0);
 
 const out = pipe({ id: "i-1", tier: "pro", count: 4 }, Stocked.assert, ProTier.assert);
@@ -105,21 +99,27 @@ const out = pipe({ id: "i-1", tier: "pro", count: 4 }, Stocked.assert, ProTier.a
 ### Capabilities
 
 ```ts
+import { domain } from "@xndrjs/domain-zod";
+import { z } from "zod";
+
+const UserShape = domain.shape("User", z.object({ id: z.string(), isVerified: z.boolean() }));
+const User = domain.capabilities.forShapeKit(UserShape).methods(({ patch }) => ({
+  verify(u) {
+    return patch(u, { isVerified: true });
+  },
+}));
+```
+
+### Explicit `zodToValidator`
+
+Still available when you need a standalone `Validator` (compose, shared boundaries, or core `@xndrjs/domain`):
+
+```ts
 import { domain, zodToValidator } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const UserShape = domain.shape(
-  "User",
-  zodToValidator(z.object({ id: z.string(), isVerified: z.boolean() }))
-);
-const User = domain
-  .capabilities<{ isVerified: boolean }>()
-  .methods((patch) => ({
-    verify(u) {
-      return patch(u, { isVerified: true });
-    },
-  }))
-  .attach(UserShape);
+const userValidator = zodToValidator(z.object({ id: z.string() }));
+const User = domain.core.shape("User", userValidator);
 ```
 
 ## Recipes
@@ -132,24 +132,21 @@ const User = domain
 
 ### Capabilities + patch re-validation
 
-- Attach capability bundles with `domain.capabilities().methods(...).attach(shape)`.
+- Prefer `domain.capabilities.forShapeKit(shape).methods(...)` when the kit is in scope.
+- Use `forShapeContract<Slice>().methods(...).attach(shape)` for minimal/shared contracts.
 - Use the provided `patch` closure for every transition, so updates are always revalidated by the shape validator.
 
 ### Cross-engine composition pattern
 
-- Keep core model modules adapter-agnostic.
-- Use `zodToValidator` only at IO boundaries that already use Zod.
+- Keep core model modules adapter-agnostic when mixing engines.
+- Prefer adapter `domain` + native schemas at Zod boundaries; use `zodToValidator` only when you need an explicit `Validator`.
 - If another boundary needs a different engine, keep the same kits and swap adapter package.
 
 ## Pitfalls and design decisions
 
-- Avoid treating adapter schema APIs as domain extension APIs; extension belongs to adapter schema composition, not to core kit internals.
-- `is` checks are prototype/marker based; data after JSON roundtrip must be recreated with `create`.
-- Prefer explicit proof steps (`proof.assert`/`pipe`) over unchecked casts.
-
-## Validation errors
-
-Zod failures become **`DomainValidationError`** with `failure.engine === "zod"`, `failure.issues` normalized for the domain core, and `failure.raw` holding the original `ZodError` when useful for tooling.
+- Adapter schema ergonomics are not core modeling APIs; core `domain` from `@xndrjs/domain` still requires a `Validator`.
+- `is` checks depend on shape prototype markers; JSON transport strips prototype, so re-enter via `create`.
+- Use proofs and `pipe` for explicit guarantee chains instead of manual narrowing.
 
 ## License
 

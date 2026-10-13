@@ -22,7 +22,7 @@ pnpm add @xndrjs/domain-ajv ajv ajv-formats
 ```ts
 import { domain, jsonSchemaToValidator } from "@xndrjs/domain-ajv";
 
-const User = domain.shape(
+const User = domain.core.shape(
   "User",
   jsonSchemaToValidator<{ id: string; email: string }>({
     type: "object",
@@ -52,7 +52,7 @@ const userValidator = jsonSchemaToValidator<{ id: string }>({
   additionalProperties: false,
 });
 
-const User = domain.shape("User", userValidator);
+const User = domain.core.shape("User", userValidator);
 ```
 
 ## openApiComponentToValidator
@@ -63,7 +63,7 @@ Resolve and compile `#/components/schemas/<componentName>` from an OpenAPI bundl
 import { openApiComponentToValidator } from "@xndrjs/domain-ajv";
 
 const userValidator = openApiComponentToValidator<MyUser>(bundle, "User");
-const User = domain.shape("User", userValidator);
+const User = domain.core.shape("User", userValidator);
 ```
 
 ## Custom AJV instances

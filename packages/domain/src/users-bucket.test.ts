@@ -71,7 +71,7 @@ function validatorFromKit<Type extends string, Input extends object, Props exten
 }
 
 describe("UsersBucket: nested User[] is assignable to KitInstance<User>[]", () => {
-  const UserModel = domain.shape(
+  const UserModel = domain.core.shape(
     "User",
     compose.object({
       type: userTypeValidator,
@@ -80,7 +80,7 @@ describe("UsersBucket: nested User[] is assignable to KitInstance<User>[]", () =
     })
   );
 
-  const UsersBucket = domain.shape(
+  const UsersBucket = domain.core.shape(
     "UsersBucket",
     compose.object({
       type: usersBucketTypeValidator,

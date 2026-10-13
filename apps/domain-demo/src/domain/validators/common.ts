@@ -6,13 +6,13 @@ function issue(code: string, message: string) {
 
 export function nonEmptyStringValidator(): Validator<string> {
   return {
-    engine: "interop-core",
+    engine: "domain-demo",
     validate(input) {
       if (typeof input !== "string" || input.length === 0) {
         return {
           success: false,
           error: {
-            engine: "interop-core",
+            engine: "domain-demo",
             issues: [issue("invalid_string", "Expected non-empty string")],
           },
         };
@@ -24,13 +24,13 @@ export function nonEmptyStringValidator(): Validator<string> {
 
 export function booleanValidator(): Validator<boolean> {
   return {
-    engine: "interop-core",
+    engine: "domain-demo",
     validate(input) {
       if (typeof input !== "boolean") {
         return {
           success: false,
           error: {
-            engine: "interop-core",
+            engine: "domain-demo",
             issues: [issue("invalid_type", "Expected boolean")],
           },
         };
@@ -42,14 +42,14 @@ export function booleanValidator(): Validator<boolean> {
 
 export function typeFieldValidator<const T extends string>(expected: T): Validator<unknown, T> {
   return {
-    engine: "interop-core",
+    engine: "domain-demo",
     validate(input) {
       const resolved = typeof input === "string" ? input : expected;
       if (resolved !== expected) {
         return {
           success: false,
           error: {
-            engine: "interop-core",
+            engine: "domain-demo",
             issues: [issue("invalid_type", `Expected type ${expected}`)],
           },
         };

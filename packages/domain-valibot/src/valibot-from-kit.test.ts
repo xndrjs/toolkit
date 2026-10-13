@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import * as v from "valibot";
 
-import { domain, valibotFromKit, valibotToValidator } from "./index";
+import { domain, valibotFromKit } from "./index";
 
 describe("valibotFromKit", () => {
   it("composes primitive kit inside valibot object schema", () => {
-    const Email = domain.primitive("Email", valibotToValidator(v.pipe(v.string(), v.email())));
+    const Email = domain.primitive("Email", v.pipe(v.string(), v.email()));
 
     const Row = v.object({
       email: valibotFromKit(Email),
@@ -19,19 +19,17 @@ describe("valibotFromKit", () => {
   it("composes shape kit inside valibot object schema", () => {
     const Inner = domain.shape(
       "Inner",
-      valibotToValidator(
-        v.object({
-          type: v.optional(v.literal("Inner"), "Inner"),
-          n: v.number(),
-        })
-      )
+      v.object({
+        type: v.optional(v.literal("Inner"), "Inner"),
+        n: v.number(),
+      })
     );
 
     const Row = v.object({
       inner: valibotFromKit(Inner),
     });
 
-    const Outer = domain.shape("Outer", valibotToValidator(Row));
+    const Outer = domain.shape("Outer", Row);
 
     // @ts-expect-error -- `inner` input comes from the kit input type (`{ n: number; type?: "Inner" }`)
     const _invalidRowInput: v.InferInput<typeof Row> = { inner: { wrong: "arg" } };

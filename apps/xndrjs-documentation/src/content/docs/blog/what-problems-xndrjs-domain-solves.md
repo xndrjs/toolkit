@@ -63,30 +63,26 @@ Same idea with `xndrjs`: you define validation once (here with Zod via `@xndrjs/
 So the shapes and primitives for our example would be something like this:
 
 ```ts
-import { domain, zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
+import { domain, zodFromKit } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const EmailKit = domain.primitive("Email", zodToValidator(z.email()));
+const EmailKit = domain.primitive("Email", z.email());
 
 const AddressKit = domain.shape(
   "Address",
-  zodToValidator(
-    z.object({
-      street: z.string().min(1),
-      city: z.string().min(1),
-    })
-  )
+  z.object({
+    street: z.string().min(1),
+    city: z.string().min(1),
+  })
 );
 
 const User = domain.shape(
   "User",
-  zodToValidator(
-    z.object({
-      id: z.string().min(1),
-      email: zodFromKit(EmailKit), // compose existing Email Kit
-      address: zodFromKit(AddressKit), // compose existing Address Kit
-    })
-  )
+  z.object({
+    id: z.string().min(1),
+    email: zodFromKit(EmailKit), // compose existing Email Kit
+    address: zodFromKit(AddressKit), // compose existing Address Kit
+  })
 );
 ```
 

@@ -1,7 +1,7 @@
 {
   "name": "@xndrjs/domain-zod",
-  "version": "0.3.1-alpha.0",
-  "description": "Zod 4 adapter for @xndrjs/domain with function-first APIs: zodToValidator and zodFromKit, plus full domain re-export.",
+  "version": "0.4.0-alpha.1",
+  "description": "Zod 4 adapter for @xndrjs/domain: adapted domain.shape/primitive/proof accept Zod schemas; zodToValidator, zodFromKit, and domain re-export.",
   "private": false,
   "license": "MIT",
   "repository": {

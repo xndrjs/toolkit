@@ -20,12 +20,12 @@ pnpm add @xndrjs/domain-zod zod
 Primitives are for scalar-like values that deserve a domain name.
 
 ```ts
-import { domain, zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
+import { domain, zodFromKit } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 const EmailKit = domain.primitive(
   "Email",
-  zodToValidator(z.email().transform((value) => value.toLowerCase()))
+  z.email().transform((value) => value.toLowerCase())
 );
 
 const email = EmailKit.create("ADA@EXAMPLE.COM");
@@ -43,7 +43,7 @@ function sendWelcomeEmail(to: Email) {
 }
 
 // let's say we have another primitive kit
-const UsernameKit = domain.primitive("Username", zodToValidator(z.string().min(3)));
+const UsernameKit = domain.primitive("Username", z.string().min(3));
 
 // create new values
 const username = UsernameKit.create("ada");
@@ -64,14 +64,12 @@ Shapes are trusted immutable object representations.
 ```ts
 const UserShape = domain.shape(
   "User",
-  zodToValidator(
-    z.object({
-      id: z.string().min(1),
-      email: zodFromKit(EmailKit), // compose existing kit
-      displayName: z.string().min(1),
-      isVerified: z.boolean().default(false),
-    })
-  )
+  z.object({
+    id: z.string().min(1),
+    email: zodFromKit(EmailKit), // compose existing kit
+    displayName: z.string().min(1),
+    isVerified: z.boolean().default(false),
+  })
 );
 
 const user = UserShape.create({
@@ -90,20 +88,17 @@ Note how `email` is passed as a plain input value (`"ADA@EXAMPLE.COM"`), not as 
 Capabilities keep behavior on the kit while instances stay data-only.
 
 ```ts
-// The contract on which the capability operates is passed as generics.
-const User = domain.capabilities
-  .forShape<{ displayName: string; isVerified: boolean }>()
+// Prefer forShapeKit when the schema kit is in scope — no separate .attach.
+const User = domain.capabilities.forShapeKit(UserShape).methods(({ patch }) => ({
   // patch is available only in the factory context — not on the capability kit —
   // so callers cannot update the shape arbitrarily; they use named methods instead.
-  .methods(({ patch }) => ({
-    rename(user, displayName: string) {
-      return patch(user, { displayName });
-    },
-    verify(user) {
-      return patch(user, { isVerified: true });
-    },
-  }))
-  .attach(UserShape);
+  rename(user, displayName: string) {
+    return patch(user, { displayName });
+  },
+  verify(user) {
+    return patch(user, { isVerified: true });
+  },
+}));
 
 const renamed = User.rename(user, "Ada Lovelace");
 const verified = User.verify(renamed);
@@ -111,7 +106,7 @@ const verified = User.verify(renamed);
 
 `User` exposes only `rename` and `verify`. Construction and guards stay on `UserShape` (`UserShape.create`, `UserShape.is`, …).
 
-The same capabilities set can be attached to multiple shapes, as long as those shapes expose the fields required by the methods.
+The same contract-path bundle can be attached to multiple shapes, as long as those shapes expose the fields required by the methods.
 
 ```ts
 const OrderSchema = z.object({
@@ -119,25 +114,23 @@ const OrderSchema = z.object({
   status: z.enum(["draft", "confirmed"]),
 });
 
-const OrderShape = domain.shape("Order", zodToValidator(OrderSchema));
+const OrderShape = domain.shape("Order", OrderSchema);
 
 const OrderDetailShape = domain.shape(
   "OrderDetail",
-  zodToValidator(
-    OrderSchema.extend({
-      lines: z.array(
-        z.object({
-          sku: z.string(),
-          qty: z.number().int().positive(),
-        })
-      ),
-      shippingAddress: z.string().min(1),
-    })
-  )
+  OrderSchema.extend({
+    lines: z.array(
+      z.object({
+        sku: z.string(),
+        qty: z.number().int().positive(),
+      })
+    ),
+    shippingAddress: z.string().min(1),
+  })
 );
 
 const OrderCapabilities = domain.capabilities
-  .forShape<{ status: "draft" | "confirmed" }>()
+  .forShapeContract<{ status: "draft" | "confirmed" }>()
   .methods(({ patch }) => ({
     confirm(order) {
       return patch(order, { status: "confirmed" });
@@ -154,9 +147,9 @@ In the example above, `OrderDetail.confirm(...)` re-validates with the `OrderDet
 
 ### Keeping the capability contract small
 
-The idea of explicitly defining the interface on which the capabilities operate lines up with the **Interface Segregation** idea: you _can_ type `capabilities.forShape` with the full props of a particular shape, and TypeScript will accept it when you attach that shape. The more maintainable approach is to keep the generic parameter **minimal**—only the fields the methods actually touch (reads, `patch` payloads, or other invariants the capability logic assumes). A narrower type states the real contract, makes reuse across richer shapes (like `OrderDetail` next to `Order`) obvious instead of accidental, and avoids coupling capability bundles to one row shape when they only need a slice of it.
+The idea of explicitly defining the interface on which the capabilities operate lines up with the **Interface Segregation** idea: you _can_ use `forShapeKit` (full props inferred from the kit) or pass a full instance type to `forShapeContract` (outer-unwrapped to props). The more maintainable approach for shared bundles is to keep the contract generic **minimal**—only the fields the methods actually touch (reads, `patch` payloads, or other invariants the capability logic assumes). A narrower type states the real contract, makes reuse across richer shapes (like `OrderDetail` next to `Order`) obvious instead of accidental, and avoids coupling capability bundles to one row shape when they only need a slice of it.
 
-For scalar primitives, use `capabilities.forPrimitive` with `create` instead of `patch` — see [Capabilities](/v0/modeling/capabilities/).
+For scalar primitives, use `capabilities.forPrimitiveKit` / `forPrimitiveContract` with `create` instead of `patch` — see [Capabilities](/v0/modeling/capabilities/).
 
 ## Add a proof when meaning gets stronger
 
@@ -166,14 +159,12 @@ A `User` can exist without being verified, but some workflows need a `VerifiedUs
 const VerifiedUser = domain
   .proof(
     "VerifiedUser",
-    zodToValidator(
-      z.object({
-        id: z.string(),
-        email: zodFromKit(Email),
-        displayName: z.string(),
-        isVerified: z.boolean(),
-      })
-    )
+    z.object({
+      id: z.string(),
+      email: zodFromKit(Email),
+      displayName: z.string(),
+      isVerified: z.boolean(),
+    })
   )
   .refineType((candidate): candidate is typeof candidate & { isVerified: true } => {
     return candidate.isVerified === true;

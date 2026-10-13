@@ -9,7 +9,7 @@ Validator-agnostic semantic modeling with function-first kits:
 
 The package exports:
 
-- `domain` (`primitive`, `shape`, `proof`, `capabilities.forShape`, `capabilities.forPrimitive`);
+- `domain` (`core.primitive` / `core.shape` / `core.proof`, `capabilities.forShapeKit` / `forShapeContract`, `capabilities.forPrimitiveKit` / `forPrimitiveContract`);
 - `compose` (`object`, `array`, `optional`) for validator composition;
 - `pipe` for proof/capability assertion chains;
 - `DomainValidationError` and public types (`Validator`, `ShapeKit`, ...).
@@ -44,7 +44,7 @@ const nonEmptyString: Validator<string> = {
   },
 };
 
-const Email = domain.primitive("Email", nonEmptyString);
+const Email = domain.core.primitive("Email", nonEmptyString);
 const email = Email.create("dev@example.com");
 ```
 
@@ -74,8 +74,8 @@ const nonEmptyString: Validator<string> = {
   },
 };
 
-const Address = domain.shape("Address", compose.object({ city: nonEmptyString }));
-const User = domain.shape(
+const Address = domain.core.shape("Address", compose.object({ city: nonEmptyString }));
+const User = domain.core.shape(
   "User",
   compose.object({
     id: nonEmptyString,
@@ -125,19 +125,16 @@ const booleanValidator: Validator<boolean> = {
   },
 };
 
-const UserShape = domain.shape(
+const UserShape = domain.core.shape(
   "User",
   compose.object({ displayName: nonEmptyString, isVerified: booleanValidator })
 );
 
-const User = domain.capabilities
-  .forShape<{ displayName: string; isVerified: boolean }>()
-  .methods(({ patch }) => ({
-    verify(user) {
-      return patch(user, { isVerified: true });
-    },
-  }))
-  .attach(UserShape);
+const User = domain.capabilities.forShapeKit(UserShape).methods(({ patch }) => ({
+  verify(user) {
+    return patch(user, { isVerified: true });
+  },
+}));
 
 const user = UserShape.create({ displayName: "Ada", isVerified: false });
 const verified = User.verify(user);

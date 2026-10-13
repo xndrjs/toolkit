@@ -1,11 +1,11 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
-import { domain, pipe, zodToValidator } from "./index";
+import { domain, pipe } from "./index";
 
 /**
  * Mirrors shape `extend` using **Zod** `baseSchema.extend({ ... })`:
- * two domain shapes, same `zodToValidator` pattern, no library `.extend()` API.
+ * two domain shapes, same Zod-schema-to-`domain.shape` pattern, no library `.extend()` API.
  */
 describe("Zod schema.extend → base + detail shapes", () => {
   const ProfileSchema = z.object({
@@ -17,8 +17,8 @@ describe("Zod schema.extend → base + detail shapes", () => {
     avatarSrc: z.string().url(),
   });
 
-  const ProfileShape = domain.shape("Profile", zodToValidator(ProfileSchema));
-  const ProfileDetailShape = domain.shape("ProfileDetail", zodToValidator(ProfileDetailSchema));
+  const ProfileShape = domain.shape("Profile", ProfileSchema);
+  const ProfileDetailShape = domain.shape("ProfileDetail", ProfileDetailSchema);
 
   it("detail kit reuses base Zod via .extend(); zodSchema on both kits", () => {
     expect(ProfileShape.type).toBe("Profile");
@@ -51,7 +51,7 @@ describe("Zod schema.extend → base + detail shapes", () => {
 
   it("reusable capability attaches to base and to detail shape (Zod-extended row)", () => {
     const RenameCapability = domain.capabilities
-      .forShape<{ displayName: string }>()
+      .forShapeContract<{ displayName: string }>()
       .methods(({ patch }) => ({
         rename(entity, displayName: string) {
           return patch(entity, { displayName });
@@ -80,7 +80,7 @@ describe("Zod schema.extend → base + detail shapes", () => {
 
   it("pipe: detail create → project to base → capability on base kit", () => {
     const RenameCapability = domain.capabilities
-      .forShape<{ displayName: string }>()
+      .forShapeContract<{ displayName: string }>()
       .methods(({ patch }) => ({
         rename(entity, displayName: string) {
           return patch(entity, { displayName });
@@ -111,14 +111,14 @@ describe("Zod extend: attach enforces structural compatibility", () => {
     });
 
     const RenameCapability = domain.capabilities
-      .forShape<{ displayName: string }>()
+      .forShapeContract<{ displayName: string }>()
       .methods(({ patch }) => ({
         rename<T extends { displayName: string }>(entity: T, displayName: string) {
           return patch(entity, { displayName });
         },
       }));
 
-    const AnonymousShape = domain.shape("Anonymous", zodToValidator(AnonymousSchema));
+    const AnonymousShape = domain.shape("Anonymous", AnonymousSchema);
 
     // @ts-expect-error -- row has `nickname`, not `displayName`
     const _invalidAttach = RenameCapability.attach(AnonymousShape);

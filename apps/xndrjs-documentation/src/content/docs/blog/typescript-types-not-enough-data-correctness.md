@@ -391,4 +391,4 @@ Because at scale, most correctness bugs are not caused by missing semicolons.
 
 They are caused by the system believing something that was never actually guaranteed.
 
-If you want the toolkit side of this story next, start with the [mental model](/v0/modeling/mental-model/) and [first model](/v0/modeling/first-model/) guides, or the [interop demo](https://github.com/xndrjs/toolkit/tree/main/apps/interop-demo) for mixed validators (Zod, Valibot, core) on the same domain types.
+If you want the toolkit side of this story next, start with the [mental model](/v0/modeling/mental-model/) and [first model](/v0/modeling/first-model/) guides, or the [domain demo](https://github.com/xndrjs/toolkit/tree/main/apps/domain-demo) for modeling with mixed validators (Zod, Valibot, core) on the same domain types.

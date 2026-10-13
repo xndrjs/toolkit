@@ -1,5 +1,5 @@
 {
-  "name": "@xndrjs/interop-demo",
+  "name": "@xndrjs/domain-demo",
   "private": true,
   "type": "module",
   "scripts": {

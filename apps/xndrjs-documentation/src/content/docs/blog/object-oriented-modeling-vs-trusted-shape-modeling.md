@@ -71,19 +71,15 @@ const user = new User("not-an-email"); // would not throw
 Then we have `xndrjs`. We start with the model, a `UserShape`:
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 // xndrjs: the shape is data-only; capabilities attach separately
 const UserShape = domain.shape(
   "User",
-  // use Zod adapter as validator
-  zodToValidator(
-    // define the schema of this Shape
-    z.object({
-      email: z.email(),
-    })
-  )
+  z.object({
+    email: z.email(),
+  })
 );
 ```
 
@@ -91,7 +87,7 @@ Then we define its capabilities and attach them to the model:
 
 ```ts
 const UserKit = domain.capabilities
-  .forShape<{ email: string }>()
+  .forShapeContract<{ email: string }>()
   .methods(({ patch }) => ({
     setEmail(user, email: string) {
       // whole shape re-validates automatically

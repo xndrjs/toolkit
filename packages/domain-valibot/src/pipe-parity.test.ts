@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import * as v from "valibot";
 
-import { domain, DomainValidationError, pipe, valibotToValidator } from "./index";
+import { domain, DomainValidationError, pipe } from "./index";
 
 describe("pipe parity (valibot)", () => {
   const UserSchema = v.object({
@@ -17,15 +17,12 @@ describe("pipe parity (valibot)", () => {
     }),
   });
 
-  const UserShape = domain.shape("User", valibotToValidator(UserSchema));
-  const UserKit = domain.capabilities
-    .forShape<v.InferOutput<typeof UserSchema>>()
-    .methods(({ patch }) => ({
-      rename(user, displayName: string) {
-        return patch(user, { displayName });
-      },
-    }))
-    .attach(UserShape);
+  const UserShape = domain.shape("User", UserSchema);
+  const UserKit = domain.capabilities.forShapeKit(UserShape).methods(({ patch }) => ({
+    rename(user, displayName: string) {
+      return patch(user, { displayName });
+    },
+  }));
 
   const UserDetailSchema = v.object({
     type: v.optional(v.literal("User"), "User"),
@@ -41,16 +38,14 @@ describe("pipe parity (valibot)", () => {
     avatarSrc: v.pipe(v.string(), v.url()),
   });
 
-  const UserDetailShape = domain.shape("UserDetail", valibotToValidator(UserDetailSchema));
+  const UserDetailShape = domain.shape("UserDetail", UserDetailSchema);
 
   const VerifiedUserFact = domain
     .proof(
       "VerifiedUser",
-      valibotToValidator(
-        v.object({
-          isVerified: v.boolean(),
-        })
-      )
+      v.object({
+        isVerified: v.boolean(),
+      })
     )
     .refineType((row): row is typeof row & { isVerified: true } => row.isVerified === true);
 
@@ -86,24 +81,22 @@ describe("stacked proofs (valibot)", () => {
     active: v.boolean(),
   });
 
-  const ItemShape = domain.shape("Item", valibotToValidator(ItemSchema));
+  const ItemShape = domain.shape("Item", ItemSchema);
 
   const Stocked = domain.proof(
     "Stocked",
-    valibotToValidator(
-      v.pipe(
-        ItemSchema,
-        v.check((item) => item.count > 0, "count must be > 0")
-      )
+    v.pipe(
+      ItemSchema,
+      v.check((item) => item.count > 0, "count must be > 0")
     )
   );
 
   const ProTier = domain
-    .proof("ProTier", valibotToValidator(ItemSchema))
+    .proof("ProTier", ItemSchema)
     .refineType((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
 
   const Active = domain
-    .proof("Active", valibotToValidator(ItemSchema))
+    .proof("Active", ItemSchema)
     .refineType((row): row is typeof row & { active: true } => row.active === true);
 
   it("applies each proof in order; value satisfies all narrowed checks", () => {

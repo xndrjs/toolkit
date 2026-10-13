@@ -1,4 +1,4 @@
-import { domain, valibotFromKit, valibotToValidator } from "@xndrjs/domain-valibot";
+import { domain, valibotFromKit } from "@xndrjs/domain-valibot";
 import * as v from "valibot";
 
 import { EmailPrimitive } from "../primitives/email.primitive.js";
@@ -9,12 +9,10 @@ import { EmailPrimitive } from "../primitives/email.primitive.js";
  */
 export const UserShape = domain.shape(
   "User",
-  valibotToValidator(
-    v.object({
-      type: v.optional(v.literal("User"), "User"),
-      email: valibotFromKit(EmailPrimitive),
-      displayName: v.pipe(v.string(), v.minLength(1)),
-      isVerified: v.boolean(),
-    })
-  )
+  v.object({
+    type: v.optional(v.literal("User"), "User"),
+    email: valibotFromKit(EmailPrimitive),
+    displayName: v.pipe(v.string(), v.minLength(1)),
+    isVerified: v.boolean(),
+  })
 );

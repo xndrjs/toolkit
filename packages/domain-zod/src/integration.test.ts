@@ -1,33 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { domain, DomainValidationError, zodToValidator } from "./index";
+import { domain, DomainValidationError } from "./index";
 
 describe("@xndrjs/domain-zod integration", () => {
-  it("primitive + zodToValidator", () => {
+  it("primitive + Zod schema", () => {
     const Email = domain.primitive(
       "Email",
-      zodToValidator(
-        z
-          .string()
-          .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
-          .transform((v) => v.toLowerCase())
-      )
+      z
+        .string()
+        .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
+        .transform((v) => v.toLowerCase())
     );
     expect(Email.create("USER@EXAMPLE.COM")).toBe("user@example.com");
     expect(() => Email.create("not-email")).toThrow(DomainValidationError);
   });
 
-  it("shape + zodToValidator: frozen instance and is()", () => {
+  it("shape + Zod schema: frozen instance and is()", () => {
     const Item = domain.shape(
       "Item",
-      zodToValidator(
-        z.object({
-          type: z.literal("Item").default("Item"),
-          id: z.string(),
-          count: z.number().int().nonnegative(),
-        })
-      )
+      z.object({
+        type: z.literal("Item").default("Item"),
+        id: z.string(),
+        count: z.number().int().nonnegative(),
+      })
     );
     const item = Item.create({ id: "x", count: 1 });
     expect(item.type).toBe("Item");
@@ -36,25 +32,21 @@ describe("@xndrjs/domain-zod integration", () => {
     expect(Item.is(item)).toBe(true);
   });
 
-  it("proof + zodToValidator merges onto shape instance", () => {
+  it("proof + Zod schema merges onto shape instance", () => {
     const Item = domain.shape(
       "Item",
-      zodToValidator(
-        z.object({
-          type: z.literal("Item").default("Item"),
-          id: z.string(),
-          count: z.number().int().nonnegative(),
-        })
-      )
+      z.object({
+        type: z.literal("Item").default("Item"),
+        id: z.string(),
+        count: z.number().int().nonnegative(),
+      })
     );
     const NonNegative = domain.proof(
       "NonNegative",
-      zodToValidator(
-        z.object({
-          id: z.string(),
-          count: z.number().int().nonnegative(),
-        })
-      )
+      z.object({
+        id: z.string(),
+        count: z.number().int().nonnegative(),
+      })
     );
     const item = Item.create({ id: "a", count: 2 });
     const proven = NonNegative.assert(item);
@@ -63,9 +55,9 @@ describe("@xndrjs/domain-zod integration", () => {
     expect(NonNegative.test(proven)).toBe(true);
   });
 
-  it("proof refineType + zodToValidator", () => {
+  it("proof refineType + Zod schema", () => {
     const Verified = domain
-      .proof("Verified", zodToValidator(z.object({ isVerified: z.boolean() })))
+      .proof("Verified", z.object({ isVerified: z.boolean() }))
       .refineType((row): row is typeof row & { isVerified: true } => row.isVerified === true);
 
     const row = Verified.assert({ isVerified: true });
@@ -73,26 +65,21 @@ describe("@xndrjs/domain-zod integration", () => {
     expect(() => Verified.assert({ isVerified: false })).toThrow(DomainValidationError);
   });
 
-  it("capabilities + zodToValidator: kit methods and patch re-validation", () => {
+  it("capabilities + Zod schema: kit methods and patch re-validation", () => {
     const UserShape = domain.shape(
       "User",
-      zodToValidator(
-        z.object({
-          type: z.literal("User").default("User"),
-          email: z.string().min(1),
-          isVerified: z.boolean(),
-        })
-      )
+      z.object({
+        type: z.literal("User").default("User"),
+        email: z.string().min(1),
+        isVerified: z.boolean(),
+      })
     );
 
-    const User = domain.capabilities
-      .forShape<{ email: string; isVerified: boolean }>()
-      .methods(({ patch }) => ({
-        markVerified(user) {
-          return patch(user, { isVerified: true });
-        },
-      }))
-      .attach(UserShape);
+    const User = domain.capabilities.forShapeKit(UserShape).methods(({ patch }) => ({
+      markVerified(user) {
+        return patch(user, { isVerified: true });
+      },
+    }));
 
     const user = UserShape.create({ email: "a@b.co", isVerified: false });
     const next = User.markVerified(user);
@@ -102,7 +89,7 @@ describe("@xndrjs/domain-zod integration", () => {
   });
 
   it("shape create surfaces DomainValidationError with zod failure in error.raw", () => {
-    const Item = domain.shape("Item", zodToValidator(z.object({ id: z.string() })));
+    const Item = domain.shape("Item", z.object({ id: z.string() }));
     try {
       Item.create({} as { id: string });
       throw new Error("expected throw");

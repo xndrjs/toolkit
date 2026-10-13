@@ -32,7 +32,7 @@ describe("workshop domain (mixed validators)", () => {
     expect(user.isVerified).toBe(false);
   });
 
-  it("applies forShape capabilities on User", () => {
+  it("applies forShapeKit capabilities on User", () => {
     const verified = pipe(
       UserShape.create({
         email: "bob@example.com",
@@ -70,7 +70,7 @@ describe("workshop domain (mixed validators)", () => {
     ).toThrow();
   });
 
-  it("uses core Money primitive with forPrimitive capabilities", () => {
+  it("uses core Money primitive with forPrimitiveKit capabilities", () => {
     const wallet = MoneyPrimitive.create(1000);
     expect(pipe(wallet, (w) => Money.add(w, 250))).toBe(1250);
     expect(pipe(wallet, (w) => Money.subtract(w, 100))).toBe(900);
