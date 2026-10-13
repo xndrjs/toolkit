@@ -28,16 +28,6 @@
     "ziel-vscode": "0.0.5"
   },
   "changesets": [
-    "addressable-resources",
-    "contentful-to-zod",
-    "domain-ajv",
-    "domain-valibot",
-    "domain-zod",
-    "domain",
-    "i18n-react",
-    "i18n",
-    "resource-graph-resolver",
-    "tasks",
-    "ziel"
+    "domain-alpha-api"
   ]
 }
