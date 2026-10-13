@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
-import { domain, DomainValidationError, pipe, zodToValidator } from "./index";
+import { domain, DomainValidationError, pipe } from "./index";
 
 describe("pipe parity (legacy pipe fixture)", () => {
   const UserSchema = z.object({
@@ -17,24 +17,21 @@ describe("pipe parity (legacy pipe fixture)", () => {
     }),
   });
 
-  const UserShape = domain.shape("User", zodToValidator(UserSchema));
-  const UserKit = domain.capabilities
-    .forShape<z.output<typeof UserSchema>>()
-    .methods(({ patch }) => ({
-      rename(user, displayName: string) {
-        return patch(user, { displayName });
-      },
-    }))
-    .attach(UserShape);
+  const UserShape = domain.shape("User", UserSchema);
+  const UserKit = domain.capabilities.forShapeKit(UserShape).methods(({ patch }) => ({
+    rename(user, displayName: string) {
+      return patch(user, { displayName });
+    },
+  }));
 
   const UserDetailSchema = UserSchema.extend({
     avatarSrc: z.string().url(),
   });
 
-  const UserDetailShape = domain.shape("UserDetail", zodToValidator(UserDetailSchema));
+  const UserDetailShape = domain.shape("UserDetail", UserDetailSchema);
 
   const VerifiedUserFact = domain
-    .proof("VerifiedUser", zodToValidator(z.object({ isVerified: z.boolean() })))
+    .proof("VerifiedUser", z.object({ isVerified: z.boolean() }))
     .refineType((row): row is typeof row & { isVerified: true } => row.isVerified === true);
 
   it("chains: create detail → project → rename → proof.assert", () => {
@@ -69,16 +66,19 @@ describe("stacked proofs (legacy pipe fixture)", () => {
     active: z.boolean(),
   });
 
-  const ItemShape = domain.shape("Item", zodToValidator(ItemSchema));
+  const ItemShape = domain.shape("Item", ItemSchema);
 
-  const Stocked = domain.proof("Stocked", zodToValidator(ItemSchema.refine((v) => v.count > 0)));
+  const Stocked = domain.proof(
+    "Stocked",
+    ItemSchema.refine((v) => v.count > 0)
+  );
 
   const ProTier = domain
-    .proof("ProTier", zodToValidator(ItemSchema))
+    .proof("ProTier", ItemSchema)
     .refineType((row): row is typeof row & { tier: "pro" } => row.tier === "pro");
 
   const Active = domain
-    .proof("Active", zodToValidator(ItemSchema))
+    .proof("Active", ItemSchema)
     .refineType((row): row is typeof row & { active: true } => row.active === true);
 
   it("applies each proof in order; value satisfies all narrowed checks", () => {

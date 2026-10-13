@@ -11,21 +11,21 @@ Their common mantra is:
 
 ## Primitives
 
-Use `domain.primitive` for **scalar** values with domain meaning: `string`, `number`, `boolean`, `bigint`, or `symbol`.
+Use `domain.primitive` (from an adapter) or `domain.core.primitive` (with a `Validator`) for **scalar** values with domain meaning: `string`, `number`, `boolean`, `bigint`, or `symbol`.
 
-The validator’s output type must be scalar as well. Object-shaped outputs belong on `domain.shape`, not on a primitive.
+The validator’s output type must be scalar as well. Object-shaped outputs belong on `domain.shape` / `domain.core.shape`, not on a primitive.
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const Email = domain.primitive("Email", zodToValidator(z.email()));
+const Email = domain.primitive("Email", z.email());
 const email = Email.create("alice@example.com");
 ```
 
 At runtime, the value remains a plain scalar. At type level, it carries a nominal brand. That helps TypeScript distinguish an `Email` from any other string.
 
-To attach behavior (for example `Money.add`), use [`capabilities.forPrimitive`](/v0/modeling/capabilities/) — the factory receives `create` in its context; public construction stays on the primitive kit (`MoneyPrimitive.create`).
+To attach behavior (for example `Money.add`), use [`capabilities.forPrimitiveKit`](/v0/modeling/capabilities/) (or `forPrimitiveContract` for a shared scalar contract) — the factory receives `create` in its context; public construction stays on the primitive kit (`MoneyPrimitive.create`).
 
 Good primitive candidates:
 
@@ -37,17 +37,15 @@ Good primitive candidates:
 
 ## Shapes
 
-Use `domain.shape` for object representations that should become trusted and immutable after validation.
+Use `domain.shape` (adapter) or `domain.core.shape` (core) for object representations that should become trusted and immutable after validation.
 
 ```ts
 const User = domain.shape(
   "User",
-  zodToValidator(
-    z.object({
-      id: z.string().min(1),
-      name: z.string().min(1),
-    })
-  )
+  z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+  })
 );
 
 const user = User.create({ id: "u_1", name: "Alice" });

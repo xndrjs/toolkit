@@ -16,16 +16,16 @@ Adapters let your domain model depend on one contract while each boundary keeps 
 
 ## The adapter does not own the domain
 
-`domain.primitive` and `domain.shape` always take a `Validator`; **how** you build that `Validator` (Zod, JSON Schema + Ajv, Valibot, …) is a boundary concern only. The adapter supplies the helper; the kit is the same kind of object everywhere.
+Core `@xndrjs/domain` always takes a `Validator` via `domain.core.*`. Adapter packages (`domain-zod`, `domain-valibot`) export an adapted `domain` whose **top-level** `shape` / `primitive` / `proof` accept native schemas only; use `domain.core.*` with `*ToValidator` when you need an explicit `Validator`. Ajv stays on `jsonSchemaToValidator` / OpenAPI helpers + `domain.core.*` because the input is a JSON Schema document, not a single fluent schema object.
 
 Minimal example: **`Email`** comes from a **JSON Schema** fragment (as in an OpenAPI bundle), while **`UserProfile`** is defined with **Zod**. The contact field reuses the `Email` primitive inside the Zod object so you do not duplicate email rules.
 
 ```ts
-import { domain, jsonSchemaToValidator } from "@xndrjs/domain-ajv";
-import { zodFromKit, zodToValidator } from "@xndrjs/domain-zod";
+import { domain as ajvDomain, jsonSchemaToValidator } from "@xndrjs/domain-ajv";
+import { domain, zodFromKit } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
-const Email = domain.primitive(
+const Email = ajvDomain.core.primitive(
   "Email",
   jsonSchemaToValidator<string>({
     type: "string",
@@ -35,16 +35,14 @@ const Email = domain.primitive(
 
 const UserProfile = domain.shape(
   "UserProfile",
-  zodToValidator(
-    z.object({
-      displayName: z.string().min(1),
-      contact: zodFromKit(Email),
-    })
-  )
+  z.object({
+    displayName: z.string().min(1),
+    contact: zodFromKit(Email),
+  })
 );
 ```
 
-`jsonSchemaToValidator` and `zodToValidator` are what differ between the two boundaries; after validation, `Email.create` / `UserProfile.create` and the rest of the `domain` APIs behave the same.
+After validation, `Email.create` / `UserProfile.create` and the rest of the kit APIs behave the same regardless of which adapter built the validator.
 
 ## Mixing adapters
 
@@ -53,7 +51,7 @@ It is valid for different boundaries to use different engines:
 - backend OpenAPI contracts can use AJV
 - client features (i.e. a document editor) can use Valibot or Zod
 
-The important part is that each boundary returns a `Validator<Input, Output>`. After that, your model uses the same `domain.primitive`, `domain.shape`, `domain.capabilities.forShape` / `domain.capabilities.forPrimitive`, and `domain.proof` APIs.
+The important part is that each boundary ends up with a `Validator<Input, Output>` under the kit (explicitly or via an adapter `domain` that wraps a native schema). After that, kits use the same APIs: adapter top-level `domain.shape` / `primitive` / `proof` (or `domain.core.*` with a `Validator`), plus `domain.capabilities.*`.
 
 ## Practical recommendation
 

@@ -1,28 +1,24 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
-import { domain, type KitInstance, zodFromKit, zodToValidator } from "./index";
+import { domain, type KitInstance, zodFromKit } from "./index";
 
 describe("UsersBucket: nested User[] is assignable to KitInstance<User>[]", () => {
   const UserModel = domain.shape(
     "User",
-    zodToValidator(
-      z.object({
-        type: z.literal("User").default("User"),
-        email: z.email(),
-        username: z.string().min(1),
-      })
-    )
+    z.object({
+      type: z.literal("User").default("User"),
+      email: z.email(),
+      username: z.string().min(1),
+    })
   );
 
   const UsersBucket = domain.shape(
     "UsersBucket",
-    zodToValidator(
-      z.object({
-        type: z.literal("UsersBucket").default("UsersBucket"),
-        users: z.array(zodFromKit(UserModel)),
-      })
-    )
+    z.object({
+      type: z.literal("UsersBucket").default("UsersBucket"),
+      users: z.array(zodFromKit(UserModel)),
+    })
   );
 
   type User = KitInstance<typeof UserModel>;

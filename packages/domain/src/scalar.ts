@@ -1,4 +1,4 @@
-/** Runtime scalar kinds accepted by {@link primitive} and {@link capabilities.forPrimitive}. */
+/** Runtime scalar kinds accepted by {@link primitive} and {@link capabilities.forPrimitiveKit} / {@link capabilities.forPrimitiveContract}. */
 export type Scalar = string | number | boolean | bigint | symbol;
 
 /** Compile-time guard: only scalar validator outputs are accepted by {@link primitive}. */

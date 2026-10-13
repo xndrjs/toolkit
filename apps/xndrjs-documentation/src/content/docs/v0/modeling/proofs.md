@@ -3,7 +3,7 @@ title: Proofs
 description: Add semantic guarantees on top of structurally valid data.
 ---
 
-`domain.proof` models semantic guarantees on top of structural validation.
+`domain.proof` (adapter) / `domain.core.proof` (core) models semantic guarantees on top of structural validation.
 
 ```text
 trust is not assumed, it is established
@@ -27,19 +27,17 @@ The proof makes the stronger condition explicit in code.
 ## Factory and refinement
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 const VerifiedUser = domain
   .proof(
     "VerifiedUser",
-    zodToValidator(
-      z.object({
-        id: z.string(),
-        email: z.email(),
-        isVerified: z.boolean(),
-      })
-    )
+    z.object({
+      id: z.string(),
+      email: z.email(),
+      isVerified: z.boolean(),
+    })
   )
   .refineType((user): user is typeof user & { isVerified: true } => {
     return user.isVerified === true;

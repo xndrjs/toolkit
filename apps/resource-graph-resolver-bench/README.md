@@ -2,7 +2,7 @@
 
 CLI for comparing **lane** vs **barrier** scheduling in `@xndrjs/resource-graph-resolver` on synthetic CMS graphs plus product leaves — and for comparing the resolver against handwritten **naive** / **batched** walks.
 
-This is a private workspace app (not published). It reuses the _style_ of `@xndrjs/bench-perf` (matrix, warmup/repeats, JSON + markdown under `results/`), not its validation-engine domain.
+This is a private workspace app (not published). It reuses the _style_ of `@xndrjs/domain-bench` (matrix, warmup/repeats, JSON + markdown under `results/`), not its validation-engine domain.
 
 ## What is measured
 

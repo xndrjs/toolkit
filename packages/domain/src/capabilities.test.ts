@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import type { Mutable } from "./branded";
-import { capabilities } from "./capabilities";
+import type { Branded, Mutable } from "./branded";
+import { capabilities, type CapabilityShapeContract } from "./capabilities";
 import { DomainValidationError } from "./errors";
 import { shape } from "./shape";
 import type { Validator } from "./validation";
@@ -121,16 +121,13 @@ function profileDetailValidator(): Validator<
 describe("capabilities", () => {
   const ProfileShape = shape("Profile", profileValidator());
 
-  const ProfileKit = capabilities
-    .forShape<{ displayName: string }>()
-    .methods(({ patch }) => ({
-      rename(profile, displayName: string) {
-        return patch(profile, { displayName });
-      },
-    }))
-    .attach(ProfileShape);
+  const ProfileKit = capabilities.forShapeKit(ProfileShape).methods(({ patch }) => ({
+    rename(profile, displayName: string) {
+      return patch(profile, { displayName });
+    },
+  }));
 
-  it("attach exposes custom methods only; instances stay data-only", () => {
+  it("forShapeKit exposes custom methods only; instances stay data-only", () => {
     const p = ProfileShape.create({ displayName: "Alice" });
     const next = ProfileKit.rename(p, "Bob");
     expect(next.displayName).toBe("Bob");
@@ -147,14 +144,11 @@ describe("capabilities", () => {
   });
 
   it("allows capability method names that match schema kit helpers", () => {
-    const WithCreate = capabilities
-      .forShape<{ displayName: string }>()
-      .methods(({ patch }) => ({
-        create(profile, displayName: string) {
-          return patch(profile, { displayName });
-        },
-      }))
-      .attach(ProfileShape);
+    const WithCreate = capabilities.forShapeKit(ProfileShape).methods(({ patch }) => ({
+      create(profile, displayName: string) {
+        return patch(profile, { displayName });
+      },
+    }));
 
     const p = ProfileShape.create({ displayName: "Alice" });
     expect(WithCreate.create(p, "Bob").displayName).toBe("Bob");
@@ -162,14 +156,11 @@ describe("capabilities", () => {
 
   it("patch with callback draft rejects invalid discriminant", () => {
     const WidgetShape = shape("Widget", widgetValidator());
-    const WidgetKit = capabilities
-      .forShape<{ name: string }>()
-      .methods(({ patch }) => ({
-        applyDraft(w, fn: (draft: Mutable<{ type?: string; name: string }>) => void) {
-          return patch(w, fn);
-        },
-      }))
-      .attach(WidgetShape);
+    const WidgetKit = capabilities.forShapeKit(WidgetShape).methods(({ patch }) => ({
+      applyDraft(w, fn: (draft: Mutable<{ type?: string; name: string }>) => void) {
+        return patch(w, fn);
+      },
+    }));
 
     const w = WidgetShape.create({ name: "a" });
     expect(() =>
@@ -186,12 +177,14 @@ describe("capabilities", () => {
     expect(next.type).toBe("Widget");
   });
 
-  it("reusable capability can attach to the same shape again with identical kit shape", () => {
-    const Rename = capabilities.forShape<{ displayName: string }>().methods(({ patch }) => ({
-      rename(entity, displayName: string) {
-        return patch(entity, { displayName });
-      },
-    }));
+  it("forShapeContract reusable capability can attach to the same shape again", () => {
+    const Rename = capabilities
+      .forShapeContract<{ displayName: string }>()
+      .methods(({ patch }) => ({
+        rename(entity, displayName: string) {
+          return patch(entity, { displayName });
+        },
+      }));
 
     const KitA = Rename.attach(ProfileShape);
     const KitB = Rename.attach(ProfileShape);
@@ -200,9 +193,9 @@ describe("capabilities", () => {
     expect(ProfileShape.is(KitA.rename(p, "B"))).toBe(true);
   });
 
-  it("reusable capability can attach to base and detail shapes", () => {
+  it("forShapeContract reusable capability can attach to base and detail shapes", () => {
     const RenameCapability = capabilities
-      .forShape<{ displayName: string }>()
+      .forShapeContract<{ displayName: string }>()
       .methods(({ patch }) => ({
         rename(entity, displayName: string) {
           return patch(entity, { displayName });
@@ -236,7 +229,7 @@ describe("capabilities", () => {
 
   it("attach enforces structural compatibility at type level", () => {
     const RenameCapability = capabilities
-      .forShape<{ displayName: string }>()
+      .forShapeContract<{ displayName: string }>()
       .methods(({ patch }) => ({
         rename<T extends { displayName: string }>(entity: T, displayName: string) {
           return patch(entity, { displayName });
@@ -248,5 +241,29 @@ describe("capabilities", () => {
     // @ts-expect-error -- instance row lacks `displayName`
     const _invalidAttach = RenameCapability.attach(AnonymousShape);
     expect(_invalidAttach).toBeDefined();
+  });
+
+  it("forShapeContract accepts ShapeInstance type via outer unwrap", () => {
+    type Profile = ReturnType<(typeof ProfileShape)["create"]>;
+
+    const FromInstance = capabilities
+      .forShapeContract<Profile>()
+      .methods(({ patch }) => ({
+        rename(entity, displayName: string) {
+          return patch(entity, { displayName });
+        },
+      }))
+      .attach(ProfileShape);
+
+    const p = ProfileShape.create({ displayName: "Ada" });
+    expect(FromInstance.rename(p, "Lovelace").displayName).toBe("Lovelace");
+  });
+
+  it("forShapeContract preserves nested branded field types", () => {
+    type NestedId = Branded<"DemoId", string>;
+    type Slice = { id: NestedId; title: string };
+
+    expectTypeOf<CapabilityShapeContract<Slice>>().toEqualTypeOf<Slice>();
+    expectTypeOf<CapabilityShapeContract<Slice>["id"]>().toEqualTypeOf<NestedId>();
   });
 });

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { domain, zodFromKit, zodToValidator } from "./index";
+import { domain, zodFromKit } from "./index";
 
 describe("zodFromKit", () => {
-  it("embeds primitive from core+zodToValidator: raw or pre-created input", () => {
-    const Email = domain.primitive("Email", zodToValidator(z.email()));
+  it("embeds primitive from domain+Zod schema: raw or pre-created input", () => {
+    const Email = domain.primitive("Email", z.email());
     const Row = z.object({
       email: zodFromKit(Email),
     });
@@ -19,13 +19,13 @@ describe("zodFromKit", () => {
     expect(Email.is(parsed.email)).toBe(true);
   });
 
-  it("embeds shape from core+zodToValidator: output passes child is()", () => {
+  it("embeds shape from domain+Zod schema: output passes child is()", () => {
     const InnerSchema = z.object({ type: z.literal("Inner").default("Inner"), n: z.number() });
-    const Inner = domain.shape("Inner", zodToValidator(InnerSchema));
+    const Inner = domain.shape("Inner", InnerSchema);
     const Row = z.object({
       inner: zodFromKit(Inner),
     });
-    const Outer = domain.shape("Outer", zodToValidator(Row));
+    const Outer = domain.shape("Outer", Row);
 
     // @ts-expect-error -- `inner` input comes from the kit input type (`{ n: number; type?: "Inner" }`)
     const _invalidRowInput: z.input<typeof Row> = { inner: { wrong: "arg" } };
@@ -41,7 +41,7 @@ describe("zodFromKit", () => {
   it("applies kit validator transforms when embedded (no parallel Zod chain)", () => {
     const Email = domain.primitive(
       "Email",
-      zodToValidator(z.email().transform((v) => v.toLowerCase()))
+      z.email().transform((v) => v.toLowerCase())
     );
     const Row = z.object({
       email: zodFromKit(Email),

@@ -2,7 +2,7 @@
 
 Generate **Zod 4** schemas from Contentful content types (CMA). Stop hand-writing codegen and get precise `z.infer` types where graphql-codegen stays on `string`.
 
-This package outputs **Zod schemas and optional locale helpers only** — no `domain.shape` in the generated file. If you use [xndrjs](https://github.com/xndrjs/toolkit), wire schemas with `zodToValidator` from [`@xndrjs/domain-zod`](../domain-zod) in your own code.
+This package outputs **Zod schemas and optional locale helpers only** — no domain kits in the generated file. If you use [xndrjs](https://github.com/xndrjs/toolkit), wire schemas with `domain.shape` / `domain.primitive` from [`@xndrjs/domain-zod`](../domain-zod) (or `domain.core.*` + `zodToValidator` when you need an explicit `Validator`).
 
 ## Principles
 
@@ -319,15 +319,12 @@ Target content types must be present in the same snapshot used for codegen.
 Wire flat field schemas and the locale enum into `@xndrjs/domain-zod`:
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { BlogPostFieldsSchema, ContentfulLocaleCodeSchema } from "./generated/contentful.schemas";
 
-export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostFieldsSchema));
+export const BlogPost = domain.shape("BlogPost", BlogPostFieldsSchema);
 
-export const SupportedLocale = domain.primitive(
-  "SupportedLocale",
-  zodToValidator(ContentfulLocaleCodeSchema)
-);
+export const SupportedLocale = domain.primitive("SupportedLocale", ContentfulLocaleCodeSchema);
 ```
 
 Use `SupportedLocale` (or your own name) wherever application code should accept only locales known to the space snapshot.

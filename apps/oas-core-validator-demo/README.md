@@ -18,4 +18,4 @@ pnpm --filter @xndrjs/oas-core-validator-demo run demo
 - `openapi/schemas/*.yaml`: multi-file component schemas
 - `scripts/codegen.ts`: bundles OAS and generates TS types into `src/generated/`
 - `@xndrjs/domain-ajv`: reusable Ajv -> `Validator` adapter package
-- `src/validate.ts`: uses `domain.shape` + `domain.proof` through `@xndrjs/domain-ajv`
+- `src/validate.ts`: uses `domain.core.shape` + `domain.core.proof` through `@xndrjs/domain-ajv`

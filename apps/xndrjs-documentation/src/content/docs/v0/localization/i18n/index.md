@@ -7,7 +7,7 @@ description: Compiler-first, type-safe ICU MessageFormat i18n with JSON or YAML 
 
 Namespaces are always multi-namespace (`t(namespace, key, params?)`). Delivery is `split-by-locale` (default) or `custom` areas — there is no single-file / eager-bundle mode.
 
-For motivation and the developer journey (SSR/CSR, React gates, CMS refresh without rebuild), see [Type-safe i18n for TypeScript and React](/blog/type-safe-i18n-for-typescript-and-react/). React bindings live in [`@xndrjs/i18n-react`](/v0/localization/i18n/react/).
+React bindings live in [`@xndrjs/i18n-react`](/v0/localization/i18n/react/).
 
 ```mermaid
 flowchart TD
@@ -130,6 +130,5 @@ When `localeFallback` is set in config, codegen enriches generated `LOCALE_FALLB
 
 ## See also
 
-- [Type-safe i18n for TypeScript and React](/blog/type-safe-i18n-for-typescript-and-react/) — motivation and developer journey
 - [Demo app in the monorepo](https://github.com/xndrjs/toolkit/tree/main/apps/i18n-demo) — split-by-locale, custom areas, fetch / CMS refresh
 - [README in the monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/i18n) — full reference when working on the package itself

@@ -69,7 +69,7 @@
 
   ### Primitives are scalar-only
 
-  `domain.primitive` now requires validator `Input` and `Value` to be scalars (`string`, `number`, `boolean`, `bigint`, `symbol`). Object-shaped validator outputs must use `domain.shape`. A runtime guard rejects non-scalar values returned from a primitive validator.
+  `domain.core.primitive` now requires validator `Input` and `Value` to be scalars (`string`, `number`, `boolean`, `bigint`, `symbol`). Object-shaped validator outputs must use `domain.core.shape`. A runtime guard rejects non-scalar values returned from a primitive validator.
 
   ### Adapters
 
@@ -142,7 +142,7 @@
 
   ### Primitives are scalar-only
 
-  `domain.primitive` now requires validator `Input` and `Value` to be scalars (`string`, `number`, `boolean`, `bigint`, `symbol`). Object-shaped validator outputs must use `domain.shape`. A runtime guard rejects non-scalar values returned from a primitive validator.
+  `domain.core.primitive` now requires validator `Input` and `Value` to be scalars (`string`, `number`, `boolean`, `bigint`, `symbol`). Object-shaped validator outputs must use `domain.core.shape`. A runtime guard rejects non-scalar values returned from a primitive validator.
 
   ### Adapters
 

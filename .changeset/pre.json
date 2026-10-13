@@ -2,10 +2,10 @@
   "mode": "pre",
   "tag": "alpha",
   "initialVersions": {
-    "@xndrjs/bench-perf": "0.1.1",
+    "@xndrjs/domain-bench": "0.1.1",
     "@xndrjs/contentful-to-zod-demo": "0.0.1",
     "@xndrjs/i18n-demo": "0.0.0",
-    "@xndrjs/interop-demo": "0.0.1",
+    "@xndrjs/domain-demo": "0.0.1",
     "@xndrjs/oas-core-validator-demo": "0.0.2",
     "@xndrjs/resource-graph-resolver-bench": "0.0.1",
     "@xndrjs/resource-graph-resolver-demo": "0.0.1",

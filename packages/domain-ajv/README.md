@@ -18,7 +18,7 @@ pnpm add @xndrjs/domain-ajv ajv ajv-formats
 ```ts
 import { domain, jsonSchemaToValidator } from "@xndrjs/domain-ajv";
 
-const Email = domain.primitive(
+const Email = domain.core.primitive(
   "Email",
   jsonSchemaToValidator<string>({
     type: "string",
@@ -34,7 +34,7 @@ import bundledOas from "./generated/openapi.bundled.json";
 import type { components } from "./generated/openapi.types";
 
 type User = components["schemas"]["User"];
-const UserShape = domain.shape("User", openApiComponentToValidator<User>(bundledOas, "User"));
+const UserShape = domain.core.shape("User", openApiComponentToValidator<User>(bundledOas, "User"));
 ```
 
 ## Custom Ajv instance

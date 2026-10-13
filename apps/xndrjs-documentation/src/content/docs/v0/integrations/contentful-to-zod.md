@@ -7,8 +7,6 @@ description: Generate Zod 4 schemas from Contentful content types — transport-
 
 The generated file is self-contained — production code depends only on **`zod`**, not on `@xndrjs/contentful-to-zod`. It outputs Zod schemas and optional locale helpers; no `domain.shape` is emitted. Wire flat schemas into `@xndrjs/domain-zod` in your own code when you use xndrjs.
 
-For the motivation behind transport-aware schemas (why CMA `required` ≠ runtime certainty), see [Your CMS schema is lying to TypeScript](/blog/your-cms-schema-is-lying-to-typescript/).
-
 ```mermaid
 flowchart TD
   CMA[CMA snapshot] --> codegen[contentful-to-zod]
@@ -276,18 +274,15 @@ await writeFile("./src/generated/contentful.schemas.ts", source, "utf8");
 
 ## Wiring to domain-zod
 
-Transport schemas feed the domain; they do not replace it. See the [Zod adapter](/v0/modeling/adapters/zod/) for `zodToValidator`:
+Transport schemas feed the domain; they do not replace it. Prefer adapter top-level factories with the Zod schema, or `domain.core.*` with `zodToValidator` when you need an explicit `Validator`:
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 import { BlogPostFieldsSchema, ContentfulLocaleCodeSchema } from "./generated/contentful.schemas";
 
-export const BlogPost = domain.shape("BlogPost", zodToValidator(BlogPostFieldsSchema));
+export const BlogPost = domain.shape("BlogPost", BlogPostFieldsSchema);
 
-export const SupportedLocale = domain.primitive(
-  "SupportedLocale",
-  zodToValidator(ContentfulLocaleCodeSchema)
-);
+export const SupportedLocale = domain.primitive("SupportedLocale", ContentfulLocaleCodeSchema);
 ```
 
 ## CMA field mapping
@@ -309,6 +304,5 @@ Entry/asset link objects and CMA validations (size, range, regex, etc.) are refl
 
 ## See also
 
-- [Your CMS schema is lying to TypeScript](/blog/your-cms-schema-is-lying-to-typescript/) — transport vs domain trust
 - [Resource graph resolver](/v0/resource-orchestration/resource-graph-resolver/) — graph resolution strategies often consume link-field metadata from generated schemas
 - [README in the monorepo](https://github.com/xndrjs/toolkit/tree/main/packages/contentful-to-zod) — CLI details when working on the generator itself

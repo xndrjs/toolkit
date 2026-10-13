@@ -36,7 +36,7 @@ const nonEmptyString: Validator<string> = {
   },
 };
 
-const User = domain.shape(
+const User = domain.core.shape(
   "User",
   compose.object({
     id: nonEmptyString,

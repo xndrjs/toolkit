@@ -262,17 +262,14 @@ In less formal terms:
 Example:
 
 ```ts
-const User = domain.capabilities
-  .forShape<{ displayName: string; isVerified: boolean }>()
-  .methods(({ patch }) => ({
-    rename(user, displayName: string) {
-      return patch(user, { displayName });
-    },
-    verify(user) {
-      return patch(user, { isVerified: true });
-    },
-  }))
-  .attach(UserShape);
+const User = domain.capabilities.forShapeKit(UserShape).methods(({ patch }) => ({
+  rename(user, displayName: string) {
+    return patch(user, { displayName });
+  },
+  verify(user) {
+    return patch(user, { isVerified: true });
+  },
+}));
 
 const renamed = User.rename(user, "Ada Lovelace");
 const verified = User.verify(renamed);
@@ -432,11 +429,13 @@ The model is algebraic in the practical sense: small operations can be combined 
 A capability bundle can be defined on an arbitrarily small contract:
 
 ```ts
-const Rename = domain.capabilities.forShape<{ displayName: string }>().methods(({ patch }) => ({
-  rename(entity, displayName: string) {
-    return patch(entity, { displayName });
-  },
-}));
+const Rename = domain.capabilities
+  .forShapeContract<{ displayName: string }>()
+  .methods(({ patch }) => ({
+    rename(entity, displayName: string) {
+      return patch(entity, { displayName });
+    },
+  }));
 ```
 
 This capability does not care whether the value is a `User`, an `Author`, or a `CustomerProfile`.

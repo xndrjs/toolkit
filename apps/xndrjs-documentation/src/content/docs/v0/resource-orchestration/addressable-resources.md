@@ -9,8 +9,6 @@ Use them when different parts of the app need to refer to the same logical resou
 
 Every layer of the application should refer to the same resource using the same identifier.
 
-For motivation and layer boundaries, see [From Query Keys to Addressable Resource Identifiers](/blog/from-query-keys-to-addressable-resource-identifiers/).
-
 :::note[Package rename]
 
 `@xndrjs/application-resources` is succeeded by `@xndrjs/addressable-resources`. Deprecate the old package on npm yourself (`npm deprecate …`); do not unpublish. There is no re-export shim under the old name.

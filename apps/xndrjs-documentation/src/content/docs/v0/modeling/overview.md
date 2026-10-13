@@ -10,7 +10,7 @@ description: Philosophy and package boundaries for @xndrjs/domain.
 It provides:
 
 - a validator contract: `Validator<Input, Output>`
-- modeling kits: `domain.primitive`, `domain.shape`, `domain.proof`
+- modeling kits: `domain.core.primitive`, `domain.core.shape`, `domain.core.proof` (adapters add top-level `domain.shape` / `primitive` / `proof` for native schemas)
 - behavior attachment: `domain.capabilities`
 - lightweight validator composition: `compose.array`, `compose.object`, `compose.optional`
 - typed function composition: `pipe`
@@ -80,15 +80,15 @@ After a value leaves the process or becomes JSON, it should re-enter through a b
 
 ## Choosing the right kit
 
-| Need                                                     | Use                                |
-| -------------------------------------------------------- | ---------------------------------- |
-| Validate an email, id, slug, or currency code            | `domain.primitive`                 |
-| Materialize a trusted object from external input         | `domain.shape`                     |
-| Express an operation on a shape (rename, verify, cancel) | `domain.capabilities.forShape`     |
-| Express an operation on a primitive (add, convert)       | `domain.capabilities.forPrimitive` |
-| Require a stronger guarantee for a specific workflow     | `domain.proof`                     |
-| Build small validators without an adapter                | `compose`                          |
-| Chain transformations or assertions                      | `pipe`                             |
+| Need                                                     | Use                                                            |
+| -------------------------------------------------------- | -------------------------------------------------------------- |
+| Validate an email, id, slug, or currency code            | `domain.core.primitive` (or adapter `domain.primitive`)        |
+| Materialize a trusted object from external input         | `domain.core.shape` (or adapter `domain.shape`)                |
+| Express an operation on a shape (rename, verify, cancel) | `domain.capabilities.forShapeKit` / `forShapeContract`         |
+| Express an operation on a primitive (add, convert)       | `domain.capabilities.forPrimitiveKit` / `forPrimitiveContract` |
+| Require a stronger guarantee for a specific workflow     | `domain.core.proof` (or adapter `domain.proof`)                |
+| Build small validators without an adapter                | `compose`                                                      |
+| Chain transformations or assertions                      | `pipe`                                                         |
 
 ## Public entry point
 
@@ -99,5 +99,5 @@ import { DomainValidationError, compose, domain, pipe } from "@xndrjs/domain";
 Adapter packages re-export this surface for convenience:
 
 ```ts
-import { domain, zodToValidator } from "@xndrjs/domain-zod";
+import { domain } from "@xndrjs/domain-zod";
 ```

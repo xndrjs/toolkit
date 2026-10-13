@@ -76,9 +76,9 @@ function printValidationError(error: unknown) {
 async function main() {
   const bundle = await getBundle();
 
-  const Tier = domain.primitive("Tier", openApiValidatorFor(bundle, "Tier"));
-  const User = domain.shape("User", openApiValidatorFor(bundle, "User"));
-  const VerifiedUserProof = domain.proof(
+  const Tier = domain.core.primitive("Tier", openApiValidatorFor(bundle, "Tier"));
+  const User = domain.core.shape("User", openApiValidatorFor(bundle, "User"));
+  const VerifiedUserProof = domain.core.proof(
     "VerifiedUser",
     openApiValidatorFor(bundle, "VerifiedUser")
   );
