@@ -27,7 +27,5 @@
     "@xndrjs/ziel": "0.0.0",
     "ziel-vscode": "0.0.5"
   },
-  "changesets": [
-    "domain-alpha-api"
-  ]
+  "changesets": ["domain-alpha-api"]
 }
