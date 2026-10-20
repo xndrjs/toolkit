@@ -1,0 +1,3 @@
+# Artifact map callback with lazy file renderers
+
+Construct artifacts are declared in a single callback next to `defineConstruct`, returning a keyed map of `dir(...)` / `file(...)` descriptors. Scaffold templates and sync renderers are attached as the last argument of `file(...)` and run only after the full desired inventory exists (phase 5), so they may use queries without deciding presence or paths. We rejected sibling `artifacts` + `render` maps and fluent post-hoc builders: one readable place per construct beats split declarations, and lazy render keeps the required derive-then-query sequence.
