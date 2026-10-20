@@ -56,7 +56,7 @@ export function apply(population: Population, options: ApplyOptions): ApplyResul
     return { ok: false, diagnostics: derived.diagnostics };
   }
 
-  const contents = renderFileContents(population);
+  const contents = renderFileContents(population, derived.inventory);
   const lastManifest = readManifest(architectureDir);
   const planned = planApply({
     inventory: derived.inventory,

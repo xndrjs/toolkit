@@ -28,7 +28,9 @@ export type DirDescriptor = {
   readonly path: string;
 };
 
-export type FileContentFn = (ctx: unknown) => string;
+/** Invoked after desired inventory exists; prefer FileRenderContext (query.filesIn). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- render ctx typed in apply/render-contents
+export type FileContentFn = (ctx: any) => string;
 
 /** Accepted at call sites; file refs are rejected during inventory derivation. */
 export type DirectoryRefInput = DirRef | DirDescriptor | FileRef;

@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { FileMode } from "../architecture/artifacts";
 import { defineArchitecture, dir, file, root } from "../architecture/define-architecture";
 import { toKebabCase } from "../casing/casing";
 import { createPopulation } from "../population/create-population";
@@ -249,5 +250,155 @@ describe("apply", () => {
       '{ "name": "foreign" }\n'
     );
     expect(existsSync(join(architectureDir, MANIFEST_RELATIVE_PATH))).toBe(false);
+  });
+});
+
+function buildSingleFilePopulation(mode: FileMode, content: string) {
+  const A = defineArchitecture("Lifecycle");
+  const thing = A.defineConstruct("Thing", () => ({
+    source: file("thing.ts", root, mode, content),
+  }));
+  const population = createPopulation(A);
+  population.add(thing, { name: "thing" });
+  return population;
+}
+
+describe("scaffold vs sync lifecycle", () => {
+  let tempDir: string | undefined;
+
+  afterEach(() => {
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+      tempDir = undefined;
+    }
+  });
+
+  it("preserves authored scaffold content on re-apply", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-lifecycle-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+    const path = join(materializationRoot, "thing.ts");
+
+    const first = apply(buildSingleFilePopulation("scaffold", "export const seed = 1;\n"), options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+
+    const authored = "export const authored = true;\n";
+    writeFileSync(path, authored);
+
+    const second = apply(
+      buildSingleFilePopulation("scaffold", "export const seed = 2;\n"),
+      options
+    );
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+    expect(second.plan).toEqual([]);
+    expect(readFileSync(path, "utf8")).toBe(authored);
+  });
+
+  it("regenerates sync content when the derived template changes", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-lifecycle-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+    const path = join(materializationRoot, "thing.ts");
+
+    const first = apply(buildSingleFilePopulation("sync", "export const a = 1;\n"), options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+    expect(readFileSync(path, "utf8")).toBe("export const a = 1;\n");
+
+    const second = apply(buildSingleFilePopulation("sync", "export const a = 2;\n"), options);
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+    expect(second.plan).toEqual([
+      expect.objectContaining({
+        type: "write",
+        path: "thing.ts",
+        content: "export const a = 2;\n",
+        mode: "sync",
+      }),
+    ]);
+    expect(readFileSync(path, "utf8")).toBe("export const a = 2;\n");
+  });
+
+  it("restores missing managed files for both scaffold and sync", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-lifecycle-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+
+    for (const mode of ["scaffold", "sync"] as const) {
+      const options = {
+        architectureDir: join(architectureDir, mode),
+        materializationRoot: join(materializationRoot, mode),
+      };
+      const path = join(options.materializationRoot, "thing.ts");
+      const template = `export const mode = "${mode}";\n`;
+
+      const first = apply(buildSingleFilePopulation(mode, template), options);
+      expect(first.ok).toBe(true);
+      if (!first.ok) {
+        return;
+      }
+
+      rmSync(path);
+      expect(existsSync(path)).toBe(false);
+
+      const second = apply(buildSingleFilePopulation(mode, template), options);
+      expect(second.ok).toBe(true);
+      if (!second.ok) {
+        return;
+      }
+      expect(second.plan).toEqual([
+        expect.objectContaining({ type: "write", path: "thing.ts", mode, content: template }),
+      ]);
+      expect(readFileSync(path, "utf8")).toBe(template);
+    }
+  });
+
+  it("overwrites authored content when mode switches from scaffold to sync", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-lifecycle-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+    const path = join(materializationRoot, "thing.ts");
+
+    const first = apply(buildSingleFilePopulation("scaffold", "export const seed = 1;\n"), options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+
+    writeFileSync(path, "export const authored = true;\n");
+
+    const syncContent = "export const synced = true;\n";
+    const second = apply(buildSingleFilePopulation("sync", syncContent), options);
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+    expect(second.plan).toEqual([
+      expect.objectContaining({
+        type: "write",
+        path: "thing.ts",
+        content: syncContent,
+        mode: "sync",
+      }),
+    ]);
+    expect(readFileSync(path, "utf8")).toBe(syncContent);
+
+    const manifest = readManifest(architectureDir);
+    expect(manifest?.artifacts.find((a) => a.path === "thing.ts")).toMatchObject({
+      mode: "sync",
+    });
   });
 });

@@ -112,6 +112,15 @@ describe("deriveDesiredInventory", () => {
       artifactKey: "models",
       constructName: "CorePackage",
     });
+
+    const modelsIndex = result.inventory.artifacts.find(
+      (a) => a.path === "packages/core-pagebuilder/models/index.ts"
+    );
+    expect(modelsIndex).toMatchObject({
+      instanceId: "pagebuilder",
+      artifactKey: "modelsIndex",
+      directory: { kind: "artifact", instanceId: "pagebuilder", artifactKey: "models" },
+    });
   });
 
   it("rejects duplicate effective instance ids before any disk work", () => {

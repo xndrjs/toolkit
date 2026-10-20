@@ -1,6 +1,6 @@
 # 04 — Cross-construct DirRef + barrel via `filesIn`
 
-**Status:** pending  
+**Status:** done  
 **Blocked by:** 02, 03
 
 ## Delivers

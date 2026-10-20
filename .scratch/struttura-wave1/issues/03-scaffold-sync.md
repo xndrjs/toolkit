@@ -1,6 +1,6 @@
 # 03 — Scaffold vs sync lifecycle
 
-**Status:** pending  
+**Status:** done  
 **Blocked by:** 02
 
 ## Delivers

@@ -109,10 +109,16 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
       continue;
     }
 
-    for (const [artifactKey, descriptor] of Object.entries(descriptors)) {
+    // Bind directories first so same-callback file(..., dir(...)) can resolve to
+    // the sibling directory artifact identity (needed for filesIn / provenance).
+    const entries = Object.entries(descriptors);
+    for (const [artifactKey, descriptor] of entries) {
       if (descriptor.kind === "dir-descriptor") {
         bindDirectory(instance, artifactKey, descriptor, desiredArtifacts, diagnostics);
-      } else {
+      }
+    }
+    for (const [artifactKey, descriptor] of entries) {
+      if (descriptor.kind === "file-descriptor") {
         bindFile(instance, artifactKey, descriptor, desiredArtifacts, diagnostics);
       }
     }
@@ -287,6 +293,7 @@ function bindFile(
     descriptor.directoryRef,
     instance,
     artifactKey,
+    desiredArtifacts,
     diagnostics
   );
   if (!directoryMeta) {
@@ -319,6 +326,7 @@ function resolveDirectoryRef(
   directoryRef: DirRef | DirDescriptor | FileRef,
   instance: RegisteredInstance,
   artifactKey: string,
+  desiredArtifacts: readonly DesiredArtifact[],
   diagnostics: Diagnostic[]
 ):
   | {
@@ -353,7 +361,8 @@ function resolveDirectoryRef(
     };
   }
 
-  // DirDescriptor from the same callback — use its path directly.
+  // DirDescriptor from the same callback — prefer a sibling directory artifact
+  // at this path so provenance / filesIn share one DirRef identity.
   try {
     const path = normalizeRelativePath(directoryRef.path);
     if (isRootPath(path)) {
@@ -366,6 +375,24 @@ function resolveDirectoryRef(
       });
       return undefined;
     }
+
+    const sibling = desiredArtifacts.find(
+      (artifact) =>
+        artifact.instanceId === instance.id &&
+        artifact.kind === "directory" &&
+        artifact.path === path
+    );
+    if (sibling) {
+      return {
+        path,
+        directory: {
+          kind: "artifact",
+          instanceId: sibling.instanceId,
+          artifactKey: sibling.artifactKey,
+        },
+      };
+    }
+
     return { path, directory: { kind: "inline", path } };
   } catch (error) {
     if (error instanceof PathEscapeError) {

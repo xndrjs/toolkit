@@ -64,6 +64,15 @@ export {
 
 export { planApply, type PlanOp, type PlanResult } from "./apply/plan";
 
+export type { FileRenderContext } from "./apply/render-contents";
+
+export {
+  createInventoryQuery,
+  type ArtifactIdentity,
+  type InventoryQuery,
+  type QueriedInstance,
+} from "./query/inventory-query";
+
 export {
   toCamelCase,
   toKebabCase,
