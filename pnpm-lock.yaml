@@ -494,6 +494,10 @@ importers:
         version: 4.1.0(@types/node@25.5.0)(jsdom@26.1.0)(vite@8.0.1(@types/node@25.5.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.5)(yaml@2.8.3))
 
   packages/struttura:
+    dependencies:
+      jiti:
+        specifier: ^2.7.0
+        version: 2.7.0
     devDependencies:
       '@types/node':
         specifier: ^25.5.0

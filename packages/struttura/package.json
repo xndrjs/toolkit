@@ -10,6 +10,9 @@
     "directory": "packages/struttura"
   },
   "type": "module",
+  "bin": {
+    "struttura": "./dist/cli.js"
+  },
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
@@ -33,6 +36,9 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jiti": "^2.7.0"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

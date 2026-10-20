@@ -96,6 +96,20 @@ export {
 } from "./inspect/inspect";
 
 export {
+  migrateId,
+  rewriteManifestIds,
+  type MigrateIdDiagnostic,
+  type MigrateIdDiagnosticCode,
+  type MigrateIdFailure,
+  type MigrateIdOptions,
+  type MigrateIdResult,
+  type MigrateIdSuccess,
+} from "./cli/migrate-id";
+
+export { runCli } from "./cli/run";
+export { parseCliArgs, printCliHelp, type CliOptions } from "./cli/args";
+
+export {
   createInventoryQuery,
   type ArtifactIdentity,
   type InventoryQuery,

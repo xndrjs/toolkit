@@ -1,12 +1,28 @@
 import { defineConfig } from "tsup";
 
-export default defineConfig({
-  entry: ["src/index.ts"],
-  format: ["esm"],
+const shared = {
+  format: ["esm"] as const,
   outDir: "dist",
-  dts: true,
   sourcemap: true,
-  clean: true,
   treeshake: true,
   splitting: false,
-});
+  external: ["jiti"],
+};
+
+export default defineConfig([
+  {
+    ...shared,
+    entry: ["src/index.ts"],
+    dts: true,
+    clean: true,
+  },
+  {
+    ...shared,
+    entry: ["src/cli.ts"],
+    dts: false,
+    clean: false,
+    banner: {
+      js: "#!/usr/bin/env node",
+    },
+  },
+]);

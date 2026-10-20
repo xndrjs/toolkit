@@ -1,6 +1,6 @@
 # 09 — CLI wave 1 + `migrate-id`
 
-**Status:** pending  
+**Status:** done  
 **Blocked by:** 05, 07, 08
 
 ## Delivers
@@ -14,3 +14,9 @@ Each command is runnable end-to-end on the guide layout.
 ## Refs
 
 ADR 0011
+
+## Notes
+
+- Bin: `struttura` → `dist/cli.js`
+- Library: `migrateId` / `rewriteManifestIds` (structured manifest rewrite, collision checks)
+- `runCli` / `parseCliArgs` exported for tests; modules loaded via jiti with caches disabled
