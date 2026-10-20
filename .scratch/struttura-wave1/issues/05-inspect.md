@@ -1,6 +1,6 @@
 # 05 — Inspect without write
 
-**Status:** pending  
+**Status:** done  
 **Blocked by:** 02
 
 ## Delivers
@@ -10,3 +10,8 @@ Read-only report: repo vs materialization root, instances/relations, derived tre
 ## Done when
 
 Inspect output matches a known population/plan without applying.
+
+## Refs
+
+- `packages/struttura/analysis/initial.md` (§16)
+- ADRs 0005, 0011

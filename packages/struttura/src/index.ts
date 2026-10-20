@@ -67,6 +67,16 @@ export { planApply, type PlanOp, type PlanResult } from "./apply/plan";
 export type { FileRenderContext } from "./apply/render-contents";
 
 export {
+  inspect,
+  type InspectArtifactView,
+  type InspectFailure,
+  type InspectOptions,
+  type InspectReport,
+  type InspectResult,
+  type InspectSuccess,
+} from "./inspect/inspect";
+
+export {
   createInventoryQuery,
   type ArtifactIdentity,
   type InventoryQuery,
