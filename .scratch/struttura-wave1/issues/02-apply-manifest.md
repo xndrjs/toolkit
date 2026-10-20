@@ -1,6 +1,6 @@
 # 02 — Apply on empty materialization root + success manifest
 
-**Status:** pending  
+**Status:** done  
 **Blocked by:** 01
 
 ## Delivers

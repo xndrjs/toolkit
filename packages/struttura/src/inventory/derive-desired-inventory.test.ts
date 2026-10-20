@@ -44,7 +44,7 @@ describe("deriveDesiredInventory", () => {
       })
     );
 
-    const rootManifest = A.defineConstruct("RootManifest", () => ({
+    const packageJson = A.defineConstruct("PackageJson", () => ({
       packageJson: file("package.json", root, "scaffold"),
     }));
 
@@ -54,7 +54,7 @@ describe("deriveDesiredInventory", () => {
     population.add(model, { name: "page", core: pagebuilder });
     population.add(model, { name: "pageSlug", core: pagebuilder });
     population.add(useCase, { name: "resolvePage", package: pagebuilder });
-    population.add(rootManifest, { name: "root-manifest" });
+    population.add(packageJson, { name: "packageJson" });
 
     const result = deriveDesiredInventory(population);
 

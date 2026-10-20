@@ -43,6 +43,28 @@ export {
 } from "./inventory/derive-desired-inventory";
 
 export {
+  apply,
+  type ApplyFailure,
+  type ApplyOptions,
+  type ApplyResult,
+  type ApplySuccess,
+} from "./apply/apply";
+
+export {
+  MANIFEST_RELATIVE_PATH,
+  MANIFEST_VERSION,
+  buildManifest,
+  manifestPath,
+  readManifest,
+  writeManifest,
+  type Manifest,
+  type ManifestArtifact,
+  type ManifestInstance,
+} from "./apply/manifest";
+
+export { planApply, type PlanOp, type PlanResult } from "./apply/plan";
+
+export {
   toCamelCase,
   toKebabCase,
   toPascalCase,
