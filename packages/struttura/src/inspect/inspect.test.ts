@@ -186,7 +186,12 @@ describe("inspect", () => {
     });
 
     expect(report.plan.length).toBeGreaterThan(0);
-    expect(report.plan.every((op) => op.type === "mkdir" || op.type === "write")).toBe(true);
+    expect(
+      report.plan.every(
+        (op) =>
+          op.type === "mkdir" || op.type === "write" || op.type === "delete" || op.type === "move"
+      )
+    ).toBe(true);
     expect(report.wouldMutateDisk).toBe(true);
     expect(report.wouldUpdateManifest).toBe(true);
     expect(report.lastManifest).toBeUndefined();

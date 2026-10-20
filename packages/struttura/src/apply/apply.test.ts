@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -18,6 +19,7 @@ import { toKebabCase } from "../casing/casing";
 import { createPopulation } from "../population/create-population";
 import { apply } from "./apply";
 import { MANIFEST_RELATIVE_PATH, readManifest } from "./manifest";
+import { moveTempPath } from "./plan";
 
 function pathsOf(inventory: { artifacts: readonly { path: string }[] }): string[] {
   return inventory.artifacts.map((a) => a.path).sort();
@@ -586,5 +588,315 @@ describe("deletes and foreign files (analysis §14)", () => {
     expect(existsSync(join(materializationRoot, "things/.gitkeep"))).toBe(false);
     expect(existsSync(join(materializationRoot, "things"))).toBe(true);
     expect(second.plan.some((op) => op.type === "delete" && op.kind === "directory")).toBe(false);
+  });
+});
+
+/** Compact layout for rename / directory-move scenarios (analysis §13, §15). */
+function buildRenameArchitecture() {
+  const A = defineArchitecture("Rename");
+  const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
+    const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
+    const models = dir(`${packageDirectory.path}/models`);
+    return {
+      packageDirectory,
+      models,
+      modelsIndex: file("index.ts", models, "sync", "// models barrel\n"),
+    };
+  });
+  const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
+    source: file(
+      `${toKebabCase(name)}.model.ts`,
+      core.artifacts.models,
+      "scaffold",
+      `export type ${name} = { id: string };\n`
+    ),
+  }));
+  return { A, corePackage, model };
+}
+
+describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
+  let tempDir: string | undefined;
+
+  afterEach(() => {
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+      tempDir = undefined;
+    }
+  });
+
+  it("stable-id rename moves the scaffold file and preserves authored content", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-rename-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+    const { A, corePackage, model } = buildRenameArchitecture();
+
+    const initial = createPopulation(A);
+    const pagebuilder = initial.add(corePackage, { name: "pagebuilder" });
+    initial.add(model, { name: "page", core: pagebuilder });
+
+    const first = apply(initial, options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+
+    const oldPath = join(materializationRoot, "packages/core-pagebuilder/models/page.model.ts");
+    const authored = "export type page = { id: string; authored: true };\n";
+    writeFileSync(oldPath, authored);
+
+    const renamed = createPopulation(A);
+    const core = renamed.add(corePackage, { name: "pagebuilder" });
+    renamed.add(model, { id: "page", name: "editorialPage", core });
+
+    const second = apply(renamed, options);
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+
+    const newPath = "packages/core-pagebuilder/models/editorial-page.model.ts";
+    expect(second.plan).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "move",
+          kind: "file",
+          from: "packages/core-pagebuilder/models/page.model.ts",
+          to: newPath,
+          instanceId: "page",
+          artifactKey: "source",
+        }),
+      ])
+    );
+    expect(existsSync(oldPath)).toBe(false);
+    expect(readFileSync(join(materializationRoot, newPath), "utf8")).toBe(authored);
+  });
+
+  it("directory artifact path change moves the full tree including untracked files", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-dir-move-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+    const { A, corePackage, model } = buildRenameArchitecture();
+
+    const initial = createPopulation(A);
+    const pagebuilder = initial.add(corePackage, { name: "pagebuilder" });
+    initial.add(model, { name: "page", core: pagebuilder });
+
+    const first = apply(initial, options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+
+    const helpersPath = join(materializationRoot, "packages/core-pagebuilder/models/helpers.ts");
+    writeFileSync(helpersPath, "export const helpers = true;\n");
+
+    const renamed = createPopulation(A);
+    // Keep instance id so the package directory artifact identity is stable.
+    const core = renamed.add(corePackage, { id: "pagebuilder", name: "editorial" });
+    renamed.add(model, { name: "page", core });
+
+    const second = apply(renamed, options);
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+
+    expect(second.plan).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "move",
+          kind: "directory",
+          from: "packages/core-pagebuilder",
+          to: "packages/core-editorial",
+          instanceId: "pagebuilder",
+          artifactKey: "packageDirectory",
+        }),
+      ])
+    );
+    // Nested managed paths must not be moved a second time.
+    expect(
+      second.plan.filter(
+        (op) =>
+          op.type === "move" &&
+          op.from !== "packages/core-pagebuilder" &&
+          (op.from.startsWith("packages/core-pagebuilder/") ||
+            op.from.startsWith("packages/core-editorial/"))
+      )
+    ).toEqual([]);
+
+    expect(existsSync(join(materializationRoot, "packages/core-pagebuilder"))).toBe(false);
+    expect(
+      readFileSync(
+        join(materializationRoot, "packages/core-editorial/models/page.model.ts"),
+        "utf8"
+      )
+    ).toBe("export type page = { id: string };\n");
+    expect(
+      readFileSync(join(materializationRoot, "packages/core-editorial/models/helpers.ts"), "utf8")
+    ).toBe("export const helpers = true;\n");
+  });
+
+  it("plans crossed file destinations without losing contents", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-cross-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+
+    const A = defineArchitecture("Cross");
+    const thing = A.defineConstruct("Thing", ({ name }) => ({
+      source: file(`${toKebabCase(name)}.ts`, root, "scaffold", `export const ${name} = 1;\n`),
+    }));
+
+    const initial = createPopulation(A);
+    initial.add(thing, { id: "alpha", name: "alpha" });
+    initial.add(thing, { id: "beta", name: "beta" });
+
+    const first = apply(initial, options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+
+    writeFileSync(join(materializationRoot, "alpha.ts"), "export const alpha = 'authored';\n");
+    writeFileSync(join(materializationRoot, "beta.ts"), "export const beta = 'authored';\n");
+
+    // Swap filenames while keeping stable ids → crossed destinations.
+    const swapped = createPopulation(A);
+    swapped.add(thing, { id: "alpha", name: "beta" });
+    swapped.add(thing, { id: "beta", name: "alpha" });
+
+    const second = apply(swapped, options);
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+
+    const moveOps = second.plan.filter((op) => op.type === "move");
+    expect(moveOps.length).toBeGreaterThanOrEqual(2);
+    expect(moveOps.some((op) => op.type === "move" && op.from.includes(".struttura-tmp/"))).toBe(
+      true
+    );
+
+    expect(readFileSync(join(materializationRoot, "beta.ts"), "utf8")).toBe(
+      "export const alpha = 'authored';\n"
+    );
+    expect(readFileSync(join(materializationRoot, "alpha.ts"), "utf8")).toBe(
+      "export const beta = 'authored';\n"
+    );
+    expect(existsSync(join(materializationRoot, ".struttura-tmp"))).toBe(false);
+
+    const manifest = readManifest(architectureDir);
+    expect(manifest?.artifacts.find((a) => a.instanceId === "alpha")?.path).toBe("beta.ts");
+    expect(manifest?.artifacts.find((a) => a.instanceId === "beta")?.path).toBe("alpha.ts");
+  });
+
+  it("recovers from an interrupted move by idempotent replan (ADR 0006)", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-recovery-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+    const { A, corePackage, model } = buildRenameArchitecture();
+
+    const initial = createPopulation(A);
+    const pagebuilder = initial.add(corePackage, { name: "pagebuilder" });
+    initial.add(model, { name: "page", core: pagebuilder });
+
+    const first = apply(initial, options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+
+    const authored = "export type page = { id: string; recovered: true };\n";
+    writeFileSync(
+      join(materializationRoot, "packages/core-pagebuilder/models/page.model.ts"),
+      authored
+    );
+
+    const renamed = createPopulation(A);
+    const core = renamed.add(corePackage, { name: "pagebuilder" });
+    renamed.add(model, { id: "page", name: "editorialPage", core });
+
+    // Simulate interrupt after the file was already relocated but before the
+    // success manifest was rewritten (last good manifest still points at the old path).
+    const oldRel = "packages/core-pagebuilder/models/page.model.ts";
+    const newRel = "packages/core-pagebuilder/models/editorial-page.model.ts";
+    mkdirSync(join(materializationRoot, "packages/core-pagebuilder/models"), { recursive: true });
+    renameSync(join(materializationRoot, oldRel), join(materializationRoot, newRel));
+    expect(existsSync(join(materializationRoot, oldRel))).toBe(false);
+    expect(readFileSync(join(materializationRoot, newRel), "utf8")).toBe(authored);
+
+    const manifestBefore = readFileSync(join(architectureDir, MANIFEST_RELATIVE_PATH), "utf8");
+    expect(manifestBefore).toContain(oldRel);
+
+    const recovered = apply(renamed, options);
+    expect(recovered.ok).toBe(true);
+    if (!recovered.ok) {
+      return;
+    }
+
+    expect(recovered.plan.some((op) => op.type === "move")).toBe(false);
+    expect(readFileSync(join(materializationRoot, newRel), "utf8")).toBe(authored);
+    expect(existsSync(join(materializationRoot, oldRel))).toBe(false);
+
+    const manifest = readManifest(architectureDir);
+    expect(
+      manifest?.artifacts.find((a) => a.instanceId === "page" && a.artifactKey === "source")
+    ).toMatchObject({
+      path: newRel,
+    });
+
+    const third = apply(renamed, options);
+    expect(third.ok).toBe(true);
+    if (!third.ok) {
+      return;
+    }
+    expect(third.plan).toEqual([]);
+    expect(third.mutated).toBe(false);
+  });
+
+  it("recovers from an interrupt mid-staging via deterministic temp paths", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-temp-recovery-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+
+    const A = defineArchitecture("TempRecovery");
+    const thing = A.defineConstruct("Thing", ({ name }) => ({
+      source: file(`${toKebabCase(name)}.ts`, root, "scaffold", `export const ${name} = 1;\n`),
+    }));
+
+    const initial = createPopulation(A);
+    initial.add(thing, { id: "alpha", name: "alpha" });
+    initial.add(thing, { id: "beta", name: "beta" });
+    expect(apply(initial, options).ok).toBe(true);
+
+    writeFileSync(join(materializationRoot, "alpha.ts"), "export const alpha = 'A';\n");
+    writeFileSync(join(materializationRoot, "beta.ts"), "export const beta = 'B';\n");
+
+    // Interrupt after alpha was staged to its deterministic temp (crossed swap).
+    const alphaTemp = moveTempPath("alpha::source");
+    mkdirSync(join(materializationRoot, ".struttura-tmp"), { recursive: true });
+    renameSync(join(materializationRoot, "alpha.ts"), join(materializationRoot, alphaTemp));
+
+    const swapped = createPopulation(A);
+    swapped.add(thing, { id: "alpha", name: "beta" });
+    swapped.add(thing, { id: "beta", name: "alpha" });
+
+    const recovered = apply(swapped, options);
+    expect(recovered.ok).toBe(true);
+    if (!recovered.ok) {
+      return;
+    }
+
+    expect(readFileSync(join(materializationRoot, "beta.ts"), "utf8")).toBe(
+      "export const alpha = 'A';\n"
+    );
+    expect(readFileSync(join(materializationRoot, "alpha.ts"), "utf8")).toBe(
+      "export const beta = 'B';\n"
+    );
+    expect(existsSync(join(materializationRoot, ".struttura-tmp"))).toBe(false);
   });
 });

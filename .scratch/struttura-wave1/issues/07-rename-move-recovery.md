@@ -1,6 +1,6 @@
 # 07 — Rename/move, directory tree move, crossed paths, recovery
 
-**Status:** pending  
+**Status:** done  
 **Blocked by:** 03, 06
 
 ## Delivers

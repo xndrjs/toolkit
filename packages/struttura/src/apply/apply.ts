@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import type { Population } from "../population/create-population";
@@ -14,7 +14,7 @@ import {
   writeManifest,
   type Manifest,
 } from "./manifest";
-import { planApply, type PlanOp } from "./plan";
+import { MOVE_TEMP_ROOT, planApply, type PlanOp } from "./plan";
 import { renderFileContents } from "./render-contents";
 
 export type ApplyOptions = {
@@ -74,6 +74,8 @@ export function apply(population: Population, options: ApplyOptions): ApplyResul
     executeOp(op, materializationRoot);
   }
 
+  cleanupMoveTempRoot(materializationRoot);
+
   const nextManifest = buildManifest(derived.inventory, architectureDir, materializationRoot);
   const manifestUnchanged =
     lastManifest !== undefined && manifestsEqual(lastManifest, nextManifest);
@@ -91,6 +93,14 @@ export function apply(population: Population, options: ApplyOptions): ApplyResul
 }
 
 function executeOp(op: PlanOp, materializationRoot: string): void {
+  if (op.type === "move") {
+    const fromAbs = join(materializationRoot, op.from);
+    const toAbs = join(materializationRoot, op.to);
+    mkdirSync(dirname(toAbs), { recursive: true });
+    renameSync(fromAbs, toAbs);
+    return;
+  }
+
   const abs = join(materializationRoot, op.path);
   if (op.type === "mkdir") {
     mkdirSync(abs, { recursive: true });
@@ -103,4 +113,17 @@ function executeOp(op: PlanOp, materializationRoot: string): void {
   }
   mkdirSync(dirname(abs), { recursive: true });
   writeFileSync(abs, op.content, "utf8");
+}
+
+/** Remove empty staging directory left by crossed-path moves. */
+function cleanupMoveTempRoot(materializationRoot: string): void {
+  const tempRoot = join(materializationRoot, MOVE_TEMP_ROOT);
+  if (!existsSync(tempRoot)) {
+    return;
+  }
+  try {
+    rmSync(tempRoot, { recursive: true, force: true });
+  } catch {
+    // Best-effort: an interrupt may leave entries; the next replan recovers via temps.
+  }
 }

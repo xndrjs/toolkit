@@ -62,7 +62,13 @@ export {
   type ManifestInstance,
 } from "./apply/manifest";
 
-export { planApply, type PlanOp, type PlanResult } from "./apply/plan";
+export {
+  MOVE_TEMP_ROOT,
+  moveTempPath,
+  planApply,
+  type PlanOp,
+  type PlanResult,
+} from "./apply/plan";
 
 export type { FileRenderContext } from "./apply/render-contents";
 
