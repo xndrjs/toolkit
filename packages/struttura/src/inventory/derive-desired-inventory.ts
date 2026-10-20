@@ -24,7 +24,8 @@ export type DiagnosticCode =
   | "file-ref-as-directory"
   | "incompatible-paths"
   | "artifact-callback-error"
-  | "unknown-dependency-cycle";
+  | "unknown-dependency-cycle"
+  | "stale-generated-api";
 
 export type Diagnostic = {
   readonly code: DiagnosticCode;

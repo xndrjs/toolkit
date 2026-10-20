@@ -32,13 +32,16 @@ export type DirDescriptor = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- render ctx typed in apply/render-contents
 export type FileContentFn = (ctx: any) => string;
 
-/** Accepted at call sites; file refs are rejected during inventory derivation. */
-export type DirectoryRefInput = DirRef | DirDescriptor | FileRef;
+/**
+ * Directory placement for `file(...)`. FileRef is excluded at the type level
+ * (ADR 0012); runtime still rejects a FileRef if forced through.
+ */
+export type DirectoryRefInput = DirRef | DirDescriptor;
 
 export type FileDescriptor = {
   readonly kind: "file-descriptor";
   readonly filename: string;
-  readonly directoryRef: DirectoryRefInput;
+  readonly directoryRef: DirectoryRefInput | FileRef;
   readonly mode: FileMode;
   readonly content?: string | FileContentFn;
 };
@@ -70,7 +73,7 @@ export function file(
   });
 }
 
-export function isDirRef(value: DirectoryRefInput): value is DirRef {
+export function isDirRef(value: DirectoryRefInput | FileRef): value is DirRef {
   return value.kind === "root" || value.kind === "directory";
 }
 

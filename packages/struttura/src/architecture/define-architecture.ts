@@ -16,8 +16,9 @@ export type InstanceRef = {
 
 /**
  * Context passed to a construct's artifact callback.
- * Dependency keys and `.artifacts` are attached at runtime; literal DirRef/FileRef
- * typing arrives with codegen (ADR 0012 / ticket 08).
+ * Dependency keys and `.artifacts` are attached at runtime; the generated
+ * populate API brands instance refs (ADR 0012). Definition callbacks stay loose
+ * so architecture modules can be authored before codegen.
  */
 export type ArtifactCallbackContext = {
   readonly name: string;
@@ -26,11 +27,11 @@ export type ArtifactCallbackContext = {
 } & Record<string, InstanceRef | string | InstanceArtifacts | undefined>;
 
 /**
- * Artifacts callback. Context typing is intentionally unchecked until codegen
- * brands dependency and artifact refs (ticket 08).
+ * Artifacts callback. Definition modules use a loose context; generated
+ * populate factories brand construct and artifact refs for population authors.
  */
 export type ArtifactCallback = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-codegen context; branded in ticket 08
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- definition-time context; populate API is branded
   ctx: any
 ) => Record<string, ArtifactDescriptor>;
 

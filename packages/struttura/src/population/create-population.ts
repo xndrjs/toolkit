@@ -18,8 +18,18 @@ export type RegisteredInstance = {
   artifacts: InstanceRef["artifacts"];
 };
 
+export type CreatePopulationOptions = {
+  /**
+   * Stamp embedded by the generated populate API (ADR 0010). When set, apply
+   * and inspect fail closed if it no longer matches the Architecture.
+   */
+  readonly definitionStamp?: string;
+};
+
 export type Population = {
   readonly architecture: Architecture;
+  /** Present when created via generated API (or tests supplying an explicit stamp). */
+  readonly definitionStamp: string | undefined;
   readonly instances: readonly RegisteredInstance[];
   add(
     construct: ConstructDefinition,
@@ -38,13 +48,17 @@ function resolveArchitecture(source: ArchitectureSource): Architecture {
   return source;
 }
 
-export function createPopulation(source: ArchitectureSource): Population {
+export function createPopulation(
+  source: ArchitectureSource,
+  options: CreatePopulationOptions = {}
+): Population {
   const architecture = resolveArchitecture(source);
   const instances: RegisteredInstance[] = [];
   const byId = new Map<string, RegisteredInstance>();
 
   return {
     architecture,
+    definitionStamp: options.definitionStamp,
     get instances() {
       return instances;
     },

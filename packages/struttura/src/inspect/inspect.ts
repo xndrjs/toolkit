@@ -8,6 +8,7 @@ import {
   type DesiredInventory,
   type Diagnostic,
 } from "../inventory/derive-desired-inventory";
+import { checkDefinitionStamp } from "../codegen/check-stamp";
 import { buildManifest, manifestsEqual, readManifest, type Manifest } from "../apply/manifest";
 import { planApply, type PlanOp } from "../apply/plan";
 import { renderFileContents } from "../apply/render-contents";
@@ -89,6 +90,11 @@ export function inspect(population: Population, options: InspectOptions): Inspec
   const materializationRoot = resolve(options.materializationRoot);
   const architectureDir = resolve(options.architectureDir);
   const repositoryRoot = resolve(options.repositoryRoot ?? resolve(architectureDir, ".."));
+
+  const stale = checkDefinitionStamp(population);
+  if (stale) {
+    return { ok: false, diagnostics: [stale] };
+  }
 
   const derived = deriveDesiredInventory(population);
   if (!derived.ok) {

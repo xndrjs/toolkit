@@ -1,6 +1,6 @@
 # 08 — Codegen, branded refs, staleness fail-closed
 
-**Status:** pending  
+**Status:** done  
 **Blocked by:** 04
 
 ## Delivers
@@ -14,3 +14,10 @@ Generated API drives population; stale stamp fails closed.
 ## Refs
 
 ADRs 0010, 0012
+
+## Notes
+
+- `emitPopulateApi` / `computeDefinitionStamp` / `probeArtifactKinds` under `src/codegen/`
+- Population carries optional `definitionStamp`; apply/inspect return `stale-generated-api`
+- `file(...)` directory arg is `DirRef | DirDescriptor` (FileRef is a type error)
+- CLI `codegen` command remains ticket 09

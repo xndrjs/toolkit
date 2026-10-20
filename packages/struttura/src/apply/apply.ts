@@ -7,6 +7,7 @@ import {
   type DesiredInventory,
   type Diagnostic,
 } from "../inventory/derive-desired-inventory";
+import { checkDefinitionStamp } from "../codegen/check-stamp";
 import {
   buildManifest,
   manifestsEqual,
@@ -50,6 +51,11 @@ export type ApplyResult = ApplySuccess | ApplyFailure;
 export function apply(population: Population, options: ApplyOptions): ApplyResult {
   const materializationRoot = resolve(options.materializationRoot);
   const architectureDir = resolve(options.architectureDir);
+
+  const stale = checkDefinitionStamp(population);
+  if (stale) {
+    return { ok: false, diagnostics: [stale] };
+  }
 
   const derived = deriveDesiredInventory(population);
   if (!derived.ok) {

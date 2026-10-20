@@ -29,9 +29,22 @@ export type {
 
 export {
   createPopulation,
+  type CreatePopulationOptions,
   type Population,
   type RegisteredInstance,
 } from "./population/create-population";
+
+export {
+  computeDefinitionStamp,
+  constructsFromArchitecture,
+  emitPopulateApi,
+  probeArtifactKinds,
+  type ArtifactKind,
+  type EmitPopulateApiOptions,
+  type EmitPopulateApiResult,
+} from "./codegen/emit-populate-api";
+
+export { checkDefinitionStamp } from "./codegen/check-stamp";
 
 export {
   deriveDesiredInventory,
