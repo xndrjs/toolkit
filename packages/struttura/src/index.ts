@@ -117,6 +117,14 @@ export {
 } from "./query/inventory-query";
 
 export {
+  filesInDirectory,
+  type FilesInDirectoryOptions,
+  type FilesInDirectoryTarget,
+} from "./query/files-in-directory";
+
+export { relativeTsModule, renderTsBarrel } from "./ts/barrel";
+
+export {
   toCamelCase,
   toKebabCase,
   toPascalCase,

@@ -1,0 +1,758 @@
+{
+  "version": 1,
+  "architectureName": "CleanArchitectureOrientedMonorepo",
+  "materializationRoot": "../project",
+  "instances": [
+    {
+      "id": "workspace",
+      "name": "workspace",
+      "constructName": "WorkspaceRoot",
+      "dependencies": {}
+    },
+    {
+      "id": "spec-pagebuilder",
+      "name": "pagebuilder",
+      "constructName": "FeatureSpec",
+      "dependencies": {}
+    },
+    {
+      "id": "pagebuilder",
+      "name": "pagebuilder",
+      "constructName": "CorePackage",
+      "dependencies": {}
+    },
+    {
+      "id": "models",
+      "name": "models",
+      "constructName": "ModelsModule",
+      "dependencies": {
+        "core": "pagebuilder"
+      }
+    },
+    {
+      "id": "operations",
+      "name": "operations",
+      "constructName": "OperationsModule",
+      "dependencies": {
+        "core": "pagebuilder"
+      }
+    },
+    {
+      "id": "useCases",
+      "name": "useCases",
+      "constructName": "UseCasesModule",
+      "dependencies": {
+        "core": "pagebuilder"
+      }
+    },
+    {
+      "id": "ports",
+      "name": "ports",
+      "constructName": "PortsModule",
+      "dependencies": {
+        "core": "pagebuilder"
+      }
+    },
+    {
+      "id": "errors",
+      "name": "errors",
+      "constructName": "ErrorsModule",
+      "dependencies": {
+        "core": "pagebuilder"
+      }
+    },
+    {
+      "id": "page",
+      "name": "page",
+      "constructName": "Shape",
+      "dependencies": {
+        "models": "models"
+      }
+    },
+    {
+      "id": "pageSlug",
+      "name": "pageSlug",
+      "constructName": "Primitive",
+      "dependencies": {
+        "models": "models"
+      }
+    },
+    {
+      "id": "publishedPage",
+      "name": "publishedPage",
+      "constructName": "Proof",
+      "dependencies": {
+        "models": "models"
+      }
+    },
+    {
+      "id": "page-capabilities",
+      "name": "page",
+      "constructName": "Capabilities",
+      "dependencies": {
+        "operations": "operations"
+      }
+    },
+    {
+      "id": "pagePricing",
+      "name": "pagePricing",
+      "constructName": "DomainService",
+      "dependencies": {
+        "operations": "operations"
+      }
+    },
+    {
+      "id": "pageNotFound",
+      "name": "pageNotFound",
+      "constructName": "DomainError",
+      "dependencies": {
+        "errors": "errors"
+      }
+    },
+    {
+      "id": "pageRepository",
+      "name": "pageRepository",
+      "constructName": "Port",
+      "dependencies": {
+        "ports": "ports"
+      }
+    },
+    {
+      "id": "resolvePage",
+      "name": "resolvePage",
+      "constructName": "UseCase",
+      "dependencies": {
+        "useCases": "useCases"
+      }
+    },
+    {
+      "id": "contentful",
+      "name": "contentful",
+      "constructName": "InfrastructurePackage",
+      "dependencies": {}
+    },
+    {
+      "id": "page-loader",
+      "name": "page",
+      "constructName": "InfrastructureLoader",
+      "dependencies": {
+        "infra": "contentful"
+      }
+    },
+    {
+      "id": "page-repository",
+      "name": "pageRepository",
+      "constructName": "InfrastructureRepository",
+      "dependencies": {
+        "infra": "contentful",
+        "port": "pageRepository",
+        "loader": "page-loader",
+        "shape": "page"
+      }
+    },
+    {
+      "id": "react",
+      "name": "react",
+      "constructName": "UiPackage",
+      "dependencies": {}
+    },
+    {
+      "id": "web-next",
+      "name": "web-next",
+      "constructName": "App",
+      "dependencies": {}
+    },
+    {
+      "id": "web-server",
+      "name": "web-server",
+      "constructName": "CompositionRoot",
+      "dependencies": {
+        "app": "web-next"
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "instanceId": "web-next",
+      "constructName": "App",
+      "artifactKey": "packageDirectory",
+      "kind": "directory",
+      "path": "apps/web-next",
+      "directory": {
+        "kind": "inline",
+        "path": "apps/web-next"
+      }
+    },
+    {
+      "instanceId": "web-next",
+      "constructName": "App",
+      "artifactKey": "composition",
+      "kind": "directory",
+      "path": "apps/web-next/composition",
+      "directory": {
+        "kind": "inline",
+        "path": "apps/web-next/composition"
+      }
+    },
+    {
+      "instanceId": "web-server",
+      "constructName": "CompositionRoot",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "apps/web-next/composition/web-server.composition.ts",
+      "mode": "scaffold",
+      "filename": "web-server.composition.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "web-next",
+        "artifactKey": "composition"
+      }
+    },
+    {
+      "instanceId": "web-next",
+      "constructName": "App",
+      "artifactKey": "packageJson",
+      "kind": "file",
+      "path": "apps/web-next/package.json",
+      "mode": "scaffold",
+      "filename": "package.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "web-next",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "workspace",
+      "constructName": "WorkspaceRoot",
+      "artifactKey": "packageJson",
+      "kind": "file",
+      "path": "package.json",
+      "mode": "scaffold",
+      "filename": "package.json",
+      "directory": {
+        "kind": "root"
+      }
+    },
+    {
+      "instanceId": "pagebuilder",
+      "constructName": "CorePackage",
+      "artifactKey": "packageDirectory",
+      "kind": "directory",
+      "path": "packages/core-pagebuilder",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-pagebuilder"
+      }
+    },
+    {
+      "instanceId": "pagebuilder",
+      "constructName": "CorePackage",
+      "artifactKey": "readme",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/README.md",
+      "mode": "scaffold",
+      "filename": "README.md",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "pagebuilder",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "errors",
+      "constructName": "ErrorsModule",
+      "artifactKey": "errors",
+      "kind": "directory",
+      "path": "packages/core-pagebuilder/errors",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-pagebuilder/errors"
+      }
+    },
+    {
+      "instanceId": "errors",
+      "constructName": "ErrorsModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/errors/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "errors",
+        "artifactKey": "errors"
+      }
+    },
+    {
+      "instanceId": "pageNotFound",
+      "constructName": "DomainError",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/errors/page-not-found.error.ts",
+      "mode": "scaffold",
+      "filename": "page-not-found.error.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "errors",
+        "artifactKey": "errors"
+      }
+    },
+    {
+      "instanceId": "models",
+      "constructName": "ModelsModule",
+      "artifactKey": "models",
+      "kind": "directory",
+      "path": "packages/core-pagebuilder/models",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-pagebuilder/models"
+      }
+    },
+    {
+      "instanceId": "models",
+      "constructName": "ModelsModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/models/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "models",
+        "artifactKey": "models"
+      }
+    },
+    {
+      "instanceId": "pageSlug",
+      "constructName": "Primitive",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/models/page-slug.primitive.ts",
+      "mode": "scaffold",
+      "filename": "page-slug.primitive.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "models",
+        "artifactKey": "models"
+      }
+    },
+    {
+      "instanceId": "page",
+      "constructName": "Shape",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/models/page.shape.ts",
+      "mode": "scaffold",
+      "filename": "page.shape.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "models",
+        "artifactKey": "models"
+      }
+    },
+    {
+      "instanceId": "publishedPage",
+      "constructName": "Proof",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/models/published-page.proof.ts",
+      "mode": "scaffold",
+      "filename": "published-page.proof.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "models",
+        "artifactKey": "models"
+      }
+    },
+    {
+      "instanceId": "operations",
+      "constructName": "OperationsModule",
+      "artifactKey": "operations",
+      "kind": "directory",
+      "path": "packages/core-pagebuilder/operations",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-pagebuilder/operations"
+      }
+    },
+    {
+      "instanceId": "operations",
+      "constructName": "OperationsModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/operations/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "operations",
+        "artifactKey": "operations"
+      }
+    },
+    {
+      "instanceId": "pagePricing",
+      "constructName": "DomainService",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/operations/page-pricing.service.ts",
+      "mode": "scaffold",
+      "filename": "page-pricing.service.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "operations",
+        "artifactKey": "operations"
+      }
+    },
+    {
+      "instanceId": "page-capabilities",
+      "constructName": "Capabilities",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/operations/page.capabilities.ts",
+      "mode": "scaffold",
+      "filename": "page.capabilities.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "operations",
+        "artifactKey": "operations"
+      }
+    },
+    {
+      "instanceId": "pagebuilder",
+      "constructName": "CorePackage",
+      "artifactKey": "packageJson",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/package.json",
+      "mode": "scaffold",
+      "filename": "package.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "pagebuilder",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "ports",
+      "constructName": "PortsModule",
+      "artifactKey": "ports",
+      "kind": "directory",
+      "path": "packages/core-pagebuilder/ports",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-pagebuilder/ports"
+      }
+    },
+    {
+      "instanceId": "ports",
+      "constructName": "PortsModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/ports/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "ports",
+        "artifactKey": "ports"
+      }
+    },
+    {
+      "instanceId": "pageRepository",
+      "constructName": "Port",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/ports/page-repository.port.ts",
+      "mode": "scaffold",
+      "filename": "page-repository.port.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "ports",
+        "artifactKey": "ports"
+      }
+    },
+    {
+      "instanceId": "useCases",
+      "constructName": "UseCasesModule",
+      "artifactKey": "useCases",
+      "kind": "directory",
+      "path": "packages/core-pagebuilder/use-cases",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-pagebuilder/use-cases"
+      }
+    },
+    {
+      "instanceId": "useCases",
+      "constructName": "UseCasesModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/use-cases/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "useCases",
+        "artifactKey": "useCases"
+      }
+    },
+    {
+      "instanceId": "resolvePage",
+      "constructName": "UseCase",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/use-cases/resolve-page.use-case.ts",
+      "mode": "scaffold",
+      "filename": "resolve-page.use-case.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "useCases",
+        "artifactKey": "useCases"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "packageDirectory",
+      "kind": "directory",
+      "path": "packages/infrastructure-contentful",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/infrastructure-contentful"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "readme",
+      "kind": "file",
+      "path": "packages/infrastructure-contentful/README.md",
+      "mode": "scaffold",
+      "filename": "README.md",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/infrastructure-contentful/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "loaders",
+      "kind": "directory",
+      "path": "packages/infrastructure-contentful/loaders",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/infrastructure-contentful/loaders"
+      }
+    },
+    {
+      "instanceId": "page-loader",
+      "constructName": "InfrastructureLoader",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/infrastructure-contentful/loaders/page.loader.ts",
+      "mode": "scaffold",
+      "filename": "page.loader.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful",
+        "artifactKey": "loaders"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "mappers",
+      "kind": "directory",
+      "path": "packages/infrastructure-contentful/mappers",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/infrastructure-contentful/mappers"
+      }
+    },
+    {
+      "instanceId": "page-repository",
+      "constructName": "InfrastructureRepository",
+      "artifactKey": "mapper",
+      "kind": "file",
+      "path": "packages/infrastructure-contentful/mappers/page.mapper.ts",
+      "mode": "scaffold",
+      "filename": "page.mapper.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful",
+        "artifactKey": "mappers"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "packageJson",
+      "kind": "file",
+      "path": "packages/infrastructure-contentful/package.json",
+      "mode": "scaffold",
+      "filename": "package.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "repositories",
+      "kind": "directory",
+      "path": "packages/infrastructure-contentful/repositories",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/infrastructure-contentful/repositories"
+      }
+    },
+    {
+      "instanceId": "page-repository",
+      "constructName": "InfrastructureRepository",
+      "artifactKey": "repository",
+      "kind": "file",
+      "path": "packages/infrastructure-contentful/repositories/page-repository.repository.ts",
+      "mode": "scaffold",
+      "filename": "page-repository.repository.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful",
+        "artifactKey": "repositories"
+      }
+    },
+    {
+      "instanceId": "react",
+      "constructName": "UiPackage",
+      "artifactKey": "packageDirectory",
+      "kind": "directory",
+      "path": "packages/ui-react",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/ui-react"
+      }
+    },
+    {
+      "instanceId": "react",
+      "constructName": "UiPackage",
+      "artifactKey": "readme",
+      "kind": "file",
+      "path": "packages/ui-react/README.md",
+      "mode": "scaffold",
+      "filename": "README.md",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "react",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "react",
+      "constructName": "UiPackage",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/ui-react/index.ts",
+      "mode": "scaffold",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "react",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "react",
+      "constructName": "UiPackage",
+      "artifactKey": "packageJson",
+      "kind": "file",
+      "path": "packages/ui-react/package.json",
+      "mode": "scaffold",
+      "filename": "package.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "react",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "workspace",
+      "constructName": "WorkspaceRoot",
+      "artifactKey": "pnpmWorkspace",
+      "kind": "file",
+      "path": "pnpm-workspace.yaml",
+      "mode": "scaffold",
+      "filename": "pnpm-workspace.yaml",
+      "directory": {
+        "kind": "root"
+      }
+    },
+    {
+      "instanceId": "spec-pagebuilder",
+      "constructName": "FeatureSpec",
+      "artifactKey": "folder",
+      "kind": "directory",
+      "path": "specs/pagebuilder",
+      "directory": {
+        "kind": "inline",
+        "path": "specs/pagebuilder"
+      }
+    },
+    {
+      "instanceId": "spec-pagebuilder",
+      "constructName": "FeatureSpec",
+      "artifactKey": "design",
+      "kind": "file",
+      "path": "specs/pagebuilder/DESIGN.md",
+      "mode": "scaffold",
+      "filename": "DESIGN.md",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "spec-pagebuilder",
+        "artifactKey": "folder"
+      }
+    },
+    {
+      "instanceId": "spec-pagebuilder",
+      "constructName": "FeatureSpec",
+      "artifactKey": "spec",
+      "kind": "file",
+      "path": "specs/pagebuilder/SPEC.md",
+      "mode": "scaffold",
+      "filename": "SPEC.md",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "spec-pagebuilder",
+        "artifactKey": "folder"
+      }
+    },
+    {
+      "instanceId": "workspace",
+      "constructName": "WorkspaceRoot",
+      "artifactKey": "tsconfig",
+      "kind": "file",
+      "path": "tsconfig.json",
+      "mode": "sync",
+      "filename": "tsconfig.json",
+      "directory": {
+        "kind": "root"
+      }
+    }
+  ]
+}

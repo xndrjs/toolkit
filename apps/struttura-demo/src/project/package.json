@@ -1,0 +1,9 @@
+{
+  "name": "struttura-demo-project",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  }
+}

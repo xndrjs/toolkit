@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/web-next"
+    },
+    {
+      "path": "./packages/core-pagebuilder"
+    },
+    {
+      "path": "./packages/infrastructure-contentful"
+    },
+    {
+      "path": "./packages/ui-react"
+    }
+  ]
+}

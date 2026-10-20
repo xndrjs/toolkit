@@ -1,0 +1,20 @@
+{
+  "name": "@xndrjs/struttura-demo",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "codegen": "struttura codegen --architecture ./src/architecture/architecture.ts --out ./src/architecture/populate-api.generated.ts",
+    "apply": "struttura apply --population ./src/architecture/population.ts --architecture-dir ./src/architecture --materialization-root ./src/project",
+    "inspect": "struttura inspect --population ./src/architecture/population.ts --architecture-dir ./src/architecture --materialization-root ./src/project",
+    "materialize": "pnpm run codegen && pnpm run apply",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "@xndrjs/struttura": "workspace:^",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.0"
+  }
+}

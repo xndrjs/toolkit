@@ -247,6 +247,21 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0(@types/node@22.20.1)(jsdom@26.1.0)(vite@8.0.1(@types/node@22.20.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.5)(yaml@2.8.3))
 
+  apps/struttura-demo:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.29
+        version: 22.20.1
+      '@xndrjs/struttura':
+        specifier: workspace:^
+        version: link:../../packages/struttura
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.0(@types/node@22.20.1)(jsdom@26.1.0)(vite@8.0.1(@types/node@22.20.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.5)(yaml@2.8.3))
+
   apps/xndrjs-documentation:
     dependencies:
       '@astrojs/starlight':

@@ -1,0 +1,11 @@
+{
+  "name": "@ui/react",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}
