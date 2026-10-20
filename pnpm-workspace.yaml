@@ -1,8 +1,4 @@
 packages:
-  - "apps/*"
+  - "apps/**"
   - "configs/*"
   - "packages/*"
-  # struttura-demo materialization root — workshop packages share the toolkit
-  # workspace so @xndrjs/* workspace:* deps resolve (see apps/struttura-demo README).
-  - "apps/struttura-demo/src/project/apps/*"
-  - "apps/struttura-demo/src/project/packages/*"
