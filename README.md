@@ -37,3 +37,4 @@ Workspace-wide scripts (install, build, test, release) run from the **repository
 | `@xndrjs/resource-graph-resolver` | Resource graph resolver, islands, expansion (`packages/resource-graph-resolver`)                              |
 | `@xndrjs/ziel`                    | Ziel product entry: DSL compile + resolve façades over the resource graph resolver (`packages/ziel`)          |
 | `@xndrjs/contentful-to-zod`       | Zod 4 codegen from Contentful content types (`packages/contentful-to-zod`)                                    |
+| `@xndrjs/struttura`               | Typed architecture Constructs, Relations, Backend emit, and sync CLI (`packages/struttura`)                   |
