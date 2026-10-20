@@ -34,10 +34,7 @@ export function renderTsBarrel(
  * Sync barrel from an explicit directory path and file list (e.g. merging
  * several `filesInDirectory` results under a parent path).
  */
-export function renderTsBarrel(
-  directoryPath: string,
-  files: readonly DesiredArtifact[]
-): string;
+export function renderTsBarrel(directoryPath: string, files: readonly DesiredArtifact[]): string;
 
 export function renderTsBarrel(
   ctxOrPath: FileRenderContext | string,

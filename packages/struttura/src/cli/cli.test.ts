@@ -112,21 +112,26 @@ export const CorePackage = A.defineConstruct("CorePackage", ({ name }) => {
   return {
     packageDirectory,
     models,
-    modelsIndex: file("index.ts", models, "sync", "// barrel\\n"),
+    modelsIndex: file({ filename: "index.ts", directory: models, mode: "sync", content: "// barrel\\n" }),
   };
 });
 
 export const Model = A.defineConstruct("Model", { core: CorePackage }, ({ name, core }) => ({
-  source: file(
-    \`\${toKebabCase(name)}.model.ts\`,
-    core.artifacts.models,
-    "scaffold",
-    \`export type \${name} = { id: string };\\n\`
-  ),
+  source: file({
+    filename: \`\${toKebabCase(name)}.model.ts\`,
+    directory: core.artifacts.models,
+    mode: "scaffold",
+    content: \`export type \${name} = { id: string };\\n\`,
+  }),
 }));
 
 export const PackageJson = A.defineConstruct("PackageJson", () => ({
-  packageJson: file("package.json", root, "scaffold", '{ "name": "project" }\\n'),
+  packageJson: file({
+    filename: "package.json",
+    directory: root,
+    mode: "scaffold",
+    content: '{ "name": "project" }\\n',
+  }),
 }));
 
 export const architecture = A.seal();

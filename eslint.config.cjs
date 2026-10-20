@@ -45,4 +45,13 @@ module.exports = [
       "@typescript-eslint/ban-ts-comment": "off",
     },
   },
+  // Scaffold stubs under the demo materialization root intentionally use empty
+  // interfaces / unused params; keep the guide readable without lint noise.
+  {
+    files: ["apps/struttura-demo/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+    },
+  },
 ];

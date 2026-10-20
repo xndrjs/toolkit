@@ -25,27 +25,35 @@ describe("deriveDesiredInventory", () => {
         ports,
         useCases,
         operations,
-        modelsIndex: file("index.ts", models, "sync"),
-        portsIndex: file("index.ts", ports, "sync"),
-        useCasesIndex: file("index.ts", useCases, "sync"),
-        operationsIndex: file("index.ts", operations, "sync"),
+        modelsIndex: file({ filename: "index.ts", directory: models, mode: "sync" }),
+        portsIndex: file({ filename: "index.ts", directory: ports, mode: "sync" }),
+        useCasesIndex: file({ filename: "index.ts", directory: useCases, mode: "sync" }),
+        operationsIndex: file({ filename: "index.ts", directory: operations, mode: "sync" }),
       };
     });
 
     const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
-      source: file(`${toKebabCase(name)}.model.ts`, core.artifacts.models, "scaffold"),
+      source: file({
+        filename: `${toKebabCase(name)}.model.ts`,
+        directory: core.artifacts.models,
+        mode: "scaffold",
+      }),
     }));
 
     const useCase = A.defineConstruct(
       "UseCase",
       { package: corePackage },
       ({ name, package: pkg }) => ({
-        source: file(`${toKebabCase(name)}.use-case.ts`, pkg.artifacts.useCases, "scaffold"),
+        source: file({
+          filename: `${toKebabCase(name)}.use-case.ts`,
+          directory: pkg.artifacts.useCases,
+          mode: "scaffold",
+        }),
       })
     );
 
     const packageJson = A.defineConstruct("PackageJson", () => ({
-      packageJson: file("package.json", root, "scaffold"),
+      packageJson: file({ filename: "package.json", directory: root, mode: "scaffold" }),
     }));
 
     const population = createPopulation(A);
@@ -144,7 +152,7 @@ describe("deriveDesiredInventory", () => {
   it("rejects invalid filenames via regex", () => {
     const A = defineArchitecture("BadFilename");
     const thing = A.defineConstruct("Thing", () => ({
-      nested: file("sub/path.ts", root, "scaffold"),
+      nested: file({ filename: "sub/path.ts", directory: root, mode: "scaffold" }),
     }));
 
     const population = createPopulation(A);
@@ -164,8 +172,8 @@ describe("deriveDesiredInventory", () => {
       const folder = dir(`things/${name}`);
       return {
         folder,
-        keep: file(".gitkeep", folder, "scaffold"),
-        model: file("page.model.ts", folder, "scaffold"),
+        keep: file({ filename: ".gitkeep", directory: folder, mode: "scaffold" }),
+        model: file({ filename: "page.model.ts", directory: folder, mode: "scaffold" }),
       };
     });
 
@@ -223,8 +231,8 @@ describe("deriveDesiredInventory", () => {
   it("rejects colliding file paths from distinct artifacts", () => {
     const A = defineArchitecture("FileCollision");
     const thing = A.defineConstruct("Thing", () => ({
-      a: file("same.ts", root, "scaffold"),
-      b: file("same.ts", root, "sync"),
+      a: file({ filename: "same.ts", directory: root, mode: "scaffold" }),
+      b: file({ filename: "same.ts", directory: root, mode: "sync" }),
     }));
 
     const population = createPopulation(A);
@@ -246,11 +254,15 @@ describe("deriveDesiredInventory", () => {
       return {
         packageDirectory,
         models,
-        modelsIndex: file("index.ts", models, "sync"),
+        modelsIndex: file({ filename: "index.ts", directory: models, mode: "sync" }),
       };
     });
     const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
-      source: file(`${toKebabCase(name)}.model.ts`, core.artifacts.models, "scaffold"),
+      source: file({
+        filename: `${toKebabCase(name)}.model.ts`,
+        directory: core.artifacts.models,
+        mode: "scaffold",
+      }),
     }));
 
     const population = createPopulation(A);

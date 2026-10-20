@@ -31,7 +31,12 @@ describe("migrate-id", () => {
       return { packageDirectory, models };
     });
     const model = A.defineConstruct("Model", { core }, ({ name, core: c }) => ({
-      source: file(`${name}.ts`, c.artifacts.models, "scaffold", `export type ${name} = {};\n`),
+      source: file({
+        filename: `${name}.ts`,
+        directory: c.artifacts.models,
+        mode: "scaffold",
+        content: `export type ${name} = {};\n`,
+      }),
     }));
 
     const population = createPopulation(A);

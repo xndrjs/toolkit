@@ -15,12 +15,16 @@ function buildGuidePopulation() {
     return {
       packageDirectory,
       models,
-      modelsIndex: file("index.ts", models, "sync"),
+      modelsIndex: file({ filename: "index.ts", directory: models, mode: "sync" }),
     };
   });
 
   const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
-    source: file(`${toKebabCase(name)}.model.ts`, core.artifacts.models, "scaffold"),
+    source: file({
+      filename: `${toKebabCase(name)}.model.ts`,
+      directory: core.artifacts.models,
+      mode: "scaffold",
+    }),
   }));
 
   const population = createPopulation(A);
@@ -100,13 +104,18 @@ describe("createInventoryQuery", () => {
       const folder = dir("shared");
       return {
         folder,
-        keep: file(".gitkeep", folder, "scaffold", ""),
+        keep: file({ filename: ".gitkeep", directory: folder, mode: "scaffold", content: "" }),
       };
     });
     const other = A.defineConstruct("Other", () => ({
       // Same path string, distinct directory artifact identity.
       folder: dir("shared-other"),
-      nested: file("x.ts", dir("shared"), "scaffold", "export {};\n"),
+      nested: file({
+        filename: "x.ts",
+        directory: dir("shared"),
+        mode: "scaffold",
+        content: "export {};\n",
+      }),
     }));
 
     const population = createPopulation(A);
@@ -132,8 +141,13 @@ describe("createInventoryQuery", () => {
   it("filesIn on root returns files targeting root", () => {
     const A = defineArchitecture("RootFiles");
     const pkg = A.defineConstruct("Pkg", () => ({
-      packageJson: file("package.json", root, "scaffold", "{}\n"),
-      readme: file("README.md", root, "scaffold", "# hi\n"),
+      packageJson: file({
+        filename: "package.json",
+        directory: root,
+        mode: "scaffold",
+        content: "{}\n",
+      }),
+      readme: file({ filename: "README.md", directory: root, mode: "scaffold", content: "# hi\n" }),
     }));
     const population = createPopulation(A);
     population.add(pkg, { name: "root-files" });

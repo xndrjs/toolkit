@@ -19,5 +19,5 @@ ADRs 0010, 0012
 
 - `emitPopulateApi` / `computeDefinitionStamp` / `probeArtifactKinds` under `src/codegen/`
 - Population carries optional `definitionStamp`; apply/inspect return `stale-generated-api`
-- `file(...)` directory arg is `DirRef | DirDescriptor` (FileRef is a type error)
+- `file({ directory })` is `DirRef | DirDescriptor` (FileRef is a type error)
 - CLI `codegen` command remains ticket 09

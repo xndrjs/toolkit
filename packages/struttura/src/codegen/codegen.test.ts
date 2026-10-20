@@ -31,21 +31,31 @@ function buildCleanArchitecture() {
     return {
       packageDirectory,
       models,
-      modelsIndex: file("index.ts", models, "sync", "// barrel\n"),
+      modelsIndex: file({
+        filename: "index.ts",
+        directory: models,
+        mode: "sync",
+        content: "// barrel\n",
+      }),
     };
   });
 
   const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
-    source: file(
-      `${toKebabCase(name)}.model.ts`,
-      core.artifacts.models,
-      "scaffold",
-      `export type ${name} = { id: string };\n`
-    ),
+    source: file({
+      filename: `${toKebabCase(name)}.model.ts`,
+      directory: core.artifacts.models,
+      mode: "scaffold",
+      content: `export type ${name} = { id: string };\n`,
+    }),
   }));
 
   const packageJson = A.defineConstruct("PackageJson", () => ({
-    packageJson: file("package.json", root, "scaffold", '{ "name": "project" }\n'),
+    packageJson: file({
+      filename: "package.json",
+      directory: root,
+      mode: "scaffold",
+      content: '{ "name": "project" }\n',
+    }),
   }));
 
   const architecture = A.seal();
@@ -188,7 +198,7 @@ describe("codegen + staleness", () => {
   it("types DirRef and FileRef so a file ref is not assignable where a directory is required", () => {
     type ModelsArtifacts = { readonly models: DirRef; readonly source: FileRef };
     type CoreRef = { readonly artifacts: ModelsArtifacts };
-    type FileDirectoryParam = Parameters<typeof file>[1];
+    type FileDirectoryParam = Parameters<typeof file>[0]["directory"];
 
     expectTypeOf<CoreRef["artifacts"]["models"]>().toEqualTypeOf<DirRef>();
     expectTypeOf<CoreRef["artifacts"]["source"]>().toEqualTypeOf<FileRef>();

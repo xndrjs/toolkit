@@ -49,7 +49,7 @@ File management mode that regenerates derived content on each successful apply w
 _Avoid_: Generated, managed (alone), derived (as the mode name)
 
 **DirRef**:
-A typed reference to a directory artifact (or to the materialization `root`), usable as a `file(...)` destination.
+A typed reference to a directory artifact (or to the materialization `root`), usable as `file({ directory })`.
 _Avoid_: Path string, folder handle
 
 **FileRef**:

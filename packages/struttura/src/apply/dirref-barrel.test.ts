@@ -43,23 +43,31 @@ function buildPagebuilderArchitecture() {
     return {
       packageDirectory,
       models,
-      modelsIndex: file("index.ts", models, "sync", (ctx: FileRenderContext) =>
-        renderModelsBarrel(ctx)
-      ),
+      modelsIndex: file({
+        filename: "index.ts",
+        directory: models,
+        mode: "sync",
+        content: (ctx: FileRenderContext) => renderModelsBarrel(ctx),
+      }),
     };
   });
 
   const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
-    source: file(
-      `${toKebabCase(name)}.model.ts`,
-      core.artifacts.models,
-      "scaffold",
-      `export type ${name} = { id: string };\n`
-    ),
+    source: file({
+      filename: `${toKebabCase(name)}.model.ts`,
+      directory: core.artifacts.models,
+      mode: "scaffold",
+      content: `export type ${name} = { id: string };\n`,
+    }),
   }));
 
   const packageJson = A.defineConstruct("PackageJson", () => ({
-    packageJson: file("package.json", root, "scaffold", '{ "name": "project" }\n'),
+    packageJson: file({
+      filename: "package.json",
+      directory: root,
+      mode: "scaffold",
+      content: '{ "name": "project" }\n',
+    }),
   }));
 
   return { A, corePackage, model, packageJson };

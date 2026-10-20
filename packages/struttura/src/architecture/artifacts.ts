@@ -33,10 +33,18 @@ export type DirDescriptor = {
 export type FileContentFn = (ctx: any) => string;
 
 /**
- * Directory placement for `file(...)`. FileRef is excluded at the type level
- * (ADR 0012); runtime still rejects a FileRef if forced through.
+ * Directory placement for `file({ directory })`. FileRef is excluded at the
+ * type level (ADR 0012); runtime still rejects a FileRef if forced through.
  */
 export type DirectoryRefInput = DirRef | DirDescriptor;
+
+export type FileOptions = {
+  readonly filename: string;
+  readonly directory: DirectoryRefInput;
+  readonly mode: FileMode;
+  /** Scaffold template or sync renderer (lazy; ADR 0001). */
+  readonly content?: string | FileContentFn;
+};
 
 export type FileDescriptor = {
   readonly kind: "file-descriptor";
@@ -58,18 +66,13 @@ export function dir(path: string): DirDescriptor {
   });
 }
 
-export function file(
-  filename: string,
-  directoryRef: DirectoryRefInput,
-  mode: FileMode,
-  content?: string | FileContentFn
-): FileDescriptor {
+export function file(options: FileOptions): FileDescriptor {
   return Object.freeze({
     kind: "file-descriptor",
-    filename,
-    directoryRef,
-    mode,
-    ...(content === undefined ? {} : { content }),
+    filename: options.filename,
+    directoryRef: options.directory,
+    mode: options.mode,
+    ...(options.content === undefined ? {} : { content: options.content }),
   });
 }
 

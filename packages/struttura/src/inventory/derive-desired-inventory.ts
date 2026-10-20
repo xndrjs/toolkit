@@ -110,7 +110,7 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
       continue;
     }
 
-    // Bind directories first so same-callback file(..., dir(...)) can resolve to
+    // Bind directories first so same-callback file({ directory: dir(...) }) can resolve to
     // the sibling directory artifact identity (needed for filesIn / provenance).
     const entries = Object.entries(descriptors);
     for (const [artifactKey, descriptor] of entries) {

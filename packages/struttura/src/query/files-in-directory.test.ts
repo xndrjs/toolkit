@@ -16,11 +16,20 @@ function buildPopulation() {
     return {
       packageDirectory,
       models,
-      modelsIndex: file("index.ts", models, "sync", "// barrel\n"),
+      modelsIndex: file({
+        filename: "index.ts",
+        directory: models,
+        mode: "sync",
+        content: "// barrel\n",
+      }),
     };
   });
   const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
-    source: file(`${toKebabCase(name)}.model.ts`, core.artifacts.models, "scaffold"),
+    source: file({
+      filename: `${toKebabCase(name)}.model.ts`,
+      directory: core.artifacts.models,
+      mode: "scaffold",
+    }),
   }));
 
   const population = createPopulation(A);

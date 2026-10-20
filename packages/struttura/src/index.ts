@@ -23,6 +23,7 @@ export type {
   FileContentFn,
   FileDescriptor,
   FileMode,
+  FileOptions,
   FileRef,
   RootRef,
 } from "./architecture/artifacts";

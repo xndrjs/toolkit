@@ -34,37 +34,62 @@ function buildGuidePopulation() {
       ports,
       useCases,
       operations,
-      modelsIndex: file("index.ts", models, "sync", "// models barrel\n"),
-      portsIndex: file("index.ts", ports, "sync", "// ports barrel\n"),
-      useCasesIndex: file("index.ts", useCases, "sync", "// use-cases barrel\n"),
-      operationsIndex: file("index.ts", operations, "sync", "// operations barrel\n"),
+      modelsIndex: file({
+        filename: "index.ts",
+        directory: models,
+        mode: "sync",
+        content: "// models barrel\n",
+      }),
+      portsIndex: file({
+        filename: "index.ts",
+        directory: ports,
+        mode: "sync",
+        content: "// ports barrel\n",
+      }),
+      useCasesIndex: file({
+        filename: "index.ts",
+        directory: useCases,
+        mode: "sync",
+        content: "// use-cases barrel\n",
+      }),
+      operationsIndex: file({
+        filename: "index.ts",
+        directory: operations,
+        mode: "sync",
+        content: "// operations barrel\n",
+      }),
     };
   });
 
   const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
-    source: file(
-      `${toKebabCase(name)}.model.ts`,
-      core.artifacts.models,
-      "scaffold",
-      `export type ${name} = { id: string };\n`
-    ),
+    source: file({
+      filename: `${toKebabCase(name)}.model.ts`,
+      directory: core.artifacts.models,
+      mode: "scaffold",
+      content: `export type ${name} = { id: string };\n`,
+    }),
   }));
 
   const useCase = A.defineConstruct(
     "UseCase",
     { package: corePackage },
     ({ name, package: pkg }) => ({
-      source: file(
-        `${toKebabCase(name)}.use-case.ts`,
-        pkg.artifacts.useCases,
-        "scaffold",
-        `export function ${name}() {}\n`
-      ),
+      source: file({
+        filename: `${toKebabCase(name)}.use-case.ts`,
+        directory: pkg.artifacts.useCases,
+        mode: "scaffold",
+        content: `export function ${name}() {}\n`,
+      }),
     })
   );
 
   const packageJson = A.defineConstruct("PackageJson", () => ({
-    packageJson: file("package.json", root, "scaffold", '{ "name": "project" }\n'),
+    packageJson: file({
+      filename: "package.json",
+      directory: root,
+      mode: "scaffold",
+      content: '{ "name": "project" }\n',
+    }),
   }));
 
   const population = createPopulation(A);
@@ -251,7 +276,7 @@ describe("inspect", () => {
 
     const A = defineArchitecture("Broken");
     const pkg = A.defineConstruct("Pkg", () => ({
-      bad: file("../escape.ts", root, "scaffold", "nope\n"),
+      bad: file({ filename: "../escape.ts", directory: root, mode: "scaffold", content: "nope\n" }),
     }));
     const population = createPopulation(A);
     population.add(pkg, { name: "x" });
