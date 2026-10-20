@@ -5,6 +5,7 @@
   "dependencies": {
     "@core/pagebuilder": "workspace:*",
     "@infrastructure/contentful": "workspace:*",
-    "@ui/react": "workspace:*"
+    "@ui/react": "workspace:*",
+    "server-only": "^0.0.1"
   }
 }

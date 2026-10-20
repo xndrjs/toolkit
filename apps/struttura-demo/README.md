@@ -21,6 +21,8 @@ src/
     pnpm-workspace.yaml
 ```
 
+`src/project/{apps,packages}/*` are **members of the toolkit root pnpm workspace** so `@xndrjs/*` and cross-package `workspace:*` deps resolve with a single root `pnpm i`. The nested `pnpm-workspace.yaml` mirrors a real monorepo layout but is not used for install.
+
 ## Commands
 
 ```bash
@@ -32,24 +34,24 @@ pnpm --filter @xndrjs/struttura-demo test
 pnpm --filter @xndrjs/struttura-demo typecheck
 ```
 
-Requires `@xndrjs/struttura` to be built (`pnpm --filter @xndrjs/struttura build`) so the `struttura` bin is available.
+Requires `@xndrjs/struttura` to be built (`pnpm --filter @xndrjs/struttura build`) so the `struttura` bin is available. After changing project `package.json` deps, re-run root `pnpm i`.
 
 ## Constructs ↔ monorepo elements
 
-| Construct                                           | Monorepo element                                                                 |
-| --------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `WorkspaceRoot`                                     | Root `package.json`, `pnpm-workspace.yaml`, `tsconfig.json`                      |
-| `FeatureSpec`                                       | `specs/<feature>/SPEC.md` + `DESIGN.md`                                          |
-| `CorePackage`                                       | `packages/core-<feature>/` shell (`package.json`, README)                        |
-| `ModelsModule` / `OperationsModule` / …             | Layer folder + sync barrel under the core package                                |
-| `Shape` / `Primitive` / `Proof`                     | Domain kits under `models/` (via `ModelsModule`)                                 |
-| `Capabilities` / `DomainService`                    | `operations/*.capabilities.ts` / `*.service.ts` (via `OperationsModule`)         |
-| `DomainError`                                       | `errors/*.error.ts` (via `ErrorsModule`)                                         |
-| `Port` / `UseCase`                                  | via `PortsModule` / `UseCasesModule`                                             |
-| `InfrastructurePackage`                             | `packages/infrastructure-<name>/`                                                |
-| `InfrastructureLoader` / `InfrastructureRepository` | loaders + repositories + mappers                                                 |
-| `UiPackage`                                         | `packages/ui-<name>/` (apps-only import rule is ESLint wave 2)                   |
-| `App` / `CompositionRoot`                           | `apps/<app>/` + `composition/*.composition.ts`                                   |
+| Construct                                           | Monorepo element                                                         |
+| --------------------------------------------------- | ------------------------------------------------------------------------ |
+| `WorkspaceRoot`                                     | Root `package.json`, `pnpm-workspace.yaml`, `tsconfig.json`              |
+| `FeatureSpec`                                       | `specs/<feature>/SPEC.md` + `DESIGN.md`                                  |
+| `CorePackage`                                       | `packages/core-<feature>/` shell (`package.json`, README)                |
+| `ModelsModule` / `OperationsModule` / …             | Layer folder + sync barrel under the core package                        |
+| `Shape` / `Primitive` / `Proof`                     | Domain kits under `models/` (via `ModelsModule`)                         |
+| `Capabilities` / `DomainService`                    | `operations/*.capabilities.ts` / `*.service.ts` (via `OperationsModule`) |
+| `DomainError`                                       | `errors/*.error.ts` (via `ErrorsModule`)                                 |
+| `Port` / `UseCase`                                  | via `PortsModule` / `UseCasesModule`                                     |
+| `InfrastructurePackage`                             | `packages/infrastructure-<name>/`                                        |
+| `InfrastructureLoader` / `InfrastructureRepository` | loaders + repositories + mappers                                         |
+| `UiPackage`                                         | `packages/ui-<name>/` (apps-only import rule is ESLint wave 2)           |
+| `App` / `CompositionRoot`                           | `apps/<app>/` + `composition/*.composition.ts`                           |
 
 ## Population slice
 

@@ -262,6 +262,41 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0(@types/node@22.20.1)(jsdom@26.1.0)(vite@8.0.1(@types/node@22.20.1)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.5)(yaml@2.8.3))
 
+  apps/struttura-demo/src/project/apps/web-next:
+    dependencies:
+      '@core/pagebuilder':
+        specifier: workspace:*
+        version: link:../../packages/core-pagebuilder
+      '@infrastructure/contentful':
+        specifier: workspace:*
+        version: link:../../packages/infrastructure-contentful
+      '@ui/react':
+        specifier: workspace:*
+        version: link:../../packages/ui-react
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
+
+  apps/struttura-demo/src/project/packages/core-pagebuilder:
+    dependencies:
+      '@xndrjs/domain':
+        specifier: workspace:*
+        version: link:../../../../../../packages/domain
+      '@xndrjs/domain-zod':
+        specifier: workspace:*
+        version: link:../../../../../../packages/domain-zod
+      zod:
+        specifier: ^4.0.0
+        version: 4.3.6
+
+  apps/struttura-demo/src/project/packages/infrastructure-contentful: {}
+
+  apps/struttura-demo/src/project/packages/ui-react:
+    dependencies:
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
+
   apps/xndrjs-documentation:
     dependencies:
       '@astrojs/starlight':
@@ -5176,6 +5211,9 @@ packages:
     resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
     engines: {node: '>=10'}
     hasBin: true
+
+  server-only@0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==}
 
   sharp@0.34.5:
     resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==}
@@ -11441,6 +11479,8 @@ snapshots:
   semver@7.7.4: {}
 
   semver@7.8.5: {}
+
+  server-only@0.0.1: {}
 
   sharp@0.34.5:
     dependencies:

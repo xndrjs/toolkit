@@ -637,6 +637,7 @@ export const App = A.defineConstruct("App", ({ name }) => {
             "@core/pagebuilder": "workspace:*",
             "@infrastructure/contentful": "workspace:*",
             "@ui/react": "workspace:*",
+            "server-only": "^0.0.1",
           },
         },
         null,
