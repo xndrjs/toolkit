@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { defineArchitecture, dir, file, root } from "../architecture/define-architecture";
-import { deriveDesiredInventory } from "./derive-desired-inventory";
+import { toKebabCase } from "../casing/casing";
 import { createPopulation } from "../population/create-population";
+import { deriveDesiredInventory } from "./derive-desired-inventory";
 
 function pathsOf(inventory: { artifacts: readonly { path: string }[] }): string[] {
   return inventory.artifacts.map((a) => a.path).sort();
@@ -13,7 +14,7 @@ describe("deriveDesiredInventory", () => {
     const A = defineArchitecture("CleanArchitecture");
 
     const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
-      const packageDirectory = dir(`packages/core-${name}`);
+      const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
       const models = dir(`${packageDirectory.path}/models`);
       const ports = dir(`${packageDirectory.path}/ports`);
       const useCases = dir(`${packageDirectory.path}/use-cases`);
@@ -32,14 +33,14 @@ describe("deriveDesiredInventory", () => {
     });
 
     const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
-      source: file(`${name}.model.ts`, core.artifacts.models, "scaffold"),
+      source: file(`${toKebabCase(name)}.model.ts`, core.artifacts.models, "scaffold"),
     }));
 
     const useCase = A.defineConstruct(
       "UseCase",
       { package: corePackage },
       ({ name, package: pkg }) => ({
-        source: file(`${name}.use-case.ts`, pkg.artifacts.useCases, "scaffold"),
+        source: file(`${toKebabCase(name)}.use-case.ts`, pkg.artifacts.useCases, "scaffold"),
       })
     );
 
@@ -69,14 +70,14 @@ describe("deriveDesiredInventory", () => {
         "packages/core-pagebuilder/models",
         "packages/core-pagebuilder/models/index.ts",
         "packages/core-pagebuilder/models/page.model.ts",
-        "packages/core-pagebuilder/models/pageSlug.model.ts",
+        "packages/core-pagebuilder/models/page-slug.model.ts",
         "packages/core-pagebuilder/operations",
         "packages/core-pagebuilder/operations/index.ts",
         "packages/core-pagebuilder/ports",
         "packages/core-pagebuilder/ports/index.ts",
         "packages/core-pagebuilder/use-cases",
         "packages/core-pagebuilder/use-cases/index.ts",
-        "packages/core-pagebuilder/use-cases/resolvePage.use-case.ts",
+        "packages/core-pagebuilder/use-cases/resolve-page.use-case.ts",
       ].sort()
     );
 
@@ -90,6 +91,16 @@ describe("deriveDesiredInventory", () => {
       constructName: "Model",
       mode: "scaffold",
       filename: "page.model.ts",
+    });
+
+    const pageSlugSource = result.inventory.artifacts.find(
+      (a) => a.path === "packages/core-pagebuilder/models/page-slug.model.ts"
+    );
+    expect(pageSlugSource).toMatchObject({
+      kind: "file",
+      instanceId: "pageSlug",
+      artifactKey: "source",
+      filename: "page-slug.model.ts",
     });
 
     const modelsDir = result.inventory.artifacts.find(
@@ -221,7 +232,7 @@ describe("deriveDesiredInventory", () => {
   it("is independent of instance registration order", () => {
     const A = defineArchitecture("OrderIndependent");
     const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
-      const packageDirectory = dir(`packages/core-${name}`);
+      const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
       const models = dir(`${packageDirectory.path}/models`);
       return {
         packageDirectory,
@@ -230,7 +241,7 @@ describe("deriveDesiredInventory", () => {
       };
     });
     const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
-      source: file(`${name}.model.ts`, core.artifacts.models, "scaffold"),
+      source: file(`${toKebabCase(name)}.model.ts`, core.artifacts.models, "scaffold"),
     }));
 
     const population = createPopulation(A);

@@ -41,3 +41,13 @@ export {
   type Diagnostic,
   type DiagnosticCode,
 } from "./inventory/derive-desired-inventory";
+
+export {
+  toCamelCase,
+  toKebabCase,
+  toPascalCase,
+  toSentenceCase,
+  toSnakeCase,
+  toTitleCase,
+  words,
+} from "./casing/casing";
