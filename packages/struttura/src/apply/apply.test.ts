@@ -402,3 +402,189 @@ describe("scaffold vs sync lifecycle", () => {
     });
   });
 });
+
+/** Compact CorePackage + Model layout matching analysis §14. */
+function buildDeletesArchitecture() {
+  const A = defineArchitecture("Deletes");
+  const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
+    const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
+    const models = dir(`${packageDirectory.path}/models`);
+    return {
+      packageDirectory,
+      models,
+      modelsIndex: file("index.ts", models, "sync", "// models barrel\n"),
+    };
+  });
+  const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
+    source: file(
+      `${toKebabCase(name)}.model.ts`,
+      core.artifacts.models,
+      "scaffold",
+      `export type ${name} = { id: string };\n`
+    ),
+  }));
+  return { A, corePackage, model };
+}
+
+describe("deletes and foreign files (analysis §14)", () => {
+  let tempDir: string | undefined;
+
+  afterEach(() => {
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+      tempDir = undefined;
+    }
+  });
+
+  it("removing a file artifact deletes only that file and keeps unmanaged siblings", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-deletes-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+    const { A, corePackage, model } = buildDeletesArchitecture();
+
+    const withModel = createPopulation(A);
+    const pagebuilder = withModel.add(corePackage, { name: "pagebuilder" });
+    withModel.add(model, { name: "page", core: pagebuilder });
+
+    const first = apply(withModel, options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+
+    const helpersPath = join(materializationRoot, "packages/core-pagebuilder/models/helpers.ts");
+    writeFileSync(helpersPath, "export const helpers = true;\n");
+
+    const withoutModel = createPopulation(A);
+    withoutModel.add(corePackage, { name: "pagebuilder" });
+
+    const second = apply(withoutModel, options);
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+
+    expect(second.plan).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "delete",
+          kind: "file",
+          path: "packages/core-pagebuilder/models/page.model.ts",
+          instanceId: "page",
+          artifactKey: "source",
+        }),
+      ])
+    );
+    expect(
+      second.plan.some(
+        (op) => op.type === "delete" && op.path === "packages/core-pagebuilder/models"
+      )
+    ).toBe(false);
+    expect(
+      existsSync(join(materializationRoot, "packages/core-pagebuilder/models/page.model.ts"))
+    ).toBe(false);
+    expect(readFileSync(helpersPath, "utf8")).toBe("export const helpers = true;\n");
+    expect(existsSync(join(materializationRoot, "packages/core-pagebuilder/models"))).toBe(true);
+  });
+
+  it("removing a directory artifact deletes the full tree including foreign files", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-deletes-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+    const { A, corePackage, model } = buildDeletesArchitecture();
+
+    const withCore = createPopulation(A);
+    const pagebuilder = withCore.add(corePackage, { name: "pagebuilder" });
+    withCore.add(model, { name: "page", core: pagebuilder });
+
+    const first = apply(withCore, options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+
+    const helpersPath = join(materializationRoot, "packages/core-pagebuilder/models/helpers.ts");
+    writeFileSync(helpersPath, "export const helpers = true;\n");
+
+    const empty = createPopulation(A);
+    const second = apply(empty, options);
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+
+    expect(second.plan).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "delete",
+          kind: "directory",
+          path: "packages/core-pagebuilder",
+          instanceId: "pagebuilder",
+          artifactKey: "packageDirectory",
+        }),
+      ])
+    );
+    // Nested managed paths under the package dir are covered by the recursive delete.
+    expect(
+      second.plan.filter(
+        (op) => op.type === "delete" && op.path.startsWith("packages/core-pagebuilder/")
+      )
+    ).toEqual([]);
+    expect(existsSync(join(materializationRoot, "packages/core-pagebuilder"))).toBe(false);
+    expect(existsSync(helpersPath)).toBe(false);
+  });
+
+  it("removing a .gitkeep deletes only that file and does not own the directory lifecycle", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-deletes-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+    const options = { architectureDir, materializationRoot };
+
+    const withKeepArch = defineArchitecture("Gitkeep");
+    const withKeepConstruct = withKeepArch.defineConstruct("Folder", () => {
+      const things = dir("things");
+      return {
+        things,
+        keep: file(".gitkeep", things, "scaffold", ""),
+      };
+    });
+    const withKeep = createPopulation(withKeepArch);
+    withKeep.add(withKeepConstruct, { name: "things" });
+
+    const first = apply(withKeep, options);
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+    expect(existsSync(join(materializationRoot, "things/.gitkeep"))).toBe(true);
+    expect(existsSync(join(materializationRoot, "things"))).toBe(true);
+
+    // Same instance/directory identity, but the .gitkeep file artifact is gone.
+    const dirOnlyArch = defineArchitecture("Gitkeep");
+    const dirOnlyConstruct = dirOnlyArch.defineConstruct("Folder", () => ({
+      things: dir("things"),
+    }));
+    const dirOnly = createPopulation(dirOnlyArch);
+    dirOnly.add(dirOnlyConstruct, { name: "things" });
+
+    const second = apply(dirOnly, options);
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+
+    expect(second.plan).toEqual([
+      expect.objectContaining({
+        type: "delete",
+        kind: "file",
+        path: "things/.gitkeep",
+        artifactKey: "keep",
+      }),
+    ]);
+    expect(existsSync(join(materializationRoot, "things/.gitkeep"))).toBe(false);
+    expect(existsSync(join(materializationRoot, "things"))).toBe(true);
+    expect(second.plan.some((op) => op.type === "delete" && op.kind === "directory")).toBe(false);
+  });
+});

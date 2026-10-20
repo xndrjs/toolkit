@@ -1,6 +1,6 @@
 # 06 — Deletes and foreign files
 
-**Status:** pending  
+**Status:** done  
 **Blocked by:** 03, 04
 
 ## Delivers

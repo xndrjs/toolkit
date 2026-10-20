@@ -23,6 +23,14 @@ export type PlanOp =
       readonly instanceId: string;
       readonly artifactKey: string;
       readonly mode: FileMode;
+    }
+  | {
+      /** Remove a previously managed artifact that is no longer desired (analysis §14). */
+      readonly type: "delete";
+      readonly path: string;
+      readonly kind: "file" | "directory";
+      readonly instanceId: string;
+      readonly artifactKey: string;
     };
 
 export type PlanResult =
@@ -38,6 +46,9 @@ export function planApply(input: {
   const diagnostics: Diagnostic[] = [];
   const ops: PlanOp[] = [];
   const previousById = indexManifestArtifacts(input.lastManifest);
+
+  // Deletes first so path reuse (later tickets) does not collide with stale managed paths.
+  planDeletions(input.inventory, input.lastManifest, input.materializationRoot, ops);
 
   const directories = input.inventory.artifacts
     .filter((a) => a.kind === "directory")
@@ -61,6 +72,87 @@ export function planApply(input: {
     return { ok: false, diagnostics };
   }
   return { ok: true, ops };
+}
+
+/**
+ * Drop only previously managed artifacts that are absent from the desired inventory.
+ * Directory artifacts recurse (including foreign files); file artifacts do not own
+ * their parent directory lifecycle (analysis §14, ADR 0007).
+ */
+function planDeletions(
+  inventory: DesiredInventory,
+  lastManifest: Manifest | undefined,
+  materializationRoot: string,
+  ops: PlanOp[]
+): void {
+  if (lastManifest === undefined) {
+    return;
+  }
+
+  const desiredIds = new Set(inventory.artifacts.map((a) => artifactIdentity(a)));
+  const removed = lastManifest.artifacts.filter((a) => !desiredIds.has(artifactIdentity(a)));
+  if (removed.length === 0) {
+    return;
+  }
+
+  const removedDirs = removed
+    .filter((a) => a.kind === "directory")
+    .slice()
+    .sort((a, b) => pathDepth(a.path) - pathDepth(b.path) || comparePath(a.path, b.path));
+
+  // Outermost directory artifacts only — nested removals are covered by recursive delete.
+  const dirsToDelete: DesiredArtifact[] = [];
+  for (const dirArtifact of removedDirs) {
+    if (dirsToDelete.some((ancestor) => isPathUnder(dirArtifact.path, ancestor.path))) {
+      continue;
+    }
+    dirsToDelete.push(dirArtifact);
+  }
+
+  const filesToDelete = removed
+    .filter((a) => a.kind === "file")
+    .filter((fileArtifact) => !dirsToDelete.some((d) => isPathUnder(fileArtifact.path, d.path)))
+    .slice()
+    .sort((a, b) => comparePath(a.path, b.path));
+
+  for (const fileArtifact of filesToDelete) {
+    const abs = join(materializationRoot, fileArtifact.path);
+    if (!existsSync(abs)) {
+      continue;
+    }
+    const stat = lstatSync(abs);
+    if (!stat.isDirectory()) {
+      ops.push({
+        type: "delete",
+        path: fileArtifact.path,
+        kind: "file",
+        instanceId: fileArtifact.instanceId,
+        artifactKey: fileArtifact.artifactKey,
+      });
+    }
+  }
+
+  for (const dirArtifact of dirsToDelete) {
+    const abs = join(materializationRoot, dirArtifact.path);
+    if (!existsSync(abs)) {
+      continue;
+    }
+    ops.push({
+      type: "delete",
+      path: dirArtifact.path,
+      kind: "directory",
+      instanceId: dirArtifact.instanceId,
+      artifactKey: dirArtifact.artifactKey,
+    });
+  }
+}
+
+/** True when `path` is `parent` or a descendant of `parent` (posix-relative segments). */
+function isPathUnder(path: string, parent: string): boolean {
+  if (parent === "" || parent === ".") {
+    return path !== "" && path !== ".";
+  }
+  return path === parent || path.startsWith(`${parent}/`);
 }
 
 function planDirectory(

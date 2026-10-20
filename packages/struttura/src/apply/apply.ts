@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import type { Population } from "../population/create-population";
@@ -94,6 +94,11 @@ function executeOp(op: PlanOp, materializationRoot: string): void {
   const abs = join(materializationRoot, op.path);
   if (op.type === "mkdir") {
     mkdirSync(abs, { recursive: true });
+    return;
+  }
+  if (op.type === "delete") {
+    // Directory artifacts wipe the full tree (foreign files included); file artifacts unlink only.
+    rmSync(abs, { recursive: op.kind === "directory", force: true });
     return;
   }
   mkdirSync(dirname(abs), { recursive: true });
