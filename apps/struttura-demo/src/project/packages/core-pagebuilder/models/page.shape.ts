@@ -6,7 +6,7 @@ export const PageShape = domain.shape(
   z.object({
     kind: z.literal("Page").default("Page"),
     // TODO: define shape fields
-  }),
+  })
 );
 
 export type Page = ReturnType<(typeof PageShape)["create"]>;

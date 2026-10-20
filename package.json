@@ -9,7 +9,7 @@
     "changeset": "changeset",
     "changeset:publish": "pnpm run build:packages && pnpm changeset publish",
     "build:packages": "pnpm -r --filter './packages/*' run --if-present build && pnpm -r --filter './packages/*' run --if-present package:vsix",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "eslint . --max-warnings=0 && pnpm --filter struttura-demo-project lint",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

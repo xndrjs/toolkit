@@ -8,6 +8,7 @@
     "apply": "struttura apply --population ./src/architecture/population.ts --architecture-dir ./src/architecture --materialization-root ./src/project",
     "inspect": "struttura inspect --population ./src/architecture/population.ts --architecture-dir ./src/architecture --materialization-root ./src/project",
     "materialize": "pnpm run codegen && pnpm run apply",
+    "lint:project": "pnpm --filter struttura-demo-project lint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

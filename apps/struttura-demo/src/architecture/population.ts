@@ -2,7 +2,7 @@ import { createPopulateApi } from "./populate-api.generated";
 
 /**
  * Vertical slice mirroring xndrjs-monorepo structural elements for pagebuilder.
- * ESLint import policies are intentionally not demonstrated (wave 2).
+ * ESLint tooling under project is unmanaged (hand-authored).
  *
  * Explicit `id`s keep effective identities unique when names would collide
  * across constructs (e.g. Shape `page` vs Capabilities `page`).

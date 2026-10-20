@@ -31,6 +31,9 @@ module.exports = [
       "**/.next/**",
       "**/i18n/generated/**",
       "**/src/generated/**",
+      // Materialized demo monorepo has its own eslint.config.js (boundaries).
+      // Lint it via `pnpm --filter struttura-demo-project lint` / IDE workingDirectory.
+      "apps/struttura-demo/src/project/**",
     ],
   },
   ...baseConfig,
@@ -45,10 +48,9 @@ module.exports = [
       "@typescript-eslint/ban-ts-comment": "off",
     },
   },
-  // Scaffold stubs under the demo materialization root intentionally use empty
-  // interfaces / unused params; keep the guide readable without lint noise.
+  // Architecture / demo harness (outside the materialization root).
   {
-    files: ["apps/struttura-demo/**/*.{ts,tsx}"],
+    files: ["apps/struttura-demo/src/architecture/**/*.{ts,tsx}", "apps/struttura-demo/src/*.ts"],
     rules: {
       "@typescript-eslint/no-empty-object-type": "off",
       "@typescript-eslint/no-unused-vars": "off",
