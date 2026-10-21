@@ -47,7 +47,7 @@ function buildPagebuilderArchitecture() {
         filename: "index.ts",
         directory: models,
         mode: "sync",
-        content: (ctx: FileRenderContext) => renderModelsBarrel(ctx),
+        content: (ctx) => renderModelsBarrel(ctx),
       }),
     };
   });

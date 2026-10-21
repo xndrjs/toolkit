@@ -1,1 +1,2 @@
-export * from "./loaders/page.loader";
+export * from "./loaders";
+export * from "./schemas";

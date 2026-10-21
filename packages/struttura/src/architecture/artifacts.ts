@@ -1,3 +1,5 @@
+import type { FileRenderContext } from "../apply/render-contents";
+
 export type FileMode = "sync" | "scaffold";
 
 export type RootRef = {
@@ -29,8 +31,8 @@ export type DirDescriptor = {
 };
 
 /** Invoked after desired inventory exists; prefer FileRenderContext (query.filesIn). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- render ctx typed in apply/render-contents
-export type FileContentFn = (ctx: any) => string;
+
+export type FileContentFn = (ctx: FileRenderContext) => string;
 
 /**
  * Directory placement for `file({ directory })`. FileRef is excluded at the

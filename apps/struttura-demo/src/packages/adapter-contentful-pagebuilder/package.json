@@ -6,7 +6,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@core/pagebuilder": "workspace:*",
-    "@infrastructure/contentful": "workspace:*"
+    "@core/pagebuilder": "workspace:*"
   }
 }

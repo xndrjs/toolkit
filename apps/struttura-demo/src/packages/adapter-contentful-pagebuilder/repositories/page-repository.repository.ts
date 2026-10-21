@@ -1,18 +1,15 @@
 import type { Page } from "@core/pagebuilder/models";
-import type { PageRepositoryPort } from "@core/pagebuilder/ports";
-import { PageLoader } from "@infrastructure/contentful";
-
-import { mapRawToPage } from "../mappers/page.mapper";
 
 export type PageRepositoryRepositoryDeps = {
-  pageLoader: PageLoader;
+  // TODO: loaders, mappers, and other adapters this repository composes
 };
 
-export class PageRepositoryRepository implements PageRepositoryPort {
-  constructor(private readonly deps: PageRepositoryRepositoryDeps) {}
+export class PageRepositoryRepository {
+  constructor(private readonly deps: PageRepositoryRepositoryDeps) {
+    void this.deps;
+  }
 
-  async getPageById(id: string): Promise<Page | null> {
-    const raw = await this.deps.pageLoader.get(id);
-    return raw ? mapRawToPage(raw) : null;
+  async getPageById(_id: string): Promise<Page | null> {
+    throw new Error("Not implemented: PageRepositoryRepository.getPageById");
   }
 }

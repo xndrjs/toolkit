@@ -55,9 +55,10 @@ Requires `@xndrjs/struttura` to be built (`pnpm --filter @xndrjs/struttura build
 | `Capabilities` / `DomainService`        | `operations/*.capabilities.ts` / `*.service.ts` (via `OperationsModule`)                        |
 | `DomainError`                           | `errors/*.error.ts` (via `ErrorsModule`)                                                        |
 | `Port` / `UseCase`                      | via `PortsModule` / `UseCasesModule`                                                            |
-| `InfrastructurePackage`                 | `packages/infrastructure-<name>/` (client and raw loaders)                                      |
-| `InfrastructureLoader`                  | `loaders/` under the vendor package                                                             |
-| `AdapterPackage` / `Adapter`            | `packages/adapter-<name>/` (mappers + repositories; may import `@infrastructure`)               |
+| `InfrastructurePackage`                 | `packages/infrastructure-<name>/` (`loaders/`, `schemas/`, layer barrels)                       |
+| `InfrastructureLoader`                  | `loaders/*.loader.ts` under the vendor package                                                  |
+| `AdapterPackage`                        | `packages/adapter-<name>/` shell + `mappers/` (may import `@infrastructure`)                    |
+| `Mapper` / `Repository`                 | mapper under adapter `mappers/`; repository file under adapter `repositories/` (separate kits)  |
 | `UiPackage`                             | `packages/ui-<name>/` (apps-only import rule is ESLint wave 2)                                  |
 | `App` / `CompositionRoot`               | `apps/<app>/` + `composition/*.composition.ts`                                                  |
 

@@ -1,11 +1,10 @@
 import { toKebabCase } from "@xndrjs/struttura";
 
-export function adapterReadme(input: { name: string; vendor: string; feature: string }): string {
+export function adapterReadme(input: { name: string; feature: string }): string {
   const pkg = toKebabCase(input.name);
-  const vendor = toKebabCase(input.vendor);
   const feature = toKebabCase(input.feature);
   return `# @adapter/${pkg}
 
-Projects @infrastructure/${vendor} loaders onto @core/${feature} ports.
+Maps infrastructure payloads onto @core/${feature} (mappers; repositories are separate kits).
 `;
 }

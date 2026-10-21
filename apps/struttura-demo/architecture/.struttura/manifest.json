@@ -144,21 +144,27 @@
       "name": "contentful-pagebuilder",
       "constructName": "AdapterPackage",
       "dependencies": {
-        "infra": "contentful",
+        "core": "pagebuilder"
+      }
+    },
+    {
+      "id": "page-mapper",
+      "name": "page",
+      "constructName": "Mapper",
+      "dependencies": {
+        "adapter": "contentful-pagebuilder",
+        "shape": "page",
         "core": "pagebuilder"
       }
     },
     {
       "id": "page-repository",
       "name": "pageRepository",
-      "constructName": "Adapter",
+      "constructName": "Repository",
       "dependencies": {
         "adapter": "contentful-pagebuilder",
-        "port": "pageRepository",
-        "loader": "page-loader",
         "shape": "page",
-        "core": "pagebuilder",
-        "infra": "contentful"
+        "core": "pagebuilder"
       }
     },
     {
@@ -234,6 +240,20 @@
       }
     },
     {
+      "instanceId": "web-next",
+      "constructName": "App",
+      "artifactKey": "tsconfig",
+      "kind": "file",
+      "path": "apps/web-next/tsconfig.json",
+      "mode": "scaffold",
+      "filename": "tsconfig.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "web-next",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
       "instanceId": "workspace",
       "constructName": "WorkspaceRoot",
       "artifactKey": "packageJson",
@@ -296,9 +316,9 @@
       }
     },
     {
-      "instanceId": "page-repository",
-      "constructName": "Adapter",
-      "artifactKey": "mapper",
+      "instanceId": "page-mapper",
+      "constructName": "Mapper",
+      "artifactKey": "source",
       "kind": "file",
       "path": "packages/adapter-contentful-pagebuilder/mappers/page.mapper.ts",
       "mode": "scaffold",
@@ -324,28 +344,30 @@
       }
     },
     {
-      "instanceId": "contentful-pagebuilder",
-      "constructName": "AdapterPackage",
-      "artifactKey": "repositories",
-      "kind": "directory",
-      "path": "packages/adapter-contentful-pagebuilder/repositories",
+      "instanceId": "page-repository",
+      "constructName": "Repository",
+      "artifactKey": "source",
+      "kind": "file",
+      "path": "packages/adapter-contentful-pagebuilder/repositories/page-repository.repository.ts",
+      "mode": "scaffold",
+      "filename": "page-repository.repository.ts",
       "directory": {
         "kind": "inline",
         "path": "packages/adapter-contentful-pagebuilder/repositories"
       }
     },
     {
-      "instanceId": "page-repository",
-      "constructName": "Adapter",
-      "artifactKey": "repository",
+      "instanceId": "contentful-pagebuilder",
+      "constructName": "AdapterPackage",
+      "artifactKey": "tsconfig",
       "kind": "file",
-      "path": "packages/adapter-contentful-pagebuilder/repositories/page-repository.repository.ts",
+      "path": "packages/adapter-contentful-pagebuilder/tsconfig.json",
       "mode": "scaffold",
-      "filename": "page-repository.repository.ts",
+      "filename": "tsconfig.json",
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful-pagebuilder",
-        "artifactKey": "repositories"
+        "artifactKey": "packageDirectory"
       }
     },
     {
@@ -586,6 +608,20 @@
       }
     },
     {
+      "instanceId": "pagebuilder",
+      "constructName": "CorePackage",
+      "artifactKey": "tsconfig",
+      "kind": "file",
+      "path": "packages/core-pagebuilder/tsconfig.json",
+      "mode": "scaffold",
+      "filename": "tsconfig.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "pagebuilder",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
       "instanceId": "pagebuilder-useCases",
       "constructName": "UseCasesModule",
       "artifactKey": "useCases",
@@ -675,6 +711,20 @@
       }
     },
     {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "loadersIndex",
+      "kind": "file",
+      "path": "packages/infrastructure-contentful/loaders/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful",
+        "artifactKey": "loaders"
+      }
+    },
+    {
       "instanceId": "page-loader",
       "constructName": "InfrastructureLoader",
       "artifactKey": "source",
@@ -696,6 +746,45 @@
       "path": "packages/infrastructure-contentful/package.json",
       "mode": "scaffold",
       "filename": "package.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "schemas",
+      "kind": "directory",
+      "path": "packages/infrastructure-contentful/schemas",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/infrastructure-contentful/schemas"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "schemasIndex",
+      "kind": "file",
+      "path": "packages/infrastructure-contentful/schemas/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful",
+        "artifactKey": "schemas"
+      }
+    },
+    {
+      "instanceId": "contentful",
+      "constructName": "InfrastructurePackage",
+      "artifactKey": "tsconfig",
+      "kind": "file",
+      "path": "packages/infrastructure-contentful/tsconfig.json",
+      "mode": "scaffold",
+      "filename": "tsconfig.json",
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful",
@@ -749,6 +838,20 @@
       "path": "packages/ui-react/package.json",
       "mode": "scaffold",
       "filename": "package.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "react",
+        "artifactKey": "packageDirectory"
+      }
+    },
+    {
+      "instanceId": "react",
+      "constructName": "UiPackage",
+      "artifactKey": "tsconfig",
+      "kind": "file",
+      "path": "packages/ui-react/tsconfig.json",
+      "mode": "scaffold",
+      "filename": "tsconfig.json",
       "directory": {
         "kind": "artifact",
         "instanceId": "react",

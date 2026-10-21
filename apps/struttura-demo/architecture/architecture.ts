@@ -6,7 +6,6 @@ import {
   renderTsBarrel,
   root,
   toKebabCase,
-  type FileRenderContext,
 } from "@xndrjs/struttura";
 
 import { adapterMapperSource } from "./templates/adapter-mapper-source";
@@ -25,6 +24,7 @@ import { featureSpec } from "./templates/feature-spec";
 import { infrastructureLoaderSource } from "./templates/infrastructure-loader-source";
 import { infrastructurePackageJson } from "./templates/infrastructure-package-json";
 import { infrastructureReadme } from "./templates/infrastructure-readme";
+import { packageTsconfig } from "./templates/package-tsconfig";
 import { pnpmWorkspaceYaml } from "./templates/pnpm-workspace-yaml";
 import { portSource } from "./templates/port-source";
 import { primitiveSource } from "./templates/primitive-source";
@@ -88,7 +88,13 @@ export const CorePackage = A.defineConstruct("CorePackage", ({ name }) => {
       filename: "package.json",
       directory: packageDirectory,
       mode: "scaffold",
-      content: (ctx: FileRenderContext) => corePackageJson(ctx.name),
+      content: (ctx) => corePackageJson(ctx.name),
+    }),
+    tsconfig: file({
+      filename: "tsconfig.json",
+      directory: packageDirectory,
+      mode: "scaffold",
+      content: packageTsconfig(),
     }),
     readme: file({
       filename: "README.md",
@@ -122,7 +128,7 @@ export const OperationsModule = A.defineConstruct("OperationsModule", { core: Co
       filename: "index.ts",
       directory: operations,
       mode: "sync",
-      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, operations, { recursive: true }),
+      content: (ctx) => renderTsBarrel(ctx, operations, { recursive: true }),
     }),
   };
 });
@@ -137,7 +143,7 @@ export const UseCasesModule = A.defineConstruct("UseCasesModule", { core: CorePa
       filename: "index.ts",
       directory: useCases,
       mode: "sync",
-      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, useCases, { recursive: true }),
+      content: (ctx) => renderTsBarrel(ctx, useCases, { recursive: true }),
     }),
   };
 });
@@ -150,7 +156,7 @@ export const PortsModule = A.defineConstruct("PortsModule", { core: CorePackage 
       filename: "index.ts",
       directory: ports,
       mode: "sync",
-      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, ports, { recursive: true }),
+      content: (ctx) => renderTsBarrel(ctx, ports, { recursive: true }),
     }),
   };
 });
@@ -163,7 +169,7 @@ export const ErrorsModule = A.defineConstruct("ErrorsModule", { core: CorePackag
       filename: "index.ts",
       directory: errors,
       mode: "sync",
-      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, errors, { recursive: true }),
+      content: (ctx) => renderTsBarrel(ctx, errors, { recursive: true }),
     }),
   };
 });
@@ -283,27 +289,49 @@ export const InfrastructurePackage = A.defineConstruct("InfrastructurePackage", 
   const pkg = toKebabCase(name);
   const packageDirectory = dir(`packages/infrastructure-${pkg}`);
   const loaders = dir(`${packageDirectory.path}/loaders`);
+  const schemas = dir(`${packageDirectory.path}/schemas`);
   return {
     packageDirectory,
     loaders,
-    packageJson: file({
-      filename: "package.json",
-      directory: packageDirectory,
-      mode: "scaffold",
-      content: infrastructurePackageJson(name),
+    schemas,
+    loadersIndex: file({
+      filename: "index.ts",
+      directory: loaders,
+      mode: "sync",
+      content: (ctx) => renderTsBarrel(ctx, loaders, { recursive: true }),
+    }),
+    schemasIndex: file({
+      filename: "index.ts",
+      directory: schemas,
+      mode: "sync",
+      content: (ctx) => {
+        const body = renderTsBarrel(ctx, schemas, { recursive: true });
+        return body.length > 0 ? body : "export {};\n";
+      },
     }),
     index: file({
       filename: "index.ts",
       directory: packageDirectory,
       mode: "sync",
-      content: (ctx: FileRenderContext) =>
-        renderTsBarrel(packageDirectory.path, [...filesInDirectory(ctx, "loaders")]),
+      content: 'export * from "./loaders";\nexport * from "./schemas";\n',
     }),
     readme: file({
       filename: "README.md",
       directory: packageDirectory,
       mode: "scaffold",
       content: infrastructureReadme(name),
+    }),
+    packageJson: file({
+      filename: "package.json",
+      directory: packageDirectory,
+      mode: "scaffold",
+      content: infrastructurePackageJson(name),
+    }),
+    tsconfig: file({
+      filename: "tsconfig.json",
+      directory: packageDirectory,
+      mode: "scaffold",
+      content: packageTsconfig(),
     }),
   };
 });
@@ -323,69 +351,88 @@ export const InfrastructureLoader = A.defineConstruct("InfrastructureLoader", {
 });
 
 export const AdapterPackage = A.defineConstruct("AdapterPackage", {
-  infra: InfrastructurePackage,
   core: CorePackage,
-})(({ name, infra, core }) => {
+})(({ name, core }) => {
   const pkg = toKebabCase(name);
   const packageDirectory = dir(`packages/adapter-${pkg}`);
   const mappers = dir(`${packageDirectory.path}/mappers`);
-  const repositories = dir(`${packageDirectory.path}/repositories`);
   return {
     packageDirectory,
     mappers,
-    repositories,
     packageJson: file({
       filename: "package.json",
       directory: packageDirectory,
       mode: "scaffold",
-      content: adapterPackageJson({ name, feature: core.name, vendor: infra.name }),
+      content: adapterPackageJson({ name, feature: core.name }),
     }),
     index: file({
       filename: "index.ts",
       directory: packageDirectory,
       mode: "sync",
-      content: (ctx: FileRenderContext) =>
-        renderTsBarrel(packageDirectory.path, [...filesInDirectory(ctx, "repositories")]),
+      content: (ctx) =>
+        renderTsBarrel(packageDirectory.path, [
+          ...filesInDirectory(ctx, mappers, { recursive: true }),
+        ]),
     }),
     readme: file({
       filename: "README.md",
       directory: packageDirectory,
       mode: "scaffold",
-      content: adapterReadme({ name, vendor: infra.name, feature: core.name }),
+      content: adapterReadme({ name, feature: core.name }),
+    }),
+    tsconfig: file({
+      filename: "tsconfig.json",
+      directory: packageDirectory,
+      mode: "scaffold",
+      content: packageTsconfig(),
     }),
   };
 });
 
-export const Adapter = A.defineConstruct("Adapter", {
+/**
+ * Maps vendor raw data onto one core shape (under AdapterPackage mappers/).
+ * Which infrastructure packages / raw types are authored — not construct deps.
+ */
+export const Mapper = A.defineConstruct("Mapper", {
   adapter: AdapterPackage,
-  port: Port,
-  loader: InfrastructureLoader,
   shape: Shape,
   core: CorePackage,
-  infra: InfrastructurePackage,
-})(({ name, adapter, port, loader, shape, core, infra }) => {
-  const kebab = toKebabCase(name);
+})(({ adapter, shape, core }) => {
   const shapeKebab = toKebabCase(shape.name);
-  const vendor = infra.name;
-  const feature = core.name;
   return {
-    mapper: file({
+    source: file({
       filename: `${shapeKebab}.mapper.ts`,
       directory: adapter.artifacts.mappers,
       mode: "scaffold",
-      content: adapterMapperSource({ shape: shape.name, feature, loader: loader.name, vendor }),
+      content: adapterMapperSource({
+        shape: shape.name,
+        feature: core.name,
+      }),
     }),
-    repository: file({
+  };
+});
+
+/**
+ * Adapter-side repository kit toward one core shape (file under the adapter
+ * package; AdapterPackage does not own a repositories layer). Loaders, ports,
+ * and vendors are authored — not construct deps.
+ */
+export const Repository = A.defineConstruct("Repository", {
+  adapter: AdapterPackage,
+  shape: Shape,
+  core: CorePackage,
+})(({ name, adapter, shape, core }) => {
+  const kebab = toKebabCase(name);
+  const repositories = dir(`${adapter.artifacts.packageDirectory.path}/repositories`);
+  return {
+    source: file({
       filename: `${kebab}.repository.ts`,
-      directory: adapter.artifacts.repositories,
+      directory: repositories,
       mode: "scaffold",
       content: adapterRepositorySource({
         name,
         shape: shape.name,
-        port: port.name,
-        loader: loader.name,
-        vendor,
-        feature,
+        feature: core.name,
       }),
     }),
   };
@@ -401,6 +448,12 @@ export const UiPackage = A.defineConstruct("UiPackage", ({ name }) => {
       directory: packageDirectory,
       mode: "scaffold",
       content: uiPackageJson(name),
+    }),
+    tsconfig: file({
+      filename: "tsconfig.json",
+      directory: packageDirectory,
+      mode: "scaffold",
+      content: packageTsconfig(),
     }),
     index: file({
       filename: "index.ts",
@@ -429,6 +482,12 @@ export const App = A.defineConstruct("App", ({ name }) => {
       directory: packageDirectory,
       mode: "scaffold",
       content: appPackageJson(name),
+    }),
+    tsconfig: file({
+      filename: "tsconfig.json",
+      directory: packageDirectory,
+      mode: "scaffold",
+      content: packageTsconfig(),
     }),
   };
 });
@@ -470,7 +529,8 @@ export const constructs = {
   InfrastructurePackage,
   InfrastructureLoader,
   AdapterPackage,
-  Adapter,
+  Mapper,
+  Repository,
   UiPackage,
   App,
   CompositionRoot,

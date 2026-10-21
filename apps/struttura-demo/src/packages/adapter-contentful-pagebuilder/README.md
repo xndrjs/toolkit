@@ -1,3 +1,3 @@
 # @adapter/contentful-pagebuilder
 
-Projects @infrastructure/contentful loaders onto @core/pagebuilder ports.
+Maps infrastructure payloads onto @core/pagebuilder (mappers; repositories are separate kits).

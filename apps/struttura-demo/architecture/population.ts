@@ -43,7 +43,7 @@ api.Capabilities({
 api.DomainService({ name: "pagePricing", operations: pagebuilder.operations });
 api.DomainError({ name: "pageNotFound", errors: pagebuilder.errors });
 
-const pageRepositoryPort = api.Port({ name: "pageRepository", ports: pagebuilder.ports });
+api.Port({ name: "pageRepository", ports: pagebuilder.ports });
 api.UseCase({ name: "resolvePage", useCases: pagebuilder.useCases });
 
 const contentful = api.InfrastructurePackage({ name: "contentful" });
@@ -54,18 +54,21 @@ const pageLoader = api.InfrastructureLoader({
 });
 const contentfulPagebuilder = api.AdapterPackage({
   name: "contentful-pagebuilder",
-  infra: contentful,
   core: pagebuilder.core,
 });
-api.Adapter({
+api.Mapper({
+  id: "page-mapper",
+  name: "page",
+  adapter: contentfulPagebuilder,
+  shape: page,
+  core: pagebuilder.core,
+});
+api.Repository({
   id: "page-repository",
   name: "pageRepository",
   adapter: contentfulPagebuilder,
-  port: pageRepositoryPort,
-  loader: pageLoader,
   shape: page,
   core: pagebuilder.core,
-  infra: contentful,
 });
 
 api.UiPackage({ name: "react" });

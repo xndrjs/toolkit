@@ -1,13 +1,8 @@
 import { toKebabCase } from "@xndrjs/struttura";
 
-export function adapterPackageJson(input: {
-  name: string;
-  feature: string;
-  vendor: string;
-}): string {
+export function adapterPackageJson(input: { name: string; feature: string }): string {
   const pkg = toKebabCase(input.name);
   const feature = toKebabCase(input.feature);
-  const vendor = toKebabCase(input.vendor);
   return `${JSON.stringify(
     {
       name: `@adapter/${pkg}`,
@@ -16,7 +11,7 @@ export function adapterPackageJson(input: {
       exports: { ".": "./index.ts" },
       dependencies: {
         [`@core/${feature}`]: "workspace:*",
-        [`@infrastructure/${vendor}`]: "workspace:*",
+        // Author @infrastructure/* deps as needed (may be more than one).
       },
     },
     null,

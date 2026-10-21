@@ -8,17 +8,7 @@ import {
 } from "@xndrjs/struttura";
 import { architecture, constructs } from "./architecture";
 
-export const DEFINITION_STAMP = "47c064889acf241ff1321acc4d30fb3c48c288e57c850f12ca4ee61e9504a5af";
-
-export type AdapterArtifacts = {
-  readonly mapper: FileRef;
-  readonly repository: FileRef;
-};
-
-export type AdapterRef = InstanceRef & {
-  readonly __constructBrand: "Adapter";
-  readonly artifacts: AdapterArtifacts;
-};
+export const DEFINITION_STAMP = "a30227ff073008558f77273eb92b714531d6f94c0a03152f1ce333f6f83bbb7c";
 
 export type AdapterPackageArtifacts = {
   readonly index: FileRef;
@@ -26,7 +16,7 @@ export type AdapterPackageArtifacts = {
   readonly packageDirectory: DirRef;
   readonly packageJson: FileRef;
   readonly readme: FileRef;
-  readonly repositories: DirRef;
+  readonly tsconfig: FileRef;
 };
 
 export type AdapterPackageRef = InstanceRef & {
@@ -38,6 +28,7 @@ export type AppArtifacts = {
   readonly composition: DirRef;
   readonly packageDirectory: DirRef;
   readonly packageJson: FileRef;
+  readonly tsconfig: FileRef;
 };
 
 export type AppRef = InstanceRef & {
@@ -67,6 +58,7 @@ export type CorePackageArtifacts = {
   readonly packageDirectory: DirRef;
   readonly packageJson: FileRef;
   readonly readme: FileRef;
+  readonly tsconfig: FileRef;
 };
 
 export type CorePackageRef = InstanceRef & {
@@ -125,14 +117,27 @@ export type InfrastructureLoaderRef = InstanceRef & {
 export type InfrastructurePackageArtifacts = {
   readonly index: FileRef;
   readonly loaders: DirRef;
+  readonly loadersIndex: FileRef;
   readonly packageDirectory: DirRef;
   readonly packageJson: FileRef;
   readonly readme: FileRef;
+  readonly schemas: DirRef;
+  readonly schemasIndex: FileRef;
+  readonly tsconfig: FileRef;
 };
 
 export type InfrastructurePackageRef = InstanceRef & {
   readonly __constructBrand: "InfrastructurePackage";
   readonly artifacts: InfrastructurePackageArtifacts;
+};
+
+export type MapperArtifacts = {
+  readonly source: FileRef;
+};
+
+export type MapperRef = InstanceRef & {
+  readonly __constructBrand: "Mapper";
+  readonly artifacts: MapperArtifacts;
 };
 
 export type ModelsModuleArtifacts = {
@@ -192,6 +197,15 @@ export type ProofRef = InstanceRef & {
   readonly artifacts: ProofArtifacts;
 };
 
+export type RepositoryArtifacts = {
+  readonly source: FileRef;
+};
+
+export type RepositoryRef = InstanceRef & {
+  readonly __constructBrand: "Repository";
+  readonly artifacts: RepositoryArtifacts;
+};
+
 export type ShapeArtifacts = {
   readonly source: FileRef;
 };
@@ -206,6 +220,7 @@ export type UiPackageArtifacts = {
   readonly packageDirectory: DirRef;
   readonly packageJson: FileRef;
   readonly readme: FileRef;
+  readonly tsconfig: FileRef;
 };
 
 export type UiPackageRef = InstanceRef & {
@@ -245,22 +260,7 @@ export type WorkspaceRootRef = InstanceRef & {
 
 export type CleanArchitectureOrientedMonorepoPopulateApi = {
   readonly population: Population;
-  Adapter(input: {
-    name: string;
-    id?: string;
-    adapter: AdapterPackageRef;
-    core: CorePackageRef;
-    infra: InfrastructurePackageRef;
-    loader: InfrastructureLoaderRef;
-    port: PortRef;
-    shape: ShapeRef;
-  }): AdapterRef;
-  AdapterPackage(input: {
-    name: string;
-    id?: string;
-    core: CorePackageRef;
-    infra: InfrastructurePackageRef;
-  }): AdapterPackageRef;
+  AdapterPackage(input: { name: string; id?: string; core: CorePackageRef }): AdapterPackageRef;
   App(input: { name: string; id?: string }): AppRef;
   Capabilities(input: {
     name: string;
@@ -283,12 +283,26 @@ export type CleanArchitectureOrientedMonorepoPopulateApi = {
     infra: InfrastructurePackageRef;
   }): InfrastructureLoaderRef;
   InfrastructurePackage(input: { name: string; id?: string }): InfrastructurePackageRef;
+  Mapper(input: {
+    name: string;
+    id?: string;
+    adapter: AdapterPackageRef;
+    core: CorePackageRef;
+    shape: ShapeRef;
+  }): MapperRef;
   ModelsModule(input: { name: string; id?: string; core: CorePackageRef }): ModelsModuleRef;
   OperationsModule(input: { name: string; id?: string; core: CorePackageRef }): OperationsModuleRef;
   Port(input: { name: string; id?: string; ports: PortsModuleRef }): PortRef;
   PortsModule(input: { name: string; id?: string; core: CorePackageRef }): PortsModuleRef;
   Primitive(input: { name: string; id?: string; models: ModelsModuleRef }): PrimitiveRef;
   Proof(input: { name: string; id?: string; models: ModelsModuleRef }): ProofRef;
+  Repository(input: {
+    name: string;
+    id?: string;
+    adapter: AdapterPackageRef;
+    core: CorePackageRef;
+    shape: ShapeRef;
+  }): RepositoryRef;
   Shape(input: { name: string; id?: string; models: ModelsModuleRef }): ShapeRef;
   UiPackage(input: { name: string; id?: string }): UiPackageRef;
   UseCase(input: { name: string; id?: string; useCases: UseCasesModuleRef }): UseCaseRef;
@@ -301,9 +315,6 @@ export function createPopulateApi(): CleanArchitectureOrientedMonorepoPopulateAp
   return {
     get population() {
       return population;
-    },
-    Adapter(input) {
-      return population.add(constructs.Adapter, input) as AdapterRef;
     },
     AdapterPackage(input) {
       return population.add(constructs.AdapterPackage, input) as AdapterPackageRef;
@@ -338,6 +349,9 @@ export function createPopulateApi(): CleanArchitectureOrientedMonorepoPopulateAp
     InfrastructurePackage(input) {
       return population.add(constructs.InfrastructurePackage, input) as InfrastructurePackageRef;
     },
+    Mapper(input) {
+      return population.add(constructs.Mapper, input) as MapperRef;
+    },
     ModelsModule(input) {
       return population.add(constructs.ModelsModule, input) as ModelsModuleRef;
     },
@@ -355,6 +369,9 @@ export function createPopulateApi(): CleanArchitectureOrientedMonorepoPopulateAp
     },
     Proof(input) {
       return population.add(constructs.Proof, input) as ProofRef;
+    },
+    Repository(input) {
+      return population.add(constructs.Repository, input) as RepositoryRef;
     },
     Shape(input) {
       return population.add(constructs.Shape, input) as ShapeRef;
