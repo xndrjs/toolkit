@@ -1,7 +1,7 @@
 {
   "eslint.workingDirectories": [
     {
-      "directory": "apps/struttura-demo/src/project",
+      "directory": "apps/struttura-demo/src",
       "changeProcessCWD": true
     },
     {

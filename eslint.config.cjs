@@ -33,7 +33,7 @@ module.exports = [
       "**/src/generated/**",
       // Materialized demo monorepo has its own eslint.config.js (boundaries).
       // Lint it via `pnpm --filter struttura-demo-project lint` / IDE workingDirectory.
-      "apps/struttura-demo/src/project/**",
+      "apps/struttura-demo/src/**",
     ],
   },
   ...baseConfig,
@@ -50,7 +50,7 @@ module.exports = [
   },
   // Architecture / demo harness (outside the materialization root).
   {
-    files: ["apps/struttura-demo/src/architecture/**/*.{ts,tsx}", "apps/struttura-demo/src/*.ts"],
+    files: ["apps/struttura-demo/**/*.{ts,tsx}"],
     rules: {
       "@typescript-eslint/no-empty-object-type": "off",
       "@typescript-eslint/no-unused-vars": "off",

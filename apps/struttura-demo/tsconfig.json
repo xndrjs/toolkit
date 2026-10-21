@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/architecture/**/*.ts", "src/demo.test.ts", "vitest.config.ts"]
+  "include": ["architecture/**/*.ts", "demo.test.ts", "vitest.config.ts"]
 }

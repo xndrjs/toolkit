@@ -1,0 +1,12 @@
+{
+  "name": "@adapter/contentful-pagebuilder",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@core/pagebuilder": "workspace:*",
+    "@infrastructure/contentful": "workspace:*"
+  }
+}

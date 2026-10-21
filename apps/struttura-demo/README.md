@@ -4,63 +4,63 @@
 
 Miniature replica of the [xndrjs-monorepo](https://github.com/xndrjs) clean-architecture layout, driven by struttura constructs instead of Plop.
 
-**ESLint boundaries:** hand-authored `eslint.config.js`, `eslint.boundaries.mjs`, and `tsconfig.eslint.json` under `src/project` (not struttura artifacts). No Policy type in `@xndrjs/struttura` — see ADR 0013.
+**ESLint boundaries:** hand-authored `eslint.config.js`, `eslint.boundaries.mjs`, and `tsconfig.eslint.json` under `src` (not struttura artifacts). No Policy type in `@xndrjs/struttura` — see ADR 0013.
 
 ## Layout
 
 ```text
-src/
-  architecture/          # definition + generated populate API + population
-    architecture.ts
-    populate-api.generated.ts      # generated (pnpm codegen)
-    population.ts
-    .struttura/          # success manifest (outside materialization root)
-  project/               # materialization root = simulated monorepo
-    apps/
-    packages/
-    specs/
-    package.json
-    pnpm-workspace.yaml
-    eslint.config.js         # hand-authored (unmanaged)
-    eslint.boundaries.mjs    # hand-authored (unmanaged)
-    tsconfig.eslint.json     # hand-authored (unmanaged)
+architecture/            # definition + generated populate API + population
+  architecture.ts
+  populate-api.generated.ts      # generated (pnpm codegen)
+  population.ts
+  .struttura/            # success manifest (outside materialization root)
+src/                     # materialization root = simulated monorepo
+  apps/
+  packages/
+  specs/
+  package.json
+  pnpm-workspace.yaml
+  eslint.config.js         # hand-authored (unmanaged)
+  eslint.boundaries.mjs    # hand-authored (unmanaged)
+  tsconfig.eslint.json     # hand-authored (unmanaged)
 ```
 
-`src/project/{apps,packages}/*` are **members of the toolkit root pnpm workspace** so `@xndrjs/*` and cross-package `workspace:*` deps resolve with a single root `pnpm i`. The nested `pnpm-workspace.yaml` mirrors a real monorepo layout but is not used for install.
+`src/{apps,packages}/*` are **members of the toolkit root pnpm workspace** so `@xndrjs/*` and cross-package `workspace:*` deps resolve with a single root `pnpm i`. The nested `pnpm-workspace.yaml` mirrors a real monorepo layout but is not used for install.
 
 ## Commands
 
 ```bash
 pnpm --filter @xndrjs/struttura-demo codegen      # emit typed populate API
-pnpm --filter @xndrjs/struttura-demo apply        # reconcile src/project
+pnpm --filter @xndrjs/struttura-demo apply        # reconcile src
 pnpm --filter @xndrjs/struttura-demo inspect      # plan without write
 pnpm --filter @xndrjs/struttura-demo materialize  # codegen + apply
 pnpm --filter @xndrjs/struttura-demo test
 pnpm --filter @xndrjs/struttura-demo typecheck
-pnpm --filter struttura-demo-project lint   # boundaries under src/project
+pnpm --filter struttura-demo-project lint   # boundaries under src
 ```
 
-IDE: `.vscode/settings.json` sets `eslint.workingDirectories` for `src/project` so Cursor uses that folder’s `eslint.config.js` (boundaries), not the toolkit root config. Root `pnpm lint` also runs the project lint.
+IDE: `.vscode/settings.json` sets `eslint.workingDirectories` for `src` so Cursor uses that folder’s `eslint.config.js` (boundaries), not the toolkit root config. Root `pnpm lint` also runs the project lint.
 
 Requires `@xndrjs/struttura` to be built (`pnpm --filter @xndrjs/struttura build`) so the `struttura` bin is available. After changing project `package.json` deps, re-run root `pnpm i`.
 
 ## Constructs ↔ monorepo elements
 
-| Construct                                           | Monorepo element                                                                                |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `WorkspaceRoot`                                     | Root `package.json`, `pnpm-workspace.yaml`, `tsconfig.json`, ESLint entry + boundaries fragment |
-| `FeatureSpec`                                       | `specs/<feature>/SPEC.md` + `DESIGN.md`                                                         |
-| `CorePackage`                                       | `packages/core-<feature>/` shell (`package.json`, README)                                       |
-| `ModelsModule` / `OperationsModule` / …             | Layer folder + sync barrel under the core package                                               |
-| `Shape` / `Primitive` / `Proof`                     | Domain kits under `models/` (via `ModelsModule`)                                                |
-| `Capabilities` / `DomainService`                    | `operations/*.capabilities.ts` / `*.service.ts` (via `OperationsModule`)                        |
-| `DomainError`                                       | `errors/*.error.ts` (via `ErrorsModule`)                                                        |
-| `Port` / `UseCase`                                  | via `PortsModule` / `UseCasesModule`                                                            |
-| `InfrastructurePackage`                             | `packages/infrastructure-<name>/`                                                               |
-| `InfrastructureLoader` / `InfrastructureRepository` | loaders + repositories + mappers                                                                |
-| `UiPackage`                                         | `packages/ui-<name>/` (apps-only import rule is ESLint wave 2)                                  |
-| `App` / `CompositionRoot`                           | `apps/<app>/` + `composition/*.composition.ts`                                                  |
+| Construct                               | Monorepo element                                                                                |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `WorkspaceRoot`                         | Root `package.json`, `pnpm-workspace.yaml`, `tsconfig.json`, ESLint entry + boundaries fragment |
+| `FeatureSpec`                           | `specs/<feature>/SPEC.md` + `DESIGN.md`                                                         |
+| `CorePackage`                           | `packages/core-<feature>/` shell (`package.json`, README)                                       |
+| `ModelsModule` / `OperationsModule` / … | Layer folder + sync barrel under the core package                                               |
+| `Shape` / `Primitive` / `Proof`         | Domain kits under `models/` (via `ModelsModule`)                                                |
+| `Capabilities` / `DomainService`        | `operations/*.capabilities.ts` / `*.service.ts` (via `OperationsModule`)                        |
+| `DomainError`                           | `errors/*.error.ts` (via `ErrorsModule`)                                                        |
+| `Port` / `UseCase`                      | via `PortsModule` / `UseCasesModule`                                                            |
+| `InfrastructurePackage`                 | `packages/infrastructure-<name>/` (client and raw loaders)                                      |
+| `InfrastructureLoader`                  | `loaders/` under the vendor package                                                             |
+| `AdapterPackage` / `Adapter`            | `packages/adapter-<name>/` (mappers + repositories; may import `@infrastructure`)               |
+| `UiPackage`                             | `packages/ui-<name>/` (apps-only import rule is ESLint wave 2)                                  |
+| `App` / `CompositionRoot`               | `apps/<app>/` + `composition/*.composition.ts`                                                  |
 
 ## Population slice
 
-`population.ts` registers one coherent **pagebuilder** vertical slice that exercises every construct once (core kits, port, use case, Contentful infra loader/repository, UI package, web-next composition root).
+`population.ts` registers one coherent **pagebuilder** vertical slice that exercises every construct once (core kits, port, use case, Contentful loader, `@adapter/contentful-pagebuilder`, UI package, web-next composition root).

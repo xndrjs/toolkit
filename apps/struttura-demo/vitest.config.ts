@@ -2,8 +2,8 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    include: ["src/**/*.test.ts"],
-    // Materialized monorepo under src/project is illustrative scaffold, not demo tests.
-    exclude: ["src/project/**", "node_modules/**"],
+    include: ["demo.test.ts"],
+    // src is the materialized monorepo, not the demo test suite.
+    exclude: ["src/**", "node_modules/**"],
   },
 });
