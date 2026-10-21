@@ -158,7 +158,7 @@ What business capability does this bounded context own?
   };
 });
 
-export const ModelsModule = A.defineConstruct("ModelsModule", { core: CorePackage }, ({ core }) => {
+export const ModelsModule = A.defineConstruct("ModelsModule", { core: CorePackage })(({ core }) => {
   const models = dir(`${core.artifacts.packageDirectory.path}/models`);
   return {
     models,
@@ -171,41 +171,37 @@ export const ModelsModule = A.defineConstruct("ModelsModule", { core: CorePackag
   };
 });
 
-export const OperationsModule = A.defineConstruct(
-  "OperationsModule",
-  { core: CorePackage },
-  ({ core }) => {
-    const operations = dir(`${core.artifacts.packageDirectory.path}/operations`);
-    return {
-      operations,
-      index: file({
-        filename: "index.ts",
-        directory: operations,
-        mode: "sync",
-        content: (ctx: FileRenderContext) => renderTsBarrel(ctx, operations, { recursive: true }),
-      }),
-    };
-  }
-);
+export const OperationsModule = A.defineConstruct("OperationsModule", { core: CorePackage })(({
+  core,
+}) => {
+  const operations = dir(`${core.artifacts.packageDirectory.path}/operations`);
+  return {
+    operations,
+    index: file({
+      filename: "index.ts",
+      directory: operations,
+      mode: "sync",
+      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, operations, { recursive: true }),
+    }),
+  };
+});
 
-export const UseCasesModule = A.defineConstruct(
-  "UseCasesModule",
-  { core: CorePackage },
-  ({ core }) => {
-    const useCases = dir(`${core.artifacts.packageDirectory.path}/use-cases`);
-    return {
-      useCases,
-      index: file({
-        filename: "index.ts",
-        directory: useCases,
-        mode: "sync",
-        content: (ctx: FileRenderContext) => renderTsBarrel(ctx, useCases, { recursive: true }),
-      }),
-    };
-  }
-);
+export const UseCasesModule = A.defineConstruct("UseCasesModule", { core: CorePackage })(({
+  core,
+}) => {
+  const useCases = dir(`${core.artifacts.packageDirectory.path}/use-cases`);
+  return {
+    useCases,
+    index: file({
+      filename: "index.ts",
+      directory: useCases,
+      mode: "sync",
+      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, useCases, { recursive: true }),
+    }),
+  };
+});
 
-export const PortsModule = A.defineConstruct("PortsModule", { core: CorePackage }, ({ core }) => {
+export const PortsModule = A.defineConstruct("PortsModule", { core: CorePackage })(({ core }) => {
   const ports = dir(`${core.artifacts.packageDirectory.path}/ports`);
   return {
     ports,
@@ -218,7 +214,7 @@ export const PortsModule = A.defineConstruct("PortsModule", { core: CorePackage 
   };
 });
 
-export const ErrorsModule = A.defineConstruct("ErrorsModule", { core: CorePackage }, ({ core }) => {
+export const ErrorsModule = A.defineConstruct("ErrorsModule", { core: CorePackage })(({ core }) => {
   const errors = dir(`${core.artifacts.packageDirectory.path}/errors`);
   return {
     errors,
@@ -231,7 +227,7 @@ export const ErrorsModule = A.defineConstruct("ErrorsModule", { core: CorePackag
   };
 });
 
-export const Shape = A.defineConstruct("Shape", { models: ModelsModule }, ({ name, models }) => {
+export const Shape = A.defineConstruct("Shape", { models: ModelsModule })(({ name, models }) => {
   const pascal = toPascalCase(name);
   const kebab = toKebabCase(name);
   return {
@@ -256,18 +252,18 @@ export type ${pascal} = ReturnType<(typeof ${pascal}Shape)["create"]>;
   };
 });
 
-export const Primitive = A.defineConstruct(
-  "Primitive",
-  { models: ModelsModule },
-  ({ name, models }) => {
-    const pascal = toPascalCase(name);
-    const kebab = toKebabCase(name);
-    return {
-      source: file({
-        filename: `${kebab}.primitive.ts`,
-        directory: models.artifacts.models,
-        mode: "scaffold",
-        content: `import { domain } from "@xndrjs/domain-zod";
+export const Primitive = A.defineConstruct("Primitive", { models: ModelsModule })(({
+  name,
+  models,
+}) => {
+  const pascal = toPascalCase(name);
+  const kebab = toKebabCase(name);
+  return {
+    source: file({
+      filename: `${kebab}.primitive.ts`,
+      directory: models.artifacts.models,
+      mode: "scaffold",
+      content: `import { domain } from "@xndrjs/domain-zod";
 import { z } from "zod";
 
 export const ${pascal}Primitive = domain.primitive(
@@ -277,12 +273,11 @@ export const ${pascal}Primitive = domain.primitive(
 
 export type ${pascal} = ReturnType<(typeof ${pascal}Primitive)["create"]>;
 `,
-      }),
-    };
-  }
-);
+    }),
+  };
+});
 
-export const Proof = A.defineConstruct("Proof", { models: ModelsModule }, ({ name, models }) => {
+export const Proof = A.defineConstruct("Proof", { models: ModelsModule })(({ name, models }) => {
   const pascal = toPascalCase(name);
   const kebab = toKebabCase(name);
   return {
@@ -310,18 +305,18 @@ export type ${pascal} = ReturnType<(typeof ${pascal}Proof)["assert"]>;
   };
 });
 
-export const Capabilities = A.defineConstruct(
-  "Capabilities",
-  { operations: OperationsModule },
-  ({ name, operations }) => {
-    const pascal = toPascalCase(name);
-    const kebab = toKebabCase(name);
-    return {
-      source: file({
-        filename: `${kebab}.capabilities.ts`,
-        directory: operations.artifacts.operations,
-        mode: "scaffold",
-        content: `import { domain } from "@xndrjs/domain-zod";
+export const Capabilities = A.defineConstruct("Capabilities", { operations: OperationsModule })(({
+  name,
+  operations,
+}) => {
+  const pascal = toPascalCase(name);
+  const kebab = toKebabCase(name);
+  return {
+    source: file({
+      filename: `${kebab}.capabilities.ts`,
+      directory: operations.artifacts.operations,
+      mode: "scaffold",
+      content: `import { domain } from "@xndrjs/domain-zod";
 import { ${pascal}Shape } from "../models/${kebab}.shape";
 
 export const ${pascal}Capabilities = domain.capabilities
@@ -330,46 +325,44 @@ export const ${pascal}Capabilities = domain.capabilities
     // TODO: add capabilities
   }));
 `,
-      }),
-    };
-  }
-);
+    }),
+  };
+});
 
-export const DomainService = A.defineConstruct(
-  "DomainService",
-  { operations: OperationsModule },
-  ({ name, operations }) => {
-    const pascal = toPascalCase(name);
-    const kebab = toKebabCase(name);
-    const camel = pascal.charAt(0).toLowerCase() + pascal.slice(1);
-    return {
-      source: file({
-        filename: `${kebab}.service.ts`,
-        directory: operations.artifacts.operations,
-        mode: "scaffold",
-        content: `/** Cross-model domain logic for ${pascal} (pure functions). */
+export const DomainService = A.defineConstruct("DomainService", { operations: OperationsModule })(({
+  name,
+  operations,
+}) => {
+  const pascal = toPascalCase(name);
+  const kebab = toKebabCase(name);
+  const camel = pascal.charAt(0).toLowerCase() + pascal.slice(1);
+  return {
+    source: file({
+      filename: `${kebab}.service.ts`,
+      directory: operations.artifacts.operations,
+      mode: "scaffold",
+      content: `/** Cross-model domain logic for ${pascal} (pure functions). */
 export function ${camel}Service() {
   // TODO: implement domain service
 }
 `,
-      }),
-    };
-  }
-);
+    }),
+  };
+});
 
-export const DomainError = A.defineConstruct(
-  "DomainError",
-  { errors: ErrorsModule },
-  ({ name, errors }) => {
-    const pascal = toPascalCase(name);
-    const kebab = toKebabCase(name);
-    const code = kebab.replaceAll("-", "_").toUpperCase();
-    return {
-      source: file({
-        filename: `${kebab}.error.ts`,
-        directory: errors.artifacts.errors,
-        mode: "scaffold",
-        content: `export class ${pascal}Error extends Error {
+export const DomainError = A.defineConstruct("DomainError", { errors: ErrorsModule })(({
+  name,
+  errors,
+}) => {
+  const pascal = toPascalCase(name);
+  const kebab = toKebabCase(name);
+  const code = kebab.replaceAll("-", "_").toUpperCase();
+  return {
+    source: file({
+      filename: `${kebab}.error.ts`,
+      directory: errors.artifacts.errors,
+      mode: "scaffold",
+      content: `export class ${pascal}Error extends Error {
   readonly code = "${code}" as const;
 
   constructor(message = "${pascal}") {
@@ -378,12 +371,11 @@ export const DomainError = A.defineConstruct(
   }
 }
 `,
-      }),
-    };
-  }
-);
+    }),
+  };
+});
 
-export const Port = A.defineConstruct("Port", { ports: PortsModule }, ({ name, ports }) => {
+export const Port = A.defineConstruct("Port", { ports: PortsModule })(({ name, ports }) => {
   const pascal = toPascalCase(name);
   const kebab = toKebabCase(name);
   return {
@@ -397,19 +389,19 @@ export const Port = A.defineConstruct("Port", { ports: PortsModule }, ({ name, p
   };
 });
 
-export const UseCase = A.defineConstruct(
-  "UseCase",
-  { useCases: UseCasesModule },
-  ({ name, useCases }) => {
-    const pascal = toPascalCase(name);
-    const kebab = toKebabCase(name);
-    const camel = pascal.charAt(0).toLowerCase() + pascal.slice(1);
-    return {
-      source: file({
-        filename: `${kebab}.use-case.ts`,
-        directory: useCases.artifacts.useCases,
-        mode: "scaffold",
-        content: `/**
+export const UseCase = A.defineConstruct("UseCase", { useCases: UseCasesModule })(({
+  name,
+  useCases,
+}) => {
+  const pascal = toPascalCase(name);
+  const kebab = toKebabCase(name);
+  const camel = pascal.charAt(0).toLowerCase() + pascal.slice(1);
+  return {
+    source: file({
+      filename: `${kebab}.use-case.ts`,
+      directory: useCases.artifacts.useCases,
+      mode: "scaffold",
+      content: `/**
  * Use case "${camel}"
  * Wire in the app composition root (e.g. getWebServerRoot(ctx).${camel}).
  */
@@ -423,10 +415,9 @@ export function create${pascal}UseCase(_deps: ${pascal}UseCaseDeps) {
   };
 }
 `,
-      }),
-    };
-  }
-);
+    }),
+  };
+});
 
 export const InfrastructurePackage = A.defineConstruct("InfrastructurePackage", ({ name }) => {
   const pkg = toKebabCase(name);
@@ -476,19 +467,18 @@ Adapters for ${pkg}.
   };
 });
 
-export const InfrastructureLoader = A.defineConstruct(
-  "InfrastructureLoader",
-  { infra: InfrastructurePackage },
-  ({ name, infra }) => {
-    const pascal = toPascalCase(name);
-    const kebab = toKebabCase(name);
-    const camel = pascal.charAt(0).toLowerCase() + pascal.slice(1);
-    return {
-      source: file({
-        filename: `${kebab}.loader.ts`,
-        directory: infra.artifacts.loaders,
-        mode: "scaffold",
-        content: `/**
+export const InfrastructureLoader = A.defineConstruct("InfrastructureLoader", {
+  infra: InfrastructurePackage,
+})(({ name, infra }) => {
+  const pascal = toPascalCase(name);
+  const kebab = toKebabCase(name);
+  const camel = pascal.charAt(0).toLowerCase() + pascal.slice(1);
+  return {
+    source: file({
+      filename: `${kebab}.loader.ts`,
+      directory: infra.artifacts.loaders,
+      mode: "scaffold",
+      content: `/**
  * Loader "${camel}"
  *
  * Fetches raw ${pascal} records from an external service.
@@ -514,37 +504,33 @@ export class ${pascal}Loader {
   }
 }
 `,
-      }),
-    };
-  }
-);
+    }),
+  };
+});
 
-export const InfrastructureRepository = A.defineConstruct(
-  "InfrastructureRepository",
-  {
-    infra: InfrastructurePackage,
-    port: Port,
-    loader: InfrastructureLoader,
-    shape: Shape,
-  },
-  ({ name, infra, port, loader, shape }) => {
-    const pascal = toPascalCase(name);
-    const kebab = toKebabCase(name);
-    const shapePascal = toPascalCase(shape.name);
-    const shapeKebab = toKebabCase(shape.name);
-    const portPascal = toPascalCase(port.name);
-    const loaderPascal = toPascalCase(loader.name);
-    const loaderKebab = toKebabCase(loader.name);
-    const loaderCamel = loaderPascal.charAt(0).toLowerCase() + loaderPascal.slice(1);
-    const modelsModule = shape.dependencies.models;
-    const coreInstance = modelsModule?.dependencies.core;
-    const coreFeature = toKebabCase(coreInstance?.name ?? "unknown");
-    return {
-      mapper: file({
-        filename: `${shapeKebab}.mapper.ts`,
-        directory: infra.artifacts.mappers,
-        mode: "scaffold",
-        content: `import type { ${shapePascal} } from "@core/${coreFeature}/models";
+export const InfrastructureRepository = A.defineConstruct("InfrastructureRepository", {
+  infra: InfrastructurePackage,
+  port: Port,
+  loader: InfrastructureLoader,
+  shape: Shape,
+})(({ name, infra, port, loader, shape }) => {
+  const pascal = toPascalCase(name);
+  const kebab = toKebabCase(name);
+  const shapePascal = toPascalCase(shape.name);
+  const shapeKebab = toKebabCase(shape.name);
+  const portPascal = toPascalCase(port.name);
+  const loaderPascal = toPascalCase(loader.name);
+  const loaderKebab = toKebabCase(loader.name);
+  const loaderCamel = loaderPascal.charAt(0).toLowerCase() + loaderPascal.slice(1);
+  const modelsModule = shape.dependencies.models;
+  const coreInstance = modelsModule?.dependencies.core;
+  const coreFeature = toKebabCase(coreInstance?.name ?? "unknown");
+  return {
+    mapper: file({
+      filename: `${shapeKebab}.mapper.ts`,
+      directory: infra.artifacts.mappers,
+      mode: "scaffold",
+      content: `import type { ${shapePascal} } from "@core/${coreFeature}/models";
 import type { Raw${loaderPascal} } from "../loaders/${loaderKebab}.loader";
 
 export function mapRawTo${shapePascal}(raw: Raw${loaderPascal}): ${shapePascal} {
@@ -552,12 +538,12 @@ export function mapRawTo${shapePascal}(raw: Raw${loaderPascal}): ${shapePascal} 
   throw new Error("Not implemented: mapRawTo${shapePascal}");
 }
 `,
-      }),
-      repository: file({
-        filename: `${kebab}.repository.ts`,
-        directory: infra.artifacts.repositories,
-        mode: "scaffold",
-        content: `import type { ${shapePascal} } from "@core/${coreFeature}/models";
+    }),
+    repository: file({
+      filename: `${kebab}.repository.ts`,
+      directory: infra.artifacts.repositories,
+      mode: "scaffold",
+      content: `import type { ${shapePascal} } from "@core/${coreFeature}/models";
 import type { ${portPascal}Port } from "@core/${coreFeature}/ports";
 
 import { mapRawTo${shapePascal} } from "../mappers/${shapeKebab}.mapper";
@@ -576,10 +562,9 @@ export class ${pascal}Repository implements ${portPascal}Port {
   }
 }
 `,
-      }),
-    };
-  }
-);
+    }),
+  };
+});
 
 export const UiPackage = A.defineConstruct("UiPackage", ({ name }) => {
   const pkg = toKebabCase(name);
@@ -654,26 +639,26 @@ export const App = A.defineConstruct("App", ({ name }) => {
   };
 });
 
-export const CompositionRoot = A.defineConstruct(
-  "CompositionRoot",
-  { app: App },
-  ({ name, app }) => {
-    const kebab = toKebabCase(name);
-    const pascal = toPascalCase(name);
-    const isServer = kebab.includes("server");
-    const infraFn = isServer ? "getServerInfrastructure" : "getInfrastructure";
-    const rootFn = `get${pascal}Root`;
-    const serverImport = isServer
-      ? `import "server-only";
+export const CompositionRoot = A.defineConstruct("CompositionRoot", { app: App })(({
+  name,
+  app,
+}) => {
+  const kebab = toKebabCase(name);
+  const pascal = toPascalCase(name);
+  const isServer = kebab.includes("server");
+  const infraFn = isServer ? "getServerInfrastructure" : "getInfrastructure";
+  const rootFn = `get${pascal}Root`;
+  const serverImport = isServer
+    ? `import "server-only";
 
 `
-      : "";
-    return {
-      source: file({
-        filename: `${kebab}.composition.ts`,
-        directory: app.artifacts.composition,
-        mode: "scaffold",
-        content: `${serverImport}type RequestContext = never;
+    : "";
+  return {
+    source: file({
+      filename: `${kebab}.composition.ts`,
+      directory: app.artifacts.composition,
+      mode: "scaffold",
+      content: `${serverImport}type RequestContext = never;
 
 function ${infraFn}(ctx: RequestContext) {
   void ctx;
@@ -694,10 +679,9 @@ export function ${rootFn}(ctx: RequestContext) {
   };
 }
 `,
-      }),
-    };
-  }
-);
+    }),
+  };
+});
 
 export const architecture = A.seal();
 

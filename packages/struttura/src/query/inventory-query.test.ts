@@ -19,7 +19,7 @@ function buildGuidePopulation() {
     };
   });
 
-  const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
+  const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
     source: file({
       filename: `${toKebabCase(name)}.model.ts`,
       directory: core.artifacts.models,
@@ -107,9 +107,7 @@ describe("createInventoryQuery", () => {
         index: file({ filename: "index.ts", directory: models, mode: "sync", content: "" }),
       };
     });
-    const flatModel = A.defineConstruct(
-      "FlatModel",
-      { models: modelsModule },
+    const flatModel = A.defineConstruct("FlatModel", { models: modelsModule })(
       ({ name, models }) => ({
         source: file({
           filename: `${toKebabCase(name)}.model.ts`,
@@ -118,9 +116,7 @@ describe("createInventoryQuery", () => {
         }),
       })
     );
-    const nestedModel = A.defineConstruct(
-      "NestedModel",
-      { models: modelsModule },
+    const nestedModel = A.defineConstruct("NestedModel", { models: modelsModule })(
       ({ name, models }) => ({
         source: file({
           filename: `${toKebabCase(name)}.model.ts`,

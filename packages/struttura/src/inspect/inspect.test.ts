@@ -61,7 +61,7 @@ function buildGuidePopulation() {
     };
   });
 
-  const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
+  const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
     source: file({
       filename: `${toKebabCase(name)}.model.ts`,
       directory: core.artifacts.models,
@@ -70,9 +70,7 @@ function buildGuidePopulation() {
     }),
   }));
 
-  const useCase = A.defineConstruct(
-    "UseCase",
-    { package: corePackage },
+  const useCase = A.defineConstruct("UseCase", { package: corePackage })(
     ({ name, package: pkg }) => ({
       source: file({
         filename: `${toKebabCase(name)}.use-case.ts`,

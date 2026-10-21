@@ -116,7 +116,7 @@ export const CorePackage = A.defineConstruct("CorePackage", ({ name }) => {
   };
 });
 
-export const Model = A.defineConstruct("Model", { core: CorePackage }, ({ name, core }) => ({
+export const Model = A.defineConstruct("Model", { core: CorePackage })(({ name, core }) => ({
   source: file({
     filename: \`\${toKebabCase(name)}.model.ts\`,
     directory: core.artifacts.models,

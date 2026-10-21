@@ -30,7 +30,7 @@ describe("migrate-id", () => {
       const models = dir(`${packageDirectory.path}/models`);
       return { packageDirectory, models };
     });
-    const model = A.defineConstruct("Model", { core }, ({ name, core: c }) => ({
+    const model = A.defineConstruct("Model", { core })(({ name, core: c }) => ({
       source: file({
         filename: `${name}.ts`,
         directory: c.artifacts.models,

@@ -64,7 +64,7 @@ describe("relativeTsModule / renderTsBarrel", () => {
         }),
       };
     });
-    const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
+    const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
       source: file({
         filename: `${toKebabCase(name)}.model.ts`,
         directory: core.artifacts.models,

@@ -1,6 +1,6 @@
 import type {
+  AnyConstructDefinition,
   Architecture,
-  ConstructDefinition,
   InstanceRef,
 } from "../architecture/define-architecture";
 
@@ -13,7 +13,7 @@ type ArchitectureSource = Architecture | ArchitectureBuilderLike;
 export type RegisteredInstance = {
   readonly id: string;
   readonly name: string;
-  readonly construct: ConstructDefinition;
+  readonly construct: AnyConstructDefinition;
   readonly dependencies: Readonly<Record<string, InstanceRef>>;
   artifacts: InstanceRef["artifacts"];
 };
@@ -32,7 +32,7 @@ export type Population = {
   readonly definitionStamp: string | undefined;
   readonly instances: readonly RegisteredInstance[];
   add(
-    construct: ConstructDefinition,
+    construct: AnyConstructDefinition,
     input: { name: string; id?: string } & Record<string, InstanceRef | string | undefined>
   ): InstanceRef;
 };

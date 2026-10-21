@@ -1,4 +1,4 @@
-import type { ConstructDefinition } from "../architecture/define-architecture";
+import type { AnyConstructDefinition } from "../architecture/define-architecture";
 import type { DirRef } from "../architecture/artifacts";
 import type { DesiredArtifact, DesiredInventory } from "../inventory/derive-desired-inventory";
 
@@ -26,7 +26,7 @@ export type FilesInOptions = {
 };
 
 export type InventoryQuery = {
-  instances(construct: ConstructDefinition | string): readonly QueriedInstance[];
+  instances(construct: AnyConstructDefinition | string): readonly QueriedInstance[];
   artifacts(instance: { readonly id: string } | string): readonly DesiredArtifact[];
   /**
    * Managed file artifacts for a directory.

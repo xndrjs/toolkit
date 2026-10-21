@@ -4,4 +4,6 @@ Construct artifacts are declared in a single callback next to `defineConstruct`,
 
 `file` takes a single options object — `filename`, `directory`, `mode`, and optional `content` — so call sites stay explicit when wrapping across lines. We rejected positional `file(filename, directory, mode, content?)` (easy to mis-order) and dual signatures (one style only).
 
+Dependency constructs use a curried form — `defineConstruct("X", { core })(({ core }) => …)` — so TypeScript can fix `TDeps` before typing the artifacts callback; a single three-argument call does not reliably infer dependency `.artifacts`. `ConstructDefinition` is generic over the descriptor map so dependents see precise `DirRef` / `FileRef` keys.
+
 We rejected sibling `artifacts` + `render` maps and fluent post-hoc builders: one readable place per construct beats split declarations, and lazy render keeps the required derive-then-query sequence.

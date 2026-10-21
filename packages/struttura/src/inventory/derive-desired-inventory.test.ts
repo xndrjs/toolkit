@@ -32,7 +32,7 @@ describe("deriveDesiredInventory", () => {
       };
     });
 
-    const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
+    const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
       source: file({
         filename: `${toKebabCase(name)}.model.ts`,
         directory: core.artifacts.models,
@@ -40,9 +40,7 @@ describe("deriveDesiredInventory", () => {
       }),
     }));
 
-    const useCase = A.defineConstruct(
-      "UseCase",
-      { package: corePackage },
+    const useCase = A.defineConstruct("UseCase", { package: corePackage })(
       ({ name, package: pkg }) => ({
         source: file({
           filename: `${toKebabCase(name)}.use-case.ts`,
@@ -257,7 +255,7 @@ describe("deriveDesiredInventory", () => {
         modelsIndex: file({ filename: "index.ts", directory: models, mode: "sync" }),
       };
     });
-    const model = A.defineConstruct("Model", { core: corePackage }, ({ name, core }) => ({
+    const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
       source: file({
         filename: `${toKebabCase(name)}.model.ts`,
         directory: core.artifacts.models,

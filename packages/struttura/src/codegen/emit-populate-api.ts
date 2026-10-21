@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 
 import type { ArtifactDescriptor } from "../architecture/artifacts";
 import type {
+  AnyConstructDefinition,
   Architecture,
-  ConstructDefinition,
   InstanceArtifacts,
   InstanceRef,
 } from "../architecture/define-architecture";
@@ -16,7 +16,7 @@ export type EmitPopulateApiOptions = {
   /** Named export for the sealed Architecture (default `"architecture"`). */
   readonly architectureExport?: string;
   /**
-   * Named export for a `Record<constructName, ConstructDefinition>`
+   * Named export for a `Record<constructName, AnyConstructDefinition>`
    * (default `"constructs"`).
    */
   readonly constructsExport?: string;
@@ -112,7 +112,7 @@ export function probeArtifactKinds(
 
 export function constructsFromArchitecture(
   architecture: Architecture
-): Record<string, ConstructDefinition> {
+): Record<string, AnyConstructDefinition> {
   return Object.fromEntries(architecture.constructs.entries());
 }
 
