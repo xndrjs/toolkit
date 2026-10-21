@@ -6,6 +6,7 @@ import {
   renderTsBarrel,
   root,
   toKebabCase,
+  tsBarrelIndex,
 } from "@xndrjs/struttura";
 
 import { adapterMapperSource } from "./templates/adapter-mapper-source";
@@ -43,13 +44,11 @@ export const WorkspaceRoot = A.defineConstruct("WorkspaceRoot", () => ({
   packageJson: file({
     filename: "package.json",
     directory: root,
-    mode: "scaffold",
     content: workspacePackageJson(),
   }),
   pnpmWorkspace: file({
     filename: "pnpm-workspace.yaml",
     directory: root,
-    mode: "scaffold",
     content: pnpmWorkspaceYaml(),
   }),
   tsconfig: file({
@@ -67,13 +66,11 @@ export const FeatureSpec = A.defineConstruct("FeatureSpec", ({ name }) => {
     spec: file({
       filename: "SPEC.md",
       directory: folder,
-      mode: "scaffold",
       content: featureSpec(name),
     }),
     design: file({
       filename: "DESIGN.md",
       directory: folder,
-      mode: "scaffold",
       content: featureDesign(name),
     }),
   };
@@ -87,19 +84,16 @@ export const CorePackage = A.defineConstruct("CorePackage", ({ name }) => {
     packageJson: file({
       filename: "package.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: (ctx) => corePackageJson(ctx.name),
     }),
     tsconfig: file({
       filename: "tsconfig.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: packageTsconfig(),
     }),
     readme: file({
       filename: "README.md",
       directory: packageDirectory,
-      mode: "scaffold",
       content: coreReadme(name),
     }),
   };
@@ -109,12 +103,7 @@ export const ModelsModule = A.defineConstruct("ModelsModule", { core: CorePackag
   const models = dir(`${core.artifacts.packageDirectory.path}/models`);
   return {
     models,
-    index: file({
-      filename: "index.ts",
-      directory: models,
-      mode: "sync",
-      content: (ctx) => renderTsBarrel(ctx, models, { recursive: true }),
-    }),
+    index: tsBarrelIndex({ directory: models, recursive: true }),
   };
 });
 
@@ -124,12 +113,7 @@ export const OperationsModule = A.defineConstruct("OperationsModule", { core: Co
   const operations = dir(`${core.artifacts.packageDirectory.path}/operations`);
   return {
     operations,
-    index: file({
-      filename: "index.ts",
-      directory: operations,
-      mode: "sync",
-      content: (ctx) => renderTsBarrel(ctx, operations, { recursive: true }),
-    }),
+    index: tsBarrelIndex({ directory: operations, recursive: true }),
   };
 });
 
@@ -139,12 +123,7 @@ export const UseCasesModule = A.defineConstruct("UseCasesModule", { core: CorePa
   const useCases = dir(`${core.artifacts.packageDirectory.path}/use-cases`);
   return {
     useCases,
-    index: file({
-      filename: "index.ts",
-      directory: useCases,
-      mode: "sync",
-      content: (ctx) => renderTsBarrel(ctx, useCases, { recursive: true }),
-    }),
+    index: tsBarrelIndex({ directory: useCases, recursive: true }),
   };
 });
 
@@ -152,12 +131,7 @@ export const PortsModule = A.defineConstruct("PortsModule", { core: CorePackage 
   const ports = dir(`${core.artifacts.packageDirectory.path}/ports`);
   return {
     ports,
-    index: file({
-      filename: "index.ts",
-      directory: ports,
-      mode: "sync",
-      content: (ctx) => renderTsBarrel(ctx, ports, { recursive: true }),
-    }),
+    index: tsBarrelIndex({ directory: ports, recursive: true }),
   };
 });
 
@@ -165,12 +139,7 @@ export const ErrorsModule = A.defineConstruct("ErrorsModule", { core: CorePackag
   const errors = dir(`${core.artifacts.packageDirectory.path}/errors`);
   return {
     errors,
-    index: file({
-      filename: "index.ts",
-      directory: errors,
-      mode: "sync",
-      content: (ctx) => renderTsBarrel(ctx, errors, { recursive: true }),
-    }),
+    index: tsBarrelIndex({ directory: errors, recursive: true }),
   };
 });
 
@@ -180,7 +149,6 @@ export const Shape = A.defineConstruct("Shape", { models: ModelsModule })(({ nam
     source: file({
       filename: `${kebab}.shape.ts`,
       directory: models.artifacts.models,
-      mode: "scaffold",
       content: shapeSource(name),
     }),
   };
@@ -195,7 +163,6 @@ export const Primitive = A.defineConstruct("Primitive", { models: ModelsModule }
     source: file({
       filename: `${kebab}.primitive.ts`,
       directory: models.artifacts.models,
-      mode: "scaffold",
       content: primitiveSource(name),
     }),
   };
@@ -207,7 +174,6 @@ export const Proof = A.defineConstruct("Proof", { models: ModelsModule })(({ nam
     source: file({
       filename: `${kebab}.proof.ts`,
       directory: models.artifacts.models,
-      mode: "scaffold",
       content: proofSource(name),
     }),
   };
@@ -222,7 +188,6 @@ export const Capabilities = A.defineConstruct("Capabilities", { operations: Oper
     source: file({
       filename: `${kebab}.capabilities.ts`,
       directory: operations.artifacts.operations,
-      mode: "scaffold",
       content: capabilitiesSource(name),
     }),
   };
@@ -237,7 +202,6 @@ export const DomainService = A.defineConstruct("DomainService", { operations: Op
     source: file({
       filename: `${kebab}.service.ts`,
       directory: operations.artifacts.operations,
-      mode: "scaffold",
       content: domainServiceSource(name),
     }),
   };
@@ -252,7 +216,6 @@ export const DomainError = A.defineConstruct("DomainError", { errors: ErrorsModu
     source: file({
       filename: `${kebab}.error.ts`,
       directory: errors.artifacts.errors,
-      mode: "scaffold",
       content: domainErrorSource(name),
     }),
   };
@@ -264,7 +227,6 @@ export const Port = A.defineConstruct("Port", { ports: PortsModule })(({ name, p
     source: file({
       filename: `${kebab}.port.ts`,
       directory: ports.artifacts.ports,
-      mode: "scaffold",
       content: portSource(name),
     }),
   };
@@ -279,7 +241,6 @@ export const UseCase = A.defineConstruct("UseCase", { useCases: UseCasesModule }
     source: file({
       filename: `${kebab}.use-case.ts`,
       directory: useCases.artifacts.useCases,
-      mode: "scaffold",
       content: useCaseSource(name),
     }),
   };
@@ -294,21 +255,8 @@ export const InfrastructurePackage = A.defineConstruct("InfrastructurePackage", 
     packageDirectory,
     loaders,
     schemas,
-    loadersIndex: file({
-      filename: "index.ts",
-      directory: loaders,
-      mode: "sync",
-      content: (ctx) => renderTsBarrel(ctx, loaders, { recursive: true }),
-    }),
-    schemasIndex: file({
-      filename: "index.ts",
-      directory: schemas,
-      mode: "sync",
-      content: (ctx) => {
-        const body = renderTsBarrel(ctx, schemas, { recursive: true });
-        return body.length > 0 ? body : "export {};\n";
-      },
-    }),
+    loadersIndex: tsBarrelIndex({ directory: loaders, recursive: true }),
+    schemasIndex: tsBarrelIndex({ directory: schemas, recursive: true }),
     index: file({
       filename: "index.ts",
       directory: packageDirectory,
@@ -318,19 +266,16 @@ export const InfrastructurePackage = A.defineConstruct("InfrastructurePackage", 
     readme: file({
       filename: "README.md",
       directory: packageDirectory,
-      mode: "scaffold",
       content: infrastructureReadme(name),
     }),
     packageJson: file({
       filename: "package.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: infrastructurePackageJson(name),
     }),
     tsconfig: file({
       filename: "tsconfig.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: packageTsconfig(),
     }),
   };
@@ -344,7 +289,6 @@ export const InfrastructureLoader = A.defineConstruct("InfrastructureLoader", {
     source: file({
       filename: `${kebab}.loader.ts`,
       directory: infra.artifacts.loaders,
-      mode: "scaffold",
       content: infrastructureLoaderSource(name),
     }),
   };
@@ -362,7 +306,6 @@ export const AdapterPackage = A.defineConstruct("AdapterPackage", {
     packageJson: file({
       filename: "package.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: adapterPackageJson({ name, feature: core.name }),
     }),
     index: file({
@@ -377,13 +320,11 @@ export const AdapterPackage = A.defineConstruct("AdapterPackage", {
     readme: file({
       filename: "README.md",
       directory: packageDirectory,
-      mode: "scaffold",
       content: adapterReadme({ name, feature: core.name }),
     }),
     tsconfig: file({
       filename: "tsconfig.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: packageTsconfig(),
     }),
   };
@@ -403,7 +344,6 @@ export const Mapper = A.defineConstruct("Mapper", {
     source: file({
       filename: `${shapeKebab}.mapper.ts`,
       directory: adapter.artifacts.mappers,
-      mode: "scaffold",
       content: adapterMapperSource({
         shape: shape.name,
         feature: core.name,
@@ -428,7 +368,6 @@ export const Repository = A.defineConstruct("Repository", {
     source: file({
       filename: `${kebab}.repository.ts`,
       directory: repositories,
-      mode: "scaffold",
       content: adapterRepositorySource({
         name,
         shape: shape.name,
@@ -446,25 +385,21 @@ export const UiPackage = A.defineConstruct("UiPackage", ({ name }) => {
     packageJson: file({
       filename: "package.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: uiPackageJson(name),
     }),
     tsconfig: file({
       filename: "tsconfig.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: packageTsconfig(),
     }),
     index: file({
       filename: "index.ts",
       directory: packageDirectory,
-      mode: "scaffold",
       content: uiIndex(name),
     }),
     readme: file({
       filename: "README.md",
       directory: packageDirectory,
-      mode: "scaffold",
       content: uiReadme(name),
     }),
   };
@@ -480,13 +415,11 @@ export const App = A.defineConstruct("App", ({ name }) => {
     packageJson: file({
       filename: "package.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: appPackageJson(name),
     }),
     tsconfig: file({
       filename: "tsconfig.json",
       directory: packageDirectory,
-      mode: "scaffold",
       content: packageTsconfig(),
     }),
   };
@@ -500,7 +433,6 @@ export const CompositionRoot = A.defineConstruct("CompositionRoot", { app: App }
     source: file({
       filename: `${toKebabCase(name)}.composition.ts`,
       directory: app.artifacts.composition,
-      mode: "scaffold",
       content: compositionRootSource(name),
     }),
   };

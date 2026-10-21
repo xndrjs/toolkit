@@ -125,7 +125,12 @@ export {
 
 export { filesInDirectory, type FilesInDirectoryTarget } from "./query/files-in-directory";
 
-export { relativeTsModule, renderTsBarrel } from "./ts/barrel";
+export {
+  relativeTsModule,
+  renderTsBarrel,
+  tsBarrelIndex,
+  type TsBarrelIndexOptions,
+} from "./ts/barrel";
 
 export {
   toCamelCase,

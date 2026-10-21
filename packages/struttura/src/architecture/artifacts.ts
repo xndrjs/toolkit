@@ -43,7 +43,8 @@ export type DirectoryRefInput = DirRef | DirDescriptor;
 export type FileOptions = {
   readonly filename: string;
   readonly directory: DirectoryRefInput;
-  readonly mode: FileMode;
+  /** Defaults to `"scaffold"` — omit unless you need `"sync"`. */
+  readonly mode?: FileMode;
   /** Scaffold template or sync renderer (lazy; ADR 0001). */
   readonly content?: string | FileContentFn;
 };
@@ -73,7 +74,7 @@ export function file(options: FileOptions): FileDescriptor {
     kind: "file-descriptor",
     filename: options.filename,
     directoryRef: options.directory,
-    mode: options.mode,
+    mode: options.mode ?? "scaffold",
     ...(options.content === undefined ? {} : { content: options.content }),
   });
 }

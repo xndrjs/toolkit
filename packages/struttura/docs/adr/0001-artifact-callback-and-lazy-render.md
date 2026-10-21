@@ -2,7 +2,7 @@
 
 Construct artifacts are declared in a single callback next to `defineConstruct`, returning a keyed map of `dir(...)` / `file({ ... })` descriptors. Scaffold templates and sync renderers are attached as `file({ content })` and run only after the full desired inventory exists (phase 5), so they may use queries without deciding presence or paths.
 
-`file` takes a single options object — `filename`, `directory`, `mode`, and optional `content` — so call sites stay explicit when wrapping across lines. We rejected positional `file(filename, directory, mode, content?)` (easy to mis-order) and dual signatures (one style only).
+`file` takes a single options object — `filename`, `directory`, optional `mode` (default `"scaffold"`), and optional `content` — so call sites stay explicit when wrapping across lines. We rejected positional `file(filename, directory, mode, content?)` (easy to mis-order) and dual signatures (one style only). Layer `index.ts` barrels use `tsBarrelIndex({ directory })` (default sync); odd layouts stay as `file` + `renderTsBarrel`.
 
 Dependency constructs use a curried form — `defineConstruct("X", { core })(({ core }) => …)` — so TypeScript can fix `TDeps` before typing the artifacts callback; a single three-argument call does not reliably infer dependency `.artifacts`. `ConstructDefinition` is generic over the descriptor map so dependents see precise `DirRef` / `FileRef` keys.
 

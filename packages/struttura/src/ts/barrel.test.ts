@@ -7,7 +7,7 @@ import type { DesiredArtifact } from "../inventory/derive-desired-inventory";
 import { deriveDesiredInventory } from "../inventory/derive-desired-inventory";
 import { createPopulation } from "../population/create-population";
 import { createInventoryQuery } from "../query/inventory-query";
-import { relativeTsModule, renderTsBarrel } from "./barrel";
+import { relativeTsModule, renderTsBarrel, tsBarrelIndex } from "./barrel";
 
 function fileArtifact(path: string): DesiredArtifact {
   return {
@@ -93,5 +93,23 @@ describe("relativeTsModule / renderTsBarrel", () => {
     };
 
     expect(renderTsBarrel(ctx, models)).toBe('export * from "./page.model";\n');
+  });
+
+  it("tsBarrelIndex builds a sync index file descriptor", () => {
+    const models = dir("packages/core-x/models");
+    const descriptor = tsBarrelIndex({ directory: models, recursive: true });
+    expect(descriptor.kind).toBe("file-descriptor");
+    expect(descriptor.filename).toBe("index.ts");
+    expect(descriptor.mode).toBe("sync");
+    expect(descriptor.directoryRef).toEqual(models);
+    expect(typeof descriptor.content).toBe("function");
+  });
+
+  it("file() defaults mode to scaffold", () => {
+    const descriptor = file({
+      filename: "page.model.ts",
+      directory: dir("models"),
+    });
+    expect(descriptor.mode).toBe("scaffold");
   });
 });

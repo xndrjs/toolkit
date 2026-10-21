@@ -1,7 +1,42 @@
+import { file, type DirectoryRefInput, type FileDescriptor } from "../architecture/artifacts";
 import type { FileRenderContext } from "../apply/render-contents";
 import type { DesiredArtifact } from "../inventory/derive-desired-inventory";
 import type { FilesInOptions } from "../query/inventory-query";
 import { filesInDirectory, type FilesInDirectoryTarget } from "../query/files-in-directory";
+
+export type TsBarrelIndexOptions = {
+  /** Directory that owns the barrel and whose managed files are re-exported. */
+  readonly directory: DirectoryRefInput;
+  /** Defaults to `"index.ts"`. */
+  readonly filename?: string;
+  /** Defaults to `"sync"` (derived barrel). */
+  readonly mode?: "sync" | "scaffold";
+  /** Passed to {@link filesInDirectory} / {@link renderTsBarrel}. */
+  readonly recursive?: boolean;
+  readonly includeSelf?: boolean;
+};
+
+/**
+ * Base-case TypeScript barrel file in `directory` (usually `index.ts`, sync).
+ * Special layouts (index outside the listed dir) stay as `file` + {@link renderTsBarrel}.
+ */
+export function tsBarrelIndex(options: TsBarrelIndexOptions): FileDescriptor {
+  const filename = options.filename ?? "index.ts";
+  const mode = options.mode ?? "sync";
+  const filesInOptions: FilesInOptions = {
+    ...(options.recursive === undefined ? {} : { recursive: options.recursive }),
+    ...(options.includeSelf === undefined ? {} : { includeSelf: options.includeSelf }),
+  };
+  return file({
+    filename,
+    directory: options.directory,
+    mode,
+    content: (ctx) => {
+      const body = renderTsBarrel(ctx, options.directory, filesInOptions);
+      return body.length > 0 ? body : "export {};\n";
+    },
+  });
+}
 
 /**
  * Relative TypeScript module specifier from a directory path to a managed file
