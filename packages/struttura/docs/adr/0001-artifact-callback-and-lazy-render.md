@@ -6,4 +6,6 @@ Construct artifacts are declared in a single callback next to `defineConstruct`,
 
 Dependency constructs use a curried form — `defineConstruct("X", { core })(({ core }) => …)` — so TypeScript can fix `TDeps` before typing the artifacts callback; a single three-argument call does not reliably infer dependency `.artifacts`. `ConstructDefinition` is generic over the descriptor map so dependents see precise `DirRef` / `FileRef` keys.
 
+Values needed in an artifacts callback (feature name, vendor package, …) should come from **declared** dependency keys on that construct — not by walking `instance.dependencies` on another ref. That map stays erased at the type level; undeclared hops fail closed only at runtime (or silently via fallbacks). Prefer an explicit `core` / `infra` dep over `shape.dependencies.models?.dependencies.core`.
+
 We rejected sibling `artifacts` + `render` maps and fluent post-hoc builders: one readable place per construct beats split declarations, and lazy render keeps the required derive-then-query sequence.

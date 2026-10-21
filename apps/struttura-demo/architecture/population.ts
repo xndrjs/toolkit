@@ -64,6 +64,8 @@ api.Adapter({
   port: pageRepositoryPort,
   loader: pageLoader,
   shape: page,
+  core: pagebuilder.core,
+  infra: contentful,
 });
 
 api.UiPackage({ name: "react" });

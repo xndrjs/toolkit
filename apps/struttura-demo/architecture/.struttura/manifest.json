@@ -156,7 +156,9 @@
         "adapter": "contentful-pagebuilder",
         "port": "pageRepository",
         "loader": "page-loader",
-        "shape": "page"
+        "shape": "page",
+        "core": "pagebuilder",
+        "infra": "contentful"
       }
     },
     {

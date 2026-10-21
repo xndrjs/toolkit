@@ -8,7 +8,7 @@ import {
 } from "@xndrjs/struttura";
 import { architecture, constructs } from "./architecture";
 
-export const DEFINITION_STAMP = "58050b0371f0449d43cc79a8c22b71d60623fc94e1af972cfd98da2037b46d45";
+export const DEFINITION_STAMP = "47c064889acf241ff1321acc4d30fb3c48c288e57c850f12ca4ee61e9504a5af";
 
 export type AdapterArtifacts = {
   readonly mapper: FileRef;
@@ -249,6 +249,8 @@ export type CleanArchitectureOrientedMonorepoPopulateApi = {
     name: string;
     id?: string;
     adapter: AdapterPackageRef;
+    core: CorePackageRef;
+    infra: InfrastructurePackageRef;
     loader: InfrastructureLoaderRef;
     port: PortRef;
     shape: ShapeRef;

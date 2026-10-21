@@ -361,12 +361,13 @@ export const Adapter = A.defineConstruct("Adapter", {
   port: Port,
   loader: InfrastructureLoader,
   shape: Shape,
-})(({ name, adapter, port, loader, shape }) => {
+  core: CorePackage,
+  infra: InfrastructurePackage,
+})(({ name, adapter, port, loader, shape, core, infra }) => {
   const kebab = toKebabCase(name);
   const shapeKebab = toKebabCase(shape.name);
-  const vendor = loader.dependencies.infra?.name ?? "unknown";
-  const modelsModule = shape.dependencies.models;
-  const feature = modelsModule?.dependencies.core?.name ?? "unknown";
+  const vendor = infra.name;
+  const feature = core.name;
   return {
     mapper: file({
       filename: `${shapeKebab}.mapper.ts`,
