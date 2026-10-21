@@ -113,15 +113,12 @@ export { parseCliArgs, printCliHelp, type CliOptions } from "./cli/args";
 export {
   createInventoryQuery,
   type ArtifactIdentity,
+  type FilesInOptions,
   type InventoryQuery,
   type QueriedInstance,
 } from "./query/inventory-query";
 
-export {
-  filesInDirectory,
-  type FilesInDirectoryOptions,
-  type FilesInDirectoryTarget,
-} from "./query/files-in-directory";
+export { filesInDirectory, type FilesInDirectoryTarget } from "./query/files-in-directory";
 
 export { relativeTsModule, renderTsBarrel } from "./ts/barrel";
 

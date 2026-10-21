@@ -1,10 +1,7 @@
 import type { FileRenderContext } from "../apply/render-contents";
 import type { DesiredArtifact } from "../inventory/derive-desired-inventory";
-import {
-  filesInDirectory,
-  type FilesInDirectoryOptions,
-  type FilesInDirectoryTarget,
-} from "../query/files-in-directory";
+import type { FilesInOptions } from "../query/inventory-query";
+import { filesInDirectory, type FilesInDirectoryTarget } from "../query/files-in-directory";
 
 /**
  * Relative TypeScript module specifier from a directory path to a managed file
@@ -27,7 +24,7 @@ export function relativeTsModule(directoryPath: string, fileArtifact: DesiredArt
 export function renderTsBarrel(
   ctx: FileRenderContext,
   directory: FilesInDirectoryTarget,
-  options?: FilesInDirectoryOptions
+  options?: FilesInOptions
 ): string;
 
 /**
@@ -39,7 +36,7 @@ export function renderTsBarrel(directoryPath: string, files: readonly DesiredArt
 export function renderTsBarrel(
   ctxOrPath: FileRenderContext | string,
   directoryOrFiles: FilesInDirectoryTarget | readonly DesiredArtifact[],
-  options?: FilesInDirectoryOptions
+  options?: FilesInOptions
 ): string {
   if (typeof ctxOrPath === "string") {
     return formatTsBarrel(ctxOrPath, directoryOrFiles as readonly DesiredArtifact[]);

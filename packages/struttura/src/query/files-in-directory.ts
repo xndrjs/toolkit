@@ -1,11 +1,7 @@
 import type { DirDescriptor, DirRef } from "../architecture/artifacts";
 import type { FileRenderContext } from "../apply/render-contents";
 import type { DesiredArtifact } from "../inventory/derive-desired-inventory";
-
-export type FilesInDirectoryOptions = {
-  /** When false (default), omit the file currently being rendered (ADR 0004). */
-  readonly includeSelf?: boolean;
-};
+import type { FilesInOptions } from "./inventory-query";
 
 export type FilesInDirectoryTarget = string | DirRef | DirDescriptor;
 
@@ -21,10 +17,9 @@ export type FilesInDirectoryTarget = string | DirRef | DirDescriptor;
 export function filesInDirectory(
   ctx: FileRenderContext,
   directory: FilesInDirectoryTarget,
-  options?: FilesInDirectoryOptions
+  options?: FilesInOptions
 ): readonly DesiredArtifact[] {
-  const includeSelf = options?.includeSelf ?? false;
-  return ctx.query.filesIn(resolveDirectory(ctx, directory), includeSelf);
+  return ctx.query.filesIn(resolveDirectory(ctx, directory), options);
 }
 
 function resolveDirectory(ctx: FileRenderContext, directory: FilesInDirectoryTarget): DirRef {

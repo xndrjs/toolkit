@@ -11,18 +11,30 @@ export type ArtifactIdentity = {
 
 /**
  * Wave 1 query surface (ADR 0004): instances of a construct, artifacts of an
- * instance, and `filesIn(dirRef, includeSelf?)` for sync barrels.
+ * instance, and `filesIn(dirRef, options?)` for sync barrels.
  *
  * Queries affect content only — never presence or paths.
  */
+export type FilesInOptions = {
+  /** When false (default), omits the file currently being rendered. */
+  readonly includeSelf?: boolean;
+  /**
+   * When true, include managed files whose path is under the directory (nested
+   * folders). Default false: only files whose directory ref is exactly `dirRef`.
+   */
+  readonly recursive?: boolean;
+};
+
 export type InventoryQuery = {
   instances(construct: ConstructDefinition | string): readonly QueriedInstance[];
   artifacts(instance: { readonly id: string } | string): readonly DesiredArtifact[];
   /**
-   * Managed file artifacts whose directory reference is `dirRef`.
+   * Managed file artifacts for a directory.
+   * - default: files whose directory reference is exactly `dirRef`
+   * - `recursive: true`: files whose path is under the directory tree
    * When `includeSelf` is false (default), omits the file currently being rendered.
    */
-  filesIn(dirRef: DirRef, includeSelf?: boolean): readonly DesiredArtifact[];
+  filesIn(dirRef: DirRef, options?: FilesInOptions): readonly DesiredArtifact[];
 };
 
 export function createInventoryQuery(
@@ -40,16 +52,36 @@ export function createInventoryQuery(
       return inventory.artifacts.filter((artifact) => artifact.instanceId === instanceId);
     },
 
-    filesIn(dirRef, includeSelf = false) {
+    filesIn(dirRef, options) {
+      const includeSelf = options?.includeSelf ?? false;
+      const recursive = options?.recursive ?? false;
       const matched = inventory.artifacts.filter(
         (artifact) =>
           artifact.kind === "file" &&
-          referencesDirectory(artifact, dirRef) &&
+          matchesDirectory(artifact, dirRef, recursive) &&
           (includeSelf || !isSelf(artifact, self))
       );
       return matched.slice().sort(compareArtifactPath);
     },
   };
+}
+
+function matchesDirectory(artifact: DesiredArtifact, dirRef: DirRef, recursive: boolean): boolean {
+  if (!recursive) {
+    return referencesDirectory(artifact, dirRef);
+  }
+  return isPathUnderDirectory(artifact.path, dirRef);
+}
+
+function isPathUnderDirectory(filePath: string, dirRef: DirRef): boolean {
+  if (dirRef.kind === "root") {
+    return true;
+  }
+  if (filePath === dirRef.path) {
+    return false;
+  }
+  const prefix = dirRef.path === "" ? "" : `${dirRef.path}/`;
+  return prefix === "" ? !filePath.includes("..") : filePath.startsWith(prefix);
 }
 
 function referencesDirectory(artifact: DesiredArtifact, dirRef: DirRef): boolean {

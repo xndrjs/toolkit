@@ -166,7 +166,7 @@ export const ModelsModule = A.defineConstruct("ModelsModule", { core: CorePackag
       filename: "index.ts",
       directory: models,
       mode: "sync",
-      content: (ctx) => renderTsBarrel(ctx, models),
+      content: (ctx) => renderTsBarrel(ctx, models, { recursive: true }),
     }),
   };
 });
@@ -182,7 +182,7 @@ export const OperationsModule = A.defineConstruct(
         filename: "index.ts",
         directory: operations,
         mode: "sync",
-        content: (ctx: FileRenderContext) => renderTsBarrel(ctx, operations),
+        content: (ctx: FileRenderContext) => renderTsBarrel(ctx, operations, { recursive: true }),
       }),
     };
   }
@@ -199,7 +199,7 @@ export const UseCasesModule = A.defineConstruct(
         filename: "index.ts",
         directory: useCases,
         mode: "sync",
-        content: (ctx: FileRenderContext) => renderTsBarrel(ctx, useCases),
+        content: (ctx: FileRenderContext) => renderTsBarrel(ctx, useCases, { recursive: true }),
       }),
     };
   }
@@ -213,7 +213,7 @@ export const PortsModule = A.defineConstruct("PortsModule", { core: CorePackage 
       filename: "index.ts",
       directory: ports,
       mode: "sync",
-      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, ports),
+      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, ports, { recursive: true }),
     }),
   };
 });
@@ -226,7 +226,7 @@ export const ErrorsModule = A.defineConstruct("ErrorsModule", { core: CorePackag
       filename: "index.ts",
       directory: errors,
       mode: "sync",
-      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, errors),
+      content: (ctx: FileRenderContext) => renderTsBarrel(ctx, errors, { recursive: true }),
     }),
   };
 });

@@ -91,10 +91,72 @@ describe("createInventoryQuery", () => {
       instanceId: "pagebuilder",
       artifactKey: "modelsIndex",
     });
-    expect(withSelf.filesIn(modelsDir, true).map((a) => a.path)).toEqual([
+    expect(withSelf.filesIn(modelsDir, { includeSelf: true }).map((a) => a.path)).toEqual([
       "packages/core-pagebuilder/models/index.ts",
       "packages/core-pagebuilder/models/page-slug.model.ts",
       "packages/core-pagebuilder/models/page.model.ts",
+    ]);
+  });
+
+  it("filesIn recursive includes nested managed files by path prefix", () => {
+    const A = defineArchitecture("NestedModels");
+    const modelsModule = A.defineConstruct("ModelsModule", () => {
+      const models = dir("packages/core-x/models");
+      return {
+        models,
+        index: file({ filename: "index.ts", directory: models, mode: "sync", content: "" }),
+      };
+    });
+    const flatModel = A.defineConstruct(
+      "FlatModel",
+      { models: modelsModule },
+      ({ name, models }) => ({
+        source: file({
+          filename: `${toKebabCase(name)}.model.ts`,
+          directory: models.artifacts.models,
+          mode: "scaffold",
+        }),
+      })
+    );
+    const nestedModel = A.defineConstruct(
+      "NestedModel",
+      { models: modelsModule },
+      ({ name, models }) => ({
+        source: file({
+          filename: `${toKebabCase(name)}.model.ts`,
+          directory: dir(`${models.artifacts.models.path}/identity`),
+          mode: "scaffold",
+        }),
+      })
+    );
+
+    const population = createPopulation(A);
+    const models = population.add(modelsModule, { name: "models" });
+    population.add(flatModel, { name: "page", models });
+    population.add(nestedModel, { name: "pageSlug", models });
+
+    const derived = deriveDesiredInventory(population);
+    expect(derived.ok).toBe(true);
+    if (!derived.ok) {
+      return;
+    }
+
+    const modelsDir = models.artifacts.models;
+    expect(modelsDir?.kind).toBe("directory");
+    if (modelsDir?.kind !== "directory") {
+      return;
+    }
+
+    const query = createInventoryQuery(derived.inventory, {
+      instanceId: "models",
+      artifactKey: "index",
+    });
+    expect(query.filesIn(modelsDir).map((a) => a.path)).toEqual([
+      "packages/core-x/models/page.model.ts",
+    ]);
+    expect(query.filesIn(modelsDir, { recursive: true }).map((a) => a.path)).toEqual([
+      "packages/core-x/models/identity/page-slug.model.ts",
+      "packages/core-x/models/page.model.ts",
     ]);
   });
 
