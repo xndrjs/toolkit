@@ -11,6 +11,13 @@ import {
   joinPath,
   normalizeRelativePath,
 } from "../architecture/artifacts";
+import {
+  InvalidAuthoringKeyError,
+  InvalidPlacementRootError,
+  ReservedKeyCollisionError,
+  flattenPlacement,
+  sealNavigableInstance,
+} from "../architecture/tree";
 import type { Population, RegisteredInstance } from "../population/create-population";
 
 export type DiagnosticCode =
@@ -25,7 +32,10 @@ export type DiagnosticCode =
   | "incompatible-paths"
   | "artifact-callback-error"
   | "unknown-dependency-cycle"
-  | "stale-generated-api";
+  | "stale-generated-api"
+  | "reserved-key-collision"
+  | "invalid-authoring-key"
+  | "invalid-placement-root";
 
 export type Diagnostic = {
   readonly code: DiagnosticCode;
@@ -81,15 +91,26 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
   for (const instance of ordered) {
     instance.artifacts = {};
     let descriptors: Record<string, DirDescriptor | FileDescriptor>;
+    let treeDestination: DirRef | undefined;
     try {
       const ctx: Record<string, unknown> = {
         name: instance.name,
         id: instance.id,
         ...instance.dependencies,
       };
-      descriptors = instance.construct.buildArtifacts(
-        ctx as Parameters<typeof instance.construct.buildArtifacts>[0]
-      );
+      if (instance.construct.authoring === "tree" && instance.construct.buildTree) {
+        const placement = instance.construct.buildTree(
+          ctx as Parameters<NonNullable<typeof instance.construct.buildTree>>[0]
+        );
+        treeDestination = placement.destination;
+        descriptors = flattenPlacement(placement, {
+          constructName: instance.construct.name,
+        }) as Record<string, DirDescriptor | FileDescriptor>;
+      } else {
+        descriptors = instance.construct.buildArtifacts(
+          ctx as Parameters<typeof instance.construct.buildArtifacts>[0]
+        );
+      }
     } catch (error) {
       if (error instanceof PathEscapeError) {
         diagnostics.push({
@@ -98,6 +119,35 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
           instanceId: instance.id,
           constructName: instance.construct.name,
           path: error.path,
+        });
+        continue;
+      }
+      if (error instanceof ReservedKeyCollisionError) {
+        diagnostics.push({
+          code: "reserved-key-collision",
+          message: error.message,
+          instanceId: instance.id,
+          constructName: instance.construct.name,
+          artifactKey: error.key,
+        });
+        continue;
+      }
+      if (error instanceof InvalidAuthoringKeyError) {
+        diagnostics.push({
+          code: "invalid-authoring-key",
+          message: error.message,
+          instanceId: instance.id,
+          constructName: instance.construct.name,
+          artifactKey: error.key,
+        });
+        continue;
+      }
+      if (error instanceof InvalidPlacementRootError) {
+        diagnostics.push({
+          code: "invalid-placement-root",
+          message: error.message,
+          instanceId: instance.id,
+          constructName: instance.construct.name,
         });
         continue;
       }
@@ -122,6 +172,17 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
       if (descriptor.kind === "file-descriptor") {
         bindFile(instance, artifactKey, descriptor, desiredArtifacts, diagnostics);
       }
+    }
+
+    if (instance.construct.authoring === "tree" && treeDestination) {
+      sealNavigableInstance(
+        instance as unknown as Record<string, unknown>,
+        instance.artifacts as Record<
+          string,
+          { readonly kind: string; readonly path: string } & Record<string, unknown>
+        >,
+        treeDestination
+      );
     }
   }
 

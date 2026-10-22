@@ -5,6 +5,9 @@ export {
   root,
   FILENAME_PATTERN,
   isValidFilename,
+  DESTINATION,
+  RESERVED_INSTANCE_KEYS,
+  readDestination,
   type Architecture,
   type ArchitectureBuilder,
   type AnyConstructDefinition,
@@ -13,10 +16,18 @@ export {
   type ArtifactCallbackContextBase,
   type ArtifactCallbackContextFor,
   type ArtifactRefsFromDescriptors,
+  type ConstructAuthoring,
   type ConstructDefinition,
   type DefineConstructWithDeps,
+  type InPlacement,
   type InstanceArtifacts,
   type InstanceRef,
+  type PlacementRoot,
+  type ReservedInstanceKey,
+  type TreeBuildCallback,
+  type TreeDirNode,
+  type TreeFileNode,
+  type TreeNode,
 } from "./architecture/define-architecture";
 
 export type {
