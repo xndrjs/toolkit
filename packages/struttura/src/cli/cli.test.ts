@@ -101,38 +101,33 @@ describe("CLI end-to-end on guide layout", () => {
 
     writeFileSync(
       architecturePath,
-      `import { defineArchitecture, dir, file, root, constructsFromArchitecture } from "${strutturaSpecifier}";
-import { toKebabCase } from "${strutturaSpecifier}";
+      `import { defineArchitecture, constructsFromArchitecture, toKebabCase } from "${strutturaSpecifier}";
 
 const A = defineArchitecture("CleanArchitecture");
 
-export const CorePackage = A.defineConstruct("CorePackage", ({ name }) => {
-  const packageDirectory = dir(\`packages/core-\${toKebabCase(name)}\`);
-  const models = dir(\`\${packageDirectory.path}/models\`);
-  return {
-    packageDirectory,
-    models,
-    modelsIndex: file({ filename: "index.ts", directory: models, mode: "sync", content: "// barrel\\n" }),
-  };
-});
+export const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
+  A.in(
+    A.rootDirectory,
+    A.dir(\`packages/core-\${toKebabCase(name)}\`, {
+      models: A.dir({
+        index: A.file("index.ts", "// barrel\\n", { mode: "sync" }),
+      }),
+    })
+  )
+);
 
-export const Model = A.defineConstruct("Model", { core: CorePackage })(({ name, core }) => ({
-  source: file({
-    filename: \`\${toKebabCase(name)}.model.ts\`,
-    directory: core.artifacts.models,
-    mode: "scaffold",
-    content: \`export type \${name} = { id: string };\\n\`,
-  }),
-}));
+export const Model = A.construct("Model", { core: CorePackage }, ({ name, core }) =>
+  A.in(
+    core.models,
+    A.file(\`\${toKebabCase(name)}.model.ts\`, \`export type \${name} = { id: string };\\n\`)
+  )
+);
 
-export const PackageJson = A.defineConstruct("PackageJson", () => ({
-  packageJson: file({
-    filename: "package.json",
-    directory: root,
-    mode: "scaffold",
-    content: '{ "name": "project" }\\n',
-  }),
-}));
+export const PackageJson = A.construct("PackageJson", {}, () =>
+  A.in(A.rootDirectory, {
+    packageJson: A.file("package.json", '{ "name": "project" }\\n'),
+  })
+);
 
 export const architecture = A.seal();
 export const constructs = constructsFromArchitecture(architecture);
@@ -235,7 +230,7 @@ export const population = api.population;
     ]);
     expect(
       manifestAfterMigrate.artifacts.find((a) => a.path.endsWith("editorial-page.model.ts"))
-    ).toMatchObject({ instanceId: "editorialPage", artifactKey: "source" });
+    ).toMatchObject({ instanceId: "editorialPage", artifactKey: "." });
 
     const applyAfterMigrate = await runCli([
       "apply",

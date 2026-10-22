@@ -12,92 +12,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { defineArchitecture, dir, file, root } from "../architecture/define-architecture";
-import { toKebabCase } from "../casing/casing";
+import { defineArchitecture } from "../architecture/define-architecture";
 import { createPopulation } from "../population/create-population";
 import { apply } from "../apply/apply";
 import { MANIFEST_RELATIVE_PATH, readManifest } from "../apply/manifest";
+import { buildGuidePopulation } from "../test-fixtures/guide-architecture";
 import { inspect } from "./inspect";
-
-function buildGuidePopulation() {
-  const A = defineArchitecture("CleanArchitecture");
-
-  const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
-    const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
-    const models = dir(`${packageDirectory.path}/models`);
-    const ports = dir(`${packageDirectory.path}/ports`);
-    const useCases = dir(`${packageDirectory.path}/use-cases`);
-    const operations = dir(`${packageDirectory.path}/operations`);
-    return {
-      packageDirectory,
-      models,
-      ports,
-      useCases,
-      operations,
-      modelsIndex: file({
-        filename: "index.ts",
-        directory: models,
-        mode: "sync",
-        content: "// models barrel\n",
-      }),
-      portsIndex: file({
-        filename: "index.ts",
-        directory: ports,
-        mode: "sync",
-        content: "// ports barrel\n",
-      }),
-      useCasesIndex: file({
-        filename: "index.ts",
-        directory: useCases,
-        mode: "sync",
-        content: "// use-cases barrel\n",
-      }),
-      operationsIndex: file({
-        filename: "index.ts",
-        directory: operations,
-        mode: "sync",
-        content: "// operations barrel\n",
-      }),
-    };
-  });
-
-  const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
-    source: file({
-      filename: `${toKebabCase(name)}.model.ts`,
-      directory: core.artifacts.models,
-      mode: "scaffold",
-      content: `export type ${name} = { id: string };\n`,
-    }),
-  }));
-
-  const useCase = A.defineConstruct("UseCase", { package: corePackage })(
-    ({ name, package: pkg }) => ({
-      source: file({
-        filename: `${toKebabCase(name)}.use-case.ts`,
-        directory: pkg.artifacts.useCases,
-        mode: "scaffold",
-        content: `export function ${name}() {}\n`,
-      }),
-    })
-  );
-
-  const packageJson = A.defineConstruct("PackageJson", () => ({
-    packageJson: file({
-      filename: "package.json",
-      directory: root,
-      mode: "scaffold",
-      content: '{ "name": "project" }\n',
-    }),
-  }));
-
-  const population = createPopulation(A);
-  const pagebuilder = population.add(corePackage, { name: "pagebuilder" });
-  population.add(model, { name: "page", core: pagebuilder });
-  population.add(model, { name: "pageSlug", core: pagebuilder });
-  population.add(useCase, { name: "resolvePage", package: pagebuilder });
-  population.add(packageJson, { name: "packageJson" });
-  return population;
-}
 
 function listRelativeFiles(rootDir: string, prefix = ""): string[] {
   if (!existsSync(rootDir)) {
@@ -198,7 +118,7 @@ describe("inspect", () => {
     expect(pageModel).toMatchObject({
       instanceId: "page",
       constructName: "Model",
-      artifactKey: "source",
+      artifactKey: ".",
       mode: "scaffold",
       referencedDirectory: {
         instanceId: "pagebuilder",
@@ -273,9 +193,9 @@ describe("inspect", () => {
     writeFileSync(join(architectureDir, "keep.txt"), "untouched\n", "utf8");
 
     const A = defineArchitecture("Broken");
-    const pkg = A.defineConstruct("Pkg", () => ({
-      bad: file({ filename: "../escape.ts", directory: root, mode: "scaffold", content: "nope\n" }),
-    }));
+    const pkg = A.construct("Pkg", {}, () =>
+      A.in(A.rootDirectory, A.file("../escape.ts", "nope\n"))
+    );
     const population = createPopulation(A);
     population.add(pkg, { name: "x" });
 

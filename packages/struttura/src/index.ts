@@ -1,8 +1,5 @@
 export {
   defineArchitecture,
-  dir,
-  file,
-  root,
   FILENAME_PATTERN,
   isValidFilename,
   DESTINATION,
@@ -14,11 +11,8 @@ export {
   type ArtifactCallback,
   type ArtifactCallbackContext,
   type ArtifactCallbackContextBase,
-  type ArtifactCallbackContextFor,
   type ArtifactRefsFromDescriptors,
-  type ConstructAuthoring,
   type ConstructDefinition,
-  type DefineConstructWithDeps,
   type InPlacement,
   type InstanceArtifacts,
   type InstanceRef,
@@ -53,6 +47,7 @@ export type {
 export {
   createPopulation,
   type CreatePopulationOptions,
+  type PopulateDependency,
   type Population,
   type RegisteredInstance,
 } from "./population/create-population";
@@ -135,23 +130,6 @@ export {
 
 export { runCli } from "./cli/run";
 export { parseCliArgs, printCliHelp, type CliOptions } from "./cli/args";
-
-export {
-  createInventoryQuery,
-  type ArtifactIdentity,
-  type FilesInOptions,
-  type InventoryQuery,
-  type QueriedInstance,
-} from "./query/inventory-query";
-
-export { filesInDirectory, type FilesInDirectoryTarget } from "./query/files-in-directory";
-
-export {
-  relativeTsModule,
-  renderTsBarrel,
-  tsBarrelIndex,
-  type TsBarrelIndexOptions,
-} from "./ts/barrel";
 
 export {
   toCamelCase,

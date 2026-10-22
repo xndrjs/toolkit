@@ -49,8 +49,8 @@ export type EmitPopulateApiResult = {
 };
 
 /**
- * Stable hash of construct names, authoring, dependency contracts, and probed
- * artifact keys/kinds. Embedded in the generated populate API (ADR 0010).
+ * Stable hash of construct names, dependency contracts, and probed artifact
+ * keys/kinds. Embedded in the generated populate API (ADR 0010).
  */
 export function computeDefinitionStamp(architecture: Architecture): string {
   const kindsByConstruct = probeArtifactKinds(architecture);
@@ -69,7 +69,6 @@ export function computeDefinitionStamp(architecture: Architecture): string {
       }
       return {
         name,
-        authoring: construct.authoring,
         dependencies,
         artifacts,
       };
@@ -109,20 +108,13 @@ export function probeArtifactKinds(
   return kinds;
 }
 
-/**
- * Derive navigable root shapes for tree constructs from probed artifact kinds.
- * Flat constructs are omitted (legacy `.artifacts` path).
- */
+/** Derive navigable root shapes from probed artifact kinds. */
 export function probeNavigableShapes(
   architecture: Architecture
 ): ReadonlyMap<string, NavigableRootShape> {
   const kinds = probeArtifactKinds(architecture);
   const shapes = new Map<string, NavigableRootShape>();
   for (const name of sortedConstructNames(architecture)) {
-    const construct = architecture.constructs.get(name)!;
-    if (construct.authoring !== "tree") {
-      continue;
-    }
     shapes.set(name, navigableShapeFromKinds(kinds.get(name) ?? {}));
   }
   return shapes;
@@ -150,16 +142,13 @@ export function constructsFromArchitecture(
 /**
  * Emit TypeScript source for the typed populate API. Does not write the
  * filesystem — callers (and the wave-1 `codegen` CLI) decide destination.
- *
- * Tree constructs get navigable refs (no `.artifacts`); flat constructs keep
- * the legacy `artifacts` map until demo migration (ticket 05 / 06).
+ * Constructs get navigable refs (no `.artifacts`).
  */
 export function emitPopulateApi(
   architecture: Architecture,
   options: EmitPopulateApiOptions
 ): EmitPopulateApiResult {
   const stamp = computeDefinitionStamp(architecture);
-  const kinds = probeArtifactKinds(architecture);
   const shapes = probeNavigableShapes(architecture);
   const architectureExport = options.architectureExport ?? "architecture";
   const constructsExport = options.constructsExport ?? "constructs";
@@ -182,12 +171,7 @@ export function emitPopulateApi(
   ];
 
   for (const name of constructNames) {
-    const construct = architecture.constructs.get(name)!;
-    if (construct.authoring === "tree") {
-      emitTreeConstructTypes(lines, name, shapes.get(name) ?? { root: "peer", children: {} });
-    } else {
-      emitFlatConstructTypes(lines, name, kinds.get(name) ?? {});
-    }
+    emitTreeConstructTypes(lines, name, shapes.get(name) ?? { root: "peer", children: {} });
   }
 
   lines.push(`export type ${safeTypeName(architecture.name)}PopulateApi = {`);
@@ -209,7 +193,9 @@ export function emitPopulateApi(
   lines.push(`    },`);
   for (const name of constructNames) {
     lines.push(`    ${name}(input) {`);
-    lines.push(`      return population.add(${constructsExport}.${name}, input) as ${name}Ref;`);
+    lines.push(
+      `      return population.add(${constructsExport}.${name}, input) as unknown as ${name}Ref;`
+    );
     lines.push(`    },`);
   }
   lines.push(`  };`);
@@ -217,27 +203,6 @@ export function emitPopulateApi(
   lines.push("");
 
   return { source: lines.join("\n"), stamp };
-}
-
-function emitFlatConstructTypes(
-  lines: string[],
-  name: string,
-  artifactKinds: Readonly<Record<string, ArtifactKind>>
-): void {
-  const artifactKeys = Object.keys(artifactKinds).sort();
-  lines.push(`export type ${name}Artifacts = {`);
-  for (const key of artifactKeys) {
-    const refType = artifactKinds[key] === "directory" ? "DirRef" : "FileRef";
-    lines.push(`  readonly ${key}: ${refType};`);
-  }
-  lines.push(`};`, "");
-  lines.push(
-    `export type ${name}Ref = InstanceRef & {`,
-    `  readonly __constructBrand: "${name}";`,
-    `  readonly artifacts: ${name}Artifacts;`,
-    `};`,
-    ""
-  );
 }
 
 function emitTreeConstructTypes(lines: string[], name: string, shape: NavigableRootShape): void {
@@ -359,9 +324,7 @@ function stubDependencyInstance(
     artifacts,
   };
 
-  if (depConstruct.authoring === "tree") {
-    Object.assign(stub, navigableProbeFields(depKinds, depConstruct.name));
-  }
+  Object.assign(stub, navigableProbeFields(depKinds, depConstruct.name));
 
   return stub as InstanceRef;
 }

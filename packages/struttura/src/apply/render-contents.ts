@@ -1,23 +1,24 @@
 import type { FileContentFn, FileDescriptor } from "../architecture/artifacts";
 import type { DesiredInventory } from "../inventory/derive-desired-inventory";
 import type { Population, RegisteredInstance } from "../population/create-population";
-import { createInventoryQuery, type InventoryQuery } from "../query/inventory-query";
 import { artifactIdentity } from "./manifest";
 
+/**
+ * Context for lazy file content functions (ADR 0001 phase 5).
+ * Inventory query / barrel helpers are not part of the public authoring surface.
+ */
 export type FileRenderContext = {
   readonly name: string;
   readonly id: string;
   readonly artifacts: RegisteredInstance["artifacts"];
-  readonly query: InventoryQuery;
 } & Record<string, unknown>;
 
 /**
  * Render file contents after desired inventory exists (ADR 0001 phase 5).
- * Content fns receive `query` so sync barrels can use `filesIn` (ADR 0004).
  */
 export function renderFileContents(
   population: Population,
-  inventory: DesiredInventory
+  _inventory: DesiredInventory
 ): Map<string, string> {
   const contents = new Map<string, string>();
 
@@ -38,7 +39,7 @@ export function renderFileContents(
       }
       contents.set(
         artifactIdentity({ instanceId: instance.id, artifactKey }),
-        resolveContent(descriptor, instance, inventory, artifactKey, baseCtx)
+        resolveContent(descriptor, instance, baseCtx)
       );
     }
   }
@@ -49,8 +50,6 @@ export function renderFileContents(
 function resolveContent(
   descriptor: FileDescriptor,
   instance: RegisteredInstance,
-  inventory: DesiredInventory,
-  artifactKey: string,
   baseCtx: Record<string, unknown>
 ): string {
   if (descriptor.content === undefined) {
@@ -65,7 +64,6 @@ function resolveContent(
     name: instance.name,
     id: instance.id,
     artifacts: instance.artifacts,
-    query: createInventoryQuery(inventory, { instanceId: instance.id, artifactKey }),
   };
   return fn(ctx);
 }

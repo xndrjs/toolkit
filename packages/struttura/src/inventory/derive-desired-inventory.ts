@@ -99,19 +99,13 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
         id: instance.id,
         ...instance.dependencies,
       };
-      if (instance.construct.authoring === "tree" && instance.construct.buildTree) {
-        const placement = instance.construct.buildTree(
-          ctx as Parameters<NonNullable<typeof instance.construct.buildTree>>[0]
-        );
-        treeDestination = placement.destination;
-        descriptors = flattenPlacement(placement, {
-          constructName: instance.construct.name,
-        }) as Record<string, DirDescriptor | FileDescriptor>;
-      } else {
-        descriptors = instance.construct.buildArtifacts(
-          ctx as Parameters<typeof instance.construct.buildArtifacts>[0]
-        );
-      }
+      const placement = instance.construct.buildTree(
+        ctx as Parameters<typeof instance.construct.buildTree>[0]
+      );
+      treeDestination = placement.destination;
+      descriptors = flattenPlacement(placement, {
+        constructName: instance.construct.name,
+      }) as Record<string, DirDescriptor | FileDescriptor>;
     } catch (error) {
       if (error instanceof PathEscapeError) {
         diagnostics.push({
@@ -185,7 +179,7 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
       }
     }
 
-    if (instance.construct.authoring === "tree" && treeDestination) {
+    if (treeDestination) {
       sealNavigableInstance(
         instance as unknown as Record<string, unknown>,
         instance.artifacts as Record<

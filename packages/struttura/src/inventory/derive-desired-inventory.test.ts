@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { defineArchitecture, dir, file, root } from "../architecture/define-architecture";
+import { defineArchitecture } from "../architecture/define-architecture";
 import { toKebabCase } from "../casing/casing";
 import { createPopulation } from "../population/create-population";
+import { buildGuidePopulation } from "../test-fixtures/guide-architecture";
 import { deriveDesiredInventory } from "./derive-desired-inventory";
 
 function pathsOf(inventory: { artifacts: readonly { path: string }[] }): string[] {
@@ -11,58 +12,7 @@ function pathsOf(inventory: { artifacts: readonly { path: string }[] }): string[
 
 describe("deriveDesiredInventory", () => {
   it("yields the CleanArchitecture guide path set without writing the filesystem", () => {
-    const A = defineArchitecture("CleanArchitecture");
-
-    const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
-      const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
-      const models = dir(`${packageDirectory.path}/models`);
-      const ports = dir(`${packageDirectory.path}/ports`);
-      const useCases = dir(`${packageDirectory.path}/use-cases`);
-      const operations = dir(`${packageDirectory.path}/operations`);
-      return {
-        packageDirectory,
-        models,
-        ports,
-        useCases,
-        operations,
-        modelsIndex: file({ filename: "index.ts", directory: models, mode: "sync" }),
-        portsIndex: file({ filename: "index.ts", directory: ports, mode: "sync" }),
-        useCasesIndex: file({ filename: "index.ts", directory: useCases, mode: "sync" }),
-        operationsIndex: file({ filename: "index.ts", directory: operations, mode: "sync" }),
-      };
-    });
-
-    const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
-      source: file({
-        filename: `${toKebabCase(name)}.model.ts`,
-        directory: core.artifacts.models,
-        mode: "scaffold",
-      }),
-    }));
-
-    const useCase = A.defineConstruct("UseCase", { package: corePackage })(
-      ({ name, package: pkg }) => ({
-        source: file({
-          filename: `${toKebabCase(name)}.use-case.ts`,
-          directory: pkg.artifacts.useCases,
-          mode: "scaffold",
-        }),
-      })
-    );
-
-    const packageJson = A.defineConstruct("PackageJson", () => ({
-      packageJson: file({ filename: "package.json", directory: root, mode: "scaffold" }),
-    }));
-
-    const population = createPopulation(A);
-
-    const pagebuilder = population.add(corePackage, { name: "pagebuilder" });
-    population.add(model, { name: "page", core: pagebuilder });
-    population.add(model, { name: "pageSlug", core: pagebuilder });
-    population.add(useCase, { name: "resolvePage", package: pagebuilder });
-    population.add(packageJson, { name: "packageJson" });
-
-    const result = deriveDesiredInventory(population);
+    const result = deriveDesiredInventory(buildGuidePopulation());
 
     expect(result.ok).toBe(true);
     if (!result.ok) {
@@ -93,7 +43,7 @@ describe("deriveDesiredInventory", () => {
     expect(pageSource).toMatchObject({
       kind: "file",
       instanceId: "page",
-      artifactKey: "source",
+      artifactKey: ".",
       constructName: "Model",
       mode: "scaffold",
       filename: "page.model.ts",
@@ -105,7 +55,7 @@ describe("deriveDesiredInventory", () => {
     expect(pageSlugSource).toMatchObject({
       kind: "file",
       instanceId: "pageSlug",
-      artifactKey: "source",
+      artifactKey: ".",
       filename: "page-slug.model.ts",
     });
 
@@ -124,16 +74,25 @@ describe("deriveDesiredInventory", () => {
     );
     expect(modelsIndex).toMatchObject({
       instanceId: "pagebuilder",
-      artifactKey: "modelsIndex",
+      artifactKey: "models.index",
       directory: { kind: "artifact", instanceId: "pagebuilder", artifactKey: "models" },
+    });
+
+    const coreRoot = result.inventory.artifacts.find(
+      (a) => a.path === "packages/core-pagebuilder" && a.kind === "directory"
+    );
+    expect(coreRoot).toMatchObject({
+      instanceId: "pagebuilder",
+      artifactKey: ".",
+      constructName: "CorePackage",
     });
   });
 
   it("rejects duplicate effective instance ids before any disk work", () => {
     const A = defineArchitecture("DupIds");
-    const thing = A.defineConstruct("Thing", ({ name }) => ({
-      folder: dir(`things/${name}`),
-    }));
+    const thing = A.construct("Thing", {}, ({ name }) =>
+      A.in(A.rootDirectory, A.dir(`things/${name}`, {}))
+    );
 
     const population = createPopulation(A);
     population.add(thing, { name: "alpha" });
@@ -149,9 +108,7 @@ describe("deriveDesiredInventory", () => {
 
   it("rejects invalid filenames via regex", () => {
     const A = defineArchitecture("BadFilename");
-    const thing = A.defineConstruct("Thing", () => ({
-      nested: file({ filename: "sub/path.ts", directory: root, mode: "scaffold" }),
-    }));
+    const thing = A.construct("Thing", {}, () => A.in(A.rootDirectory, A.file("sub/path.ts", "")));
 
     const population = createPopulation(A);
     population.add(thing, { name: "x" });
@@ -166,14 +123,15 @@ describe("deriveDesiredInventory", () => {
 
   it("accepts .gitkeep and dotted compound filenames", () => {
     const A = defineArchitecture("OkFilenames");
-    const thing = A.defineConstruct("Thing", ({ name }) => {
-      const folder = dir(`things/${name}`);
-      return {
-        folder,
-        keep: file({ filename: ".gitkeep", directory: folder, mode: "scaffold" }),
-        model: file({ filename: "page.model.ts", directory: folder, mode: "scaffold" }),
-      };
-    });
+    const thing = A.construct("Thing", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`things/${name}`, {
+          keep: A.file(".gitkeep", ""),
+          model: A.file("page.model.ts", ""),
+        })
+      )
+    );
 
     const population = createPopulation(A);
     population.add(thing, { name: "x" });
@@ -190,12 +148,8 @@ describe("deriveDesiredInventory", () => {
 
   it("rejects two distinct directory artifacts on the same path", () => {
     const A = defineArchitecture("DirCollision");
-    const left = A.defineConstruct("Left", () => ({
-      folder: dir("shared"),
-    }));
-    const right = A.defineConstruct("Right", () => ({
-      folder: dir("shared"),
-    }));
+    const left = A.construct("Left", {}, () => A.in(A.rootDirectory, A.dir("shared", {})));
+    const right = A.construct("Right", {}, () => A.in(A.rootDirectory, A.dir("shared", {})));
 
     const population = createPopulation(A);
     population.add(left, { name: "a" });
@@ -211,9 +165,7 @@ describe("deriveDesiredInventory", () => {
 
   it("rejects a construct that claims the materialization root as a directory artifact", () => {
     const A = defineArchitecture("OwnsRoot");
-    const thing = A.defineConstruct("Thing", () => ({
-      everything: dir("."),
-    }));
+    const thing = A.construct("Thing", {}, () => A.in(A.rootDirectory, A.dir(".", {})));
 
     const population = createPopulation(A);
     population.add(thing, { name: "x" });
@@ -223,15 +175,17 @@ describe("deriveDesiredInventory", () => {
     if (result.ok) {
       return;
     }
-    expect(result.diagnostics.some((d) => d.code === "root-owned")).toBe(true);
+    expect(result.diagnostics.some((d) => d.code === "invalid-placement-root")).toBe(true);
   });
 
   it("rejects colliding file paths from distinct artifacts", () => {
     const A = defineArchitecture("FileCollision");
-    const thing = A.defineConstruct("Thing", () => ({
-      a: file({ filename: "same.ts", directory: root, mode: "scaffold" }),
-      b: file({ filename: "same.ts", directory: root, mode: "sync" }),
-    }));
+    const thing = A.construct("Thing", {}, () =>
+      A.in(A.rootDirectory, {
+        a: A.file("same.ts", ""),
+        b: A.file("same.ts", "", { mode: "sync" }),
+      })
+    );
 
     const population = createPopulation(A);
     population.add(thing, { name: "x" });
@@ -246,29 +200,22 @@ describe("deriveDesiredInventory", () => {
 
   it("is independent of instance registration order", () => {
     const A = defineArchitecture("OrderIndependent");
-    const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
-      const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
-      const models = dir(`${packageDirectory.path}/models`);
-      return {
-        packageDirectory,
-        models,
-        modelsIndex: file({ filename: "index.ts", directory: models, mode: "sync" }),
-      };
-    });
-    const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
-      source: file({
-        filename: `${toKebabCase(name)}.model.ts`,
-        directory: core.artifacts.models,
-        mode: "scaffold",
-      }),
-    }));
+    const corePackage = A.construct("CorePackage", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`packages/core-${toKebabCase(name)}`, {
+          models: A.dir({
+            index: A.file("index.ts", "", { mode: "sync" }),
+          }),
+        })
+      )
+    );
+    const model = A.construct("Model", { core: corePackage }, ({ name, core }) =>
+      A.in(core.models, A.file(`${toKebabCase(name)}.model.ts`, ""))
+    );
 
     const population = createPopulation(A);
-    // Models registered before their core dependency.
-    const pagebuilderRef = { name: "pagebuilder" as const };
-    // We need the core instance ref for deps — register core first to get the ref,
-    // but derive must not depend on registration order of models vs other models.
-    const pagebuilder = population.add(corePackage, pagebuilderRef);
+    const pagebuilder = population.add(corePackage, { name: "pagebuilder" });
     population.add(model, { name: "pageSlug", core: pagebuilder });
     population.add(model, { name: "page", core: pagebuilder });
 

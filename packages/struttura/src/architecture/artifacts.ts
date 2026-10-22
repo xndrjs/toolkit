@@ -30,8 +30,7 @@ export type DirDescriptor = {
   readonly path: string;
 };
 
-/** Invoked after desired inventory exists; prefer FileRenderContext (query.filesIn). */
-
+/** Invoked after desired inventory exists (ADR 0001 phase 5). */
 export type FileContentFn = (ctx: FileRenderContext) => string;
 
 /**

@@ -192,7 +192,7 @@
     {
       "instanceId": "web-next",
       "constructName": "App",
-      "artifactKey": "packageDirectory",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "apps/web-next",
       "directory": {
@@ -214,7 +214,7 @@
     {
       "instanceId": "web-server",
       "constructName": "CompositionRoot",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "apps/web-next/composition/web-server.composition.ts",
       "mode": "scaffold",
@@ -236,7 +236,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "web-next",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -250,7 +250,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "web-next",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -268,7 +268,7 @@
     {
       "instanceId": "contentful-pagebuilder",
       "constructName": "AdapterPackage",
-      "artifactKey": "packageDirectory",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "packages/adapter-contentful-pagebuilder",
       "directory": {
@@ -287,7 +287,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful-pagebuilder",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -301,7 +301,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful-pagebuilder",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -318,10 +318,10 @@
     {
       "instanceId": "contentful-pagebuilder",
       "constructName": "AdapterPackage",
-      "artifactKey": "mappersIndex",
+      "artifactKey": "mappers.index",
       "kind": "file",
       "path": "packages/adapter-contentful-pagebuilder/mappers/index.ts",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -332,7 +332,7 @@
     {
       "instanceId": "page-mapper",
       "constructName": "Mapper",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/adapter-contentful-pagebuilder/mappers/page.mapper.ts",
       "mode": "scaffold",
@@ -354,7 +354,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful-pagebuilder",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -371,10 +371,10 @@
     {
       "instanceId": "contentful-pagebuilder",
       "constructName": "AdapterPackage",
-      "artifactKey": "repositoriesIndex",
+      "artifactKey": "repositories.index",
       "kind": "file",
       "path": "packages/adapter-contentful-pagebuilder/repositories/index.ts",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -385,7 +385,7 @@
     {
       "instanceId": "page-repository",
       "constructName": "Repository",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/adapter-contentful-pagebuilder/repositories/page-repository.repository.ts",
       "mode": "scaffold",
@@ -407,13 +407,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful-pagebuilder",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pagebuilder",
       "constructName": "CorePackage",
-      "artifactKey": "packageDirectory",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "packages/core-pagebuilder",
       "directory": {
@@ -432,13 +432,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pagebuilder-errors",
       "constructName": "ErrorsModule",
-      "artifactKey": "errors",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "packages/core-pagebuilder/errors",
       "directory": {
@@ -452,18 +452,18 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/errors/index.ts",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-errors",
-        "artifactKey": "errors"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pageNotFound",
       "constructName": "DomainError",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/core-pagebuilder/errors/page-not-found.error.ts",
       "mode": "scaffold",
@@ -471,13 +471,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-errors",
-        "artifactKey": "errors"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pagebuilder-models",
       "constructName": "ModelsModule",
-      "artifactKey": "models",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "packages/core-pagebuilder/models",
       "directory": {
@@ -491,18 +491,18 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/models/index.ts",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-models",
-        "artifactKey": "models"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pageSlug",
       "constructName": "Primitive",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/core-pagebuilder/models/page-slug.primitive.ts",
       "mode": "scaffold",
@@ -510,13 +510,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-models",
-        "artifactKey": "models"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "page",
       "constructName": "Shape",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/core-pagebuilder/models/page.shape.ts",
       "mode": "scaffold",
@@ -524,13 +524,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-models",
-        "artifactKey": "models"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "publishedPage",
       "constructName": "Proof",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/core-pagebuilder/models/published-page.proof.ts",
       "mode": "scaffold",
@@ -538,13 +538,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-models",
-        "artifactKey": "models"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pagebuilder-operations",
       "constructName": "OperationsModule",
-      "artifactKey": "operations",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "packages/core-pagebuilder/operations",
       "directory": {
@@ -558,18 +558,18 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/operations/index.ts",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-operations",
-        "artifactKey": "operations"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pagePricing",
       "constructName": "DomainService",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/core-pagebuilder/operations/page-pricing.service.ts",
       "mode": "scaffold",
@@ -577,13 +577,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-operations",
-        "artifactKey": "operations"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "page-capabilities",
       "constructName": "Capabilities",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/core-pagebuilder/operations/page.capabilities.ts",
       "mode": "scaffold",
@@ -591,7 +591,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-operations",
-        "artifactKey": "operations"
+        "artifactKey": "."
       }
     },
     {
@@ -605,13 +605,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pagebuilder-ports",
       "constructName": "PortsModule",
-      "artifactKey": "ports",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "packages/core-pagebuilder/ports",
       "directory": {
@@ -625,18 +625,18 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/ports/index.ts",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-ports",
-        "artifactKey": "ports"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pageRepository",
       "constructName": "Port",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/core-pagebuilder/ports/page-repository.port.ts",
       "mode": "scaffold",
@@ -644,7 +644,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-ports",
-        "artifactKey": "ports"
+        "artifactKey": "."
       }
     },
     {
@@ -658,13 +658,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "pagebuilder-useCases",
       "constructName": "UseCasesModule",
-      "artifactKey": "useCases",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "packages/core-pagebuilder/use-cases",
       "directory": {
@@ -678,18 +678,18 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/use-cases/index.ts",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-useCases",
-        "artifactKey": "useCases"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "resolvePage",
       "constructName": "UseCase",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/core-pagebuilder/use-cases/resolve-page.use-case.ts",
       "mode": "scaffold",
@@ -697,13 +697,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-useCases",
-        "artifactKey": "useCases"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "contentful",
       "constructName": "InfrastructurePackage",
-      "artifactKey": "packageDirectory",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "packages/infrastructure-contentful",
       "directory": {
@@ -722,7 +722,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -736,7 +736,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -753,10 +753,10 @@
     {
       "instanceId": "contentful",
       "constructName": "InfrastructurePackage",
-      "artifactKey": "loadersIndex",
+      "artifactKey": "loaders.index",
       "kind": "file",
       "path": "packages/infrastructure-contentful/loaders/index.ts",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -767,7 +767,7 @@
     {
       "instanceId": "page-loader",
       "constructName": "InfrastructureLoader",
-      "artifactKey": "source",
+      "artifactKey": ".",
       "kind": "file",
       "path": "packages/infrastructure-contentful/loaders/page.loader.ts",
       "mode": "scaffold",
@@ -789,7 +789,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -806,10 +806,10 @@
     {
       "instanceId": "contentful",
       "constructName": "InfrastructurePackage",
-      "artifactKey": "schemasIndex",
+      "artifactKey": "schemas.index",
       "kind": "file",
       "path": "packages/infrastructure-contentful/schemas/index.ts",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -828,13 +828,13 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "contentful",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
       "instanceId": "react",
       "constructName": "UiPackage",
-      "artifactKey": "packageDirectory",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "packages/ui-react",
       "directory": {
@@ -853,7 +853,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "react",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -867,7 +867,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "react",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -881,7 +881,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "react",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -895,7 +895,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "react",
-        "artifactKey": "packageDirectory"
+        "artifactKey": "."
       }
     },
     {
@@ -913,7 +913,7 @@
     {
       "instanceId": "spec-pagebuilder",
       "constructName": "FeatureSpec",
-      "artifactKey": "folder",
+      "artifactKey": ".",
       "kind": "directory",
       "path": "specs/pagebuilder",
       "directory": {
@@ -932,7 +932,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "spec-pagebuilder",
-        "artifactKey": "folder"
+        "artifactKey": "."
       }
     },
     {
@@ -946,7 +946,7 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "spec-pagebuilder",
-        "artifactKey": "folder"
+        "artifactKey": "."
       }
     },
     {
@@ -955,7 +955,7 @@
       "artifactKey": "tsconfig",
       "kind": "file",
       "path": "tsconfig.json",
-      "mode": "sync",
+      "mode": "scaffold",
       "filename": "tsconfig.json",
       "directory": {
         "kind": "root"

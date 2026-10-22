@@ -1,3 +1,7 @@
-# Minimal query surface; barrels via filesIn
+# Superseded: minimal query surface; barrels via filesIn
 
-Wave 1 query API is: instances of a construct, artifacts of an instance, and `filesIn(dirRef, options?)`. By default `filesIn` selects managed files whose directory reference is exactly `dirRef` (`includeSelf` defaults to false). With `recursive: true`, it selects managed files whose path lies under that directory tree (for barrels that may later include nested paths). Sync barrels use this surface, not instance filters by dependency. Including `self` is opt-in to avoid accidental self-referential generators. Richer filters (by dependency, provenance) stay out unless a concrete requirement appears.
+**Status: superseded** by the navigable tree authoring contract (pre-0.1.0).
+
+Wave 1 exposed `createInventoryQuery` / `filesIn` / `tsBarrelIndex` for sync barrels and root tsconfig generation. That public query surface and the flat `defineConstruct` / `dir` / `file` / `root` authoring API were removed: barrels and workspace root tsconfig in the demo are scaffold (hand-maintained), and constructs are authored only via `A.construct` + `A.in`.
+
+The reconcile/scaffold/sync engine is unchanged; post-population query helpers may return in a later step without restoring the flat authoring API.

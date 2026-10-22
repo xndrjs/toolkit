@@ -5,9 +5,6 @@ import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   defineArchitecture,
-  dir,
-  file,
-  root,
   type DirRef,
   type FileRef,
   type InstanceRef,
@@ -29,38 +26,29 @@ import {
 function buildCleanArchitecture() {
   const A = defineArchitecture("CleanArchitecture");
 
-  const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
-    const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
-    const models = dir(`${packageDirectory.path}/models`);
-    return {
-      packageDirectory,
-      models,
-      modelsIndex: file({
-        filename: "index.ts",
-        directory: models,
-        mode: "sync",
-        content: "// barrel\n",
-      }),
-    };
-  });
+  const corePackage = A.construct("CorePackage", {}, ({ name }) =>
+    A.in(
+      A.rootDirectory,
+      A.dir(`packages/core-${toKebabCase(name)}`, {
+        models: A.dir({
+          index: A.file("index.ts", "// barrel\n", { mode: "sync" }),
+        }),
+      })
+    )
+  );
 
-  const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
-    source: file({
-      filename: `${toKebabCase(name)}.model.ts`,
-      directory: core.artifacts.models,
-      mode: "scaffold",
-      content: `export type ${name} = { id: string };\n`,
-    }),
-  }));
+  const model = A.construct("Model", { core: corePackage }, ({ name, core }) =>
+    A.in(
+      core.models,
+      A.file(`${toKebabCase(name)}.model.ts`, `export type ${name} = { id: string };\n`)
+    )
+  );
 
-  const packageJson = A.defineConstruct("PackageJson", () => ({
-    packageJson: file({
-      filename: "package.json",
-      directory: root,
-      mode: "scaffold",
-      content: '{ "name": "project" }\n',
-    }),
-  }));
+  const packageJson = A.construct("PackageJson", {}, () =>
+    A.in(A.rootDirectory, {
+      packageJson: A.file("package.json", '{ "name": "project" }\n'),
+    })
+  );
 
   const architecture = A.seal();
   return {
@@ -89,11 +77,11 @@ describe("codegen + staleness", () => {
     const kinds = probeArtifactKinds(architecture);
 
     expect(kinds.get("CorePackage")).toEqual({
-      packageDirectory: "directory",
+      ".": "directory",
       models: "directory",
-      modelsIndex: "file",
+      "models.index": "file",
     });
-    expect(kinds.get("Model")).toEqual({ source: "file" });
+    expect(kinds.get("Model")).toEqual({ ".": "file" });
     expect(kinds.get("PackageJson")).toEqual({ packageJson: "file" });
   });
 
@@ -103,7 +91,7 @@ describe("codegen + staleness", () => {
     expect(stamp).toMatch(/^[a-f0-9]{64}$/);
     expect(computeDefinitionStamp(architecture)).toBe(stamp);
 
-    A.defineConstruct("Extra", () => ({ folder: dir("extra") }));
+    A.construct("Extra", {}, () => A.in(A.rootDirectory, A.dir("extra", {})));
     expect(computeDefinitionStamp(A.seal())).not.toBe(stamp);
     expect(constructsFromArchitecture(architecture).CorePackage).toBe(constructs.CorePackage);
   });
@@ -119,8 +107,8 @@ describe("codegen + staleness", () => {
     expect(source).toContain("export function createPopulateApi()");
     expect(source).toContain("CorePackage(input: { name: string; id?: string })");
     expect(source).toContain("Model(input: { name: string; id?: string; core: CorePackageRef })");
-    expect(source).toContain("readonly models: DirRef");
-    expect(source).toContain("readonly source: FileRef");
+    expect(source).toContain("readonly models: DirRef & { readonly index: FileRef }");
+    expect(source).toContain('export type ModelRef = Omit<InstanceRef, "artifacts"> & FileRef & {');
     expect(source).toContain('readonly __constructBrand: "CorePackage"');
     expect(source).toContain(
       "createPopulation(architecture, { definitionStamp: DEFINITION_STAMP })"
@@ -199,17 +187,9 @@ describe("codegen + staleness", () => {
     }
   });
 
-  it("types DirRef and FileRef so a file ref is not assignable where a directory is required", () => {
-    type ModelsArtifacts = { readonly models: DirRef; readonly source: FileRef };
-    type CoreRef = { readonly artifacts: ModelsArtifacts };
-    type FileDirectoryParam = Parameters<typeof file>[0]["directory"];
-
-    expectTypeOf<CoreRef["artifacts"]["models"]>().toEqualTypeOf<DirRef>();
-    expectTypeOf<CoreRef["artifacts"]["source"]>().toEqualTypeOf<FileRef>();
-
-    // file() accepts DirRef | DirDescriptor, not FileRef (ADR 0012).
-    expectTypeOf<DirRef>().toExtend<FileDirectoryParam>();
-    expectTypeOf<FileRef>().not.toExtend<FileDirectoryParam>();
+  it("types DirRef so a file ref is not assignable where a directory is required", () => {
+    expectTypeOf<DirRef>().toExtend<PlacementDestination>();
+    expectTypeOf<FileRef>().not.toExtend<PlacementDestination>();
   });
 });
 
@@ -219,7 +199,6 @@ function buildNavigableArchitecture() {
   const WorkspaceRoot = A.construct("WorkspaceRoot", {}, () =>
     A.in(A.rootDirectory, {
       packageJson: A.file("package.json", '{ "name": "workspace" }\n'),
-      tsconfig: A.file("tsconfig.json", "{}\n"),
     })
   );
 
@@ -250,7 +229,6 @@ function buildNavigableArchitecture() {
     A.in(
       A.rootDirectory,
       A.dir(`packages/adapter-${toKebabCase(name)}`, {
-        packageJson: A.file("package.json", "{}\n"),
         repositories: A.dir({
           index: A.file("index.ts", "export {};\n"),
         }),
@@ -259,12 +237,14 @@ function buildNavigableArchitecture() {
   );
 
   const Repository = A.construct("Repository", { adapter: AdapterPackage }, ({ name, adapter }) =>
-    A.in(adapter.repositories, A.file(`${toKebabCase(name)}.repository.ts`, "export {};\n"))
+    A.in(
+      adapter.repositories,
+      A.file(`${toKebabCase(name)}.repository.ts`, `export class ${name} {}\n`)
+    )
   );
 
   const architecture = A.seal();
   return {
-    A,
     architecture,
     constructs: {
       WorkspaceRoot,
@@ -277,7 +257,7 @@ function buildNavigableArchitecture() {
   };
 }
 
-describe("codegen navigable tree (ticket 04)", () => {
+describe("codegen navigable tree", () => {
   let tempDir: string | undefined;
 
   afterEach(() => {
@@ -287,55 +267,15 @@ describe("codegen navigable tree (ticket 04)", () => {
     }
   });
 
-  it("probes tree artifact kinds including cross-instance placement and nesting", () => {
-    const { architecture } = buildNavigableArchitecture();
-    const kinds = probeArtifactKinds(architecture);
-
-    expect(kinds.get("WorkspaceRoot")).toEqual({
-      packageJson: "file",
-      tsconfig: "file",
-    });
-    expect(kinds.get("CorePackage")).toEqual({
-      ".": "directory",
-      packageJson: "file",
-      tsconfig: "file",
-    });
-    expect(kinds.get("ModelsModule")).toEqual({
-      ".": "directory",
-      index: "file",
-    });
-    expect(kinds.get("Shape")).toEqual({ ".": "file" });
-    expect(kinds.get("AdapterPackage")).toEqual({
-      ".": "directory",
-      packageJson: "file",
-      repositories: "directory",
-      "repositories.index": "file",
-    });
-    expect(kinds.get("Repository")).toEqual({ ".": "file" });
-  });
-
   it("derives navigable shapes without inventing a peer-root '.' child", () => {
     const { architecture } = buildNavigableArchitecture();
     const shapes = probeNavigableShapes(architecture);
-
     expect(shapes.get("WorkspaceRoot")).toEqual({
       root: "peer",
-      children: {
-        packageJson: { kind: "file" },
-        tsconfig: { kind: "file" },
-      },
+      children: { packageJson: { kind: "file" } },
     });
+    expect(shapes.get("CorePackage")?.root).toBe("directory");
     expect(shapes.get("Shape")).toEqual({ root: "file" });
-    expect(shapes.get("AdapterPackage")).toEqual({
-      root: "directory",
-      children: {
-        packageJson: { kind: "file" },
-        repositories: {
-          kind: "directory",
-          children: { index: { kind: "file" } },
-        },
-      },
-    });
     expect(navigableShapeFromKinds({ ".": "file" })).toEqual({ root: "file" });
   });
 
@@ -362,20 +302,10 @@ describe("codegen navigable tree (ticket 04)", () => {
       "ModelsModule(input: { name: string; id?: string; core: CorePackageRef })"
     );
 
-    // No legacy artifacts map on tree refs.
     expect(source).not.toContain("CorePackageArtifacts");
     expect(source).not.toContain("readonly artifacts: CorePackageArtifacts");
     expect(source).not.toContain('readonly ".":');
     expect(source).not.toContain("artifacts.packageJson");
-  });
-
-  it("keeps legacy .artifacts emission for flat constructs in the same emitter", () => {
-    const { architecture } = buildCleanArchitecture();
-    const { source } = emitPopulateApi(architecture, {
-      architectureModule: "../architecture",
-    });
-    expect(source).toContain("export type CorePackageArtifacts = {");
-    expect(source).toContain("readonly artifacts: CorePackageArtifacts;");
   });
 
   it("drives apply from a stamp-backed population of tree constructs", () => {
@@ -449,7 +379,6 @@ describe("codegen navigable tree (ticket 04)", () => {
     expectTypeOf<ShapeRef>().not.toExtend<PlacementDestination>();
     expectTypeOf<ShapeRef>().toExtend<FileRef>();
 
-    // Wrong dependency construct brand must not satisfy Shape's models slot.
     expectTypeOf<CorePackageRef>().not.toExtend<ShapeInput["models"]>();
     expectTypeOf<ModelsModuleRef>().toExtend<ShapeInput["models"]>();
   });

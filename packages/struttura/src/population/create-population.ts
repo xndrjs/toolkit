@@ -18,6 +18,14 @@ export type RegisteredInstance = {
   artifacts: InstanceRef["artifacts"];
 };
 
+/**
+ * Dependency slot for `population.add`: navigable refs omit `.artifacts` from
+ * the public type but remain valid at runtime (RegisteredInstance still fills it).
+ */
+export type PopulateDependency =
+  | InstanceRef
+  | (Omit<InstanceRef, "artifacts"> & { readonly __constructBrand?: string });
+
 export type CreatePopulationOptions = {
   /**
    * Stamp embedded by the generated populate API (ADR 0010). When set, apply
@@ -33,7 +41,7 @@ export type Population = {
   readonly instances: readonly RegisteredInstance[];
   add(
     construct: AnyConstructDefinition,
-    input: { name: string; id?: string } & Record<string, InstanceRef | string | undefined>
+    input: { name: string; id?: string } & Record<string, PopulateDependency | string | undefined>
   ): InstanceRef;
 };
 
@@ -98,7 +106,7 @@ export function createPopulation(
             `Instance "${id}" dependency "${depKey}" expected construct "${expected.name}", got "${depValue.construct.name}"`
           );
         }
-        dependencies[depKey] = depValue;
+        dependencies[depKey] = depValue as InstanceRef;
       }
 
       const registered: RegisteredInstance = {

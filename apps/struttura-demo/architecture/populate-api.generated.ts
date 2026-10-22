@@ -8,258 +8,159 @@ import {
 } from "@xndrjs/struttura";
 import { architecture, constructs } from "./architecture";
 
-export const DEFINITION_STAMP = "9bfdbb2ae8fdbb43cf59b884c9192b02fbb11ad307a993e12456f20fafdd8926";
+export const DEFINITION_STAMP = "afed660ab4ae27cc6559e979e835b229d7894897ab448047682433a2b6f1186e";
 
-export type AdapterPackageArtifacts = {
-  readonly index: FileRef;
-  readonly mappers: DirRef;
-  readonly mappersIndex: FileRef;
-  readonly packageDirectory: DirRef;
-  readonly packageJson: FileRef;
-  readonly readme: FileRef;
-  readonly repositories: DirRef;
-  readonly repositoriesIndex: FileRef;
-  readonly tsconfig: FileRef;
-};
+export type AdapterPackageRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "AdapterPackage";
+    readonly index: FileRef;
+    readonly mappers: DirRef & { readonly index: FileRef };
+    readonly packageJson: FileRef;
+    readonly readme: FileRef;
+    readonly repositories: DirRef & { readonly index: FileRef };
+    readonly tsconfig: FileRef;
+  };
 
-export type AdapterPackageRef = InstanceRef & {
-  readonly __constructBrand: "AdapterPackage";
-  readonly artifacts: AdapterPackageArtifacts;
-};
+export type AppRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "App";
+    readonly composition: DirRef;
+    readonly packageJson: FileRef;
+    readonly tsconfig: FileRef;
+  };
 
-export type AppArtifacts = {
-  readonly composition: DirRef;
-  readonly packageDirectory: DirRef;
-  readonly packageJson: FileRef;
-  readonly tsconfig: FileRef;
-};
+export type CapabilitiesRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "Capabilities";
+  };
 
-export type AppRef = InstanceRef & {
-  readonly __constructBrand: "App";
-  readonly artifacts: AppArtifacts;
-};
+export type CompositionRootRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "CompositionRoot";
+  };
 
-export type CapabilitiesArtifacts = {
-  readonly source: FileRef;
-};
+export type CorePackageRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "CorePackage";
+    readonly packageJson: FileRef;
+    readonly readme: FileRef;
+    readonly tsconfig: FileRef;
+  };
 
-export type CapabilitiesRef = InstanceRef & {
-  readonly __constructBrand: "Capabilities";
-  readonly artifacts: CapabilitiesArtifacts;
-};
+export type DomainErrorRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "DomainError";
+  };
 
-export type CompositionRootArtifacts = {
-  readonly source: FileRef;
-};
+export type DomainServiceRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "DomainService";
+  };
 
-export type CompositionRootRef = InstanceRef & {
-  readonly __constructBrand: "CompositionRoot";
-  readonly artifacts: CompositionRootArtifacts;
-};
+export type ErrorsModuleRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "ErrorsModule";
+    readonly index: FileRef;
+  };
 
-export type CorePackageArtifacts = {
-  readonly packageDirectory: DirRef;
-  readonly packageJson: FileRef;
-  readonly readme: FileRef;
-  readonly tsconfig: FileRef;
-};
+export type FeatureSpecRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "FeatureSpec";
+    readonly design: FileRef;
+    readonly spec: FileRef;
+  };
 
-export type CorePackageRef = InstanceRef & {
-  readonly __constructBrand: "CorePackage";
-  readonly artifacts: CorePackageArtifacts;
-};
+export type InfrastructureLoaderRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "InfrastructureLoader";
+  };
 
-export type DomainErrorArtifacts = {
-  readonly source: FileRef;
-};
+export type InfrastructurePackageRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "InfrastructurePackage";
+    readonly index: FileRef;
+    readonly loaders: DirRef & { readonly index: FileRef };
+    readonly packageJson: FileRef;
+    readonly readme: FileRef;
+    readonly schemas: DirRef & { readonly index: FileRef };
+    readonly tsconfig: FileRef;
+  };
 
-export type DomainErrorRef = InstanceRef & {
-  readonly __constructBrand: "DomainError";
-  readonly artifacts: DomainErrorArtifacts;
-};
+export type MapperRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "Mapper";
+  };
 
-export type DomainServiceArtifacts = {
-  readonly source: FileRef;
-};
+export type ModelsModuleRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "ModelsModule";
+    readonly index: FileRef;
+  };
 
-export type DomainServiceRef = InstanceRef & {
-  readonly __constructBrand: "DomainService";
-  readonly artifacts: DomainServiceArtifacts;
-};
+export type OperationsModuleRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "OperationsModule";
+    readonly index: FileRef;
+  };
 
-export type ErrorsModuleArtifacts = {
-  readonly errors: DirRef;
-  readonly index: FileRef;
-};
+export type PortRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "Port";
+  };
 
-export type ErrorsModuleRef = InstanceRef & {
-  readonly __constructBrand: "ErrorsModule";
-  readonly artifacts: ErrorsModuleArtifacts;
-};
+export type PortsModuleRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "PortsModule";
+    readonly index: FileRef;
+  };
 
-export type FeatureSpecArtifacts = {
-  readonly design: FileRef;
-  readonly folder: DirRef;
-  readonly spec: FileRef;
-};
+export type PrimitiveRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "Primitive";
+  };
 
-export type FeatureSpecRef = InstanceRef & {
-  readonly __constructBrand: "FeatureSpec";
-  readonly artifacts: FeatureSpecArtifacts;
-};
+export type ProofRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "Proof";
+  };
 
-export type InfrastructureLoaderArtifacts = {
-  readonly source: FileRef;
-};
+export type RepositoryRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "Repository";
+  };
 
-export type InfrastructureLoaderRef = InstanceRef & {
-  readonly __constructBrand: "InfrastructureLoader";
-  readonly artifacts: InfrastructureLoaderArtifacts;
-};
+export type ShapeRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "Shape";
+  };
 
-export type InfrastructurePackageArtifacts = {
-  readonly index: FileRef;
-  readonly loaders: DirRef;
-  readonly loadersIndex: FileRef;
-  readonly packageDirectory: DirRef;
-  readonly packageJson: FileRef;
-  readonly readme: FileRef;
-  readonly schemas: DirRef;
-  readonly schemasIndex: FileRef;
-  readonly tsconfig: FileRef;
-};
+export type UiPackageRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "UiPackage";
+    readonly index: FileRef;
+    readonly packageJson: FileRef;
+    readonly readme: FileRef;
+    readonly tsconfig: FileRef;
+  };
 
-export type InfrastructurePackageRef = InstanceRef & {
-  readonly __constructBrand: "InfrastructurePackage";
-  readonly artifacts: InfrastructurePackageArtifacts;
-};
+export type UseCaseRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "UseCase";
+  };
 
-export type MapperArtifacts = {
-  readonly source: FileRef;
-};
+export type UseCasesModuleRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "UseCasesModule";
+    readonly index: FileRef;
+  };
 
-export type MapperRef = InstanceRef & {
-  readonly __constructBrand: "Mapper";
-  readonly artifacts: MapperArtifacts;
-};
-
-export type ModelsModuleArtifacts = {
-  readonly index: FileRef;
-  readonly models: DirRef;
-};
-
-export type ModelsModuleRef = InstanceRef & {
-  readonly __constructBrand: "ModelsModule";
-  readonly artifacts: ModelsModuleArtifacts;
-};
-
-export type OperationsModuleArtifacts = {
-  readonly index: FileRef;
-  readonly operations: DirRef;
-};
-
-export type OperationsModuleRef = InstanceRef & {
-  readonly __constructBrand: "OperationsModule";
-  readonly artifacts: OperationsModuleArtifacts;
-};
-
-export type PortArtifacts = {
-  readonly source: FileRef;
-};
-
-export type PortRef = InstanceRef & {
-  readonly __constructBrand: "Port";
-  readonly artifacts: PortArtifacts;
-};
-
-export type PortsModuleArtifacts = {
-  readonly index: FileRef;
-  readonly ports: DirRef;
-};
-
-export type PortsModuleRef = InstanceRef & {
-  readonly __constructBrand: "PortsModule";
-  readonly artifacts: PortsModuleArtifacts;
-};
-
-export type PrimitiveArtifacts = {
-  readonly source: FileRef;
-};
-
-export type PrimitiveRef = InstanceRef & {
-  readonly __constructBrand: "Primitive";
-  readonly artifacts: PrimitiveArtifacts;
-};
-
-export type ProofArtifacts = {
-  readonly source: FileRef;
-};
-
-export type ProofRef = InstanceRef & {
-  readonly __constructBrand: "Proof";
-  readonly artifacts: ProofArtifacts;
-};
-
-export type RepositoryArtifacts = {
-  readonly source: FileRef;
-};
-
-export type RepositoryRef = InstanceRef & {
-  readonly __constructBrand: "Repository";
-  readonly artifacts: RepositoryArtifacts;
-};
-
-export type ShapeArtifacts = {
-  readonly source: FileRef;
-};
-
-export type ShapeRef = InstanceRef & {
-  readonly __constructBrand: "Shape";
-  readonly artifacts: ShapeArtifacts;
-};
-
-export type UiPackageArtifacts = {
-  readonly index: FileRef;
-  readonly packageDirectory: DirRef;
-  readonly packageJson: FileRef;
-  readonly readme: FileRef;
-  readonly tsconfig: FileRef;
-};
-
-export type UiPackageRef = InstanceRef & {
-  readonly __constructBrand: "UiPackage";
-  readonly artifacts: UiPackageArtifacts;
-};
-
-export type UseCaseArtifacts = {
-  readonly source: FileRef;
-};
-
-export type UseCaseRef = InstanceRef & {
-  readonly __constructBrand: "UseCase";
-  readonly artifacts: UseCaseArtifacts;
-};
-
-export type UseCasesModuleArtifacts = {
-  readonly index: FileRef;
-  readonly useCases: DirRef;
-};
-
-export type UseCasesModuleRef = InstanceRef & {
-  readonly __constructBrand: "UseCasesModule";
-  readonly artifacts: UseCasesModuleArtifacts;
-};
-
-export type WorkspaceRootArtifacts = {
-  readonly packageJson: FileRef;
-  readonly pnpmWorkspace: FileRef;
-  readonly tsconfig: FileRef;
-};
-
-export type WorkspaceRootRef = InstanceRef & {
-  readonly __constructBrand: "WorkspaceRoot";
-  readonly artifacts: WorkspaceRootArtifacts;
-};
+export type WorkspaceRootRef = Omit<InstanceRef, "artifacts"> &
+  DirRef & {
+    readonly __constructBrand: "WorkspaceRoot";
+    readonly packageJson: FileRef;
+    readonly pnpmWorkspace: FileRef;
+    readonly tsconfig: FileRef;
+  };
 
 export type CleanArchitectureOrientedMonorepoPopulateApi = {
   readonly population: Population;
@@ -320,76 +221,82 @@ export function createPopulateApi(): CleanArchitectureOrientedMonorepoPopulateAp
       return population;
     },
     AdapterPackage(input) {
-      return population.add(constructs.AdapterPackage, input) as AdapterPackageRef;
+      return population.add(constructs.AdapterPackage, input) as unknown as AdapterPackageRef;
     },
     App(input) {
-      return population.add(constructs.App, input) as AppRef;
+      return population.add(constructs.App, input) as unknown as AppRef;
     },
     Capabilities(input) {
-      return population.add(constructs.Capabilities, input) as CapabilitiesRef;
+      return population.add(constructs.Capabilities, input) as unknown as CapabilitiesRef;
     },
     CompositionRoot(input) {
-      return population.add(constructs.CompositionRoot, input) as CompositionRootRef;
+      return population.add(constructs.CompositionRoot, input) as unknown as CompositionRootRef;
     },
     CorePackage(input) {
-      return population.add(constructs.CorePackage, input) as CorePackageRef;
+      return population.add(constructs.CorePackage, input) as unknown as CorePackageRef;
     },
     DomainError(input) {
-      return population.add(constructs.DomainError, input) as DomainErrorRef;
+      return population.add(constructs.DomainError, input) as unknown as DomainErrorRef;
     },
     DomainService(input) {
-      return population.add(constructs.DomainService, input) as DomainServiceRef;
+      return population.add(constructs.DomainService, input) as unknown as DomainServiceRef;
     },
     ErrorsModule(input) {
-      return population.add(constructs.ErrorsModule, input) as ErrorsModuleRef;
+      return population.add(constructs.ErrorsModule, input) as unknown as ErrorsModuleRef;
     },
     FeatureSpec(input) {
-      return population.add(constructs.FeatureSpec, input) as FeatureSpecRef;
+      return population.add(constructs.FeatureSpec, input) as unknown as FeatureSpecRef;
     },
     InfrastructureLoader(input) {
-      return population.add(constructs.InfrastructureLoader, input) as InfrastructureLoaderRef;
+      return population.add(
+        constructs.InfrastructureLoader,
+        input
+      ) as unknown as InfrastructureLoaderRef;
     },
     InfrastructurePackage(input) {
-      return population.add(constructs.InfrastructurePackage, input) as InfrastructurePackageRef;
+      return population.add(
+        constructs.InfrastructurePackage,
+        input
+      ) as unknown as InfrastructurePackageRef;
     },
     Mapper(input) {
-      return population.add(constructs.Mapper, input) as MapperRef;
+      return population.add(constructs.Mapper, input) as unknown as MapperRef;
     },
     ModelsModule(input) {
-      return population.add(constructs.ModelsModule, input) as ModelsModuleRef;
+      return population.add(constructs.ModelsModule, input) as unknown as ModelsModuleRef;
     },
     OperationsModule(input) {
-      return population.add(constructs.OperationsModule, input) as OperationsModuleRef;
+      return population.add(constructs.OperationsModule, input) as unknown as OperationsModuleRef;
     },
     Port(input) {
-      return population.add(constructs.Port, input) as PortRef;
+      return population.add(constructs.Port, input) as unknown as PortRef;
     },
     PortsModule(input) {
-      return population.add(constructs.PortsModule, input) as PortsModuleRef;
+      return population.add(constructs.PortsModule, input) as unknown as PortsModuleRef;
     },
     Primitive(input) {
-      return population.add(constructs.Primitive, input) as PrimitiveRef;
+      return population.add(constructs.Primitive, input) as unknown as PrimitiveRef;
     },
     Proof(input) {
-      return population.add(constructs.Proof, input) as ProofRef;
+      return population.add(constructs.Proof, input) as unknown as ProofRef;
     },
     Repository(input) {
-      return population.add(constructs.Repository, input) as RepositoryRef;
+      return population.add(constructs.Repository, input) as unknown as RepositoryRef;
     },
     Shape(input) {
-      return population.add(constructs.Shape, input) as ShapeRef;
+      return population.add(constructs.Shape, input) as unknown as ShapeRef;
     },
     UiPackage(input) {
-      return population.add(constructs.UiPackage, input) as UiPackageRef;
+      return population.add(constructs.UiPackage, input) as unknown as UiPackageRef;
     },
     UseCase(input) {
-      return population.add(constructs.UseCase, input) as UseCaseRef;
+      return population.add(constructs.UseCase, input) as unknown as UseCaseRef;
     },
     UseCasesModule(input) {
-      return population.add(constructs.UseCasesModule, input) as UseCasesModuleRef;
+      return population.add(constructs.UseCasesModule, input) as unknown as UseCasesModuleRef;
     },
     WorkspaceRoot(input) {
-      return population.add(constructs.WorkspaceRoot, input) as WorkspaceRootRef;
+      return population.add(constructs.WorkspaceRoot, input) as unknown as WorkspaceRootRef;
     },
   };
 }

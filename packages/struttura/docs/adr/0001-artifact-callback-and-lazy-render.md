@@ -1,11 +1,7 @@
-# Artifact map callback with lazy file renderers
+# Tree construct placement and lazy file render
 
-Construct artifacts are declared in a single callback next to `defineConstruct`, returning a keyed map of `dir(...)` / `file({ ... })` descriptors. Scaffold templates and sync renderers are attached as `file({ content })` and run only after the full desired inventory exists (phase 5), so they may use queries without deciding presence or paths.
+Constructs are authored with `A.construct(name, dependencies, build)` where `build` returns `A.in(destination, root)`. The root is `A.dir(...)`, `A.file(...)`, or a peer-root sibling map. Flattening produces the desired inventory (artifact keys, paths, modes); scaffold templates and sync content attached via `A.file(..., content, { mode })` run only after the full desired inventory exists (phase 5).
 
-`file` takes a single options object — `filename`, `directory`, optional `mode` (default `"scaffold"`), and optional `content` — so call sites stay explicit when wrapping across lines. We rejected positional `file(filename, directory, mode, content?)` (easy to mis-order) and dual signatures (one style only). Layer `index.ts` barrels use `tsBarrelIndex({ directory })` (default sync); odd layouts stay as `file` + `renderTsBarrel`.
+`dependencies` is always required (`{}` ok). Dependents see navigable children on the sealed instance (e.g. `adapter.repositories`), not a flat `.artifacts` map. Reserved top-level keys are `name`, `id`, `construct`, `dependencies`, `path`; Destination is a private symbol exposed via `A.destination`.
 
-Dependency constructs use a curried form — `defineConstruct("X", { core })(({ core }) => …)` — so TypeScript can fix `TDeps` before typing the artifacts callback; a single three-argument call does not reliably infer dependency `.artifacts`. `ConstructDefinition` is generic over the descriptor map so dependents see precise `DirRef` / `FileRef` keys.
-
-Values needed in an artifacts callback (feature name, vendor package, …) should come from **declared** dependency keys on that construct — not by walking `instance.dependencies` on another ref. That map stays erased at the type level; undeclared hops fail closed only at runtime (or silently via fallbacks). Prefer an explicit `core` / `infra` dep over `shape.dependencies.models?.dependencies.core`.
-
-We rejected sibling `artifacts` + `render` maps and fluent post-hoc builders: one readable place per construct beats split declarations, and lazy render keeps the required derive-then-query sequence.
+Content functions receive `FileRenderContext` (`name`, `id`, bound artifacts, dependency instances). Inventory query / dynamic barrel helpers are not part of the public authoring surface.

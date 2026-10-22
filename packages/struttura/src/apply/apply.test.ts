@@ -14,9 +14,10 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { FileMode } from "../architecture/artifacts";
-import { defineArchitecture, dir, file, root } from "../architecture/define-architecture";
+import { defineArchitecture } from "../architecture/define-architecture";
 import { toKebabCase } from "../casing/casing";
 import { createPopulation } from "../population/create-population";
+import { buildGuidePopulation } from "../test-fixtures/guide-architecture";
 import { apply } from "./apply";
 import { MANIFEST_RELATIVE_PATH, readManifest } from "./manifest";
 import { moveTempPath } from "./plan";
@@ -37,86 +38,6 @@ function listRelativeFiles(rootDir: string, prefix = ""): string[] {
     }
   }
   return out.sort();
-}
-
-function buildGuidePopulation() {
-  const A = defineArchitecture("CleanArchitecture");
-
-  const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
-    const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
-    const models = dir(`${packageDirectory.path}/models`);
-    const ports = dir(`${packageDirectory.path}/ports`);
-    const useCases = dir(`${packageDirectory.path}/use-cases`);
-    const operations = dir(`${packageDirectory.path}/operations`);
-    return {
-      packageDirectory,
-      models,
-      ports,
-      useCases,
-      operations,
-      modelsIndex: file({
-        filename: "index.ts",
-        directory: models,
-        mode: "sync",
-        content: "// models barrel\n",
-      }),
-      portsIndex: file({
-        filename: "index.ts",
-        directory: ports,
-        mode: "sync",
-        content: "// ports barrel\n",
-      }),
-      useCasesIndex: file({
-        filename: "index.ts",
-        directory: useCases,
-        mode: "sync",
-        content: "// use-cases barrel\n",
-      }),
-      operationsIndex: file({
-        filename: "index.ts",
-        directory: operations,
-        mode: "sync",
-        content: "// operations barrel\n",
-      }),
-    };
-  });
-
-  const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
-    source: file({
-      filename: `${toKebabCase(name)}.model.ts`,
-      directory: core.artifacts.models,
-      mode: "scaffold",
-      content: `export type ${name} = { id: string };\n`,
-    }),
-  }));
-
-  const useCase = A.defineConstruct("UseCase", { package: corePackage })(
-    ({ name, package: pkg }) => ({
-      source: file({
-        filename: `${toKebabCase(name)}.use-case.ts`,
-        directory: pkg.artifacts.useCases,
-        mode: "scaffold",
-        content: `export function ${name}() {}\n`,
-      }),
-    })
-  );
-
-  const packageJson = A.defineConstruct("PackageJson", () => ({
-    packageJson: file({
-      filename: "package.json",
-      directory: root,
-      mode: "scaffold",
-      content: '{ "name": "project" }\n',
-    }),
-  }));
-
-  const population = createPopulation(A);
-  const pagebuilder = population.add(corePackage, { name: "pagebuilder" });
-  population.add(model, { name: "page", core: pagebuilder });
-  population.add(model, { name: "pageSlug", core: pagebuilder });
-  population.add(useCase, { name: "resolvePage", package: pagebuilder });
-  population.add(packageJson, { name: "packageJson" });
-  return population;
 }
 
 describe("apply", () => {
@@ -203,7 +124,7 @@ describe("apply", () => {
     expect(pageSource).toMatchObject({
       kind: "file",
       instanceId: "page",
-      artifactKey: "source",
+      artifactKey: ".",
       constructName: "Model",
       mode: "scaffold",
       filename: "page.model.ts",
@@ -256,14 +177,11 @@ describe("apply", () => {
     const materializationRoot = join(tempDir, "project");
 
     const A = defineArchitecture("Conflict");
-    const thing = A.defineConstruct("Thing", () => ({
-      packageJson: file({
-        filename: "package.json",
-        directory: root,
-        mode: "scaffold",
-        content: '{ "name": "managed" }\n',
-      }),
-    }));
+    const thing = A.construct("Thing", {}, () =>
+      A.in(A.rootDirectory, {
+        packageJson: A.file("package.json", '{ "name": "managed" }\n'),
+      })
+    );
     const population = createPopulation(A);
     population.add(thing, { name: "root-file" });
 
@@ -285,9 +203,9 @@ describe("apply", () => {
 
 function buildSingleFilePopulation(mode: FileMode, content: string) {
   const A = defineArchitecture("Lifecycle");
-  const thing = A.defineConstruct("Thing", () => ({
-    source: file({ filename: "thing.ts", directory: root, mode: mode, content: content }),
-  }));
+  const thing = A.construct("Thing", {}, () =>
+    A.in(A.rootDirectory, A.file("thing.ts", content, { mode }))
+  );
   const population = createPopulation(A);
   population.add(thing, { name: "thing" });
   return population;
@@ -436,28 +354,22 @@ describe("scaffold vs sync lifecycle", () => {
 /** Compact CorePackage + Model layout matching analysis §14. */
 function buildDeletesArchitecture() {
   const A = defineArchitecture("Deletes");
-  const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
-    const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
-    const models = dir(`${packageDirectory.path}/models`);
-    return {
-      packageDirectory,
-      models,
-      modelsIndex: file({
-        filename: "index.ts",
-        directory: models,
-        mode: "sync",
-        content: "// models barrel\n",
-      }),
-    };
-  });
-  const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
-    source: file({
-      filename: `${toKebabCase(name)}.model.ts`,
-      directory: core.artifacts.models,
-      mode: "scaffold",
-      content: `export type ${name} = { id: string };\n`,
-    }),
-  }));
+  const corePackage = A.construct("CorePackage", {}, ({ name }) =>
+    A.in(
+      A.rootDirectory,
+      A.dir(`packages/core-${toKebabCase(name)}`, {
+        models: A.dir({
+          index: A.file("index.ts", "// models barrel\n", { mode: "sync" }),
+        }),
+      })
+    )
+  );
+  const model = A.construct("Model", { core: corePackage }, ({ name, core }) =>
+    A.in(
+      core.models,
+      A.file(`${toKebabCase(name)}.model.ts`, `export type ${name} = { id: string };\n`)
+    )
+  );
   return { A, corePackage, model };
 }
 
@@ -507,7 +419,7 @@ describe("deletes and foreign files (analysis §14)", () => {
           kind: "file",
           path: "packages/core-pagebuilder/models/page.model.ts",
           instanceId: "page",
-          artifactKey: "source",
+          artifactKey: ".",
         }),
       ])
     );
@@ -557,7 +469,7 @@ describe("deletes and foreign files (analysis §14)", () => {
           kind: "directory",
           path: "packages/core-pagebuilder",
           instanceId: "pagebuilder",
-          artifactKey: "packageDirectory",
+          artifactKey: ".",
         }),
       ])
     );
@@ -578,13 +490,14 @@ describe("deletes and foreign files (analysis §14)", () => {
     const options = { architectureDir, materializationRoot };
 
     const withKeepArch = defineArchitecture("Gitkeep");
-    const withKeepConstruct = withKeepArch.defineConstruct("Folder", () => {
-      const things = dir("things");
-      return {
-        things,
-        keep: file({ filename: ".gitkeep", directory: things, mode: "scaffold", content: "" }),
-      };
-    });
+    const withKeepConstruct = withKeepArch.construct("Folder", {}, () =>
+      withKeepArch.in(
+        withKeepArch.rootDirectory,
+        withKeepArch.dir("things", {
+          keep: withKeepArch.file(".gitkeep", ""),
+        })
+      )
+    );
     const withKeep = createPopulation(withKeepArch);
     withKeep.add(withKeepConstruct, { name: "things" });
 
@@ -598,9 +511,9 @@ describe("deletes and foreign files (analysis §14)", () => {
 
     // Same instance/directory identity, but the .gitkeep file artifact is gone.
     const dirOnlyArch = defineArchitecture("Gitkeep");
-    const dirOnlyConstruct = dirOnlyArch.defineConstruct("Folder", () => ({
-      things: dir("things"),
-    }));
+    const dirOnlyConstruct = dirOnlyArch.construct("Folder", {}, () =>
+      dirOnlyArch.in(dirOnlyArch.rootDirectory, dirOnlyArch.dir("things", {}))
+    );
     const dirOnly = createPopulation(dirOnlyArch);
     dirOnly.add(dirOnlyConstruct, { name: "things" });
 
@@ -627,28 +540,22 @@ describe("deletes and foreign files (analysis §14)", () => {
 /** Compact layout for rename / directory-move scenarios (analysis §13, §15). */
 function buildRenameArchitecture() {
   const A = defineArchitecture("Rename");
-  const corePackage = A.defineConstruct("CorePackage", ({ name }) => {
-    const packageDirectory = dir(`packages/core-${toKebabCase(name)}`);
-    const models = dir(`${packageDirectory.path}/models`);
-    return {
-      packageDirectory,
-      models,
-      modelsIndex: file({
-        filename: "index.ts",
-        directory: models,
-        mode: "sync",
-        content: "// models barrel\n",
-      }),
-    };
-  });
-  const model = A.defineConstruct("Model", { core: corePackage })(({ name, core }) => ({
-    source: file({
-      filename: `${toKebabCase(name)}.model.ts`,
-      directory: core.artifacts.models,
-      mode: "scaffold",
-      content: `export type ${name} = { id: string };\n`,
-    }),
-  }));
+  const corePackage = A.construct("CorePackage", {}, ({ name }) =>
+    A.in(
+      A.rootDirectory,
+      A.dir(`packages/core-${toKebabCase(name)}`, {
+        models: A.dir({
+          index: A.file("index.ts", "// models barrel\n", { mode: "sync" }),
+        }),
+      })
+    )
+  );
+  const model = A.construct("Model", { core: corePackage }, ({ name, core }) =>
+    A.in(
+      core.models,
+      A.file(`${toKebabCase(name)}.model.ts`, `export type ${name} = { id: string };\n`)
+    )
+  );
   return { A, corePackage, model };
 }
 
@@ -702,7 +609,7 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
           from: "packages/core-pagebuilder/models/page.model.ts",
           to: newPath,
           instanceId: "page",
-          artifactKey: "source",
+          artifactKey: ".",
         }),
       ])
     );
@@ -749,7 +656,7 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
           from: "packages/core-pagebuilder",
           to: "packages/core-editorial",
           instanceId: "pagebuilder",
-          artifactKey: "packageDirectory",
+          artifactKey: ".",
         }),
       ])
     );
@@ -783,14 +690,9 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
     const options = { architectureDir, materializationRoot };
 
     const A = defineArchitecture("Cross");
-    const thing = A.defineConstruct("Thing", ({ name }) => ({
-      source: file({
-        filename: `${toKebabCase(name)}.ts`,
-        directory: root,
-        mode: "scaffold",
-        content: `export const ${name} = 1;\n`,
-      }),
-    }));
+    const thing = A.construct("Thing", {}, ({ name }) =>
+      A.in(A.rootDirectory, A.file(`${toKebabCase(name)}.ts`, `export const ${name} = 1;\n`))
+    );
 
     const initial = createPopulation(A);
     initial.add(thing, { id: "alpha", name: "alpha" });
@@ -886,7 +788,7 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
 
     const manifest = readManifest(architectureDir);
     expect(
-      manifest?.artifacts.find((a) => a.instanceId === "page" && a.artifactKey === "source")
+      manifest?.artifacts.find((a) => a.instanceId === "page" && a.artifactKey === ".")
     ).toMatchObject({
       path: newRel,
     });
@@ -907,14 +809,9 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
     const options = { architectureDir, materializationRoot };
 
     const A = defineArchitecture("TempRecovery");
-    const thing = A.defineConstruct("Thing", ({ name }) => ({
-      source: file({
-        filename: `${toKebabCase(name)}.ts`,
-        directory: root,
-        mode: "scaffold",
-        content: `export const ${name} = 1;\n`,
-      }),
-    }));
+    const thing = A.construct("Thing", {}, ({ name }) =>
+      A.in(A.rootDirectory, A.file(`${toKebabCase(name)}.ts`, `export const ${name} = 1;\n`))
+    );
 
     const initial = createPopulation(A);
     initial.add(thing, { id: "alpha", name: "alpha" });
@@ -925,7 +822,7 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
     writeFileSync(join(materializationRoot, "beta.ts"), "export const beta = 'B';\n");
 
     // Interrupt after alpha was staged to its deterministic temp (crossed swap).
-    const alphaTemp = moveTempPath("alpha::source");
+    const alphaTemp = moveTempPath("alpha::.");
     mkdirSync(join(materializationRoot, ".struttura-tmp"), { recursive: true });
     renameSync(join(materializationRoot, "alpha.ts"), join(materializationRoot, alphaTemp));
 

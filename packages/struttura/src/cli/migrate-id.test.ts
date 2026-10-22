@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { defineArchitecture, dir, file } from "../architecture/define-architecture";
+import { defineArchitecture } from "../architecture/define-architecture";
 import { apply } from "../apply/apply";
 import { readManifest } from "../apply/manifest";
 import { createPopulation } from "../population/create-population";
@@ -25,19 +25,17 @@ describe("migrate-id", () => {
     const materializationRoot = join(tempDir, "project");
 
     const A = defineArchitecture("CleanArchitecture");
-    const core = A.defineConstruct("CorePackage", ({ name }) => {
-      const packageDirectory = dir(`packages/${name}`);
-      const models = dir(`${packageDirectory.path}/models`);
-      return { packageDirectory, models };
-    });
-    const model = A.defineConstruct("Model", { core })(({ name, core: c }) => ({
-      source: file({
-        filename: `${name}.ts`,
-        directory: c.artifacts.models,
-        mode: "scaffold",
-        content: `export type ${name} = {};\n`,
-      }),
-    }));
+    const core = A.construct("CorePackage", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`packages/${name}`, {
+          models: A.dir({}),
+        })
+      )
+    );
+    const model = A.construct("Model", { core }, ({ name, core: c }) =>
+      A.in(c.models, A.file(`${name}.ts`, `export type ${name} = {};\n`))
+    );
 
     const population = createPopulation(A);
     const pagebuilder = population.add(core, { name: "pagebuilder" });
@@ -60,7 +58,7 @@ describe("migrate-id", () => {
       core: "pagebuilder",
     });
     expect(
-      manifest?.artifacts.find((a) => a.artifactKey === "source" && a.constructName === "Model")
+      manifest?.artifacts.find((a) => a.artifactKey === "." && a.constructName === "Model")
     ).toMatchObject({
       instanceId: "editorialPage",
       directory: { kind: "artifact", instanceId: "pagebuilder", artifactKey: "models" },
@@ -99,7 +97,7 @@ describe("migrate-id", () => {
           {
             instanceId: "page",
             constructName: "Model",
-            artifactKey: "source",
+            artifactKey: ".",
             kind: "file",
             path: "packages/core/models/page.ts",
             mode: "scaffold",
@@ -117,7 +115,7 @@ describe("migrate-id", () => {
       core: "pagebuilder",
     });
     expect(rewritten.artifacts.map((a) => a.instanceId).sort()).toEqual(["page", "pagebuilder"]);
-    expect(rewritten.artifacts.find((a) => a.artifactKey === "source")?.directory).toEqual({
+    expect(rewritten.artifacts.find((a) => a.artifactKey === ".")?.directory).toEqual({
       kind: "artifact",
       instanceId: "pagebuilder",
       artifactKey: "models",
@@ -139,9 +137,7 @@ describe("migrate-id", () => {
     });
 
     const A = defineArchitecture("CleanArchitecture");
-    const pkg = A.defineConstruct("Pkg", ({ name }) => ({
-      dir: dir(name),
-    }));
+    const pkg = A.construct("Pkg", {}, ({ name }) => A.in(A.rootDirectory, A.dir(name, {})));
     const population = createPopulation(A);
     population.add(pkg, { name: "alpha" });
     population.add(pkg, { name: "beta" });
