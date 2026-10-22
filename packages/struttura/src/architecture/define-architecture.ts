@@ -17,6 +17,8 @@ import {
   treeFile,
   treeIn,
   type InPlacement,
+  type NavigableFromRoot,
+  type PlacementDestination,
   type PlacementRoot,
   type TreeDirNode,
   type TreeFileNode,
@@ -30,6 +32,10 @@ export {
   RESERVED_INSTANCE_KEYS,
   readDestination,
   type InPlacement,
+  type NavigableFromNode,
+  type NavigableFromPlacement,
+  type NavigableFromRoot,
+  type PlacementDestination,
   type PlacementRoot,
   type ReservedInstanceKey,
   type TreeDirNode,
@@ -50,10 +56,10 @@ export type InstanceArtifacts = Record<string, DirRef | FileRef>;
 
 /**
  * Erased construct definition for maps/registries. Specific definitions remain
- * generic so `defineConstruct` can type dependency `.artifacts`.
+ * generic so `defineConstruct` / `construct` can type dependency refs.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentional erase for registries
-export type AnyConstructDefinition = ConstructDefinition<any, any>;
+export type AnyConstructDefinition = ConstructDefinition<any, any, any>;
 
 export type InstanceRef<C extends AnyConstructDefinition = AnyConstructDefinition> = {
   readonly id: string;
@@ -61,10 +67,18 @@ export type InstanceRef<C extends AnyConstructDefinition = AnyConstructDefinitio
   readonly construct: C;
   readonly dependencies: Readonly<Record<string, InstanceRef>>;
   /** Filled during desired-inventory derivation for dependents' artifact callbacks. */
-  artifacts: C extends ConstructDefinition<infer A, infer _Deps>
+  artifacts: C extends ConstructDefinition<infer A, infer _Deps, infer _Nav>
     ? ArtifactRefsFromDescriptors<A>
     : InstanceArtifacts;
 };
+
+/**
+ * Sealed navigable instance: reserved InstanceRef fields plus tree shape
+ * (DirRef/FileRef root + declared children). Flat constructs have `TNavigable = {}`.
+ */
+export type NavigableInstanceRef<C extends AnyConstructDefinition = AnyConstructDefinition> =
+  InstanceRef<C> &
+    (C extends ConstructDefinition<infer _A, infer _D, infer N> ? N : Record<string, never>);
 
 export type ArtifactCallbackContextBase = {
   readonly name: string;
@@ -78,6 +92,12 @@ export type ArtifactCallbackContextBase = {
 export type ArtifactCallbackContextFor<TDeps extends Record<string, AnyConstructDefinition>> =
   ArtifactCallbackContextBase & {
     readonly [K in keyof TDeps]: InstanceRef<TDeps[K]>;
+  };
+
+/** Tree builder context: dependency instances expose navigable children. */
+export type TreeCallbackContextFor<TDeps extends Record<string, AnyConstructDefinition>> =
+  ArtifactCallbackContextBase & {
+    readonly [K in keyof TDeps]: NavigableInstanceRef<TDeps[K]>;
   };
 
 /** Loose context alias (prefer {@link ArtifactCallbackContextFor}). */
@@ -101,6 +121,8 @@ export type TreeBuildCallback = (
 export type ConstructDefinition<
   TArtifacts extends Record<string, ArtifactDescriptor> = Record<string, ArtifactDescriptor>,
   TDeps extends Record<string, AnyConstructDefinition> = Record<string, AnyConstructDefinition>,
+  /** Navigable sealed shape for tree constructs; `{}` for flat. */
+  TNavigable extends object = Record<string, never>,
 > = {
   readonly name: string;
   readonly architectureName: string;
@@ -118,6 +140,8 @@ export type ConstructDefinition<
   readonly buildTree?: TreeBuildCallback;
   /** Phantom: carries descriptor map for dependents' `.artifacts` typing. */
   readonly __artifactMap?: TArtifacts;
+  /** Phantom: carries navigable instance shape for tree dependents. */
+  readonly __navigable?: TNavigable;
 };
 
 export type Architecture = {
@@ -144,9 +168,10 @@ export type DefineConstructWithDeps<TDeps extends Record<string, AnyConstructDef
   buildArtifacts: ArtifactsCallbackWithDeps<TDeps, TArtifacts>
 ) => ConstructDefinition<TArtifacts, TDeps>;
 
-type TreeBuildCallbackFor<TDeps extends Record<string, AnyConstructDefinition>> = (
-  ctx: ArtifactCallbackContextFor<TDeps>
-) => InPlacement;
+type TreeBuildCallbackFor<
+  TDeps extends Record<string, AnyConstructDefinition>,
+  TRoot extends PlacementRoot,
+> = (ctx: TreeCallbackContextFor<TDeps>) => InPlacement<TRoot>;
 
 export type ArchitectureBuilder = {
   readonly name: string;
@@ -167,21 +192,22 @@ export type ArchitectureBuilder = {
   ): DefineConstructWithDeps<TDeps>;
   /**
    * Navigable tree construct. `dependencies` is always required (`{}` ok).
-   * Builder must return `A.in(destination, root)`.
+   * Builder must return `A.in(destination, root)`; root shape is carried on the
+   * definition so dependents see navigable children (e.g. `adapter.repositories`).
    */
-  construct<TDeps extends Record<string, AnyConstructDefinition>>(
+  construct<TDeps extends Record<string, AnyConstructDefinition>, TRoot extends PlacementRoot>(
     name: string,
     dependencies: TDeps,
-    build: TreeBuildCallbackFor<TDeps>
-  ): ConstructDefinition<Record<string, ArtifactDescriptor>, TDeps>;
-  dir(path: string, children?: Record<string, TreeNode>): TreeDirNode;
-  dir(children: Record<string, TreeNode>): TreeDirNode;
+    build: TreeBuildCallbackFor<TDeps, TRoot>
+  ): ConstructDefinition<Record<string, ArtifactDescriptor>, TDeps, NavigableFromRoot<TRoot>>;
+  dir<C extends Record<string, TreeNode>>(path: string, children?: C): TreeDirNode<C>;
+  dir<C extends Record<string, TreeNode>>(children: C): TreeDirNode<C>;
   file(
     filename: string,
     content?: string | FileContentFn,
     options?: { readonly mode?: FileMode }
   ): TreeFileNode;
-  in(destination: DirRef, placementRoot: PlacementRoot): InPlacement;
+  in<R extends PlacementRoot>(destination: PlacementDestination, placementRoot: R): InPlacement<R>;
   /** Read Destination from a sealed navigable instance (symbol slot). */
   destination(instance: object): DirRef;
   /** Closed Architecture snapshot of constructs defined so far. */
@@ -233,11 +259,14 @@ export function defineArchitecture(name: string): ArchitectureBuilder {
     return definition;
   }
 
-  function registerTree<TDeps extends Record<string, AnyConstructDefinition>>(
+  function registerTree<
+    TDeps extends Record<string, AnyConstructDefinition>,
+    TRoot extends PlacementRoot,
+  >(
     constructName: string,
     dependencies: TDeps,
-    build: TreeBuildCallbackFor<TDeps>
-  ): ConstructDefinition<Record<string, ArtifactDescriptor>, TDeps> {
+    build: TreeBuildCallbackFor<TDeps, TRoot>
+  ): ConstructDefinition<Record<string, ArtifactDescriptor>, TDeps, NavigableFromRoot<TRoot>> {
     assertUniqueAndDeps(constructName, dependencies);
 
     if (typeof build !== "function") {
@@ -245,7 +274,7 @@ export function defineArchitecture(name: string): ArchitectureBuilder {
     }
 
     const buildTree: TreeBuildCallback = (ctx) => {
-      const placement = build(ctx as ArtifactCallbackContextFor<TDeps>);
+      const placement = build(ctx as TreeCallbackContextFor<TDeps>);
       if (!isInPlacement(placement)) {
         throw new Error(
           `construct("${constructName}") must return A.in(destination, root), got ${describeReturn(placement)}`
@@ -259,7 +288,11 @@ export function defineArchitecture(name: string): ArchitectureBuilder {
       return flattenPlacement(placement, { constructName });
     };
 
-    const definition: ConstructDefinition<Record<string, ArtifactDescriptor>, TDeps> = {
+    const definition: ConstructDefinition<
+      Record<string, ArtifactDescriptor>,
+      TDeps,
+      NavigableFromRoot<TRoot>
+    > = {
       name: constructName,
       architectureName: name,
       dependencies,

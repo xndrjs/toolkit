@@ -12,6 +12,7 @@ import {
   normalizeRelativePath,
 } from "../architecture/artifacts";
 import {
+  FileRefAsDirectoryError,
   InvalidAuthoringKeyError,
   InvalidPlacementRootError,
   ReservedKeyCollisionError,
@@ -148,6 +149,16 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
           message: error.message,
           instanceId: instance.id,
           constructName: instance.construct.name,
+        });
+        continue;
+      }
+      if (error instanceof FileRefAsDirectoryError) {
+        diagnostics.push({
+          code: "file-ref-as-directory",
+          message: error.message,
+          instanceId: instance.id,
+          constructName: instance.construct.name,
+          path: error.path,
         });
         continue;
       }

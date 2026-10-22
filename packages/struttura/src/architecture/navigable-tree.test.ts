@@ -358,3 +358,327 @@ describe("navigable tree (ticket 02 peer root / nesting)", () => {
     ]);
   });
 });
+
+describe("navigable tree (ticket 03 cross-instance / file root / provenance)", () => {
+  let tempDir: string | undefined;
+
+  afterEach(() => {
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+      tempDir = undefined;
+    }
+  });
+
+  it("ModelsModule under CorePackage: paths from destination DirRef, module owns directory", () => {
+    const A = defineArchitecture("ModelsUnderCore");
+    const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`packages/core-${toKebabCase(name)}`, {
+          packageJson: A.file("package.json", '{ "name": "core" }\n'),
+        })
+      )
+    );
+    const ModelsModule = A.construct("ModelsModule", { core: CorePackage }, ({ core }) =>
+      A.in(
+        core,
+        A.dir("models", {
+          index: A.file("index.ts", "export {};\n"),
+        })
+      )
+    );
+
+    const population = createPopulation(A);
+    const core = population.add(CorePackage, { name: "pagebuilder" });
+    const models = population.add(ModelsModule, {
+      id: "pagebuilder-models",
+      name: "models",
+      core,
+    });
+
+    const result = deriveDesiredInventory(population);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    expect(
+      result.inventory.artifacts
+        .filter((a) => a.instanceId === "pagebuilder-models")
+        .map((a) => ({
+          key: a.artifactKey,
+          kind: a.kind,
+          path: a.path,
+          construct: a.constructName,
+        }))
+    ).toEqual([
+      {
+        key: ".",
+        kind: "directory",
+        path: "packages/core-pagebuilder/models",
+        construct: "ModelsModule",
+      },
+      {
+        key: "index",
+        kind: "file",
+        path: "packages/core-pagebuilder/models/index.ts",
+        construct: "ModelsModule",
+      },
+    ]);
+
+    const navigable = models as unknown as {
+      path: string;
+      kind: string;
+      index: { path: string };
+    };
+    expect(navigable.path).toBe("packages/core-pagebuilder/models");
+    expect(navigable.kind).toBe("directory");
+    expect(navigable.index.path).toBe("packages/core-pagebuilder/models/index.ts");
+    expect(A.destination(models)).toBe(core);
+  });
+
+  it("Shape file-root under ModelsModule: FileRef instance, Destination = models", () => {
+    const A = defineArchitecture("ShapeInModels");
+    const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`packages/core-${toKebabCase(name)}`, {
+          packageJson: A.file("package.json", "{}\n"),
+        })
+      )
+    );
+    const ModelsModule = A.construct("ModelsModule", { core: CorePackage }, ({ core }) =>
+      A.in(
+        core,
+        A.dir("models", {
+          index: A.file("index.ts", "export {};\n"),
+        })
+      )
+    );
+    const Shape = A.construct("Shape", { models: ModelsModule }, ({ name, models }) =>
+      A.in(models, A.file(`${toKebabCase(name)}.shape.ts`, `export type ${name} = {};\n`))
+    );
+
+    const population = createPopulation(A);
+    const core = population.add(CorePackage, { name: "pagebuilder" });
+    const models = population.add(ModelsModule, {
+      id: "pagebuilder-models",
+      name: "models",
+      core,
+    });
+    const page = population.add(Shape, { name: "page", models });
+
+    const result = deriveDesiredInventory(population);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    const shapeArtifact = result.inventory.artifacts.find(
+      (a) => a.instanceId === "page" && a.artifactKey === "."
+    );
+    expect(shapeArtifact).toMatchObject({
+      kind: "file",
+      path: "packages/core-pagebuilder/models/page.shape.ts",
+      constructName: "Shape",
+      filename: "page.shape.ts",
+      directory: {
+        kind: "artifact",
+        instanceId: "pagebuilder-models",
+        artifactKey: ".",
+      },
+    });
+
+    const navigable = page as unknown as {
+      kind: string;
+      path: string;
+      filename: string;
+      name: string;
+      id: string;
+    };
+    expect(navigable.kind).toBe("file");
+    expect(navigable.path).toBe("packages/core-pagebuilder/models/page.shape.ts");
+    expect(navigable.filename).toBe("page.shape.ts");
+    expect(navigable.name).toBe("page");
+    expect(navigable.id).toBe("page");
+    expect(Object.keys(page)).not.toContain("artifacts");
+    expect(A.destination(page)).toBe(models);
+  });
+
+  it("Repository under Adapter.repositories: Adapter owns dir, Repository owns file", () => {
+    const A = defineArchitecture("RepoUnderAdapter");
+    const AdapterPackage = A.construct("AdapterPackage", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`packages/adapter-${toKebabCase(name)}`, {
+          repositories: A.dir({
+            index: A.file("index.ts", "export {};\n"),
+          }),
+          packageJson: A.file("package.json", "{}\n"),
+        })
+      )
+    );
+    const Repository = A.construct("Repository", { adapter: AdapterPackage }, ({ name, adapter }) =>
+      A.in(
+        adapter.repositories,
+        A.file(`${toKebabCase(name)}.repository.ts`, `export class ${name} {}\n`)
+      )
+    );
+
+    const population = createPopulation(A);
+    const adapter = population.add(AdapterPackage, { name: "contentful-pagebuilder" });
+    population.add(Repository, {
+      id: "page-repository",
+      name: "pageRepository",
+      adapter,
+    });
+
+    const result = deriveDesiredInventory(population);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    const repositoriesDir = result.inventory.artifacts.find(
+      (a) => a.artifactKey === "repositories" && a.kind === "directory"
+    );
+    expect(repositoriesDir).toMatchObject({
+      instanceId: "contentful-pagebuilder",
+      constructName: "AdapterPackage",
+      path: "packages/adapter-contentful-pagebuilder/repositories",
+    });
+
+    const repoFile = result.inventory.artifacts.find(
+      (a) => a.instanceId === "page-repository" && a.artifactKey === "."
+    );
+    expect(repoFile).toMatchObject({
+      kind: "file",
+      constructName: "Repository",
+      path: "packages/adapter-contentful-pagebuilder/repositories/page-repository.repository.ts",
+      directory: {
+        kind: "artifact",
+        instanceId: "contentful-pagebuilder",
+        artifactKey: "repositories",
+      },
+    });
+
+    // Provenance: placement under Adapter.repositories does not transfer directory ownership
+    expect(
+      result.inventory.artifacts.filter(
+        (a) => a.path === "packages/adapter-contentful-pagebuilder/repositories"
+      )
+    ).toHaveLength(1);
+    expect(repositoriesDir?.instanceId).toBe("contentful-pagebuilder");
+  });
+
+  it("rejects file-root instance as A.in destination", () => {
+    const A = defineArchitecture("FileAsDest");
+    const Host = A.construct("Host", {}, () =>
+      A.in(A.rootDirectory, A.dir("pkg", { keep: A.file(".gitkeep", "") }))
+    );
+    const FileRoot = A.construct("FileRoot", { host: Host }, ({ host }) =>
+      A.in(host, A.file("alone.ts", "export {};\n"))
+    );
+    // Runtime-only: FileRef is not a PlacementDestination (types reject without cast).
+    const Bad = A.construct("Bad", { fileRoot: FileRoot }, ({ fileRoot }) =>
+      A.in(fileRoot as unknown as typeof A.rootDirectory, A.dir("nested", {}))
+    );
+
+    const population = createPopulation(A);
+    const host = population.add(Host, { name: "host" });
+    const fileRoot = population.add(FileRoot, { name: "alone", host });
+    population.add(Bad, { name: "bad", fileRoot });
+
+    const result = deriveDesiredInventory(population);
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "file-ref-as-directory",
+        constructName: "Bad",
+        instanceId: "bad",
+        path: "pkg/alone.ts",
+      }),
+    ]);
+  });
+
+  it("applies ModelsModule + Shape + Repository provenance layout", () => {
+    const A = defineArchitecture("CrossApply");
+    const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`packages/core-${toKebabCase(name)}`, {
+          packageJson: A.file("package.json", "{}\n"),
+        })
+      )
+    );
+    const ModelsModule = A.construct("ModelsModule", { core: CorePackage }, ({ core }) =>
+      A.in(core, A.dir("models", { index: A.file("index.ts", "export {};\n") }))
+    );
+    const Shape = A.construct("Shape", { models: ModelsModule }, ({ name, models }) =>
+      A.in(models, A.file(`${toKebabCase(name)}.shape.ts`, `export type ${name} = {};\n`))
+    );
+    const AdapterPackage = A.construct("AdapterPackage", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`packages/adapter-${toKebabCase(name)}`, {
+          repositories: A.dir({
+            index: A.file("index.ts", "export {};\n"),
+          }),
+        })
+      )
+    );
+    const Repository = A.construct("Repository", { adapter: AdapterPackage }, ({ name, adapter }) =>
+      A.in(adapter.repositories, A.file(`${toKebabCase(name)}.repository.ts`, "// repo\n"))
+    );
+
+    const population = createPopulation(A);
+    const core = population.add(CorePackage, { name: "pagebuilder" });
+    const models = population.add(ModelsModule, {
+      id: "pagebuilder-models",
+      name: "models",
+      core,
+    });
+    population.add(Shape, { name: "page", models });
+    const adapter = population.add(AdapterPackage, { name: "contentful-pagebuilder" });
+    population.add(Repository, {
+      id: "page-repository",
+      name: "pageRepository",
+      adapter,
+    });
+
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-tree-03-"));
+    const architectureDir = join(tempDir, "architecture");
+    const materializationRoot = join(tempDir, "project");
+
+    const applied = apply(population, { architectureDir, materializationRoot });
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) {
+      return;
+    }
+
+    expect(
+      readFileSync(join(materializationRoot, "packages/core-pagebuilder/models/index.ts"), "utf8")
+    ).toBe("export {};\n");
+    expect(
+      readFileSync(
+        join(materializationRoot, "packages/core-pagebuilder/models/page.shape.ts"),
+        "utf8"
+      )
+    ).toBe("export type page = {};\n");
+    expect(
+      readFileSync(
+        join(
+          materializationRoot,
+          "packages/adapter-contentful-pagebuilder/repositories/page-repository.repository.ts"
+        ),
+        "utf8"
+      )
+    ).toBe("// repo\n");
+    expect(
+      existsSync(join(materializationRoot, "packages/adapter-contentful-pagebuilder/repositories"))
+    ).toBe(true);
+  });
+});

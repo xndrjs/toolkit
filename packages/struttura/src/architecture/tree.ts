@@ -1,5 +1,5 @@
-import type { FileContentFn, FileMode, DirRef, RootRef } from "./artifacts";
-import { dir, file, joinPath, normalizeRelativePath, root } from "./artifacts";
+import type { FileContentFn, FileMode, DirRef, FileRef, RootRef } from "./artifacts";
+import { dir, file, isDirRef, joinPath, normalizeRelativePath, root } from "./artifacts";
 import type { ArtifactDescriptor } from "./artifacts";
 
 /** Private slot for Destination; not enumerable as a string key. */
@@ -22,25 +22,57 @@ export type TreeFileNode = {
   readonly content?: string | FileContentFn;
 };
 
-export type TreeDirNode = {
+/** Recursive tree node; interface so `TreeDirNode` defaults can reference `TreeNode`. */
+export type TreeNode = TreeFileNode | TreeDirNode;
+
+export interface TreeDirNode<C extends Record<string, TreeNode> = Record<string, TreeNode>> {
   readonly kind: "tree-dir";
   /** Physical path relative to the parent node (or to Destination when this is the placement root). */
   readonly path: string;
-  readonly children: Readonly<Record<string, TreeNode>>;
-};
-
-export type TreeNode = TreeFileNode | TreeDirNode;
+  readonly children: Readonly<C>;
+}
 
 /** Peer-root sibling map (ticket 02); detected at runtime by absence of `kind`. */
-export type PeerRootMap = Readonly<Record<string, TreeNode>>;
+export type PeerRootMap<C extends Record<string, TreeNode> = Record<string, TreeNode>> =
+  Readonly<C>;
 
 export type PlacementRoot = TreeDirNode | TreeFileNode | PeerRootMap;
 
-export type InPlacement = {
+/**
+ * `A.in` destination: DirRef (materialization root, directory artifact, or sealed
+ * navigable dir/peer instance). File-root instances are not assignable (FileRef).
+ */
+export type PlacementDestination = DirRef;
+
+export type InPlacement<R extends PlacementRoot = PlacementRoot> = {
   readonly kind: "in-placement";
   readonly destination: DirRef;
-  readonly root: PlacementRoot;
+  readonly root: R;
 };
+
+/** Map a tree file/dir node to the sealed navigable ref dependents see. */
+export type NavigableFromNode<N> = N extends TreeFileNode
+  ? FileRef
+  : N extends TreeDirNode<infer C>
+    ? DirRef & { readonly [K in keyof C]: NavigableFromNode<C[K]> }
+    : never;
+
+/**
+ * Sealed instance shape from an `A.in` placement root:
+ * dir → DirRef + children; file → FileRef; peer map → DirRef (forward) + siblings.
+ */
+export type NavigableFromRoot<R> = R extends TreeFileNode
+  ? FileRef
+  : R extends TreeDirNode<infer C>
+    ? DirRef & { readonly [K in keyof C]: NavigableFromNode<C[K]> }
+    : R extends PeerRootMap<infer C>
+      ? DirRef & { readonly [K in keyof C]: NavigableFromNode<C[K]> }
+      : R extends Record<string, TreeNode>
+        ? DirRef & { readonly [K in keyof R]: NavigableFromNode<R[K]> }
+        : never;
+
+export type NavigableFromPlacement<P> =
+  P extends InPlacement<infer R> ? NavigableFromRoot<R> : never;
 
 export class ReservedKeyCollisionError extends Error {
   constructor(
@@ -67,6 +99,14 @@ export class InvalidAuthoringKeyError extends Error {
   constructor(public readonly key: string) {
     super(`Authoring map key must not contain "." (got "${key}")`);
     this.name = "InvalidAuthoringKeyError";
+  }
+}
+
+/** Raised when an `A.in` destination is a FileRef (file-root instance). */
+export class FileRefAsDirectoryError extends Error {
+  constructor(public readonly path: string) {
+    super(`File artifact ref cannot be used as an A.in destination (path "${path}")`);
+    this.name = "FileRefAsDirectoryError";
   }
 }
 
@@ -109,15 +149,20 @@ export function treeFile(
   });
 }
 
-export function treeDir(
-  pathOrChildren: string | Record<string, TreeNode>,
-  maybeChildren?: Record<string, TreeNode>
-): TreeDirNode {
+export function treeDir<C extends Record<string, TreeNode>>(
+  path: string,
+  children?: C
+): TreeDirNode<C>;
+export function treeDir<C extends Record<string, TreeNode>>(children: C): TreeDirNode<C>;
+export function treeDir<C extends Record<string, TreeNode>>(
+  pathOrChildren: string | C,
+  maybeChildren?: C
+): TreeDirNode<C> {
   if (typeof pathOrChildren === "string") {
     return Object.freeze({
       kind: "tree-dir",
       path: normalizeRelativePath(pathOrChildren),
-      children: Object.freeze({ ...(maybeChildren ?? {}) }),
+      children: Object.freeze({ ...(maybeChildren ?? ({} as C)) }),
     });
   }
   return Object.freeze({
@@ -127,7 +172,10 @@ export function treeDir(
   });
 }
 
-export function treeIn(destination: DirRef, placementRoot: PlacementRoot): InPlacement {
+export function treeIn<R extends PlacementRoot>(
+  destination: PlacementDestination,
+  placementRoot: R
+): InPlacement<R> {
   return Object.freeze({
     kind: "in-placement",
     destination,
@@ -145,19 +193,25 @@ export function readDestination(instance: object): DirRef | undefined {
 
 /**
  * Flatten an `A.in` placement into the legacy flat descriptor map.
- * Directory root → artifact `"."`; Peer root → sibling keys only (no owned root dir);
- * file root deferred (cross-instance ticket).
+ * Directory root → artifact `"."`; file root → file artifact `"."`;
+ * Peer root → sibling keys only (no owned root dir).
  */
 export function flattenPlacement(
   placement: InPlacement,
   options: { readonly constructName?: string } = {}
 ): Record<string, ArtifactDescriptor> {
   const { destination, root: placementRoot } = placement;
+  assertDirDestination(destination, options.constructName);
 
   if (isTreeFileNode(placementRoot)) {
-    throw new InvalidPlacementRootError(
-      `Construct "${options.constructName ?? "?"}" file-root placement is not supported in this step`
-    );
+    return {
+      ".": file({
+        filename: placementRoot.filename,
+        directory: destination,
+        mode: placementRoot.mode,
+        ...(placementRoot.content === undefined ? {} : { content: placementRoot.content }),
+      }),
+    };
   }
 
   if (isPeerRootMap(placementRoot)) {
@@ -166,7 +220,7 @@ export function flattenPlacement(
 
   if (!isTreeDirNode(placementRoot)) {
     throw new InvalidPlacementRootError(
-      `Construct "${options.constructName ?? "?"}" A.in root must be A.dir(...) or a peer-root map`
+      `Construct "${options.constructName ?? "?"}" A.in root must be A.dir(...), A.file(...), or a peer-root map`
     );
   }
 
@@ -178,6 +232,17 @@ export function flattenPlacement(
   const out: Record<string, ArtifactDescriptor> = {};
   emitDir(out, ".", basePath, placementRoot.children, options.constructName);
   return out;
+}
+
+function assertDirDestination(destination: unknown, constructName: string | undefined): void {
+  if (isRecord(destination) && destination.kind === "file") {
+    throw new FileRefAsDirectoryError(typeof destination.path === "string" ? destination.path : "");
+  }
+  if (!isDirRef(destination as Parameters<typeof isDirRef>[0])) {
+    throw new InvalidPlacementRootError(
+      `Construct "${constructName ?? "?"}" A.in destination must be a DirRef`
+    );
+  }
 }
 
 function flattenPeerRoot(
@@ -268,8 +333,9 @@ function assertAuthoringKey(key: string, constructName: string | undefined): voi
 }
 
 /**
- * Project bound flat artifact refs onto a navigable instance (root DirRef + nested children).
+ * Project bound flat artifact refs onto a navigable instance (root DirRef/FileRef + nested children).
  * Peer root (no `"."` artifact) forwards Destination as the instance DirRef shape.
+ * File root (`"."` file) seals as FileRef + reserved; not valid as an `A.in` destination.
  * Leaves `artifacts` non-enumerable for engine use; Destination stays on {@link DESTINATION}.
  */
 export function sealNavigableInstance(
