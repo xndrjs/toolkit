@@ -63,3 +63,11 @@ _Avoid_: Path string, folder handle
 **FileRef**:
 A typed reference to a file artifact; not usable where a directory is required.
 _Avoid_: Path string, file handle
+
+**Desired inventory**:
+The derived set of instances and artifacts for one Population, before apply mutates the materialization root.
+_Avoid_: Manifest (that is the last successful apply), plan, filesystem state
+
+**Inventory listing**:
+Selecting managed file Artifacts under a DirRef from the Desired inventory at Sync content-render time (identity match; optional recursive path subtree; optional exclusions).
+_Avoid_: Query API, FS scan, barrel API, directory children (authoring tree)

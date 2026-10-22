@@ -1,1 +1,1 @@
-export * from "./page.loader";
+export {};

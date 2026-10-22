@@ -105,7 +105,7 @@ export {
   type PlanResult,
 } from "./apply/plan";
 
-export type { FileRenderContext } from "./apply/render-contents";
+export type { FileRenderContext, FilesInOptions } from "./apply/render-contents";
 
 export {
   inspect,

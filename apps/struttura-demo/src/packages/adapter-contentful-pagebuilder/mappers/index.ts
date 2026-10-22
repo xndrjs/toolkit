@@ -1,1 +1,1 @@
-export * from "./page.mapper";
+export {};
