@@ -1,12 +1,12 @@
 # Struttura
 
-Domain language for declaring a repository architecture, populating construct instances, and materializing file/folder artifacts.
+Domain language for declaring a repository structure, populating construct instances, and materializing file/folder artifacts.
 
 ## Language
 
-**Architecture**:
+**Structure**:
 The declared set of constructs, their dependency contracts, and how their instances produce artifacts.
-_Avoid_: Schema, ontology, blueprint
+_Avoid_: Architecture (for this concept), Schema, ontology, blueprint
 
 **Construct**:
 A named factory definition that produces artifacts for each of its instances, with an optional typed dependency contract.
@@ -17,11 +17,11 @@ A concrete registration of a construct in a Population, identified by an effecti
 _Avoid_: Node, entity, registration (as a noun for the thing itself)
 
 **Population**:
-The explicit set of instances and their dependency relations for one application of an Architecture.
+The explicit set of instances and their dependency relations for one application of a Structure.
 _Avoid_: Repository (for this concept), graph, world, model
 
 **Repository**:
-The filesystem project (git root or workspace) that may contain architecture files, a materialization root, and other paths outside that root.
+The filesystem project (git root or workspace) that may contain structure files, a materialization root, and other paths outside that root.
 _Avoid_: Population, project (when meaning the whole VCS tree)
 
 **Materialization root**:

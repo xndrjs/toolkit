@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { defineArchitecture } from "../architecture/define-architecture";
+import { defineStructure } from "../structure/define-structure";
 import { toKebabCase } from "../casing/casing";
 import { createPopulation } from "../population/create-population";
-import { buildGuidePopulation } from "../test-fixtures/guide-architecture";
+import { buildGuidePopulation } from "../test-fixtures/guide-structure";
 import { deriveDesiredInventory } from "./derive-desired-inventory";
 
 function pathsOf(inventory: { artifacts: readonly { path: string }[] }): string[] {
@@ -11,7 +11,7 @@ function pathsOf(inventory: { artifacts: readonly { path: string }[] }): string[
 }
 
 describe("deriveDesiredInventory", () => {
-  it("yields the CleanArchitecture guide path set without writing the filesystem", () => {
+  it("yields the Clean Architecture guide path set without writing the filesystem", () => {
     const result = deriveDesiredInventory(buildGuidePopulation());
 
     expect(result.ok).toBe(true);
@@ -89,7 +89,7 @@ describe("deriveDesiredInventory", () => {
   });
 
   it("rejects duplicate effective instance ids before any disk work", () => {
-    const A = defineArchitecture("DupIds");
+    const A = defineStructure("DupIds");
     const thing = A.construct("Thing", {}, ({ name }) =>
       A.in(A.rootDirectory, A.dir(`things/${name}`, {}))
     );
@@ -107,7 +107,7 @@ describe("deriveDesiredInventory", () => {
   });
 
   it("rejects invalid filenames via regex", () => {
-    const A = defineArchitecture("BadFilename");
+    const A = defineStructure("BadFilename");
     const thing = A.construct("Thing", {}, () => A.in(A.rootDirectory, A.file("sub/path.ts", "")));
 
     const population = createPopulation(A);
@@ -122,7 +122,7 @@ describe("deriveDesiredInventory", () => {
   });
 
   it("accepts .gitkeep and dotted compound filenames", () => {
-    const A = defineArchitecture("OkFilenames");
+    const A = defineStructure("OkFilenames");
     const thing = A.construct("Thing", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -147,7 +147,7 @@ describe("deriveDesiredInventory", () => {
   });
 
   it("rejects two distinct directory artifacts on the same path", () => {
-    const A = defineArchitecture("DirCollision");
+    const A = defineStructure("DirCollision");
     const left = A.construct("Left", {}, () => A.in(A.rootDirectory, A.dir("shared", {})));
     const right = A.construct("Right", {}, () => A.in(A.rootDirectory, A.dir("shared", {})));
 
@@ -164,7 +164,7 @@ describe("deriveDesiredInventory", () => {
   });
 
   it("rejects a construct that claims the materialization root as a directory artifact", () => {
-    const A = defineArchitecture("OwnsRoot");
+    const A = defineStructure("OwnsRoot");
     const thing = A.construct("Thing", {}, () => A.in(A.rootDirectory, A.dir(".", {})));
 
     const population = createPopulation(A);
@@ -179,7 +179,7 @@ describe("deriveDesiredInventory", () => {
   });
 
   it("rejects colliding file paths from distinct artifacts", () => {
-    const A = defineArchitecture("FileCollision");
+    const A = defineStructure("FileCollision");
     const thing = A.construct("Thing", {}, () =>
       A.in(A.rootDirectory, {
         a: A.file("same.ts", ""),
@@ -199,7 +199,7 @@ describe("deriveDesiredInventory", () => {
   });
 
   it("is independent of instance registration order", () => {
-    const A = defineArchitecture("OrderIndependent");
+    const A = defineStructure("OrderIndependent");
     const corePackage = A.construct("CorePackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,

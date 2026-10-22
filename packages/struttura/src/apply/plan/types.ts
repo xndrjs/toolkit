@@ -1,4 +1,4 @@
-import type { FileMode } from "../../architecture/artifacts";
+import type { FileMode } from "../../structure/artifacts";
 import type { Diagnostic } from "../../inventory/derive-desired-inventory";
 
 /** Staging directory for crossed-path moves; relative to the materialization root. */

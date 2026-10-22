@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { defineArchitecture } from "../architecture/define-architecture";
+import { defineStructure } from "../structure/define-structure";
 import { apply } from "../apply/apply";
 import { readManifest } from "../apply/manifest";
 import { createPopulation } from "../population/create-population";
@@ -21,10 +21,10 @@ describe("migrate-id", () => {
 
   it("rewrites instance id and every structured reference in the manifest", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-migrate-id-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
 
-    const A = defineArchitecture("CleanArchitecture");
+    const A = defineStructure("CleanArchitecture");
     const core = A.construct("CorePackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -42,17 +42,17 @@ describe("migrate-id", () => {
     // Effective id "page" — migrate to "editorialPage" so population can drop explicit id.
     population.add(model, { id: "page", name: "editorialPage", core: pagebuilder });
 
-    const applied = apply(population, { architectureDir, materializationRoot });
+    const applied = apply(population, { structureDir, materializationRoot });
     expect(applied.ok).toBe(true);
 
-    const result = migrateId({ architectureDir, from: "page", to: "editorialPage" });
+    const result = migrateId({ structureDir, from: "page", to: "editorialPage" });
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
     }
     expect(result.mutated).toBe(true);
 
-    const manifest = readManifest(architectureDir);
+    const manifest = readManifest(structureDir);
     expect(manifest?.instances.map((i) => i.id).sort()).toEqual(["editorialPage", "pagebuilder"]);
     expect(manifest?.instances.find((i) => i.id === "editorialPage")?.dependencies).toEqual({
       core: "pagebuilder",
@@ -69,7 +69,7 @@ describe("migrate-id", () => {
     const rewritten = rewriteManifestIds(
       {
         version: 1,
-        architectureName: "CleanArchitecture",
+        structureName: "CleanArchitecture",
         materializationRoot: "../project",
         instances: [
           {
@@ -124,25 +124,25 @@ describe("migrate-id", () => {
 
   it("fails closed on missing manifest, unknown id, collision, and same id", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-migrate-id-fail-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
 
-    expect(migrateId({ architectureDir, from: "a", to: "b" })).toMatchObject({
+    expect(migrateId({ structureDir, from: "a", to: "b" })).toMatchObject({
       ok: false,
       diagnostics: [{ code: "missing-manifest" }],
     });
 
-    expect(migrateId({ architectureDir, from: "a", to: "a" })).toMatchObject({
+    expect(migrateId({ structureDir, from: "a", to: "a" })).toMatchObject({
       ok: false,
       diagnostics: [{ code: "same-id" }],
     });
 
-    const A = defineArchitecture("CleanArchitecture");
+    const A = defineStructure("CleanArchitecture");
     const pkg = A.construct("Pkg", {}, ({ name }) => A.in(A.rootDirectory, A.dir(name, {})));
     const population = createPopulation(A);
     population.add(pkg, { name: "alpha" });
     population.add(pkg, { name: "beta" });
     const applied = apply(population, {
-      architectureDir,
+      structureDir,
       materializationRoot: join(tempDir, "project"),
     });
     expect(applied.ok).toBe(true);
@@ -150,11 +150,11 @@ describe("migrate-id", () => {
       throw new Error(applied.diagnostics.map((d) => d.message).join("; "));
     }
 
-    expect(migrateId({ architectureDir, from: "missing", to: "gamma" })).toMatchObject({
+    expect(migrateId({ structureDir, from: "missing", to: "gamma" })).toMatchObject({
       ok: false,
       diagnostics: [{ code: "unknown-old-id" }],
     });
-    expect(migrateId({ architectureDir, from: "alpha", to: "beta" })).toMatchObject({
+    expect(migrateId({ structureDir, from: "alpha", to: "beta" })).toMatchObject({
       ok: false,
       diagnostics: [{ code: "id-collision" }],
     });

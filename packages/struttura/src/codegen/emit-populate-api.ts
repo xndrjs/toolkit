@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 
-import type { ArtifactDescriptor } from "../architecture/artifacts";
+import type { ArtifactDescriptor } from "../structure/artifacts";
 import type {
   AnyConstructDefinition,
-  Architecture,
+  Structure,
   InstanceArtifacts,
   InstanceRef,
-} from "../architecture/define-architecture";
+} from "../structure/define-structure";
 
 export type ArtifactKind = "directory" | "file";
 
@@ -30,10 +30,10 @@ export type NavigableRootShape =
     };
 
 export type EmitPopulateApiOptions = {
-  /** Module specifier imported by the generated file (e.g. `"../architecture"`). */
-  readonly architectureModule: string;
-  /** Named export for the sealed Architecture (default `"architecture"`). */
-  readonly architectureExport?: string;
+  /** Module specifier imported by the generated file (e.g. `"../structure"`). */
+  readonly structureModule: string;
+  /** Named export for the sealed Structure (default `"structure"`). */
+  readonly structureExport?: string;
   /**
    * Named export for a `Record<constructName, AnyConstructDefinition>`
    * (default `"constructs"`).
@@ -52,12 +52,12 @@ export type EmitPopulateApiResult = {
  * Stable hash of construct names, dependency contracts, and probed artifact
  * keys/kinds. Embedded in the generated populate API (ADR 0010).
  */
-export function computeDefinitionStamp(architecture: Architecture): string {
-  const kindsByConstruct = probeArtifactKinds(architecture);
+export function computeDefinitionStamp(structure: Structure): string {
+  const kindsByConstruct = probeArtifactKinds(structure);
   const payload = {
-    name: architecture.name,
-    constructs: sortedConstructNames(architecture).map((name) => {
-      const construct = architecture.constructs.get(name)!;
+    name: structure.name,
+    constructs: sortedConstructNames(structure).map((name) => {
+      const construct = structure.constructs.get(name)!;
       const dependencies: Record<string, string> = {};
       for (const key of Object.keys(construct.dependencies).sort()) {
         dependencies[key] = construct.dependencies[key]!.name;
@@ -83,11 +83,11 @@ export function computeDefinitionStamp(architecture: Architecture): string {
  * Tree deps are stubbed as navigable DirRef/FileRef roots so `A.in(dep, …)` works.
  */
 export function probeArtifactKinds(
-  architecture: Architecture
+  structure: Structure
 ): ReadonlyMap<string, Readonly<Record<string, ArtifactKind>>> {
   const kinds = new Map<string, Record<string, ArtifactKind>>();
-  for (const name of topologicalConstructNames(architecture)) {
-    const construct = architecture.constructs.get(name)!;
+  for (const name of topologicalConstructNames(structure)) {
+    const construct = structure.constructs.get(name)!;
     const stubDeps: Record<string, InstanceRef> = {};
     for (const [depKey, depConstruct] of Object.entries(construct.dependencies)) {
       stubDeps[depKey] = stubDependencyInstance(depConstruct, kinds.get(depConstruct.name) ?? {});
@@ -110,11 +110,11 @@ export function probeArtifactKinds(
 
 /** Derive navigable root shapes from probed artifact kinds. */
 export function probeNavigableShapes(
-  architecture: Architecture
+  structure: Structure
 ): ReadonlyMap<string, NavigableRootShape> {
-  const kinds = probeArtifactKinds(architecture);
+  const kinds = probeArtifactKinds(structure);
   const shapes = new Map<string, NavigableRootShape>();
-  for (const name of sortedConstructNames(architecture)) {
+  for (const name of sortedConstructNames(structure)) {
     shapes.set(name, navigableShapeFromKinds(kinds.get(name) ?? {}));
   }
   return shapes;
@@ -133,10 +133,10 @@ export function navigableShapeFromKinds(
   return { root: "peer", children };
 }
 
-export function constructsFromArchitecture(
-  architecture: Architecture
+export function constructsFromStructure(
+  structure: Structure
 ): Record<string, AnyConstructDefinition> {
-  return Object.fromEntries(architecture.constructs.entries());
+  return Object.fromEntries(structure.constructs.entries());
 }
 
 /**
@@ -145,15 +145,15 @@ export function constructsFromArchitecture(
  * Constructs get navigable refs (no `.artifacts`).
  */
 export function emitPopulateApi(
-  architecture: Architecture,
+  structure: Structure,
   options: EmitPopulateApiOptions
 ): EmitPopulateApiResult {
-  const stamp = computeDefinitionStamp(architecture);
-  const shapes = probeNavigableShapes(architecture);
-  const architectureExport = options.architectureExport ?? "architecture";
+  const stamp = computeDefinitionStamp(structure);
+  const shapes = probeNavigableShapes(structure);
+  const structureExport = options.structureExport ?? "structure";
   const constructsExport = options.constructsExport ?? "constructs";
   const strutturaPackage = options.strutturaPackage ?? "@xndrjs/struttura";
-  const constructNames = sortedConstructNames(architecture);
+  const constructNames = sortedConstructNames(structure);
 
   const lines: string[] = [
     "/** @generated by @xndrjs/struttura — do not edit by hand */",
@@ -164,7 +164,7 @@ export function emitPopulateApi(
     `  type InstanceRef,`,
     `  type Population,`,
     `} from "${strutturaPackage}";`,
-    `import { ${architectureExport}, ${constructsExport} } from "${options.architectureModule}";`,
+    `import { ${structureExport}, ${constructsExport} } from "${options.structureModule}";`,
     "",
     `export const DEFINITION_STAMP = "${stamp}";`,
     "",
@@ -174,18 +174,16 @@ export function emitPopulateApi(
     emitTreeConstructTypes(lines, name, shapes.get(name) ?? { root: "peer", children: {} });
   }
 
-  lines.push(`export type ${safeTypeName(architecture.name)}PopulateApi = {`);
+  lines.push(`export type ${safeTypeName(structure.name)}PopulateApi = {`);
   lines.push(`  readonly population: Population;`);
   for (const name of constructNames) {
-    lines.push(`  ${name}(input: ${factoryInputType(architecture, name)}): ${name}Ref;`);
+    lines.push(`  ${name}(input: ${factoryInputType(structure, name)}): ${name}Ref;`);
   }
   lines.push(`};`, "");
 
+  lines.push(`export function createPopulateApi(): ${safeTypeName(structure.name)}PopulateApi {`);
   lines.push(
-    `export function createPopulateApi(): ${safeTypeName(architecture.name)}PopulateApi {`
-  );
-  lines.push(
-    `  const population = createPopulation(${architectureExport}, { definitionStamp: DEFINITION_STAMP });`
+    `  const population = createPopulation(${structureExport}, { definitionStamp: DEFINITION_STAMP });`
   );
   lines.push(`  return {`);
   lines.push(`    get population() {`);
@@ -387,8 +385,8 @@ function assignNavigableChildren(
   }
 }
 
-function factoryInputType(architecture: Architecture, constructName: string): string {
-  const construct = architecture.constructs.get(constructName)!;
+function factoryInputType(structure: Structure, constructName: string): string {
+  const construct = structure.constructs.get(constructName)!;
   const parts = ["name: string", "id?: string"];
   for (const key of Object.keys(construct.dependencies).sort()) {
     const dep = construct.dependencies[key]!;
@@ -397,23 +395,23 @@ function factoryInputType(architecture: Architecture, constructName: string): st
   return `{ ${parts.join("; ")} }`;
 }
 
-function safeTypeName(architectureName: string): string {
-  const cleaned = architectureName.replace(/[^A-Za-z0-9_]/g, "");
-  return cleaned.length > 0 ? cleaned : "Architecture";
+function safeTypeName(structureName: string): string {
+  const cleaned = structureName.replace(/[^A-Za-z0-9_]/g, "");
+  return cleaned.length > 0 ? cleaned : "Structure";
 }
 
-function sortedConstructNames(architecture: Architecture): string[] {
-  return [...architecture.constructs.keys()].sort();
+function sortedConstructNames(structure: Structure): string[] {
+  return [...structure.constructs.keys()].sort();
 }
 
-function topologicalConstructNames(architecture: Architecture): string[] {
-  const remaining = new Set(architecture.constructs.keys());
+function topologicalConstructNames(structure: Structure): string[] {
+  const remaining = new Set(structure.constructs.keys());
   const ordered: string[] = [];
 
   while (remaining.size > 0) {
     let progressed = false;
     for (const name of [...remaining].sort()) {
-      const construct = architecture.constructs.get(name)!;
+      const construct = structure.constructs.get(name)!;
       const depsReady = Object.values(construct.dependencies).every((dep) =>
         ordered.includes(dep.name)
       );

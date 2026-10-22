@@ -6,7 +6,7 @@ import {
   type InstanceRef,
   type Population,
 } from "@xndrjs/struttura";
-import { architecture, constructs } from "./architecture";
+import { structure, constructs } from "./structure";
 
 export const DEFINITION_STAMP = "afed660ab4ae27cc6559e979e835b229d7894897ab448047682433a2b6f1186e";
 
@@ -215,7 +215,7 @@ export type CleanArchitectureOrientedMonorepoPopulateApi = {
 };
 
 export function createPopulateApi(): CleanArchitectureOrientedMonorepoPopulateApi {
-  const population = createPopulation(architecture, { definitionStamp: DEFINITION_STAMP });
+  const population = createPopulation(structure, { definitionStamp: DEFINITION_STAMP });
   return {
     get population() {
       return population;

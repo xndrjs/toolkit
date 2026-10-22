@@ -10,7 +10,7 @@ import {
   isValidFilename,
   joinPath,
   normalizeRelativePath,
-} from "../architecture/artifacts";
+} from "../structure/artifacts";
 import {
   FileRefAsDirectoryError,
   InvalidAuthoringKeyError,
@@ -18,7 +18,7 @@ import {
   ReservedKeyCollisionError,
   flattenPlacement,
   sealNavigableInstance,
-} from "../architecture/tree";
+} from "../structure/tree";
 import type { Population, RegisteredInstance } from "../population/create-population";
 
 export type DiagnosticCode =
@@ -62,7 +62,7 @@ export type DesiredArtifact = {
 };
 
 export type DesiredInventory = {
-  readonly architectureName: string;
+  readonly structureName: string;
   readonly instances: readonly {
     readonly id: string;
     readonly name: string;
@@ -210,7 +210,7 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
   return {
     ok: true,
     inventory: {
-      architectureName: population.architecture.name,
+      structureName: population.structure.name,
       instances: instances.map((instance) => ({
         id: instance.id,
         name: instance.name,

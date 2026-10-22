@@ -4,27 +4,27 @@ import { join } from "node:path";
 import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
 
 import {
-  defineArchitecture,
+  defineStructure,
   type DirRef,
   type FileRef,
   type InstanceRef,
   type PlacementDestination,
-} from "../architecture/define-architecture";
+} from "../structure/define-structure";
 import { toKebabCase } from "../casing/casing";
 import { createPopulation } from "../population/create-population";
 import { apply } from "../apply/apply";
 import { inspect } from "../inspect/inspect";
 import {
   computeDefinitionStamp,
-  constructsFromArchitecture,
+  constructsFromStructure,
   emitPopulateApi,
   navigableShapeFromKinds,
   probeArtifactKinds,
   probeNavigableShapes,
 } from "./emit-populate-api";
 
-function buildCleanArchitecture() {
-  const A = defineArchitecture("CleanArchitecture");
+function buildCleanStructure() {
+  const A = defineStructure("CleanArchitecture");
 
   const corePackage = A.construct("CorePackage", {}, ({ name }) =>
     A.in(
@@ -50,10 +50,10 @@ function buildCleanArchitecture() {
     })
   );
 
-  const architecture = A.seal();
+  const structure = A.seal();
   return {
     A,
-    architecture,
+    structure,
     constructs: {
       CorePackage: corePackage,
       Model: model,
@@ -72,9 +72,9 @@ describe("codegen + staleness", () => {
     }
   });
 
-  it("probes artifact keys and Dir vs File kinds from the architecture declaration", () => {
-    const { architecture } = buildCleanArchitecture();
-    const kinds = probeArtifactKinds(architecture);
+  it("probes artifact keys and Dir vs File kinds from the structure declaration", () => {
+    const { structure } = buildCleanStructure();
+    const kinds = probeArtifactKinds(structure);
 
     expect(kinds.get("CorePackage")).toEqual({
       ".": "directory",
@@ -85,24 +85,24 @@ describe("codegen + staleness", () => {
     expect(kinds.get("PackageJson")).toEqual({ packageJson: "file" });
   });
 
-  it("embeds a definition stamp that changes when the architecture changes", () => {
-    const { architecture, A, constructs } = buildCleanArchitecture();
-    const stamp = computeDefinitionStamp(architecture);
+  it("embeds a definition stamp that changes when the structure changes", () => {
+    const { structure, A, constructs } = buildCleanStructure();
+    const stamp = computeDefinitionStamp(structure);
     expect(stamp).toMatch(/^[a-f0-9]{64}$/);
-    expect(computeDefinitionStamp(architecture)).toBe(stamp);
+    expect(computeDefinitionStamp(structure)).toBe(stamp);
 
     A.construct("Extra", {}, () => A.in(A.rootDirectory, A.dir("extra", {})));
     expect(computeDefinitionStamp(A.seal())).not.toBe(stamp);
-    expect(constructsFromArchitecture(architecture).CorePackage).toBe(constructs.CorePackage);
+    expect(constructsFromStructure(structure).CorePackage).toBe(constructs.CorePackage);
   });
 
   it("emits typed populate factories that drive population via the runtime collector", () => {
-    const { architecture, constructs } = buildCleanArchitecture();
-    const { source, stamp } = emitPopulateApi(architecture, {
-      architectureModule: "../architecture",
+    const { structure, constructs } = buildCleanStructure();
+    const { source, stamp } = emitPopulateApi(structure, {
+      structureModule: "../structure",
     });
 
-    expect(stamp).toBe(computeDefinitionStamp(architecture));
+    expect(stamp).toBe(computeDefinitionStamp(structure));
     expect(source).toContain(`export const DEFINITION_STAMP = "${stamp}"`);
     expect(source).toContain("export function createPopulateApi()");
     expect(source).toContain("CorePackage(input: { name: string; id?: string })");
@@ -110,19 +110,17 @@ describe("codegen + staleness", () => {
     expect(source).toContain("readonly models: DirRef & { readonly index: FileRef }");
     expect(source).toContain('export type ModelRef = Omit<InstanceRef, "artifacts"> & FileRef & {');
     expect(source).toContain('readonly __constructBrand: "CorePackage"');
-    expect(source).toContain(
-      "createPopulation(architecture, { definitionStamp: DEFINITION_STAMP })"
-    );
+    expect(source).toContain("createPopulation(structure, { definitionStamp: DEFINITION_STAMP })");
 
     // Runtime mirror of the generated API: factories register into one population.
-    const population = createPopulation(architecture, { definitionStamp: stamp });
+    const population = createPopulation(structure, { definitionStamp: stamp });
     const pagebuilder = population.add(constructs.CorePackage, { name: "pagebuilder" });
     population.add(constructs.Model, { name: "page", core: pagebuilder });
     population.add(constructs.PackageJson, { name: "packageJson" });
 
     tempDir = mkdtempSync(join(tmpdir(), "struttura-codegen-"));
     const result = apply(population, {
-      architectureDir: join(tempDir, "architecture"),
+      structureDir: join(tempDir, "structure"),
       materializationRoot: join(tempDir, "project"),
     });
     expect(result.ok).toBe(true);
@@ -135,13 +133,13 @@ describe("codegen + staleness", () => {
   });
 
   it("apply and inspect fail closed when the definition stamp is stale", () => {
-    const { architecture, constructs } = buildCleanArchitecture();
-    const population = createPopulation(architecture, { definitionStamp: "stale-stamp" });
+    const { structure, constructs } = buildCleanStructure();
+    const population = createPopulation(structure, { definitionStamp: "stale-stamp" });
     population.add(constructs.PackageJson, { name: "packageJson" });
 
     tempDir = mkdtempSync(join(tmpdir(), "struttura-stale-"));
     const options = {
-      architectureDir: join(tempDir, "architecture"),
+      structureDir: join(tempDir, "structure"),
       materializationRoot: join(tempDir, "project"),
     };
 
@@ -167,20 +165,20 @@ describe("codegen + staleness", () => {
   });
 
   it("does not write a generated populate API as a side effect of apply", () => {
-    const { architecture, constructs } = buildCleanArchitecture();
-    const stamp = computeDefinitionStamp(architecture);
-    const population = createPopulation(architecture, { definitionStamp: stamp });
+    const { structure, constructs } = buildCleanStructure();
+    const stamp = computeDefinitionStamp(structure);
+    const population = createPopulation(structure, { definitionStamp: stamp });
     population.add(constructs.PackageJson, { name: "packageJson" });
 
     tempDir = mkdtempSync(join(tmpdir(), "struttura-no-implicit-codegen-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const result = apply(population, {
-      architectureDir,
+      structureDir,
       materializationRoot: join(tempDir, "project"),
     });
     expect(result.ok).toBe(true);
 
-    const strutturaDir = join(architectureDir, ".struttura");
+    const strutturaDir = join(structureDir, ".struttura");
     expect(existsSync(join(strutturaDir, "manifest.json"))).toBe(true);
     for (const name of ["populate-api.ts", "populate.ts", "generated.ts", "api.ts"]) {
       expect(existsSync(join(strutturaDir, name))).toBe(false);
@@ -193,8 +191,8 @@ describe("codegen + staleness", () => {
   });
 });
 
-function buildNavigableArchitecture() {
-  const A = defineArchitecture("NavigableArchitecture");
+function buildNavigableStructure() {
+  const A = defineStructure("NavigableStructure");
 
   const WorkspaceRoot = A.construct("WorkspaceRoot", {}, () =>
     A.in(A.rootDirectory, {
@@ -243,9 +241,9 @@ function buildNavigableArchitecture() {
     )
   );
 
-  const architecture = A.seal();
+  const structure = A.seal();
   return {
-    architecture,
+    structure,
     constructs: {
       WorkspaceRoot,
       CorePackage,
@@ -268,8 +266,8 @@ describe("codegen navigable tree", () => {
   });
 
   it("derives navigable shapes without inventing a peer-root '.' child", () => {
-    const { architecture } = buildNavigableArchitecture();
-    const shapes = probeNavigableShapes(architecture);
+    const { structure } = buildNavigableStructure();
+    const shapes = probeNavigableShapes(structure);
     expect(shapes.get("WorkspaceRoot")).toEqual({
       root: "peer",
       children: { packageJson: { kind: "file" } },
@@ -280,12 +278,12 @@ describe("codegen navigable tree", () => {
   });
 
   it("emits navigable refs without .artifacts and brands populate deps", () => {
-    const { architecture } = buildNavigableArchitecture();
-    const { source, stamp } = emitPopulateApi(architecture, {
-      architectureModule: "../architecture",
+    const { structure } = buildNavigableStructure();
+    const { source, stamp } = emitPopulateApi(structure, {
+      structureModule: "../structure",
     });
 
-    expect(stamp).toBe(computeDefinitionStamp(architecture));
+    expect(stamp).toBe(computeDefinitionStamp(structure));
     expect(source).toContain('readonly __constructBrand: "CorePackage"');
     expect(source).toContain('readonly __constructBrand: "Shape"');
     expect(source).toContain('export type ShapeRef = Omit<InstanceRef, "artifacts"> & FileRef & {');
@@ -309,9 +307,9 @@ describe("codegen navigable tree", () => {
   });
 
   it("drives apply from a stamp-backed population of tree constructs", () => {
-    const { architecture, constructs } = buildNavigableArchitecture();
-    const stamp = computeDefinitionStamp(architecture);
-    const population = createPopulation(architecture, { definitionStamp: stamp });
+    const { structure, constructs } = buildNavigableStructure();
+    const stamp = computeDefinitionStamp(structure);
+    const population = createPopulation(structure, { definitionStamp: stamp });
 
     population.add(constructs.WorkspaceRoot, { name: "workspace" });
     const core = population.add(constructs.CorePackage, { name: "pagebuilder" });
@@ -326,7 +324,7 @@ describe("codegen navigable tree", () => {
 
     tempDir = mkdtempSync(join(tmpdir(), "struttura-nav-codegen-"));
     const result = apply(population, {
-      architectureDir: join(tempDir, "architecture"),
+      structureDir: join(tempDir, "structure"),
       materializationRoot: join(tempDir, "project"),
     });
     expect(result.ok).toBe(true);

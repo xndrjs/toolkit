@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { defineArchitecture } from "../architecture/define-architecture";
+import { defineStructure } from "../structure/define-structure";
 import { toKebabCase } from "../casing/casing";
 import { deriveDesiredInventory } from "../inventory/derive-desired-inventory";
 import { createPopulation } from "../population/create-population";
@@ -18,7 +18,7 @@ function pathsFromBarrel(content: string): string[] {
 
 describe("filesIn on Sync render (ADR 0014)", () => {
   it("lists sibling managed files by DirRef identity, excluding self by default", () => {
-    const A = defineArchitecture("Siblings");
+    const A = defineStructure("Siblings");
     const ModelsModule = A.construct("ModelsModule", {}, () =>
       A.in(
         A.rootDirectory,
@@ -57,7 +57,7 @@ describe("filesIn on Sync render (ADR 0014)", () => {
   });
 
   it("includeSelf includes the file being rendered", () => {
-    const A = defineArchitecture("IncludeSelf");
+    const A = defineStructure("IncludeSelf");
     const ModelsModule = A.construct("ModelsModule", {}, () =>
       A.in(
         A.rootDirectory,
@@ -95,7 +95,7 @@ describe("filesIn on Sync render (ADR 0014)", () => {
   });
 
   it("recursive includes nested managed files by path prefix; default is identity-only", () => {
-    const A = defineArchitecture("Recursive");
+    const A = defineStructure("Recursive");
     let identityListed: string[] = [];
     let recursiveListed: string[] = [];
 
@@ -148,7 +148,7 @@ describe("filesIn on Sync render (ADR 0014)", () => {
   });
 
   it("exclude drops files by relative path string or RegExp", () => {
-    const A = defineArchitecture("Exclude");
+    const A = defineStructure("Exclude");
     let byString: string[] = [];
     let byRegex: string[] = [];
 
@@ -194,7 +194,7 @@ describe("filesIn on Sync render (ADR 0014)", () => {
   });
 
   it("filesIn on root returns files targeting the materialization root", () => {
-    const A = defineArchitecture("RootFiles");
+    const A = defineStructure("RootFiles");
     let listed: string[] = [];
     let directoryKind: string | undefined;
 
@@ -229,7 +229,7 @@ describe("filesIn on Sync render (ADR 0014)", () => {
   });
 
   it("matches directory identity, not path alone", () => {
-    const A = defineArchitecture("PathVsIdentity");
+    const A = defineStructure("PathVsIdentity");
     let listed: string[] = [];
 
     const Owner = A.construct("Owner", {}, () =>
@@ -272,7 +272,7 @@ describe("filesIn on Sync render (ADR 0014)", () => {
   });
 
   it("exposes ctx.directory as the owning DirRef for the file being rendered", () => {
-    const A = defineArchitecture("CtxDirectory");
+    const A = defineStructure("CtxDirectory");
     let directory: FileRenderContext["directory"] | undefined;
 
     const ModelsModule = A.construct("ModelsModule", {}, () =>

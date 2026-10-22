@@ -1,4 +1,4 @@
-import type { DirRef, FileContentFn, FileDescriptor } from "../architecture/artifacts";
+import type { DirRef, FileContentFn, FileDescriptor } from "../structure/artifacts";
 import type { DesiredArtifact, DesiredInventory } from "../inventory/derive-desired-inventory";
 import type { Population, RegisteredInstance } from "../population/create-population";
 import { directoryRefForFile, filesIn as listFilesIn, type FilesInOptions } from "./files-in";

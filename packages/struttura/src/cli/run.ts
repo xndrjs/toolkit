@@ -5,7 +5,7 @@ import { apply } from "../apply/apply";
 import { emitPopulateApi } from "../codegen/emit-populate-api";
 import { inspect } from "../inspect/inspect";
 import { parseCliArgs, printCliHelp, type CliOptions } from "./args";
-import { loadArchitecture, loadPopulation } from "./load-module";
+import { loadStructure, loadPopulation } from "./load-module";
 import { migrateId } from "./migrate-id";
 
 /**
@@ -46,15 +46,15 @@ export async function runCli(argv: string[]): Promise<number> {
 }
 
 async function runCodegen(options: Extract<CliOptions, { command: "codegen" }>): Promise<number> {
-  const architecture = await loadArchitecture(options.architecture);
+  const structure = await loadStructure(options.structure);
   const outAbs = resolve(options.out);
-  const architectureAbs = resolve(options.architecture);
-  const architectureModule =
-    options.architectureModule ?? toImportSpecifier(relative(dirname(outAbs), architectureAbs));
+  const structureAbs = resolve(options.structure);
+  const structureModule =
+    options.structureModule ?? toImportSpecifier(relative(dirname(outAbs), structureAbs));
 
-  const { source, stamp } = emitPopulateApi(architecture, {
-    architectureModule,
-    architectureExport: options.architectureExport,
+  const { source, stamp } = emitPopulateApi(structure, {
+    structureModule,
+    structureExport: options.structureExport,
     constructsExport: options.constructsExport,
     strutturaPackage: options.strutturaPackage,
   });
@@ -68,7 +68,7 @@ async function runCodegen(options: Extract<CliOptions, { command: "codegen" }>):
 async function runApply(options: Extract<CliOptions, { command: "apply" }>): Promise<number> {
   const population = await loadPopulation(options.population);
   const result = apply(population, {
-    architectureDir: options.architectureDir,
+    structureDir: options.structureDir,
     materializationRoot: options.materializationRoot,
   });
   if (!result.ok) {
@@ -86,7 +86,7 @@ async function runApply(options: Extract<CliOptions, { command: "apply" }>): Pro
 async function runInspect(options: Extract<CliOptions, { command: "inspect" }>): Promise<number> {
   const population = await loadPopulation(options.population);
   const result = inspect(population, {
-    architectureDir: options.architectureDir,
+    structureDir: options.structureDir,
     materializationRoot: options.materializationRoot,
     repositoryRoot: options.repositoryRoot,
   });
@@ -102,7 +102,7 @@ async function runInspect(options: Extract<CliOptions, { command: "inspect" }>):
 
   const { report } = result;
   console.log(`repository:      ${report.roots.repository}`);
-  console.log(`architecture:    ${report.roots.architecture}`);
+  console.log(`structure:    ${report.roots.structure}`);
   console.log(`materialization: ${report.roots.materialization}`);
   console.log(`instances:       ${String(report.instances.length)}`);
   console.log(`artifacts:       ${String(report.artifacts.length)}`);
@@ -121,7 +121,7 @@ async function runInspect(options: Extract<CliOptions, { command: "inspect" }>):
 
 function runMigrateId(options: Extract<CliOptions, { command: "migrate-id" }>): number {
   const result = migrateId({
-    architectureDir: options.architectureDir,
+    structureDir: options.structureDir,
     from: options.from,
     to: options.to,
   });

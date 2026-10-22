@@ -12,11 +12,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { defineArchitecture } from "../architecture/define-architecture";
+import { defineStructure } from "../structure/define-structure";
 import { createPopulation } from "../population/create-population";
 import { apply } from "../apply/apply";
 import { MANIFEST_RELATIVE_PATH, readManifest } from "../apply/manifest";
-import { buildGuidePopulation } from "../test-fixtures/guide-architecture";
+import { buildGuidePopulation } from "../test-fixtures/guide-structure";
 import { inspect } from "./inspect";
 
 function listRelativeFiles(rootDir: string, prefix = ""): string[] {
@@ -49,13 +49,13 @@ describe("inspect", () => {
   it("matches a known population/plan without applying", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-inspect-"));
     const repositoryRoot = tempDir;
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    mkdirSync(architectureDir, { recursive: true });
+    mkdirSync(structureDir, { recursive: true });
 
     const population = buildGuidePopulation();
     const result = inspect(population, {
-      architectureDir,
+      structureDir,
       materializationRoot,
       repositoryRoot,
     });
@@ -68,7 +68,7 @@ describe("inspect", () => {
     const { report } = result;
     expect(report.roots.repository).toBe(repositoryRoot);
     expect(report.roots.materialization).toBe(materializationRoot);
-    expect(report.roots.architecture).toBe(architectureDir);
+    expect(report.roots.structure).toBe(structureDir);
     expect(report.roots.repository).not.toBe(report.roots.materialization);
 
     expect(report.instances.map((i) => ({ id: i.id, construct: i.constructName }))).toEqual([
@@ -141,9 +141,9 @@ describe("inspect", () => {
 
     // No disk / manifest mutation.
     expect(listRelativeFiles(materializationRoot)).toEqual([]);
-    expect(existsSync(join(architectureDir, MANIFEST_RELATIVE_PATH))).toBe(false);
+    expect(existsSync(join(structureDir, MANIFEST_RELATIVE_PATH))).toBe(false);
 
-    const applied = apply(population, { architectureDir, materializationRoot });
+    const applied = apply(population, { structureDir, materializationRoot });
     expect(applied.ok).toBe(true);
     if (!applied.ok) {
       return;
@@ -153,21 +153,21 @@ describe("inspect", () => {
 
   it("reports a no-op plan after a successful apply without rewriting anything", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-inspect-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
 
     const population = buildGuidePopulation();
-    const applied = apply(population, { architectureDir, materializationRoot });
+    const applied = apply(population, { structureDir, materializationRoot });
     expect(applied.ok).toBe(true);
     if (!applied.ok) {
       return;
     }
 
     const beforeFiles = listRelativeFiles(materializationRoot);
-    const beforeManifest = readFileSync(join(architectureDir, MANIFEST_RELATIVE_PATH), "utf8");
-    const beforeMtime = statSync(join(architectureDir, MANIFEST_RELATIVE_PATH)).mtimeMs;
+    const beforeManifest = readFileSync(join(structureDir, MANIFEST_RELATIVE_PATH), "utf8");
+    const beforeMtime = statSync(join(structureDir, MANIFEST_RELATIVE_PATH)).mtimeMs;
 
-    const result = inspect(population, { architectureDir, materializationRoot });
+    const result = inspect(population, { structureDir, materializationRoot });
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -176,37 +176,35 @@ describe("inspect", () => {
     expect(result.report.plan).toEqual([]);
     expect(result.report.wouldMutateDisk).toBe(false);
     expect(result.report.wouldUpdateManifest).toBe(false);
-    expect(result.report.lastManifest).toEqual(readManifest(architectureDir));
+    expect(result.report.lastManifest).toEqual(readManifest(structureDir));
 
     expect(listRelativeFiles(materializationRoot)).toEqual(beforeFiles);
-    expect(readFileSync(join(architectureDir, MANIFEST_RELATIVE_PATH), "utf8")).toBe(
-      beforeManifest
-    );
-    expect(statSync(join(architectureDir, MANIFEST_RELATIVE_PATH)).mtimeMs).toBe(beforeMtime);
+    expect(readFileSync(join(structureDir, MANIFEST_RELATIVE_PATH), "utf8")).toBe(beforeManifest);
+    expect(statSync(join(structureDir, MANIFEST_RELATIVE_PATH)).mtimeMs).toBe(beforeMtime);
   });
 
   it("surfaces validation diagnostics without writing", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-inspect-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    mkdirSync(architectureDir, { recursive: true });
-    writeFileSync(join(architectureDir, "keep.txt"), "untouched\n", "utf8");
+    mkdirSync(structureDir, { recursive: true });
+    writeFileSync(join(structureDir, "keep.txt"), "untouched\n", "utf8");
 
-    const A = defineArchitecture("Broken");
+    const A = defineStructure("Broken");
     const pkg = A.construct("Pkg", {}, () =>
       A.in(A.rootDirectory, A.file("../escape.ts", "nope\n"))
     );
     const population = createPopulation(A);
     population.add(pkg, { name: "x" });
 
-    const result = inspect(population, { architectureDir, materializationRoot });
+    const result = inspect(population, { structureDir, materializationRoot });
     expect(result.ok).toBe(false);
     if (result.ok) {
       return;
     }
     expect(result.diagnostics.length).toBeGreaterThan(0);
     expect(existsSync(materializationRoot)).toBe(false);
-    expect(existsSync(join(architectureDir, MANIFEST_RELATIVE_PATH))).toBe(false);
-    expect(readFileSync(join(architectureDir, "keep.txt"), "utf8")).toBe("untouched\n");
+    expect(existsSync(join(structureDir, MANIFEST_RELATIVE_PATH))).toBe(false);
+    expect(readFileSync(join(structureDir, "keep.txt"), "utf8")).toBe("untouched\n");
   });
 });

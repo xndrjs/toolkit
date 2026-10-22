@@ -11,8 +11,8 @@ Miniature replica of the [xndrjs-monorepo](https://github.com/xndrjs) clean-arch
 ## Layout
 
 ```text
-architecture/            # definition + generated populate API + population
-  architecture.ts
+structure/            # definition + generated populate API + population
+  structure.ts
   populate-api.generated.ts      # generated (pnpm codegen)
   population.ts
   .struttura/            # success manifest (outside materialization root)

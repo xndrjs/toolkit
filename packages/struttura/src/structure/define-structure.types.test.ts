@@ -1,15 +1,15 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import {
-  defineArchitecture,
+  defineStructure,
   type DirRef,
   type FileRef,
   type PlacementDestination,
-} from "./define-architecture";
+} from "./define-structure";
 
 describe("construct navigable dependency children", () => {
   it("types adapter.repositories as DirRef from declared tree children", () => {
-    const A = defineArchitecture("TreeNavDeps");
+    const A = defineStructure("TreeNavDeps");
     const AdapterPackage = A.construct("AdapterPackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -40,7 +40,7 @@ describe("construct navigable dependency children", () => {
   });
 
   it("types ModelsModule under core and Shape file-root", () => {
-    const A = defineArchitecture("TreeCrossTypes");
+    const A = defineStructure("TreeCrossTypes");
     const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -66,13 +66,13 @@ describe("construct navigable dependency children", () => {
       return A.in(models, A.file(`${name}.shape.ts`, `export type ${name} = {};\n`));
     });
 
-    type ShapeInstance = import("./define-architecture").NavigableInstanceRef<typeof _Shape>;
+    type ShapeInstance = import("./define-structure").NavigableInstanceRef<typeof _Shape>;
     expectTypeOf<ShapeInstance>().toExtend<FileRef>();
     expectTypeOf<ShapeInstance>().not.toExtend<PlacementDestination>();
   });
 
   it("types peer-root siblings on the instance", () => {
-    const A = defineArchitecture("TreePeerTypes");
+    const A = defineStructure("TreePeerTypes");
     const _WorkspaceRoot = A.construct("WorkspaceRoot", {}, () =>
       A.in(A.rootDirectory, {
         packageJson: A.file("package.json", "{}\n"),
@@ -80,14 +80,14 @@ describe("construct navigable dependency children", () => {
       })
     );
 
-    type Workspace = import("./define-architecture").NavigableInstanceRef<typeof _WorkspaceRoot>;
+    type Workspace = import("./define-structure").NavigableInstanceRef<typeof _WorkspaceRoot>;
     expectTypeOf<Workspace["packageJson"]>().toEqualTypeOf<FileRef>();
     expectTypeOf<Workspace["tsconfig"]>().toEqualTypeOf<FileRef>();
     expectTypeOf<Workspace>().toExtend<PlacementDestination>();
   });
 
   it("rejects A.construct with only two arguments (deps always required)", () => {
-    const A = defineArchitecture("TwoArgConstruct");
+    const A = defineStructure("TwoArgConstruct");
     // Type-only: never invoked — construct requires (name, dependencies, build).
     const _rejectTwoArgForm = () => {
       // @ts-expect-error — no 2-arg overload; deps map is always required
@@ -97,7 +97,7 @@ describe("construct navigable dependency children", () => {
   });
 
   it("types no-deps context as name/id only", () => {
-    const A = defineArchitecture("NoDeps");
+    const A = defineStructure("NoDeps");
     A.construct("Pkg", {}, (ctx) => {
       expectTypeOf(ctx.name).toEqualTypeOf<string>();
       expectTypeOf(ctx.id).toEqualTypeOf<string>();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { defineArchitecture } from "../architecture/define-architecture";
+import { defineStructure } from "../structure/define-structure";
 import { toKebabCase } from "../casing/casing";
 import type { DesiredArtifact } from "../inventory/derive-desired-inventory";
 import { deriveDesiredInventory } from "../inventory/derive-desired-inventory";
@@ -52,7 +52,7 @@ describe("relativeTsModule / renderTsBarrel", () => {
 
 describe("tsBarrelIndex", () => {
   it("returns a FileContentFn that barrels siblings under ctx.directory", () => {
-    const A = defineArchitecture("TsBarrelSiblings");
+    const A = defineStructure("TsBarrelSiblings");
     const ModelsModule = A.construct("ModelsModule", {}, () =>
       A.in(
         A.rootDirectory,
@@ -83,7 +83,7 @@ describe("tsBarrelIndex", () => {
   });
 
   it("passes recursive / exclude through to filesIn", () => {
-    const A = defineArchitecture("TsBarrelRecursive");
+    const A = defineStructure("TsBarrelRecursive");
     const ModelsModule = A.construct("ModelsModule", {}, () =>
       A.in(
         A.rootDirectory,
@@ -124,7 +124,7 @@ describe("tsBarrelIndex", () => {
   });
 
   it("emits export {} by default when the directory has no other managed files", () => {
-    const A = defineArchitecture("TsBarrelEmpty");
+    const A = defineStructure("TsBarrelEmpty");
     const ModelsModule = A.construct("ModelsModule", {}, () =>
       A.in(
         A.rootDirectory,
@@ -150,7 +150,7 @@ describe("tsBarrelIndex", () => {
   });
 
   it("uses options.empty when the directory has no other managed files", () => {
-    const A = defineArchitecture("TsBarrelCustomEmpty");
+    const A = defineStructure("TsBarrelCustomEmpty");
     const ModelsModule = A.construct("ModelsModule", {}, () =>
       A.in(
         A.rootDirectory,

@@ -13,11 +13,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { FileMode } from "../architecture/artifacts";
-import { defineArchitecture } from "../architecture/define-architecture";
+import type { FileMode } from "../structure/artifacts";
+import { defineStructure } from "../structure/define-structure";
 import { toKebabCase } from "../casing/casing";
 import { createPopulation } from "../population/create-population";
-import { buildGuidePopulation } from "../test-fixtures/guide-architecture";
+import { buildGuidePopulation } from "../test-fixtures/guide-structure";
 import { apply } from "./apply";
 import { MANIFEST_RELATIVE_PATH, readManifest } from "./manifest";
 import { moveTempPath } from "./plan";
@@ -52,10 +52,10 @@ describe("apply", () => {
 
   it("materializes an empty root and writes a success manifest outside it", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-apply-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
 
-    const first = apply(buildGuidePopulation(), { architectureDir, materializationRoot });
+    const first = apply(buildGuidePopulation(), { structureDir, materializationRoot });
     expect(first.ok).toBe(true);
     if (!first.ok) {
       return;
@@ -105,13 +105,13 @@ describe("apply", () => {
       )
     ).toBe("export type page = { id: string };\n");
 
-    const manifestFile = join(architectureDir, MANIFEST_RELATIVE_PATH);
+    const manifestFile = join(structureDir, MANIFEST_RELATIVE_PATH);
     expect(existsSync(manifestFile)).toBe(true);
     expect(existsSync(join(materializationRoot, ".struttura"))).toBe(false);
 
-    const manifest = readManifest(architectureDir);
+    const manifest = readManifest(structureDir);
     expect(manifest).toBeDefined();
-    expect(manifest?.architectureName).toBe("CleanArchitecture");
+    expect(manifest?.structureName).toBe("CleanArchitecture");
     expect(manifest?.materializationRoot).toBe("../project");
     expect(manifest?.instances.map((i) => i.id).sort()).toEqual(
       ["page", "pageSlug", "pagebuilder", "packageJson", "resolvePage"].sort()
@@ -134,9 +134,9 @@ describe("apply", () => {
 
   it("is a no-op on re-apply when inputs and disk still match", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-apply-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
+    const options = { structureDir, materializationRoot };
 
     const first = apply(buildGuidePopulation(), options);
     expect(first.ok).toBe(true);
@@ -150,7 +150,7 @@ describe("apply", () => {
         return [rel, { content: readFileSync(abs, "utf8"), mtimeMs: statSync(abs).mtimeMs }];
       })
     );
-    const manifestBefore = readFileSync(join(architectureDir, MANIFEST_RELATIVE_PATH), "utf8");
+    const manifestBefore = readFileSync(join(structureDir, MANIFEST_RELATIVE_PATH), "utf8");
 
     const second = apply(buildGuidePopulation(), options);
     expect(second.ok).toBe(true);
@@ -160,9 +160,7 @@ describe("apply", () => {
 
     expect(second.plan).toEqual([]);
     expect(second.mutated).toBe(false);
-    expect(readFileSync(join(architectureDir, MANIFEST_RELATIVE_PATH), "utf8")).toBe(
-      manifestBefore
-    );
+    expect(readFileSync(join(structureDir, MANIFEST_RELATIVE_PATH), "utf8")).toBe(manifestBefore);
 
     for (const [rel, before] of snapshot) {
       const abs = join(materializationRoot, rel);
@@ -173,10 +171,10 @@ describe("apply", () => {
 
   it("refuses to overwrite an unmanaged file already on disk", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-apply-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
 
-    const A = defineArchitecture("Conflict");
+    const A = defineStructure("Conflict");
     const thing = A.construct("Thing", {}, () =>
       A.in(A.rootDirectory, {
         packageJson: A.file("package.json", '{ "name": "managed" }\n'),
@@ -188,7 +186,7 @@ describe("apply", () => {
     mkdirSync(materializationRoot, { recursive: true });
     writeFileSync(join(materializationRoot, "package.json"), '{ "name": "foreign" }\n');
 
-    const result = apply(population, { architectureDir, materializationRoot });
+    const result = apply(population, { structureDir, materializationRoot });
     expect(result.ok).toBe(false);
     if (result.ok) {
       return;
@@ -197,12 +195,12 @@ describe("apply", () => {
     expect(readFileSync(join(materializationRoot, "package.json"), "utf8")).toBe(
       '{ "name": "foreign" }\n'
     );
-    expect(existsSync(join(architectureDir, MANIFEST_RELATIVE_PATH))).toBe(false);
+    expect(existsSync(join(structureDir, MANIFEST_RELATIVE_PATH))).toBe(false);
   });
 });
 
 function buildSingleFilePopulation(mode: FileMode, content: string) {
-  const A = defineArchitecture("Lifecycle");
+  const A = defineStructure("Lifecycle");
   const thing = A.construct("Thing", {}, () =>
     A.in(A.rootDirectory, A.file("thing.ts", content, { mode }))
   );
@@ -223,9 +221,9 @@ describe("scaffold vs sync lifecycle", () => {
 
   it("preserves authored scaffold content on re-apply", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-lifecycle-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
+    const options = { structureDir, materializationRoot };
     const path = join(materializationRoot, "thing.ts");
 
     const first = apply(buildSingleFilePopulation("scaffold", "export const seed = 1;\n"), options);
@@ -251,9 +249,9 @@ describe("scaffold vs sync lifecycle", () => {
 
   it("regenerates sync content when the derived template changes", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-lifecycle-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
+    const options = { structureDir, materializationRoot };
     const path = join(materializationRoot, "thing.ts");
 
     const first = apply(buildSingleFilePopulation("sync", "export const a = 1;\n"), options);
@@ -281,12 +279,12 @@ describe("scaffold vs sync lifecycle", () => {
 
   it("restores missing managed files for both scaffold and sync", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-lifecycle-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
 
     for (const mode of ["scaffold", "sync"] as const) {
       const options = {
-        architectureDir: join(architectureDir, mode),
+        structureDir: join(structureDir, mode),
         materializationRoot: join(materializationRoot, mode),
       };
       const path = join(options.materializationRoot, "thing.ts");
@@ -315,9 +313,9 @@ describe("scaffold vs sync lifecycle", () => {
 
   it("overwrites authored content when mode switches from scaffold to sync", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-lifecycle-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
+    const options = { structureDir, materializationRoot };
     const path = join(materializationRoot, "thing.ts");
 
     const first = apply(buildSingleFilePopulation("scaffold", "export const seed = 1;\n"), options);
@@ -344,7 +342,7 @@ describe("scaffold vs sync lifecycle", () => {
     ]);
     expect(readFileSync(path, "utf8")).toBe(syncContent);
 
-    const manifest = readManifest(architectureDir);
+    const manifest = readManifest(structureDir);
     expect(manifest?.artifacts.find((a) => a.path === "thing.ts")).toMatchObject({
       mode: "sync",
     });
@@ -352,8 +350,8 @@ describe("scaffold vs sync lifecycle", () => {
 });
 
 /** Compact CorePackage + Model layout matching analysis §14. */
-function buildDeletesArchitecture() {
-  const A = defineArchitecture("Deletes");
+function buildDeletesStructure() {
+  const A = defineStructure("Deletes");
   const corePackage = A.construct("CorePackage", {}, ({ name }) =>
     A.in(
       A.rootDirectory,
@@ -385,10 +383,10 @@ describe("deletes and foreign files (analysis §14)", () => {
 
   it("removing a file artifact deletes only that file and keeps unmanaged siblings", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-deletes-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
-    const { A, corePackage, model } = buildDeletesArchitecture();
+    const options = { structureDir, materializationRoot };
+    const { A, corePackage, model } = buildDeletesStructure();
 
     const withModel = createPopulation(A);
     const pagebuilder = withModel.add(corePackage, { name: "pagebuilder" });
@@ -437,10 +435,10 @@ describe("deletes and foreign files (analysis §14)", () => {
 
   it("removing a directory artifact deletes the full tree including foreign files", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-deletes-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
-    const { A, corePackage, model } = buildDeletesArchitecture();
+    const options = { structureDir, materializationRoot };
+    const { A, corePackage, model } = buildDeletesStructure();
 
     const withCore = createPopulation(A);
     const pagebuilder = withCore.add(corePackage, { name: "pagebuilder" });
@@ -485,20 +483,20 @@ describe("deletes and foreign files (analysis §14)", () => {
 
   it("removing a .gitkeep deletes only that file and does not own the directory lifecycle", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-deletes-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
+    const options = { structureDir, materializationRoot };
 
-    const withKeepArch = defineArchitecture("Gitkeep");
-    const withKeepConstruct = withKeepArch.construct("Folder", {}, () =>
-      withKeepArch.in(
-        withKeepArch.rootDirectory,
-        withKeepArch.dir("things", {
-          keep: withKeepArch.file(".gitkeep", ""),
+    const withKeepStruct = defineStructure("Gitkeep");
+    const withKeepConstruct = withKeepStruct.construct("Folder", {}, () =>
+      withKeepStruct.in(
+        withKeepStruct.rootDirectory,
+        withKeepStruct.dir("things", {
+          keep: withKeepStruct.file(".gitkeep", ""),
         })
       )
     );
-    const withKeep = createPopulation(withKeepArch);
+    const withKeep = createPopulation(withKeepStruct);
     withKeep.add(withKeepConstruct, { name: "things" });
 
     const first = apply(withKeep, options);
@@ -510,11 +508,11 @@ describe("deletes and foreign files (analysis §14)", () => {
     expect(existsSync(join(materializationRoot, "things"))).toBe(true);
 
     // Same instance/directory identity, but the .gitkeep file artifact is gone.
-    const dirOnlyArch = defineArchitecture("Gitkeep");
-    const dirOnlyConstruct = dirOnlyArch.construct("Folder", {}, () =>
-      dirOnlyArch.in(dirOnlyArch.rootDirectory, dirOnlyArch.dir("things", {}))
+    const dirOnlyStruct = defineStructure("Gitkeep");
+    const dirOnlyConstruct = dirOnlyStruct.construct("Folder", {}, () =>
+      dirOnlyStruct.in(dirOnlyStruct.rootDirectory, dirOnlyStruct.dir("things", {}))
     );
-    const dirOnly = createPopulation(dirOnlyArch);
+    const dirOnly = createPopulation(dirOnlyStruct);
     dirOnly.add(dirOnlyConstruct, { name: "things" });
 
     const second = apply(dirOnly, options);
@@ -538,8 +536,8 @@ describe("deletes and foreign files (analysis §14)", () => {
 });
 
 /** Compact layout for rename / directory-move scenarios (analysis §13, §15). */
-function buildRenameArchitecture() {
-  const A = defineArchitecture("Rename");
+function buildRenameStructure() {
+  const A = defineStructure("Rename");
   const corePackage = A.construct("CorePackage", {}, ({ name }) =>
     A.in(
       A.rootDirectory,
@@ -571,10 +569,10 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
 
   it("stable-id rename moves the scaffold file and preserves authored content", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-rename-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
-    const { A, corePackage, model } = buildRenameArchitecture();
+    const options = { structureDir, materializationRoot };
+    const { A, corePackage, model } = buildRenameStructure();
 
     const initial = createPopulation(A);
     const pagebuilder = initial.add(corePackage, { name: "pagebuilder" });
@@ -619,10 +617,10 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
 
   it("directory artifact path change moves the full tree including untracked files", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-dir-move-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
-    const { A, corePackage, model } = buildRenameArchitecture();
+    const options = { structureDir, materializationRoot };
+    const { A, corePackage, model } = buildRenameStructure();
 
     const initial = createPopulation(A);
     const pagebuilder = initial.add(corePackage, { name: "pagebuilder" });
@@ -685,11 +683,11 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
 
   it("plans crossed file destinations without losing contents", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-cross-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
+    const options = { structureDir, materializationRoot };
 
-    const A = defineArchitecture("Cross");
+    const A = defineStructure("Cross");
     const thing = A.construct("Thing", {}, ({ name }) =>
       A.in(A.rootDirectory, A.file(`${toKebabCase(name)}.ts`, `export const ${name} = 1;\n`))
     );
@@ -732,17 +730,17 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
     );
     expect(existsSync(join(materializationRoot, ".struttura-tmp"))).toBe(false);
 
-    const manifest = readManifest(architectureDir);
+    const manifest = readManifest(structureDir);
     expect(manifest?.artifacts.find((a) => a.instanceId === "alpha")?.path).toBe("beta.ts");
     expect(manifest?.artifacts.find((a) => a.instanceId === "beta")?.path).toBe("alpha.ts");
   });
 
   it("recovers from an interrupted move by idempotent replan (ADR 0006)", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-recovery-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
-    const { A, corePackage, model } = buildRenameArchitecture();
+    const options = { structureDir, materializationRoot };
+    const { A, corePackage, model } = buildRenameStructure();
 
     const initial = createPopulation(A);
     const pagebuilder = initial.add(corePackage, { name: "pagebuilder" });
@@ -773,7 +771,7 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
     expect(existsSync(join(materializationRoot, oldRel))).toBe(false);
     expect(readFileSync(join(materializationRoot, newRel), "utf8")).toBe(authored);
 
-    const manifestBefore = readFileSync(join(architectureDir, MANIFEST_RELATIVE_PATH), "utf8");
+    const manifestBefore = readFileSync(join(structureDir, MANIFEST_RELATIVE_PATH), "utf8");
     expect(manifestBefore).toContain(oldRel);
 
     const recovered = apply(renamed, options);
@@ -786,7 +784,7 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
     expect(readFileSync(join(materializationRoot, newRel), "utf8")).toBe(authored);
     expect(existsSync(join(materializationRoot, oldRel))).toBe(false);
 
-    const manifest = readManifest(architectureDir);
+    const manifest = readManifest(structureDir);
     expect(
       manifest?.artifacts.find((a) => a.instanceId === "page" && a.artifactKey === ".")
     ).toMatchObject({
@@ -804,11 +802,11 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
 
   it("recovers from an interrupt mid-staging via deterministic temp paths", () => {
     tempDir = mkdtempSync(join(tmpdir(), "struttura-temp-recovery-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    const options = { architectureDir, materializationRoot };
+    const options = { structureDir, materializationRoot };
 
-    const A = defineArchitecture("TempRecovery");
+    const A = defineStructure("TempRecovery");
     const thing = A.construct("Thing", {}, ({ name }) =>
       A.in(A.rootDirectory, A.file(`${toKebabCase(name)}.ts`, `export const ${name} = 1;\n`))
     );

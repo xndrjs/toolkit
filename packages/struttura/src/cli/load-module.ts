@@ -3,12 +3,12 @@ import { pathToFileURL } from "node:url";
 
 import { createJiti } from "jiti";
 
-import type { Architecture } from "../architecture/define-architecture";
+import type { Structure } from "../structure/define-structure";
 import type { Population } from "../population/create-population";
 
-type ArchitectureModule = {
-  architecture?: Architecture;
-  default?: Architecture | { architecture?: Architecture };
+type StructureModule = {
+  structure?: Structure;
+  default?: Structure | { structure?: Structure };
 };
 
 type PopulationModule = {
@@ -17,7 +17,7 @@ type PopulationModule = {
 };
 
 function createLoader(absolute: string) {
-  // Disable caches so author edits to architecture/population are visible on re-run
+  // Disable caches so author edits to structure/population are visible on re-run
   // (e.g. migrate-id workflow: edit population.ts, then apply again).
   return createJiti(pathToFileURL(absolute).href, {
     moduleCache: false,
@@ -25,26 +25,26 @@ function createLoader(absolute: string) {
   });
 }
 
-export async function loadArchitecture(modulePath: string): Promise<Architecture> {
+export async function loadStructure(modulePath: string): Promise<Structure> {
   const absolute = resolve(modulePath);
   const jiti = createLoader(absolute);
-  const mod = (await jiti.import(absolute)) as ArchitectureModule;
+  const mod = (await jiti.import(absolute)) as StructureModule;
 
   const fromDefault =
-    mod.default && typeof mod.default === "object" && "architecture" in mod.default
-      ? mod.default.architecture
+    mod.default && typeof mod.default === "object" && "structure" in mod.default
+      ? mod.default.structure
       : undefined;
-  const architecture =
-    mod.architecture ??
-    (mod.default && isArchitecture(mod.default) ? mod.default : undefined) ??
+  const structure =
+    mod.structure ??
+    (mod.default && isStructure(mod.default) ? mod.default : undefined) ??
     fromDefault;
 
-  if (!architecture || !isArchitecture(architecture)) {
+  if (!structure || !isStructure(structure)) {
     throw new Error(
-      `Architecture module "${modulePath}" must export \`architecture\` (or default Architecture).`
+      `Structure module "${modulePath}" must export \`structure\` (or default Structure).`
     );
   }
-  return architecture;
+  return structure;
 }
 
 export async function loadPopulation(modulePath: string): Promise<Population> {
@@ -69,7 +69,7 @@ export async function loadPopulation(modulePath: string): Promise<Population> {
   return population;
 }
 
-function isArchitecture(value: unknown): value is Architecture {
+function isStructure(value: unknown): value is Structure {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -83,7 +83,7 @@ function isPopulation(value: unknown): value is Population {
   return (
     typeof value === "object" &&
     value !== null &&
-    "architecture" in value &&
+    "structure" in value &&
     "instances" in value &&
     typeof (value as Population).add === "function"
   );

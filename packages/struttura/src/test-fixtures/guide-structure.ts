@@ -1,14 +1,14 @@
-import { defineArchitecture } from "../architecture/define-architecture";
+import { defineStructure } from "../structure/define-structure";
 import { toKebabCase } from "../casing/casing";
 import { createPopulation, type Population } from "../population/create-population";
 
 /**
- * Compact CleanArchitecture guide layout used across apply/derive/inspect tests.
+ * Compact Clean Architecture guide layout used across apply/derive/inspect tests.
  * Tree authoring only: CorePackage (dir root + layer dirs), Model/UseCase file roots,
  * PackageJson peer file under materialization root.
  */
-export function buildGuideArchitecture(architectureName = "CleanArchitecture") {
-  const A = defineArchitecture(architectureName);
+export function buildGuideStructure(structureName = "CleanArchitecture") {
+  const A = defineStructure(structureName);
 
   const corePackage = A.construct("CorePackage", {}, ({ name }) =>
     A.in(
@@ -49,7 +49,7 @@ export function buildGuideArchitecture(architectureName = "CleanArchitecture") {
 
   return {
     A,
-    architecture: A.seal(),
+    structure: A.seal(),
     constructs: {
       CorePackage: corePackage,
       Model: model,
@@ -60,7 +60,7 @@ export function buildGuideArchitecture(architectureName = "CleanArchitecture") {
 }
 
 export function buildGuidePopulation(): Population {
-  const { A, constructs } = buildGuideArchitecture();
+  const { A, constructs } = buildGuideStructure();
   const population = createPopulation(A);
   const pagebuilder = population.add(constructs.CorePackage, { name: "pagebuilder" });
   population.add(constructs.Model, { name: "page", core: pagebuilder });

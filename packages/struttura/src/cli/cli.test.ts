@@ -11,12 +11,12 @@ const strutturaEntry = join(packageRoot, "src/index.ts");
 
 describe("CLI args", () => {
   it("parses the four wave-1 commands", () => {
-    expect(parseCliArgs(["codegen", "--architecture", "./a.ts", "--out", "./out.ts"])).toEqual({
+    expect(parseCliArgs(["codegen", "--structure", "./a.ts", "--out", "./out.ts"])).toEqual({
       command: "codegen",
-      architecture: "./a.ts",
+      structure: "./a.ts",
       out: "./out.ts",
-      architectureModule: undefined,
-      architectureExport: "architecture",
+      structureModule: undefined,
+      structureExport: "structure",
       constructsExport: "constructs",
       strutturaPackage: "@xndrjs/struttura",
       help: false,
@@ -27,15 +27,15 @@ describe("CLI args", () => {
         "apply",
         "--population",
         "./p.ts",
-        "--architecture-dir",
-        "./architecture",
+        "--structure-dir",
+        "./structure",
         "--materialization-root",
         "./project",
       ])
     ).toEqual({
       command: "apply",
       population: "./p.ts",
-      architectureDir: "./architecture",
+      structureDir: "./structure",
       materializationRoot: "./project",
       help: false,
     });
@@ -45,8 +45,8 @@ describe("CLI args", () => {
         "inspect",
         "--population",
         "./p.ts",
-        "--architecture-dir",
-        "./architecture",
+        "--structure-dir",
+        "./structure",
         "--materialization-root",
         "./project",
         "--json",
@@ -56,8 +56,8 @@ describe("CLI args", () => {
     expect(
       parseCliArgs([
         "migrate-id",
-        "--architecture-dir",
-        "./architecture",
+        "--structure-dir",
+        "./structure",
         "--from",
         "page",
         "--to",
@@ -65,7 +65,7 @@ describe("CLI args", () => {
       ])
     ).toEqual({
       command: "migrate-id",
-      architectureDir: "./architecture",
+      structureDir: "./structure",
       from: "page",
       to: "editorialPage",
       help: false,
@@ -86,24 +86,24 @@ describe("CLI end-to-end on guide layout", () => {
   it("runs codegen, apply, inspect, and migrate-id", async () => {
     // Keep the fixture under the package so relative imports to src/ resolve via jiti.
     tempDir = mkdtempSync(join(packageRoot, ".tmp-cli-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
-    mkdirSync(architectureDir, { recursive: true });
+    mkdirSync(structureDir, { recursive: true });
 
-    const architecturePath = join(architectureDir, "architecture.ts");
-    const populateApiPath = join(architectureDir, "populate-api.ts");
-    const populationPath = join(architectureDir, "population.ts");
+    const structurePath = join(structureDir, "structure.ts");
+    const populateApiPath = join(structureDir, "populate-api.ts");
+    const populationPath = join(structureDir, "population.ts");
 
-    const strutturaImport = relative(architectureDir, strutturaEntry).split("\\").join("/");
+    const strutturaImport = relative(structureDir, strutturaEntry).split("\\").join("/");
     const strutturaSpecifier = strutturaImport.startsWith(".")
       ? strutturaImport
       : `./${strutturaImport}`;
 
     writeFileSync(
-      architecturePath,
-      `import { defineArchitecture, constructsFromArchitecture, toKebabCase } from "${strutturaSpecifier}";
+      structurePath,
+      `import { defineStructure, constructsFromStructure, toKebabCase } from "${strutturaSpecifier}";
 
-const A = defineArchitecture("CleanArchitecture");
+const A = defineStructure("CleanArchitecture");
 
 export const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
   A.in(
@@ -129,16 +129,16 @@ export const PackageJson = A.construct("PackageJson", {}, () =>
   })
 );
 
-export const architecture = A.seal();
-export const constructs = constructsFromArchitecture(architecture);
+export const structure = A.seal();
+export const constructs = constructsFromStructure(structure);
 `,
       "utf8"
     );
 
     const codegenCode = await runCli([
       "codegen",
-      "--architecture",
-      architecturePath,
+      "--structure",
+      structurePath,
       "--out",
       populateApiPath,
       "--struttura-package",
@@ -166,8 +166,8 @@ export const population = api.population;
       "apply",
       "--population",
       populationPath,
-      "--architecture-dir",
-      architectureDir,
+      "--structure-dir",
+      structureDir,
       "--materialization-root",
       materializationRoot,
     ]);
@@ -183,8 +183,8 @@ export const population = api.population;
       "inspect",
       "--population",
       populationPath,
-      "--architecture-dir",
-      architectureDir,
+      "--structure-dir",
+      structureDir,
       "--materialization-root",
       materializationRoot,
       "--json",
@@ -208,8 +208,8 @@ export const population = api.population;
 
     const migrateCode = await runCli([
       "migrate-id",
-      "--architecture-dir",
-      architectureDir,
+      "--structure-dir",
+      structureDir,
       "--from",
       "page",
       "--to",
@@ -218,7 +218,7 @@ export const population = api.population;
     expect(migrateCode).toBe(0);
 
     const manifestAfterMigrate = JSON.parse(
-      readFileSync(join(architectureDir, ".struttura/manifest.json"), "utf8")
+      readFileSync(join(structureDir, ".struttura/manifest.json"), "utf8")
     ) as {
       instances: { id: string }[];
       artifacts: { instanceId: string; artifactKey: string; path: string }[];
@@ -236,8 +236,8 @@ export const population = api.population;
       "apply",
       "--population",
       populationPath,
-      "--architecture-dir",
-      architectureDir,
+      "--structure-dir",
+      structureDir,
       "--materialization-root",
       materializationRoot,
     ]);

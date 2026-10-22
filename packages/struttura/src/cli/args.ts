@@ -2,11 +2,11 @@ import { parseArgs } from "node:util";
 
 export type CodegenCliOptions = {
   readonly command: "codegen";
-  readonly architecture: string;
+  readonly structure: string;
   readonly out: string;
-  /** Import specifier embedded in the generated file for the architecture module. */
-  readonly architectureModule?: string;
-  readonly architectureExport: string;
+  /** Import specifier embedded in the generated file for the structure module. */
+  readonly structureModule?: string;
+  readonly structureExport: string;
   readonly constructsExport: string;
   readonly strutturaPackage: string;
   readonly help: boolean;
@@ -15,7 +15,7 @@ export type CodegenCliOptions = {
 export type ApplyCliOptions = {
   readonly command: "apply";
   readonly population: string;
-  readonly architectureDir: string;
+  readonly structureDir: string;
   readonly materializationRoot: string;
   readonly help: boolean;
 };
@@ -23,7 +23,7 @@ export type ApplyCliOptions = {
 export type InspectCliOptions = {
   readonly command: "inspect";
   readonly population: string;
-  readonly architectureDir: string;
+  readonly structureDir: string;
   readonly materializationRoot: string;
   readonly repositoryRoot?: string;
   readonly json: boolean;
@@ -32,7 +32,7 @@ export type InspectCliOptions = {
 
 export type MigrateIdCliOptions = {
   readonly command: "migrate-id";
-  readonly architectureDir: string;
+  readonly structureDir: string;
   readonly from: string;
   readonly to: string;
   readonly help: boolean;
@@ -67,10 +67,10 @@ export function parseCliArgs(argv: string[]): CliOptions {
     const { values } = parseArgs({
       args: rest,
       options: {
-        architecture: { type: "string" },
+        structure: { type: "string" },
         out: { type: "string" },
-        "architecture-module": { type: "string" },
-        "architecture-export": { type: "string", default: "architecture" },
+        "structure-module": { type: "string" },
+        "structure-export": { type: "string", default: "structure" },
         "constructs-export": { type: "string", default: "constructs" },
         "struttura-package": { type: "string", default: "@xndrjs/struttura" },
         help: { type: "boolean", short: "h", default: false },
@@ -80,18 +80,18 @@ export function parseCliArgs(argv: string[]): CliOptions {
     if (values.help) {
       return { command: "help", help: true };
     }
-    if (!values.architecture) {
-      throw new Error("codegen requires --architecture <module>");
+    if (!values.structure) {
+      throw new Error("codegen requires --structure <module>");
     }
     if (!values.out) {
       throw new Error("codegen requires --out <file>");
     }
     return {
       command: "codegen",
-      architecture: values.architecture,
+      structure: values.structure,
       out: values.out,
-      architectureModule: values["architecture-module"],
-      architectureExport: values["architecture-export"] ?? "architecture",
+      structureModule: values["structure-module"],
+      structureExport: values["structure-export"] ?? "structure",
       constructsExport: values["constructs-export"] ?? "constructs",
       strutturaPackage: values["struttura-package"] ?? "@xndrjs/struttura",
       help: false,
@@ -103,7 +103,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
       args: rest,
       options: {
         population: { type: "string" },
-        "architecture-dir": { type: "string" },
+        "structure-dir": { type: "string" },
         "materialization-root": { type: "string" },
         help: { type: "boolean", short: "h", default: false },
       },
@@ -116,7 +116,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
     return {
       command: "apply",
       population: values.population!,
-      architectureDir: values["architecture-dir"]!,
+      structureDir: values["structure-dir"]!,
       materializationRoot: values["materialization-root"]!,
       help: false,
     };
@@ -127,7 +127,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
       args: rest,
       options: {
         population: { type: "string" },
-        "architecture-dir": { type: "string" },
+        "structure-dir": { type: "string" },
         "materialization-root": { type: "string" },
         "repository-root": { type: "string" },
         json: { type: "boolean", default: false },
@@ -142,7 +142,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
     return {
       command: "inspect",
       population: values.population!,
-      architectureDir: values["architecture-dir"]!,
+      structureDir: values["structure-dir"]!,
       materializationRoot: values["materialization-root"]!,
       repositoryRoot: values["repository-root"],
       json: values.json ?? false,
@@ -153,7 +153,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
   const { values } = parseArgs({
     args: rest,
     options: {
-      "architecture-dir": { type: "string" },
+      "structure-dir": { type: "string" },
       from: { type: "string" },
       to: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
@@ -163,8 +163,8 @@ export function parseCliArgs(argv: string[]): CliOptions {
   if (values.help) {
     return { command: "help", help: true };
   }
-  if (!values["architecture-dir"]) {
-    throw new Error("migrate-id requires --architecture-dir <dir>");
+  if (!values["structure-dir"]) {
+    throw new Error("migrate-id requires --structure-dir <dir>");
   }
   if (!values.from) {
     throw new Error("migrate-id requires --from <oldId>");
@@ -174,7 +174,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
   }
   return {
     command: "migrate-id",
-    architectureDir: values["architecture-dir"],
+    structureDir: values["structure-dir"],
     from: values.from,
     to: values.to,
     help: false,
@@ -184,7 +184,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
 function requirePopulationPaths(
   values: {
     population?: string;
-    "architecture-dir"?: string;
+    "structure-dir"?: string;
     "materialization-root"?: string;
   },
   command: "apply" | "inspect"
@@ -192,8 +192,8 @@ function requirePopulationPaths(
   if (!values.population) {
     throw new Error(`${command} requires --population <module>`);
   }
-  if (!values["architecture-dir"]) {
-    throw new Error(`${command} requires --architecture-dir <dir>`);
+  if (!values["structure-dir"]) {
+    throw new Error(`${command} requires --structure-dir <dir>`);
   }
   if (!values["materialization-root"]) {
     throw new Error(`${command} requires --materialization-root <dir>`);
@@ -201,13 +201,13 @@ function requirePopulationPaths(
 }
 
 export function printCliHelp(): void {
-  console.log(`struttura — architecture materialization CLI (wave 1)
+  console.log(`struttura — structure materialization CLI (wave 1)
 
 Usage:
-  struttura codegen --architecture <module.ts> --out <populate-api.ts>
-  struttura apply --population <module.ts> --architecture-dir <dir> --materialization-root <dir>
-  struttura inspect --population <module.ts> --architecture-dir <dir> --materialization-root <dir> [--json]
-  struttura migrate-id --architecture-dir <dir> --from <oldId> --to <newId>
+  struttura codegen --structure <module.ts> --out <populate-api.ts>
+  struttura apply --population <module.ts> --structure-dir <dir> --materialization-root <dir>
+  struttura inspect --population <module.ts> --structure-dir <dir> --materialization-root <dir> [--json]
+  struttura migrate-id --structure-dir <dir> --from <oldId> --to <newId>
 
 Commands:
   codegen       Emit the typed populate API (never runs as a side effect of apply)
@@ -216,23 +216,23 @@ Commands:
   migrate-id    Rewrite an instance id and its references in the success manifest
 
 codegen options:
-  --architecture <path>         Module exporting architecture (+ constructs)
+  --structure <path>         Module exporting structure (+ constructs)
   --out <path>                  Generated populate API destination
-  --architecture-module <spec>  Import specifier embedded in generated file
-                                (default: relative path from --out to --architecture)
-  --architecture-export <name>  Named architecture export (default: architecture)
+  --structure-module <spec>  Import specifier embedded in generated file
+                                (default: relative path from --out to --structure)
+  --structure-export <name>  Named structure export (default: structure)
   --constructs-export <name>    Named constructs map export (default: constructs)
   --struttura-package <spec>    Import path for @xndrjs/struttura (default: package name)
 
 apply / inspect options:
   --population <path>           Module exporting population
-  --architecture-dir <dir>      Support directory (.struttura/manifest.json)
+  --structure-dir <dir>      Support directory (.struttura/manifest.json)
   --materialization-root <dir>  Artifact create/update/delete perimeter
-  --repository-root <dir>       inspect only; defaults to parent of architecture-dir
+  --repository-root <dir>       inspect only; defaults to parent of structure-dir
   --json                        inspect only; print the full report as JSON
 
 migrate-id options:
-  --architecture-dir <dir>      Directory containing .struttura/manifest.json
+  --structure-dir <dir>      Directory containing .struttura/manifest.json
   --from <oldId>                Effective id currently in the manifest
   --to <newId>                  Replacement effective id
 

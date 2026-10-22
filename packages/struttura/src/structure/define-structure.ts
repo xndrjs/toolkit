@@ -100,7 +100,7 @@ export type ConstructDefinition<
   TNavigable extends object = Record<string, never>,
 > = {
   readonly name: string;
-  readonly architectureName: string;
+  readonly structureName: string;
   readonly dependencies: Readonly<TDeps>;
   /**
    * Parameter is erased at the property type so specific no-deps definitions
@@ -115,7 +115,7 @@ export type ConstructDefinition<
   readonly __navigable?: TNavigable;
 };
 
-export type Architecture = {
+export type Structure = {
   readonly name: string;
   readonly constructs: ReadonlyMap<string, AnyConstructDefinition>;
 };
@@ -125,7 +125,7 @@ type TreeBuildCallbackFor<
   TRoot extends PlacementRoot,
 > = (ctx: TreeCallbackContextFor<TDeps>) => InPlacement<TRoot>;
 
-export type ArchitectureBuilder = {
+export type StructureBuilder = {
   readonly name: string;
   /** Materialization-root DirRef for `A.in` destinations. */
   readonly rootDirectory: RootRef;
@@ -149,11 +149,11 @@ export type ArchitectureBuilder = {
   in<R extends PlacementRoot>(destination: PlacementDestination, placementRoot: R): InPlacement<R>;
   /** Read Destination from a sealed navigable instance (symbol slot). */
   destination(instance: object): DirRef;
-  /** Closed Architecture snapshot of constructs defined so far. */
-  seal(): Architecture;
+  /** Closed Structure snapshot of constructs defined so far. */
+  seal(): Structure;
 };
 
-export function defineArchitecture(name: string): ArchitectureBuilder {
+export function defineStructure(name: string): StructureBuilder {
   const constructs = new Map<string, AnyConstructDefinition>();
 
   function assertUniqueAndDeps(
@@ -161,13 +161,13 @@ export function defineArchitecture(name: string): ArchitectureBuilder {
     dependencies: Record<string, AnyConstructDefinition>
   ): void {
     if (constructs.has(constructName)) {
-      throw new Error(`Construct "${constructName}" is already defined on architecture "${name}"`);
+      throw new Error(`Construct "${constructName}" is already defined on structure "${name}"`);
     }
 
     for (const [depKey, depConstruct] of Object.entries(dependencies)) {
-      if (depConstruct.architectureName !== name) {
+      if (depConstruct.structureName !== name) {
         throw new Error(
-          `Dependency "${depKey}" of "${constructName}" belongs to architecture "${depConstruct.architectureName}", not "${name}"`
+          `Dependency "${depKey}" of "${constructName}" belongs to structure "${depConstruct.structureName}", not "${name}"`
         );
       }
     }
@@ -208,7 +208,7 @@ export function defineArchitecture(name: string): ArchitectureBuilder {
       NavigableFromRoot<TRoot>
     > = {
       name: constructName,
-      architectureName: name,
+      structureName: name,
       dependencies,
       buildArtifacts,
       buildTree,
@@ -229,11 +229,11 @@ export function defineArchitecture(name: string): ArchitectureBuilder {
     name,
     rootDirectory,
     construct: registerTree,
-    dir: treeDir as ArchitectureBuilder["dir"],
+    dir: treeDir as StructureBuilder["dir"],
     file: treeFile,
     in: treeIn,
     destination: destinationOf,
-    seal(): Architecture {
+    seal(): Structure {
       return {
         name,
         constructs: new Map(constructs),

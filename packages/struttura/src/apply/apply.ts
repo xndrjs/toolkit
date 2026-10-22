@@ -23,9 +23,9 @@ export type ApplyOptions = {
   readonly materializationRoot: string;
   /**
    * Directory that owns support files. Last-successful manifest is written under
-   * `{architectureDir}/.struttura/manifest.json` (ADR 0005).
+   * `{structureDir}/.struttura/manifest.json` (ADR 0005).
    */
-  readonly architectureDir: string;
+  readonly structureDir: string;
 };
 
 export type ApplySuccess = {
@@ -46,11 +46,11 @@ export type ApplyResult = ApplySuccess | ApplyFailure;
 
 /**
  * Reconcile the materialization root against the population and record the last
- * successful apply in the architecture support directory.
+ * successful apply in the structure support directory.
  */
 export function apply(population: Population, options: ApplyOptions): ApplyResult {
   const materializationRoot = resolve(options.materializationRoot);
-  const architectureDir = resolve(options.architectureDir);
+  const structureDir = resolve(options.structureDir);
 
   const stale = checkDefinitionStamp(population);
   if (stale) {
@@ -63,7 +63,7 @@ export function apply(population: Population, options: ApplyOptions): ApplyResul
   }
 
   const contents = renderFileContents(population, derived.inventory);
-  const lastManifest = readManifest(architectureDir);
+  const lastManifest = readManifest(structureDir);
   const planned = planApply({
     inventory: derived.inventory,
     contents,
@@ -82,11 +82,11 @@ export function apply(population: Population, options: ApplyOptions): ApplyResul
 
   cleanupMoveTempRoot(materializationRoot);
 
-  const nextManifest = buildManifest(derived.inventory, architectureDir, materializationRoot);
+  const nextManifest = buildManifest(derived.inventory, structureDir, materializationRoot);
   const manifestUnchanged =
     lastManifest !== undefined && manifestsEqual(lastManifest, nextManifest);
   if (!manifestUnchanged) {
-    writeManifest(architectureDir, nextManifest);
+    writeManifest(structureDir, nextManifest);
   }
 
   return {

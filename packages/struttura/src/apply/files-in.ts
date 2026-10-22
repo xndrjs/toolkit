@@ -1,4 +1,4 @@
-import { root, type DirRef } from "../architecture/artifacts";
+import { root, type DirRef } from "../structure/artifacts";
 import type { DesiredArtifact, DesiredInventory } from "../inventory/derive-desired-inventory";
 
 export type ArtifactIdentity = {

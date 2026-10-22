@@ -1,4 +1,4 @@
-import type { FileContentFn } from "../architecture/artifacts";
+import type { FileContentFn } from "../structure/artifacts";
 import type { FilesInOptions } from "../apply/files-in";
 import type { DesiredArtifact } from "../inventory/derive-desired-inventory";
 

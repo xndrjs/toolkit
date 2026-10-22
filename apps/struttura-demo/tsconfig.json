@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["architecture/**/*.ts", "vitest.config.ts"]
+  "include": ["structure/**/*.ts", "vitest.config.ts"]
 }

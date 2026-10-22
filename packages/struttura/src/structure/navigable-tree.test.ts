@@ -7,7 +7,7 @@ import { apply } from "../apply/apply";
 import { toKebabCase } from "../casing/casing";
 import { deriveDesiredInventory } from "../inventory/derive-desired-inventory";
 import { createPopulation } from "../population/create-population";
-import { defineArchitecture } from "./define-architecture";
+import { defineStructure } from "./define-structure";
 
 describe("navigable tree (ticket 01 minimal)", () => {
   let tempDir: string | undefined;
@@ -20,7 +20,7 @@ describe("navigable tree (ticket 01 minimal)", () => {
   });
 
   it("derives inventory with '.' root key and child keys, seals navigable instance", () => {
-    const A = defineArchitecture("MinimalTree");
+    const A = defineStructure("MinimalTree");
     const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -103,7 +103,7 @@ describe("navigable tree (ticket 01 minimal)", () => {
   });
 
   it("reports reserved-key-collision when a child uses a reserved top-level name", () => {
-    const A = defineArchitecture("ReservedCollision");
+    const A = defineStructure("ReservedCollision");
     const Bad = A.construct("Bad", {}, () =>
       A.in(
         A.rootDirectory,
@@ -132,7 +132,7 @@ describe("navigable tree (ticket 01 minimal)", () => {
   });
 
   it("applies scaffold files from a tree construct with the existing engine", () => {
-    const A = defineArchitecture("MinimalApply");
+    const A = defineStructure("MinimalApply");
     const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -147,10 +147,10 @@ describe("navigable tree (ticket 01 minimal)", () => {
     population.add(CorePackage, { name: "pagebuilder" });
 
     tempDir = mkdtempSync(join(tmpdir(), "struttura-tree-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
 
-    const first = apply(population, { architectureDir, materializationRoot });
+    const first = apply(population, { structureDir, materializationRoot });
     expect(first.ok).toBe(true);
     if (!first.ok) {
       return;
@@ -168,7 +168,7 @@ describe("navigable tree (ticket 01 minimal)", () => {
     const pkgPath = join(materializationRoot, "packages/core-pagebuilder/package.json");
     writeFileSync(pkgPath, '{ "name": "authored" }\n');
 
-    const second = apply(population, { architectureDir, materializationRoot });
+    const second = apply(population, { structureDir, materializationRoot });
     expect(second.ok).toBe(true);
     expect(readFileSync(pkgPath, "utf8")).toBe('{ "name": "authored" }\n');
     expect(readdirSync(join(materializationRoot, "packages/core-pagebuilder")).sort()).toEqual([
@@ -189,7 +189,7 @@ describe("navigable tree (ticket 02 peer root / nesting)", () => {
   });
 
   it("peer-root WorkspaceRoot: sibling keys, no '.' directory, Destination forwards", () => {
-    const A = defineArchitecture("PeerRootWorkspace");
+    const A = defineStructure("PeerRootWorkspace");
     const WorkspaceRoot = A.construct("WorkspaceRoot", {}, () =>
       A.in(A.rootDirectory, {
         packageJson: A.file("package.json", '{ "name": "workspace" }\n'),
@@ -235,7 +235,7 @@ describe("navigable tree (ticket 02 peer root / nesting)", () => {
   });
 
   it("nested dirs + physical name override + empty DirRef (App.composition shape)", () => {
-    const A = defineArchitecture("NestingApp");
+    const A = defineStructure("NestingApp");
     const App = A.construct("App", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -294,7 +294,7 @@ describe("navigable tree (ticket 02 peer root / nesting)", () => {
   });
 
   it("applies peer-root and nested empty-dir structure with the existing engine", () => {
-    const A = defineArchitecture("PeerNestApply");
+    const A = defineStructure("PeerNestApply");
     const WorkspaceRoot = A.construct("WorkspaceRoot", {}, () =>
       A.in(A.rootDirectory, {
         packageJson: A.file("package.json", '{ "private": true }\n'),
@@ -315,10 +315,10 @@ describe("navigable tree (ticket 02 peer root / nesting)", () => {
     population.add(App, { name: "web" });
 
     tempDir = mkdtempSync(join(tmpdir(), "struttura-tree-02-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
 
-    const applied = apply(population, { architectureDir, materializationRoot });
+    const applied = apply(population, { structureDir, materializationRoot });
     expect(applied.ok).toBe(true);
     if (!applied.ok) {
       return;
@@ -334,7 +334,7 @@ describe("navigable tree (ticket 02 peer root / nesting)", () => {
   });
 
   it("reports reserved-key-collision on peer-root sibling keys", () => {
-    const A = defineArchitecture("PeerReserved");
+    const A = defineStructure("PeerReserved");
     const Bad = A.construct("Bad", {}, () =>
       A.in(A.rootDirectory, {
         path: A.file("path.txt", "x\n"),
@@ -370,7 +370,7 @@ describe("navigable tree (ticket 03 cross-instance / file root / provenance)", (
   });
 
   it("ModelsModule under CorePackage: paths from destination DirRef, module owns directory", () => {
-    const A = defineArchitecture("ModelsUnderCore");
+    const A = defineStructure("ModelsUnderCore");
     const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -438,7 +438,7 @@ describe("navigable tree (ticket 03 cross-instance / file root / provenance)", (
   });
 
   it("Shape file-root under ModelsModule: FileRef instance, Destination = models", () => {
-    const A = defineArchitecture("ShapeInModels");
+    const A = defineStructure("ShapeInModels");
     const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -506,7 +506,7 @@ describe("navigable tree (ticket 03 cross-instance / file root / provenance)", (
   });
 
   it("Repository under Adapter.repositories: Adapter owns dir, Repository owns file", () => {
-    const A = defineArchitecture("RepoUnderAdapter");
+    const A = defineStructure("RepoUnderAdapter");
     const AdapterPackage = A.construct("AdapterPackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -572,7 +572,7 @@ describe("navigable tree (ticket 03 cross-instance / file root / provenance)", (
   });
 
   it("rejects file-root instance as A.in destination", () => {
-    const A = defineArchitecture("FileAsDest");
+    const A = defineStructure("FileAsDest");
     const Host = A.construct("Host", {}, () =>
       A.in(A.rootDirectory, A.dir("pkg", { keep: A.file(".gitkeep", "") }))
     );
@@ -605,7 +605,7 @@ describe("navigable tree (ticket 03 cross-instance / file root / provenance)", (
   });
 
   it("applies ModelsModule + Shape + Repository provenance layout", () => {
-    const A = defineArchitecture("CrossApply");
+    const A = defineStructure("CrossApply");
     const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
       A.in(
         A.rootDirectory,
@@ -650,10 +650,10 @@ describe("navigable tree (ticket 03 cross-instance / file root / provenance)", (
     });
 
     tempDir = mkdtempSync(join(tmpdir(), "struttura-tree-03-"));
-    const architectureDir = join(tempDir, "architecture");
+    const structureDir = join(tempDir, "structure");
     const materializationRoot = join(tempDir, "project");
 
-    const applied = apply(population, { architectureDir, materializationRoot });
+    const applied = apply(population, { structureDir, materializationRoot });
     expect(applied.ok).toBe(true);
     if (!applied.ok) {
       return;

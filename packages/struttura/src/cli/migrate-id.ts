@@ -10,7 +10,7 @@ import {
 
 export type MigrateIdOptions = {
   /** Directory that owns `.struttura/manifest.json`. */
-  readonly architectureDir: string;
+  readonly structureDir: string;
   /** Effective instance id currently recorded in the manifest. */
   readonly from: string;
   /** Replacement effective instance id. */
@@ -47,7 +47,7 @@ export type MigrateIdResult = MigrateIdSuccess | MigrateIdFailure;
  * manifest (analysis §13 / ADR 0011). Does not rewrite population TypeScript.
  */
 export function migrateId(options: MigrateIdOptions): MigrateIdResult {
-  const architectureDir = resolve(options.architectureDir);
+  const structureDir = resolve(options.structureDir);
   const from = options.from;
   const to = options.to;
 
@@ -63,14 +63,14 @@ export function migrateId(options: MigrateIdOptions): MigrateIdResult {
     };
   }
 
-  const last = readManifest(architectureDir);
+  const last = readManifest(structureDir);
   if (last === undefined) {
     return {
       ok: false,
       diagnostics: [
         {
           code: "missing-manifest",
-          message: `No success manifest found under ${architectureDir}/.struttura/.`,
+          message: `No success manifest found under ${structureDir}/.struttura/.`,
         },
       ],
     };
@@ -102,7 +102,7 @@ export function migrateId(options: MigrateIdOptions): MigrateIdResult {
   }
 
   const next = rewriteManifestIds(last, from, to);
-  writeManifest(architectureDir, next);
+  writeManifest(structureDir, next);
   return { ok: true, manifest: next, mutated: true };
 }
 

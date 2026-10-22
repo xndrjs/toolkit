@@ -11,23 +11,23 @@ export type ManifestInstance = DesiredInventory["instances"][number];
 
 /**
  * Last fully successful apply (ADR 0006). Paths on artifacts are relative to the
- * materialization root; `materializationRoot` is relative to the architecture dir.
+ * materialization root; `materializationRoot` is relative to the structure dir.
  */
 export type Manifest = {
   readonly version: typeof MANIFEST_VERSION;
-  readonly architectureName: string;
-  /** Materialization root path relative to the architecture directory. */
+  readonly structureName: string;
+  /** Materialization root path relative to the structure directory. */
   readonly materializationRoot: string;
   readonly instances: readonly ManifestInstance[];
   readonly artifacts: readonly ManifestArtifact[];
 };
 
-export function manifestPath(architectureDir: string): string {
-  return join(architectureDir, MANIFEST_RELATIVE_PATH);
+export function manifestPath(structureDir: string): string {
+  return join(structureDir, MANIFEST_RELATIVE_PATH);
 }
 
-export function readManifest(architectureDir: string): Manifest | undefined {
-  const path = manifestPath(architectureDir);
+export function readManifest(structureDir: string): Manifest | undefined {
+  const path = manifestPath(structureDir);
   if (!existsSync(path)) {
     return undefined;
   }
@@ -38,26 +38,26 @@ export function readManifest(architectureDir: string): Manifest | undefined {
   return raw;
 }
 
-export function writeManifest(architectureDir: string, manifest: Manifest): void {
-  const path = manifestPath(architectureDir);
+export function writeManifest(structureDir: string, manifest: Manifest): void {
+  const path = manifestPath(structureDir);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 }
 
 export function buildManifest(
   inventory: DesiredInventory,
-  architectureDir: string,
+  structureDir: string,
   materializationRoot: string
 ): Manifest {
-  const architectureAbs = resolve(architectureDir);
+  const structureAbs = resolve(structureDir);
   const materializationAbs = resolve(materializationRoot);
-  let materializationRelative = relative(architectureAbs, materializationAbs);
+  let materializationRelative = relative(structureAbs, materializationAbs);
   if (materializationRelative === "") {
     materializationRelative = ".";
   }
   return {
     version: MANIFEST_VERSION,
-    architectureName: inventory.architectureName,
+    structureName: inventory.structureName,
     materializationRoot: materializationRelative.split("\\").join("/"),
     instances: inventory.instances,
     artifacts: inventory.artifacts,

@@ -4,9 +4,9 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "codegen": "struttura codegen --architecture ./architecture/architecture.ts --out ./architecture/populate-api.generated.ts",
-    "apply": "struttura apply --population ./architecture/population.ts --architecture-dir ./architecture --materialization-root ./src",
-    "inspect": "struttura inspect --population ./architecture/population.ts --architecture-dir ./architecture --materialization-root ./src",
+    "codegen": "struttura codegen --structure ./structure/structure.ts --out ./structure/populate-api.generated.ts",
+    "apply": "struttura apply --population ./structure/population.ts --structure-dir ./structure --materialization-root ./src",
+    "inspect": "struttura inspect --population ./structure/population.ts --structure-dir ./structure --materialization-root ./src",
     "materialize": "pnpm run codegen && pnpm run apply",
     "lint:project": "pnpm --filter struttura-demo-project lint",
     "test": "vitest run",

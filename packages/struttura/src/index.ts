@@ -1,12 +1,12 @@
 export {
-  defineArchitecture,
+  defineStructure,
   FILENAME_PATTERN,
   isValidFilename,
   DESTINATION,
   RESERVED_INSTANCE_KEYS,
   readDestination,
-  type Architecture,
-  type ArchitectureBuilder,
+  type Structure,
+  type StructureBuilder,
   type AnyConstructDefinition,
   type ArtifactCallback,
   type ArtifactCallbackContext,
@@ -28,7 +28,7 @@ export {
   type TreeDirNode,
   type TreeFileNode,
   type TreeNode,
-} from "./architecture/define-architecture";
+} from "./structure/define-structure";
 
 export type {
   ArtifactDescriptor,
@@ -42,7 +42,7 @@ export type {
   FileOptions,
   FileRef,
   RootRef,
-} from "./architecture/artifacts";
+} from "./structure/artifacts";
 
 export {
   createPopulation,
@@ -54,7 +54,7 @@ export {
 
 export {
   computeDefinitionStamp,
-  constructsFromArchitecture,
+  constructsFromStructure,
   emitPopulateApi,
   navigableShapeFromKinds,
   probeArtifactKinds,

@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import type { FileMode } from "../architecture/artifacts";
+import type { FileMode } from "../structure/artifacts";
 import type { Population } from "../population/create-population";
 import {
   deriveDesiredInventory,
@@ -18,12 +18,12 @@ export type InspectOptions = {
   readonly materializationRoot: string;
   /**
    * Directory that owns support files. Last-successful manifest is read from
-   * `{architectureDir}/.struttura/manifest.json` — never written by inspect.
+   * `{structureDir}/.struttura/manifest.json` — never written by inspect.
    */
-  readonly architectureDir: string;
+  readonly structureDir: string;
   /**
    * Repository root, distinct from the materialization root (analysis §16).
-   * Defaults to the parent of `architectureDir` (conventional layout).
+   * Defaults to the parent of `structureDir` (conventional layout).
    */
   readonly repositoryRoot?: string;
 };
@@ -53,7 +53,7 @@ export type InspectReport = {
   readonly roots: {
     readonly repository: string;
     readonly materialization: string;
-    readonly architecture: string;
+    readonly structure: string;
   };
   readonly inventory: DesiredInventory;
   readonly instances: DesiredInventory["instances"];
@@ -88,8 +88,8 @@ export type InspectResult = InspectSuccess | InspectFailure;
  */
 export function inspect(population: Population, options: InspectOptions): InspectResult {
   const materializationRoot = resolve(options.materializationRoot);
-  const architectureDir = resolve(options.architectureDir);
-  const repositoryRoot = resolve(options.repositoryRoot ?? resolve(architectureDir, ".."));
+  const structureDir = resolve(options.structureDir);
+  const repositoryRoot = resolve(options.repositoryRoot ?? resolve(structureDir, ".."));
 
   const stale = checkDefinitionStamp(population);
   if (stale) {
@@ -102,7 +102,7 @@ export function inspect(population: Population, options: InspectOptions): Inspec
   }
 
   const contents = renderFileContents(population, derived.inventory);
-  const lastManifest = readManifest(architectureDir);
+  const lastManifest = readManifest(structureDir);
   const planned = planApply({
     inventory: derived.inventory,
     contents,
@@ -113,7 +113,7 @@ export function inspect(population: Population, options: InspectOptions): Inspec
     return { ok: false, diagnostics: planned.diagnostics };
   }
 
-  const nextManifest = buildManifest(derived.inventory, architectureDir, materializationRoot);
+  const nextManifest = buildManifest(derived.inventory, structureDir, materializationRoot);
   const wouldUpdateManifest =
     lastManifest === undefined || !manifestsEqual(lastManifest, nextManifest);
 
@@ -127,7 +127,7 @@ export function inspect(population: Population, options: InspectOptions): Inspec
       roots: {
         repository: repositoryRoot,
         materialization: materializationRoot,
-        architecture: architectureDir,
+        structure: structureDir,
       },
       inventory: derived.inventory,
       instances: derived.inventory.instances,

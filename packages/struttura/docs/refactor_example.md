@@ -1,6 +1,6 @@
 # Refactor example — navigable tree API (struttura-demo)
 
-Documento di allineamento: riscrittura immaginata di `architecture.ts` e `population.ts` secondo le decisioni del grilling (API ad albero, `A.in`, Peer root, reserved keys top-level, niente query in questo step).
+Documento di allineamento: riscrittura immaginata di `structure.ts` e `population.ts` secondo le decisioni del grilling (API ad albero, `A.in`, Peer root, reserved keys top-level, niente query in questo step).
 
 Non è codice eseguibile finché l’API non esiste. Serve a verificare sintassi, modalità d’uso e gap di typechecking.
 
@@ -20,10 +20,10 @@ Non è codice eseguibile finché l’API non esiste. Serve a verificare sintassi
 
 ---
 
-## `architecture.ts` (riscrittura)
+## `structure.ts` (riscrittura)
 
 ```ts
-import { defineArchitecture, toKebabCase } from "@xndrjs/struttura";
+import { defineStructure, toKebabCase } from "@xndrjs/struttura";
 
 import { adapterMapperSource } from "./templates/adapter-mapper-source";
 import { adapterPackageJson } from "./templates/adapter-package-json";
@@ -53,7 +53,7 @@ import { uiReadme } from "./templates/ui-readme";
 import { useCaseSource } from "./templates/use-case-source";
 import { workspacePackageJson } from "./templates/workspace-package-json";
 
-const A = defineArchitecture("CleanArchitectureOrientedMonorepo");
+const A = defineStructure("CleanArchitectureOrientedMonorepo");
 
 /** Starter statico: l’ex `rootTsconfig(ctx)` usava InventoryQuery. */
 const workspaceRootTsconfigStarter = `${JSON.stringify({ files: [], references: [] }, null, 2)}\n`;
@@ -296,7 +296,7 @@ export const CompositionRoot = A.construct("CompositionRoot", { app: App }, ({ n
   A.in(app.composition, A.file(`${toKebabCase(name)}.composition.ts`, compositionRootSource(name)))
 );
 
-export const architecture = A.seal();
+export const structure = A.seal();
 
 export const constructs = {
   WorkspaceRoot,
@@ -354,11 +354,11 @@ La forma del popolamento resta quella generata; cambia ciò che puoi leggere sul
 
 ```ts
 import { createPopulateApi } from "./populate-api.generated";
-import { defineArchitecture } from "@xndrjs/struttura";
+import { defineStructure } from "@xndrjs/struttura";
 
 // Solo per illustrare A.destination nello stesso file; in produzione
-// A arriva dal modulo architecture o da un import del package.
-declare const A: ReturnType<typeof defineArchitecture>;
+// A arriva dal modulo structure o da un import del package.
+declare const A: ReturnType<typeof defineStructure>;
 
 const P = createPopulateApi();
 

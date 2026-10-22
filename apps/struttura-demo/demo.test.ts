@@ -1,8 +1,8 @@
 import { deriveDesiredInventory } from "@xndrjs/struttura";
 import { describe, expect, it } from "vitest";
 
-import { DEFINITION_STAMP } from "./architecture/populate-api.generated";
-import { population } from "./architecture/population";
+import { DEFINITION_STAMP } from "./structure/populate-api.generated";
+import { population } from "./structure/population";
 
 describe("struttura-demo navigable population", () => {
   it("derives desired inventory without diagnostics", () => {
