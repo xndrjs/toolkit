@@ -321,7 +321,7 @@
       "artifactKey": "mappers.index",
       "kind": "file",
       "path": "packages/adapter-contentful-pagebuilder/mappers/index.ts",
-      "mode": "scaffold",
+      "mode": "sync",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -374,7 +374,7 @@
       "artifactKey": "repositories.index",
       "kind": "file",
       "path": "packages/adapter-contentful-pagebuilder/repositories/index.ts",
-      "mode": "scaffold",
+      "mode": "sync",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -452,7 +452,7 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/errors/index.ts",
-      "mode": "scaffold",
+      "mode": "sync",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -491,7 +491,7 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/models/index.ts",
-      "mode": "scaffold",
+      "mode": "sync",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -558,7 +558,7 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/operations/index.ts",
-      "mode": "scaffold",
+      "mode": "sync",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -625,7 +625,7 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/ports/index.ts",
-      "mode": "scaffold",
+      "mode": "sync",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -678,7 +678,7 @@
       "artifactKey": "index",
       "kind": "file",
       "path": "packages/core-pagebuilder/use-cases/index.ts",
-      "mode": "scaffold",
+      "mode": "sync",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -756,7 +756,7 @@
       "artifactKey": "loaders.index",
       "kind": "file",
       "path": "packages/infrastructure-contentful/loaders/index.ts",
-      "mode": "scaffold",
+      "mode": "sync",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",
@@ -809,7 +809,7 @@
       "artifactKey": "schemas.index",
       "kind": "file",
       "path": "packages/infrastructure-contentful/schemas/index.ts",
-      "mode": "scaffold",
+      "mode": "sync",
       "filename": "index.ts",
       "directory": {
         "kind": "artifact",

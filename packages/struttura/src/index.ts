@@ -140,3 +140,10 @@ export {
   toTitleCase,
   words,
 } from "./casing/casing";
+
+export {
+  relativeTsModule,
+  renderTsBarrel,
+  tsBarrelIndex,
+  type TsBarrelIndexOptions,
+} from "./ts/barrel";

@@ -4,7 +4,7 @@
 
 Miniature replica of the [xndrjs-monorepo](https://github.com/xndrjs) clean-architecture layout, driven by struttura navigable-tree constructs (`A.construct` + `A.in`) instead of Plop.
 
-**Authoring notes:** layer barrels and the workspace root `tsconfig.json` are **scaffold** (hand-maintained after first write). Package-level adapter/infra `index.ts` files remain sync with static exports.
+**Authoring notes:** layer barrels (`models/`, `operations/`, adapter `mappers/`, …) are **sync** via `tsBarrelIndex({ recursive: true })` — regenerated from Desired inventory on apply. Package-level adapter/infra `index.ts` files remain sync with static exports. Workspace root `tsconfig.json` stays **scaffold** (hand-maintained after first write).
 
 **ESLint boundaries:** hand-authored `eslint.config.js`, `eslint.boundaries.mjs`, and `tsconfig.eslint.json` under `src` (not struttura artifacts). No Policy type in `@xndrjs/struttura` — see ADR 0013.
 
@@ -52,14 +52,14 @@ Requires `@xndrjs/struttura` to be built (`pnpm --filter @xndrjs/struttura build
 | `WorkspaceRoot`                         | Root `package.json`, `pnpm-workspace.yaml`, scaffold `tsconfig.json` (references maintained by hand); ESLint entry + boundaries fragment are unmanaged |
 | `FeatureSpec`                           | `specs/<feature>/SPEC.md` + `DESIGN.md`                                                                                                                |
 | `CorePackage`                           | `packages/core-<feature>/` shell (`package.json`, README)                                                                                              |
-| `ModelsModule` / `OperationsModule` / … | Layer folder + scaffold barrel under the core package                                                                                                  |
+| `ModelsModule` / `OperationsModule` / … | Layer folder + sync barrel (`tsBarrelIndex`) under the core package                                                                                    |
 | `Shape` / `Primitive` / `Proof`         | Domain kits under `models/` (via `ModelsModule`)                                                                                                       |
 | `Capabilities` / `DomainService`        | `operations/*.capabilities.ts` / `*.service.ts` (via `OperationsModule`)                                                                               |
 | `DomainError`                           | `errors/*.error.ts` (via `ErrorsModule`)                                                                                                               |
 | `Port` / `UseCase`                      | via `PortsModule` / `UseCasesModule`                                                                                                                   |
-| `InfrastructurePackage`                 | `packages/infrastructure-<name>/` (`loaders/`, `schemas/`, scaffold layer barrels)                                                                     |
+| `InfrastructurePackage`                 | `packages/infrastructure-<name>/` (`loaders/`, `schemas/`, sync layer barrels)                                                                         |
 | `InfrastructureLoader`                  | `loaders/*.loader.ts` under the vendor package                                                                                                         |
-| `AdapterPackage`                        | `packages/adapter-<name>/` shell + `mappers/` + `repositories/` (+ scaffold layer barrels)                                                             |
+| `AdapterPackage`                        | `packages/adapter-<name>/` shell + `mappers/` + `repositories/` (+ sync layer barrels)                                                                 |
 | `Mapper` / `Repository`                 | kits under adapter `mappers/` / `repositories/`                                                                                                        |
 | `UiPackage`                             | `packages/ui-<name>/` (apps-only import rule is ESLint wave 2)                                                                                         |
 | `App` / `CompositionRoot`               | `apps/<app>/` + `composition/*.composition.ts`                                                                                                         |

@@ -1,4 +1,4 @@
-import { defineArchitecture, toKebabCase } from "@xndrjs/struttura";
+import { defineArchitecture, toKebabCase, tsBarrelIndex } from "@xndrjs/struttura";
 
 import { adapterMapperSource } from "./templates/adapter-mapper-source";
 import { adapterPackageJson } from "./templates/adapter-package-json";
@@ -33,7 +33,8 @@ const A = defineArchitecture("CleanArchitectureOrientedMonorepo");
 /** Starter statico: l’ex `rootTsconfig(ctx)` usava InventoryQuery. */
 const workspaceRootTsconfigStarter = `${JSON.stringify({ files: [], references: [] }, null, 2)}\n`;
 
-const emptyBarrel = "export {};\n";
+/** Sync barrel: export-star managed files under the layer DirRef (Desired inventory). */
+const layerBarrel = tsBarrelIndex({ recursive: true });
 
 export const WorkspaceRoot = A.construct("WorkspaceRoot", {}, () =>
   A.in(A.rootDirectory, {
@@ -71,7 +72,7 @@ export const ModelsModule = A.construct("ModelsModule", { core: CorePackage }, (
   A.in(
     core,
     A.dir("models", {
-      index: A.file("index.ts", emptyBarrel),
+      index: A.file("index.ts", layerBarrel, { mode: "sync" }),
     })
   )
 );
@@ -80,7 +81,7 @@ export const OperationsModule = A.construct("OperationsModule", { core: CorePack
   A.in(
     core,
     A.dir("operations", {
-      index: A.file("index.ts", emptyBarrel),
+      index: A.file("index.ts", layerBarrel, { mode: "sync" }),
     })
   )
 );
@@ -89,7 +90,7 @@ export const UseCasesModule = A.construct("UseCasesModule", { core: CorePackage 
   A.in(
     core,
     A.dir("use-cases", {
-      index: A.file("index.ts", emptyBarrel),
+      index: A.file("index.ts", layerBarrel, { mode: "sync" }),
     })
   )
 );
@@ -98,7 +99,7 @@ export const PortsModule = A.construct("PortsModule", { core: CorePackage }, ({ 
   A.in(
     core,
     A.dir("ports", {
-      index: A.file("index.ts", emptyBarrel),
+      index: A.file("index.ts", layerBarrel, { mode: "sync" }),
     })
   )
 );
@@ -107,7 +108,7 @@ export const ErrorsModule = A.construct("ErrorsModule", { core: CorePackage }, (
   A.in(
     core,
     A.dir("errors", {
-      index: A.file("index.ts", emptyBarrel),
+      index: A.file("index.ts", layerBarrel, { mode: "sync" }),
     })
   )
 );
@@ -158,10 +159,10 @@ export const InfrastructurePackage = A.construct("InfrastructurePackage", {}, ({
     A.rootDirectory,
     A.dir(`packages/infrastructure-${toKebabCase(name)}`, {
       loaders: A.dir({
-        index: A.file("index.ts", emptyBarrel),
+        index: A.file("index.ts", layerBarrel, { mode: "sync" }),
       }),
       schemas: A.dir({
-        index: A.file("index.ts", emptyBarrel),
+        index: A.file("index.ts", layerBarrel, { mode: "sync" }),
       }),
       index: A.file("index.ts", 'export * from "./loaders";\nexport * from "./schemas";\n', {
         mode: "sync",
@@ -188,10 +189,10 @@ export const AdapterPackage = A.construct(
       A.rootDirectory,
       A.dir(`packages/adapter-${toKebabCase(name)}`, {
         mappers: A.dir({
-          index: A.file("index.ts", emptyBarrel),
+          index: A.file("index.ts", layerBarrel, { mode: "sync" }),
         }),
         repositories: A.dir({
-          index: A.file("index.ts", emptyBarrel),
+          index: A.file("index.ts", layerBarrel, { mode: "sync" }),
         }),
         packageJson: A.file("package.json", adapterPackageJson({ name, feature: core.name })),
         index: A.file("index.ts", 'export * from "./mappers";\nexport * from "./repositories";\n', {
