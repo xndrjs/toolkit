@@ -139,4 +139,14 @@ describe("construct navigable dependency children", () => {
     expectTypeOf<Workspace["tsconfig"]>().toEqualTypeOf<FileRef>();
     expectTypeOf<Workspace>().toExtend<PlacementDestination>();
   });
+
+  it("rejects A.construct with only two arguments (deps always required)", () => {
+    const A = defineArchitecture("TwoArgConstruct");
+    // Type-only: never invoked — construct requires (name, dependencies, build).
+    const _rejectTwoArgForm = () => {
+      // @ts-expect-error — no 2-arg overload; deps map is always required
+      A.construct("Bad", () => A.in(A.rootDirectory, A.file("x.ts", "")));
+    };
+    expectTypeOf(_rejectTwoArgForm).toBeFunction();
+  });
 });

@@ -8,7 +8,7 @@ import {
 } from "@xndrjs/struttura";
 import { architecture, constructs } from "./architecture";
 
-export const DEFINITION_STAMP = "d1e96247169d2f9ef6987637602443e42d265d1fdd4448fd5a308ea9d50b7e76";
+export const DEFINITION_STAMP = "9bfdbb2ae8fdbb43cf59b884c9192b02fbb11ad307a993e12456f20fafdd8926";
 
 export type AdapterPackageArtifacts = {
   readonly index: FileRef;

@@ -61,10 +61,14 @@ export {
   computeDefinitionStamp,
   constructsFromArchitecture,
   emitPopulateApi,
+  navigableShapeFromKinds,
   probeArtifactKinds,
+  probeNavigableShapes,
   type ArtifactKind,
   type EmitPopulateApiOptions,
   type EmitPopulateApiResult,
+  type NavigableChildShape,
+  type NavigableRootShape,
 } from "./codegen/emit-populate-api";
 
 export { checkDefinitionStamp } from "./codegen/check-stamp";
