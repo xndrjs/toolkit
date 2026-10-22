@@ -1,1 +1,2 @@
-export * from "./mappers/page.mapper";
+export * from "./mappers";
+export * from "./repositories";

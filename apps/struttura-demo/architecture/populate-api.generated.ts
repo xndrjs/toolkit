@@ -8,14 +8,17 @@ import {
 } from "@xndrjs/struttura";
 import { architecture, constructs } from "./architecture";
 
-export const DEFINITION_STAMP = "a30227ff073008558f77273eb92b714531d6f94c0a03152f1ce333f6f83bbb7c";
+export const DEFINITION_STAMP = "d1e96247169d2f9ef6987637602443e42d265d1fdd4448fd5a308ea9d50b7e76";
 
 export type AdapterPackageArtifacts = {
   readonly index: FileRef;
   readonly mappers: DirRef;
+  readonly mappersIndex: FileRef;
   readonly packageDirectory: DirRef;
   readonly packageJson: FileRef;
   readonly readme: FileRef;
+  readonly repositories: DirRef;
+  readonly repositoriesIndex: FileRef;
   readonly tsconfig: FileRef;
 };
 

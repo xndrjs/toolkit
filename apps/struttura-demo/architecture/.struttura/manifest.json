@@ -316,6 +316,20 @@
       }
     },
     {
+      "instanceId": "contentful-pagebuilder",
+      "constructName": "AdapterPackage",
+      "artifactKey": "mappersIndex",
+      "kind": "file",
+      "path": "packages/adapter-contentful-pagebuilder/mappers/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful-pagebuilder",
+        "artifactKey": "mappers"
+      }
+    },
+    {
       "instanceId": "page-mapper",
       "constructName": "Mapper",
       "artifactKey": "source",
@@ -344,6 +358,31 @@
       }
     },
     {
+      "instanceId": "contentful-pagebuilder",
+      "constructName": "AdapterPackage",
+      "artifactKey": "repositories",
+      "kind": "directory",
+      "path": "packages/adapter-contentful-pagebuilder/repositories",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/adapter-contentful-pagebuilder/repositories"
+      }
+    },
+    {
+      "instanceId": "contentful-pagebuilder",
+      "constructName": "AdapterPackage",
+      "artifactKey": "repositoriesIndex",
+      "kind": "file",
+      "path": "packages/adapter-contentful-pagebuilder/repositories/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "contentful-pagebuilder",
+        "artifactKey": "repositories"
+      }
+    },
+    {
       "instanceId": "page-repository",
       "constructName": "Repository",
       "artifactKey": "source",
@@ -352,8 +391,9 @@
       "mode": "scaffold",
       "filename": "page-repository.repository.ts",
       "directory": {
-        "kind": "inline",
-        "path": "packages/adapter-contentful-pagebuilder/repositories"
+        "kind": "artifact",
+        "instanceId": "contentful-pagebuilder",
+        "artifactKey": "repositories"
       }
     },
     {

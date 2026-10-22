@@ -1,13 +1,4 @@
-import {
-  defineArchitecture,
-  dir,
-  file,
-  filesInDirectory,
-  renderTsBarrel,
-  root,
-  toKebabCase,
-  tsBarrelIndex,
-} from "@xndrjs/struttura";
+import { defineArchitecture, dir, file, root, toKebabCase, tsBarrelIndex } from "@xndrjs/struttura";
 
 import { adapterMapperSource } from "./templates/adapter-mapper-source";
 import { adapterPackageJson } from "./templates/adapter-package-json";
@@ -300,22 +291,23 @@ export const AdapterPackage = A.defineConstruct("AdapterPackage", {
   const pkg = toKebabCase(name);
   const packageDirectory = dir(`packages/adapter-${pkg}`);
   const mappers = dir(`${packageDirectory.path}/mappers`);
+  const repositories = dir(`${packageDirectory.path}/repositories`);
   return {
     packageDirectory,
     mappers,
+    repositories,
     packageJson: file({
       filename: "package.json",
       directory: packageDirectory,
       content: adapterPackageJson({ name, feature: core.name }),
     }),
+    mappersIndex: tsBarrelIndex({ directory: mappers, recursive: true }),
+    repositoriesIndex: tsBarrelIndex({ directory: repositories, recursive: true }),
     index: file({
       filename: "index.ts",
       directory: packageDirectory,
       mode: "sync",
-      content: (ctx) =>
-        renderTsBarrel(packageDirectory.path, [
-          ...filesInDirectory(ctx, mappers, { recursive: true }),
-        ]),
+      content: 'export * from "./mappers";\nexport * from "./repositories";\n',
     }),
     readme: file({
       filename: "README.md",
@@ -353,9 +345,8 @@ export const Mapper = A.defineConstruct("Mapper", {
 });
 
 /**
- * Adapter-side repository kit toward one core shape (file under the adapter
- * package; AdapterPackage does not own a repositories layer). Loaders, ports,
- * and vendors are authored — not construct deps.
+ * Adapter-side repository kit toward one core shape (under AdapterPackage
+ * repositories/). Loaders, ports, and vendors are authored — not construct deps.
  */
 export const Repository = A.defineConstruct("Repository", {
   adapter: AdapterPackage,
@@ -363,11 +354,10 @@ export const Repository = A.defineConstruct("Repository", {
   core: CorePackage,
 })(({ name, adapter, shape, core }) => {
   const kebab = toKebabCase(name);
-  const repositories = dir(`${adapter.artifacts.packageDirectory.path}/repositories`);
   return {
     source: file({
       filename: `${kebab}.repository.ts`,
-      directory: repositories,
+      directory: adapter.artifacts.repositories,
       content: adapterRepositorySource({
         name,
         shape: shape.name,
