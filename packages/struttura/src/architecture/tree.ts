@@ -145,7 +145,8 @@ export function readDestination(instance: object): DirRef | undefined {
 
 /**
  * Flatten an `A.in` placement into the legacy flat descriptor map.
- * Ticket 01 supports directory roots under a Destination; peer/file roots error.
+ * Directory root → artifact `"."`; Peer root → sibling keys only (no owned root dir);
+ * file root deferred (cross-instance ticket).
  */
 export function flattenPlacement(
   placement: InPlacement,
@@ -158,14 +159,14 @@ export function flattenPlacement(
       `Construct "${options.constructName ?? "?"}" file-root placement is not supported in this step`
     );
   }
+
   if (isPeerRootMap(placementRoot)) {
-    throw new InvalidPlacementRootError(
-      `Construct "${options.constructName ?? "?"}" peer-root placement is not supported in this step`
-    );
+    return flattenPeerRoot(destination, placementRoot, options.constructName);
   }
+
   if (!isTreeDirNode(placementRoot)) {
     throw new InvalidPlacementRootError(
-      `Construct "${options.constructName ?? "?"}" A.in root must be A.dir(...)`
+      `Construct "${options.constructName ?? "?"}" A.in root must be A.dir(...) or a peer-root map`
     );
   }
 
@@ -176,6 +177,42 @@ export function flattenPlacement(
 
   const out: Record<string, ArtifactDescriptor> = {};
   emitDir(out, ".", basePath, placementRoot.children, options.constructName);
+  return out;
+}
+
+function flattenPeerRoot(
+  destination: DirRef,
+  peers: PeerRootMap,
+  constructName: string | undefined
+): Record<string, ArtifactDescriptor> {
+  const out: Record<string, ArtifactDescriptor> = {};
+  const basePath = destination.kind === "root" ? "" : destination.path;
+
+  for (const [childKey, child] of Object.entries(peers)) {
+    assertAuthoringKey(childKey, constructName);
+
+    if (isTreeFileNode(child)) {
+      out[childKey] = file({
+        filename: child.filename,
+        directory: destination,
+        mode: child.mode,
+        ...(child.content === undefined ? {} : { content: child.content }),
+      });
+      continue;
+    }
+
+    if (isTreeDirNode(child)) {
+      const childPath =
+        child.path === "" ? joinPath(basePath, childKey) : joinPath(basePath, child.path);
+      emitDir(out, childKey, childPath, child.children, constructName);
+      continue;
+    }
+
+    throw new InvalidPlacementRootError(
+      `Construct "${constructName ?? "?"}" has invalid peer-root sibling "${childKey}"`
+    );
+  }
+
   return out;
 }
 
@@ -232,6 +269,7 @@ function assertAuthoringKey(key: string, constructName: string | undefined): voi
 
 /**
  * Project bound flat artifact refs onto a navigable instance (root DirRef + nested children).
+ * Peer root (no `"."` artifact) forwards Destination as the instance DirRef shape.
  * Leaves `artifacts` non-enumerable for engine use; Destination stays on {@link DESTINATION}.
  */
 export function sealNavigableInstance(
@@ -256,6 +294,14 @@ export function sealNavigableInstance(
       }
     }
     instance.path = rootRef.path;
+  } else {
+    // Peer root: no owned directory Artifact — forward Destination DirRef.
+    for (const [key, value] of Object.entries(destination)) {
+      if (key === "path" || !(key in instance)) {
+        instance[key] = value;
+      }
+    }
+    instance.path = destination.path;
   }
 
   const nestedKeys = Object.keys(artifacts)
