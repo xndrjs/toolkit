@@ -33,7 +33,8 @@ src/                     # materialization root = simulated monorepo
 
 ```bash
 pnpm --filter @xndrjs/struttura-demo codegen      # emit typed populate API
-pnpm --filter @xndrjs/struttura-demo apply        # reconcile src
+pnpm --filter @xndrjs/struttura-demo apply        # create/move/sync (no prune by default)
+pnpm --filter @xndrjs/struttura-demo prune        # delete zombie managed artifacts
 pnpm --filter @xndrjs/struttura-demo inspect      # plan without write
 pnpm --filter @xndrjs/struttura-demo materialize  # codegen + apply
 pnpm --filter @xndrjs/struttura-demo test

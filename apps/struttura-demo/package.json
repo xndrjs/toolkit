@@ -7,6 +7,7 @@
     "codegen": "struttura codegen --structure ./structure/structure.ts --out ./structure/populate-api.generated.ts",
     "apply": "struttura apply --population ./structure/population.ts --structure-dir ./structure --materialization-root ./src",
     "inspect": "struttura inspect --population ./structure/population.ts --structure-dir ./structure --materialization-root ./src",
+    "prune": "struttura prune --population ./structure/population.ts --structure-dir ./structure --materialization-root ./src",
     "materialize": "pnpm run codegen && pnpm run apply",
     "lint:project": "pnpm --filter struttura-demo-project lint",
     "test": "vitest run",

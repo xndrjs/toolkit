@@ -10,7 +10,7 @@ const packageRoot = join(fileURLToPath(new URL("../..", import.meta.url)));
 const strutturaEntry = join(packageRoot, "src/index.ts");
 
 describe("CLI args", () => {
-  it("parses the four wave-1 commands", () => {
+  it("parses the wave-1 commands", () => {
     expect(parseCliArgs(["codegen", "--structure", "./a.ts", "--out", "./out.ts"])).toEqual({
       command: "codegen",
       structure: "./a.ts",
@@ -37,8 +37,26 @@ describe("CLI args", () => {
       population: "./p.ts",
       structureDir: "./structure",
       materializationRoot: "./project",
+      prune: false,
+      sync: true,
+      zombieWarn: true,
       help: false,
     });
+
+    expect(
+      parseCliArgs([
+        "apply",
+        "--population",
+        "./p.ts",
+        "--structure-dir",
+        "./structure",
+        "--materialization-root",
+        "./project",
+        "--prune",
+        "--no-sync",
+        "--no-zombie-warn",
+      ])
+    ).toMatchObject({ prune: true, sync: false, zombieWarn: false });
 
     expect(
       parseCliArgs([
@@ -51,7 +69,25 @@ describe("CLI args", () => {
         "./project",
         "--json",
       ])
-    ).toMatchObject({ command: "inspect", json: true });
+    ).toMatchObject({ command: "inspect", json: true, prune: false, sync: true });
+
+    expect(
+      parseCliArgs([
+        "prune",
+        "--population",
+        "./p.ts",
+        "--structure-dir",
+        "./structure",
+        "--materialization-root",
+        "./project",
+      ])
+    ).toEqual({
+      command: "prune",
+      population: "./p.ts",
+      structureDir: "./structure",
+      materializationRoot: "./project",
+      help: false,
+    });
 
     expect(
       parseCliArgs([

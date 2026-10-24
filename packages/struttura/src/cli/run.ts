@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
 import { apply } from "../apply/apply";
+import { prune } from "../apply/prune";
 import { emitPopulateApi } from "../codegen/emit-populate-api";
 import { inspect } from "../inspect/inspect";
 import { parseCliArgs, printCliHelp, type CliOptions } from "./args";
@@ -35,6 +36,8 @@ export async function runCli(argv: string[]): Promise<number> {
         return await runApply(options);
       case "inspect":
         return await runInspect(options);
+      case "prune":
+        return await runPrune(options);
       case "migrate-id":
         return runMigrateId(options);
     }
@@ -70,6 +73,8 @@ async function runApply(options: Extract<CliOptions, { command: "apply" }>): Pro
   const result = apply(population, {
     structureDir: options.structureDir,
     materializationRoot: options.materializationRoot,
+    prune: options.prune,
+    sync: options.sync,
   });
   if (!result.ok) {
     printDiagnostics(result.diagnostics);
@@ -80,6 +85,11 @@ async function runApply(options: Extract<CliOptions, { command: "apply" }>): Pro
       ? `struttura apply: applied ${String(result.plan.length)} op(s); manifest updated.`
       : "struttura apply: no changes (inputs and disk already match)."
   );
+  if (options.zombieWarn && result.zombies.length > 0) {
+    console.warn(
+      `struttura apply: warning: ${String(result.zombies.length)} zombie artifact(s) retained (run \`struttura prune\` to remove). Use --no-zombie-warn to hide.`
+    );
+  }
   return 0;
 }
 
@@ -89,6 +99,8 @@ async function runInspect(options: Extract<CliOptions, { command: "inspect" }>):
     structureDir: options.structureDir,
     materializationRoot: options.materializationRoot,
     repositoryRoot: options.repositoryRoot,
+    prune: options.prune,
+    sync: options.sync,
   });
   if (!result.ok) {
     printDiagnostics(result.diagnostics);
@@ -102,20 +114,46 @@ async function runInspect(options: Extract<CliOptions, { command: "inspect" }>):
 
   const { report } = result;
   console.log(`repository:      ${report.roots.repository}`);
-  console.log(`structure:    ${report.roots.structure}`);
+  console.log(`structure:       ${report.roots.structure}`);
   console.log(`materialization: ${report.roots.materialization}`);
   console.log(`instances:       ${String(report.instances.length)}`);
   console.log(`artifacts:       ${String(report.artifacts.length)}`);
+  console.log(`zombies:         ${String(report.zombies.length)}`);
   console.log(`plan ops:        ${String(report.plan.length)}`);
+  console.log(`prune ops:       ${String(report.prunePlan.length)}`);
   console.log(
     `would mutate:    disk=${String(report.wouldMutateDisk)} manifest=${String(report.wouldUpdateManifest)}`
   );
+  if (report.zombies.length > 0) {
+    console.log("zombies:");
+    for (const zombie of report.zombies) {
+      console.log(`  ${zombie.path} (${zombie.instanceId}::${zombie.artifactKey})`);
+    }
+  }
   if (report.plan.length > 0) {
     console.log("plan:");
     for (const op of report.plan) {
       console.log(`  ${formatPlanOp(op)}`);
     }
   }
+  return 0;
+}
+
+async function runPrune(options: Extract<CliOptions, { command: "prune" }>): Promise<number> {
+  const population = await loadPopulation(options.population);
+  const result = prune(population, {
+    structureDir: options.structureDir,
+    materializationRoot: options.materializationRoot,
+  });
+  if (!result.ok) {
+    printDiagnostics(result.diagnostics);
+    return 1;
+  }
+  console.log(
+    result.mutated
+      ? `struttura prune: removed ${String(result.plan.length)} artifact(s); manifest updated.`
+      : "struttura prune: no zombies to remove."
+  );
   return 0;
 }
 

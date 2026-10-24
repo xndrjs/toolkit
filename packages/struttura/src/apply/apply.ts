@@ -10,10 +10,13 @@ import {
 import { checkDefinitionStamp } from "../codegen/check-stamp";
 import {
   buildManifest,
+  computeZombies,
   manifestsEqual,
   readManifest,
   writeManifest,
+  zombiesAfterDeletes,
   type Manifest,
+  type ManifestArtifact,
 } from "./manifest";
 import { MOVE_TEMP_ROOT, planApply, type PlanOp } from "./plan";
 import { renderFileContents } from "./render-contents";
@@ -26,6 +29,16 @@ export type ApplyOptions = {
    * `{structureDir}/.struttura/manifest.json` (ADR 0005).
    */
   readonly structureDir: string;
+  /**
+   * Delete managed artifacts absent from Desired inventory (ADR 0015).
+   * Default false — orphans are retained as zombies on the manifest.
+   */
+  readonly prune?: boolean;
+  /**
+   * Rewrite Sync-mode file contents when they drift (ADR 0015).
+   * Default true. Missing Sync files are still created when false.
+   */
+  readonly sync?: boolean;
 };
 
 export type ApplySuccess = {
@@ -35,6 +48,8 @@ export type ApplySuccess = {
   readonly plan: readonly PlanOp[];
   /** False when re-apply matched and nothing was written (disk or manifest). */
   readonly mutated: boolean;
+  /** Zombies retained on the written manifest (empty when prune ran). */
+  readonly zombies: readonly ManifestArtifact[];
 };
 
 export type ApplyFailure = {
@@ -46,11 +61,13 @@ export type ApplyResult = ApplySuccess | ApplyFailure;
 
 /**
  * Reconcile the materialization root against the population and record the last
- * successful apply in the structure support directory.
+ * successful apply in the structure support directory (ADR 0015).
  */
 export function apply(population: Population, options: ApplyOptions): ApplyResult {
   const materializationRoot = resolve(options.materializationRoot);
   const structureDir = resolve(options.structureDir);
+  const prune = options.prune ?? false;
+  const sync = options.sync ?? true;
 
   const stale = checkDefinitionStamp(population);
   if (stale) {
@@ -69,6 +86,8 @@ export function apply(population: Population, options: ApplyOptions): ApplyResul
     contents,
     lastManifest,
     materializationRoot,
+    prune,
+    sync,
   });
   if (!planned.ok) {
     return { ok: false, diagnostics: planned.diagnostics };
@@ -82,7 +101,14 @@ export function apply(population: Population, options: ApplyOptions): ApplyResul
 
   cleanupMoveTempRoot(materializationRoot);
 
-  const nextManifest = buildManifest(derived.inventory, structureDir, materializationRoot);
+  const executedDeletes = planned.ops.filter((op) => op.type === "delete");
+  const zombies = prune
+    ? []
+    : zombiesAfterDeletes(computeZombies(derived.inventory, lastManifest), executedDeletes);
+
+  const nextManifest = buildManifest(derived.inventory, structureDir, materializationRoot, {
+    zombies,
+  });
   const manifestUnchanged =
     lastManifest !== undefined && manifestsEqual(lastManifest, nextManifest);
   if (!manifestUnchanged) {
@@ -95,10 +121,11 @@ export function apply(population: Population, options: ApplyOptions): ApplyResul
     manifest: nextManifest,
     plan: planned.ops,
     mutated: planned.ops.length > 0 || !manifestUnchanged,
+    zombies: nextManifest.zombies,
   };
 }
 
-function executeOp(op: PlanOp, materializationRoot: string): void {
+export function executeOp(op: PlanOp, materializationRoot: string): void {
   if (op.type === "move") {
     const fromAbs = join(materializationRoot, op.from);
     const toAbs = join(materializationRoot, op.to);
@@ -122,7 +149,7 @@ function executeOp(op: PlanOp, materializationRoot: string): void {
 }
 
 /** Remove empty staging directory left by crossed-path moves. */
-function cleanupMoveTempRoot(materializationRoot: string): void {
+export function cleanupMoveTempRoot(materializationRoot: string): void {
   const tempRoot = join(materializationRoot, MOVE_TEMP_ROOT);
   if (!existsSync(tempRoot)) {
     return;

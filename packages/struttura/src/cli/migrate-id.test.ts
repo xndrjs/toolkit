@@ -105,6 +105,7 @@ describe("migrate-id", () => {
             directory: { kind: "artifact", instanceId: "old-core", artifactKey: "models" },
           },
         ],
+        zombies: [],
       },
       "old-core",
       "pagebuilder"

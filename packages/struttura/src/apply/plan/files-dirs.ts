@@ -47,8 +47,10 @@ export function planFile(
   coveredIdentities: ReadonlySet<string>,
   moves: readonly PlannedMove[],
   ops: PlanOp[],
-  diagnostics: Diagnostic[]
+  diagnostics: Diagnostic[],
+  options: { readonly sync?: boolean } = {}
 ): void {
+  const syncEnabled = options.sync ?? true;
   const identity = artifactIdentity(artifact);
   const content = input.contents.get(identity) ?? "";
   const mode = artifact.mode ?? "scaffold";
@@ -61,7 +63,7 @@ export function planFile(
 
   if (movedIdentities.has(identity) || coveredIdentities.has(identity)) {
     // After the move, scaffold keeps authored bytes; sync may still need a rewrite.
-    if (mode === "scaffold") {
+    if (mode === "scaffold" || !syncEnabled) {
       return;
     }
     const sourcePath =
@@ -120,8 +122,9 @@ export function planFile(
     return;
   }
 
-  if (mode === "scaffold") {
+  if (mode === "scaffold" || !syncEnabled) {
     // Preserve authored content while the artifact remains declared.
+    // --no-sync also skips Sync rewrites for existing files (ADR 0015).
     return;
   }
 

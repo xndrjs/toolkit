@@ -40,6 +40,10 @@ export function indexManifestArtifacts(
   if (!manifest) {
     return map;
   }
+  // Desired first, then zombies (zombies fill gaps; desired wins on collision).
+  for (const artifact of manifest.zombies) {
+    map.set(artifactIdentity(artifact), artifact);
+  }
   for (const artifact of manifest.artifacts) {
     map.set(artifactIdentity(artifact), artifact);
   }

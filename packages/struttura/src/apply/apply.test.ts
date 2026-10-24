@@ -21,6 +21,7 @@ import { buildGuidePopulation } from "../test-fixtures/guide-structure";
 import { apply } from "./apply";
 import { MANIFEST_RELATIVE_PATH, readManifest } from "./manifest";
 import { moveTempPath } from "./plan";
+import { prune } from "./prune";
 
 function pathsOf(inventory: { artifacts: readonly { path: string }[] }): string[] {
   return inventory.artifacts.map((a) => a.path).sort();
@@ -404,7 +405,7 @@ describe("deletes and foreign files (analysis §14)", () => {
     const withoutModel = createPopulation(A);
     withoutModel.add(corePackage, { name: "pagebuilder" });
 
-    const second = apply(withoutModel, options);
+    const second = apply(withoutModel, { ...options, prune: true });
     expect(second.ok).toBe(true);
     if (!second.ok) {
       return;
@@ -454,7 +455,7 @@ describe("deletes and foreign files (analysis §14)", () => {
     writeFileSync(helpersPath, "export const helpers = true;\n");
 
     const empty = createPopulation(A);
-    const second = apply(empty, options);
+    const second = apply(empty, { ...options, prune: true });
     expect(second.ok).toBe(true);
     if (!second.ok) {
       return;
@@ -515,7 +516,7 @@ describe("deletes and foreign files (analysis §14)", () => {
     const dirOnly = createPopulation(dirOnlyStruct);
     dirOnly.add(dirOnlyConstruct, { name: "things" });
 
-    const second = apply(dirOnly, options);
+    const second = apply(dirOnly, { ...options, prune: true });
     expect(second.ok).toBe(true);
     if (!second.ok) {
       return;
@@ -841,5 +842,107 @@ describe("rename/move and interrupt recovery (analysis §13, §15)", () => {
       "export const beta = 'B';\n"
     );
     expect(existsSync(join(materializationRoot, ".struttura-tmp"))).toBe(false);
+  });
+});
+
+describe("zombies, prune, and --no-sync (ADR 0015)", () => {
+  let tempDir: string | undefined;
+
+  afterEach(() => {
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+      tempDir = undefined;
+    }
+  });
+
+  it("retains removed file artifacts as zombies without deleting them", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-zombies-"));
+    const structureDir = join(tempDir, "structure");
+    const materializationRoot = join(tempDir, "project");
+    const options = { structureDir, materializationRoot };
+    const { A, corePackage, model } = buildDeletesStructure();
+
+    const withModel = createPopulation(A);
+    const pagebuilder = withModel.add(corePackage, { name: "pagebuilder" });
+    withModel.add(model, { name: "page", core: pagebuilder });
+    expect(apply(withModel, options).ok).toBe(true);
+
+    const withoutModel = createPopulation(A);
+    withoutModel.add(corePackage, { name: "pagebuilder" });
+    const second = apply(withoutModel, options);
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+
+    expect(second.plan.some((op) => op.type === "delete")).toBe(false);
+    expect(
+      existsSync(join(materializationRoot, "packages/core-pagebuilder/models/page.model.ts"))
+    ).toBe(true);
+    expect(second.zombies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          instanceId: "page",
+          artifactKey: ".",
+          path: "packages/core-pagebuilder/models/page.model.ts",
+        }),
+      ])
+    );
+    expect(readManifest(structureDir)?.zombies).toHaveLength(second.zombies.length);
+  });
+
+  it("prune deletes zombies and clears them from the manifest", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-prune-"));
+    const structureDir = join(tempDir, "structure");
+    const materializationRoot = join(tempDir, "project");
+    const options = { structureDir, materializationRoot };
+    const { A, corePackage, model } = buildDeletesStructure();
+
+    const withModel = createPopulation(A);
+    const pagebuilder = withModel.add(corePackage, { name: "pagebuilder" });
+    withModel.add(model, { name: "page", core: pagebuilder });
+    expect(apply(withModel, options).ok).toBe(true);
+
+    const withoutModel = createPopulation(A);
+    withoutModel.add(corePackage, { name: "pagebuilder" });
+    expect(apply(withoutModel, options).ok).toBe(true);
+    expect(
+      existsSync(join(materializationRoot, "packages/core-pagebuilder/models/page.model.ts"))
+    ).toBe(true);
+
+    const pruned = prune(withoutModel, options);
+    expect(pruned.ok).toBe(true);
+    if (!pruned.ok) {
+      return;
+    }
+    expect(pruned.plan.some((op) => op.type === "delete")).toBe(true);
+    expect(
+      existsSync(join(materializationRoot, "packages/core-pagebuilder/models/page.model.ts"))
+    ).toBe(false);
+    expect(pruned.zombies).toEqual([]);
+    expect(readManifest(structureDir)?.zombies).toEqual([]);
+  });
+
+  it("skips Sync content rewrites when sync is false", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "struttura-nosync-"));
+    const structureDir = join(tempDir, "structure");
+    const materializationRoot = join(tempDir, "project");
+    const options = { structureDir, materializationRoot };
+    const path = join(materializationRoot, "thing.ts");
+
+    const first = apply(buildSingleFilePopulation("sync", "export const a = 1;\n"), options);
+    expect(first.ok).toBe(true);
+    writeFileSync(path, "export const authored = true;\n");
+
+    const second = apply(buildSingleFilePopulation("sync", "export const a = 2;\n"), {
+      ...options,
+      sync: false,
+    });
+    expect(second.ok).toBe(true);
+    if (!second.ok) {
+      return;
+    }
+    expect(second.plan.some((op) => op.type === "write")).toBe(false);
+    expect(readFileSync(path, "utf8")).toBe("export const authored = true;\n");
   });
 });

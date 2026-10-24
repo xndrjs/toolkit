@@ -56,6 +56,14 @@ _Avoid_: Seed, once, initial-only
 File management mode that regenerates derived content on each successful apply while the artifact remains declared.
 _Avoid_: Generated, managed (alone), derived (as the mode name)
 
+**Zombie**:
+A previously managed Artifact still recorded on the success manifest but absent from the current Desired inventory; retained until an explicit prune removes it from disk and from the manifest.
+_Avoid_: Orphan (alone), foreign file, unmanaged
+
+**Prune**:
+Delete Zombie artifacts from the materialization root and clear them from the success manifest; opt-in via `prune` or `apply --prune`, not the default apply.
+_Avoid_: Clean, gc, destroy (as the command name)
+
 **DirRef**:
 A typed reference to a directory artifact (or to the materialization root), usable as an `A.in` destination or as nesting parent.
 _Avoid_: Path string, folder handle

@@ -9,8 +9,17 @@ import {
   type Diagnostic,
 } from "../inventory/derive-desired-inventory";
 import { checkDefinitionStamp } from "../codegen/check-stamp";
-import { buildManifest, manifestsEqual, readManifest, type Manifest } from "../apply/manifest";
+import {
+  buildManifest,
+  computeZombies,
+  manifestsEqual,
+  readManifest,
+  zombiesAfterDeletes,
+  type Manifest,
+  type ManifestArtifact,
+} from "../apply/manifest";
 import { planApply, type PlanOp } from "../apply/plan";
+import { planDeletions } from "../apply/plan/deletions";
 import { renderFileContents } from "../apply/render-contents";
 
 export type InspectOptions = {
@@ -26,6 +35,10 @@ export type InspectOptions = {
    * Defaults to the parent of `structureDir` (conventional layout).
    */
   readonly repositoryRoot?: string;
+  /** Plan as if `apply --prune` (default false). */
+  readonly prune?: boolean;
+  /** Plan as if `apply --no-sync` when false (default true). */
+  readonly sync?: boolean;
 };
 
 export type InspectArtifactView = {
@@ -63,6 +76,10 @@ export type InspectReport = {
   readonly scaffold: readonly InspectArtifactView[];
   readonly sync: readonly InspectArtifactView[];
   readonly plan: readonly PlanOp[];
+  /** Managed artifacts that would remain as zombies after default apply. */
+  readonly zombies: readonly ManifestArtifact[];
+  /** Delete ops `prune` would execute (may overlap landing deletes in `plan`). */
+  readonly prunePlan: readonly PlanOp[];
   readonly lastManifest: Manifest | undefined;
   /** True when apply would write files or directories under the materialization root. */
   readonly wouldMutateDisk: boolean;
@@ -83,13 +100,15 @@ export type InspectFailure = {
 export type InspectResult = InspectSuccess | InspectFailure;
 
 /**
- * Read-only report of population vs disk/manifest (analysis §16).
+ * Read-only report of population vs disk/manifest (analysis §16 / ADR 0015).
  * Never mutates the materialization root or the success manifest.
  */
 export function inspect(population: Population, options: InspectOptions): InspectResult {
   const materializationRoot = resolve(options.materializationRoot);
   const structureDir = resolve(options.structureDir);
   const repositoryRoot = resolve(options.repositoryRoot ?? resolve(structureDir, ".."));
+  const prune = options.prune ?? false;
+  const sync = options.sync ?? true;
 
   const stale = checkDefinitionStamp(population);
   if (stale) {
@@ -108,18 +127,30 @@ export function inspect(population: Population, options: InspectOptions): Inspec
     contents,
     lastManifest,
     materializationRoot,
+    prune,
+    sync,
   });
   if (!planned.ok) {
     return { ok: false, diagnostics: planned.diagnostics };
   }
 
-  const nextManifest = buildManifest(derived.inventory, structureDir, materializationRoot);
+  const prunePlan: PlanOp[] = [];
+  planDeletions(derived.inventory, lastManifest, materializationRoot, prunePlan);
+
+  const executedDeletes = planned.ops.filter((op) => op.type === "delete");
+  const zombies = prune
+    ? []
+    : zombiesAfterDeletes(computeZombies(derived.inventory, lastManifest), executedDeletes);
+
+  const nextManifest = buildManifest(derived.inventory, structureDir, materializationRoot, {
+    zombies,
+  });
   const wouldUpdateManifest =
     lastManifest === undefined || !manifestsEqual(lastManifest, nextManifest);
 
   const artifacts = viewArtifacts(derived.inventory);
   const scaffold = artifacts.filter((a) => a.kind === "file" && a.mode === "scaffold");
-  const sync = artifacts.filter((a) => a.kind === "file" && a.mode === "sync");
+  const syncFiles = artifacts.filter((a) => a.kind === "file" && a.mode === "sync");
 
   return {
     ok: true,
@@ -137,8 +168,10 @@ export function inspect(population: Population, options: InspectOptions): Inspec
         .sort(comparePath),
       artifacts,
       scaffold,
-      sync,
+      sync: syncFiles,
       plan: planned.ops,
+      zombies,
+      prunePlan,
       lastManifest,
       wouldMutateDisk: planned.ops.length > 0,
       wouldUpdateManifest,

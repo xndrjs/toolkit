@@ -115,6 +115,7 @@ export function rewriteManifestIds(manifest: Manifest, from: string, to: string)
     ...manifest,
     instances: manifest.instances.map((instance) => rewriteInstance(instance, from, to)),
     artifacts: manifest.artifacts.map((artifact) => rewriteArtifact(artifact, from, to)),
+    zombies: (manifest.zombies ?? []).map((artifact) => rewriteArtifact(artifact, from, to)),
   };
 }
 

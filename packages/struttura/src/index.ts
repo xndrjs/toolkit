@@ -86,11 +86,22 @@ export {
 } from "./apply/apply";
 
 export {
+  prune,
+  type PruneFailure,
+  type PruneOptions,
+  type PruneResult,
+  type PruneSuccess,
+} from "./apply/prune";
+
+export {
   MANIFEST_RELATIVE_PATH,
   MANIFEST_VERSION,
+  artifactIdentity,
   buildManifest,
+  computeZombies,
   manifestPath,
   readManifest,
+  trackedManifestArtifacts,
   writeManifest,
   type Manifest,
   type ManifestArtifact,
@@ -101,6 +112,7 @@ export {
   MOVE_TEMP_ROOT,
   moveTempPath,
   planApply,
+  type PlanApplyOptions,
   type PlanOp,
   type PlanResult,
 } from "./apply/plan";

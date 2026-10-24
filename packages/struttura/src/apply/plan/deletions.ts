@@ -2,14 +2,14 @@ import { existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 
 import type { DesiredArtifact, DesiredInventory } from "../../inventory/derive-desired-inventory";
-import { artifactIdentity, type Manifest } from "../manifest";
+import { artifactIdentity, trackedManifestArtifacts, type Manifest } from "../manifest";
 import { comparePath, isPathUnder, pathDepth } from "./path-utils";
 import type { PlanOp } from "./types";
 
 /**
- * Drop only previously managed artifacts that are absent from the desired inventory.
+ * Drop previously managed artifacts (desired + zombies) absent from Desired inventory.
  * Directory artifacts recurse (including foreign files); file artifacts do not own
- * their parent directory lifecycle (analysis §14, ADR 0007).
+ * their parent directory lifecycle (analysis §14, ADR 0007 / 0015).
  */
 export function planDeletions(
   inventory: DesiredInventory,
@@ -22,7 +22,9 @@ export function planDeletions(
   }
 
   const desiredIds = new Set(inventory.artifacts.map((a) => artifactIdentity(a)));
-  const removed = lastManifest.artifacts.filter((a) => !desiredIds.has(artifactIdentity(a)));
+  const removed = trackedManifestArtifacts(lastManifest).filter(
+    (a) => !desiredIds.has(artifactIdentity(a))
+  );
   if (removed.length === 0) {
     return;
   }

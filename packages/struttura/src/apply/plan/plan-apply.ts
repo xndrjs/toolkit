@@ -6,12 +6,26 @@ import { coveredByDirectoryMoves, orderMoves, selectMoves } from "./moves";
 import { comparePath, indexManifestArtifacts, pathDepth } from "./path-utils";
 import type { PlanOp, PlanResult } from "./types";
 
-export function planApply(input: {
-  inventory: DesiredInventory;
-  contents: ReadonlyMap<string, string>;
-  lastManifest: Manifest | undefined;
-  materializationRoot: string;
-}): PlanResult {
+export type PlanApplyOptions = {
+  readonly inventory: DesiredInventory;
+  readonly contents: ReadonlyMap<string, string>;
+  readonly lastManifest: Manifest | undefined;
+  readonly materializationRoot: string;
+  /**
+   * When true, delete managed artifacts absent from Desired (ADR 0015).
+   * Default false — orphans become zombies on the manifest instead.
+   */
+  readonly prune?: boolean;
+  /**
+   * When false, skip Sync content rewrites for existing files (still create missing).
+   * Default true.
+   */
+  readonly sync?: boolean;
+};
+
+export function planApply(input: PlanApplyOptions): PlanResult {
+  const prune = input.prune ?? false;
+  const sync = input.sync ?? true;
   const diagnostics: Diagnostic[] = [];
   const ops: PlanOp[] = [];
   const previousById = indexManifestArtifacts(input.lastManifest);
@@ -29,6 +43,7 @@ export function planApply(input: {
   planDeletions(input.inventory, input.lastManifest, input.materializationRoot, deleteOps);
 
   // Clear landing zones before moves, then move, then remaining deletes (analysis §15).
+  // Landing deletes always run (move hygiene). Other deletes run only when prune is on.
   const landingDeletes: PlanOp[] = [];
   const otherDeletes: PlanOp[] = [];
   for (const op of deleteOps) {
@@ -54,7 +69,9 @@ export function planApply(input: {
     return { ok: false, diagnostics };
   }
   ops.push(...orderedMoves);
-  ops.push(...otherDeletes);
+  if (prune) {
+    ops.push(...otherDeletes);
+  }
 
   const directories = input.inventory.artifacts
     .filter((a) => a.kind === "directory")
@@ -83,7 +100,8 @@ export function planApply(input: {
       coveredIdentities,
       moves,
       ops,
-      diagnostics
+      diagnostics,
+      { sync }
     );
   }
 

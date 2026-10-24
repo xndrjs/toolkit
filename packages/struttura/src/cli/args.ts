@@ -17,6 +17,9 @@ export type ApplyCliOptions = {
   readonly population: string;
   readonly structureDir: string;
   readonly materializationRoot: string;
+  readonly prune: boolean;
+  readonly sync: boolean;
+  readonly zombieWarn: boolean;
   readonly help: boolean;
 };
 
@@ -26,7 +29,17 @@ export type InspectCliOptions = {
   readonly structureDir: string;
   readonly materializationRoot: string;
   readonly repositoryRoot?: string;
+  readonly prune: boolean;
+  readonly sync: boolean;
   readonly json: boolean;
+  readonly help: boolean;
+};
+
+export type PruneCliOptions = {
+  readonly command: "prune";
+  readonly population: string;
+  readonly structureDir: string;
+  readonly materializationRoot: string;
   readonly help: boolean;
 };
 
@@ -47,10 +60,11 @@ export type CliOptions =
   | CodegenCliOptions
   | ApplyCliOptions
   | InspectCliOptions
+  | PruneCliOptions
   | MigrateIdCliOptions
   | HelpCliOptions;
 
-const COMMANDS = new Set(["codegen", "apply", "inspect", "migrate-id", "help"]);
+const COMMANDS = new Set(["codegen", "apply", "inspect", "prune", "migrate-id", "help"]);
 
 export function parseCliArgs(argv: string[]): CliOptions {
   const [command, ...rest] = argv;
@@ -59,7 +73,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
   }
   if (!COMMANDS.has(command)) {
     throw new Error(
-      `Unknown command "${command}". Expected codegen | apply | inspect | migrate-id.`
+      `Unknown command "${command}". Expected codegen | apply | inspect | prune | migrate-id.`
     );
   }
 
@@ -105,9 +119,13 @@ export function parseCliArgs(argv: string[]): CliOptions {
         population: { type: "string" },
         "structure-dir": { type: "string" },
         "materialization-root": { type: "string" },
+        prune: { type: "boolean", default: false },
+        sync: { type: "boolean", default: true },
+        "zombie-warn": { type: "boolean", default: true },
         help: { type: "boolean", short: "h", default: false },
       },
       allowPositionals: false,
+      allowNegative: true,
     });
     if (values.help) {
       return { command: "help", help: true };
@@ -118,6 +136,9 @@ export function parseCliArgs(argv: string[]): CliOptions {
       population: values.population!,
       structureDir: values["structure-dir"]!,
       materializationRoot: values["materialization-root"]!,
+      prune: values.prune ?? false,
+      sync: values.sync ?? true,
+      zombieWarn: values["zombie-warn"] ?? true,
       help: false,
     };
   }
@@ -130,10 +151,13 @@ export function parseCliArgs(argv: string[]): CliOptions {
         "structure-dir": { type: "string" },
         "materialization-root": { type: "string" },
         "repository-root": { type: "string" },
+        prune: { type: "boolean", default: false },
+        sync: { type: "boolean", default: true },
         json: { type: "boolean", default: false },
         help: { type: "boolean", short: "h", default: false },
       },
       allowPositionals: false,
+      allowNegative: true,
     });
     if (values.help) {
       return { command: "help", help: true };
@@ -145,7 +169,33 @@ export function parseCliArgs(argv: string[]): CliOptions {
       structureDir: values["structure-dir"]!,
       materializationRoot: values["materialization-root"]!,
       repositoryRoot: values["repository-root"],
+      prune: values.prune ?? false,
+      sync: values.sync ?? true,
       json: values.json ?? false,
+      help: false,
+    };
+  }
+
+  if (command === "prune") {
+    const { values } = parseArgs({
+      args: rest,
+      options: {
+        population: { type: "string" },
+        "structure-dir": { type: "string" },
+        "materialization-root": { type: "string" },
+        help: { type: "boolean", short: "h", default: false },
+      },
+      allowPositionals: false,
+    });
+    if (values.help) {
+      return { command: "help", help: true };
+    }
+    requirePopulationPaths(values, "prune");
+    return {
+      command: "prune",
+      population: values.population!,
+      structureDir: values["structure-dir"]!,
+      materializationRoot: values["materialization-root"]!,
       help: false,
     };
   }
@@ -187,7 +237,7 @@ function requirePopulationPaths(
     "structure-dir"?: string;
     "materialization-root"?: string;
   },
-  command: "apply" | "inspect"
+  command: "apply" | "inspect" | "prune"
 ): void {
   if (!values.population) {
     throw new Error(`${command} requires --population <module>`);
@@ -206,33 +256,40 @@ export function printCliHelp(): void {
 Usage:
   struttura codegen --structure <module.ts> --out <populate-api.ts>
   struttura apply --population <module.ts> --structure-dir <dir> --materialization-root <dir>
-  struttura inspect --population <module.ts> --structure-dir <dir> --materialization-root <dir> [--json]
+      [--prune] [--no-sync] [--no-zombie-warn]
+  struttura inspect --population <module.ts> --structure-dir <dir> --materialization-root <dir>
+      [--prune] [--no-sync] [--json]
+  struttura prune --population <module.ts> --structure-dir <dir> --materialization-root <dir>
   struttura migrate-id --structure-dir <dir> --from <oldId> --to <newId>
 
 Commands:
   codegen       Emit the typed populate API (never runs as a side effect of apply)
-  apply         Reconcile the materialization root and write the success manifest
-  inspect       Report plan/diagnostics without writing disk or manifest
+  apply         Create/move/sync desired artifacts (prune off by default; ADR 0015)
+  inspect       Report plan/diagnostics/zombies without writing disk or manifest
+  prune         Delete zombie managed artifacts and clear them from the manifest
   migrate-id    Rewrite an instance id and its references in the success manifest
 
 codegen options:
-  --structure <path>         Module exporting structure (+ constructs)
+  --structure <path>            Module exporting structure (+ constructs)
   --out <path>                  Generated populate API destination
-  --structure-module <spec>  Import specifier embedded in generated file
+  --structure-module <spec>     Import specifier embedded in generated file
                                 (default: relative path from --out to --structure)
-  --structure-export <name>  Named structure export (default: structure)
+  --structure-export <name>     Named structure export (default: structure)
   --constructs-export <name>    Named constructs map export (default: constructs)
   --struttura-package <spec>    Import path for @xndrjs/struttura (default: package name)
 
-apply / inspect options:
+apply / inspect / prune options:
   --population <path>           Module exporting population
-  --structure-dir <dir>      Support directory (.struttura/manifest.json)
+  --structure-dir <dir>         Support directory (.struttura/manifest.json)
   --materialization-root <dir>  Artifact create/update/delete perimeter
+  --prune                       apply/inspect: include prune deletes in the plan
+  --no-sync                     apply/inspect: skip Sync content rewrites
+  --no-zombie-warn              apply only: hide zombie retention warnings
   --repository-root <dir>       inspect only; defaults to parent of structure-dir
   --json                        inspect only; print the full report as JSON
 
 migrate-id options:
-  --structure-dir <dir>      Directory containing .struttura/manifest.json
+  --structure-dir <dir>         Directory containing .struttura/manifest.json
   --from <oldId>                Effective id currently in the manifest
   --to <newId>                  Replacement effective id
 
