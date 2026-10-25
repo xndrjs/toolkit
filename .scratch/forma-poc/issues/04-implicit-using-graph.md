@@ -6,12 +6,12 @@
 
 **Blocked by:** 03: Surface hello
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Composition resolves `FindOrder` by identity to `FindOrderProvider`
-- [ ] `getOrder` receives the resolved `find` operation and returns a `Result`
-- [ ] Type/runtime: private Intent not on the context object
-- [ ] Test covers success path through the chain
+- [x] Composition resolves `FindOrder` by identity to `FindOrderProvider`
+- [x] `getOrder` receives the resolved `find` operation and returns a `Result`
+- [x] Type/runtime: private Intent not on the context object
+- [x] Test covers success path through the chain
 
 **Verify:** test fails if `providers` omits `FindOrderProvider` (runtime at minimum; compile-time may wait for 07).
 

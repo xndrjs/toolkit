@@ -5,7 +5,7 @@ export { boundary } from "./boundary.js";
 export type { Boundary, Intent } from "./boundary.js";
 
 export { compose } from "./compose.js";
-export type { ComposeOptions, CompositionRoot, ExecutionContext } from "./compose.js";
+export type { Binding, ComposeOptions, CompositionRoot, ExecutionContext } from "./compose.js";
 
 export type {
   IntentOperation,

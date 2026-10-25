@@ -6,12 +6,12 @@
 
 **Blocked by:** 03: Surface hello
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Binding rewrite: requirement for `FindOrder` uses `SelectOrderProvider`
-- [ ] Structural match accepted without adapter
-- [ ] Mismatch path: adapter provider + binding makes the call succeed; documented in test
-- [ ] Business provider code does not import the infra Intent type into `using` (only local Intent)
+- [x] Binding rewrite: requirement for `FindOrder` uses `SelectOrderProvider`
+- [x] Structural match accepted without adapter
+- [x] Mismatch path: adapter provider + binding makes the call succeed; documented in test
+- [x] Business provider code does not import the infra Intent type into `using` (only local Intent)
 
 **Verify:** tests for match + adapter; package builds.
 
