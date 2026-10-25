@@ -13,6 +13,6 @@ Vertical slices for `@xndrjs/forma`. Work **one issue file at a time**; do not s
 | 07  | [issues/07-composition-safety.md](issues/07-composition-safety.md)                           | 04, 05         |
 | 08  | [issues/08-forma-demo.md](issues/08-forma-demo.md)                                           | 04, 05, 06, 07 |
 
-**Frontier now:** `03-surface-hello.md` (01–02 done)
+**Frontier now:** `04` / `05` / `06` (01–03 done; pick any unblocked)
 
 In Cursor: open that file and ask the agent to implement it (or `@` the path). The plan UI is only the overview — these files are the build units.

@@ -6,13 +6,13 @@
 
 **Blocked by:** 02: Provider builder
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `compose({ surface })` returns a root with `createExecutionContext()`
-- [ ] Context exposes only surface keys (e.g. `ctx.ping` exists; nothing else from unregistered Intents)
-- [ ] Calling the alias runs the provider factory (lazy) and returns the Contract outcome
-- [ ] `ctx.dispose()` completes without error (even if no resources yet)
-- [ ] Integration/unit test covers the scenario end-to-end
+- [x] `compose({ surface })` returns a root with `createExecutionContext()`
+- [x] Context exposes only surface keys (e.g. `ctx.ping` exists; nothing else from unregistered Intents)
+- [x] Calling the alias runs the provider factory (lazy) and returns the Contract outcome
+- [x] `ctx.dispose()` completes without error (even if no resources yet)
+- [x] Integration/unit test covers the scenario end-to-end
 
 **Verify:** `pnpm --filter @xndrjs/forma test` includes a passing “ping” composition test.
 
