@@ -11,7 +11,7 @@ describe("compose — surface hello (ping)", () => {
     let runs = 0;
     const PingProvider = Ping.provide.with(() => {
       runs += 1;
-      return ok("pong");
+      return ok("pong" as const);
     });
 
     const root = compose({
@@ -45,15 +45,17 @@ describe("compose — surface hello (ping)", () => {
     const Ping = Health.intent<void, "pong", never>("ping");
 
     let materializations = 0;
-    const base = Ping.provide.with(() => ok("pong"));
+    const base = Ping.provide.with(() => ok("pong" as const));
     const PingProvider = {
       ...base,
-      factory: ((deps: Parameters<typeof base.factory>[0]) => {
+      factory: ((
+        deps: Parameters<typeof base.factory>[0],
+        lifetime: Parameters<typeof base.factory>[1]
+      ) => {
         materializations += 1;
-        return base.factory(deps);
+        return base.factory(deps, lifetime);
       }) as typeof base.factory,
     };
-
     const root = compose({ surface: { ping: PingProvider } });
     const ctx = root.createExecutionContext();
 

@@ -1,5 +1,5 @@
 import type { Intent } from "./boundary.js";
-import type { IntentOperation, Provider, ResolvedDeps } from "./provider.js";
+import type { Disposable, IntentOperation, Lifetime, Provider, ResolvedDeps } from "./provider.js";
 
 /**
  * Registrable Provider with erased contract params so `compose` can accept a
@@ -34,6 +34,8 @@ export type ExecutionContext<Surface extends Record<string, AnyProvider>> = {
 
 export type CompositionRoot<Surface extends Record<string, AnyProvider>> = {
   createExecutionContext(): ExecutionContext<Surface>;
+  /** Release composition-lifetime resources registered via `Lifetime.onDispose`. */
+  dispose(): Promise<void>;
 };
 
 export type ComposeOptions<Surface extends Record<string, AnyProvider>> = {
@@ -47,6 +49,21 @@ export type ComposeOptions<Surface extends Record<string, AnyProvider>> = {
    */
   readonly bindings?: readonly Binding[];
 };
+
+function createLifetime(bucket: Disposable[]): Lifetime {
+  return {
+    onDispose(cleanup: Disposable) {
+      bucket.push(cleanup);
+    },
+  };
+}
+
+async function runDisposers(bucket: Disposable[]): Promise<void> {
+  const cleanups = bucket.splice(0, bucket.length);
+  for (let i = cleanups.length - 1; i >= 0; i -= 1) {
+    await cleanups[i]!();
+  }
+}
 
 /**
  * Build a closed Composition: register surface + private providers, resolve
@@ -73,38 +90,73 @@ export function compose<Surface extends Record<string, AnyProvider>>(
 
   /** Shared by default (composition-lifetime) providers. */
   const compositionOps = new Map<symbol, Op>();
+  const compositionInflight = new Map<symbol, Promise<Op>>();
+  const compositionDisposers: Disposable[] = [];
 
   return {
     createExecutionContext(): ExecutionContext<Surface> {
       /** Owned by this execution context (`.perContext()` providers). */
       const contextOps = new Map<symbol, Op>();
-      /** Detect cycles while materializing the `using` graph. */
-      const materializing = new Set<symbol>();
+      const contextInflight = new Map<symbol, Promise<Op>>();
+      const contextDisposers: Disposable[] = [];
 
-      function materialize(provider: AnyProvider): Op {
-        const cache = provider.perContext ? contextOps : compositionOps;
-        const cached = cache.get(provider.intent.identity);
+      /**
+       * @param seeing - Intent identities already being materialized on this
+       *   resolution chain (cycle detection). Concurrent callers use a fresh
+       *   set and wait on `inflight` instead of throwing.
+       */
+      async function materialize(
+        provider: AnyProvider,
+        seeing: ReadonlySet<symbol> = new Set()
+      ): Promise<Op> {
+        const perContext = provider.perContext;
+        const cache = perContext ? contextOps : compositionOps;
+        const inflight = perContext ? contextInflight : compositionInflight;
+        const disposers = perContext ? contextDisposers : compositionDisposers;
+        const id = provider.intent.identity;
+
+        const cached = cache.get(id);
         if (cached) {
           return cached;
         }
 
-        if (materializing.has(provider.intent.identity)) {
+        if (seeing.has(id)) {
           throw new Error(
             `Circular dependency while materializing ${provider.intent.boundaryId}.${provider.intent.name}`
           );
         }
 
-        materializing.add(provider.intent.identity);
-        try {
-          const op = provider.factory(resolveDeps(provider)) as Op;
-          cache.set(provider.intent.identity, op);
-          return op;
-        } finally {
-          materializing.delete(provider.intent.identity);
+        const pending = inflight.get(id);
+        if (pending) {
+          return pending;
         }
+
+        const nextSeeing = new Set(seeing);
+        nextSeeing.add(id);
+
+        const promise = (async (): Promise<Op> => {
+          try {
+            // Yield so concurrent first-access callers can join this inflight promise
+            // before the factory runs (single materialization per lifetime).
+            await Promise.resolve();
+            const deps = await resolveDeps(provider, nextSeeing);
+            const lifetime = createLifetime(disposers);
+            const op = provider.factory(deps, lifetime) as Op;
+            cache.set(id, op);
+            return op;
+          } finally {
+            inflight.delete(id);
+          }
+        })();
+
+        inflight.set(id, promise);
+        return promise;
       }
 
-      function resolveByIdentity(required: AnyIntent): Op {
+      async function resolveByIdentity(
+        required: AnyIntent,
+        seeing: ReadonlySet<symbol>
+      ): Promise<Op> {
         const satisfierId = bindingMap.get(required.identity) ?? required.identity;
         const provider = registry.get(satisfierId);
         if (!provider) {
@@ -117,29 +169,40 @@ export function compose<Surface extends Record<string, AnyProvider>>(
             `No provider registered for Intent ${label}${viaBinding}. Add it to surface or providers.`
           );
         }
-        return materialize(provider);
+        return materialize(provider, seeing);
       }
 
-      function resolveDeps(provider: AnyProvider): ResolvedDeps<AnyProvider["deps"]> {
+      async function resolveDeps(
+        provider: AnyProvider,
+        seeing: ReadonlySet<symbol>
+      ): Promise<ResolvedDeps<AnyProvider["deps"]>> {
         const deps = provider.deps as Record<string, AnyIntent>;
         const resolved: Record<string, Op> = {};
         for (const [key, intent] of Object.entries(deps)) {
-          resolved[key] = resolveByIdentity(intent);
+          resolved[key] = await resolveByIdentity(intent, seeing);
         }
         return resolved as ResolvedDeps<AnyProvider["deps"]>;
       }
-
       const ctx: Record<string, unknown> = {
         async dispose() {
-          // No owned resources yet (lifecycle disposal lands in ticket 06).
+          await runDisposers(contextDisposers);
+          contextOps.clear();
         },
       };
 
       for (const [alias, provider] of surfaceEntries) {
-        ctx[alias] = (input: unknown) => materialize(provider)(input);
+        ctx[alias] = async (input: unknown) => {
+          const op = await materialize(provider);
+          return op(input);
+        };
       }
 
       return ctx as ExecutionContext<Surface>;
+    },
+
+    async dispose() {
+      await runDisposers(compositionDisposers);
+      compositionOps.clear();
     },
   };
 }

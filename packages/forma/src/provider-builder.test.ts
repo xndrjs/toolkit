@@ -18,7 +18,14 @@ describe("provider builder", () => {
     expect(PingProvider.deps).toEqual({});
     expect(PingProvider.perContext).toBe(false);
 
-    const op = PingProvider.factory({});
+    const op = PingProvider.factory(
+      {},
+      {
+        onDispose() {
+          /* noop for inspect */
+        },
+      }
+    );
     expect(op(undefined)).toEqual({ ok: true, value: "pong" });
   });
 
@@ -41,9 +48,15 @@ describe("provider builder", () => {
       };
     });
 
-    const op = FindProvider.factory({});
+    const op = FindProvider.factory(
+      {},
+      {
+        onDispose() {
+          /* noop for inspect */
+        },
+      }
+    );
     expect(setups).toBe(0);
-
     expect(op({ id: "1" })).toEqual({ ok: true, value: { id: "1", total: 10 } });
     expect(setups).toBe(1);
     expect(op({ id: "1" })).toEqual({ ok: true, value: { id: "1", total: 10 } });

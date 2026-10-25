@@ -6,6 +6,17 @@ export type IntentOperation<Input, Success, Err> = (
   input: Input
 ) => Result<Success, Err> | Promise<Result<Success, Err>>;
 
+/** Cleanup registered via `Lifetime.onDispose` during provider materialization. */
+export type Disposable = () => void | Promise<void>;
+
+/**
+ * Materialization-scoped hooks for the current provider instance.
+ * Cleanups run on `ctx.dispose()` (`.perContext()`) or `root.dispose()` (default).
+ */
+export type Lifetime = {
+  onDispose(cleanup: Disposable): void;
+};
+
 /**
  * Map of same-boundary Intents accepted by `using`.
  * Uses a self-referential mapped constraint (no string index) so named keys stay required.
@@ -44,11 +55,15 @@ export type Provider<
   readonly intent: Intent<BoundaryId, Name, Input, Success, Err>;
   readonly deps: Deps;
   readonly perContext: boolean;
-  readonly factory: (deps: ResolvedDeps<Deps>) => IntentOperation<Input, Success, Err>;
+  readonly factory: (
+    deps: ResolvedDeps<Deps>,
+    lifetime: Lifetime
+  ) => IntentOperation<Input, Success, Err>;
 };
 
 type FactoryFn<Input, Success, Err, Deps> = (
-  deps: ResolvedDeps<Deps>
+  deps: ResolvedDeps<Deps>,
+  lifetime: Lifetime
 ) => IntentOperation<Input, Success, Err>;
 
 type EmptyDeps = Record<string, never>;
@@ -146,10 +161,10 @@ function normalizeNoDepsFactory<Input, Success, Err>(
   arg: NoDepsWithArg<Input, Success, Err>
 ): FactoryFn<Input, Success, Err, EmptyDeps> {
   if (arg.length >= 1) {
-    return (_deps) => arg as IntentOperation<Input, Success, Err>;
+    return (_deps, _lifetime) => arg as IntentOperation<Input, Success, Err>;
   }
 
-  return (_deps) => {
+  return (_deps, _lifetime) => {
     let resolved: IntentOperation<Input, Success, Err> | undefined;
 
     return ((input: Input) => {

@@ -4,13 +4,13 @@
 
 **Blocked by:** 03: Surface hello
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Default provider: same instance across two `createExecutionContext()` calls
-- [ ] `.perContext()` provider: different instance per context; reused within one context
-- [ ] Two concurrent first calls in the same lifetime → factory runs once
-- [ ] `ctx.dispose()` runs context-owned cleanup (test with a disposable stub)
-- [ ] Composition root `dispose()` runs composition-lifetime cleanup (test + stub); may be thin API
+- [x] Default provider: same instance across two `createExecutionContext()` calls
+- [x] `.perContext()` provider: different instance per context; reused within one context
+- [x] Two concurrent first calls in the same lifetime → factory runs once
+- [x] `ctx.dispose()` runs context-owned cleanup (test with a disposable stub)
+- [x] Composition root `dispose()` runs composition-lifetime cleanup (test + stub); may be thin API
 
 **Verify:** dedicated lifecycle tests (including a concurrent first-access test).
 

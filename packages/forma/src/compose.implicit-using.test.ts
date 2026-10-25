@@ -60,7 +60,7 @@ describe("compose — implicit using graph", () => {
     });
 
     const ctx = root.createExecutionContext();
-    expect(() => ctx.getOrder({ id: "1" })).toThrow(
+    await expect(ctx.getOrder({ id: "1" })).rejects.toThrow(
       /No provider registered for Intent orders\.find/
     );
   });

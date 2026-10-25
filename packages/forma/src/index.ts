@@ -8,7 +8,9 @@ export { compose } from "./compose.js";
 export type { Binding, ComposeOptions, CompositionRoot, ExecutionContext } from "./compose.js";
 
 export type {
+  Disposable,
   IntentOperation,
+  Lifetime,
   ProvideApi,
   Provider,
   ResolvedDeps,
