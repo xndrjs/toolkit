@@ -8,18 +8,46 @@ type FindError = { readonly kind: "not_found" };
 type CancelError = { readonly kind: "already_cancelled" };
 
 describe("provider builder", () => {
-  it("builds a provider for a no-deps Intent via provide.with", () => {
+  it("builds a no-deps provider with a flat operation in with", () => {
     const Health = boundary("health");
     const Ping = Health.intent<void, "pong", never>("ping");
 
-    const PingProvider = Ping.provide.with(() => () => ok("pong"));
+    const PingProvider = Ping.provide.with(() => ok("pong"));
 
     expect(PingProvider.intent).toBe(Ping);
     expect(PingProvider.deps).toEqual({});
     expect(PingProvider.perContext).toBe(false);
 
     const op = PingProvider.factory({});
-    expect(op()).toEqual({ ok: true, value: "pong" });
+    expect(op(undefined)).toEqual({ ok: true, value: "pong" });
+  });
+
+  it("accepts a no-deps setup thunk that returns the operation", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent<OrderId, Order, FindError>("find");
+
+    let setups = 0;
+    const FindProvider = FindOrder.provide.with(() => {
+      setups += 1;
+      const cache = new Map<string, Order>();
+      return (id: OrderId) => {
+        const hit = cache.get(id.id);
+        if (hit) {
+          return ok(hit);
+        }
+        const order = { id: id.id, total: 10 };
+        cache.set(id.id, order);
+        return ok(order);
+      };
+    });
+
+    const op = FindProvider.factory({});
+    expect(setups).toBe(0);
+
+    expect(op({ id: "1" })).toEqual({ ok: true, value: { id: "1", total: 10 } });
+    expect(setups).toBe(1);
+    expect(op({ id: "1" })).toEqual({ ok: true, value: { id: "1", total: 10 } });
+    expect(setups).toBe(1);
   });
 
   it("types using deps from the Intent Contract without re-declaring them", () => {
@@ -67,7 +95,7 @@ describe("provider builder", () => {
     const FindOrder = Orders.intent<OrderId, Order, FindError>("find");
     const GetOrder = Orders.intent<OrderId, Order, FindError>("get");
 
-    const PingPerContext = Ping.provide.perContext().with(() => () => ok("pong"));
+    const PingPerContext = Ping.provide.perContext().with(() => ok("pong"));
     expect(PingPerContext.perContext).toBe(true);
     expect(PingPerContext.deps).toEqual({});
 
