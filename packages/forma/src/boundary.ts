@@ -1,3 +1,5 @@
+import { createProvideApi, type ProvideApi } from "./provider.js";
+
 declare const formaIntentBrand: unique symbol;
 
 /**
@@ -13,6 +15,8 @@ export type Intent<BoundaryId extends string, Name extends string, Input, Succes
   readonly name: Name;
   /** Runtime nominal identity (composition resolves by this). */
   readonly identity: symbol;
+  /** Attach a realization: optional `using` / `perContext`, then `with(factory)`. */
+  readonly provide: ProvideApi<BoundaryId, Name, Input, Success, Err>;
   readonly [formaIntentBrand]: {
     readonly boundary: BoundaryId;
     readonly name: Name;
@@ -54,11 +58,17 @@ function createIntent<BoundaryId extends string, Name extends string, Input, Suc
   boundaryId: BoundaryId,
   name: Name
 ): Intent<BoundaryId, Name, Input, Success, Err> {
-  return {
+  const intent = {
     boundaryId,
     name,
     identity: Symbol(`${boundaryId}.${name}`),
   } as Intent<BoundaryId, Name, Input, Success, Err>;
+
+  // Assign after the object exists so the builder closes over the Intent value.
+  (intent as { provide: ProvideApi<BoundaryId, Name, Input, Success, Err> }).provide =
+    createProvideApi(intent);
+
+  return intent;
 }
 
 /** Create an isolated architectural space and namespace for Intent identities. */

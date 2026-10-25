@@ -4,13 +4,13 @@
 
 **Blocked by:** 01: Intent primitives
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `Ping.provide.with(() => () => …)` builds a provider for a no-deps Intent
-- [ ] `Cancel.provide.using({ find: FindOrder }).with(…)` types `find` from FindOrder’s Contract without re-declaring it
-- [ ] Type test: `using({ x: OtherBoundaryIntent })` is a compile error
-- [ ] `.perContext()` can appear in the chain before `with` (scoping behaviour deferred to 06; here only API + type retention)
-- [ ] Unit/type tests pass; package builds
+- [x] `Ping.provide.with(() => () => …)` builds a provider for a no-deps Intent
+- [x] `Cancel.provide.using({ find: FindOrder }).with(…)` types `find` from FindOrder’s Contract without re-declaring it
+- [x] Type test: `using({ x: OtherBoundaryIntent })` is a compile error
+- [x] `.perContext()` can appear in the chain before `with` (scoping behaviour deferred to 06; here only API + type retention)
+- [x] Unit/type tests pass; package builds
 
 **Verify:** a small test file constructs providers; `tsc`/type tests catch cross-boundary `using`.
 
