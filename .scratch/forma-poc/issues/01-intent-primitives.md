@@ -4,14 +4,16 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `boundary("orders")` and `Orders.intent<In, Success, Err>("find")` exist and export from `@xndrjs/forma`
-- [ ] `Result` helpers (at least `ok` / `err` + type) exist for contracts
-- [ ] Type test: two Intents with the same structural Contract are still distinct identities (not assignable as the same Intent)
-- [ ] Type test: Intent from boundary `"orders"` is not the same brand as Intent from `"postgres"`
-- [ ] Package still builds (`pnpm --filter @xndrjs/forma build`)
+- [x] `boundary("orders")` and `Orders.intent<In, Success, Err>("find")` exist and export from `@xndrjs/forma`
+- [x] `Result` helpers (at least `ok` / `err` + type) exist for contracts
+- [x] Type test: two Intents with the same structural Contract are still distinct identities (not assignable as the same Intent)
+- [x] Type test: Intent from boundary `"orders"` is not the same brand as Intent from `"postgres"`
+- [x] Package still builds (`pnpm --filter @xndrjs/forma build`)
 
 **Verify:** type tests under the forma package fail if brands/identities collapse; pass on the intended API.
+
+**Note:** For type-level nominal identity (literal intent name), use the curried form `Orders.intent<In, Success, Err>()("find")`. The single-call form matches the plan API; TypeScript widens `Name` to `string` when contract type args are supplied in one call (no partial type inference).
 
 **Refs:** `packages/forma/GLOSSARY.md`, `packages/forma/specs/initial-analysis.md`
