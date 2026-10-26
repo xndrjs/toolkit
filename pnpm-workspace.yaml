@@ -3,8 +3,8 @@ packages:
   - "configs/*"
   - "packages/*"
 allowBuilds:
-  "@vscode/vsce-sign": set this to true or false
-  esbuild: set this to true or false
-  keytar: set this to true or false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
+  "@vscode/vsce-sign": true
+  esbuild: true
+  keytar: true
+  sharp: true
+  unrs-resolver: true

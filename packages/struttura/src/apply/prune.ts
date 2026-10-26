@@ -10,7 +10,6 @@ import {
 import { checkDefinitionStamp } from "../codegen/check-stamp";
 import {
   buildManifest,
-  computeZombies,
   manifestsEqual,
   readManifest,
   writeManifest,
@@ -62,7 +61,6 @@ export function prune(population: Population, options: PruneOptions): PruneResul
   }
 
   const lastManifest = readManifest(structureDir);
-  const zombies = computeZombies(derived.inventory, lastManifest);
   const ops: PlanOp[] = [];
   planDeletions(derived.inventory, lastManifest, materializationRoot, ops);
 
