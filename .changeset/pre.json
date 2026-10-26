@@ -27,7 +27,11 @@
     "@xndrjs/forma": "0.0.0",
     "@xndrjs/struttura": "0.0.0",
     "@xndrjs/ziel": "0.0.0",
-    "ziel-vscode": "0.0.5"
+    "ziel-vscode": "0.0.5",
+    "@xndrjs/forma-demo": "0.0.1",
+    "@xndrjs/struttura-demo": "0.0.1"
   },
-  "changesets": []
+  "changesets": [
+    "forma-struttura-alpha"
+  ]
 }
