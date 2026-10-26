@@ -7,9 +7,9 @@ type Order = { readonly id: string; readonly total: number };
 type FindError = { readonly kind: "not_found" };
 
 describe("boundary / intent", () => {
-  it("supports the plan call form intent<In, Success, Err>(name)", () => {
+  it("supports intent(name).contract<In, Success, Err>()", () => {
     const Orders = boundary("orders");
-    const FindOrder = Orders.intent<OrderId, Order, FindError>("find");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
 
     expect(Orders.id).toBe("orders");
     expect(FindOrder.boundaryId).toBe("orders");
@@ -19,8 +19,8 @@ describe("boundary / intent", () => {
 
   it("gives each Intent a distinct runtime identity", () => {
     const Orders = boundary("orders");
-    const Find = Orders.intent<OrderId, Order, FindError>("find");
-    const Get = Orders.intent<OrderId, Order, FindError>("get");
+    const Find = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const Get = Orders.intent("get").contract<OrderId, Order, FindError>();
 
     expect(Find.identity).not.toBe(Get.identity);
   });
@@ -29,9 +29,9 @@ describe("boundary / intent", () => {
 describe("Intent type brands", () => {
   it("keeps two same-contract Intents as distinct identities", () => {
     const Orders = boundary("orders");
-    // Curried form preserves literal names so identities stay distinct at the type level.
-    const FindOrder = Orders.intent<OrderId, Order, FindError>()("find");
-    const GetOrder = Orders.intent<OrderId, Order, FindError>()("get");
+    // Literal names keep same-contract Intents distinct at the type level.
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
 
     expectTypeOf(FindOrder).not.toEqualTypeOf<typeof GetOrder>();
 
@@ -43,8 +43,8 @@ describe("Intent type brands", () => {
   it("keeps Intents from different boundaries as distinct brands", () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
-    const FindOrder = Orders.intent<OrderId, Order, FindError>("find");
-    const SelectOrder = Postgres.intent<OrderId, Order, FindError>("selectOrder");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindError>();
 
     expectTypeOf(FindOrder).not.toEqualTypeOf<typeof SelectOrder>();
     expectTypeOf(FindOrder.boundaryId).toEqualTypeOf<"orders">();

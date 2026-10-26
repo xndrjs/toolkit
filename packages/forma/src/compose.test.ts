@@ -6,13 +6,16 @@ import { ok, type Result } from "./result.js";
 describe("compose — surface hello (ping)", () => {
   it("runs a surface alias end-to-end: compose → context → call → dispose", async () => {
     const Health = boundary("health");
-    const Ping = Health.intent<void, "pong", never>("ping");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
 
     let runs = 0;
-    const PingProvider = Ping.provide.with(() => {
-      runs += 1;
-      return ok("pong" as const);
-    });
+    const PingProvider = Ping.provide.with(
+      (_ctx) =>
+        function () {
+          runs += 1;
+          return ok("pong" as const);
+        }
+    );
 
     const root = compose({
       surface: { ping: PingProvider },
@@ -27,9 +30,8 @@ describe("compose — surface hello (ping)", () => {
 
     // Surface exposes only declared aliases — not other Intents.
     expect(ctx).not.toHaveProperty("findOrder");
-    expectTypeOf(ctx.ping).toEqualTypeOf<
-      (input: void) => Result<"pong", never> | Promise<Result<"pong", never>>
-    >();
+    // Surface aliases are always async (materialize + invoke), never sync Result.
+    expectTypeOf(ctx.ping).toEqualTypeOf<(input: void) => Promise<Result<"pong", never>>>();
     expectTypeOf(ctx).not.toHaveProperty("findOrder");
 
     const result = await ctx.ping();
@@ -42,10 +44,15 @@ describe("compose — surface hello (ping)", () => {
 
   it("materializes the provider factory only on first alias call (lazy)", async () => {
     const Health = boundary("health");
-    const Ping = Health.intent<void, "pong", never>("ping");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
 
     let materializations = 0;
-    const base = Ping.provide.with(() => ok("pong" as const));
+    const base = Ping.provide.with(
+      (_ctx) =>
+        function () {
+          return ok("pong" as const);
+        }
+    );
     const PingProvider = {
       ...base,
       factory: ((

@@ -15,7 +15,7 @@ export type Intent<BoundaryId extends string, Name extends string, Input, Succes
   readonly name: Name;
   /** Runtime nominal identity (composition resolves by this). */
   readonly identity: symbol;
-  /** Attach a realization: optional `using` / `perContext`, then `with(factory)`. */
+  /** Attach a realization: optional `using` / `perContext`, then `with(({ deps?, lifetime }) => …)`. */
   readonly provide: ProvideApi<BoundaryId, Name, Input, Success, Err>;
   readonly [formaIntentBrand]: {
     readonly boundary: BoundaryId;
@@ -27,27 +27,27 @@ export type Intent<BoundaryId extends string, Name extends string, Input, Succes
 };
 
 /**
+ * After `intent(name)`, apply the contract type arguments via `.contract`.
+ *
+ * Name is taken as a value first so TypeScript keeps the string literal; contract
+ * types are supplied on `.contract<Input, Success, Err>()`. A single call
+ * `intent<Input, Success, Err>(name)` cannot infer `Name` once the earlier type
+ * arguments are explicit (TypeScript does not do partial type inference).
+ */
+export type IntentContractDeclarator<BoundaryId extends string, Name extends string> = {
+  contract<Input, Success, Err>(): Intent<BoundaryId, Name, Input, Success, Err>;
+};
+
+/**
  * Declare an Intent and its contract (`Input`, `Success`, expected `Error`).
  *
  * ```ts
- * // Plan / common form (name widens to string in the Intent type):
- * Orders.intent<OrderId, Order, FindError>("find");
- *
- * // Nominal form — preserves literal name so same-contract Intents stay distinct:
- * Orders.intent<OrderId, Order, FindError>()("find");
+ * Orders.intent("find").contract<OrderId, Order, FindError>();
  * ```
- *
- * The curried form exists because TypeScript cannot infer a remaining type
- * parameter (`Name`) after earlier type arguments are supplied in one call.
  */
-export type IntentDeclarator<BoundaryId extends string> = {
-  <Input, Success, Err, Name extends string = string>(
-    name: Name
-  ): Intent<BoundaryId, Name, Input, Success, Err>;
-  <Input, Success, Err>(): <Name extends string>(
-    name: Name
-  ) => Intent<BoundaryId, Name, Input, Success, Err>;
-};
+export type IntentDeclarator<BoundaryId extends string> = <Name extends string>(
+  name: Name
+) => IntentContractDeclarator<BoundaryId, Name>;
 
 export type Boundary<BoundaryId extends string> = {
   readonly id: BoundaryId;
@@ -73,22 +73,11 @@ function createIntent<BoundaryId extends string, Name extends string, Input, Suc
 
 /** Create an isolated architectural space and namespace for Intent identities. */
 export function boundary<const BoundaryId extends string>(id: BoundaryId): Boundary<BoundaryId> {
-  function intent<Input, Success, Err, Name extends string>(
-    name: Name
-  ): Intent<BoundaryId, Name, Input, Success, Err>;
-  function intent<Input, Success, Err>(): <Name extends string>(
-    name: Name
-  ) => Intent<BoundaryId, Name, Input, Success, Err>;
-  function intent<Input, Success, Err, Name extends string>(
-    name?: Name
-  ):
-    | Intent<BoundaryId, Name, Input, Success, Err>
-    | (<N extends string>(name: N) => Intent<BoundaryId, N, Input, Success, Err>) {
-    if (name !== undefined) {
-      return createIntent<BoundaryId, Name, Input, Success, Err>(id, name);
-    }
-    return <N extends string>(intentName: N) =>
-      createIntent<BoundaryId, N, Input, Success, Err>(id, intentName);
+  function intent<Name extends string>(name: Name): IntentContractDeclarator<BoundaryId, Name> {
+    return {
+      contract: <Input, Success, Err>() =>
+        createIntent<BoundaryId, Name, Input, Success, Err>(id, name),
+    };
   }
 
   return { id, intent };

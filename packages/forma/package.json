@@ -1,7 +1,7 @@
 {
   "name": "@xndrjs/forma",
   "version": "0.0.0",
-  "description": "Form modeling utilities for xndrjs.",
+  "description": "Intent-oriented composition for TypeScript: boundaries, intents, providers, and closed compose graphs.",
   "private": false,
   "license": "MIT",
   "repository": {

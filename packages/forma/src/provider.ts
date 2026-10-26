@@ -40,6 +40,23 @@ export type ResolvedDeps<Deps> = {
     : never;
 };
 
+type EmptyDeps = Record<string, never>;
+
+type IsEmptyDeps<Deps> = [Deps] extends [EmptyDeps]
+  ? EmptyDeps extends Deps
+    ? true
+    : false
+  : false;
+
+/**
+ * Argument to `.with`: named fields avoid positional ambiguity between deps and lifetime.
+ * No `using` → only `lifetime`. With `using` → `deps` + `lifetime`.
+ */
+export type WithContext<Deps> =
+  IsEmptyDeps<Deps> extends true
+    ? { readonly lifetime: Lifetime }
+    : { readonly deps: ResolvedDeps<Deps>; readonly lifetime: Lifetime };
+
 /**
  * Registrable association of an Intent with a realization, dependencies, and lifecycle.
  * Inspectable in isolation (composition comes later).
@@ -51,33 +68,21 @@ export type Provider<
   Success,
   Err,
   Deps = Record<string, never>,
+  PerContext extends boolean = false,
 > = {
   readonly intent: Intent<BoundaryId, Name, Input, Success, Err>;
   readonly deps: Deps;
-  readonly perContext: boolean;
+  readonly perContext: PerContext;
+  /** Internal materialization hook; prefer building via Intent.provide.with. */
   readonly factory: (
     deps: ResolvedDeps<Deps>,
     lifetime: Lifetime
   ) => IntentOperation<Input, Success, Err>;
 };
 
-type FactoryFn<Input, Success, Err, Deps> = (
-  deps: ResolvedDeps<Deps>,
-  lifetime: Lifetime
+type WithFactory<Input, Success, Err, Deps> = (
+  ctx: WithContext<Deps>
 ) => IntentOperation<Input, Success, Err>;
-
-type EmptyDeps = Record<string, never>;
-
-type IsEmptyDeps<Deps> = [Deps] extends [EmptyDeps]
-  ? EmptyDeps extends Deps
-    ? true
-    : false
-  : false;
-
-/** No-deps: pass the operation directly, or a zero-arg thunk for lazy instance setup. */
-type NoDepsWithArg<Input, Success, Err> =
-  | IntentOperation<Input, Success, Err>
-  | (() => IntentOperation<Input, Success, Err>);
 
 type ProviderBuilderBase<
   BoundaryId extends string,
@@ -92,41 +97,9 @@ type ProviderBuilderBase<
     deps: NewDeps & SameBoundaryDeps<BoundaryId, NewDeps>
   ): ProviderBuilder<BoundaryId, Name, Input, Success, Err, NewDeps, PerContext>;
   perContext(): ProviderBuilder<BoundaryId, Name, Input, Success, Err, Deps, true>;
-};
-
-type ProviderBuilderWithDeps<
-  BoundaryId extends string,
-  Name extends string,
-  Input,
-  Success,
-  Err,
-  Deps,
-  PerContext extends boolean,
-> = ProviderBuilderBase<BoundaryId, Name, Input, Success, Err, Deps, PerContext> & {
   with(
-    factory: FactoryFn<Input, Success, Err, Deps>
-  ): Provider<BoundaryId, Name, Input, Success, Err, Deps>;
-};
-
-type ProviderBuilderNoDeps<
-  BoundaryId extends string,
-  Name extends string,
-  Input,
-  Success,
-  Err,
-  PerContext extends boolean,
-> = ProviderBuilderBase<BoundaryId, Name, Input, Success, Err, EmptyDeps, PerContext> & {
-  /** No `using`: pass the Intent operation directly. */
-  with(
-    operation: IntentOperation<Input, Success, Err>
-  ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps>;
-  /**
-   * No `using`, lazy instance setup: zero-arg thunk that returns the operation
-   * (e.g. create a DataLoader once, then return `(id) => …`).
-   */
-  with(
-    create: () => IntentOperation<Input, Success, Err>
-  ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps>;
+    factory: WithFactory<Input, Success, Err, Deps>
+  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
 };
 
 type ProviderBuilder<
@@ -137,10 +110,7 @@ type ProviderBuilder<
   Err,
   Deps = EmptyDeps,
   PerContext extends boolean = false,
-> =
-  IsEmptyDeps<Deps> extends true
-    ? ProviderBuilderNoDeps<BoundaryId, Name, Input, Success, Err, PerContext>
-    : ProviderBuilderWithDeps<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
+> = ProviderBuilderBase<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
 
 export type ProvideApi<
   BoundaryId extends string,
@@ -149,41 +119,6 @@ export type ProvideApi<
   Success,
   Err,
 > = ProviderBuilder<BoundaryId, Name, Input, Success, Err>;
-
-/**
- * Normalize a no-deps `with` argument to the internal factory shape.
- *
- * - `(input) => …` (arity ≥ 1): treated as the Intent operation.
- * - `() => …` (arity 0): void-input operation **or** lazy setup thunk returning the operation;
- *   distinguished on first call (extra args are ignored by a void op / thunk).
- */
-function normalizeNoDepsFactory<Input, Success, Err>(
-  arg: NoDepsWithArg<Input, Success, Err>
-): FactoryFn<Input, Success, Err, EmptyDeps> {
-  if (arg.length >= 1) {
-    return (_deps, _lifetime) => arg as IntentOperation<Input, Success, Err>;
-  }
-
-  return (_deps, _lifetime) => {
-    let resolved: IntentOperation<Input, Success, Err> | undefined;
-
-    return ((input: Input) => {
-      if (resolved) {
-        return resolved(input);
-      }
-
-      const first = (arg as () => unknown)();
-      if (typeof first === "function") {
-        resolved = first as IntentOperation<Input, Success, Err>;
-        return resolved(input);
-      }
-
-      // Void-input operation: `arg` itself is the op; `first` is this call's Result.
-      resolved = arg as IntentOperation<Input, Success, Err>;
-      return first as Result<Success, Err>;
-    }) as IntentOperation<Input, Success, Err>;
-  };
-}
 
 function createProviderBuilder<
   BoundaryId extends string,
@@ -209,16 +144,15 @@ function createProviderBuilder<
     perContext() {
       return createProviderBuilder(intent, deps, true);
     },
-    with(arg: NoDepsWithArg<Input, Success, Err> | FactoryFn<Input, Success, Err, Deps>) {
-      const factory = hasDeps
-        ? (arg as FactoryFn<Input, Success, Err, Deps>)
-        : normalizeNoDepsFactory(arg as NoDepsWithArg<Input, Success, Err>);
-
+    with(factory: WithFactory<Input, Success, Err, Deps>) {
       return {
         intent,
         deps,
         perContext,
-        factory,
+        factory: (resolved: ResolvedDeps<Deps>, lifetime: Lifetime) => {
+          const ctx = (hasDeps ? { deps: resolved, lifetime } : { lifetime }) as WithContext<Deps>;
+          return factory(ctx);
+        },
       };
     },
   };

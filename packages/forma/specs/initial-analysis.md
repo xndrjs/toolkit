@@ -67,7 +67,7 @@ A boundary is **not necessarily a DDD Bounded Context**, a package, or a directo
 An **Intent** is a declared intention: a meaningful business outcome named within a boundary. It is not an implementation.
 
 ```ts
-const CancelOrder = Orders.intent<OrderId, CancelledOrder, CancelOrderError>("cancel");
+const CancelOrder = Orders.intent("cancel").contract<OrderId, CancelledOrder, CancelOrderError>();
 ```
 
 Its semantic name derives from the boundary and local identifier:
@@ -186,16 +186,19 @@ Preserve this hierarchy:
 
 ```ts
 boundary(id)
-  .intent<Input, Success, Error>(id)
+  .intent(id)
+  .contract<Input, Success, Error>()
   .provide.perContext() // optional lifecycle modifier
   .using(dependencies) // optional
-  .with(factory);
+  .with(({ deps?, lifetime }) => operation);
 
 const root = compose({ surface, providers, bindings });
 root.createExecutionContext();
 ```
 
 `.perContext()` is an optional provider lifecycle modifier. `createExecutionContext()` opens a bounded execution lifetime over a composition. Do not introduce generic IoC tokens, a service locator, an orchestration DSL, or additional public composition primitives without demonstrated necessity.
+
+**`.with` context (settled):** always a factory that returns the Intent operation; the argument is a **named object** (`lifetime`, and `deps` after `using`). Prefer `ctx => function (…) { … }` over nested arrows. Destructure only what you use — e.g. `_ctx`, `{ lifetime }`, `{ deps: { find } }`. Named fields avoid positional ambiguity. Do not offer a flat `.with(operation)` overload (hides materialization) or a separate `.setup`.
 
 ### Why each primitive exists
 
@@ -213,26 +216,38 @@ root.createExecutionContext();
 ### Provider shape
 
 ```ts
-const CancelOrderProvider = CancelOrder.provide
-  .using({ find: FindOrder })
-  .with(({ find }) => async (input) => {
-    // Ordinary TypeScript orchestration
-  });
+const CancelOrderProvider = CancelOrder.provide.using({ find: FindOrder }).with(
+  ({ deps: { find } }) =>
+    async function (input) {
+      // Ordinary TypeScript orchestration
+    }
+);
 ```
 
 `using()` identifies required Intents and their local names. Dependency contracts must be inferred and type-checked without duplicating them. Via boundary branding (§2.2), `using` must reject Intents from other boundaries at compile time; same-boundary Intent dependencies remain allowed.
 
-`with()` receives the resolved dependencies and returns a function satisfying the Intent contract.
+`with()` always receives `{ deps?, lifetime }` and returns a function satisfying the Intent contract.
 
 Without Intent dependencies:
 
 ```ts
-const IsValidProvider = IsValid.provide.with(() => (input) => {
-  /* ... */
+const IsValidProvider = IsValid.provide.with(
+  (_ctx) =>
+    function (input) {
+      /* ... return Result ... */
+    }
+);
+
+const CachedProvider = Cached.provide.with(({ lifetime }) => {
+  const cache = new Map();
+  lifetime.onDispose(() => cache.clear());
+  return function (input) {
+    /* ... return Result ... */
+  };
 });
 ```
 
-Keep a single factory convention. Do not require an orchestration DSL. Helpers such as `serial`, `parallel`, and `retry` may be explored later as optional conveniences.
+Do not require an orchestration DSL. Helpers such as `serial`, `parallel`, and `retry` may be explored later as optional conveniences.
 
 ### Composition shape
 
@@ -244,7 +259,7 @@ const appRoot = compose({
 
   providers: [SelectOrderProvider],
 
-  bindings: [[FindOrder, SelectOrder]],
+  bindings: [bind(FindOrder, SelectOrder)],
 });
 ```
 
@@ -270,10 +285,13 @@ They do not become publicly accessible merely by being registered.
 Explicitly connects different Intent identities.
 
 ```ts
-[FindOrder, SelectOrder];
+bind(FindOrder, SelectOrder);
 ```
 
 means a request for `FindOrder` is fulfilled by the provider realizing `SelectOrder`.
+`bind` accepts the pair only when the two Intent contracts are structurally equivalent
+(mutual assignability of Input / Success / Err). Raw `[Required, Satisfier]` tuples are
+not accepted in `compose({ bindings })` — entries must be produced by `bind`.
 
 **Implicit binding by identity** remains when a provider requires an Intent and another provider realizes that **exact** Intent.
 
@@ -319,10 +337,12 @@ A practical compile-time target for a closed, executable composition: after rewr
 Lifecycle requirements belong to the **provider**, not the Intent.
 
 ```ts
-const LoadOrderProvider = LoadOrder.provide.perContext().with(() => {
+const LoadOrderProvider = LoadOrder.provide.perContext().with((_ctx) => {
   const loader = new DataLoader(batchLoadOrders);
 
-  return (id) => loader.load(id);
+  return function (id) {
+    return loader.load(id);
+  };
 });
 ```
 
@@ -336,7 +356,7 @@ Prefer `.perContext()` over generic configuration such as `.scope("context")` fo
 
 Do not introduce additional scopes until concrete use cases justify them.
 
-A provider shared by the composition must not capture a context-lifetime dependency. Investigate whether TypeScript can detect such invalid dependency relationships statically.
+**Lifetime edge (settled):** a composition-lifetime provider must not depend on a `.perContext()` provider (would capture the first context’s instance). PoC rejects this at compile time and throws at materialization.
 
 Allow future opt-out for providers that require eager initialization, but do not design that API prematurely.
 
@@ -370,7 +390,7 @@ const appRoot = compose({
     getOrder: GetOrderProvider,
   },
   providers: [SelectOrderProvider],
-  bindings: [[FindOrder, SelectOrder]],
+  bindings: [bind(FindOrder, SelectOrder)],
 });
 
 const ctx = appRoot.createExecutionContext();
@@ -405,9 +425,10 @@ const GetOrderProvider = GetOrder.provide
   .perContext()
   .using({ find: FindOrder })
   .with(
-    ({ find }) =>
-      async (id) =>
-        find(id)
+    ({ deps: { find } }) =>
+      async function (id) {
+        return find(id);
+      }
   );
 ```
 
@@ -460,9 +481,14 @@ Illustrative pseudocode — not a finalized TypeScript implementation.
 
 ```ts
 const Health = boundary("health");
-const Ping = Health.intent<void, "pong", never>("ping");
+const Ping = Health.intent("ping").contract<void, "pong", never>();
 
-const PingProvider = Ping.provide.with(() => () => "pong");
+const PingProvider = Ping.provide.with(
+  (_ctx) =>
+    function () {
+      return ok("pong");
+    }
+);
 
 const appRoot = compose({
   surface: { ping: PingProvider },
@@ -478,21 +504,25 @@ await ctx.ping();
 const Orders = boundary("orders");
 const Postgres = boundary("postgres");
 
-const FindOrder = Orders.intent<OrderId, Order, FindOrderError>("find");
-const GetOrder = Orders.intent<OrderId, Order, FindOrderError>("get");
-const SelectOrder = Postgres.intent<OrderId, Order, FindOrderError>("selectOrder");
+const FindOrder = Orders.intent("find").contract<OrderId, Order, FindOrderError>();
+const GetOrder = Orders.intent("get").contract<OrderId, Order, FindOrderError>();
+const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindOrderError>();
 
-const SelectOrderProvider = SelectOrder.provide.with(() => async (id) => {
-  // PostgreSQL implementation.
-});
+const SelectOrderProvider = SelectOrder.provide.with(
+  (_ctx) =>
+    async function (id) {
+      // PostgreSQL implementation — return Result.
+    }
+);
 
 const GetOrderProvider = GetOrder.provide
   .perContext()
   .using({ find: FindOrder })
   .with(
-    ({ find }) =>
-      async (id) =>
-        find(id)
+    ({ deps: { find } }) =>
+      async function (id) {
+        return find(id);
+      }
   );
 
 const appRoot = compose({
@@ -500,7 +530,7 @@ const appRoot = compose({
     getOrder: GetOrderProvider,
   },
   providers: [SelectOrderProvider],
-  bindings: [[FindOrder, SelectOrder]],
+  bindings: [bind(FindOrder, SelectOrder)],
 });
 
 const ctx = appRoot.createExecutionContext();
@@ -517,16 +547,19 @@ try {
 
 `GetOrderProvider` remains unaware of PostgreSQL.
 
-**Counterexample:** registering both a `FindOrderProvider` and `bindings: [[FindOrder, SelectOrder]]` must be detected as ambiguous or duplicate satisfaction of `FindOrder`, not resolved silently.
+**Counterexample:** registering both a `FindOrderProvider` and `bindings: [bind(FindOrder, SelectOrder)]` must be detected as ambiguous or duplicate satisfaction of `FindOrder`, not resolved silently.
 
 This example intentionally does not yet model a full cancel/persist workflow; extend it when testing complete side-effect chains.
 
 ### Example C — Context-scoped materialization
 
 ```ts
-const LoadOrderProvider = LoadOrder.provide.perContext().with(() => {
+const LoadOrderProvider = LoadOrder.provide.perContext().with(({ lifetime }) => {
   const loader = new DataLoader(batchLoadOrders);
-  return (id) => loader.load(id);
+  lifetime.onDispose(() => loader.clearAll());
+  return function (id) {
+    return loader.load(id);
+  };
 });
 ```
 
@@ -618,7 +651,7 @@ Use ordinary TypeScript initially.
 Explore through examples rather than inventing abstractions prematurely.
 
 - Beyond the PoC missing-provider compile check, how far can generics push duplicate/ambiguous binding detection without code generation?
-- Can TypeScript detect invalid lifecycle edges (composition-lifetime provider depending on context-lifetime provider) statically?
+- ~~Can TypeScript detect invalid lifecycle edges (composition-lifetime provider depending on context-lifetime provider) statically?~~ **Settled (PoC):** yes — compile-time check plus runtime throw at materialization.
 - How should composition-root disposal work alongside `ctx.dispose()`?
 - How should partial composition closure and aggregation work (merge API deferred)?
 - How can full boundary isolation be enforced on the import graph, including type-only imports? (PoC: branding + discipline only; mechanical enforcement still open.)

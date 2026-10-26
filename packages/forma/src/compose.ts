@@ -1,5 +1,6 @@
 import type { Intent } from "./boundary.js";
 import type { Disposable, IntentOperation, Lifetime, Provider, ResolvedDeps } from "./provider.js";
+import type { Result } from "./result.js";
 
 /**
  * Registrable Provider with erased contract params so `compose` can accept a
@@ -7,7 +8,7 @@ import type { Disposable, IntentOperation, Lifetime, Provider, ResolvedDeps } fr
  */
 // Type params appear in covariant and contravariant positions; erasure needs `any`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyProvider erasure
-type AnyProvider = Provider<string, string, any, any, any, any>;
+type AnyProvider = Provider<string, string, any, any, any, any, boolean>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyIntent erasure for bindings
 type AnyIntent = Intent<string, string, any, any, any>;
@@ -15,15 +16,62 @@ type AnyIntent = Intent<string, string, any, any, any>;
 type SurfaceOperation<P> =
   // Deps is invariant on Provider (factory param); erase with `any` so surface
   // aliases still expose Input/Success/Err when the provider has `using` deps.
+  // Context aliases always return a Promise (lazy materialize + invoke).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Deps erasure
-  P extends Provider<string, string, infer Input, infer Success, infer Err, any>
-    ? IntentOperation<Input, Success, Err>
+  P extends Provider<string, string, infer Input, infer Success, infer Err, any, boolean>
+    ? (input: Input) => Promise<Result<Success, Err>>
     : never;
 
 type Op = IntentOperation<unknown, unknown, unknown>;
 
-/** Explicit composition association: require Intent A, satisfy with Intent B's provider. */
-export type Binding = readonly [AnyIntent, AnyIntent];
+declare const formaBindingBrand: unique symbol;
+
+/**
+ * Explicit composition association produced only by {@link bind}.
+ * Preserves concrete Intent types so `compose` can rewrite requirements.
+ * Raw `[required, satisfier]` tuples are not assignable (brand).
+ */
+export type BindingPair<
+  Req extends AnyIntent = AnyIntent,
+  Sat extends AnyIntent = AnyIntent,
+> = readonly [Req, Sat] & {
+  readonly [formaBindingBrand]: void;
+};
+
+/** Erased binding pair for heterogeneous `bindings` arrays. */
+export type Binding = BindingPair;
+
+/**
+ * `Sat` when Req and Sat Intent contracts are mutually assignable
+ * (structural equivalence of Input / Success / Err); otherwise `never`.
+ */
+type SameContract<Req, Sat> =
+  Req extends Intent<string, string, infer RI, infer RS, infer RE>
+    ? Sat extends Intent<string, string, infer SI, infer SS, infer SE>
+      ? [RI, SI] extends [SI, RI]
+        ? [RS, SS] extends [SS, RS]
+          ? [RE, SE] extends [SE, RE]
+            ? Sat
+            : never
+          : never
+        : never
+      : never
+    : never;
+
+/**
+ * Associate a required Intent with a satisfier Intent whose contract is
+ * structurally equivalent. Use the result in `compose({ bindings })`.
+ *
+ * ```ts
+ * bindings: [bind(FindOrder, SelectOrder)]
+ * ```
+ */
+export function bind<Req extends AnyIntent, Sat extends AnyIntent>(
+  required: Req,
+  satisfier: SameContract<Req, Sat>
+): BindingPair<Req, Sat> {
+  return [required, satisfier] as unknown as BindingPair<Req, Sat>;
+}
 
 /** Public aliases from `surface`, plus `dispose` for the execution lifetime. */
 export type ExecutionContext<Surface extends Record<string, AnyProvider>> = {
@@ -48,8 +96,9 @@ export type ComposeOptions<
   readonly providers?: Providers;
   /**
    * Rewrite a required Intent identity to a different satisfier Intent identity.
-   * Satisfier's registered provider must fulfill the requirement (structural match,
-   * or an adapter provider whose Intent is the bound satisfier).
+   * Entries must be created with {@link bind} (structural contract equivalence).
+   * The satisfier's registered provider fulfills the requirement (or an adapter
+   * provider whose Intent is the bound satisfier).
    */
   readonly bindings?: Bindings;
 };
@@ -63,7 +112,7 @@ type IntentKeyOf<I> =
 
 type ProviderIntentKey<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
-  P extends Provider<infer B, infer N, any, any, any, any>
+  P extends Provider<infer B, infer N, any, any, any, any, boolean>
     ? `${Extract<B, string>}.${Extract<N, string>}`
     : never;
 
@@ -76,10 +125,65 @@ type IsEmptyDeps<Deps> = [Deps] extends [Record<string, never>]
 /** Direct `using` Intent keys on a Provider (empty when `using` was omitted). */
 type ProviderDepKeys<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
-  P extends Provider<string, string, any, any, any, infer Deps>
+  P extends Provider<string, string, any, any, any, infer Deps, boolean>
     ? IsEmptyDeps<Deps> extends true
       ? never
       : { [K in keyof Deps]: IntentKeyOf<Deps[K]> }[keyof Deps]
+    : never;
+
+/** `true` when the Provider is marked `.perContext()`; otherwise `false`. */
+type ProviderIsPerContext<P> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
+  P extends Provider<string, string, any, any, any, any, infer PC> ? PC : false;
+
+type RegisteredProviders<
+  Surface extends Record<string, AnyProvider>,
+  Providers extends readonly AnyProvider[],
+> = Surface[keyof Surface] | Providers[number];
+
+/** Registered provider whose Intent key matches `Key` (after identity resolution). */
+type ProviderForIntentKey<
+  Key extends string,
+  Surface extends Record<string, AnyProvider>,
+  Providers extends readonly AnyProvider[],
+> =
+  RegisteredProviders<Surface, Providers> extends infer P
+    ? P extends AnyProvider
+      ? [ProviderIntentKey<P>] extends [Key]
+        ? P
+        : never
+      : never
+    : never;
+
+/**
+ * Intent-key edges where a composition-lifetime provider `using`s a dependency
+ * satisfied by a `.perContext()` provider (illegal capture; spec §6 / §15.7).
+ */
+type InvalidLifetimeEdgeKeys<
+  Surface extends Record<string, AnyProvider>,
+  Providers extends readonly AnyProvider[],
+  Bindings extends readonly Binding[],
+> =
+  RegisteredProviders<Surface, Providers> extends infer Consumer
+    ? Consumer extends AnyProvider
+      ? [ProviderIsPerContext<Consumer>] extends [true]
+        ? never
+        : ProviderDepKeys<Consumer> extends infer DepKey
+          ? DepKey extends string
+            ? RewriteRequirement<DepKey, Bindings> extends infer SatisfierKey
+              ? SatisfierKey extends string
+                ? ProviderForIntentKey<SatisfierKey, Surface, Providers> extends infer Sat
+                  ? Sat extends AnyProvider
+                    ? [ProviderIsPerContext<Sat>] extends [true]
+                      ? `${ProviderIntentKey<Consumer>}→${SatisfierKey}`
+                      : never
+                    : never
+                  : never
+                : never
+              : never
+            : never
+          : never
+      : never
     : never;
 
 type RegisteredIntentKeys<
@@ -158,6 +262,23 @@ type AssertProvidersComplete<
         }
     : unknown;
 
+/**
+ * Intersected into `compose` options: composition-lifetime providers must not
+ * depend on `.perContext()` providers (phantom property → compile error).
+ */
+type AssertNoInvalidLifetimeEdges<
+  Surface extends Record<string, AnyProvider>,
+  Providers extends readonly AnyProvider[],
+  Bindings extends readonly Binding[],
+> =
+  InvalidLifetimeEdgeKeys<Surface, Providers, Bindings> extends infer Bad
+    ? [Bad] extends [never]
+      ? unknown
+      : {
+          readonly __formaInvalidLifetimeEdges: `Invalid lifetime edge(s): composition-lifetime provider(s) depend on .perContext(): ${Extract<Bad, string>}`;
+        }
+    : unknown;
+
 function createLifetime(bucket: Disposable[]): Lifetime {
   return {
     onDispose(cleanup: Disposable) {
@@ -168,8 +289,19 @@ function createLifetime(bucket: Disposable[]): Lifetime {
 
 async function runDisposers(bucket: Disposable[]): Promise<void> {
   const cleanups = bucket.splice(0, bucket.length);
+  const errors: unknown[] = [];
   for (let i = cleanups.length - 1; i >= 0; i -= 1) {
-    await cleanups[i]!();
+    try {
+      await cleanups[i]!();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+  if (errors.length > 1) {
+    throw new AggregateError(errors, "One or more disposers failed");
   }
 }
 
@@ -227,7 +359,8 @@ export function compose<
   const Bindings extends readonly Binding[] = [],
 >(
   options: ComposeOptions<Surface, Providers, Bindings> &
-    AssertProvidersComplete<Surface, Providers, Bindings>
+    AssertProvidersComplete<Surface, Providers, Bindings> &
+    AssertNoInvalidLifetimeEdges<Surface, Providers, Bindings>
 ): CompositionRoot<Surface> {
   const surfaceEntries = Object.entries(options.surface) as [keyof Surface & string, AnyProvider][];
   const privateProviders = options.providers ?? [];
@@ -261,6 +394,7 @@ export function compose<
       const contextOps = new Map<symbol, Op>();
       const contextInflight = new Map<symbol, Promise<Op>>();
       const contextDisposers: Disposable[] = [];
+      let contextDisposed = false;
 
       /**
        * @param seeing - Intent identities already being materialized on this
@@ -271,6 +405,10 @@ export function compose<
         provider: AnyProvider,
         seeing: ReadonlySet<symbol> = new Set()
       ): Promise<Op> {
+        if (contextDisposed) {
+          throw new Error("Execution context is disposed");
+        }
+
         const perContext = provider.perContext;
         const cache = perContext ? contextOps : compositionOps;
         const inflight = perContext ? contextInflight : compositionInflight;
@@ -301,6 +439,9 @@ export function compose<
             // Yield so concurrent first-access callers can join this inflight promise
             // before the factory runs (single materialization per lifetime).
             await Promise.resolve();
+            if (contextDisposed) {
+              throw new Error("Execution context is disposed");
+            }
             const deps = await resolveDeps(provider, nextSeeing);
             const lifetime = createLifetime(disposers);
             const op = provider.factory(deps, lifetime) as Op;
@@ -341,12 +482,25 @@ export function compose<
         const deps = provider.deps as Record<string, AnyIntent>;
         const resolved: Record<string, Op> = {};
         for (const [key, intent] of Object.entries(deps)) {
+          if (!provider.perContext) {
+            const satisfierId = bindingMap.get(intent.identity) ?? intent.identity;
+            const depProvider = registry.get(satisfierId);
+            if (depProvider?.perContext) {
+              throw new Error(
+                `Invalid lifetime edge: composition-lifetime provider ${intentLabel(provider.intent)} cannot depend on a .perContext() provider (${intentLabel(depProvider.intent)})`
+              );
+            }
+          }
           resolved[key] = await resolveByIdentity(intent, seeing);
         }
         return resolved as ResolvedDeps<AnyProvider["deps"]>;
       }
       const ctx: Record<string, unknown> = {
         async dispose() {
+          if (contextDisposed) {
+            return;
+          }
+          contextDisposed = true;
           await runDisposers(contextDisposers);
           contextOps.clear();
         },

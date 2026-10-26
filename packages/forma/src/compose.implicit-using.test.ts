@@ -10,17 +10,21 @@ type FindError = { readonly kind: "not_found" };
 describe("compose — implicit using graph", () => {
   it("resolves a same-boundary using dep from private providers by Intent identity", async () => {
     const Orders = boundary("orders");
-    const FindOrder = Orders.intent<OrderId, Order, FindError>("find");
-    const GetOrder = Orders.intent<OrderId, Order, FindError>("get");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
 
-    const FindOrderProvider = FindOrder.provide.with((id) =>
-      id.id === "1" ? ok({ id: "1", total: 42 }) : ok({ id: id.id, total: 0 })
+    const FindOrderProvider = FindOrder.provide.with(
+      (_ctx) =>
+        function (id) {
+          return id.id === "1" ? ok({ id: "1", total: 42 }) : ok({ id: id.id, total: 0 });
+        }
     );
 
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
-      ({ find }) =>
-        (id) =>
-          find(id)
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
     );
 
     const root = compose({
@@ -34,7 +38,7 @@ describe("compose — implicit using graph", () => {
     expect(ctx).not.toHaveProperty("findOrder");
     expectTypeOf(ctx).not.toHaveProperty("findOrder");
     expectTypeOf(ctx.getOrder).toEqualTypeOf<
-      (input: OrderId) => Result<Order, FindError> | Promise<Result<Order, FindError>>
+      (input: OrderId) => Promise<Result<Order, FindError>>
     >();
 
     const result = await ctx.getOrder({ id: "1" });
@@ -44,15 +48,16 @@ describe("compose — implicit using graph", () => {
   });
 
   it("throws at runtime when providers omits the required Intent's provider", async () => {
-    // Curried intent keeps literal names so the compose type bar also applies.
+    // Literal intent names so the compose type bar applies (orders.find ≠ orders.get).
     const Orders = boundary("orders");
-    const FindOrder = Orders.intent<OrderId, Order, FindError>()("find");
-    const GetOrder = Orders.intent<OrderId, Order, FindError>()("get");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
 
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
-      ({ find }) =>
-        (id) =>
-          find(id)
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
     );
 
     // Compile-time also rejects this (ticket 07); assert runtime defense-in-depth.

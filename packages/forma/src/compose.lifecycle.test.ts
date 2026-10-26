@@ -6,13 +6,15 @@ import { ok } from "./result.js";
 describe("compose — lifecycle and disposal", () => {
   it("reuses a default (composition-lifetime) instance across two execution contexts", async () => {
     const Health = boundary("health");
-    const Ping = Health.intent<void, { readonly n: number }, never>("ping");
+    const Ping = Health.intent("ping").contract<void, { readonly n: number }, never>();
 
     let setups = 0;
-    const PingProvider = Ping.provide.with(() => {
+    const PingProvider = Ping.provide.with((_ctx) => {
       setups += 1;
       const instance = { n: setups };
-      return () => ok(instance);
+      return function () {
+        return ok(instance);
+      };
     });
 
     const root = compose({ surface: { ping: PingProvider } });
@@ -36,13 +38,15 @@ describe("compose — lifecycle and disposal", () => {
 
   it("materializes .perContext() once per context and reuses within that context", async () => {
     const Health = boundary("health");
-    const Ping = Health.intent<void, { readonly n: number }, never>("ping");
+    const Ping = Health.intent("ping").contract<void, { readonly n: number }, never>();
 
     let setups = 0;
-    const PingProvider = Ping.provide.perContext().with(() => {
+    const PingProvider = Ping.provide.perContext().with((_ctx) => {
       setups += 1;
       const instance = { n: setups };
-      return () => ok(instance);
+      return function () {
+        return ok(instance);
+      };
     });
 
     const root = compose({ surface: { ping: PingProvider } });
@@ -69,10 +73,15 @@ describe("compose — lifecycle and disposal", () => {
 
   it("coalesces concurrent first access so the factory runs once", async () => {
     const Health = boundary("health");
-    const Ping = Health.intent<void, "pong", never>("ping");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
 
     let factoryRuns = 0;
-    const base = Ping.provide.with(() => ok("pong"));
+    const base = Ping.provide.with(
+      (_ctx) =>
+        function () {
+          return ok("pong");
+        }
+    );
     const PingProvider = {
       ...base,
       factory: ((deps, life) => {
@@ -95,24 +104,20 @@ describe("compose — lifecycle and disposal", () => {
 
   it("ctx.dispose() runs Lifetime.onDispose cleanup for .perContext() providers", async () => {
     const Health = boundary("health");
-    const Ping = Health.intent<void, "pong", never>("ping");
-    const Ready = Health.intent<void, true, never>("ready");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
 
     const stub = { disposed: false };
-    const PingProvider = Ping.provide
-      .perContext()
-      .using({ ready: Ready })
-      .with((_deps, life) => {
-        life.onDispose(async () => {
-          stub.disposed = true;
-        });
-        return () => ok("pong" as const);
+    const PingProvider = Ping.provide.perContext().with(({ lifetime }) => {
+      lifetime.onDispose(async () => {
+        stub.disposed = true;
       });
-    const ReadyProvider = Ready.provide.with(() => ok(true as const));
+      return function () {
+        return ok("pong" as const);
+      };
+    });
 
     const root = compose({
       surface: { ping: PingProvider },
-      providers: [ReadyProvider],
     });
     const ctx = root.createExecutionContext();
 
@@ -127,21 +132,20 @@ describe("compose — lifecycle and disposal", () => {
 
   it("root.dispose() runs composition-lifetime Lifetime.onDispose cleanup", async () => {
     const Health = boundary("health");
-    const Ping = Health.intent<void, "pong", never>("ping");
-    const Ready = Health.intent<void, true, never>("ready");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
 
     const stub = { disposed: false };
-    const PingProvider = Ping.provide.using({ ready: Ready }).with((_deps, life) => {
-      life.onDispose(async () => {
+    const PingProvider = Ping.provide.with(({ lifetime }) => {
+      lifetime.onDispose(async () => {
         stub.disposed = true;
       });
-      return () => ok("pong" as const);
+      return function () {
+        return ok("pong" as const);
+      };
     });
-    const ReadyProvider = Ready.provide.with(() => ok(true as const));
 
     const root = compose({
       surface: { ping: PingProvider },
-      providers: [ReadyProvider],
     });
     const ctx = root.createExecutionContext();
 
@@ -153,37 +157,130 @@ describe("compose — lifecycle and disposal", () => {
     expect(stub.disposed).toBe(true);
   });
 
+  it("throws when a composition-lifetime provider depends on a .perContext() provider", async () => {
+    // §15.7 — invalid composition→context lifetime edge (default capturing perContext).
+    const Db = boundary("db");
+    const Query = Db.intent("query").contract<void, { readonly conn: number }, never>();
+    const Conn = Db.intent("conn").contract<void, { readonly id: number }, never>();
+
+    let connSetups = 0;
+    const ConnProvider = Conn.provide.perContext().with((_ctx) => {
+      connSetups += 1;
+      const instance = { id: connSetups };
+      return function () {
+        return ok(instance);
+      };
+    });
+
+    const QueryProvider = Query.provide.using({ conn: Conn }).with(({ deps: { conn } }) => {
+      // Capture conn op at composition lifetime — illegal if Conn is perContext.
+      return async function () {
+        const result = await conn();
+        if (!result.ok) {
+          throw new Error("expected ok conn");
+        }
+        return ok({ conn: result.value.id });
+      };
+    });
+
+    // @ts-expect-error — Invalid lifetime edge: composition-lifetime depending on .perContext()
+    const root = compose({
+      surface: { query: QueryProvider },
+      providers: [ConnProvider],
+    });
+    const ctx = root.createExecutionContext();
+
+    await expect(ctx.query()).rejects.toThrow(
+      /composition-lifetime.*context-lifetime|cannot depend on a \.perContext/
+    );
+
+    await ctx.dispose();
+    await root.dispose();
+  });
+
+  it("after ctx.dispose(), surface aliases throw instead of rematerializing", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+
+    let setups = 0;
+    const PingProvider = Ping.provide.perContext().with((_ctx) => {
+      setups += 1;
+      return function () {
+        return ok("pong" as const);
+      };
+    });
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+
+    await expect(ctx.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    expect(setups).toBe(1);
+
+    await ctx.dispose();
+
+    await expect(ctx.ping()).rejects.toThrow(/disposed|sealed/i);
+    expect(setups).toBe(1);
+
+    await root.dispose();
+  });
+
+  it("ctx.dispose() still runs later cleanups when an earlier one throws", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+
+    const order: string[] = [];
+    const PingProvider = Ping.provide.perContext().with(({ lifetime }) => {
+      // LIFO: registered first → runs after the throwing cleanup.
+      lifetime.onDispose(async () => {
+        order.push("later");
+      });
+      lifetime.onDispose(async () => {
+        order.push("earlier");
+        throw new Error("earlier cleanup failed");
+      });
+      return function () {
+        return ok("pong" as const);
+      };
+    });
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+    await ctx.ping();
+
+    await expect(ctx.dispose()).rejects.toThrow(/earlier cleanup failed/);
+    expect(order).toEqual(["earlier", "later"]);
+
+    await root.dispose();
+  });
+
   it("ctx.dispose() does not run composition-lifetime cleanup", async () => {
     const Health = boundary("health");
-    const Ping = Health.intent<void, "pong", never>("ping");
-    const Scoped = Health.intent<void, "pong", never>("scoped");
-    const Ready = Health.intent<void, true, never>("ready");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+    const Scoped = Health.intent("scoped").contract<void, "pong", never>();
 
     const compositionStub = { disposed: false };
     const contextStub = { disposed: false };
 
-    const SharedProvider = Ping.provide.using({ ready: Ready }).with((_deps, life) => {
-      life.onDispose(() => {
+    const SharedProvider = Ping.provide.with(({ lifetime }) => {
+      lifetime.onDispose(() => {
         compositionStub.disposed = true;
       });
-      return () => ok("pong" as const);
+      return function () {
+        return ok("pong" as const);
+      };
     });
 
-    const ScopedProvider = Scoped.provide
-      .perContext()
-      .using({ ready: Ready })
-      .with((_deps, life) => {
-        life.onDispose(() => {
-          contextStub.disposed = true;
-        });
-        return () => ok("pong" as const);
+    const ScopedProvider = Scoped.provide.perContext().with(({ lifetime }) => {
+      lifetime.onDispose(() => {
+        contextStub.disposed = true;
       });
-
-    const ReadyProvider = Ready.provide.with(() => ok(true as const));
+      return function () {
+        return ok("pong" as const);
+      };
+    });
 
     const root = compose({
       surface: { ping: SharedProvider, scoped: ScopedProvider },
-      providers: [ReadyProvider],
     });
     const ctx = root.createExecutionContext();
 

@@ -3,8 +3,8 @@
  * with a per-execution-context DB connection.
  */
 import type { Result } from "@xndrjs/forma";
-import { root } from "./composition.js";
-import type { FindError, Order } from "./orders/index.js";
+import { root } from "./composition";
+import type { FindError, Order } from "./orders/index";
 
 async function main(): Promise<void> {
   const ctx = root.createExecutionContext();
