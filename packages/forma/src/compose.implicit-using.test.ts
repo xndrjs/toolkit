@@ -44,9 +44,10 @@ describe("compose — implicit using graph", () => {
   });
 
   it("throws at runtime when providers omits the required Intent's provider", async () => {
+    // Curried intent keeps literal names so the compose type bar also applies.
     const Orders = boundary("orders");
-    const FindOrder = Orders.intent<OrderId, Order, FindError>("find");
-    const GetOrder = Orders.intent<OrderId, Order, FindError>("get");
+    const FindOrder = Orders.intent<OrderId, Order, FindError>()("find");
+    const GetOrder = Orders.intent<OrderId, Order, FindError>()("get");
 
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
       ({ find }) =>
@@ -54,6 +55,8 @@ describe("compose — implicit using graph", () => {
           find(id)
     );
 
+    // Compile-time also rejects this (ticket 07); assert runtime defense-in-depth.
+    // @ts-expect-error — Missing provider for Intent(s): orders.find
     const root = compose({
       surface: { getOrder: GetOrderProvider },
       // FindOrderProvider intentionally omitted
