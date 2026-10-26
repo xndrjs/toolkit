@@ -1,5 +1,11 @@
 # @xndrjs/struttura
 
+## 0.1.0-alpha.2
+
+### Patch Changes
+
+- 9c60b06: Support many-valued construct dependencies via `array(C)` / `{ construct, many: true }` (empty arrays allowed; order preserved).
+
 ## 0.1.0-alpha.1
 
 ### Patch Changes

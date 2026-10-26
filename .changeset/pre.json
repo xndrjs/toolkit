@@ -31,5 +31,9 @@
     "@xndrjs/forma-demo": "0.0.1",
     "@xndrjs/struttura-demo": "0.0.1"
   },
-  "changesets": ["forma-struttura-alpha", "struttura-typed-deps"]
+  "changesets": [
+    "forma-struttura-alpha",
+    "struttura-many-deps",
+    "struttura-typed-deps"
+  ]
 }
