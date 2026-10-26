@@ -13,6 +13,8 @@ export {
   type ArtifactCallbackContextBase,
   type ArtifactRefsFromDescriptors,
   type ConstructDefinition,
+  type ConstructDepsOf,
+  type DepInstances,
   type InPlacement,
   type InstanceArtifacts,
   type InstanceRef,

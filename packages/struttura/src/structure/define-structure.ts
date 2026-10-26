@@ -54,11 +54,23 @@ export type InstanceArtifacts = Record<string, DirRef | FileRef>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentional erase for registries
 export type AnyConstructDefinition = ConstructDefinition<any, any, any>;
 
+/** Dependency map from a construct definition (`TDeps`). */
+export type ConstructDepsOf<C> =
+  C extends ConstructDefinition<infer _A, infer D, infer _N> ? D : Record<string, never>;
+
+/**
+ * Instance-side view of a construct dependency map: each key resolves to the
+ * navigable instance of that dependency construct.
+ */
+export type DepInstances<TDeps extends Record<string, AnyConstructDefinition>> = {
+  readonly [K in keyof TDeps]: NavigableInstanceRef<TDeps[K]>;
+};
+
 export type InstanceRef<C extends AnyConstructDefinition = AnyConstructDefinition> = {
   readonly id: string;
   readonly name: string;
   readonly construct: C;
-  readonly dependencies: Readonly<Record<string, InstanceRef>>;
+  readonly dependencies: Readonly<DepInstances<ConstructDepsOf<C>>>;
   /** Filled during desired-inventory derivation (internal; not part of navigable public shape). */
   artifacts: InstanceArtifacts;
 };

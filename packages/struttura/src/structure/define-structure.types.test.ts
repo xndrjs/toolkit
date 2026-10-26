@@ -104,4 +104,42 @@ describe("construct navigable dependency children", () => {
       return A.in(A.rootDirectory, A.dir("pkg", {}));
     });
   });
+
+  it("types nested .dependencies from the construct dep map (ModelsModule → core)", () => {
+    const A = defineStructure("DepMapTypes");
+    const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`packages/core-${name}`, {
+          packageJson: A.file("package.json", "{}\n"),
+        })
+      )
+    );
+    const ModelsModule = A.construct("ModelsModule", { core: CorePackage }, ({ core }) =>
+      A.in(
+        core,
+        A.dir("models", {
+          index: A.file("index.ts", "export {};\n"),
+        })
+      )
+    );
+
+    A.construct("Shape", { models: ModelsModule }, ({ models }) => {
+      type CoreInstance = import("./define-structure").NavigableInstanceRef<typeof CorePackage>;
+
+      // Desired: dependencies keyed like the construct map, values = navigable instances.
+      expectTypeOf(models.dependencies).toEqualTypeOf<{
+        readonly core: CoreInstance;
+      }>();
+
+      expectTypeOf(models.dependencies.core).toEqualTypeOf<CoreInstance>();
+      expectTypeOf(models.dependencies.core.packageJson).toEqualTypeOf<FileRef>();
+
+      // Desired: unknown dep keys are not allowed (Record<string, …> allows them today).
+      // @ts-expect-error — only declared deps (core) exist on models.dependencies
+      const _bad = models.dependencies.notADep;
+
+      return A.in(models, A.file("x.shape.ts", "export type X = {};\n"));
+    });
+  });
 });
