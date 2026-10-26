@@ -5,6 +5,7 @@ export const GetOrderProvider = GetOrder.provide
   .using({ find: FindOrder })
   .with(
     ({ find }) =>
-      (id) =>
-        find(id)
+      function execute(id) {
+        return find(id);
+      }
   );
