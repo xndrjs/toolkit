@@ -31,6 +31,7 @@ Workspace-wide scripts (install, build, test, release) run from the **repository
 | `@xndrjs/domain-zod`              | Zod 4 adapter; re-exports domain (`packages/domain-zod`)                                                      |
 | `@xndrjs/domain-valibot`          | Valibot adapter; re-exports domain (`packages/domain-valibot`)                                                |
 | `@xndrjs/tasks`                   | Lazy async tasks with retry (`packages/tasks`)                                                                |
+| `@xndrjs/forma`                   | Form modeling utilities (`packages/forma`)                                                                    |
 | `@xndrjs/orchestration`           | Orchestration ports (`packages/orchestration`)                                                                |
 | `@xndrjs/react-adapter`           | React hooks for orchestration ports (`packages/react-adapter`)                                                |
 | `@xndrjs/addressable-resources`   | Addressable resource identifiers; succeeds `@xndrjs/application-resources` (`packages/addressable-resources`) |

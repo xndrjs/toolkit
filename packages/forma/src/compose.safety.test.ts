@@ -1,0 +1,220 @@
+import { describe, expect, it } from "vitest";
+import { boundary } from "./boundary.js";
+import { bind, compose } from "./compose.js";
+import { ok } from "./result.js";
+
+type OrderId = { readonly id: string };
+type Order = { readonly id: string; readonly total: number };
+type FindError = { readonly kind: "not_found" };
+
+/**
+ * Composition type-safety keys Intents by `boundaryId.name`.
+ * `intent("name").contract<In, Success, Err>()` keeps `name` as a string literal so
+ * same-contract Intents stay distinct at the type level (see boundary.ts).
+ */
+describe("compose — composition safety", () => {
+  it("type-rejects surface needing an Intent with no provider after bindings", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
+
+    // Missing FindOrder provider (and no binding rewrite) — PoC compile bar.
+    // @ts-expect-error — Missing provider for Intent(s): orders.find
+    compose({
+      surface: { getOrder: GetOrderProvider },
+    });
+  });
+
+  it("type-rejects missing provider despite another same-boundary provider", () => {
+    // Literal names must stay distinct: registering Other must not satisfy FindOrder
+    // via a widened `orders.${string}` key (regression for the old intent<…>(name) form).
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+    const Other = Orders.intent("other").contract<void, true, never>();
+
+    const OtherProvider = Other.provide.with(
+      (_ctx) =>
+        function () {
+          return ok(true as const);
+        }
+    );
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
+
+    // Missing FindOrder provider — must still be a compile error despite OtherProvider.
+    // @ts-expect-error — Missing provider for Intent(s): orders.find
+    compose({
+      surface: { getOrder: GetOrderProvider },
+      providers: [OtherProvider],
+    });
+  });
+
+  it("type-accepts the graph when the required Intent is registered privately", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+
+    const FindOrderProvider = FindOrder.provide.with(
+      (_ctx) =>
+        function (id) {
+          return ok({ id: id.id, total: 1 });
+        }
+    );
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
+
+    const root = compose({
+      surface: { getOrder: GetOrderProvider },
+      providers: [FindOrderProvider],
+    });
+    expect(typeof root.createExecutionContext).toBe("function");
+  });
+
+  it("type-accepts a binding rewrite when the satisfier provider is registered", () => {
+    const Orders = boundary("orders");
+    const Postgres = boundary("postgres");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+    const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindError>();
+
+    const SelectOrderProvider = SelectOrder.provide.with(
+      (_ctx) =>
+        function (id) {
+          return ok({ id: id.id, total: 1 });
+        }
+    );
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
+
+    const root = compose({
+      surface: { getOrder: GetOrderProvider },
+      providers: [SelectOrderProvider],
+      bindings: [bind(FindOrder, SelectOrder)],
+    });
+    expect(typeof root.createExecutionContext).toBe("function");
+  });
+
+  it("type-rejects a binding whose satisfier has no registered provider", () => {
+    const Orders = boundary("orders");
+    const Postgres = boundary("postgres");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+    const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindError>();
+
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
+
+    // @ts-expect-error — Missing provider for Intent(s): postgres.selectOrder
+    compose({
+      surface: { getOrder: GetOrderProvider },
+      bindings: [bind(FindOrder, SelectOrder)],
+    });
+  });
+
+  it("type-rejects a composition-lifetime provider that depends on a .perContext() provider", () => {
+    // §15.7 — invalid composition→context lifetime edge (compile-time).
+    const Db = boundary("db");
+    const Query = Db.intent("query").contract<void, { readonly conn: number }, never>();
+    const Conn = Db.intent("conn").contract<void, { readonly id: number }, never>();
+
+    const ConnProvider = Conn.provide.perContext().with(
+      (_ctx) =>
+        function () {
+          return ok({ id: 1 });
+        }
+    );
+    const QueryProvider = Query.provide.using({ conn: Conn }).with(
+      ({ deps: { conn } }) =>
+        async function () {
+          const result = await conn();
+          if (!result.ok) {
+            throw new Error("expected ok conn");
+          }
+          return ok({ conn: result.value.id });
+        }
+    );
+
+    // @ts-expect-error — Invalid lifetime edge: composition-lifetime depending on .perContext()
+    compose({
+      surface: { query: QueryProvider },
+      providers: [ConnProvider],
+    });
+  });
+
+  it("throws when the same Intent is in both surface and providers", () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+    const PingProvider = Ping.provide.with(
+      (_ctx) =>
+        function () {
+          return ok("pong" as const);
+        }
+    );
+
+    expect(() =>
+      compose({
+        surface: { ping: PingProvider },
+        providers: [PingProvider],
+      })
+    ).toThrow(/appears in both surface and providers/);
+  });
+
+  it("throws when a Required Intent has both a provider and a binding", () => {
+    const Orders = boundary("orders");
+    const Postgres = boundary("postgres");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+    const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindError>();
+
+    const FindOrderProvider = FindOrder.provide.with(
+      (_ctx) =>
+        function (id) {
+          return ok({ id: id.id, total: 1 });
+        }
+    );
+    const SelectOrderProvider = SelectOrder.provide.with(
+      (_ctx) =>
+        function (id) {
+          return ok({ id: id.id, total: 2 });
+        }
+    );
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
+
+    expect(() =>
+      compose({
+        surface: { getOrder: GetOrderProvider },
+        providers: [FindOrderProvider, SelectOrderProvider],
+        bindings: [bind(FindOrder, SelectOrder)],
+      })
+    ).toThrow(/Ambiguous satisfaction for Intent orders\.find/);
+  });
+});
