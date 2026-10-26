@@ -1,0 +1,19 @@
+{
+  "name": "@xndrjs/forma-demo",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Runnable PoC demo for @xndrjs/forma: Orders surface, cross-boundary binding, and perContext lifecycle.",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xndrjs/forma": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}

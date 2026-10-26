@@ -4,12 +4,12 @@
 
 **Blocked by:** 04: Implicit using graph; 05: Explicit cross-boundary binding; 06: Lifecycle and disposal; 07: Composition safety
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `apps/forma-demo` (or equivalent) is a workspace app
-- [ ] Script run (e.g. `pnpm --filter … start`) creates composition, opens context, calls surface, disposes ctx and root
-- [ ] Uses binding + at least one `.perContext()` provider
-- [ ] README one-liner: how to run
+- [x] `apps/forma-demo` (or equivalent) is a workspace app
+- [x] Script run (e.g. `pnpm --filter … start`) creates composition, opens context, calls surface, disposes ctx and root
+- [x] Uses binding + at least one `.perContext()` provider
+- [x] README one-liner: how to run
 
 **Verify:** command exits 0 and prints a clear success line.
 

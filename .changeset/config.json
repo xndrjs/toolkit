@@ -19,6 +19,7 @@
     "@xndrjs/documentation",
     "@xndrjs/oas-core-validator-demo",
     "@xndrjs/domain-demo",
+    "@xndrjs/forma-demo",
     "@xndrjs/i18n-demo",
     "@xndrjs/contentful-to-zod-demo",
     "@xndrjs/resource-graph-resolver-demo",
