@@ -1,4 +1,10 @@
-import type { AnyConstructDefinition, Structure, InstanceRef } from "../structure/define-structure";
+import type {
+  AnyConstructDefinition,
+  Structure,
+  InstanceRef,
+  InstanceDependencyValue,
+} from "../structure/define-structure";
+import { resolveDepSlot } from "../structure/dep-slot";
 
 type StructureBuilderLike = {
   seal(): Structure;
@@ -10,7 +16,7 @@ export type RegisteredInstance = {
   readonly id: string;
   readonly name: string;
   readonly construct: AnyConstructDefinition;
-  readonly dependencies: Readonly<Record<string, InstanceRef>>;
+  readonly dependencies: Readonly<Record<string, InstanceDependencyValue>>;
   artifacts: InstanceRef["artifacts"];
 };
 
@@ -37,7 +43,10 @@ export type Population = {
   readonly instances: readonly RegisteredInstance[];
   add(
     construct: AnyConstructDefinition,
-    input: { name: string; id?: string } & Record<string, PopulateDependency | string | undefined>
+    input: {
+      name: string;
+      id?: string;
+    } & Record<string, PopulateDependency | readonly PopulateDependency[] | string | undefined>
   ): InstanceRef;
 };
 
@@ -88,15 +97,41 @@ export function createPopulation(
         // Still register for derive to report a structured diagnostic.
       }
 
-      const dependencies: Record<string, InstanceRef> = {};
+      const dependencies: Record<string, InstanceDependencyValue> = {};
       for (const depKey of Object.keys(construct.dependencies)) {
+        const slot = construct.dependencies[depKey]!;
+        const { construct: expected, many } = resolveDepSlot(slot);
         const depValue = input[depKey];
+
+        if (many) {
+          if (depValue === undefined || typeof depValue === "string" || !Array.isArray(depValue)) {
+            throw new Error(
+              `Instance "${id}" of "${construct.name}" dependency "${depKey}" must be an array of instances`
+            );
+          }
+          const resolved: InstanceRef[] = [];
+          for (const [index, item] of depValue.entries()) {
+            if (!isInstanceRef(item)) {
+              throw new Error(
+                `Instance "${id}" dependency "${depKey}[${String(index)}]" is not an instance ref`
+              );
+            }
+            if (item.construct.name !== expected.name) {
+              throw new Error(
+                `Instance "${id}" dependency "${depKey}[${String(index)}]" expected construct "${expected.name}", got "${item.construct.name}"`
+              );
+            }
+            resolved.push(item as InstanceRef);
+          }
+          dependencies[depKey] = resolved;
+          continue;
+        }
+
         if (depValue === undefined || typeof depValue === "string" || !isInstanceRef(depValue)) {
           throw new Error(
             `Instance "${id}" of "${construct.name}" is missing dependency "${depKey}"`
           );
         }
-        const expected = construct.dependencies[depKey]!;
         if (depValue.construct.name !== expected.name) {
           throw new Error(
             `Instance "${id}" dependency "${depKey}" expected construct "${expected.name}", got "${depValue.construct.name}"`
@@ -114,7 +149,7 @@ export function createPopulation(
       };
       instances.push(registered);
       byId.set(id, registered);
-      return registered;
+      return registered as InstanceRef;
     },
   };
 }
@@ -127,4 +162,21 @@ function isInstanceRef(value: unknown): value is InstanceRef {
     "construct" in value &&
     "artifacts" in value
   );
+}
+
+/** Flatten scalar and many dependency values to instance refs (order preserved). */
+export function flattenDependencyRefs(
+  dependencies: Readonly<Record<string, InstanceDependencyValue>>
+): InstanceRef[] {
+  const out: InstanceRef[] = [];
+  for (const value of Object.values(dependencies)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        out.push(item);
+      }
+    } else {
+      out.push(value as InstanceRef);
+    }
+  }
+  return out;
 }

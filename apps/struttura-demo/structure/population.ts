@@ -30,6 +30,12 @@ api.WorkspaceRoot({ name: "workspace" });
 api.FeatureSpec({ id: "spec-pagebuilder", name: "pagebuilder" });
 
 const pagebuilder = createCore("pagebuilder");
+const shared = createCore("shared");
+
+api.CoreCatalog({
+  name: "catalog",
+  cores: [pagebuilder.core, shared.core],
+});
 
 const page = api.Shape({ name: "page", models: pagebuilder.models });
 api.Primitive({ name: "pageSlug", models: pagebuilder.models });

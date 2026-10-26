@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 
 import type { ArtifactDescriptor } from "../structure/artifacts";
+import { resolveDepSlot } from "../structure/dep-slot";
 import type {
   AnyConstructDefinition,
   Structure,
   InstanceArtifacts,
+  InstanceDependencyValue,
   InstanceRef,
 } from "../structure/define-structure";
 
@@ -58,9 +60,11 @@ export function computeDefinitionStamp(structure: Structure): string {
     name: structure.name,
     constructs: sortedConstructNames(structure).map((name) => {
       const construct = structure.constructs.get(name)!;
-      const dependencies: Record<string, string> = {};
+      const dependencies: Record<string, string | { readonly name: string; readonly many: true }> =
+        {};
       for (const key of Object.keys(construct.dependencies).sort()) {
-        dependencies[key] = construct.dependencies[key]!.name;
+        const { construct: depConstruct, many } = resolveDepSlot(construct.dependencies[key]!);
+        dependencies[key] = many ? { name: depConstruct.name, many: true } : depConstruct.name;
       }
       const kinds = kindsByConstruct.get(name) ?? {};
       const artifacts: Record<string, ArtifactKind> = {};
@@ -88,9 +92,13 @@ export function probeArtifactKinds(
   const kinds = new Map<string, Record<string, ArtifactKind>>();
   for (const name of topologicalConstructNames(structure)) {
     const construct = structure.constructs.get(name)!;
-    const stubDeps: Record<string, InstanceRef> = {};
-    for (const [depKey, depConstruct] of Object.entries(construct.dependencies)) {
-      stubDeps[depKey] = stubDependencyInstance(depConstruct, kinds.get(depConstruct.name) ?? {});
+    const stubDeps: Record<string, InstanceDependencyValue> = {};
+    for (const [depKey, slot] of Object.entries(construct.dependencies)) {
+      const { construct: depConstruct, many } = resolveDepSlot(slot);
+      const stub = stubDependencyInstance(depConstruct, kinds.get(depConstruct.name) ?? {});
+      // One stub element so probes that index [0] still work; empty arrays are
+      // valid at populate time but unhelpful for shape discovery.
+      stubDeps[depKey] = many ? [stub] : stub;
     }
 
     const descriptors = construct.buildArtifacts({
@@ -389,8 +397,8 @@ function factoryInputType(structure: Structure, constructName: string): string {
   const construct = structure.constructs.get(constructName)!;
   const parts = ["name: string", "id?: string"];
   for (const key of Object.keys(construct.dependencies).sort()) {
-    const dep = construct.dependencies[key]!;
-    parts.push(`${key}: ${dep.name}Ref`);
+    const { construct: dep, many } = resolveDepSlot(construct.dependencies[key]!);
+    parts.push(many ? `${key}: readonly ${dep.name}Ref[]` : `${key}: ${dep.name}Ref`);
   }
   return `{ ${parts.join("; ")} }`;
 }
@@ -412,8 +420,8 @@ function topologicalConstructNames(structure: Structure): string[] {
     let progressed = false;
     for (const name of [...remaining].sort()) {
       const construct = structure.constructs.get(name)!;
-      const depsReady = Object.values(construct.dependencies).every((dep) =>
-        ordered.includes(dep.name)
+      const depsReady = Object.values(construct.dependencies).every((slot) =>
+        ordered.includes(resolveDepSlot(slot).construct.name)
       );
       if (!depsReady) {
         continue;

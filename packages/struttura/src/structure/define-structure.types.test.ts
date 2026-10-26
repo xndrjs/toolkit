@@ -1,6 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import {
+  array,
   defineStructure,
   type DirRef,
   type FileRef,
@@ -140,6 +141,33 @@ describe("construct navigable dependency children", () => {
       const _bad = models.dependencies.notADep;
 
       return A.in(models, A.file("x.shape.ts", "export type X = {};\n"));
+    });
+  });
+
+  it("types array(C) dependency slots as readonly navigable instance arrays", () => {
+    const A = defineStructure("ManyDepTypes");
+    const CorePackage = A.construct("CorePackage", {}, ({ name }) =>
+      A.in(
+        A.rootDirectory,
+        A.dir(`packages/core-${name}`, {
+          packageJson: A.file("package.json", "{}\n"),
+        })
+      )
+    );
+
+    A.construct("CoreCatalog", { cores: array(CorePackage) }, ({ cores }) => {
+      type CoreInstance = import("./define-structure").NavigableInstanceRef<typeof CorePackage>;
+
+      expectTypeOf(cores).toEqualTypeOf<readonly CoreInstance[]>();
+      expectTypeOf(cores[0]).toEqualTypeOf<CoreInstance | undefined>();
+      if (cores[0]) {
+        expectTypeOf(cores[0].packageJson).toEqualTypeOf<FileRef>();
+      }
+
+      return A.in(
+        A.rootDirectory,
+        A.file("catalog.ts", () => `export const n = ${String(cores.length)};\n`, { mode: "sync" })
+      );
     });
   });
 });

@@ -8,7 +8,7 @@ import {
 } from "@xndrjs/struttura";
 import { structure, constructs } from "./structure";
 
-export const DEFINITION_STAMP = "afed660ab4ae27cc6559e979e835b229d7894897ab448047682433a2b6f1186e";
+export const DEFINITION_STAMP = "6f5b86e8c2984d90c2e157c4fa70ba287c2bb27f32eccaea32093b970c42d530";
 
 export type AdapterPackageRef = Omit<InstanceRef, "artifacts"> &
   DirRef & {
@@ -37,6 +37,11 @@ export type CapabilitiesRef = Omit<InstanceRef, "artifacts"> &
 export type CompositionRootRef = Omit<InstanceRef, "artifacts"> &
   FileRef & {
     readonly __constructBrand: "CompositionRoot";
+  };
+
+export type CoreCatalogRef = Omit<InstanceRef, "artifacts"> &
+  FileRef & {
+    readonly __constructBrand: "CoreCatalog";
   };
 
 export type CorePackageRef = Omit<InstanceRef, "artifacts"> &
@@ -172,6 +177,11 @@ export type CleanArchitectureOrientedMonorepoPopulateApi = {
     operations: OperationsModuleRef;
   }): CapabilitiesRef;
   CompositionRoot(input: { name: string; id?: string; app: AppRef }): CompositionRootRef;
+  CoreCatalog(input: {
+    name: string;
+    id?: string;
+    cores: readonly CorePackageRef[];
+  }): CoreCatalogRef;
   CorePackage(input: { name: string; id?: string }): CorePackageRef;
   DomainError(input: { name: string; id?: string; errors: ErrorsModuleRef }): DomainErrorRef;
   DomainService(input: {
@@ -231,6 +241,9 @@ export function createPopulateApi(): CleanArchitectureOrientedMonorepoPopulateAp
     },
     CompositionRoot(input) {
       return population.add(constructs.CompositionRoot, input) as unknown as CompositionRootRef;
+    },
+    CoreCatalog(input) {
+      return population.add(constructs.CoreCatalog, input) as unknown as CoreCatalogRef;
     },
     CorePackage(input) {
       return population.add(constructs.CorePackage, input) as unknown as CorePackageRef;

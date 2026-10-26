@@ -62,6 +62,60 @@
       }
     },
     {
+      "id": "shared",
+      "name": "shared",
+      "constructName": "CorePackage",
+      "dependencies": {}
+    },
+    {
+      "id": "shared-models",
+      "name": "models",
+      "constructName": "ModelsModule",
+      "dependencies": {
+        "core": "shared"
+      }
+    },
+    {
+      "id": "shared-operations",
+      "name": "operations",
+      "constructName": "OperationsModule",
+      "dependencies": {
+        "core": "shared"
+      }
+    },
+    {
+      "id": "shared-useCases",
+      "name": "useCases",
+      "constructName": "UseCasesModule",
+      "dependencies": {
+        "core": "shared"
+      }
+    },
+    {
+      "id": "shared-ports",
+      "name": "ports",
+      "constructName": "PortsModule",
+      "dependencies": {
+        "core": "shared"
+      }
+    },
+    {
+      "id": "shared-errors",
+      "name": "errors",
+      "constructName": "ErrorsModule",
+      "dependencies": {
+        "core": "shared"
+      }
+    },
+    {
+      "id": "catalog",
+      "name": "catalog",
+      "constructName": "CoreCatalog",
+      "dependencies": {
+        "cores": ["pagebuilder", "shared"]
+      }
+    },
+    {
       "id": "page",
       "name": "page",
       "constructName": "Shape",
@@ -251,6 +305,18 @@
         "kind": "artifact",
         "instanceId": "web-next",
         "artifactKey": "."
+      }
+    },
+    {
+      "instanceId": "catalog",
+      "constructName": "CoreCatalog",
+      "artifactKey": ".",
+      "kind": "file",
+      "path": "core-catalog.generated.ts",
+      "mode": "sync",
+      "filename": "core-catalog.generated.ts",
+      "directory": {
+        "kind": "root"
       }
     },
     {
@@ -697,6 +763,184 @@
       "directory": {
         "kind": "artifact",
         "instanceId": "pagebuilder-useCases",
+        "artifactKey": "."
+      }
+    },
+    {
+      "instanceId": "shared",
+      "constructName": "CorePackage",
+      "artifactKey": ".",
+      "kind": "directory",
+      "path": "packages/core-shared",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-shared"
+      }
+    },
+    {
+      "instanceId": "shared",
+      "constructName": "CorePackage",
+      "artifactKey": "readme",
+      "kind": "file",
+      "path": "packages/core-shared/README.md",
+      "mode": "scaffold",
+      "filename": "README.md",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "shared",
+        "artifactKey": "."
+      }
+    },
+    {
+      "instanceId": "shared-errors",
+      "constructName": "ErrorsModule",
+      "artifactKey": ".",
+      "kind": "directory",
+      "path": "packages/core-shared/errors",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-shared/errors"
+      }
+    },
+    {
+      "instanceId": "shared-errors",
+      "constructName": "ErrorsModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-shared/errors/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "shared-errors",
+        "artifactKey": "."
+      }
+    },
+    {
+      "instanceId": "shared-models",
+      "constructName": "ModelsModule",
+      "artifactKey": ".",
+      "kind": "directory",
+      "path": "packages/core-shared/models",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-shared/models"
+      }
+    },
+    {
+      "instanceId": "shared-models",
+      "constructName": "ModelsModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-shared/models/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "shared-models",
+        "artifactKey": "."
+      }
+    },
+    {
+      "instanceId": "shared-operations",
+      "constructName": "OperationsModule",
+      "artifactKey": ".",
+      "kind": "directory",
+      "path": "packages/core-shared/operations",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-shared/operations"
+      }
+    },
+    {
+      "instanceId": "shared-operations",
+      "constructName": "OperationsModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-shared/operations/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "shared-operations",
+        "artifactKey": "."
+      }
+    },
+    {
+      "instanceId": "shared",
+      "constructName": "CorePackage",
+      "artifactKey": "packageJson",
+      "kind": "file",
+      "path": "packages/core-shared/package.json",
+      "mode": "scaffold",
+      "filename": "package.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "shared",
+        "artifactKey": "."
+      }
+    },
+    {
+      "instanceId": "shared-ports",
+      "constructName": "PortsModule",
+      "artifactKey": ".",
+      "kind": "directory",
+      "path": "packages/core-shared/ports",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-shared/ports"
+      }
+    },
+    {
+      "instanceId": "shared-ports",
+      "constructName": "PortsModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-shared/ports/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "shared-ports",
+        "artifactKey": "."
+      }
+    },
+    {
+      "instanceId": "shared",
+      "constructName": "CorePackage",
+      "artifactKey": "tsconfig",
+      "kind": "file",
+      "path": "packages/core-shared/tsconfig.json",
+      "mode": "scaffold",
+      "filename": "tsconfig.json",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "shared",
+        "artifactKey": "."
+      }
+    },
+    {
+      "instanceId": "shared-useCases",
+      "constructName": "UseCasesModule",
+      "artifactKey": ".",
+      "kind": "directory",
+      "path": "packages/core-shared/use-cases",
+      "directory": {
+        "kind": "inline",
+        "path": "packages/core-shared/use-cases"
+      }
+    },
+    {
+      "instanceId": "shared-useCases",
+      "constructName": "UseCasesModule",
+      "artifactKey": "index",
+      "kind": "file",
+      "path": "packages/core-shared/use-cases/index.ts",
+      "mode": "sync",
+      "filename": "index.ts",
+      "directory": {
+        "kind": "artifact",
+        "instanceId": "shared-useCases",
         "artifactKey": "."
       }
     },

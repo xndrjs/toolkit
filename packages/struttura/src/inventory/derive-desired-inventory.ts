@@ -20,6 +20,14 @@ import {
   sealNavigableInstance,
 } from "../structure/tree";
 import type { Population, RegisteredInstance } from "../population/create-population";
+import type { InstanceDependencyValue, InstanceRef } from "../structure/define-structure";
+
+function serializeDependencyIds(dep: InstanceDependencyValue): string | readonly string[] {
+  if (Array.isArray(dep)) {
+    return dep.map((item) => item.id);
+  }
+  return (dep as InstanceRef).id;
+}
 
 export type DiagnosticCode =
   | "duplicate-effective-id"
@@ -67,7 +75,8 @@ export type DesiredInventory = {
     readonly id: string;
     readonly name: string;
     readonly constructName: string;
-    readonly dependencies: Readonly<Record<string, string>>;
+    /** Scalar dep → id string; many dep → id array (may be empty). */
+    readonly dependencies: Readonly<Record<string, string | readonly string[]>>;
   }[];
   readonly artifacts: readonly DesiredArtifact[];
 };
@@ -216,7 +225,10 @@ export function deriveDesiredInventory(population: Population): DeriveResult {
         name: instance.name,
         constructName: instance.construct.name,
         dependencies: Object.fromEntries(
-          Object.entries(instance.dependencies).map(([key, dep]) => [key, dep.id])
+          Object.entries(instance.dependencies).map(([key, dep]) => [
+            key,
+            serializeDependencyIds(dep),
+          ])
         ),
       })),
       artifacts: sortedArtifacts,
@@ -268,9 +280,12 @@ function topologicalOrder(
     }
     visiting.add(instance.id);
     for (const dep of Object.values(instance.dependencies)) {
-      const depInstance = byId.get(dep.id);
-      if (depInstance) {
-        visit(depInstance);
+      const refs = Array.isArray(dep) ? dep : [dep];
+      for (const ref of refs) {
+        const depInstance = byId.get(ref.id);
+        if (depInstance) {
+          visit(depInstance);
+        }
       }
     }
     visiting.delete(instance.id);

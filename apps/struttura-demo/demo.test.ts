@@ -12,12 +12,20 @@ describe("struttura-demo navigable population", () => {
     if (!result.ok) {
       return;
     }
-    expect(result.inventory.instances).toHaveLength(24);
+    expect(result.inventory.instances).toHaveLength(31);
     expect(result.inventory.artifacts.length).toBeGreaterThan(0);
     // Tree keys: directory roots use ".", file roots use ".", peer root has no "."
     expect(
       result.inventory.artifacts.some(
         (a) => a.constructName === "CorePackage" && a.artifactKey === "."
+      )
+    ).toBe(true);
+    expect(
+      result.inventory.instances.some(
+        (i) =>
+          i.constructName === "CoreCatalog" &&
+          Array.isArray(i.dependencies.cores) &&
+          i.dependencies.cores.length === 2
       )
     ).toBe(true);
     expect(

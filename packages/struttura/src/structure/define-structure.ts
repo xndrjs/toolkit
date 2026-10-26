@@ -7,6 +7,12 @@ import type {
   RootRef,
 } from "./artifacts";
 import {
+  resolveDepSlot,
+  type DeclaredDepMap,
+  type DepConstructOf,
+  type IsManyDep,
+} from "./dep-slot";
+import {
   flattenPlacement,
   isInPlacement,
   readDestination,
@@ -25,6 +31,17 @@ import {
 
 export type { ArtifactDescriptor, DirRef, FileRef, FileMode, RootRef } from "./artifacts";
 export { FILENAME_PATTERN, isValidFilename } from "./artifacts";
+export {
+  array,
+  isDepSlot,
+  resolveDepSlot,
+  type DeclaredDep,
+  type DeclaredDepMap,
+  type DepConstructOf,
+  type DepSlotMany,
+  type DepSlotSingle,
+  type IsManyDep,
+} from "./dep-slot";
 export {
   DESTINATION,
   RESERVED_INSTANCE_KEYS,
@@ -59,12 +76,18 @@ export type ConstructDepsOf<C> =
   C extends ConstructDefinition<infer _A, infer D, infer _N> ? D : Record<string, never>;
 
 /**
- * Instance-side view of a construct dependency map: each key resolves to the
- * navigable instance of that dependency construct.
+ * Instance-side view of a construct dependency map.
+ * Scalar slots → one navigable instance; `array(C)` / `{ many: true }` → readonly array
+ * (empty arrays allowed).
  */
-export type DepInstances<TDeps extends Record<string, AnyConstructDefinition>> = {
-  readonly [K in keyof TDeps]: NavigableInstanceRef<TDeps[K]>;
+export type DepInstances<TDeps extends DeclaredDepMap> = {
+  readonly [K in keyof TDeps]: IsManyDep<TDeps[K]> extends true
+    ? readonly NavigableInstanceRef<DepConstructOf<TDeps[K]>>[]
+    : NavigableInstanceRef<DepConstructOf<TDeps[K]>>;
 };
+
+/** Runtime dependency bag on a registered instance (scalar or many). */
+export type InstanceDependencyValue = InstanceRef | readonly InstanceRef[];
 
 export type InstanceRef<C extends AnyConstructDefinition = AnyConstructDefinition> = {
   readonly id: string;
@@ -89,10 +112,8 @@ export type ArtifactCallbackContextBase = {
 };
 
 /** Tree builder context: dependency instances expose navigable children. */
-export type TreeCallbackContextFor<TDeps extends Record<string, AnyConstructDefinition>> =
-  ArtifactCallbackContextBase & {
-    readonly [K in keyof TDeps]: NavigableInstanceRef<TDeps[K]>;
-  };
+export type TreeCallbackContextFor<TDeps extends DeclaredDepMap> = ArtifactCallbackContextBase &
+  DepInstances<TDeps>;
 
 /** Loose context alias for runtime registries. */
 export type ArtifactCallbackContext = ArtifactCallbackContextBase &
@@ -108,7 +129,7 @@ export type TreeBuildCallback = (
 
 export type ConstructDefinition<
   TArtifacts extends Record<string, ArtifactDescriptor> = Record<string, ArtifactDescriptor>,
-  TDeps extends Record<string, AnyConstructDefinition> = Record<string, AnyConstructDefinition>,
+  TDeps extends DeclaredDepMap = DeclaredDepMap,
   TNavigable extends object = Record<string, never>,
 > = {
   readonly name: string;
@@ -132,10 +153,9 @@ export type Structure = {
   readonly constructs: ReadonlyMap<string, AnyConstructDefinition>;
 };
 
-type TreeBuildCallbackFor<
-  TDeps extends Record<string, AnyConstructDefinition>,
-  TRoot extends PlacementRoot,
-> = (ctx: TreeCallbackContextFor<TDeps>) => InPlacement<TRoot>;
+type TreeBuildCallbackFor<TDeps extends DeclaredDepMap, TRoot extends PlacementRoot> = (
+  ctx: TreeCallbackContextFor<TDeps>
+) => InPlacement<TRoot>;
 
 export type StructureBuilder = {
   readonly name: string;
@@ -143,10 +163,11 @@ export type StructureBuilder = {
   readonly rootDirectory: RootRef;
   /**
    * Navigable tree construct. `dependencies` is always required (`{}` ok).
+   * Slot values are a ConstructDefinition (cardinality 1) or `array(C)` / `{ construct, many: true }`.
    * Builder must return `A.in(destination, root)`; root shape is carried on the
    * definition so dependents see navigable children (e.g. `adapter.repositories`).
    */
-  construct<TDeps extends Record<string, AnyConstructDefinition>, TRoot extends PlacementRoot>(
+  construct<TDeps extends DeclaredDepMap, TRoot extends PlacementRoot>(
     name: string,
     dependencies: TDeps,
     build: TreeBuildCallbackFor<TDeps, TRoot>
@@ -168,15 +189,13 @@ export type StructureBuilder = {
 export function defineStructure(name: string): StructureBuilder {
   const constructs = new Map<string, AnyConstructDefinition>();
 
-  function assertUniqueAndDeps(
-    constructName: string,
-    dependencies: Record<string, AnyConstructDefinition>
-  ): void {
+  function assertUniqueAndDeps(constructName: string, dependencies: DeclaredDepMap): void {
     if (constructs.has(constructName)) {
       throw new Error(`Construct "${constructName}" is already defined on structure "${name}"`);
     }
 
-    for (const [depKey, depConstruct] of Object.entries(dependencies)) {
+    for (const [depKey, slot] of Object.entries(dependencies)) {
+      const { construct: depConstruct } = resolveDepSlot(slot);
       if (depConstruct.structureName !== name) {
         throw new Error(
           `Dependency "${depKey}" of "${constructName}" belongs to structure "${depConstruct.structureName}", not "${name}"`
@@ -185,10 +204,7 @@ export function defineStructure(name: string): StructureBuilder {
     }
   }
 
-  function registerTree<
-    TDeps extends Record<string, AnyConstructDefinition>,
-    TRoot extends PlacementRoot,
-  >(
+  function registerTree<TDeps extends DeclaredDepMap, TRoot extends PlacementRoot>(
     constructName: string,
     dependencies: TDeps,
     build: TreeBuildCallbackFor<TDeps, TRoot>

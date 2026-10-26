@@ -120,9 +120,13 @@ export function rewriteManifestIds(manifest: Manifest, from: string, to: string)
 }
 
 function rewriteInstance(instance: ManifestInstance, from: string, to: string): ManifestInstance {
-  const dependencies: Record<string, string> = {};
+  const dependencies: Record<string, string | readonly string[]> = {};
   for (const [key, depId] of Object.entries(instance.dependencies)) {
-    dependencies[key] = depId === from ? to : depId;
+    dependencies[key] = Array.isArray(depId)
+      ? depId.map((id) => (id === from ? to : id))
+      : depId === from
+        ? to
+        : depId;
   }
   return {
     ...instance,
