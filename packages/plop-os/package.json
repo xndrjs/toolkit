@@ -29,6 +29,9 @@
   "engines": {
     "node": ">=24 <26"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "pack": "pnpm run build && mkdir -p artifacts && npm pack --pack-destination artifacts",
@@ -37,6 +40,14 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "plop": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "plop": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

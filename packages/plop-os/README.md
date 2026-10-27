@@ -2,6 +2,8 @@
 
 Scaffolding, codebase Discovery, and explicit Region Sync on top of [Plop](https://plopjs.com/) (“Plop on steroids”). Not an official Plop package — an xndrjs toolkit on top of it.
 
+**Alpha (`0.1.0-alpha.*`)**: public API may still change without a major bump. Requires Node `>=24 <26` (same engine range as the rest of the toolkit).
+
 - **Scaffold generators** are ordinary Plop generators (create files).
 - **Discovery** and **Sync** are `@xndrjs/plop-os`: list Candidates from path conventions, then rewrite only marked Region interiors.
 - The **filesystem** is the source of truth. There is no identity store, reconciliation, or built-in domain ontology.
@@ -11,10 +13,12 @@ Shared vocabulary: [`GLOSSARY.md`](./GLOSSARY.md). A runnable sketch lives in [`
 ## Install
 
 ```bash
-pnpm add -D @xndrjs/plop-os plop node-plop
+pnpm add -D @xndrjs/plop-os
+# interactive Scaffold (optional peer):
+pnpm add -D plop
 ```
 
-Peer tooling: use stock `plop` for interactive Scaffold; use the `plop-os` CLI (bin from this package) for non-interactive `run` / Discovery / Sync.
+`node-plop` ships with this package for non-interactive `plop-os run`. Use stock `plop` for interactive Scaffold; use the `plop-os` CLI for `run` / Discovery / Sync.
 
 ## Plopfile
 
