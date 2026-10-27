@@ -3,14 +3,15 @@ import type {
   CandidateData,
   DiscoveryOptions,
   DiscoveryRule,
+  DiscoveryRuleRef,
   EmptyCandidateData,
 } from "./discovery.js";
 import {
   defaultIgnore,
   discoveryRule,
-  findRule,
   listCandidates,
   resolveCandidate,
+  resolveRuleRef,
   resolveSubdir,
   type DataFromPathPattern,
 } from "./discovery.js";
@@ -36,21 +37,37 @@ export type PlopOs = {
   discovery: DiscoveryOptions;
   rules: DiscoveryRule<CandidateData>[];
   syncGenerators: Map<string, SyncGenerator>;
-  /** Infer `Candidate.data` from a path-to-regexp `pattern` string literal. */
+  /**
+   * Register a Discovery rule and return the typed handle.
+   * Pass the handle to `candidates` / Sync `listCandidates` to keep `data` inferred.
+   * Regex / extract rules: supply `TData` explicitly (escape hatch).
+   */
   addDiscoveryRule: {
-    <const P extends string>(rule: DiscoveryRuleFromPattern<P>): void;
-    <TData extends CandidateData>(rule: DiscoveryRule<TData>): void;
+    <const P extends string>(
+      rule: DiscoveryRuleFromPattern<P>
+    ): DiscoveryRule<DataFromPathPattern<P>>;
+    <TData extends CandidateData>(rule: DiscoveryRule<TData>): DiscoveryRule<TData>;
   };
   syncGenerator: (id: string, fn: SyncGenerator) => void;
-  candidates: <TData extends CandidateData = EmptyCandidateData>(
-    ruleName: string,
-    baseDir?: string
-  ) => Candidate<TData>[];
-  resolveCandidate: <TData extends CandidateData = EmptyCandidateData>(
-    ruleName: string,
-    inputPath: string,
-    baseDir?: string
-  ) => Candidate<TData>;
+  candidates: {
+    <TData extends CandidateData>(rule: DiscoveryRule<TData>, baseDir?: string): Candidate<TData>[];
+    <TData extends CandidateData = EmptyCandidateData>(
+      ruleName: string,
+      baseDir?: string
+    ): Candidate<TData>[];
+  };
+  resolveCandidate: {
+    <TData extends CandidateData>(
+      rule: DiscoveryRule<TData>,
+      inputPath: string,
+      baseDir?: string
+    ): Candidate<TData>;
+    <TData extends CandidateData = EmptyCandidateData>(
+      ruleName: string,
+      inputPath: string,
+      baseDir?: string
+    ): Candidate<TData>;
+  };
   resolveSubdir: typeof resolveSubdir;
   sync: (opts?: { id?: string; baseDir?: string }) => Promise<SyncPassResult>;
 };
@@ -67,8 +84,28 @@ export function createPlopOs(config: PlopOsConfig = {}): PlopOs {
   const rules: DiscoveryRule<CandidateData>[] = [];
   const syncGenerators = new Map<string, SyncGenerator>();
 
-  function addDiscoveryRule(rule: DiscoveryRule<CandidateData>): void {
-    rules.push(discoveryRule(rule));
+  function addDiscoveryRule<TData extends CandidateData>(
+    rule: DiscoveryRule<TData>
+  ): DiscoveryRule<TData> {
+    const normalized = discoveryRule(rule);
+    // Registry is erased to CandidateData; the returned handle keeps TData.
+    rules.push(normalized as unknown as DiscoveryRule<CandidateData>);
+    return normalized;
+  }
+
+  function candidates<TData extends CandidateData>(
+    ruleOrName: DiscoveryRuleRef<TData>,
+    baseDir?: string
+  ): Candidate<TData>[] {
+    return listCandidates(discovery, resolveRuleRef(rules, ruleOrName), baseDir);
+  }
+
+  function resolveCandidateBound<TData extends CandidateData>(
+    ruleOrName: DiscoveryRuleRef<TData>,
+    inputPath: string,
+    baseDir?: string
+  ): Candidate<TData> {
+    return resolveCandidate(discovery, resolveRuleRef(rules, ruleOrName), inputPath, baseDir);
   }
 
   const api: PlopOs = {
@@ -79,12 +116,8 @@ export function createPlopOs(config: PlopOsConfig = {}): PlopOs {
     syncGenerator(id, fn) {
       syncGenerators.set(id, fn);
     },
-    candidates(ruleName, baseDir) {
-      return listCandidates(discovery, findRule(rules, ruleName), baseDir) as never;
-    },
-    resolveCandidate(ruleName, inputPath, baseDir) {
-      return resolveCandidate(discovery, findRule(rules, ruleName), inputPath, baseDir) as never;
-    },
+    candidates: candidates as PlopOs["candidates"],
+    resolveCandidate: resolveCandidateBound as PlopOs["resolveCandidate"],
     resolveSubdir,
     async sync(opts = {}) {
       return runSyncPass({

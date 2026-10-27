@@ -50,8 +50,7 @@ function setupProofFixture(root: string, runtimeImportHref: string): string {
   const plopfile = path.join(root, "plopfile.mjs");
   write(
     plopfile,
-    `import fs from "node:fs";
-import path from "node:path";
+    `import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPlopOs, plopAddFlags } from ${JSON.stringify(runtimeImportHref)};
 
@@ -62,28 +61,25 @@ export const plopOs = createPlopOs({
   ignore: ["node_modules", "dist", ".git", "templates"],
 });
 
-plopOs.addDiscoveryRule({
+const coreModelsRule = plopOs.addDiscoveryRule({
   name: "core-models",
   pattern: "packages/core-:coreName/models",
   label: ({ data }) => data.coreName ?? "",
 });
 
+const modelFilesRule = plopOs.addDiscoveryRule({
+  name: "model-files",
+  pattern: /^packages\\/core-(?<coreName>[^/]+)\\/models\\/(?<modelPath>.+)\\.model\\.ts$/,
+  label: ({ data }) => data.modelPath ?? "",
+});
+
 plopOs.syncGenerator("models-barrel", (ctx) => {
   const modelsDir = path.dirname(ctx.filePath);
-  const lines = [];
-  function walk(dir, rel = ".") {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        walk(path.join(dir, entry.name), rel === "." ? entry.name : \`\${rel}/\${entry.name}\`);
-        continue;
-      }
-      if (!entry.name.endsWith(".model.ts")) continue;
-      const base = entry.name.replace(/\\.model\\.ts$/, "");
-      const importPath = rel === "." ? \`./\${base}.model.js\` : \`./\${rel}/\${base}.model.js\`;
-      lines.push(\`export * from "\${importPath}";\`);
-    }
-  }
-  walk(modelsDir);
+  const hits = ctx.discovery.listCandidates(modelFilesRule, modelsDir);
+  const lines = hits.map((c) => {
+    const rel = path.relative(modelsDir, c.path).split(path.sep).join("/");
+    return \`export * from "./\${rel.replace(/\\.ts$/, ".js")}";\`;
+  });
   return lines.sort().join("\\n");
 });
 
@@ -129,7 +125,7 @@ export default function (plop) {
         message: "models directory",
         validate(v) {
           try {
-            plopOs.resolveCandidate("core-models", v);
+            plopOs.resolveCandidate(coreModelsRule, v);
             return true;
           } catch (e) {
             return e instanceof Error ? e.message : "invalid models path";
@@ -150,7 +146,7 @@ export default function (plop) {
       },
     ],
     actions(answers) {
-      const candidate = plopOs.resolveCandidate("core-models", answers.modelsPath);
+      const candidate = plopOs.resolveCandidate(coreModelsRule, answers.modelsPath);
       const dest = answers.subdir
         ? plopOs.resolveSubdir(candidate, answers.subdir)
         : candidate.path;

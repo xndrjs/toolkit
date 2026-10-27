@@ -55,11 +55,12 @@ After `start`, also present (gitignored): `packages/core-*`, `apps/demo-shell/`,
 | 5   | Narrow `--base`                | only billing                                 |
 | 6   | Scaffold app + regex Discovery | `run app` → `candidates --rule apps`         |
 | 7   | Scaffold models                | invoice, existing, hero under `strips/`      |
+| 7b  | Discovery file Candidates      | `candidates --rule model-files`              |
 | 8   | Reject `operations/`           | not a Candidate                              |
 | 9   | Missing / invalid inputs       | no stdin hang                                |
 | 10  | Conflict `throw`               | same `note` twice                            |
 | 11  | Scaffold catalog + Sync        | `run catalog` then `sync --id core-catalog`  |
-| 12  | Sync barrels                   | `sync --id models-barrel`                    |
+| 12  | Sync barrels via Discovery     | `models-barrel` uses `listCandidates`        |
 | 13  | Sync `--base`                  | limited pass                                 |
 
 ## Manual CLI (from this directory)

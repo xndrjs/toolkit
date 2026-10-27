@@ -205,4 +205,36 @@ describe("discovery", () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0]?.label).toBe("core/keep");
   });
+
+  it("discovers file paths as Candidates (not only directories)", () => {
+    const models = touchDir(root, "packages", "core-alpha", "models");
+    const strips = touchDir(models, "strips");
+    writeFileSync(path.join(models, "invoice.model.ts"), "export {};\n");
+    writeFileSync(path.join(strips, "hero.model.ts"), "export {};\n");
+    writeFileSync(path.join(models, "readme.md"), "# no\n");
+
+    const rule: DiscoveryRule<{ coreName: string; modelPath: string }> = {
+      name: "model-files",
+      pattern: /^packages\/core-(?<coreName>[^/]+)\/models\/(?<modelPath>.+)\.model\.ts$/,
+      label: ({ data }) => data.modelPath,
+    };
+
+    const candidates = listCandidates(options, rule).sort((a, b) =>
+      a.data.modelPath.localeCompare(b.data.modelPath)
+    );
+    expect(candidates).toHaveLength(2);
+    expect(candidates.map((c) => c.data)).toEqual([
+      { coreName: "alpha", modelPath: "invoice" },
+      { coreName: "alpha", modelPath: "strips/hero" },
+    ]);
+    expect(path.resolve(candidates[0]!.path)).toBe(path.resolve(models, "invoice.model.ts"));
+    expect(path.resolve(candidates[1]!.path)).toBe(path.resolve(strips, "hero.model.ts"));
+
+    const narrowed = listCandidates(options, rule, models);
+    expect(narrowed).toHaveLength(2);
+
+    const onlyStrips = listCandidates(options, rule, strips);
+    expect(onlyStrips).toHaveLength(1);
+    expect(onlyStrips[0]!.data.modelPath).toBe("strips/hero");
+  });
 });

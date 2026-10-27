@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { createPlopOs, plopAddFlags } from "./runtime.js";
 
 function touchDir(...segments: string[]): string {
@@ -40,21 +40,44 @@ describe("createPlopOs", () => {
     expect(plopOs.discovery.ignore).toEqual(["node_modules", "dist", ".git", "coverage"]);
   });
 
-  it("registers a Discovery rule and lists Candidates", () => {
+  it("registers a Discovery rule and lists Candidates (typed handle)", () => {
     touchDir(root, "packages", "core-orders", "models");
     touchDir(root, "packages", "core-billing", "models");
     touchDir(root, "packages", "other");
 
     const plopOs = createPlopOs({ roots: [root], ignore: ["node_modules"] });
-    plopOs.addDiscoveryRule({
+    const coreModels = plopOs.addDiscoveryRule({
       name: "core-models",
       pattern: "packages/core-:coreName/models",
       label: ({ data }) => data.coreName,
     });
 
-    const hits = plopOs.candidates<{ coreName: string }>("core-models");
+    expect(coreModels.name).toBe("core-models");
+
+    const hits = plopOs.candidates(coreModels);
+    expectTypeOf(hits[0]!.data).toEqualTypeOf<{ coreName: string }>();
     expect(hits.map((c) => c.data.coreName).sort()).toEqual(["billing", "orders"]);
     expect(hits.every((c) => typeof c.path === "string" && c.label.length > 0)).toBe(true);
+
+    // String rule name still works (opt-in generic when needed).
+    const byName = plopOs.candidates<{ coreName: string }>("core-models");
+    expect(byName).toHaveLength(2);
+  });
+
+  it("regex escape hatch carries explicit TData on the rule handle", () => {
+    touchDir(root, "apps", "demo-shell");
+
+    const plopOs = createPlopOs({ roots: [root] });
+    const apps = plopOs.addDiscoveryRule<{ appName: string }>({
+      name: "apps",
+      pattern: /^apps\/(?<appName>[^/]+)$/,
+      label: ({ data }) => data.appName,
+    });
+
+    const hits = plopOs.candidates(apps);
+    expectTypeOf(hits[0]!.data).toEqualTypeOf<{ appName: string }>();
+    expect(hits).toHaveLength(1);
+    expect(hits[0]!.data.appName).toBe("demo-shell");
   });
 
   it("resolveCandidate and resolveSubdir go through the runtime", () => {
@@ -62,18 +85,19 @@ describe("createPlopOs", () => {
     touchDir(models, "strips");
 
     const plopOs = createPlopOs({ roots: [root] });
-    plopOs.addDiscoveryRule({
+    const coreModels = plopOs.addDiscoveryRule({
       name: "core-models",
       pattern: "packages/core-:coreName/models",
     });
 
-    const candidate = plopOs.resolveCandidate<{ coreName: string }>("core-models", models);
+    const candidate = plopOs.resolveCandidate(coreModels, models);
+    expectTypeOf(candidate.data).toEqualTypeOf<{ coreName: string }>();
     expect(candidate.data.coreName).toBe("orders");
 
     const sub = plopOs.resolveSubdir(candidate, "strips");
     expect(path.resolve(sub)).toBe(path.resolve(models, "strips"));
 
-    expect(() => plopOs.resolveCandidate("core-models", path.join(root, "packages"))).toThrow(
+    expect(() => plopOs.resolveCandidate(coreModels, path.join(root, "packages"))).toThrow(
       /not a valid Candidate/
     );
   });
@@ -89,10 +113,16 @@ describe("createPlopOs", () => {
     );
 
     const plopOs = createPlopOs({ roots: [root] });
+    const coreModels = plopOs.addDiscoveryRule({
+      name: "core-models",
+      pattern: "packages/core-:coreName/models",
+    });
     plopOs.syncGenerator("models-barrel", (ctx) => {
       expect(ctx.syncId).toBe("models-barrel");
       expect(path.resolve(ctx.filePath)).toBe(path.resolve(barrel));
-      expect(typeof ctx.discovery.listCandidates).toBe("function");
+      const hits = ctx.discovery.listCandidates(coreModels);
+      expectTypeOf(hits[0]!.data).toEqualTypeOf<{ coreName: string }>();
+      expect(hits.map((c) => c.data.coreName)).toContain("orders");
       return 'export * from "./orders.model.js";';
     });
 

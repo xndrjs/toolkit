@@ -9,7 +9,7 @@ A shared read primitive over the real filesystem: list, filter, and derive data 
 _Avoid_: query language, architecture index, population model
 
 **Discovery rule**:
-A consumer-registered rule that turns matching filesystem paths into Candidates. Path → `data` uses **`path-to-regexp`** patterns as the primary bind mode (e.g. `packages/core-:coreName/models`). Regex named groups and an optional custom `(path) => data` function are escape hatches. Enumeration may use glob/walk; v1 has no richer query DSL.
+A consumer-registered rule that turns matching filesystem paths (directories and files) into Candidates. Path → `data` uses **`path-to-regexp`** patterns as the primary bind mode (e.g. `packages/core-:coreName/models`). Regex named groups and an optional custom `(path) => data` function are escape hatches. Enumeration walks dirs and files under roots; v1 has no richer query DSL.
 _Avoid_: architecture query, population selector, regex-first API
 
 **Candidate**:

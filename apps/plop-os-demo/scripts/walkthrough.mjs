@@ -127,6 +127,13 @@ function main() {
     ).trim()
   );
 
+  section("7b) Discovery — model-files Candidates (file paths)");
+  expectOk(runCli(["candidates", "--rule", "model-files"]), "candidates model-files");
+  expectOk(
+    runCli(["candidates", "--rule", "model-files", "--base", "packages/core-pagebuilder/models"]),
+    "candidates model-files --base"
+  );
+
   section("8) Fail — model into operations/ (not a Candidate)");
   expectFail(
     runCli([

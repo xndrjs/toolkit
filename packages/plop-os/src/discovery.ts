@@ -119,7 +119,11 @@ function isIgnored(relPosix: string, ignore: string[]): boolean {
   });
 }
 
-function walkDirectories(absRoot: string, ignore: string[]): string[] {
+/**
+ * Enumerate directories and files under absRoot (ignore by path segment).
+ * Candidates may be either kind of filesystem path.
+ */
+function walkPaths(absRoot: string, ignore: string[]): string[] {
   const out: string[] = [];
 
   function visit(absDir: string): void {
@@ -135,9 +139,16 @@ function walkDirectories(absRoot: string, ignore: string[]): string[] {
       return;
     }
     for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (ignore.includes(entry.name)) continue;
-      visit(path.join(absDir, entry.name));
+      const abs = path.join(absDir, entry.name);
+      if (entry.isDirectory()) {
+        if (ignore.includes(entry.name)) continue;
+        visit(abs);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const fileRel = toPosix(path.relative(absRoot, abs));
+      if (isIgnored(fileRel, ignore)) continue;
+      out.push(abs);
     }
   }
 
@@ -262,8 +273,8 @@ export function listCandidates<TData extends CandidateData>(
   const candidates: Candidate<TData>[] = [];
 
   for (const walkRoot of walkRoots) {
-    for (const absDir of walkDirectories(walkRoot, ignore)) {
-      const absComparable = resolveComparable(absDir);
+    for (const absPath of walkPaths(walkRoot, ignore)) {
+      const absComparable = resolveComparable(absPath);
       const owning = configuredRoots.find((root) => isInsideRoot(absComparable, root.comparable));
       if (!owning) continue;
 
@@ -272,7 +283,7 @@ export function listCandidates<TData extends CandidateData>(
       const data = bindRelPath(rule, rel);
       if (!data) continue;
 
-      const candidatePath = toPosix(path.relative(process.cwd(), absDir)) || ".";
+      const candidatePath = toPosix(path.relative(process.cwd(), absPath)) || ".";
       if (seen.has(candidatePath)) continue;
 
       const hit: DiscoveryHit<TData> = { path: candidatePath, data };
@@ -299,6 +310,26 @@ export function findRule(
     throw new Error(`unknown discovery rule: ${name}`);
   }
   return rule;
+}
+
+/** Rule handle from {@link discoveryRule} / `addDiscoveryRule`, or a rule name string. */
+export type DiscoveryRuleRef<TData extends CandidateData = CandidateData> =
+  | string
+  | DiscoveryRule<TData>;
+
+/**
+ * Resolve a rule name against the registry, or pass through a typed rule handle.
+ * String refs look up by name; object refs are used as-is (carry `TData`).
+ */
+export function resolveRuleRef<TData extends CandidateData>(
+  rules: readonly DiscoveryRule<CandidateData>[],
+  ruleOrName: DiscoveryRuleRef<TData>
+): DiscoveryRule<TData> {
+  if (typeof ruleOrName === "string") {
+    // Name lookup erases TData; callers that care should pass the typed handle.
+    return findRule(rules, ruleOrName) as unknown as DiscoveryRule<TData>;
+  }
+  return ruleOrName;
 }
 
 /** Resolve an explicit path to a Candidate that must appear in the rule's results. */

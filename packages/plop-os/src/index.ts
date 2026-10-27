@@ -5,14 +5,17 @@ export type {
   DiscoveryHit,
   DiscoveryOptions,
   DiscoveryRule,
+  DiscoveryRuleRef,
   EmptyCandidateData,
   PathParamNames,
 } from "./discovery.js";
 export {
   defaultIgnore,
   discoveryRule,
+  findRule,
   listCandidates,
   resolveCandidate,
+  resolveRuleRef,
   resolveSubdir,
 } from "./discovery.js";
 

@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPlopOs, plopAddFlags } from "@xndrjs/plop-os";
@@ -11,44 +10,47 @@ export const plopOs = createPlopOs({
 });
 
 /** Discovery: path-to-regexp bind for core package models dirs. */
-plopOs.addDiscoveryRule({
+const coreModelsRule = plopOs.addDiscoveryRule({
   name: "core-models",
   pattern: "packages/core-:coreName/models",
   label: ({ data }) => data.coreName,
 });
 
-/** Discovery: escape hatch — regex named groups for apps/*. */
-plopOs.addDiscoveryRule({
+/**
+ * Discovery: *.model.ts files (dirs + files enumeration).
+ * Regex escape hatch — data shape declared once on the rule handle.
+ * @type {import("@xndrjs/plop-os").DiscoveryRule<{ coreName: string; modelPath: string }>}
+ */
+const modelFilesRule = plopOs.addDiscoveryRule({
+  name: "model-files",
+  pattern: /^packages\/core-(?<coreName>[^/]+)\/models\/(?<modelPath>.+)\.model\.ts$/,
+  label: ({ data }) => data.modelPath,
+});
+
+/**
+ * Discovery: escape hatch — regex named groups for apps/*.
+ * @type {import("@xndrjs/plop-os").DiscoveryRule<{ appName: string }>}
+ */
+const appsRule = plopOs.addDiscoveryRule({
   name: "apps",
   pattern: /^apps\/(?<appName>[^/]+)$/,
   label: ({ data }) => data.appName,
 });
 
-/** Sync: rebuild models barrel from *.model.ts under the Region's directory. */
+/** Sync: rebuild models barrel via Discovery of model-files under this Region. */
 plopOs.syncGenerator("models-barrel", (ctx) => {
   const modelsDir = path.dirname(ctx.filePath);
-  const lines = [];
-
-  function walk(dir, rel = ".") {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        walk(path.join(dir, entry.name), rel === "." ? entry.name : `${rel}/${entry.name}`);
-        continue;
-      }
-      if (!entry.name.endsWith(".model.ts")) continue;
-      const base = entry.name.replace(/\.model\.ts$/, "");
-      const importPath = rel === "." ? `./${base}.model.js` : `./${rel}/${base}.model.js`;
-      lines.push(`export * from "${importPath}";`);
-    }
-  }
-
-  walk(modelsDir);
+  const hits = ctx.discovery.listCandidates(modelFilesRule, modelsDir);
+  const lines = hits.map((c) => {
+    const rel = path.relative(modelsDir, c.path).split(path.sep).join("/");
+    return `export * from "./${rel.replace(/\.ts$/, "")}";`;
+  });
   return lines.sort().join("\n") + (lines.length ? "\n" : "");
 });
 
-/** Sync: catalog of discovered core packages (uses Discovery from ctx). */
+/** Sync: catalog of discovered core packages (typed rule handle → data.coreName). */
 plopOs.syncGenerator("core-catalog", (ctx) => {
-  const hits = ctx.discovery.listCandidates("core-models");
+  const hits = ctx.discovery.listCandidates(coreModelsRule);
   const lines = hits.map((c) => `  - ${c.data.coreName} → ${c.path}`).sort();
   return lines.length ? `${lines.join("\n")}\n` : "  (none)\n";
 });
@@ -119,7 +121,7 @@ export default function (plop) {
         message: "models directory (must be a core-models Candidate)",
         validate(v) {
           try {
-            plopOs.resolveCandidate("core-models", v);
+            plopOs.resolveCandidate(coreModelsRule, v);
             return true;
           } catch (e) {
             return e instanceof Error ? e.message : "invalid models path";
@@ -140,7 +142,7 @@ export default function (plop) {
       },
     ],
     actions(answers) {
-      const candidate = plopOs.resolveCandidate("core-models", answers.modelsPath);
+      const candidate = plopOs.resolveCandidate(coreModelsRule, answers.modelsPath);
       const dest = answers.subdir
         ? plopOs.resolveSubdir(candidate, answers.subdir)
         : candidate.path;
@@ -214,3 +216,5 @@ export default function (plop) {
     },
   });
 }
+
+export { coreModelsRule, modelFilesRule, appsRule };

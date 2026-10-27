@@ -32,15 +32,16 @@ export const plopOs = createPlopOs({
   // optional; defaults include node_modules, dist, .git, coverage
 });
 
-plopOs.addDiscoveryRule({
+const pkgModels = plopOs.addDiscoveryRule({
   name: "pkg-models",
   pattern: "packages/:pkgName/models",
   label: ({ data }) => data.pkgName,
 });
 
 plopOs.syncGenerator("models-barrel", (ctx) => {
-  // return the new Region interior (string). Throw / non-string → whole Sync aborts, no writes.
-  return `// regenerated for ${ctx.filePath}\n`;
+  // Pass the rule handle so Candidate.data stays typed (path-to-regexp inferred).
+  const hits = ctx.discovery.listCandidates(pkgModels);
+  return hits.map((c) => `// ${c.data.pkgName}`).join("\n") + "\n";
 });
 
 export default function (plop) {
@@ -68,9 +69,11 @@ export default function (plop) {
 
 ### Discovery rules
 
-Primary bind mode is a **`path-to-regexp`** pattern (e.g. `packages/:pkgName/models`). Matching directories under `roots` become Candidates (`path`, `label`, `data`). Regex named groups and a custom `(path) => data` function are escape hatches.
+Primary bind mode is a **`path-to-regexp`** pattern (e.g. `packages/:pkgName/models`). Matching **filesystem paths** under `roots` (directories and files) become Candidates (`path`, `label`, `data`). Regex named groups and a custom `(path) => data` function are escape hatches.
 
-Use `plopOs.resolveCandidate(ruleName, inputPath)` inside prompt `validate` so interactive Plop and non-interactive `plop-os run` reject the same bad destinations.
+`addDiscoveryRule` returns a typed rule handle — pass it to `candidates` / `resolveCandidate` / Sync `listCandidates` so `data` stays inferred (for regex rules, declare `TData` once on `addDiscoveryRule<…>`). String rule names still work for the CLI.
+
+Use `plopOs.resolveCandidate(ruleHandle, inputPath)` inside prompt `validate` so interactive Plop and non-interactive `plop-os run` reject the same bad destinations.
 
 ### Sync markers
 

@@ -2,27 +2,38 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
-  findRule,
   listCandidates,
   resolveCandidate,
+  resolveRuleRef,
   resolveSubdir,
   type Candidate,
   type CandidateData,
   type DiscoveryOptions,
   type DiscoveryRule,
+  type DiscoveryRuleRef,
   type EmptyCandidateData,
 } from "./discovery.js";
 
 export type SyncDiscoveryApi = {
-  listCandidates: <TData extends CandidateData = EmptyCandidateData>(
-    ruleName: string,
-    baseDir?: string
-  ) => Candidate<TData>[];
-  resolveCandidate: <TData extends CandidateData = EmptyCandidateData>(
-    ruleName: string,
-    inputPath: string,
-    baseDir?: string
-  ) => Candidate<TData>;
+  listCandidates: {
+    <TData extends CandidateData>(rule: DiscoveryRule<TData>, baseDir?: string): Candidate<TData>[];
+    <TData extends CandidateData = EmptyCandidateData>(
+      ruleName: string,
+      baseDir?: string
+    ): Candidate<TData>[];
+  };
+  resolveCandidate: {
+    <TData extends CandidateData>(
+      rule: DiscoveryRule<TData>,
+      inputPath: string,
+      baseDir?: string
+    ): Candidate<TData>;
+    <TData extends CandidateData = EmptyCandidateData>(
+      ruleName: string,
+      inputPath: string,
+      baseDir?: string
+    ): Candidate<TData>;
+  };
   resolveSubdir: (
     candidate: Pick<Candidate<CandidateData>, "path">,
     relativeSubdir: string
@@ -184,11 +195,16 @@ function createDiscoveryApi(
   rules: readonly DiscoveryRule<CandidateData>[]
 ): SyncDiscoveryApi {
   return {
-    listCandidates(ruleName, baseDir) {
-      return listCandidates(options, findRule(rules, ruleName), baseDir) as never;
+    listCandidates(ruleOrName: DiscoveryRuleRef, baseDir?: string) {
+      return listCandidates(options, resolveRuleRef(rules, ruleOrName), baseDir) as never;
     },
-    resolveCandidate(ruleName, inputPath, baseDir) {
-      return resolveCandidate(options, findRule(rules, ruleName), inputPath, baseDir) as never;
+    resolveCandidate(ruleOrName: DiscoveryRuleRef, inputPath: string, baseDir?: string) {
+      return resolveCandidate(
+        options,
+        resolveRuleRef(rules, ruleOrName),
+        inputPath,
+        baseDir
+      ) as never;
     },
     resolveSubdir(candidate, relativeSubdir) {
       return resolveSubdir(candidate, relativeSubdir);
