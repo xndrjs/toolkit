@@ -12,5 +12,6 @@
   },
   "[ziel]": {
     "editor.defaultFormatter": "xndrjs.ziel-vscode"
-  }
+  },
+  "json.schemaDownload.enable": true
 }

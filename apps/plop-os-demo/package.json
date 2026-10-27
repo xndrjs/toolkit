@@ -8,6 +8,7 @@
     "predemo": "pnpm --filter @xndrjs/plop-os run build",
     "demo": "node ./scripts/walkthrough.mjs",
     "start": "pnpm run demo",
+    "clear:demo": "node ./scripts/clear-demo.mjs",
     "plop-os": "plop-os",
     "typecheck": "tsc --noEmit"
   },

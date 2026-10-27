@@ -8,6 +8,12 @@ pnpm --filter @xndrjs/plop-os-demo start
 
 Each run resets `packages/`, `apps/`, `notes/`, and `CATALOG.md`, then recreates them with `plop-os`.
 
+To wipe generated output without re-running the demo:
+
+```bash
+pnpm --filter @xndrjs/plop-os-demo clear:demo
+```
+
 ## Layout (committed)
 
 ```
