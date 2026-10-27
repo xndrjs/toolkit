@@ -96,6 +96,16 @@ function toPosix(p: string): string {
   return p.split(path.sep).join("/");
 }
 
+/** Absolute path, preferring realpath so symlink roots (e.g. macOS `/var` → `/private/var`) compare equal. */
+function resolveComparable(p: string): string {
+  const abs = path.resolve(p);
+  try {
+    return fs.realpathSync(abs);
+  } catch {
+    return abs;
+  }
+}
+
 function isInsideRoot(absPath: string, absRoot: string): boolean {
   return absPath === absRoot || absPath.startsWith(absRoot + path.sep);
 }
@@ -280,9 +290,9 @@ export function resolveCandidate<TData extends CandidateData>(
   inputPath: string,
   baseDir?: string
 ): Candidate<TData> {
-  const abs = path.resolve(inputPath);
+  const abs = resolveComparable(inputPath);
   const candidates = listCandidates(options, rule, baseDir);
-  const hit = candidates.find((c) => path.resolve(c.path) === abs);
+  const hit = candidates.find((c) => resolveComparable(c.path) === abs);
   if (!hit) {
     throw new Error(`path is not a valid Candidate for rule "${rule.name}": ${inputPath}`);
   }

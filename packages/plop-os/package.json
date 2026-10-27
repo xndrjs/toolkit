@@ -41,6 +41,7 @@
     "vitest": "^4.1.0"
   },
   "dependencies": {
+    "node-plop": "^0.32.3",
     "path-to-regexp": "^9.0.0"
   }
 }

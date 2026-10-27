@@ -662,6 +662,9 @@ importers:
 
   packages/plop-os:
     dependencies:
+      node-plop:
+        specifier: ^0.32.3
+        version: 0.32.3(@types/node@25.5.0)
       path-to-regexp:
         specifier: ^9.0.0
         version: 9.0.0

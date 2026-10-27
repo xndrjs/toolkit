@@ -27,3 +27,6 @@ export { findRegionsInFile, runSyncPass } from "./sync.js";
 
 export type { ConflictPolicy, PlopOs, PlopOsConfig } from "./runtime.js";
 export { createPlopOs, plopAddFlags } from "./runtime.js";
+
+export type { RunScaffoldArgs, RunScaffoldResult } from "./run-scaffold.js";
+export { runScaffold } from "./run-scaffold.js";
