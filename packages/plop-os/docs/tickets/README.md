@@ -1,4 +1,4 @@
-# plop-os — implementation tickets
+# @xndrjs/plop-os — implementation tickets
 
 Ordered backlog for the package. Glossary: [`../../GLOSSARY.md`](../../GLOSSARY.md).
 

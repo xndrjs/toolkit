@@ -1,4 +1,4 @@
-# Minimal plop-os example
+# Minimal `@xndrjs/plop-os` example
 
 Tiny consumer workspace: Discovery of `packages/:pkgName/models`, Scaffold of `.model.ts` files, and Sync of a `models-barrel` Region.
 
@@ -13,7 +13,7 @@ pnpm run build
 This plopfile imports the built package via `../../dist/index.js`. In your own project, change that to:
 
 ```js
-import { createPlopOs, plopAddFlags } from "plop-os";
+import { createPlopOs, plopAddFlags } from "@xndrjs/plop-os";
 ```
 
 ## Try the CLI

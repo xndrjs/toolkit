@@ -1,0 +1,21 @@
+{
+  "name": "@xndrjs/plop-os-demo",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Runnable demo for plop-os: Discovery, Scaffold, Sync, and failure cases.",
+  "scripts": {
+    "predemo": "pnpm --filter @xndrjs/plop-os run build",
+    "demo": "node ./scripts/walkthrough.mjs",
+    "start": "pnpm run demo",
+    "plop-os": "plop-os",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xndrjs/plop-os": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.7.3"
+  }
+}

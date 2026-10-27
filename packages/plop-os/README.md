@@ -1,9 +1,9 @@
-# `plop-os`
+# `@xndrjs/plop-os`
 
-Scaffolding, codebase Discovery, and explicit Region Sync on top of [Plop](https://plopjs.com/) (“Plop on steroids”).
+Scaffolding, codebase Discovery, and explicit Region Sync on top of [Plop](https://plopjs.com/) (“Plop on steroids”). Not an official Plop package — an xndrjs toolkit on top of it.
 
 - **Scaffold generators** are ordinary Plop generators (create files).
-- **Discovery** and **Sync** are plop-os: list Candidates from path conventions, then rewrite only marked Region interiors.
+- **Discovery** and **Sync** are `@xndrjs/plop-os`: list Candidates from path conventions, then rewrite only marked Region interiors.
 - The **filesystem** is the source of truth. There is no identity store, reconciliation, or built-in domain ontology.
 
 Shared vocabulary: [`GLOSSARY.md`](./GLOSSARY.md). A runnable sketch lives in [`examples/minimal/`](./examples/minimal/).
@@ -11,10 +11,10 @@ Shared vocabulary: [`GLOSSARY.md`](./GLOSSARY.md). A runnable sketch lives in [`
 ## Install
 
 ```bash
-pnpm add -D plop-os plop node-plop
+pnpm add -D @xndrjs/plop-os plop node-plop
 ```
 
-Peer tooling: use stock `plop` for interactive Scaffold; use the `plop-os` CLI for non-interactive `run` / Discovery / Sync.
+Peer tooling: use stock `plop` for interactive Scaffold; use the `plop-os` CLI (bin from this package) for non-interactive `run` / Discovery / Sync.
 
 ## Plopfile
 
@@ -23,7 +23,7 @@ Export a `plopOs` instance (`createPlopOs`) alongside the default Plop function.
 ```js
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPlopOs, plopAddFlags } from "plop-os";
+import { createPlopOs, plopAddFlags } from "@xndrjs/plop-os";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
@@ -104,6 +104,7 @@ plop-os sync [--id <syncId>] [--base <dir>]
 
 Interactive Scaffold remains stock `plop`.
 
-## Example
+## Examples
 
-See [`examples/minimal/`](./examples/minimal/) for a copyable workspace: Discovery of `packages/*/models`, a Scaffold generator, and a Sync barrel Region.
+- [`examples/minimal/`](./examples/minimal/) — tiny copyable workspace.
+- [`apps/plop-os-demo`](../../apps/plop-os-demo/) — fuller demo with Discovery, Scaffold, Sync, and failure cases (`pnpm --filter @xndrjs/plop-os-demo start`).

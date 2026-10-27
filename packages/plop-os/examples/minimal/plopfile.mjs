@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-// In your project: `import { createPlopOs, plopAddFlags } from "plop-os"`.
+// In your project: `import { createPlopOs, plopAddFlags } from "@xndrjs/plop-os"`.
 import { createPlopOs, plopAddFlags } from "../../dist/index.js";
 
 const root = path.dirname(fileURLToPath(import.meta.url));

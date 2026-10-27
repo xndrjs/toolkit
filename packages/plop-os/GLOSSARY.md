@@ -1,4 +1,4 @@
-# plop-os
+# @xndrjs/plop-os
 
 Scaffolding, codebase discovery, and explicit region sync on top of Plop (“Plop on steroids”; also reads as a small OS on Plop).
 

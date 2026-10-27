@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.repo.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["scripts/**/*.mjs"],
+  "exclude": ["packages", "templates", "node_modules"]
+}

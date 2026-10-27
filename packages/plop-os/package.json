@@ -1,5 +1,5 @@
 {
-  "name": "plop-os",
+  "name": "@xndrjs/plop-os",
   "version": "0.1.0-alpha.0",
   "description": "Plop on steroids: scaffolding, codebase discovery, and explicit region sync.",
   "private": false,

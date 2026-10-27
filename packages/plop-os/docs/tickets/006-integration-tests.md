@@ -23,7 +23,7 @@ Fixture workspace (temp or under `src/**/__fixtures__`) covering:
 
 ## Acceptance
 
-- [ ] `pnpm --filter plop-os test` covers the four scenarios above.
+- [ ] `pnpm --filter @xndrjs/plop-os test` covers the four scenarios above.
 - [ ] CI-friendly (no manual steps, no network).
 
 ## References

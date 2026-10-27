@@ -365,6 +365,25 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  apps/plop-os-demo:
+    dependencies:
+      '@xndrjs/plop-os':
+        specifier: workspace:^
+        version: link:../../packages/plop-os
+    devDependencies:
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  apps/plop-os-demo/packages/core-billing: {}
+
+  apps/plop-os-demo/packages/core-orders: {}
+
+  apps/plop-os-demo/packages/core-pagebuilder: {}
+
   apps/resource-graph-resolver-bench:
     dependencies:
       '@xndrjs/addressable-resources':
