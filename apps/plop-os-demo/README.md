@@ -14,6 +14,26 @@ To wipe generated output without re-running the demo:
 pnpm --filter @xndrjs/plop-os-demo clear:demo
 ```
 
+## Interactive Scaffold (stock Plop)
+
+Generators in `plopfile.mjs` are ordinary Plop generators (with Discovery `validate` where needed). Interactive prompts use stock `plop`; Sync stays on the `plop-os` CLI.
+
+```bash
+# from repo root (TTY required)
+pnpm --filter @xndrjs/plop-os-demo plop
+
+# or from this directory
+pnpm plop
+```
+
+Then pick e.g. `core-package` / `model` / `app` / `catalog` / `note`. After scaffolding models, run Sync (all Sync IDs, or pass flags after `--`):
+
+```bash
+pnpm --filter @xndrjs/plop-os-demo sync
+pnpm --filter @xndrjs/plop-os-demo sync -- --id models-barrel
+pnpm --filter @xndrjs/plop-os-demo sync -- --id core-catalog --base packages/core-billing
+```
+
 ## Layout (committed)
 
 ```

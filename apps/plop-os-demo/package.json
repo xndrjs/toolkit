@@ -9,7 +9,10 @@
     "demo": "node ./scripts/walkthrough.mjs",
     "start": "pnpm run demo",
     "clear:demo": "node ./scripts/clear-demo.mjs",
+    "preplop": "pnpm --filter @xndrjs/plop-os run build",
+    "plop": "plop",
     "plop-os": "plop-os",
+    "sync": "plop-os sync",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "plop": "^4.0.5",
     "typescript": "^5.7.3"
   }
 }
