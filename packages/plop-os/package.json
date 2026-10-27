@@ -10,6 +10,9 @@
     "directory": "packages/plop-os"
   },
   "type": "module",
+  "bin": {
+    "plop-os": "./dist/cli.js"
+  },
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {

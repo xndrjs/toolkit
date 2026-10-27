@@ -75,12 +75,23 @@ function isIgnored(relPosix: string, ignore: string[]): boolean {
   });
 }
 
+function resolveComparable(p: string): string {
+  const abs = path.resolve(p);
+  try {
+    return fs.realpathSync(abs);
+  } catch {
+    return abs;
+  }
+}
+
 function resolveWalkRoots(roots: string[], baseDir?: string): string[] {
-  const absRoots = roots.map((r) => path.resolve(r));
-  if (!baseDir) return absRoots;
+  // Walk with path.resolve; realpath only for containment (macOS `/var` symlinks).
+  const walkRoots = roots.map((r) => path.resolve(r));
+  if (!baseDir) return walkRoots;
 
   const absBase = path.resolve(baseDir);
-  const inside = absRoots.some((root) => isInsideRoot(absBase, root));
+  const baseComparable = resolveComparable(baseDir);
+  const inside = roots.some((root) => isInsideRoot(baseComparable, resolveComparable(root)));
   if (!inside) {
     throw new Error(`base directory escapes configured roots: ${baseDir}`);
   }

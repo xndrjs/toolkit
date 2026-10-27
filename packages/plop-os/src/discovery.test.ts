@@ -140,11 +140,12 @@ describe("discovery", () => {
 
     const rule = discoveryRule({
       name: "models",
-      pattern: "models",
+      pattern: "packages/core-:coreName/models",
     });
 
     const candidates = listCandidates(options, rule, base);
     expect(candidates).toHaveLength(1);
+    expect(candidates[0]!.data.coreName).toBe("alpha");
     expect(path.resolve(candidates[0]!.path)).toBe(
       path.resolve(root, "packages/core-alpha/models")
     );

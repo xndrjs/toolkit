@@ -213,11 +213,16 @@ function bindRelPath<TData extends CandidateData>(
 }
 
 function resolveWalkRoots(options: DiscoveryOptions, baseDir?: string): string[] {
-  const roots = options.roots.map((r) => path.resolve(r));
-  if (!baseDir) return roots;
+  // Walk with path.resolve (stable with mkdtemp `/var` paths). Use realpath
+  // only for containment so macOS `/var` ↔ `/private/var` still matches.
+  const walkRoots = options.roots.map((r) => path.resolve(r));
+  if (!baseDir) return walkRoots;
 
   const absBase = path.resolve(baseDir);
-  const inside = roots.some((root) => isInsideRoot(absBase, root));
+  const baseComparable = resolveComparable(baseDir);
+  const inside = options.roots.some((root) =>
+    isInsideRoot(baseComparable, resolveComparable(root))
+  );
   if (!inside) {
     throw new Error(`base directory escapes configured roots: ${baseDir}`);
   }
@@ -235,6 +240,10 @@ function defaultLabel(pathPosix: string, data: CandidateData): string {
 /**
  * List Candidates for a rule under roots, optionally narrowed by baseDir.
  * baseDir must resolve inside one of the roots.
+ *
+ * Path → data binding is always relative to the configured Discovery roots
+ * (not the walk/`baseDir` root), so workspace patterns stay stable when
+ * narrowing with `--base`.
  */
 export function listCandidates<TData extends CandidateData>(
   options: DiscoveryOptions,
@@ -244,13 +253,22 @@ export function listCandidates<TData extends CandidateData>(
   assertBindMode(rule);
 
   const ignore = options.ignore;
+  const configuredRoots = options.roots.map((r) => ({
+    walk: path.resolve(r),
+    comparable: resolveComparable(r),
+  }));
   const walkRoots = resolveWalkRoots(options, baseDir);
   const seen = new Set<string>();
   const candidates: Candidate<TData>[] = [];
 
-  for (const root of walkRoots) {
-    for (const absDir of walkDirectories(root, ignore)) {
-      const rel = toPosix(path.relative(root, absDir)) || ".";
+  for (const walkRoot of walkRoots) {
+    for (const absDir of walkDirectories(walkRoot, ignore)) {
+      const absComparable = resolveComparable(absDir);
+      const owning = configuredRoots.find((root) => isInsideRoot(absComparable, root.comparable));
+      if (!owning) continue;
+
+      // Bind against the configured root (realpath-stable), not the walk/baseDir root.
+      const rel = toPosix(path.relative(owning.comparable, absComparable)) || ".";
       const data = bindRelPath(rule, rel);
       if (!data) continue;
 
