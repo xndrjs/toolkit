@@ -15,7 +15,7 @@ Run Scaffold generators without prompts while applying the **same** missing-inpu
   - Load plopfile; resolve generator; **do not** call `runPrompts`.
   - Require static `prompts` array (reject dynamic prompt functions in v1).
   - Fail if required answers missing (`undefined`/`null`; empty string allowed for optional fields).
-  - Re-run each prompt’s `validate` when present (spike lesson: `runActions` alone does not).
+  - Re-run each prompt’s `validate` when present (`runActions` alone does not).
   - Then `runActions(answers)`; surface structured failures; non-zero / throw on action failure.
 - Document that prompt `validate` should call `plopOs.resolveCandidate` / shared helpers so interactive and non-interactive stay aligned.
 
@@ -31,4 +31,3 @@ Run Scaffold generators without prompts while applying the **same** missing-inpu
 ## References
 
 - Grilling Q12, Q19
-- `spike/notes.md` (validate not auto-run), `spike/src/run-scaffold.ts`

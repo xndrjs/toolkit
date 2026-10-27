@@ -25,9 +25,8 @@ Replace only the interiors of explicit Regions using registered Sync generators,
 
 - [ ] Unit tests: parse happy path; nested/unclosed/end-without-start throw before write; missing generator throws; generator throw leaves files unchanged; multi-region same file bottom-up replace; baseDir escape throws.
 - [ ] Handwritten file with markers participates without scaffold identity.
-- [ ] Clean rewrite (do not copy `spike/src/sync.ts` blindly).
+- [x] Implemented under `src/sync.ts` (clean rewrite; early PoC removed in 008).
 
 ## References
 
 - `GLOSSARY.md` — Region, Sync ID, Sync generator, Sync context
-- `spike/notes.md`, `spike/src/sync.ts`

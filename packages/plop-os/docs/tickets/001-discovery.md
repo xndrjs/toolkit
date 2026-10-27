@@ -32,9 +32,8 @@ Implement the Discovery read primitive as the shared filesystem foundation for S
 - [ ] At least one test for regex escape hatch (named groups).
 - [ ] Custom function hatch: either covered by a test or explicitly documented as deferred in the PR notes.
 - [ ] Public types exported from package entry (or clearly internal until 003 — prefer exporting once runtime exists; tests can import modules under test).
-- [ ] No reliance on `spike/` code (rewrite cleanly; spike is reference only).
+- [x] Implemented under `src/discovery.ts` (clean rewrite; early PoC removed in 008).
 
 ## References
 
 - `GLOSSARY.md` — Discovery, Discovery rule, Candidate
-- `spike/notes.md`, `spike/src/discovery.ts` (reference only; spike used regex-only)

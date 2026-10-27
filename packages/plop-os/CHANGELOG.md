@@ -4,4 +4,4 @@
 
 ### Minor Changes
 
-- Package scaffold and design pass. Implementation tracked in `docs/tickets/`; disposable PoC lives under `spike/` until removed.
+- First implementable package: Discovery, Sync, `createPlopOs`, non-interactive Scaffold via node-plop, CLI, docs, and `examples/minimal`. Early design PoC under `spike/` removed once tickets 001–008 landed.

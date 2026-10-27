@@ -34,4 +34,3 @@ Single consumer-facing object wired from a plopfile: Discovery config, rule regi
 ## References
 
 - Grilling decisions Q3, Q7, Q13
-- `spike/src/runtime.ts`

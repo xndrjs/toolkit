@@ -17,10 +17,6 @@ Remove the throwaway PoC once the real implementation and tests cover the same g
 
 ## Acceptance
 
-- [ ] No `spike/` directory in the package.
-- [ ] Package build/test/lint green without spike.
-- [ ] README no longer tells people to look at spike for behavior.
-
-## References
-
-- `spike/README.md`
+- [x] No `spike/` directory in the package.
+- [x] Package build/test/lint green without spike.
+- [x] README no longer tells people to look at spike for behavior.

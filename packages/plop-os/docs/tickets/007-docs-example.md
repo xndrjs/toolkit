@@ -20,8 +20,8 @@ Document how to adopt `plop-os` as a Plop consumer: setup, Discovery rule, Sync 
 
 ## Acceptance
 
-- [ ] A new reader can copy the example plopfile and run `plop-os candidates` / `run` / `sync` against the example.
-- [ ] Glossary terms match README wording.
+- [x] A new reader can copy the example plopfile and run `plop-os candidates` / `run` / `sync` against the example.
+- [x] Glossary terms match README wording.
 
 ## References
 

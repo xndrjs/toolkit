@@ -1,8 +1,8 @@
-# 006 — Integration tests replacing the spike proof
+# 006 — Integration tests
 
 ## Goal
 
-Encode the PoC scenarios as maintained Vitest (or similar) fixtures so the real package cannot regress the four proof points.
+Encode the core scenarios as maintained Vitest (or similar) fixtures so the package cannot regress the four proof points.
 
 ## Depends on
 
@@ -19,7 +19,7 @@ Fixture workspace (temp or under `src/**/__fixtures__`) covering:
 
 ## Out of scope
 
-- Keeping `spike/src/spike.ts` as a runner (superseded by this ticket; deletion in 008).
+- A disposable PoC runner (removed in 008 once these tests landed).
 
 ## Acceptance
 
@@ -29,4 +29,3 @@ Fixture workspace (temp or under `src/**/__fixtures__`) covering:
 ## References
 
 - `docs/initial-analysis.md` — “Primo passo richiesto”
-- `spike/src/spike.ts`, `spike/notes.md`

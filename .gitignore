@@ -3,8 +3,6 @@ dist
 artifacts
 version_log.txt
 .tmp-cli-*
-packages/plop-os/spike/.workspace
-packages/plop-os/.spike-workspace
 
 # llm analysis files
 analysis
