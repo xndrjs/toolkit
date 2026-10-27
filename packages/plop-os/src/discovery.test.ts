@@ -1,9 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   defaultIgnore,
+  discoveryRule,
   listCandidates,
   resolveCandidate,
   resolveSubdir,
@@ -35,14 +36,16 @@ describe("discovery", () => {
     touchDir(root, "packages", "core-beta", "models");
     touchDir(root, "packages", "core-alpha", "other");
 
-    const rule: DiscoveryRule = {
+    const rule = discoveryRule({
       name: "models",
       pattern: "packages/core-:coreName/models",
-    };
+    });
 
     const candidates = listCandidates(options, rule).sort((a, b) =>
-      a.data.coreName!.localeCompare(b.data.coreName!)
+      a.data.coreName.localeCompare(b.data.coreName)
     );
+
+    expectTypeOf(candidates[0]!.data).toEqualTypeOf<{ coreName: string }>();
 
     expect(candidates).toHaveLength(2);
     expect(candidates[0]).toMatchObject({
@@ -61,13 +64,14 @@ describe("discovery", () => {
   it("binds RegExp named groups as an escape hatch", () => {
     touchDir(root, "apps", "forma-demo", "src");
 
-    const rule: DiscoveryRule = {
+    const rule: DiscoveryRule<{ appName: string }> = {
       name: "apps",
       pattern: /^apps\/(?<appName>[^/]+)\/src$/,
       label: ({ data }) => `app:${data.appName}`,
     };
 
     const candidates = listCandidates(options, rule);
+    expectTypeOf(candidates[0]!.data).toEqualTypeOf<{ appName: string }>();
     expect(candidates).toHaveLength(1);
     expect(candidates[0]).toMatchObject({
       label: "app:forma-demo",
@@ -79,16 +83,17 @@ describe("discovery", () => {
     touchDir(root, "libs", "shared");
     touchDir(root, "libs", "skip-me");
 
-    const rule: DiscoveryRule = {
+    const rule = discoveryRule({
       name: "libs",
       extract: (relPath) => {
         const match = /^libs\/(?<name>[^/]+)$/.exec(relPath);
         if (!match?.groups?.name || match.groups.name === "skip-me") return false;
         return { name: match.groups.name };
       },
-    };
+    });
 
     const candidates = listCandidates(options, rule);
+    expectTypeOf(candidates[0]!.data).toEqualTypeOf<{ name: string }>();
     expect(candidates).toHaveLength(1);
     expect(candidates[0]).toMatchObject({
       data: { name: "shared" },
@@ -103,10 +108,10 @@ describe("discovery", () => {
     touchDir(root, ".git", "packages", "core-gone", "models");
     writeFileSync(path.join(touchDir(root, "packages", "core-ok", "models"), ".keep"), "");
 
-    const rule: DiscoveryRule = {
+    const rule = discoveryRule({
       name: "models",
       pattern: "packages/core-:coreName/models",
-    };
+    });
 
     const candidates = listCandidates(options, rule);
     expect(candidates).toHaveLength(1);
@@ -116,10 +121,10 @@ describe("discovery", () => {
   it("throws when baseDir escapes configured roots", () => {
     const outside = mkdtempSync(path.join(tmpdir(), "plop-os-outside-"));
     try {
-      const rule: DiscoveryRule = {
+      const rule = discoveryRule({
         name: "models",
         pattern: "packages/core-:coreName/models",
-      };
+      });
       expect(() => listCandidates(options, rule, outside)).toThrow(
         /base directory escapes configured roots/
       );
@@ -133,10 +138,10 @@ describe("discovery", () => {
     touchDir(root, "packages", "core-beta", "models");
     const base = touchDir(root, "packages", "core-alpha");
 
-    const rule: DiscoveryRule = {
+    const rule = discoveryRule({
       name: "models",
       pattern: "models",
-    };
+    });
 
     const candidates = listCandidates(options, rule, base);
     expect(candidates).toHaveLength(1);
@@ -149,13 +154,13 @@ describe("discovery", () => {
     const models = touchDir(root, "packages", "core-alpha", "models");
     touchDir(root, "packages", "core-alpha", "src");
 
-    const rule: DiscoveryRule = {
+    const rule = discoveryRule({
       name: "models",
       pattern: "packages/core-:coreName/models",
-    };
+    });
 
     const hit = resolveCandidate(options, rule, models);
-    expect(hit.data).toEqual({ coreName: "alpha" });
+    expect(hit.data.coreName).toBe("alpha");
 
     expect(() =>
       resolveCandidate(options, rule, path.join(root, "packages/core-alpha/src"))
@@ -166,7 +171,10 @@ describe("discovery", () => {
     const models = touchDir(root, "packages", "core-alpha", "models");
     const candidate = resolveCandidate(
       options,
-      { name: "models", pattern: "packages/core-:coreName/models" },
+      discoveryRule({
+        name: "models",
+        pattern: "packages/core-:coreName/models",
+      }),
       models
     );
 
@@ -185,12 +193,12 @@ describe("discovery", () => {
     touchDir(root, "packages", "core-keep", "models");
     touchDir(root, "packages", "core-drop", "models");
 
-    const rule: DiscoveryRule = {
+    const rule = discoveryRule({
       name: "models",
       pattern: "packages/core-:coreName/models",
       filter: ({ data }) => data.coreName !== "drop",
       label: ({ data }) => `core/${data.coreName}`,
-    };
+    });
 
     const candidates = listCandidates(options, rule);
     expect(candidates).toHaveLength(1);

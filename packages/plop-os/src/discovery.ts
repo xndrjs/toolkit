@@ -4,15 +4,43 @@ import { match as pathToRegexpMatch, type MatchFunction } from "path-to-regexp";
 
 export type CandidateData = Record<string, string>;
 
-export type Candidate = {
+/** Strip path-to-regexp param modifiers (`?`, `+`, `*`, custom regex, …). */
+type CleanPathParam<P extends string> = P extends `${infer Name}${";" | "("}${string}`
+  ? Name
+  : P extends `${infer Name}?` | `${infer Name}+` | `${infer Name}*`
+    ? Name
+    : P;
+
+/** Named `:param` tokens in a path-to-regexp pattern string. */
+export type PathParamNames<S extends string> = S extends `${string}:${infer Rest}`
+  ? Rest extends `${infer Param}/${infer After}`
+    ? CleanPathParam<Param> | PathParamNames<`${After}`>
+    : CleanPathParam<Rest>
+  : never;
+
+/** Candidate.data shape inferred from a path-to-regexp pattern string. */
+export type DataFromPathPattern<S extends string> = Record<PathParamNames<S>, string>;
+
+/**
+ * No known keys — property access requires an explicit `TData` or
+ * pattern inference through {@link discoveryRule}.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- empty key set by design
+export type EmptyCandidateData = {};
+
+/**
+ * Candidate.data defaults to {@link EmptyCandidateData} so property access is
+ * opt-in via `TData` (or pattern inference through {@link discoveryRule}).
+ */
+export type Candidate<TData extends CandidateData = EmptyCandidateData> = {
   path: string;
   label: string;
-  data: CandidateData;
+  data: TData;
 };
 
-export type DiscoveryHit = {
+export type DiscoveryHit<TData extends CandidateData = EmptyCandidateData> = {
   path: string;
-  data: CandidateData;
+  data: TData;
 };
 
 /**
@@ -23,13 +51,33 @@ export type DiscoveryHit = {
  * - `pattern: RegExp` — escape hatch with named capture groups
  * - `extract` — escape hatch custom `(relPath) => data | null | false`
  */
-export type DiscoveryRule = {
+export type DiscoveryRule<TData extends CandidateData = EmptyCandidateData> = {
   name: string;
   pattern?: string | RegExp;
-  extract?: (relPath: string) => CandidateData | null | false;
-  label?: (hit: DiscoveryHit) => string;
-  filter?: (hit: DiscoveryHit) => boolean;
+  extract?: (relPath: string) => TData | null | false;
+  label?: (hit: DiscoveryHit<TData>) => string;
+  filter?: (hit: DiscoveryHit<TData>) => boolean;
 };
+
+type DiscoveryRuleFromPattern<P extends string> = {
+  name: string;
+  pattern: P;
+  extract?: undefined;
+  label?: (hit: DiscoveryHit<DataFromPathPattern<P>>) => string;
+  filter?: (hit: DiscoveryHit<DataFromPathPattern<P>>) => boolean;
+};
+
+/** Infer `Candidate.data` from a path-to-regexp `pattern` string literal. */
+export function discoveryRule<const P extends string>(
+  rule: DiscoveryRuleFromPattern<P>
+): DiscoveryRule<DataFromPathPattern<P>>;
+/** Pass through an explicitly typed rule (RegExp / extract / manual `TData`). */
+export function discoveryRule<TData extends CandidateData>(
+  rule: DiscoveryRule<TData>
+): DiscoveryRule<TData>;
+export function discoveryRule(rule: DiscoveryRule<CandidateData>): DiscoveryRule<CandidateData> {
+  return rule;
+}
 
 export type DiscoveryOptions = {
   roots: string[];
@@ -118,7 +166,7 @@ function getPathMatchFn(pattern: string): MatchFunction<CandidateData> {
   return fn;
 }
 
-function assertBindMode(rule: DiscoveryRule): void {
+function assertBindMode(rule: { name: string; pattern?: unknown; extract?: unknown }): void {
   const hasPattern = rule.pattern !== undefined;
   const hasExtract = rule.extract !== undefined;
   if (hasPattern === hasExtract) {
@@ -126,7 +174,10 @@ function assertBindMode(rule: DiscoveryRule): void {
   }
 }
 
-function bindRelPath(rule: DiscoveryRule, relPosix: string): CandidateData | null {
+function bindRelPath<TData extends CandidateData>(
+  rule: DiscoveryRule<TData>,
+  relPosix: string
+): TData | null {
   assertBindMode(rule);
 
   if (rule.extract) {
@@ -139,13 +190,13 @@ function bindRelPath(rule: DiscoveryRule, relPosix: string): CandidateData | nul
   if (typeof pattern === "string") {
     const result = getPathMatchFn(pattern)(relPosix);
     if (!result) return null;
-    return paramsToData(result.params as Record<string, string | string[] | undefined>);
+    return paramsToData(result.params as Record<string, string | string[] | undefined>) as TData;
   }
 
   if (pattern instanceof RegExp) {
     const match = relPosix.match(pattern);
     if (!match) return null;
-    return namedGroups(match);
+    return namedGroups(match) as TData;
   }
 
   return null;
@@ -175,17 +226,17 @@ function defaultLabel(pathPosix: string, data: CandidateData): string {
  * List Candidates for a rule under roots, optionally narrowed by baseDir.
  * baseDir must resolve inside one of the roots.
  */
-export function listCandidates(
+export function listCandidates<TData extends CandidateData>(
   options: DiscoveryOptions,
-  rule: DiscoveryRule,
+  rule: DiscoveryRule<TData>,
   baseDir?: string
-): Candidate[] {
+): Candidate<TData>[] {
   assertBindMode(rule);
 
   const ignore = options.ignore;
   const walkRoots = resolveWalkRoots(options, baseDir);
   const seen = new Set<string>();
-  const candidates: Candidate[] = [];
+  const candidates: Candidate<TData>[] = [];
 
   for (const root of walkRoots) {
     for (const absDir of walkDirectories(root, ignore)) {
@@ -196,7 +247,7 @@ export function listCandidates(
       const candidatePath = toPosix(path.relative(process.cwd(), absDir)) || ".";
       if (seen.has(candidatePath)) continue;
 
-      const hit: DiscoveryHit = { path: candidatePath, data };
+      const hit: DiscoveryHit<TData> = { path: candidatePath, data };
       if (rule.filter && !rule.filter(hit)) continue;
 
       seen.add(candidatePath);
@@ -211,7 +262,10 @@ export function listCandidates(
   return candidates;
 }
 
-export function findRule(rules: DiscoveryRule[], name: string): DiscoveryRule {
+export function findRule(
+  rules: readonly DiscoveryRule<CandidateData>[],
+  name: string
+): DiscoveryRule<CandidateData> {
   const rule = rules.find((r) => r.name === name);
   if (!rule) {
     throw new Error(`unknown discovery rule: ${name}`);
@@ -220,12 +274,12 @@ export function findRule(rules: DiscoveryRule[], name: string): DiscoveryRule {
 }
 
 /** Resolve an explicit path to a Candidate that must appear in the rule's results. */
-export function resolveCandidate(
+export function resolveCandidate<TData extends CandidateData>(
   options: DiscoveryOptions,
-  rule: DiscoveryRule,
+  rule: DiscoveryRule<TData>,
   inputPath: string,
   baseDir?: string
-): Candidate {
+): Candidate<TData> {
   const abs = path.resolve(inputPath);
   const candidates = listCandidates(options, rule, baseDir);
   const hit = candidates.find((c) => path.resolve(c.path) === abs);
@@ -236,7 +290,10 @@ export function resolveCandidate(
 }
 
 /** Ensure relativeSubdir stays under candidate.path (no .. escape). */
-export function resolveSubdir(candidate: Candidate, relativeSubdir: string): string {
+export function resolveSubdir(
+  candidate: Pick<Candidate<CandidateData>, "path">,
+  relativeSubdir: string
+): string {
   if (path.isAbsolute(relativeSubdir)) {
     throw new Error(`subdirectory must be relative, got absolute: ${relativeSubdir}`);
   }

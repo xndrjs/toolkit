@@ -7,14 +7,26 @@ import {
   resolveCandidate,
   resolveSubdir,
   type Candidate,
+  type CandidateData,
   type DiscoveryOptions,
   type DiscoveryRule,
+  type EmptyCandidateData,
 } from "./discovery.js";
 
 export type SyncDiscoveryApi = {
-  listCandidates: (ruleName: string, baseDir?: string) => Candidate[];
-  resolveCandidate: (ruleName: string, inputPath: string, baseDir?: string) => Candidate;
-  resolveSubdir: (candidate: Candidate, relativeSubdir: string) => string;
+  listCandidates: <TData extends CandidateData = EmptyCandidateData>(
+    ruleName: string,
+    baseDir?: string
+  ) => Candidate<TData>[];
+  resolveCandidate: <TData extends CandidateData = EmptyCandidateData>(
+    ruleName: string,
+    inputPath: string,
+    baseDir?: string
+  ) => Candidate<TData>;
+  resolveSubdir: (
+    candidate: Pick<Candidate<CandidateData>, "path">,
+    relativeSubdir: string
+  ) => string;
 };
 
 /** Per-Region locality plus Discovery bound to the configured roots. */
@@ -156,13 +168,16 @@ export function findRegionsInFile(filePath: string, content: string): SyncRegion
   return regions;
 }
 
-function createDiscoveryApi(options: DiscoveryOptions, rules: DiscoveryRule[]): SyncDiscoveryApi {
+function createDiscoveryApi(
+  options: DiscoveryOptions,
+  rules: readonly DiscoveryRule<CandidateData>[]
+): SyncDiscoveryApi {
   return {
     listCandidates(ruleName, baseDir) {
-      return listCandidates(options, findRule(rules, ruleName), baseDir);
+      return listCandidates(options, findRule(rules, ruleName), baseDir) as never;
     },
     resolveCandidate(ruleName, inputPath, baseDir) {
-      return resolveCandidate(options, findRule(rules, ruleName), inputPath, baseDir);
+      return resolveCandidate(options, findRule(rules, ruleName), inputPath, baseDir) as never;
     },
     resolveSubdir(candidate, relativeSubdir) {
       return resolveSubdir(candidate, relativeSubdir);
@@ -200,7 +215,7 @@ function applyRegionBodies(
  */
 export async function runSyncPass(args: {
   discovery: DiscoveryOptions;
-  rules: DiscoveryRule[];
+  rules: readonly DiscoveryRule<CandidateData>[];
   generators: Map<string, SyncGenerator>;
   syncId?: string;
   baseDir?: string;

@@ -2,7 +2,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { defaultIgnore, type DiscoveryOptions, type DiscoveryRule } from "./discovery.js";
+import {
+  defaultIgnore,
+  type CandidateData,
+  type DiscoveryOptions,
+  type DiscoveryRule,
+} from "./discovery.js";
 import { findRegionsInFile, runSyncPass, type SyncGenerator } from "./sync.js";
 
 function touchDir(...segments: string[]): string {
@@ -80,7 +85,7 @@ describe("findRegionsInFile", () => {
 describe("runSyncPass", () => {
   let root: string;
   let options: DiscoveryOptions;
-  let rules: DiscoveryRule[];
+  let rules: DiscoveryRule<CandidateData>[];
 
   beforeEach(() => {
     root = mkdtempSync(path.join(tmpdir(), "plop-os-sync-"));

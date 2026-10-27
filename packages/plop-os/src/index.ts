@@ -1,6 +1,29 @@
-/**
- * Public API for `plop-os`.
- *
- * Stub export surface — real implementation lands via docs/tickets.
- */
-export {};
+export type {
+  Candidate,
+  CandidateData,
+  DataFromPathPattern,
+  DiscoveryHit,
+  DiscoveryOptions,
+  DiscoveryRule,
+  EmptyCandidateData,
+  PathParamNames,
+} from "./discovery.js";
+export {
+  defaultIgnore,
+  discoveryRule,
+  listCandidates,
+  resolveCandidate,
+  resolveSubdir,
+} from "./discovery.js";
+
+export type {
+  SyncContext,
+  SyncDiscoveryApi,
+  SyncGenerator,
+  SyncPassResult,
+  SyncRegion,
+} from "./sync.js";
+export { findRegionsInFile, runSyncPass } from "./sync.js";
+
+export type { ConflictPolicy, PlopOs, PlopOsConfig } from "./runtime.js";
+export { createPlopOs, plopAddFlags } from "./runtime.js";
