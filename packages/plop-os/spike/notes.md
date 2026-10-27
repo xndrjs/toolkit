@@ -16,3 +16,4 @@ Reference-only lessons from the disposable PoC under `spike/src/`. Real work is 
 - Plop change paths in results may look root-absolute depending on dest base.
 - Ignore matching in the PoC was name/segment based (not full micromatch) — decide properly in ticket 001.
 - Nested regions unsupported (by design).
+- PoC bound paths with regex only; **real Discovery uses `path-to-regexp` as primary**, with regex / optional custom function as escape hatches (see ticket 001 / GLOSSARY).
