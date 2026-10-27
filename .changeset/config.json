@@ -25,11 +25,6 @@
     "@xndrjs/resource-graph-resolver-demo",
     "@xndrjs/resource-graph-resolver-bench",
     "@xndrjs/ziel-demo",
-    "@xndrjs/struttura-demo",
-    "@core/pagebuilder",
-    "@infrastructure/contentful",
-    "@ui/react",
-    "web-next",
     "ziel-vscode"
   ]
 }

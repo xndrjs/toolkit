@@ -4,7 +4,7 @@
 
 ### Minor Changes
 
-- 4420287: Initial alpha releases: intent-oriented composition (`forma`) and structural modeling (`struttura`).
+- 4420287: Initial alpha release: intent-oriented composition (`forma`).
 
 ## 0.0.0
 

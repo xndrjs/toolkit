@@ -1,8 +1,0 @@
-{
-  "name": "web-next",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "server-only": "^0.0.1"
-  }
-}

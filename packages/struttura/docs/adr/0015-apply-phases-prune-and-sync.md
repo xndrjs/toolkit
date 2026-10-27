@@ -1,3 +1,0 @@
-# Apply phases: prune opt-in, sync default-on
-
-`apply` reconciles the materialization root in phases: create/ensure, identity moves (including landing clears), and Sync content rewrite. **Prune** (delete previously managed artifacts absent from Desired inventory) is opt-in (`apply --prune` or the `prune` command), not part of the default apply. Orphans remain tracked as **zombies** on the success manifest until pruned, so later prune and zombie warnings stay accurate. Sync content rewrite can be disabled with `--no-sync` for scaffold-only workflows; missing Sync files are still created. Landing deletes required by moves are not prune and always run with apply.

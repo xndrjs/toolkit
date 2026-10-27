@@ -25,15 +25,9 @@
     "@xndrjs/resource-graph-resolver": "0.2.0",
     "@xndrjs/tasks": "0.2.0",
     "@xndrjs/forma": "0.0.0",
-    "@xndrjs/struttura": "0.0.0",
     "@xndrjs/ziel": "0.0.0",
     "ziel-vscode": "0.0.5",
-    "@xndrjs/forma-demo": "0.0.1",
-    "@xndrjs/struttura-demo": "0.0.1"
+    "@xndrjs/forma-demo": "0.0.1"
   },
-  "changesets": [
-    "forma-struttura-alpha",
-    "struttura-many-deps",
-    "struttura-typed-deps"
-  ]
+  "changesets": ["forma-struttura-alpha"]
 }

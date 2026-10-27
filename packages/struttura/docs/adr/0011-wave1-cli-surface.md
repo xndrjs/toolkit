@@ -1,3 +1,0 @@
-# Wave 1 CLI: codegen, apply, inspect, prune, migrate-id
-
-Wave 1 ships five commands: `codegen` (emit typed populate API), `apply` (reconcile filesystem without prune by default), `inspect` (plan/diagnostics without write), `prune` (delete zombie managed artifacts), and `migrate-id` (explicit `oldId → newId` updates in the manifest). Population TypeScript is updated by the author alongside migration; the tool does not rewrite arbitrary populate sources. Apply accepts `--prune`, `--no-sync`, and `--no-zombie-warn` (ADR 0015). Architectural ESLint boundaries are demonstrated in the demo via hand-authored config (ADR 0013), not as CLI. Untracked-file reports remain later work.
