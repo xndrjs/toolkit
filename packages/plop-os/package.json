@@ -1,13 +1,13 @@
 {
-  "name": "@xndrjs/struttura",
+  "name": "plop-os",
   "version": "0.1.0-alpha.0",
-  "description": "Scaffolding, codebase discovery, and explicit region sync for project conventions.",
+  "description": "Plop on steroids: scaffolding, codebase discovery, and explicit region sync.",
   "private": false,
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xndrjs/toolkit.git",
-    "directory": "packages/struttura"
+    "directory": "packages/plop-os"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
