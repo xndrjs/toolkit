@@ -5,7 +5,7 @@
  * everything via Scaffold / Sync so you can watch the repo fill in place.
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { GENERATED, clearGenerated, demoRoot as cwd } from "./generated-paths.mjs";
@@ -100,22 +100,32 @@ function main() {
   run("app", { name: "demo-shell" }, "scaffold app");
   expectOk(runCli(["candidates", "--rule", "apps"]), "candidates apps");
 
-  section("7) Scaffold — models (root + subdirectory)");
+  section("7) Scaffold — models (list: core → dest dir under models/)");
   run(
     "model",
-    { modelsPath: "packages/core-billing/models", subdir: "", name: "invoice" },
+    {
+      modelsPath: "packages/core-billing/models",
+      destPath: "packages/core-billing/models",
+      name: "invoice",
+    },
     "scaffold invoice model"
-  );
-  run(
-    "model",
-    { modelsPath: "packages/core-pagebuilder/models", subdir: "", name: "existing" },
-    "scaffold existing model"
   );
   run(
     "model",
     {
       modelsPath: "packages/core-pagebuilder/models",
-      subdir: "strips",
+      destPath: "packages/core-pagebuilder/models",
+      name: "existing",
+    },
+    "scaffold existing model"
+  );
+  // Nested dest must already exist as a directory Candidate (kind: directory).
+  mkdirSync(path.join(cwd, "packages/core-pagebuilder/models/strips"), { recursive: true });
+  run(
+    "model",
+    {
+      modelsPath: "packages/core-pagebuilder/models",
+      destPath: "packages/core-pagebuilder/models/strips",
       name: "hero",
     },
     "scaffold hero model in strips/"
@@ -127,11 +137,11 @@ function main() {
     ).trim()
   );
 
-  section("7b) Discovery — model-files Candidates (file paths)");
+  section("7b) Discovery — model-files (kind: file) and models-dirs");
   expectOk(runCli(["candidates", "--rule", "model-files"]), "candidates model-files");
   expectOk(
-    runCli(["candidates", "--rule", "model-files", "--base", "packages/core-pagebuilder/models"]),
-    "candidates model-files --base"
+    runCli(["candidates", "--rule", "models-dirs", "--base", "packages/core-pagebuilder/models"]),
+    "candidates models-dirs --base"
   );
 
   section("8) Fail — model into operations/ (not a Candidate)");
@@ -142,7 +152,7 @@ function main() {
       "--input",
       JSON.stringify({
         modelsPath: "packages/core-pagebuilder/operations",
-        subdir: "",
+        destPath: "packages/core-pagebuilder/operations",
         name: "nope",
       }),
     ]),

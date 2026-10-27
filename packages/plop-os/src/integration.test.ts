@@ -65,12 +65,14 @@ const coreModelsRule = plopOs.addDiscoveryRule({
   name: "core-models",
   pattern: "packages/core-:coreName/models",
   label: ({ data }) => data.coreName ?? "",
+  filter: ({ kind }) => kind === "directory",
 });
 
 const modelFilesRule = plopOs.addDiscoveryRule({
   name: "model-files",
   pattern: /^packages\\/core-(?<coreName>[^/]+)\\/models\\/(?<modelPath>.+)\\.model\\.ts$/,
   label: ({ data }) => data.modelPath ?? "",
+  filter: ({ kind }) => kind === "file",
 });
 
 plopOs.syncGenerator("models-barrel", (ctx) => {
@@ -78,7 +80,7 @@ plopOs.syncGenerator("models-barrel", (ctx) => {
   const hits = ctx.discovery.listCandidates(modelFilesRule, modelsDir);
   const lines = hits.map((c) => {
     const rel = path.relative(modelsDir, c.path).split(path.sep).join("/");
-    return \`export * from "./\${rel.replace(/\\.ts$/, ".js")}";\`;
+    return \`export * from "./\${rel.replace(/\\.ts$/, "")}";\`;
   });
   return lines.sort().join("\\n");
 });
@@ -262,8 +264,8 @@ describe("plop-os integration", () => {
     expect(barrel).toContain("// handwritten barrel");
     expect(barrel).toContain("// plop-os-sync start models-barrel");
     expect(barrel).toContain("// plop-os-sync end models-barrel");
-    expect(barrel).toContain('export * from "./existing.model.js";');
-    expect(barrel).toContain('export * from "./strips/hero.model.js";');
+    expect(barrel).toContain('export * from "./existing.model";');
+    expect(barrel).toContain('export * from "./strips/hero.model";');
   });
 
   it("4) missing/invalid inputs fail without prompts", async () => {

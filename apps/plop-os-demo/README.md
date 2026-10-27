@@ -46,22 +46,22 @@ After `start`, also present (gitignored): `packages/core-*`, `apps/demo-shell/`,
 
 ## Casistiche
 
-| #   | Case                           | How                                          |
-| --- | ------------------------------ | -------------------------------------------- |
-| 1   | Inventory                      | `plop-os generators`                         |
-| 2   | Discovery empty                | `candidates --rule core-models` → `[]`       |
-| 3   | Scaffold cores                 | `run core-package` for pagebuilder + billing |
-| 4   | Discovery hits                 | candidates appear                            |
-| 5   | Narrow `--base`                | only billing                                 |
-| 6   | Scaffold app + regex Discovery | `run app` → `candidates --rule apps`         |
-| 7   | Scaffold models                | invoice, existing, hero under `strips/`      |
-| 7b  | Discovery file Candidates      | `candidates --rule model-files`              |
-| 8   | Reject `operations/`           | not a Candidate                              |
-| 9   | Missing / invalid inputs       | no stdin hang                                |
-| 10  | Conflict `throw`               | same `note` twice                            |
-| 11  | Scaffold catalog + Sync        | `run catalog` then `sync --id core-catalog`  |
-| 12  | Sync barrels via Discovery     | `models-barrel` uses `listCandidates`        |
-| 13  | Sync `--base`                  | limited pass                                 |
+| #   | Case                            | How                                          |
+| --- | ------------------------------- | -------------------------------------------- |
+| 1   | Inventory                       | `plop-os generators`                         |
+| 2   | Discovery empty                 | `candidates --rule core-models` → `[]`       |
+| 3   | Scaffold cores                  | `run core-package` for pagebuilder + billing |
+| 4   | Discovery hits                  | candidates appear                            |
+| 5   | Narrow `--base`                 | only billing                                 |
+| 6   | Scaffold app + regex Discovery  | `run app` → `candidates --rule apps`         |
+| 7   | Scaffold models                 | `list` core → `list` dest dir → name         |
+| 7b  | Discovery file / dir Candidates | `model-files` + `models-dirs` (`kind`)       |
+| 8   | Reject `operations/`            | not a Candidate                              |
+| 9   | Missing / invalid inputs        | no stdin hang                                |
+| 10  | Conflict `throw`                | same `note` twice                            |
+| 11  | Scaffold catalog + Sync         | `run catalog` then `sync --id core-catalog`  |
+| 12  | Sync barrels via Discovery      | `models-barrel` uses `listCandidates`        |
+| 13  | Sync `--base`                   | limited pass                                 |
 
 ## Manual CLI (from this directory)
 
@@ -70,7 +70,7 @@ pnpm --filter @xndrjs/plop-os run build
 pnpm --filter @xndrjs/plop-os-demo exec plop-os generators
 pnpm --filter @xndrjs/plop-os-demo exec plop-os run core-package --input '{"name":"pagebuilder"}'
 pnpm --filter @xndrjs/plop-os-demo exec plop-os candidates --rule core-models
-pnpm --filter @xndrjs/plop-os-demo exec plop-os run model --input '{"modelsPath":"packages/core-pagebuilder/models","subdir":"strips","name":"hero"}'
+pnpm --filter @xndrjs/plop-os-demo exec plop-os run model --input '{"modelsPath":"packages/core-pagebuilder/models","destPath":"packages/core-pagebuilder/models/strips","name":"hero"}'
 pnpm --filter @xndrjs/plop-os-demo exec plop-os sync --id models-barrel
 ```
 

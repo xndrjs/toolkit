@@ -69,7 +69,7 @@ export default function (plop) {
 
 ### Discovery rules
 
-Primary bind mode is a **`path-to-regexp`** pattern (e.g. `packages/:pkgName/models`). Matching **filesystem paths** under `roots` (directories and files) become Candidates (`path`, `label`, `data`). Regex named groups and a custom `(path) => data` function are escape hatches.
+Primary bind mode is a **`path-to-regexp`** pattern (e.g. `packages/:pkgName/models`). Matching **filesystem paths** under `roots` (directories and files) become Candidates (`path`, `label`, `data`, `kind`). `kind` is `"file"` | `"directory"` from the real entry — never guessed from the path string. Regex named groups and a custom `(path) => data` function are escape hatches.
 
 `addDiscoveryRule` returns a typed rule handle — pass it to `candidates` / `resolveCandidate` / Sync `listCandidates` so `data` stays inferred (for regex rules, declare `TData` once on `addDiscoveryRule<…>`). String rule names still work for the CLI.
 

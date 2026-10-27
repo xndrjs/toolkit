@@ -14,6 +14,18 @@ const coreModelsRule = plopOs.addDiscoveryRule({
   name: "core-models",
   pattern: "packages/core-:coreName/models",
   label: ({ data }) => data.coreName,
+  filter: ({ kind }) => kind === "directory",
+});
+
+/**
+ * Discovery: directories under a core's models/ (root + nested), for destination picks.
+ * @type {import("@xndrjs/plop-os").DiscoveryRule<{ coreName: string; dirPath: string }>}
+ */
+const modelsDirsRule = plopOs.addDiscoveryRule({
+  name: "models-dirs",
+  pattern: /^packages\/core-(?<coreName>[^/]+)\/models(?:\/(?<dirPath>.+))?$/,
+  label: ({ data }) => data.dirPath || ".",
+  filter: ({ kind }) => kind === "directory",
 });
 
 /**
@@ -25,6 +37,7 @@ const modelFilesRule = plopOs.addDiscoveryRule({
   name: "model-files",
   pattern: /^packages\/core-(?<coreName>[^/]+)\/models\/(?<modelPath>.+)\.model\.ts$/,
   label: ({ data }) => data.modelPath,
+  filter: ({ kind }) => kind === "file",
 });
 
 /**
@@ -35,6 +48,7 @@ const appsRule = plopOs.addDiscoveryRule({
   name: "apps",
   pattern: /^apps\/(?<appName>[^/]+)$/,
   label: ({ data }) => data.appName,
+  filter: ({ kind }) => kind === "directory",
 });
 
 /** Sync: rebuild models barrel via Discovery of model-files under this Region. */
@@ -113,12 +127,19 @@ export default function (plop) {
   });
 
   plop.setGenerator("model", {
-    description: "Scaffold a model under a discovered models/ Candidate",
+    description: "Scaffold a model under a discovered models/ directory",
     prompts: [
       {
-        type: "input",
+        type: "list",
         name: "modelsPath",
-        message: "models directory (must be a core-models Candidate)",
+        message: "core (models Candidate)",
+        choices() {
+          const cores = plopOs.candidates(coreModelsRule);
+          if (cores.length === 0) {
+            throw new Error("no cores — run core-package first");
+          }
+          return cores.map((c) => ({ name: c.label, value: c.path }));
+        },
         validate(v) {
           try {
             plopOs.resolveCandidate(coreModelsRule, v);
@@ -129,10 +150,25 @@ export default function (plop) {
         },
       },
       {
-        type: "input",
-        name: "subdir",
-        message: "optional subdirectory under models/",
-        default: "",
+        type: "list",
+        name: "destPath",
+        message: "destination directory under models/",
+        choices(answers) {
+          if (!answers.modelsPath) {
+            throw new Error("select a core first");
+          }
+          const dirs = plopOs.candidates(modelsDirsRule, answers.modelsPath);
+          if (dirs.length === 0) {
+            throw new Error("no destination directories under that core");
+          }
+          return dirs.map((c) => {
+            const rel = path.relative(answers.modelsPath, c.path).split(path.sep).join("/") || ".";
+            return {
+              name: rel === "." ? "(models root)" : rel,
+              value: c.path,
+            };
+          });
+        },
       },
       {
         type: "input",
@@ -142,12 +178,8 @@ export default function (plop) {
       },
     ],
     actions(answers) {
-      const candidate = plopOs.resolveCandidate(coreModelsRule, answers.modelsPath);
-      const dest = answers.subdir
-        ? plopOs.resolveSubdir(candidate, answers.subdir)
-        : candidate.path;
-      const rel = path.relative(root, dest).split(path.sep).join("/");
       const flags = plopAddFlags("throw");
+      const rel = path.relative(root, answers.destPath).split(path.sep).join("/");
       return [
         {
           type: "add",
@@ -217,4 +249,4 @@ export default function (plop) {
   });
 }
 
-export { coreModelsRule, modelFilesRule, appsRule };
+export { coreModelsRule, modelsDirsRule, modelFilesRule, appsRule };

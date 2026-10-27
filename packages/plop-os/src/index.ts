@@ -1,6 +1,7 @@
 export type {
   Candidate,
   CandidateData,
+  CandidateKind,
   DataFromPathPattern,
   DiscoveryHit,
   DiscoveryOptions,

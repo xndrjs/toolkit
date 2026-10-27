@@ -217,12 +217,14 @@ describe("discovery", () => {
       name: "model-files",
       pattern: /^packages\/core-(?<coreName>[^/]+)\/models\/(?<modelPath>.+)\.model\.ts$/,
       label: ({ data }) => data.modelPath,
+      filter: ({ kind }) => kind === "file",
     };
 
     const candidates = listCandidates(options, rule).sort((a, b) =>
       a.data.modelPath.localeCompare(b.data.modelPath)
     );
     expect(candidates).toHaveLength(2);
+    expect(candidates.every((c) => c.kind === "file")).toBe(true);
     expect(candidates.map((c) => c.data)).toEqual([
       { coreName: "alpha", modelPath: "invoice" },
       { coreName: "alpha", modelPath: "strips/hero" },
@@ -236,5 +238,43 @@ describe("discovery", () => {
     const onlyStrips = listCandidates(options, rule, strips);
     expect(onlyStrips).toHaveLength(1);
     expect(onlyStrips[0]!.data.modelPath).toBe("strips/hero");
+  });
+
+  it("sets kind from the filesystem (directory named *.model.ts is still a directory)", () => {
+    const models = touchDir(root, "packages", "core-alpha", "models");
+    const weirdDir = touchDir(models, "pippo.model.ts");
+    writeFileSync(path.join(models, "real.model.ts"), "export {};\n");
+
+    const rule: DiscoveryRule<{ coreName: string; modelPath: string }> = {
+      name: "model-shaped",
+      pattern: /^packages\/core-(?<coreName>[^/]+)\/models\/(?<modelPath>.+)\.model\.ts$/,
+    };
+
+    const all = listCandidates(options, rule).sort((a, b) => a.path.localeCompare(b.path));
+    expect(all).toHaveLength(2);
+
+    const asDir = all.find((c) => path.resolve(c.path) === path.resolve(weirdDir));
+    const asFile = all.find((c) => path.resolve(c.path) === path.resolve(models, "real.model.ts"));
+    expect(asDir?.kind).toBe("directory");
+    expect(asFile?.kind).toBe("file");
+
+    const filesOnly = listCandidates(options, {
+      ...rule,
+      filter: ({ kind }) => kind === "file",
+    });
+    expect(filesOnly).toHaveLength(1);
+    expect(filesOnly[0]!.kind).toBe("file");
+    expect(filesOnly[0]!.data.modelPath).toBe("real");
+  });
+
+  it("marks directory Candidates with kind directory", () => {
+    touchDir(root, "packages", "core-alpha", "models");
+    const rule = discoveryRule({
+      name: "models",
+      pattern: "packages/core-:coreName/models",
+    });
+    const candidates = listCandidates(options, rule);
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]!.kind).toBe("directory");
   });
 });

@@ -28,6 +28,9 @@ export type DataFromPathPattern<S extends string> = Record<PathParamNames<S>, st
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- empty key set by design
 export type EmptyCandidateData = {};
 
+/** Filesystem kind of a Discovery hit — never inferred from the path name alone. */
+export type CandidateKind = "file" | "directory";
+
 /**
  * Candidate.data defaults to {@link EmptyCandidateData} so property access is
  * opt-in via `TData` (or pattern inference through {@link discoveryRule}).
@@ -36,11 +39,13 @@ export type Candidate<TData extends CandidateData = EmptyCandidateData> = {
   path: string;
   label: string;
   data: TData;
+  kind: CandidateKind;
 };
 
 export type DiscoveryHit<TData extends CandidateData = EmptyCandidateData> = {
   path: string;
   data: TData;
+  kind: CandidateKind;
 };
 
 /**
@@ -119,19 +124,21 @@ function isIgnored(relPosix: string, ignore: string[]): boolean {
   });
 }
 
+type WalkEntry = { absPath: string; kind: CandidateKind };
+
 /**
  * Enumerate directories and files under absRoot (ignore by path segment).
- * Candidates may be either kind of filesystem path.
+ * `kind` comes from the filesystem entry, not from the path string.
  */
-function walkPaths(absRoot: string, ignore: string[]): string[] {
-  const out: string[] = [];
+function walkPaths(absRoot: string, ignore: string[]): WalkEntry[] {
+  const out: WalkEntry[] = [];
 
   function visit(absDir: string): void {
     const rel = toPosix(path.relative(absRoot, absDir));
     if (rel && isIgnored(rel, ignore)) {
       return;
     }
-    out.push(absDir);
+    out.push({ absPath: absDir, kind: "directory" });
     let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(absDir, { withFileTypes: true });
@@ -148,7 +155,7 @@ function walkPaths(absRoot: string, ignore: string[]): string[] {
       if (!entry.isFile()) continue;
       const fileRel = toPosix(path.relative(absRoot, abs));
       if (isIgnored(fileRel, ignore)) continue;
-      out.push(abs);
+      out.push({ absPath: abs, kind: "file" });
     }
   }
 
@@ -273,7 +280,7 @@ export function listCandidates<TData extends CandidateData>(
   const candidates: Candidate<TData>[] = [];
 
   for (const walkRoot of walkRoots) {
-    for (const absPath of walkPaths(walkRoot, ignore)) {
+    for (const { absPath, kind } of walkPaths(walkRoot, ignore)) {
       const absComparable = resolveComparable(absPath);
       const owning = configuredRoots.find((root) => isInsideRoot(absComparable, root.comparable));
       if (!owning) continue;
@@ -286,7 +293,7 @@ export function listCandidates<TData extends CandidateData>(
       const candidatePath = toPosix(path.relative(process.cwd(), absPath)) || ".";
       if (seen.has(candidatePath)) continue;
 
-      const hit: DiscoveryHit<TData> = { path: candidatePath, data };
+      const hit: DiscoveryHit<TData> = { path: candidatePath, data, kind };
       if (rule.filter && !rule.filter(hit)) continue;
 
       seen.add(candidatePath);
@@ -294,6 +301,7 @@ export function listCandidates<TData extends CandidateData>(
         path: candidatePath,
         label: rule.label?.(hit) ?? defaultLabel(candidatePath, data),
         data,
+        kind,
       });
     }
   }

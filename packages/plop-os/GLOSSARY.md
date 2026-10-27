@@ -13,7 +13,7 @@ A consumer-registered rule that turns matching filesystem paths (directories and
 _Avoid_: architecture query, population selector, regex-first API
 
 **Candidate**:
-A Discovery hit: filesystem `path`, selectable `label`, and derived `data`. Interactive prompts and non-interactive inputs must both resolve to a valid Candidate or fail. Not a persisted entity. Subpaths chosen under a Candidate must stay inside that Candidate path.
+A Discovery hit: filesystem `path`, selectable `label`, derived `data`, and `kind` (`file` | `directory` from the real filesystem — never inferred from the path name). Interactive prompts and non-interactive inputs must both resolve to a valid Candidate or fail. Not a persisted entity. Subpaths chosen under a Candidate must stay inside that Candidate path.
 _Avoid_: destination (as a vague synonym), match, hit
 
 **Scaffold generator**:
