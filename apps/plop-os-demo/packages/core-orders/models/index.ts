@@ -1,4 +1,0 @@
-// Scaffolded models barrel — Sync fills the Region interior.
-// plop-os-sync start models-barrel
-
-// plop-os-sync end models-barrel

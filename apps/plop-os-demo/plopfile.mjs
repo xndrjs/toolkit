@@ -157,6 +157,41 @@ export default function (plop) {
     },
   });
 
+  plop.setGenerator("app", {
+    description: "Scaffold an apps/* directory (regex Discovery hatch)",
+    prompts: [
+      {
+        type: "input",
+        name: "name",
+        message: "app name (kebab-case)",
+        validate: (v) => (kebabOk(v) ? true : "kebab-case name required"),
+      },
+    ],
+    actions() {
+      return [
+        {
+          type: "add",
+          path: "apps/{{name}}/README.md",
+          templateFile: "templates/app-readme.md.hbs",
+          ...plopAddFlags("throw"),
+        },
+      ];
+    },
+  });
+
+  plop.setGenerator("catalog", {
+    description: "Scaffold CATALOG.md with an empty core-catalog Region",
+    prompts: [],
+    actions: [
+      {
+        type: "add",
+        path: "CATALOG.md",
+        templateFile: "templates/catalog.md.hbs",
+        ...plopAddFlags("throw"),
+      },
+    ],
+  });
+
   plop.setGenerator("note", {
     description: "Tiny Scaffold example with conflict throw policy",
     prompts: [
