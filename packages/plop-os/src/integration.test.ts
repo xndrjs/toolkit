@@ -1,10 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { runScaffold } from "./run-scaffold.js";
+import { ensureDist } from "./test-utils/ensure-dist.js";
 
 function write(filePath: string, content: string): void {
   mkdirSync(path.dirname(filePath), { recursive: true });
@@ -176,9 +176,7 @@ describe("plop-os integration", () => {
   let runtimeHref: string;
 
   beforeAll(() => {
-    const pkgRoot = path.resolve(import.meta.dirname, "..");
-    execFileSync("pnpm", ["exec", "tsup"], { cwd: pkgRoot, stdio: "pipe" });
-    runtimeHref = pathToFileURL(path.join(pkgRoot, "dist", "index.js")).href;
+    ({ runtimeHref } = ensureDist());
   });
 
   beforeEach(() => {

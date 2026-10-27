@@ -1,29 +1,26 @@
-import { defineConfig, type Options } from "tsup";
+import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { defineConfig } from "tsup";
 
-const shared: Options = {
+const shebang = "#!/usr/bin/env node\n";
+
+export default defineConfig({
+  entry: {
+    index: "src/index.ts",
+    cli: "src/cli.ts",
+  },
   format: ["esm"],
   outDir: "dist",
   sourcemap: true,
   treeshake: true,
   splitting: false,
-};
-
-export default defineConfig([
-  {
-    ...shared,
-    entry: {
-      index: "src/index.ts",
-    },
-    dts: true,
-    clean: true,
+  dts: { entry: { index: "src/index.ts" } },
+  clean: true,
+  async onSuccess() {
+    const cliPath = path.join("dist", "cli.js");
+    const body = readFileSync(cliPath, "utf8");
+    if (!body.startsWith(shebang)) {
+      writeFileSync(cliPath, shebang + body, "utf8");
+    }
   },
-  {
-    ...shared,
-    entry: ["src/cli.ts"],
-    dts: false,
-    clean: false,
-    banner: {
-      js: "#!/usr/bin/env node",
-    },
-  },
-]);
+});

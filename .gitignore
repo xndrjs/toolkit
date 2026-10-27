@@ -3,6 +3,7 @@ dist
 artifacts
 version_log.txt
 .tmp-cli-*
+.dist-build.lock
 
 # llm analysis files
 analysis

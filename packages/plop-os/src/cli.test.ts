@@ -2,9 +2,9 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { runCli } from "./cli/run.js";
+import { ensureDist } from "./test-utils/ensure-dist.js";
 
 function write(filePath: string, content: string): void {
   mkdirSync(path.dirname(filePath), { recursive: true });
@@ -89,14 +89,11 @@ export default function (plop) {
 describe("plop-os CLI", () => {
   let root: string;
   let runtimeHref: string;
-  let pkgRoot: string;
   let cliJs: string;
 
   beforeAll(() => {
-    pkgRoot = path.resolve(import.meta.dirname, "..");
-    execFileSync("pnpm", ["exec", "tsup"], { cwd: pkgRoot, stdio: "pipe" });
-    runtimeHref = pathToFileURL(path.join(pkgRoot, "dist", "index.js")).href;
-    cliJs = path.join(pkgRoot, "dist", "cli.js");
+    ({ runtimeHref, cliJs } = ensureDist());
+    execFileSync(process.execPath, ["--check", cliJs], { stdio: "pipe" });
   });
 
   beforeEach(() => {
