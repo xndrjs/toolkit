@@ -1,6 +1,6 @@
 import type { Intent, IntentIdentity } from "./boundary.js";
 import type { AnyProvider, IntentAlias, WiringEntry } from "./alias-intent.js";
-import type { LifetimePolicy, Provider } from "./provider.js";
+import type { LifetimePolicy, Provider } from "./provider/provider.js";
 import type { ReservedSurfaceAlias } from "./string-keys.js";
 
 /**

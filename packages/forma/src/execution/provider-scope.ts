@@ -1,5 +1,5 @@
 import type { AnyProvider } from "../alias-intent.js";
-import type { Disposable, IntentOperation, ResolvedDeps } from "../provider.js";
+import type { Disposable, IntentOperation, ResolvedDeps } from "../provider/provider.js";
 import {
   createMaterializationLifetime,
   createScopeAbort,

@@ -1,6 +1,6 @@
 import type { AnyIntent, AnyProvider, IntentAlias } from "./alias-intent.js";
 import { intentLabel, intentMapKey } from "./intent-keys.js";
-import type { LifetimePolicy } from "./provider.js";
+import type { LifetimePolicy } from "./provider/provider.js";
 
 /**
  * Static execution plan for a Composition: Intent nodes and dependency edges

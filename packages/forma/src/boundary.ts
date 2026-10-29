@@ -1,4 +1,5 @@
-import { createProvideApi, type ProvideApi } from "./provider.js";
+import { createProvideApi } from "./provider/provider-builder.js";
+import type { ProvideApi } from "./provider/provider-builder.types.js";
 
 declare const formaIntentBrand: unique symbol;
 

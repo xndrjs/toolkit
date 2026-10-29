@@ -1,7 +1,7 @@
 import type { AnyProvider, WiringEntry } from "../alias-intent.js";
 import type { IntentIdentity } from "../boundary.js";
 import type { EffectiveLifetime } from "../graph-plan.js";
-import type { LifetimePolicy, Provider } from "../provider.js";
+import type { LifetimePolicy, Provider } from "../provider/provider.js";
 import type { Result } from "../result.js";
 
 /** Read-only explanation of one Provider's declared and graph-derived lifetime. */

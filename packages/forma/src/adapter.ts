@@ -1,5 +1,6 @@
 import type { Boundary, Intent } from "./boundary.js";
-import { createAdaptProvideApi, type AdaptProvideApi } from "./provider.js";
+import { createAdaptProvideApi } from "./provider/provider-builder.js";
+import type { AdaptProvideApi } from "./provider/provider-builder.types.js";
 
 /**
  * Architectural identity peer to Boundary: scoped to one target Boundary.

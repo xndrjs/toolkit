@@ -6,7 +6,7 @@ import type {
 } from "../composition/composition-contract.js";
 import type { ProviderLifetimePlan } from "../graph-plan.js";
 import { intentLabel, intentMapKey } from "../intent-keys.js";
-import type { IntentOperation, ResolvedDeps } from "../provider.js";
+import type { IntentOperation, ResolvedDeps } from "../provider/provider.js";
 import { throwAfterCallbackAndCleanup } from "./disposal.js";
 import { createProviderScope, type ProviderScope } from "./provider-scope.js";
 

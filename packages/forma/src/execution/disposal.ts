@@ -1,4 +1,4 @@
-import type { Disposable, Lifetime } from "../provider.js";
+import type { Disposable, Lifetime } from "../provider/provider.js";
 
 type ScopePhase = "open" | "disposing" | "disposed";
 

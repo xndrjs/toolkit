@@ -10,7 +10,7 @@
 - [x] Fase 1 — `compileComposition()`
 - [x] Fase 2 — Root + contesti in `execution/`
 - [x] Fase 3 — `ProviderScope` (modulo profondo)
-- [ ] Fase 4 — Provider modello vs builder
+- [x] Fase 4 — Provider modello vs builder
 - [ ] Fase 5 — Type-level compiler sotto `composition/typechecks/`
 
 **Verify:** `pnpm --filter @xndrjs/forma test` and `typecheck`

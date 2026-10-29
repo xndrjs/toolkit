@@ -23,8 +23,6 @@ export type {
 } from "./composition/composition-contract.js";
 
 export type {
-  AdaptProvideApi,
-  AdaptProviderBuilder,
   AnyIntentDeps,
   Disposable,
   IntentOperation,
@@ -32,14 +30,19 @@ export type {
   LifetimePolicy,
   ParamsObject,
   ParamsReq,
-  ProvideApi,
   Provider,
-  ProviderBuilder,
   ProviderOrigin,
   ResolvedDeps,
   SameBoundaryDeps,
   WithContext,
-} from "./provider.js";
+} from "./provider/provider.js";
+
+export type {
+  AdaptProvideApi,
+  AdaptProviderBuilder,
+  ProvideApi,
+  ProviderBuilder,
+} from "./provider/provider-builder.types.js";
 
 export { err, ok } from "./result.js";
 export type { Result } from "./result.js";

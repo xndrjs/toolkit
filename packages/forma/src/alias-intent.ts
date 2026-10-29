@@ -1,5 +1,5 @@
 import type { Intent } from "./boundary.js";
-import type { LifetimePolicy, Provider } from "./provider.js";
+import type { LifetimePolicy, Provider } from "./provider/provider.js";
 
 /**
  * Registrable Provider with erased contract params so `compose` can accept a
