@@ -20,7 +20,7 @@ export type {
   ExecutionContextOptions,
   ExecutionSurface,
   ProviderLifetimeDescription,
-} from "./compose.js";
+} from "./composition/composition-contract.js";
 
 export type {
   AdaptProvideApi,

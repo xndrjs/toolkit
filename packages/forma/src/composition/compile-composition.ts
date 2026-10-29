@@ -1,30 +1,21 @@
 import { type AnyProvider, type WiringEntry, partitionWiring } from "../alias-intent.js";
-import { intentIdentity, type IntentIdentity } from "../boundary.js";
+import { intentIdentity } from "../boundary.js";
 import {
   assertAcyclicPlan,
   assertClosedGraph,
   buildExecutionPlan,
-  type EffectiveLifetime,
   type ProviderLifetimePlan,
   resolveProviderLifetimes,
 } from "../graph-plan.js";
 import { intentIdentityFromMapKey } from "../intent-keys.js";
-import type { LifetimePolicy } from "../provider.js";
 import { assertRegistrationSafety, buildRegistry } from "../registration.js";
 import { assertStringRecordKeys } from "../string-keys.js";
+import type { CompositionPlanDescription } from "./composition-contract.js";
 
-/** Read-only explanation of one Provider's declared and graph-derived lifetime. */
-export type ProviderLifetimeDescription = {
-  readonly intent: IntentIdentity;
-  readonly declared: LifetimePolicy;
-  readonly effective: EffectiveLifetime;
-  /** Structured path from an `auto` Provider to the context-bound cause. */
-  readonly narrowedBy?: readonly IntentIdentity[];
-};
-
-export type CompositionPlanDescription = {
-  readonly providers: readonly ProviderLifetimeDescription[];
-};
+export type {
+  CompositionPlanDescription,
+  ProviderLifetimeDescription,
+} from "./composition-contract.js";
 
 /**
  * Closed, validated composition graph ready for a composition root.
