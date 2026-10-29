@@ -25,11 +25,13 @@ describe("compose — composition safety", () => {
         }
     );
 
-    // Missing FindOrder provider (and no binding rewrite) — PoC compile bar.
-    // @ts-expect-error — Missing provider for Intent(s): orders.find
-    compose({
-      surface: { getOrder: GetOrderProvider },
-    });
+    // Missing FindOrder provider (and no binding rewrite) — compile bar + compose throw.
+    expect(() =>
+      // @ts-expect-error — Missing provider for Intent(s): orders.find
+      compose({
+        surface: { getOrder: GetOrderProvider },
+      })
+    ).toThrow(/No provider registered for Intent orders\.find/);
   });
 
   it("type-rejects missing provider despite another same-boundary provider", () => {
@@ -54,11 +56,13 @@ describe("compose — composition safety", () => {
     );
 
     // Missing FindOrder provider — must still be a compile error despite OtherProvider.
-    // @ts-expect-error — Missing provider for Intent(s): orders.find
-    compose({
-      surface: { getOrder: GetOrderProvider },
-      wiring: [OtherProvider],
-    });
+    expect(() =>
+      // @ts-expect-error — Missing provider for Intent(s): orders.find
+      compose({
+        surface: { getOrder: GetOrderProvider },
+        wiring: [OtherProvider],
+      })
+    ).toThrow(/No provider registered for Intent orders\.find/);
   });
 
   it("type-accepts the graph when the required Intent is registered privately", () => {
@@ -127,11 +131,13 @@ describe("compose — composition safety", () => {
         }
     );
 
-    // @ts-expect-error — Missing provider for Intent(s): postgres.selectOrder
-    compose({
-      surface: { getOrder: GetOrderProvider },
-      wiring: [bind(FindOrder, SelectOrder)],
-    });
+    expect(() =>
+      // @ts-expect-error — Missing provider for Intent(s): postgres.selectOrder
+      compose({
+        surface: { getOrder: GetOrderProvider },
+        wiring: [bind(FindOrder, SelectOrder)],
+      })
+    ).toThrow(/No provider registered for Intent postgres\.selectOrder/);
   });
 
   it("type-rejects a composition-lifetime provider that depends on a .perContext() provider", () => {

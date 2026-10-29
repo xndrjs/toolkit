@@ -147,18 +147,20 @@ describe("compose — structured Intent identity (F1)", () => {
     );
 
     // Registering ("a","b.c") must not satisfy ("a.b","c").
-    // @ts-expect-error — Missing provider for Intent(s): a.b.c
-    compose({
-      surface: { needs: NeedsProvider },
-      wiring: [PlainProvider],
-    });
+    expect(() =>
+      // @ts-expect-error — Missing provider for Intent(s): a.b.c
+      compose({
+        surface: { needs: NeedsProvider },
+        wiring: [PlainProvider],
+      })
+    ).toThrow(/No provider registered for Intent a\.b\.c/);
   });
 
-  it("F1.4: widened string Intent names weaken type-level completeness (prefer literals)", async () => {
+  it("F1.4: widened string Intent names weaken type-level completeness (prefer literals)", () => {
     const Orders = boundary("orders");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
     const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
-    const wideName = "other";
+    const wideName = "other" as string;
     const Other = Orders.intent(wideName).contract<void, true, never>();
 
     const OtherProvider = Other.provide.with(
@@ -174,16 +176,15 @@ describe("compose — structured Intent identity (F1)", () => {
         }
     );
 
-    // Footgun: Other's type-level key is ["orders", string], which erases the
-    // missing `orders.find` check. Runtime still fails — keep Intent names literal.
-    const root = compose({
-      surface: { getOrder: GetOrderProvider },
-      wiring: [OtherProvider],
-    });
-    const ctx = root.createExecutionContext();
-    await expect(ctx.getOrder({ id: "1" })).rejects.toThrow(
-      /No provider registered for Intent orders\.find/
-    );
+    // Footgun: Other's type-level key is ["orders", string], which can erase the
+    // missing `orders.find` check at the type level. Runtime closed-graph check
+    // at compose still fails — keep Intent names literal.
+    expect(() =>
+      compose({
+        surface: { getOrder: GetOrderProvider },
+        wiring: [OtherProvider],
+      })
+    ).toThrow(/No provider registered for Intent orders\.find/);
   });
 
   it("same-boundary using accepts Intent from a homonymous Boundary instance", async () => {

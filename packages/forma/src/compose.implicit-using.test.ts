@@ -47,7 +47,7 @@ describe("compose — implicit using graph", () => {
     await expect(ctx.dispose()).resolves.toBeUndefined();
   });
 
-  it("throws at runtime when wiring omits the required Intent's provider", async () => {
+  it("throws at compose when wiring omits the required Intent's provider", () => {
     // Literal intent names so the compose type bar applies (orders.find ≠ orders.get).
     const Orders = boundary("orders");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
@@ -60,16 +60,13 @@ describe("compose — implicit using graph", () => {
         }
     );
 
-    // Compile-time also rejects this (ticket 07); assert runtime defense-in-depth.
-    // @ts-expect-error — Missing provider for Intent(s): orders.find
-    const root = compose({
-      surface: { getOrder: GetOrderProvider },
-      // FindOrderProvider intentionally omitted
-    });
-
-    const ctx = root.createExecutionContext();
-    await expect(ctx.getOrder({ id: "1" })).rejects.toThrow(
-      /No provider registered for Intent orders\.find/
-    );
+    // Compile-time also rejects this; runtime closed-graph check fires at compose.
+    expect(() =>
+      // @ts-expect-error — Missing provider for Intent(s): orders.find
+      compose({
+        surface: { getOrder: GetOrderProvider },
+        // FindOrderProvider intentionally omitted
+      })
+    ).toThrow(/No provider registered for Intent orders\.find/);
   });
 });

@@ -28,7 +28,7 @@ _Avoid_: Adapter provider, ports-and-adapters adapter (as a synonym), adapt keyw
 Ordinary TypeScript that fulfills an Intent's Contract. Narrative term for “how”; not a separate public type beside Provider.
 
 **Composition**:
-The place that registers providers and identity aliases (`wiring`), resolves dependencies, defines the public surface, and manages lazy materialization and lifecycles. Not framed as a general-purpose IoC container; teams may still describe their composition root in familiar DI terms.
+The place that registers providers and identity aliases (`wiring`), resolves dependencies, defines the public surface, and manages lazy materialization and lifecycles. At `compose`, Forma builds a dependency plan (provider `using` edges and Binding rewrites), rejects cycles with a full path diagnostic, and requires a closed graph before exposing the root. Not framed as a general-purpose IoC container; teams may still describe their composition root in familiar DI terms.
 
 **Surface**:
 The explicitly declared public aliases of a Composition (`compose({ surface })`); the only callable API for consumers of that composition.

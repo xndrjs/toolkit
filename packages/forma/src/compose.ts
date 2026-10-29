@@ -1,4 +1,5 @@
 import { intentIdentity, type Intent, type IntentIdentity } from "./boundary.js";
+import { assertAcyclicPlan, assertClosedGraph, buildExecutionPlan } from "./graph-plan.js";
 import type { Disposable, IntentOperation, Lifetime, Provider, ResolvedDeps } from "./provider.js";
 import type { Result } from "./result.js";
 
@@ -448,7 +449,9 @@ function assertRegistrationSafety(
  * Runtime: duplicate Intent within `surface` or within wiring providers, same
  * Intent in both, duplicate Binding for one Required Intent, or provider +
  * binding for the same Required Intent, throws. Homonymous Boundaries and
- * repeated Intent declarations share one identity.
+ * repeated Intent declarations share one identity. After registration, builds an
+ * execution plan and rejects cycles / open graphs before returning the root
+ * (runtime `seeing` remains defense-in-depth only).
  */
 export function compose<
   Surface extends Record<string, AnyProvider>,
@@ -478,6 +481,10 @@ export function compose<
     bindingMap.set(intentMapKey(required), intentMapKey(satisfier));
   }
 
+  const executionPlan = buildExecutionPlan(registry, bindings);
+  assertAcyclicPlan(executionPlan);
+  assertClosedGraph(registry, bindings);
+
   /** Shared by default (composition-lifetime) providers. */
   const compositionOps = new Map<string, Op>();
   const compositionInflight = new Map<string, Promise<Op>>();
@@ -493,12 +500,13 @@ export function compose<
 
       /**
        * @param seeing - Intent identity keys already being materialized on this
-       *   resolution chain (cycle detection). Concurrent callers use a fresh
-       *   set and wait on `inflight` instead of throwing.
+       *   resolution chain (defense-in-depth; cycles are rejected at compose).
+       * @param path - Display labels for the same chain (error diagnostics).
        */
       async function materialize(
         provider: AnyProvider,
-        seeing: ReadonlySet<string> = new Set()
+        seeing: ReadonlySet<string> = new Set(),
+        path: readonly string[] = []
       ): Promise<Op> {
         if (contextDisposed) {
           throw new Error("Execution context is disposed");
@@ -509,6 +517,7 @@ export function compose<
         const inflight = perContext ? contextInflight : compositionInflight;
         const disposers = perContext ? contextDisposers : compositionDisposers;
         const id = intentMapKey(provider.intent);
+        const label = intentLabel(provider.intent);
 
         const cached = cache.get(id);
         if (cached) {
@@ -516,9 +525,7 @@ export function compose<
         }
 
         if (seeing.has(id)) {
-          throw new Error(
-            `Circular dependency while materializing ${intentLabel(provider.intent)}`
-          );
+          throw new Error(`Circular dependency: ${[...path, label].join(" -> ")}`);
         }
 
         const pending = inflight.get(id);
@@ -528,6 +535,7 @@ export function compose<
 
         const nextSeeing = new Set(seeing);
         nextSeeing.add(id);
+        const nextPath = [...path, label];
 
         const promise = (async (): Promise<Op> => {
           try {
@@ -537,7 +545,7 @@ export function compose<
             if (contextDisposed) {
               throw new Error("Execution context is disposed");
             }
-            const deps = await resolveDeps(provider, nextSeeing);
+            const deps = await resolveDeps(provider, nextSeeing, nextPath);
             const lifetime = createLifetime(disposers);
             const op = provider.factory(deps, lifetime) as Op;
             cache.set(id, op);
@@ -553,7 +561,8 @@ export function compose<
 
       async function resolveByIdentity(
         required: AnyIntent,
-        seeing: ReadonlySet<string>
+        seeing: ReadonlySet<string>,
+        path: readonly string[]
       ): Promise<Op> {
         const requiredId = intentMapKey(required);
         const satisfierId = bindingMap.get(requiredId) ?? requiredId;
@@ -567,12 +576,13 @@ export function compose<
             `No provider registered for Intent ${intentLabel(required)}${viaBinding}. Add it to surface or wiring.`
           );
         }
-        return materialize(provider, seeing);
+        return materialize(provider, seeing, path);
       }
 
       async function resolveDeps(
         provider: AnyProvider,
-        seeing: ReadonlySet<string>
+        seeing: ReadonlySet<string>,
+        path: readonly string[]
       ): Promise<ResolvedDeps<AnyProvider["deps"]>> {
         const deps = provider.deps as Record<string, AnyIntent>;
         const resolved: Record<string, Op> = {};
@@ -587,7 +597,7 @@ export function compose<
               );
             }
           }
-          resolved[key] = await resolveByIdentity(intent, seeing);
+          resolved[key] = await resolveByIdentity(intent, seeing, path);
         }
         return resolved as ResolvedDeps<AnyProvider["deps"]>;
       }
