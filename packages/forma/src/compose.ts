@@ -319,7 +319,13 @@ function assertRegistrationSafety(
 ): void {
   const surfaceIds = new Set<symbol>();
   for (const provider of surfaceProviders) {
-    surfaceIds.add(provider.intent.identity);
+    const id = provider.intent.identity;
+    if (surfaceIds.has(id)) {
+      throw new Error(
+        `Intent ${intentLabel(provider.intent)} is registered more than once in surface`
+      );
+    }
+    surfaceIds.add(id);
   }
 
   const privateIds = new Set<symbol>();
@@ -328,6 +334,11 @@ function assertRegistrationSafety(
     if (surfaceIds.has(id)) {
       throw new Error(
         `Intent ${intentLabel(provider.intent)} appears in both surface and providers`
+      );
+    }
+    if (privateIds.has(id)) {
+      throw new Error(
+        `Intent ${intentLabel(provider.intent)} is registered more than once in providers`
       );
     }
     privateIds.add(id);
@@ -350,8 +361,8 @@ function assertRegistrationSafety(
  *
  * Type-level: after binding rewrite, every Intent required by registered
  * providers must have a registered provider (missing → compile error).
- * Runtime: same Intent in `surface` and `providers`, or provider + binding for
- * the same Required Intent, throws.
+ * Runtime: duplicate Intent within `surface` or within `providers`, same Intent
+ * in both, or provider + binding for the same Required Intent, throws.
  */
 export function compose<
   Surface extends Record<string, AnyProvider>,

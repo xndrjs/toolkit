@@ -165,6 +165,60 @@ describe("compose — composition safety", () => {
     });
   });
 
+  it("throws when the same Intent is registered twice in surface", () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+    const PingProviderA = Ping.provide.with(
+      (_ctx) =>
+        function () {
+          return ok("pong" as const);
+        }
+    );
+    const PingProviderB = Ping.provide.with(
+      (_ctx) =>
+        function () {
+          return ok("pong" as const);
+        }
+    );
+
+    expect(() =>
+      compose({
+        surface: { pingA: PingProviderA, pingB: PingProviderB },
+      })
+    ).toThrow(/is registered more than once in surface/);
+  });
+
+  it("throws when the same Intent is registered twice in providers", () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+    const Ready = Health.intent("ready").contract<void, true, never>();
+    const PingProviderA = Ping.provide.with(
+      (_ctx) =>
+        function () {
+          return ok("pong" as const);
+        }
+    );
+    const PingProviderB = Ping.provide.with(
+      (_ctx) =>
+        function () {
+          return ok("pong" as const);
+        }
+    );
+    const ReadyProvider = Ready.provide.with(
+      (_ctx) =>
+        function () {
+          return ok(true as const);
+        }
+    );
+
+    expect(() =>
+      compose({
+        surface: { ready: ReadyProvider },
+        providers: [PingProviderA, PingProviderB],
+      })
+    ).toThrow(/is registered more than once in providers/);
+  });
+
   it("throws when the same Intent is in both surface and providers", () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
