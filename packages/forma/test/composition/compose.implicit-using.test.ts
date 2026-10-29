@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { boundary } from "./boundary.js";
-import { compose } from "./compose.js";
-import { ok, type Result } from "./result.js";
+import { boundary } from "@xndrjs/forma";
+import { compose } from "@xndrjs/forma";
+import { ok, type Result } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };

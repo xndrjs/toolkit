@@ -1,8 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { adapter } from "./adapter.js";
-import { boundary } from "./boundary.js";
-import { aliasIntent, compose } from "./compose.js";
-import { err, ok, type Result } from "./result.js";
+import { adapter } from "@xndrjs/forma";
+import { boundary } from "@xndrjs/forma";
+import { aliasIntent, compose } from "@xndrjs/forma";
+import { err, ok, type Result } from "@xndrjs/forma";
 
 /** Orders-owned contract types (duplicated per boundary — not shared with Postgres). */
 type OrderId = { readonly id: string };

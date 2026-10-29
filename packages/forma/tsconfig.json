@@ -3,7 +3,10 @@
   "extends": "../../tsconfig.repo.json",
   "compilerOptions": {
     "lib": ["ES2022", "ESNext.Disposable"],
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "@xndrjs/forma": ["./src/index.ts"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts"]
 }

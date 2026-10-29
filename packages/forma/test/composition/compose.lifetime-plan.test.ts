@@ -1,8 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { aliasIntent } from "./alias-intent.js";
-import { boundary } from "./boundary.js";
-import { compose, type CompositionRoot } from "./compose.js";
-import { ok } from "./result.js";
+import { aliasIntent } from "@xndrjs/forma";
+import { boundary } from "@xndrjs/forma";
+import { compose, type CompositionRoot } from "@xndrjs/forma";
+import { ok } from "@xndrjs/forma";
 
 describe("compose — effective lifetime plan", () => {
   it("narrows auto consumers transitively and owns their cleanup in the context", async () => {

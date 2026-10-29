@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { boundary } from "./boundary.js";
-import { compose, type CompositionRoot, type ExecutionContextArgs } from "./compose.js";
-import { ok } from "./result.js";
+import { boundary } from "@xndrjs/forma";
+import { compose, type CompositionRoot, type ExecutionContextArgs } from "@xndrjs/forma";
+import { ok } from "@xndrjs/forma";
 
 type RequestParams = { readonly tenantId: string; readonly requestId: string };
 

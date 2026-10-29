@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { boundary } from "./boundary.js";
-import { aliasIntent, compose, defineComposition, defineWiring } from "./compose.js";
-import type { ComposeOptions } from "./compose.js";
-import { ok } from "./result.js";
+import { boundary } from "@xndrjs/forma";
+import { aliasIntent, compose, defineComposition, defineWiring } from "@xndrjs/forma";
+import type { ComposeOptions } from "@xndrjs/forma";
+import { ok } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };

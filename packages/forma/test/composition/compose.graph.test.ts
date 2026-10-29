@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { boundary } from "./boundary.js";
-import { aliasIntent, compose } from "./compose.js";
-import { ok } from "./result.js";
+import { boundary } from "@xndrjs/forma";
+import { aliasIntent, compose } from "@xndrjs/forma";
+import { ok } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };

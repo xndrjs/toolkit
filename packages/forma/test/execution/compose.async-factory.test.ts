@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { boundary } from "./boundary.js";
-import { compose } from "./compose.js";
-import { ok } from "./result.js";
+import { boundary } from "@xndrjs/forma";
+import { compose } from "@xndrjs/forma";
+import { ok } from "@xndrjs/forma";
 
 describe("compose — async factories and rollback", () => {
   it("coalesces concurrent first materialization of an async factory", async () => {

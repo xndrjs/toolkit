@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { boundary, intentIdentity } from "./boundary.js";
-import { err, ok, type Result } from "./result.js";
+import { boundary, intentIdentity } from "@xndrjs/forma";
+import { err, ok, type Result } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };

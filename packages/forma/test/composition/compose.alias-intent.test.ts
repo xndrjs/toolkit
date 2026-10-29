@@ -1,7 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { boundary } from "./boundary.js";
-import { aliasIntent, compose, type IntentAlias } from "./compose.js";
-import { ok } from "./result.js";
+import { aliasIntent, boundary, compose, ok, type IntentAlias, type Provider } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -94,13 +92,7 @@ describe("aliasIntent — contract compatibility", () => {
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
     const LookupOrder = Orders.intent("lookup").contract<OrderId, Order, FindError>();
 
-    type SurfaceProvider = import("./provider.js").Provider<
-      string,
-      string,
-      OrderId,
-      Order,
-      FindError
-    >;
+    type SurfaceProvider = Provider<string, string, OrderId, Order, FindError>;
 
     // Surface is Record<string, Provider…>; IntentAlias is not assignable.
     // @ts-expect-error — IntentAlias is not a Provider

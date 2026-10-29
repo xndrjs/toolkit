@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { boundary } from "./boundary.js";
-import { compose } from "./compose.js";
-import { ok } from "./result.js";
+import { boundary } from "@xndrjs/forma";
+import { compose } from "@xndrjs/forma";
+import { ok } from "@xndrjs/forma";
 
 describe("compose — surface hygiene (F5/F7)", () => {
   it("throws when surface alias is dispose (reserved for lifecycle)", () => {

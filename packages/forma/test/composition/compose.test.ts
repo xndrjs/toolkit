@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { boundary } from "./boundary.js";
-import { compose } from "./compose.js";
-import { ok, type Result } from "./result.js";
+import { boundary } from "@xndrjs/forma";
+import { compose } from "@xndrjs/forma";
+import { ok, type Result } from "@xndrjs/forma";
 
 describe("compose — surface hello (ping)", () => {
   it("runs a surface alias end-to-end: compose → context → call → dispose", async () => {

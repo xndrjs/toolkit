@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { adapter } from "./adapter.js";
-import { boundary } from "./boundary.js";
-import { compose } from "./compose.js";
-import { ok } from "./result.js";
+import { adapter } from "@xndrjs/forma";
+import { boundary } from "@xndrjs/forma";
+import { compose } from "@xndrjs/forma";
+import { ok } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
