@@ -62,8 +62,7 @@ describe("bind — contract compatibility", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [SelectOrderProvider],
-      bindings: [bind(FindOrder, SelectOrder)],
+      wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)],
     });
 
     const ctx = root.createExecutionContext();
@@ -75,9 +74,37 @@ describe("bind — contract compatibility", () => {
     // Raw tuples are not Binding — must go through bind().
     compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [SelectOrderProvider],
-      // @ts-expect-error — raw [Intent, Intent] is not a Binding
-      bindings: [[FindOrder, SelectOrder]],
+      // @ts-expect-error — raw [Intent, Intent] is not a Binding / WiringEntry
+      wiring: [SelectOrderProvider, [FindOrder, SelectOrder]],
     });
+  });
+
+  it("accepts same-boundary bind when contracts match", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const LookupOrder = Orders.intent("lookup").contract<OrderId, Order, FindError>();
+
+    const pair = bind(FindOrder, LookupOrder);
+    expect(pair[0]).toBe(FindOrder);
+    expect(pair[1]).toBe(LookupOrder);
+  });
+
+  it("type-rejects bind() pairs as surface Providers", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const LookupOrder = Orders.intent("lookup").contract<OrderId, Order, FindError>();
+
+    type SurfaceProvider = import("./provider.js").Provider<
+      string,
+      string,
+      OrderId,
+      Order,
+      FindError
+    >;
+
+    // Surface is Record<string, Provider…>; Binding is not assignable.
+    // @ts-expect-error — Binding is not a Provider
+    const entry: SurfaceProvider = bind(FindOrder, LookupOrder);
+    void entry;
   });
 });

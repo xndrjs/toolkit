@@ -12,7 +12,7 @@ pnpm --filter @xndrjs/forma-demo start
 src/core-orders/                 # Orders boundary (intents + providers)
 src/infrastructure-postgres/     # Postgres boundary (intents + providers)
 src/adapter-orders-postgres/     # adapter("orders-postgres", Orders).adapt(FindOrder)…
-src/composition.ts               # surface + providers only
+src/composition.ts               # surface + wiring only
 src/main.ts                      # run: open context → call surface → dispose
 ```
 

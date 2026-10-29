@@ -186,7 +186,7 @@ describe("compose — lifecycle and disposal", () => {
     // @ts-expect-error — Invalid lifetime edge: composition-lifetime depending on .perContext()
     const root = compose({
       surface: { query: QueryProvider },
-      providers: [ConnProvider],
+      wiring: [ConnProvider],
     });
     const ctx = root.createExecutionContext();
 

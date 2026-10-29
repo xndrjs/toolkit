@@ -135,7 +135,7 @@ describe("adapter", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [SelectOrderProvider, FindOrderAdapter],
+      wiring: [SelectOrderProvider, FindOrderAdapter],
     });
 
     const ctx = root.createExecutionContext();
@@ -198,7 +198,7 @@ describe("adapter", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [SelectOrderProvider, FindOrderAdapter],
+      wiring: [SelectOrderProvider, FindOrderAdapter],
     });
 
     const ctx = root.createExecutionContext();
@@ -244,7 +244,7 @@ describe("adapter", () => {
 
     const root = compose({
       surface: { find: FindOrderAdapter },
-      providers: [SelectOrderProvider],
+      wiring: [SelectOrderProvider],
     });
     const ctx = root.createExecutionContext();
 
@@ -286,9 +286,9 @@ describe("adapter", () => {
     expect(() =>
       compose({
         surface: { ready: ReadyProvider },
-        providers: [FindOrderProvider, FindOrderAdapter],
+        wiring: [FindOrderProvider, FindOrderAdapter],
       })
-    ).toThrow(/is registered more than once in providers/);
+    ).toThrow(/is registered more than once in wiring/);
   });
 
   it("type-rejects adapt of an Intent from a non-target boundary", () => {

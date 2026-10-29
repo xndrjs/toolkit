@@ -14,6 +14,7 @@ export type {
   ComposeOptions,
   CompositionRoot,
   ExecutionContext,
+  WiringEntry,
 } from "./compose.js";
 
 export type {

@@ -57,7 +57,7 @@ describe("compose — composition safety", () => {
     // @ts-expect-error — Missing provider for Intent(s): orders.find
     compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [OtherProvider],
+      wiring: [OtherProvider],
     });
   });
 
@@ -81,7 +81,7 @@ describe("compose — composition safety", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [FindOrderProvider],
+      wiring: [FindOrderProvider],
     });
     expect(typeof root.createExecutionContext).toBe("function");
   });
@@ -108,8 +108,7 @@ describe("compose — composition safety", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [SelectOrderProvider],
-      bindings: [bind(FindOrder, SelectOrder)],
+      wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)],
     });
     expect(typeof root.createExecutionContext).toBe("function");
   });
@@ -131,7 +130,7 @@ describe("compose — composition safety", () => {
     // @ts-expect-error — Missing provider for Intent(s): postgres.selectOrder
     compose({
       surface: { getOrder: GetOrderProvider },
-      bindings: [bind(FindOrder, SelectOrder)],
+      wiring: [bind(FindOrder, SelectOrder)],
     });
   });
 
@@ -161,7 +160,7 @@ describe("compose — composition safety", () => {
     // @ts-expect-error — Invalid lifetime edge: composition-lifetime depending on .perContext()
     compose({
       surface: { query: QueryProvider },
-      providers: [ConnProvider],
+      wiring: [ConnProvider],
     });
   });
 
@@ -188,7 +187,7 @@ describe("compose — composition safety", () => {
     ).toThrow(/is registered more than once in surface/);
   });
 
-  it("throws when the same Intent is registered twice in providers", () => {
+  it("throws when the same Intent is registered twice in wiring", () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
     const Ready = Health.intent("ready").contract<void, true, never>();
@@ -214,12 +213,12 @@ describe("compose — composition safety", () => {
     expect(() =>
       compose({
         surface: { ready: ReadyProvider },
-        providers: [PingProviderA, PingProviderB],
+        wiring: [PingProviderA, PingProviderB],
       })
-    ).toThrow(/is registered more than once in providers/);
+    ).toThrow(/is registered more than once in wiring/);
   });
 
-  it("throws when the same Intent is in both surface and providers", () => {
+  it("throws when the same Intent is in both surface and wiring", () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
     const PingProvider = Ping.provide.with(
@@ -232,9 +231,9 @@ describe("compose — composition safety", () => {
     expect(() =>
       compose({
         surface: { ping: PingProvider },
-        providers: [PingProvider],
+        wiring: [PingProvider],
       })
-    ).toThrow(/appears in both surface and providers/);
+    ).toThrow(/appears in both surface and wiring/);
   });
 
   it("throws when a Required Intent has both a provider and a binding", () => {
@@ -266,9 +265,48 @@ describe("compose — composition safety", () => {
     expect(() =>
       compose({
         surface: { getOrder: GetOrderProvider },
-        providers: [FindOrderProvider, SelectOrderProvider],
-        bindings: [bind(FindOrder, SelectOrder)],
+        wiring: [FindOrderProvider, SelectOrderProvider, bind(FindOrder, SelectOrder)],
       })
     ).toThrow(/Ambiguous satisfaction for Intent orders\.find/);
+  });
+
+  it("throws when the same Required Intent is bound twice", () => {
+    const Orders = boundary("orders");
+    const Postgres = boundary("postgres");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+    const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindError>();
+    const SelectOrderAlt = Postgres.intent("selectOrderAlt").contract<OrderId, Order, FindError>();
+
+    const SelectOrderProvider = SelectOrder.provide.with(
+      (_ctx) =>
+        function (id) {
+          return ok({ id: id.id, total: 1 });
+        }
+    );
+    const SelectOrderAltProvider = SelectOrderAlt.provide.with(
+      (_ctx) =>
+        function (id) {
+          return ok({ id: id.id, total: 2 });
+        }
+    );
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
+
+    expect(() =>
+      compose({
+        surface: { getOrder: GetOrderProvider },
+        wiring: [
+          SelectOrderProvider,
+          SelectOrderAltProvider,
+          bind(FindOrder, SelectOrder),
+          bind(FindOrder, SelectOrderAlt),
+        ],
+      })
+    ).toThrow(/Duplicate binding for Intent orders\.find/);
   });
 });

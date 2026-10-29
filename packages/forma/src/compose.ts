@@ -4,7 +4,7 @@ import type { Result } from "./result.js";
 
 /**
  * Registrable Provider with erased contract params so `compose` can accept a
- * heterogeneous `surface` / `providers` map. Concrete Providers remain fully typed at aliases.
+ * heterogeneous `surface` / `wiring` list. Concrete Providers remain fully typed at aliases.
  */
 // Type params appear in covariant and contravariant positions; erasure needs `any`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyProvider erasure
@@ -38,8 +38,11 @@ export type BindingPair<
   readonly [formaBindingBrand]: void;
 };
 
-/** Erased binding pair for heterogeneous `bindings` arrays. */
+/** Erased binding pair for heterogeneous `wiring` arrays. */
 export type Binding = BindingPair;
+
+/** One entry in `compose({ wiring })`: a Provider or a {@link bind} alias. */
+export type WiringEntry = AnyProvider | Binding;
 
 /**
  * `Sat` when Req and Sat Intent contracts are mutually assignable
@@ -60,10 +63,10 @@ type SameContract<Req, Sat> =
 
 /**
  * Associate a required Intent with a satisfier Intent whose contract is
- * structurally equivalent. Use the result in `compose({ bindings })`.
+ * structurally equivalent. Use the result in `compose({ wiring })`.
  *
  * ```ts
- * bindings: [bind(FindOrder, SelectOrder)]
+ * wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)]
  * ```
  */
 export function bind<Req extends AnyIntent, Sat extends AnyIntent>(
@@ -71,6 +74,55 @@ export function bind<Req extends AnyIntent, Sat extends AnyIntent>(
   satisfier: SameContract<Req, Sat>
 ): BindingPair<Req, Sat> {
   return [required, satisfier] as unknown as BindingPair<Req, Sat>;
+}
+
+/** Runtime partition: {@link bind} pairs are arrays; Providers are objects. */
+function isBinding(entry: WiringEntry): entry is Binding {
+  return Array.isArray(entry);
+}
+
+/** Type-level: Providers from a `wiring` tuple (Bindings dropped). */
+type ProvidersFromWiring<W extends readonly WiringEntry[]> = W extends readonly [
+  infer Head,
+  ...infer Tail,
+]
+  ? Head extends Binding
+    ? Tail extends readonly WiringEntry[]
+      ? ProvidersFromWiring<Tail>
+      : readonly []
+    : Tail extends readonly WiringEntry[]
+      ? readonly [Extract<Head, AnyProvider>, ...ProvidersFromWiring<Tail>]
+      : readonly [Extract<Head, AnyProvider>]
+  : readonly [];
+
+/** Type-level: Bindings from a `wiring` tuple (Providers dropped). */
+type BindingsFromWiring<W extends readonly WiringEntry[]> = W extends readonly [
+  infer Head,
+  ...infer Tail,
+]
+  ? Head extends Binding
+    ? Tail extends readonly WiringEntry[]
+      ? readonly [Head, ...BindingsFromWiring<Tail>]
+      : readonly [Head]
+    : Tail extends readonly WiringEntry[]
+      ? BindingsFromWiring<Tail>
+      : readonly []
+  : readonly [];
+
+function partitionWiring(wiring: readonly WiringEntry[]): {
+  providers: AnyProvider[];
+  bindings: Binding[];
+} {
+  const providers: AnyProvider[] = [];
+  const bindings: Binding[] = [];
+  for (const entry of wiring) {
+    if (isBinding(entry)) {
+      bindings.push(entry);
+    } else {
+      providers.push(entry);
+    }
+  }
+  return { providers, bindings };
 }
 
 /** Public aliases from `surface`, plus `dispose` for the execution lifetime. */
@@ -88,19 +140,15 @@ export type CompositionRoot<Surface extends Record<string, AnyProvider>> = {
 
 export type ComposeOptions<
   Surface extends Record<string, AnyProvider> = Record<string, AnyProvider>,
-  Providers extends readonly AnyProvider[] = readonly AnyProvider[],
-  Bindings extends readonly Binding[] = readonly Binding[],
+  Wiring extends readonly WiringEntry[] = readonly WiringEntry[],
 > = {
   readonly surface: Surface;
-  /** Private providers available for dependency resolution (not on the context). */
-  readonly providers?: Providers;
   /**
-   * Rewrite a required Intent identity to a different satisfier Intent identity.
-   * Entries must be created with {@link bind} (structural contract equivalence).
-   * The satisfier's registered provider fulfills the requirement (or an adapter
-   * provider whose Intent is the bound satisfier).
+   * Private providers and {@link bind} aliases for dependency resolution.
+   * Providers here are not on the context; bindings rewrite required Intent identity
+   * to a satisfier whose provider is registered (surface or wiring).
    */
-  readonly bindings?: Bindings;
+  readonly wiring?: Wiring;
 };
 
 /** Stable type-level Intent id: `boundaryId.name`. */
@@ -332,50 +380,53 @@ function assertRegistrationSafety(
   for (const provider of privateProviders) {
     const id = provider.intent.identity;
     if (surfaceIds.has(id)) {
-      throw new Error(
-        `Intent ${intentLabel(provider.intent)} appears in both surface and providers`
-      );
+      throw new Error(`Intent ${intentLabel(provider.intent)} appears in both surface and wiring`);
     }
     if (privateIds.has(id)) {
       throw new Error(
-        `Intent ${intentLabel(provider.intent)} is registered more than once in providers`
+        `Intent ${intentLabel(provider.intent)} is registered more than once in wiring`
       );
     }
     privateIds.add(id);
   }
 
   const registeredIds = new Set<symbol>([...surfaceIds, ...privateIds]);
+  const boundRequiredIds = new Set<symbol>();
   for (const [required] of bindings) {
     if (registeredIds.has(required.identity)) {
       throw new Error(
         `Ambiguous satisfaction for Intent ${intentLabel(required)}: both a provider and a binding are registered`
       );
     }
+    if (boundRequiredIds.has(required.identity)) {
+      throw new Error(`Duplicate binding for Intent ${intentLabel(required)}`);
+    }
+    boundRequiredIds.add(required.identity);
   }
 }
 
 /**
- * Build a closed Composition: register surface + private providers, resolve
- * `using` deps by identity (and explicit bindings), expose surface aliases on
- * execution contexts, and materialize realizations lazily on first use.
+ * Build a closed Composition: register surface + wiring (providers and bind
+ * aliases), resolve `using` deps by identity (and binding rewrite), expose
+ * surface aliases on execution contexts, and materialize realizations lazily
+ * on first use.
  *
  * Type-level: after binding rewrite, every Intent required by registered
  * providers must have a registered provider (missing → compile error).
- * Runtime: duplicate Intent within `surface` or within `providers`, same Intent
- * in both, or provider + binding for the same Required Intent, throws.
+ * Runtime: duplicate Intent within `surface` or within wiring providers, same
+ * Intent in both, duplicate Binding for one Required Intent, or provider +
+ * binding for the same Required Intent, throws.
  */
 export function compose<
   Surface extends Record<string, AnyProvider>,
-  const Providers extends readonly AnyProvider[] = [],
-  const Bindings extends readonly Binding[] = [],
+  const Wiring extends readonly WiringEntry[] = [],
 >(
-  options: ComposeOptions<Surface, Providers, Bindings> &
-    AssertProvidersComplete<Surface, Providers, Bindings> &
-    AssertNoInvalidLifetimeEdges<Surface, Providers, Bindings>
+  options: ComposeOptions<Surface, Wiring> &
+    AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>> &
+    AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>>
 ): CompositionRoot<Surface> {
   const surfaceEntries = Object.entries(options.surface) as [keyof Surface & string, AnyProvider][];
-  const privateProviders = options.providers ?? [];
-  const bindings = options.bindings ?? [];
+  const { providers: privateProviders, bindings } = partitionWiring(options.wiring ?? []);
 
   assertRegistrationSafety(
     surfaceEntries.map(([, p]) => p),
@@ -480,7 +531,7 @@ export function compose<
               ? ` (bound satisfier identity has no registered provider)`
               : "";
           throw new Error(
-            `No provider registered for Intent ${label}${viaBinding}. Add it to surface or providers.`
+            `No provider registered for Intent ${label}${viaBinding}. Add it to surface or wiring.`
           );
         }
         return materialize(provider, seeing);

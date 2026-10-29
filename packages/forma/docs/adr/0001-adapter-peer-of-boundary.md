@@ -17,7 +17,7 @@ Introduce **Adapter** as a first-class architectural identity, peer to Boundary:
 - `adapter(id, targetBoundary)` is scoped to exactly one target Boundary.
 - `.adapt(intent)` accepts only Intents of that target (compile-time `BoundaryId` check).
 - `.using` may declare Intent dependencies from any boundary; `.with` / `.perContext` match the Provider builder.
-- The result is a Provider registerable in `compose({ providers, surface })`.
+- The result is a Provider registerable in `compose({ surface, wiring })`.
 - Every Provider carries a required `origin` discriminant so Boundary ids and Adapter ids cannot collide as plain strings:
 
 ```ts
@@ -30,6 +30,8 @@ readonly origin:
 - `adapter(id, …).adapt…with` → `origin: { kind: "adapter", id }`
 
 `Intent.provide.using` remains same-boundary-only. Competing realizations of the same Intent identity throw at compose time. Binding stays the same-shape escape hatch; prefer Adapter when translation or multi-boundary orchestration is required.
+
+**Superseded (registration only):** Binding is no longer registered under a separate `compose({ bindings })` key. Per [0002](./0002-unified-wiring-registration.md), aliases from `bind()` are entries in `wiring` alongside private Providers. The escape-hatch role of Binding (same-shape identity rewrite vs Adapter for translation) is unchanged.
 
 Out of scope for this decision: redesigning `bind`, import-graph lint, a generic adapt helper, and global uniqueness of adapter ids.
 

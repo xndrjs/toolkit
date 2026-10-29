@@ -42,8 +42,7 @@ describe("compose — explicit cross-boundary binding", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [SelectOrderProvider],
-      bindings: [bind(FindOrder, SelectOrder)],
+      wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)],
     });
 
     const ctx = root.createExecutionContext();
@@ -107,7 +106,7 @@ describe("compose — explicit cross-boundary binding", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [SelectOrderProvider, FindOrderAdapter],
+      wiring: [SelectOrderProvider, FindOrderAdapter],
     });
 
     const ctx = root.createExecutionContext();

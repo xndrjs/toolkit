@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); the Adapter decision is recorded in [docs/adr/0001-adapter-peer-of-boundary.md](./docs/adr/0001-adapter-peer-of-boundary.md).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration).
 
 ## Installation
 
@@ -93,7 +93,7 @@ export const FindOrderAdapter = OrdersAdapter.adapt(FindOrder)
   );
 ```
 
-`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in `providers` / `surface`, with `origin: { kind: "adapter", id: "orders-postgres" }`.
+`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in `wiring` / `surface`, with `origin: { kind: "adapter", id: "orders-postgres" }`.
 
 ### Compose and execution context
 
@@ -102,7 +102,7 @@ import { compose } from "@xndrjs/forma";
 
 const root = compose({
   surface: { getOrder: GetOrderProvider },
-  providers: [SelectOrderProvider, ConnProvider, FindOrderAdapter],
+  wiring: [SelectOrderProvider, ConnProvider, FindOrderAdapter],
 });
 
 const ctx = root.createExecutionContext();
@@ -111,7 +111,7 @@ await ctx.dispose();
 await root.dispose();
 ```
 
-Only `surface` aliases are callable on the context. Competing realizations of the same Intent identity throw at compose time. Cross-boundary same-shape wiring can still use `bindings` (`bind`); prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
+Only `surface` aliases are callable on the context. Competing realizations of the same Intent identity throw at compose time. Private providers and `bind()` aliases share one `wiring` array; prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
 
 ## Status
 
