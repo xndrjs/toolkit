@@ -1,6 +1,6 @@
 /**
  * Postgres-owned row shapes — snake_case fields differ from Orders camelCase
- * (`id` / `total`), so composition needs an adapter provider.
+ * (`id` / `total`), so an Adapter maps SelectOrder → FindOrder.
  */
 
 export type PgOrderId = { readonly order_id: string };

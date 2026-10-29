@@ -1,5 +1,5 @@
 /**
- * Forma PoC demo — Orders surface over Postgres via an adapter provider
+ * Forma PoC demo — Orders surface over Postgres via adapter()
  * (snake_case rows → camelCase Order), with a per-execution-context DB connection.
  */
 import type { Result } from "@xndrjs/forma";

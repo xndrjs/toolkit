@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { adapter } from "./adapter.js";
 import { boundary } from "./boundary.js";
 import { bind, compose } from "./compose.js";
 import { err, ok, type Result } from "./result.js";
@@ -60,7 +61,7 @@ describe("compose — explicit cross-boundary binding", () => {
     await expect(ctx.dispose()).resolves.toBeUndefined();
   });
 
-  it("uses an adapter provider when shapes differ (bound satisfier, not a compose keyword)", async () => {
+  it("uses adapter().adapt(FindOrder) when shapes differ (no binding)", async () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
 
@@ -73,13 +74,6 @@ describe("compose — explicit cross-boundary binding", () => {
     type PgSelectError = { readonly code: "NO_ROW" };
     const SelectOrder = Postgres.intent("selectOrder").contract<PgRowId, PgRow, PgSelectError>();
 
-    // Adapter Intent: same structural Contract as FindOrder; realization maps SelectOrder.
-    const FindOrderViaSelect = Postgres.intent("findOrderViaSelect").contract<
-      OrderId,
-      Order,
-      FindError
-    >();
-
     const SelectOrderProvider = SelectOrder.provide.with(
       (_ctx) =>
         function (input) {
@@ -89,8 +83,8 @@ describe("compose — explicit cross-boundary binding", () => {
         }
     );
 
-    /** Ordinary provider (could be returned by a helper) — not a `compose` adapt keyword. */
-    const FindOrderViaSelectProvider = FindOrderViaSelect.provide
+    const FindOrderAdapter = adapter("orders-postgres", Orders)
+      .adapt(FindOrder)
       .using({ select: SelectOrder })
       .with(
         ({ deps: { select } }) =>
@@ -113,8 +107,7 @@ describe("compose — explicit cross-boundary binding", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      providers: [SelectOrderProvider, FindOrderViaSelectProvider],
-      bindings: [bind(FindOrder, FindOrderViaSelect)],
+      providers: [SelectOrderProvider, FindOrderAdapter],
     });
 
     const ctx = root.createExecutionContext();

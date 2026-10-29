@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "0.0.1",
-  "description": "Runnable PoC demo for @xndrjs/forma: Orders surface, cross-boundary binding, and perContext lifecycle.",
+  "description": "Runnable PoC demo for @xndrjs/forma: Orders surface, Adapter across shape mismatch, and perContext lifecycle.",
   "scripts": {
     "start": "tsx src/main.ts",
     "typecheck": "tsc --noEmit"

@@ -5,7 +5,7 @@ export type { FindError, Order, OrderId } from "./types";
 
 export const Orders = boundary("orders");
 
-/** Open: this boundary does not realize it. Composition binds it via the adapter. */
+/** Open: this boundary does not realize it. An Adapter realizes it at composition. */
 export const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
 
 export const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();

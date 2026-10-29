@@ -1,18 +1,13 @@
-import { err, ok } from "@xndrjs/forma";
-import type { FindError, Order, OrderId } from "../core-orders/index";
-import { Postgres, SelectOrder } from "../infrastructure-postgres/index";
+import { adapter, err, ok } from "@xndrjs/forma";
+import { FindOrder, Orders } from "../core-orders/index";
+import { SelectOrder } from "../infrastructure-postgres/index";
 
+const OrdersAdapter = adapter("orders-postgres", Orders);
 /**
- * Adapter Intent: same structural contract as Orders `FindOrder`, realized by
- * mapping the Postgres `SelectOrder` row (snake_case) into Orders shapes.
+ * Adapter peer: realizes Orders `FindOrder` by mapping Postgres `SelectOrder`
+ * rows (snake_case) into Orders shapes.
  */
-export const FindOrderViaSelect = Postgres.intent("findOrderViaSelect").contract<
-  OrderId,
-  Order,
-  FindError
->();
-
-export const FindOrderViaSelectProvider = FindOrderViaSelect.provide
+export const FindOrderAdapter = OrdersAdapter.adapt(FindOrder)
   .perContext()
   .using({ select: SelectOrder })
   .with(
