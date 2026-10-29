@@ -112,8 +112,6 @@ export type MaterializationLifetime = {
 
 export type MaterializationLifetimeOptions = {
   readonly signal: AbortSignal;
-  /** Set for `.perContext()` materializations only. */
-  readonly seed?: unknown;
 };
 
 export function createMaterializationLifetime(
@@ -131,7 +129,6 @@ export function createMaterializationLifetime(
 
   const lifetime: Lifetime = {
     signal: options.signal,
-    ...("seed" in options ? { seed: options.seed } : {}),
     onDispose(cleanup: Disposable) {
       assertRegistrationOpen();
       local.push(cleanup);

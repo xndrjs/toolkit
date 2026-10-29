@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution seed / `AbortSignal`; optional `defineWiring` when extracting wiring).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; optional `defineWiring` when extracting wiring).
 
 ## Installation
 
@@ -53,18 +53,22 @@ const Conn = Orders.intent("conn").contract<void, ConnHandle, never>();
 const ConnProvider = Conn.provide.perContext().with(async ({ lifetime }) => {
   const conn = await openConnection({ signal: lifetime.signal });
   lifetime.onDispose(() => conn.close());
-  // `.perContext()` only: lifetime.seed holds the execution seed from open/with.
   return function () {
     return ok(conn);
   };
 });
 
+type OrderParams = { readonly role: "admin" | "viewer" | "guest" };
+
 const GetOrderProvider = GetOrder.provide
-  .perContext()
+  .perContext<OrderParams>()
   .using({ find: FindOrder })
   .with(
-    ({ deps: { find } }) =>
+    ({ deps: { find }, params }) =>
       function (id) {
+        if (params.role === "guest") {
+          return err({ kind: "not_found" as const });
+        }
         return find(id);
       }
   );
@@ -72,7 +76,7 @@ const GetOrderProvider = GetOrder.provide
 
 Default lifetime is shared by the composition root. `.perContext()` materializes once per `openExecutionContext()` / `withExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime). Root and context `dispose()` are terminal state machines (concurrent callers share one promise); entering `disposing` aborts that scope’s `AbortSignal` (`lifetime.signal` / `execution.signal`). `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short lexical scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount. `createExecutionContext` remains a deprecated alias of `open`.
 
-Optional typed **seed**: `compose({ … })` defaults to no seed; `compose<MySeed>()({ … })` makes `{ seed }` required on both `open` and `with` (shared `ExecutionContextArgs`). `.perContext()` factories read `lifetime.seed`; composition-lifetime factories must not. An optional host `signal` on those args links into the context signal without transferring dispose ownership.
+Typed execution **params**: declare a POJO on `.perContext<ParamsReq>()`. `compose({ … })` **infers** the required host bag from all such declarations (merge; conflicting key types fail at compose). open/with then require `{ params }` (shared `ExecutionContextArgs`). Factories read typed `params` on the `.with` context — not on `Lifetime`. `compose<Explicit>()({ … })` is only for an explicit **superset** of the inferred bag. An optional host `signal` on those args links into the context signal without transferring dispose ownership.
 
 `Intent.provide.using` accepts only same-boundary Intents, is **one-shot** (do not chain `.using`), and requires string dependency keys. Surface aliases are likewise string-only; `dispose` and `surface` are reserved on the composition surface map (operations nest under `execution.surface`). Every Provider carries a required `origin` discriminant: `{ kind: "boundary", id }` from `Intent.provide…with`, or `{ kind: "adapter", id }` from Adapter `.adapt…with`.
 
@@ -144,21 +148,19 @@ await root.dispose();
 
 `defineWiring` / `defineComposition` exist only if you **extract** wiring (or the whole options bag) into a variable or module: a plain `const wiring = [A, B]` widens to `Provider[]` and type-checks as if private providers were missing. Inline (or `as const` / `defineWiring`) keeps the tuple precise. Do not annotate a concrete config as `ComposeOptions` — that widens Surface/Wiring and disables graph checks. Provider unions in one surface or wiring slot are rejected.
 
-Host-owned lifetime (no callback), with seed:
+Host-owned lifetime (no callback), with params (inferred from `GetOrderProvider`’s ParamsReq; use `compose<Superset>()` only to widen):
 
 ```ts
-type RequestSeed = { readonly tenantId: string };
-
-const seeded = compose<RequestSeed>()({
+const rooted = compose({
   surface: { getOrder: GetOrderProvider },
   wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
 });
 
-await using execution = seeded.openExecutionContext({ seed: { tenantId: "acme" } });
+await using execution = rooted.openExecutionContext({ params: { role: "viewer" } });
 await execution.surface.getOrder({ id: "42" });
 ```
 
-Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, seed policy, async connection, `await using` root).
+Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, params policy, async connection, `await using` root).
 
 ## Status
 

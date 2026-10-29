@@ -10,10 +10,13 @@ import {
   type WiringEntry,
 } from "./alias-intent.js";
 import type {
+  AssertExplicitParamsCover,
   AssertNoInvalidLifetimeEdges,
   AssertNoProviderUnions,
+  AssertParamsCompatible,
   AssertProvidersComplete,
   AssertSurfaceAliasesSafe,
+  InferredParams,
 } from "./compose-graph-types.js";
 import { assertAcyclicPlan, assertClosedGraph, buildExecutionPlan } from "./graph-plan.js";
 import { intentLabel, intentMapKey } from "./intent-keys.js";
@@ -42,7 +45,7 @@ type SurfaceOperation<P> =
   // aliases still expose Input/Success/Err when the provider has `using` deps.
   // Context aliases always return a Promise (lazy materialize + invoke).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Deps erasure
-  P extends Provider<string, string, infer Input, infer Success, infer Err, any, boolean>
+  P extends Provider<string, string, infer Input, infer Success, infer Err, any, boolean, any>
     ? (input: Input) => Promise<Result<Success, Err>>
     : never;
 
@@ -59,27 +62,27 @@ export type ExecutionSurface<Surface extends Record<string, AnyProvider>> = {
 };
 
 /** Options bag for {@link CompositionRoot.openExecutionContext} / {@link CompositionRoot.withExecutionContext}. */
-export type ExecutionContextOptions<Seed = void> = [Seed] extends [void]
-  ? { readonly seed?: undefined; readonly signal?: AbortSignal }
-  : { readonly seed: Seed; readonly signal?: AbortSignal };
+export type ExecutionContextOptions<Params = void> = [Params] extends [void]
+  ? { readonly params?: undefined; readonly signal?: AbortSignal }
+  : { readonly params: Params; readonly signal?: AbortSignal };
 
 /**
- * Shared rest-args for open/with: no bag required when `Seed` is `void`;
- * otherwise `{ seed, signal? }` is required.
+ * Shared rest-args for open/with: no bag required when `Params` is `void`;
+ * otherwise `{ params, signal? }` is required.
  */
-export type ExecutionContextArgs<Seed = void> = [Seed] extends [void]
-  ? [] | [options?: ExecutionContextOptions<Seed>]
-  : [options: ExecutionContextOptions<Seed>];
+export type ExecutionContextArgs<Params = void> = [Params] extends [void]
+  ? [] | [options?: ExecutionContextOptions<Params>]
+  : [options: ExecutionContextOptions<Params>];
 
 /**
  * Owned execution lifetime: nested {@link ExecutionSurface} plus dispose controls.
  * Prefer {@link CompositionRoot.withExecutionContext} for short scopes.
  */
-export type ExecutionContext<Surface extends Record<string, AnyProvider>, Seed = void> = {
+export type ExecutionContext<Surface extends Record<string, AnyProvider>, Params = void> = {
   readonly surface: ExecutionSurface<Surface>;
   /** Scope signal; aborted when this context enters `disposing` (and if a host signal aborts). */
   readonly signal: AbortSignal;
-  readonly seed: [Seed] extends [void] ? undefined : Readonly<Seed>;
+  readonly params: [Params] extends [void] ? undefined : Readonly<Params>;
   /**
    * Release `.perContext()` resources for this context.
    * Concurrent callers share one dispose promise; terminal after settle.
@@ -88,23 +91,25 @@ export type ExecutionContext<Surface extends Record<string, AnyProvider>, Seed =
   [Symbol.asyncDispose](): Promise<void>;
 };
 
-export type CompositionRoot<Surface extends Record<string, AnyProvider>, Seed = void> = {
+export type CompositionRoot<Surface extends Record<string, AnyProvider>, Params = void> = {
   /**
    * Open an owned execution context. Caller must `dispose` / `await using`.
    * Prefer {@link withExecutionContext} for short lexical scopes.
    */
-  openExecutionContext(...options: ExecutionContextArgs<Seed>): ExecutionContext<Surface, Seed>;
+  openExecutionContext(...options: ExecutionContextArgs<Params>): ExecutionContext<Surface, Params>;
   /**
    * @deprecated Use {@link CompositionRoot.openExecutionContext}.
    */
-  createExecutionContext(...options: ExecutionContextArgs<Seed>): ExecutionContext<Surface, Seed>;
+  createExecutionContext(
+    ...options: ExecutionContextArgs<Params>
+  ): ExecutionContext<Surface, Params>;
   /**
    * Safe default for short scopes: open → run with a borrowed surface → dispose.
    * See error matrix: both failures → `SuppressedError(cleanup, callback)`.
    */
   withExecutionContext<T>(
     run: (surface: ExecutionSurface<Surface>) => Awaitable<T>,
-    ...options: ExecutionContextArgs<Seed>
+    ...options: ExecutionContextArgs<Params>
   ): Promise<Awaited<T>>;
   /**
    * Terminal composition shutdown (backstop): refuse new contexts, dispose every
@@ -147,7 +152,13 @@ type ComposeAsserts<
 > = AssertSurfaceAliasesSafe<Surface> &
   AssertNoProviderUnions<Surface, Wiring> &
   AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>> &
-  AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>>;
+  AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>> &
+  AssertParamsCompatible<Surface, ProvidersFromWiring<Wiring>>;
+
+type InferredParamsFor<
+  Surface extends Record<string, AnyProvider>,
+  Wiring extends readonly WiringEntry[],
+> = InferredParams<Surface, ProvidersFromWiring<Wiring>>;
 
 /**
  * Build a precise `wiring` tuple when **extracting** providers out of
@@ -188,14 +199,14 @@ export function defineComposition<
   return options;
 }
 
-function freezeSeed<Seed>(seed: Seed): Readonly<Seed> {
-  if (Array.isArray(seed)) {
-    return Object.freeze([...seed]) as unknown as Readonly<Seed>;
+function freezeParams<Params>(params: Params): Readonly<Params> {
+  if (Array.isArray(params)) {
+    return Object.freeze([...params]) as unknown as Readonly<Params>;
   }
-  if (seed !== null && typeof seed === "object") {
-    return Object.freeze({ ...(seed as object) }) as unknown as Readonly<Seed>;
+  if (params !== null && typeof params === "object") {
+    return Object.freeze({ ...(params as object) }) as unknown as Readonly<Params>;
   }
-  return seed as Readonly<Seed>;
+  return params as Readonly<Params>;
 }
 
 /**
@@ -215,49 +226,57 @@ function freezeSeed<Seed>(seed: Seed): Readonly<Seed> {
  * registration, builds an execution plan and rejects cycles / open graphs before
  * returning the root (runtime `seeing` remains defense-in-depth only). Root and
  * each execution context use an `open | disposing | disposed` lifecycle; Design C
- * paths (`open` / `with` / `AsyncDisposable`) share that machine. Optional typed
- * seed and `AbortSignal` are accepted via {@link ExecutionContextArgs} on open/with
- * (same args); dispose aborts the scope signal; `.perContext()` factories read seed
- * from {@link Lifetime}. Provider factories may return an `Awaitable` operation:
- * materialization uses a local Lifetime bucket (commit on success, immediate rollback
- * on failure; failed attempts are not cached; concurrent callers coalesce on one
- * inflight promise). `root.dispose()` is the backstop that closes open contexts then
- * composition-lifetime cleanups.
+ * paths (`open` / `with` / `AsyncDisposable`) share that machine. Typed execution
+ * `params` and `AbortSignal` are accepted via {@link ExecutionContextArgs} on open/with
+ * (same args); dispose aborts the scope signal. `.perContext<ParamsReq>()` factories
+ * read `params` on {@link WithContext} (not {@link Lifetime}). Provider factories may
+ * return an `Awaitable` operation: materialization uses a local Lifetime bucket (commit
+ * on success, immediate rollback on failure; failed attempts are not cached; concurrent
+ * callers coalesce on one inflight promise). `root.dispose()` is the backstop that
+ * closes open contexts then composition-lifetime cleanups.
  *
- * Seed typing: `compose({ … })` defaults to `Seed = void`. For a required seed use
- * `compose<MySeed>()({ … })`. Prefer an inline options literal; if wiring is
- * extracted, use {@link defineWiring} (or `as const`). Annotating a config as
- * {@link ComposeOptions} widens types and is a footgun. Provider unions in a
- * surface alias or wiring slot are rejected.
+ * Params typing: `compose({ … })` **infers** required params from all Providers'
+ * `.perContext<ParamsReq>()` declarations (merge / conflict check). open/with then
+ * require `{ params }` when the merge is non-void. `compose<Explicit>()({ … })` is only
+ * for an explicit **superset** of that inferred bag. Prefer an inline options literal;
+ * if wiring is extracted, use {@link defineWiring} (or `as const`). Annotating a config
+ * as {@link ComposeOptions} widens types and is a footgun. Provider unions in a surface
+ * alias or wiring slot are rejected.
  */
-export function compose<Seed>(): <
+export function compose<ExplicitParams>(): <
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[] = [],
 >(
-  options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
-) => CompositionRoot<Surface, Seed>;
+  options: ComposeOptions<Surface, Wiring> &
+    ComposeAsserts<Surface, Wiring> &
+    AssertExplicitParamsCover<ExplicitParams, Surface, ProvidersFromWiring<Wiring>>
+) => CompositionRoot<Surface, ExplicitParams>;
 export function compose<
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[] = [],
 >(
   options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
-): CompositionRoot<Surface, void>;
+): CompositionRoot<Surface, InferredParamsFor<Surface, Wiring>>;
 export function compose<
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[] = [],
 >(
   options?: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
 ):
-  | CompositionRoot<Surface, void>
+  | CompositionRoot<Surface, InferredParamsFor<Surface, Wiring>>
   | (<S extends Record<string, AnyProvider>, const W extends readonly WiringEntry[] = []>(
-      opts: ComposeOptions<S, W> & ComposeAsserts<S, W>
+      opts: ComposeOptions<S, W> &
+        ComposeAsserts<S, W> &
+        AssertExplicitParamsCover<unknown, S, ProvidersFromWiring<W>>
     ) => CompositionRoot<S, unknown>) {
   if (options === undefined) {
     return ((opts) => composeImpl(opts)) as <
       S extends Record<string, AnyProvider>,
       const W extends readonly WiringEntry[] = [],
     >(
-      opts: ComposeOptions<S, W> & ComposeAsserts<S, W>
+      opts: ComposeOptions<S, W> &
+        ComposeAsserts<S, W> &
+        AssertExplicitParamsCover<unknown, S, ProvidersFromWiring<W>>
     ) => CompositionRoot<S, unknown>;
   }
   return composeImpl(options);
@@ -266,10 +285,10 @@ export function compose<
 function composeImpl<
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[],
-  Seed = void,
+  Params = InferredParamsFor<Surface, Wiring>,
 >(
   options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
-): CompositionRoot<Surface, Seed> {
+): CompositionRoot<Surface, Params> {
   assertStringRecordKeys(options.surface, "Surface", { rejectReservedSurface: true });
   const surfaceEntries = Object.entries(options.surface) as [keyof Surface & string, AnyProvider][];
   const { providers: privateProviders, aliases } = partitionWiring(options.wiring ?? []);
@@ -292,19 +311,19 @@ function composeImpl<
   const openContexts = new Set<{ dispose(): Promise<void> }>();
 
   function openExecutionContext(
-    ...args: ExecutionContextArgs<Seed>
-  ): ExecutionContext<Surface, Seed> {
+    ...args: ExecutionContextArgs<Params>
+  ): ExecutionContext<Surface, Params> {
     rootLife.assertOpen();
 
     const openOptions = (args[0] ?? {}) as {
-      readonly seed?: Seed;
+      readonly params?: Params;
       readonly signal?: AbortSignal;
     };
-    const contextSeed = (
-      "seed" in openOptions && openOptions.seed !== undefined
-        ? freezeSeed(openOptions.seed)
+    const contextParams = (
+      "params" in openOptions && openOptions.params !== undefined
+        ? freezeParams(openOptions.params)
         : undefined
-    ) as [Seed] extends [void] ? undefined : Readonly<Seed>;
+    ) as [Params] extends [void] ? undefined : Readonly<Params>;
 
     /** Owned by this execution context (`.perContext()` providers). */
     const contextOps = new Map<string, Op>();
@@ -367,10 +386,7 @@ function composeImpl<
 
       owner.enter();
       const promise = (async (): Promise<Op> => {
-        const setup = createMaterializationLifetime(
-          owner,
-          perContext ? { signal: ownerSignal, seed: contextSeed } : { signal: ownerSignal }
-        );
+        const setup = createMaterializationLifetime(owner, { signal: ownerSignal });
         try {
           // Yield so concurrent first-access callers can join this inflight promise
           // before the factory runs (single materialization per lifetime).
@@ -378,7 +394,11 @@ function composeImpl<
           owner.assertOpen();
           const deps = await resolveDeps(provider, nextSeeing, nextPath);
           owner.assertOpen();
-          const produced = provider.factory(deps, setup.lifetime);
+          const produced = provider.factory(
+            deps,
+            setup.lifetime,
+            perContext ? contextParams : undefined
+          );
           const op = await produced;
           owner.assertOpen();
           setup.commit(disposers);
@@ -458,7 +478,7 @@ function composeImpl<
     return {
       surface: surface as ExecutionSurface<Surface>,
       signal: contextAbort.signal,
-      seed: contextSeed,
+      params: contextParams,
       dispose,
       [Symbol.asyncDispose]: dispose,
     };
@@ -466,7 +486,7 @@ function composeImpl<
 
   async function withExecutionContext<T>(
     run: (surface: ExecutionSurface<Surface>) => Awaitable<T>,
-    ...args: ExecutionContextArgs<Seed>
+    ...args: ExecutionContextArgs<Params>
   ): Promise<Awaited<T>> {
     const execution = openExecutionContext(...args);
     let callbackError: unknown | undefined;

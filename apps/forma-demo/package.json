@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "0.0.1",
-  "description": "Runnable PoC demo for @xndrjs/forma: dual Adapters, seed policy, async connection, Design C disposal.",
+  "description": "Runnable PoC demo for @xndrjs/forma: dual Adapters, params policy, async connection, Design C disposal.",
   "scripts": {
     "start": "tsx src/main.ts",
     "typecheck": "tsc --noEmit"

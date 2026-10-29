@@ -27,6 +27,8 @@ export type {
   Disposable,
   IntentOperation,
   Lifetime,
+  ParamsObject,
+  ParamsReq,
   ProvideApi,
   Provider,
   ProviderBuilder,

@@ -20,15 +20,23 @@ type Awaitable<T> = T | PromiseLike<T>;
  * the owning scope seals, further registration throws.
  *
  * `signal` belongs to the owning scope (execution context or composition root) and
- * aborts when that scope enters `disposing`. `seed` is set only for `.perContext()`
- * materializations — composition-lifetime factories must not read it (captive dependency).
+ * aborts when that scope enters `disposing`. Execution `params` are not on Lifetime —
+ * they appear on {@link WithContext} for `.perContext()` factories that declared a
+ * {@link ParamsObject} requirement.
  */
 export type Lifetime = {
   readonly signal: AbortSignal;
-  /** Immutable execution seed; only present for `.perContext()` providers. */
-  readonly seed?: unknown;
   onDispose(cleanup: Disposable): void;
 };
+
+/**
+ * Host open/with invocation bag declared on `.perContext<P>()`.
+ * Object POJO only (nested fields ok); not a bare primitive.
+ */
+export type ParamsObject = object;
+
+/** `void` or a {@link ParamsObject} (rejects primitives as the bag). */
+export type ParamsReq = void | ParamsObject;
 
 /**
  * Who created this Provider. Discriminated so Boundary and Adapter ids cannot collide.
@@ -96,18 +104,24 @@ type IsEmptyDeps<Deps> = [Deps] extends [EmptyDeps]
     : false
   : false;
 
+type ParamsFields<Params> = [Params] extends [void]
+  ? Record<PropertyKey, never>
+  : { readonly params: Readonly<Params> };
+
 /**
  * Argument to `.with`: named fields avoid positional ambiguity between deps and lifetime.
- * No `using` → only `lifetime`. With `using` → `deps` + `lifetime`.
+ * No `using` → only `lifetime` (+ `params` when `.perContext<ParamsReq>()`).
+ * With `using` → `deps` + `lifetime` (+ `params` when declared).
  */
-export type WithContext<Deps> =
-  IsEmptyDeps<Deps> extends true
-    ? { readonly lifetime: Lifetime }
-    : { readonly deps: ResolvedDeps<Deps>; readonly lifetime: Lifetime };
+export type WithContext<Deps, Params = void> = (IsEmptyDeps<Deps> extends true
+  ? { readonly lifetime: Lifetime }
+  : { readonly deps: ResolvedDeps<Deps>; readonly lifetime: Lifetime }) &
+  ParamsFields<Params>;
 
 /**
  * Registrable association of an Intent with a realization, dependencies, and lifecycle.
  * Inspectable in isolation (composition comes later).
+ * `Params` is the `.perContext<ParamsReq>()` requirement (`void` when undeclared).
  */
 export type Provider<
   BoundaryId extends string,
@@ -117,21 +131,31 @@ export type Provider<
   Err,
   Deps = Record<string, never>,
   PerContext extends boolean = false,
+  Params = void,
 > = {
   readonly intent: Intent<BoundaryId, Name, Input, Success, Err>;
   readonly deps: Deps;
   readonly perContext: PerContext;
   /** Who created this Provider (`boundary` via `Intent.provide`, or `adapter` via `.adapt`). */
   readonly origin: ProviderOrigin;
-  /** Internal materialization hook; prefer building via Intent.provide.with. */
+  /**
+   * Type-only ParamsReq marker (always `undefined` at runtime). Preserves
+   * `.perContext<P>()` through object spreads for compose inference.
+   */
+  readonly $params?: Params;
+  /**
+   * Internal materialization hook; prefer building via Intent.provide.with.
+   * `params` is the frozen host bag for `.perContext()` materializations (undefined otherwise).
+   */
   readonly factory: (
     deps: ResolvedDeps<Deps>,
-    lifetime: Lifetime
+    lifetime: Lifetime,
+    params?: unknown
   ) => Awaitable<IntentOperation<Input, Success, Err>>;
 };
 
-type WithFactory<Input, Success, Err, Deps> = (
-  ctx: WithContext<Deps>
+type WithFactory<Input, Success, Err, Deps, Params> = (
+  ctx: WithContext<Deps, Params>
 ) => Awaitable<IntentOperation<Input, Success, Err>>;
 
 /** Fluent steps after deps are fixed (`using` is one-shot). */
@@ -143,11 +167,21 @@ type ProviderBuilderAfterUsing<
   Err,
   Deps,
   PerContext extends boolean,
+  Params,
 > = {
-  perContext(): ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, true>;
+  perContext<P extends ParamsReq = void>(): ProviderBuilderAfterUsing<
+    BoundaryId,
+    Name,
+    Input,
+    Success,
+    Err,
+    Deps,
+    true,
+    P
+  >;
   with(
-    factory: WithFactory<Input, Success, Err, Deps>
-  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
+    factory: WithFactory<Input, Success, Err, Deps, Params>
+  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, PerContext, Params>;
 };
 
 /** Fluent steps after deps are fixed on the Adapter path (`using` is one-shot). */
@@ -159,11 +193,21 @@ type AdaptProviderBuilderAfterUsing<
   Err,
   Deps,
   PerContext extends boolean,
+  Params,
 > = {
-  perContext(): AdaptProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, true>;
+  perContext<P extends ParamsReq = void>(): AdaptProviderBuilderAfterUsing<
+    BoundaryId,
+    Name,
+    Input,
+    Success,
+    Err,
+    Deps,
+    true,
+    P
+  >;
   with(
-    factory: WithFactory<Input, Success, Err, Deps>
-  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
+    factory: WithFactory<Input, Success, Err, Deps, Params>
+  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, PerContext, Params>;
 };
 
 /** Builder for `Intent.provide`: `using` accepts only same-boundary Intents; one-shot. */
@@ -175,18 +219,37 @@ export type ProviderBuilder<
   Err,
   Deps = EmptyDeps,
   PerContext extends boolean = false,
+  Params = void,
 > =
   IsEmptyDeps<Deps> extends true
     ? {
         using<NewDeps extends SameBoundaryDeps<BoundaryId, NewDeps>>(
           deps: StringKeyedDeps<NewDeps> & SameBoundaryDeps<BoundaryId, NewDeps>
-        ): ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, NewDeps, PerContext>;
-        perContext(): ProviderBuilder<BoundaryId, Name, Input, Success, Err, EmptyDeps, true>;
+        ): ProviderBuilderAfterUsing<
+          BoundaryId,
+          Name,
+          Input,
+          Success,
+          Err,
+          NewDeps,
+          PerContext,
+          Params
+        >;
+        perContext<P extends ParamsReq = void>(): ProviderBuilder<
+          BoundaryId,
+          Name,
+          Input,
+          Success,
+          Err,
+          EmptyDeps,
+          true,
+          P
+        >;
         with(
-          factory: WithFactory<Input, Success, Err, EmptyDeps>
-        ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, PerContext>;
+          factory: WithFactory<Input, Success, Err, EmptyDeps, Params>
+        ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, PerContext, Params>;
       }
-    : ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
+    : ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, PerContext, Params>;
 
 /** Builder for `adapter().adapt`: `using` accepts Intents from any boundary; one-shot. */
 export type AdaptProviderBuilder<
@@ -197,6 +260,7 @@ export type AdaptProviderBuilder<
   Err,
   Deps = EmptyDeps,
   PerContext extends boolean = false,
+  Params = void,
 > =
   IsEmptyDeps<Deps> extends true
     ? {
@@ -209,14 +273,33 @@ export type AdaptProviderBuilder<
           Success,
           Err,
           NewDeps,
-          PerContext
+          PerContext,
+          Params
         >;
-        perContext(): AdaptProviderBuilder<BoundaryId, Name, Input, Success, Err, EmptyDeps, true>;
+        perContext<P extends ParamsReq = void>(): AdaptProviderBuilder<
+          BoundaryId,
+          Name,
+          Input,
+          Success,
+          Err,
+          EmptyDeps,
+          true,
+          P
+        >;
         with(
-          factory: WithFactory<Input, Success, Err, EmptyDeps>
-        ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, PerContext>;
+          factory: WithFactory<Input, Success, Err, EmptyDeps, Params>
+        ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, PerContext, Params>;
       }
-    : AdaptProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
+    : AdaptProviderBuilderAfterUsing<
+        BoundaryId,
+        Name,
+        Input,
+        Success,
+        Err,
+        Deps,
+        PerContext,
+        Params
+      >;
 
 export type ProvideApi<
   BoundaryId extends string,
@@ -247,6 +330,7 @@ function createProviderBuilder<
   Err,
   Deps,
   PerContext extends boolean,
+  Params,
 >(
   intent: Intent<BoundaryId, Name, Input, Success, Err>,
   deps: Deps,
@@ -266,17 +350,21 @@ function createProviderBuilder<
       return createProviderBuilder(intent, sealedStringRecord(newDeps), perContext, origin);
     },
     perContext() {
+      // Type param P is erased; runtime forwards the host bag into perContext
+      // factories when present; types gate `ctx.params` via Params / $params.
       return createProviderBuilder(intent, deps, true as const, origin);
     },
-    with(factory: WithFactory<Input, Success, Err, Deps>) {
+    with(factory: WithFactory<Input, Success, Err, Deps, Params>) {
       return {
         intent,
         deps,
         perContext,
         origin,
-        factory: (resolved: ResolvedDeps<Deps>, lifetime: Lifetime) => {
-          const ctx = (hasDeps ? { deps: resolved, lifetime } : { lifetime }) as WithContext<Deps>;
-          return factory(ctx);
+        $params: undefined as Params | undefined,
+        factory: (resolved: ResolvedDeps<Deps>, lifetime: Lifetime, params?: unknown) => {
+          const base = hasDeps ? { deps: resolved, lifetime } : { lifetime };
+          const ctx = perContext && params !== undefined ? { ...base, params } : base;
+          return factory(ctx as WithContext<Deps, Params>);
         },
       };
     },

@@ -1,7 +1,7 @@
 import { boundary, err } from "@xndrjs/forma";
-import type { DemoSeed, FindError, Order, OrderId } from "./types";
+import type { DemoParams, FindError, Order, OrderId } from "./types";
 
-export type { DemoSeed, FindError, Order, OrderId } from "./types";
+export type { DemoParams, FindError, Order, OrderId } from "./types";
 
 export const Orders = boundary("orders");
 
@@ -12,15 +12,14 @@ export const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>
 
 /**
  * Surface policy: guests are forbidden; admin/viewer may read via FindOrder.
- * Seed comes from open/with (`lifetime.seed`) — not a shallow rename of FindOrder.
+ * Params come from open/with (`ctx.params`) via `.perContext<DemoParams>()`.
  */
 export const GetOrderProvider = GetOrder.provide
-  .perContext()
+  .perContext<DemoParams>()
   .using({ find: FindOrder })
-  .with(({ deps: { find }, lifetime }) => {
-    const seed = lifetime.seed as DemoSeed;
+  .with(({ deps: { find }, params }) => {
     return async function execute(id) {
-      if (seed.role === "guest") {
+      if (params.role === "guest") {
         return err({ kind: "forbidden" as const });
       }
       return find(id);

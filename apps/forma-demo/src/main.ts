@@ -1,6 +1,6 @@
 /**
  * Forma PoC demo — Orders surface over selectable Adapters (postgres | memory),
- * with seed-gated GetOrder policy and Design C exception-safe disposal.
+ * with params-gated GetOrder policy and Design C exception-safe disposal.
  *
  * Usage:
  *   pnpm --filter @xndrjs/forma-demo start
@@ -34,12 +34,12 @@ async function main(): Promise<void> {
 
       return found;
     },
-    { seed: { role: "viewer" } }
+    { params: { role: "viewer" } }
   );
 
   const denied = await root.withExecutionContext(
     async (surface) => surface.getOrder({ id: "42" }),
-    { seed: { role: "guest" } }
+    { params: { role: "guest" } }
   );
   if (denied.ok || denied.error.kind !== "forbidden") {
     throw new Error(`expected forbidden for guest, got ${JSON.stringify(denied)}`);
