@@ -10,7 +10,7 @@ export type { Boundary, Intent, IntentIdentity } from "./boundary.js";
 export { bind } from "./bind.js";
 export type { Binding, BindingPair, WiringEntry } from "./bind.js";
 
-export { compose } from "./compose.js";
+export { compose, defineComposition, defineWiring } from "./compose.js";
 export type {
   ComposeOptions,
   CompositionRoot,

@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; surface/`using` key hygiene; Design C execution API; execution seed / `AbortSignal`).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; surface/`using` key hygiene; Design C execution API; execution seed / `AbortSignal`; `defineWiring` helpers).
 
 ## Installation
 
@@ -101,11 +101,13 @@ export const FindOrderAdapter = OrdersAdapter.adapt(FindOrder)
 ### Compose and execution context
 
 ```ts
-import { compose } from "@xndrjs/forma";
+import { compose, defineWiring } from "@xndrjs/forma";
+
+const wiring = defineWiring(SelectOrderProvider, ConnProvider, FindOrderAdapter);
 
 const root = compose({
   surface: { getOrder: GetOrderProvider },
-  wiring: [SelectOrderProvider, ConnProvider, FindOrderAdapter],
+  wiring,
 });
 
 const result: Result<Order, FindError> = await root.withExecutionContext(async (surface) => {
@@ -114,6 +116,8 @@ const result: Result<Order, FindError> = await root.withExecutionContext(async (
 
 await root.dispose();
 ```
+
+Prefer `defineWiring` (or an inline tuple / `as const`) when extracting providers. A plain array widens and type-checks as if private providers were missing. Do not annotate a concrete config as `ComposeOptions` — that widens Surface/Wiring and disables graph checks. Provider unions in one surface or wiring slot are rejected.
 
 Host-owned lifetime (no callback), with seed:
 
@@ -129,7 +133,7 @@ await using execution = seeded.openExecutionContext({ seed: { tenantId: "acme" }
 await execution.surface.getOrder({ id: "42" });
 ```
 
-Only aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Binding edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `bind()` aliases share one `wiring` array; prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
+Only aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Binding edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `bind()` aliases share one `wiring` array (`defineWiring` keeps that list precise when extracted); prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
 
 ## Status
 
