@@ -30,7 +30,7 @@ export function intentIdentity<BoundaryId extends string, Name extends string>(i
 export type Intent<BoundaryId extends string, Name extends string, Input, Success, Err> = {
   readonly boundaryId: BoundaryId;
   readonly name: Name;
-  /** Attach a realization: optional `using` / `perContext`, then `with(({ deps?, lifetime }) => …)`. */
+  /** Attach a realization: optional `using` / lifetime pin, then `with(({ deps?, lifetime }) => …)`. */
   readonly provide: ProvideApi<BoundaryId, Name, Input, Success, Err>;
   readonly [formaIntentBrand]: {
     readonly boundary: BoundaryId;

@@ -60,7 +60,7 @@ describe("adapter", () => {
     expect(FindViaPostgres.intent).toBe(FindOrder);
     expect(FindViaPostgres.deps).toEqual({ select: SelectOrder });
     expect(FindViaPostgres.origin).toEqual({ kind: "adapter", id: "orders-postgres" });
-    expect(FindViaPostgres.perContext).toBe(false);
+    expect(FindViaPostgres.lifetimePolicy).toBe("auto");
   });
 
   it("adapt allows multi-boundary using deps", () => {
@@ -239,7 +239,7 @@ describe("adapter", () => {
         };
       });
 
-    expect(FindOrderAdapter.perContext).toBe(true);
+    expect(FindOrderAdapter.lifetimePolicy).toBe("context");
     expect(FindOrderAdapter.origin).toEqual({ kind: "adapter", id: "orders-postgres" });
 
     const root = compose({

@@ -9,18 +9,31 @@ import {
   partitionWiring,
   type WiringEntry,
 } from "./alias-intent.js";
+import { intentIdentity, type IntentIdentity } from "./boundary.js";
 import type {
   AssertExplicitParamsCover,
-  AssertNoInvalidLifetimeEdges,
+  AssertNoInvalidPinnedLifetimeEdges,
   AssertNoProviderUnions,
   AssertParamsCompatible,
   AssertProvidersComplete,
   AssertSurfaceAliasesSafe,
   InferredParams,
 } from "./compose-graph-types.js";
-import { assertAcyclicPlan, assertClosedGraph, buildExecutionPlan } from "./graph-plan.js";
-import { intentLabel, intentMapKey } from "./intent-keys.js";
-import type { Disposable, IntentOperation, Provider, ResolvedDeps } from "./provider.js";
+import {
+  assertAcyclicPlan,
+  assertClosedGraph,
+  buildExecutionPlan,
+  type EffectiveLifetime,
+  resolveProviderLifetimes,
+} from "./graph-plan.js";
+import { intentIdentityFromMapKey, intentLabel, intentMapKey } from "./intent-keys.js";
+import type {
+  Disposable,
+  IntentOperation,
+  LifetimePolicy,
+  Provider,
+  ResolvedDeps,
+} from "./provider.js";
 import { assertRegistrationSafety, buildRegistry } from "./registration.js";
 import type { Result } from "./result.js";
 import {
@@ -44,8 +57,18 @@ type SurfaceOperation<P> =
   // Deps is invariant on Provider (factory param); erase with `any` so surface
   // aliases still expose Input/Success/Err when the provider has `using` deps.
   // Context aliases always return a Promise (lazy materialize + invoke).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Deps erasure
-  P extends Provider<string, string, infer Input, infer Success, infer Err, any, boolean, any>
+  P extends Provider<
+    string,
+    string,
+    infer Input,
+    infer Success,
+    infer Err,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Deps erasure
+    any,
+    LifetimePolicy,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Params erasure
+    any
+  >
     ? (input: Input) => Promise<Result<Success, Err>>
     : never;
 
@@ -84,14 +107,29 @@ export type ExecutionContext<Surface extends Record<string, AnyProvider>, Params
   readonly signal: AbortSignal;
   readonly params: [Params] extends [void] ? undefined : Readonly<Params>;
   /**
-   * Release `.perContext()` resources for this context.
+   * Release resources whose effective lifetime belongs to this context.
    * Concurrent callers share one dispose promise; terminal after settle.
    */
   dispose(): Promise<void>;
   [Symbol.asyncDispose](): Promise<void>;
 };
 
+/** Read-only explanation of one Provider's declared and graph-derived lifetime. */
+export type ProviderLifetimeDescription = {
+  readonly intent: IntentIdentity;
+  readonly declared: LifetimePolicy;
+  readonly effective: EffectiveLifetime;
+  /** Structured path from an `auto` Provider to the context-bound cause. */
+  readonly narrowedBy?: readonly IntentIdentity[];
+};
+
+export type CompositionPlanDescription = {
+  readonly providers: readonly ProviderLifetimeDescription[];
+};
+
 export type CompositionRoot<Surface extends Record<string, AnyProvider>, Params = void> = {
+  /** Explain declared and effective Provider lifetimes for diagnostics and tests. */
+  describePlan(): CompositionPlanDescription;
   /**
    * Open an owned execution context. Caller must `dispose` / `await using`.
    * Prefer {@link withExecutionContext} for short lexical scopes.
@@ -113,7 +151,7 @@ export type CompositionRoot<Surface extends Record<string, AnyProvider>, Params 
   ): Promise<Awaited<T>>;
   /**
    * Terminal composition shutdown (backstop): refuse new contexts, dispose every
-   * open execution context, then run composition-lifetime cleanups. Concurrent
+   * open execution context, then run root-owned cleanups. Concurrent
    * callers share one dispose promise; state becomes `disposed` even when a
    * cleanup fails.
    */
@@ -152,7 +190,11 @@ type ComposeAsserts<
 > = AssertSurfaceAliasesSafe<Surface> &
   AssertNoProviderUnions<Surface, Wiring> &
   AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>> &
-  AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>> &
+  AssertNoInvalidPinnedLifetimeEdges<
+    Surface,
+    ProvidersFromWiring<Wiring>,
+    AliasesFromWiring<Wiring>
+  > &
   AssertParamsCompatible<Surface, ProvidersFromWiring<Wiring>>;
 
 type InferredParamsFor<
@@ -223,8 +265,10 @@ function freezeParams<Params>(params: Params): Readonly<Params> {
  * intent alias for the same Required Intent, throws. Surface aliases must be strings
  * and must not use reserved names (`dispose`, `surface`, `__proto__`). Homonymous
  * Boundaries and repeated Intent declarations share one identity. After
- * registration, builds an execution plan and rejects cycles / open graphs before
- * returning the root (runtime `seeing` remains defense-in-depth only). Root and
+ * registration, builds an execution plan, rejects cycles / open graphs, and derives
+ * effective Provider lifetimes before returning the root (runtime `seeing` remains
+ * defense-in-depth only). `auto` Providers narrow transitively to context ownership;
+ * `.perComposition()` is an exact pin. Root and
  * each execution context use an `open | disposing | disposed` lifecycle; Design C
  * paths (`open` / `with` / `AsyncDisposable`) share that machine. Typed execution
  * `params` and `AbortSignal` are accepted via {@link ExecutionContextArgs} on open/with
@@ -300,8 +344,26 @@ function composeImpl<
   const executionPlan = buildExecutionPlan(registry, aliases);
   assertAcyclicPlan(executionPlan);
   assertClosedGraph(registry, aliases);
+  const lifetimePlan = resolveProviderLifetimes(executionPlan, registry);
+  const planDescription: CompositionPlanDescription = Object.freeze({
+    providers: Object.freeze(
+      [...registry].map(([key, provider]) => {
+        const lifetime = lifetimePlan.get(key)!;
+        return Object.freeze({
+          intent: Object.freeze(intentIdentity(provider.intent)),
+          declared: lifetime.declared,
+          effective: lifetime.effective,
+          ...(lifetime.narrowedBy
+            ? {
+                narrowedBy: Object.freeze(lifetime.narrowedBy.map(intentIdentityFromMapKey)),
+              }
+            : {}),
+        });
+      })
+    ),
+  });
 
-  /** Shared by default (composition-lifetime) providers — owned by the root scope. */
+  /** Providers whose effective lifetime is composition — owned by the root scope. */
   const compositionOps = new Map<string, Op>();
   const compositionInflight = new Map<string, Promise<Op>>();
   const compositionDisposers: Disposable[] = [];
@@ -325,7 +387,7 @@ function composeImpl<
         : undefined
     ) as [Params] extends [void] ? undefined : Readonly<Params>;
 
-    /** Owned by this execution context (`.perContext()` providers). */
+    /** Providers whose effective lifetime is context — owned by this execution context. */
     const contextOps = new Map<string, Op>();
     const contextInflight = new Map<string, Promise<Op>>();
     const contextDisposers: Disposable[] = [];
@@ -357,14 +419,20 @@ function composeImpl<
       seeing: ReadonlySet<string> = new Set(),
       path: readonly string[] = []
     ): Promise<Op> {
-      const perContext = provider.perContext;
-      const owner = perContext ? contextLife : rootLife;
-      const ownerSignal = perContext ? contextAbort.signal : rootAbort.signal;
-      const cache = perContext ? contextOps : compositionOps;
-      const inflight = perContext ? contextInflight : compositionInflight;
-      const disposers = perContext ? contextDisposers : compositionDisposers;
       const id = intentMapKey(provider.intent);
       const label = intentLabel(provider.intent);
+      const lifetime = lifetimePlan.get(id);
+      if (!lifetime) {
+        throw new Error(`Internal error: missing lifetime resolution for ${label}`);
+      }
+
+      const effectivePerContext = lifetime.effective === "context";
+      const declaredPerContext = provider.lifetimePolicy === "context";
+      const owner = effectivePerContext ? contextLife : rootLife;
+      const ownerSignal = effectivePerContext ? contextAbort.signal : rootAbort.signal;
+      const cache = effectivePerContext ? contextOps : compositionOps;
+      const inflight = effectivePerContext ? contextInflight : compositionInflight;
+      const disposers = effectivePerContext ? contextDisposers : compositionDisposers;
 
       const cached = cache.get(id);
       if (cached) {
@@ -397,7 +465,7 @@ function composeImpl<
           const produced = provider.factory(
             deps,
             setup.lifetime,
-            perContext ? contextParams : undefined
+            declaredPerContext ? contextParams : undefined
           );
           const op = await produced;
           owner.assertOpen();
@@ -445,16 +513,6 @@ function composeImpl<
       const deps = provider.deps as Record<string, AnyIntent>;
       const resolved: Record<string, Op> = {};
       for (const [key, intent] of Object.entries(deps)) {
-        if (!provider.perContext) {
-          const requiredId = intentMapKey(intent);
-          const satisfierId = aliasMap.get(requiredId) ?? requiredId;
-          const depProvider = registry.get(satisfierId);
-          if (depProvider?.perContext) {
-            throw new Error(
-              `Invalid lifetime edge: composition-lifetime provider ${intentLabel(provider.intent)} cannot depend on a .perContext() provider (${intentLabel(depProvider.intent)})`
-            );
-          }
-        }
         resolved[key] = await resolveByIdentity(intent, seeing, path);
       }
       return resolved as ResolvedDeps<AnyProvider["deps"]>;
@@ -531,6 +589,7 @@ function composeImpl<
   }
 
   return {
+    describePlan: () => planDescription,
     openExecutionContext,
     createExecutionContext: openExecutionContext,
     withExecutionContext,

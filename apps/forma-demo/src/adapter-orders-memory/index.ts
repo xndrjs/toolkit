@@ -11,12 +11,10 @@ const OrdersMemory = adapter("orders-memory", Orders);
  * Realizes Orders `FindOrder` from an in-memory map — shapes already match Orders,
  * so the factory forwards without field mapping (Adapter passthrough style).
  */
-export const FindOrderViaMemoryProvider = OrdersMemory.adapt(FindOrder)
-  .perContext()
-  .with(
-    () =>
-      function (id) {
-        const order = orders.get(id.id);
-        return order ? ok(order) : err({ kind: "not_found" as const });
-      }
-  );
+export const FindOrderViaMemoryProvider = OrdersMemory.adapt(FindOrder).with(
+  () =>
+    function (id) {
+      const order = orders.get(id.id);
+      return order ? ok(order) : err({ kind: "not_found" as const });
+    }
+);

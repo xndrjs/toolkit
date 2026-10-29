@@ -10,7 +10,6 @@ const OrdersPostgres = adapter("orders-postgres", Orders);
  * (snake_case rows → camelCase Order).
  */
 export const FindOrderViaPostgresProvider = OrdersPostgres.adapt(FindOrder)
-  .perContext()
   .using({ select: SelectOrder })
   .with(
     ({ deps: { select } }) =>

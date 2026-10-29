@@ -1,10 +1,11 @@
 import type { AnyIntent, AnyProvider, IntentAlias } from "./alias-intent.js";
 import { intentLabel, intentMapKey } from "./intent-keys.js";
+import type { LifetimePolicy } from "./provider.js";
 
 /**
  * Static execution plan for a Composition: Intent nodes and dependency edges
  * (provider `using` + Intent-alias rewrites). Validated at `compose` for cycles and
- * a closed graph; not yet exposed via `describePlan`.
+ * a closed graph, then used to derive the lifetime description exposed by `describePlan`.
  */
 export type ExecutionPlan = {
   /** Intent map key → display label (`boundaryId.name`). */
@@ -12,6 +13,18 @@ export type ExecutionPlan = {
   /** Adjacency: dependent Intent key → keys it requires (using and/or alias). */
   readonly adjacency: ReadonlyMap<string, ReadonlySet<string>>;
 };
+
+export type EffectiveLifetime = "composition" | "context";
+
+/** Effective lifetime for one registered Provider in a resolved Composition. */
+export type ProviderLifetimeResolution = {
+  readonly declared: LifetimePolicy;
+  readonly effective: EffectiveLifetime;
+  /** Intent map keys from this Provider to the `.perContext()` cause. */
+  readonly narrowedBy?: readonly string[];
+};
+
+export type ProviderLifetimePlan = ReadonlyMap<string, ProviderLifetimeResolution>;
 
 function ensureNode(
   labels: Map<string, string>,
@@ -176,4 +189,81 @@ export function assertAcyclicPlan(plan: ExecutionPlan): void {
       visit(node);
     }
   }
+}
+
+type NodeLifetimeResolution = {
+  readonly effective: EffectiveLifetime;
+  readonly path: readonly string[];
+};
+
+/**
+ * Derive Provider ownership from the already-resolved, acyclic graph.
+ *
+ * `auto` Providers use the longest safe lifetime. Context affinity propagates
+ * from dependencies to consumers. `.perComposition()` is an exact pin and
+ * fails synchronously when any transitive dependency requires a context.
+ */
+export function resolveProviderLifetimes(
+  plan: ExecutionPlan,
+  registry: ReadonlyMap<string, AnyProvider>
+): ProviderLifetimePlan {
+  const nodes = new Map<string, NodeLifetimeResolution>();
+  const visiting = new Set<string>();
+  const labelOf = (key: string): string => plan.labels.get(key) ?? key;
+
+  const resolveNode = (node: string): NodeLifetimeResolution => {
+    const known = nodes.get(node);
+    if (known) {
+      return known;
+    }
+    if (visiting.has(node)) {
+      throw new Error(`Circular dependency while resolving lifetimes at ${labelOf(node)}`);
+    }
+
+    visiting.add(node);
+    let contextualDependency: NodeLifetimeResolution | undefined;
+    for (const dependency of plan.adjacency.get(node) ?? []) {
+      const resolved = resolveNode(dependency);
+      if (resolved.effective === "context" && contextualDependency === undefined) {
+        contextualDependency = resolved;
+      }
+    }
+
+    const policy = registry.get(node)?.lifetimePolicy ?? "auto";
+    let resolution: NodeLifetimeResolution;
+    if (policy === "context") {
+      resolution = { effective: "context", path: [node] };
+    } else if (contextualDependency) {
+      const path = [node, ...contextualDependency.path];
+      if (policy === "composition") {
+        throw new Error(
+          `Lifetime conflict: ${labelOf(node)} is declared .perComposition() but depends on a .perContext() provider through ${path.map(labelOf).join(" -> ")}`
+        );
+      }
+      resolution = { effective: "context", path };
+    } else {
+      resolution = { effective: "composition", path: [node] };
+    }
+
+    visiting.delete(node);
+    nodes.set(node, resolution);
+    return resolution;
+  };
+
+  for (const node of plan.labels.keys()) {
+    resolveNode(node);
+  }
+
+  const providers = new Map<string, ProviderLifetimeResolution>();
+  for (const [key, provider] of registry) {
+    const resolution = resolveNode(key);
+    providers.set(key, {
+      declared: provider.lifetimePolicy,
+      effective: resolution.effective,
+      ...(provider.lifetimePolicy === "auto" && resolution.effective === "context"
+        ? { narrowedBy: resolution.path }
+        : {}),
+    });
+  }
+  return providers;
 }

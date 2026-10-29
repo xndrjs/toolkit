@@ -5,6 +5,10 @@
 > Data: 2026-10-29.
 >
 > Scope: `packages/forma` e `apps/forma-demo` sul branch `feature/adapters`.
+>
+> Nota evolutiva: questa review fotografa la baseline iniziale. Le decisioni successivamente
+> accettate negli ADR prevalgono dove l'implementazione è avanzata; in particolare ADR 0011
+> sostituisce la raccomandazione originale sulla propagazione manuale dei lifetime.
 
 ## Executive summary
 
@@ -153,8 +157,9 @@ ulteriore dell'uso di Binding.
 
 ### Difesa dai captive dependency
 
-Il divieto composition-lifetime -> per-context impedisce che un Provider longevo catturi una
-dipendenza più corta. La difesa esiste sia nei tipi sia a runtime.
+L'invariante resta: un Provider root-owned non può catturare una dipendenza context-owned. ADR
+0011 lo preserva derivando il lifetime effettivo dal grafo: i Provider `auto` vengono ristretti
+transitivamente, mentre un pin `.perComposition()` incompatibile fallisce a `compose()`.
 
 ### Disposal LIFO
 
@@ -454,25 +459,32 @@ La factory deve restituire sincronicamente l'operation. L'operation può essere 
 che la crea no. Questo punto viene approfondito nella sezione dedicata perché limita direttamente
 l'uso con risorse reali.
 
-### Scope contagion
+### Lifetime narrowing transitivo
 
-Una dipendenza `.perContext()` obbliga ogni consumer che la cattura a essere `.perContext()`.
-Nel demo il lifetime si propaga attraverso:
+Nella baseline, una dipendenza `.perContext()` obbligava ogni consumer che la catturava a ripetere
+`.perContext()`. Nel demo l'annotazione si propagava attraverso:
 
 1. ConnectionProvider;
 2. SelectOrderProvider;
 3. FindOrder Adapter Provider;
 4. GetOrderProvider.
 
-La regola è corretta: promuovere implicitamente un consumer longevo nasconderebbe una decisione
-importante. L'ergonomia è però cerimoniosa e il messaggio TypeScript può diventare molto esteso.
+L'invariante era corretto, ma la propagazione manuale costringeva il caller a ricostruire una
+proprietà già nota alla Composition.
 
-Non raccomanderei una promozione automatica del lifetime nella prima versione stabile. È meglio
-che il lifetime resti una decisione locale e visibile. Si può invece migliorare:
+La decisione successiva, formalizzata in ADR 0011, separa policy dichiarata e lifetime effettivo:
 
-- il diagnostico;
-- la visualizzazione dell'arco invalido;
-- un helper di composizione che mostri l'effective lifetime senza mutarlo.
+- nessun modificatore significa `auto`;
+- `.perContext<Params>()` introduce affinità contestuale e, opzionalmente, accesso ai params;
+- `.perComposition()` fissa la condivisione root e fallisce se una dependency transitiva richiede
+  context;
+- owner, cache, signal e cleanup seguono il lifetime effettivo;
+- i params non si propagano ai consumer ristretti automaticamente;
+- `describePlan()` mostra policy, lifetime effettivo e path causale.
+
+Nel demo aggiornato restano espliciti soltanto `ConnectionProvider` e `GetOrderProvider`; i
+Provider intermedi Postgres vengono ristretti dal graph plan, mentre l'Adapter memory resta
+composition-effective.
 
 ### Context senza seed
 
@@ -1372,12 +1384,11 @@ Provider ispezionabili aprono a:
 - readiness plan;
 - analisi di dipendenze non usate.
 
-Un `describePlan()` readonly sarebbe una naturale interfaccia futura.
+`describePlan()` espone ora la porzione lifetime del piano; una rappresentazione completa degli
+edge per visualization e architecture test resta un'evoluzione futura.
 
 ### Scenari oggi chiusi o innaturali
 
-- async resource acquisition;
-- context seed e cancellation;
 - plugin runtime e multibinding;
 - Provider condizionali per singola request;
 - routing per tenant;
@@ -1536,12 +1547,11 @@ Altri drift documentali osservati:
 
 ### P3 — Tooling, solo dopo il consolidamento
 
-1. `describePlan()` readonly;
-2. graph visualization;
-3. architecture tests;
-4. health/readiness plan;
-5. composition fragments, soltanto se richiesti da casi reali;
-6. valutazione di multibinding e conditional Provider.
+1. graph visualization;
+2. architecture tests;
+3. health/readiness plan;
+4. composition fragments, soltanto se richiesti da casi reali;
+5. valutazione di multibinding e conditional Provider.
 
 ## Conclusione
 

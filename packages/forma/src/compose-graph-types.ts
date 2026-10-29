@@ -1,6 +1,6 @@
 import type { Intent, IntentIdentity } from "./boundary.js";
 import type { AnyProvider, IntentAlias, WiringEntry } from "./alias-intent.js";
-import type { Provider } from "./provider.js";
+import type { LifetimePolicy, Provider } from "./provider.js";
 import type { ReservedSurfaceAlias } from "./string-keys.js";
 
 /**
@@ -17,7 +17,7 @@ type IntentKeyOf<I> =
 
 type ProviderIntentKey<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
-  P extends Provider<infer B, infer N, any, any, any, any, boolean, any>
+  P extends Provider<infer B, infer N, any, any, any, any, LifetimePolicy, any>
     ? IntentIdentity<Extract<B, string>, Extract<N, string>>
     : never;
 
@@ -35,16 +35,16 @@ type IsEmptyDeps<Deps> = [Deps] extends [Record<string, never>]
 /** Direct `using` Intent keys on a Provider (empty when `using` was omitted). */
 type ProviderDepKeys<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
-  P extends Provider<string, string, any, any, any, infer Deps, boolean, any>
+  P extends Provider<string, string, any, any, any, infer Deps, LifetimePolicy, any>
     ? IsEmptyDeps<Deps> extends true
       ? never
       : { [K in keyof Deps]: IntentKeyOf<Deps[K]> }[keyof Deps]
     : never;
 
-/** `true` when the Provider is marked `.perContext()`; otherwise `false`. */
-type ProviderIsPerContext<P> =
+/** Lifetime policy declared locally by a Provider. */
+type ProviderLifetimePolicy<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
-  P extends Provider<string, string, any, any, any, any, infer PC, any> ? PC : false;
+  P extends Provider<string, string, any, any, any, any, infer Policy, any> ? Policy : "auto";
 
 /** ParamsReq declared on `.perContext<P>()` (`void` when undeclared). */
 type ProviderParamsOf<P> = "$params" extends keyof P
@@ -175,25 +175,25 @@ type ProviderForIntentKey<
     : never;
 
 /**
- * Intent-key edges where a composition-lifetime provider `using`s a dependency
- * satisfied by a `.perContext()` provider (illegal capture; spec §6 / §15.7).
+ * Direct Intent-key edges where an explicitly `.perComposition()` Provider
+ * depends on a `.perContext()` Provider. Transitive conflicts are validated by
+ * the runtime graph planner, which is the authoritative check.
  */
-type InvalidLifetimeEdgeKeys<
+type InvalidPinnedLifetimeEdgeKeys<
   Surface extends Record<string, AnyProvider>,
   Providers extends readonly AnyProvider[],
   Aliases extends readonly IntentAlias[],
 > =
   RegisteredProviders<Surface, Providers> extends infer Consumer
     ? Consumer extends AnyProvider
-      ? [ProviderIsPerContext<Consumer>] extends [true]
-        ? never
-        : ProviderDepKeys<Consumer> extends infer DepKey
+      ? [ProviderLifetimePolicy<Consumer>] extends ["composition"]
+        ? ProviderDepKeys<Consumer> extends infer DepKey
           ? DepKey extends IntentKey
             ? RewriteRequirement<DepKey, Aliases> extends infer SatisfierKey
               ? SatisfierKey extends IntentKey
                 ? ProviderForIntentKey<SatisfierKey, Surface, Providers> extends infer Sat
                   ? Sat extends AnyProvider
-                    ? [ProviderIsPerContext<Sat>] extends [true]
+                    ? [ProviderLifetimePolicy<Sat>] extends ["context"]
                       ? `${FormatIntentKey<ProviderIntentKey<Consumer>>}→${FormatIntentKey<SatisfierKey>}`
                       : never
                     : never
@@ -202,6 +202,7 @@ type InvalidLifetimeEdgeKeys<
               : never
             : never
           : never
+        : never
       : never
     : never;
 
@@ -272,7 +273,7 @@ type MissingProviderKeys<
  * satisfy the phantom by adding a string property (only `@ts-expect-error` / casts).
  */
 declare const formaMissingProviders: unique symbol;
-declare const formaInvalidLifetimeEdges: unique symbol;
+declare const formaInvalidPinnedLifetimeEdges: unique symbol;
 declare const formaReservedSurfaceKeys: unique symbol;
 declare const formaNonStringSurfaceKeys: unique symbol;
 declare const formaProviderUnions: unique symbol;
@@ -334,19 +335,20 @@ export type AssertProvidersComplete<
     : unknown;
 
 /**
- * Intersected into `compose` options: composition-lifetime providers must not
- * depend on `.perContext()` providers (phantom property → compile error).
+ * Best-effort direct check: an explicit `.perComposition()` Provider cannot
+ * depend directly on `.perContext()`. The graph planner validates transitive
+ * and alias-mediated conflicts synchronously at `compose()`.
  */
-export type AssertNoInvalidLifetimeEdges<
+export type AssertNoInvalidPinnedLifetimeEdges<
   Surface extends Record<string, AnyProvider>,
   Providers extends readonly AnyProvider[],
   Aliases extends readonly IntentAlias[],
 > =
-  InvalidLifetimeEdgeKeys<Surface, Providers, Aliases> extends infer Bad
+  InvalidPinnedLifetimeEdgeKeys<Surface, Providers, Aliases> extends infer Bad
     ? [Bad] extends [never]
       ? unknown
       : {
-          readonly [formaInvalidLifetimeEdges]: `Invalid lifetime edge(s): composition-lifetime provider(s) depend on .perContext(): ${Extract<Bad, string>}`;
+          readonly [formaInvalidPinnedLifetimeEdges]: `Invalid lifetime pin(s): .perComposition() provider(s) depend directly on .perContext(): ${Extract<Bad, string>}`;
         }
     : unknown;
 

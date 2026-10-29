@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; optional `defineWiring` when extracting wiring).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; effective lifetime inference; optional `defineWiring` when extracting wiring).
 
 ## Installation
 
@@ -74,7 +74,7 @@ const GetOrderProvider = GetOrder.provide
   );
 ```
 
-Default lifetime is shared by the composition root. `.perContext()` materializes once per `openExecutionContext()` / `withExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime). Root and context `dispose()` are terminal state machines (concurrent callers share one promise); entering `disposing` aborts that scope’s `AbortSignal` (`lifetime.signal` / `execution.signal`). `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short lexical scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount. `createExecutionContext` remains a deprecated alias of `open`.
+Lifetime policy is local, while effective lifetime is derived from the resolved graph. No modifier means `auto`: the Provider is shared by the composition root unless any transitive dependency is context-owned, in which case it is narrowed to one instance per `openExecutionContext()` / `withExecutionContext()`. `.perContext()` forces context ownership; `.perComposition()` pins root ownership and makes `compose()` fail with the dependency path if a transitive dependency requires a context. `root.describePlan()` reports declared and effective lifetimes. Root and context `dispose()` are terminal state machines (concurrent callers share one promise); entering `disposing` aborts that owner’s `AbortSignal` (`lifetime.signal` / `execution.signal`). `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short lexical scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount. `createExecutionContext` remains a deprecated alias of `open`.
 
 Typed execution **params**: declare a POJO on `.perContext<ParamsReq>()`. `compose({ … })` **infers** the required host bag from all such declarations (merge; conflicting key types fail at compose). open/with then require `{ params }` (shared `ExecutionContextArgs`). Factories read typed `params` on the `.with` context — not on `Lifetime`. `compose<Explicit>()({ … })` is only for an explicit **superset** of the inferred bag. An optional host `signal` on those args links into the context signal without transferring dispose ownership.
 
@@ -97,7 +97,6 @@ const SelectOrder = Postgres.intent("selectOrder").contract<PgOrderId, PgOrder, 
 const OrdersAdapter = adapter("orders-postgres", Orders);
 
 export const FindOrderViaPostgresProvider = OrdersAdapter.adapt(FindOrder)
-  .perContext()
   .using({ select: SelectOrder })
   .with(
     ({ deps: { select } }) =>
@@ -160,8 +159,8 @@ await using execution = rooted.openExecutionContext({ params: { role: "viewer" }
 await execution.surface.getOrder({ id: "42" });
 ```
 
-Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, params policy, async connection, `await using` root).
+Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, requires a closed graph, and derives effective lifetimes before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, params policy, async connection, inferred lifetimes, `await using` root).
 
 ## Status
 
-PoC (`0.1.0-alpha.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, lifetime edges, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, disposal. Not a general-purpose IoC container.
+PoC (`0.1.0-alpha.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, graph-derived effective lifetimes, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, disposal. Not a general-purpose IoC container.

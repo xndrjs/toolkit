@@ -12,7 +12,8 @@ Provider factories had to return an operation synchronously. Real resources (con
 
 - Factory return type is `Awaitable<IntentOperation<…>>` (sync remains valid).
 - Each materialization attempt owns a **local** Lifetime bucket: `onDispose` registers there only while the attempt is open.
-- **Success:** seal registration, commit local cleanups onto the owning scope bucket (composition vs `.perContext()`), cache the operation.
+- **Success:** seal registration, commit local cleanups onto the effective owner bucket derived by
+  the lifetime plan, cache the operation.
 - **Failure or abandoned attempt** (including dispose racing an in-flight factory so the owner is no longer `open`): do not cache; run local cleanups immediately (LIFO). Factory error alone propagates; factory + rollback failure → `SuppressedError(rollbackError, factoryError)` (`rollbackError` may be `AggregateError`).
 - Concurrent callers of the same provider in the same lifetime share one inflight Promise.
 - `AbortSignal` / typed seed on Lifetime: see ADR 0008.

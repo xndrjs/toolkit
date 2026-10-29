@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted; lifetime-policy derivation amended by [0011](./0011-effective-lifetime-inference.md)
 
 ## Context
 
@@ -17,7 +17,9 @@ Root and each execution context own a lifecycle phase `open | disposing | dispos
 - Composition-lifetime cache, inflight, and disposers are owned by the **root** scope; `.perContext()` state is owned by the **context** scope.
 - `root.dispose()` is a backstop: it refuses new contexts, disposes every open execution context, then runs composition-lifetime cleanups.
 
-Rejected: refusing root dispose while contexts remain open (host would have to track them). Rejected: promoting implicit `.perContext()` or `Lifetime.acquire` (out of scope).
+Rejected: refusing root dispose while contexts remain open (host would have to track them).
+Implicit context narrowing was originally out of scope and is now accepted by ADR 0011.
+`Lifetime.acquire` remains out of scope.
 
 ## Consequences
 

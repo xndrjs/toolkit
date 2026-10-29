@@ -51,17 +51,14 @@ export const SelectOrder = Postgres.intent("selectOrder").contract<
   PgOrder,
   PgFindError
 >();
-export const SelectOrderProvider = SelectOrder.provide
-  .perContext()
-  .using({ connection: ConnectionIntent })
-  .with(
-    ({ deps: { connection } }) =>
-      async function (id) {
-        const opened = await connection();
-        if (!opened.ok) {
-          return err({ code: "NO_ROW" as const });
-        }
-        const row = opened.value.lookup(id.order_id);
-        return row ? ok(row) : err({ code: "NO_ROW" as const });
+export const SelectOrderProvider = SelectOrder.provide.using({ connection: ConnectionIntent }).with(
+  ({ deps: { connection } }) =>
+    async function (id) {
+      const opened = await connection();
+      if (!opened.ok) {
+        return err({ code: "NO_ROW" as const });
       }
-  );
+      const row = opened.value.lookup(id.order_id);
+      return row ? ok(row) : err({ code: "NO_ROW" as const });
+    }
+);

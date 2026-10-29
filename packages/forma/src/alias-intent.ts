@@ -1,5 +1,5 @@
 import type { Intent } from "./boundary.js";
-import type { Provider } from "./provider.js";
+import type { LifetimePolicy, Provider } from "./provider.js";
 
 /**
  * Registrable Provider with erased contract params so `compose` can accept a
@@ -7,7 +7,7 @@ import type { Provider } from "./provider.js";
  */
 // Type params appear in covariant and contravariant positions; erasure needs `any`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyProvider erasure
-export type AnyProvider = Provider<string, string, any, any, any, any, boolean, any>;
+export type AnyProvider = Provider<string, string, any, any, any, any, LifetimePolicy, any>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyIntent erasure for intent aliases
 export type AnyIntent = Intent<string, string, any, any, any>;

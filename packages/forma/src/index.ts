@@ -12,12 +12,14 @@ export type { IntentAlias, IntentAliasPair, WiringEntry } from "./alias-intent.j
 
 export { compose, defineComposition, defineWiring } from "./compose.js";
 export type {
+  CompositionPlanDescription,
   ComposeOptions,
   CompositionRoot,
   ExecutionContext,
   ExecutionContextArgs,
   ExecutionContextOptions,
   ExecutionSurface,
+  ProviderLifetimeDescription,
 } from "./compose.js";
 
 export type {
@@ -27,6 +29,7 @@ export type {
   Disposable,
   IntentOperation,
   Lifetime,
+  LifetimePolicy,
   ParamsObject,
   ParamsReq,
   ProvideApi,

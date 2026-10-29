@@ -22,7 +22,7 @@ describe("provider builder", () => {
 
     expect(PingProvider.intent).toBe(Ping);
     expect(PingProvider.deps).toEqual({});
-    expect(PingProvider.perContext).toBe(false);
+    expect(PingProvider.lifetimePolicy).toBe("auto");
     expect(PingProvider.origin).toEqual({ kind: "boundary", id: "health" });
 
     const op = await PingProvider.factory(
@@ -102,7 +102,7 @@ describe("provider builder", () => {
 
     expect(CancelProvider.intent).toBe(CancelOrder);
     expect(CancelProvider.deps).toEqual({ find: FindOrder });
-    expect(CancelProvider.perContext).toBe(false);
+    expect(CancelProvider.lifetimePolicy).toBe("auto");
     expect(CancelProvider.origin).toEqual({ kind: "boundary", id: "orders" });
 
     type FactoryDeps = Parameters<typeof CancelProvider.factory>[0];
@@ -145,7 +145,7 @@ describe("provider builder", () => {
     expect(FindViaPostgres.intent).toBe(FindOrder);
     expect(FindViaPostgres.deps).toEqual({ select: SelectOrder });
     expect(FindViaPostgres.origin).toEqual({ kind: "adapter", id: "orders-postgres" });
-    expect(FindViaPostgres.perContext).toBe(false);
+    expect(FindViaPostgres.lifetimePolicy).toBe("auto");
 
     const Billing = boundary("billing");
     const Charge = Billing.intent("charge").contract<OrderId, void, never>();
@@ -166,7 +166,7 @@ describe("provider builder", () => {
           return ok("pong");
         }
     );
-    expect(PingPerContext.perContext).toBe(true);
+    expect(PingPerContext.lifetimePolicy).toBe("context");
     expect(PingPerContext.deps).toEqual({});
 
     const GetPerContext = GetOrder.provide
@@ -178,7 +178,7 @@ describe("provider builder", () => {
             return find(id);
           }
       );
-    expect(GetPerContext.perContext).toBe(true);
+    expect(GetPerContext.lifetimePolicy).toBe("context");
     expect(GetPerContext.deps).toEqual({ find: FindOrder });
 
     const GetPerContextAlt = GetOrder.provide
@@ -190,8 +190,27 @@ describe("provider builder", () => {
             return find(id);
           }
       );
-    expect(GetPerContextAlt.perContext).toBe(true);
+    expect(GetPerContextAlt.lifetimePolicy).toBe("context");
     expect(GetPerContextAlt.deps).toEqual({ find: FindOrder });
+  });
+
+  it("allows perComposition as an explicit lifetime pin", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+
+    const GetShared = GetOrder.provide
+      .using({ find: FindOrder })
+      .perComposition()
+      .with(
+        ({ deps: { find } }) =>
+          function (id) {
+            return find(id);
+          }
+      );
+
+    expect(GetShared.lifetimePolicy).toBe("composition");
+    expect(GetShared.deps).toEqual({ find: FindOrder });
   });
 
   it("makes using one-shot: second call is a type error and throws at runtime", () => {

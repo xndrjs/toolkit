@@ -157,8 +157,7 @@ describe("compose — lifecycle and disposal", () => {
     expect(stub.disposed).toBe(true);
   });
 
-  it("throws when a composition-lifetime provider depends on a .perContext() provider", async () => {
-    // §15.7 — invalid composition→context lifetime edge (default capturing perContext).
+  it("narrows an auto provider when it depends on a .perContext() provider", async () => {
     const Db = boundary("db");
     const Query = Db.intent("query").contract<void, { readonly conn: number }, never>();
     const Conn = Db.intent("conn").contract<void, { readonly id: number }, never>();
@@ -173,7 +172,6 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const QueryProvider = Query.provide.using({ conn: Conn }).with(({ deps: { conn } }) => {
-      // Capture conn op at composition lifetime — illegal if Conn is perContext.
       return async function () {
         const result = await conn();
         if (!result.ok) {
@@ -183,18 +181,31 @@ describe("compose — lifecycle and disposal", () => {
       };
     });
 
-    // @ts-expect-error — Invalid lifetime edge: composition-lifetime depending on .perContext()
     const root = compose({
       surface: { query: QueryProvider },
       wiring: [ConnProvider],
     });
-    const ctx = root.openExecutionContext();
+    const first = root.openExecutionContext();
+    await expect(first.surface.query()).resolves.toEqual({ ok: true, value: { conn: 1 } });
+    await expect(first.surface.query()).resolves.toEqual({ ok: true, value: { conn: 1 } });
+    await first.dispose();
 
-    await expect(ctx.surface.query()).rejects.toThrow(
-      /composition-lifetime.*context-lifetime|cannot depend on a \.perContext/
-    );
+    const second = root.openExecutionContext();
+    await expect(second.surface.query()).resolves.toEqual({ ok: true, value: { conn: 2 } });
+    await second.dispose();
 
-    await ctx.dispose();
+    expect(root.describePlan().providers).toEqual([
+      {
+        intent: ["db", "query"],
+        declared: "auto",
+        effective: "context",
+        narrowedBy: [
+          ["db", "query"],
+          ["db", "conn"],
+        ],
+      },
+      { intent: ["db", "conn"], declared: "context", effective: "context" },
+    ]);
     await root.dispose();
   });
 

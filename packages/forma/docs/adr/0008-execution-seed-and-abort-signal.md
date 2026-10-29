@@ -21,8 +21,8 @@ host invocation data and forced `as` casts in factories (`Lifetime.seed` was `un
 - `params` lives on factory `WithContext` and on the execution handle — **not** on
   `Lifetime` (`Lifetime` keeps `signal` + `onDispose` only).
 - Declaration: `.perContext<ParamsReq>()` (default `void` = no params). `ParamsReq` is an object
-  POJO (nested fields ok); not a bare primitive bag. Composition-lifetime providers cannot declare
-  params.
+  POJO (nested fields ok); not a bare primitive bag. `auto` Providers narrowed to context do not
+  gain params capability; `.perComposition()` Providers cannot declare params.
 - Factory types expose the declared `ParamsReq` as `params`. Runtime passes the **same frozen host
   bag** to every `.perContext` materialization.
 - `compose({ … })` **infers** required params by merging all registered Providers' ParamsReq;

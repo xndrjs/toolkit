@@ -142,8 +142,7 @@ describe("compose — composition safety", () => {
     ).toThrow(/No provider registered for Intent postgres\.selectOrder/);
   });
 
-  it("type-rejects a composition-lifetime provider that depends on a .perContext() provider", () => {
-    // §15.7 — invalid composition→context lifetime edge (compile-time).
+  it("type-rejects a .perComposition() provider that depends directly on .perContext()", () => {
     const Db = boundary("db");
     const Query = Db.intent("query").contract<void, { readonly conn: number }, never>();
     const Conn = Db.intent("conn").contract<void, { readonly id: number }, never>();
@@ -154,22 +153,27 @@ describe("compose — composition safety", () => {
           return ok({ id: 1 });
         }
     );
-    const QueryProvider = Query.provide.using({ conn: Conn }).with(
-      ({ deps: { conn } }) =>
-        async function () {
-          const result = await conn();
-          if (!result.ok) {
-            throw new Error("expected ok conn");
+    const QueryProvider = Query.provide
+      .perComposition()
+      .using({ conn: Conn })
+      .with(
+        ({ deps: { conn } }) =>
+          async function () {
+            const result = await conn();
+            if (!result.ok) {
+              throw new Error("expected ok conn");
+            }
+            return ok({ conn: result.value.id });
           }
-          return ok({ conn: result.value.id });
-        }
-    );
+      );
 
-    // @ts-expect-error — Invalid lifetime edge: composition-lifetime depending on .perContext()
-    compose({
-      surface: { query: QueryProvider },
-      wiring: [ConnProvider],
-    });
+    expect(() =>
+      // @ts-expect-error — .perComposition() cannot depend directly on .perContext()
+      compose({
+        surface: { query: QueryProvider },
+        wiring: [ConnProvider],
+      })
+    ).toThrow(/Lifetime conflict.*db\.query.*db\.conn/);
   });
 
   it("throws when the same Intent is registered twice in surface", () => {
