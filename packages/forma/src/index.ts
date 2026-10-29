@@ -1,6 +1,9 @@
 /**
  * Public API for `@xndrjs/forma`.
  */
+export { adapter } from "./adapter.js";
+export type { Adapter } from "./adapter.js";
+
 export { boundary } from "./boundary.js";
 export type { Boundary, Intent } from "./boundary.js";
 

@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { adapter } from "./adapter.js";
 import { boundary } from "./boundary.js";
-import { createAdaptProvideApi } from "./provider.js";
 import { err, ok, type Result } from "./result.js";
 
 type OrderId = { readonly id: string };
@@ -128,7 +128,8 @@ describe("provider builder", () => {
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
     const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindError>();
 
-    const FindViaPostgres = createAdaptProvideApi(FindOrder, "orders-postgres")
+    const OrdersPostgres = adapter("orders-postgres", Orders);
+    const FindViaPostgres = OrdersPostgres.adapt(FindOrder)
       .using({ select: SelectOrder })
       .with(
         ({ deps: { select } }) =>
@@ -137,10 +138,17 @@ describe("provider builder", () => {
           }
       );
 
+    expect(OrdersPostgres.id).toBe("orders-postgres");
+    expect(OrdersPostgres.target).toBe(Orders);
     expect(FindViaPostgres.intent).toBe(FindOrder);
     expect(FindViaPostgres.deps).toEqual({ select: SelectOrder });
     expect(FindViaPostgres.origin).toEqual({ kind: "adapter", id: "orders-postgres" });
     expect(FindViaPostgres.perContext).toBe(false);
+
+    const Billing = boundary("billing");
+    const Charge = Billing.intent("charge").contract<OrderId, void, never>();
+    // @ts-expect-error — adapt only accepts Intents of the target boundary
+    OrdersPostgres.adapt(Charge);
   });
 
   it("allows perContext in the chain before with and retains the flag", () => {
