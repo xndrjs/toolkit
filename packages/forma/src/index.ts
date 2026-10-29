@@ -14,11 +14,16 @@ export type {
 } from "./compose.js";
 
 export type {
+  AdaptProvideApi,
+  AdaptProviderBuilder,
+  AnyIntentDeps,
   Disposable,
   IntentOperation,
   Lifetime,
   ProvideApi,
   Provider,
+  ProviderBuilder,
+  ProviderOrigin,
   ResolvedDeps,
   SameBoundaryDeps,
   WithContext,

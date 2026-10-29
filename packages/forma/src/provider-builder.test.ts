@@ -1,5 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { boundary } from "./boundary.js";
+import { createAdaptProvideApi } from "./provider.js";
 import { err, ok, type Result } from "./result.js";
 
 type OrderId = { readonly id: string };
@@ -22,6 +23,7 @@ describe("provider builder", () => {
     expect(PingProvider.intent).toBe(Ping);
     expect(PingProvider.deps).toEqual({});
     expect(PingProvider.perContext).toBe(false);
+    expect(PingProvider.origin).toEqual({ kind: "boundary", id: "health" });
 
     const op = PingProvider.factory(
       {},
@@ -99,6 +101,7 @@ describe("provider builder", () => {
     expect(CancelProvider.intent).toBe(CancelOrder);
     expect(CancelProvider.deps).toEqual({ find: FindOrder });
     expect(CancelProvider.perContext).toBe(false);
+    expect(CancelProvider.origin).toEqual({ kind: "boundary", id: "orders" });
 
     type FactoryDeps = Parameters<typeof CancelProvider.factory>[0];
     expectTypeOf<FactoryDeps["find"]>().toEqualTypeOf<
@@ -117,6 +120,27 @@ describe("provider builder", () => {
     CancelOrder.provide.using({ find: SelectOrder });
 
     void FindOrder;
+  });
+
+  it("adapt path allows cross-boundary using and sets adapter origin", () => {
+    const Orders = boundary("orders");
+    const Postgres = boundary("postgres");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindError>();
+
+    const FindViaPostgres = createAdaptProvideApi(FindOrder, "orders-postgres")
+      .using({ select: SelectOrder })
+      .with(
+        ({ deps: { select } }) =>
+          function (id) {
+            return select(id);
+          }
+      );
+
+    expect(FindViaPostgres.intent).toBe(FindOrder);
+    expect(FindViaPostgres.deps).toEqual({ select: SelectOrder });
+    expect(FindViaPostgres.origin).toEqual({ kind: "adapter", id: "orders-postgres" });
+    expect(FindViaPostgres.perContext).toBe(false);
   });
 
   it("allows perContext in the chain before with and retains the flag", () => {
