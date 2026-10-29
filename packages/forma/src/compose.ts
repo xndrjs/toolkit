@@ -294,6 +294,13 @@ type MissingProviderKeys<
 >;
 
 /**
+ * Private keys for type-level compose asserts. Not exported: callers cannot
+ * satisfy the phantom by adding a string property (only `@ts-expect-error` / casts).
+ */
+declare const formaMissingProviders: unique symbol;
+declare const formaInvalidLifetimeEdges: unique symbol;
+
+/**
  * Intersected into `compose` options: when the graph is incomplete, requires a
  * phantom property so the call is a compile error (use `@ts-expect-error` in tests).
  */
@@ -306,7 +313,7 @@ type AssertProvidersComplete<
     ? [Missing] extends [never]
       ? unknown
       : {
-          readonly __formaMissingProviders: `Missing provider for Intent(s): ${Extract<Missing, string>}`;
+          readonly [formaMissingProviders]: `Missing provider for Intent(s): ${Extract<Missing, string>}`;
         }
     : unknown;
 
@@ -323,7 +330,7 @@ type AssertNoInvalidLifetimeEdges<
     ? [Bad] extends [never]
       ? unknown
       : {
-          readonly __formaInvalidLifetimeEdges: `Invalid lifetime edge(s): composition-lifetime provider(s) depend on .perContext(): ${Extract<Bad, string>}`;
+          readonly [formaInvalidLifetimeEdges]: `Invalid lifetime edge(s): composition-lifetime provider(s) depend on .perContext(): ${Extract<Bad, string>}`;
         }
     : unknown;
 

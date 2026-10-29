@@ -5,5 +5,5 @@ import { ConnectionProvider, SelectOrderProvider } from "./infrastructure-postgr
 
 export const root = compose({
   surface: { getOrder: GetOrderProvider },
-  wiring: [SelectOrderProvider, ConnectionProvider, FindOrderAdapter],
+  wiring: [FindOrderAdapter, SelectOrderProvider, ConnectionProvider],
 });
