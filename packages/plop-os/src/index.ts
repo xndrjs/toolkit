@@ -29,6 +29,8 @@ export type {
 } from "./sync.js";
 export { findRegionsInFile, runSyncPass } from "./sync.js";
 
+export { wrapSyncRegion } from "./helpers.js";
+
 export type { ConflictPolicy, PlopOs, PlopOsConfig } from "./runtime.js";
 export { createPlopOs, plopAddFlags } from "./runtime.js";
 
