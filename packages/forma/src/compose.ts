@@ -15,7 +15,7 @@ import type {
   AssertProvidersComplete,
   AssertSurfaceAliasesSafe,
   InferredParams,
-} from "./compose-graph-types.js";
+} from "./composition/typechecks/index.js";
 import { compileComposition } from "./composition/compile-composition.js";
 import type {
   ComposeOptions,

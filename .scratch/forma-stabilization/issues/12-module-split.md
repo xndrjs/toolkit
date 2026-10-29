@@ -2,7 +2,7 @@
 
 **What to build:** Layout screaming under `packages/forma/src` + tests under `test/`; `compose` as thin facade over `compileComposition` → `createCompositionRoot`; deep `ProviderScope`.
 
-**Status:** in progress
+**Status:** done
 
 ## Checklist
 
@@ -11,7 +11,7 @@
 - [x] Fase 2 — Root + contesti in `execution/`
 - [x] Fase 3 — `ProviderScope` (modulo profondo)
 - [x] Fase 4 — Provider modello vs builder
-- [ ] Fase 5 — Type-level compiler sotto `composition/typechecks/`
+- [x] Fase 5 — Type-level compiler sotto `composition/typechecks/`
 
 **Verify:** `pnpm --filter @xndrjs/forma test` and `typecheck`
 
