@@ -2,12 +2,14 @@ import { adapter, err, ok } from "@xndrjs/forma";
 import { FindOrder, Orders } from "../core-orders/index";
 import { SelectOrder } from "../infrastructure-postgres/index";
 
-const OrdersAdapter = adapter("orders-postgres", Orders);
+/** Forma Adapter peer targeting Orders; maps Postgres rows into Orders shapes. */
+const OrdersPostgres = adapter("orders-postgres", Orders);
+
 /**
- * Adapter peer: realizes Orders `FindOrder` by mapping Postgres `SelectOrder`
- * rows (snake_case) into Orders shapes.
+ * Realizes Orders `FindOrder` via Postgres `SelectOrder`
+ * (snake_case rows → camelCase Order).
  */
-export const FindOrderAdapter = OrdersAdapter.adapt(FindOrder)
+export const FindOrderViaPostgresProvider = OrdersPostgres.adapt(FindOrder)
   .perContext()
   .using({ select: SelectOrder })
   .with(

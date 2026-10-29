@@ -1,19 +1,21 @@
 # @xndrjs/forma-demo
 
-Runnable Node PoC for `@xndrjs/forma`: Orders surface, Postgres infrastructure, and an Adapter when shapes differ (snake_case rows → camelCase `Order`).
+Runnable Node PoC for `@xndrjs/forma`: Orders surface with real GetOrder policy (role seed), dual Adapters (Postgres shape-map vs in-memory passthrough), async fake connection, and Design C disposal (`await using` + `withExecutionContext`).
 
 ```bash
-pnpm --filter @xndrjs/forma-demo start
+pnpm --filter @xndrjs/forma-demo start            # postgres Adapter (default)
+pnpm --filter @xndrjs/forma-demo start -- memory  # in-memory Adapter
 ```
 
 ## Layout
 
 ```
-src/core-orders/                 # Orders boundary (intents + providers)
-src/infrastructure-postgres/     # Postgres boundary (intents + providers)
-src/adapter-orders-postgres/     # adapter("orders-postgres", Orders).adapt(FindOrder)…
-src/composition.ts               # surface + wiring only
-src/main.ts                      # run: withExecutionContext → call surface → root.dispose
+src/core-orders/                 # Orders boundary — GetOrder auth policy over FindOrder
+src/infrastructure-postgres/     # Postgres boundary — async Connection + SelectOrder
+src/adapter-orders-postgres/     # adapter("orders-postgres", Orders) → FindOrderViaPostgresProvider
+src/adapter-orders-memory/       # adapter("orders-memory", Orders) → FindOrderViaMemoryProvider
+src/composition.ts               # composePostgres / composeMemory (same surface)
+src/main.ts                      # await using root → withExecutionContext({ seed })
 ```
 
-`PgOrder` uses `order_id` / `amount_cents`; Orders uses `id` / `total`. The Adapter realizes `FindOrder` via `SelectOrder` — no binding.
+`PgOrder` uses `order_id` / `amount_cents`; Orders uses `id` / `total`. The Postgres Adapter maps rows; the memory Adapter stores Orders shapes directly. Cross-boundary wiring uses Adapter (not Intent alias). Guests are `forbidden` before FindOrder runs.

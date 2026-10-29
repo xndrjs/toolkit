@@ -122,8 +122,8 @@ export type CompositionRoot<Surface extends Record<string, AnyProvider>, Seed = 
  * **Do not annotate concrete configs as `ComposeOptions`.** The default type
  * parameters widen Surface and Wiring to erased Providers, which disables
  * missing-provider / lifetime / Provider-union checks and autocomplete.
- * Prefer an inferred object literal, {@link defineWiring} for extracted wiring,
- * or {@link defineComposition} for an extracted options bag.
+ * Prefer an inferred inline object literal. Use {@link defineWiring} /
+ * {@link defineComposition} only when extracting wiring or the options bag.
  */
 export type ComposeOptions<
   Surface extends Record<string, AnyProvider> = Record<string, AnyProvider>,
@@ -134,7 +134,8 @@ export type ComposeOptions<
    * Private providers and {@link aliasIntent} aliases for dependency resolution.
    * Providers here are not on the context; intent aliases rewrite required Intent identity
    * to a satisfier whose provider is registered (surface or wiring).
-   * Prefer {@link defineWiring} when extracting this array so the tuple stays precise.
+   * Prefer an inline `wiring: […]` tuple at `compose`. Use {@link defineWiring}
+   * only when extracting this array so the tuple stays precise.
    * Prefer Adapter / Provider passthrough over {@link aliasIntent} for cross-boundary wiring.
    */
   readonly wiring?: Wiring;
@@ -149,12 +150,19 @@ type ComposeAsserts<
   AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>>;
 
 /**
- * Build a precise `wiring` tuple for {@link compose}. A plain extracted array
- * widens to `Provider[]` and type-checks as if no private providers were
- * registered (false “Missing provider”). `as const` also works; this helper
- * is the documented extraction path.
+ * Build a precise `wiring` tuple when **extracting** providers out of
+ * {@link compose}. Not needed for the usual inline form
+ * `compose({ surface, wiring: [A, B] })` — that already keeps tuple precision.
+ *
+ * A plain extracted array widens to `Provider[]` and type-checks as if no
+ * private providers were registered (false “Missing provider”). `as const`
+ * also works; this helper is the documented extraction path.
  *
  * ```ts
+ * // Prefer inline when possible:
+ * compose({ surface: { getOrder }, wiring: [SelectOrderProvider, FindOrderViaPostgres] });
+ *
+ * // Only if the list must live in a variable/module:
  * const wiring = defineWiring(SelectOrderProvider, aliasIntent(FindOrder, SelectOrder));
  * compose({ surface: { getOrder }, wiring });
  * ```
@@ -167,8 +175,9 @@ export function defineWiring<const Entries extends readonly WiringEntry[]>(
 
 /**
  * Preserve a precise `{ surface, wiring? }` bag for later {@link compose}.
- * Applies the same compile-time graph asserts as `compose` at the definition
- * site. Do not annotate the result as bare {@link ComposeOptions}.
+ * Prefer writing the object inline at `compose` when you can. Applies the same
+ * compile-time graph asserts as `compose` at the definition site. Do not
+ * annotate the result as bare {@link ComposeOptions}.
  */
 export function defineComposition<
   Surface extends Record<string, AnyProvider>,
@@ -216,9 +225,10 @@ function freezeSeed<Seed>(seed: Seed): Readonly<Seed> {
  * composition-lifetime cleanups.
  *
  * Seed typing: `compose({ … })` defaults to `Seed = void`. For a required seed use
- * `compose<MySeed>()({ … })`. Extracted wiring should use {@link defineWiring} (or
- * `as const`); annotating a config as {@link ComposeOptions} widens types and is a
- * footgun. Provider unions in a surface alias or wiring slot are rejected.
+ * `compose<MySeed>()({ … })`. Prefer an inline options literal; if wiring is
+ * extracted, use {@link defineWiring} (or `as const`). Annotating a config as
+ * {@link ComposeOptions} widens types and is a footgun. Provider unions in a
+ * surface alias or wiring slot are rejected.
  */
 export function compose<Seed>(): <
   Surface extends Record<string, AnyProvider>,

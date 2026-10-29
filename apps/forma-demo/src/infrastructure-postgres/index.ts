@@ -7,22 +7,44 @@ const rows: ReadonlyMap<string, PgOrder> = new Map([
   ["42", { order_id: "42", amount_cents: 10000 }],
 ]);
 
+function delay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason ?? new Error("aborted"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal.reason ?? new Error("aborted"));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 export const Postgres = boundary("postgres");
 
 export const ConnectionIntent = Postgres.intent("connection").contract<void, Connection, never>();
-/** Fresh connection per execution context; cleaned up on ctx.dispose(). */
-export const ConnectionProvider = ConnectionIntent.provide.perContext().with(({ lifetime }) => {
-  const connection: Connection = {
-    label: "pg-connection",
-    lookup: (orderId) => rows.get(orderId),
-  };
-  lifetime.onDispose(() => {
-    console.log(`disposed ${connection.label}`);
+
+/** Fake async acquire per execution context; cleaned up on context dispose. */
+export const ConnectionProvider = ConnectionIntent.provide
+  .perContext()
+  .with(async ({ lifetime }) => {
+    await delay(5, lifetime.signal);
+    const connection: Connection = {
+      label: "pg-connection",
+      lookup: (orderId) => rows.get(orderId),
+    };
+    lifetime.onDispose(() => {
+      console.log(`disposed ${connection.label}`);
+    });
+    return function () {
+      return ok(connection);
+    };
   });
-  return function () {
-    return ok(connection);
-  };
-});
 
 export const SelectOrder = Postgres.intent("selectOrder").contract<
   PgOrderId,

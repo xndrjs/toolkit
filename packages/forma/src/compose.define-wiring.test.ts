@@ -8,7 +8,7 @@ type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
 type FindError = { readonly kind: "not_found" };
 
-describe("compose — defineWiring / defineComposition (F6)", () => {
+describe("compose — defineWiring / defineComposition (F6; extraction only)", () => {
   it("type-accepts a complete graph when wiring is extracted via defineWiring", () => {
     const Orders = boundary("orders");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();

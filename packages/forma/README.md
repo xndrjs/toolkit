@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution seed / `AbortSignal`; `defineWiring` helpers).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution seed / `AbortSignal`; optional `defineWiring` when extracting wiring).
 
 ## Installation
 
@@ -43,6 +43,13 @@ const FindProvider = FindOrder.provide.with(
     }
 );
 
+type ConnHandle = { close(): void };
+async function openConnection(opts: { signal: AbortSignal }): Promise<ConnHandle> {
+  opts.signal.throwIfAborted();
+  return { close() {} };
+}
+
+const Conn = Orders.intent("conn").contract<void, ConnHandle, never>();
 const ConnProvider = Conn.provide.perContext().with(async ({ lifetime }) => {
   const conn = await openConnection({ signal: lifetime.signal });
   lifetime.onDispose(() => conn.close());
@@ -76,9 +83,16 @@ An **Adapter** is a peer of Boundary, scoped to one target Boundary. It owns ext
 ```ts
 import { adapter, err, ok } from "@xndrjs/forma";
 
+type PgOrderId = { readonly order_id: string };
+type PgOrder = { readonly order_id: string; readonly amount_cents: number };
+type PgFindError = { readonly code: "NO_ROW" };
+
+const Postgres = boundary("postgres");
+const SelectOrder = Postgres.intent("selectOrder").contract<PgOrderId, PgOrder, PgFindError>();
+
 const OrdersAdapter = adapter("orders-postgres", Orders);
 
-export const FindOrderAdapter = OrdersAdapter.adapt(FindOrder)
+export const FindOrderViaPostgresProvider = OrdersAdapter.adapt(FindOrder)
   .perContext()
   .using({ select: SelectOrder })
   .with(
@@ -102,14 +116,23 @@ When shapes already match, the factory can forward without mapping (`return sele
 
 ### Compose and execution context
 
-```ts
-import { compose, defineWiring } from "@xndrjs/forma";
+Prefer an **inline** `compose({ surface, wiring })` literal. That keeps Provider precision for the closed-graph checks — you do **not** need `defineWiring` in the normal case.
 
-const wiring = defineWiring(SelectOrderProvider, ConnProvider, FindOrderAdapter);
+```ts
+import { compose } from "@xndrjs/forma";
+
+const SelectOrderProvider = SelectOrder.provide.with(
+  (_ctx) =>
+    function (id) {
+      return id.order_id === "42"
+        ? ok({ order_id: "42", amount_cents: 10000 })
+        : err({ code: "NO_ROW" as const });
+    }
+);
 
 const root = compose({
   surface: { getOrder: GetOrderProvider },
-  wiring,
+  wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
 });
 
 const result: Result<Order, FindError> = await root.withExecutionContext(async (surface) => {
@@ -119,7 +142,7 @@ const result: Result<Order, FindError> = await root.withExecutionContext(async (
 await root.dispose();
 ```
 
-Prefer `defineWiring` (or an inline tuple / `as const`) when extracting providers. A plain array widens and type-checks as if private providers were missing. Do not annotate a concrete config as `ComposeOptions` — that widens Surface/Wiring and disables graph checks. Provider unions in one surface or wiring slot are rejected.
+`defineWiring` / `defineComposition` exist only if you **extract** wiring (or the whole options bag) into a variable or module: a plain `const wiring = [A, B]` widens to `Provider[]` and type-checks as if private providers were missing. Inline (or `as const` / `defineWiring`) keeps the tuple precise. Do not annotate a concrete config as `ComposeOptions` — that widens Surface/Wiring and disables graph checks. Provider unions in one surface or wiring slot are rejected.
 
 Host-owned lifetime (no callback), with seed:
 
@@ -128,15 +151,15 @@ type RequestSeed = { readonly tenantId: string };
 
 const seeded = compose<RequestSeed>()({
   surface: { getOrder: GetOrderProvider },
-  wiring: [SelectOrderProvider, ConnProvider, FindOrderAdapter],
+  wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
 });
 
 await using execution = seeded.openExecutionContext({ seed: { tenantId: "acme" } });
 await execution.surface.getOrder({ id: "42" });
 ```
 
-Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array (`defineWiring` keeps that list precise when extracted); prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a small end-to-end example.
+Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, seed policy, async connection, `await using` root).
 
 ## Status
 
-PoC (`0.0.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, lifetime edges, unified `.with({ deps?, lifetime })`, disposal. Not a general-purpose IoC container.
+PoC (`0.1.0-alpha.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, lifetime edges, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, disposal. Not a general-purpose IoC container.

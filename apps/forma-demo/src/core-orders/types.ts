@@ -2,4 +2,10 @@
 
 export type OrderId = { readonly id: string };
 export type Order = { readonly id: string; readonly total: number };
-export type FindError = { readonly kind: "not_found" };
+
+export type FindError = { readonly kind: "not_found" } | { readonly kind: "forbidden" };
+
+/** Execution seed: role gates GetOrder before FindOrder runs. */
+export type DemoSeed = {
+  readonly role: "admin" | "viewer" | "guest";
+};
