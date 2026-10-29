@@ -7,15 +7,11 @@ export type { Adapter } from "./adapter.js";
 export { boundary, intentIdentity } from "./boundary.js";
 export type { Boundary, Intent, IntentIdentity } from "./boundary.js";
 
-export { bind, compose } from "./compose.js";
-export type {
-  Binding,
-  BindingPair,
-  ComposeOptions,
-  CompositionRoot,
-  ExecutionContext,
-  WiringEntry,
-} from "./compose.js";
+export { bind } from "./bind.js";
+export type { Binding, BindingPair, WiringEntry } from "./bind.js";
+
+export { compose } from "./compose.js";
+export type { ComposeOptions, CompositionRoot, ExecutionContext } from "./compose.js";
 
 export type {
   AdaptProvideApi,

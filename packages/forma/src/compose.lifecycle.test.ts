@@ -294,4 +294,280 @@ describe("compose — lifecycle and disposal", () => {
     await root.dispose();
     expect(compositionStub.disposed).toBe(true);
   });
+
+  it("createExecutionContext() throws after root.dispose()", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+
+    const root = compose({ surface: { ping: PingProvider } });
+    await root.dispose();
+
+    expect(() => root.createExecutionContext()).toThrow(/disposed/i);
+  });
+
+  it("surface use after root.dispose() throws", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+    await expect(ctx.ping()).resolves.toEqual({ ok: true, value: "pong" });
+
+    await root.dispose();
+
+    await expect(ctx.ping()).rejects.toThrow(/disposed/i);
+  });
+
+  it("concurrent ctx.dispose() callers share one promise", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const PingProvider = Ping.provide.perContext().with(({ lifetime }) => {
+      lifetime.onDispose(() => hold);
+      return () => ok("pong" as const);
+    });
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+    await ctx.ping();
+
+    const first = ctx.dispose();
+    const second = ctx.dispose();
+    expect(second).toBe(first);
+
+    release();
+    await expect(first).resolves.toBeUndefined();
+    await expect(second).resolves.toBeUndefined();
+    await root.dispose();
+  });
+
+  it("concurrent root.dispose() callers share one promise", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const PingProvider = Ping.provide.with(({ lifetime }) => {
+      lifetime.onDispose(() => hold);
+      return () => ok("pong" as const);
+    });
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+    await ctx.ping();
+    await ctx.dispose();
+
+    const first = root.dispose();
+    const second = root.dispose();
+    expect(second).toBe(first);
+
+    release();
+    await expect(first).resolves.toBeUndefined();
+    await expect(second).resolves.toBeUndefined();
+  });
+
+  it("root.dispose() reaches disposed even when a composition cleanup fails", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+
+    const PingProvider = Ping.provide.with(({ lifetime }) => {
+      lifetime.onDispose(() => {
+        throw new Error("composition cleanup failed");
+      });
+      return () => ok("pong" as const);
+    });
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+    await ctx.ping();
+    await ctx.dispose();
+
+    await expect(root.dispose()).rejects.toThrow(/composition cleanup failed/);
+    expect(() => root.createExecutionContext()).toThrow(/disposed/i);
+  });
+
+  it("root.dispose() closes open execution contexts as backstop", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+
+    const stub = { disposed: false };
+    const PingProvider = Ping.provide.perContext().with(({ lifetime }) => {
+      lifetime.onDispose(() => {
+        stub.disposed = true;
+      });
+      return () => ok("pong" as const);
+    });
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+    await ctx.ping();
+    expect(stub.disposed).toBe(false);
+
+    await root.dispose();
+    expect(stub.disposed).toBe(true);
+    await expect(ctx.ping()).rejects.toThrow(/disposed/i);
+  });
+
+  it("ctx.dispose() waits for an in-flight surface call before running cleanups", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let sawOp!: () => void;
+    const opEntered = new Promise<void>((resolve) => {
+      sawOp = resolve;
+    });
+    let cleaned = false;
+    const PingProvider = Ping.provide.perContext().with(({ lifetime }) => {
+      lifetime.onDispose(() => {
+        cleaned = true;
+      });
+      return async () => {
+        sawOp();
+        await hold;
+        return ok("pong" as const);
+      };
+    });
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+
+    const pending = ctx.ping();
+    await opEntered;
+    const disposing = ctx.dispose();
+    expect(cleaned).toBe(false);
+
+    release();
+    await expect(pending).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(disposing).resolves.toBeUndefined();
+    expect(cleaned).toBe(true);
+
+    await root.dispose();
+  });
+
+  it("ctx.dispose() during per-context factory drains that factory's cleanups", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+
+    let releaseFactory!: () => void;
+    const factoryHold = new Promise<void>((resolve) => {
+      releaseFactory = resolve;
+    });
+    let sawFactory!: () => void;
+    const factoryEntered = new Promise<void>((resolve) => {
+      sawFactory = resolve;
+    });
+    let cleaned = false;
+
+    const base = Ping.provide.perContext().with(() => () => ok("pong" as const));
+    const PingProvider = {
+      ...base,
+      factory: (async (...args: Parameters<typeof base.factory>) => {
+        const [, life] = args;
+        life.onDispose(() => {
+          cleaned = true;
+        });
+        sawFactory();
+        await factoryHold;
+        return base.factory(...args);
+      }) as unknown as typeof base.factory,
+    };
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+
+    const pending = ctx.ping();
+    await factoryEntered;
+    const disposing = ctx.dispose();
+    expect(cleaned).toBe(false);
+
+    releaseFactory();
+    await expect(pending).rejects.toThrow(/disposed/i);
+    await expect(disposing).resolves.toBeUndefined();
+    expect(cleaned).toBe(true);
+
+    await expect(ctx.ping()).rejects.toThrow(/disposed/i);
+    await root.dispose();
+  });
+  it("Lifetime.onDispose after the scope is sealed throws", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+
+    let stolenLifetime: { onDispose(cleanup: () => void): void } | undefined;
+    const PingProvider = Ping.provide.perContext().with(({ lifetime }) => {
+      stolenLifetime = lifetime;
+      return () => ok("pong" as const);
+    });
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx = root.createExecutionContext();
+    await ctx.ping();
+    await ctx.dispose();
+
+    expect(() => stolenLifetime!.onDispose(() => undefined)).toThrow(/sealed/i);
+    await root.dispose();
+  });
+
+  it("composition-lifetime cache survives the context that first materialized it", async () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, { readonly n: number }, never>();
+
+    let releaseFactory!: () => void;
+    const factoryHold = new Promise<void>((resolve) => {
+      releaseFactory = resolve;
+    });
+    let sawFactory!: () => void;
+    const factoryEntered = new Promise<void>((resolve) => {
+      sawFactory = resolve;
+    });
+    let setups = 0;
+    const base = Ping.provide.with(() => {
+      setups += 1;
+      const instance = { n: setups };
+      return () => ok(instance);
+    });
+    const PingProvider = {
+      ...base,
+      factory: (async (...args: Parameters<typeof base.factory>) => {
+        sawFactory();
+        await factoryHold;
+        return base.factory(...args);
+      }) as unknown as typeof base.factory,
+    };
+
+    const root = compose({ surface: { ping: PingProvider } });
+    const ctx1 = root.createExecutionContext();
+    const ctx2 = root.createExecutionContext();
+
+    const first = ctx1.ping();
+    await factoryEntered;
+    const disposing = ctx1.dispose();
+    releaseFactory();
+
+    await expect(first).resolves.toEqual({ ok: true, value: { n: 1 } });
+    await expect(disposing).resolves.toBeUndefined();
+    expect(setups).toBe(1);
+
+    const second = await ctx2.ping();
+    expect(second).toEqual({ ok: true, value: { n: 1 } });
+    if (!second.ok) {
+      throw new Error("expected ok");
+    }
+    expect(second.value).toEqual({ n: 1 });
+    expect(setups).toBe(1);
+
+    await ctx2.dispose();
+    await root.dispose();
+  });
 });

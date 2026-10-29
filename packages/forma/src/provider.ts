@@ -12,6 +12,7 @@ export type Disposable = () => void | Promise<void>;
 /**
  * Materialization-scoped hooks for the current provider instance.
  * Cleanups run on `ctx.dispose()` (`.perContext()`) or `root.dispose()` (default).
+ * After that scope seals (dispose has drained accepted work), `onDispose` throws.
  */
 export type Lifetime = {
   onDispose(cleanup: Disposable): void;

@@ -1,21 +1,5 @@
-import type { Intent } from "./boundary.js";
-import { intentIdentity } from "./boundary.js";
-import type { Provider } from "./provider.js";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- erasure shared with compose
-type AnyProvider = Provider<string, string, any, any, any, any, boolean>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- erasure shared with compose
-type AnyIntent = Intent<string, string, any, any, any>;
-
-/** Display label for diagnostics (not the identity key). */
-function intentLabel(intent: { readonly boundaryId: string; readonly name: string }): string {
-  return `${intent.boundaryId}.${intent.name}`;
-}
-
-/** Unambiguous runtime map key — same encoding as compose. */
-function intentMapKey(intent: { readonly boundaryId: string; readonly name: string }): string {
-  return JSON.stringify(intentIdentity(intent));
-}
+import type { AnyIntent, AnyProvider, Binding } from "./bind.js";
+import { intentLabel, intentMapKey } from "./intent-keys.js";
 
 /**
  * Static execution plan for a Composition: Intent nodes and dependency edges
@@ -67,7 +51,7 @@ function addEdge(
  */
 export function buildExecutionPlan(
   registry: ReadonlyMap<string, AnyProvider>,
-  bindings: readonly (readonly [AnyIntent, AnyIntent])[]
+  bindings: readonly Binding[] | readonly (readonly [AnyIntent, AnyIntent])[]
 ): ExecutionPlan {
   const labels = new Map<string, string>();
   const adjacency = new Map<string, Set<string>>();
@@ -105,7 +89,7 @@ export function buildExecutionPlan(
  */
 export function assertClosedGraph(
   registry: ReadonlyMap<string, AnyProvider>,
-  bindings: readonly (readonly [AnyIntent, AnyIntent])[]
+  bindings: readonly Binding[] | readonly (readonly [AnyIntent, AnyIntent])[]
 ): void {
   const bindingMap = new Map<string, string>();
   for (const [required, satisfier] of bindings) {

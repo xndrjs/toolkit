@@ -62,7 +62,7 @@ const GetOrderProvider = GetOrder.provide
   );
 ```
 
-Default lifetime is shared by the composition root. `.perContext()` materializes once per `createExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime).
+Default lifetime is shared by the composition root. `.perContext()` materializes once per `createExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime). Root and context `dispose()` are terminal state machines (concurrent callers share one promise); `root.dispose()` also closes any open execution contexts.
 
 `Intent.provide.using` accepts only same-boundary Intents. Every Provider carries a required `origin` discriminant: `{ kind: "boundary", id }` from `Intent.provide…with`, or `{ kind: "adapter", id }` from Adapter `.adapt…with`.
 
