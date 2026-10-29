@@ -7,8 +7,8 @@ export type { Adapter } from "./adapter.js";
 export { boundary, intentIdentity } from "./boundary.js";
 export type { Boundary, Intent, IntentIdentity } from "./boundary.js";
 
-export { bind } from "./bind.js";
-export type { Binding, BindingPair, WiringEntry } from "./bind.js";
+export { aliasIntent } from "./alias-intent.js";
+export type { IntentAlias, IntentAliasPair, WiringEntry } from "./alias-intent.js";
 
 export { compose, defineComposition, defineWiring } from "./compose.js";
 export type {

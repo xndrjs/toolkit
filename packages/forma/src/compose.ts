@@ -1,14 +1,14 @@
 import {
   type AnyIntent,
   type AnyProvider,
-  type Binding,
-  type BindingPair,
-  type BindingsFromWiring,
-  bind,
+  type IntentAlias,
+  type IntentAliasPair,
+  type AliasesFromWiring,
+  aliasIntent,
   type ProvidersFromWiring,
   partitionWiring,
   type WiringEntry,
-} from "./bind.js";
+} from "./alias-intent.js";
 import type {
   AssertNoInvalidLifetimeEdges,
   AssertNoProviderUnions,
@@ -32,8 +32,8 @@ import {
 } from "./scope-lifecycle.js";
 import { assertStringRecordKeys } from "./string-keys.js";
 
-export { bind };
-export type { Binding, BindingPair, WiringEntry };
+export { aliasIntent };
+export type { IntentAlias, IntentAliasPair, WiringEntry };
 
 type Awaitable<T> = T | PromiseLike<T>;
 
@@ -131,10 +131,11 @@ export type ComposeOptions<
 > = {
   readonly surface: Surface;
   /**
-   * Private providers and {@link bind} aliases for dependency resolution.
-   * Providers here are not on the context; bindings rewrite required Intent identity
+   * Private providers and {@link aliasIntent} aliases for dependency resolution.
+   * Providers here are not on the context; intent aliases rewrite required Intent identity
    * to a satisfier whose provider is registered (surface or wiring).
    * Prefer {@link defineWiring} when extracting this array so the tuple stays precise.
+   * Prefer Adapter / Provider passthrough over {@link aliasIntent} for cross-boundary wiring.
    */
   readonly wiring?: Wiring;
 };
@@ -144,8 +145,8 @@ type ComposeAsserts<
   Wiring extends readonly WiringEntry[],
 > = AssertSurfaceAliasesSafe<Surface> &
   AssertNoProviderUnions<Surface, Wiring> &
-  AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>> &
-  AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>>;
+  AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>> &
+  AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>>;
 
 /**
  * Build a precise `wiring` tuple for {@link compose}. A plain extracted array
@@ -154,7 +155,7 @@ type ComposeAsserts<
  * is the documented extraction path.
  *
  * ```ts
- * const wiring = defineWiring(SelectOrderProvider, bind(FindOrder, SelectOrder));
+ * const wiring = defineWiring(SelectOrderProvider, aliasIntent(FindOrder, SelectOrder));
  * compose({ surface: { getOrder }, wiring });
  * ```
  */
@@ -189,17 +190,17 @@ function freezeSeed<Seed>(seed: Seed): Readonly<Seed> {
 }
 
 /**
- * Build a closed Composition: register surface + wiring (providers and bind
- * aliases), resolve `using` deps by identity (and binding rewrite), expose
+ * Build a closed Composition: register surface + wiring (providers and
+ * {@link aliasIntent} aliases), resolve `using` deps by identity (and intent-alias rewrite), expose
  * surface aliases on execution contexts, and materialize realizations lazily
  * on first use.
  *
- * Type-level: after binding rewrite, every Intent required by registered
+ * Type-level: after intent-alias rewrite, every Intent required by registered
  * providers must have a registered provider (missing → compile error). Keys are
  * structured `(boundaryId, intentName)`, not concatenated labels.
  * Runtime: duplicate Intent within `surface` or within wiring providers, same
- * Intent in both, duplicate Binding for one Required Intent, or provider +
- * binding for the same Required Intent, throws. Surface aliases must be strings
+ * Intent in both, duplicate Intent alias for one Required Intent, or provider +
+ * intent alias for the same Required Intent, throws. Surface aliases must be strings
  * and must not use reserved names (`dispose`, `surface`, `__proto__`). Homonymous
  * Boundaries and repeated Intent declarations share one identity. After
  * registration, builds an execution plan and rejects cycles / open graphs before
@@ -261,15 +262,15 @@ function composeImpl<
 ): CompositionRoot<Surface, Seed> {
   assertStringRecordKeys(options.surface, "Surface", { rejectReservedSurface: true });
   const surfaceEntries = Object.entries(options.surface) as [keyof Surface & string, AnyProvider][];
-  const { providers: privateProviders, bindings } = partitionWiring(options.wiring ?? []);
+  const { providers: privateProviders, aliases } = partitionWiring(options.wiring ?? []);
   const surfaceProviders = surfaceEntries.map(([, p]) => p);
 
-  assertRegistrationSafety(surfaceProviders, privateProviders, bindings);
-  const { registry, bindingMap } = buildRegistry(surfaceProviders, privateProviders, bindings);
+  assertRegistrationSafety(surfaceProviders, privateProviders, aliases);
+  const { registry, aliasMap } = buildRegistry(surfaceProviders, privateProviders, aliases);
 
-  const executionPlan = buildExecutionPlan(registry, bindings);
+  const executionPlan = buildExecutionPlan(registry, aliases);
   assertAcyclicPlan(executionPlan);
-  assertClosedGraph(registry, bindings);
+  assertClosedGraph(registry, aliases);
 
   /** Shared by default (composition-lifetime) providers — owned by the root scope. */
   const compositionOps = new Map<string, Op>();
@@ -392,15 +393,15 @@ function composeImpl<
       path: readonly string[]
     ): Promise<Op> {
       const requiredId = intentMapKey(required);
-      const satisfierId = bindingMap.get(requiredId) ?? requiredId;
+      const satisfierId = aliasMap.get(requiredId) ?? requiredId;
       const provider = registry.get(satisfierId);
       if (!provider) {
-        const viaBinding =
+        const viaAlias =
           satisfierId !== requiredId
-            ? ` (bound satisfier identity has no registered provider)`
+            ? ` (aliased satisfier identity has no registered provider)`
             : "";
         throw new Error(
-          `No provider registered for Intent ${intentLabel(required)}${viaBinding}. Add it to surface or wiring.`
+          `No provider registered for Intent ${intentLabel(required)}${viaAlias}. Add it to surface or wiring.`
         );
       }
       return materialize(provider, seeing, path);
@@ -416,7 +417,7 @@ function composeImpl<
       for (const [key, intent] of Object.entries(deps)) {
         if (!provider.perContext) {
           const requiredId = intentMapKey(intent);
-          const satisfierId = bindingMap.get(requiredId) ?? requiredId;
+          const satisfierId = aliasMap.get(requiredId) ?? requiredId;
           const depProvider = registry.get(satisfierId);
           if (depProvider?.perContext) {
             throw new Error(

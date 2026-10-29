@@ -1,5 +1,5 @@
 import type { Intent, IntentIdentity } from "./boundary.js";
-import type { AnyProvider, Binding, WiringEntry } from "./bind.js";
+import type { AnyProvider, IntentAlias, WiringEntry } from "./alias-intent.js";
 import type { Provider } from "./provider.js";
 import type { ReservedSurfaceAlias } from "./string-keys.js";
 
@@ -72,7 +72,7 @@ type ProviderForIntentKey<
 type InvalidLifetimeEdgeKeys<
   Surface extends Record<string, AnyProvider>,
   Providers extends readonly AnyProvider[],
-  Bindings extends readonly Binding[],
+  Aliases extends readonly IntentAlias[],
 > =
   RegisteredProviders<Surface, Providers> extends infer Consumer
     ? Consumer extends AnyProvider
@@ -80,7 +80,7 @@ type InvalidLifetimeEdgeKeys<
         ? never
         : ProviderDepKeys<Consumer> extends infer DepKey
           ? DepKey extends IntentKey
-            ? RewriteRequirement<DepKey, Bindings> extends infer SatisfierKey
+            ? RewriteRequirement<DepKey, Aliases> extends infer SatisfierKey
               ? SatisfierKey extends IntentKey
                 ? ProviderForIntentKey<SatisfierKey, Surface, Providers> extends infer Sat
                   ? Sat extends AnyProvider
@@ -118,21 +118,21 @@ type RequiredIntentKeys<
         : never
       : never);
 
-type BindingSatisfierFor<
+type AliasSatisfierFor<
   Required extends IntentKey,
-  Bindings extends readonly Binding[],
-> = Bindings extends readonly [infer Head, ...infer Tail]
+  Aliases extends readonly IntentAlias[],
+> = Aliases extends readonly [infer Head, ...infer Tail]
   ? Head extends readonly [infer Req, infer Sat]
     ? [IntentKeyOf<Req>] extends [Required]
       ? IntentKeyOf<Sat>
-      : Tail extends readonly Binding[]
-        ? BindingSatisfierFor<Required, Tail>
+      : Tail extends readonly IntentAlias[]
+        ? AliasSatisfierFor<Required, Tail>
         : never
     : never
   : never;
 
-type RewriteRequirement<Required extends IntentKey, Bindings extends readonly Binding[]> =
-  BindingSatisfierFor<Required, Bindings> extends infer Sat
+type RewriteRequirement<Required extends IntentKey, Aliases extends readonly IntentAlias[]> =
+  AliasSatisfierFor<Required, Aliases> extends infer Sat
     ? [Sat] extends [never]
       ? Required
       : Sat extends IntentKey
@@ -142,19 +142,19 @@ type RewriteRequirement<Required extends IntentKey, Bindings extends readonly Bi
 
 type RewriteAllRequirements<
   Required,
-  Bindings extends readonly Binding[],
-> = Required extends IntentKey ? RewriteRequirement<Required, Bindings> : never;
+  Aliases extends readonly IntentAlias[],
+> = Required extends IntentKey ? RewriteRequirement<Required, Aliases> : never;
 
 /**
- * Intent keys required by registered providers after binding rewrite that still
+ * Intent keys required by registered providers after intent-alias rewrite that still
  * have no registered provider (PoC: missing-provider exhaustiveness).
  */
 type MissingProviderKeys<
   Surface extends Record<string, AnyProvider>,
   Providers extends readonly AnyProvider[],
-  Bindings extends readonly Binding[],
+  Aliases extends readonly IntentAlias[],
 > = Exclude<
-  RewriteAllRequirements<RequiredIntentKeys<Surface, Providers>, Bindings>,
+  RewriteAllRequirements<RequiredIntentKeys<Surface, Providers>, Aliases>,
   RegisteredIntentKeys<Surface, Providers>
 >;
 
@@ -184,14 +184,14 @@ type SurfaceProviderUnionKeys<Surface extends Record<string, AnyProvider>> = {
 /**
  * Walk a wiring tuple slot-by-slot. Heterogeneous `[A, B]` is fine;
  * a single slot typed as `A | B` is not (would falsely register both Intents).
- * `[Head] extends [Binding]` is intentional: a naked `Head extends Binding`
+ * `[Head] extends [IntentAlias]` is intentional: a naked `Head extends IntentAlias`
  * would distribute over a Provider union and miss the union slot.
  */
 type WiringProviderUnionSlots<W extends readonly WiringEntry[]> = W extends readonly [
   infer Head,
   ...infer Tail,
 ]
-  ? [Head] extends [Binding]
+  ? [Head] extends [IntentAlias]
     ? Tail extends readonly WiringEntry[]
       ? WiringProviderUnionSlots<Tail>
       : never
@@ -213,9 +213,9 @@ type NonStringSurfaceKeys<Surface> = Exclude<keyof Surface, string>;
 export type AssertProvidersComplete<
   Surface extends Record<string, AnyProvider>,
   Providers extends readonly AnyProvider[],
-  Bindings extends readonly Binding[],
+  Aliases extends readonly IntentAlias[],
 > =
-  MissingProviderKeys<Surface, Providers, Bindings> extends infer Missing
+  MissingProviderKeys<Surface, Providers, Aliases> extends infer Missing
     ? [Missing] extends [never]
       ? unknown
       : {
@@ -230,9 +230,9 @@ export type AssertProvidersComplete<
 export type AssertNoInvalidLifetimeEdges<
   Surface extends Record<string, AnyProvider>,
   Providers extends readonly AnyProvider[],
-  Bindings extends readonly Binding[],
+  Aliases extends readonly IntentAlias[],
 > =
-  InvalidLifetimeEdgeKeys<Surface, Providers, Bindings> extends infer Bad
+  InvalidLifetimeEdgeKeys<Surface, Providers, Aliases> extends infer Bad
     ? [Bad] extends [never]
       ? unknown
       : {

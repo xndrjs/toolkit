@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; surface/`using` key hygiene; Design C execution API; execution seed / `AbortSignal`; `defineWiring` helpers).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution seed / `AbortSignal`; `defineWiring` helpers).
 
 ## Installation
 
@@ -71,7 +71,7 @@ Optional typed **seed**: `compose({ … })` defaults to no seed; `compose<MySeed
 
 ### Adapter
 
-An **Adapter** is a peer of Boundary, scoped to one target Boundary. It owns external realizations of that target’s Intents and may `using` Intents from any boundary. Prefer Adapter when contracts differ or multi-boundary orchestration is required; same-shape `bind` remains a lightweight escape hatch.
+An **Adapter** is a peer of Boundary, scoped to one target Boundary. It owns external realizations of that target’s Intents and may `using` Intents from any boundary. **Default for cross-boundary wiring** — including when contracts match — is an Adapter (or same-boundary Provider) **passthrough**, not an identity alias. That keeps origin, graph edges, lifetime, and room for policy explicit.
 
 ```ts
 import { adapter, err, ok } from "@xndrjs/forma";
@@ -97,6 +97,8 @@ export const FindOrderAdapter = OrdersAdapter.adapt(FindOrder)
 ```
 
 `.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in `wiring` / `surface`, with `origin: { kind: "adapter", id: "orders-postgres" }`.
+
+When shapes already match, the factory can forward without mapping (`return select(input)`). Reserve `aliasIntent(required, satisfier)` for deliberate synonyms (rename / migration). There is no `forward` helper yet.
 
 ### Compose and execution context
 
@@ -133,8 +135,8 @@ await using execution = seeded.openExecutionContext({ seed: { tenantId: "acme" }
 await execution.surface.getOrder({ id: "42" });
 ```
 
-Only aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Binding edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `bind()` aliases share one `wiring` array (`defineWiring` keeps that list precise when extracted); prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
+Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array (`defineWiring` keeps that list precise when extracted); prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a small end-to-end example.
 
 ## Status
 
-PoC (`0.0.0`): closed compositions, `.contract`, Adapter peer of Boundary, structural `bind`, lifetime edges, unified `.with({ deps?, lifetime })`, disposal. Not a general-purpose IoC container.
+PoC (`0.0.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, lifetime edges, unified `.with({ deps?, lifetime })`, disposal. Not a general-purpose IoC container.

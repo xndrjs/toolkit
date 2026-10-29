@@ -17,9 +17,9 @@ That broke same-logical-Intent resolution across homonymous `boundary(id)` insta
 
 Canonical Intent identity is the structured pair `(boundaryId, intentName)`:
 
-- Runtime registry, binding rewrite, and materialization caches key by that pair (unambiguous encoding; not string concat).
+- Runtime registry, intent-alias rewrite, and materialization caches key by that pair (unambiguous encoding; not string concat).
 - Type-level compose graph keys use the same structured pair (tuple), so concat collisions cannot alias.
-- Competing providers (or provider + binding) for one key throw at `compose`.
+- Competing providers (or provider + Intent alias) for one key throw at `compose`.
 - Homonymous Boundaries / repeated Intent declarations coalesce to one identity.
 - Prefer literal `boundary` / `intent` names; widening either to `string` weakens type-level completeness (documented footgun).
 

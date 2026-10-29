@@ -1,15 +1,15 @@
-import type { AnyIntent, AnyProvider, Binding } from "./bind.js";
+import type { AnyIntent, AnyProvider, IntentAlias } from "./alias-intent.js";
 import { intentLabel, intentMapKey } from "./intent-keys.js";
 
 /**
  * Static execution plan for a Composition: Intent nodes and dependency edges
- * (provider `using` + Binding rewrites). Validated at `compose` for cycles and
+ * (provider `using` + Intent-alias rewrites). Validated at `compose` for cycles and
  * a closed graph; not yet exposed via `describePlan`.
  */
 export type ExecutionPlan = {
   /** Intent map key → display label (`boundaryId.name`). */
   readonly labels: ReadonlyMap<string, string>;
-  /** Adjacency: dependent Intent key → keys it requires (using and/or binding). */
+  /** Adjacency: dependent Intent key → keys it requires (using and/or alias). */
   readonly adjacency: ReadonlyMap<string, ReadonlySet<string>>;
 };
 
@@ -45,13 +45,13 @@ function addEdge(
  *
  * Edges:
  * - Provider `using`: consumer Intent → required Intent (before rewrite)
- * - Binding: required Intent → satisfier Intent
+ * - Intent alias: required Intent → satisfier Intent
  *
- * Together these include Binding-mediated cycles (e.g. A uses B, bind(B, A)).
+ * Together these include alias-mediated cycles (e.g. A uses B, aliasIntent(B, A)).
  */
 export function buildExecutionPlan(
   registry: ReadonlyMap<string, AnyProvider>,
-  bindings: readonly Binding[] | readonly (readonly [AnyIntent, AnyIntent])[]
+  aliases: readonly IntentAlias[] | readonly (readonly [AnyIntent, AnyIntent])[]
 ): ExecutionPlan {
   const labels = new Map<string, string>();
   const adjacency = new Map<string, Set<string>>();
@@ -60,7 +60,7 @@ export function buildExecutionPlan(
     ensureNode(labels, adjacency, key, intentLabel(provider.intent));
   }
 
-  for (const [required, satisfier] of bindings) {
+  for (const [required, satisfier] of aliases) {
     addEdge(
       labels,
       adjacency,
@@ -84,23 +84,23 @@ export function buildExecutionPlan(
 }
 
 /**
- * Every `using` requirement (after Binding rewrite) and every Binding satisfier
+ * Every `using` requirement (after Intent-alias rewrite) and every alias satisfier
  * must have a registered provider.
  */
 export function assertClosedGraph(
   registry: ReadonlyMap<string, AnyProvider>,
-  bindings: readonly Binding[] | readonly (readonly [AnyIntent, AnyIntent])[]
+  aliases: readonly IntentAlias[] | readonly (readonly [AnyIntent, AnyIntent])[]
 ): void {
-  const bindingMap = new Map<string, string>();
-  for (const [required, satisfier] of bindings) {
-    bindingMap.set(intentMapKey(required), intentMapKey(satisfier));
+  const aliasMap = new Map<string, string>();
+  for (const [required, satisfier] of aliases) {
+    aliasMap.set(intentMapKey(required), intentMapKey(satisfier));
   }
 
-  for (const [, satisfier] of bindings) {
+  for (const [, satisfier] of aliases) {
     const satisfierId = intentMapKey(satisfier);
     if (!registry.has(satisfierId)) {
       throw new Error(
-        `No provider registered for Intent ${intentLabel(satisfier)} (binding satisfier). Add it to surface or wiring.`
+        `No provider registered for Intent ${intentLabel(satisfier)} (alias satisfier). Add it to surface or wiring.`
       );
     }
   }
@@ -109,14 +109,14 @@ export function assertClosedGraph(
     const deps = provider.deps as Record<string, AnyIntent>;
     for (const intent of Object.values(deps)) {
       const requiredId = intentMapKey(intent);
-      const satisfierId = bindingMap.get(requiredId) ?? requiredId;
+      const satisfierId = aliasMap.get(requiredId) ?? requiredId;
       if (!registry.has(satisfierId)) {
-        const viaBinding =
+        const viaAlias =
           satisfierId !== requiredId
-            ? ` (bound satisfier identity has no registered provider)`
+            ? ` (aliased satisfier identity has no registered provider)`
             : "";
         throw new Error(
-          `No provider registered for Intent ${intentLabel(intent)}${viaBinding}. Add it to surface or wiring.`
+          `No provider registered for Intent ${intentLabel(intent)}${viaAlias}. Add it to surface or wiring.`
         );
       }
     }

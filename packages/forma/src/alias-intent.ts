@@ -9,28 +9,28 @@ import type { Provider } from "./provider.js";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyProvider erasure
 export type AnyProvider = Provider<string, string, any, any, any, any, boolean>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyIntent erasure for bindings
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyIntent erasure for intent aliases
 export type AnyIntent = Intent<string, string, any, any, any>;
 
-declare const formaBindingBrand: unique symbol;
+declare const formaIntentAliasBrand: unique symbol;
 
 /**
- * Explicit composition association produced only by {@link bind}.
+ * Explicit composition association produced only by {@link aliasIntent}.
  * Preserves concrete Intent types so `compose` can rewrite requirements.
  * Raw `[required, satisfier]` tuples are not assignable (brand).
  */
-export type BindingPair<
+export type IntentAliasPair<
   Req extends AnyIntent = AnyIntent,
   Sat extends AnyIntent = AnyIntent,
 > = readonly [Req, Sat] & {
-  readonly [formaBindingBrand]: void;
+  readonly [formaIntentAliasBrand]: void;
 };
 
-/** Erased binding pair for heterogeneous `wiring` arrays. */
-export type Binding = BindingPair;
+/** Erased intent-alias pair for heterogeneous `wiring` arrays. */
+export type IntentAlias = IntentAliasPair;
 
-/** One entry in `compose({ wiring })`: a Provider or a {@link bind} alias. */
-export type WiringEntry = AnyProvider | Binding;
+/** One entry in `compose({ wiring })`: a Provider or an {@link aliasIntent} entry. */
+export type WiringEntry = AnyProvider | IntentAlias;
 
 /**
  * `Sat` when Req and Sat Intent contracts are mutually assignable
@@ -50,31 +50,33 @@ type SameContract<Req, Sat> =
     : never;
 
 /**
- * Associate a required Intent with a satisfier Intent whose contract is
- * structurally equivalent. Use the result in `compose({ wiring })`.
+ * Rare identity alias: rewrite a required Intent identity to a satisfier whose
+ * contract is structurally equivalent. Prefer an Adapter (or same-boundary
+ * Provider) passthrough for cross-boundary same-shape wiring; reserve this for
+ * deliberate synonyms (rename / migration). Use the result in `compose({ wiring })`.
  *
  * ```ts
- * wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)]
+ * wiring: [SelectOrderProvider, aliasIntent(FindOrder, SelectOrder)]
  * ```
  */
-export function bind<Req extends AnyIntent, Sat extends AnyIntent>(
+export function aliasIntent<Req extends AnyIntent, Sat extends AnyIntent>(
   required: Req,
   satisfier: SameContract<Req, Sat>
-): BindingPair<Req, Sat> {
-  return [required, satisfier] as unknown as BindingPair<Req, Sat>;
+): IntentAliasPair<Req, Sat> {
+  return [required, satisfier] as unknown as IntentAliasPair<Req, Sat>;
 }
 
-/** Runtime partition: {@link bind} pairs are arrays; Providers are objects. */
-export function isBinding(entry: WiringEntry): entry is Binding {
+/** Runtime partition: {@link aliasIntent} pairs are arrays; Providers are objects. */
+export function isIntentAlias(entry: WiringEntry): entry is IntentAlias {
   return Array.isArray(entry);
 }
 
-/** Type-level: Providers from a `wiring` tuple (Bindings dropped). */
+/** Type-level: Providers from a `wiring` tuple (Intent aliases dropped). */
 export type ProvidersFromWiring<W extends readonly WiringEntry[]> = W extends readonly [
   infer Head,
   ...infer Tail,
 ]
-  ? Head extends Binding
+  ? Head extends IntentAlias
     ? Tail extends readonly WiringEntry[]
       ? ProvidersFromWiring<Tail>
       : readonly []
@@ -83,32 +85,32 @@ export type ProvidersFromWiring<W extends readonly WiringEntry[]> = W extends re
       : readonly [Extract<Head, AnyProvider>]
   : readonly [];
 
-/** Type-level: Bindings from a `wiring` tuple (Providers dropped). */
-export type BindingsFromWiring<W extends readonly WiringEntry[]> = W extends readonly [
+/** Type-level: Intent aliases from a `wiring` tuple (Providers dropped). */
+export type AliasesFromWiring<W extends readonly WiringEntry[]> = W extends readonly [
   infer Head,
   ...infer Tail,
 ]
-  ? Head extends Binding
+  ? Head extends IntentAlias
     ? Tail extends readonly WiringEntry[]
-      ? readonly [Head, ...BindingsFromWiring<Tail>]
+      ? readonly [Head, ...AliasesFromWiring<Tail>]
       : readonly [Head]
     : Tail extends readonly WiringEntry[]
-      ? BindingsFromWiring<Tail>
+      ? AliasesFromWiring<Tail>
       : readonly []
   : readonly [];
 
 export function partitionWiring(wiring: readonly WiringEntry[]): {
   providers: AnyProvider[];
-  bindings: Binding[];
+  aliases: IntentAlias[];
 } {
   const providers: AnyProvider[] = [];
-  const bindings: Binding[] = [];
+  const aliases: IntentAlias[] = [];
   for (const entry of wiring) {
-    if (isBinding(entry)) {
-      bindings.push(entry);
+    if (isIntentAlias(entry)) {
+      aliases.push(entry);
     } else {
       providers.push(entry);
     }
   }
-  return { providers, bindings };
+  return { providers, aliases };
 }

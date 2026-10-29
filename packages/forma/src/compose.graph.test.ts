@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { boundary } from "./boundary.js";
-import { bind, compose } from "./compose.js";
+import { aliasIntent, compose } from "./compose.js";
 import { ok } from "./result.js";
 
 type OrderId = { readonly id: string };
@@ -65,7 +65,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     ).toThrow(/^Circular dependency: orders\.(a|b) -> orders\.(a|b) -> orders\.(a|b)$/);
   });
 
-  it("rejects a Binding-mediated cycle at compose", () => {
+  it("rejects a alias-mediated cycle at compose", () => {
     const Orders = boundary("orders");
     const A = Orders.intent("a").contract<OrderId, Order, FindError>();
     const B = Orders.intent("b").contract<OrderId, Order, FindError>();
@@ -77,16 +77,16 @@ describe("compose — graph plan and cycle detection (F2)", () => {
         }
     );
 
-    // A uses B; bind(B, A) → A → B → A
+    // A uses B; aliasIntent(B, A) → A → B → A
     expect(() =>
       compose({
         surface: { a: ProviderA },
-        wiring: [bind(B, A)],
+        wiring: [aliasIntent(B, A)],
       })
     ).toThrow(/Circular dependency: orders\.a -> orders\.b -> orders\.a/);
   });
 
-  it("rejects a Binding-only cycle (mutual aliases) at compose", () => {
+  it("rejects a alias-only cycle (mutual aliases) at compose", () => {
     const Orders = boundary("orders");
     const A = Orders.intent("a").contract<OrderId, Order, FindError>();
     const B = Orders.intent("b").contract<OrderId, Order, FindError>();
@@ -99,18 +99,18 @@ describe("compose — graph plan and cycle detection (F2)", () => {
         }
     );
 
-    // Mutual bind(A, B) + bind(B, A): cycle in the plan (also an open graph).
+    // Mutual aliasIntent(A, B) + aliasIntent(B, A): cycle in the plan (also an open graph).
     // Type-level completeness only walks provider `using` deps (Leaf has none),
     // so this is caught at compose by the execution plan, not by AssertProvidersComplete.
     expect(() =>
       compose({
         surface: { leaf: LeafProvider },
-        wiring: [bind(A, B), bind(B, A)],
+        wiring: [aliasIntent(A, B), aliasIntent(B, A)],
       })
     ).toThrow(/Circular dependency: orders\.(a|b) -> orders\.(a|b) -> orders\.(a|b)/);
   });
 
-  it("allows a Binding chain (A uses X bound to B; B is acyclic)", async () => {
+  it("allows an alias chain (A uses X aliased to B; B is acyclic)", async () => {
     const Orders = boundary("orders");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
     const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
@@ -131,7 +131,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
 
     const root = compose({
       surface: { getOrder: GetProvider },
-      wiring: [SelectProvider, bind(FindOrder, SelectOrder)],
+      wiring: [SelectProvider, aliasIntent(FindOrder, SelectOrder)],
     });
     const ctx = root.openExecutionContext();
     await expect(ctx.surface.getOrder({ id: "1" })).resolves.toEqual({

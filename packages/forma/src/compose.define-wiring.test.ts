@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { boundary } from "./boundary.js";
-import { bind, compose, defineComposition, defineWiring } from "./compose.js";
+import { aliasIntent, compose, defineComposition, defineWiring } from "./compose.js";
 import type { ComposeOptions } from "./compose.js";
 import { ok } from "./result.js";
 
@@ -87,7 +87,7 @@ describe("compose — defineWiring / defineComposition (F6)", () => {
     expect(typeof root.openExecutionContext).toBe("function");
   });
 
-  it("type-accepts defineWiring with bind aliases", () => {
+  it("type-accepts defineWiring with aliasIntent aliases", () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
@@ -107,7 +107,7 @@ describe("compose — defineWiring / defineComposition (F6)", () => {
         }
     );
 
-    const wiring = defineWiring(SelectOrderProvider, bind(FindOrder, SelectOrder));
+    const wiring = defineWiring(SelectOrderProvider, aliasIntent(FindOrder, SelectOrder));
     const root = compose({
       surface: { getOrder: GetOrderProvider },
       wiring,

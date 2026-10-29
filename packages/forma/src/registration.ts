@@ -1,4 +1,4 @@
-import type { AnyProvider, Binding } from "./bind.js";
+import type { AnyProvider, IntentAlias } from "./alias-intent.js";
 import { intentLabel, intentMapKey } from "./intent-keys.js";
 
 /**
@@ -8,7 +8,7 @@ import { intentLabel, intentMapKey } from "./intent-keys.js";
 export function assertRegistrationSafety(
   surfaceProviders: readonly AnyProvider[],
   privateProviders: readonly AnyProvider[],
-  bindings: readonly Binding[]
+  aliases: readonly IntentAlias[]
 ): void {
   const surfaceIds = new Set<string>();
   for (const provider of surfaceProviders) {
@@ -36,29 +36,29 @@ export function assertRegistrationSafety(
   }
 
   const registeredIds = new Set<string>([...surfaceIds, ...privateIds]);
-  const boundRequiredIds = new Set<string>();
-  for (const [required] of bindings) {
+  const aliasedRequiredIds = new Set<string>();
+  for (const [required] of aliases) {
     const requiredId = intentMapKey(required);
     if (registeredIds.has(requiredId)) {
       throw new Error(
-        `Ambiguous satisfaction for Intent ${intentLabel(required)}: both a provider and a binding are registered`
+        `Ambiguous satisfaction for Intent ${intentLabel(required)}: both a provider and an intent alias are registered`
       );
     }
-    if (boundRequiredIds.has(requiredId)) {
-      throw new Error(`Duplicate binding for Intent ${intentLabel(required)}`);
+    if (aliasedRequiredIds.has(requiredId)) {
+      throw new Error(`Duplicate intent alias for Intent ${intentLabel(required)}`);
     }
-    boundRequiredIds.add(requiredId);
+    aliasedRequiredIds.add(requiredId);
   }
 }
 
-/** Build Intent-identity registry and Binding rewrite map after safety checks. */
+/** Build Intent-identity registry and alias rewrite map after safety checks. */
 export function buildRegistry(
   surfaceProviders: readonly AnyProvider[],
   privateProviders: readonly AnyProvider[],
-  bindings: readonly Binding[]
+  aliases: readonly IntentAlias[]
 ): {
   registry: Map<string, AnyProvider>;
-  bindingMap: Map<string, string>;
+  aliasMap: Map<string, string>;
 } {
   const registry = new Map<string, AnyProvider>();
   for (const provider of [...surfaceProviders, ...privateProviders]) {
@@ -66,10 +66,10 @@ export function buildRegistry(
   }
 
   /** Required Intent identity key → satisfier Intent identity key. */
-  const bindingMap = new Map<string, string>();
-  for (const [required, satisfier] of bindings) {
-    bindingMap.set(intentMapKey(required), intentMapKey(satisfier));
+  const aliasMap = new Map<string, string>();
+  for (const [required, satisfier] of aliases) {
+    aliasMap.set(intentMapKey(required), intentMapKey(satisfier));
   }
 
-  return { registry, bindingMap };
+  return { registry, aliasMap };
 }

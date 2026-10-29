@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { boundary } from "./boundary.js";
-import { bind, compose } from "./compose.js";
+import { aliasIntent, compose } from "./compose.js";
 import { ok } from "./result.js";
 
 type OrderId = { readonly id: string };
@@ -13,7 +13,7 @@ type FindError = { readonly kind: "not_found" };
  * same-contract Intents stay distinct at the type level (see boundary.ts).
  */
 describe("compose — composition safety", () => {
-  it("type-rejects surface needing an Intent with no provider after bindings", () => {
+  it("type-rejects surface needing an Intent with no provider after aliases", () => {
     const Orders = boundary("orders");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
     const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
@@ -25,7 +25,7 @@ describe("compose — composition safety", () => {
         }
     );
 
-    // Missing FindOrder provider (and no binding rewrite) — compile bar + compose throw.
+    // Missing FindOrder provider (and no intent-alias rewrite) — compile bar + compose throw.
     expect(() =>
       // @ts-expect-error — Missing provider for Intent(s): orders.find
       compose({
@@ -92,7 +92,7 @@ describe("compose — composition safety", () => {
     expect(typeof root.createExecutionContext).toBe("function");
   });
 
-  it("type-accepts a binding rewrite when the satisfier provider is registered", () => {
+  it("type-accepts an intent-alias rewrite when the satisfier provider is registered", () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
@@ -114,12 +114,12 @@ describe("compose — composition safety", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)],
+      wiring: [SelectOrderProvider, aliasIntent(FindOrder, SelectOrder)],
     });
     expect(typeof root.openExecutionContext).toBe("function");
   });
 
-  it("type-rejects a binding whose satisfier has no registered provider", () => {
+  it("type-rejects an intent alias whose satisfier has no registered provider", () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
@@ -137,7 +137,7 @@ describe("compose — composition safety", () => {
       // @ts-expect-error — Missing provider for Intent(s): postgres.selectOrder
       compose({
         surface: { getOrder: GetOrderProvider },
-        wiring: [bind(FindOrder, SelectOrder)],
+        wiring: [aliasIntent(FindOrder, SelectOrder)],
       })
     ).toThrow(/No provider registered for Intent postgres\.selectOrder/);
   });
@@ -244,7 +244,7 @@ describe("compose — composition safety", () => {
     ).toThrow(/appears in both surface and wiring/);
   });
 
-  it("throws when a Required Intent has both a provider and a binding", () => {
+  it("throws when a Required Intent has both a provider and an intent alias", () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
@@ -273,7 +273,7 @@ describe("compose — composition safety", () => {
     expect(() =>
       compose({
         surface: { getOrder: GetOrderProvider },
-        wiring: [FindOrderProvider, SelectOrderProvider, bind(FindOrder, SelectOrder)],
+        wiring: [FindOrderProvider, SelectOrderProvider, aliasIntent(FindOrder, SelectOrder)],
       })
     ).toThrow(/Ambiguous satisfaction for Intent orders\.find/);
   });
@@ -311,10 +311,10 @@ describe("compose — composition safety", () => {
         wiring: [
           SelectOrderProvider,
           SelectOrderAltProvider,
-          bind(FindOrder, SelectOrder),
-          bind(FindOrder, SelectOrderAlt),
+          aliasIntent(FindOrder, SelectOrder),
+          aliasIntent(FindOrder, SelectOrderAlt),
         ],
       })
-    ).toThrow(/Duplicate binding for Intent orders\.find/);
+    ).toThrow(/Duplicate intent alias for Intent orders\.find/);
   });
 });

@@ -30,4 +30,4 @@ registered while runtime materializes only one.
 - Modular wiring can keep static completeness checks without inlining every
   Provider at the `compose` call.
 - Dynamic Provider choice must resolve to one concrete Provider before compose
-  (or use separate compositions). Binding aliases are unchanged.
+  (or use separate compositions). Intent aliases (`aliasIntent`) are unchanged.

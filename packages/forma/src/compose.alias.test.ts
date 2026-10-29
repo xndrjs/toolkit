@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { adapter } from "./adapter.js";
 import { boundary } from "./boundary.js";
-import { bind, compose } from "./compose.js";
+import { aliasIntent, compose } from "./compose.js";
 import { err, ok, type Result } from "./result.js";
 
 /** Orders-owned contract types (duplicated per boundary — not shared with Postgres). */
@@ -9,7 +9,7 @@ type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
 type FindError = { readonly kind: "not_found" };
 
-describe("compose — explicit cross-boundary binding", () => {
+describe("compose — explicit cross-boundary intent alias", () => {
   it("rewrites FindOrder through a structurally matching SelectOrder provider", async () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
@@ -42,7 +42,7 @@ describe("compose — explicit cross-boundary binding", () => {
 
     const root = compose({
       surface: { getOrder: GetOrderProvider },
-      wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)],
+      wiring: [SelectOrderProvider, aliasIntent(FindOrder, SelectOrder)],
     });
 
     const ctx = root.openExecutionContext();
@@ -60,7 +60,7 @@ describe("compose — explicit cross-boundary binding", () => {
     await expect(ctx.dispose()).resolves.toBeUndefined();
   });
 
-  it("uses adapter().adapt(FindOrder) when shapes differ (no binding)", async () => {
+  it("uses adapter().adapt(FindOrder) when shapes differ (no intent alias)", async () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
 

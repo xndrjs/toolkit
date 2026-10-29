@@ -100,7 +100,7 @@ describe("adapter", () => {
     >();
   });
 
-  it("compose resolves an adapter provider for a required Intent (no binding)", async () => {
+  it("compose resolves an adapter provider for a required Intent (no intent alias)", async () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
