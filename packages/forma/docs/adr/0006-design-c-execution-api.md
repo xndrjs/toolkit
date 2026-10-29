@@ -18,7 +18,7 @@ Adopt **Design C**:
 - **One state machine:** every path (`open`/`dispose`, `with`, `await using`, root backstop) uses the existing `open | disposing | disposed` machine (ADR 0004).
 - **Nesting:** surface aliases leave the top-level handle; reserved compose keys include `surface` as well as `dispose`.
 
-Deferred to a later ticket: typed seed and `AbortSignal` on the handle; `Lifetime.acquire`.
+Typed seed and `AbortSignal` landed in ADR 0008. Still deferred: `Lifetime.acquire`.
 
 ## Consequences
 

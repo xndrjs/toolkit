@@ -18,8 +18,15 @@ type Awaitable<T> = T | PromiseLike<T>;
  * `onDispose` is only valid during that materialization attempt: after the factory
  * returns (success commits to the owner bucket; failure rolls back locally) or after
  * the owning scope seals, further registration throws.
+ *
+ * `signal` belongs to the owning scope (execution context or composition root) and
+ * aborts when that scope enters `disposing`. `seed` is set only for `.perContext()`
+ * materializations — composition-lifetime factories must not read it (captive dependency).
  */
 export type Lifetime = {
+  readonly signal: AbortSignal;
+  /** Immutable execution seed; only present for `.perContext()` providers. */
+  readonly seed?: unknown;
   onDispose(cleanup: Disposable): void;
 };
 

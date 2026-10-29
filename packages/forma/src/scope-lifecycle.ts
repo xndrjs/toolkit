@@ -3,6 +3,27 @@ import type { Disposable, Lifetime } from "./provider.js";
 type ScopePhase = "open" | "disposing" | "disposed";
 
 /**
+ * AbortController owned by a scope. `signal` also reflects an optional host
+ * signal (via `AbortSignal.any`); `abort()` runs when the scope enters disposing.
+ */
+export function createScopeAbort(hostSignal?: AbortSignal): {
+  readonly signal: AbortSignal;
+  abort(): void;
+} {
+  const controller = new AbortController();
+  const signal =
+    hostSignal === undefined ? controller.signal : AbortSignal.any([controller.signal, hostSignal]);
+  return {
+    signal,
+    abort(): void {
+      if (!controller.signal.aborted) {
+        controller.abort();
+      }
+    },
+  };
+}
+
+/**
  * Shared dispose state machine for composition root and execution contexts.
  * `enter`/`leave` bracket accepted work so dispose can drain before sealing
  * Lifetime buckets and running cleanups.
@@ -89,7 +110,16 @@ export type MaterializationLifetime = {
   rollback(): Promise<void>;
 };
 
-export function createMaterializationLifetime(scope: ScopeLifecycle): MaterializationLifetime {
+export type MaterializationLifetimeOptions = {
+  readonly signal: AbortSignal;
+  /** Set for `.perContext()` materializations only. */
+  readonly seed?: unknown;
+};
+
+export function createMaterializationLifetime(
+  scope: ScopeLifecycle,
+  options: MaterializationLifetimeOptions
+): MaterializationLifetime {
   const local: Disposable[] = [];
   let registrationSealed = false;
 
@@ -99,13 +129,17 @@ export function createMaterializationLifetime(scope: ScopeLifecycle): Materializ
     }
   }
 
-  return {
-    lifetime: {
-      onDispose(cleanup: Disposable) {
-        assertRegistrationOpen();
-        local.push(cleanup);
-      },
+  const lifetime: Lifetime = {
+    signal: options.signal,
+    ...("seed" in options ? { seed: options.seed } : {}),
+    onDispose(cleanup: Disposable) {
+      assertRegistrationOpen();
+      local.push(cleanup);
     },
+  };
+
+  return {
+    lifetime,
     commit(ownerBucket: Disposable[]) {
       registrationSealed = true;
       if (local.length > 0) {

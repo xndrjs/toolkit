@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; surface/`using` key hygiene; Design C execution API).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; surface/`using` key hygiene; Design C execution API; execution seed / `AbortSignal`).
 
 ## Installation
 
@@ -44,8 +44,9 @@ const FindProvider = FindOrder.provide.with(
 );
 
 const ConnProvider = Conn.provide.perContext().with(async ({ lifetime }) => {
-  const conn = await openConnection();
+  const conn = await openConnection({ signal: lifetime.signal });
   lifetime.onDispose(() => conn.close());
+  // `.perContext()` only: lifetime.seed holds the execution seed from open/with.
   return function () {
     return ok(conn);
   };
@@ -62,7 +63,9 @@ const GetOrderProvider = GetOrder.provide
   );
 ```
 
-Default lifetime is shared by the composition root. `.perContext()` materializes once per `openExecutionContext()` / `withExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime). Root and context `dispose()` are terminal state machines (concurrent callers share one promise); `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount. `createExecutionContext` remains a deprecated alias of `open`.
+Default lifetime is shared by the composition root. `.perContext()` materializes once per `openExecutionContext()` / `withExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime). Root and context `dispose()` are terminal state machines (concurrent callers share one promise); entering `disposing` aborts that scope’s `AbortSignal` (`lifetime.signal` / `execution.signal`). `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short lexical scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount. `createExecutionContext` remains a deprecated alias of `open`.
+
+Optional typed **seed**: `compose({ … })` defaults to no seed; `compose<MySeed>()({ … })` makes `{ seed }` required on both `open` and `with` (shared `ExecutionContextArgs`). `.perContext()` factories read `lifetime.seed`; composition-lifetime factories must not. An optional host `signal` on those args links into the context signal without transferring dispose ownership.
 
 `Intent.provide.using` accepts only same-boundary Intents, is **one-shot** (do not chain `.using`), and requires string dependency keys. Surface aliases are likewise string-only; `dispose` and `surface` are reserved on the composition surface map (operations nest under `execution.surface`). Every Provider carries a required `origin` discriminant: `{ kind: "boundary", id }` from `Intent.provide…with`, or `{ kind: "adapter", id }` from Adapter `.adapt…with`.
 
@@ -112,10 +115,17 @@ const result: Result<Order, FindError> = await root.withExecutionContext(async (
 await root.dispose();
 ```
 
-Host-owned lifetime (no callback):
+Host-owned lifetime (no callback), with seed:
 
 ```ts
-await using execution = root.openExecutionContext();
+type RequestSeed = { readonly tenantId: string };
+
+const seeded = compose<RequestSeed>()({
+  surface: { getOrder: GetOrderProvider },
+  wiring: [SelectOrderProvider, ConnProvider, FindOrderAdapter],
+});
+
+await using execution = seeded.openExecutionContext({ seed: { tenantId: "acme" } });
 await execution.surface.getOrder({ id: "42" });
 ```
 

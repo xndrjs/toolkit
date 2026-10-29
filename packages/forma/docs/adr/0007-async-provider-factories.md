@@ -15,7 +15,7 @@ Provider factories had to return an operation synchronously. Real resources (con
 - **Success:** seal registration, commit local cleanups onto the owning scope bucket (composition vs `.perContext()`), cache the operation.
 - **Failure or abandoned attempt** (including dispose racing an in-flight factory so the owner is no longer `open`): do not cache; run local cleanups immediately (LIFO). Factory error alone propagates; factory + rollback failure → `SuppressedError(rollbackError, factoryError)` (`rollbackError` may be `AggregateError`).
 - Concurrent callers of the same provider in the same lifetime share one inflight Promise.
-- `AbortSignal` / typed seed on Lifetime remain deferred (ticket 07).
+- `AbortSignal` / typed seed on Lifetime: see ADR 0008.
 
 ## Consequences
 

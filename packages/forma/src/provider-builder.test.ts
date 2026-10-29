@@ -28,6 +28,7 @@ describe("provider builder", () => {
     const op = await PingProvider.factory(
       {},
       {
+        signal: AbortSignal.abort(),
         onDispose() {
           /* noop for inspect */
         },
@@ -63,6 +64,7 @@ describe("provider builder", () => {
     const op = await FindProvider.factory(
       {},
       {
+        signal: new AbortController().signal,
         onDispose(cleanup) {
           disposers.push(cleanup);
         },

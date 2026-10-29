@@ -15,6 +15,8 @@ export type {
   ComposeOptions,
   CompositionRoot,
   ExecutionContext,
+  ExecutionContextArgs,
+  ExecutionContextOptions,
   ExecutionSurface,
 } from "./compose.js";
 

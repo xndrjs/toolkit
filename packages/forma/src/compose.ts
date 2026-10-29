@@ -22,6 +22,7 @@ import type { Result } from "./result.js";
 import {
   collectThrown,
   createMaterializationLifetime,
+  createScopeAbort,
   createScopeLifecycle,
   runDisposers,
   throwAfterCallbackAndCleanup,
@@ -56,12 +57,28 @@ export type ExecutionSurface<Surface extends Record<string, AnyProvider>> = {
   >;
 };
 
+/** Options bag for {@link CompositionRoot.openExecutionContext} / {@link CompositionRoot.withExecutionContext}. */
+export type ExecutionContextOptions<Seed = void> = [Seed] extends [void]
+  ? { readonly seed?: undefined; readonly signal?: AbortSignal }
+  : { readonly seed: Seed; readonly signal?: AbortSignal };
+
+/**
+ * Shared rest-args for open/with: no bag required when `Seed` is `void`;
+ * otherwise `{ seed, signal? }` is required.
+ */
+export type ExecutionContextArgs<Seed = void> = [Seed] extends [void]
+  ? [] | [options?: ExecutionContextOptions<Seed>]
+  : [options: ExecutionContextOptions<Seed>];
+
 /**
  * Owned execution lifetime: nested {@link ExecutionSurface} plus dispose controls.
  * Prefer {@link CompositionRoot.withExecutionContext} for short scopes.
  */
-export type ExecutionContext<Surface extends Record<string, AnyProvider>> = {
+export type ExecutionContext<Surface extends Record<string, AnyProvider>, Seed = void> = {
   readonly surface: ExecutionSurface<Surface>;
+  /** Scope signal; aborted when this context enters `disposing` (and if a host signal aborts). */
+  readonly signal: AbortSignal;
+  readonly seed: [Seed] extends [void] ? undefined : Readonly<Seed>;
   /**
    * Release `.perContext()` resources for this context.
    * Concurrent callers share one dispose promise; terminal after settle.
@@ -70,22 +87,23 @@ export type ExecutionContext<Surface extends Record<string, AnyProvider>> = {
   [Symbol.asyncDispose](): Promise<void>;
 };
 
-export type CompositionRoot<Surface extends Record<string, AnyProvider>> = {
+export type CompositionRoot<Surface extends Record<string, AnyProvider>, Seed = void> = {
   /**
    * Open an owned execution context. Caller must `dispose` / `await using`.
    * Prefer {@link withExecutionContext} for short lexical scopes.
    */
-  openExecutionContext(): ExecutionContext<Surface>;
+  openExecutionContext(...options: ExecutionContextArgs<Seed>): ExecutionContext<Surface, Seed>;
   /**
    * @deprecated Use {@link CompositionRoot.openExecutionContext}.
    */
-  createExecutionContext(): ExecutionContext<Surface>;
+  createExecutionContext(...options: ExecutionContextArgs<Seed>): ExecutionContext<Surface, Seed>;
   /**
    * Safe default for short scopes: open → run with a borrowed surface → dispose.
    * See error matrix: both failures → `SuppressedError(cleanup, callback)`.
    */
   withExecutionContext<T>(
-    run: (surface: ExecutionSurface<Surface>) => Awaitable<T>
+    run: (surface: ExecutionSurface<Surface>) => Awaitable<T>,
+    ...options: ExecutionContextArgs<Seed>
   ): Promise<Awaited<T>>;
   /**
    * Terminal composition shutdown (backstop): refuse new contexts, dispose every
@@ -110,6 +128,23 @@ export type ComposeOptions<
   readonly wiring?: Wiring;
 };
 
+type ComposeAsserts<
+  Surface extends Record<string, AnyProvider>,
+  Wiring extends readonly WiringEntry[],
+> = AssertSurfaceAliasesSafe<Surface> &
+  AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>> &
+  AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>>;
+
+function freezeSeed<Seed>(seed: Seed): Readonly<Seed> {
+  if (Array.isArray(seed)) {
+    return Object.freeze([...seed]) as unknown as Readonly<Seed>;
+  }
+  if (seed !== null && typeof seed === "object") {
+    return Object.freeze({ ...(seed as object) }) as unknown as Readonly<Seed>;
+  }
+  return seed as Readonly<Seed>;
+}
+
 /**
  * Build a closed Composition: register surface + wiring (providers and bind
  * aliases), resolve `using` deps by identity (and binding rewrite), expose
@@ -127,21 +162,58 @@ export type ComposeOptions<
  * registration, builds an execution plan and rejects cycles / open graphs before
  * returning the root (runtime `seeing` remains defense-in-depth only). Root and
  * each execution context use an `open | disposing | disposed` lifecycle; Design C
- * paths (`open` / `with` / `AsyncDisposable`) share that machine. Provider factories
- * may return an `Awaitable` operation: materialization uses a local Lifetime bucket
- * (commit on success, immediate rollback on failure; failed attempts are not cached;
- * concurrent callers coalesce on one inflight promise). `root.dispose()` is the
- * backstop that closes open contexts then composition-lifetime cleanups.
+ * paths (`open` / `with` / `AsyncDisposable`) share that machine. Optional typed
+ * seed and `AbortSignal` are accepted via {@link ExecutionContextArgs} on open/with
+ * (same args); dispose aborts the scope signal; `.perContext()` factories read seed
+ * from {@link Lifetime}. Provider factories may return an `Awaitable` operation:
+ * materialization uses a local Lifetime bucket (commit on success, immediate rollback
+ * on failure; failed attempts are not cached; concurrent callers coalesce on one
+ * inflight promise). `root.dispose()` is the backstop that closes open contexts then
+ * composition-lifetime cleanups.
+ *
+ * Seed typing: `compose({ … })` defaults to `Seed = void`. For a required seed use
+ * `compose<MySeed>()({ … })`.
  */
+export function compose<Seed>(): <
+  Surface extends Record<string, AnyProvider>,
+  const Wiring extends readonly WiringEntry[] = [],
+>(
+  options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
+) => CompositionRoot<Surface, Seed>;
 export function compose<
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[] = [],
 >(
-  options: ComposeOptions<Surface, Wiring> &
-    AssertSurfaceAliasesSafe<Surface> &
-    AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>> &
-    AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>>
-): CompositionRoot<Surface> {
+  options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
+): CompositionRoot<Surface, void>;
+export function compose<
+  Surface extends Record<string, AnyProvider>,
+  const Wiring extends readonly WiringEntry[] = [],
+>(
+  options?: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
+):
+  | CompositionRoot<Surface, void>
+  | (<S extends Record<string, AnyProvider>, const W extends readonly WiringEntry[] = []>(
+      opts: ComposeOptions<S, W> & ComposeAsserts<S, W>
+    ) => CompositionRoot<S, unknown>) {
+  if (options === undefined) {
+    return ((opts) => composeImpl(opts)) as <
+      S extends Record<string, AnyProvider>,
+      const W extends readonly WiringEntry[] = [],
+    >(
+      opts: ComposeOptions<S, W> & ComposeAsserts<S, W>
+    ) => CompositionRoot<S, unknown>;
+  }
+  return composeImpl(options);
+}
+
+function composeImpl<
+  Surface extends Record<string, AnyProvider>,
+  const Wiring extends readonly WiringEntry[],
+  Seed = void,
+>(
+  options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
+): CompositionRoot<Surface, Seed> {
   assertStringRecordKeys(options.surface, "Surface", { rejectReservedSurface: true });
   const surfaceEntries = Object.entries(options.surface) as [keyof Surface & string, AnyProvider][];
   const { providers: privateProviders, bindings } = partitionWiring(options.wiring ?? []);
@@ -159,20 +231,35 @@ export function compose<
   const compositionInflight = new Map<string, Promise<Op>>();
   const compositionDisposers: Disposable[] = [];
   const rootLife = createScopeLifecycle("Composition root is disposed");
+  const rootAbort = createScopeAbort();
   /** Open execution contexts; root dispose closes them as backstop. */
   const openContexts = new Set<{ dispose(): Promise<void> }>();
 
-  function openExecutionContext(): ExecutionContext<Surface> {
+  function openExecutionContext(
+    ...args: ExecutionContextArgs<Seed>
+  ): ExecutionContext<Surface, Seed> {
     rootLife.assertOpen();
+
+    const openOptions = (args[0] ?? {}) as {
+      readonly seed?: Seed;
+      readonly signal?: AbortSignal;
+    };
+    const contextSeed = (
+      "seed" in openOptions && openOptions.seed !== undefined
+        ? freezeSeed(openOptions.seed)
+        : undefined
+    ) as [Seed] extends [void] ? undefined : Readonly<Seed>;
 
     /** Owned by this execution context (`.perContext()` providers). */
     const contextOps = new Map<string, Op>();
     const contextInflight = new Map<string, Promise<Op>>();
     const contextDisposers: Disposable[] = [];
     const contextLife = createScopeLifecycle("Execution context is disposed");
+    const contextAbort = createScopeAbort(openOptions.signal);
 
     const contextHandle = {
       dispose(): Promise<void> {
+        contextAbort.abort();
         return contextLife.dispose(async () => {
           try {
             await runDisposers(contextDisposers);
@@ -197,6 +284,7 @@ export function compose<
     ): Promise<Op> {
       const perContext = provider.perContext;
       const owner = perContext ? contextLife : rootLife;
+      const ownerSignal = perContext ? contextAbort.signal : rootAbort.signal;
       const cache = perContext ? contextOps : compositionOps;
       const inflight = perContext ? contextInflight : compositionInflight;
       const disposers = perContext ? contextDisposers : compositionDisposers;
@@ -223,7 +311,10 @@ export function compose<
 
       owner.enter();
       const promise = (async (): Promise<Op> => {
-        const setup = createMaterializationLifetime(owner);
+        const setup = createMaterializationLifetime(
+          owner,
+          perContext ? { signal: ownerSignal, seed: contextSeed } : { signal: ownerSignal }
+        );
         try {
           // Yield so concurrent first-access callers can join this inflight promise
           // before the factory runs (single materialization per lifetime).
@@ -310,15 +401,18 @@ export function compose<
     const dispose = (): Promise<void> => contextHandle.dispose();
     return {
       surface: surface as ExecutionSurface<Surface>,
+      signal: contextAbort.signal,
+      seed: contextSeed,
       dispose,
       [Symbol.asyncDispose]: dispose,
     };
   }
 
   async function withExecutionContext<T>(
-    run: (surface: ExecutionSurface<Surface>) => Awaitable<T>
+    run: (surface: ExecutionSurface<Surface>) => Awaitable<T>,
+    ...args: ExecutionContextArgs<Seed>
   ): Promise<Awaited<T>> {
-    const execution = openExecutionContext();
+    const execution = openExecutionContext(...args);
     let callbackError: unknown | undefined;
     let result: Awaited<T> | undefined;
     try {
@@ -339,6 +433,7 @@ export function compose<
   }
 
   function disposeRoot(): Promise<void> {
+    rootAbort.abort();
     return rootLife.dispose(async () => {
       const errors: unknown[] = [];
       const contexts = [...openContexts];
