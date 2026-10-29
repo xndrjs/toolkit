@@ -21,10 +21,11 @@ import { assertRegistrationSafety, buildRegistry } from "./registration.js";
 import type { Result } from "./result.js";
 import {
   collectThrown,
-  createLifetime,
+  createMaterializationLifetime,
   createScopeLifecycle,
   runDisposers,
   throwAfterCallbackAndCleanup,
+  throwAfterFactoryAndRollback,
   throwIfDisposerErrors,
 } from "./scope-lifecycle.js";
 import { assertStringRecordKeys } from "./string-keys.js";
@@ -126,8 +127,11 @@ export type ComposeOptions<
  * registration, builds an execution plan and rejects cycles / open graphs before
  * returning the root (runtime `seeing` remains defense-in-depth only). Root and
  * each execution context use an `open | disposing | disposed` lifecycle; Design C
- * paths (`open` / `with` / `AsyncDisposable`) share that machine. `root.dispose()`
- * is the backstop that closes open contexts then composition-lifetime cleanups.
+ * paths (`open` / `with` / `AsyncDisposable`) share that machine. Provider factories
+ * may return an `Awaitable` operation: materialization uses a local Lifetime bucket
+ * (commit on success, immediate rollback on failure; failed attempts are not cached;
+ * concurrent callers coalesce on one inflight promise). `root.dispose()` is the
+ * backstop that closes open contexts then composition-lifetime cleanups.
  */
 export function compose<
   Surface extends Record<string, AnyProvider>,
@@ -219,6 +223,7 @@ export function compose<
 
       owner.enter();
       const promise = (async (): Promise<Op> => {
+        const setup = createMaterializationLifetime(owner);
         try {
           // Yield so concurrent first-access callers can join this inflight promise
           // before the factory runs (single materialization per lifetime).
@@ -226,13 +231,15 @@ export function compose<
           owner.assertOpen();
           const deps = await resolveDeps(provider, nextSeeing, nextPath);
           owner.assertOpen();
-          const lifetime = createLifetime(disposers, owner);
-          // Await thenables so dispose can drain mid-factory (full async+rollback: later ticket).
-          const produced = provider.factory(deps, lifetime) as Op | Promise<Op>;
+          const produced = provider.factory(deps, setup.lifetime);
           const op = await produced;
           owner.assertOpen();
+          setup.commit(disposers);
           cache.set(id, op);
           return op;
+        } catch (error) {
+          // Failed or abandoned setup: rollback local cleanups; do not cache.
+          return await throwAfterFactoryAndRollback(error, () => setup.rollback());
         } finally {
           inflight.delete(id);
           owner.leave();

@@ -31,7 +31,7 @@ Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the lit
 
 ### Providers
 
-`.with` takes a factory that returns the Intent operation as a `function`. Prefer `ctx => function (…) { … }` over nested arrows. Destructure context only when you use it.
+`.with` takes a factory that returns the Intent operation as a `function` (sync or `async`). Prefer `ctx => function (…) { … }` over nested arrows. Destructure context only when you use it. `Lifetime.onDispose` is valid only during that materialization attempt — after the factory returns, the handle is sealed; on failure Forma rolls back local cleanups immediately and does not cache the attempt.
 
 ```ts
 import { err, ok } from "@xndrjs/forma";
@@ -43,8 +43,8 @@ const FindProvider = FindOrder.provide.with(
     }
 );
 
-const ConnProvider = Conn.provide.perContext().with(({ lifetime }) => {
-  const conn = openConnection();
+const ConnProvider = Conn.provide.perContext().with(async ({ lifetime }) => {
+  const conn = await openConnection();
   lifetime.onDispose(() => conn.close());
   return function () {
     return ok(conn);

@@ -23,4 +23,4 @@ Rejected: refusing root dispose while contexts remain open (host would have to t
 
 - Hosts may rely on `root.dispose()` to close forgotten contexts; they should still stop admitting new work first.
 - Design C APIs (`openExecutionContext` / `withExecutionContext` / `AsyncDisposable`) delegate to this same state machine (see ADR 0006).
-- Async factory rollback semantics build on drain-then-seal; sealing makes late cleanup registration fail loudly.
+- Async factory rollback (ADR 0007) builds on drain-then-seal; materialization seals its Lifetime handle after each attempt, and scope sealing makes late cleanup registration fail loudly.

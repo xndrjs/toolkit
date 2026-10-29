@@ -9,7 +9,7 @@ type FindError = { readonly kind: "not_found" };
 type CancelError = { readonly kind: "already_cancelled" };
 
 describe("provider builder", () => {
-  it("builds a no-deps provider with lifetime in with", () => {
+  it("builds a no-deps provider with lifetime in with", async () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
 
@@ -25,7 +25,7 @@ describe("provider builder", () => {
     expect(PingProvider.perContext).toBe(false);
     expect(PingProvider.origin).toEqual({ kind: "boundary", id: "health" });
 
-    const op = PingProvider.factory(
+    const op = await PingProvider.factory(
       {},
       {
         onDispose() {
@@ -36,7 +36,7 @@ describe("provider builder", () => {
     expect(op(undefined)).toEqual({ ok: true, value: "pong" });
   });
 
-  it("runs no-deps with at materialization and exposes Lifetime", () => {
+  it("runs no-deps with at materialization and exposes Lifetime", async () => {
     const Orders = boundary("orders");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
 
@@ -60,7 +60,7 @@ describe("provider builder", () => {
     });
 
     const disposers: (() => void)[] = [];
-    const op = FindProvider.factory(
+    const op = await FindProvider.factory(
       {},
       {
         onDispose(cleanup) {

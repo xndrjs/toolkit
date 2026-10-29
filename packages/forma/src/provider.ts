@@ -10,10 +10,14 @@ export type IntentOperation<Input, Success, Err> = (
 /** Cleanup registered via `Lifetime.onDispose` during provider materialization. */
 export type Disposable = () => void | Promise<void>;
 
+type Awaitable<T> = T | PromiseLike<T>;
+
 /**
  * Materialization-scoped hooks for the current provider instance.
  * Cleanups run on `ctx.dispose()` (`.perContext()`) or `root.dispose()` (default).
- * After that scope seals (dispose has drained accepted work), `onDispose` throws.
+ * `onDispose` is only valid during that materialization attempt: after the factory
+ * returns (success commits to the owner bucket; failure rolls back locally) or after
+ * the owning scope seals, further registration throws.
  */
 export type Lifetime = {
   onDispose(cleanup: Disposable): void;
@@ -116,12 +120,12 @@ export type Provider<
   readonly factory: (
     deps: ResolvedDeps<Deps>,
     lifetime: Lifetime
-  ) => IntentOperation<Input, Success, Err>;
+  ) => Awaitable<IntentOperation<Input, Success, Err>>;
 };
 
 type WithFactory<Input, Success, Err, Deps> = (
   ctx: WithContext<Deps>
-) => IntentOperation<Input, Success, Err>;
+) => Awaitable<IntentOperation<Input, Success, Err>>;
 
 /** Fluent steps after deps are fixed (`using` is one-shot). */
 type ProviderBuilderAfterUsing<

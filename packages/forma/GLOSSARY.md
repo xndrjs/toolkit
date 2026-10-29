@@ -18,7 +18,10 @@ A declared intention — a meaningful outcome named within a Boundary, with a st
 The TypeScript promise of an Intent: input, successful outcome, and expected domain failures. Unexpected technical failures are outside the Contract. PoC convention: discriminated `Result<T, E>` for success vs expected failures.
 
 **Provider**:
-The registrable association of an Intent with a realization, including Intent dependencies (`using`) and lifecycle (default composition-lifetime or `.perContext()`). The operative API entity in composition. Built via same-boundary `Intent.provide` or via an Adapter’s `.adapt`. `.using(...)` is one-shot (string dependency keys only); put every dependency in a single map.
+The registrable association of an Intent with a realization, including Intent dependencies (`using`) and lifecycle (default composition-lifetime or `.perContext()`). The operative API entity in composition. Built via same-boundary `Intent.provide` or via an Adapter’s `.adapt`. `.using(...)` is one-shot (string dependency keys only); put every dependency in a single map. The factory may return the operation synchronously or as a thenable; Forma coalesces concurrent materializations, rolls back partial `Lifetime` cleanups on failure (without caching the failed attempt), and seals `Lifetime` registration once that attempt finishes.
+
+**Lifetime**:
+Hooks available to a Provider factory while that instance is materializing (`onDispose`). Cleanups commit to the owning scope (composition root or execution context) only after a successful factory; a failed or abandoned attempt runs them immediately as local rollback. Registration is sealed after the attempt ends and again when the owning scope disposes.
 
 **Adapter**:
 An architectural identity, peer to Boundary, scoped to exactly one **target Boundary**. Owns external realizations of that target’s Intents; may declare `using` dependencies on Intents from any boundary (including several infrastructure boundaries). Does not own or redefine the target Intents’ contracts.

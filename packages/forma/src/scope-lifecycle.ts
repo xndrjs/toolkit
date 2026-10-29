@@ -75,15 +75,68 @@ export function createScopeLifecycle(notOpenMessage: string) {
 
 export type ScopeLifecycle = ReturnType<typeof createScopeLifecycle>;
 
-export function createLifetime(bucket: Disposable[], scope: ScopeLifecycle): Lifetime {
+/**
+ * Lifetime for one provider materialization attempt.
+ * Cleanups land in a local bucket until {@link MaterializationLifetime.commit}
+ * (success) or {@link MaterializationLifetime.rollback} (failure / abandoned).
+ * Registration seals after either outcome — and also when the owning scope seals.
+ */
+export type MaterializationLifetime = {
+  readonly lifetime: Lifetime;
+  /** Seal registration and append local cleanups onto the owner bucket (LIFO later). */
+  commit(ownerBucket: Disposable[]): void;
+  /** Seal registration and run local cleanups immediately (failed / abandoned setup). */
+  rollback(): Promise<void>;
+};
+
+export function createMaterializationLifetime(scope: ScopeLifecycle): MaterializationLifetime {
+  const local: Disposable[] = [];
+  let registrationSealed = false;
+
+  function assertRegistrationOpen(): void {
+    if (registrationSealed || scope.sealed) {
+      throw new Error("Lifetime is sealed");
+    }
+  }
+
   return {
-    onDispose(cleanup: Disposable) {
-      if (scope.sealed) {
-        throw new Error("Lifetime is sealed");
+    lifetime: {
+      onDispose(cleanup: Disposable) {
+        assertRegistrationOpen();
+        local.push(cleanup);
+      },
+    },
+    commit(ownerBucket: Disposable[]) {
+      registrationSealed = true;
+      if (local.length > 0) {
+        ownerBucket.push(...local.splice(0, local.length));
       }
-      bucket.push(cleanup);
+    },
+    async rollback() {
+      registrationSealed = true;
+      await runDisposers(local);
     },
   };
+}
+
+/**
+ * Factory failed (or materialization abandoned): run local rollback; if rollback
+ * also fails → `SuppressedError(rollbackError, factoryError)`.
+ */
+export async function throwAfterFactoryAndRollback(
+  factoryError: unknown,
+  rollback: () => Promise<void>
+): Promise<never> {
+  let rollbackError: unknown | undefined;
+  try {
+    await rollback();
+  } catch (error) {
+    rollbackError = error;
+  }
+  if (rollbackError !== undefined) {
+    throw new SuppressedError(rollbackError, factoryError);
+  }
+  throw factoryError;
 }
 
 export async function runDisposers(bucket: Disposable[]): Promise<void> {
