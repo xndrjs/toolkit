@@ -12,7 +12,7 @@ Within this toolkit, prefer **Intent** over “capability” so the word does no
 An isolated architectural space that owns Intent definitions and their contracts. It is not required to coincide with a DDD bounded context, a package, or a directory — though it may.
 
 **Intent**:
-A declared intention — a meaningful outcome named within a Boundary, with a stable identity and contract, independent of how it is fulfilled. Prefer Intent for replaceable infrastructure as well as business outcomes when identity and binding matter; not every function, loader, or helper needs to be an Intent. Application code may group or label Intents as use cases, ports, repository methods, etc.; Forma only sees Intent identity and Contract.
+A declared intention — a meaningful outcome named within a Boundary, with a stable identity and contract, independent of how it is fulfilled. Intent identity is the structured pair `(boundaryId, intentName)`: homonymous Boundaries and repeated declarations of the same name coalesce to one identity; identity is never a fresh runtime `Symbol` and is never formed by concatenating those strings (so `("a.b","c")` ≠ `("a","b.c")`). Prefer Intent for replaceable infrastructure as well as business outcomes when identity and binding matter; not every function, loader, or helper needs to be an Intent. Application code may group or label Intents as use cases, ports, repository methods, etc.; Forma only sees Intent identity and Contract.
 
 **Contract**:
 The TypeScript promise of an Intent: input, successful outcome, and expected domain failures. Unexpected technical failures are outside the Contract. PoC convention: discriminated `Result<T, E>` for success vs expected failures.

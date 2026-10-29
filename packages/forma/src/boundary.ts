@@ -3,18 +3,33 @@ import { createProvideApi, type ProvideApi } from "./provider.js";
 declare const formaIntentBrand: unique symbol;
 
 /**
- * Declared intention within a Boundary: stable nominal identity + contract,
+ * Canonical Intent identity: structured `(boundaryId, intentName)`.
+ * Same pair → same Intent; never a fresh `Symbol` or an ambiguous `a.b` concat.
+ */
+export type IntentIdentity<
+  BoundaryId extends string = string,
+  Name extends string = string,
+> = readonly [boundaryId: BoundaryId, name: Name];
+
+/** Build the structured identity pair from an Intent-like value. */
+export function intentIdentity<BoundaryId extends string, Name extends string>(intent: {
+  readonly boundaryId: BoundaryId;
+  readonly name: Name;
+}): IntentIdentity<BoundaryId, Name> {
+  return [intent.boundaryId, intent.name];
+}
+
+/**
+ * Declared intention within a Boundary: stable identity `(boundaryId, name)` + contract,
  * independent of how it is fulfilled.
  *
- * - **Boundary brand** (`BoundaryId`): same-boundary `using` checks (ticket 02+).
- * - **Nominal identity** (`Name` + runtime `identity` symbol): structurally
- *   identical contracts are not the same Intent.
+ * - **Identity**: structured `(boundaryId, intentName)` — shared by type-level graph keys
+ *   and the runtime resolver (homonymous Boundaries / repeated declarations coalesce).
+ * - **Boundary brand** (`BoundaryId`): same-boundary `using` checks.
  */
 export type Intent<BoundaryId extends string, Name extends string, Input, Success, Err> = {
   readonly boundaryId: BoundaryId;
   readonly name: Name;
-  /** Runtime nominal identity (composition resolves by this). */
-  readonly identity: symbol;
   /** Attach a realization: optional `using` / `perContext`, then `with(({ deps?, lifetime }) => …)`. */
   readonly provide: ProvideApi<BoundaryId, Name, Input, Success, Err>;
   readonly [formaIntentBrand]: {
@@ -61,7 +76,6 @@ function createIntent<BoundaryId extends string, Name extends string, Input, Suc
   const intent = {
     boundaryId,
     name,
-    identity: Symbol(`${boundaryId}.${name}`),
   } as Intent<BoundaryId, Name, Input, Success, Err>;
 
   // Assign after the object exists so the builder closes over the Intent value.

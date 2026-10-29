@@ -1,4 +1,4 @@
-import type { Intent } from "./boundary.js";
+import { intentIdentity, type Intent, type IntentIdentity } from "./boundary.js";
 import type { Disposable, IntentOperation, Lifetime, Provider, ResolvedDeps } from "./provider.js";
 import type { Result } from "./result.js";
 
@@ -151,18 +151,28 @@ export type ComposeOptions<
   readonly wiring?: Wiring;
 };
 
-/** Stable type-level Intent id: `boundaryId.name`. */
+/**
+ * Type-level Intent identity: structured `(boundaryId, intentName)`.
+ * Not a concatenated label — (`"a.b"`, `"c"`) ≠ (`"a"`, `"b.c"`).
+ */
+type IntentKey = IntentIdentity;
+
 type IntentKeyOf<I> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intent contract erasure
   I extends Intent<infer B, infer N, any, any, any>
-    ? `${Extract<B, string>}.${Extract<N, string>}`
+    ? IntentIdentity<Extract<B, string>, Extract<N, string>>
     : never;
 
 type ProviderIntentKey<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
   P extends Provider<infer B, infer N, any, any, any, any, boolean>
-    ? `${Extract<B, string>}.${Extract<N, string>}`
+    ? IntentIdentity<Extract<B, string>, Extract<N, string>>
     : never;
+
+/** Display-only label for diagnostics (not used as identity). */
+type FormatIntentKey<K> = K extends IntentIdentity<infer B, infer N> ? `${B}.${N}` : never;
+
+type FormatIntentKeyUnion<K> = K extends unknown ? FormatIntentKey<K> : never;
 
 type IsEmptyDeps<Deps> = [Deps] extends [Record<string, never>]
   ? [Record<string, never>] extends [Deps]
@@ -191,7 +201,7 @@ type RegisteredProviders<
 
 /** Registered provider whose Intent key matches `Key` (after identity resolution). */
 type ProviderForIntentKey<
-  Key extends string,
+  Key extends IntentKey,
   Surface extends Record<string, AnyProvider>,
   Providers extends readonly AnyProvider[],
 > =
@@ -217,13 +227,13 @@ type InvalidLifetimeEdgeKeys<
       ? [ProviderIsPerContext<Consumer>] extends [true]
         ? never
         : ProviderDepKeys<Consumer> extends infer DepKey
-          ? DepKey extends string
+          ? DepKey extends IntentKey
             ? RewriteRequirement<DepKey, Bindings> extends infer SatisfierKey
-              ? SatisfierKey extends string
+              ? SatisfierKey extends IntentKey
                 ? ProviderForIntentKey<SatisfierKey, Surface, Providers> extends infer Sat
                   ? Sat extends AnyProvider
                     ? [ProviderIsPerContext<Sat>] extends [true]
-                      ? `${ProviderIntentKey<Consumer>}→${SatisfierKey}`
+                      ? `${FormatIntentKey<ProviderIntentKey<Consumer>>}→${FormatIntentKey<SatisfierKey>}`
                       : never
                     : never
                   : never
@@ -257,7 +267,7 @@ type RequiredIntentKeys<
       : never);
 
 type BindingSatisfierFor<
-  Required extends string,
+  Required extends IntentKey,
   Bindings extends readonly Binding[],
 > = Bindings extends readonly [infer Head, ...infer Tail]
   ? Head extends readonly [infer Req, infer Sat]
@@ -269,16 +279,19 @@ type BindingSatisfierFor<
     : never
   : never;
 
-type RewriteRequirement<Required extends string, Bindings extends readonly Binding[]> =
+type RewriteRequirement<Required extends IntentKey, Bindings extends readonly Binding[]> =
   BindingSatisfierFor<Required, Bindings> extends infer Sat
     ? [Sat] extends [never]
       ? Required
-      : Sat & string
+      : Sat extends IntentKey
+        ? Sat
+        : Required
     : Required;
 
-type RewriteAllRequirements<Required, Bindings extends readonly Binding[]> = Required extends string
-  ? RewriteRequirement<Required, Bindings>
-  : never;
+type RewriteAllRequirements<
+  Required,
+  Bindings extends readonly Binding[],
+> = Required extends IntentKey ? RewriteRequirement<Required, Bindings> : never;
 
 /**
  * Intent keys required by registered providers after binding rewrite that still
@@ -313,7 +326,7 @@ type AssertProvidersComplete<
     ? [Missing] extends [never]
       ? unknown
       : {
-          readonly [formaMissingProviders]: `Missing provider for Intent(s): ${Extract<Missing, string>}`;
+          readonly [formaMissingProviders]: `Missing provider for Intent(s): ${FormatIntentKeyUnion<Missing>}`;
         }
     : unknown;
 
@@ -360,21 +373,31 @@ async function runDisposers(bucket: Disposable[]): Promise<void> {
   }
 }
 
-function intentLabel(intent: AnyIntent): string {
+/** Display label for errors — not the identity key (dots in ids stay ambiguous here). */
+function intentLabel(intent: { readonly boundaryId: string; readonly name: string }): string {
   return `${intent.boundaryId}.${intent.name}`;
 }
 
 /**
+ * Unambiguous runtime map key for Intent identity.
+ * JSON pair encoding distinguishes (`"a.b"`, `"c"`) from (`"a"`, `"b.c"`).
+ */
+function intentMapKey(intent: { readonly boundaryId: string; readonly name: string }): string {
+  return JSON.stringify(intentIdentity(intent));
+}
+
+/**
  * Fail loud on duplicate / ambiguous registration (compile-time may not catch these yet).
+ * Same structured identity `(boundaryId, intentName)` coalesces across declarations.
  */
 function assertRegistrationSafety(
   surfaceProviders: readonly AnyProvider[],
   privateProviders: readonly AnyProvider[],
   bindings: readonly Binding[]
 ): void {
-  const surfaceIds = new Set<symbol>();
+  const surfaceIds = new Set<string>();
   for (const provider of surfaceProviders) {
-    const id = provider.intent.identity;
+    const id = intentMapKey(provider.intent);
     if (surfaceIds.has(id)) {
       throw new Error(
         `Intent ${intentLabel(provider.intent)} is registered more than once in surface`
@@ -383,9 +406,9 @@ function assertRegistrationSafety(
     surfaceIds.add(id);
   }
 
-  const privateIds = new Set<symbol>();
+  const privateIds = new Set<string>();
   for (const provider of privateProviders) {
-    const id = provider.intent.identity;
+    const id = intentMapKey(provider.intent);
     if (surfaceIds.has(id)) {
       throw new Error(`Intent ${intentLabel(provider.intent)} appears in both surface and wiring`);
     }
@@ -397,18 +420,19 @@ function assertRegistrationSafety(
     privateIds.add(id);
   }
 
-  const registeredIds = new Set<symbol>([...surfaceIds, ...privateIds]);
-  const boundRequiredIds = new Set<symbol>();
+  const registeredIds = new Set<string>([...surfaceIds, ...privateIds]);
+  const boundRequiredIds = new Set<string>();
   for (const [required] of bindings) {
-    if (registeredIds.has(required.identity)) {
+    const requiredId = intentMapKey(required);
+    if (registeredIds.has(requiredId)) {
       throw new Error(
         `Ambiguous satisfaction for Intent ${intentLabel(required)}: both a provider and a binding are registered`
       );
     }
-    if (boundRequiredIds.has(required.identity)) {
+    if (boundRequiredIds.has(requiredId)) {
       throw new Error(`Duplicate binding for Intent ${intentLabel(required)}`);
     }
-    boundRequiredIds.add(required.identity);
+    boundRequiredIds.add(requiredId);
   }
 }
 
@@ -419,10 +443,12 @@ function assertRegistrationSafety(
  * on first use.
  *
  * Type-level: after binding rewrite, every Intent required by registered
- * providers must have a registered provider (missing → compile error).
+ * providers must have a registered provider (missing → compile error). Keys are
+ * structured `(boundaryId, intentName)`, not concatenated labels.
  * Runtime: duplicate Intent within `surface` or within wiring providers, same
  * Intent in both, duplicate Binding for one Required Intent, or provider +
- * binding for the same Required Intent, throws.
+ * binding for the same Required Intent, throws. Homonymous Boundaries and
+ * repeated Intent declarations share one identity.
  */
 export function compose<
   Surface extends Record<string, AnyProvider>,
@@ -441,38 +467,38 @@ export function compose<
     bindings
   );
 
-  const registry = new Map<symbol, AnyProvider>();
+  const registry = new Map<string, AnyProvider>();
   for (const provider of [...surfaceEntries.map(([, p]) => p), ...privateProviders]) {
-    registry.set(provider.intent.identity, provider);
+    registry.set(intentMapKey(provider.intent), provider);
   }
 
-  /** Required Intent identity → satisfier Intent identity. */
-  const bindingMap = new Map<symbol, symbol>();
+  /** Required Intent identity key → satisfier Intent identity key. */
+  const bindingMap = new Map<string, string>();
   for (const [required, satisfier] of bindings) {
-    bindingMap.set(required.identity, satisfier.identity);
+    bindingMap.set(intentMapKey(required), intentMapKey(satisfier));
   }
 
   /** Shared by default (composition-lifetime) providers. */
-  const compositionOps = new Map<symbol, Op>();
-  const compositionInflight = new Map<symbol, Promise<Op>>();
+  const compositionOps = new Map<string, Op>();
+  const compositionInflight = new Map<string, Promise<Op>>();
   const compositionDisposers: Disposable[] = [];
 
   return {
     createExecutionContext(): ExecutionContext<Surface> {
       /** Owned by this execution context (`.perContext()` providers). */
-      const contextOps = new Map<symbol, Op>();
-      const contextInflight = new Map<symbol, Promise<Op>>();
+      const contextOps = new Map<string, Op>();
+      const contextInflight = new Map<string, Promise<Op>>();
       const contextDisposers: Disposable[] = [];
       let contextDisposed = false;
 
       /**
-       * @param seeing - Intent identities already being materialized on this
+       * @param seeing - Intent identity keys already being materialized on this
        *   resolution chain (cycle detection). Concurrent callers use a fresh
        *   set and wait on `inflight` instead of throwing.
        */
       async function materialize(
         provider: AnyProvider,
-        seeing: ReadonlySet<symbol> = new Set()
+        seeing: ReadonlySet<string> = new Set()
       ): Promise<Op> {
         if (contextDisposed) {
           throw new Error("Execution context is disposed");
@@ -482,7 +508,7 @@ export function compose<
         const cache = perContext ? contextOps : compositionOps;
         const inflight = perContext ? contextInflight : compositionInflight;
         const disposers = perContext ? contextDisposers : compositionDisposers;
-        const id = provider.intent.identity;
+        const id = intentMapKey(provider.intent);
 
         const cached = cache.get(id);
         if (cached) {
@@ -491,7 +517,7 @@ export function compose<
 
         if (seeing.has(id)) {
           throw new Error(
-            `Circular dependency while materializing ${provider.intent.boundaryId}.${provider.intent.name}`
+            `Circular dependency while materializing ${intentLabel(provider.intent)}`
           );
         }
 
@@ -527,18 +553,18 @@ export function compose<
 
       async function resolveByIdentity(
         required: AnyIntent,
-        seeing: ReadonlySet<symbol>
+        seeing: ReadonlySet<string>
       ): Promise<Op> {
-        const satisfierId = bindingMap.get(required.identity) ?? required.identity;
+        const requiredId = intentMapKey(required);
+        const satisfierId = bindingMap.get(requiredId) ?? requiredId;
         const provider = registry.get(satisfierId);
         if (!provider) {
-          const label = `${required.boundaryId}.${required.name}`;
           const viaBinding =
-            satisfierId !== required.identity
+            satisfierId !== requiredId
               ? ` (bound satisfier identity has no registered provider)`
               : "";
           throw new Error(
-            `No provider registered for Intent ${label}${viaBinding}. Add it to surface or wiring.`
+            `No provider registered for Intent ${intentLabel(required)}${viaBinding}. Add it to surface or wiring.`
           );
         }
         return materialize(provider, seeing);
@@ -546,13 +572,14 @@ export function compose<
 
       async function resolveDeps(
         provider: AnyProvider,
-        seeing: ReadonlySet<symbol>
+        seeing: ReadonlySet<string>
       ): Promise<ResolvedDeps<AnyProvider["deps"]>> {
         const deps = provider.deps as Record<string, AnyIntent>;
         const resolved: Record<string, Op> = {};
         for (const [key, intent] of Object.entries(deps)) {
           if (!provider.perContext) {
-            const satisfierId = bindingMap.get(intent.identity) ?? intent.identity;
+            const requiredId = intentMapKey(intent);
+            const satisfierId = bindingMap.get(requiredId) ?? requiredId;
             const depProvider = registry.get(satisfierId);
             if (depProvider?.perContext) {
               throw new Error(

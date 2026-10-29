@@ -4,8 +4,8 @@
 export { adapter } from "./adapter.js";
 export type { Adapter } from "./adapter.js";
 
-export { boundary } from "./boundary.js";
-export type { Boundary, Intent } from "./boundary.js";
+export { boundary, intentIdentity } from "./boundary.js";
+export type { Boundary, Intent, IntentIdentity } from "./boundary.js";
 
 export { bind, compose } from "./compose.js";
 export type {

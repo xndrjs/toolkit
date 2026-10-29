@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { boundary } from "./boundary.js";
+import { boundary, intentIdentity } from "./boundary.js";
 import { err, ok, type Result } from "./result.js";
 
 type OrderId = { readonly id: string };
@@ -14,15 +14,41 @@ describe("boundary / intent", () => {
     expect(Orders.id).toBe("orders");
     expect(FindOrder.boundaryId).toBe("orders");
     expect(FindOrder.name).toBe("find");
-    expect(typeof FindOrder.identity).toBe("symbol");
+    expect(intentIdentity(FindOrder)).toEqual(["orders", "find"]);
   });
 
-  it("gives each Intent a distinct runtime identity", () => {
+  it("keys Intent identity by structured (boundaryId, intentName)", () => {
     const Orders = boundary("orders");
     const Find = Orders.intent("find").contract<OrderId, Order, FindError>();
     const Get = Orders.intent("get").contract<OrderId, Order, FindError>();
 
-    expect(Find.identity).not.toBe(Get.identity);
+    expect(intentIdentity(Find)).toEqual(["orders", "find"]);
+    expect(intentIdentity(Get)).toEqual(["orders", "get"]);
+    expect(intentIdentity(Find)).not.toEqual(intentIdentity(Get));
+  });
+
+  it("coalesces the same logical Intent across Boundary / declaration instances", () => {
+    const OrdersA = boundary("orders");
+    const OrdersB = boundary("orders");
+    const FindA = OrdersA.intent("find").contract<OrderId, Order, FindError>();
+    const FindB = OrdersB.intent("find").contract<OrderId, Order, FindError>();
+    const FindAAgain = OrdersA.intent("find").contract<OrderId, Order, FindError>();
+
+    expect(intentIdentity(FindA)).toEqual(intentIdentity(FindB));
+    expect(intentIdentity(FindA)).toEqual(intentIdentity(FindAAgain));
+    expect(FindA).not.toBe(FindB);
+    expect(FindA).not.toBe(FindAAgain);
+  });
+
+  it("distinguishes Intent pairs that collide under dotted concat", () => {
+    const DotBoundary = boundary("a.b");
+    const Plain = boundary("a");
+    const FromDot = DotBoundary.intent("c").contract<void, true, never>();
+    const FromPlain = Plain.intent("b.c").contract<void, true, never>();
+
+    expect(intentIdentity(FromDot)).toEqual(["a.b", "c"]);
+    expect(intentIdentity(FromPlain)).toEqual(["a", "b.c"]);
+    expect(intentIdentity(FromDot)).not.toEqual(intentIdentity(FromPlain));
   });
 });
 

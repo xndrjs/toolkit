@@ -8,7 +8,7 @@ type Order = { readonly id: string; readonly total: number };
 type FindError = { readonly kind: "not_found" };
 
 /**
- * Composition type-safety keys Intents by `boundaryId.name`.
+ * Composition type-safety keys Intents by structured `(boundaryId, intentName)`.
  * `intent("name").contract<In, Success, Err>()` keeps `name` as a string literal so
  * same-contract Intents stay distinct at the type level (see boundary.ts).
  */

@@ -111,7 +111,7 @@ await ctx.dispose();
 await root.dispose();
 ```
 
-Only `surface` aliases are callable on the context. Competing realizations of the same Intent identity throw at compose time. Private providers and `bind()` aliases share one `wiring` array; prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
+Only `surface` aliases are callable on the context. Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. Private providers and `bind()` aliases share one `wiring` array; prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
 
 ## Status
 
