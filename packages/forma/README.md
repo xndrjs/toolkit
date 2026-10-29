@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design notes in [specs/initial-analysis.md](./specs/initial-analysis.md).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); the Adapter decision is recorded in [docs/adr/0001-adapter-peer-of-boundary.md](./docs/adr/0001-adapter-peer-of-boundary.md).
 
 ## Installation
 
@@ -64,15 +64,45 @@ const GetOrderProvider = GetOrder.provide
 
 Default lifetime is shared by the composition root. `.perContext()` materializes once per `createExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime).
 
+`Intent.provide.using` accepts only same-boundary Intents. Every Provider carries a required `origin` discriminant: `{ kind: "boundary", id }` from `Intent.provide…with`, or `{ kind: "adapter", id }` from Adapter `.adapt…with`.
+
+### Adapter
+
+An **Adapter** is a peer of Boundary, scoped to one target Boundary. It owns external realizations of that target’s Intents and may `using` Intents from any boundary. Prefer Adapter when contracts differ or multi-boundary orchestration is required; same-shape `bind` remains a lightweight escape hatch.
+
+```ts
+import { adapter, err, ok } from "@xndrjs/forma";
+
+const OrdersAdapter = adapter("orders-postgres", Orders);
+
+export const FindOrderAdapter = OrdersAdapter.adapt(FindOrder)
+  .perContext()
+  .using({ select: SelectOrder })
+  .with(
+    ({ deps: { select } }) =>
+      async function (id) {
+        const row = await select({ order_id: id.id });
+        if (!row.ok) {
+          return err({ kind: "not_found" as const });
+        }
+        return ok({
+          id: row.value.order_id,
+          total: row.value.amount_cents / 100,
+        });
+      }
+  );
+```
+
+`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in `providers` / `surface`, with `origin: { kind: "adapter", id: "orders-postgres" }`.
+
 ### Compose and execution context
 
 ```ts
-import { bind, compose } from "@xndrjs/forma";
+import { compose } from "@xndrjs/forma";
 
 const root = compose({
   surface: { getOrder: GetOrderProvider },
-  providers: [SelectOrderProvider, ConnProvider],
-  bindings: [bind(FindOrder, SelectOrder)],
+  providers: [SelectOrderProvider, ConnProvider, FindOrderAdapter],
 });
 
 const ctx = root.createExecutionContext();
@@ -81,8 +111,8 @@ await ctx.dispose();
 await root.dispose();
 ```
 
-Only `surface` aliases are callable on the context. Cross-boundary wiring goes through `bindings` (`bind` requires structurally equivalent contracts). See `apps/forma-demo` for a small end-to-end example.
+Only `surface` aliases are callable on the context. Competing realizations of the same Intent identity throw at compose time. Cross-boundary same-shape wiring can still use `bindings` (`bind`); prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
 
 ## Status
 
-PoC (`0.0.0`): closed compositions, `.contract`, structural `bind`, lifetime edges, unified `.with({ deps?, lifetime })`, disposal. Not a general-purpose IoC container.
+PoC (`0.0.0`): closed compositions, `.contract`, Adapter peer of Boundary, structural `bind`, lifetime edges, unified `.with({ deps?, lifetime })`, disposal. Not a general-purpose IoC container.
