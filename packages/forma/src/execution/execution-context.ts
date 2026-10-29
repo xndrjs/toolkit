@@ -6,16 +6,9 @@ import type {
 } from "../composition/composition-contract.js";
 import type { ProviderLifetimePlan } from "../graph-plan.js";
 import { intentLabel, intentMapKey } from "../intent-keys.js";
-import type { Disposable, IntentOperation, ResolvedDeps } from "../provider.js";
-import {
-  createMaterializationLifetime,
-  createScopeAbort,
-  createScopeLifecycle,
-  runDisposers,
-  type ScopeLifecycle,
-  throwAfterCallbackAndCleanup,
-  throwAfterFactoryAndRollback,
-} from "../scope-lifecycle.js";
+import type { IntentOperation, ResolvedDeps } from "../provider.js";
+import { throwAfterCallbackAndCleanup } from "./disposal.js";
+import { createProviderScope, type ProviderScope } from "./provider-scope.js";
 
 type Awaitable<T> = T | PromiseLike<T>;
 type Op = IntentOperation<unknown, unknown, unknown>;
@@ -30,17 +23,14 @@ function freezeParams<Params>(params: Params): Readonly<Params> {
   return params as Readonly<Params>;
 }
 
-/** Shared composition-owned materialization state used by every open context. */
+/** Shared composition-owned state used by every open context. */
 export type CompositionOwnedState = {
   readonly registry: ReadonlyMap<string, AnyProvider>;
   readonly aliasMap: ReadonlyMap<string, string>;
   readonly lifetimePlan: ProviderLifetimePlan;
   readonly surfaceEntries: readonly (readonly [string, AnyProvider])[];
-  readonly compositionOps: Map<string, Op>;
-  readonly compositionInflight: Map<string, Promise<Op>>;
-  readonly compositionDisposers: Disposable[];
-  readonly rootLife: ScopeLifecycle;
-  readonly rootAbort: { readonly signal: AbortSignal };
+  /** Scope for composition-effective providers. */
+  readonly compositionScope: ProviderScope;
   readonly openContexts: Set<{ dispose(): Promise<void> }>;
 };
 
@@ -53,7 +43,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
   owned: CompositionOwnedState,
   ...args: ExecutionContextArgs<Params>
 ): ExecutionContext<Surface, Params> {
-  owned.rootLife.assertOpen();
+  owned.compositionScope.assertOpen();
 
   const openOptions = (args[0] ?? {}) as {
     readonly params?: Params;
@@ -65,23 +55,18 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       : undefined
   ) as [Params] extends [void] ? undefined : Readonly<Params>;
 
-  /** Providers whose effective lifetime is context — owned by this execution context. */
-  const contextOps = new Map<string, Op>();
-  const contextInflight = new Map<string, Promise<Op>>();
-  const contextDisposers: Disposable[] = [];
-  const contextLife = createScopeLifecycle("Execution context is disposed");
-  const contextAbort = createScopeAbort(openOptions.signal);
+  /** Context-effective providers — owned by this scope. */
+  const contextScope = createProviderScope({
+    notOpenMessage: "Execution context is disposed",
+    hostSignal: openOptions.signal,
+  });
 
   const contextHandle = {
     dispose(): Promise<void> {
-      contextAbort.abort();
-      return contextLife.dispose(async () => {
-        try {
-          await runDisposers(contextDisposers);
-        } finally {
-          contextOps.clear();
+      return contextScope.dispose({
+        after: () => {
           owned.openContexts.delete(contextHandle);
-        }
+        },
       });
     },
   };
@@ -104,63 +89,18 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       throw new Error(`Internal error: missing lifetime resolution for ${label}`);
     }
 
-    const effectivePerContext = lifetime.effective === "context";
-    const declaredPerContext = provider.lifetimePolicy === "context";
-    const owner = effectivePerContext ? contextLife : owned.rootLife;
-    const ownerSignal = effectivePerContext ? contextAbort.signal : owned.rootAbort.signal;
-    const cache = effectivePerContext ? contextOps : owned.compositionOps;
-    const inflight = effectivePerContext ? contextInflight : owned.compositionInflight;
-    const disposers = effectivePerContext ? contextDisposers : owned.compositionDisposers;
+    // lifetimePlan → pick scope (no parallel map selection).
+    const scope = lifetime.effective === "context" ? contextScope : owned.compositionScope;
 
-    const cached = cache.get(id);
-    if (cached) {
-      return cached;
-    }
-
-    if (seeing.has(id)) {
-      throw new Error(`Circular dependency: ${[...path, label].join(" -> ")}`);
-    }
-
-    const pending = inflight.get(id);
-    if (pending) {
-      return pending;
-    }
-
-    const nextSeeing = new Set(seeing);
-    nextSeeing.add(id);
-    const nextPath = [...path, label];
-
-    owner.enter();
-    const promise = (async (): Promise<Op> => {
-      const setup = createMaterializationLifetime(owner, { signal: ownerSignal });
-      try {
-        // Yield so concurrent first-access callers can join this inflight promise
-        // before the factory runs (single materialization per lifetime).
-        await Promise.resolve();
-        owner.assertOpen();
-        const deps = await resolveDeps(provider, nextSeeing, nextPath);
-        owner.assertOpen();
-        const produced = provider.factory(
-          deps,
-          setup.lifetime,
-          declaredPerContext ? contextParams : undefined
-        );
-        const op = await produced;
-        owner.assertOpen();
-        setup.commit(disposers);
-        cache.set(id, op);
-        return op;
-      } catch (error) {
-        // Failed or abandoned setup: rollback local cleanups; do not cache.
-        return await throwAfterFactoryAndRollback(error, () => setup.rollback());
-      } finally {
-        inflight.delete(id);
-        owner.leave();
-      }
-    })();
-
-    inflight.set(id, promise);
-    return promise;
+    return scope.getOrMaterialize(provider, {
+      id,
+      label,
+      seeing,
+      path,
+      declaredPerContext: provider.lifetimePolicy === "context",
+      contextParams,
+      resolveDeps,
+    });
   }
 
   async function resolveByIdentity(
@@ -200,12 +140,12 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
   for (const [alias, provider] of owned.surfaceEntries) {
     surface[alias] = async (input: unknown) => {
       // Lease on the execution context for the whole surface call (materialize + invoke).
-      contextLife.enter();
+      contextScope.enter();
       try {
         const op = await materialize(provider);
         return await op(input);
       } finally {
-        contextLife.leave();
+        contextScope.leave();
       }
     };
   }
@@ -213,7 +153,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
   const dispose = (): Promise<void> => contextHandle.dispose();
   return {
     surface: surface as ExecutionSurface<Surface>,
-    signal: contextAbort.signal,
+    signal: contextScope.signal,
     params: contextParams,
     dispose,
     [Symbol.asyncDispose]: dispose,

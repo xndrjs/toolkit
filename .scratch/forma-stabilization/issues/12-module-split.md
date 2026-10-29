@@ -9,7 +9,7 @@
 - [x] Fase 0 — Test in `test/{provider,composition,execution,safety}/`, import da `@xndrjs/forma`, vitest/tsconfig aggiornati
 - [x] Fase 1 — `compileComposition()`
 - [x] Fase 2 — Root + contesti in `execution/`
-- [ ] Fase 3 — `ProviderScope` (modulo profondo)
+- [x] Fase 3 — `ProviderScope` (modulo profondo)
 - [ ] Fase 4 — Provider modello vs builder
 - [ ] Fase 5 — Type-level compiler sotto `composition/typechecks/`
 

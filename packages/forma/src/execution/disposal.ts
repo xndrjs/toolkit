@@ -1,4 +1,4 @@
-import type { Disposable, Lifetime } from "./provider.js";
+import type { Disposable, Lifetime } from "../provider.js";
 
 type ScopePhase = "open" | "disposing" | "disposed";
 
@@ -170,6 +170,7 @@ export async function throwAfterFactoryAndRollback(
   throw factoryError;
 }
 
+/** LIFO disposer drain; all cleanups are attempted before aggregating failures. */
 export async function runDisposers(bucket: Disposable[]): Promise<void> {
   const cleanups = bucket.splice(0, bucket.length);
   const errors: unknown[] = [];

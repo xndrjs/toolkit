@@ -5,22 +5,15 @@ import type {
   ExecutionContextArgs,
   ExecutionSurface,
 } from "../composition/composition-contract.js";
-import type { Disposable, IntentOperation } from "../provider.js";
-import {
-  collectThrown,
-  createScopeAbort,
-  createScopeLifecycle,
-  runDisposers,
-  throwIfDisposerErrors,
-} from "../scope-lifecycle.js";
+import { collectThrown, throwIfDisposerErrors } from "./disposal.js";
 import {
   type CompositionOwnedState,
   openExecutionContext,
   runWithExecutionContext,
 } from "./execution-context.js";
+import { createProviderScope } from "./provider-scope.js";
 
 type Awaitable<T> = T | PromiseLike<T>;
-type Op = IntentOperation<unknown, unknown, unknown>;
 
 /**
  * Build a live {@link CompositionRoot} from a closed {@link CompiledComposition}.
@@ -31,12 +24,10 @@ export function createCompositionRoot<Surface extends Record<string, AnyProvider
 ): CompositionRoot<Surface, Params> {
   const { registry, aliasMap, lifetimePlan, planDescription, surfaceEntries } = compiled;
 
-  /** Providers whose effective lifetime is composition — owned by the root scope. */
-  const compositionOps = new Map<string, Op>();
-  const compositionInflight = new Map<string, Promise<Op>>();
-  const compositionDisposers: Disposable[] = [];
-  const rootLife = createScopeLifecycle("Composition root is disposed");
-  const rootAbort = createScopeAbort();
+  /** Composition-effective providers — owned by this scope. */
+  const compositionScope = createProviderScope({
+    notOpenMessage: "Composition root is disposed",
+  });
   /** Open execution contexts; root dispose closes them as backstop. */
   const openContexts = new Set<{ dispose(): Promise<void> }>();
 
@@ -45,11 +36,7 @@ export function createCompositionRoot<Surface extends Record<string, AnyProvider
     aliasMap,
     lifetimePlan,
     surfaceEntries,
-    compositionOps,
-    compositionInflight,
-    compositionDisposers,
-    rootLife,
-    rootAbort,
+    compositionScope,
     openContexts,
   };
 
@@ -65,24 +52,18 @@ export function createCompositionRoot<Surface extends Record<string, AnyProvider
   }
 
   function disposeRoot(): Promise<void> {
-    rootAbort.abort();
-    return rootLife.dispose(async () => {
-      const errors: unknown[] = [];
-      const contexts = [...openContexts];
-      const contextResults = await Promise.allSettled(contexts.map((c) => c.dispose()));
-      for (const result of contextResults) {
-        if (result.status === "rejected") {
-          collectThrown(result.reason, errors);
+    return compositionScope.dispose({
+      beforeDisposers: async () => {
+        const contexts = [...openContexts];
+        const contextResults = await Promise.allSettled(contexts.map((c) => c.dispose()));
+        const errors: unknown[] = [];
+        for (const result of contextResults) {
+          if (result.status === "rejected") {
+            collectThrown(result.reason, errors);
+          }
         }
-      }
-      try {
-        await runDisposers(compositionDisposers);
-      } catch (error) {
-        collectThrown(error, errors);
-      } finally {
-        compositionOps.clear();
-      }
-      throwIfDisposerErrors(errors);
+        throwIfDisposerErrors(errors);
+      },
     });
   }
 
