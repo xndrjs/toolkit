@@ -7,7 +7,7 @@
 ## Checklist
 
 - [x] Fase 0 — Test in `test/{provider,composition,execution,safety}/`, import da `@xndrjs/forma`, vitest/tsconfig aggiornati
-- [ ] Fase 1 — `compileComposition()`
+- [x] Fase 1 — `compileComposition()`
 - [ ] Fase 2 — Root + contesti in `execution/`
 - [ ] Fase 3 — `ProviderScope` (modulo profondo)
 - [ ] Fase 4 — Provider modello vs builder

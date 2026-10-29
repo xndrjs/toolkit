@@ -6,10 +6,8 @@ import {
   type AliasesFromWiring,
   aliasIntent,
   type ProvidersFromWiring,
-  partitionWiring,
   type WiringEntry,
 } from "./alias-intent.js";
-import { intentIdentity, type IntentIdentity } from "./boundary.js";
 import type {
   AssertExplicitParamsCover,
   AssertNoInvalidPinnedLifetimeEdges,
@@ -20,13 +18,11 @@ import type {
   InferredParams,
 } from "./compose-graph-types.js";
 import {
-  assertAcyclicPlan,
-  assertClosedGraph,
-  buildExecutionPlan,
-  type EffectiveLifetime,
-  resolveProviderLifetimes,
-} from "./graph-plan.js";
-import { intentIdentityFromMapKey, intentLabel, intentMapKey } from "./intent-keys.js";
+  compileComposition,
+  type CompositionPlanDescription,
+  type ProviderLifetimeDescription,
+} from "./composition/compile-composition.js";
+import { intentLabel, intentMapKey } from "./intent-keys.js";
 import type {
   Disposable,
   IntentOperation,
@@ -34,7 +30,6 @@ import type {
   Provider,
   ResolvedDeps,
 } from "./provider.js";
-import { assertRegistrationSafety, buildRegistry } from "./registration.js";
 import type { Result } from "./result.js";
 import {
   collectThrown,
@@ -46,10 +41,10 @@ import {
   throwAfterFactoryAndRollback,
   throwIfDisposerErrors,
 } from "./scope-lifecycle.js";
-import { assertStringRecordKeys } from "./string-keys.js";
 
 export { aliasIntent };
 export type { IntentAlias, IntentAliasPair, WiringEntry };
+export type { CompositionPlanDescription, ProviderLifetimeDescription };
 
 type Awaitable<T> = T | PromiseLike<T>;
 
@@ -112,19 +107,6 @@ export type ExecutionContext<Surface extends Record<string, AnyProvider>, Params
    */
   dispose(): Promise<void>;
   [Symbol.asyncDispose](): Promise<void>;
-};
-
-/** Read-only explanation of one Provider's declared and graph-derived lifetime. */
-export type ProviderLifetimeDescription = {
-  readonly intent: IntentIdentity;
-  readonly declared: LifetimePolicy;
-  readonly effective: EffectiveLifetime;
-  /** Structured path from an `auto` Provider to the context-bound cause. */
-  readonly narrowedBy?: readonly IntentIdentity[];
-};
-
-export type CompositionPlanDescription = {
-  readonly providers: readonly ProviderLifetimeDescription[];
 };
 
 export type CompositionRoot<Surface extends Record<string, AnyProvider>, Params = void> = {
@@ -333,35 +315,8 @@ function composeImpl<
 >(
   options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
 ): CompositionRoot<Surface, Params> {
-  assertStringRecordKeys(options.surface, "Surface", { rejectReservedSurface: true });
-  const surfaceEntries = Object.entries(options.surface) as [keyof Surface & string, AnyProvider][];
-  const { providers: privateProviders, aliases } = partitionWiring(options.wiring ?? []);
-  const surfaceProviders = surfaceEntries.map(([, p]) => p);
-
-  assertRegistrationSafety(surfaceProviders, privateProviders, aliases);
-  const { registry, aliasMap } = buildRegistry(surfaceProviders, privateProviders, aliases);
-
-  const executionPlan = buildExecutionPlan(registry, aliases);
-  assertAcyclicPlan(executionPlan);
-  assertClosedGraph(registry, aliases);
-  const lifetimePlan = resolveProviderLifetimes(executionPlan, registry);
-  const planDescription: CompositionPlanDescription = Object.freeze({
-    providers: Object.freeze(
-      [...registry].map(([key, provider]) => {
-        const lifetime = lifetimePlan.get(key)!;
-        return Object.freeze({
-          intent: Object.freeze(intentIdentity(provider.intent)),
-          declared: lifetime.declared,
-          effective: lifetime.effective,
-          ...(lifetime.narrowedBy
-            ? {
-                narrowedBy: Object.freeze(lifetime.narrowedBy.map(intentIdentityFromMapKey)),
-              }
-            : {}),
-        });
-      })
-    ),
-  });
+  const { registry, aliasMap, lifetimePlan, planDescription, surfaceEntries } =
+    compileComposition(options);
 
   /** Providers whose effective lifetime is composition — owned by the root scope. */
   const compositionOps = new Map<string, Op>();
