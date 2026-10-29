@@ -22,6 +22,24 @@ describe("compose — surface hygiene (F5/F7)", () => {
     ).toThrow(/Surface alias "dispose" is reserved/);
   });
 
+  it("throws when surface alias is surface (reserved for nesting)", () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+    const PingProvider = Ping.provide.with(
+      (_ctx) =>
+        function () {
+          return ok("pong" as const);
+        }
+    );
+
+    expect(() =>
+      // @ts-expect-error — Surface alias(es) reserved for lifecycle: surface
+      compose({
+        surface: { surface: PingProvider },
+      })
+    ).toThrow(/Surface alias "surface" is reserved/);
+  });
+
   it("throws when surface alias is __proto__", () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
@@ -63,7 +81,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
     ).toThrow(/Surface keys must be strings; got symbol/);
   });
 
-  it("keeps ctx.dispose as lifecycle after a normal surface compose", async () => {
+  it("keeps dispose on the execution handle after a normal surface compose", async () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
     const PingProvider = Ping.provide.with(
@@ -74,10 +92,11 @@ describe("compose — surface hygiene (F5/F7)", () => {
     );
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
     expectTypeOf(ctx.dispose).toEqualTypeOf<() => Promise<void>>();
-    await expect(ctx.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    expect(ctx.surface).not.toHaveProperty("dispose");
+    await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
     await expect(ctx.dispose()).resolves.toBeUndefined();
     await root.dispose();
   });

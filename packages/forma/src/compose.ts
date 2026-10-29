@@ -24,12 +24,15 @@ import {
   createLifetime,
   createScopeLifecycle,
   runDisposers,
+  throwAfterCallbackAndCleanup,
   throwIfDisposerErrors,
 } from "./scope-lifecycle.js";
 import { assertStringRecordKeys } from "./string-keys.js";
 
 export { bind };
 export type { Binding, BindingPair, WiringEntry };
+
+type Awaitable<T> = T | PromiseLike<T>;
 
 type SurfaceOperation<P> =
   // Deps is invariant on Provider (factory param); erase with `any` so surface
@@ -42,19 +45,47 @@ type SurfaceOperation<P> =
 
 type Op = IntentOperation<unknown, unknown, unknown>;
 
-/** Public aliases from `surface`, plus `dispose` for the execution lifetime. */
+/**
+ * Borrowed public aliases from `compose({ surface })`.
+ * Lifecycle controls (`dispose`, AsyncDisposable) stay on the execution handle.
+ */
+export type ExecutionSurface<Surface extends Record<string, AnyProvider>> = {
+  readonly [K in Exclude<keyof Surface & string, "dispose" | "surface">]: SurfaceOperation<
+    Surface[K]
+  >;
+};
+
+/**
+ * Owned execution lifetime: nested {@link ExecutionSurface} plus dispose controls.
+ * Prefer {@link CompositionRoot.withExecutionContext} for short scopes.
+ */
 export type ExecutionContext<Surface extends Record<string, AnyProvider>> = {
-  readonly [K in Exclude<keyof Surface & string, "dispose">]: SurfaceOperation<Surface[K]>;
-} & {
+  readonly surface: ExecutionSurface<Surface>;
   /**
    * Release `.perContext()` resources for this context.
    * Concurrent callers share one dispose promise; terminal after settle.
    */
   dispose(): Promise<void>;
+  [Symbol.asyncDispose](): Promise<void>;
 };
 
 export type CompositionRoot<Surface extends Record<string, AnyProvider>> = {
+  /**
+   * Open an owned execution context. Caller must `dispose` / `await using`.
+   * Prefer {@link withExecutionContext} for short lexical scopes.
+   */
+  openExecutionContext(): ExecutionContext<Surface>;
+  /**
+   * @deprecated Use {@link CompositionRoot.openExecutionContext}.
+   */
   createExecutionContext(): ExecutionContext<Surface>;
+  /**
+   * Safe default for short scopes: open → run with a borrowed surface → dispose.
+   * See error matrix: both failures → `SuppressedError(cleanup, callback)`.
+   */
+  withExecutionContext<T>(
+    run: (surface: ExecutionSurface<Surface>) => Awaitable<T>
+  ): Promise<Awaited<T>>;
   /**
    * Terminal composition shutdown (backstop): refuse new contexts, dispose every
    * open execution context, then run composition-lifetime cleanups. Concurrent
@@ -62,6 +93,7 @@ export type CompositionRoot<Surface extends Record<string, AnyProvider>> = {
    * cleanup fails.
    */
   dispose(): Promise<void>;
+  [Symbol.asyncDispose](): Promise<void>;
 };
 
 export type ComposeOptions<
@@ -89,12 +121,13 @@ export type ComposeOptions<
  * Runtime: duplicate Intent within `surface` or within wiring providers, same
  * Intent in both, duplicate Binding for one Required Intent, or provider +
  * binding for the same Required Intent, throws. Surface aliases must be strings
- * and must not use reserved names (`dispose`, `__proto__`). Homonymous Boundaries
- * and repeated Intent declarations share one identity. After registration, builds
- * an execution plan and rejects cycles / open graphs before returning the root
- * (runtime `seeing` remains defense-in-depth only). Root and each execution
- * context use an `open | disposing | disposed` lifecycle; `root.dispose()` is
- * the backstop that closes open contexts then composition-lifetime cleanups.
+ * and must not use reserved names (`dispose`, `surface`, `__proto__`). Homonymous
+ * Boundaries and repeated Intent declarations share one identity. After
+ * registration, builds an execution plan and rejects cycles / open graphs before
+ * returning the root (runtime `seeing` remains defense-in-depth only). Root and
+ * each execution context use an `open | disposing | disposed` lifecycle; Design C
+ * paths (`open` / `with` / `AsyncDisposable`) share that machine. `root.dispose()`
+ * is the backstop that closes open contexts then composition-lifetime cleanups.
  */
 export function compose<
   Surface extends Record<string, AnyProvider>,
@@ -125,173 +158,205 @@ export function compose<
   /** Open execution contexts; root dispose closes them as backstop. */
   const openContexts = new Set<{ dispose(): Promise<void> }>();
 
-  return {
-    createExecutionContext(): ExecutionContext<Surface> {
-      rootLife.assertOpen();
+  function openExecutionContext(): ExecutionContext<Surface> {
+    rootLife.assertOpen();
 
-      /** Owned by this execution context (`.perContext()` providers). */
-      const contextOps = new Map<string, Op>();
-      const contextInflight = new Map<string, Promise<Op>>();
-      const contextDisposers: Disposable[] = [];
-      const contextLife = createScopeLifecycle("Execution context is disposed");
+    /** Owned by this execution context (`.perContext()` providers). */
+    const contextOps = new Map<string, Op>();
+    const contextInflight = new Map<string, Promise<Op>>();
+    const contextDisposers: Disposable[] = [];
+    const contextLife = createScopeLifecycle("Execution context is disposed");
 
-      const contextHandle = {
-        dispose(): Promise<void> {
-          return contextLife.dispose(async () => {
-            try {
-              await runDisposers(contextDisposers);
-            } finally {
-              contextOps.clear();
-              openContexts.delete(contextHandle);
-            }
-          });
-        },
-      };
-      openContexts.add(contextHandle);
-
-      /**
-       * @param seeing - Intent identity keys already being materialized on this
-       *   resolution chain (defense-in-depth; cycles are rejected at compose).
-       * @param path - Display labels for the same chain (error diagnostics).
-       */
-      async function materialize(
-        provider: AnyProvider,
-        seeing: ReadonlySet<string> = new Set(),
-        path: readonly string[] = []
-      ): Promise<Op> {
-        const perContext = provider.perContext;
-        const owner = perContext ? contextLife : rootLife;
-        const cache = perContext ? contextOps : compositionOps;
-        const inflight = perContext ? contextInflight : compositionInflight;
-        const disposers = perContext ? contextDisposers : compositionDisposers;
-        const id = intentMapKey(provider.intent);
-        const label = intentLabel(provider.intent);
-
-        const cached = cache.get(id);
-        if (cached) {
-          return cached;
-        }
-
-        if (seeing.has(id)) {
-          throw new Error(`Circular dependency: ${[...path, label].join(" -> ")}`);
-        }
-
-        const pending = inflight.get(id);
-        if (pending) {
-          return pending;
-        }
-
-        const nextSeeing = new Set(seeing);
-        nextSeeing.add(id);
-        const nextPath = [...path, label];
-
-        owner.enter();
-        const promise = (async (): Promise<Op> => {
+    const contextHandle = {
+      dispose(): Promise<void> {
+        return contextLife.dispose(async () => {
           try {
-            // Yield so concurrent first-access callers can join this inflight promise
-            // before the factory runs (single materialization per lifetime).
-            await Promise.resolve();
-            owner.assertOpen();
-            const deps = await resolveDeps(provider, nextSeeing, nextPath);
-            owner.assertOpen();
-            const lifetime = createLifetime(disposers, owner);
-            // Await thenables so dispose can drain mid-factory (full async+rollback: later ticket).
-            const produced = provider.factory(deps, lifetime) as Op | Promise<Op>;
-            const op = await produced;
-            owner.assertOpen();
-            cache.set(id, op);
-            return op;
+            await runDisposers(contextDisposers);
           } finally {
-            inflight.delete(id);
-            owner.leave();
+            contextOps.clear();
+            openContexts.delete(contextHandle);
           }
-        })();
+        });
+      },
+    };
+    openContexts.add(contextHandle);
 
-        inflight.set(id, promise);
-        return promise;
+    /**
+     * @param seeing - Intent identity keys already being materialized on this
+     *   resolution chain (defense-in-depth; cycles are rejected at compose).
+     * @param path - Display labels for the same chain (error diagnostics).
+     */
+    async function materialize(
+      provider: AnyProvider,
+      seeing: ReadonlySet<string> = new Set(),
+      path: readonly string[] = []
+    ): Promise<Op> {
+      const perContext = provider.perContext;
+      const owner = perContext ? contextLife : rootLife;
+      const cache = perContext ? contextOps : compositionOps;
+      const inflight = perContext ? contextInflight : compositionInflight;
+      const disposers = perContext ? contextDisposers : compositionDisposers;
+      const id = intentMapKey(provider.intent);
+      const label = intentLabel(provider.intent);
+
+      const cached = cache.get(id);
+      if (cached) {
+        return cached;
       }
 
-      async function resolveByIdentity(
-        required: AnyIntent,
-        seeing: ReadonlySet<string>,
-        path: readonly string[]
-      ): Promise<Op> {
-        const requiredId = intentMapKey(required);
-        const satisfierId = bindingMap.get(requiredId) ?? requiredId;
-        const provider = registry.get(satisfierId);
-        if (!provider) {
-          const viaBinding =
-            satisfierId !== requiredId
-              ? ` (bound satisfier identity has no registered provider)`
-              : "";
-          throw new Error(
-            `No provider registered for Intent ${intentLabel(required)}${viaBinding}. Add it to surface or wiring.`
-          );
-        }
-        return materialize(provider, seeing, path);
+      if (seeing.has(id)) {
+        throw new Error(`Circular dependency: ${[...path, label].join(" -> ")}`);
       }
 
-      async function resolveDeps(
-        provider: AnyProvider,
-        seeing: ReadonlySet<string>,
-        path: readonly string[]
-      ): Promise<ResolvedDeps<AnyProvider["deps"]>> {
-        const deps = provider.deps as Record<string, AnyIntent>;
-        const resolved: Record<string, Op> = {};
-        for (const [key, intent] of Object.entries(deps)) {
-          if (!provider.perContext) {
-            const requiredId = intentMapKey(intent);
-            const satisfierId = bindingMap.get(requiredId) ?? requiredId;
-            const depProvider = registry.get(satisfierId);
-            if (depProvider?.perContext) {
-              throw new Error(
-                `Invalid lifetime edge: composition-lifetime provider ${intentLabel(provider.intent)} cannot depend on a .perContext() provider (${intentLabel(depProvider.intent)})`
-              );
-            }
-          }
-          resolved[key] = await resolveByIdentity(intent, seeing, path);
-        }
-        return resolved as ResolvedDeps<AnyProvider["deps"]>;
+      const pending = inflight.get(id);
+      if (pending) {
+        return pending;
       }
 
-      const ctx = Object.create(null) as Record<string, unknown>;
-      ctx.dispose = () => contextHandle.dispose();
+      const nextSeeing = new Set(seeing);
+      nextSeeing.add(id);
+      const nextPath = [...path, label];
 
-      for (const [alias, provider] of surfaceEntries) {
-        ctx[alias] = async (input: unknown) => {
-          // Lease on the execution context for the whole surface call (materialize + invoke).
-          contextLife.enter();
-          try {
-            const op = await materialize(provider);
-            return await op(input);
-          } finally {
-            contextLife.leave();
-          }
-        };
-      }
-
-      return ctx as ExecutionContext<Surface>;
-    },
-
-    dispose(): Promise<void> {
-      return rootLife.dispose(async () => {
-        const errors: unknown[] = [];
-        const contexts = [...openContexts];
-        const contextResults = await Promise.allSettled(contexts.map((c) => c.dispose()));
-        for (const result of contextResults) {
-          if (result.status === "rejected") {
-            collectThrown(result.reason, errors);
-          }
-        }
+      owner.enter();
+      const promise = (async (): Promise<Op> => {
         try {
-          await runDisposers(compositionDisposers);
-        } catch (error) {
-          collectThrown(error, errors);
+          // Yield so concurrent first-access callers can join this inflight promise
+          // before the factory runs (single materialization per lifetime).
+          await Promise.resolve();
+          owner.assertOpen();
+          const deps = await resolveDeps(provider, nextSeeing, nextPath);
+          owner.assertOpen();
+          const lifetime = createLifetime(disposers, owner);
+          // Await thenables so dispose can drain mid-factory (full async+rollback: later ticket).
+          const produced = provider.factory(deps, lifetime) as Op | Promise<Op>;
+          const op = await produced;
+          owner.assertOpen();
+          cache.set(id, op);
+          return op;
         } finally {
-          compositionOps.clear();
+          inflight.delete(id);
+          owner.leave();
         }
-        throwIfDisposerErrors(errors);
-      });
-    },
+      })();
+
+      inflight.set(id, promise);
+      return promise;
+    }
+
+    async function resolveByIdentity(
+      required: AnyIntent,
+      seeing: ReadonlySet<string>,
+      path: readonly string[]
+    ): Promise<Op> {
+      const requiredId = intentMapKey(required);
+      const satisfierId = bindingMap.get(requiredId) ?? requiredId;
+      const provider = registry.get(satisfierId);
+      if (!provider) {
+        const viaBinding =
+          satisfierId !== requiredId
+            ? ` (bound satisfier identity has no registered provider)`
+            : "";
+        throw new Error(
+          `No provider registered for Intent ${intentLabel(required)}${viaBinding}. Add it to surface or wiring.`
+        );
+      }
+      return materialize(provider, seeing, path);
+    }
+
+    async function resolveDeps(
+      provider: AnyProvider,
+      seeing: ReadonlySet<string>,
+      path: readonly string[]
+    ): Promise<ResolvedDeps<AnyProvider["deps"]>> {
+      const deps = provider.deps as Record<string, AnyIntent>;
+      const resolved: Record<string, Op> = {};
+      for (const [key, intent] of Object.entries(deps)) {
+        if (!provider.perContext) {
+          const requiredId = intentMapKey(intent);
+          const satisfierId = bindingMap.get(requiredId) ?? requiredId;
+          const depProvider = registry.get(satisfierId);
+          if (depProvider?.perContext) {
+            throw new Error(
+              `Invalid lifetime edge: composition-lifetime provider ${intentLabel(provider.intent)} cannot depend on a .perContext() provider (${intentLabel(depProvider.intent)})`
+            );
+          }
+        }
+        resolved[key] = await resolveByIdentity(intent, seeing, path);
+      }
+      return resolved as ResolvedDeps<AnyProvider["deps"]>;
+    }
+
+    const surface = Object.create(null) as Record<string, unknown>;
+    for (const [alias, provider] of surfaceEntries) {
+      surface[alias] = async (input: unknown) => {
+        // Lease on the execution context for the whole surface call (materialize + invoke).
+        contextLife.enter();
+        try {
+          const op = await materialize(provider);
+          return await op(input);
+        } finally {
+          contextLife.leave();
+        }
+      };
+    }
+
+    const dispose = (): Promise<void> => contextHandle.dispose();
+    return {
+      surface: surface as ExecutionSurface<Surface>,
+      dispose,
+      [Symbol.asyncDispose]: dispose,
+    };
+  }
+
+  async function withExecutionContext<T>(
+    run: (surface: ExecutionSurface<Surface>) => Awaitable<T>
+  ): Promise<Awaited<T>> {
+    const execution = openExecutionContext();
+    let callbackError: unknown | undefined;
+    let result: Awaited<T> | undefined;
+    try {
+      result = await run(execution.surface);
+    } catch (error) {
+      callbackError = error;
+    }
+
+    let cleanupError: unknown | undefined;
+    try {
+      await execution.dispose();
+    } catch (error) {
+      cleanupError = error;
+    }
+
+    throwAfterCallbackAndCleanup(callbackError, cleanupError);
+    return result as Awaited<T>;
+  }
+
+  function disposeRoot(): Promise<void> {
+    return rootLife.dispose(async () => {
+      const errors: unknown[] = [];
+      const contexts = [...openContexts];
+      const contextResults = await Promise.allSettled(contexts.map((c) => c.dispose()));
+      for (const result of contextResults) {
+        if (result.status === "rejected") {
+          collectThrown(result.reason, errors);
+        }
+      }
+      try {
+        await runDisposers(compositionDisposers);
+      } catch (error) {
+        collectThrown(error, errors);
+      } finally {
+        compositionOps.clear();
+      }
+      throwIfDisposerErrors(errors);
+    });
+  }
+
+  return {
+    openExecutionContext,
+    createExecutionContext: openExecutionContext,
+    withExecutionContext,
+    dispose: disposeRoot,
+    [Symbol.asyncDispose]: disposeRoot,
   };
 }

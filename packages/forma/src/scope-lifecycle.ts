@@ -115,3 +115,22 @@ export function collectThrown(error: unknown, into: unknown[]): void {
     into.push(error);
   }
 }
+
+/**
+ * Error matrix for `withExecutionContext` / single-handle `await using`:
+ * both callback and cleanup failed → `SuppressedError(cleanupError, callbackError)`.
+ */
+export function throwAfterCallbackAndCleanup(
+  callbackError: unknown | undefined,
+  cleanupError: unknown | undefined
+): void {
+  if (callbackError !== undefined && cleanupError !== undefined) {
+    throw new SuppressedError(cleanupError, callbackError);
+  }
+  if (callbackError !== undefined) {
+    throw callbackError;
+  }
+  if (cleanupError !== undefined) {
+    throw cleanupError;
+  }
+}

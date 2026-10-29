@@ -207,7 +207,7 @@ export type AssertNoInvalidLifetimeEdges<
 
 /**
  * Intersected into `compose` options: surface aliases must be strings and must
- * not collide with reserved lifecycle names (`dispose`; Design C may add more).
+ * not collide with reserved lifecycle names (`dispose`, `surface`).
  */
 export type AssertSurfaceAliasesSafe<Surface extends Record<string, AnyProvider>> =
   ForbiddenSurfaceAliases<Surface> extends infer Reserved

@@ -23,18 +23,21 @@ describe("compose — surface hello (ping)", () => {
 
     expect(runs).toBe(0);
 
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
     expect(runs).toBe(0);
-    expect(typeof ctx.ping).toBe("function");
+    expect(typeof ctx.surface.ping).toBe("function");
     expect(typeof ctx.dispose).toBe("function");
+    expect(typeof ctx[Symbol.asyncDispose]).toBe("function");
+    // Aliases nest under surface — not flat on the owned handle.
+    expect(ctx).not.toHaveProperty("ping");
 
     // Surface exposes only declared aliases — not other Intents.
-    expect(ctx).not.toHaveProperty("findOrder");
+    expect(ctx.surface).not.toHaveProperty("findOrder");
     // Surface aliases are always async (materialize + invoke), never sync Result.
-    expectTypeOf(ctx.ping).toEqualTypeOf<(input: void) => Promise<Result<"pong", never>>>();
-    expectTypeOf(ctx).not.toHaveProperty("findOrder");
+    expectTypeOf(ctx.surface.ping).toEqualTypeOf<(input: void) => Promise<Result<"pong", never>>>();
+    expectTypeOf(ctx.surface).not.toHaveProperty("findOrder");
 
-    const result = await ctx.ping();
+    const result = await ctx.surface.ping();
     expect(result).toEqual({ ok: true, value: "pong" });
     // Realization body runs on first alias call (lazy), not at compose / context open.
     expect(runs).toBe(1);
@@ -64,12 +67,12 @@ describe("compose — surface hello (ping)", () => {
       }) as typeof base.factory,
     };
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
     expect(materializations).toBe(0);
-    await ctx.ping();
+    await ctx.surface.ping();
     expect(materializations).toBe(1);
-    await ctx.ping();
+    await ctx.surface.ping();
     expect(materializations).toBe(1);
   });
 });

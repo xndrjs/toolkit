@@ -11,7 +11,12 @@ export { bind } from "./bind.js";
 export type { Binding, BindingPair, WiringEntry } from "./bind.js";
 
 export { compose } from "./compose.js";
-export type { ComposeOptions, CompositionRoot, ExecutionContext } from "./compose.js";
+export type {
+  ComposeOptions,
+  CompositionRoot,
+  ExecutionContext,
+  ExecutionSurface,
+} from "./compose.js";
 
 export type {
   AdaptProvideApi,

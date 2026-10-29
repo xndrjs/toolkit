@@ -87,6 +87,8 @@ describe("compose — composition safety", () => {
       surface: { getOrder: GetOrderProvider },
       wiring: [FindOrderProvider],
     });
+    expect(typeof root.openExecutionContext).toBe("function");
+    expect(typeof root.withExecutionContext).toBe("function");
     expect(typeof root.createExecutionContext).toBe("function");
   });
 
@@ -114,7 +116,7 @@ describe("compose — composition safety", () => {
       surface: { getOrder: GetOrderProvider },
       wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)],
     });
-    expect(typeof root.createExecutionContext).toBe("function");
+    expect(typeof root.openExecutionContext).toBe("function");
   });
 
   it("type-rejects a binding whose satisfier has no registered provider", () => {

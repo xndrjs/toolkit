@@ -4,10 +4,10 @@
  */
 
 /**
- * Aliases that must not appear on `compose({ surface })` (collide with context lifecycle).
- * Design C may later reserve `surface` when nesting aliases under `execution.surface`.
+ * Aliases that must not appear on `compose({ surface })` (collide with execution handle fields).
+ * Operations live under `execution.surface`; `dispose` / nesting key `surface` are reserved.
  */
-export const RESERVED_SURFACE_ALIASES = ["dispose"] as const;
+export const RESERVED_SURFACE_ALIASES = ["dispose", "surface"] as const;
 
 export type ReservedSurfaceAlias = (typeof RESERVED_SURFACE_ALIASES)[number];
 

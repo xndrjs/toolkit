@@ -18,11 +18,11 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx1 = root.createExecutionContext();
-    const ctx2 = root.createExecutionContext();
+    const ctx1 = root.openExecutionContext();
+    const ctx2 = root.openExecutionContext();
 
-    const a = await ctx1.ping();
-    const b = await ctx2.ping();
+    const a = await ctx1.surface.ping();
+    const b = await ctx2.surface.ping();
     expect(a).toEqual({ ok: true, value: { n: 1 } });
     expect(b).toEqual({ ok: true, value: { n: 1 } });
     if (!a.ok || !b.ok) {
@@ -50,12 +50,12 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx1 = root.createExecutionContext();
-    const ctx2 = root.createExecutionContext();
+    const ctx1 = root.openExecutionContext();
+    const ctx2 = root.openExecutionContext();
 
-    const a1 = await ctx1.ping();
-    const a2 = await ctx1.ping();
-    const b1 = await ctx2.ping();
+    const a1 = await ctx1.surface.ping();
+    const a2 = await ctx1.surface.ping();
+    const b1 = await ctx2.surface.ping();
 
     expect(setups).toBe(2);
     if (!a1.ok || !a2.ok || !b1.ok) {
@@ -91,9 +91,9 @@ describe("compose — lifecycle and disposal", () => {
     };
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
-    const [r1, r2] = await Promise.all([ctx.ping(), ctx.ping()]);
+    const [r1, r2] = await Promise.all([ctx.surface.ping(), ctx.surface.ping()]);
     expect(r1).toEqual({ ok: true, value: "pong" });
     expect(r2).toEqual({ ok: true, value: "pong" });
     expect(factoryRuns).toBe(1);
@@ -119,9 +119,9 @@ describe("compose — lifecycle and disposal", () => {
     const root = compose({
       surface: { ping: PingProvider },
     });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
-    await ctx.ping();
+    await ctx.surface.ping();
     expect(stub.disposed).toBe(false);
 
     await ctx.dispose();
@@ -147,9 +147,9 @@ describe("compose — lifecycle and disposal", () => {
     const root = compose({
       surface: { ping: PingProvider },
     });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
-    await ctx.ping();
+    await ctx.surface.ping();
     await ctx.dispose();
     expect(stub.disposed).toBe(false);
 
@@ -188,9 +188,9 @@ describe("compose — lifecycle and disposal", () => {
       surface: { query: QueryProvider },
       wiring: [ConnProvider],
     });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
-    await expect(ctx.query()).rejects.toThrow(
+    await expect(ctx.surface.query()).rejects.toThrow(
       /composition-lifetime.*context-lifetime|cannot depend on a \.perContext/
     );
 
@@ -211,14 +211,14 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
-    await expect(ctx.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
     expect(setups).toBe(1);
 
     await ctx.dispose();
 
-    await expect(ctx.ping()).rejects.toThrow(/disposed|sealed/i);
+    await expect(ctx.surface.ping()).rejects.toThrow(/disposed|sealed/i);
     expect(setups).toBe(1);
 
     await root.dispose();
@@ -244,8 +244,8 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
-    await ctx.ping();
+    const ctx = root.openExecutionContext();
+    await ctx.surface.ping();
 
     await expect(ctx.dispose()).rejects.toThrow(/earlier cleanup failed/);
     expect(order).toEqual(["earlier", "later"]);
@@ -282,10 +282,10 @@ describe("compose — lifecycle and disposal", () => {
     const root = compose({
       surface: { ping: SharedProvider, scoped: ScopedProvider },
     });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
-    await ctx.ping();
-    await ctx.scoped();
+    await ctx.surface.ping();
+    await ctx.surface.scoped();
     await ctx.dispose();
 
     expect(contextStub.disposed).toBe(true);
@@ -295,7 +295,7 @@ describe("compose — lifecycle and disposal", () => {
     expect(compositionStub.disposed).toBe(true);
   });
 
-  it("createExecutionContext() throws after root.dispose()", async () => {
+  it("openExecutionContext() throws after root.dispose()", async () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
     const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
@@ -303,6 +303,7 @@ describe("compose — lifecycle and disposal", () => {
     const root = compose({ surface: { ping: PingProvider } });
     await root.dispose();
 
+    expect(() => root.openExecutionContext()).toThrow(/disposed/i);
     expect(() => root.createExecutionContext()).toThrow(/disposed/i);
   });
 
@@ -312,12 +313,12 @@ describe("compose — lifecycle and disposal", () => {
     const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
-    await expect(ctx.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    const ctx = root.openExecutionContext();
+    await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
 
     await root.dispose();
 
-    await expect(ctx.ping()).rejects.toThrow(/disposed/i);
+    await expect(ctx.surface.ping()).rejects.toThrow(/disposed/i);
   });
 
   it("concurrent ctx.dispose() callers share one promise", async () => {
@@ -334,8 +335,8 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
-    await ctx.ping();
+    const ctx = root.openExecutionContext();
+    await ctx.surface.ping();
 
     const first = ctx.dispose();
     const second = ctx.dispose();
@@ -361,8 +362,8 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
-    await ctx.ping();
+    const ctx = root.openExecutionContext();
+    await ctx.surface.ping();
     await ctx.dispose();
 
     const first = root.dispose();
@@ -386,12 +387,12 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
-    await ctx.ping();
+    const ctx = root.openExecutionContext();
+    await ctx.surface.ping();
     await ctx.dispose();
 
     await expect(root.dispose()).rejects.toThrow(/composition cleanup failed/);
-    expect(() => root.createExecutionContext()).toThrow(/disposed/i);
+    expect(() => root.openExecutionContext()).toThrow(/disposed/i);
   });
 
   it("root.dispose() closes open execution contexts as backstop", async () => {
@@ -407,13 +408,13 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
-    await ctx.ping();
+    const ctx = root.openExecutionContext();
+    await ctx.surface.ping();
     expect(stub.disposed).toBe(false);
 
     await root.dispose();
     expect(stub.disposed).toBe(true);
-    await expect(ctx.ping()).rejects.toThrow(/disposed/i);
+    await expect(ctx.surface.ping()).rejects.toThrow(/disposed/i);
   });
 
   it("ctx.dispose() waits for an in-flight surface call before running cleanups", async () => {
@@ -441,9 +442,9 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
-    const pending = ctx.ping();
+    const pending = ctx.surface.ping();
     await opEntered;
     const disposing = ctx.dispose();
     expect(cleaned).toBe(false);
@@ -485,9 +486,9 @@ describe("compose — lifecycle and disposal", () => {
     };
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
-    const pending = ctx.ping();
+    const pending = ctx.surface.ping();
     await factoryEntered;
     const disposing = ctx.dispose();
     expect(cleaned).toBe(false);
@@ -497,7 +498,7 @@ describe("compose — lifecycle and disposal", () => {
     await expect(disposing).resolves.toBeUndefined();
     expect(cleaned).toBe(true);
 
-    await expect(ctx.ping()).rejects.toThrow(/disposed/i);
+    await expect(ctx.surface.ping()).rejects.toThrow(/disposed/i);
     await root.dispose();
   });
   it("Lifetime.onDispose after the scope is sealed throws", async () => {
@@ -511,8 +512,8 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx = root.createExecutionContext();
-    await ctx.ping();
+    const ctx = root.openExecutionContext();
+    await ctx.surface.ping();
     await ctx.dispose();
 
     expect(() => stolenLifetime!.onDispose(() => undefined)).toThrow(/sealed/i);
@@ -547,10 +548,10 @@ describe("compose — lifecycle and disposal", () => {
     };
 
     const root = compose({ surface: { ping: PingProvider } });
-    const ctx1 = root.createExecutionContext();
-    const ctx2 = root.createExecutionContext();
+    const ctx1 = root.openExecutionContext();
+    const ctx2 = root.openExecutionContext();
 
-    const first = ctx1.ping();
+    const first = ctx1.surface.ping();
     await factoryEntered;
     const disposing = ctx1.dispose();
     releaseFactory();
@@ -559,7 +560,7 @@ describe("compose — lifecycle and disposal", () => {
     await expect(disposing).resolves.toBeUndefined();
     expect(setups).toBe(1);
 
-    const second = await ctx2.ping();
+    const second = await ctx2.surface.ping();
     expect(second).toEqual({ ok: true, value: { n: 1 } });
     if (!second.ok) {
       throw new Error("expected ok");

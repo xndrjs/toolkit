@@ -65,8 +65,8 @@ describe("bind — contract compatibility", () => {
       wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)],
     });
 
-    const ctx = root.createExecutionContext();
-    await expect(ctx.getOrder({ id: "1" })).resolves.toEqual({
+    const ctx = root.openExecutionContext();
+    await expect(ctx.surface.getOrder({ id: "1" })).resolves.toEqual({
       ok: true,
       value: { id: "1", total: 1 },
     });

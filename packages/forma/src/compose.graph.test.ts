@@ -56,7 +56,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
         }
     );
 
-    // Both aliases on the surface: historically Promise.all([ctx.a(), ctx.b()])
+    // Both aliases on the surface: historically Promise.all([ctx.surface.a(), ctx.surface.b()])
     // deadlocked because each resolution had its own `seeing` set.
     expect(() =>
       compose({
@@ -133,8 +133,8 @@ describe("compose — graph plan and cycle detection (F2)", () => {
       surface: { getOrder: GetProvider },
       wiring: [SelectProvider, bind(FindOrder, SelectOrder)],
     });
-    const ctx = root.createExecutionContext();
-    await expect(ctx.getOrder({ id: "1" })).resolves.toEqual({
+    const ctx = root.openExecutionContext();
+    await expect(ctx.surface.getOrder({ id: "1" })).resolves.toEqual({
       ok: true,
       value: { id: "1", total: 9 },
     });
@@ -162,8 +162,8 @@ describe("compose — graph plan and cycle detection (F2)", () => {
       surface: { getOrder: GetProvider },
       wiring: [FindProvider],
     });
-    const ctx = root.createExecutionContext();
-    await expect(ctx.getOrder({ id: "x" })).resolves.toEqual({
+    const ctx = root.openExecutionContext();
+    await expect(ctx.surface.getOrder({ id: "x" })).resolves.toEqual({
       ok: true,
       value: { id: "x", total: 4 },
     });

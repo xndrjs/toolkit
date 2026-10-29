@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; surface/`using` key hygiene).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; surface/`using` key hygiene; Design C execution API).
 
 ## Installation
 
@@ -62,9 +62,9 @@ const GetOrderProvider = GetOrder.provide
   );
 ```
 
-Default lifetime is shared by the composition root. `.perContext()` materializes once per `createExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime). Root and context `dispose()` are terminal state machines (concurrent callers share one promise); `root.dispose()` also closes any open execution contexts.
+Default lifetime is shared by the composition root. `.perContext()` materializes once per `openExecutionContext()` / `withExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime). Root and context `dispose()` are terminal state machines (concurrent callers share one promise); `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount. `createExecutionContext` remains a deprecated alias of `open`.
 
-`Intent.provide.using` accepts only same-boundary Intents, is **one-shot** (do not chain `.using`), and requires string dependency keys. Surface aliases are likewise string-only; `dispose` is reserved for `ctx.dispose()`. Every Provider carries a required `origin` discriminant: `{ kind: "boundary", id }` from `Intent.provide…with`, or `{ kind: "adapter", id }` from Adapter `.adapt…with`.
+`Intent.provide.using` accepts only same-boundary Intents, is **one-shot** (do not chain `.using`), and requires string dependency keys. Surface aliases are likewise string-only; `dispose` and `surface` are reserved on the composition surface map (operations nest under `execution.surface`). Every Provider carries a required `origin` discriminant: `{ kind: "boundary", id }` from `Intent.provide…with`, or `{ kind: "adapter", id }` from Adapter `.adapt…with`.
 
 ### Adapter
 
@@ -105,13 +105,21 @@ const root = compose({
   wiring: [SelectOrderProvider, ConnProvider, FindOrderAdapter],
 });
 
-const ctx = root.createExecutionContext();
-const result: Result<Order, FindError> = await ctx.getOrder({ id: "42" });
-await ctx.dispose();
+const result: Result<Order, FindError> = await root.withExecutionContext(async (surface) => {
+  return surface.getOrder({ id: "42" });
+});
+
 await root.dispose();
 ```
 
-Only `surface` aliases are callable on the context. Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Binding edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `bind()` aliases share one `wiring` array; prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
+Host-owned lifetime (no callback):
+
+```ts
+await using execution = root.openExecutionContext();
+await execution.surface.getOrder({ id: "42" });
+```
+
+Only aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Binding edges), rejects cycles with a full path diagnostic, and requires a closed graph before returning the root. Private providers and `bind()` aliases share one `wiring` array; prefer Adapter when shapes differ. See `apps/forma-demo` for a small end-to-end example.
 
 ## Status
 

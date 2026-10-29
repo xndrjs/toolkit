@@ -45,16 +45,16 @@ describe("compose — explicit cross-boundary binding", () => {
       wiring: [SelectOrderProvider, bind(FindOrder, SelectOrder)],
     });
 
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
     expect(ctx).not.toHaveProperty("findOrder");
     expect(ctx).not.toHaveProperty("selectOrder");
     expectTypeOf(ctx).not.toHaveProperty("findOrder");
     expectTypeOf(ctx).not.toHaveProperty("selectOrder");
 
-    const hit = await ctx.getOrder({ id: "42" });
+    const hit = await ctx.surface.getOrder({ id: "42" });
     expect(hit).toEqual({ ok: true, value: { id: "42", total: 100 } });
 
-    const miss = await ctx.getOrder({ id: "missing" });
+    const miss = await ctx.surface.getOrder({ id: "missing" });
     expect(miss).toEqual({ ok: false, error: { kind: "not_found" } });
 
     await expect(ctx.dispose()).resolves.toBeUndefined();
@@ -109,11 +109,11 @@ describe("compose — explicit cross-boundary binding", () => {
       wiring: [SelectOrderProvider, FindOrderAdapter],
     });
 
-    const ctx = root.createExecutionContext();
-    const result = await ctx.getOrder({ id: "7" });
+    const ctx = root.openExecutionContext();
+    const result = await ctx.surface.getOrder({ id: "7" });
     expect(result).toEqual({ ok: true, value: { id: "7", total: 25 } });
 
-    const miss: Result<Order, FindError> = await ctx.getOrder({ id: "none" });
+    const miss: Result<Order, FindError> = await ctx.surface.getOrder({ id: "none" });
     expect(miss).toEqual({ ok: false, error: { kind: "not_found" } });
   });
 });

@@ -37,8 +37,8 @@ describe("compose — structured Intent identity (F1)", () => {
       surface: { getOrder: GetProvider },
       wiring: [FindProvider],
     });
-    const ctx = root.createExecutionContext();
-    await expect(ctx.getOrder({ id: "1" })).resolves.toEqual({
+    const ctx = root.openExecutionContext();
+    await expect(ctx.surface.getOrder({ id: "1" })).resolves.toEqual({
       ok: true,
       value: { id: "1", total: 7 },
     });
@@ -67,8 +67,8 @@ describe("compose — structured Intent identity (F1)", () => {
       surface: { getOrder: GetProvider },
       wiring: [FindProvider],
     });
-    const ctx = root.createExecutionContext();
-    await expect(ctx.getOrder({ id: "x" })).resolves.toEqual({
+    const ctx = root.openExecutionContext();
+    await expect(ctx.surface.getOrder({ id: "x" })).resolves.toEqual({
       ok: true,
       value: { id: "x", total: 3 },
     });
@@ -121,9 +121,9 @@ describe("compose — structured Intent identity (F1)", () => {
     const root = compose({
       surface: { fromDot: DotProvider, fromPlain: PlainProvider },
     });
-    const ctx = root.createExecutionContext();
-    await expect(ctx.fromDot()).resolves.toEqual({ ok: true, value: "dot" });
-    await expect(ctx.fromPlain()).resolves.toEqual({ ok: true, value: "plain" });
+    const ctx = root.openExecutionContext();
+    await expect(ctx.surface.fromDot()).resolves.toEqual({ ok: true, value: "dot" });
+    await expect(ctx.surface.fromPlain()).resolves.toEqual({ ok: true, value: "plain" });
   });
 
   it("F1.3: type-rejects a missing provider that would alias under dotted concat", () => {
@@ -211,8 +211,8 @@ describe("compose — structured Intent identity (F1)", () => {
       surface: { getOrder: GetProvider },
       wiring: [FindProvider],
     });
-    const ctx = root.createExecutionContext();
-    await expect(ctx.getOrder({ id: "2" })).resolves.toEqual({
+    const ctx = root.openExecutionContext();
+    await expect(ctx.surface.getOrder({ id: "2" })).resolves.toEqual({
       ok: true,
       value: { id: "2", total: 9 },
     });
@@ -245,8 +245,8 @@ describe("compose — structured Intent identity (F1)", () => {
       surface: { find: FindViaPg },
       wiring: [SelectProvider],
     });
-    const ctx = root.createExecutionContext();
-    await expect(ctx.find({ id: "3" })).resolves.toEqual({
+    const ctx = root.openExecutionContext();
+    await expect(ctx.surface.find({ id: "3" })).resolves.toEqual({
       ok: true,
       value: { id: "3", total: 11 },
     });

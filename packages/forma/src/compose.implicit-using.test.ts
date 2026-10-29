@@ -32,16 +32,16 @@ describe("compose — implicit using graph", () => {
       wiring: [FindOrderProvider],
     });
 
-    const ctx = root.createExecutionContext();
+    const ctx = root.openExecutionContext();
 
-    expect(typeof ctx.getOrder).toBe("function");
+    expect(typeof ctx.surface.getOrder).toBe("function");
     expect(ctx).not.toHaveProperty("findOrder");
     expectTypeOf(ctx).not.toHaveProperty("findOrder");
-    expectTypeOf(ctx.getOrder).toEqualTypeOf<
+    expectTypeOf(ctx.surface.getOrder).toEqualTypeOf<
       (input: OrderId) => Promise<Result<Order, FindError>>
     >();
 
-    const result = await ctx.getOrder({ id: "1" });
+    const result = await ctx.surface.getOrder({ id: "1" });
     expect(result).toEqual({ ok: true, value: { id: "1", total: 42 } });
 
     await expect(ctx.dispose()).resolves.toBeUndefined();
