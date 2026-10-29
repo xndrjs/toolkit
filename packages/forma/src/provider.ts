@@ -1,5 +1,6 @@
 import type { Intent } from "./boundary.js";
 import type { Result } from "./result.js";
+import { assertStringRecordKeys, sealedStringRecord } from "./string-keys.js";
 
 /** Operation that fulfills an Intent contract. */
 export type IntentOperation<Input, Success, Err> = (
@@ -27,12 +28,16 @@ export type ProviderOrigin =
   | { readonly kind: "boundary"; readonly id: string }
   | { readonly kind: "adapter"; readonly id: string };
 
+/** Reject maps that include symbol (or number) keys — Forma only wires string dependency names. */
+type StringKeyedDeps<Deps> = Exclude<keyof Deps, string> extends never ? Deps : never;
+
 /**
  * Map of same-boundary Intents accepted by `using`.
  * Uses a self-referential mapped constraint (no string index) so named keys stay required.
+ * Keys are string-only (`Extract<keyof Deps, string>`).
  */
 export type SameBoundaryDeps<BoundaryId extends string, Deps> = {
-  readonly [K in keyof Deps]: Deps[K] extends Intent<
+  readonly [K in Extract<keyof Deps, string>]: Deps[K] extends Intent<
     BoundaryId,
     string,
     infer _I,
@@ -48,14 +53,26 @@ export type SameBoundaryDeps<BoundaryId extends string, Deps> = {
  * Same self-referential shape as {@link SameBoundaryDeps}, without a BoundaryId brand.
  */
 export type AnyIntentDeps<Deps> = {
-  readonly [K in keyof Deps]: Deps[K] extends Intent<string, string, infer _I, infer _S, infer _E>
+  readonly [K in Extract<keyof Deps, string>]: Deps[K] extends Intent<
+    string,
+    string,
+    infer _I,
+    infer _S,
+    infer _E
+  >
     ? Deps[K]
     : Intent<string, string, never, never, never>;
 };
 
 /** Resolved operations keyed like the `using` map. */
 export type ResolvedDeps<Deps> = {
-  readonly [K in keyof Deps]: Deps[K] extends Intent<string, string, infer I, infer S, infer E>
+  readonly [K in Extract<keyof Deps, string>]: Deps[K] extends Intent<
+    string,
+    string,
+    infer I,
+    infer S,
+    infer E
+  >
     ? IntentOperation<I, S, E>
     : never;
 };
@@ -106,7 +123,39 @@ type WithFactory<Input, Success, Err, Deps> = (
   ctx: WithContext<Deps>
 ) => IntentOperation<Input, Success, Err>;
 
-/** Builder for `Intent.provide`: `using` accepts only same-boundary Intents. */
+/** Fluent steps after deps are fixed (`using` is one-shot). */
+type ProviderBuilderAfterUsing<
+  BoundaryId extends string,
+  Name extends string,
+  Input,
+  Success,
+  Err,
+  Deps,
+  PerContext extends boolean,
+> = {
+  perContext(): ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, true>;
+  with(
+    factory: WithFactory<Input, Success, Err, Deps>
+  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
+};
+
+/** Fluent steps after deps are fixed on the Adapter path (`using` is one-shot). */
+type AdaptProviderBuilderAfterUsing<
+  BoundaryId extends string,
+  Name extends string,
+  Input,
+  Success,
+  Err,
+  Deps,
+  PerContext extends boolean,
+> = {
+  perContext(): AdaptProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, true>;
+  with(
+    factory: WithFactory<Input, Success, Err, Deps>
+  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
+};
+
+/** Builder for `Intent.provide`: `using` accepts only same-boundary Intents; one-shot. */
 export type ProviderBuilder<
   BoundaryId extends string,
   Name extends string,
@@ -115,17 +164,20 @@ export type ProviderBuilder<
   Err,
   Deps = EmptyDeps,
   PerContext extends boolean = false,
-> = {
-  using<NewDeps extends SameBoundaryDeps<BoundaryId, NewDeps>>(
-    deps: NewDeps & SameBoundaryDeps<BoundaryId, NewDeps>
-  ): ProviderBuilder<BoundaryId, Name, Input, Success, Err, NewDeps, PerContext>;
-  perContext(): ProviderBuilder<BoundaryId, Name, Input, Success, Err, Deps, true>;
-  with(
-    factory: WithFactory<Input, Success, Err, Deps>
-  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
-};
+> =
+  IsEmptyDeps<Deps> extends true
+    ? {
+        using<NewDeps extends SameBoundaryDeps<BoundaryId, NewDeps>>(
+          deps: StringKeyedDeps<NewDeps> & SameBoundaryDeps<BoundaryId, NewDeps>
+        ): ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, NewDeps, PerContext>;
+        perContext(): ProviderBuilder<BoundaryId, Name, Input, Success, Err, EmptyDeps, true>;
+        with(
+          factory: WithFactory<Input, Success, Err, EmptyDeps>
+        ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, PerContext>;
+      }
+    : ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
 
-/** Builder for `adapter().adapt`: `using` accepts Intents from any boundary. */
+/** Builder for `adapter().adapt`: `using` accepts Intents from any boundary; one-shot. */
 export type AdaptProviderBuilder<
   BoundaryId extends string,
   Name extends string,
@@ -134,15 +186,26 @@ export type AdaptProviderBuilder<
   Err,
   Deps = EmptyDeps,
   PerContext extends boolean = false,
-> = {
-  using<NewDeps extends AnyIntentDeps<NewDeps>>(
-    deps: NewDeps & AnyIntentDeps<NewDeps>
-  ): AdaptProviderBuilder<BoundaryId, Name, Input, Success, Err, NewDeps, PerContext>;
-  perContext(): AdaptProviderBuilder<BoundaryId, Name, Input, Success, Err, Deps, true>;
-  with(
-    factory: WithFactory<Input, Success, Err, Deps>
-  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
-};
+> =
+  IsEmptyDeps<Deps> extends true
+    ? {
+        using<NewDeps extends AnyIntentDeps<NewDeps>>(
+          deps: StringKeyedDeps<NewDeps> & AnyIntentDeps<NewDeps>
+        ): AdaptProviderBuilderAfterUsing<
+          BoundaryId,
+          Name,
+          Input,
+          Success,
+          Err,
+          NewDeps,
+          PerContext
+        >;
+        perContext(): AdaptProviderBuilder<BoundaryId, Name, Input, Success, Err, EmptyDeps, true>;
+        with(
+          factory: WithFactory<Input, Success, Err, EmptyDeps>
+        ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, PerContext>;
+      }
+    : AdaptProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, PerContext>;
 
 export type ProvideApi<
   BoundaryId extends string,
@@ -163,6 +226,7 @@ export type AdaptProvideApi<
 /**
  * Shared fluent implementation. Callers pick the public builder type
  * (`ProviderBuilder` vs `AdaptProviderBuilder`); `using` constraints are type-only.
+ * `using` is one-shot: a second call throws at runtime and is absent from the type.
  */
 function createProviderBuilder<
   BoundaryId extends string,
@@ -178,11 +242,17 @@ function createProviderBuilder<
   perContext: PerContext,
   origin: ProviderOrigin
 ) {
-  const hasDeps = Object.keys(deps as object).length > 0;
+  const hasDeps = Reflect.ownKeys(deps as object).length > 0;
 
   return {
-    using(newDeps: Deps) {
-      return createProviderBuilder(intent, newDeps, perContext, origin);
+    using(newDeps: object) {
+      if (hasDeps) {
+        throw new Error(
+          "using() can only be called once; put all dependencies in a single using({ ... }) call"
+        );
+      }
+      assertStringRecordKeys(newDeps, "Provider using()");
+      return createProviderBuilder(intent, sealedStringRecord(newDeps), perContext, origin);
     },
     perContext() {
       return createProviderBuilder(intent, deps, true as const, origin);

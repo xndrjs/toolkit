@@ -12,6 +12,7 @@ import {
 import type {
   AssertNoInvalidLifetimeEdges,
   AssertProvidersComplete,
+  AssertSurfaceAliasesSafe,
 } from "./compose-graph-types.js";
 import { assertAcyclicPlan, assertClosedGraph, buildExecutionPlan } from "./graph-plan.js";
 import { intentLabel, intentMapKey } from "./intent-keys.js";
@@ -25,6 +26,7 @@ import {
   runDisposers,
   throwIfDisposerErrors,
 } from "./scope-lifecycle.js";
+import { assertStringRecordKeys } from "./string-keys.js";
 
 export { bind };
 export type { Binding, BindingPair, WiringEntry };
@@ -42,7 +44,7 @@ type Op = IntentOperation<unknown, unknown, unknown>;
 
 /** Public aliases from `surface`, plus `dispose` for the execution lifetime. */
 export type ExecutionContext<Surface extends Record<string, AnyProvider>> = {
-  readonly [K in keyof Surface]: SurfaceOperation<Surface[K]>;
+  readonly [K in Exclude<keyof Surface & string, "dispose">]: SurfaceOperation<Surface[K]>;
 } & {
   /**
    * Release `.perContext()` resources for this context.
@@ -86,9 +88,10 @@ export type ComposeOptions<
  * structured `(boundaryId, intentName)`, not concatenated labels.
  * Runtime: duplicate Intent within `surface` or within wiring providers, same
  * Intent in both, duplicate Binding for one Required Intent, or provider +
- * binding for the same Required Intent, throws. Homonymous Boundaries and
- * repeated Intent declarations share one identity. After registration, builds an
- * execution plan and rejects cycles / open graphs before returning the root
+ * binding for the same Required Intent, throws. Surface aliases must be strings
+ * and must not use reserved names (`dispose`, `__proto__`). Homonymous Boundaries
+ * and repeated Intent declarations share one identity. After registration, builds
+ * an execution plan and rejects cycles / open graphs before returning the root
  * (runtime `seeing` remains defense-in-depth only). Root and each execution
  * context use an `open | disposing | disposed` lifecycle; `root.dispose()` is
  * the backstop that closes open contexts then composition-lifetime cleanups.
@@ -98,9 +101,11 @@ export function compose<
   const Wiring extends readonly WiringEntry[] = [],
 >(
   options: ComposeOptions<Surface, Wiring> &
+    AssertSurfaceAliasesSafe<Surface> &
     AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>> &
     AssertNoInvalidLifetimeEdges<Surface, ProvidersFromWiring<Wiring>, BindingsFromWiring<Wiring>>
 ): CompositionRoot<Surface> {
+  assertStringRecordKeys(options.surface, "Surface", { rejectReservedSurface: true });
   const surfaceEntries = Object.entries(options.surface) as [keyof Surface & string, AnyProvider][];
   const { providers: privateProviders, bindings } = partitionWiring(options.wiring ?? []);
   const surfaceProviders = surfaceEntries.map(([, p]) => p);
@@ -249,9 +254,8 @@ export function compose<
         return resolved as ResolvedDeps<AnyProvider["deps"]>;
       }
 
-      const ctx: Record<string, unknown> = {
-        dispose: () => contextHandle.dispose(),
-      };
+      const ctx = Object.create(null) as Record<string, unknown>;
+      ctx.dispose = () => contextHandle.dispose();
 
       for (const [alias, provider] of surfaceEntries) {
         ctx[alias] = async (input: unknown) => {

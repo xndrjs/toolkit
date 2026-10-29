@@ -18,7 +18,7 @@ A declared intention — a meaningful outcome named within a Boundary, with a st
 The TypeScript promise of an Intent: input, successful outcome, and expected domain failures. Unexpected technical failures are outside the Contract. PoC convention: discriminated `Result<T, E>` for success vs expected failures.
 
 **Provider**:
-The registrable association of an Intent with a realization, including Intent dependencies (`using`) and lifecycle (default composition-lifetime or `.perContext()`). The operative API entity in composition. Built via same-boundary `Intent.provide` or via an Adapter’s `.adapt`.
+The registrable association of an Intent with a realization, including Intent dependencies (`using`) and lifecycle (default composition-lifetime or `.perContext()`). The operative API entity in composition. Built via same-boundary `Intent.provide` or via an Adapter’s `.adapt`. `.using(...)` is one-shot (string dependency keys only); put every dependency in a single map.
 
 **Adapter**:
 An architectural identity, peer to Boundary, scoped to exactly one **target Boundary**. Owns external realizations of that target’s Intents; may declare `using` dependencies on Intents from any boundary (including several infrastructure boundaries). Does not own or redefine the target Intents’ contracts.
@@ -31,7 +31,7 @@ Ordinary TypeScript that fulfills an Intent's Contract. Narrative term for “ho
 The place that registers providers and identity aliases (`wiring`), resolves dependencies, defines the public surface, and manages lazy materialization and lifecycles. At `compose`, Forma builds a dependency plan (provider `using` edges and Binding rewrites), rejects cycles with a full path diagnostic, and requires a closed graph before exposing the root. The composition root owns composition-lifetime cache and cleanups and is the backstop for shutdown: `root.dispose()` refuses new execution contexts, disposes every open context, then runs composition-lifetime cleanups (terminal `open → disposing → disposed`, shared dispose promise). Not framed as a general-purpose IoC container; teams may still describe their composition root in familiar DI terms.
 
 **Surface**:
-The explicitly declared public aliases of a Composition (`compose({ surface })`); the only callable API for consumers of that composition.
+The explicitly declared public aliases of a Composition (`compose({ surface })`); the only callable API for consumers of that composition. Alias keys are strings only; `dispose` is reserved for the execution-context lifecycle (and `__proto__` is rejected).
 
 **Binding**:
 An alias, produced by `bind()` and registered in `compose({ wiring })`, that rewrites a required Intent identity to a different Intent identity whose provider satisfies it. Not a separate compose key and not a Realization. Valid when contracts are structurally equivalent. Prefer an Adapter when translation or multi-boundary orchestration is required; Binding remains a lightweight escape hatch for same-shape identities.

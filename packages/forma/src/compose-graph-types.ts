@@ -1,6 +1,7 @@
 import type { Intent, IntentIdentity } from "./boundary.js";
 import type { AnyProvider, Binding } from "./bind.js";
 import type { Provider } from "./provider.js";
+import type { ReservedSurfaceAlias } from "./string-keys.js";
 
 /**
  * Type-level Intent identity: structured `(boundaryId, intentName)`.
@@ -163,6 +164,12 @@ type MissingProviderKeys<
  */
 declare const formaMissingProviders: unique symbol;
 declare const formaInvalidLifetimeEdges: unique symbol;
+declare const formaReservedSurfaceKeys: unique symbol;
+declare const formaNonStringSurfaceKeys: unique symbol;
+
+type ForbiddenSurfaceAliases<Surface> = Extract<keyof Surface & string, ReservedSurfaceAlias>;
+
+type NonStringSurfaceKeys<Surface> = Exclude<keyof Surface, string>;
 
 /**
  * Intersected into `compose` options: when the graph is incomplete, requires a
@@ -195,5 +202,22 @@ export type AssertNoInvalidLifetimeEdges<
       ? unknown
       : {
           readonly [formaInvalidLifetimeEdges]: `Invalid lifetime edge(s): composition-lifetime provider(s) depend on .perContext(): ${Extract<Bad, string>}`;
+        }
+    : unknown;
+
+/**
+ * Intersected into `compose` options: surface aliases must be strings and must
+ * not collide with reserved lifecycle names (`dispose`; Design C may add more).
+ */
+export type AssertSurfaceAliasesSafe<Surface extends Record<string, AnyProvider>> =
+  ForbiddenSurfaceAliases<Surface> extends infer Reserved
+    ? [Reserved] extends [never]
+      ? [NonStringSurfaceKeys<Surface>] extends [never]
+        ? unknown
+        : {
+            readonly [formaNonStringSurfaceKeys]: "Surface aliases must be string keys";
+          }
+      : {
+          readonly [formaReservedSurfaceKeys]: `Surface alias(es) reserved for lifecycle: ${Extract<Reserved, string>}`;
         }
     : unknown;

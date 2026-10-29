@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; surface/`using` key hygiene).
 
 ## Installation
 
@@ -64,7 +64,7 @@ const GetOrderProvider = GetOrder.provide
 
 Default lifetime is shared by the composition root. `.perContext()` materializes once per `createExecutionContext()`. A composition-lifetime provider must not depend on a `.perContext()` provider (compile-time and runtime). Root and context `dispose()` are terminal state machines (concurrent callers share one promise); `root.dispose()` also closes any open execution contexts.
 
-`Intent.provide.using` accepts only same-boundary Intents. Every Provider carries a required `origin` discriminant: `{ kind: "boundary", id }` from `Intent.provide…with`, or `{ kind: "adapter", id }` from Adapter `.adapt…with`.
+`Intent.provide.using` accepts only same-boundary Intents, is **one-shot** (do not chain `.using`), and requires string dependency keys. Surface aliases are likewise string-only; `dispose` is reserved for `ctx.dispose()`. Every Provider carries a required `origin` discriminant: `{ kind: "boundary", id }` from `Intent.provide…with`, or `{ kind: "adapter", id }` from Adapter `.adapt…with`.
 
 ### Adapter
 

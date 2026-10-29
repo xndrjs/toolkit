@@ -191,4 +191,42 @@ describe("provider builder", () => {
     expect(GetPerContextAlt.perContext).toBe(true);
     expect(GetPerContextAlt.deps).toEqual({ find: FindOrder });
   });
+
+  it("makes using one-shot: second call is a type error and throws at runtime", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const ListOrders = Orders.intent("list").contract<void, Order[], never>();
+    const CancelOrder = Orders.intent("cancel").contract<OrderId, void, CancelError>();
+
+    const afterUsing = CancelOrder.provide.using({ find: FindOrder });
+    expectTypeOf(afterUsing).not.toHaveProperty("using");
+
+    expect(() =>
+      // @ts-expect-error — using is one-shot; merge deps into a single call
+      afterUsing.using({ list: ListOrders })
+    ).toThrow(/using\(\) can only be called once/);
+  });
+
+  it("type-rejects and runtime-throws symbol keys in using", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const CancelOrder = Orders.intent("cancel").contract<OrderId, void, CancelError>();
+    const depKey = Symbol("find");
+
+    expect(() =>
+      // @ts-expect-error — using dependency keys must be strings
+      CancelOrder.provide.using({ [depKey]: FindOrder })
+    ).toThrow(/Provider using\(\) keys must be strings; got symbol/);
+  });
+
+  it("runtime-throws __proto__ as a using dependency key", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const CancelOrder = Orders.intent("cancel").contract<OrderId, void, CancelError>();
+
+    const deps = Object.create(null) as Record<string, typeof FindOrder>;
+    deps.__proto__ = FindOrder;
+
+    expect(() => CancelOrder.provide.using(deps)).toThrow(/__proto__/);
+  });
 });
