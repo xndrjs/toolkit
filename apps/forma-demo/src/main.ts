@@ -1,10 +1,10 @@
 /**
- * Forma PoC demo — Orders surface over a Postgres Intent via binding,
- * with a per-execution-context DB connection.
+ * Forma PoC demo — Orders surface over Postgres via an adapter provider
+ * (snake_case rows → camelCase Order), with a per-execution-context DB connection.
  */
 import type { Result } from "@xndrjs/forma";
 import { root } from "./composition";
-import type { FindError, Order } from "./orders/index";
+import type { FindError, Order } from "./core-orders/index";
 
 async function main(): Promise<void> {
   const ctx = root.createExecutionContext();

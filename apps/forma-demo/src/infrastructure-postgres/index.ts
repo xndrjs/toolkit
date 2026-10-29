@@ -3,7 +3,9 @@ import type { Connection, PgFindError, PgOrder, PgOrderId } from "./types";
 
 export type { Connection, PgFindError, PgOrder, PgOrderId } from "./types";
 
-const rows: ReadonlyMap<string, PgOrder> = new Map([["42", { id: "42", total: 100 }]]);
+const rows: ReadonlyMap<string, PgOrder> = new Map([
+  ["42", { order_id: "42", amount_cents: 10000 }],
+]);
 
 export const Postgres = boundary("postgres");
 
@@ -12,7 +14,7 @@ export const ConnectionIntent = Postgres.intent("connection").contract<void, Con
 export const ConnectionProvider = ConnectionIntent.provide.perContext().with(({ lifetime }) => {
   const connection: Connection = {
     label: "pg-connection",
-    lookup: (id) => rows.get(id),
+    lookup: (orderId) => rows.get(orderId),
   };
   lifetime.onDispose(() => {
     console.log(`disposed ${connection.label}`);
@@ -35,9 +37,9 @@ export const SelectOrderProvider = SelectOrder.provide
       async function (id) {
         const opened = await connection();
         if (!opened.ok) {
-          return err({ kind: "not_found" as const });
+          return err({ code: "NO_ROW" as const });
         }
-        const row = opened.value.lookup(id.id);
-        return row ? ok(row) : err({ kind: "not_found" as const });
+        const row = opened.value.lookup(id.order_id);
+        return row ? ok(row) : err({ code: "NO_ROW" as const });
       }
   );
