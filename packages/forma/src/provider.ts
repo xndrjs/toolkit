@@ -104,19 +104,23 @@ type IsEmptyDeps<Deps> = [Deps] extends [EmptyDeps]
     : false
   : false;
 
-type ParamsFields<Params> = [Params] extends [void]
-  ? Record<PropertyKey, never>
-  : { readonly params: Readonly<Params> };
-
 /**
  * Argument to `.with`: named fields avoid positional ambiguity between deps and lifetime.
  * No `using` → only `lifetime` (+ `params` when `.perContext<ParamsReq>()`).
  * With `using` → `deps` + `lifetime` (+ `params` when declared).
  */
-export type WithContext<Deps, Params = void> = (IsEmptyDeps<Deps> extends true
-  ? { readonly lifetime: Lifetime }
-  : { readonly deps: ResolvedDeps<Deps>; readonly lifetime: Lifetime }) &
-  ParamsFields<Params>;
+export type WithContext<Deps, Params = void> =
+  IsEmptyDeps<Deps> extends true
+    ? [Params] extends [void]
+      ? { readonly lifetime: Lifetime }
+      : { readonly lifetime: Lifetime; readonly params: Readonly<Params> }
+    : [Params] extends [void]
+      ? { readonly deps: ResolvedDeps<Deps>; readonly lifetime: Lifetime }
+      : {
+          readonly deps: ResolvedDeps<Deps>;
+          readonly lifetime: Lifetime;
+          readonly params: Readonly<Params>;
+        };
 
 /**
  * Registrable association of an Intent with a realization, dependencies, and lifecycle.
