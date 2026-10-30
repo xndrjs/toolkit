@@ -7,7 +7,8 @@ import type {
 import type { ProviderLifetimePlan } from "../graph-plan.js";
 import { intentLabel, intentMapKey } from "../intent-keys.js";
 import type { IntentOperation, ResolvedDeps } from "../provider/provider.js";
-import { throwAfterCallbackAndCleanup } from "./disposal.js";
+import { createScopeAbort, throwAfterCallbackAndCleanup } from "./disposal.js";
+import { createExecutionLifecycle } from "./execution-lifecycle.js";
 import { createProviderScope, type ProviderScope } from "./provider-scope.js";
 
 type Awaitable<T> = T | PromiseLike<T>;
@@ -55,19 +56,31 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       : undefined
   ) as [Params] extends [void] ? undefined : Readonly<Params>;
 
-  /** Context-effective providers — owned by this scope. */
+  // One abort for the context: public `execution.signal` and Provider Lifetime.signal.
+  const abort = createScopeAbort(openOptions.signal);
+
+  /** Invocation leases (unary today; stream registry later) — not Provider materialization. */
+  const execution = createExecutionLifecycle({
+    notOpenMessage: "Execution context is disposed",
+    abort,
+  });
+
+  /** Context-effective providers — materialize/cache/Lifetime only. */
   const contextScope = createProviderScope({
     notOpenMessage: "Execution context is disposed",
-    hostSignal: openOptions.signal,
+    abort,
   });
 
   const contextHandle = {
     dispose(): Promise<void> {
-      return contextScope.dispose({
-        after: () => {
-          owned.openContexts.delete(contextHandle);
-        },
-      });
+      // abort + reject new work + drain unary leases, then dispose context Providers.
+      return execution.dispose(() =>
+        contextScope.dispose({
+          after: () => {
+            owned.openContexts.delete(contextHandle);
+          },
+        })
+      );
     },
   };
   owned.openContexts.add(contextHandle);
@@ -99,6 +112,10 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       path,
       declaredPerContext: provider.lifetimePolicy === "context",
       contextParams,
+      // Context-owned setup must fail once the execution context is disposing,
+      // even though ProviderScope dispose runs only after unary leases drain.
+      assertAcceptingWork:
+        lifetime.effective === "context" ? () => execution.assertOpen() : undefined,
       resolveDeps,
     });
   }
@@ -139,13 +156,13 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
   const surface = Object.create(null) as Record<string, unknown>;
   for (const [alias, provider] of owned.surfaceEntries) {
     surface[alias] = async (input: unknown) => {
-      // Lease on the execution context for the whole surface call (materialize + invoke).
-      contextScope.enter();
+      // Lease on the execution lifecycle for the whole surface call (materialize + invoke).
+      execution.enter();
       try {
         const op = await materialize(provider);
         return await op(input);
       } finally {
-        contextScope.leave();
+        execution.leave();
       }
     };
   }
@@ -153,7 +170,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
   const dispose = (): Promise<void> => contextHandle.dispose();
   return {
     surface: surface as ExecutionSurface<Surface>,
-    signal: contextScope.signal,
+    signal: execution.signal,
     params: contextParams,
     dispose,
     [Symbol.asyncDispose]: dispose,

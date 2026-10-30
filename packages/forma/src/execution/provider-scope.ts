@@ -8,6 +8,7 @@ import {
   runDisposers,
   throwAfterFactoryAndRollback,
   throwIfDisposerErrors,
+  type ScopeAbort,
 } from "./disposal.js";
 
 type Op = IntentOperation<unknown, unknown, unknown>;
@@ -20,6 +21,12 @@ export type GetOrMaterializeOptions = {
   /** When true, factory receives execution `params`; otherwise `undefined`. */
   readonly declaredPerContext: boolean;
   readonly contextParams: unknown;
+  /**
+   * Extra gate besides this scope's own open check (e.g. execution lifecycle still
+   * accepting work). Used so context-owned materialization fails once the execution
+   * context is disposing, without tying surface leases to this scope's enter/leave.
+   */
+  readonly assertAcceptingWork?: () => void;
   resolveDeps(
     provider: AnyProvider,
     seeing: ReadonlySet<string>,
@@ -39,8 +46,9 @@ export type ProviderScopeDisposeHooks = {
 
 /**
  * Deep module: one ownership scope for provider instances.
- * Owns lifecycle, abort signal, ops cache, inflight coalescing, disposer bucket,
- * materialization (commit/rollback), and terminal dispose.
+ * Owns materialization lifecycle, abort signal, ops cache, inflight coalescing,
+ * disposer bucket, and terminal dispose — not surface-call / stream invocation leases
+ * (those live on {@link import("./execution-lifecycle.js").ExecutionLifecycle}).
  *
  * Composition root and each execution context each hold one {@link ProviderScope};
  * `lifetimePlan → pick scope` replaces selecting parallel maps by hand.
@@ -48,30 +56,32 @@ export type ProviderScopeDisposeHooks = {
 export type ProviderScope = {
   readonly signal: AbortSignal;
   assertOpen(): void;
-  /** Synchronously claim a slot; throws if not open. */
-  enter(): void;
-  leave(): void;
   /**
    * Cache hit, inflight coalesce, or run factory once under this scope's Lifetime.
    * Concurrent first-access callers share one promise; failed attempts are not cached.
    */
   getOrMaterialize(provider: AnyProvider, options: GetOrMaterializeOptions): Promise<Op>;
   /**
-   * Terminal dispose: abort → drain enter slots → seal → optional before hook →
-   * LIFO disposers → clear cache.
+   * Terminal dispose: abort → drain in-flight materializations → seal → optional
+   * before hook → LIFO disposers → clear cache.
    */
   dispose(hooks?: ProviderScopeDisposeHooks): Promise<void>;
 };
 
 export type CreateProviderScopeOptions = {
   readonly notOpenMessage: string;
-  /** Optional host signal merged into this scope's AbortSignal (via `AbortSignal.any`). */
+  /**
+   * Shared abort handle (e.g. execution-context signal so Lifetime.signal ===
+   * `execution.signal`). When omitted, one is created from `hostSignal`.
+   */
+  readonly abort?: ScopeAbort;
+  /** Optional host signal merged into a newly created AbortSignal (ignored if `abort` is set). */
   readonly hostSignal?: AbortSignal;
 };
 
 export function createProviderScope(options: CreateProviderScopeOptions): ProviderScope {
   const life = createScopeLifecycle(options.notOpenMessage);
-  const abort = createScopeAbort(options.hostSignal);
+  const abort = options.abort ?? createScopeAbort(options.hostSignal);
   const ops = new Map<string, Op>();
   const inflight = new Map<string, Promise<Op>>();
   const disposers: Disposable[] = [];
@@ -83,14 +93,22 @@ export function createProviderScope(options: CreateProviderScopeOptions): Provid
     assertOpen(): void {
       life.assertOpen();
     },
-    enter(): void {
-      life.enter();
-    },
-    leave(): void {
-      life.leave();
-    },
     getOrMaterialize(provider, opts): Promise<Op> {
-      const { id, label, seeing, path, declaredPerContext, contextParams, resolveDeps } = opts;
+      const {
+        id,
+        label,
+        seeing,
+        path,
+        declaredPerContext,
+        contextParams,
+        assertAcceptingWork,
+        resolveDeps,
+      } = opts;
+
+      const assertOpen = (): void => {
+        life.assertOpen();
+        assertAcceptingWork?.();
+      };
 
       const cached = ops.get(id);
       if (cached) {
@@ -117,16 +135,16 @@ export function createProviderScope(options: CreateProviderScopeOptions): Provid
           // Yield so concurrent first-access callers can join this inflight promise
           // before the factory runs (single materialization per lifetime).
           await Promise.resolve();
-          life.assertOpen();
+          assertOpen();
           const deps = await resolveDeps(provider, nextSeeing, nextPath);
-          life.assertOpen();
+          assertOpen();
           const produced = provider.factory(
             deps,
             setup.lifetime,
             declaredPerContext ? contextParams : undefined
           );
           const op = await produced;
-          life.assertOpen();
+          assertOpen();
           setup.commit(disposers);
           ops.set(id, op);
           return op;

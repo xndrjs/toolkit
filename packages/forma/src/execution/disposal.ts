@@ -6,10 +6,12 @@ type ScopePhase = "open" | "disposing" | "disposed";
  * AbortController owned by a scope. `signal` also reflects an optional host
  * signal (via `AbortSignal.any`); `abort()` runs when the scope enters disposing.
  */
-export function createScopeAbort(hostSignal?: AbortSignal): {
+export type ScopeAbort = {
   readonly signal: AbortSignal;
   abort(): void;
-} {
+};
+
+export function createScopeAbort(hostSignal?: AbortSignal): ScopeAbort {
   const controller = new AbortController();
   const signal =
     hostSignal === undefined ? controller.signal : AbortSignal.any([controller.signal, hostSignal]);
@@ -24,9 +26,9 @@ export function createScopeAbort(hostSignal?: AbortSignal): {
 }
 
 /**
- * Shared dispose state machine for composition root and execution contexts.
- * `enter`/`leave` bracket accepted work so dispose can drain before sealing
- * Lifetime buckets and running cleanups.
+ * Shared dispose state machine for ProviderScope, ExecutionLifecycle, and similar
+ * owners. `enter`/`leave` bracket accepted work so dispose can drain before
+ * sealing Lifetime buckets and running cleanups.
  */
 export function createScopeLifecycle(notOpenMessage: string) {
   let phase: ScopePhase = "open";
