@@ -30,6 +30,6 @@ src/main.ts                      # describe plan + walk unary / stream / break /
 - natural completion and `break` both run generator `finally` (logged as `watchOrders(…) closed`);
 - disposing the context (end of `withExecutionContext`) closes any still-active streams;
 - a signal already aborted at first pull prevents materialization; later host abort unblocks cooperative I/O but does **not** auto-dispose the context;
-- `root.describePlan()` shows Entry Boundaries, Surface-root provenance, and per-Provider `origin` / `mode` / lifetime (Adapter ids such as `orders-memory` appear on private seam realizations).
+- `root.describePlan()` shows Entry Boundaries, Surface-root provenance, and per-Provider `origin` / `mode` / nested `lifetime` (Adapter ids such as `orders-memory` appear on private seam realizations).
 
 See [packages/forma/docs/streaming-intents.md](../../packages/forma/docs/streaming-intents.md) and [GLOSSARY.md](../../packages/forma/GLOSSARY.md) (**Modality**, **Stream invocation**).

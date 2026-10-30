@@ -205,22 +205,19 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
         intent: ["orders", "find"],
         mode: "unary",
         origin: { kind: "boundary", id: "orders" },
-        declared: "auto",
-        effective: "composition",
+        lifetime: { declared: "auto", effective: "composition" },
       },
       {
         intent: ["orders", "relayOrders"],
         mode: "stream",
         origin: { kind: "boundary", id: "orders" },
-        declared: "auto",
-        effective: "composition",
+        lifetime: { declared: "auto", effective: "composition" },
       },
       {
         intent: ["orders", "watchOrders"],
         mode: "stream",
         origin: { kind: "boundary", id: "orders" },
-        declared: "auto",
-        effective: "composition",
+        lifetime: { declared: "auto", effective: "composition" },
       },
     ]);
   });
@@ -250,15 +247,13 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
         intent: ["orders", "get"],
         mode: "unary",
         origin: { kind: "boundary", id: "orders" },
-        declared: "auto",
-        effective: "composition",
+        lifetime: { declared: "auto", effective: "composition" },
       },
       {
         intent: ["orders", "find"],
         mode: "unary",
         origin: { kind: "adapter", id: "orders-memory" },
-        declared: "auto",
-        effective: "composition",
+        lifetime: { declared: "auto", effective: "composition" },
       },
     ]);
   });

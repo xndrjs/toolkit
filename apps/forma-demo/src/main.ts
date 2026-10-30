@@ -47,11 +47,13 @@ async function main(): Promise<void> {
       intent: formatIntent(p.intent),
       mode: p.mode,
       origin: p.origin,
-      lifetimePolicy: {
-        declared: p.declared,
-        effective: p.effective,
+      lifetime: {
+        declared: p.lifetime.declared,
+        effective: p.lifetime.effective,
+        ...(p.lifetime.narrowedBy
+          ? { narrowedBy: p.lifetime.narrowedBy.map(formatIntent).join(" → ") }
+          : {}),
       },
-      ...(p.narrowedBy ? { narrowedBy: p.narrowedBy.map(formatIntent).join(" → ") } : {}),
     }))
   );
 

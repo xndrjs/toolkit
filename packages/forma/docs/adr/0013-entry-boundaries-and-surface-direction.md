@@ -43,8 +43,8 @@ compose({
 - A Composition may expose multiple Entry Boundaries and privately traverse any number of other
   Boundaries. Composition ownership does not become one-to-one with Boundary ownership.
 - `describePlan()` exposes Entry Boundary ids, each Surface alias's Intent identity and root
-  provenance, and each registered Provider's Boundary/Adapter origin alongside lifetime
-  descriptions.
+  provenance, and each registered Provider's Boundary/Adapter origin with a nested `lifetime`
+  explanation (`declared` / `effective` / optional `narrowedBy`).
 - `defineWiring` and `defineComposition` remain extraction helpers. The normal and documented form
   keeps the whole composition inline.
 

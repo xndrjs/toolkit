@@ -21,6 +21,7 @@ export type {
   ExecutionContextOptions,
   ExecutionSurface,
   ProviderLifetimeDescription,
+  ProviderLifetimeExplanation,
   SurfaceRootDescription,
   StreamSurfaceIterable,
 } from "./composition/composition-contract.js";

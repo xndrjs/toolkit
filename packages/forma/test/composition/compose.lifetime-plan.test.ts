@@ -46,31 +46,34 @@ describe("compose — effective lifetime plan", () => {
         intent: ["app", "a"],
         mode: "unary",
         origin: { kind: "boundary", id: "app" },
-        declared: "auto",
-        effective: "context",
-        narrowedBy: [
-          ["app", "a"],
-          ["app", "b"],
-          ["app", "c"],
-        ],
+        lifetime: {
+          declared: "auto",
+          effective: "context",
+          narrowedBy: [
+            ["app", "a"],
+            ["app", "b"],
+            ["app", "c"],
+          ],
+        },
       },
       {
         intent: ["app", "b"],
         mode: "unary",
         origin: { kind: "boundary", id: "app" },
-        declared: "auto",
-        effective: "context",
-        narrowedBy: [
-          ["app", "b"],
-          ["app", "c"],
-        ],
+        lifetime: {
+          declared: "auto",
+          effective: "context",
+          narrowedBy: [
+            ["app", "b"],
+            ["app", "c"],
+          ],
+        },
       },
       {
         intent: ["app", "c"],
         mode: "unary",
         origin: { kind: "boundary", id: "app" },
-        declared: "context",
-        effective: "context",
+        lifetime: { declared: "context", effective: "context" },
       },
     ]);
 
@@ -145,13 +148,15 @@ describe("compose — effective lifetime plan", () => {
       intent: ["app", "read"],
       mode: "unary",
       origin: { kind: "boundary", id: "app" },
-      declared: "auto",
-      effective: "context",
-      narrowedBy: [
-        ["app", "read"],
-        ["app", "required"],
-        ["infra", "actual"],
-      ],
+      lifetime: {
+        declared: "auto",
+        effective: "context",
+        narrowedBy: [
+          ["app", "read"],
+          ["app", "required"],
+          ["infra", "actual"],
+        ],
+      },
     });
 
     await root.withExecutionContext((surface) => surface.read());

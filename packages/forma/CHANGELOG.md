@@ -8,7 +8,8 @@
 - Composition roots now declare an exact, non-empty `entryBoundaries` set. Adapter Providers are
   private wiring only; Surface roots must originate from the declared Boundaries.
 - `describePlan()` now reports Entry Boundaries, Surface-root provenance, and each registered
-  Provider's Boundary/Adapter origin.
+  Provider's Boundary/Adapter origin. Lifetime fields are nested under `lifetime`
+  (`declared` / `effective` / optional `narrowedBy`).
 - Stream abort/close ownership now prevents pre-aborted starts and floating cleanup rejections,
   while attempting and aggregating every stream and Provider cleanup.
 - Removed the deprecated `createExecutionContext` alpha alias; use `openExecutionContext`.

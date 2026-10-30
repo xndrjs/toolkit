@@ -125,13 +125,15 @@ export function compileComposition<
           intent: Object.freeze(intentIdentity(provider.intent)),
           mode: provider.intent.modality,
           origin: Object.freeze({ ...provider.origin }),
-          declared: lifetime.declared,
-          effective: lifetime.effective,
-          ...(lifetime.narrowedBy
-            ? {
-                narrowedBy: Object.freeze(lifetime.narrowedBy.map(intentIdentityFromMapKey)),
-              }
-            : {}),
+          lifetime: Object.freeze({
+            declared: lifetime.declared,
+            effective: lifetime.effective,
+            ...(lifetime.narrowedBy
+              ? {
+                  narrowedBy: Object.freeze(lifetime.narrowedBy.map(intentIdentityFromMapKey)),
+                }
+              : {}),
+          }),
         });
       })
     ),

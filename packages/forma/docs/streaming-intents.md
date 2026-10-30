@@ -456,8 +456,8 @@ registrati (surface e wiring), non solo sulla surface:
 {
   intent: ["orders", "watchOrders"],
   mode: "stream",
-  declared: "auto",
-  effective: "context"
+  origin: { kind: "boundary", id: "orders" },
+  lifetime: { declared: "auto", effective: "context" }
 }
 ```
 

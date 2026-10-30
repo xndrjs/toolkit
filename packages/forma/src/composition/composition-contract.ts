@@ -4,17 +4,22 @@ import type { EffectiveLifetime } from "../graph-plan.js";
 import type { LifetimePolicy, Provider, ProviderOrigin } from "../provider/provider.js";
 import type { Result } from "../result.js";
 
-/** Read-only explanation of one registered Provider (lifetime + architectural origin). */
+/** Declared policy, graph-derived effective lifetime, and optional narrowing path. */
+export type ProviderLifetimeExplanation = {
+  readonly declared: LifetimePolicy;
+  readonly effective: EffectiveLifetime;
+  /** Structured path from an `auto` Provider to the context-bound cause. */
+  readonly narrowedBy?: readonly IntentIdentity[];
+};
+
+/** Read-only explanation of one registered Provider (identity + lifetime resolution). */
 export type ProviderLifetimeDescription = {
   readonly intent: IntentIdentity;
   /** Contract modality (`unary` | `stream`); property of the Intent, not the Provider. */
   readonly mode: IntentModality;
   /** Boundary or Adapter that produced this Provider. */
   readonly origin: ProviderOrigin;
-  readonly declared: LifetimePolicy;
-  readonly effective: EffectiveLifetime;
-  /** Structured path from an `auto` Provider to the context-bound cause. */
-  readonly narrowedBy?: readonly IntentIdentity[];
+  readonly lifetime: ProviderLifetimeExplanation;
 };
 
 /** Read-only explanation of one public Surface root. */
@@ -100,7 +105,7 @@ export type ExecutionContext<Surface extends Record<string, AnyProvider>, Params
 };
 
 export type CompositionRoot<Surface extends Record<string, AnyProvider>, Params = void> = {
-  /** Explain Provider origin, modality, and declared/effective lifetimes for diagnostics and tests. */
+  /** Explain Provider origin, modality, and nested lifetime resolution for diagnostics and tests. */
   describePlan(): CompositionPlanDescription;
   /**
    * Open an owned execution context. Caller must `dispose` / `await using`.

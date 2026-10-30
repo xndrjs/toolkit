@@ -343,8 +343,7 @@ describe("compose — Stream Intent cancellation and ownership", () => {
         intent: ["orders", "watchOrders"],
         mode: "stream",
         origin: { kind: "boundary", id: "orders" },
-        declared: "auto",
-        effective: "composition",
+        lifetime: { declared: "auto", effective: "composition" },
       },
     ]);
 
