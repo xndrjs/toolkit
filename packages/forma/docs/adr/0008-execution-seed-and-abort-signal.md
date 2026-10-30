@@ -31,6 +31,12 @@ host invocation data and forced `as` casts in factories (`Lifetime.seed` was `un
 - Each scope (root and each execution context) owns an `AbortController`. Entering `disposing`
   aborts that controller. An optional host `signal` is linked via `AbortSignal.any` (abort is
   reflected; dispose ownership stays with the host / `with` finally).
+- Opening an execution context with an already-aborted host signal fails immediately with that
+  signal's reason.
+- A later host abort closes acceptance without auto-disposing the context: new unary invocations
+  reject with `signal.reason`, new cold streams do not start, and already-accepted work observes
+  the signal cooperatively. The host must still dispose a context opened with
+  `openExecutionContext()`.
 
 Out of scope: `Lifetime.acquire`; params namespaced by Boundary/Intent; runtime pick of declared keys.
 
@@ -39,4 +45,6 @@ Out of scope: `Lifetime.acquire`; params namespaced by Boundary/Intent; runtime 
 - Hosts pass `{ params }` on `openExecutionContext` / `withExecutionContext`; factories read
   typed `params` with no cast.
 - Closing one context does not abort composition-lifetime factories; only `root.dispose()` does.
+- Host cancellation and resource ownership remain separate: abort can stop work, but only dispose
+  releases context-owned Provider resources.
 - Alpha: no deprecated `seed` alias.

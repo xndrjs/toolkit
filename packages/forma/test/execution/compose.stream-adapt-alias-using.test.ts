@@ -21,6 +21,11 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
     const Orders = boundary("orders");
     const Infra = boundary("infra");
     const WatchOrders = Orders.stream("watchOrders").contract<WatchInput, OrderEvent, WatchError>();
+    const WatchOrderEvents = Orders.stream("watchOrderEvents").contract<
+      WatchInput,
+      OrderEvent,
+      WatchError
+    >();
     const SourceEvents = Infra.stream("sourceEvents").contract<
       WatchInput,
       OrderEvent,
@@ -35,16 +40,20 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
     );
 
     const WatchViaInfra = adapter("orders-infra", Orders)
-      .adapt(WatchOrders)
+      .adapt(WatchOrderEvents)
       .using({ source: SourceEvents })
       .with(({ deps: { source } }) => {
         expectTypeOf(source).toEqualTypeOf<StreamOperation<WatchInput, OrderEvent, WatchError>>();
         return source;
       });
 
-    expect(WatchViaInfra.intent).toBe(WatchOrders);
+    expect(WatchViaInfra.intent).toBe(WatchOrderEvents);
     expect(WatchViaInfra.intent.modality).toBe("stream");
     expect(WatchViaInfra.origin).toEqual({ kind: "adapter", id: "orders-infra" });
+
+    const WatchProvider = WatchOrders.provide
+      .using({ events: WatchOrderEvents })
+      .with(({ deps: { events } }) => events);
 
     type FactoryReturn = Awaited<ReturnType<typeof WatchViaInfra.factory>>;
     expectTypeOf<FactoryReturn>().toEqualTypeOf<
@@ -52,8 +61,9 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
     >();
 
     const root = compose({
-      surface: { watchOrders: WatchViaInfra },
-      wiring: [SourceProvider],
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+      wiring: [SourceProvider, WatchViaInfra],
     });
     await using ctx = root.openExecutionContext();
 
@@ -145,6 +155,7 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
     >();
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { relayOrders: RelayProvider },
       wiring: [WatchProvider],
     });
@@ -184,6 +195,7 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { find: FindProvider, relayOrders: RelayProvider },
       wiring: [WatchProvider],
     });

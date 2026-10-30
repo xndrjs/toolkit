@@ -27,6 +27,7 @@ describe("compose — params + AbortSignal", () => {
     });
 
     const root = compose({
+      entryBoundaries: [App],
       surface: { echo: EchoProvider, shared: SharedProvider },
     });
 
@@ -56,7 +57,10 @@ describe("compose — params + AbortSignal", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
     const execution = root.openExecutionContext();
     await execution.surface.ping();
     expect(factorySignal?.aborted).toBe(false);
@@ -83,7 +87,10 @@ describe("compose — params + AbortSignal", () => {
       return () => ok(params);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
     expectTypeOf(root).toEqualTypeOf<
       CompositionRoot<{ ping: typeof PingProvider }, RequestParams>
     >();
@@ -115,7 +122,10 @@ describe("compose — params + AbortSignal", () => {
       return () => ok(params.requestId);
     });
 
-    const root = compose({ surface: { a: AProvider, b: BProvider } });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { a: AProvider, b: BProvider },
+    });
     type Expected = { readonly tenantId: string } & { readonly requestId: string };
     expectTypeOf(root).toEqualTypeOf<
       CompositionRoot<{ a: typeof AProvider; b: typeof BProvider }, Expected>
@@ -146,6 +156,7 @@ describe("compose — params + AbortSignal", () => {
 
     // @ts-expect-error — incompatible execution params key(s): role
     compose({
+      entryBoundaries: [App],
       surface: { a: AProvider, b: BProvider },
     });
   });
@@ -160,7 +171,10 @@ describe("compose — params + AbortSignal", () => {
       return () => ok(params.meta.role);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
     const result = await root.withExecutionContext((surface) => surface.ping(), {
       params: { meta: { role: "admin", count: 2 } },
     });
@@ -178,7 +192,10 @@ describe("compose — params + AbortSignal", () => {
       return () => ok(params.tenantId);
     });
 
-    const wide = compose<Superset>()({ surface: { ping: PingProvider } });
+    const wide = compose<Superset>()({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
     const result = await wide.withExecutionContext((surface) => surface.ping(), {
       params: { tenantId: "acme", region: "eu" },
     });
@@ -186,7 +203,10 @@ describe("compose — params + AbortSignal", () => {
     await wide.dispose();
 
     // @ts-expect-error — Explicit params do not satisfy provider ParamsReq
-    compose<{ readonly other: string }>()({ surface: { ping: PingProvider } });
+    compose<{ readonly other: string }>()({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
   });
 
   it("void params allows open/with with no options (lexical vs host ownership)", async () => {
@@ -194,7 +214,10 @@ describe("compose — params + AbortSignal", () => {
     const Ping = App.intent("ping").contract<void, "pong", never>();
     const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
     await expect(root.withExecutionContext((surface) => surface.ping())).resolves.toEqual({
       ok: true,
       value: "pong",
@@ -213,11 +236,88 @@ describe("compose — params + AbortSignal", () => {
     });
 
     const host = new AbortController();
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
     const execution = root.openExecutionContext({ signal: host.signal });
     expect(execution.signal.aborted).toBe(false);
     host.abort();
     expect(execution.signal.aborted).toBe(true);
+    await execution.dispose();
+    await root.dispose();
+  });
+
+  it("fails fast when opening with an already-aborted host signal", async () => {
+    const App = boundary("app");
+    const Ping = App.intent("ping").contract<void, "pong", never>();
+    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
+    const reason = new Error("host already stopped");
+
+    expect(() => root.openExecutionContext({ signal: AbortSignal.abort(reason) })).toThrow(reason);
+    await root.dispose();
+  });
+
+  it("rejects new unary work after host abort with signal.reason", async () => {
+    const App = boundary("app");
+    const Ping = App.intent("ping").contract<void, "pong", never>();
+    let materializations = 0;
+    const PingProvider = Ping.provide.with(() => {
+      materializations += 1;
+      return () => ok("pong" as const);
+    });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
+    const host = new AbortController();
+    const execution = root.openExecutionContext({ signal: host.signal });
+    const reason = new Error("host stopped");
+
+    host.abort(reason);
+    await expect(execution.surface.ping()).rejects.toBe(reason);
+    expect(materializations).toBe(0);
+
+    await execution.dispose();
+    await root.dispose();
+  });
+
+  it("lets already-accepted unary work settle cooperatively after host abort", async () => {
+    const App = boundary("app");
+    const Ping = App.intent("ping").contract<void, "pong", never>();
+    let invocationStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      invocationStarted = resolve;
+    });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const PingProvider = Ping.provide.with(
+      () =>
+        async function () {
+          invocationStarted();
+          await gate;
+          return ok("pong" as const);
+        }
+    );
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
+    const host = new AbortController();
+    const execution = root.openExecutionContext({ signal: host.signal });
+
+    const pending = execution.surface.ping();
+    await started;
+    host.abort(new Error("host stopped"));
+    release();
+
+    await expect(pending).resolves.toEqual({ ok: true, value: "pong" });
     await execution.dispose();
     await root.dispose();
   });

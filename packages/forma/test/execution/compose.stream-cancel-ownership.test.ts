@@ -38,7 +38,10 @@ describe("compose — Stream Intent cancellation and ownership", () => {
         }
     );
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const seen: OrderEvent[] = [];
@@ -71,7 +74,10 @@ describe("compose — Stream Intent cancellation and ownership", () => {
         }
     );
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const stream = ctx.surface.watchOrders();
@@ -101,7 +107,10 @@ describe("compose — Stream Intent cancellation and ownership", () => {
         }
     );
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -141,7 +150,10 @@ describe("compose — Stream Intent cancellation and ownership", () => {
         }
     );
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -182,7 +194,10 @@ describe("compose — Stream Intent cancellation and ownership", () => {
       };
     });
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -223,7 +238,10 @@ describe("compose — Stream Intent cancellation and ownership", () => {
     );
 
     const host = new AbortController();
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     const ctx = root.openExecutionContext({ signal: host.signal });
 
     const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -261,7 +279,10 @@ describe("compose — Stream Intent cancellation and ownership", () => {
         }
     );
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const streamA = ctx.surface.watchOrders({ tag: "a" });
@@ -313,7 +334,10 @@ describe("compose — Stream Intent cancellation and ownership", () => {
       };
     });
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     expect(root.describePlan().providers).toEqual([
       {
         intent: ["orders", "watchOrders"],
@@ -358,7 +382,10 @@ describe("compose — Stream Intent cancellation and ownership", () => {
       };
     });
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     const ctx = root.openExecutionContext();
 
     for await (const _ of ctx.surface.watchOrders()) {

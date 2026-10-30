@@ -1,9 +1,64 @@
 import type { AnyProvider, WiringEntry, IntentAlias } from "../../alias-intent.js";
+import type { Boundary } from "../../boundary.js";
 import type { ReservedSurfaceAlias } from "../../string-keys.js";
 
 declare const formaReservedSurfaceKeys: unique symbol;
 declare const formaNonStringSurfaceKeys: unique symbol;
 declare const formaProviderUnions: unique symbol;
+declare const formaAdapterSurfaceRoots: unique symbol;
+declare const formaUndeclaredEntryBoundaries: unique symbol;
+declare const formaUnusedEntryBoundaries: unique symbol;
+declare const formaDuplicateEntryBoundaries: unique symbol;
+
+type IsAny<T> = 0 extends 1 & T ? true : false;
+
+type ProviderOriginOf<P> = P extends { readonly origin: infer Origin } ? Origin : never;
+
+type EntryBoundaryIds<Entries extends readonly Boundary<string>[]> =
+  Entries[number] extends Boundary<infer Id> ? Id : never;
+
+type IsAdapterOrigin<Origin> =
+  IsAny<Origin> extends true ? false : Origin extends { readonly kind: "adapter" } ? true : false;
+
+type AdapterSurfaceAliases<Surface extends Record<string, AnyProvider>> = {
+  [K in keyof Surface & string]: IsAdapterOrigin<ProviderOriginOf<Surface[K]>> extends true
+    ? K
+    : never;
+}[keyof Surface & string];
+
+type BoundaryOriginId<Origin> =
+  IsAny<Origin> extends true
+    ? never
+    : Origin extends { readonly kind: "boundary"; readonly id: infer Id extends string }
+      ? Id
+      : never;
+
+type SurfaceBoundaryIds<Surface extends Record<string, AnyProvider>> = {
+  [K in keyof Surface & string]: BoundaryOriginId<ProviderOriginOf<Surface[K]>>;
+}[keyof Surface & string];
+
+type UndeclaredSurfaceBoundaryIds<
+  Entries extends readonly Boundary<string>[],
+  Surface extends Record<string, AnyProvider>,
+> = Exclude<SurfaceBoundaryIds<Surface>, EntryBoundaryIds<Entries>>;
+
+type UnusedEntryBoundaryIds<
+  Entries extends readonly Boundary<string>[],
+  Surface extends Record<string, AnyProvider>,
+> = Exclude<EntryBoundaryIds<Entries>, SurfaceBoundaryIds<Surface>>;
+
+type DuplicateEntryBoundaryIds<
+  Entries extends readonly Boundary<string>[],
+  Seen extends string = never,
+> = Entries extends readonly [infer Head, ...infer Tail]
+  ? Head extends Boundary<infer Id>
+    ? Tail extends readonly Boundary<string>[]
+      ? Id extends Seen
+        ? Id | DuplicateEntryBoundaryIds<Tail, Seen>
+        : DuplicateEntryBoundaryIds<Tail, Seen | Id>
+      : never
+    : never
+  : never;
 
 /**
  * `true` when `T` is a union of two or more constituents.
@@ -80,3 +135,28 @@ export type AssertNoProviderUnions<
           readonly [formaProviderUnions]: `Provider unions are not allowed on surface alias(es): ${Extract<SurfaceKeys, string>}`;
         }
     : unknown;
+
+/**
+ * Surface roots must come from exactly the declared, non-empty Entry Boundary set.
+ * Runtime validation mirrors these checks for JavaScript, widened configs, and casts.
+ */
+export type AssertEntryBoundaries<
+  Entries extends readonly Boundary<string>[],
+  Surface extends Record<string, AnyProvider>,
+> = [AdapterSurfaceAliases<Surface>] extends [never]
+  ? [UndeclaredSurfaceBoundaryIds<Entries, Surface>] extends [never]
+    ? [UnusedEntryBoundaryIds<Entries, Surface>] extends [never]
+      ? [DuplicateEntryBoundaryIds<Entries>] extends [never]
+        ? unknown
+        : {
+            readonly [formaDuplicateEntryBoundaries]: `Duplicate Entry Boundary id(s): ${DuplicateEntryBoundaryIds<Entries>}`;
+          }
+      : {
+          readonly [formaUnusedEntryBoundaries]: `Entry Boundary id(s) not represented in Surface: ${UnusedEntryBoundaryIds<Entries, Surface>}`;
+        }
+    : {
+        readonly [formaUndeclaredEntryBoundaries]: `Surface root Boundary id(s) not declared as Entry Boundaries: ${UndeclaredSurfaceBoundaryIds<Entries, Surface>}`;
+      }
+  : {
+      readonly [formaAdapterSurfaceRoots]: `Adapter-originated Provider(s) cannot be Surface roots: ${AdapterSurfaceAliases<Surface>}`;
+    };

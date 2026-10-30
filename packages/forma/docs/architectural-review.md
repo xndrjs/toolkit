@@ -8,7 +8,9 @@
 >
 > Nota evolutiva: questa review fotografa la baseline iniziale. Le decisioni successivamente
 > accettate negli ADR prevalgono dove l'implementazione è avanzata; in particolare ADR 0011
-> sostituisce la raccomandazione originale sulla propagazione manuale dei lifetime.
+> sostituisce la raccomandazione originale sulla propagazione manuale dei lifetime, ADR 0006 usa
+> soltanto `openExecutionContext`, e ADR 0013 introduce Entry Boundary obbligatori vietando root
+> Adapter nella Surface.
 
 ## Executive summary
 

@@ -34,6 +34,7 @@ describe("compose — structured Intent identity (F1)", () => {
     );
 
     const root = compose({
+      entryBoundaries: [OrdersA],
       surface: { getOrder: GetProvider },
       wiring: [FindProvider],
     });
@@ -64,6 +65,7 @@ describe("compose — structured Intent identity (F1)", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetProvider },
       wiring: [FindProvider],
     });
@@ -94,6 +96,7 @@ describe("compose — structured Intent identity (F1)", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { a: ProviderA, b: ProviderB },
       })
     ).toThrow(/is registered more than once in surface/);
@@ -119,6 +122,7 @@ describe("compose — structured Intent identity (F1)", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Dot, Plain],
       surface: { fromDot: DotProvider, fromPlain: PlainProvider },
     });
     const ctx = root.openExecutionContext();
@@ -150,6 +154,7 @@ describe("compose — structured Intent identity (F1)", () => {
     expect(() =>
       // @ts-expect-error — Missing provider for Intent(s): a.b.c
       compose({
+        entryBoundaries: [Dot],
         surface: { needs: NeedsProvider },
         wiring: [PlainProvider],
       })
@@ -181,6 +186,7 @@ describe("compose — structured Intent identity (F1)", () => {
     // at compose still fails — keep Intent names literal.
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { getOrder: GetOrderProvider },
         wiring: [OtherProvider],
       })
@@ -208,6 +214,7 @@ describe("compose — structured Intent identity (F1)", () => {
     );
 
     const root = compose({
+      entryBoundaries: [OrdersA],
       surface: { getOrder: GetProvider },
       wiring: [FindProvider],
     });
@@ -223,6 +230,7 @@ describe("compose — structured Intent identity (F1)", () => {
     const OrdersB = boundary("orders");
     const Postgres = boundary("postgres");
     const FindB = OrdersB.intent("find").contract<OrderId, Order, FindError>();
+    const GetB = OrdersB.intent("get").contract<OrderId, Order, FindError>();
     const Select = Postgres.intent("select").contract<OrderId, Order, FindError>();
 
     const SelectProvider = Select.provide.with(
@@ -240,13 +248,20 @@ describe("compose — structured Intent identity (F1)", () => {
             return select(id);
           }
       );
+    const GetProvider = GetB.provide.using({ find: FindB }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
 
     const root = compose({
-      surface: { find: FindViaPg },
-      wiring: [SelectProvider],
+      entryBoundaries: [OrdersB],
+      surface: { get: GetProvider },
+      wiring: [SelectProvider, FindViaPg],
     });
     const ctx = root.openExecutionContext();
-    await expect(ctx.surface.find({ id: "3" })).resolves.toEqual({
+    await expect(ctx.surface.get({ id: "3" })).resolves.toEqual({
       ok: true,
       value: { id: "3", total: 11 },
     });

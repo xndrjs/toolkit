@@ -41,6 +41,7 @@ describe("compose — explicit cross-boundary intent alias", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: [SelectOrderProvider, aliasIntent(FindOrder, SelectOrder)],
     });
@@ -105,6 +106,7 @@ describe("compose — explicit cross-boundary intent alias", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: [SelectOrderProvider, FindOrderAdapter],
     });

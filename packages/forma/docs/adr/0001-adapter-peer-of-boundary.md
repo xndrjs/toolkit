@@ -17,7 +17,9 @@ Introduce **Adapter** as a first-class architectural identity, peer to Boundary:
 - `adapter(id, targetBoundary)` is scoped to exactly one target Boundary.
 - `.adapt(intent)` accepts only Intents of that target (compile-time `BoundaryId` check).
 - `.using` may declare Intent dependencies from any boundary; `.with` / `.perContext` match the Provider builder.
-- The result is a Provider registerable in `compose({ surface, wiring })`.
+- The result is a Provider registerable in private `wiring`. Per
+  [0013](./0013-entry-boundaries-and-surface-direction.md), Adapter-originated Providers cannot be
+  Surface roots.
 - Every Provider carries a required `origin` discriminant so Boundary ids and Adapter ids cannot collide as plain strings:
 
 ```ts
@@ -34,6 +36,10 @@ readonly origin:
 **Superseded (registration only):** Intent aliases are no longer registered under a separate `compose({ bindings })` key. Per [0002](./0002-unified-wiring-registration.md), they are entries in `wiring` alongside private Providers.
 
 **Superseded (same-shape default):** Prefer an Adapter (or same-boundary Provider) passthrough even when contracts match across boundaries. An Intent alias (`aliasIntent`) is a rare synonym escape hatch — see [0010](./0010-intent-alias.md). Prefer Adapter when translation or multi-boundary orchestration is required remains in force and is the default path for same-shape cross-boundary wiring too.
+
+**Superseded (Surface eligibility):** the original decision allowed Adapter Providers in both
+`surface` and `wiring`. ADR 0013 restricts them to private wiring so public traversal always starts
+from a declared Entry Boundary.
 
 Out of scope for this decision: import-graph lint, a generic adapt helper, and global uniqueness of adapter ids.
 

@@ -70,7 +70,6 @@ export function createCompositionRoot<Surface extends Record<string, AnyProvider
   return {
     describePlan: () => planDescription,
     openExecutionContext: open,
-    createExecutionContext: open,
     withExecutionContext: withContext,
     dispose: disposeRoot,
     [Symbol.asyncDispose]: disposeRoot,

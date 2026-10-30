@@ -79,6 +79,16 @@ export type ProviderOrigin =
   | { readonly kind: "boundary"; readonly id: string }
   | { readonly kind: "adapter"; readonly id: string };
 
+export type BoundaryProviderOrigin<BoundaryId extends string> = {
+  readonly kind: "boundary";
+  readonly id: BoundaryId;
+};
+
+export type AdapterProviderOrigin<AdapterId extends string> = {
+  readonly kind: "adapter";
+  readonly id: AdapterId;
+};
+
 /**
  * Map of same-boundary Intents accepted by `using`.
  * Uses a self-referential mapped constraint (no string index) so named keys stay required.
@@ -172,13 +182,14 @@ export type Provider<
   Policy extends LifetimePolicy = "auto",
   Params = void,
   Mode extends IntentModality = "unary",
+  Origin extends ProviderOrigin = ProviderOrigin,
 > = {
   readonly intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>;
   readonly deps: Deps;
   /** Declared policy; the Composition owns the derived effective lifetime. */
   readonly lifetimePolicy: Policy;
   /** Who created this Provider (`boundary` via `Intent.provide`, or `adapter` via `.adapt`). */
-  readonly origin: ProviderOrigin;
+  readonly origin: Origin;
   /**
    * Type-only ParamsReq marker (always `undefined` at runtime). Preserves
    * `.perContext<P>()` through object spreads for compose inference.

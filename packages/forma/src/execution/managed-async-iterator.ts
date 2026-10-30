@@ -13,6 +13,8 @@ export type ManagedAsyncIterableOptions = {
    * it does not imply dispose ownership of a larger scope.
    */
   readonly signal?: AbortSignal;
+  /** Internal registry hook: the cold start has been accepted and must be tracked. */
+  readonly onStartAccepted?: () => void;
   /** Invoked once after `start` succeeds and the stream enters `active`. */
   readonly onStarted?: () => void;
   /**
@@ -20,6 +22,8 @@ export type ManagedAsyncIterableOptions = {
    * Suitable for release-once of a lease / registry entry.
    */
   readonly onClosed?: () => void | Promise<void>;
+  /** Internal owner hook for a close initiated by the parent signal. */
+  readonly onOwnerClose?: (close: Promise<void>) => void;
 };
 
 export type ManagedAsyncIterableStart<T> = (
@@ -90,9 +94,8 @@ function createManaged<T>(
       };
     },
 
-    async [Symbol.asyncDispose](): Promise<void> {
-      beginClose("dispose");
-      await settleCloseOnly();
+    [Symbol.asyncDispose](): Promise<void> {
+      return beginClose("dispose");
     },
   };
 
@@ -173,10 +176,18 @@ function createManaged<T>(
       return;
     }
 
+    if (options.signal?.aborted) {
+      const close = beginClose("abort");
+      // A parent-aborted cold stream owns no resources, but still mark the
+      // internally-created close promise handled.
+      void close.catch(() => undefined);
+      await close;
+      return;
+    }
+
     phase = "starting";
     startAttempted = true;
     controller = new AbortController();
-    wireParentAbort(controller);
 
     startPromise = Promise.resolve()
       .then(() => start(controller!.signal))
@@ -191,6 +202,8 @@ function createManaged<T>(
         options.onStarted?.();
         return iterator;
       });
+    options.onStartAccepted?.();
+    wireParentAbort();
 
     try {
       await startPromise;
@@ -200,22 +213,29 @@ function createManaged<T>(
     }
   }
 
-  function wireParentAbort(streamController: AbortController): void {
+  function wireParentAbort(): void {
     const parent = options.signal;
     if (parent === undefined) {
       return;
     }
     if (parent.aborted) {
-      void beginClose("abort");
+      observeOwnerClose(beginClose("abort"));
       return;
     }
     const onAbort = (): void => {
-      void beginClose("abort");
+      observeOwnerClose(beginClose("abort"));
     };
     parent.addEventListener("abort", onAbort, { once: true });
     removeParentAbort = () => {
       parent.removeEventListener("abort", onAbort);
     };
+  }
+
+  function observeOwnerClose(close: Promise<void>): void {
+    options.onOwnerClose?.(close);
+    // Parent abort is an event callback and cannot await. Keep the canonical
+    // promise rejected for later observers while preventing unhandledRejection.
+    void close.catch(() => undefined);
   }
 
   function beginClose(_reason: CloseReason): Promise<void> {

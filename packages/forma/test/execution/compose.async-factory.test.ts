@@ -21,7 +21,10 @@ describe("compose — async factories and rollback", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const p1 = ctx.surface.ping();
@@ -49,7 +52,10 @@ describe("compose — async factories and rollback", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     await expect(ctx.surface.ping()).rejects.toThrow(/setup boom/);
@@ -77,7 +83,10 @@ describe("compose — async factories and rollback", () => {
       throw new Error("factory failed");
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     await expect(ctx.surface.ping()).rejects.toThrow(/factory failed/);
@@ -104,7 +113,10 @@ describe("compose — async factories and rollback", () => {
       throw factoryError;
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     let caught: unknown;
@@ -148,7 +160,10 @@ describe("compose — async factories and rollback", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const pending = ctx.surface.ping();
@@ -175,7 +190,10 @@ describe("compose — async factories and rollback", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
     await ctx.surface.ping();
 
@@ -198,7 +216,10 @@ describe("compose — async factories and rollback", () => {
       return () => ok(instance);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     await root.withExecutionContext(async (surface) => {
       const a = await surface.ping();
       const b = await surface.ping();

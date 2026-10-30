@@ -17,6 +17,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
     expect(() =>
       // @ts-expect-error — Surface alias(es) reserved for lifecycle: dispose
       compose({
+        entryBoundaries: [Health],
         surface: { dispose: PingProvider },
       })
     ).toThrow(/Surface alias "dispose" is reserved/);
@@ -35,6 +36,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
     expect(() =>
       // @ts-expect-error — Surface alias(es) reserved for lifecycle: surface
       compose({
+        entryBoundaries: [Health],
         surface: { surface: PingProvider },
       })
     ).toThrow(/Surface alias "surface" is reserved/);
@@ -55,6 +57,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Health],
         surface,
       })
     ).toThrow(/__proto__/);
@@ -76,6 +79,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
     expect(() =>
       // @ts-expect-error — Surface aliases must be string keys
       compose({
+        entryBoundaries: [Health],
         surface,
       })
     ).toThrow(/Surface keys must be strings; got symbol/);
@@ -91,7 +95,10 @@ describe("compose — surface hygiene (F5/F7)", () => {
         }
     );
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     expectTypeOf(ctx.dispose).toEqualTypeOf<() => Promise<void>>();

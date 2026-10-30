@@ -7,4 +7,8 @@ export type {
   AssertParamsCompatible,
   InferredParams,
 } from "./params.js";
-export type { AssertNoProviderUnions, AssertSurfaceAliasesSafe } from "./shape.js";
+export type {
+  AssertEntryBoundaries,
+  AssertNoProviderUnions,
+  AssertSurfaceAliasesSafe,
+} from "./shape.js";

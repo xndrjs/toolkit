@@ -13,7 +13,10 @@ describe("compose — Design C execution API", () => {
           return ok("pong" as const);
         }
     );
-    return compose({ surface: { ping: PingProvider } });
+    return compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
   }
 
   it("withExecutionContext: success + success returns callback value", async () => {
@@ -46,7 +49,10 @@ describe("compose — Design C execution API", () => {
       });
       return () => ok("pong" as const);
     });
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
 
     await expect(
       root.withExecutionContext(async (surface) => {
@@ -67,7 +73,10 @@ describe("compose — Design C execution API", () => {
       });
       return () => ok("pong" as const);
     });
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
 
     try {
       await root.withExecutionContext(async (surface) => {
@@ -110,7 +119,10 @@ describe("compose — Design C execution API", () => {
       });
       return () => ok("pong" as const);
     });
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
 
     await expect(
       root.withExecutionContext(async (surface) => {
@@ -147,7 +159,10 @@ describe("compose — Design C execution API", () => {
         return ok("pong" as const);
       };
     });
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
 
     let pending!: Promise<Result<"pong", never>>;
     const withDone = root.withExecutionContext(async (surface) => {
@@ -191,7 +206,10 @@ describe("compose — Design C execution API", () => {
       });
       return () => ok("pong" as const);
     });
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
 
     {
       await using execution = root.openExecutionContext();
@@ -215,21 +233,16 @@ describe("compose — Design C execution API", () => {
     });
 
     {
-      await using root = compose({ surface: { ping: PingProvider } });
+      await using root = compose({
+        entryBoundaries: [Health],
+        surface: { ping: PingProvider },
+      });
       await root.withExecutionContext(async (surface) => {
         await surface.ping();
       });
     }
 
     expect(cleaned).toBe(true);
-  });
-
-  it("createExecutionContext remains a deprecated alias of openExecutionContext", async () => {
-    const root = pingRoot();
-    const a = root.createExecutionContext();
-    expect(typeof a.surface.ping).toBe("function");
-    await a.dispose();
-    await root.dispose();
   });
 
   it("root.dispose during an active withExecutionContext callback closes the context", async () => {
@@ -255,7 +268,10 @@ describe("compose — Design C execution API", () => {
         return ok("pong" as const);
       };
     });
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
 
     const running = root.withExecutionContext(async (surface) => surface.ping());
     await opEntered;

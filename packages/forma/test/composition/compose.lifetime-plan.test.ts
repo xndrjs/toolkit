@@ -36,7 +36,11 @@ describe("compose — effective lifetime plan", () => {
       return () => b();
     });
 
-    const root = compose({ surface: { a: AProvider }, wiring: [BProvider, CProvider] });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { a: AProvider },
+      wiring: [BProvider, CProvider],
+    });
     expect(root.describePlan().providers).toEqual([
       {
         intent: ["app", "a"],
@@ -99,6 +103,7 @@ describe("compose — effective lifetime plan", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [App],
         surface: { shared: SharedProvider },
         wiring: [MiddleProvider, ScopedProvider],
       })
@@ -124,6 +129,7 @@ describe("compose — effective lifetime plan", () => {
     );
 
     const root = compose({
+      entryBoundaries: [App],
       surface: { read: ReadProvider },
       wiring: [ActualProvider, aliasIntent(Required, Actual)],
     });
@@ -166,6 +172,7 @@ describe("compose — effective lifetime plan", () => {
     });
 
     const root = compose({
+      entryBoundaries: [App],
       surface: { query: QueryProvider },
       wiring: [ConnectionProvider],
     });

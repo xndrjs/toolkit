@@ -2,8 +2,7 @@
 
 ## Status
 
-Accepted (core integrated: execution lifecycle, stream registry / surface, Adapter / alias /
-`using` / `describePlan` `mode`; demo + docs in `forma-demo` and package README / Glossary)
+Accepted (amended: pre-abort and cleanup-error ownership semantics)
 
 ## Context
 
@@ -61,6 +60,8 @@ integration.
   from Provider materialization/cache before integrating the stream registry (prerequisite phase).
 - Lazy start: creating an iterable without iterating does not materialize, lease, register, or open
   resources; the first `next()` performs those steps.
+- If the parent signal is already aborted at the first `next()`, iteration completes normally
+  without materializing the Provider or starting the source.
 - Consumer `break` / `return()` / `[Symbol.asyncDispose]`, context dispose, and root dispose close
   active streams (abort per-stream signal → `return()` → await `finally` → release-once).
 - Host abort on the context signal propagates to invocation signals and must unblock cooperative
@@ -71,6 +72,10 @@ integration.
 
 - Per-stream state machine: `idle | starting | active | closing | closed`.
 - Close is idempotent; concurrent `return` / dispose share one close promise.
+- A close started by parent/context abort is observed immediately to avoid a floating rejection,
+  while its canonical promise remains available to the stream consumer and owning context.
+- Context dispose waits for every owner-started close, attempts every Provider disposer even when
+  stream cleanup fails, and aggregates all cleanup failures.
 - Cleanup error composition **reuses** disposal helpers:
   - multiple cleanup failures → `AggregateError` (`throwIfDisposerErrors`);
   - iteration/start failure + cleanup failure → `SuppressedError(cleanup, iteration)`

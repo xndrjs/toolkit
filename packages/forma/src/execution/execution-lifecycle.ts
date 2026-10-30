@@ -47,6 +47,8 @@ export function createExecutionLifecycle(
       life.assertOpen();
     },
     enter(): void {
+      life.assertOpen();
+      abort.signal.throwIfAborted();
       life.enter();
     },
     leave(): void {

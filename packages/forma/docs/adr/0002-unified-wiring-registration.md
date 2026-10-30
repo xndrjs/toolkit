@@ -34,7 +34,7 @@ not a Realization. When to prefer Adapter passthrough over an Intent alias is de
 ## Consequences
 
 - One registration list for private providers and Intent aliases; docs and demos show
-  `compose({ surface, wiring })`.
+  `compose({ entryBoundaries, surface, wiring })` (Entry Boundaries were added later by ADR 0013).
 - Glossary tracks “Intent alias in wiring,” not a dedicated `bindings` option.
 - How aliases are registered is settled here; Intent-alias-as-rare / Adapter-passthrough-default is
   [0010](./0010-intent-alias.md).

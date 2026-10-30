@@ -59,6 +59,7 @@ describe("aliasIntent — contract compatibility", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: [SelectOrderProvider, aliasIntent(FindOrder, SelectOrder)],
     });
@@ -71,6 +72,7 @@ describe("aliasIntent — contract compatibility", () => {
 
     // Raw tuples are not IntentAlias — must go through aliasIntent().
     compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       // @ts-expect-error — raw [Intent, Intent] is not an IntentAlias / WiringEntry
       wiring: [SelectOrderProvider, [FindOrder, SelectOrder]],

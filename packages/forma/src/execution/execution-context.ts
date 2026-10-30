@@ -51,6 +51,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
     readonly params?: Params;
     readonly signal?: AbortSignal;
   };
+  openOptions.signal?.throwIfAborted();
   const contextParams = (
     "params" in openOptions && openOptions.params !== undefined
       ? freezeParams(openOptions.params)
@@ -79,8 +80,8 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       // Kick stream close via context abort (inside execution.dispose) + closeAll;
       // unary/stream leases drain before ProviderScope dispose.
       return execution.dispose(async () => {
-        await streams.closeAll();
         await contextScope.dispose({
+          beforeDisposers: () => streams.closeAll(),
           after: () => {
             owned.openContexts.delete(contextHandle);
           },
@@ -117,8 +118,8 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       path,
       declaredPerContext: provider.lifetimePolicy === "context",
       contextParams,
-      // Context-owned setup must fail once the execution context is disposing,
-      // even though ProviderScope dispose runs only after invocation leases drain.
+      // Accepted work may continue after a host abort, but context-owned setup
+      // must still roll back once explicit context disposal has started.
       assertAcceptingWork:
         lifetime.effective === "context" ? () => execution.assertOpen() : undefined,
       resolveDeps,
@@ -166,14 +167,16 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
         let leased = false;
         return streams.openResult(
           async (signal) => {
-            execution.enter();
-            leased = true;
             const op = (await materialize(provider)) as StreamOperation<unknown, unknown, unknown>;
             const iterable = op(input, { signal });
             return asyncIteratorOf(iterable);
           },
           {
             signal: execution.signal,
+            onStartAccepted: () => {
+              execution.enter();
+              leased = true;
+            },
             onClosed: () => {
               if (leased) {
                 execution.leave();

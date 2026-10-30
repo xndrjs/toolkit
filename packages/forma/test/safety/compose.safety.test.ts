@@ -29,6 +29,7 @@ describe("compose — composition safety", () => {
     expect(() =>
       // @ts-expect-error — Missing provider for Intent(s): orders.find
       compose({
+        entryBoundaries: [Orders],
         surface: { getOrder: GetOrderProvider },
       })
     ).toThrow(/No provider registered for Intent orders\.find/);
@@ -59,6 +60,7 @@ describe("compose — composition safety", () => {
     expect(() =>
       // @ts-expect-error — Missing provider for Intent(s): orders.find
       compose({
+        entryBoundaries: [Orders],
         surface: { getOrder: GetOrderProvider },
         wiring: [OtherProvider],
       })
@@ -84,12 +86,13 @@ describe("compose — composition safety", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: [FindOrderProvider],
     });
     expect(typeof root.openExecutionContext).toBe("function");
     expect(typeof root.withExecutionContext).toBe("function");
-    expect(typeof root.createExecutionContext).toBe("function");
+    expect(typeof root.openExecutionContext).toBe("function");
   });
 
   it("type-accepts an intent-alias rewrite when the satisfier provider is registered", () => {
@@ -113,6 +116,7 @@ describe("compose — composition safety", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: [SelectOrderProvider, aliasIntent(FindOrder, SelectOrder)],
     });
@@ -136,6 +140,7 @@ describe("compose — composition safety", () => {
     expect(() =>
       // @ts-expect-error — Missing provider for Intent(s): postgres.selectOrder
       compose({
+        entryBoundaries: [Orders],
         surface: { getOrder: GetOrderProvider },
         wiring: [aliasIntent(FindOrder, SelectOrder)],
       })
@@ -170,6 +175,7 @@ describe("compose — composition safety", () => {
     expect(() =>
       // @ts-expect-error — .perComposition() cannot depend directly on .perContext()
       compose({
+        entryBoundaries: [Db],
         surface: { query: QueryProvider },
         wiring: [ConnProvider],
       })
@@ -194,6 +200,7 @@ describe("compose — composition safety", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Health],
         surface: { pingA: PingProviderA, pingB: PingProviderB },
       })
     ).toThrow(/is registered more than once in surface/);
@@ -224,6 +231,7 @@ describe("compose — composition safety", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Health],
         surface: { ready: ReadyProvider },
         wiring: [PingProviderA, PingProviderB],
       })
@@ -242,6 +250,7 @@ describe("compose — composition safety", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Health],
         surface: { ping: PingProvider },
         wiring: [PingProvider],
       })
@@ -276,6 +285,7 @@ describe("compose — composition safety", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { getOrder: GetOrderProvider },
         wiring: [FindOrderProvider, SelectOrderProvider, aliasIntent(FindOrder, SelectOrder)],
       })
@@ -311,6 +321,7 @@ describe("compose — composition safety", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { getOrder: GetOrderProvider },
         wiring: [
           SelectOrderProvider,

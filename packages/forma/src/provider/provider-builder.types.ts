@@ -1,12 +1,15 @@
 import type { IntentModality } from "../boundary.js";
 import type {
   AnyIntentDeps,
+  AdapterProviderOrigin,
+  BoundaryProviderOrigin,
   EmptyDeps,
   IsEmptyDeps,
   LifetimePolicy,
   OperationFor,
   ParamsReq,
   Provider,
+  ProviderOrigin,
   SameBoundaryDeps,
   WithContext,
 } from "./provider.js";
@@ -36,10 +39,11 @@ export type ProviderBuilderAfterUsing<
   Policy extends LifetimePolicy,
   Params,
   Mode extends IntentModality,
+  Origin extends ProviderOrigin,
 > = {
   with(
     factory: WithFactory<Input, Success, Err, Deps, Params, Mode>
-  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode>;
+  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode, Origin>;
 } & (Policy extends "auto"
   ? {
       perContext<P extends ParamsReq = void>(): ProviderBuilderAfterUsing<
@@ -51,7 +55,8 @@ export type ProviderBuilderAfterUsing<
         Deps,
         "context",
         P,
-        Mode
+        Mode,
+        Origin
       >;
       perComposition(): ProviderBuilderAfterUsing<
         BoundaryId,
@@ -62,7 +67,8 @@ export type ProviderBuilderAfterUsing<
         Deps,
         "composition",
         void,
-        Mode
+        Mode,
+        Origin
       >;
     }
   : Record<never, never>);
@@ -78,10 +84,11 @@ export type AdaptProviderBuilderAfterUsing<
   Policy extends LifetimePolicy,
   Params,
   Mode extends IntentModality,
+  Origin extends ProviderOrigin,
 > = {
   with(
     factory: WithFactory<Input, Success, Err, Deps, Params, Mode>
-  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode>;
+  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode, Origin>;
 } & (Policy extends "auto"
   ? {
       perContext<P extends ParamsReq = void>(): AdaptProviderBuilderAfterUsing<
@@ -93,7 +100,8 @@ export type AdaptProviderBuilderAfterUsing<
         Deps,
         "context",
         P,
-        Mode
+        Mode,
+        Origin
       >;
       perComposition(): AdaptProviderBuilderAfterUsing<
         BoundaryId,
@@ -104,7 +112,8 @@ export type AdaptProviderBuilderAfterUsing<
         Deps,
         "composition",
         void,
-        Mode
+        Mode,
+        Origin
       >;
     }
   : Record<never, never>);
@@ -120,6 +129,7 @@ export type ProviderBuilder<
   Deps = EmptyDeps,
   Policy extends LifetimePolicy = "auto",
   Params = void,
+  Origin extends ProviderOrigin = BoundaryProviderOrigin<BoundaryId>,
 > = (IsEmptyDeps<Deps> extends true
   ? {
       using<NewDeps extends SameBoundaryDeps<BoundaryId, NewDeps>>(
@@ -133,13 +143,25 @@ export type ProviderBuilder<
         NewDeps,
         Policy,
         Params,
-        Mode
+        Mode,
+        Origin
       >;
       with(
         factory: WithFactory<Input, Success, Err, EmptyDeps, Params, Mode>
-      ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, Policy, Params, Mode>;
+      ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, Policy, Params, Mode, Origin>;
     }
-  : ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode>) &
+  : ProviderBuilderAfterUsing<
+      BoundaryId,
+      Name,
+      Input,
+      Success,
+      Err,
+      Deps,
+      Policy,
+      Params,
+      Mode,
+      Origin
+    >) &
   (Policy extends "auto"
     ? {
         perContext<P extends ParamsReq = void>(): ProviderBuilder<
@@ -151,7 +173,8 @@ export type ProviderBuilder<
           Mode,
           Deps,
           "context",
-          P
+          P,
+          Origin
         >;
         perComposition(): ProviderBuilder<
           BoundaryId,
@@ -162,7 +185,8 @@ export type ProviderBuilder<
           Mode,
           Deps,
           "composition",
-          void
+          void,
+          Origin
         >;
       }
     : Record<never, never>);
@@ -178,6 +202,7 @@ export type AdaptProviderBuilder<
   Deps = EmptyDeps,
   Policy extends LifetimePolicy = "auto",
   Params = void,
+  Origin extends ProviderOrigin = AdapterProviderOrigin<string>,
 > = (IsEmptyDeps<Deps> extends true
   ? {
       using<NewDeps extends AnyIntentDeps<NewDeps>>(
@@ -191,11 +216,12 @@ export type AdaptProviderBuilder<
         NewDeps,
         Policy,
         Params,
-        Mode
+        Mode,
+        Origin
       >;
       with(
         factory: WithFactory<Input, Success, Err, EmptyDeps, Params, Mode>
-      ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, Policy, Params, Mode>;
+      ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, Policy, Params, Mode, Origin>;
     }
   : AdaptProviderBuilderAfterUsing<
       BoundaryId,
@@ -206,7 +232,8 @@ export type AdaptProviderBuilder<
       Deps,
       Policy,
       Params,
-      Mode
+      Mode,
+      Origin
     >) &
   (Policy extends "auto"
     ? {
@@ -219,7 +246,8 @@ export type AdaptProviderBuilder<
           Mode,
           Deps,
           "context",
-          P
+          P,
+          Origin
         >;
         perComposition(): AdaptProviderBuilder<
           BoundaryId,
@@ -230,7 +258,8 @@ export type AdaptProviderBuilder<
           Mode,
           Deps,
           "composition",
-          void
+          void,
+          Origin
         >;
       }
     : Record<never, never>);
@@ -251,4 +280,16 @@ export type AdaptProvideApi<
   Success,
   Err,
   Mode extends IntentModality = "unary",
-> = AdaptProviderBuilder<BoundaryId, Name, Input, Success, Err, Mode>;
+  AdapterId extends string = string,
+> = AdaptProviderBuilder<
+  BoundaryId,
+  Name,
+  Input,
+  Success,
+  Err,
+  Mode,
+  EmptyDeps,
+  "auto",
+  void,
+  AdapterProviderOrigin<AdapterId>
+>;

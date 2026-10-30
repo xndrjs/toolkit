@@ -18,6 +18,7 @@ describe("compose — surface hello (ping)", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Health],
       surface: { ping: PingProvider },
     });
 
@@ -66,7 +67,10 @@ describe("compose — surface hello (ping)", () => {
         return base.factory(deps, lifetime);
       }) as typeof base.factory,
     };
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     expect(materializations).toBe(0);

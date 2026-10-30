@@ -17,7 +17,10 @@ describe("compose — lifecycle and disposal", () => {
       };
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx1 = root.openExecutionContext();
     const ctx2 = root.openExecutionContext();
 
@@ -49,7 +52,10 @@ describe("compose — lifecycle and disposal", () => {
       };
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx1 = root.openExecutionContext();
     const ctx2 = root.openExecutionContext();
 
@@ -90,7 +96,10 @@ describe("compose — lifecycle and disposal", () => {
       }) as typeof base.factory,
     };
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const [r1, r2] = await Promise.all([ctx.surface.ping(), ctx.surface.ping()]);
@@ -117,6 +126,7 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({
+      entryBoundaries: [Health],
       surface: { ping: PingProvider },
     });
     const ctx = root.openExecutionContext();
@@ -145,6 +155,7 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({
+      entryBoundaries: [Health],
       surface: { ping: PingProvider },
     });
     const ctx = root.openExecutionContext();
@@ -182,6 +193,7 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({
+      entryBoundaries: [Db],
       surface: { query: QueryProvider },
       wiring: [ConnProvider],
     });
@@ -222,7 +234,10 @@ describe("compose — lifecycle and disposal", () => {
       };
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
@@ -255,7 +270,10 @@ describe("compose — lifecycle and disposal", () => {
       };
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
     await ctx.surface.ping();
 
@@ -292,6 +310,7 @@ describe("compose — lifecycle and disposal", () => {
     });
 
     const root = compose({
+      entryBoundaries: [Health],
       surface: { ping: SharedProvider, scoped: ScopedProvider },
     });
     const ctx = root.openExecutionContext();
@@ -312,11 +331,14 @@ describe("compose — lifecycle and disposal", () => {
     const Ping = Health.intent("ping").contract<void, "pong", never>();
     const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     await root.dispose();
 
     expect(() => root.openExecutionContext()).toThrow(/disposed/i);
-    expect(() => root.createExecutionContext()).toThrow(/disposed/i);
+    expect(() => root.openExecutionContext()).toThrow(/disposed/i);
   });
 
   it("surface use after root.dispose() throws", async () => {
@@ -324,7 +346,10 @@ describe("compose — lifecycle and disposal", () => {
     const Ping = Health.intent("ping").contract<void, "pong", never>();
     const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
     await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
 
@@ -346,7 +371,10 @@ describe("compose — lifecycle and disposal", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
     await ctx.surface.ping();
 
@@ -373,7 +401,10 @@ describe("compose — lifecycle and disposal", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
     await ctx.surface.ping();
     await ctx.dispose();
@@ -398,7 +429,10 @@ describe("compose — lifecycle and disposal", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
     await ctx.surface.ping();
     await ctx.dispose();
@@ -419,7 +453,10 @@ describe("compose — lifecycle and disposal", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
     await ctx.surface.ping();
     expect(stub.disposed).toBe(false);
@@ -453,7 +490,10 @@ describe("compose — lifecycle and disposal", () => {
       };
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const pending = ctx.surface.ping();
@@ -497,7 +537,10 @@ describe("compose — lifecycle and disposal", () => {
       }) as unknown as typeof base.factory,
     };
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const pending = ctx.surface.ping();
@@ -523,7 +566,10 @@ describe("compose — lifecycle and disposal", () => {
       return () => ok("pong" as const);
     });
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx = root.openExecutionContext();
     await ctx.surface.ping();
     await ctx.dispose();
@@ -559,7 +605,10 @@ describe("compose — lifecycle and disposal", () => {
       }) as unknown as typeof base.factory,
     };
 
-    const root = compose({ surface: { ping: PingProvider } });
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
     const ctx1 = root.openExecutionContext();
     const ctx2 = root.openExecutionContext();
 

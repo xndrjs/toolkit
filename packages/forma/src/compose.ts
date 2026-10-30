@@ -9,6 +9,7 @@ import {
 } from "./alias-intent.js";
 import type {
   AssertExplicitParamsCover,
+  AssertEntryBoundaries,
   AssertNoInvalidPinnedLifetimeEdges,
   AssertNoProviderUnions,
   AssertParamsCompatible,
@@ -21,11 +22,13 @@ import type {
   ComposeOptions,
   CompositionPlanDescription,
   CompositionRoot,
+  EntryBoundaries,
   ExecutionContext,
   ExecutionContextArgs,
   ExecutionContextOptions,
   ExecutionSurface,
   ProviderLifetimeDescription,
+  SurfaceRootDescription,
   StreamSurfaceIterable,
 } from "./composition/composition-contract.js";
 import { createCompositionRoot } from "./execution/composition-root.js";
@@ -36,18 +39,22 @@ export type {
   CompositionPlanDescription,
   ComposeOptions,
   CompositionRoot,
+  EntryBoundaries,
   ExecutionContext,
   ExecutionContextArgs,
   ExecutionContextOptions,
   ExecutionSurface,
   ProviderLifetimeDescription,
+  SurfaceRootDescription,
   StreamSurfaceIterable,
 };
 
 type ComposeAsserts<
+  Entries extends EntryBoundaries,
   Surface extends Record<string, AnyProvider>,
   Wiring extends readonly WiringEntry[],
-> = AssertSurfaceAliasesSafe<Surface> &
+> = AssertEntryBoundaries<Entries, Surface> &
+  AssertSurfaceAliasesSafe<Surface> &
   AssertNoProviderUnions<Surface, Wiring> &
   AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>> &
   AssertNoInvalidPinnedLifetimeEdges<
@@ -65,7 +72,7 @@ type InferredParamsFor<
 /**
  * Build a precise `wiring` tuple when **extracting** providers out of
  * {@link compose}. Not needed for the usual inline form
- * `compose({ surface, wiring: [A, B] })` — that already keeps tuple precision.
+ * `compose({ entryBoundaries, surface, wiring: [A, B] })` — that already keeps tuple precision.
  *
  * A plain extracted array widens to `Provider[]` and type-checks as if no
  * private providers were registered (false “Missing provider”). `as const`
@@ -73,11 +80,11 @@ type InferredParamsFor<
  *
  * ```ts
  * // Prefer inline when possible:
- * compose({ surface: { getOrder }, wiring: [SelectOrderProvider, FindOrderViaPostgres] });
+ * compose({ entryBoundaries: [Orders], surface: { getOrder }, wiring: [SelectOrderProvider, FindOrderViaPostgres] });
  *
  * // Only if the list must live in a variable/module:
  * const wiring = defineWiring(SelectOrderProvider, aliasIntent(FindOrder, SelectOrder));
- * compose({ surface: { getOrder }, wiring });
+ * compose({ entryBoundaries: [Orders], surface: { getOrder }, wiring });
  * ```
  */
 export function defineWiring<const Entries extends readonly WiringEntry[]>(
@@ -87,22 +94,23 @@ export function defineWiring<const Entries extends readonly WiringEntry[]>(
 }
 
 /**
- * Preserve a precise `{ surface, wiring? }` bag for later {@link compose}.
+ * Preserve a precise `{ entryBoundaries, surface, wiring? }` bag for later {@link compose}.
  * Prefer writing the object inline at `compose` when you can. Applies the same
  * compile-time graph asserts as `compose` at the definition site. Do not
  * annotate the result as bare {@link ComposeOptions}.
  */
 export function defineComposition<
+  const Entries extends EntryBoundaries,
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[] = [],
 >(
-  options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
-): ComposeOptions<Surface, Wiring> {
+  options: ComposeOptions<Entries, Surface, Wiring> & ComposeAsserts<Entries, Surface, Wiring>
+): ComposeOptions<Entries, Surface, Wiring> {
   return options;
 }
 
 /**
- * Build a closed Composition: register surface + wiring (providers and
+ * Build a closed Composition: declare exact Entry Boundaries, register surface + wiring (providers and
  * {@link aliasIntent} aliases), resolve `using` deps by identity (and intent-alias rewrite), expose
  * surface aliases on execution contexts, and materialize realizations lazily
  * on first use.
@@ -138,38 +146,46 @@ export function defineComposition<
  * alias or wiring slot are rejected.
  */
 export function compose<ExplicitParams>(): <
+  const Entries extends EntryBoundaries,
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[] = [],
 >(
-  options: ComposeOptions<Surface, Wiring> &
-    ComposeAsserts<Surface, Wiring> &
+  options: ComposeOptions<Entries, Surface, Wiring> &
+    ComposeAsserts<Entries, Surface, Wiring> &
     AssertExplicitParamsCover<ExplicitParams, Surface, ProvidersFromWiring<Wiring>>
 ) => CompositionRoot<Surface, ExplicitParams>;
 export function compose<
+  const Entries extends EntryBoundaries,
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[] = [],
 >(
-  options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
+  options: ComposeOptions<Entries, Surface, Wiring> & ComposeAsserts<Entries, Surface, Wiring>
 ): CompositionRoot<Surface, InferredParamsFor<Surface, Wiring>>;
 export function compose<
+  const Entries extends EntryBoundaries,
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[] = [],
 >(
-  options?: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
+  options?: ComposeOptions<Entries, Surface, Wiring> & ComposeAsserts<Entries, Surface, Wiring>
 ):
   | CompositionRoot<Surface, InferredParamsFor<Surface, Wiring>>
-  | (<S extends Record<string, AnyProvider>, const W extends readonly WiringEntry[] = []>(
-      opts: ComposeOptions<S, W> &
-        ComposeAsserts<S, W> &
+  | (<
+      const E extends EntryBoundaries,
+      S extends Record<string, AnyProvider>,
+      const W extends readonly WiringEntry[] = [],
+    >(
+      opts: ComposeOptions<E, S, W> &
+        ComposeAsserts<E, S, W> &
         AssertExplicitParamsCover<unknown, S, ProvidersFromWiring<W>>
     ) => CompositionRoot<S, unknown>) {
   if (options === undefined) {
     return ((opts) => composeImpl(opts)) as <
+      const E extends EntryBoundaries,
       S extends Record<string, AnyProvider>,
       const W extends readonly WiringEntry[] = [],
     >(
-      opts: ComposeOptions<S, W> &
-        ComposeAsserts<S, W> &
+      opts: ComposeOptions<E, S, W> &
+        ComposeAsserts<E, S, W> &
         AssertExplicitParamsCover<unknown, S, ProvidersFromWiring<W>>
     ) => CompositionRoot<S, unknown>;
   }
@@ -177,11 +193,12 @@ export function compose<
 }
 
 function composeImpl<
+  const Entries extends EntryBoundaries,
   Surface extends Record<string, AnyProvider>,
   const Wiring extends readonly WiringEntry[],
   Params = InferredParamsFor<Surface, Wiring>,
 >(
-  options: ComposeOptions<Surface, Wiring> & ComposeAsserts<Surface, Wiring>
+  options: ComposeOptions<Entries, Surface, Wiring> & ComposeAsserts<Entries, Surface, Wiring>
 ): CompositionRoot<Surface, Params> {
   const compiled = compileComposition(options);
   return createCompositionRoot(compiled);

@@ -33,7 +33,10 @@ describe("compose — Stream Intent happy path", () => {
         }
     );
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     await using ctx = root.openExecutionContext();
 
     const stream = ctx.surface.watchOrders({ customerId: "c1" });
@@ -61,7 +64,10 @@ describe("compose — Stream Intent happy path", () => {
     );
     const WatchProvider = WatchOrders.provide.with(factory);
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     await using ctx = root.openExecutionContext();
 
     const stream = ctx.surface.watchOrders();
@@ -93,7 +99,10 @@ describe("compose — Stream Intent happy path", () => {
       };
     });
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     const ctx = root.openExecutionContext();
 
     const events: OrderEvent[] = [];
@@ -126,7 +135,10 @@ describe("compose — Stream Intent happy path", () => {
         }
     );
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     await using ctx = root.openExecutionContext();
 
     const a = ctx.surface.watchOrders({ tag: "a" });
@@ -148,7 +160,10 @@ describe("compose — Stream Intent happy path", () => {
         }
     );
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     await using ctx = root.openExecutionContext();
 
     const stream = ctx.surface.watchOrders();
@@ -168,7 +183,10 @@ describe("compose — Stream Intent happy path", () => {
         }
     );
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     await using ctx = root.openExecutionContext();
 
     for await (const _ of ctx.surface.watchOrders()) {
@@ -204,6 +222,7 @@ describe("compose — Stream Intent happy path", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { findOrder: FindProvider, watchOrders: WatchProvider },
     });
     await using ctx = root.openExecutionContext();
@@ -235,7 +254,10 @@ describe("compose — Stream Intent happy path", () => {
     );
     const WatchProvider = WatchOrders.provide.with(factory);
 
-    const root = compose({ surface: { watchOrders: WatchProvider } });
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+    });
     await using ctx = root.openExecutionContext();
 
     const events: OrderEvent[] = [];

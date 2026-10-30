@@ -12,7 +12,9 @@ Execution contexts mixed public surface aliases with lifecycle controls on one f
 
 Adopt **Design C**:
 
-- **Primitive:** `openExecutionContext()` returns an owned handle with `readonly surface`, `dispose()`, and `[Symbol.asyncDispose]`. `createExecutionContext` remains a deprecated alias during migration.
+- **Primitive:** `openExecutionContext()` returns an owned handle with `readonly surface`,
+  `dispose()`, and `[Symbol.asyncDispose]`. The alpha API has no deprecated
+  `createExecutionContext` alias.
 - **Safe default:** `withExecutionContext(run)` opens once, passes a **borrowed** surface (no dispose), awaits the callback, then disposes. Error matrix: callback+cleanup both fail → `SuppressedError(cleanupError, callbackError)`; otherwise the single failure (or the callback value) propagates.
 - **Root:** also implements `[Symbol.asyncDispose]` delegating to `dispose()`.
 - **One state machine:** every path (`open`/`dispose`, `with`, `await using`, root backstop) uses the existing `open | disposing | disposed` machine (ADR 0004).

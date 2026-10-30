@@ -252,6 +252,8 @@ Regole:
 - gli errori di cleanup riutilizzano la matrice disposal già usata da Forma
   (`SuppressedError` / `AggregateError` dove già applicabile) — niente policy ad hoc solo per
   gli stream;
+- ogni close avviato dall'owner mantiene un esito osservabile: il context dispose attende tutti i
+  close, tenta comunque i disposer dei Provider e aggrega failure multipli;
 - in v1 non c’è timeout se un generator ignora cancellation e non completa `return()`: ci si
   affida ad abort + cooperazione; eventuali hang-timeout restano policy host.
 
@@ -366,7 +368,11 @@ root disposing
 
 Il signal fornito a `openExecutionContext` continua a confluire nel context signal. L'abort:
 
+- fa fallire immediatamente l'apertura se il signal è già abortito;
 - abortisce tutti gli invocation signal derivati;
+- impedisce nuovo lavoro: una unary rigetta con `signal.reason`, mentre uno stream cold non ancora
+  avviato completa senza materializzazione;
+- lascia il lavoro già accettato in cancellazione cooperativa;
 - deve sbloccare I/O cooperativo dentro gli stream;
 - **non** avvia automaticamente `dispose()` del context (abort ≠ dispose; coerente con ADR 0008).
 
@@ -639,6 +645,7 @@ Criterio di uscita: il remote Adapter non richiede eccezioni al modello del core
 - context dispose chiude tutti gli stream attivi;
 - root dispose chiude context, stream e poi Provider root-owned;
 - host abort raggiunge `StreamInvocation.signal` senza auto-dispose del context;
+- parent già abortito al primo `next()` non materializza Provider né sorgente;
 - cancellare uno stream non abortisce gli altri né il context;
 - stream da Provider composition-effective usa comunque il per-context invocation signal.
 
@@ -649,6 +656,9 @@ Criterio di uscita: il remote Adapter non richiede eccezioni al modello del core
 - throw prima del primo yield rifiuta `next()` e pulisce;
 - throw dopo più yield rifiuta il `next()` corrente e pulisce;
 - cleanup failure viene propagato;
+- cleanup failure da host/context abort non diventa `unhandledRejection` e rimane osservabile dal
+  successivo context dispose;
+- tutti i cleanup vengono tentati e failure multipli sono aggregati;
 - iteration failure + cleanup failure riusa la composizione errori del dispose;
 - Provider materialization failure non registra uno stream attivo residuo.
 

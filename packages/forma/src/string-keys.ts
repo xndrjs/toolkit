@@ -4,7 +4,8 @@
  */
 
 /**
- * Aliases that must not appear on `compose({ surface })` (collide with execution handle fields).
+ * Aliases that must not appear on `compose({ entryBoundaries, surface })`
+ * (collide with execution handle fields).
  * Operations live under `execution.surface`; `dispose` / nesting key `surface` are reserved.
  */
 export const RESERVED_SURFACE_ALIASES = ["dispose", "surface"] as const;

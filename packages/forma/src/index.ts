@@ -15,16 +15,20 @@ export type {
   CompositionPlanDescription,
   ComposeOptions,
   CompositionRoot,
+  EntryBoundaries,
   ExecutionContext,
   ExecutionContextArgs,
   ExecutionContextOptions,
   ExecutionSurface,
   ProviderLifetimeDescription,
+  SurfaceRootDescription,
   StreamSurfaceIterable,
 } from "./composition/composition-contract.js";
 
 export type {
   AnyIntentDeps,
+  AdapterProviderOrigin,
+  BoundaryProviderOrigin,
   Disposable,
   IntentOperation,
   Lifetime,

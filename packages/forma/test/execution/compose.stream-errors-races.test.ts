@@ -37,7 +37,10 @@ describe("compose — Stream Intent errors and races", () => {
           }
       );
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const values = [];
@@ -66,7 +69,10 @@ describe("compose — Stream Intent errors and races", () => {
           }
       );
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       await using ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -97,7 +103,10 @@ describe("compose — Stream Intent errors and races", () => {
         };
       });
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -125,7 +134,10 @@ describe("compose — Stream Intent errors and races", () => {
           }
       );
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -166,7 +178,10 @@ describe("compose — Stream Intent errors and races", () => {
         },
       }));
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -200,7 +215,10 @@ describe("compose — Stream Intent errors and races", () => {
         },
       }));
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -235,7 +253,10 @@ describe("compose — Stream Intent errors and races", () => {
         };
       });
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const failed = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -272,7 +293,10 @@ describe("compose — Stream Intent errors and races", () => {
         };
       });
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       await using ctx = root.openExecutionContext();
 
       await expect(ctx.surface.watchOrders()[Symbol.asyncIterator]().next()).rejects.toThrow(
@@ -312,7 +336,10 @@ describe("compose — Stream Intent errors and races", () => {
         };
       });
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -351,7 +378,10 @@ describe("compose — Stream Intent errors and races", () => {
           }
       );
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -383,7 +413,10 @@ describe("compose — Stream Intent errors and races", () => {
           }
       );
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
@@ -421,7 +454,10 @@ describe("compose — Stream Intent errors and races", () => {
           }
       );
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       const ctx = root.openExecutionContext();
 
       const stream = ctx.surface.watchOrders();
@@ -452,7 +488,10 @@ describe("compose — Stream Intent errors and races", () => {
           }
       );
 
-      const root = compose({ surface: { watchOrders: WatchProvider } });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
       await using ctx = root.openExecutionContext();
 
       const bad = ctx.surface.watchOrders({ tag: "bad" })[Symbol.asyncIterator]();
@@ -506,6 +545,7 @@ describe("compose — Stream Intent errors and races", () => {
       );
 
       const root = compose({
+        entryBoundaries: [Orders],
         surface: { findOrder: FindProvider, watchOrders: WatchProvider },
       });
       const ctx = root.openExecutionContext();
@@ -532,6 +572,145 @@ describe("compose — Stream Intent errors and races", () => {
       expect(streamFinalized).toBe(true);
       await pendingNext;
 
+      await root.dispose();
+    });
+  });
+
+  describe("abort acceptance and cleanup ownership", () => {
+    it("does not materialize or start a cold stream after host abort", async () => {
+      const Orders = boundary("orders");
+      const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
+      let materializations = 0;
+      let starts = 0;
+      const WatchProvider = WatchOrders.provide.with(() => {
+        materializations += 1;
+        return async function* () {
+          starts += 1;
+          yield ok({ orderId: "1", status: "open" });
+        };
+      });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
+      const host = new AbortController();
+      const ctx = root.openExecutionContext({ signal: host.signal });
+      const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
+
+      host.abort(new Error("host stopped"));
+
+      await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
+      expect(materializations).toBe(0);
+      expect(starts).toBe(0);
+
+      await ctx.dispose();
+      await root.dispose();
+    });
+
+    it("retains an abort-driven close failure for context dispose without unhandled rejection", async () => {
+      const Orders = boundary("orders");
+      const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
+      const streamFailure = new Error("stream cleanup failed");
+      let providerDisposed = false;
+      const WatchProvider = WatchOrders.provide.perContext().with(({ lifetime }) => {
+        lifetime.onDispose(() => {
+          providerDisposed = true;
+        });
+        return () => ({
+          [Symbol.asyncIterator]() {
+            return {
+              async next() {
+                return {
+                  done: false as const,
+                  value: ok({ orderId: "1", status: "open" }),
+                };
+              },
+              async return() {
+                throw streamFailure;
+              },
+            };
+          },
+        });
+      });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
+      const host = new AbortController();
+      const ctx = root.openExecutionContext({ signal: host.signal });
+      const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
+      await iterator.next();
+
+      const unhandled: unknown[] = [];
+      const onUnhandled = (error: unknown) => unhandled.push(error);
+      process.on("unhandledRejection", onUnhandled);
+      try {
+        host.abort(new Error("host stopped"));
+        await expect(iterator.next()).rejects.toBe(streamFailure);
+        await expect(ctx.dispose()).rejects.toBe(streamFailure);
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(unhandled).toEqual([]);
+      } finally {
+        process.off("unhandledRejection", onUnhandled);
+      }
+
+      expect(providerDisposed).toBe(true);
+      await root.dispose();
+    });
+
+    it("aggregates every stream cleanup failure and still runs Provider disposers", async () => {
+      const Orders = boundary("orders");
+      const WatchOrders = Orders.stream("watchOrders").contract<string, OrderEvent, WatchError>();
+      const providerFailure = new Error("provider cleanup failed");
+      let providerDisposeCalls = 0;
+      const WatchProvider = WatchOrders.provide.perContext().with(({ lifetime }) => {
+        lifetime.onDispose(() => {
+          providerDisposeCalls += 1;
+          throw providerFailure;
+        });
+        return (tag) => ({
+          [Symbol.asyncIterator]() {
+            return {
+              async next() {
+                return {
+                  done: false as const,
+                  value: ok({ orderId: tag, status: "open" }),
+                };
+              },
+              async return() {
+                throw new Error(`stream cleanup failed: ${tag}`);
+              },
+            };
+          },
+        });
+      });
+      const root = compose({
+        entryBoundaries: [Orders],
+        surface: { watchOrders: WatchProvider },
+      });
+      const ctx = root.openExecutionContext();
+      const first = ctx.surface.watchOrders("first")[Symbol.asyncIterator]();
+      const second = ctx.surface.watchOrders("second")[Symbol.asyncIterator]();
+      await first.next();
+      await second.next();
+
+      try {
+        await ctx.dispose();
+        expect.unreachable("expected AggregateError");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AggregateError);
+        const messages = (error as AggregateError).errors.map((cause) => (cause as Error).message);
+        expect(messages).toEqual(
+          expect.arrayContaining([
+            "stream cleanup failed: first",
+            "stream cleanup failed: second",
+            "provider cleanup failed",
+          ])
+        );
+        expect(messages).toHaveLength(3);
+      }
+
+      expect(providerDisposeCalls).toBe(1);
       await root.dispose();
     });
   });

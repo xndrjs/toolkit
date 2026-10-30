@@ -6,8 +6,8 @@ import type { AdaptProvideApi } from "./provider/provider-builder.types.js";
  * Architectural identity peer to Boundary: scoped to one target Boundary.
  * Owns external realizations of that target’s Intents via `.adapt`.
  */
-export type Adapter<BoundaryId extends string> = {
-  readonly id: string;
+export type Adapter<AdapterId extends string, BoundaryId extends string> = {
+  readonly id: AdapterId;
   readonly target: Boundary<BoundaryId>;
   /**
    * Realize a target-boundary Intent. Compile-time rejects Intents whose
@@ -15,7 +15,7 @@ export type Adapter<BoundaryId extends string> = {
    */
   adapt<Name extends string, Input, Success, Err, Mode extends IntentModality>(
     intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>
-  ): AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode>;
+  ): AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode, AdapterId>;
 };
 
 /**
@@ -28,10 +28,10 @@ export type Adapter<BoundaryId extends string> = {
  *   .with(({ deps: { select } }) => (id) => select(id));
  * ```
  */
-export function adapter<const BoundaryId extends string>(
-  id: string,
+export function adapter<const AdapterId extends string, const BoundaryId extends string>(
+  id: AdapterId,
   targetBoundary: Boundary<BoundaryId>
-): Adapter<BoundaryId> {
+): Adapter<AdapterId, BoundaryId> {
   return {
     id,
     target: targetBoundary,

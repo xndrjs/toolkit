@@ -93,6 +93,28 @@ describe("ManagedAsyncIterator", () => {
   });
 
   describe("cancellation and dispose", () => {
+    it("does not start when the parent signal is already aborted", async () => {
+      const parent = AbortSignal.abort(new Error("already stopped"));
+      const start = vi.fn(async function* () {
+        yield 1;
+      });
+      const onStarted = vi.fn();
+      const onClosed = vi.fn();
+      const stream = createManagedAsyncIterable(start, {
+        signal: parent,
+        onStarted,
+        onClosed,
+      });
+
+      const iterator = stream[Symbol.asyncIterator]();
+      await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
+
+      expect(start).not.toHaveBeenCalled();
+      expect(onStarted).not.toHaveBeenCalled();
+      expect(onClosed).not.toHaveBeenCalled();
+      expect(stream.phase).toBe("closed");
+    });
+
     it("break triggers generator finally via return()", async () => {
       let finalized = false;
       const stream = createManagedAsyncIterable(async function* () {

@@ -17,12 +17,12 @@ runtime materializes only one.
 
 ## Decision
 
-- **Default:** write `compose({ surface: { … }, wiring: […] })` inline. No
+- **Default:** write `compose({ entryBoundaries: […], surface: { … }, wiring: […] })` inline. No
   helper required; examples and the demo prefer this form.
 - Add `defineWiring(...entries)` with const generics so **extracted** wiring
   stays a precise tuple (equivalent intent to `as const` on a tuple literal).
   Use it only when the list lives in a variable or another module.
-- Add `defineComposition({ surface, wiring? })` to preserve a precise options
+- Add `defineComposition({ entryBoundaries, surface, wiring? })` to preserve a precise options
   bag and apply the same compile-time asserts at the definition site — again
   only when the bag is extracted.
 - Document that annotating configs as bare `ComposeOptions` is a footgun; prefer

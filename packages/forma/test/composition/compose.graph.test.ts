@@ -32,6 +32,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { a: ProviderA },
         wiring: [ProviderB],
       })
@@ -60,6 +61,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     // deadlocked because each resolution had its own `seeing` set.
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { a: ProviderA, b: ProviderB },
       })
     ).toThrow(/^Circular dependency: orders\.(a|b) -> orders\.(a|b) -> orders\.(a|b)$/);
@@ -80,6 +82,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     // A uses B; aliasIntent(B, A) → A → B → A
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { a: ProviderA },
         wiring: [aliasIntent(B, A)],
       })
@@ -104,6 +107,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     // so this is caught at compose by the execution plan, not by AssertProvidersComplete.
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { leaf: LeafProvider },
         wiring: [aliasIntent(A, B), aliasIntent(B, A)],
       })
@@ -130,6 +134,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetProvider },
       wiring: [SelectProvider, aliasIntent(FindOrder, SelectOrder)],
     });
@@ -159,6 +164,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetProvider },
       wiring: [FindProvider],
     });
@@ -182,6 +188,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { a: ProviderA },
       })
     ).toThrow(/Circular dependency: orders\.a -> orders\.a/);

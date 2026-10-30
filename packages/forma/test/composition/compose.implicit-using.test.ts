@@ -28,6 +28,7 @@ describe("compose — implicit using graph", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: [FindOrderProvider],
     });
@@ -64,6 +65,7 @@ describe("compose — implicit using graph", () => {
     expect(() =>
       // @ts-expect-error — Missing provider for Intent(s): orders.find
       compose({
+        entryBoundaries: [Orders],
         surface: { getOrder: GetOrderProvider },
         // FindOrderProvider intentionally omitted
       })

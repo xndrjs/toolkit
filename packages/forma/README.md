@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; effective lifetime inference; Stream Intent modality / ownership — [ADR 0012](./docs/adr/0012-streaming-intents.md); optional `defineWiring` when extracting wiring).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; effective lifetime inference; Stream Intent modality / ownership — [ADR 0012](./docs/adr/0012-streaming-intents.md); Entry Boundary and Surface direction — [ADR 0013](./docs/adr/0013-entry-boundaries-and-surface-direction.md); optional `defineWiring` when extracting wiring).
 
 ## Installation
 
@@ -74,7 +74,7 @@ const GetOrderProvider = GetOrder.provide
   );
 ```
 
-Lifetime policy is local, while effective lifetime is derived from the resolved graph. No modifier means `auto`: the Provider is shared by the composition root unless any transitive dependency is context-owned, in which case it is narrowed to one instance per `openExecutionContext()` / `withExecutionContext()`. `.perContext()` forces context ownership; `.perComposition()` pins root ownership and makes `compose()` fail with the dependency path if a transitive dependency requires a context. `root.describePlan()` reports declared and effective lifetimes. Root and context `dispose()` are terminal state machines (concurrent callers share one promise); entering `disposing` aborts that owner’s `AbortSignal` (`lifetime.signal` / `execution.signal`). `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short lexical scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount. `createExecutionContext` remains a deprecated alias of `open`.
+Lifetime policy is local, while effective lifetime is derived from the resolved graph. No modifier means `auto`: the Provider is shared by the composition root unless any transitive dependency is context-owned, in which case it is narrowed to one instance per `openExecutionContext()` / `withExecutionContext()`. `.perContext()` forces context ownership; `.perComposition()` pins root ownership and makes `compose()` fail with the dependency path if a transitive dependency requires a context. `root.describePlan()` reports declared and effective lifetimes. Root and context `dispose()` are terminal state machines (concurrent callers share one promise); entering `disposing` aborts that owner’s `AbortSignal` (`lifetime.signal` / `execution.signal`). `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short lexical scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount.
 
 Typed execution **params**: declare a POJO on `.perContext<ParamsReq>()`. `compose({ … })` **infers** the required host bag from all such declarations (merge; conflicting key types fail at compose). open/with then require `{ params }` (shared `ExecutionContextArgs`). Factories read typed `params` on the `.with` context — not on `Lifetime`. `compose<Explicit>()({ … })` is only for an explicit **superset** of the inferred bag. An optional host `signal` on those args links into the context signal without transferring dispose ownership.
 
@@ -113,13 +113,13 @@ export const FindOrderViaPostgresProvider = OrdersAdapter.adapt(FindOrder)
   );
 ```
 
-`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in `wiring` / `surface`, with `origin: { kind: "adapter", id: "orders-postgres" }`.
+`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in private `wiring`, with `origin: { kind: "adapter", id: "orders-postgres" }`. Adapter Providers cannot be Surface roots.
 
 When shapes already match, the factory can forward without mapping (`return select(input)`). Reserve `aliasIntent(required, satisfier)` for deliberate synonyms (rename / migration). There is no `forward` helper yet.
 
 ### Compose and execution context
 
-Prefer an **inline** `compose({ surface, wiring })` literal. That keeps Provider precision for the closed-graph checks — you do **not** need `defineWiring` in the normal case.
+Prefer an **inline** `compose({ entryBoundaries, surface, wiring })` literal. Entry Boundaries are the exact, non-empty set of Boundary origins exposed by the Surface. Every declared Entry Boundary must own at least one Surface alias, every Surface root must come from one of them, and Adapter roots are rejected. This keeps public graph direction and Provider precision explicit — you do **not** need `defineWiring` in the normal case.
 
 ```ts
 import { compose } from "@xndrjs/forma";
@@ -134,6 +134,7 @@ const SelectOrderProvider = SelectOrder.provide.with(
 );
 
 const root = compose({
+  entryBoundaries: [Orders],
   surface: { getOrder: GetOrderProvider },
   wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
 });
@@ -145,12 +146,13 @@ const result: Result<Order, FindError> = await root.withExecutionContext(async (
 await root.dispose();
 ```
 
-`defineWiring` / `defineComposition` exist only if you **extract** wiring (or the whole options bag) into a variable or module: a plain `const wiring = [A, B]` widens to `Provider[]` and type-checks as if private providers were missing. Inline (or `as const` / `defineWiring`) keeps the tuple precise. Do not annotate a concrete config as `ComposeOptions` — that widens Surface/Wiring and disables graph checks. Provider unions in one surface or wiring slot are rejected.
+`defineWiring` / `defineComposition` exist only if you **extract** wiring (or the whole options bag) into a variable or module: a plain `const wiring = [A, B]` widens to `Provider[]` and type-checks as if private providers were missing. Inline (or `as const` / `defineWiring`) keeps the tuple precise. Do not annotate a concrete config as `ComposeOptions` — that widens Entry Boundaries, Surface, and Wiring and prevents exact provenance/graph checks. Provider unions in one surface or wiring slot are rejected.
 
 Host-owned lifetime (no callback), with params (inferred from `GetOrderProvider`’s ParamsReq; use `compose<Superset>()` only to widen):
 
 ```ts
 const rooted = compose({
+  entryBoundaries: [Orders],
   surface: { getOrder: GetOrderProvider },
   wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
 });
@@ -159,7 +161,7 @@ await using execution = rooted.openExecutionContext({ params: { role: "viewer" }
 await execution.surface.getOrder({ id: "42" });
 ```
 
-Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, requires a closed graph, and derives effective lifetimes before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, params policy, `WatchOrders` stream, async connection, inferred lifetimes, `await using` root).
+Only surface aliases declared in `compose({ entryBoundaries, surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, requires a closed graph, and derives effective lifetimes before returning the root. `describePlan()` includes Entry Boundary ids, Surface root provenance, and Provider lifetimes. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, params policy, `WatchOrders` entry stream delegating to a private `WatchOrderEvents` seam, async connection, inferred lifetimes, `await using` root).
 
 ### Stream Intent
 
@@ -184,7 +186,10 @@ const WatchOrdersProvider = WatchOrders.provide.with(
     }
 );
 
-const streamingRoot = compose({ surface: { watchOrders: WatchOrdersProvider } });
+const streamingRoot = compose({
+  entryBoundaries: [Orders],
+  surface: { watchOrders: WatchOrdersProvider },
+});
 
 await using execution = streamingRoot.openExecutionContext();
 for await (const event of execution.surface.watchOrders({ id: "42" })) {
@@ -198,7 +203,8 @@ Ownership and cancellation (see [streaming-intents.md](./docs/streaming-intents.
 - Each surface call returns a **cold, single-consumer** `AsyncIterable` (+ `[Symbol.asyncDispose]`). Creating it does not materialize the Provider; the first `next()` does.
 - Every active stream invocation is **owned by the execution context** (lease + registry), independent of Provider effective lifetime — including streams from composition-effective Providers.
 - `break` / `return()` / `await using` on the iterable, context `dispose`, and root `dispose` close active streams (abort per-stream signal → `return()` → await `finally` → release-once). Cancelling one stream does not abort siblings or the context.
-- Host abort on the context `signal` propagates to invocation signals and must unblock cooperative I/O; it does **not** auto-`dispose()` the context (abort ≠ dispose).
+- Opening with an already-aborted host signal fails immediately. A later host abort rejects new unary work with `signal.reason`, and a cold stream that has not started completes without materialization. Already-accepted work observes cancellation cooperatively. Host abort does **not** auto-`dispose()` the context (abort ≠ dispose).
+- Stream cleanup failures are observed by the caller that initiates close. Context/root disposal still attempts every stream and Provider cleanup and aggregates multiple failures.
 - Adapter preserves modality; unary↔stream Intent alias fails at compile time. `using` a Stream Intent resolves to the `StreamOperation`, never an open iterator. `describePlan()` reports `mode: "unary" | "stream"` on every registered Intent.
 
 ## Status

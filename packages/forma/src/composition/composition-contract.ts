@@ -1,7 +1,7 @@
 import type { AnyProvider, WiringEntry } from "../alias-intent.js";
-import type { IntentIdentity, IntentModality } from "../boundary.js";
+import type { Boundary, IntentIdentity, IntentModality } from "../boundary.js";
 import type { EffectiveLifetime } from "../graph-plan.js";
-import type { LifetimePolicy, Provider } from "../provider/provider.js";
+import type { LifetimePolicy, Provider, ProviderOrigin } from "../provider/provider.js";
 import type { Result } from "../result.js";
 
 /** Read-only explanation of one Provider's declared and graph-derived lifetime. */
@@ -15,7 +15,16 @@ export type ProviderLifetimeDescription = {
   readonly narrowedBy?: readonly IntentIdentity[];
 };
 
+/** Read-only explanation of one public Surface root. */
+export type SurfaceRootDescription = {
+  readonly alias: string;
+  readonly intent: IntentIdentity;
+  readonly origin: ProviderOrigin;
+};
+
 export type CompositionPlanDescription = {
+  readonly entryBoundaries: readonly string[];
+  readonly surface: readonly SurfaceRootDescription[];
   readonly providers: readonly ProviderLifetimeDescription[];
 };
 
@@ -40,7 +49,8 @@ type SurfaceOperation<P> =
     LifetimePolicy,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Params erasure
     any,
-    infer Mode
+    infer Mode,
+    ProviderOrigin
   >
     ? Mode extends "stream"
       ? (input: Input) => StreamSurfaceIterable<Success, Err>
@@ -48,7 +58,7 @@ type SurfaceOperation<P> =
     : never;
 
 /**
- * Borrowed public aliases from `compose({ surface })`.
+ * Borrowed public aliases from `compose({ entryBoundaries, surface })`.
  * Lifecycle controls (`dispose`, AsyncDisposable) stay on the execution handle.
  */
 export type ExecutionSurface<Surface extends Record<string, AnyProvider>> = {
@@ -96,12 +106,6 @@ export type CompositionRoot<Surface extends Record<string, AnyProvider>, Params 
    */
   openExecutionContext(...options: ExecutionContextArgs<Params>): ExecutionContext<Surface, Params>;
   /**
-   * @deprecated Use {@link CompositionRoot.openExecutionContext}.
-   */
-  createExecutionContext(
-    ...options: ExecutionContextArgs<Params>
-  ): ExecutionContext<Surface, Params>;
-  /**
    * Safe default for short scopes: open → run with a borrowed surface → dispose.
    * See error matrix: both failures → `SuppressedError(cleanup, callback)`.
    */
@@ -120,7 +124,7 @@ export type CompositionRoot<Surface extends Record<string, AnyProvider>, Params 
 };
 
 /**
- * Shape of `compose({ surface, wiring? })`.
+ * Shape of `compose({ entryBoundaries, surface, wiring? })`.
  *
  * **Do not annotate concrete configs as `ComposeOptions`.** The default type
  * parameters widen Surface and Wiring to erased Providers, which disables
@@ -128,10 +132,15 @@ export type CompositionRoot<Surface extends Record<string, AnyProvider>, Params 
  * Prefer an inferred inline object literal. Use {@link defineWiring} /
  * {@link defineComposition} only when extracting wiring or the options bag.
  */
+export type EntryBoundaries = readonly [Boundary<string>, ...Boundary<string>[]];
+
 export type ComposeOptions<
+  Entries extends EntryBoundaries = EntryBoundaries,
   Surface extends Record<string, AnyProvider> = Record<string, AnyProvider>,
   Wiring extends readonly WiringEntry[] = readonly WiringEntry[],
 > = {
+  /** Exact, non-empty set of Boundary origins represented by Surface roots. */
+  readonly entryBoundaries: Entries;
   readonly surface: Surface;
   /**
    * Private providers and {@link aliasIntent} aliases for dependency resolution.

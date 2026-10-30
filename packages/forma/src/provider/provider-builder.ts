@@ -25,11 +25,12 @@ function createProviderBuilder<
   Deps,
   Policy extends LifetimePolicy,
   Params,
+  Origin extends ProviderOrigin,
 >(
   intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>,
   deps: Deps,
   lifetimePolicy: Policy,
-  origin: ProviderOrigin
+  origin: Origin
 ) {
   const hasDeps = Reflect.ownKeys(deps as object).length > 0;
 
@@ -91,6 +92,7 @@ export function createProvideApi<
  * `using` accepts Intents from any boundary.
  */
 export function createAdaptProvideApi<
+  AdapterId extends string,
   BoundaryId extends string,
   Name extends string,
   Input,
@@ -99,10 +101,10 @@ export function createAdaptProvideApi<
   Mode extends IntentModality,
 >(
   intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>,
-  adapterId: string
-): AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode> {
+  adapterId: AdapterId
+): AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode, AdapterId> {
   return createProviderBuilder(intent, {} as EmptyDeps, "auto" as const, {
     kind: "adapter",
     id: adapterId,
-  }) as AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode>;
+  }) as AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode, AdapterId>;
 }

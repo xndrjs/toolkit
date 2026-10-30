@@ -6,8 +6,20 @@ import type { LifetimePolicy, Provider } from "./provider/provider.js";
  * heterogeneous `surface` / `wiring` list. Concrete Providers remain fully typed at aliases.
  */
 // Type params appear in covariant and contravariant positions; erasure needs `any`.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyProvider erasure
-export type AnyProvider = Provider<string, string, any, any, any, any, LifetimePolicy, any, any>;
+/* eslint-disable @typescript-eslint/no-explicit-any -- AnyProvider erasure */
+export type AnyProvider = Provider<
+  string,
+  string,
+  any,
+  any,
+  any,
+  any,
+  LifetimePolicy,
+  any,
+  any,
+  any
+>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyIntent erasure for intent aliases
 export type AnyIntent = Intent<string, string, any, any, any, any>;

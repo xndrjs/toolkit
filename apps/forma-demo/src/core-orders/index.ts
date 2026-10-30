@@ -10,11 +10,21 @@ export const FindOrder = Orders.intent("find").contract<OrderId, Order, FindErro
 
 export const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
 
-/**
- * Stream Intent: pull-based status events for one order.
- * Realized by Adapters; each surface call opens a context-owned stream invocation.
- */
+/** Public stream entry owned by Orders. */
 export const WatchOrders = Orders.stream("watchOrders").contract<OrderId, OrderEvent, WatchError>();
+
+/** Dynamic seam realized privately by the selected Orders Adapter. */
+export const WatchOrderEvents = Orders.stream("watchOrderEvents").contract<
+  OrderId,
+  OrderEvent,
+  WatchError
+>();
+
+export const WatchOrdersProvider = WatchOrders.provide
+  .using({ events: WatchOrderEvents })
+  .with(({ deps: { events } }) => {
+    return (id, invocation) => events(id, invocation);
+  });
 
 /**
  * Surface policy: guests are forbidden; admin/viewer may read via FindOrder.

@@ -134,6 +134,7 @@ describe("adapter", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: [SelectOrderProvider, FindOrderAdapter],
     });
@@ -197,6 +198,7 @@ describe("adapter", () => {
     );
 
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: [SelectOrderProvider, FindOrderAdapter],
     });
@@ -216,6 +218,7 @@ describe("adapter", () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
     const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindError>();
 
     const SelectOrderProvider = SelectOrder.provide.with(
@@ -242,13 +245,21 @@ describe("adapter", () => {
     expect(FindOrderAdapter.lifetimePolicy).toBe("context");
     expect(FindOrderAdapter.origin).toEqual({ kind: "adapter", id: "orders-postgres" });
 
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
+
     const root = compose({
-      surface: { find: FindOrderAdapter },
-      wiring: [SelectOrderProvider],
+      entryBoundaries: [Orders],
+      surface: { get: GetOrderProvider },
+      wiring: [SelectOrderProvider, FindOrderAdapter],
     });
     const ctx = root.openExecutionContext();
 
-    await ctx.surface.find({ id: "1" });
+    await ctx.surface.get({ id: "1" });
     expect(stub.disposed).toBe(false);
 
     await ctx.dispose();
@@ -285,6 +296,7 @@ describe("adapter", () => {
 
     expect(() =>
       compose({
+        entryBoundaries: [Orders],
         surface: { ready: ReadyProvider },
         wiring: [FindOrderProvider, FindOrderAdapter],
       })

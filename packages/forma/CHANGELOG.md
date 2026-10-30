@@ -5,6 +5,12 @@
 ### Minor Changes
 
 - 4420287: Initial alpha release: intent-oriented composition (`forma`).
+- Composition roots now declare an exact, non-empty `entryBoundaries` set. Adapter Providers are
+  private wiring only; Surface roots must originate from the declared Boundaries.
+- `describePlan()` now reports Entry Boundaries and Surface-root provenance.
+- Stream abort/close ownership now prevents pre-aborted starts and floating cleanup rejections,
+  while attempting and aggregating every stream and Provider cleanup.
+- Removed the deprecated `createExecutionContext` alpha alias; use `openExecutionContext`.
 
 ## 0.0.0
 

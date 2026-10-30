@@ -21,9 +21,17 @@ async function main(): Promise<void> {
 
   await using root = createRoot(kind);
 
-  const watchPlan = root
-    .describePlan()
-    .providers.find((p) => p.intent[0] === "orders" && p.intent[1] === "watchOrders");
+  const plan = root.describePlan();
+  if (plan.entryBoundaries.length !== 1 || plan.entryBoundaries[0] !== "orders") {
+    throw new Error(`expected orders Entry Boundary, got ${JSON.stringify(plan.entryBoundaries)}`);
+  }
+  const watchSurface = plan.surface.find((entry) => entry.alias === "watchOrders");
+  if (watchSurface?.origin.kind !== "boundary" || watchSurface.origin.id !== "orders") {
+    throw new Error(`expected Orders-owned watchOrders root, got ${JSON.stringify(watchSurface)}`);
+  }
+  const watchPlan = plan.providers.find(
+    (p) => p.intent[0] === "orders" && p.intent[1] === "watchOrders"
+  );
   if (watchPlan?.mode !== "stream") {
     throw new Error(`expected watchOrders mode=stream, got ${JSON.stringify(watchPlan)}`);
   }
@@ -87,7 +95,8 @@ async function main(): Promise<void> {
 
   console.log(
     `forma-demo ok (${kind}): getOrder(42) → total=${hit.value.total}; not_found; guest forbidden; ` +
-      `watchOrders mode=stream → ${statuses.join("→")}; break cleanup; disposed`
+      `entry=orders; watchOrders root=boundary:orders mode=stream → ${statuses.join("→")}; ` +
+      "break cleanup; disposed"
   );
 }
 

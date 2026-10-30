@@ -29,6 +29,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
 
     const wiring = defineWiring(FindOrderProvider);
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring,
     });
@@ -56,6 +57,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     const wiringLoose = [FindOrderProvider];
     // @ts-expect-error — Missing provider for Intent(s): orders.find (widened array)
     compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: wiringLoose,
     });
@@ -80,6 +82,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     );
 
     const definition = defineComposition({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: defineWiring(FindOrderProvider),
     });
@@ -109,6 +112,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
 
     const wiring = defineWiring(SelectOrderProvider, aliasIntent(FindOrder, SelectOrder));
     const root = compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring,
     });
@@ -145,6 +149,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     void OtherProvider;
     // @ts-expect-error — Provider unions are not allowed in wiring
     compose({
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
       wiring: [either],
     });
@@ -173,6 +178,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     void PongProvider;
     // @ts-expect-error — Provider unions are not allowed on surface alias(es): ping
     compose({
+      entryBoundaries: [Health],
       surface: { ping: either },
     });
   });
@@ -189,10 +195,12 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
         }
     );
 
-    // Footgun: incomplete graph — no compile error once annotated as ComposeOptions.
+    // A bare annotation erases provider provenance and graph precision.
     const widened: ComposeOptions = {
+      entryBoundaries: [Orders],
       surface: { getOrder: GetOrderProvider },
     };
+    // @ts-expect-error — erased provenance cannot prove the exact Entry Boundary set
     expect(() => compose(widened)).toThrow(/No provider registered for Intent orders\.find/);
   });
 });

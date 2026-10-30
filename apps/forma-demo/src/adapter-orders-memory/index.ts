@@ -1,6 +1,6 @@
 import { adapter, err, ok } from "@xndrjs/forma";
 import type { Order } from "../core-orders/index";
-import { FindOrder, Orders, WatchOrders } from "../core-orders/index";
+import { FindOrder, Orders, WatchOrderEvents } from "../core-orders/index";
 
 const orders: ReadonlyMap<string, Order> = new Map([["42", { id: "42", total: 100 }]]);
 
@@ -25,7 +25,7 @@ export const FindOrderViaMemoryProvider = OrdersMemory.adapt(FindOrder).with(
  * Realizes Orders `WatchOrders`: yields a short status progression for a known order.
  * Honors `invocation.signal` so break / context dispose / host abort unblock promptly.
  */
-export const WatchOrdersViaMemoryProvider = OrdersMemory.adapt(WatchOrders).with(
+export const WatchOrderEventsViaMemoryProvider = OrdersMemory.adapt(WatchOrderEvents).with(
   () =>
     async function* (id, invocation) {
       const order = orders.get(id.id);

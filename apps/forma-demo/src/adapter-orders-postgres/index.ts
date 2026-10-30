@@ -1,5 +1,5 @@
 import { adapter, err, ok } from "@xndrjs/forma";
-import { FindOrder, Orders, WatchOrders } from "../core-orders/index";
+import { FindOrder, Orders, WatchOrderEvents } from "../core-orders/index";
 import { SelectOrder } from "../infrastructure-postgres/index";
 
 /** Forma Adapter peer targeting Orders; maps Postgres rows into Orders shapes. */
@@ -31,7 +31,7 @@ export const FindOrderViaPostgresProvider = OrdersPostgres.adapt(FindOrder)
  * Realizes Orders `WatchOrders` via Postgres `SelectOrder`, then yields a fake
  * status progression. Per-stream cleanup runs on natural end, `break`, or dispose.
  */
-export const WatchOrdersViaPostgresProvider = OrdersPostgres.adapt(WatchOrders)
+export const WatchOrderEventsViaPostgresProvider = OrdersPostgres.adapt(WatchOrderEvents)
   .using({ select: SelectOrder })
   .with(
     ({ deps: { select } }) =>
