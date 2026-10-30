@@ -19,6 +19,7 @@
     "@xndrjs/documentation",
     "@xndrjs/oas-core-validator-demo",
     "@xndrjs/domain-demo",
+    "@xndrjs/forma-bench",
     "@xndrjs/forma-demo",
     "@xndrjs/plop-os-demo",
     "@xndrjs/i18n-demo",

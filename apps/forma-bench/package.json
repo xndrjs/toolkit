@@ -1,0 +1,39 @@
+{
+  "name": "@xndrjs/forma-bench",
+  "version": "0.0.1",
+  "description": "Compile-scale, runtime, and lifecycle stress benchmark for @xndrjs/forma.",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xndrjs/toolkit.git",
+    "directory": "apps/forma-bench"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24 <26"
+  },
+  "scripts": {
+    "generate": "node scripts/generate-type-fixtures.mjs --write",
+    "generate:check": "node scripts/generate-type-fixtures.mjs --check",
+    "bench:dev": "tsx src/index.ts",
+    "bench:prepare": "pnpm --filter @xndrjs/forma --filter @xndrjs/forma-bench run build",
+    "bench": "pnpm run bench:prepare && node dist/index.js",
+    "bench:matrix": "pnpm run bench:prepare && node dist/index.js --matrix --output-dir results",
+    "bench:types": "pnpm --filter @xndrjs/forma run build && pnpm run generate:check && node scripts/run-type-bench.mjs",
+    "stress:dev": "tsx src/index.ts --stress",
+    "stress": "pnpm run bench:prepare && node dist/index.js --stress",
+    "build": "tsup src/index.ts --dts --format esm --sourcemap",
+    "lint": "eslint .",
+    "typecheck": "pnpm run generate:check && tsc --noEmit"
+  },
+  "dependencies": {
+    "@xndrjs/forma": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}

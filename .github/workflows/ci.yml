@@ -61,6 +61,9 @@ jobs:
       - name: Validate packaged Forma
         run: pnpm validate:forma-package
 
+      - name: Stress Forma lifecycle
+        run: pnpm --filter @xndrjs/forma-bench stress -- --arity 2 --depth 5 --cycles 250 --concurrency 64 --open-contexts 32
+
       - name: Smoke test packaged Ziel extension
         run: pnpm --filter ziel-vscode test:vsix
 

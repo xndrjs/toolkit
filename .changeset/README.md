@@ -11,6 +11,7 @@ Workspace packages listed in `ignore` in [`config.json`](./config.json) are excl
 - `@xndrjs/domain-demo` — domain modeling example (incl. validator interoperability; Vitest only)
 - `@xndrjs/contentful-to-zod-demo` — side-by-side contentful-to-zod codegen modes
 - `@xndrjs/domain-bench` — validation engine benchmark CLI
+- `@xndrjs/forma-bench` — Forma compile-scale, runtime, and lifecycle stress benchmark
 - `@xndrjs/resource-graph-resolver-bench` — resource-graph-resolver scheduler benchmark CLI
 - `@xndrjs/oas-core-validator-demo`
 - `@xndrjs/documentation`
