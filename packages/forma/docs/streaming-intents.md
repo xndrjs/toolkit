@@ -1,8 +1,9 @@
 # Streaming Intent e operation multi-yield
 
-> Stato: modello target concordato (grill); spike Fase 0 ancora da eseguire; ADR dopo lo spike.
-> Le decisioni sotto “Decisioni chiuse” sono il target dello spike e non si riaprono senza un nuovo
-> trade-off. L’ADR post-spike le rende vincolanti per l’integrazione nel core.
+> Stato: modello target concordato (grill); spike Fase 0 completato
+> (`src/spike/managed-async-iterator.ts` + test); decisioni rese vincolanti da
+> [ADR 0012](./adr/0012-streaming-intents.md).
+> Le decisioni sotto “Decisioni chiuse” non si riaprono senza un nuovo trade-off.
 >
 > Scope: supporto a stream pull-based tramite `AsyncIterable` / async generator. Questo documento
 > non propone dependency resolution dinamica tramite `yield`.
@@ -667,8 +668,8 @@ Criterio di uscita: il remote Adapter non richiede eccezioni al modello del core
 
 ## Decisioni chiuse
 
-Target concordato (grill). Lo spike Fase 0 le valida; l’ADR post-spike le rende vincolanti per
-il core. Riaprire solo con un nuovo trade-off esplicito.
+Target concordato (grill). Validate dallo spike Fase 0; vincolanti per il core via
+[ADR 0012](./adr/0012-streaming-intents.md). Riaprire solo con un nuovo trade-off esplicito.
 
 1. **Sintassi:** `boundary.stream(name).contract<...>()`; `boundary.intent` resta unary.
 2. **Surface type:** `AsyncIterable<Result<Item, Err>>` (+ `[Symbol.asyncDispose]`); non
