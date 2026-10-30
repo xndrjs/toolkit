@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; effective lifetime inference; optional `defineWiring` when extracting wiring).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; effective lifetime inference; Stream Intent modality / ownership — [ADR 0012](./docs/adr/0012-streaming-intents.md); optional `defineWiring` when extracting wiring).
 
 ## Installation
 
@@ -27,7 +27,7 @@ export const FindOrder = Orders.intent("find").contract<OrderId, Order, FindErro
 export const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
 ```
 
-Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the literal Intent name that way.
+Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the literal Intent name that way. `boundary.intent` is always **unary** (one terminal `Result`). For pull-based sequences use `boundary.stream` (below).
 
 ### Providers
 
@@ -159,8 +159,48 @@ await using execution = rooted.openExecutionContext({ params: { role: "viewer" }
 await execution.surface.getOrder({ id: "42" });
 ```
 
-Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, requires a closed graph, and derives effective lifetimes before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, params policy, async connection, inferred lifetimes, `await using` root).
+Only surface aliases declared in `compose({ surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, requires a closed graph, and derives effective lifetimes before returning the root. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, params policy, `WatchOrders` stream, async connection, inferred lifetimes, `await using` root).
+
+### Stream Intent
+
+Declare a **stream** Contract with `boundary.stream(name).contract<Input, Item, Err>()`. Same `.provide` / `.adapt` builders; the factory returns a `StreamOperation` (`async function*` or any `AsyncIterable` producer) that receives `(input, invocation)` where `invocation.signal` is per call and subordinate to the execution-context signal.
+
+```ts
+type OrderEvent = { readonly orderId: string; readonly status: string };
+type WatchError = { readonly kind: "unavailable" };
+
+const WatchOrders = Orders.stream("watchOrders").contract<OrderId, OrderEvent, WatchError>();
+
+const WatchOrdersProvider = WatchOrders.provide.with(
+  () =>
+    async function* (id, invocation) {
+      try {
+        invocation.signal.throwIfAborted();
+        yield ok({ orderId: id.id, status: "open" });
+        yield ok({ orderId: id.id, status: "paid" });
+      } finally {
+        // runs on natural end, break, return(), AsyncDisposable, or context/root dispose
+      }
+    }
+);
+
+const streamingRoot = compose({ surface: { watchOrders: WatchOrdersProvider } });
+
+await using execution = streamingRoot.openExecutionContext();
+for await (const event of execution.surface.watchOrders({ id: "42" })) {
+  if (!event.ok) break; // expected Err is terminal (wrapper enforces)
+  // …
+}
+```
+
+Ownership and cancellation (see [streaming-intents.md](./docs/streaming-intents.md), [ADR 0012](./docs/adr/0012-streaming-intents.md)):
+
+- Each surface call returns a **cold, single-consumer** `AsyncIterable` (+ `[Symbol.asyncDispose]`). Creating it does not materialize the Provider; the first `next()` does.
+- Every active stream invocation is **owned by the execution context** (lease + registry), independent of Provider effective lifetime — including streams from composition-effective Providers.
+- `break` / `return()` / `await using` on the iterable, context `dispose`, and root `dispose` close active streams (abort per-stream signal → `return()` → await `finally` → release-once). Cancelling one stream does not abort siblings or the context.
+- Host abort on the context `signal` propagates to invocation signals and must unblock cooperative I/O; it does **not** auto-`dispose()` the context (abort ≠ dispose).
+- Adapter preserves modality; unary↔stream Intent alias fails at compile time. `using` a Stream Intent resolves to the `StreamOperation`, never an open iterator. `describePlan()` reports `mode: "unary" | "stream"` on every registered Intent.
 
 ## Status
 
-PoC (`0.1.0-alpha.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, graph-derived effective lifetimes, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, disposal. Not a general-purpose IoC container.
+PoC (`0.1.0-alpha.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, graph-derived effective lifetimes, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, Stream Intent modality, disposal. Not a general-purpose IoC container.

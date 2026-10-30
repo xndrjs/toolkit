@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (integration binding for Stream Intent work; core wiring follows in later phases)
+Accepted (core integrated: execution lifecycle, stream registry / surface, Adapter / alias /
+`using` / `describePlan` `mode`; demo + docs in `forma-demo` and package README / Glossary)
 
 ## Context
 
@@ -88,9 +89,13 @@ integration.
 
 - Stream support is a Contract modality plus execution-owned invocation lifetime — not a return-type
   widening of unary.
-- Fase 2 (execution lifecycle seam) must land before the stream registry; otherwise leases stay
-  tangled with `ProviderScope`.
+- Execution lifecycle is separate from `ProviderScope` (invocation leases / stream registry vs
+  Provider materialize/cache/`Lifetime`).
 - Remote Adapter / SSE / WebSocket can share the same `AsyncIterable<Result<…>>` + `return`/abort
-  protocol without core exceptions; transport policy stays outside Forma.
+  protocol without core exceptions; transport policy stays outside Forma (optional spike, not
+  required for the core ship).
 - The managed iterator is not a public export; it lives under `execution/` and is used by the
   stream registry / surface wrapper.
+- Ownership and cancellation are documented for callers via README, Glossary (**Stream
+  invocation**), [streaming-intents.md](../streaming-intents.md), and the `WatchOrders` example in
+  `apps/forma-demo`.

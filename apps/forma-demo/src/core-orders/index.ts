@@ -1,7 +1,7 @@
 import { boundary, err } from "@xndrjs/forma";
-import type { DemoParams, FindError, Order, OrderId } from "./types";
+import type { DemoParams, FindError, Order, OrderEvent, OrderId, WatchError } from "./types";
 
-export type { DemoParams, FindError, Order, OrderId } from "./types";
+export type { DemoParams, FindError, Order, OrderEvent, OrderId, WatchError } from "./types";
 
 export const Orders = boundary("orders");
 
@@ -9,6 +9,12 @@ export const Orders = boundary("orders");
 export const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
 
 export const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+
+/**
+ * Stream Intent: pull-based status events for one order.
+ * Realized by Adapters; each surface call opens a context-owned stream invocation.
+ */
+export const WatchOrders = Orders.stream("watchOrders").contract<OrderId, OrderEvent, WatchError>();
 
 /**
  * Surface policy: guests are forbidden; admin/viewer may read via FindOrder.

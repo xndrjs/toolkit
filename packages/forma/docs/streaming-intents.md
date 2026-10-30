@@ -1,10 +1,11 @@
 # Streaming Intent e operation multi-yield
 
-> Stato: modello target concordato (grill); spike Fase 0 completato
-> (`src/execution/managed-async-iterator.ts` + test; integrated via stream registry);
-> decisioni rese vincolanti da
+> Stato: modello target concordato (grill); core integrato (Fasi 0–4);
+> spike + registry + surface + cancel/errors + Adapter/alias/`describePlan`;
+> demo `WatchOrders` in `apps/forma-demo`; decisioni rese vincolanti da
 > [ADR 0012](./adr/0012-streaming-intents.md).
 > Le decisioni sotto “Decisioni chiuse” non si riaprono senza un nuovo trade-off.
+> Fase 5 (remote Adapter) resta fuori dal primo ship del core.
 >
 > Scope: supporto a stream pull-based tramite `AsyncIterable` / async generator. Questo documento
 > non propone dependency resolution dinamica tramite `yield`.
@@ -604,6 +605,9 @@ Criterio di uscita: nessuna risorsa o lease rimane attivo dopo ogni terminal pat
 
 Criterio di uscita: un utente può capire ownership e cancellation senza conoscere il runtime
 interno.
+
+**Stato:** completata — `describePlan().mode`, README / Glossary / ADR 0012, e
+`apps/forma-demo` (`WatchOrders` su entrambi gli Adapter, consumo + early `break`).
 
 ### Fase 5 — Remote Adapter spike
 

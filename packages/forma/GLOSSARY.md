@@ -23,7 +23,7 @@ _Avoid_: mode (when meaning modality), operation kind
 The TypeScript promise of an Intent: input, outcomes, and expected domain failures, including modality. A **unary** Contract is input, one successful outcome, and expected failures (`Result<Success, Err>`). A **stream** Contract is input, zero or more items, and expected failures (`AsyncIterable<Result<Item, Err>>` with `Err` terminal). Unexpected technical failures are outside the Contract.
 
 **Stream invocation**:
-The execution-context-owned lifetime of one surface call to a stream Intent: its iterator, per-call abort signal, and cleanup. Distinct from Provider **Lifetime** (instance materialization). Creating an iterable without iterating does not start a stream invocation.
+The execution-context-owned lifetime of one surface call to a stream Intent: its iterator, per-call abort signal, and cleanup. Distinct from Provider **Lifetime** (instance materialization). Creating an iterable without iterating does not start a stream invocation. Closed by natural completion, consumer `break` / `return()` / `[Symbol.asyncDispose]`, context dispose, or root dispose (release-once). Host abort on the context signal reaches the invocation signal without auto-disposing the context.
 _Avoid_: lease (public term), subscription (unless the domain means that), stream session
 
 **Provider**:
