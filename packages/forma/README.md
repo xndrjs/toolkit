@@ -213,6 +213,10 @@ Ownership and cancellation (see [streaming-intents.md](./docs/streaming-intents.
 - Stream cleanup failures are observed by the caller that initiates close. Context/root disposal still attempts every stream and Provider cleanup and aggregates multiple failures.
 - Adapter preserves modality; unary↔stream Intent alias fails at compile time. `using` a Stream Intent resolves to the `StreamOperation`, never an open iterator. `describePlan()` reports `mode: "unary" | "stream"` on every registered Intent.
 
+### Validate the published package
+
+From the repository root, run `pnpm validate:forma-package`. The command builds Forma, creates the same tarball shape published to npm, validates its exports and declarations with `publint` and Are The Types Wrong, installs it into an isolated consumer, typechecks that consumer with `skipLibCheck: false`, and runs a unary/stream/disposal smoke test. It never resolves `@xndrjs/forma` through the workspace source alias.
+
 ## Status
 
 PoC (`0.1.0-alpha.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, graph-derived effective lifetimes, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, Stream Intent modality, disposal. Not a general-purpose IoC container.

@@ -182,8 +182,10 @@ deve duplicare annotazioni e la Surface risultante è precisa.
 **Priorità: bloccante prima della stabilizzazione.**
 
 A runtime ogni dichiarazione di Intent riceve un `Symbol` nuovo in
-[`boundary.ts`](../src/boundary.ts). La verifica statica della Composition usa invece una
-stringa costruita come `` `${boundaryId}.${name}` `` in [`compose.ts`](../src/compose.ts).
+[`boundary.ts`](https://github.com/xndrjs/toolkit/blob/main/packages/forma/src/boundary.ts). La
+verifica statica della Composition usa invece una stringa costruita come
+`` `${boundaryId}.${name}` `` in
+[`compose.ts`](https://github.com/xndrjs/toolkit/blob/main/packages/forma/src/compose.ts).
 
 Questo crea due nozioni di identità:
 

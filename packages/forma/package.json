@@ -35,9 +35,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "validate:package": "pnpm run build && node scripts/validate-package.mjs"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "publint": "^0.3.25",
     "tsup": "^8.5.1",
     "vitest": "^4.1.0"
   }
