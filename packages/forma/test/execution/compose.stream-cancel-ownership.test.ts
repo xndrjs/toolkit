@@ -317,6 +317,7 @@ describe("compose — Stream Intent cancellation and ownership", () => {
     expect(root.describePlan().providers).toEqual([
       {
         intent: ["orders", "watchOrders"],
+        mode: "stream",
         declared: "auto",
         effective: "composition",
       },

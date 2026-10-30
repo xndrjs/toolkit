@@ -65,6 +65,7 @@ export function compileComposition<
         const lifetime = lifetimePlan.get(key)!;
         return Object.freeze({
           intent: Object.freeze(intentIdentity(provider.intent)),
+          mode: provider.intent.modality,
           declared: lifetime.declared,
           effective: lifetime.effective,
           ...(lifetime.narrowedBy

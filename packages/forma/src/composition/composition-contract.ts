@@ -1,5 +1,5 @@
 import type { AnyProvider, WiringEntry } from "../alias-intent.js";
-import type { IntentIdentity } from "../boundary.js";
+import type { IntentIdentity, IntentModality } from "../boundary.js";
 import type { EffectiveLifetime } from "../graph-plan.js";
 import type { LifetimePolicy, Provider } from "../provider/provider.js";
 import type { Result } from "../result.js";
@@ -7,6 +7,8 @@ import type { Result } from "../result.js";
 /** Read-only explanation of one Provider's declared and graph-derived lifetime. */
 export type ProviderLifetimeDescription = {
   readonly intent: IntentIdentity;
+  /** Contract modality (`unary` | `stream`); property of the Intent, not the Provider. */
+  readonly mode: IntentModality;
   readonly declared: LifetimePolicy;
   readonly effective: EffectiveLifetime;
   /** Structured path from an `auto` Provider to the context-bound cause. */

@@ -197,6 +197,7 @@ describe("compose — lifecycle and disposal", () => {
     expect(root.describePlan().providers).toEqual([
       {
         intent: ["db", "query"],
+        mode: "unary",
         declared: "auto",
         effective: "context",
         narrowedBy: [
@@ -204,7 +205,7 @@ describe("compose — lifecycle and disposal", () => {
           ["db", "conn"],
         ],
       },
-      { intent: ["db", "conn"], declared: "context", effective: "context" },
+      { intent: ["db", "conn"], mode: "unary", declared: "context", effective: "context" },
     ]);
     await root.dispose();
   });
