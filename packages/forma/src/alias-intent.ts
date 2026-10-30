@@ -87,33 +87,28 @@ export function isIntentAlias(entry: WiringEntry): entry is IntentAlias {
   return Array.isArray(entry);
 }
 
-/** Type-level: Providers from a `wiring` tuple (Intent aliases dropped). */
-export type ProvidersFromWiring<W extends readonly WiringEntry[]> = W extends readonly [
-  infer Head,
-  ...infer Tail,
-]
-  ? Head extends IntentAlias
-    ? Tail extends readonly WiringEntry[]
-      ? ProvidersFromWiring<Tail>
-      : readonly []
-    : Tail extends readonly WiringEntry[]
-      ? readonly [Extract<Head, AnyProvider>, ...ProvidersFromWiring<Tail>]
-      : readonly [Extract<Head, AnyProvider>]
-  : readonly [];
+type ProviderFromWiringEntry<Entry> = Entry extends AnyProvider ? Entry : never;
+type AliasFromWiringEntry<Entry> = Entry extends IntentAlias ? Entry : never;
 
-/** Type-level: Intent aliases from a `wiring` tuple (Providers dropped). */
-export type AliasesFromWiring<W extends readonly WiringEntry[]> = W extends readonly [
-  infer Head,
-  ...infer Tail,
-]
-  ? Head extends IntentAlias
-    ? Tail extends readonly WiringEntry[]
-      ? readonly [Head, ...AliasesFromWiring<Tail>]
-      : readonly [Head]
-    : Tail extends readonly WiringEntry[]
-      ? AliasesFromWiring<Tail>
-      : readonly []
-  : readonly [];
+/**
+ * Type-level Provider set from `wiring` (Intent aliases dropped).
+ *
+ * Graph validation only consumes `Providers[number]`; rebuilding an ordered
+ * Provider tuple recursively adds compiler depth without carrying useful graph
+ * semantics. Keep the concrete Provider union in a lightweight readonly array.
+ */
+export type ProvidersFromWiring<W extends readonly WiringEntry[]> = number extends W["length"]
+  ? readonly []
+  : readonly ProviderFromWiringEntry<W[number]>[];
+
+/**
+ * Type-level Intent-alias set from `wiring` (Providers dropped). Alias order is
+ * irrelevant for a valid Composition because duplicate requirements are rejected
+ * by runtime registration.
+ */
+export type AliasesFromWiring<W extends readonly WiringEntry[]> = number extends W["length"]
+  ? readonly []
+  : readonly AliasFromWiringEntry<W[number]>[];
 
 export function partitionWiring(wiring: readonly WiringEntry[]): {
   providers: AnyProvider[];

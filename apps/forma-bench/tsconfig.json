@@ -9,5 +9,10 @@
     "skipLibCheck": false,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "type-fixtures/tree-a2-d4-p031.ts"]
+  "include": [
+    "src/**/*.ts",
+    "type-fixtures/tree-a2-d4-p031.ts",
+    "type-fixtures/tree-a2-d5-p063.ts",
+    "type-fixtures/tree-a3-d4-p121.ts"
+  ]
 }

@@ -2,9 +2,14 @@ export const TYPE_SCALE_SHAPES = [
   { arity: 2, depth: 4 },
   { arity: 2, depth: 5 },
   { arity: 3, depth: 4 },
+  { arity: 3, depth: 5 },
 ];
 
-export const GUARDED_TYPE_SCALE_SHAPES = [{ arity: 2, depth: 4 }];
+export const GUARDED_TYPE_SCALE_SHAPES = [
+  { arity: 2, depth: 4 },
+  { arity: 2, depth: 5 },
+  { arity: 3, depth: 4 },
+];
 
 export function providerCount({ arity, depth }) {
   let total = 0;

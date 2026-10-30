@@ -137,26 +137,22 @@ type RequiredIntentKeys<
 type AliasSatisfierFor<
   Required extends IntentKey,
   Aliases extends readonly IntentAlias[],
-> = Aliases extends readonly [infer Head, ...infer Tail]
-  ? Head extends readonly [infer Req, infer Sat]
+> = Aliases[number] extends infer Alias
+  ? Alias extends readonly [infer Req, infer Sat]
     ? [IntentKeyOf<Req>] extends [Required]
       ? IntentKeyOf<Sat>
-      : Tail extends readonly IntentAlias[]
-        ? AliasSatisfierFor<Required, Tail>
-        : never
+      : never
     : never
   : never;
 
 type AliasSatisfierIntentFor<
   Required extends IntentKey,
   Aliases extends readonly IntentAlias[],
-> = Aliases extends readonly [infer Head, ...infer Tail]
-  ? Head extends readonly [infer Req, infer Sat]
+> = Aliases[number] extends infer Alias
+  ? Alias extends readonly [infer Req, infer Sat]
     ? [IntentKeyOf<Req>] extends [Required]
       ? Extract<Sat, AnyIntent>
-      : Tail extends readonly IntentAlias[]
-        ? AliasSatisfierIntentFor<Required, Tail>
-        : never
+      : never
     : never
   : never;
 

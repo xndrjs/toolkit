@@ -74,25 +74,20 @@ type SurfaceProviderUnionKeys<Surface extends Record<string, AnyProvider>> = {
 }[keyof Surface & string];
 
 /**
- * Walk a wiring tuple slot-by-slot. Heterogeneous `[A, B]` is fine;
- * a single slot typed as `A | B` is not (would falsely register both Intents).
- * `[Head] extends [IntentAlias]` is intentional: a naked `Head extends IntentAlias`
- * would distribute over a Provider union and miss the union slot.
+ * Inspect each wiring tuple slot without recursively rebuilding its tail.
+ * Heterogeneous `[A, B]` is fine; a single slot typed as `A | B` is not
+ * (it would falsely register both Intents). The tuple guard intentionally leaves
+ * widened arrays to the existing missing-provider diagnostics.
  */
-type WiringProviderUnionSlots<W extends readonly WiringEntry[]> = W extends readonly [
-  infer Head,
-  ...infer Tail,
-]
-  ? [Head] extends [IntentAlias]
-    ? Tail extends readonly WiringEntry[]
-      ? WiringProviderUnionSlots<Tail>
-      : never
-    : IsUnion<Head> extends true
-      ? true
-      : Tail extends readonly WiringEntry[]
-        ? WiringProviderUnionSlots<Tail>
-        : never
-  : never;
+type WiringProviderUnionSlots<W extends readonly WiringEntry[]> = number extends W["length"]
+  ? never
+  : {
+      [K in keyof W]: [W[K]] extends [IntentAlias]
+        ? never
+        : IsUnion<W[K]> extends true
+          ? true
+          : never;
+    }[number];
 
 type ForbiddenSurfaceAliases<Surface> = Extract<keyof Surface & string, ReservedSurfaceAlias>;
 

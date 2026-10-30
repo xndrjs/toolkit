@@ -11,7 +11,7 @@ It is a regression instrument, not a claim about universal absolute performance.
 
 ## Type-scale fixtures
 
-`type-fixtures/` contains generated, checked-in balanced trees with constant arity and a root-to-leaf depth of four or five edges. The current shapes are binary depth 4 (31 Providers), binary depth 5 (63 Providers), and ternary depth 4 (121 Providers). Every parent depends on all children at the next level, every leaf is context-owned, and the graph keeps an exact inline `surface` and `wiring` tuple. This forces Contract analysis and transitive lifetime propagation across realistic fan-out rather than an artificial linear chain.
+`type-fixtures/` contains generated, checked-in balanced trees with constant arity and a root-to-leaf depth of four or five edges. The current shapes are binary depth 4 (31 Providers), binary depth 5 (63 Providers), ternary depth 4 (121 Providers), and ternary depth 5 (364 Providers). Every parent depends on all children at the next level, every leaf is context-owned, and the graph keeps an exact inline `surface` and `wiring` tuple. This forces Contract analysis and transitive lifetime propagation across realistic fan-out rather than an artificial linear chain.
 
 ```bash
 pnpm --filter @xndrjs/forma-bench bench:types
@@ -19,7 +19,7 @@ pnpm --filter @xndrjs/forma-bench bench:types
 
 The command builds Forma, verifies that the generated fixtures are current, then compiles each fixture in an isolated TypeScript process with `skipLibCheck: false` and extended diagnostics. It reports pass/fail, wall time, TypeScript check/total time, type instantiations, and compiler memory.
 
-The binary depth-4 fixture is the current guard and is included in normal workspace typecheck. The 63- and 121-Provider fixtures are probes: on TypeScript 5.9.3 they currently reach `TS2589` at `compose`, and their failure is reported without making the benchmark command itself fail. When Forma's type-level ceiling improves, move newly passing probes into `GUARDED_TYPE_SCALE_SHAPES` and the app `tsconfig`.
+The 31-, 63-, and 121-Provider fixtures are guards included in normal workspace typecheck. On TypeScript 5.9.3 the 364-Provider fixture also passes, but remains a capacity probe because its compiler cost is intentionally high; its failure is reported without making the benchmark command itself fail. When Forma's type-level ceiling improves, move newly passing probes into `GUARDED_TYPE_SCALE_SHAPES` and the app `tsconfig`.
 
 If the generator changes:
 
