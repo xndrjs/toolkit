@@ -26,6 +26,7 @@ import type {
   ExecutionContextOptions,
   ExecutionSurface,
   ProviderLifetimeDescription,
+  StreamSurfaceIterable,
 } from "./composition/composition-contract.js";
 import { createCompositionRoot } from "./execution/composition-root.js";
 
@@ -40,6 +41,7 @@ export type {
   ExecutionContextOptions,
   ExecutionSurface,
   ProviderLifetimeDescription,
+  StreamSurfaceIterable,
 };
 
 type ComposeAsserts<

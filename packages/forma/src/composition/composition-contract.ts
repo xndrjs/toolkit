@@ -19,10 +19,14 @@ export type CompositionPlanDescription = {
 
 type Awaitable<T> = T | PromiseLike<T>;
 
+/** Public stream surface value: cold iterable + dispose; not a public iterator. */
+export type StreamSurfaceIterable<Item, Err> = AsyncIterable<Result<Item, Err>> & AsyncDisposable;
+
 type SurfaceOperation<P> =
   // Deps is invariant on Provider (factory param); erase with `any` so surface
   // aliases still expose Input/Success/Err when the provider has `using` deps.
-  // Context aliases always return a Promise (lazy materialize + invoke).
+  // Unary aliases return a Promise (lazy materialize + invoke).
+  // Stream aliases return a sync AsyncIterable (lazy materialize on first next).
   P extends Provider<
     string,
     string,
@@ -33,9 +37,12 @@ type SurfaceOperation<P> =
     any,
     LifetimePolicy,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Params erasure
-    any
+    any,
+    infer Mode
   >
-    ? (input: Input) => Promise<Result<Success, Err>>
+    ? Mode extends "stream"
+      ? (input: Input) => StreamSurfaceIterable<Success, Err>
+      : (input: Input) => Promise<Result<Success, Err>>
     : never;
 
 /**

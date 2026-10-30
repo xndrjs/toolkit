@@ -1,5 +1,10 @@
 import type { AnyProvider } from "../alias-intent.js";
-import type { Disposable, IntentOperation, ResolvedDeps } from "../provider/provider.js";
+import type {
+  Disposable,
+  IntentOperation,
+  ResolvedDeps,
+  StreamOperation,
+} from "../provider/provider.js";
 import {
   createMaterializationLifetime,
   createScopeAbort,
@@ -11,7 +16,7 @@ import {
   type ScopeAbort,
 } from "./disposal.js";
 
-type Op = IntentOperation<unknown, unknown, unknown>;
+type Op = IntentOperation<unknown, unknown, unknown> | StreamOperation<unknown, unknown, unknown>;
 
 export type GetOrMaterializeOptions = {
   readonly id: string;

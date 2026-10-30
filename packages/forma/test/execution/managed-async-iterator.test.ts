@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createManagedAsyncIterable,
   createManagedResultIterable,
-} from "../../src/spike/managed-async-iterator.js";
+} from "../../src/execution/managed-async-iterator.js";
 import { err, ok } from "../../src/result.js";
 
 /** Cooperative hang: async generators only reach `finally` after the current await settles. */
@@ -22,7 +22,7 @@ function abortableHang(signal: AbortSignal): Promise<never> {
   });
 }
 
-describe("ManagedAsyncIterator spike", () => {
+describe("ManagedAsyncIterator", () => {
   describe("cold start and consumption", () => {
     it("does not call start until the first next()", async () => {
       const start = vi.fn(async function* () {

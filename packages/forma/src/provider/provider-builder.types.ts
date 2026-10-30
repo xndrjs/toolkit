@@ -1,9 +1,10 @@
+import type { IntentModality } from "../boundary.js";
 import type {
   AnyIntentDeps,
   EmptyDeps,
-  IntentOperation,
   IsEmptyDeps,
   LifetimePolicy,
+  OperationFor,
   ParamsReq,
   Provider,
   SameBoundaryDeps,
@@ -18,10 +19,11 @@ type Awaitable<T> = T | PromiseLike<T>;
 /**
  * Argument to `.with`: named fields avoid positional ambiguity between deps and lifetime.
  * Shared by Boundary and Adapter builders (constraint differences live on `using` only).
+ * Return type follows Intent modality.
  */
-export type WithFactory<Input, Success, Err, Deps, Params> = (
+export type WithFactory<Input, Success, Err, Deps, Params, Mode extends IntentModality> = (
   ctx: WithContext<Deps, Params>
-) => Awaitable<IntentOperation<Input, Success, Err>>;
+) => Awaitable<OperationFor<Mode, Input, Success, Err>>;
 
 /** Fluent steps after deps are fixed (`using` is one-shot). */
 export type ProviderBuilderAfterUsing<
@@ -33,10 +35,11 @@ export type ProviderBuilderAfterUsing<
   Deps,
   Policy extends LifetimePolicy,
   Params,
+  Mode extends IntentModality,
 > = {
   with(
-    factory: WithFactory<Input, Success, Err, Deps, Params>
-  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params>;
+    factory: WithFactory<Input, Success, Err, Deps, Params, Mode>
+  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode>;
 } & (Policy extends "auto"
   ? {
       perContext<P extends ParamsReq = void>(): ProviderBuilderAfterUsing<
@@ -47,7 +50,8 @@ export type ProviderBuilderAfterUsing<
         Err,
         Deps,
         "context",
-        P
+        P,
+        Mode
       >;
       perComposition(): ProviderBuilderAfterUsing<
         BoundaryId,
@@ -57,7 +61,8 @@ export type ProviderBuilderAfterUsing<
         Err,
         Deps,
         "composition",
-        void
+        void,
+        Mode
       >;
     }
   : Record<never, never>);
@@ -72,10 +77,11 @@ export type AdaptProviderBuilderAfterUsing<
   Deps,
   Policy extends LifetimePolicy,
   Params,
+  Mode extends IntentModality,
 > = {
   with(
-    factory: WithFactory<Input, Success, Err, Deps, Params>
-  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params>;
+    factory: WithFactory<Input, Success, Err, Deps, Params, Mode>
+  ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode>;
 } & (Policy extends "auto"
   ? {
       perContext<P extends ParamsReq = void>(): AdaptProviderBuilderAfterUsing<
@@ -86,7 +92,8 @@ export type AdaptProviderBuilderAfterUsing<
         Err,
         Deps,
         "context",
-        P
+        P,
+        Mode
       >;
       perComposition(): AdaptProviderBuilderAfterUsing<
         BoundaryId,
@@ -96,7 +103,8 @@ export type AdaptProviderBuilderAfterUsing<
         Err,
         Deps,
         "composition",
-        void
+        void,
+        Mode
       >;
     }
   : Record<never, never>);
@@ -108,6 +116,7 @@ export type ProviderBuilder<
   Input,
   Success,
   Err,
+  Mode extends IntentModality = "unary",
   Deps = EmptyDeps,
   Policy extends LifetimePolicy = "auto",
   Params = void,
@@ -115,12 +124,22 @@ export type ProviderBuilder<
   ? {
       using<NewDeps extends SameBoundaryDeps<BoundaryId, NewDeps>>(
         deps: StringKeyedDeps<NewDeps> & SameBoundaryDeps<BoundaryId, NewDeps>
-      ): ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, NewDeps, Policy, Params>;
+      ): ProviderBuilderAfterUsing<
+        BoundaryId,
+        Name,
+        Input,
+        Success,
+        Err,
+        NewDeps,
+        Policy,
+        Params,
+        Mode
+      >;
       with(
-        factory: WithFactory<Input, Success, Err, EmptyDeps, Params>
-      ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, Policy, Params>;
+        factory: WithFactory<Input, Success, Err, EmptyDeps, Params, Mode>
+      ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, Policy, Params, Mode>;
     }
-  : ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params>) &
+  : ProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode>) &
   (Policy extends "auto"
     ? {
         perContext<P extends ParamsReq = void>(): ProviderBuilder<
@@ -129,6 +148,7 @@ export type ProviderBuilder<
           Input,
           Success,
           Err,
+          Mode,
           Deps,
           "context",
           P
@@ -139,6 +159,7 @@ export type ProviderBuilder<
           Input,
           Success,
           Err,
+          Mode,
           Deps,
           "composition",
           void
@@ -153,6 +174,7 @@ export type AdaptProviderBuilder<
   Input,
   Success,
   Err,
+  Mode extends IntentModality = "unary",
   Deps = EmptyDeps,
   Policy extends LifetimePolicy = "auto",
   Params = void,
@@ -168,13 +190,24 @@ export type AdaptProviderBuilder<
         Err,
         NewDeps,
         Policy,
-        Params
+        Params,
+        Mode
       >;
       with(
-        factory: WithFactory<Input, Success, Err, EmptyDeps, Params>
-      ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, Policy, Params>;
+        factory: WithFactory<Input, Success, Err, EmptyDeps, Params, Mode>
+      ): Provider<BoundaryId, Name, Input, Success, Err, EmptyDeps, Policy, Params, Mode>;
     }
-  : AdaptProviderBuilderAfterUsing<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params>) &
+  : AdaptProviderBuilderAfterUsing<
+      BoundaryId,
+      Name,
+      Input,
+      Success,
+      Err,
+      Deps,
+      Policy,
+      Params,
+      Mode
+    >) &
   (Policy extends "auto"
     ? {
         perContext<P extends ParamsReq = void>(): AdaptProviderBuilder<
@@ -183,6 +216,7 @@ export type AdaptProviderBuilder<
           Input,
           Success,
           Err,
+          Mode,
           Deps,
           "context",
           P
@@ -193,6 +227,7 @@ export type AdaptProviderBuilder<
           Input,
           Success,
           Err,
+          Mode,
           Deps,
           "composition",
           void
@@ -206,7 +241,8 @@ export type ProvideApi<
   Input,
   Success,
   Err,
-> = ProviderBuilder<BoundaryId, Name, Input, Success, Err>;
+  Mode extends IntentModality = "unary",
+> = ProviderBuilder<BoundaryId, Name, Input, Success, Err, Mode>;
 
 export type AdaptProvideApi<
   BoundaryId extends string,
@@ -214,4 +250,5 @@ export type AdaptProvideApi<
   Input,
   Success,
   Err,
-> = AdaptProviderBuilder<BoundaryId, Name, Input, Success, Err>;
+  Mode extends IntentModality = "unary",
+> = AdaptProviderBuilder<BoundaryId, Name, Input, Success, Err, Mode>;

@@ -1,4 +1,4 @@
-import type { Intent } from "../boundary.js";
+import type { Intent, IntentModality } from "../boundary.js";
 import { assertStringRecordKeys, sealedStringRecord } from "../string-keys.js";
 import type {
   EmptyDeps,
@@ -21,11 +21,12 @@ function createProviderBuilder<
   Input,
   Success,
   Err,
+  Mode extends IntentModality,
   Deps,
   Policy extends LifetimePolicy,
   Params,
 >(
-  intent: Intent<BoundaryId, Name, Input, Success, Err>,
+  intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>,
   deps: Deps,
   lifetimePolicy: Policy,
   origin: ProviderOrigin
@@ -50,7 +51,7 @@ function createProviderBuilder<
     perComposition() {
       return createProviderBuilder(intent, deps, "composition" as const, origin);
     },
-    with(factory: WithFactory<Input, Success, Err, Deps, Params>) {
+    with(factory: WithFactory<Input, Success, Err, Deps, Params, Mode>) {
       return {
         intent,
         deps,
@@ -75,13 +76,14 @@ export function createProvideApi<
   Input,
   Success,
   Err,
+  Mode extends IntentModality,
 >(
-  intent: Intent<BoundaryId, Name, Input, Success, Err>
-): ProvideApi<BoundaryId, Name, Input, Success, Err> {
+  intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>
+): ProvideApi<BoundaryId, Name, Input, Success, Err, Mode> {
   return createProviderBuilder(intent, {} as EmptyDeps, "auto" as const, {
     kind: "boundary",
     id: intent.boundaryId,
-  }) as ProvideApi<BoundaryId, Name, Input, Success, Err>;
+  }) as ProvideApi<BoundaryId, Name, Input, Success, Err, Mode>;
 }
 
 /**
@@ -94,12 +96,13 @@ export function createAdaptProvideApi<
   Input,
   Success,
   Err,
+  Mode extends IntentModality,
 >(
-  intent: Intent<BoundaryId, Name, Input, Success, Err>,
+  intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>,
   adapterId: string
-): AdaptProvideApi<BoundaryId, Name, Input, Success, Err> {
+): AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode> {
   return createProviderBuilder(intent, {} as EmptyDeps, "auto" as const, {
     kind: "adapter",
     id: adapterId,
-  }) as AdaptProvideApi<BoundaryId, Name, Input, Success, Err>;
+  }) as AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode>;
 }

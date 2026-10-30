@@ -14,7 +14,7 @@ early, leave cancellation and cleanup to the caller, and hide modality from
 
 [streaming-intents.md](../streaming-intents.md) recorded a grilled target model (“Decisioni
 chiuse”). Fase 0 validated an isolated `ManagedAsyncIterator` spike
-(`src/spike/managed-async-iterator.ts`) — state machine, cold single-consumer iterable,
+(`src/execution/managed-async-iterator.ts`, formerly the Fase 0 spike) — state machine, cold single-consumer iterable,
 `[Symbol.asyncDispose]`, terminal `Err` enforcement, and reuse of the existing disposal error
 matrix — without changing the `compose` runtime. This ADR freezes those decisions for core
 integration.
@@ -92,5 +92,5 @@ integration.
   tangled with `ProviderScope`.
 - Remote Adapter / SSE / WebSocket can share the same `AsyncIterable<Result<…>>` + `return`/abort
   protocol without core exceptions; transport policy stays outside Forma.
-- The spike module is not a public export; production code moves into the execution/stream registry
-  path once phases 1–3 land.
+- The managed iterator is not a public export; it lives under `execution/` and is used by the
+  stream registry / surface wrapper.

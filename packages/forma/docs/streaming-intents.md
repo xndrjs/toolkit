@@ -1,7 +1,8 @@
 # Streaming Intent e operation multi-yield
 
 > Stato: modello target concordato (grill); spike Fase 0 completato
-> (`src/spike/managed-async-iterator.ts` + test); decisioni rese vincolanti da
+> (`src/execution/managed-async-iterator.ts` + test; integrated via stream registry);
+> decisioni rese vincolanti da
 > [ADR 0012](./adr/0012-streaming-intents.md).
 > Le decisioni sotto “Decisioni chiuse” non si riaprono senza un nuovo trade-off.
 >

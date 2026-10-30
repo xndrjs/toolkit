@@ -6,13 +6,14 @@ import type {
 } from "../composition/composition-contract.js";
 import type { ProviderLifetimePlan } from "../graph-plan.js";
 import { intentLabel, intentMapKey } from "../intent-keys.js";
-import type { IntentOperation, ResolvedDeps } from "../provider/provider.js";
+import type { IntentOperation, ResolvedDeps, StreamOperation } from "../provider/provider.js";
 import { createScopeAbort, throwAfterCallbackAndCleanup } from "./disposal.js";
 import { createExecutionLifecycle } from "./execution-lifecycle.js";
 import { createProviderScope, type ProviderScope } from "./provider-scope.js";
+import { asyncIteratorOf, createStreamRegistry } from "./stream-registry.js";
 
 type Awaitable<T> = T | PromiseLike<T>;
-type Op = IntentOperation<unknown, unknown, unknown>;
+type Op = IntentOperation<unknown, unknown, unknown> | StreamOperation<unknown, unknown, unknown>;
 
 function freezeParams<Params>(params: Params): Readonly<Params> {
   if (Array.isArray(params)) {
@@ -59,7 +60,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
   // One abort for the context: public `execution.signal` and Provider Lifetime.signal.
   const abort = createScopeAbort(openOptions.signal);
 
-  /** Invocation leases (unary today; stream registry later) — not Provider materialization. */
+  /** Invocation leases (unary + stream registry) — not Provider materialization. */
   const execution = createExecutionLifecycle({
     notOpenMessage: "Execution context is disposed",
     abort,
@@ -71,16 +72,20 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
     abort,
   });
 
+  const streams = createStreamRegistry({ parentSignal: execution.signal });
+
   const contextHandle = {
     dispose(): Promise<void> {
-      // abort + reject new work + drain unary leases, then dispose context Providers.
-      return execution.dispose(() =>
-        contextScope.dispose({
+      // Kick stream close via context abort (inside execution.dispose) + closeAll;
+      // unary/stream leases drain before ProviderScope dispose.
+      return execution.dispose(async () => {
+        await streams.closeAll();
+        await contextScope.dispose({
           after: () => {
             owned.openContexts.delete(contextHandle);
           },
-        })
-      );
+        });
+      });
     },
   };
   owned.openContexts.add(contextHandle);
@@ -113,7 +118,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       declaredPerContext: provider.lifetimePolicy === "context",
       contextParams,
       // Context-owned setup must fail once the execution context is disposing,
-      // even though ProviderScope dispose runs only after unary leases drain.
+      // even though ProviderScope dispose runs only after invocation leases drain.
       assertAcceptingWork:
         lifetime.effective === "context" ? () => execution.assertOpen() : undefined,
       resolveDeps,
@@ -155,16 +160,40 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
 
   const surface = Object.create(null) as Record<string, unknown>;
   for (const [alias, provider] of owned.surfaceEntries) {
-    surface[alias] = async (input: unknown) => {
-      // Lease on the execution lifecycle for the whole surface call (materialize + invoke).
-      execution.enter();
-      try {
-        const op = await materialize(provider);
-        return await op(input);
-      } finally {
-        execution.leave();
-      }
-    };
+    if (provider.intent.modality === "stream") {
+      surface[alias] = (input: unknown) => {
+        // Sync cold iterable: materialize / lease / register only on first next().
+        let leased = false;
+        return streams.openResult(
+          async (signal) => {
+            execution.enter();
+            leased = true;
+            const op = (await materialize(provider)) as StreamOperation<unknown, unknown, unknown>;
+            const iterable = op(input, { signal });
+            return asyncIteratorOf(iterable);
+          },
+          {
+            signal: execution.signal,
+            onClosed: () => {
+              if (leased) {
+                execution.leave();
+              }
+            },
+          }
+        );
+      };
+    } else {
+      surface[alias] = async (input: unknown) => {
+        // Lease on the execution lifecycle for the whole surface call (materialize + invoke).
+        execution.enter();
+        try {
+          const op = (await materialize(provider)) as IntentOperation<unknown, unknown, unknown>;
+          return await op(input);
+        } finally {
+          execution.leave();
+        }
+      };
+    }
   }
 
   const dispose = (): Promise<void> => contextHandle.dispose();

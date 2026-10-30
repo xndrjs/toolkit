@@ -10,13 +10,13 @@ type IntentKey = IntentIdentity;
 
 type IntentKeyOf<I> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intent contract erasure
-  I extends Intent<infer B, infer N, any, any, any>
+  I extends Intent<infer B, infer N, any, any, any, any>
     ? IntentIdentity<Extract<B, string>, Extract<N, string>>
     : never;
 
 type ProviderIntentKey<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
-  P extends Provider<infer B, infer N, any, any, any, any, LifetimePolicy, any>
+  P extends Provider<infer B, infer N, any, any, any, any, LifetimePolicy, any, any>
     ? IntentIdentity<Extract<B, string>, Extract<N, string>>
     : never;
 
@@ -34,7 +34,7 @@ type IsEmptyDeps<Deps> = [Deps] extends [Record<string, never>]
 /** Direct `using` Intent keys on a Provider (empty when `using` was omitted). */
 type ProviderDepKeys<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
-  P extends Provider<string, string, any, any, any, infer Deps, LifetimePolicy, any>
+  P extends Provider<string, string, any, any, any, infer Deps, LifetimePolicy, any, any>
     ? IsEmptyDeps<Deps> extends true
       ? never
       : { [K in keyof Deps]: IntentKeyOf<Deps[K]> }[keyof Deps]
@@ -43,7 +43,7 @@ type ProviderDepKeys<P> =
 /** Lifetime policy declared locally by a Provider. */
 type ProviderLifetimePolicy<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
-  P extends Provider<string, string, any, any, any, any, infer Policy, any> ? Policy : "auto";
+  P extends Provider<string, string, any, any, any, any, infer Policy, any, any> ? Policy : "auto";
 
 type RegisteredProviders<
   Surface extends Record<string, AnyProvider>,

@@ -12,12 +12,13 @@ export type CreateExecutionLifecycleOptions = {
 };
 
 /**
- * Deep module: execution-context invocation lifetime (unary surface leases today;
- * stream registry later). Distinct from {@link import("./provider-scope.js").ProviderScope},
+ * Deep module: execution-context invocation lifetime (unary surface leases + stream
+ * registry leases). Distinct from {@link import("./provider-scope.js").ProviderScope},
  * which only materializes / caches / owns Provider Lifetime.
  *
  * Dispose: abort context signal → drain accepted invocations → run `afterDrain`
- * (typically dispose the context {@link import("./provider-scope.js").ProviderScope}).
+ * (typically close streams then dispose the context
+ * {@link import("./provider-scope.js").ProviderScope}).
  */
 export type ExecutionLifecycle = {
   readonly signal: AbortSignal;

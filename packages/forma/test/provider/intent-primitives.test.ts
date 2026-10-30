@@ -14,7 +14,18 @@ describe("boundary / intent", () => {
     expect(Orders.id).toBe("orders");
     expect(FindOrder.boundaryId).toBe("orders");
     expect(FindOrder.name).toBe("find");
+    expect(FindOrder.modality).toBe("unary");
     expect(intentIdentity(FindOrder)).toEqual(["orders", "find"]);
+  });
+
+  it("supports stream(name).contract<In, Item, Err>()", () => {
+    const Orders = boundary("orders");
+    const WatchOrders = Orders.stream("watchOrders").contract<OrderId, Order, FindError>();
+
+    expect(WatchOrders.boundaryId).toBe("orders");
+    expect(WatchOrders.name).toBe("watchOrders");
+    expect(WatchOrders.modality).toBe("stream");
+    expect(intentIdentity(WatchOrders)).toEqual(["orders", "watchOrders"]);
   });
 
   it("keys Intent identity by structured (boundaryId, intentName)", () => {

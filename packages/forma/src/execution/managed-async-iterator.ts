@@ -1,12 +1,8 @@
 /**
- * Fase 0 spike: managed AsyncIterable lifecycle for future Stream Intent integration.
- * Not wired into `compose` / execution runtime — validated in isolation, then fixed by ADR 0012.
+ * Managed AsyncIterable lifecycle for Stream Intent surface wrappers (ADR 0012).
+ * Cold, single-consumer, Err-terminal, disposal error matrix aligned with scope dispose.
  */
-import {
-  collectThrown,
-  throwAfterCallbackAndCleanup,
-  throwIfDisposerErrors,
-} from "../execution/disposal.js";
+import { collectThrown, throwAfterCallbackAndCleanup, throwIfDisposerErrors } from "./disposal.js";
 import type { Result } from "../result.js";
 
 export type ManagedAsyncIteratorPhase = "idle" | "starting" | "active" | "closing" | "closed";

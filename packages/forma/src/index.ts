@@ -5,7 +5,7 @@ export { adapter } from "./adapter.js";
 export type { Adapter } from "./adapter.js";
 
 export { boundary, intentIdentity } from "./boundary.js";
-export type { Boundary, Intent, IntentIdentity } from "./boundary.js";
+export type { Boundary, Intent, IntentIdentity, IntentModality } from "./boundary.js";
 
 export { aliasIntent } from "./alias-intent.js";
 export type { IntentAlias, IntentAliasPair, WiringEntry } from "./alias-intent.js";
@@ -20,6 +20,7 @@ export type {
   ExecutionContextOptions,
   ExecutionSurface,
   ProviderLifetimeDescription,
+  StreamSurfaceIterable,
 } from "./composition/composition-contract.js";
 
 export type {
@@ -28,12 +29,15 @@ export type {
   IntentOperation,
   Lifetime,
   LifetimePolicy,
+  OperationFor,
   ParamsObject,
   ParamsReq,
   Provider,
   ProviderOrigin,
   ResolvedDeps,
   SameBoundaryDeps,
+  StreamInvocation,
+  StreamOperation,
   WithContext,
 } from "./provider/provider.js";
 

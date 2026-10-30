@@ -7,10 +7,10 @@ import type { LifetimePolicy, Provider } from "./provider/provider.js";
  */
 // Type params appear in covariant and contravariant positions; erasure needs `any`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyProvider erasure
-export type AnyProvider = Provider<string, string, any, any, any, any, LifetimePolicy, any>;
+export type AnyProvider = Provider<string, string, any, any, any, any, LifetimePolicy, any, any>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AnyIntent erasure for intent aliases
-export type AnyIntent = Intent<string, string, any, any, any>;
+export type AnyIntent = Intent<string, string, any, any, any, any>;
 
 declare const formaIntentAliasBrand: unique symbol;
 
@@ -34,15 +34,18 @@ export type WiringEntry = AnyProvider | IntentAlias;
 
 /**
  * `Sat` when Req and Sat Intent contracts are mutually assignable
- * (structural equivalence of Input / Success / Err); otherwise `never`.
+ * (structural equivalence of Input / Success|Item / Err **and modality**);
+ * otherwise `never`. Unary↔stream aliases are rejected.
  */
 type SameContract<Req, Sat> =
-  Req extends Intent<string, string, infer RI, infer RS, infer RE>
-    ? Sat extends Intent<string, string, infer SI, infer SS, infer SE>
-      ? [RI, SI] extends [SI, RI]
-        ? [RS, SS] extends [SS, RS]
-          ? [RE, SE] extends [SE, RE]
-            ? Sat
+  Req extends Intent<string, string, infer RI, infer RS, infer RE, infer RM>
+    ? Sat extends Intent<string, string, infer SI, infer SS, infer SE, infer SM>
+      ? [RM, SM] extends [SM, RM]
+        ? [RI, SI] extends [SI, RI]
+          ? [RS, SS] extends [SS, RS]
+            ? [RE, SE] extends [SE, RE]
+              ? Sat
+              : never
             : never
           : never
         : never

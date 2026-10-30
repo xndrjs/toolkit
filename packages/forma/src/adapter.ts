@@ -1,4 +1,4 @@
-import type { Boundary, Intent } from "./boundary.js";
+import type { Boundary, Intent, IntentModality } from "./boundary.js";
 import { createAdaptProvideApi } from "./provider/provider-builder.js";
 import type { AdaptProvideApi } from "./provider/provider-builder.types.js";
 
@@ -11,11 +11,11 @@ export type Adapter<BoundaryId extends string> = {
   readonly target: Boundary<BoundaryId>;
   /**
    * Realize a target-boundary Intent. Compile-time rejects Intents whose
-   * `BoundaryId` does not match this Adapter’s target.
+   * `BoundaryId` does not match this Adapter’s target. Preserves modality.
    */
-  adapt<Name extends string, Input, Success, Err>(
-    intent: Intent<BoundaryId, Name, Input, Success, Err>
-  ): AdaptProvideApi<BoundaryId, Name, Input, Success, Err>;
+  adapt<Name extends string, Input, Success, Err, Mode extends IntentModality>(
+    intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>
+  ): AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode>;
 };
 
 /**

@@ -1,10 +1,32 @@
-import type { Intent } from "../boundary.js";
+import type { Intent, IntentModality } from "../boundary.js";
 import type { Result } from "../result.js";
 
-/** Operation that fulfills an Intent contract. */
+/** Operation that fulfills a unary Intent contract. */
 export type IntentOperation<Input, Success, Err> = (
   input: Input
 ) => Result<Success, Err> | Promise<Result<Success, Err>>;
+
+/**
+ * Per stream-invocation bag passed as the second argument to a {@link StreamOperation}.
+ * Distinct from Provider {@link Lifetime}.signal (instance-scoped).
+ */
+export type StreamInvocation = {
+  readonly signal: AbortSignal;
+};
+
+/**
+ * Operation that fulfills a stream Intent contract: returns a cold AsyncIterable of
+ * `Result` events (`err` is terminal; enforced by the surface wrapper).
+ */
+export type StreamOperation<Input, Item, Err> = (
+  input: Input,
+  invocation: StreamInvocation
+) => AsyncIterable<Result<Item, Err>>;
+
+/** Operation shape selected by Contract modality. */
+export type OperationFor<Mode extends IntentModality, Input, Success, Err> = Mode extends "stream"
+  ? StreamOperation<Input, Success, Err>
+  : IntentOperation<Input, Success, Err>;
 
 /** Cleanup registered via `Lifetime.onDispose` during provider materialization. */
 export type Disposable = () => void | Promise<void>;
@@ -68,7 +90,8 @@ export type SameBoundaryDeps<BoundaryId extends string, Deps> = {
     string,
     infer _I,
     infer _S,
-    infer _E
+    infer _E,
+    IntentModality
   >
     ? Deps[K]
     : Intent<BoundaryId, string, never, never, never>;
@@ -84,22 +107,24 @@ export type AnyIntentDeps<Deps> = {
     string,
     infer _I,
     infer _S,
-    infer _E
+    infer _E,
+    IntentModality
   >
     ? Deps[K]
     : Intent<string, string, never, never, never>;
 };
 
-/** Resolved operations keyed like the `using` map. */
+/** Resolved operations keyed like the `using` map (shape follows each Intent's modality). */
 export type ResolvedDeps<Deps> = {
   readonly [K in Extract<keyof Deps, string>]: Deps[K] extends Intent<
     string,
     string,
     infer I,
     infer S,
-    infer E
+    infer E,
+    infer Mode
   >
-    ? IntentOperation<I, S, E>
+    ? OperationFor<Mode, I, S, E>
     : never;
 };
 
@@ -135,6 +160,7 @@ export type WithContext<Deps, Params = void> =
  * Inspectable in isolation (composition comes later).
  * The Composition derives the effective lifetime from the resolved graph.
  * `Params` is the `.perContext<ParamsReq>()` requirement (`void` when undeclared).
+ * Operation shape follows the Intent's modality.
  */
 export type Provider<
   BoundaryId extends string,
@@ -145,8 +171,9 @@ export type Provider<
   Deps = Record<string, never>,
   Policy extends LifetimePolicy = "auto",
   Params = void,
+  Mode extends IntentModality = "unary",
 > = {
-  readonly intent: Intent<BoundaryId, Name, Input, Success, Err>;
+  readonly intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>;
   readonly deps: Deps;
   /** Declared policy; the Composition owns the derived effective lifetime. */
   readonly lifetimePolicy: Policy;
@@ -165,5 +192,5 @@ export type Provider<
     deps: ResolvedDeps<Deps>,
     lifetime: Lifetime,
     params?: unknown
-  ) => Awaitable<IntentOperation<Input, Success, Err>>;
+  ) => Awaitable<OperationFor<Mode, Input, Success, Err>>;
 };
