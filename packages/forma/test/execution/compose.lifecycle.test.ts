@@ -210,6 +210,7 @@ describe("compose — lifecycle and disposal", () => {
       {
         intent: ["db", "query"],
         mode: "unary",
+        origin: { kind: "boundary", id: "db" },
         declared: "auto",
         effective: "context",
         narrowedBy: [
@@ -217,7 +218,13 @@ describe("compose — lifecycle and disposal", () => {
           ["db", "conn"],
         ],
       },
-      { intent: ["db", "conn"], mode: "unary", declared: "context", effective: "context" },
+      {
+        intent: ["db", "conn"],
+        mode: "unary",
+        origin: { kind: "boundary", id: "db" },
+        declared: "context",
+        effective: "context",
+      },
     ]);
     await root.dispose();
   });

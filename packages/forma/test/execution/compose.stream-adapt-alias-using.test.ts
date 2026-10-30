@@ -204,18 +204,59 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
       {
         intent: ["orders", "find"],
         mode: "unary",
+        origin: { kind: "boundary", id: "orders" },
         declared: "auto",
         effective: "composition",
       },
       {
         intent: ["orders", "relayOrders"],
         mode: "stream",
+        origin: { kind: "boundary", id: "orders" },
         declared: "auto",
         effective: "composition",
       },
       {
         intent: ["orders", "watchOrders"],
         mode: "stream",
+        origin: { kind: "boundary", id: "orders" },
+        declared: "auto",
+        effective: "composition",
+      },
+    ]);
+  });
+
+  it("describePlan reports Adapter origin on private wiring Providers", () => {
+    const Orders = boundary("orders");
+    const FindOrder = Orders.intent("find").contract<void, "order", never>();
+    const GetOrder = Orders.intent("get").contract<void, "order", never>();
+
+    const FindViaMemory = adapter("orders-memory", Orders)
+      .adapt(FindOrder)
+      .with(() => () => ok("order" as const));
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        () =>
+          find()
+    );
+
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { getOrder: GetOrderProvider },
+      wiring: [FindViaMemory],
+    });
+
+    expect(root.describePlan().providers).toEqual([
+      {
+        intent: ["orders", "get"],
+        mode: "unary",
+        origin: { kind: "boundary", id: "orders" },
+        declared: "auto",
+        effective: "composition",
+      },
+      {
+        intent: ["orders", "find"],
+        mode: "unary",
+        origin: { kind: "adapter", id: "orders-memory" },
         declared: "auto",
         effective: "composition",
       },

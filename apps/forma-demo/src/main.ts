@@ -20,6 +20,11 @@ function section(title: string): void {
   console.log(`\n── ${title}`);
 }
 
+/** Display form used by Forma diagnostics: `boundary.intent`. */
+function formatIntent(identity: readonly [string, string]): string {
+  return `${identity[0]}.${identity[1]}`;
+}
+
 async function main(): Promise<void> {
   const kind = parseKind(process.argv.slice(2));
 
@@ -32,18 +37,21 @@ async function main(): Promise<void> {
     "surface:",
     plan.surface.map((entry) => ({
       alias: entry.alias,
-      intent: entry.intent,
+      intent: formatIntent(entry.intent),
       origin: entry.origin,
     }))
   );
   console.log(
     "providers:",
     plan.providers.map((p) => ({
-      intent: p.intent,
+      intent: formatIntent(p.intent),
       mode: p.mode,
-      declared: p.declared,
-      effective: p.effective,
-      ...(p.narrowedBy ? { narrowedBy: p.narrowedBy } : {}),
+      origin: p.origin,
+      lifetimePolicy: {
+        declared: p.declared,
+        effective: p.effective,
+      },
+      ...(p.narrowedBy ? { narrowedBy: p.narrowedBy.map(formatIntent).join(" → ") } : {}),
     }))
   );
 

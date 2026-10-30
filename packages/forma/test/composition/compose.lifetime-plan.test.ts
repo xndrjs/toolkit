@@ -45,6 +45,7 @@ describe("compose — effective lifetime plan", () => {
       {
         intent: ["app", "a"],
         mode: "unary",
+        origin: { kind: "boundary", id: "app" },
         declared: "auto",
         effective: "context",
         narrowedBy: [
@@ -56,6 +57,7 @@ describe("compose — effective lifetime plan", () => {
       {
         intent: ["app", "b"],
         mode: "unary",
+        origin: { kind: "boundary", id: "app" },
         declared: "auto",
         effective: "context",
         narrowedBy: [
@@ -63,7 +65,13 @@ describe("compose — effective lifetime plan", () => {
           ["app", "c"],
         ],
       },
-      { intent: ["app", "c"], mode: "unary", declared: "context", effective: "context" },
+      {
+        intent: ["app", "c"],
+        mode: "unary",
+        origin: { kind: "boundary", id: "app" },
+        declared: "context",
+        effective: "context",
+      },
     ]);
 
     const first = root.openExecutionContext();
@@ -136,6 +144,7 @@ describe("compose — effective lifetime plan", () => {
     expect(root.describePlan().providers[0]).toEqual({
       intent: ["app", "read"],
       mode: "unary",
+      origin: { kind: "boundary", id: "app" },
       declared: "auto",
       effective: "context",
       narrowedBy: [

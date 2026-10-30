@@ -124,6 +124,7 @@ export function compileComposition<
         return Object.freeze({
           intent: Object.freeze(intentIdentity(provider.intent)),
           mode: provider.intent.modality,
+          origin: Object.freeze({ ...provider.origin }),
           declared: lifetime.declared,
           effective: lifetime.effective,
           ...(lifetime.narrowedBy
