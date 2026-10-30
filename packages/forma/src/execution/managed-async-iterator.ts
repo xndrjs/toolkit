@@ -189,6 +189,15 @@ function createManaged<T>(
     startAttempted = true;
     controller = new AbortController();
 
+    try {
+      // Acceptance is part of the start transaction. If it fails, do not run
+      // the source; close releases any registry/lease work performed before throw.
+      options.onStartAccepted?.();
+    } catch (acceptanceError) {
+      beginClose("throw");
+      return await settleCloseWithIterationError(acceptanceError);
+    }
+
     startPromise = Promise.resolve()
       .then(() => start(controller!.signal))
       .then((iterator) => {
@@ -202,7 +211,8 @@ function createManaged<T>(
         options.onStarted?.();
         return iterator;
       });
-    options.onStartAccepted?.();
+    // startPromise exists before parent wiring so an abort racing with start
+    // always waits for a produced iterator and can invoke return() exactly once.
     wireParentAbort();
 
     try {

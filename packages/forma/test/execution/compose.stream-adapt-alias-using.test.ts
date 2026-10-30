@@ -55,11 +55,6 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
       .using({ events: WatchOrderEvents })
       .with(({ deps: { events } }) => events);
 
-    type FactoryReturn = Awaited<ReturnType<typeof WatchViaInfra.factory>>;
-    expectTypeOf<FactoryReturn>().toEqualTypeOf<
-      StreamOperation<WatchInput, OrderEvent, WatchError>
-    >();
-
     const root = compose({
       entryBoundaries: [Orders],
       surface: { watchOrders: WatchProvider },
@@ -83,15 +78,12 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
 
     const FindViaAdapter = adapter("orders-pg", Orders)
       .adapt(FindOrder)
-      .with(() => (input) => ok({ orderId: input.customerId, status: "open" }));
+      .with(() => (input) => {
+        expectTypeOf(input).toEqualTypeOf<WatchInput>();
+        return ok({ orderId: input.customerId, status: "open" });
+      });
 
     expect(FindViaAdapter.intent.modality).toBe("unary");
-    type FactoryReturn = Awaited<ReturnType<typeof FindViaAdapter.factory>>;
-    expectTypeOf<FactoryReturn>().toEqualTypeOf<
-      (
-        input: WatchInput
-      ) => Result<OrderEvent, WatchError> | Promise<Result<OrderEvent, WatchError>>
-    >();
   });
 
   it("aliasIntent accepts stream → stream when contracts match", () => {
@@ -122,10 +114,14 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
     >();
     const SelectOrder = Infra.intent("selectOrder").contract<WatchInput, OrderEvent, WatchError>();
 
-    // @ts-expect-error — unary required cannot alias a stream satisfier
-    aliasIntent(FindOrder, SourceEvents);
-    // @ts-expect-error — stream required cannot alias a unary satisfier
-    aliasIntent(WatchOrders, SelectOrder);
+    expect(() =>
+      // @ts-expect-error — unary required cannot alias a stream satisfier
+      aliasIntent(FindOrder, SourceEvents)
+    ).toThrow(/Incompatible Intent alias modality/);
+    expect(() =>
+      // @ts-expect-error — stream required cannot alias a unary satisfier
+      aliasIntent(WatchOrders, SelectOrder)
+    ).toThrow(/Incompatible Intent alias modality/);
   });
 
   it("using a Stream Intent resolves to StreamOperation (not an open iterator)", async () => {
@@ -148,11 +144,6 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
         expectTypeOf(watch).toEqualTypeOf<StreamOperation<WatchInput, OrderEvent, WatchError>>();
         return (input, invocation) => watch(input, invocation);
       });
-
-    type RelayDeps = Parameters<typeof RelayProvider.factory>[0];
-    expectTypeOf<RelayDeps["watch"]>().toEqualTypeOf<
-      StreamOperation<WatchInput, OrderEvent, WatchError>
-    >();
 
     const root = compose({
       entryBoundaries: [Orders],

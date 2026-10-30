@@ -1,9 +1,10 @@
 import type { AnyProvider } from "../alias-intent.js";
-import type {
-  Disposable,
-  IntentOperation,
-  ResolvedDeps,
-  StreamOperation,
+import {
+  providerFactory,
+  type Disposable,
+  type IntentOperation,
+  type ResolvedDeps,
+  type StreamOperation,
 } from "../provider/provider.js";
 import {
   createMaterializationLifetime,
@@ -143,7 +144,7 @@ export function createProviderScope(options: CreateProviderScopeOptions): Provid
           assertOpen();
           const deps = await resolveDeps(provider, nextSeeing, nextPath);
           assertOpen();
-          const produced = provider.factory(
+          const produced = providerFactory(provider)(
             deps,
             setup.lifetime,
             declaredPerContext ? contextParams : undefined

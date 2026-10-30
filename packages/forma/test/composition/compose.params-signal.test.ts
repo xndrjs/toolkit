@@ -110,6 +110,137 @@ describe("compose — params + AbortSignal", () => {
     await root.dispose();
   });
 
+  it("normalizes Params once as a shallow-frozen plain outer bag", async () => {
+    type Params = {
+      readonly label: string;
+      readonly nested: { count: number };
+    };
+    const App = boundary("app");
+    const Read = App.intent("read").contract<void, string, never>();
+    let factoryParams: Readonly<Params> | undefined;
+    const ReadProvider = Read.provide.perContext<Params>().with(({ params }) => {
+      factoryParams = params;
+      return () => ok(params.label);
+    });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { read: ReadProvider },
+    });
+    const input: Params = { label: "plain", nested: { count: 1 } };
+    const execution = root.openExecutionContext({ params: input });
+
+    expect(execution.params).not.toBe(input);
+    expect(Object.isFrozen(execution.params)).toBe(true);
+    expect(execution.params.nested).toBe(input.nested);
+    expect(Object.isFrozen(execution.params.nested)).toBe(false);
+    await execution.surface.read();
+    expect(factoryParams).toBe(execution.params);
+
+    await execution.dispose();
+    await root.dispose();
+  });
+
+  it("accepts a null-prototype outer Params bag", async () => {
+    type Params = { readonly label: string };
+    const App = boundary("app");
+    const Read = App.intent("read").contract<void, string, never>();
+    const ReadProvider = Read.provide.perContext<Params>().with(
+      ({ params }) =>
+        () =>
+          ok(params.label)
+    );
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { read: ReadProvider },
+    });
+    const params = Object.assign(Object.create(null) as object, {
+      label: "null-prototype",
+    }) as Params;
+
+    await expect(
+      root.withExecutionContext((surface) => surface.read(), { params })
+    ).resolves.toEqual({ ok: true, value: "null-prototype" });
+    await root.dispose();
+  });
+
+  it("rejects non-POJO outer Params before opening an execution context", async () => {
+    type Params = { readonly label?: string };
+    const App = boundary("app");
+    const Ping = App.intent("ping").contract<void, "pong", never>();
+    let materializations = 0;
+    const PingProvider = Ping.provide.perContext<Params>().with(() => {
+      materializations += 1;
+      return () => ok("pong" as const);
+    });
+    const root = compose({
+      entryBoundaries: [App],
+      surface: { ping: PingProvider },
+    });
+
+    class ClassParams {
+      readonly label = "class";
+    }
+    const accessor = Object.defineProperty({}, "label", {
+      enumerable: true,
+      get: () => "accessor",
+    });
+    const symbolKey = { label: "symbol", [Symbol("extra")]: true };
+    const nonEnumerable = Object.defineProperty({}, "label", {
+      enumerable: false,
+      value: "hidden",
+    });
+    const protoKey = Object.defineProperty({}, "__proto__", {
+      enumerable: true,
+      value: "forbidden",
+    });
+    const invalid: readonly unknown[] = [
+      [],
+      new Map(),
+      new Date(),
+      new ClassParams(),
+      accessor,
+      symbolKey,
+      nonEnumerable,
+      protoKey,
+      () => undefined,
+    ];
+
+    for (const params of invalid) {
+      expect(() => root.openExecutionContext({ params: params as Params })).toThrow(TypeError);
+    }
+    expect(materializations).toBe(0);
+
+    await using execution = root.openExecutionContext({ params: { label: "valid" } });
+    await expect(execution.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    await root.dispose();
+  });
+
+  it("best-effort type checks reject invalid Params bag shapes", () => {
+    const App = boundary("app");
+    const Ping = App.intent("ping").contract<void, "pong", never>();
+    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+
+    const assertTypeErrors = (): void => {
+      // @ts-expect-error — primitive Params are not an object bag
+      Ping.provide.perContext<string>();
+      // @ts-expect-error — arrays are not a Params bag
+      Ping.provide.perContext<readonly string[]>();
+      // @ts-expect-error — functions are not a Params bag
+      Ping.provide.perContext<() => void>();
+      // @ts-expect-error — Params keys must be strings
+      Ping.provide.perContext<Readonly<Record<symbol, string>>>();
+      // @ts-expect-error — an invalid union constituent does not become a valid Params bag
+      Ping.provide.perContext<{ readonly label: string } | readonly string[]>();
+
+      // @ts-expect-error — compose<Explicit>() applies the same Params shape rule
+      compose<readonly string[]>()({
+        entryBoundaries: [App],
+        surface: { ping: PingProvider },
+      });
+    };
+    void assertTypeErrors;
+  });
+
   it("infers merged params from two providers; host must pass both keys", async () => {
     const App = boundary("app");
     const A = App.intent("a").contract<void, string, never>();

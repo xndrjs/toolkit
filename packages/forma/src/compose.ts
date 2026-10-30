@@ -9,10 +9,12 @@ import {
 } from "./alias-intent.js";
 import type {
   AssertExplicitParamsCover,
+  AssertExplicitParamsShape,
   AssertEntryBoundaries,
   AssertNoInvalidPinnedLifetimeEdges,
   AssertNoProviderUnions,
   AssertParamsCompatible,
+  AssertProviderContractsCompatible,
   AssertProvidersComplete,
   AssertSurfaceAliasesSafe,
   InferredParams,
@@ -59,6 +61,11 @@ type ComposeAsserts<
   AssertSurfaceAliasesSafe<Surface> &
   AssertNoProviderUnions<Surface, Wiring> &
   AssertProvidersComplete<Surface, ProvidersFromWiring<Wiring>, AliasesFromWiring<Wiring>> &
+  AssertProviderContractsCompatible<
+    Surface,
+    ProvidersFromWiring<Wiring>,
+    AliasesFromWiring<Wiring>
+  > &
   AssertNoInvalidPinnedLifetimeEdges<
     Surface,
     ProvidersFromWiring<Wiring>,
@@ -142,7 +149,9 @@ export function defineComposition<
  * Params typing: `compose({ … })` **infers** required params from all Providers'
  * `.perContext<ParamsReq>()` declarations (merge / conflict check). open/with then
  * require `{ params }` when the merge is non-void. `compose<Explicit>()({ … })` is only
- * for an explicit **superset** of that inferred bag. Prefer an inline options literal;
+ * for an explicit **superset** of that inferred bag. Runtime normalizes a plain outer
+ * object bag to one shallow-frozen copy shared by the execution and its per-context factories.
+ * Prefer an inline options literal;
  * if wiring is extracted, use {@link defineWiring} (or `as const`). Annotating a config
  * as {@link ComposeOptions} widens types and is a footgun. Provider unions in a surface
  * alias or wiring slot are rejected.
@@ -154,6 +163,7 @@ export function compose<ExplicitParams>(): <
 >(
   options: ComposeOptions<Entries, Surface, Wiring> &
     ComposeAsserts<Entries, Surface, Wiring> &
+    AssertExplicitParamsShape<ExplicitParams> &
     AssertExplicitParamsCover<ExplicitParams, Surface, ProvidersFromWiring<Wiring>>
 ) => CompositionRoot<Surface, ExplicitParams>;
 export function compose<

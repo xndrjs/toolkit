@@ -74,7 +74,11 @@ export type ExecutionSurface<Surface extends Record<string, AnyProvider>> = {
   >;
 };
 
-/** Options bag for {@link CompositionRoot.openExecutionContext} / {@link CompositionRoot.withExecutionContext}. */
+/**
+ * Options for {@link CompositionRoot.openExecutionContext} /
+ * {@link CompositionRoot.withExecutionContext}. Params is normalized to a
+ * shallow-frozen plain outer bag at runtime.
+ */
 export type ExecutionContextOptions<Params = void> = [Params] extends [void]
   ? { readonly params?: undefined; readonly signal?: AbortSignal }
   : { readonly params: Params; readonly signal?: AbortSignal };

@@ -27,6 +27,9 @@ place; no deprecated aliases.
   **`aliasIntent`**. Types: `IntentAlias` / `IntentAliasPair`; guard `isIntentAlias`. The former
   names Binding / `bind` / `isBinding` are removed.
 - An Intent alias is not a Realization and is not assignable as a surface Provider.
+- Required and satisfier Contracts must be exactly equivalent by reciprocal assignability of
+  Input, Success/Item, Err, and modality. `aliasIntent()` rejects a reified modality mismatch
+  immediately at runtime; erased Contract fields remain a type-level check.
 - **No `forward` helper** in this decision.
 
 ## Consequences

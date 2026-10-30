@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { adapter } from "@xndrjs/forma";
 import { boundary } from "@xndrjs/forma";
+import { compose } from "@xndrjs/forma";
 import { err, ok, type Result } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
@@ -24,17 +25,65 @@ describe("provider builder", () => {
     expect(PingProvider.deps).toEqual({});
     expect(PingProvider.lifetimePolicy).toBe("auto");
     expect(PingProvider.origin).toEqual({ kind: "boundary", id: "health" });
+    expect(Object.isFrozen(PingProvider)).toBe(true);
+    expect(Object.isFrozen(PingProvider.origin)).toBe(true);
+    expect(Object.isFrozen(PingProvider.deps)).toBe(true);
+    expect(Object.isFrozen(PingProvider.intent)).toBe(true);
+    expect(Object.isFrozen(Ping.provide)).toBe(true);
+    expect(Object.isFrozen(Health.intent)).toBe(true);
+    expect(Object.isFrozen(Health.intent("other"))).toBe(true);
+    expect(PingProvider).not.toHaveProperty("factory");
+    expect(PingProvider).not.toHaveProperty("$params");
+    expect(Object.keys(PingProvider)).toEqual(["intent", "deps", "lifetimePolicy", "origin"]);
 
-    const op = await PingProvider.factory(
-      {},
-      {
-        signal: AbortSignal.abort(),
-        onDispose() {
-          /* noop for inspect */
-        },
-      }
-    );
-    expect(op(undefined)).toEqual({ ok: true, value: "pong" });
+    // @ts-expect-error — realization is internal Provider machinery
+    void PingProvider.factory;
+    // @ts-expect-error — Params inference is carried by a private nominal brand
+    void PingProvider.$params;
+
+    const structuralFake = {
+      intent: Ping,
+      deps: {},
+      lifetimePolicy: "auto" as const,
+      origin: { kind: "boundary" as const, id: "health" },
+    };
+    // @ts-expect-error — Provider cannot be constructed structurally
+    const nominalProvider: typeof PingProvider = structuralFake;
+    void nominalProvider;
+
+    const root = compose({
+      entryBoundaries: [Health],
+      surface: { ping: PingProvider },
+    });
+    await using ctx = root.openExecutionContext();
+    await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
+  });
+
+  it("rejects a structurally fabricated Provider at runtime", () => {
+    const Health = boundary("health");
+    const Ping = Health.intent("ping").contract<void, "pong", never>();
+    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+    const fake = {
+      intent: Ping,
+      deps: {},
+      lifetimePolicy: "auto",
+      origin: { kind: "boundary", id: "health" },
+    };
+
+    expect(() =>
+      compose({
+        entryBoundaries: [Health],
+        surface: { ping: fake },
+      } as never)
+    ).toThrow(/must use a Provider value created by Forma/);
+
+    expect(() =>
+      compose({
+        entryBoundaries: [Health],
+        surface: { ping: PingProvider },
+        wiring: [fake],
+      } as never)
+    ).toThrow(/Invalid wiring entry: expected a Provider/);
   });
 
   it("runs no-deps with at materialization and exposes Lifetime", async () => {
@@ -60,27 +109,27 @@ describe("provider builder", () => {
       };
     });
 
-    const disposers: (() => void)[] = [];
-    const op = await FindProvider.factory(
-      {},
-      {
-        signal: new AbortController().signal,
-        onDispose(cleanup) {
-          disposers.push(cleanup);
-        },
-      }
-    );
-    // Factory runs when the provider materializes, not on first op call.
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { find: FindProvider },
+    });
+    const ctx = root.openExecutionContext();
+    expect(setups).toBe(0);
+    await expect(ctx.surface.find({ id: "1" })).resolves.toEqual({
+      ok: true,
+      value: { id: "1", total: 10 },
+    });
     expect(setups).toBe(1);
-    expect(op({ id: "1" })).toEqual({ ok: true, value: { id: "1", total: 10 } });
-    expect(setups).toBe(1);
-    expect(op({ id: "1" })).toEqual({ ok: true, value: { id: "1", total: 10 } });
+    await expect(ctx.surface.find({ id: "1" })).resolves.toEqual({
+      ok: true,
+      value: { id: "1", total: 10 },
+    });
     expect(setups).toBe(1);
 
     expect(disposed).toBe(false);
-    for (const cleanup of disposers) {
-      cleanup();
-    }
+    await ctx.dispose();
+    expect(disposed).toBe(false);
+    await root.dispose();
     expect(disposed).toBe(true);
   });
 
@@ -89,26 +138,26 @@ describe("provider builder", () => {
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
     const CancelOrder = Orders.intent("cancel").contract<OrderId, void, CancelError>();
 
-    const CancelProvider = CancelOrder.provide.using({ find: FindOrder }).with(
-      ({ deps: { find } }) =>
-        async function (id) {
+    const CancelProvider = CancelOrder.provide
+      .using({ find: FindOrder })
+      .with(({ deps: { find } }) => {
+        expectTypeOf(find).toEqualTypeOf<
+          (input: OrderId) => Result<Order, FindError> | Promise<Result<Order, FindError>>
+        >();
+        return async function (id) {
           const found = await find(id);
           if (!found.ok) {
             return err({ kind: "already_cancelled" });
           }
           return ok(undefined);
-        }
-    );
+        };
+      });
 
     expect(CancelProvider.intent).toBe(CancelOrder);
     expect(CancelProvider.deps).toEqual({ find: FindOrder });
     expect(CancelProvider.lifetimePolicy).toBe("auto");
     expect(CancelProvider.origin).toEqual({ kind: "boundary", id: "orders" });
-
-    type FactoryDeps = Parameters<typeof CancelProvider.factory>[0];
-    expectTypeOf<FactoryDeps["find"]>().toEqualTypeOf<
-      (input: OrderId) => Result<Order, FindError> | Promise<Result<Order, FindError>>
-    >();
+    expect(Object.isFrozen(CancelProvider.deps)).toBe(true);
   });
 
   it("rejects cross-boundary Intents in using", () => {

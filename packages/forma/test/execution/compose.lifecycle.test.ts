@@ -82,19 +82,12 @@ describe("compose — lifecycle and disposal", () => {
     const Ping = Health.intent("ping").contract<void, "pong", never>();
 
     let factoryRuns = 0;
-    const base = Ping.provide.with(
-      (_ctx) =>
-        function () {
-          return ok("pong");
-        }
-    );
-    const PingProvider = {
-      ...base,
-      factory: ((deps, life) => {
-        factoryRuns += 1;
-        return base.factory(deps, life);
-      }) as typeof base.factory,
-    };
+    const PingProvider = Ping.provide.with(() => {
+      factoryRuns += 1;
+      return function () {
+        return ok("pong");
+      };
+    });
 
     const root = compose({
       entryBoundaries: [Health],
@@ -531,19 +524,14 @@ describe("compose — lifecycle and disposal", () => {
     });
     let cleaned = false;
 
-    const base = Ping.provide.perContext().with(() => () => ok("pong" as const));
-    const PingProvider = {
-      ...base,
-      factory: (async (...args: Parameters<typeof base.factory>) => {
-        const [, life] = args;
-        life.onDispose(() => {
-          cleaned = true;
-        });
-        sawFactory();
-        await factoryHold;
-        return base.factory(...args);
-      }) as unknown as typeof base.factory,
-    };
+    const PingProvider = Ping.provide.perContext().with(async ({ lifetime }) => {
+      lifetime.onDispose(() => {
+        cleaned = true;
+      });
+      sawFactory();
+      await factoryHold;
+      return () => ok("pong" as const);
+    });
 
     const root = compose({
       entryBoundaries: [Health],
@@ -599,19 +587,13 @@ describe("compose — lifecycle and disposal", () => {
       sawFactory = resolve;
     });
     let setups = 0;
-    const base = Ping.provide.with(() => {
+    const PingProvider = Ping.provide.with(async () => {
+      sawFactory();
+      await factoryHold;
       setups += 1;
       const instance = { n: setups };
       return () => ok(instance);
     });
-    const PingProvider = {
-      ...base,
-      factory: (async (...args: Parameters<typeof base.factory>) => {
-        sawFactory();
-        await factoryHold;
-        return base.factory(...args);
-      }) as unknown as typeof base.factory,
-    };
 
     const root = compose({
       entryBoundaries: [Health],

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (amended: pre-abort and cleanup-error ownership semantics)
+Accepted (amended: pre-abort, transactional start, and cleanup-error ownership semantics)
 
 ## Context
 
@@ -71,6 +71,11 @@ integration.
 ### Managed iterator (spike → integration shape)
 
 - Per-stream state machine: `idle | starting | active | closing | closed`.
+- Start acceptance is transactional. The registry entry and execution lease are acquired before
+  source scheduling. If the acceptance hook throws, the source is never invoked, the close state
+  machine releases partial ownership exactly once, and the acceptance error remains primary.
+- After acceptance, the canonical `startPromise` exists before wiring parent abort. A concurrent
+  close can therefore always await start and call `return()` on an iterator produced by the race.
 - Close is idempotent; concurrent `return` / dispose share one close promise.
 - A close started by parent/context abort is observed immediately to avoid a floating rejection,
   while its canonical promise remains available to the stream consumer and owning context.
@@ -80,6 +85,8 @@ integration.
   - multiple cleanup failures → `AggregateError` (`throwIfDisposerErrors`);
   - iteration/start failure + cleanup failure → `SuppressedError(cleanup, iteration)`
     (`throwAfterCallbackAndCleanup`).
+  - acceptance failure + rollback failure follows the same `SuppressedError(cleanup, acceptance)`
+    rule.
 - Multicast, replay, push/Observable, duplex, reconnect, and transport framing stay out of core.
 
 ### Provider, Adapter, alias, plan

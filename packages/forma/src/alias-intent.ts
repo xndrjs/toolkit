@@ -1,5 +1,10 @@
-import type { Intent } from "./boundary.js";
-import type { LifetimePolicy, Provider } from "./provider/provider.js";
+import { isIntent, type Intent } from "./boundary.js";
+import {
+  isProvider,
+  type EquivalentIntentContract,
+  type LifetimePolicy,
+  type Provider,
+} from "./provider/provider.js";
 
 /**
  * Registrable Provider with erased contract params so `compose` can accept a
@@ -49,20 +54,7 @@ export type WiringEntry = AnyProvider | IntentAlias;
  * (structural equivalence of Input / Success|Item / Err **and modality**);
  * otherwise `never`. Unary↔stream aliases are rejected.
  */
-type SameContract<Req, Sat> =
-  Req extends Intent<string, string, infer RI, infer RS, infer RE, infer RM>
-    ? Sat extends Intent<string, string, infer SI, infer SS, infer SE, infer SM>
-      ? [RM, SM] extends [SM, RM]
-        ? [RI, SI] extends [SI, RI]
-          ? [RS, SS] extends [SS, RS]
-            ? [RE, SE] extends [SE, RE]
-              ? Sat
-              : never
-            : never
-          : never
-        : never
-      : never
-    : never;
+type SameContract<Req, Sat> = EquivalentIntentContract<Req, Sat> extends true ? Sat : never;
 
 /**
  * Rare identity alias: rewrite a required Intent identity to a satisfier whose
@@ -78,7 +70,16 @@ export function aliasIntent<Req extends AnyIntent, Sat extends AnyIntent>(
   required: Req,
   satisfier: SameContract<Req, Sat>
 ): IntentAliasPair<Req, Sat> {
-  return [required, satisfier] as unknown as IntentAliasPair<Req, Sat>;
+  if (!isIntent(required) || !isIntent(satisfier)) {
+    throw new Error("Intent aliases require Intent values created by boundary().intent/stream");
+  }
+  if (required.modality !== satisfier.modality) {
+    throw new Error(
+      `Incompatible Intent alias modality: ${required.boundaryId}.${required.name} is ${required.modality}, ` +
+        `${satisfier.boundaryId}.${satisfier.name} is ${satisfier.modality}`
+    );
+  }
+  return Object.freeze([required, satisfier]) as unknown as IntentAliasPair<Req, Sat>;
 }
 
 /** Runtime partition: {@link aliasIntent} pairs are arrays; Providers are objects. */
@@ -124,6 +125,11 @@ export function partitionWiring(wiring: readonly WiringEntry[]): {
     if (isIntentAlias(entry)) {
       aliases.push(entry);
     } else {
+      if (!isProvider(entry)) {
+        throw new Error(
+          "Invalid wiring entry: expected a Provider or Intent alias created by Forma"
+        );
+      }
       providers.push(entry);
     }
   }

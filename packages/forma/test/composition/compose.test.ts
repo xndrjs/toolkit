@@ -51,22 +51,12 @@ describe("compose — surface hello (ping)", () => {
     const Ping = Health.intent("ping").contract<void, "pong", never>();
 
     let materializations = 0;
-    const base = Ping.provide.with(
-      (_ctx) =>
-        function () {
-          return ok("pong" as const);
-        }
-    );
-    const PingProvider = {
-      ...base,
-      factory: ((
-        deps: Parameters<typeof base.factory>[0],
-        lifetime: Parameters<typeof base.factory>[1]
-      ) => {
-        materializations += 1;
-        return base.factory(deps, lifetime);
-      }) as typeof base.factory,
-    };
+    const PingProvider = Ping.provide.with(() => {
+      materializations += 1;
+      return function () {
+        return ok("pong" as const);
+      };
+    });
     const root = compose({
       entryBoundaries: [Health],
       surface: { ping: PingProvider },

@@ -104,26 +104,36 @@ export function assertClosedGraph(
   registry: ReadonlyMap<string, AnyProvider>,
   aliases: readonly IntentAlias[] | readonly (readonly [AnyIntent, AnyIntent])[]
 ): void {
-  const aliasMap = new Map<string, string>();
+  const aliasMap = new Map<string, AnyIntent>();
   for (const [required, satisfier] of aliases) {
-    aliasMap.set(intentMapKey(required), intentMapKey(satisfier));
+    if (required.modality !== satisfier.modality) {
+      throw new Error(
+        `Incompatible Contract modality for Intent alias ${intentLabel(required)}: ` +
+          `required ${required.modality}, satisfier ${intentLabel(satisfier)} is ${satisfier.modality}`
+      );
+    }
+    aliasMap.set(intentMapKey(required), satisfier);
   }
 
   for (const [, satisfier] of aliases) {
     const satisfierId = intentMapKey(satisfier);
-    if (!registry.has(satisfierId)) {
+    const provider = registry.get(satisfierId);
+    if (!provider) {
       throw new Error(
         `No provider registered for Intent ${intentLabel(satisfier)} (alias satisfier). Add it to surface or wiring.`
       );
     }
+    assertContractModality(satisfier, provider);
   }
 
   for (const provider of registry.values()) {
     const deps = provider.deps as Record<string, AnyIntent>;
     for (const intent of Object.values(deps)) {
       const requiredId = intentMapKey(intent);
-      const satisfierId = aliasMap.get(requiredId) ?? requiredId;
-      if (!registry.has(satisfierId)) {
+      const satisfier = aliasMap.get(requiredId) ?? intent;
+      const satisfierId = intentMapKey(satisfier);
+      const satisfierProvider = registry.get(satisfierId);
+      if (!satisfierProvider) {
         const viaAlias =
           satisfierId !== requiredId
             ? ` (aliased satisfier identity has no registered provider)`
@@ -132,7 +142,17 @@ export function assertClosedGraph(
           `No provider registered for Intent ${intentLabel(intent)}${viaAlias}. Add it to surface or wiring.`
         );
       }
+      assertContractModality(satisfier, satisfierProvider);
     }
+  }
+}
+
+function assertContractModality(required: AnyIntent, provider: AnyProvider): void {
+  if (required.modality !== provider.intent.modality) {
+    throw new Error(
+      `Incompatible Contract modality for Intent ${intentLabel(required)}: ` +
+        `required ${required.modality}, registered Provider is ${provider.intent.modality}`
+    );
   }
 }
 

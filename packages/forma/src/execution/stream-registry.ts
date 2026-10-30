@@ -21,14 +21,14 @@ export type StreamRegistryOpenOptions = Omit<
  */
 export type StreamRegistry = {
   /**
-   * Cold Result iterable: first `next()` runs `start`; tracks the stream while active
-   * for {@link closeAll}.
+   * Cold Result iterable: first `next()` transactionally registers the accepted start,
+   * then runs `start`; tracked until close for {@link closeAll}.
    */
   openResult<Item, Err>(
     start: ManagedAsyncIterableStart<Result<Item, Err>>,
     options?: StreamRegistryOpenOptions
   ): ManagedAsyncIterable<Result<Item, Err>>;
-  /** Abort + dispose every stream that reached `active` (idempotent per stream). */
+  /** Abort + dispose every accepted stream (including `starting`; idempotent per stream). */
   closeAll(): Promise<void>;
 };
 

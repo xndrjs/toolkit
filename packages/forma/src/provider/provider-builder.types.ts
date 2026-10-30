@@ -8,6 +8,7 @@ import type {
   LifetimePolicy,
   OperationFor,
   ParamsReq,
+  ParamsValidationArgs,
   Provider,
   ProviderOrigin,
   SameBoundaryDeps,
@@ -46,7 +47,9 @@ export type ProviderBuilderAfterUsing<
   ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode, Origin>;
 } & (Policy extends "auto"
   ? {
-      perContext<P extends ParamsReq = void>(): ProviderBuilderAfterUsing<
+      perContext<P extends ParamsReq = void>(
+        ...validation: ParamsValidationArgs<P>
+      ): ProviderBuilderAfterUsing<
         BoundaryId,
         Name,
         Input,
@@ -91,7 +94,9 @@ export type AdaptProviderBuilderAfterUsing<
   ): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode, Origin>;
 } & (Policy extends "auto"
   ? {
-      perContext<P extends ParamsReq = void>(): AdaptProviderBuilderAfterUsing<
+      perContext<P extends ParamsReq = void>(
+        ...validation: ParamsValidationArgs<P>
+      ): AdaptProviderBuilderAfterUsing<
         BoundaryId,
         Name,
         Input,
@@ -164,18 +169,9 @@ export type ProviderBuilder<
     >) &
   (Policy extends "auto"
     ? {
-        perContext<P extends ParamsReq = void>(): ProviderBuilder<
-          BoundaryId,
-          Name,
-          Input,
-          Success,
-          Err,
-          Mode,
-          Deps,
-          "context",
-          P,
-          Origin
-        >;
+        perContext<P extends ParamsReq = void>(
+          ...validation: ParamsValidationArgs<P>
+        ): ProviderBuilder<BoundaryId, Name, Input, Success, Err, Mode, Deps, "context", P, Origin>;
         perComposition(): ProviderBuilder<
           BoundaryId,
           Name,
@@ -237,7 +233,9 @@ export type AdaptProviderBuilder<
     >) &
   (Policy extends "auto"
     ? {
-        perContext<P extends ParamsReq = void>(): AdaptProviderBuilder<
+        perContext<P extends ParamsReq = void>(
+          ...validation: ParamsValidationArgs<P>
+        ): AdaptProviderBuilder<
           BoundaryId,
           Name,
           Input,

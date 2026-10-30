@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted (amended: exact Contract coherence for repeated identity)
 
 ## Context
 
@@ -21,6 +21,12 @@ Canonical Intent identity is the structured pair `(boundaryId, intentName)`:
 - Type-level compose graph keys use the same structured pair (tuple), so concat collisions cannot alias.
 - Competing providers (or provider + Intent alias) for one key throw at `compose`.
 - Homonymous Boundaries / repeated Intent declarations coalesce to one identity.
+- Because repeated declarations coalesce, every resolved `using` edge must see an exactly
+  equivalent Contract on the required Intent and the registered Provider: reciprocal
+  assignability of Input, Success/Item, Err, and modality. The same equivalence utility governs
+  `aliasIntent`.
+- Contract data does not enter the key. TypeScript checks the full Contract; runtime can only
+  compare reified data and therefore validates modality during `aliasIntent()` and `compose()`.
 - Prefer literal `boundary` / `intent` names; widening either to `string` weakens type-level completeness (documented footgun).
 
 Rejected: caller-supplied `unique symbol` tokens as the sole identity (Option B in the architectural review) — heavier for reload and duplicate-module cases this PoC wants to treat as the same Intent.
@@ -28,5 +34,8 @@ Rejected: caller-supplied `unique symbol` tokens as the sole identity (Option B 
 ## Consequences
 
 - Public Intent values no longer expose a runtime `identity` symbol; use `boundaryId` + `name` (or `intentIdentity()`).
+- Two declarations with the same key but a different static Contract fail at `compose` on the
+  affected dependency edge. A unary/stream mismatch also fails synchronously at runtime for
+  JavaScript, cast, and widened callers.
 - ADR 0001 / 0002 wording about “Intent identity” means this structured key.
 - Follow-on graph-plan work (cycles at compose) builds on the same key.

@@ -1,6 +1,10 @@
 import type { Intent, IntentIdentity } from "../../boundary.js";
-import type { AnyProvider, IntentAlias } from "../../alias-intent.js";
-import type { LifetimePolicy, Provider } from "../../provider/provider.js";
+import type { AnyIntent, AnyProvider, IntentAlias } from "../../alias-intent.js";
+import type {
+  EquivalentIntentContract,
+  LifetimePolicy,
+  Provider,
+} from "../../provider/provider.js";
 
 /**
  * Type-level Intent identity: structured `(boundaryId, intentName)`.
@@ -18,6 +22,18 @@ type ProviderIntentKey<P> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract erasure
   P extends Provider<infer B, infer N, any, any, any, any, LifetimePolicy, any, any>
     ? IntentIdentity<Extract<B, string>, Extract<N, string>>
+    : never;
+
+type ProviderIntentOf<P> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract extraction
+  P extends Provider<infer B, infer N, infer I, infer S, infer E, any, LifetimePolicy, any, infer M>
+    ? Intent<Extract<B, string>, Extract<N, string>, I, S, E, M>
+    : never;
+
+type ProviderDepsOf<P> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider contract extraction
+  P extends Provider<string, string, any, any, any, infer Deps, LifetimePolicy, any, any>
+    ? Deps
     : never;
 
 /** Display-only label for diagnostics (not used as identity). */
@@ -131,6 +147,19 @@ type AliasSatisfierFor<
     : never
   : never;
 
+type AliasSatisfierIntentFor<
+  Required extends IntentKey,
+  Aliases extends readonly IntentAlias[],
+> = Aliases extends readonly [infer Head, ...infer Tail]
+  ? Head extends readonly [infer Req, infer Sat]
+    ? [IntentKeyOf<Req>] extends [Required]
+      ? Extract<Sat, AnyIntent>
+      : Tail extends readonly IntentAlias[]
+        ? AliasSatisfierIntentFor<Required, Tail>
+        : never
+    : never
+  : never;
+
 type RewriteRequirement<Required extends IntentKey, Aliases extends readonly IntentAlias[]> =
   AliasSatisfierFor<Required, Aliases> extends infer Sat
     ? [Sat] extends [never]
@@ -144,6 +173,43 @@ type RewriteAllRequirements<
   Required,
   Aliases extends readonly IntentAlias[],
 > = Required extends IntentKey ? RewriteRequirement<Required, Aliases> : never;
+
+type ResolvedRequiredIntent<Required extends AnyIntent, Aliases extends readonly IntentAlias[]> =
+  AliasSatisfierIntentFor<IntentKeyOf<Required>, Aliases> extends infer Satisfier
+    ? [Satisfier] extends [never]
+      ? Required
+      : Extract<Satisfier, AnyIntent>
+    : Required;
+
+/** Registered edges whose resolved Provider does not implement the declared Contract exactly. */
+type IncompatibleProviderContractEdges<
+  Surface extends Record<string, AnyProvider>,
+  Providers extends readonly AnyProvider[],
+  Aliases extends readonly IntentAlias[],
+> =
+  RegisteredProviders<Surface, Providers> extends infer Consumer
+    ? Consumer extends AnyProvider
+      ? ProviderDepsOf<Consumer> extends infer Deps
+        ? {
+            [K in keyof Deps]: Deps[K] extends AnyIntent
+              ? ResolvedRequiredIntent<Deps[K], Aliases> extends infer Required extends AnyIntent
+                ? ProviderForIntentKey<
+                    IntentKeyOf<Required>,
+                    Surface,
+                    Providers
+                  > extends infer Satisfier
+                  ? Satisfier extends AnyProvider
+                    ? EquivalentIntentContract<Required, ProviderIntentOf<Satisfier>> extends true
+                      ? never
+                      : `Intent ${FormatIntentKey<IntentKeyOf<Required>>} required by ${FormatIntentKey<ProviderIntentKey<Consumer>>}`
+                    : never
+                  : never
+                : never
+              : never;
+          }[keyof Deps]
+        : never
+      : never
+    : never;
 
 /**
  * Intent keys required by registered providers after intent-alias rewrite that still
@@ -164,6 +230,7 @@ type MissingProviderKeys<
  */
 declare const formaMissingProviders: unique symbol;
 declare const formaInvalidPinnedLifetimeEdges: unique symbol;
+declare const formaIncompatibleProviderContracts: unique symbol;
 
 /**
  * Intersected into `compose` options: when the graph is incomplete, requires a
@@ -179,6 +246,23 @@ export type AssertProvidersComplete<
       ? unknown
       : {
           readonly [formaMissingProviders]: `Missing provider for Intent(s): ${FormatIntentKeyUnion<Missing>}`;
+        }
+    : unknown;
+
+/**
+ * Intersected into `compose` options: repeated declarations of one Intent
+ * identity must carry an exactly equivalent Contract, including modality.
+ */
+export type AssertProviderContractsCompatible<
+  Surface extends Record<string, AnyProvider>,
+  Providers extends readonly AnyProvider[],
+  Aliases extends readonly IntentAlias[],
+> =
+  IncompatibleProviderContractEdges<Surface, Providers, Aliases> extends infer Bad
+    ? [Bad] extends [never]
+      ? unknown
+      : {
+          readonly [formaIncompatibleProviderContracts]: `Incompatible Contract for ${Extract<Bad, string>}`;
         }
     : unknown;
 

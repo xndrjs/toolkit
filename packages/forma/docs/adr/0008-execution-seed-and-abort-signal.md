@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (amended: `seed` renamed to `params`; declaration on `.perContext`; removed from Lifetime)
+Accepted (amended: `seed` renamed to `params`; declaration on `.perContext`; plain outer bag,
+shallow readonly; removed from Lifetime)
 
 ## Context
 
@@ -20,11 +21,19 @@ host invocation data and forced `as` casts in factories (`Lifetime.seed` was `un
   Execution context; not `seed`).
 - `params` lives on factory `WithContext` and on the execution handle — **not** on
   `Lifetime` (`Lifetime` keeps `signal` + `onDispose` only).
-- Declaration: `.perContext<ParamsReq>()` (default `void` = no params). `ParamsReq` is an object
-  POJO (nested fields ok); not a bare primitive bag. `auto` Providers narrowed to context do not
-  gain params capability; `.perComposition()` Providers cannot declare params.
-- Factory types expose the declared `ParamsReq` as `params`. Runtime passes the **same frozen host
-  bag** to every `.perContext` materialization.
+- Declaration: `.perContext<ParamsReq>()` (default `void` = no params). `ParamsReq` is a plain
+  outer object bag; `auto` Providers narrowed to context do not gain params capability;
+  `.perComposition()` Providers cannot declare params.
+- Runtime accepts only an outer bag whose prototype is `Object.prototype` or `null`, with own,
+  enumerable, string-keyed data properties. Arrays, functions, class instances, built-ins,
+  accessors, symbols, non-enumerable properties, and `__proto__` are rejected before the context
+  opens.
+- Forma clones the validated bag and shallow-freezes that copy. Nested values are intentionally
+  neither validated nor frozen. The execution handle and every `.perContext()` materialization in
+  that context receive the same normalized copy.
+- TypeScript performs a best-effort mirror that rejects primitives, functions, arrays, and
+  non-string keys, including on `compose<Explicit>()`; prototype validation remains authoritative
+  at runtime.
 - `compose({ … })` **infers** required params by merging all registered Providers' ParamsReq;
   incompatible same-key types fail at compose. open/with require `{ params }` when the merge is
   non-void. `compose<Explicit>()({ … })` is only for an explicit **superset** of the inferred bag.
@@ -44,6 +53,7 @@ Out of scope: `Lifetime.acquire`; params namespaced by Boundary/Intent; runtime 
 
 - Hosts pass `{ params }` on `openExecutionContext` / `withExecutionContext`; factories read
   typed `params` with no cast.
+- Params means **plain outer bag, shallow readonly**, not a recursively immutable object graph.
 - Closing one context does not abort composition-lifetime factories; only `root.dispose()` does.
 - Host cancellation and resource ownership remain separate: abort can stop work, but only dispose
   releases context-owned Provider resources.

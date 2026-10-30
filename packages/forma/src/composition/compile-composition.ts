@@ -1,5 +1,5 @@
 import { type AnyProvider, type WiringEntry, partitionWiring } from "../alias-intent.js";
-import { intentIdentity, type Boundary } from "../boundary.js";
+import { intentIdentity, isBoundary, type Boundary } from "../boundary.js";
 import {
   assertAcyclicPlan,
   assertClosedGraph,
@@ -10,6 +10,7 @@ import {
 import { intentIdentityFromMapKey } from "../intent-keys.js";
 import { assertRegistrationSafety, buildRegistry } from "../registration.js";
 import { assertStringRecordKeys } from "../string-keys.js";
+import { isProvider } from "../provider/provider.js";
 import type { CompositionPlanDescription, EntryBoundaries } from "./composition-contract.js";
 
 export type {
@@ -51,7 +52,7 @@ function assertEntryBoundaries(
 
   const entryIds = new Set<string>();
   for (const entry of entryBoundaries) {
-    if (entry === null || typeof entry !== "object" || typeof entry.id !== "string") {
+    if (!isBoundary(entry)) {
       throw new Error("Entry Boundaries must be Boundary values created by boundary()");
     }
     if (entryIds.has(entry.id)) {
@@ -62,6 +63,11 @@ function assertEntryBoundaries(
 
   const represented = new Set<string>();
   for (const [alias, provider] of surfaceEntries) {
+    if (!isProvider(provider)) {
+      throw new Error(
+        `Surface alias "${alias}" must use a Provider value created by Forma's provider builder`
+      );
+    }
     if (provider.origin.kind === "adapter") {
       throw new Error(
         `Surface alias "${alias}" uses Adapter-originated Provider "${provider.origin.id}". ` +

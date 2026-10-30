@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; effective lifetime inference; Stream Intent modality / ownership — [ADR 0012](./docs/adr/0012-streaming-intents.md); Entry Boundary and Surface direction — [ADR 0013](./docs/adr/0013-entry-boundaries-and-surface-direction.md); optional `defineWiring` when extracting wiring).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; effective lifetime inference; Stream Intent modality / ownership — [ADR 0012](./docs/adr/0012-streaming-intents.md); Entry Boundary and Surface direction — [ADR 0013](./docs/adr/0013-entry-boundaries-and-surface-direction.md); nominal Providers and runtime branding — [ADR 0014](./docs/adr/0014-nominal-providers-and-runtime-branding.md); optional `defineWiring` when extracting wiring).
 
 ## Installation
 
@@ -32,6 +32,11 @@ Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the lit
 ### Providers
 
 `.with` takes a factory that returns the Intent operation as a `function` (sync or `async`). Prefer `ctx => function (…) { … }` over nested arrows. Destructure context only when you use it. `Lifetime.onDispose` is valid only during that materialization attempt — after the factory returns, the handle is sealed; on failure Forma rolls back local cleanups immediately and does not cache the attempt.
+
+The resulting Provider is an immutable nominal descriptor. Its public metadata is `intent`,
+`deps`, `origin`, and `lifetimePolicy`; realization and Params inference machinery remain internal.
+Use `compose` to exercise Provider behavior—Provider factories are not a public invocation or
+monkey-patching seam.
 
 ```ts
 import { err, ok } from "@xndrjs/forma";
@@ -76,7 +81,7 @@ const GetOrderProvider = GetOrder.provide
 
 Lifetime policy is local, while effective lifetime is derived from the resolved graph. No modifier means `auto`: the Provider is shared by the composition root unless any transitive dependency is context-owned, in which case it is narrowed to one instance per `openExecutionContext()` / `withExecutionContext()`. `.perContext()` forces context ownership; `.perComposition()` pins root ownership and makes `compose()` fail with the dependency path if a transitive dependency requires a context. `root.describePlan()` reports declared and effective lifetimes. Root and context `dispose()` are terminal state machines (concurrent callers share one promise); entering `disposing` aborts that owner’s `AbortSignal` (`lifetime.signal` / `execution.signal`). `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short lexical scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount.
 
-Typed execution **params**: declare a POJO on `.perContext<ParamsReq>()`. `compose({ … })` **infers** the required host bag from all such declarations (merge; conflicting key types fail at compose). open/with then require `{ params }` (shared `ExecutionContextArgs`). Factories read typed `params` on the `.with` context — not on `Lifetime`. `compose<Explicit>()({ … })` is only for an explicit **superset** of the inferred bag. An optional host `signal` on those args links into the context signal without transferring dispose ownership.
+Typed execution **params**: declare a plain outer object bag on `.perContext<ParamsReq>()`. `compose({ … })` **infers** the required host bag from all such declarations (merge; conflicting key types fail at compose). open/with then require `{ params }` (shared `ExecutionContextArgs`). At runtime Forma accepts only an `Object.prototype`/`null`-prototype bag with own enumerable string data properties, clones it, and shallow-freezes the copy; nested values are not validated or frozen. The execution handle and all per-context factories receive that same copy. Factories read typed `params` on the `.with` context — not on `Lifetime`. `compose<Explicit>()({ … })` is only for an explicit **superset** of the inferred bag and applies the same best-effort static shape check. An optional host `signal` on those args links into the context signal without transferring dispose ownership.
 
 `Intent.provide.using` accepts only same-boundary Intents, is **one-shot** (do not chain `.using`), and requires string dependency keys. Surface aliases are likewise string-only; `dispose` and `surface` are reserved on the composition surface map (operations nest under `execution.surface`). Every Provider carries a required `origin` discriminant: `{ kind: "boundary", id }` from `Intent.provide…with`, or `{ kind: "adapter", id }` from Adapter `.adapt…with`.
 
@@ -119,7 +124,7 @@ When shapes already match, the factory can forward without mapping (`return sele
 
 ### Compose and execution context
 
-Prefer an **inline** `compose({ entryBoundaries, surface, wiring })` literal. Entry Boundaries are the exact, non-empty set of Boundary origins exposed by the Surface. Every declared Entry Boundary must own at least one Surface alias, every Surface root must come from one of them, and Adapter roots are rejected. This keeps public graph direction and Provider precision explicit — you do **not** need `defineWiring` in the normal case.
+Prefer an **inline** `compose({ entryBoundaries, surface, wiring })` literal. Entry Boundaries are the exact, non-empty set of authentic `boundary()` values whose origins are exposed by the Surface. Every declared Entry Boundary must own at least one Surface alias, every Surface root must come from one of them, and Adapter roots are rejected. Runtime branding validates protocol provenance, not security. This keeps public graph direction and Provider precision explicit — you do **not** need `defineWiring` in the normal case.
 
 ```ts
 import { compose } from "@xndrjs/forma";
@@ -161,7 +166,7 @@ await using execution = rooted.openExecutionContext({ params: { role: "viewer" }
 await execution.surface.getOrder({ id: "42" });
 ```
 
-Only surface aliases declared in `compose({ entryBoundaries, surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, requires a closed graph, and derives effective lifetimes before returning the root. `describePlan()` includes Entry Boundary ids, Surface root provenance, Boundary/Adapter origin, and a nested `lifetime` explanation per Provider. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, params policy, `WatchOrders` entry stream delegating to a private `WatchOrderEvents` seam, async connection, inferred lifetimes, `await using` root).
+Only surface aliases declared in `compose({ entryBoundaries, surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. Repeated declarations of that identity must have exactly equivalent Input, Success/Item, Err, and modality on every resolved `using` edge; runtime additionally rejects reified modality mismatches during compose. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, requires a closed graph, and derives effective lifetimes before returning the root. `describePlan()` includes Entry Boundary ids, Surface root provenance, Boundary/Adapter origin, and a nested `lifetime` explanation per Provider. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for a dual-Adapter end-to-end example (`postgres` | `memory`, params policy, `WatchOrders` entry stream delegating to a private `WatchOrderEvents` seam, async connection, inferred lifetimes, `await using` root).
 
 ### Stream Intent
 
@@ -202,6 +207,7 @@ Ownership and cancellation (see [streaming-intents.md](./docs/streaming-intents.
 
 - Each surface call returns a **cold, single-consumer** `AsyncIterable` (+ `[Symbol.asyncDispose]`). Creating it does not materialize the Provider; the first `next()` does.
 - Every active stream invocation is **owned by the execution context** (lease + registry), independent of Provider effective lifetime — including streams from composition-effective Providers.
+- First `next()` acquires registry/lease ownership transactionally before scheduling the source. If acceptance fails, the source is not started and partial ownership is rolled back through the normal close/error matrix.
 - `break` / `return()` / `await using` on the iterable, context `dispose`, and root `dispose` close active streams (abort per-stream signal → `return()` → await `finally` → release-once). Cancelling one stream does not abort siblings or the context.
 - Opening with an already-aborted host signal fails immediately. A later host abort rejects new unary work with `signal.reason`, and a cold stream that has not started completes without materialization. Already-accepted work observes cancellation cooperatively. Host abort does **not** auto-`dispose()` the context (abort ≠ dispose).
 - Stream cleanup failures are observed by the caller that initiates close. Context/root disposal still attempts every stream and Provider cleanup and aggregates multiple failures.

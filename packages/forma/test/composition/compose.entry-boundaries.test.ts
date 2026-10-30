@@ -37,6 +37,26 @@ describe("compose — Entry Boundaries", () => {
     });
     expect(Object.isFrozen(root.describePlan().entryBoundaries)).toBe(true);
     expect(Object.isFrozen(root.describePlan().surface)).toBe(true);
+    expect(Object.isFrozen(Orders)).toBe(true);
+    expect(Object.isFrozen(Billing)).toBe(true);
+  });
+
+  it("rejects a structurally fabricated Entry Boundary", () => {
+    const Orders = boundary("orders");
+    const GetOrder = Orders.intent("get").contract<void, "order", never>();
+    const GetOrderProvider = GetOrder.provide.with(() => () => ok("order" as const));
+    const fake = {
+      id: "orders",
+      intent: Orders.intent,
+      stream: Orders.stream,
+    };
+
+    expect(() =>
+      compose({
+        entryBoundaries: [fake],
+        surface: { getOrder: GetOrderProvider },
+      } as never)
+    ).toThrow(/must be Boundary values created by boundary\(\)/);
   });
 
   it("rejects an Adapter-originated Surface root at type level and runtime", () => {

@@ -2,6 +2,10 @@ import { createProvideApi } from "./provider/provider-builder.js";
 import type { ProvideApi } from "./provider/provider-builder.types.js";
 
 declare const formaIntentBrand: unique symbol;
+declare const formaBoundaryTypeBrand: unique symbol;
+
+const FORMA_INTENT_RUNTIME = Symbol.for("@xndrjs/forma/intent/v1");
+const FORMA_BOUNDARY_RUNTIME = Symbol.for("@xndrjs/forma/boundary/v1");
 
 /** Contract fulfillment shape: one terminal outcome vs pull-based sequence. */
 export type IntentModality = "unary" | "stream";
@@ -99,7 +103,28 @@ export type Boundary<BoundaryId extends string> = {
   readonly id: BoundaryId;
   readonly intent: IntentDeclarator<BoundaryId>;
   readonly stream: StreamDeclarator<BoundaryId>;
+  readonly [formaBoundaryTypeBrand]: BoundaryId;
 };
+
+/** Internal runtime authenticity check. Not exported by the package entrypoint. */
+export function isBoundary(value: unknown): value is Boundary<string> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as Record<PropertyKey, unknown>)[FORMA_BOUNDARY_RUNTIME] === true
+  );
+}
+
+/** Internal runtime authenticity check for alias and graph validation. */
+export function isIntent(
+  value: unknown
+): value is Intent<string, string, unknown, unknown, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as Record<PropertyKey, unknown>)[FORMA_INTENT_RUNTIME] === true
+  );
+}
 
 function createIntent<
   BoundaryId extends string,
@@ -117,13 +142,14 @@ function createIntent<
     boundaryId,
     name,
     modality,
-  } as Intent<BoundaryId, Name, Input, Success, Err, Mode>;
+    [FORMA_INTENT_RUNTIME]: true,
+  } as unknown as Intent<BoundaryId, Name, Input, Success, Err, Mode>;
 
   // Assign after the object exists so the builder closes over the Intent value.
   (intent as { provide: ProvideApi<BoundaryId, Name, Input, Success, Err, Mode> }).provide =
     createProvideApi(intent);
 
-  return intent;
+  return Object.freeze(intent);
 }
 
 /** Create an isolated architectural space and namespace for Intent identities. */
@@ -131,20 +157,27 @@ export function boundary<const BoundaryId extends string>(id: BoundaryId): Bound
   function intent<Name extends string>(
     name: Name
   ): IntentContractDeclarator<BoundaryId, Name, "unary"> {
-    return {
+    return Object.freeze({
       contract: <Input, Success, Err>() =>
         createIntent<BoundaryId, Name, Input, Success, Err, "unary">(id, name, "unary"),
-    };
+    });
   }
 
   function stream<Name extends string>(
     name: Name
   ): IntentContractDeclarator<BoundaryId, Name, "stream"> {
-    return {
+    return Object.freeze({
       contract: <Input, Success, Err>() =>
         createIntent<BoundaryId, Name, Input, Success, Err, "stream">(id, name, "stream"),
-    };
+    });
   }
 
-  return { id, intent, stream };
+  Object.freeze(intent);
+  Object.freeze(stream);
+  return Object.freeze({
+    id,
+    intent,
+    stream,
+    [FORMA_BOUNDARY_RUNTIME]: true,
+  }) as unknown as Boundary<BoundaryId>;
 }

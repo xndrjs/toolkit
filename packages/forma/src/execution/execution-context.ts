@@ -15,14 +15,34 @@ import { asyncIteratorOf, createStreamRegistry } from "./stream-registry.js";
 type Awaitable<T> = T | PromiseLike<T>;
 type Op = IntentOperation<unknown, unknown, unknown> | StreamOperation<unknown, unknown, unknown>;
 
-function freezeParams<Params>(params: Params): Readonly<Params> {
-  if (Array.isArray(params)) {
-    return Object.freeze([...params]) as unknown as Readonly<Params>;
+function normalizeParams<Params>(params: Params): Readonly<Params> {
+  if (typeof params !== "object" || params === null || Array.isArray(params)) {
+    throw new TypeError("Execution params must be a plain object");
   }
-  if (params !== null && typeof params === "object") {
-    return Object.freeze({ ...(params as object) }) as unknown as Readonly<Params>;
+
+  const prototype = Object.getPrototypeOf(params);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError("Execution params must be a plain object with Object or null prototype");
   }
-  return params as Readonly<Params>;
+
+  const normalized: Record<string, unknown> = {};
+  for (const key of Reflect.ownKeys(params)) {
+    if (typeof key !== "string") {
+      throw new TypeError("Execution params keys must be strings");
+    }
+    if (key === "__proto__") {
+      throw new TypeError('Execution params key "__proto__" is not allowed');
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(params, key);
+    if (!descriptor?.enumerable) {
+      throw new TypeError(`Execution params property "${key}" must be enumerable`);
+    }
+    if (!("value" in descriptor)) {
+      throw new TypeError(`Execution params property "${key}" must be a data property`);
+    }
+    normalized[key] = descriptor.value;
+  }
+  return Object.freeze(normalized) as Readonly<Params>;
 }
 
 /** Shared composition-owned state used by every open context. */
@@ -54,7 +74,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
   openOptions.signal?.throwIfAborted();
   const contextParams = (
     "params" in openOptions && openOptions.params !== undefined
-      ? freezeParams(openOptions.params)
+      ? normalizeParams(openOptions.params)
       : undefined
   ) as [Params] extends [void] ? undefined : Readonly<Params>;
 

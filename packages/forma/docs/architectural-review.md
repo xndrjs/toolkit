@@ -10,7 +10,8 @@
 > accettate negli ADR prevalgono dove l'implementazione è avanzata; in particolare ADR 0011
 > sostituisce la raccomandazione originale sulla propagazione manuale dei lifetime, ADR 0006 usa
 > soltanto `openExecutionContext`, e ADR 0013 introduce Entry Boundary obbligatori vietando root
-> Adapter nella Surface.
+> Adapter nella Surface. ADR 0014 risolve inoltre il finding sull'esposizione pubblica della
+> factory: i Provider sono ora nominali e mostrano soltanto metadata readonly.
 
 ## Executive summary
 
@@ -553,9 +554,10 @@ terza mantiene la massima regolarità. È una decisione di filosofia dell'interf
 
 ### Interfaccia pubblica ampia
 
-L'entrypoint esporta molti tipi di implementazione: builder, dependency mapping, resolved deps,
-context della factory e origin. `Provider.factory` è pubblico pur essendo documentato come hook
-interno.
+Nella baseline l'entrypoint esportava molti tipi di implementazione: builder, dependency mapping,
+resolved deps, context della factory e origin. `Provider.factory` era pubblico pur essendo
+documentato come hook interno. Questo finding è stato chiuso da ADR 0014: il Provider corrente è
+nominale, immutabile e non espone factory o phantom Params.
 
 Questo aumenta:
 

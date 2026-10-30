@@ -8,6 +8,7 @@ import type {
   ResolvedDeps,
   WithContext,
 } from "./provider.js";
+import { createProviderDescriptor as makeProviderDescriptor } from "./provider.js";
 import type { AdaptProvideApi, ProvideApi, WithFactory } from "./provider-builder.types.js";
 
 /**
@@ -34,7 +35,7 @@ function createProviderBuilder<
 ) {
   const hasDeps = Reflect.ownKeys(deps as object).length > 0;
 
-  return {
+  return Object.freeze({
     using(newDeps: object) {
       if (hasDeps) {
         throw new Error(
@@ -46,28 +47,27 @@ function createProviderBuilder<
     },
     perContext() {
       // Type param P is erased; runtime forwards the host bag into perContext
-      // factories when present; types gate `ctx.params` via Params / $params.
+      // factories when present; types gate `ctx.params` via the Provider's nominal payload.
       return createProviderBuilder(intent, deps, "context" as const, origin);
     },
     perComposition() {
       return createProviderBuilder(intent, deps, "composition" as const, origin);
     },
     with(factory: WithFactory<Input, Success, Err, Deps, Params, Mode>) {
-      return {
+      return makeProviderDescriptor({
         intent,
         deps,
         lifetimePolicy,
         origin,
-        $params: undefined as Params | undefined,
         factory: (resolved: ResolvedDeps<Deps>, lifetime: Lifetime, params?: unknown) => {
           const base = hasDeps ? { deps: resolved, lifetime } : { lifetime };
           const ctx =
             lifetimePolicy === "context" && params !== undefined ? { ...base, params } : base;
           return factory(ctx as WithContext<Deps, Params>);
         },
-      };
+      });
     },
-  };
+  });
 }
 
 /** Start the provider builder for an Intent (`origin.kind: "boundary"`). */
@@ -81,7 +81,7 @@ export function createProvideApi<
 >(
   intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>
 ): ProvideApi<BoundaryId, Name, Input, Success, Err, Mode> {
-  return createProviderBuilder(intent, {} as EmptyDeps, "auto" as const, {
+  return createProviderBuilder(intent, sealedStringRecord({}) as EmptyDeps, "auto" as const, {
     kind: "boundary",
     id: intent.boundaryId,
   }) as ProvideApi<BoundaryId, Name, Input, Success, Err, Mode>;
@@ -103,7 +103,7 @@ export function createAdaptProvideApi<
   intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>,
   adapterId: AdapterId
 ): AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode, AdapterId> {
-  return createProviderBuilder(intent, {} as EmptyDeps, "auto" as const, {
+  return createProviderBuilder(intent, sealedStringRecord({}) as EmptyDeps, "auto" as const, {
     kind: "adapter",
     id: adapterId,
   }) as AdaptProvideApi<BoundaryId, Name, Input, Success, Err, Mode, AdapterId>;

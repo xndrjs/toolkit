@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted (amended: authentic runtime-branded Boundary values)
 
 ## Context
 
@@ -31,6 +31,9 @@ compose({
 
 - `entryBoundaries` is required and non-empty. No legacy overload, inferred fallback, currying,
   fluent builder, or `defineEntryBoundaries` helper is provided.
+- Every entry must be an authentic, frozen `Boundary` value produced by `boundary()`. Runtime
+  validation uses Forma's versioned nominal brand rather than accepting an object that merely has
+  `id`, `intent`, and `stream`. The same authenticity rule applies to `adapter()` targets.
 - The declared Entry Boundary ids must equal the set of Boundary origins represented by Surface
   roots. Every declared Boundary owns at least one alias; every alias comes from a declared
   Boundary. Consequently, an empty Surface is invalid.
@@ -38,6 +41,9 @@ compose({
   no escape hatch.
 - Duplicate canonical Boundary ids are rejected at runtime and best-effort at type level for
   literal tuples.
+- Branding proves participation in Forma's runtime protocol, not trustworthiness or a security
+  boundary. Canonical identity remains the Boundary id, so distinct authentic Boundary values with
+  the same id still coalesce and are still duplicates in `entryBoundaries`.
 - Provider types preserve their precise origin (`kind` and literal id) through the builder chain.
   Compile-time asserts and equivalent runtime validation enforce the same rule.
 - A Composition may expose multiple Entry Boundaries and privately traverse any number of other

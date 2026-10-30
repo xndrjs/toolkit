@@ -277,6 +277,61 @@ describe("ManagedAsyncIterator", () => {
   });
 
   describe("errors and disposal matrix", () => {
+    it("treats onStartAccepted as transactional and never starts the source on failure", async () => {
+      const acceptanceError = new Error("registry rejected start");
+      const start = vi.fn(async function* () {
+        yield 1;
+      });
+      let registered = false;
+      const onClosed = vi.fn(() => {
+        registered = false;
+      });
+      const stream = createManagedAsyncIterable(start, {
+        onStartAccepted: () => {
+          registered = true;
+          throw acceptanceError;
+        },
+        onClosed,
+      });
+
+      const iterator = stream[Symbol.asyncIterator]();
+      await expect(iterator.next()).rejects.toBe(acceptanceError);
+      expect(start).not.toHaveBeenCalled();
+      expect(registered).toBe(false);
+      expect(onClosed).toHaveBeenCalledOnce();
+      expect(stream.phase).toBe("closed");
+
+      await stream[Symbol.asyncDispose]();
+      expect(onClosed).toHaveBeenCalledOnce();
+    });
+
+    it("combines onStartAccepted and rollback failures with SuppressedError", async () => {
+      const start = vi.fn(async function* () {
+        yield 1;
+      });
+      const stream = createManagedAsyncIterable(start, {
+        onStartAccepted: () => {
+          throw new Error("acceptance failed");
+        },
+        onClosed: () => {
+          throw new Error("rollback failed");
+        },
+      });
+
+      const iterator = stream[Symbol.asyncIterator]();
+      try {
+        await iterator.next();
+        expect.unreachable("expected SuppressedError");
+      } catch (error) {
+        expect(error).toBeInstanceOf(SuppressedError);
+        const suppressed = error as SuppressedError;
+        expect(suppressed.error).toMatchObject({ message: "rollback failed" });
+        expect(suppressed.suppressed).toMatchObject({ message: "acceptance failed" });
+      }
+      expect(start).not.toHaveBeenCalled();
+      expect(stream.phase).toBe("closed");
+    });
+
     it("propagates throw before the first yield and runs onClosed", async () => {
       const onClosed = vi.fn();
       const stream = createManagedAsyncIterable(

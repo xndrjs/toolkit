@@ -1,16 +1,7 @@
 import type { AnyProvider } from "../../alias-intent.js";
+import type { IsParamsShapeValid, ProviderParamsOf } from "../../provider/provider.js";
 
 /** ParamsReq declared on `.perContext<P>()` (`void` when undeclared). */
-type ProviderParamsOf<P> = "$params" extends keyof P
-  ? P extends { readonly $params?: infer Params }
-    ? [Exclude<Params, undefined>] extends [never]
-      ? void
-      : [Exclude<Params, undefined>] extends [void]
-        ? void
-        : Exclude<Params, undefined>
-    : void
-  : void;
-
 type RegisteredParamsUnion<
   Surface extends Record<string, AnyProvider>,
   Providers extends readonly AnyProvider[],
@@ -73,6 +64,7 @@ export type InferredParams<
 
 declare const formaParamsConflicts: unique symbol;
 declare const formaParamsExplicitTooNarrow: unique symbol;
+declare const formaParamsExplicitInvalidShape: unique symbol;
 
 /**
  * Intersected into `compose` options: incompatible ParamsReq keys across Providers
@@ -108,3 +100,11 @@ export type AssertExplicitParamsCover<
             readonly [formaParamsExplicitTooNarrow]: "compose<Explicit>() Explicit params do not satisfy provider ParamsReq";
           }
     : unknown;
+
+/** Best-effort static validation for the explicit host Params generic. */
+export type AssertExplicitParamsShape<Explicit> =
+  IsParamsShapeValid<Explicit> extends true
+    ? unknown
+    : {
+        readonly [formaParamsExplicitInvalidShape]: "compose<Explicit>() Params must be a string-keyed plain object";
+      };

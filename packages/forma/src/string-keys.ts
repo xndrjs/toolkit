@@ -41,7 +41,7 @@ export function assertStringRecordKeys(
   }
 }
 
-/** Copy own string properties onto a null-prototype object (no inherited keys). */
+/** Copy own enumerable string properties onto a frozen null-prototype object. */
 export function sealedStringRecord<T extends object>(record: T): T {
-  return Object.assign(Object.create(null), record) as T;
+  return Object.freeze(Object.assign(Object.create(null), record)) as T;
 }

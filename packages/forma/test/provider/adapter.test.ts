@@ -9,6 +9,18 @@ type Order = { readonly id: string; readonly total: number };
 type FindError = { readonly kind: "not_found" };
 
 describe("adapter", () => {
+  it("rejects a structurally fabricated target Boundary", () => {
+    const fake = {
+      id: "orders",
+      intent: () => undefined,
+      stream: () => undefined,
+    };
+
+    expect(() => adapter("orders-fake", fake as never)).toThrow(
+      /target must be a Boundary value created by boundary\(\)/
+    );
+  });
+
   it("same-boundary Intent.provide builds a boundary-origin provider", () => {
     const Orders = boundary("orders");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
@@ -74,30 +86,27 @@ describe("adapter", () => {
     const FindViaInfra = adapter("orders-infra", Orders)
       .adapt(FindOrder)
       .using({ select: SelectOrder, cache: CacheGet })
-      .with(
-        ({ deps: { select, cache } }) =>
-          async function (id) {
-            const cached = await cache(id);
-            if (!cached.ok) {
-              return err({ kind: "not_found" as const });
-            }
-            if (cached.value !== null) {
-              return ok(cached.value);
-            }
-            return select(id);
+      .with(({ deps: { select, cache } }) => {
+        expectTypeOf(select).toEqualTypeOf<
+          (input: OrderId) => Result<Order, FindError> | Promise<Result<Order, FindError>>
+        >();
+        expectTypeOf(cache).toEqualTypeOf<
+          (input: OrderId) => Result<Order | null, never> | Promise<Result<Order | null, never>>
+        >();
+        return async function (id) {
+          const cached = await cache(id);
+          if (!cached.ok) {
+            return err({ kind: "not_found" as const });
           }
-      );
+          if (cached.value !== null) {
+            return ok(cached.value);
+          }
+          return select(id);
+        };
+      });
 
     expect(FindViaInfra.deps).toEqual({ select: SelectOrder, cache: CacheGet });
     expect(FindViaInfra.origin).toEqual({ kind: "adapter", id: "orders-infra" });
-
-    type FactoryDeps = Parameters<typeof FindViaInfra.factory>[0];
-    expectTypeOf<FactoryDeps["select"]>().toEqualTypeOf<
-      (input: OrderId) => Result<Order, FindError> | Promise<Result<Order, FindError>>
-    >();
-    expectTypeOf<FactoryDeps["cache"]>().toEqualTypeOf<
-      (input: OrderId) => Result<Order | null, never> | Promise<Result<Order | null, never>>
-    >();
   });
 
   it("compose resolves an adapter provider for a required Intent (no intent alias)", async () => {

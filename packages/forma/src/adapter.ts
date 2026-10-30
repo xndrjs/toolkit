@@ -1,4 +1,4 @@
-import type { Boundary, Intent, IntentModality } from "./boundary.js";
+import { isBoundary, type Boundary, type Intent, type IntentModality } from "./boundary.js";
 import { createAdaptProvideApi } from "./provider/provider-builder.js";
 import type { AdaptProvideApi } from "./provider/provider-builder.types.js";
 
@@ -32,11 +32,15 @@ export function adapter<const AdapterId extends string, const BoundaryId extends
   id: AdapterId,
   targetBoundary: Boundary<BoundaryId>
 ): Adapter<AdapterId, BoundaryId> {
-  return {
+  if (!isBoundary(targetBoundary)) {
+    throw new Error("Adapter target must be a Boundary value created by boundary()");
+  }
+
+  return Object.freeze({
     id,
     target: targetBoundary,
     adapt(intent) {
       return createAdaptProvideApi(intent, id);
     },
-  };
+  });
 }

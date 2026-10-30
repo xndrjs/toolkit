@@ -1,6 +1,10 @@
 import type { Intent, IntentModality } from "../boundary.js";
 import type { Result } from "../result.js";
 
+declare const formaProviderTypeBrand: unique symbol;
+
+const FORMA_PROVIDER_RUNTIME = Symbol.for("@xndrjs/forma/provider-runtime/v1");
+
 /** Operation that fulfills a unary Intent contract. */
 export type IntentOperation<Input, Success, Err> = (
   input: Input
@@ -54,12 +58,47 @@ export type Lifetime = {
 
 /**
  * Host open/with invocation bag declared on `.perContext<P>()`.
- * Object POJO only (nested fields ok); not a bare primitive.
+ * Best-effort object constraint; the runtime enforces the plain outer bag and
+ * shallow-readonly semantics (nested values are not inspected).
  */
 export type ParamsObject = object;
 
 /** `void` or a {@link ParamsObject} (rejects primitives as the bag). */
 export type ParamsReq = void | ParamsObject;
+
+type HasArrayConstituent<T> = true extends (T extends readonly unknown[] ? true : false)
+  ? true
+  : false;
+
+type HasCallableConstituent<T> = true extends (
+  T extends (...args: never[]) => unknown ? true : false
+)
+  ? true
+  : false;
+
+type KeysOfUnion<T> = T extends unknown ? keyof T : never;
+
+/**
+ * Best-effort static approximation of the runtime plain-object rule. TypeScript
+ * cannot inspect an object's prototype, so runtime validation remains authoritative.
+ */
+export type IsParamsShapeValid<Params> = [Params] extends [void]
+  ? true
+  : [Params] extends [object]
+    ? HasArrayConstituent<Params> extends true
+      ? false
+      : HasCallableConstituent<Params> extends true
+        ? false
+        : Exclude<KeysOfUnion<Params>, string> extends never
+          ? true
+          : false
+    : false;
+
+/** Parameterless for valid Params; becomes an impossible required arg for invalid shapes. */
+export type ParamsValidationArgs<Params> =
+  IsParamsShapeValid<Params> extends true
+    ? []
+    : [error: "Execution Params must be a string-keyed plain object"];
 
 /**
  * Local lifetime policy declared by a Provider.
@@ -88,6 +127,25 @@ export type AdapterProviderOrigin<AdapterId extends string> = {
   readonly kind: "adapter";
   readonly id: AdapterId;
 };
+
+/**
+ * `true` when two Intent declarations describe the same Contract. Intent
+ * identity is intentionally not considered here; callers compare it separately.
+ */
+export type EquivalentIntentContract<Left, Right> =
+  Left extends Intent<string, string, infer LI, infer LS, infer LE, infer LM>
+    ? Right extends Intent<string, string, infer RI, infer RS, infer RE, infer RM>
+      ? [LM, RM] extends [RM, LM]
+        ? [LI, RI] extends [RI, LI]
+          ? [LS, RS] extends [RS, LS]
+            ? [LE, RE] extends [RE, LE]
+              ? true
+              : false
+            : false
+          : false
+        : false
+      : false
+    : false;
 
 /**
  * Map of same-boundary Intents accepted by `using`.
@@ -190,18 +248,126 @@ export type Provider<
   readonly lifetimePolicy: Policy;
   /** Who created this Provider (`boundary` via `Intent.provide`, or `adapter` via `.adapt`). */
   readonly origin: Origin;
-  /**
-   * Type-only ParamsReq marker (always `undefined` at runtime). Preserves
-   * `.perContext<P>()` through object spreads for compose inference.
-   */
-  readonly $params?: Params;
-  /**
-   * Internal materialization hook; prefer building via Intent.provide.with.
-   * `params` is the frozen host bag for `.perContext()` materializations (undefined otherwise).
-   */
+  /** Nominal type payload; realization and Params machinery are not public metadata. */
+  readonly [formaProviderTypeBrand]: {
+    readonly contract: readonly [BoundaryId, Name, Input, Success, Err];
+    readonly deps: Deps;
+    readonly policy: Policy;
+    readonly params: Params;
+    readonly mode: Mode;
+    readonly origin: Origin;
+  };
+};
+
+/** Internal type accessor for the Params requirement carried by the nominal Provider brand. */
+export type ProviderParamsOf<P> =
+  P extends Provider<
+    infer _BoundaryId,
+    infer _Name,
+    infer _Input,
+    infer _Success,
+    infer _Err,
+    infer _Deps,
+    infer _Policy,
+    infer Params,
+    infer _Mode,
+    infer _Origin
+  >
+    ? Params
+    : void;
+
+export type ProviderFactory<Input, Success, Err, Deps, Params, Mode extends IntentModality> = (
+  deps: ResolvedDeps<Deps>,
+  lifetime: Lifetime,
+  params?: [Params] extends [void] ? undefined : Readonly<Params>
+) => Awaitable<OperationFor<Mode, Input, Success, Err>>;
+
+type ProviderRuntime = {
   readonly factory: (
-    deps: ResolvedDeps<Deps>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- runtime dependency erasure
+    deps: ResolvedDeps<any>,
     lifetime: Lifetime,
     params?: unknown
-  ) => Awaitable<OperationFor<Mode, Input, Success, Err>>;
+  ) => Awaitable<OperationFor<IntentModality, unknown, unknown, unknown>>;
 };
+
+type ErasedProvider = Provider<
+  string,
+  string,
+  // Type parameters occupy both input and output positions; runtime erasure needs `any`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any,
+  LifetimePolicy,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any,
+  IntentModality,
+  ProviderOrigin
+>;
+
+/** Internal constructor used by the fluent builders. Not exported by the package entrypoint. */
+export function createProviderDescriptor<
+  BoundaryId extends string,
+  Name extends string,
+  Input,
+  Success,
+  Err,
+  Deps,
+  Policy extends LifetimePolicy,
+  Params,
+  Mode extends IntentModality,
+  Origin extends ProviderOrigin,
+>(options: {
+  readonly intent: Intent<BoundaryId, Name, Input, Success, Err, Mode>;
+  readonly deps: Deps;
+  readonly lifetimePolicy: Policy;
+  readonly origin: Origin;
+  readonly factory: ProviderFactory<Input, Success, Err, Deps, Params, Mode>;
+}): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode, Origin> {
+  const runtime = Object.freeze({ factory: options.factory });
+  return Object.freeze({
+    intent: options.intent,
+    deps: Object.freeze(options.deps as object) as Deps,
+    lifetimePolicy: options.lifetimePolicy,
+    origin: Object.freeze({ ...options.origin }),
+    [FORMA_PROVIDER_RUNTIME]: runtime,
+  }) as unknown as Provider<
+    BoundaryId,
+    Name,
+    Input,
+    Success,
+    Err,
+    Deps,
+    Policy,
+    Params,
+    Mode,
+    Origin
+  >;
+}
+
+/** Runtime authenticity check for JavaScript, casts, and widened inputs. */
+export function isProvider(value: unknown): value is ErasedProvider {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const runtime = (value as Record<PropertyKey, unknown>)[FORMA_PROVIDER_RUNTIME];
+  return (
+    typeof runtime === "object" &&
+    runtime !== null &&
+    typeof (runtime as { readonly factory?: unknown }).factory === "function"
+  );
+}
+
+/** Internal realization accessor; keeps the executable hook out of the public Provider interface. */
+export function providerFactory(provider: ErasedProvider): ProviderRuntime["factory"] {
+  if (!isProvider(provider)) {
+    throw new Error("Invalid Provider: expected a value created by Forma's provider builder");
+  }
+  return (provider as unknown as Record<PropertyKey, ProviderRuntime>)[FORMA_PROVIDER_RUNTIME]!
+    .factory;
+}
