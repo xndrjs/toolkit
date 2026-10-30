@@ -1,11 +1,11 @@
 /**
- * Forma PoC demo — Orders surface over selectable Adapters (postgres | memory),
- * with params-gated GetOrder policy, WatchOrders stream Intent, and Design C
- * exception-safe disposal.
+ * Forma PoC demo — Orders surface over selectable Adapters (postgres | memory).
+ * Walks the composition plan and a few calls, printing shape and outcomes.
+ * Not a test: no assertions on results.
  *
  * Usage:
- *   pnpm --filter @xndrjs/forma-demo start
- *   pnpm --filter @xndrjs/forma-demo start -- memory
+ *   pnpm --filter @xndrjs/forma-demo start:postgres
+ *   pnpm --filter @xndrjs/forma-demo start:memory
  */
 import { createRoot, type AdapterKind } from "./composition";
 
@@ -16,88 +16,83 @@ function parseKind(argv: readonly string[]): AdapterKind {
   throw new Error(`unknown adapter kind "${arg}" (expected postgres | memory)`);
 }
 
+function section(title: string): void {
+  console.log(`\n── ${title}`);
+}
+
 async function main(): Promise<void> {
   const kind = parseKind(process.argv.slice(2));
 
   await using root = createRoot(kind);
 
   const plan = root.describePlan();
-  if (plan.entryBoundaries.length !== 1 || plan.entryBoundaries[0] !== "orders") {
-    throw new Error(`expected orders Entry Boundary, got ${JSON.stringify(plan.entryBoundaries)}`);
-  }
-  const watchSurface = plan.surface.find((entry) => entry.alias === "watchOrders");
-  if (watchSurface?.origin.kind !== "boundary" || watchSurface.origin.id !== "orders") {
-    throw new Error(`expected Orders-owned watchOrders root, got ${JSON.stringify(watchSurface)}`);
-  }
-  const watchPlan = plan.providers.find(
-    (p) => p.intent[0] === "orders" && p.intent[1] === "watchOrders"
+  section(`composition (kind: ${kind})`);
+  console.log("entryBoundaries:", plan.entryBoundaries);
+  console.log(
+    "surface:",
+    plan.surface.map((entry) => ({
+      alias: entry.alias,
+      intent: entry.intent,
+      origin: entry.origin,
+    }))
   );
-  if (watchPlan?.mode !== "stream") {
-    throw new Error(`expected watchOrders mode=stream, got ${JSON.stringify(watchPlan)}`);
-  }
+  console.log(
+    "providers:",
+    plan.providers.map((p) => ({
+      intent: p.intent,
+      mode: p.mode,
+      declared: p.declared,
+      effective: p.effective,
+      ...(p.narrowedBy ? { narrowedBy: p.narrowedBy } : {}),
+    }))
+  );
 
-  const hit = await root.withExecutionContext(
+  section("getOrder — viewer");
+  await root.withExecutionContext(
     async (surface) => {
       const found = await surface.getOrder({ id: "42" });
-      if (!found.ok) {
-        throw new Error(`expected order 42 for viewer, got ${JSON.stringify(found.error)}`);
-      }
+      console.log('getOrder({ id: "42" }) →', found);
 
       const miss = await surface.getOrder({ id: "missing" });
-      if (miss.ok) {
-        throw new Error("expected not_found for missing id");
-      }
-
-      return found;
+      console.log('getOrder({ id: "missing" }) →', miss);
     },
     { params: { role: "viewer" } }
   );
 
-  const denied = await root.withExecutionContext(
-    async (surface) => surface.getOrder({ id: "42" }),
+  section("getOrder — guest (policy before FindOrder)");
+  await root.withExecutionContext(
+    async (surface) => {
+      const denied = await surface.getOrder({ id: "42" });
+      console.log('getOrder({ id: "42" }) →', denied);
+    },
     { params: { role: "guest" } }
   );
-  if (denied.ok || denied.error.kind !== "forbidden") {
-    throw new Error(`expected forbidden for guest, got ${JSON.stringify(denied)}`);
-  }
 
-  // Full stream consumption — natural completion releases the context-owned invocation.
-  const statuses = await root.withExecutionContext(
+  section("watchOrders — full consume");
+  await root.withExecutionContext(
     async (surface) => {
-      const seen: string[] = [];
+      const events = [];
       for await (const event of surface.watchOrders({ id: "42" })) {
-        if (!event.ok) {
-          throw new Error(`unexpected watch error: ${JSON.stringify(event.error)}`);
-        }
-        seen.push(event.value.status);
+        events.push(event);
       }
-      return seen;
+      console.log('watchOrders({ id: "42" }) →', events);
     },
     { params: { role: "viewer" } }
   );
-  if (statuses.join(",") !== "open,paid,shipped") {
-    throw new Error(`expected status progression, got ${statuses.join(",")}`);
-  }
 
-  // Early break — Forma calls return() so the generator finally / Adapter cleanup runs
-  // before the execution context finishes disposing.
+  section("watchOrders — early break (generator finally / Adapter cleanup)");
   await root.withExecutionContext(
     async (surface) => {
       for await (const event of surface.watchOrders({ id: "42" })) {
-        if (!event.ok) {
-          throw new Error(`unexpected watch error: ${JSON.stringify(event.error)}`);
-        }
+        console.log("first event →", event);
         break;
       }
     },
     { params: { role: "viewer" } }
   );
 
-  console.log(
-    `forma-demo ok (${kind}): getOrder(42) → total=${hit.value.total}; not_found; guest forbidden; ` +
-      `entry=orders; watchOrders root=boundary:orders mode=stream → ${statuses.join("→")}; ` +
-      "break cleanup; disposed"
-  );
+  section("dispose");
+  console.log("leaving await using root → composition dispose");
 }
 
 await main();

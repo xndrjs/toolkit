@@ -5,7 +5,8 @@
   "version": "0.0.1",
   "description": "Runnable PoC demo for @xndrjs/forma: dual Adapters, params policy, WatchOrders stream, async connection, Design C disposal.",
   "scripts": {
-    "start": "tsx src/main.ts",
+    "start:postgres": "tsx src/main.ts postgres",
+    "start:memory": "tsx src/main.ts memory",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
