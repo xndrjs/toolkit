@@ -1,4 +1,10 @@
-import { boundary, compose, ok, type Result, type StreamSurfaceIterable } from "@xndrjs/forma";
+import {
+  boundary,
+  compose,
+  success,
+  type InvocationOutcome,
+  type StreamSurfaceIterable,
+} from "@xndrjs/forma";
 
 type Order = { readonly id: string; readonly requestId: string };
 type OrderEvent = { readonly orderId: string; readonly status: "created" };
@@ -22,14 +28,14 @@ const FindOrderProvider = FindOrder.provide
       contextProviderDisposed = true;
     });
 
-    return async (input) => ok({ id: input.id, requestId: params.requestId });
+    return async (input) => success({ id: input.id, requestId: params.requestId });
   });
 
 const WatchOrdersProvider = WatchOrders.provide.with(
   () =>
     async function* (input, invocation) {
       invocation.signal.throwIfAborted();
-      yield ok({ orderId: input.id, status: "created" as const });
+      yield success({ orderId: input.id, status: "created" as const });
     }
 );
 
@@ -48,15 +54,19 @@ if (plan.surface.length !== 2) {
 
 await root.withExecutionContext(
   async (surface) => {
-    const found: Result<Order, NotFound> = await surface.findOrder({ id: "42" });
-    if (!found.ok || found.value.id !== "42" || found.value.requestId !== "package-smoke") {
+    const found: InvocationOutcome<Order, NotFound> = await surface.findOrder({ id: "42" });
+    if (
+      found.kind !== "success" ||
+      found.value.id !== "42" ||
+      found.value.requestId !== "package-smoke"
+    ) {
       throw new Error("the packed unary operation returned an unexpected result");
     }
 
     const stream: StreamSurfaceIterable<OrderEvent, WatchError> = surface.watchOrders({ id: "42" });
     const events: OrderEvent[] = [];
     for await (const event of stream) {
-      if (!event.ok) {
+      if (event.kind !== "success") {
         throw new Error("the packed stream returned an unexpected domain error");
       }
       events.push(event.value);

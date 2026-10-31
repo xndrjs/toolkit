@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
-import { ok, type Result } from "@xndrjs/forma";
+import { success, type InvocationOutcome } from "@xndrjs/forma";
 
 describe("compose — surface hello (ping)", () => {
   it("runs a surface alias end-to-end: compose → context → call → dispose", async () => {
@@ -13,7 +13,7 @@ describe("compose — surface hello (ping)", () => {
       (_ctx) =>
         function () {
           runs += 1;
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
 
@@ -34,12 +34,14 @@ describe("compose — surface hello (ping)", () => {
 
     // Surface exposes only declared aliases — not other Intents.
     expect(ctx.surface).not.toHaveProperty("findOrder");
-    // Surface aliases are always async (materialize + invoke), never sync Result.
-    expectTypeOf(ctx.surface.ping).toEqualTypeOf<(input: void) => Promise<Result<"pong", never>>>();
+    // Surface aliases are always async (materialize + invoke), never sync InvocationOutcome.
+    expectTypeOf(ctx.surface.ping).toEqualTypeOf<
+      (input: void) => Promise<InvocationOutcome<"pong", never>>
+    >();
     expectTypeOf(ctx.surface).not.toHaveProperty("findOrder");
 
     const result = await ctx.surface.ping();
-    expect(result).toEqual({ ok: true, value: "pong" });
+    expect(result).toEqual({ kind: "success", value: "pong" });
     // Realization body runs on first alias call (lazy), not at compose / context open.
     expect(runs).toBe(1);
 
@@ -54,7 +56,7 @@ describe("compose — surface hello (ping)", () => {
     const PingProvider = Ping.provide.with(() => {
       materializations += 1;
       return function () {
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
     const root = compose({

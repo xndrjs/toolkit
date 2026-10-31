@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
-import { ok } from "@xndrjs/forma";
+import { success } from "@xndrjs/forma";
 
 describe("compose — surface hygiene (F5/F7)", () => {
   it("throws when surface alias is dispose (reserved for lifecycle)", () => {
@@ -10,7 +10,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
     const PingProvider = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
 
@@ -29,7 +29,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
     const PingProvider = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
 
@@ -48,7 +48,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
     const PingProvider = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
 
@@ -69,7 +69,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
     const PingProvider = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
 
@@ -91,7 +91,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
     const PingProvider = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
 
@@ -103,7 +103,7 @@ describe("compose — surface hygiene (F5/F7)", () => {
 
     expectTypeOf(ctx.dispose).toEqualTypeOf<() => Promise<void>>();
     expect(ctx.surface).not.toHaveProperty("dispose");
-    await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(ctx.surface.ping()).resolves.toEqual({ kind: "success", value: "pong" });
     await expect(ctx.dispose()).resolves.toBeUndefined();
     await root.dispose();
   });

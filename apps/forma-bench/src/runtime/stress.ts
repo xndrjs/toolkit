@@ -28,7 +28,10 @@ export async function runStressSuite(config: StressConfig): Promise<readonly Str
         for (let cycle = 0; cycle < config.cycles; cycle += 1) {
           await graph.root.withExecutionContext(async (surface) => {
             const result = await surface.run(cycle);
-            if (!result.ok || result.value !== expectedUnaryValue(config.shape, cycle)) {
+            if (
+              result.kind !== "success" ||
+              result.value !== expectedUnaryValue(config.shape, cycle)
+            ) {
               throw new Error("Repeated lifecycle returned an unexpected result.");
             }
           });
@@ -50,7 +53,10 @@ export async function runStressSuite(config: StressConfig): Promise<readonly Str
         );
         for (let index = 0; index < results.length; index += 1) {
           const result = results[index];
-          if (!result?.ok || result.value !== expectedUnaryValue(config.shape, index)) {
+          if (
+            result?.kind !== "success" ||
+            result.value !== expectedUnaryValue(config.shape, index)
+          ) {
             throw new Error("Concurrent materialization returned an unexpected result.");
           }
         }
@@ -69,7 +75,10 @@ export async function runStressSuite(config: StressConfig): Promise<readonly Str
         for (let cycle = 0; cycle < config.cycles; cycle += 1) {
           await graph.root.withExecutionContext(async (surface) => {
             for await (const result of surface.run(cycle)) {
-              if (!result.ok || result.value !== expectedUnaryValue(config.shape, cycle)) {
+              if (
+                result.kind !== "success" ||
+                result.value !== expectedUnaryValue(config.shape, cycle)
+              ) {
                 throw new Error("Early-close stream returned an unexpected result.");
               }
               break;
@@ -99,7 +108,7 @@ export async function runStressSuite(config: StressConfig): Promise<readonly Str
         const first = await iterator.next();
         if (
           first.done ||
-          !first.value.ok ||
+          first.value.kind !== "success" ||
           first.value.value !== expectedUnaryValue(config.shape, index)
         ) {
           throw new Error("Active stream setup returned an unexpected result.");

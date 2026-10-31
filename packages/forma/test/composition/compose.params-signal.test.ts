@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { compose, type CompositionRoot, type ExecutionContextArgs } from "@xndrjs/forma";
-import { ok } from "@xndrjs/forma";
+import { success } from "@xndrjs/forma";
 
 type RequestParams = { readonly tenantId: string; readonly requestId: string };
 
@@ -9,7 +9,7 @@ describe("compose — params + AbortSignal", () => {
   it("per-context factory reads typed params; composition-lifetime has no params", async () => {
     const App = boundary("app");
     const Echo = App.intent("echo").contract<void, string, never>();
-    const Shared = App.intent("shared").contract<void, "ok", never>();
+    const Shared = App.intent("shared").contract<void, "success", never>();
 
     let seenContextParams: unknown;
     let seenCompositionParams: "missing" | "present" = "missing";
@@ -18,12 +18,12 @@ describe("compose — params + AbortSignal", () => {
       seenContextParams = params;
       expect(lifetime.signal).toBeInstanceOf(AbortSignal);
       expect("params" in lifetime).toBe(false);
-      return () => ok(params.tenantId);
+      return () => success(params.tenantId);
     });
     const SharedProvider = Shared.provide.with((ctx) => {
       seenCompositionParams = "params" in ctx ? "present" : "missing";
       expect(ctx.lifetime.signal).toBeInstanceOf(AbortSignal);
-      return () => ok("ok" as const);
+      return () => success("success" as const);
     });
 
     const root = compose({
@@ -40,7 +40,7 @@ describe("compose — params + AbortSignal", () => {
       { params }
     );
 
-    expect(result).toEqual({ ok: true, value: "acme" });
+    expect(result).toEqual({ kind: "success", value: "acme" });
     expect(seenContextParams).toEqual(params);
     expect(seenCompositionParams).toBe("missing");
     await root.dispose();
@@ -54,7 +54,7 @@ describe("compose — params + AbortSignal", () => {
 
     const PingProvider = Ping.provide.perContext().with(({ lifetime }) => {
       factorySignal = lifetime.signal;
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -84,7 +84,7 @@ describe("compose — params + AbortSignal", () => {
     const App = boundary("app");
     const Ping = App.intent("ping").contract<void, RequestParams, never>();
     const PingProvider = Ping.provide.perContext<RequestParams>().with(({ params }) => {
-      return () => ok(params);
+      return () => success(params);
     });
 
     const root = compose({
@@ -100,13 +100,13 @@ describe("compose — params + AbortSignal", () => {
     expect(viaOpen.params).toEqual(params);
     expect(viaOpen.params).not.toBe(params); // frozen copy when object
     expect(Object.isFrozen(viaOpen.params)).toBe(true);
-    await expect(viaOpen.surface.ping()).resolves.toEqual({ ok: true, value: params });
+    await expect(viaOpen.surface.ping()).resolves.toEqual({ kind: "success", value: params });
     await viaOpen.dispose();
 
     const viaWith = await root.withExecutionContext(async (surface) => surface.ping(), {
       params,
     });
-    expect(viaWith).toEqual({ ok: true, value: params });
+    expect(viaWith).toEqual({ kind: "success", value: params });
     await root.dispose();
   });
 
@@ -120,7 +120,7 @@ describe("compose — params + AbortSignal", () => {
     let factoryParams: Readonly<Params> | undefined;
     const ReadProvider = Read.provide.perContext<Params>().with(({ params }) => {
       factoryParams = params;
-      return () => ok(params.label);
+      return () => success(params.label);
     });
     const root = compose({
       entryBoundaries: [App],
@@ -147,7 +147,7 @@ describe("compose — params + AbortSignal", () => {
     const ReadProvider = Read.provide.perContext<Params>().with(
       ({ params }) =>
         () =>
-          ok(params.label)
+          success(params.label)
     );
     const root = compose({
       entryBoundaries: [App],
@@ -159,7 +159,7 @@ describe("compose — params + AbortSignal", () => {
 
     await expect(
       root.withExecutionContext((surface) => surface.read(), { params })
-    ).resolves.toEqual({ ok: true, value: "null-prototype" });
+    ).resolves.toEqual({ kind: "success", value: "null-prototype" });
     await root.dispose();
   });
 
@@ -170,7 +170,7 @@ describe("compose — params + AbortSignal", () => {
     let materializations = 0;
     const PingProvider = Ping.provide.perContext<Params>().with(() => {
       materializations += 1;
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
     const root = compose({
       entryBoundaries: [App],
@@ -211,14 +211,14 @@ describe("compose — params + AbortSignal", () => {
     expect(materializations).toBe(0);
 
     await using execution = root.openExecutionContext({ params: { label: "valid" } });
-    await expect(execution.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(execution.surface.ping()).resolves.toEqual({ kind: "success", value: "pong" });
     await root.dispose();
   });
 
   it("best-effort type checks reject invalid Params bag shapes", () => {
     const App = boundary("app");
     const Ping = App.intent("ping").contract<void, "pong", never>();
-    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+    const PingProvider = Ping.provide.with(() => () => success("pong" as const));
 
     const assertTypeErrors = (): void => {
       // @ts-expect-error — primitive Params are not an object bag
@@ -247,10 +247,10 @@ describe("compose — params + AbortSignal", () => {
     const B = App.intent("b").contract<void, string, never>();
 
     const AProvider = A.provide.perContext<{ readonly tenantId: string }>().with(({ params }) => {
-      return () => ok(params.tenantId);
+      return () => success(params.tenantId);
     });
     const BProvider = B.provide.perContext<{ readonly requestId: string }>().with(({ params }) => {
-      return () => ok(params.requestId);
+      return () => success(params.requestId);
     });
 
     const root = compose({
@@ -266,8 +266,8 @@ describe("compose — params + AbortSignal", () => {
       async (surface) => {
         const a = await surface.a();
         const b = await surface.b();
-        if (!a.ok || !b.ok) {
-          throw new Error("expected ok");
+        if (a.kind !== "success" || b.kind !== "success") {
+          throw new Error("expected success");
         }
         return { a: a.value, b: b.value };
       },
@@ -279,11 +279,15 @@ describe("compose — params + AbortSignal", () => {
 
   it("type-rejects incompatible params keys across providers", () => {
     const App = boundary("app");
-    const A = App.intent("a").contract<void, "ok", never>();
-    const B = App.intent("b").contract<void, "ok", never>();
+    const A = App.intent("a").contract<void, "success", never>();
+    const B = App.intent("b").contract<void, "success", never>();
 
-    const AProvider = A.provide.perContext<{ readonly role: string }>().with(() => () => ok("ok"));
-    const BProvider = B.provide.perContext<{ readonly role: number }>().with(() => () => ok("ok"));
+    const AProvider = A.provide
+      .perContext<{ readonly role: string }>()
+      .with(() => () => success("success"));
+    const BProvider = B.provide
+      .perContext<{ readonly role: number }>()
+      .with(() => () => success("success"));
 
     // @ts-expect-error — incompatible execution params key(s): role
     compose({
@@ -299,7 +303,7 @@ describe("compose — params + AbortSignal", () => {
 
     const PingProvider = Ping.provide.perContext<Nested>().with(({ params }) => {
       expectTypeOf(params.meta.role).toEqualTypeOf<"admin">();
-      return () => ok(params.meta.role);
+      return () => success(params.meta.role);
     });
 
     const root = compose({
@@ -309,7 +313,7 @@ describe("compose — params + AbortSignal", () => {
     const result = await root.withExecutionContext((surface) => surface.ping(), {
       params: { meta: { role: "admin", count: 2 } },
     });
-    expect(result).toEqual({ ok: true, value: "admin" });
+    expect(result).toEqual({ kind: "success", value: "admin" });
     await root.dispose();
   });
 
@@ -320,7 +324,7 @@ describe("compose — params + AbortSignal", () => {
     const App = boundary("app");
     const Ping = App.intent("ping").contract<void, string, never>();
     const PingProvider = Ping.provide.perContext<Required>().with(({ params }) => {
-      return () => ok(params.tenantId);
+      return () => success(params.tenantId);
     });
 
     const wide = compose<Superset>()({
@@ -330,7 +334,7 @@ describe("compose — params + AbortSignal", () => {
     const result = await wide.withExecutionContext((surface) => surface.ping(), {
       params: { tenantId: "acme", region: "eu" },
     });
-    expect(result).toEqual({ ok: true, value: "acme" });
+    expect(result).toEqual({ kind: "success", value: "acme" });
     await wide.dispose();
 
     // @ts-expect-error — Explicit params do not satisfy provider ParamsReq
@@ -343,27 +347,27 @@ describe("compose — params + AbortSignal", () => {
   it("void params allows open/with with no options (lexical vs host ownership)", async () => {
     const App = boundary("app");
     const Ping = App.intent("ping").contract<void, "pong", never>();
-    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+    const PingProvider = Ping.provide.with(() => () => success("pong" as const));
 
     const root = compose({
       entryBoundaries: [App],
       surface: { ping: PingProvider },
     });
     await expect(root.withExecutionContext((surface) => surface.ping())).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: "pong",
     });
 
     await using execution = root.openExecutionContext();
     expect(execution.params).toBeUndefined();
-    await expect(execution.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(execution.surface.ping()).resolves.toEqual({ kind: "success", value: "pong" });
   });
 
   it("optional host signal aborts the context signal without owning dispose", async () => {
     const App = boundary("app");
     const Ping = App.intent("ping").contract<void, "pong", never>();
     const PingProvider = Ping.provide.perContext().with(() => {
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const host = new AbortController();
@@ -382,7 +386,7 @@ describe("compose — params + AbortSignal", () => {
   it("fails fast when opening with an already-aborted host signal", async () => {
     const App = boundary("app");
     const Ping = App.intent("ping").contract<void, "pong", never>();
-    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+    const PingProvider = Ping.provide.with(() => () => success("pong" as const));
     const root = compose({
       entryBoundaries: [App],
       surface: { ping: PingProvider },
@@ -399,7 +403,7 @@ describe("compose — params + AbortSignal", () => {
     let materializations = 0;
     const PingProvider = Ping.provide.with(() => {
       materializations += 1;
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
     const root = compose({
       entryBoundaries: [App],
@@ -433,7 +437,7 @@ describe("compose — params + AbortSignal", () => {
         async function () {
           invocationStarted();
           await gate;
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
     const root = compose({
@@ -448,7 +452,7 @@ describe("compose — params + AbortSignal", () => {
     host.abort(new Error("host stopped"));
     release();
 
-    await expect(pending).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(pending).resolves.toEqual({ kind: "success", value: "pong" });
     await execution.dispose();
     await root.dispose();
   });

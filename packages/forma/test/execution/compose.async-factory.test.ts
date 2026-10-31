@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
-import { ok } from "@xndrjs/forma";
+import { success } from "@xndrjs/forma";
 
 describe("compose — async factories and rollback", () => {
   it("coalesces concurrent first materialization of an async factory", async () => {
@@ -18,7 +18,7 @@ describe("compose — async factories and rollback", () => {
       factoryRuns += 1;
       lifetime.onDispose(() => undefined);
       await hold;
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -31,8 +31,8 @@ describe("compose — async factories and rollback", () => {
     const p2 = ctx.surface.ping();
     release();
 
-    await expect(p1).resolves.toEqual({ ok: true, value: "pong" });
-    await expect(p2).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(p1).resolves.toEqual({ kind: "success", value: "pong" });
+    await expect(p2).resolves.toEqual({ kind: "success", value: "pong" });
     expect(factoryRuns).toBe(1);
 
     await ctx.dispose();
@@ -49,7 +49,7 @@ describe("compose — async factories and rollback", () => {
       if (attempts === 1) {
         throw new Error("setup boom");
       }
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -61,7 +61,7 @@ describe("compose — async factories and rollback", () => {
     await expect(ctx.surface.ping()).rejects.toThrow(/setup boom/);
     expect(attempts).toBe(1);
 
-    await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(ctx.surface.ping()).resolves.toEqual({ kind: "success", value: "pong" });
     expect(attempts).toBe(2);
 
     await ctx.dispose();
@@ -157,7 +157,7 @@ describe("compose — async factories and rollback", () => {
       });
       sawFactory();
       await factoryHold;
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -187,7 +187,7 @@ describe("compose — async factories and rollback", () => {
     let stolenLifetime: { onDispose(cleanup: () => void): void } | undefined;
     const PingProvider = Ping.provide.with(({ lifetime }) => {
       stolenLifetime = lifetime;
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -213,7 +213,7 @@ describe("compose — async factories and rollback", () => {
       await Promise.resolve();
       const instance = { n: setups };
       lifetime.onDispose(() => undefined);
-      return () => ok(instance);
+      return () => success(instance);
     });
 
     const root = compose({
@@ -224,8 +224,8 @@ describe("compose — async factories and rollback", () => {
       const a = await surface.ping();
       const b = await surface.ping();
       expect(setups).toBe(1);
-      if (!a.ok || !b.ok) {
-        throw new Error("expected ok");
+      if (a.kind !== "success" || b.kind !== "success") {
+        throw new Error("expected success");
       }
       expect(a.value).toBe(b.value);
     });

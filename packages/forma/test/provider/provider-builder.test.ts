@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { adapter } from "@xndrjs/forma";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
-import { err, ok, type Result } from "@xndrjs/forma";
+import { expectedError, success, type InvocationOutcome } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -17,7 +17,7 @@ describe("provider builder", () => {
     const PingProvider = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong");
+          return success("pong");
         }
     );
 
@@ -63,13 +63,13 @@ describe("provider builder", () => {
       surface: { ping: PingProvider },
     });
     await using ctx = root.openExecutionContext();
-    await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(ctx.surface.ping()).resolves.toEqual({ kind: "success", value: "pong" });
   });
 
   it("rejects a structurally fabricated Provider at runtime", () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
-    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+    const PingProvider = Ping.provide.with(() => () => success("pong" as const));
     const fake = {
       intent: Ping,
       deps: {},
@@ -126,11 +126,11 @@ describe("provider builder", () => {
       return function (id: OrderId) {
         const hit = cache.get(id.id);
         if (hit) {
-          return ok(hit);
+          return success(hit);
         }
         const order = { id: id.id, total: 10 };
         cache.set(id.id, order);
-        return ok(order);
+        return success(order);
       };
     });
 
@@ -141,12 +141,12 @@ describe("provider builder", () => {
     const ctx = root.openExecutionContext();
     expect(setups).toBe(0);
     await expect(ctx.surface.find({ id: "1" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { id: "1", total: 10 },
     });
     expect(setups).toBe(1);
     await expect(ctx.surface.find({ id: "1" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { id: "1", total: 10 },
     });
     expect(setups).toBe(1);
@@ -167,14 +167,16 @@ describe("provider builder", () => {
       .using({ find: FindOrder })
       .with(({ deps: { find } }) => {
         expectTypeOf(find).toEqualTypeOf<
-          (input: OrderId) => Result<Order, FindError> | Promise<Result<Order, FindError>>
+          (
+            input: OrderId
+          ) => InvocationOutcome<Order, FindError> | Promise<InvocationOutcome<Order, FindError>>
         >();
         return async function (id) {
           const found = await find(id);
-          if (!found.ok) {
-            return err({ kind: "already_cancelled" });
+          if (found.kind !== "success") {
+            return expectedError({ kind: "already_cancelled" });
           }
-          return ok(undefined);
+          return success(undefined);
         };
       });
 
@@ -237,7 +239,7 @@ describe("provider builder", () => {
     const PingPerContext = Ping.provide.perContext().with(
       (_ctx) =>
         function () {
-          return ok("pong");
+          return success("pong");
         }
     );
     expect(PingPerContext.lifetimePolicy).toBe("context");

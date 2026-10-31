@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { adapter } from "@xndrjs/forma";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
-import { err, ok, type Result } from "@xndrjs/forma";
+import { expectedError, success, type InvocationOutcome } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -95,18 +95,24 @@ describe("adapter", () => {
       .using({ select: SelectOrder, cache: CacheGet })
       .with(({ deps: { select, cache } }) => {
         expectTypeOf(select).toEqualTypeOf<
-          (input: OrderId) => Result<Order, FindError> | Promise<Result<Order, FindError>>
+          (
+            input: OrderId
+          ) => InvocationOutcome<Order, FindError> | Promise<InvocationOutcome<Order, FindError>>
         >();
         expectTypeOf(cache).toEqualTypeOf<
-          (input: OrderId) => Result<Order | null, never> | Promise<Result<Order | null, never>>
+          (
+            input: OrderId
+          ) =>
+            | InvocationOutcome<Order | null, never>
+            | Promise<InvocationOutcome<Order | null, never>>
         >();
         return async function (id) {
           const cached = await cache(id);
-          if (!cached.ok) {
-            return err({ kind: "not_found" as const });
+          if (cached.kind !== "success") {
+            return expectedError({ kind: "not_found" as const });
           }
           if (cached.value !== null) {
-            return ok(cached.value);
+            return success(cached.value);
           }
           return select(id);
         };
@@ -127,8 +133,8 @@ describe("adapter", () => {
       (_ctx) =>
         function (id) {
           return id.id === "42"
-            ? ok({ id: "42", total: 100 })
-            : err({ kind: "not_found" as const });
+            ? success({ id: "42", total: 100 })
+            : expectedError({ kind: "not_found" as const });
         }
     );
 
@@ -160,10 +166,10 @@ describe("adapter", () => {
     expect(ctx).not.toHaveProperty("selectOrder");
 
     const hit = await ctx.surface.getOrder({ id: "42" });
-    expect(hit).toEqual({ ok: true, value: { id: "42", total: 100 } });
+    expect(hit).toEqual({ kind: "success", value: { id: "42", total: 100 } });
 
     const miss = await ctx.surface.getOrder({ id: "missing" });
-    expect(miss).toEqual({ ok: false, error: { kind: "not_found" } });
+    expect(miss).toEqual({ kind: "error", error: { kind: "not_found" } });
 
     await expect(ctx.dispose()).resolves.toBeUndefined();
     await expect(root.dispose()).resolves.toBeUndefined();
@@ -185,8 +191,8 @@ describe("adapter", () => {
       (_ctx) =>
         function (input) {
           return input.orderId === "7"
-            ? ok({ order_id: "7", amount_cents: 2500 })
-            : err({ code: "NO_ROW" as const });
+            ? success({ order_id: "7", amount_cents: 2500 })
+            : expectedError({ code: "NO_ROW" as const });
         }
     );
 
@@ -197,10 +203,10 @@ describe("adapter", () => {
         ({ deps: { select } }) =>
           async function (id) {
             const row = await select({ orderId: id.id });
-            if (!row.ok) {
-              return err({ kind: "not_found" as const });
+            if (row.kind !== "success") {
+              return expectedError({ kind: "not_found" as const });
             }
-            return ok({ id: row.value.order_id, total: row.value.amount_cents / 100 });
+            return success({ id: row.value.order_id, total: row.value.amount_cents / 100 });
           }
       );
 
@@ -220,11 +226,11 @@ describe("adapter", () => {
     });
 
     const ctx = root.openExecutionContext();
-    const result: Result<Order, FindError> = await ctx.surface.getOrder({ id: "7" });
-    expect(result).toEqual({ ok: true, value: { id: "7", total: 25 } });
+    const result: InvocationOutcome<Order, FindError> = await ctx.surface.getOrder({ id: "7" });
+    expect(result).toEqual({ kind: "success", value: { id: "7", total: 25 } });
 
-    const miss: Result<Order, FindError> = await ctx.surface.getOrder({ id: "none" });
-    expect(miss).toEqual({ ok: false, error: { kind: "not_found" } });
+    const miss: InvocationOutcome<Order, FindError> = await ctx.surface.getOrder({ id: "none" });
+    expect(miss).toEqual({ kind: "error", error: { kind: "not_found" } });
 
     await ctx.dispose();
     await root.dispose();
@@ -240,7 +246,7 @@ describe("adapter", () => {
     const SelectOrderProvider = SelectOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
 
@@ -292,7 +298,7 @@ describe("adapter", () => {
     const FindOrderProvider = FindOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const FindOrderAdapter = adapter("orders-postgres", Orders)
@@ -300,13 +306,13 @@ describe("adapter", () => {
       .with(
         (_ctx) =>
           function (id) {
-            return ok({ id: id.id, total: 2 });
+            return success({ id: id.id, total: 2 });
           }
       );
     const ReadyProvider = Ready.provide.with(
       (_ctx) =>
         function () {
-          return ok(true as const);
+          return success(true as const);
         }
     );
 

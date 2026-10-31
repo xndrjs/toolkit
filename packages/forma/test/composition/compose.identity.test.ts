@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { adapter } from "@xndrjs/forma";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
-import { ok } from "@xndrjs/forma";
+import { success } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -23,7 +23,7 @@ describe("compose — structured Intent identity (F1)", () => {
     const FindProvider = FindA.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 7 });
+          return success({ id: id.id, total: 7 });
         }
     );
     const GetProvider = GetB.provide.using({ find: FindB }).with(
@@ -40,7 +40,7 @@ describe("compose — structured Intent identity (F1)", () => {
     });
     const ctx = root.openExecutionContext();
     await expect(ctx.surface.getOrder({ id: "1" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { id: "1", total: 7 },
     });
   });
@@ -54,7 +54,7 @@ describe("compose — structured Intent identity (F1)", () => {
     const FindProvider = FindDecl1.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 3 });
+          return success({ id: id.id, total: 3 });
         }
     );
     const GetProvider = GetOrder.provide.using({ find: FindDecl2 }).with(
@@ -71,7 +71,7 @@ describe("compose — structured Intent identity (F1)", () => {
     });
     const ctx = root.openExecutionContext();
     await expect(ctx.surface.getOrder({ id: "x" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { id: "x", total: 3 },
     });
   });
@@ -84,13 +84,13 @@ describe("compose — structured Intent identity (F1)", () => {
     const ProviderA = FindA.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const ProviderB = FindB.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 2 });
+          return success({ id: id.id, total: 2 });
         }
     );
 
@@ -111,13 +111,13 @@ describe("compose — structured Intent identity (F1)", () => {
     const DotProvider = IntentDot.provide.with(
       (_ctx) =>
         function () {
-          return ok("dot" as const);
+          return success("dot" as const);
         }
     );
     const PlainProvider = IntentPlain.provide.with(
       (_ctx) =>
         function () {
-          return ok("plain" as const);
+          return success("plain" as const);
         }
     );
 
@@ -126,8 +126,8 @@ describe("compose — structured Intent identity (F1)", () => {
       surface: { fromDot: DotProvider, fromPlain: PlainProvider },
     });
     const ctx = root.openExecutionContext();
-    await expect(ctx.surface.fromDot()).resolves.toEqual({ ok: true, value: "dot" });
-    await expect(ctx.surface.fromPlain()).resolves.toEqual({ ok: true, value: "plain" });
+    await expect(ctx.surface.fromDot()).resolves.toEqual({ kind: "success", value: "dot" });
+    await expect(ctx.surface.fromPlain()).resolves.toEqual({ kind: "success", value: "plain" });
   });
 
   it("F1.3: type-rejects a missing provider that would alias under dotted concat", () => {
@@ -146,7 +146,7 @@ describe("compose — structured Intent identity (F1)", () => {
     const PlainProvider = IntentPlain.provide.with(
       (_ctx) =>
         function () {
-          return ok(true as const);
+          return success(true as const);
         }
     );
 
@@ -171,7 +171,7 @@ describe("compose — structured Intent identity (F1)", () => {
     const OtherProvider = Other.provide.with(
       (_ctx) =>
         function () {
-          return ok(true as const);
+          return success(true as const);
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -202,7 +202,7 @@ describe("compose — structured Intent identity (F1)", () => {
     const FindProvider = FindB.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 9 });
+          return success({ id: id.id, total: 9 });
         }
     );
     // using FindB (OrdersB) from GetA (OrdersA) — same BoundaryId string.
@@ -220,7 +220,7 @@ describe("compose — structured Intent identity (F1)", () => {
     });
     const ctx = root.openExecutionContext();
     await expect(ctx.surface.getOrder({ id: "2" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { id: "2", total: 9 },
     });
   });
@@ -236,7 +236,7 @@ describe("compose — structured Intent identity (F1)", () => {
     const SelectProvider = Select.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 11 });
+          return success({ id: id.id, total: 11 });
         }
     );
     const FindViaPg = adapter("orders-pg", OrdersA)
@@ -262,7 +262,7 @@ describe("compose — structured Intent identity (F1)", () => {
     });
     const ctx = root.openExecutionContext();
     await expect(ctx.surface.get({ id: "3" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { id: "3", total: 11 },
     });
   });

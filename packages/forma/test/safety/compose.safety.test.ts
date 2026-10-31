@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { aliasIntent, compose } from "@xndrjs/forma";
-import { ok } from "@xndrjs/forma";
+import { success } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -46,7 +46,7 @@ describe("compose — composition safety", () => {
     const OtherProvider = Other.provide.with(
       (_ctx) =>
         function () {
-          return ok(true as const);
+          return success(true as const);
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -75,7 +75,7 @@ describe("compose — composition safety", () => {
     const FindOrderProvider = FindOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -105,7 +105,7 @@ describe("compose — composition safety", () => {
     const SelectOrderProvider = SelectOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -155,7 +155,7 @@ describe("compose — composition safety", () => {
     const ConnProvider = Conn.provide.perContext().with(
       (_ctx) =>
         function () {
-          return ok({ id: 1 });
+          return success({ id: 1 });
         }
     );
     const QueryProvider = Query.provide
@@ -165,10 +165,10 @@ describe("compose — composition safety", () => {
         ({ deps: { conn } }) =>
           async function () {
             const result = await conn();
-            if (!result.ok) {
-              throw new Error("expected ok conn");
+            if (result.kind !== "success") {
+              throw new Error("expected success conn");
             }
-            return ok({ conn: result.value.id });
+            return success({ conn: result.value.id });
           }
       );
 
@@ -188,13 +188,13 @@ describe("compose — composition safety", () => {
     const PingProviderA = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
     const PingProviderB = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
 
@@ -213,19 +213,19 @@ describe("compose — composition safety", () => {
     const PingProviderA = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
     const PingProviderB = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
     const ReadyProvider = Ready.provide.with(
       (_ctx) =>
         function () {
-          return ok(true as const);
+          return success(true as const);
         }
     );
 
@@ -244,7 +244,7 @@ describe("compose — composition safety", () => {
     const PingProvider = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
 
@@ -267,13 +267,13 @@ describe("compose — composition safety", () => {
     const FindOrderProvider = FindOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const SelectOrderProvider = SelectOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 2 });
+          return success({ id: id.id, total: 2 });
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -303,13 +303,13 @@ describe("compose — composition safety", () => {
     const SelectOrderProvider = SelectOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const SelectOrderAltProvider = SelectOrderAlt.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 2 });
+          return success({ id: id.id, total: 2 });
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(

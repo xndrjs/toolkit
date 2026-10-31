@@ -1,6 +1,17 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { boundary, intentIdentity } from "@xndrjs/forma";
-import { err, ok, type Result } from "@xndrjs/forma";
+import {
+  boundary,
+  cancelled,
+  createCancellation,
+  createUnexpectedFailure,
+  expectedError,
+  intentIdentity,
+  isCancellation,
+  isUnexpectedFailure,
+  success,
+  unexpected,
+  type InvocationOutcome,
+} from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -110,27 +121,57 @@ describe("Intent type brands", () => {
   });
 });
 
-describe("Result", () => {
-  it("builds ok / err outcomes", () => {
-    const success: Result<Order, FindError> = ok({ id: "1", total: 10 });
-    const failure: Result<Order, FindError> = err({ kind: "not_found" });
+describe("InvocationOutcome", () => {
+  it("builds success / expectedError outcomes", () => {
+    const okOutcome: InvocationOutcome<Order, FindError> = success({ id: "1", total: 10 });
+    const errorOutcome: InvocationOutcome<Order, FindError> = expectedError({ kind: "not_found" });
 
-    expect(success).toEqual({ ok: true, value: { id: "1", total: 10 } });
-    expect(failure).toEqual({ ok: false, error: { kind: "not_found" } });
+    expect(okOutcome).toEqual({ kind: "success", value: { id: "1", total: 10 } });
+    expect(errorOutcome).toEqual({ kind: "error", error: { kind: "not_found" } });
   });
 
-  it("types ok and err discriminants", () => {
-    const success = ok(42);
-    const failure = err("boom");
+  it("types success and expectedError discriminants", () => {
+    const okOutcome = success(42);
+    const errorOutcome = expectedError("boom");
 
-    expectTypeOf(success).toEqualTypeOf<Result<number, never>>();
-    expectTypeOf(failure).toEqualTypeOf<Result<never, string>>();
+    expectTypeOf(okOutcome).toEqualTypeOf<InvocationOutcome<number, never>>();
+    expectTypeOf(errorOutcome).toEqualTypeOf<InvocationOutcome<never, string>>();
 
-    if (success.ok) {
-      expectTypeOf(success.value).toEqualTypeOf<number>();
+    if (okOutcome.kind === "success") {
+      expectTypeOf(okOutcome.value).toEqualTypeOf<number>();
     }
-    if (!failure.ok) {
-      expectTypeOf(failure.error).toEqualTypeOf<string>();
+    if (errorOutcome.kind === "error") {
+      expectTypeOf(errorOutcome.error).toEqualTypeOf<string>();
+    }
+  });
+
+  it("createUnexpectedFailure yields a branded frozen token with a non-empty id", () => {
+    const failure = createUnexpectedFailure();
+    expect(Object.isFrozen(failure)).toBe(true);
+    expect(typeof failure.id).toBe("string");
+    expect(failure.id.length).toBeGreaterThan(0);
+    expect(isUnexpectedFailure(failure)).toBe(true);
+    expect(isUnexpectedFailure({ id: failure.id })).toBe(false);
+
+    const outcome = unexpected(failure);
+    expect(outcome).toEqual({ kind: "unexpected", failure });
+    expect(outcome.kind).toBe("unexpected");
+    if (outcome.kind === "unexpected") {
+      expect(outcome.failure).toBe(failure);
+    }
+  });
+
+  it("createCancellation yields a branded frozen token for the cancelled branch", () => {
+    const cancellation = createCancellation();
+    expect(Object.isFrozen(cancellation)).toBe(true);
+    expect(isCancellation(cancellation)).toBe(true);
+    expect(isCancellation({})).toBe(false);
+
+    const outcome = cancelled(cancellation);
+    expect(outcome).toEqual({ kind: "cancelled", cancellation });
+    expect(outcome.kind).toBe("cancelled");
+    if (outcome.kind === "cancelled") {
+      expect(outcome.cancellation).toBe(cancellation);
     }
   });
 });

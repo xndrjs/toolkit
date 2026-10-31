@@ -1,9 +1,9 @@
 /**
  * Managed AsyncIterable lifecycle for Stream Intent surface wrappers (ADR 0012).
- * Cold, single-consumer, Err-terminal, disposal error matrix aligned with scope dispose.
+ * Cold, single-consumer, terminal-outcome, disposal error matrix aligned with scope dispose.
  */
+import { isTerminalOutcome, type InvocationOutcome } from "../invocation-outcome.js";
 import { collectThrown, throwAfterCallbackAndCleanup, throwIfDisposerErrors } from "./disposal.js";
-import type { Result } from "../result.js";
 
 export type ManagedAsyncIteratorPhase = "idle" | "starting" | "active" | "closing" | "closed";
 
@@ -50,14 +50,15 @@ export function createManagedAsyncIterable<T>(
 }
 
 /**
- * Same as {@link createManagedAsyncIterable}, but enforces `Result` `err` as terminal:
- * after the first `err` is delivered, the wrapper calls `return()` on the source so later
- * yields are not observable.
+ * Same as {@link createManagedAsyncIterable}, but enforces terminal
+ * {@link InvocationOutcome} kinds (`error` / `unexpected` / `cancelled`): after the first
+ * terminal yield is delivered, the wrapper calls `return()` on the source so later yields
+ * are not observable.
  */
 export function createManagedResultIterable<Item, Err>(
-  start: ManagedAsyncIterableStart<Result<Item, Err>>,
+  start: ManagedAsyncIterableStart<InvocationOutcome<Item, Err>>,
   options: ManagedAsyncIterableOptions = {}
-): ManagedAsyncIterable<Result<Item, Err>> {
+): ManagedAsyncIterable<InvocationOutcome<Item, Err>> {
   return createManaged(start, options, true);
 }
 
@@ -143,7 +144,7 @@ function createManaged<T>(
         return { done: true, value: result.value };
       }
 
-      if (terminalErr && isResultErr(result.value)) {
+      if (terminalErr && isTerminalOutcome(result.value)) {
         beginClose("err-terminal");
         await settleCloseOnly();
         return result;
@@ -319,15 +320,6 @@ function createManaged<T>(
     // throwAfterCallbackAndCleanup always throws when iterationError is set.
     throw iterationError;
   }
-}
-
-function isResultErr(value: unknown): value is Result<never, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "ok" in value &&
-    (value as { ok: unknown }).ok === false
-  );
 }
 
 function isTerminalPhase(phase: ManagedAsyncIteratorPhase): phase is "closing" | "closed" {

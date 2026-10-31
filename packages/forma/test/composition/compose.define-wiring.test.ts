@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { aliasIntent, compose, defineComposition, defineWiring } from "@xndrjs/forma";
 import type { ComposeOptions } from "@xndrjs/forma";
-import { ok } from "@xndrjs/forma";
+import { success } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -17,7 +17,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     const FindOrderProvider = FindOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -44,7 +44,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     const FindOrderProvider = FindOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -71,7 +71,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     const FindOrderProvider = FindOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -100,7 +100,7 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     const SelectOrderProvider = SelectOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -128,13 +128,13 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     const FindOrderProvider = FindOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const OtherProvider = Other.provide.with(
       (_ctx) =>
         function () {
-          return ok(true as const);
+          return success(true as const);
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -163,13 +163,13 @@ describe("compose — defineWiring / defineComposition (F6; extraction only)", (
     const PingProvider = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
     const PongProvider = Pong.provide.with(
       (_ctx) =>
         function () {
-          return ok("ping" as const);
+          return success("ping" as const);
         }
     );
 

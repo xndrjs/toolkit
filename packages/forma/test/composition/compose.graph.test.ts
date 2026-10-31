@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { aliasIntent, compose } from "@xndrjs/forma";
-import { ok } from "@xndrjs/forma";
+import { success } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -98,7 +98,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     const LeafProvider = Leaf.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
 
@@ -123,7 +123,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     const SelectProvider = SelectOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 9 });
+          return success({ id: id.id, total: 9 });
         }
     );
     const GetProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -140,7 +140,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     });
     const ctx = root.openExecutionContext();
     await expect(ctx.surface.getOrder({ id: "1" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { id: "1", total: 9 },
     });
   });
@@ -153,7 +153,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     const FindProvider = Find.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 4 });
+          return success({ id: id.id, total: 4 });
         }
     );
     const GetProvider = Get.provide.using({ find: Find }).with(
@@ -170,7 +170,7 @@ describe("compose — graph plan and cycle detection (F2)", () => {
     });
     const ctx = root.openExecutionContext();
     await expect(ctx.surface.getOrder({ id: "x" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { id: "x", total: 4 },
     });
   });

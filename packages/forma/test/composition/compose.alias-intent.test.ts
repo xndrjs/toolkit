@@ -1,5 +1,12 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { aliasIntent, boundary, compose, ok, type IntentAlias, type Provider } from "@xndrjs/forma";
+import {
+  aliasIntent,
+  boundary,
+  compose,
+  success,
+  type IntentAlias,
+  type Provider,
+} from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -56,7 +63,7 @@ describe("aliasIntent — contract compatibility", () => {
     const SelectOrderProvider = SelectOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return ok({ id: id.id, total: 1 });
+          return success({ id: id.id, total: 1 });
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -74,7 +81,7 @@ describe("aliasIntent — contract compatibility", () => {
 
     const ctx = root.openExecutionContext();
     await expect(ctx.surface.getOrder({ id: "1" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { id: "1", total: 1 },
     });
 

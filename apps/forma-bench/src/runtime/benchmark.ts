@@ -47,7 +47,7 @@ async function runCold(config: RuntimeBenchConfig): Promise<ScenarioMeasurement>
     for (let index = 0; index < config.iterations; index += 1) {
       await graph.root.withExecutionContext(async (surface) => {
         const result = await surface.run(index);
-        if (!result.ok) throw new Error("Unexpected Err in cold benchmark.");
+        if (result.kind !== "success") throw new Error("Unexpected Err in cold benchmark.");
         assertValue(result.value, expectedUnaryValue(config.shape, index));
       });
     }
@@ -63,12 +63,13 @@ async function runHot(config: RuntimeBenchConfig): Promise<ScenarioMeasurement> 
   const context = graph.root.openExecutionContext();
   try {
     const materialized = await context.surface.run(0);
-    if (!materialized.ok) throw new Error("Unexpected Err while materializing hot graph.");
+    if (materialized.kind !== "success")
+      throw new Error("Unexpected Err while materializing hot graph.");
 
     const startedAt = performance.now();
     for (let index = 0; index < config.iterations; index += 1) {
       const result = await context.surface.run(index);
-      if (!result.ok) throw new Error("Unexpected Err in hot benchmark.");
+      if (result.kind !== "success") throw new Error("Unexpected Err in hot benchmark.");
       assertValue(result.value, expectedUnaryValue(config.shape, index));
     }
     return { durationMs: performance.now() - startedAt, operations: config.iterations };
@@ -90,7 +91,9 @@ async function runConcurrent(config: RuntimeBenchConfig): Promise<ScenarioMeasur
         );
         for (let index = 0; index < results.length; index += 1) {
           const result = results[index];
-          if (!result?.ok) throw new Error("Unexpected Err in concurrent benchmark.");
+          if (result?.kind !== "success") {
+            throw new Error("Unexpected Err in concurrent benchmark.");
+          }
           assertValue(result.value, expectedUnaryValue(config.shape, index));
         }
       });
@@ -113,7 +116,7 @@ async function runStream(config: RuntimeBenchConfig): Promise<ScenarioMeasuremen
       await graph.root.withExecutionContext(async (surface) => {
         let itemCount = 0;
         for await (const result of surface.run(iteration)) {
-          if (!result.ok) throw new Error("Unexpected Err in stream benchmark.");
+          if (result.kind !== "success") throw new Error("Unexpected Err in stream benchmark.");
           assertValue(result.value, expectedUnaryValue(config.shape, iteration + itemCount));
           itemCount += 1;
         }

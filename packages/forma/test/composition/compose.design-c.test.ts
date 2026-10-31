@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
-import { ok, type Result } from "@xndrjs/forma";
+import { success, type InvocationOutcome } from "@xndrjs/forma";
 
 describe("compose — Design C execution API", () => {
   function pingRoot() {
@@ -10,7 +10,7 @@ describe("compose — Design C execution API", () => {
     const PingProvider = Ping.provide.with(
       (_ctx) =>
         function () {
-          return ok("pong" as const);
+          return success("pong" as const);
         }
     );
     return compose({
@@ -22,11 +22,13 @@ describe("compose — Design C execution API", () => {
   it("withExecutionContext: success + success returns callback value", async () => {
     const root = pingRoot();
     const result = await root.withExecutionContext(async (surface) => {
-      expectTypeOf(surface.ping).toEqualTypeOf<(input: void) => Promise<Result<"pong", never>>>();
+      expectTypeOf(surface.ping).toEqualTypeOf<
+        (input: void) => Promise<InvocationOutcome<"pong", never>>
+      >();
       expect(surface).not.toHaveProperty("dispose");
       return surface.ping();
     });
-    expect(result).toEqual({ ok: true, value: "pong" });
+    expect(result).toEqual({ kind: "success", value: "pong" });
     await root.dispose();
   });
 
@@ -47,7 +49,7 @@ describe("compose — Design C execution API", () => {
       lifetime.onDispose(() => {
         throw new Error("cleanup failed");
       });
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
     const root = compose({
       entryBoundaries: [Health],
@@ -57,7 +59,7 @@ describe("compose — Design C execution API", () => {
     await expect(
       root.withExecutionContext(async (surface) => {
         await surface.ping();
-        return "ok";
+        return "success";
       })
     ).rejects.toThrow(/cleanup failed/);
 
@@ -71,7 +73,7 @@ describe("compose — Design C execution API", () => {
       lifetime.onDispose(() => {
         throw new Error("cleanup failed");
       });
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
     const root = compose({
       entryBoundaries: [Health],
@@ -117,7 +119,7 @@ describe("compose — Design C execution API", () => {
       lifetime.onDispose(() => {
         cleaned = true;
       });
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
     const root = compose({
       entryBoundaries: [Health],
@@ -156,7 +158,7 @@ describe("compose — Design C execution API", () => {
       return async () => {
         sawOp();
         await hold;
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
     const root = compose({
@@ -164,7 +166,7 @@ describe("compose — Design C execution API", () => {
       surface: { ping: PingProvider },
     });
 
-    let pending!: Promise<Result<"pong", never>>;
+    let pending!: Promise<InvocationOutcome<"pong", never>>;
     const withDone = root.withExecutionContext(async (surface) => {
       pending = surface.ping();
       // Stay in the callback until the op body is running so dispose drains
@@ -178,7 +180,7 @@ describe("compose — Design C execution API", () => {
     release();
 
     await expect(withDone).resolves.toBe("returned");
-    await expect(pending).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(pending).resolves.toEqual({ kind: "success", value: "pong" });
     expect(cleaned).toBe(true);
 
     await root.dispose();
@@ -186,7 +188,7 @@ describe("compose — Design C execution API", () => {
 
   it("escaped surface use after withExecutionContext throws", async () => {
     const root = pingRoot();
-    let leaked!: (input: void) => Promise<Result<"pong", never>>;
+    let leaked!: (input: void) => Promise<InvocationOutcome<"pong", never>>;
 
     await root.withExecutionContext((surface) => {
       leaked = surface.ping;
@@ -204,7 +206,7 @@ describe("compose — Design C execution API", () => {
       lifetime.onDispose(() => {
         cleaned = true;
       });
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
     const root = compose({
       entryBoundaries: [Health],
@@ -214,7 +216,7 @@ describe("compose — Design C execution API", () => {
     {
       await using execution = root.openExecutionContext();
       const result = await execution.surface.ping();
-      expect(result).toEqual({ ok: true, value: "pong" });
+      expect(result).toEqual({ kind: "success", value: "pong" });
     }
 
     expect(cleaned).toBe(true);
@@ -229,7 +231,7 @@ describe("compose — Design C execution API", () => {
       lifetime.onDispose(() => {
         cleaned = true;
       });
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     {
@@ -265,7 +267,7 @@ describe("compose — Design C execution API", () => {
       return async () => {
         sawOp();
         await hold;
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
     const root = compose({
@@ -281,7 +283,7 @@ describe("compose — Design C execution API", () => {
 
     // In-flight surface work drains; context cleanup runs via root backstop;
     // withExecutionContext's trailing dispose shares the same settled promise.
-    await expect(running).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(running).resolves.toEqual({ kind: "success", value: "pong" });
     await expect(rootDisposing).resolves.toBeUndefined();
     expect(cleaned).toBe(true);
   });

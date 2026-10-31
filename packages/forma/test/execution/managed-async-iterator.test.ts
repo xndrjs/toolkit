@@ -3,7 +3,7 @@ import {
   createManagedAsyncIterable,
   createManagedResultIterable,
 } from "../../src/execution/managed-async-iterator.js";
-import { err, ok } from "../../src/result.js";
+import { expectedError, success } from "../../src/invocation-outcome.js";
 
 /** Cooperative hang: async generators only reach `finally` after the current await settles. */
 function abortableHang(signal: AbortSignal): Promise<never> {
@@ -263,13 +263,13 @@ describe("ManagedAsyncIterator", () => {
   });
 
   describe("Err terminal enforcement", () => {
-    it("delivers err once and suppresses subsequent yields", async () => {
+    it("delivers expectedError once and suppresses subsequent yields", async () => {
       let yieldedAfterErr = false;
       const stream = createManagedResultIterable(async function* () {
-        yield ok(1);
-        yield err("boom");
+        yield success(1);
+        yield expectedError("boom");
         yieldedAfterErr = true;
-        yield ok(2);
+        yield success(2);
       });
 
       const values = [];
@@ -277,15 +277,15 @@ describe("ManagedAsyncIterator", () => {
         values.push(value);
       }
 
-      expect(values).toEqual([ok(1), err("boom")]);
+      expect(values).toEqual([success(1), expectedError("boom")]);
       expect(yieldedAfterErr).toBe(false);
       expect(stream.phase).toBe("closed");
     });
 
-    it("does not enforce terminal err on the generic wrapper", async () => {
+    it("does not enforce terminal expectedError on the generic wrapper", async () => {
       const stream = createManagedAsyncIterable(async function* () {
-        yield err("a");
-        yield ok(1);
+        yield expectedError("a");
+        yield success(1);
       });
 
       const values = [];
@@ -293,7 +293,7 @@ describe("ManagedAsyncIterator", () => {
         values.push(value);
       }
 
-      expect(values).toEqual([err("a"), ok(1)]);
+      expect(values).toEqual([expectedError("a"), success(1)]);
     });
   });
 

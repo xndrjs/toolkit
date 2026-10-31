@@ -53,5 +53,20 @@ export type {
   ProviderBuilder,
 } from "./provider/provider-builder.types.js";
 
-export { err, ok } from "./result.js";
-export type { Result } from "./result.js";
+export {
+  cancelled,
+  createCancellation,
+  createUnexpectedFailure,
+  expectedError,
+  isCancellation,
+  isTerminalOutcome,
+  isUnexpectedFailure,
+  success,
+  unexpected,
+} from "./invocation-outcome.js";
+export type {
+  Cancellation,
+  FailureId,
+  InvocationOutcome,
+  UnexpectedFailure,
+} from "./invocation-outcome.js";

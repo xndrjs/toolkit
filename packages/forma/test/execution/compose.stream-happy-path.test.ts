@@ -1,5 +1,11 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
-import { boundary, compose, ok, type Result, type StreamSurfaceIterable } from "@xndrjs/forma";
+import {
+  boundary,
+  compose,
+  success,
+  type InvocationOutcome,
+  type StreamSurfaceIterable,
+} from "@xndrjs/forma";
 
 type WatchInput = { readonly customerId: string };
 type OrderEvent = { readonly orderId: string; readonly status: string };
@@ -29,7 +35,7 @@ describe("compose — Stream Intent happy path", () => {
     const WatchProvider = WatchOrders.provide.with(
       () =>
         async function* (input, _invocation) {
-          yield ok({ orderId: input.customerId, status: "open" });
+          yield success({ orderId: input.customerId, status: "open" });
         }
     );
 
@@ -46,11 +52,11 @@ describe("compose — Stream Intent happy path", () => {
       (input: WatchInput) => StreamSurfaceIterable<OrderEvent, WatchError>
     >();
 
-    const events: Result<OrderEvent, WatchError>[] = [];
+    const events: InvocationOutcome<OrderEvent, WatchError>[] = [];
     for await (const event of stream) {
       events.push(event);
     }
-    expect(events).toEqual([{ ok: true, value: { orderId: "c1", status: "open" } }]);
+    expect(events).toEqual([{ kind: "success", value: { orderId: "c1", status: "open" } }]);
   });
 
   it("does not materialize the Provider until the first next()", async () => {
@@ -59,7 +65,7 @@ describe("compose — Stream Intent happy path", () => {
     const factory = vi.fn(
       () =>
         async function* (_input: void, _invocation: { readonly signal: AbortSignal }) {
-          yield ok({ orderId: "1", status: "open" });
+          yield success({ orderId: "1", status: "open" });
         }
     );
     const WatchProvider = WatchOrders.provide.with(factory);
@@ -76,14 +82,14 @@ describe("compose — Stream Intent happy path", () => {
     const iterator = stream[Symbol.asyncIterator]();
     await expect(iterator.next()).resolves.toEqual({
       done: false,
-      value: { ok: true, value: { orderId: "1", status: "open" } },
+      value: { kind: "success", value: { orderId: "1", status: "open" } },
     });
     expect(factory).toHaveBeenCalledTimes(1);
 
     await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
   });
 
-  it("yields multiple ok items then completes and releases the lease", async () => {
+  it("yields multiple success items then completes and releases the lease", async () => {
     const Orders = boundary("orders");
     const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
     let disposed = false;
@@ -94,8 +100,8 @@ describe("compose — Stream Intent happy path", () => {
       return async function* (_input, invocation) {
         expect(invocation.signal).toBeInstanceOf(AbortSignal);
         expect(invocation.signal.aborted).toBe(false);
-        yield ok({ orderId: "1", status: "open" });
-        yield ok({ orderId: "2", status: "paid" });
+        yield success({ orderId: "1", status: "open" });
+        yield success({ orderId: "2", status: "paid" });
       };
     });
 
@@ -107,7 +113,7 @@ describe("compose — Stream Intent happy path", () => {
 
     const events: OrderEvent[] = [];
     for await (const event of ctx.surface.watchOrders()) {
-      if (event.ok) {
+      if (event.kind === "success") {
         events.push(event.value);
       }
     }
@@ -131,7 +137,7 @@ describe("compose — Stream Intent happy path", () => {
     const WatchProvider = WatchOrders.provide.with(
       () =>
         async function* (input) {
-          yield ok({ orderId: input.tag, status: "open" });
+          yield success({ orderId: input.tag, status: "open" });
         }
     );
 
@@ -146,8 +152,8 @@ describe("compose — Stream Intent happy path", () => {
 
     const firstA = await a[Symbol.asyncIterator]().next();
     const firstB = await b[Symbol.asyncIterator]().next();
-    expect(firstA.value).toEqual({ ok: true, value: { orderId: "a", status: "open" } });
-    expect(firstB.value).toEqual({ ok: true, value: { orderId: "b", status: "open" } });
+    expect(firstA.value).toEqual({ kind: "success", value: { orderId: "a", status: "open" } });
+    expect(firstB.value).toEqual({ kind: "success", value: { orderId: "b", status: "open" } });
   });
 
   it("rejects a second iteration of the same stream value", async () => {
@@ -156,7 +162,7 @@ describe("compose — Stream Intent happy path", () => {
     const WatchProvider = WatchOrders.provide.with(
       () =>
         async function* () {
-          yield ok({ orderId: "1", status: "open" });
+          yield success({ orderId: "1", status: "open" });
         }
     );
 
@@ -179,7 +185,7 @@ describe("compose — Stream Intent happy path", () => {
       () =>
         async function* (_input, invocation) {
           seenSignal = invocation.signal;
-          yield ok({ orderId: "1", status: "open" });
+          yield success({ orderId: "1", status: "open" });
         }
     );
 
@@ -211,13 +217,13 @@ describe("compose — Stream Intent happy path", () => {
     const FindProvider = FindOrder.provide.with(
       () =>
         function (input) {
-          return ok({ orderId: input.id, status: "found" });
+          return success({ orderId: input.id, status: "found" });
         }
     );
     const WatchProvider = WatchOrders.provide.with(
       () =>
         async function* () {
-          yield ok({ orderId: "w", status: "open" });
+          yield success({ orderId: "w", status: "open" });
         }
     );
 
@@ -228,18 +234,18 @@ describe("compose — Stream Intent happy path", () => {
     await using ctx = root.openExecutionContext();
 
     expectTypeOf(ctx.surface.findOrder).toEqualTypeOf<
-      (input: { readonly id: string }) => Promise<Result<OrderEvent, WatchError>>
+      (input: { readonly id: string }) => Promise<InvocationOutcome<OrderEvent, WatchError>>
     >();
     await expect(ctx.surface.findOrder({ id: "x" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: { orderId: "x", status: "found" },
     });
 
-    const events: Result<OrderEvent, WatchError>[] = [];
+    const events: InvocationOutcome<OrderEvent, WatchError>[] = [];
     for await (const event of ctx.surface.watchOrders()) {
       events.push(event);
     }
-    expect(events).toEqual([{ ok: true, value: { orderId: "w", status: "open" } }]);
+    expect(events).toEqual([{ kind: "success", value: { orderId: "w", status: "open" } }]);
   });
 
   it("materializes a stream Provider only once across multiple next() calls", async () => {
@@ -248,8 +254,8 @@ describe("compose — Stream Intent happy path", () => {
     const factory = vi.fn(
       () =>
         async function* () {
-          yield ok({ orderId: "1", status: "open" });
-          yield ok({ orderId: "2", status: "paid" });
+          yield success({ orderId: "1", status: "open" });
+          yield success({ orderId: "2", status: "paid" });
         }
     );
     const WatchProvider = WatchOrders.provide.with(factory);
@@ -262,7 +268,7 @@ describe("compose — Stream Intent happy path", () => {
 
     const events: OrderEvent[] = [];
     for await (const event of ctx.surface.watchOrders()) {
-      if (event.ok) {
+      if (event.kind === "success") {
         events.push(event.value);
       }
     }

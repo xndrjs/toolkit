@@ -1,4 +1,4 @@
-import { boundary, compose, ok, type Result } from "@xndrjs/forma";
+import { boundary, compose, success, type InvocationOutcome } from "@xndrjs/forma";
 
 import type {
   DynamicCompositionRoot,
@@ -47,14 +47,14 @@ function registerMaterialization(
   });
 }
 
-function successfulValue(result: Result<number, never>): number {
-  if (!result.ok) {
+function successfulValue(result: InvocationOutcome<number, never>): number {
+  if (result.kind !== "success") {
     throw new Error("A never-error benchmark operation returned Err.");
   }
   return result.value;
 }
 
-type DynamicUnaryOperation = (input: number) => Promise<Result<number, never>>;
+type DynamicUnaryOperation = (input: number) => Promise<InvocationOutcome<number, never>>;
 
 type DynamicProviderBuilder = {
   using(deps: Readonly<Record<string, unknown>>): {
@@ -95,7 +95,7 @@ function createUnaryParts(shape: GraphShape, counters: ProviderCounters) {
       registerMaterialization(counters, lifetime);
       return async (input) => {
         counters.calls += 1;
-        return ok(input + 1);
+        return success(input + 1);
       };
     })
   );
@@ -123,7 +123,7 @@ function createUnaryParts(shape: GraphShape, counters: ProviderCounters) {
           const results = await Promise.all(
             Object.values(deps).map((operation) => operation(input))
           );
-          return ok(results.reduce((total, result) => total + successfulValue(result), 0));
+          return success(results.reduce((total, result) => total + successfulValue(result), 0));
         };
       });
     });
@@ -192,7 +192,7 @@ export function createStreamGraph(
             invocation.signal.throwIfAborted();
             counters.calls += 1;
             const previous = await deps.previous(input + index);
-            yield ok(successfulValue(previous));
+            yield success(successfulValue(previous));
           }
         } finally {
           counters.streamsClosed += 1;

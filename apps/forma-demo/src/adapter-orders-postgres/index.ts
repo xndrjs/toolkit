@@ -1,4 +1,4 @@
-import { adapter, err, ok } from "@xndrjs/forma";
+import { adapter, expectedError, success } from "@xndrjs/forma";
 import { FindOrder, Orders, WatchOrderEvents } from "../core-orders/index";
 import { SelectOrder } from "../infrastructure-postgres/index";
 
@@ -17,10 +17,10 @@ export const FindOrderViaPostgresProvider = OrdersPostgres.adapt(FindOrder)
     ({ deps: { select } }) =>
       async function (id) {
         const row = await select({ order_id: id.id });
-        if (!row.ok) {
-          return err({ kind: "not_found" as const });
+        if (row.kind !== "success") {
+          return expectedError({ kind: "not_found" as const });
         }
-        return ok({
+        return success({
           id: row.value.order_id,
           total: row.value.amount_cents / 100,
         });
@@ -37,15 +37,15 @@ export const WatchOrderEventsViaPostgresProvider = OrdersPostgres.adapt(WatchOrd
     ({ deps: { select } }) =>
       async function* (id, invocation) {
         const row = await select({ order_id: id.id });
-        if (!row.ok) {
-          yield err({ kind: "not_found" as const });
+        if (row.kind !== "success") {
+          yield expectedError({ kind: "not_found" as const });
           return;
         }
 
         try {
           for (const status of STATUSES) {
             invocation.signal.throwIfAborted();
-            yield ok({ orderId: row.value.order_id, status });
+            yield success({ orderId: row.value.order_id, status });
           }
         } finally {
           console.log(`watchOrders(${id.id}) closed (postgres)`);

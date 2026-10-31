@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
-import { ok, type Result } from "@xndrjs/forma";
+import { success, type InvocationOutcome } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -16,7 +16,7 @@ describe("compose — implicit using graph", () => {
     const FindOrderProvider = FindOrder.provide.with(
       (_ctx) =>
         function (id) {
-          return id.id === "1" ? ok({ id: "1", total: 42 }) : ok({ id: id.id, total: 0 });
+          return id.id === "1" ? success({ id: "1", total: 42 }) : success({ id: id.id, total: 0 });
         }
     );
 
@@ -39,11 +39,11 @@ describe("compose — implicit using graph", () => {
     expect(ctx).not.toHaveProperty("findOrder");
     expectTypeOf(ctx).not.toHaveProperty("findOrder");
     expectTypeOf(ctx.surface.getOrder).toEqualTypeOf<
-      (input: OrderId) => Promise<Result<Order, FindError>>
+      (input: OrderId) => Promise<InvocationOutcome<Order, FindError>>
     >();
 
     const result = await ctx.surface.getOrder({ id: "1" });
-    expect(result).toEqual({ ok: true, value: { id: "1", total: 42 } });
+    expect(result).toEqual({ kind: "success", value: { id: "1", total: 42 } });
 
     await expect(ctx.dispose()).resolves.toBeUndefined();
   });

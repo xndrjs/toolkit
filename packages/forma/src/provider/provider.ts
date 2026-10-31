@@ -1,6 +1,6 @@
 import type { Intent, IntentModality } from "../boundary.js";
+import type { InvocationOutcome } from "../invocation-outcome.js";
 import { defineRuntimeBrand, readRuntimeBrand } from "../protocol/runtime-brand.js";
-import type { Result } from "../result.js";
 
 declare const formaProviderTypeBrand: unique symbol;
 
@@ -9,7 +9,7 @@ const FORMA_PROVIDER_RUNTIME = Symbol.for("@xndrjs/forma/provider-runtime/v1");
 /** Operation that fulfills a unary Intent contract. */
 export type IntentOperation<Input, Success, Err> = (
   input: Input
-) => Result<Success, Err> | Promise<Result<Success, Err>>;
+) => InvocationOutcome<Success, Err> | Promise<InvocationOutcome<Success, Err>>;
 
 /**
  * Per stream-invocation bag passed as the second argument to a {@link StreamOperation}.
@@ -21,12 +21,13 @@ export type StreamInvocation = {
 
 /**
  * Operation that fulfills a stream Intent contract: returns a cold AsyncIterable of
- * `Result` events (`err` is terminal; enforced by the surface wrapper).
+ * {@link InvocationOutcome} events (`error` / `unexpected` / `cancelled` are terminal;
+ * enforced by the surface wrapper).
  */
 export type StreamOperation<Input, Item, Err> = (
   input: Input,
   invocation: StreamInvocation
-) => AsyncIterable<Result<Item, Err>>;
+) => AsyncIterable<InvocationOutcome<Item, Err>>;
 
 /** Operation shape selected by Contract modality. */
 export type OperationFor<Mode extends IntentModality, Input, Success, Err> = Mode extends "stream"

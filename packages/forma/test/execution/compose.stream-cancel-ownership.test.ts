@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { boundary, compose, ok } from "@xndrjs/forma";
+import { boundary, compose, success } from "@xndrjs/forma";
 
 type OrderEvent = { readonly orderId: string; readonly status: string };
 type WatchError = { readonly kind: "unavailable" };
@@ -30,8 +30,8 @@ describe("compose — Stream Intent cancellation and ownership", () => {
       () =>
         async function* () {
           try {
-            yield ok({ orderId: "1", status: "open" });
-            yield ok({ orderId: "2", status: "paid" });
+            yield success({ orderId: "1", status: "open" });
+            yield success({ orderId: "2", status: "paid" });
           } finally {
             finalized = true;
           }
@@ -46,7 +46,7 @@ describe("compose — Stream Intent cancellation and ownership", () => {
 
     const seen: OrderEvent[] = [];
     for await (const event of ctx.surface.watchOrders()) {
-      if (event.ok) {
+      if (event.kind === "success") {
         seen.push(event.value);
       }
       break;
@@ -66,8 +66,8 @@ describe("compose — Stream Intent cancellation and ownership", () => {
       () =>
         async function* () {
           try {
-            yield ok({ orderId: "1", status: "open" });
-            yield ok({ orderId: "2", status: "paid" });
+            yield success({ orderId: "1", status: "open" });
+            yield success({ orderId: "2", status: "paid" });
           } finally {
             finalized = true;
           }
@@ -99,8 +99,8 @@ describe("compose — Stream Intent cancellation and ownership", () => {
       () =>
         async function* () {
           try {
-            yield ok({ orderId: "1", status: "open" });
-            yield ok({ orderId: "2", status: "paid" });
+            yield success({ orderId: "1", status: "open" });
+            yield success({ orderId: "2", status: "paid" });
           } finally {
             finalizeCount += 1;
           }
@@ -141,9 +141,9 @@ describe("compose — Stream Intent cancellation and ownership", () => {
             { once: true }
           );
           try {
-            yield ok({ orderId: "1", status: "open" });
+            yield success({ orderId: "1", status: "open" });
             await abortableHang(invocation.signal);
-            yield ok({ orderId: "2", status: "paid" });
+            yield success({ orderId: "2", status: "paid" });
           } finally {
             finalized = true;
           }
@@ -159,7 +159,7 @@ describe("compose — Stream Intent cancellation and ownership", () => {
     const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
     await expect(iterator.next()).resolves.toMatchObject({
       done: false,
-      value: { ok: true, value: { orderId: "1", status: "open" } },
+      value: { kind: "success", value: { orderId: "1", status: "open" } },
     });
 
     // Blocked on the next hang; dispose must abort + return, not wait forever.
@@ -186,7 +186,7 @@ describe("compose — Stream Intent cancellation and ownership", () => {
       });
       return async function* (_input, invocation) {
         try {
-          yield ok({ orderId: "1", status: "open" });
+          yield success({ orderId: "1", status: "open" });
           await abortableHang(invocation.signal);
         } finally {
           order.push("stream");
@@ -229,7 +229,7 @@ describe("compose — Stream Intent cancellation and ownership", () => {
             { once: true }
           );
           try {
-            yield ok({ orderId: "1", status: "open" });
+            yield success({ orderId: "1", status: "open" });
             await abortableHang(invocation.signal);
           } finally {
             finalized = true;
@@ -274,8 +274,8 @@ describe("compose — Stream Intent cancellation and ownership", () => {
     const WatchProvider = WatchOrders.provide.with(
       () =>
         async function* (input) {
-          yield ok({ orderId: input.tag, status: "open" });
-          yield ok({ orderId: input.tag, status: "still-open" });
+          yield success({ orderId: input.tag, status: "open" });
+          yield success({ orderId: input.tag, status: "still-open" });
         }
     );
 
@@ -291,17 +291,17 @@ describe("compose — Stream Intent cancellation and ownership", () => {
     const iterB = streamB[Symbol.asyncIterator]();
 
     await expect(iterA.next()).resolves.toMatchObject({
-      value: { ok: true, value: { orderId: "a", status: "open" } },
+      value: { kind: "success", value: { orderId: "a", status: "open" } },
     });
     await expect(iterB.next()).resolves.toMatchObject({
-      value: { ok: true, value: { orderId: "b", status: "open" } },
+      value: { kind: "success", value: { orderId: "b", status: "open" } },
     });
 
     await streamA[Symbol.asyncDispose]();
 
     expect(ctx.signal.aborted).toBe(false);
     await expect(iterB.next()).resolves.toMatchObject({
-      value: { ok: true, value: { orderId: "b", status: "still-open" } },
+      value: { kind: "success", value: { orderId: "b", status: "still-open" } },
     });
     await expect(iterB.next()).resolves.toMatchObject({ done: true });
 
@@ -326,7 +326,7 @@ describe("compose — Stream Intent cancellation and ownership", () => {
       return async function* (_input, invocation) {
         invocationSignal = invocation.signal;
         try {
-          yield ok({ orderId: "1", status: "open" });
+          yield success({ orderId: "1", status: "open" });
           await abortableHang(invocation.signal);
         } finally {
           streamFinalized = true;
@@ -377,8 +377,8 @@ describe("compose — Stream Intent cancellation and ownership", () => {
         /* context-owned */
       });
       return async function* () {
-        yield ok({ orderId: "1", status: "open" });
-        yield ok({ orderId: "2", status: "paid" });
+        yield success({ orderId: "1", status: "open" });
+        yield success({ orderId: "2", status: "paid" });
       };
     });
 

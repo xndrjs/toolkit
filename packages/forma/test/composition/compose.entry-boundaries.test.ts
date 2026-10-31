@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { adapter, boundary, compose, ok } from "@xndrjs/forma";
+import { adapter, boundary, compose, success } from "@xndrjs/forma";
 
 describe("compose — Entry Boundaries", () => {
   it("accepts the exact set represented by Surface roots and describes it", () => {
@@ -7,8 +7,8 @@ describe("compose — Entry Boundaries", () => {
     const Billing = boundary("billing");
     const GetOrder = Orders.intent("get").contract<void, "order", never>();
     const GetInvoice = Billing.intent("getInvoice").contract<void, "invoice", never>();
-    const GetOrderProvider = GetOrder.provide.with(() => () => ok("order" as const));
-    const GetInvoiceProvider = GetInvoice.provide.with(() => () => ok("invoice" as const));
+    const GetOrderProvider = GetOrder.provide.with(() => () => success("order" as const));
+    const GetInvoiceProvider = GetInvoice.provide.with(() => () => success("invoice" as const));
 
     expectTypeOf(GetOrderProvider.origin).toEqualTypeOf<{
       readonly kind: "boundary";
@@ -44,7 +44,7 @@ describe("compose — Entry Boundaries", () => {
   it("rejects a structurally fabricated Entry Boundary", () => {
     const Orders = boundary("orders");
     const GetOrder = Orders.intent("get").contract<void, "order", never>();
-    const GetOrderProvider = GetOrder.provide.with(() => () => ok("order" as const));
+    const GetOrderProvider = GetOrder.provide.with(() => () => success("order" as const));
     const fake = {
       id: "orders",
       intent: Orders.intent,
@@ -73,7 +73,7 @@ describe("compose — Entry Boundaries", () => {
     const FindOrder = Orders.intent("find").contract<void, "order", never>();
     const FindViaAdapter = adapter("orders-memory", Orders)
       .adapt(FindOrder)
-      .with(() => () => ok("order" as const));
+      .with(() => () => success("order" as const));
 
     expectTypeOf(FindViaAdapter.origin).toEqualTypeOf<{
       readonly kind: "adapter";
@@ -93,7 +93,7 @@ describe("compose — Entry Boundaries", () => {
     const Orders = boundary("orders");
     const Billing = boundary("billing");
     const GetInvoice = Billing.intent("getInvoice").contract<void, "invoice", never>();
-    const GetInvoiceProvider = GetInvoice.provide.with(() => () => ok("invoice" as const));
+    const GetInvoiceProvider = GetInvoice.provide.with(() => () => success("invoice" as const));
 
     expect(() =>
       // @ts-expect-error — billing is not a declared Entry Boundary
@@ -108,7 +108,7 @@ describe("compose — Entry Boundaries", () => {
     const Orders = boundary("orders");
     const Billing = boundary("billing");
     const GetOrder = Orders.intent("get").contract<void, "order", never>();
-    const GetOrderProvider = GetOrder.provide.with(() => () => ok("order" as const));
+    const GetOrderProvider = GetOrder.provide.with(() => () => success("order" as const));
 
     expect(() =>
       // @ts-expect-error — billing has no Surface root
@@ -123,7 +123,7 @@ describe("compose — Entry Boundaries", () => {
     const OrdersA = boundary("orders");
     const OrdersB = boundary("orders");
     const GetOrder = OrdersA.intent("get").contract<void, "order", never>();
-    const GetOrderProvider = GetOrder.provide.with(() => () => ok("order" as const));
+    const GetOrderProvider = GetOrder.provide.with(() => () => success("order" as const));
 
     expect(() =>
       // @ts-expect-error — duplicate Entry Boundary id: orders

@@ -4,9 +4,9 @@ import {
   aliasIntent,
   boundary,
   compose,
-  ok,
+  success,
   type IntentAlias,
-  type Result,
+  type InvocationOutcome,
   type StreamInvocation,
   type StreamOperation,
   type StreamSurfaceIterable,
@@ -35,7 +35,7 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
     const SourceProvider = SourceEvents.provide.with(
       () =>
         async function* (input, _invocation) {
-          yield ok({ orderId: input.customerId, status: "open" });
+          yield success({ orderId: input.customerId, status: "open" });
         }
     );
 
@@ -65,11 +65,11 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
     const stream = ctx.surface.watchOrders({ customerId: "c1" });
     expectTypeOf(stream).toEqualTypeOf<StreamSurfaceIterable<OrderEvent, WatchError>>();
 
-    const events: Result<OrderEvent, WatchError>[] = [];
+    const events: InvocationOutcome<OrderEvent, WatchError>[] = [];
     for await (const event of stream) {
       events.push(event);
     }
-    expect(events).toEqual([{ ok: true, value: { orderId: "c1", status: "open" } }]);
+    expect(events).toEqual([{ kind: "success", value: { orderId: "c1", status: "open" } }]);
   });
 
   it("Adapter.adapt of a unary Intent stays unary", () => {
@@ -80,7 +80,7 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
       .adapt(FindOrder)
       .with(() => (input) => {
         expectTypeOf(input).toEqualTypeOf<WatchInput>();
-        return ok({ orderId: input.customerId, status: "open" });
+        return success({ orderId: input.customerId, status: "open" });
       });
 
     expect(FindViaAdapter.intent.modality).toBe("unary");
@@ -133,8 +133,8 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
       () =>
         async function* (input, invocation: StreamInvocation) {
           expect(invocation.signal).toBeInstanceOf(AbortSignal);
-          yield ok({ orderId: input.customerId, status: "open" });
-          yield ok({ orderId: input.customerId, status: "paid" });
+          yield success({ orderId: input.customerId, status: "open" });
+          yield success({ orderId: input.customerId, status: "paid" });
         }
     );
 
@@ -154,7 +154,7 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
 
     const events: OrderEvent[] = [];
     for await (const event of ctx.surface.relayOrders({ customerId: "c9" })) {
-      if (event.ok) {
+      if (event.kind === "success") {
         events.push(event.value);
       }
     }
@@ -171,12 +171,12 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
     const RelayOrders = Orders.stream("relayOrders").contract<WatchInput, OrderEvent, WatchError>();
 
     const FindProvider = FindOrder.provide.with(
-      () => (input) => ok({ orderId: input.customerId, status: "open" })
+      () => (input) => success({ orderId: input.customerId, status: "open" })
     );
     const WatchProvider = WatchOrders.provide.with(
       () =>
         async function* (input) {
-          yield ok({ orderId: input.customerId, status: "open" });
+          yield success({ orderId: input.customerId, status: "open" });
         }
     );
     const RelayProvider = RelayOrders.provide.using({ watch: WatchOrders }).with(
@@ -220,7 +220,7 @@ describe("compose — Adapter / alias / using + describePlan mode", () => {
 
     const FindViaMemory = adapter("orders-memory", Orders)
       .adapt(FindOrder)
-      .with(() => () => ok("order" as const));
+      .with(() => () => success("order" as const));
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
       ({ deps: { find } }) =>
         () =>

@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { aliasIntent } from "@xndrjs/forma";
 import { boundary } from "@xndrjs/forma";
 import { compose, type CompositionRoot } from "@xndrjs/forma";
-import { ok } from "@xndrjs/forma";
+import { success } from "@xndrjs/forma";
 
 describe("compose — effective lifetime plan", () => {
   it("narrows auto consumers transitively and owns their cleanup in the context", async () => {
@@ -19,7 +19,7 @@ describe("compose — effective lifetime plan", () => {
       lifetime.onDispose(() => {
         cleanups.push(`c:${instance}`);
       });
-      return () => ok(instance);
+      return () => success(instance);
     });
     const BProvider = B.provide.using({ c: C }).with(({ deps: { c }, lifetime }) => {
       const instance = ++setups.b;
@@ -78,13 +78,13 @@ describe("compose — effective lifetime plan", () => {
     ]);
 
     const first = root.openExecutionContext();
-    await expect(first.surface.a()).resolves.toEqual({ ok: true, value: 1 });
-    await expect(first.surface.a()).resolves.toEqual({ ok: true, value: 1 });
+    await expect(first.surface.a()).resolves.toEqual({ kind: "success", value: 1 });
+    await expect(first.surface.a()).resolves.toEqual({ kind: "success", value: 1 });
     await first.dispose();
     expect(cleanups).toEqual(["a:1", "b:1", "c:1"]);
 
     const second = root.openExecutionContext();
-    await expect(second.surface.a()).resolves.toEqual({ ok: true, value: 2 });
+    await expect(second.surface.a()).resolves.toEqual({ kind: "success", value: 2 });
     await second.dispose();
     expect(setups).toEqual({ a: 2, b: 2, c: 2 });
     expect(cleanups).toEqual(["a:1", "b:1", "c:1", "a:2", "b:2", "c:2"]);
@@ -93,11 +93,13 @@ describe("compose — effective lifetime plan", () => {
 
   it("rejects a transitive .perComposition() conflict at compose with its path", () => {
     const App = boundary("app");
-    const Shared = App.intent("shared").contract<void, "ok", never>();
-    const Middle = App.intent("middle").contract<void, "ok", never>();
-    const Scoped = App.intent("scoped").contract<void, "ok", never>();
+    const Shared = App.intent("shared").contract<void, "success", never>();
+    const Middle = App.intent("middle").contract<void, "success", never>();
+    const Scoped = App.intent("scoped").contract<void, "success", never>();
 
-    const ScopedProvider = Scoped.provide.perContext().with(() => () => ok("ok" as const));
+    const ScopedProvider = Scoped.provide
+      .perContext()
+      .with(() => () => success("success" as const));
     const MiddleProvider = Middle.provide.using({ scoped: Scoped }).with(
       ({ deps: { scoped } }) =>
         () =>
@@ -131,7 +133,7 @@ describe("compose — effective lifetime plan", () => {
     let setups = 0;
     const ActualProvider = Actual.provide.perContext().with(() => {
       const instance = ++setups;
-      return () => ok(`instance:${instance}`);
+      return () => success(`instance:${instance}`);
     });
     const ReadProvider = Read.provide.using({ required: Required }).with(
       ({ deps: { required } }) =>
@@ -177,7 +179,7 @@ describe("compose — effective lifetime plan", () => {
       .perContext<Params>()
       .with(({ params, lifetime }) => {
         connectionSignal = lifetime.signal;
-        return () => ok(params.tenantId);
+        return () => success(params.tenantId);
       });
     const QueryProvider = Query.provide.using({ connection: Connection }).with((ctx) => {
       expect("params" in ctx).toBe(false);
@@ -193,7 +195,7 @@ describe("compose — effective lifetime plan", () => {
     expectTypeOf(root).toEqualTypeOf<CompositionRoot<{ query: typeof QueryProvider }, Params>>();
 
     const execution = root.openExecutionContext({ params: { tenantId: "acme" } });
-    await expect(execution.surface.query()).resolves.toEqual({ ok: true, value: "acme" });
+    await expect(execution.surface.query()).resolves.toEqual({ kind: "success", value: "acme" });
     expect(querySignal).toBe(execution.signal);
     expect(connectionSignal).toBe(execution.signal);
     await execution.dispose();

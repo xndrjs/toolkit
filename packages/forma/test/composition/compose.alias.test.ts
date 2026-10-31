@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { adapter } from "@xndrjs/forma";
 import { boundary } from "@xndrjs/forma";
 import { aliasIntent, compose } from "@xndrjs/forma";
-import { err, ok, type Result } from "@xndrjs/forma";
+import { expectedError, success, type InvocationOutcome } from "@xndrjs/forma";
 
 /** Orders-owned contract types (duplicated per boundary — not shared with Postgres). */
 type OrderId = { readonly id: string };
@@ -28,8 +28,8 @@ describe("compose — explicit cross-boundary intent alias", () => {
       (_ctx) =>
         function (id) {
           return id.id === "42"
-            ? ok({ id: "42", total: 100 })
-            : err({ kind: "not_found" as const });
+            ? success({ id: "42", total: 100 })
+            : expectedError({ kind: "not_found" as const });
         }
     );
 
@@ -53,10 +53,10 @@ describe("compose — explicit cross-boundary intent alias", () => {
     expectTypeOf(ctx).not.toHaveProperty("selectOrder");
 
     const hit = await ctx.surface.getOrder({ id: "42" });
-    expect(hit).toEqual({ ok: true, value: { id: "42", total: 100 } });
+    expect(hit).toEqual({ kind: "success", value: { id: "42", total: 100 } });
 
     const miss = await ctx.surface.getOrder({ id: "missing" });
-    expect(miss).toEqual({ ok: false, error: { kind: "not_found" } });
+    expect(miss).toEqual({ kind: "error", error: { kind: "not_found" } });
 
     await expect(ctx.dispose()).resolves.toBeUndefined();
   });
@@ -78,8 +78,8 @@ describe("compose — explicit cross-boundary intent alias", () => {
       (_ctx) =>
         function (input) {
           return input.orderId === "7"
-            ? ok({ order_id: "7", amount_cents: 2500 })
-            : err({ code: "NO_ROW" as const });
+            ? success({ order_id: "7", amount_cents: 2500 })
+            : expectedError({ code: "NO_ROW" as const });
         }
     );
 
@@ -90,10 +90,10 @@ describe("compose — explicit cross-boundary intent alias", () => {
         ({ deps: { select } }) =>
           async function (id) {
             const row = await select({ orderId: id.id });
-            if (!row.ok) {
-              return err({ kind: "not_found" as const });
+            if (row.kind !== "success") {
+              return expectedError({ kind: "not_found" as const });
             }
-            return ok({ id: row.value.order_id, total: row.value.amount_cents / 100 });
+            return success({ id: row.value.order_id, total: row.value.amount_cents / 100 });
           }
       );
 
@@ -113,9 +113,9 @@ describe("compose — explicit cross-boundary intent alias", () => {
 
     const ctx = root.openExecutionContext();
     const result = await ctx.surface.getOrder({ id: "7" });
-    expect(result).toEqual({ ok: true, value: { id: "7", total: 25 } });
+    expect(result).toEqual({ kind: "success", value: { id: "7", total: 25 } });
 
-    const miss: Result<Order, FindError> = await ctx.surface.getOrder({ id: "none" });
-    expect(miss).toEqual({ ok: false, error: { kind: "not_found" } });
+    const miss: InvocationOutcome<Order, FindError> = await ctx.surface.getOrder({ id: "none" });
+    expect(miss).toEqual({ kind: "error", error: { kind: "not_found" } });
   });
 });

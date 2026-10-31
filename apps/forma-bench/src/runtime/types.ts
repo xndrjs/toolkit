@@ -1,4 +1,4 @@
-import type { Result, StreamSurfaceIterable } from "@xndrjs/forma";
+import type { InvocationOutcome, StreamSurfaceIterable } from "@xndrjs/forma";
 
 export type RuntimeScenario = "compose" | "cold" | "hot" | "concurrent" | "stream";
 
@@ -16,7 +16,7 @@ export type ProviderCounters = {
 };
 
 export type UnarySurface = {
-  readonly run: (input: number) => Promise<Result<number, never>>;
+  readonly run: (input: number) => Promise<InvocationOutcome<number, never>>;
 };
 
 export type StreamSurface = {

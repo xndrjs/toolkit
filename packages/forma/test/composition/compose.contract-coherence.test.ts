@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boundary, compose, ok } from "@xndrjs/forma";
+import { boundary, compose, success } from "@xndrjs/forma";
 
 type Input = { readonly id: string };
 type AlternateInput = { readonly id: number };
@@ -14,7 +14,7 @@ describe("compose — Contract coherence", () => {
     const Realized = OrdersB.intent("same").contract<Input, string, FirstError>();
     const Entry = OrdersA.intent("entry").contract<Input, string, FirstError>();
 
-    const RealizedProvider = Realized.provide.with(() => (input) => ok(input.id));
+    const RealizedProvider = Realized.provide.with(() => (input) => success(input.id));
     const EntryProvider = Entry.provide.using({ same: Required }).with(
       ({ deps: { same } }) =>
         (input) =>
@@ -29,39 +29,45 @@ describe("compose — Contract coherence", () => {
     await using execution = root.openExecutionContext();
 
     await expect(execution.surface.entry({ id: "42" })).resolves.toEqual({
-      ok: true,
+      kind: "success",
       value: "42",
     });
   });
 
   it("type-rejects every non-equivalent Contract dimension on a resolved using edge", () => {
     const Orders = boundary("orders");
-    const Entry = Orders.intent("entry").contract<void, "ok", never>();
+    const Entry = Orders.intent("entry").contract<void, "success", never>();
 
     const RequiredInput = Orders.intent("input").contract<Input, string, FirstError>();
     const RealizedInput = Orders.intent("input").contract<AlternateInput, string, FirstError>();
-    const InputConsumer = Entry.provide.using({ dep: RequiredInput }).with(() => () => ok("ok"));
-    const InputProvider = RealizedInput.provide.with(() => (input) => ok(String(input.id)));
+    const InputConsumer = Entry.provide
+      .using({ dep: RequiredInput })
+      .with(() => () => success("success"));
+    const InputProvider = RealizedInput.provide.with(() => (input) => success(String(input.id)));
 
     const RequiredSuccess = Orders.intent("success").contract<Input, string, FirstError>();
     const RealizedSuccess = Orders.intent("success").contract<Input, number, FirstError>();
     const SuccessConsumer = Entry.provide
       .using({ dep: RequiredSuccess })
-      .with(() => () => ok("ok"));
-    const SuccessProvider = RealizedSuccess.provide.with(() => () => ok(1));
+      .with(() => () => success("success"));
+    const SuccessProvider = RealizedSuccess.provide.with(() => () => success(1));
 
     const RequiredError = Orders.intent("error").contract<Input, string, FirstError>();
     const RealizedError = Orders.intent("error").contract<Input, string, SecondError>();
-    const ErrorConsumer = Entry.provide.using({ dep: RequiredError }).with(() => () => ok("ok"));
-    const ErrorProvider = RealizedError.provide.with(() => () => ok("value"));
+    const ErrorConsumer = Entry.provide
+      .using({ dep: RequiredError })
+      .with(() => () => success("success"));
+    const ErrorProvider = RealizedError.provide.with(() => () => success("value"));
 
     const RequiredMode = Orders.intent("mode").contract<Input, string, FirstError>();
     const RealizedMode = Orders.stream("mode").contract<Input, string, FirstError>();
-    const ModeConsumer = Entry.provide.using({ dep: RequiredMode }).with(() => () => ok("ok"));
+    const ModeConsumer = Entry.provide
+      .using({ dep: RequiredMode })
+      .with(() => () => success("success"));
     const ModeProvider = RealizedMode.provide.with(
       () =>
         async function* () {
-          yield ok("value");
+          yield success("value");
         }
     );
 
@@ -72,7 +78,7 @@ describe("compose — Contract coherence", () => {
         surface: { entry: InputConsumer },
         wiring: [InputProvider],
       });
-      // @ts-expect-error — incompatible Success Contract for orders.success required by orders.entry
+      // @ts-expect-error — incompatible Success Contract for orders.kind === "success" required by orders.entry
       compose({
         entryBoundaries: [Orders],
         surface: { entry: SuccessConsumer },
@@ -98,12 +104,14 @@ describe("compose — Contract coherence", () => {
     const Orders = boundary("orders");
     const Required = Orders.intent("same").contract<Input, string, FirstError>();
     const Realized = Orders.stream("same").contract<Input, string, FirstError>();
-    const Entry = Orders.intent("entry").contract<void, "ok", never>();
-    const EntryProvider = Entry.provide.using({ same: Required }).with(() => () => ok("ok"));
+    const Entry = Orders.intent("entry").contract<void, "success", never>();
+    const EntryProvider = Entry.provide
+      .using({ same: Required })
+      .with(() => () => success("success"));
     const StreamProvider = Realized.provide.with(
       () =>
         async function* () {
-          yield ok("value");
+          yield success("value");
         }
     );
 

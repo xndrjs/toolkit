@@ -146,7 +146,7 @@ export async function runLoadTest(config: LoadConfig): Promise<LoadResult> {
     unaryContexts += 1;
     await unaryGraph.root.withExecutionContext(async (surface) => {
       const result = await surface.run(input);
-      if (!result.ok || result.value !== expectedUnaryValue(config.shape, input)) {
+      if (result.kind !== "success" || result.value !== expectedUnaryValue(config.shape, input)) {
         throw new Error("Load-test unary request returned an unexpected result.");
       }
       recordActivePeak();
@@ -159,7 +159,10 @@ export async function runLoadTest(config: LoadConfig): Promise<LoadResult> {
     await streamGraph.root.withExecutionContext(async (surface) => {
       let itemCount = 0;
       for await (const result of surface.run(input)) {
-        if (!result.ok || result.value !== expectedUnaryValue(config.shape, input + itemCount)) {
+        if (
+          result.kind !== "success" ||
+          result.value !== expectedUnaryValue(config.shape, input + itemCount)
+        ) {
           throw new Error("Load-test stream returned an unexpected result.");
         }
         itemCount += 1;

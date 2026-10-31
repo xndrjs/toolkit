@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
-import { ok } from "@xndrjs/forma";
+import { success } from "@xndrjs/forma";
 
 describe("compose — lifecycle and disposal", () => {
   it("reuses a default (composition-lifetime) instance across two execution contexts", async () => {
@@ -13,7 +13,7 @@ describe("compose — lifecycle and disposal", () => {
       setups += 1;
       const instance = { n: setups };
       return function () {
-        return ok(instance);
+        return success(instance);
       };
     });
 
@@ -26,10 +26,10 @@ describe("compose — lifecycle and disposal", () => {
 
     const a = await ctx1.surface.ping();
     const b = await ctx2.surface.ping();
-    expect(a).toEqual({ ok: true, value: { n: 1 } });
-    expect(b).toEqual({ ok: true, value: { n: 1 } });
-    if (!a.ok || !b.ok) {
-      throw new Error("expected ok results");
+    expect(a).toEqual({ kind: "success", value: { n: 1 } });
+    expect(b).toEqual({ kind: "success", value: { n: 1 } });
+    if (a.kind !== "success" || b.kind !== "success") {
+      throw new Error("expected success results");
     }
     expect(a.value).toBe(b.value);
     expect(setups).toBe(1);
@@ -48,7 +48,7 @@ describe("compose — lifecycle and disposal", () => {
       setups += 1;
       const instance = { n: setups };
       return function () {
-        return ok(instance);
+        return success(instance);
       };
     });
 
@@ -64,13 +64,13 @@ describe("compose — lifecycle and disposal", () => {
     const b1 = await ctx2.surface.ping();
 
     expect(setups).toBe(2);
-    if (!a1.ok || !a2.ok || !b1.ok) {
-      throw new Error("expected ok results");
+    if (a1.kind !== "success" || a2.kind !== "success" || b1.kind !== "success") {
+      throw new Error("expected success results");
     }
     expect(a1.value).toBe(a2.value);
     expect(a1.value).not.toBe(b1.value);
-    expect(a1).toEqual({ ok: true, value: { n: 1 } });
-    expect(b1).toEqual({ ok: true, value: { n: 2 } });
+    expect(a1).toEqual({ kind: "success", value: { n: 1 } });
+    expect(b1).toEqual({ kind: "success", value: { n: 2 } });
 
     await ctx1.dispose();
     await ctx2.dispose();
@@ -85,7 +85,7 @@ describe("compose — lifecycle and disposal", () => {
     const PingProvider = Ping.provide.with(() => {
       factoryRuns += 1;
       return function () {
-        return ok("pong");
+        return success("pong");
       };
     });
 
@@ -96,8 +96,8 @@ describe("compose — lifecycle and disposal", () => {
     const ctx = root.openExecutionContext();
 
     const [r1, r2] = await Promise.all([ctx.surface.ping(), ctx.surface.ping()]);
-    expect(r1).toEqual({ ok: true, value: "pong" });
-    expect(r2).toEqual({ ok: true, value: "pong" });
+    expect(r1).toEqual({ kind: "success", value: "pong" });
+    expect(r2).toEqual({ kind: "success", value: "pong" });
     expect(factoryRuns).toBe(1);
 
     await ctx.dispose();
@@ -114,7 +114,7 @@ describe("compose — lifecycle and disposal", () => {
         stub.disposed = true;
       });
       return function () {
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
 
@@ -143,7 +143,7 @@ describe("compose — lifecycle and disposal", () => {
         stub.disposed = true;
       });
       return function () {
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
 
@@ -171,17 +171,17 @@ describe("compose — lifecycle and disposal", () => {
       connSetups += 1;
       const instance = { id: connSetups };
       return function () {
-        return ok(instance);
+        return success(instance);
       };
     });
 
     const QueryProvider = Query.provide.using({ conn: Conn }).with(({ deps: { conn } }) => {
       return async function () {
         const result = await conn();
-        if (!result.ok) {
-          throw new Error("expected ok conn");
+        if (result.kind !== "success") {
+          throw new Error("expected success conn");
         }
-        return ok({ conn: result.value.id });
+        return success({ conn: result.value.id });
       };
     });
 
@@ -191,12 +191,12 @@ describe("compose — lifecycle and disposal", () => {
       wiring: [ConnProvider],
     });
     const first = root.openExecutionContext();
-    await expect(first.surface.query()).resolves.toEqual({ ok: true, value: { conn: 1 } });
-    await expect(first.surface.query()).resolves.toEqual({ ok: true, value: { conn: 1 } });
+    await expect(first.surface.query()).resolves.toEqual({ kind: "success", value: { conn: 1 } });
+    await expect(first.surface.query()).resolves.toEqual({ kind: "success", value: { conn: 1 } });
     await first.dispose();
 
     const second = root.openExecutionContext();
-    await expect(second.surface.query()).resolves.toEqual({ ok: true, value: { conn: 2 } });
+    await expect(second.surface.query()).resolves.toEqual({ kind: "success", value: { conn: 2 } });
     await second.dispose();
 
     expect(root.describePlan().providers).toEqual([
@@ -231,7 +231,7 @@ describe("compose — lifecycle and disposal", () => {
     const PingProvider = Ping.provide.perContext().with((_ctx) => {
       setups += 1;
       return function () {
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
 
@@ -241,7 +241,7 @@ describe("compose — lifecycle and disposal", () => {
     });
     const ctx = root.openExecutionContext();
 
-    await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(ctx.surface.ping()).resolves.toEqual({ kind: "success", value: "pong" });
     expect(setups).toBe(1);
 
     await ctx.dispose();
@@ -267,7 +267,7 @@ describe("compose — lifecycle and disposal", () => {
         throw new Error("earlier cleanup failed");
       });
       return function () {
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
 
@@ -297,7 +297,7 @@ describe("compose — lifecycle and disposal", () => {
         compositionStub.disposed = true;
       });
       return function () {
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
 
@@ -306,7 +306,7 @@ describe("compose — lifecycle and disposal", () => {
         contextStub.disposed = true;
       });
       return function () {
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
 
@@ -330,7 +330,7 @@ describe("compose — lifecycle and disposal", () => {
   it("openExecutionContext() throws after root.dispose()", async () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
-    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+    const PingProvider = Ping.provide.with(() => () => success("pong" as const));
 
     const root = compose({
       entryBoundaries: [Health],
@@ -345,14 +345,14 @@ describe("compose — lifecycle and disposal", () => {
   it("surface use after root.dispose() throws", async () => {
     const Health = boundary("health");
     const Ping = Health.intent("ping").contract<void, "pong", never>();
-    const PingProvider = Ping.provide.with(() => () => ok("pong" as const));
+    const PingProvider = Ping.provide.with(() => () => success("pong" as const));
 
     const root = compose({
       entryBoundaries: [Health],
       surface: { ping: PingProvider },
     });
     const ctx = root.openExecutionContext();
-    await expect(ctx.surface.ping()).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(ctx.surface.ping()).resolves.toEqual({ kind: "success", value: "pong" });
 
     await root.dispose();
 
@@ -369,7 +369,7 @@ describe("compose — lifecycle and disposal", () => {
     });
     const PingProvider = Ping.provide.perContext().with(({ lifetime }) => {
       lifetime.onDispose(() => hold);
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -399,7 +399,7 @@ describe("compose — lifecycle and disposal", () => {
     });
     const PingProvider = Ping.provide.with(({ lifetime }) => {
       lifetime.onDispose(() => hold);
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -427,7 +427,7 @@ describe("compose — lifecycle and disposal", () => {
       lifetime.onDispose(() => {
         throw new Error("composition cleanup failed");
       });
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -451,7 +451,7 @@ describe("compose — lifecycle and disposal", () => {
       lifetime.onDispose(() => {
         stub.disposed = true;
       });
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -487,7 +487,7 @@ describe("compose — lifecycle and disposal", () => {
       return async () => {
         sawOp();
         await hold;
-        return ok("pong" as const);
+        return success("pong" as const);
       };
     });
 
@@ -503,7 +503,7 @@ describe("compose — lifecycle and disposal", () => {
     expect(cleaned).toBe(false);
 
     release();
-    await expect(pending).resolves.toEqual({ ok: true, value: "pong" });
+    await expect(pending).resolves.toEqual({ kind: "success", value: "pong" });
     await expect(disposing).resolves.toBeUndefined();
     expect(cleaned).toBe(true);
 
@@ -530,7 +530,7 @@ describe("compose — lifecycle and disposal", () => {
       });
       sawFactory();
       await factoryHold;
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -559,7 +559,7 @@ describe("compose — lifecycle and disposal", () => {
     let stolenLifetime: { onDispose(cleanup: () => void): void } | undefined;
     const PingProvider = Ping.provide.perContext().with(({ lifetime }) => {
       stolenLifetime = lifetime;
-      return () => ok("pong" as const);
+      return () => success("pong" as const);
     });
 
     const root = compose({
@@ -592,7 +592,7 @@ describe("compose — lifecycle and disposal", () => {
       await factoryHold;
       setups += 1;
       const instance = { n: setups };
-      return () => ok(instance);
+      return () => success(instance);
     });
 
     const root = compose({
@@ -607,14 +607,14 @@ describe("compose — lifecycle and disposal", () => {
     const disposing = ctx1.dispose();
     releaseFactory();
 
-    await expect(first).resolves.toEqual({ ok: true, value: { n: 1 } });
+    await expect(first).resolves.toEqual({ kind: "success", value: { n: 1 } });
     await expect(disposing).resolves.toBeUndefined();
     expect(setups).toBe(1);
 
     const second = await ctx2.surface.ping();
-    expect(second).toEqual({ ok: true, value: { n: 1 } });
-    if (!second.ok) {
-      throw new Error("expected ok");
+    expect(second).toEqual({ kind: "success", value: { n: 1 } });
+    if (second.kind !== "success") {
+      throw new Error("expected success");
     }
     expect(second.value).toEqual({ n: 1 });
     expect(setups).toBe(1);

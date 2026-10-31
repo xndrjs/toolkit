@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { boundary, compose, err, ok } from "@xndrjs/forma";
+import { boundary, compose, expectedError, success } from "@xndrjs/forma";
 
 type OrderEvent = { readonly orderId: string; readonly status: string };
 type WatchError = { readonly kind: "unavailable" };
@@ -23,17 +23,17 @@ function abortableHang(signal: AbortSignal): Promise<never> {
 
 describe("compose — Stream Intent errors and races", () => {
   describe("Err terminal enforcement", () => {
-    it("emits err once and terminates (wrapper enforce)", async () => {
+    it("emits expectedError once and terminates (wrapper enforce)", async () => {
       let yieldedAfterErr = false;
       const Orders = boundary("orders");
       const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
       const WatchProvider = WatchOrders.provide.with(
         () =>
           async function* () {
-            yield ok({ orderId: "1", status: "open" });
-            yield err({ kind: "unavailable" });
+            yield success({ orderId: "1", status: "open" });
+            yield expectedError({ kind: "unavailable" });
             yieldedAfterErr = true;
-            yield ok({ orderId: "2", status: "paid" });
+            yield success({ orderId: "2", status: "paid" });
           }
       );
 
@@ -49,8 +49,8 @@ describe("compose — Stream Intent errors and races", () => {
       }
 
       expect(values).toEqual([
-        { ok: true, value: { orderId: "1", status: "open" } },
-        { ok: false, error: { kind: "unavailable" } },
+        { kind: "success", value: { orderId: "1", status: "open" } },
+        { kind: "error", error: { kind: "unavailable" } },
       ]);
       expect(yieldedAfterErr).toBe(false);
 
@@ -58,14 +58,14 @@ describe("compose — Stream Intent errors and races", () => {
       await root.dispose();
     });
 
-    it("suppresses yields after err so they are not observable", async () => {
+    it("suppresses yields after expectedError so they are not observable", async () => {
       const Orders = boundary("orders");
       const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
       const WatchProvider = WatchOrders.provide.with(
         () =>
           async function* () {
-            yield err({ kind: "unavailable" });
-            yield ok({ orderId: "ghost", status: "should-not-appear" });
+            yield expectedError({ kind: "unavailable" });
+            yield success({ orderId: "ghost", status: "should-not-appear" });
           }
       );
 
@@ -78,7 +78,7 @@ describe("compose — Stream Intent errors and races", () => {
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
       await expect(iterator.next()).resolves.toEqual({
         done: false,
-        value: { ok: false, error: { kind: "unavailable" } },
+        value: { kind: "error", error: { kind: "unavailable" } },
       });
       await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
     });
@@ -96,7 +96,7 @@ describe("compose — Stream Intent errors and races", () => {
         return async function* () {
           try {
             throw new Error("boom before yield");
-            yield ok({ orderId: "1", status: "open" });
+            yield success({ orderId: "1", status: "open" });
           } finally {
             finalized = true;
           }
@@ -126,7 +126,7 @@ describe("compose — Stream Intent errors and races", () => {
         () =>
           async function* () {
             try {
-              yield ok({ orderId: "1", status: "open" });
+              yield success({ orderId: "1", status: "open" });
               throw new Error("boom after yield");
             } finally {
               finalized = true;
@@ -143,7 +143,7 @@ describe("compose — Stream Intent errors and races", () => {
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
       await expect(iterator.next()).resolves.toMatchObject({
         done: false,
-        value: { ok: true, value: { orderId: "1", status: "open" } },
+        value: { kind: "success", value: { orderId: "1", status: "open" } },
       });
       await expect(iterator.next()).rejects.toThrow(/boom after yield/);
       expect(finalized).toBe(true);
@@ -166,7 +166,7 @@ describe("compose — Stream Intent errors and races", () => {
                 yielded = true;
                 return {
                   done: false as const,
-                  value: ok({ orderId: "1", status: "open" }),
+                  value: success({ orderId: "1", status: "open" }),
                 };
               }
               return { done: true as const, value: undefined };
@@ -203,7 +203,7 @@ describe("compose — Stream Intent errors and races", () => {
               if (step++ === 0) {
                 return {
                   done: false as const,
-                  value: ok({ orderId: "1", status: "open" }),
+                  value: success({ orderId: "1", status: "open" }),
                 };
               }
               throw new Error("iteration failed");
@@ -249,7 +249,7 @@ describe("compose — Stream Intent errors and races", () => {
           throw new Error("materialize failed");
         }
         return async function* () {
-          yield ok({ orderId: "recovered", status: "open" });
+          yield success({ orderId: "recovered", status: "open" });
         };
       });
 
@@ -268,7 +268,7 @@ describe("compose — Stream Intent errors and races", () => {
       const ctx2 = root.openExecutionContext();
       const events: OrderEvent[] = [];
       for await (const event of ctx2.surface.watchOrders()) {
-        if (event.ok) {
+        if (event.kind === "success") {
           events.push(event.value);
         }
       }
@@ -289,7 +289,7 @@ describe("compose — Stream Intent errors and races", () => {
           throw new Error("setup boom");
         }
         return async function* () {
-          yield ok({ orderId: "ok", status: "open" });
+          yield success({ orderId: "success", status: "open" });
         };
       });
 
@@ -307,7 +307,7 @@ describe("compose — Stream Intent errors and races", () => {
       for await (const value of ctx.surface.watchOrders()) {
         values.push(value);
       }
-      expect(values).toEqual([{ ok: true, value: { orderId: "ok", status: "open" } }]);
+      expect(values).toEqual([{ kind: "success", value: { orderId: "success", status: "open" } }]);
       expect(attempts).toBe(2);
     });
   });
@@ -328,7 +328,7 @@ describe("compose — Stream Intent errors and races", () => {
         await gate;
         return async function* (_input, invocation) {
           try {
-            yield ok({ orderId: "1", status: "open" });
+            yield success({ orderId: "1", status: "open" });
             await abortableHang(invocation.signal);
           } finally {
             finalizeCount += 1;
@@ -344,8 +344,8 @@ describe("compose — Stream Intent errors and races", () => {
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
       const nextPromise = iterator.next().then(
-        (result) => ({ ok: true as const, result }),
-        (error: unknown) => ({ ok: false as const, error })
+        (result) => ({ success: true as const, result }),
+        (error: unknown) => ({ success: false as const, error })
       );
 
       await vi.waitFor(() => expect(factoryEntered).toBe(true));
@@ -369,9 +369,9 @@ describe("compose — Stream Intent errors and races", () => {
         () =>
           async function* (_input, invocation) {
             try {
-              yield ok({ orderId: "1", status: "open" });
+              yield success({ orderId: "1", status: "open" });
               await abortableHang(invocation.signal);
-              yield ok({ orderId: "2", status: "paid" });
+              yield success({ orderId: "2", status: "paid" });
             } finally {
               finalizeCount += 1;
             }
@@ -406,7 +406,7 @@ describe("compose — Stream Intent errors and races", () => {
         () =>
           async function* () {
             try {
-              yield ok({ orderId: "1", status: "open" });
+              yield success({ orderId: "1", status: "open" });
             } finally {
               finalizeCount += 1;
             }
@@ -423,13 +423,13 @@ describe("compose — Stream Intent errors and races", () => {
       // Ensure the stream is active (lease held) before racing completion with dispose.
       await expect(iterator.next()).resolves.toMatchObject({
         done: false,
-        value: { ok: true, value: { orderId: "1", status: "open" } },
+        value: { kind: "success", value: { orderId: "1", status: "open" } },
       });
 
       // Race: natural completion of the generator vs context dispose.
       const completion = iterator.next().then(
-        (result) => ({ ok: true as const, result }),
-        (error: unknown) => ({ ok: false as const, error })
+        (result) => ({ success: true as const, result }),
+        (error: unknown) => ({ success: false as const, error })
       );
       const [, disposeResult] = await Promise.all([completion, ctx.dispose()]);
       expect(disposeResult).toBeUndefined();
@@ -446,8 +446,8 @@ describe("compose — Stream Intent errors and races", () => {
         () =>
           async function* () {
             try {
-              yield ok({ orderId: "1", status: "open" });
-              yield ok({ orderId: "2", status: "paid" });
+              yield success({ orderId: "1", status: "open" });
+              yield success({ orderId: "2", status: "paid" });
             } finally {
               finalizeCount += 1;
             }
@@ -480,11 +480,11 @@ describe("compose — Stream Intent errors and races", () => {
       const WatchProvider = WatchOrders.provide.with(
         () =>
           async function* (input) {
-            yield ok({ orderId: input.tag, status: "open" });
+            yield success({ orderId: input.tag, status: "open" });
             if (input.tag === "bad") {
               throw new Error("bad stream");
             }
-            yield ok({ orderId: input.tag, status: "paid" });
+            yield success({ orderId: input.tag, status: "paid" });
           }
       );
 
@@ -498,16 +498,16 @@ describe("compose — Stream Intent errors and races", () => {
       const good = ctx.surface.watchOrders({ tag: "good" })[Symbol.asyncIterator]();
 
       await expect(bad.next()).resolves.toMatchObject({
-        value: { ok: true, value: { orderId: "bad", status: "open" } },
+        value: { kind: "success", value: { orderId: "bad", status: "open" } },
       });
       await expect(good.next()).resolves.toMatchObject({
-        value: { ok: true, value: { orderId: "good", status: "open" } },
+        value: { kind: "success", value: { orderId: "good", status: "open" } },
       });
 
       await expect(bad.next()).rejects.toThrow(/bad stream/);
 
       await expect(good.next()).resolves.toMatchObject({
-        value: { ok: true, value: { orderId: "good", status: "paid" } },
+        value: { kind: "success", value: { orderId: "good", status: "paid" } },
       });
       await expect(good.next()).resolves.toMatchObject({ done: true });
     });
@@ -529,14 +529,14 @@ describe("compose — Stream Intent errors and races", () => {
           async function () {
             await holdUnary;
             unaryDone = true;
-            return ok({ orderId: "u", status: "found" });
+            return success({ orderId: "u", status: "found" });
           }
       );
       const WatchProvider = WatchOrders.provide.with(
         () =>
           async function* (_input, invocation) {
             try {
-              yield ok({ orderId: "s", status: "open" });
+              yield success({ orderId: "s", status: "open" });
               await abortableHang(invocation.signal);
             } finally {
               streamFinalized = true;
@@ -565,7 +565,7 @@ describe("compose — Stream Intent errors and races", () => {
 
       await expect(disposePromise).resolves.toBeUndefined();
       await expect(unaryPromise).resolves.toEqual({
-        ok: true,
+        kind: "success",
         value: { orderId: "u", status: "found" },
       });
       expect(unaryDone).toBe(true);
@@ -586,7 +586,7 @@ describe("compose — Stream Intent errors and races", () => {
         materializations += 1;
         return async function* () {
           starts += 1;
-          yield ok({ orderId: "1", status: "open" });
+          yield success({ orderId: "1", status: "open" });
         };
       });
       const root = compose({
@@ -622,7 +622,7 @@ describe("compose — Stream Intent errors and races", () => {
               async next() {
                 return {
                   done: false as const,
-                  value: ok({ orderId: "1", status: "open" }),
+                  value: success({ orderId: "1", status: "open" }),
                 };
               },
               async return() {
@@ -674,7 +674,7 @@ describe("compose — Stream Intent errors and races", () => {
               async next() {
                 return {
                   done: false as const,
-                  value: ok({ orderId: tag, status: "open" }),
+                  value: success({ orderId: tag, status: "open" }),
                 };
               },
               async return() {

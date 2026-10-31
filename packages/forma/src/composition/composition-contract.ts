@@ -1,8 +1,8 @@
 import type { AnyProvider, WiringEntry } from "../alias-intent.js";
 import type { Boundary, IntentIdentity, IntentModality } from "../boundary.js";
 import type { EffectiveLifetime } from "../graph-plan.js";
+import type { InvocationOutcome } from "../invocation-outcome.js";
 import type { LifetimePolicy, Provider, ProviderOrigin } from "../provider/provider.js";
-import type { Result } from "../result.js";
 
 /** Declared policy, graph-derived effective lifetime, and optional narrowing path. */
 export type ProviderLifetimeExplanation = {
@@ -38,7 +38,8 @@ export type CompositionPlanDescription = {
 type Awaitable<T> = T | PromiseLike<T>;
 
 /** Public stream surface value: cold iterable + dispose; not a public iterator. */
-export type StreamSurfaceIterable<Item, Err> = AsyncIterable<Result<Item, Err>> & AsyncDisposable;
+export type StreamSurfaceIterable<Item, Err> = AsyncIterable<InvocationOutcome<Item, Err>> &
+  AsyncDisposable;
 
 type SurfaceOperation<P> =
   // Deps is invariant on Provider (factory param); erase with `any` so surface
@@ -61,7 +62,7 @@ type SurfaceOperation<P> =
   >
     ? Mode extends "stream"
       ? (input: Input) => StreamSurfaceIterable<Success, Err>
-      : (input: Input) => Promise<Result<Success, Err>>
+      : (input: Input) => Promise<InvocationOutcome<Success, Err>>
     : never;
 
 /**

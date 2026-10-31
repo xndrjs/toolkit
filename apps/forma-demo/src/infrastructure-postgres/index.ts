@@ -1,4 +1,4 @@
-import { boundary, err, ok } from "@xndrjs/forma";
+import { boundary, expectedError, success } from "@xndrjs/forma";
 import type { Connection, PgFindError, PgOrder, PgOrderId } from "./types";
 
 export type { Connection, PgFindError, PgOrder, PgOrderId } from "./types";
@@ -42,7 +42,7 @@ export const ConnectionProvider = ConnectionIntent.provide
       console.log(`disposed ${connection.label}`);
     });
     return function () {
-      return ok(connection);
+      return success(connection);
     };
   });
 
@@ -55,10 +55,10 @@ export const SelectOrderProvider = SelectOrder.provide.using({ connection: Conne
   ({ deps: { connection } }) =>
     async function (id) {
       const opened = await connection();
-      if (!opened.ok) {
-        return err({ code: "NO_ROW" as const });
+      if (opened.kind !== "success") {
+        return expectedError({ code: "NO_ROW" as const });
       }
       const row = opened.value.lookup(id.order_id);
-      return row ? ok(row) : err({ code: "NO_ROW" as const });
+      return row ? success(row) : expectedError({ code: "NO_ROW" as const });
     }
 );

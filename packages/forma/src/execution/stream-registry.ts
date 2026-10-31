@@ -1,4 +1,4 @@
-import type { Result } from "../result.js";
+import type { InvocationOutcome } from "../invocation-outcome.js";
 import { collectThrown, throwIfDisposerErrors } from "./disposal.js";
 import {
   createManagedResultIterable,
@@ -21,13 +21,13 @@ export type StreamRegistryOpenOptions = Omit<
  */
 export type StreamRegistry = {
   /**
-   * Cold Result iterable: first `next()` transactionally registers the accepted start,
+   * Cold InvocationOutcome iterable: first `next()` transactionally registers the accepted start,
    * then runs `start`; tracked until close for {@link closeAll}.
    */
   openResult<Item, Err>(
-    start: ManagedAsyncIterableStart<Result<Item, Err>>,
+    start: ManagedAsyncIterableStart<InvocationOutcome<Item, Err>>,
     options?: StreamRegistryOpenOptions
-  ): ManagedAsyncIterable<Result<Item, Err>>;
+  ): ManagedAsyncIterable<InvocationOutcome<Item, Err>>;
   /** Abort + dispose every accepted stream (including `starting`; idempotent per stream). */
   closeAll(): Promise<void>;
 };
@@ -38,7 +38,7 @@ export type CreateStreamRegistryOptions = {
 };
 
 export function createStreamRegistry(options: CreateStreamRegistryOptions): StreamRegistry {
-  const active = new Set<ManagedAsyncIterable<Result<unknown, unknown>>>();
+  const active = new Set<ManagedAsyncIterable<InvocationOutcome<unknown, unknown>>>();
   const ownerCloses = new Set<PromiseLike<void>>();
 
   function trackOwnerClose(close: PromiseLike<void>): void {
@@ -55,20 +55,20 @@ export function createStreamRegistry(options: CreateStreamRegistryOptions): Stre
 
   return {
     openResult<Item, Err>(
-      start: ManagedAsyncIterableStart<Result<Item, Err>>,
+      start: ManagedAsyncIterableStart<InvocationOutcome<Item, Err>>,
       openOptions: StreamRegistryOpenOptions = {}
-    ): ManagedAsyncIterable<Result<Item, Err>> {
+    ): ManagedAsyncIterable<InvocationOutcome<Item, Err>> {
       const managed = createManagedResultIterable(start, {
         signal: openOptions.signal ?? options.parentSignal,
         onStartAccepted: () => {
-          active.add(managed as ManagedAsyncIterable<Result<unknown, unknown>>);
+          active.add(managed as ManagedAsyncIterable<InvocationOutcome<unknown, unknown>>);
           openOptions.onStartAccepted?.();
         },
         onStarted: () => {
           openOptions.onStarted?.();
         },
         onClosed: async () => {
-          active.delete(managed as ManagedAsyncIterable<Result<unknown, unknown>>);
+          active.delete(managed as ManagedAsyncIterable<InvocationOutcome<unknown, unknown>>);
           await openOptions.onClosed?.();
         },
         onOwnerClose: trackOwnerClose,
