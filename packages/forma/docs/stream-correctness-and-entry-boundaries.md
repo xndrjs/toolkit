@@ -1,129 +1,123 @@
-# Correttezza degli stream ed Entry Boundary
+# Stream correctness and Entry Boundaries
 
-> Stato: decisioni implementate; rationale, finding e piano conservati come design record.
+> Status: decisions implemented; rationale, findings, and plan kept as a design record.
 >
-> Data: 2026-10-30.
+> Date: 2026-10-30.
 >
-> Scope: implementazione corrente degli stream, semantica delle root della Surface,
-> direzionalità degli Adapter e introduzione degli Entry Boundary.
+> Scope: current stream implementation, Surface root semantics, Adapter directionality, and
+> introduction of Entry Boundaries.
 
-## Esito dell'implementazione
+## Implementation outcome
 
-Le decisioni del grill sono state applicate al core, ai type-level assert, al demo e alla
-documentazione:
+The grill decisions were applied to the core, type-level asserts, the demo, and documentation:
 
-- `compose` richiede `entryBoundaries` e valida la corrispondenza esatta con le origini Boundary
-  della Surface;
-- la provenance precisa attraversa `Provider`, builder Boundary e builder Adapter;
-- Adapter root, Entry Boundary duplicati/non rappresentati e Surface vuote vengono rifiutati a
-  compile time quando i tipi sono precisi e sempre a runtime;
-- `describePlan()` include Entry Boundary e provenance delle root;
-- il demo espone `WatchOrdersProvider` di Orders e risolve privatamente `WatchOrderEvents` tramite
+- `compose` requires `entryBoundaries` and validates exact correspondence with Surface Boundary
+  origins;
+- precise provenance flows through `Provider`, Boundary builders, and Adapter builders;
+- Adapter roots, duplicate/unrepresented Entry Boundaries, and empty Surfaces are rejected at
+  compile time when types are precise, and always at runtime;
+- `describePlan()` includes Entry Boundaries and root provenance;
+- the demo exposes Orders’ `WatchOrdersProvider` and privately resolves `WatchOrderEvents` via
   Adapter;
-- signal già abortito, accettazione post-abort e cleanup degli stream seguono la semantica
-  concordata;
-- i close guidati dall'owner non producono rejection floating, il context osserva i failure e
-  tenta comunque tutti i Provider disposer;
-- l'alias deprecato `createExecutionContext` è stato rimosso.
+- already-aborted signals, post-abort acceptance, and stream cleanup follow the agreed semantics;
+- owner-driven closes do not produce floating rejections; the context observes failures and still
+  attempts every Provider disposer;
+- the deprecated `createExecutionContext` alias was removed.
 
-Le decisioni normative sono registrate negli ADR 0008, 0012 e 0013.
+Normative decisions are recorded in ADRs 0008, 0012, and 0013.
 
-## Stato del grill
+## Grill status
 
-### Decisioni condivise — round 1
+### Shared decisions — round 1
 
-1. Un Provider originato da Adapter non può mai essere una root della Surface; `compose` non offre
-   escape hatch per aggirare questa regola.
-2. Una Composition è un'unità di ownership runtime/lifecycle, non una proiezione uno-a-uno di un
-   Boundary. Dichiara uno o più Entry Boundary e può attraversare privatamente altri Boundary.
-3. Se il parent signal è già abortito al primo `next()`, lo stream termina normalmente senza
-   materializzare il Provider e senza avviare la sorgente.
-4. Ogni failure di close deve essere osservato dall'attore che possiede o avvia la chiusura; tutti
-   i cleanup successivi vengono comunque tentati e gli eventuali failure multipli aggregati.
+1. An Adapter-originated Provider can never be a Surface root; `compose` offers no escape hatch
+   around this rule.
+2. A Composition is a unit of runtime/lifecycle ownership, not a one-to-one projection of a
+   Boundary. It declares one or more Entry Boundaries and may privately cross other Boundaries.
+3. If the parent signal is already aborted at the first `next()`, the stream ends normally without
+   materializing the Provider and without starting the source.
+4. Every close failure must be observed by the actor that owns or starts the close; every later
+   cleanup is still attempted and multiple failures are aggregated.
 
-### Decisioni condivise — round 2
+### Shared decisions — round 2
 
-1. `compose` mantiene un singolo options bag con `entryBoundaries` obbligatorio e non vuoto; non
-   viene introdotto nuovo currying né un fluent builder.
-2. Il tipo `Provider` conserva la provenance precisa attraverso un generic finale `Origin`; i
-   builder Boundary e Adapter mantengono `kind` e ID literal.
-3. L'abort non maschera i failure tecnici di una sorgente già attiva: una sorgente che completa in
-   risposta al signal termina normalmente, una sorgente che rigetta continua a produrre un errore
-   tecnico.
-4. Il close rimane rappresentato da una sola promise idempotente. Più caller concorrenti possono
-   osservare la stessa rejection; non esiste uno stato “errore consumato”.
+1. `compose` keeps a single options bag with a required non-empty `entryBoundaries`; no new
+   currying or fluent builder is introduced.
+2. The `Provider` type keeps precise provenance through a final `Origin` generic; Boundary and
+   Adapter builders keep literal `kind` and ID.
+3. Abort does not mask technical failures of an already-active source: a source that completes in
+   response to the signal ends normally; a source that rejects still produces a technical error.
+4. Close remains represented by a single idempotent promise. Concurrent callers may observe the
+   same rejection; there is no “consumed error” state.
 
-### Decisioni condivise — round 3
+### Shared decisions — round 3
 
-1. La migrazione è intenzionalmente breaking: `entryBoundaries` diventa obbligatorio senza
-   overload legacy, fallback, inferenza automatica o API deprecate.
-2. Entry Boundary distinti con lo stesso ID canonico sono duplicati e vengono rifiutati a runtime,
-   con controllo type-level best-effort per tuple literal.
-3. `describePlan()` viene esteso con Entry Boundary e provenance delle root della Surface, ma non
-   ancora con l'intero grafo delle dipendenze.
-4. Non viene introdotto `defineEntryBoundaries()`; la dichiarazione inline è la forma supportata
-   per la nuova lista.
-5. Il demo separa `WatchOrders` entry Intent da `WatchOrderEvents` dynamic seam mantenendo, per
-   ora, lo stesso Contract.
-6. La decisione sugli Entry Boundary avrà un nuovo ADR; ADR 0001 verrà superseded limitatamente
-   alle Adapter root e ADR 0012 chiarirà pre-abort ed error ownership.
+1. Migration is intentionally breaking: `entryBoundaries` becomes required with no legacy
+   overload, fallback, automatic inference, or deprecated API.
+2. Distinct Entry Boundaries with the same canonical ID are duplicates and are rejected at
+   runtime, with best-effort type-level checks for literal tuples.
+3. `describePlan()` is extended with Entry Boundaries and Surface-root provenance, but not yet
+   with the full dependency graph.
+4. `defineEntryBoundaries()` is not introduced; the inline declaration is the supported form for
+   the new list.
+5. The demo separates the `WatchOrders` entry Intent from the `WatchOrderEvents` dynamic seam,
+   keeping the same Contract for now.
+6. The Entry Boundary decision gets a new ADR; ADR 0001 is superseded only for Adapter roots, and
+   ADR 0012 clarifies pre-abort and error ownership.
 
-### Decisioni condivise — round 4
+### Shared decisions — round 4
 
-1. `defineWiring` e `defineComposition` rimangono disponibili per wiring e config estratti, ma non
-   viene introdotto un helper dedicato agli Entry Boundary e gli esempi principali usano la forma
-   inline.
-2. Il set dichiarato degli Entry Boundary deve coincidere con il set delle origini Boundary
-   effettivamente presenti nella Surface: nessun Boundary implicito e nessun Entry Boundary
-   dichiarato ma inutilizzato.
-3. L'host abort non dispone automaticamente il context, ma gli impedisce di accettare nuovo
-   lavoro: uno stream non parte e una nuova invocation unary viene rifiutata prima della
-   materializzazione. Il lavoro già accettato rimane cooperativo tramite signal.
+1. `defineWiring` and `defineComposition` remain available for extracted wiring and config, but no
+   dedicated Entry Boundary helper is introduced; primary examples use the inline form.
+2. The declared Entry Boundary set must match the set of Boundary origins actually present on the
+   Surface: no implicit Boundaries and no declared-but-unused Entry Boundaries.
+3. Host abort does not automatically dispose the context, but stops it from accepting new work: a
+   stream does not start and a new unary invocation is rejected before materialization.
+   Already-accepted work remains cooperative via the signal.
 
-### Decisioni condivise — round 5
+### Shared decisions — round 5
 
-1. Una Composition con `surface: {}` è invalida: gli Entry Boundary sono non vuoti e devono
-   coincidere esattamente con le origini Boundary rappresentate nella Surface.
-2. `openExecutionContext({ signal })` fallisce immediatamente se il signal dell'host è già
-   abortito. Se l'abort avviene dopo l'apertura, il context non accetta nuovo lavoro ma rimane di
-   proprietà dell'host e deve comunque essere disposto.
-3. Una nuova invocation unary dopo l'host abort rigetta con `signal.reason`, secondo la semantica
-   standard di `AbortSignal.throwIfAborted()`. La cancellazione è un failure tecnico e non entra
-   nel `Result` applicativo.
+1. A Composition with `surface: {}` is invalid: Entry Boundaries are non-empty and must match
+   exactly the Boundary origins represented on the Surface.
+2. `openExecutionContext({ signal })` fails immediately if the host signal is already aborted. If
+   abort happens after open, the context accepts no new work but remains host-owned and must still
+   be disposed.
+3. A new unary invocation after host abort rejects with `signal.reason`, following standard
+   `AbortSignal.throwIfAborted()` semantics. Host-abort acceptance failure is outside the Intent
+   `InvocationOutcome` channel ([ADR 0008](./adr/0008-execution-seed-and-abort-signal.md));
+   catalogueable Intent cancellation uses the `cancelled` branch when expressed as Contract data
+   ([ADR 0015](./adr/0015-boundary-error-totalization.md)).
 
-Il fronte decisionale del grill è chiuso. L'implementazione può iniziare dopo la conferma
-esplicita dello shared understanding riassunto in questo documento.
+The grill decision front is closed. Implementation can start after explicit confirmation of the
+shared understanding summarized in this document.
 
 ## Executive summary
 
-Il modello streaming di Forma è strutturalmente valido: la modality appartiene al Contract, il
-lifetime della stream invocation è separato dal lifetime del Provider, la Surface espone un
-`AsyncIterable` cold e tutti i normali percorsi di chiusura convergono sulla stessa state machine.
+Forma’s streaming model is structurally sound: modality belongs to the Contract, stream-invocation
+lifetime is separate from Provider lifetime, the Surface exposes a cold `AsyncIterable`, and all
+normal close paths converge on the same state machine.
 
-La review ha però individuato due bug concreti e un rischio conseguente nella composizione dei
-cleanup:
+The review nevertheless found two concrete bugs and a consequent cleanup-composition risk:
 
-1. un parent signal già abortito può chiudere lo stream prima che esista `startPromise`; la
-   sorgente viene comunque avviata subito dopo, ma non riceve mai `return()`;
-2. un errore di cleanup prodotto da una chiusura guidata dall'abort non viene osservato
-   dall'owner: `ExecutionContext.dispose()` può risolversi mentre Node riceve una
-   `unhandledRejection`;
-3. una correzione ingenua del secondo problema farebbe emergere un altro difetto: oggi un errore
-   di `streams.closeAll()` impedirebbe l'esecuzione dei disposer dei Provider posseduti dal
-   context.
+1. an already-aborted parent signal can close the stream before `startPromise` exists; the source
+   is still started immediately afterward but never receives `return()`;
+2. a cleanup error from an abort-driven close is not observed by the owner:
+   `ExecutionContext.dispose()` may resolve while Node receives an `unhandledRejection`;
+3. a naive fix for the second issue would surface another defect: today a `streams.closeAll()`
+   error would prevent context-owned Provider disposers from running.
 
-La review architetturale ha inoltre evidenziato un problema di direzionalità. Attualmente
-`compose({ surface })` accetta come root un Provider creato da un Adapter. L'Intent realizzato
-appartiene al target Boundary dell'Adapter, ma l'esecuzione parte da un Provider la cui origine è
-l'Adapter. Questo sovrappone nello stesso Intent due ruoli differenti: contratto pubblico di
-ingresso e dynamic seam non realizzato.
+The architectural review also highlighted a directionality problem. Currently
+`compose({ surface })` accepts an Adapter-created Provider as a root. The realized Intent belongs
+to the Adapter’s target Boundary, but execution starts from a Provider whose origin is the Adapter.
+That overlays two different roles on the same Intent: public entry contract and unrealized dynamic
+seam.
 
-La decisione condivisa è rendere obbligatorio per ogni Composition un insieme non vuoto di
-**Entry Boundary** e richiedere che ogni root della Surface sia un Provider originato da uno di
-questi Boundary. I Provider originati da Adapter rimangono validi nel wiring privato, ma non
-possono essere root della Surface.
+The shared decision is to require every Composition to declare a non-empty set of **Entry
+Boundaries** and require every Surface root to be a Provider originated by one of those
+Boundaries. Adapter-originated Providers remain valid in private wiring, but cannot be Surface
+roots.
 
-L'interfaccia raccomandata non richiede currying:
+The recommended interface needs no currying:
 
 ```ts
 const root = compose({
@@ -139,13 +133,12 @@ const root = compose({
 });
 ```
 
-Un prototipo TypeScript ha verificato che il singolo options bag conserva gli ID literal degli
-Entry Boundary e i tipi esatti dei Provider in Surface, rifiutando sia una root originata da un
-Adapter sia una root appartenente a un Boundary non autorizzato.
+A TypeScript prototype verified that the single options bag preserves Entry Boundary literal IDs
+and exact Surface Provider types, rejecting both an Adapter-originated root and a root belonging to
+an unauthorized Boundary.
 
-Il currying rimane giustificato soltanto nella forma già esistente con Params espliciti, perché in
-quel caso un generic viene fornito dal chiamante mentre i generic successivi devono essere
-inferiti:
+Currying remains justified only in the existing explicit-Params form, because there a generic is
+supplied by the caller while later generics must be inferred:
 
 ```ts
 compose<HostParams>()({
@@ -155,42 +148,42 @@ compose<HostParams>()({
 });
 ```
 
-## Baseline della review
+## Review baseline
 
-Al momento della review:
+At review time:
 
-- tutti i 23 file di test passavano;
-- tutti i 189 test passavano;
-- il typecheck TypeScript passava;
-- ESLint non riportava errori e segnalava un solo warning per l'argomento inutilizzato
-  `streamController` in `wireParentAbort`;
-- i due bug di lifecycle descritti sotto sono stati riprodotti con probe runtime isolati, non
-  presenti nella suite ordinaria.
+- all 23 test files passed;
+- all 189 tests passed;
+- TypeScript typecheck passed;
+- ESLint reported no errors and one warning for the unused `streamController` argument in
+  `wireParentAbort`;
+- the two lifecycle bugs below were reproduced with isolated runtime probes not present in the
+  ordinary suite.
 
-La suite verde non contraddice quindi i finding: le interazioni rilevanti non sono attualmente
-coperte.
+A green suite therefore does not contradict the findings: the relevant interactions are not
+currently covered.
 
-## Cosa funziona bene nel design degli stream
+## What works well in the stream design
 
-I finding sono problemi locali di correttezza, non una bocciatura del modello.
+The findings are local correctness issues, not a rejection of the model.
 
-### La modality è esplicita
+### Modality is explicit
 
-`unary | stream` è una proprietà del Contract. Uno stream non è modellato come un risultato unary
-il cui valore di successo contiene accidentalmente un `AsyncIterable`.
+`unary | stream` is a Contract property. A stream is not modeled as a unary result whose success
+value accidentally contains an `AsyncIterable`.
 
-Questo mantiene la modality visibile e verificabile in:
+That keeps modality visible and checkable in:
 
 - Adapter;
 - Intent alias;
-- dipendenze `using`;
-- typing della Surface;
+- `using` dependencies;
+- Surface typing;
 - `describePlan()`.
 
-### Stream invocation e Provider lifetime sono separati
+### Stream invocation and Provider lifetime are separate
 
-Un'istanza di Provider può essere posseduta dalla Composition o dall'execution context,
-indipendentemente dal lifetime di ogni stream invocation:
+A Provider instance may be owned by the Composition or the execution context, independently of
+each stream invocation’s lifetime:
 
 ```text
 Provider lifetime
@@ -200,54 +193,53 @@ Stream invocation lifetime
   first next() → iteration → abort/return/completion → close
 ```
 
-Unificare i due concetti costringerebbe a ricreare il Provider per ogni stream oppure a mantenere
-aperte le risorse della singola invocation per tutto il lifetime del Provider.
+Unifying the two concepts would force recreating the Provider per stream or keeping
+single-invocation resources open for the whole Provider lifetime.
 
-### Il protocollo pubblico è piccolo
+### The public protocol is small
 
-La Surface restituisce sincronicamente un
-`AsyncIterable<Result<Item, Err>> & AsyncDisposable` cold e single-consumer:
+The Surface returns synchronously a cold, single-consumer
+`AsyncIterable<InvocationOutcome<Item, Err>> & AsyncDisposable`:
 
-- il pull fornisce backpressure naturale;
-- gli errori attesi sono in-band e terminali;
-- gli errori tecnici inattesi usano `throw`;
-- il return value del generator non entra nel protocollo pubblico;
-- creare l'iterable non materializza il Provider e non acquisisce risorse;
-- `break`, `return()`, async dispose, abort, completamento naturale ed `Err` terminale convergono
-  sulla stessa chiusura.
+- pull provides natural backpressure;
+- expected errors are in-band and terminal;
+- unexpected failures become terminal `unexpected` events ([ADR 0015](./adr/0015-boundary-error-totalization.md));
+- the generator return value is not part of the public protocol;
+- creating the iterable does not materialize the Provider or acquire resources;
+- `break`, `return()`, async dispose, abort, natural completion, and terminal outcomes converge on
+  the same close.
 
-### La proprietà della cancellazione è esplicita
+### Cancellation ownership is explicit
 
-Ogni invocation riceve un signal dedicato, subordinato a quello dell'execution context e distinto
-da `Lifetime.signal`. Uno stream può quindi essere cancellato senza cancellare i sibling o
-disporre il Provider che lo ha prodotto.
+Every invocation receives a dedicated signal, subordinate to the execution-context signal and
+distinct from `Lifetime.signal`. A stream can therefore be cancelled without cancelling siblings or
+disposing the Provider that produced it.
 
-### L'abort chiude l'accettazione, non trasferisce l'ownership
+### Abort closes acceptance; it does not transfer ownership
 
-Il signal opzionale dell'host controlla l'accettazione di nuovo lavoro senza diventare owner
-dell'execution context:
+The optional host signal controls acceptance of new work without becoming owner of the execution
+context:
 
-- un signal già abortito fa fallire immediatamente `openExecutionContext()`;
-- dopo l'apertura, l'abort impedisce di accettare nuove invocation;
-- una nuova invocation unary rigetta con `signal.reason`, usando
-  `AbortSignal.throwIfAborted()`; la cancellazione rimane fuori dal `Result` applicativo;
-- uno stream cold creato prima dell'abort ma non ancora avviato termina normalmente al primo
-  `next()`, senza materializzare Provider né sorgente;
-- il lavoro già accettato riceve il signal e rimane responsabile della cancellazione
-  cooperativa;
-- l'abort dell'host non chiama `dispose()`: il context aperto rimane di proprietà dell'host.
+- an already-aborted signal fails `openExecutionContext()` immediately;
+- after open, abort prevents accepting new invocations;
+- a new unary invocation rejects with `signal.reason` via `AbortSignal.throwIfAborted()`; that
+  acceptance channel remains outside Intent `InvocationOutcome`;
+- a cold stream created before abort but not yet started ends normally on first `next()`, without
+  materializing Provider or source;
+- already-accepted work receives the signal and remains responsible for cooperative cancellation;
+- host abort does not call `dispose()`: the open context remains host-owned.
 
-Questa distinzione evita di confondere la cancellazione del lavoro con la liberazione delle
-risorse. `withExecutionContext()` garantisce comunque il dispose nel proprio `finally`, mentre
-chi usa `openExecutionContext()` deve disporre esplicitamente il handle anche dopo l'abort.
+This distinction avoids confusing work cancellation with resource release.
+`withExecutionContext()` still guarantees dispose in its `finally`; callers of
+`openExecutionContext()` must explicitly dispose the handle even after abort.
 
-## Finding di correttezza
+## Correctness findings
 
-### F1 — Un parent già abortito può perdere il cleanup della sorgente
+### F1 — An already-aborted parent can lose source cleanup
 
-**Priorità: alta.**
+**Priority: high.**
 
-In `managed-async-iterator.ts`, `beginStart()` esegue oggi queste operazioni nell'ordine seguente:
+In `managed-async-iterator.ts`, `beginStart()` currently runs these steps in order:
 
 ```ts
 phase = "starting";
@@ -258,14 +250,14 @@ wireParentAbort(controller);
 startPromise = Promise.resolve().then(() => start(controller.signal));
 ```
 
-Se il parent è già abortito, `wireParentAbort()` chiama immediatamente `beginClose("abort")`. In
-quel momento `startPromise` è ancora `undefined`, quindi `runClose()` non ha nulla da attendere e
-porta il managed iterable a `closed`.
+If the parent is already aborted, `wireParentAbort()` immediately calls `beginClose("abort")`. At
+that moment `startPromise` is still `undefined`, so `runClose()` has nothing to await and moves the
+managed iterable to `closed`.
 
-Il controllo ritorna poi a `beginStart()`, che crea ed esegue comunque `startPromise`. L'iterator
-prodotto viene assegnato dopo che il close è terminato e non riceve mai `return()`.
+Control then returns to `beginStart()`, which still creates and runs `startPromise`. The produced
+iterator is assigned after close finished and never receives `return()`.
 
-Il probe isolato ha prodotto:
+The isolated probe produced:
 
 ```text
 next()       → { done: true, value: undefined }
@@ -273,32 +265,32 @@ final phase  → closed
 return calls → 0
 ```
 
-Lo scenario è realistico: un host signal può abortire l'execution context senza disporlo; una
-successiva chiamata può quindi provare ad avviare uno stream attraverso un context ancora aperto
-ma con signal già abortito.
+The scenario is realistic: a host signal can abort the execution context without disposing it; a
+later call may then try to start a stream through a still-open context whose signal is already
+aborted.
 
-#### Semantica richiesta
+#### Required semantics
 
-Uno stream avviato sotto un parent già abortito non deve materializzare il Provider né avviare la
-sorgente. Il managed iterable deve chiudersi senza acquisire un execution lease.
+A stream started under an already-aborted parent must not materialize the Provider or start the
+source. The managed iterable must close without acquiring an execution lease.
 
-Va inoltre eliminata la race fra controllo del signal, registrazione del listener e assegnazione
-di `startPromise`. Una volta accettato lo start, il close deve attenderne l'esito e chiamare
-`return()` esattamente una volta se viene prodotto un iterator.
+The race among signal check, listener registration, and `startPromise` assignment must also be
+removed. Once start is accepted, close must await its outcome and call `return()` exactly once if
+an iterator is produced.
 
-#### Test di accettazione
+#### Acceptance tests
 
-- parent già abortito prima del primo `next()` → `start` non viene chiamato;
-- abort dopo l'accettazione dello start ma prima della sua risoluzione → l'iterator risultante
-  riceve `return()` una volta;
-- dispose e abort in race con start condividono una sola close promise;
-- dopo il close non rimangono lease, registrazioni o materializzazioni residue.
+- parent already aborted before first `next()` → `start` is not called;
+- abort after start acceptance but before it resolves → the resulting iterator receives `return()`
+  once;
+- dispose and abort racing with start share a single close promise;
+- after close, no residual leases, registrations, or materializations remain.
 
-### F2 — Gli errori di cleanup guidati dall'abort diventano unhandled rejection
+### F2 — Abort-driven cleanup errors become unhandled rejection
 
-**Priorità: alta.**
+**Priority: high.**
 
-Il listener del parent signal avvia oggi il close senza osservare la promise:
+The parent-signal listener currently starts close without observing the promise:
 
 ```ts
 const onAbort = (): void => {
@@ -306,127 +298,121 @@ const onAbort = (): void => {
 };
 ```
 
-`runClose()` raccoglie correttamente i failure di `inner.return()` e `onClosed()`, quindi rigetta la
-close promise. Il problema è chi possiede e osserva quella rejection.
+`runClose()` correctly collects `inner.return()` and `onClosed()` failures, then rejects the close
+promise. The issue is who owns and observes that rejection.
 
-Durante il dispose del context, la sequenza corrente è:
+During context dispose, the current sequence is:
 
 ```text
 ExecutionContext.dispose()
-  → abort del context signal
-  → il listener avvia il close dello stream
-  → onClosed rimuove lo stream dal registry e rilascia il lease
-  → la close promise rigetta
-  → il drain dell'execution termina
-  → registry.closeAll() non vede più lo stream
-  → ExecutionContext.dispose() si risolve
-  → Node osserva unhandledRejection
+  → abort context signal
+  → listener starts stream close
+  → onClosed removes stream from registry and releases lease
+  → close promise rejects
+  → execution drain finishes
+  → registry.closeAll() no longer sees the stream
+  → ExecutionContext.dispose() resolves
+  → Node observes unhandledRejection
 ```
 
-Un probe isolato ha confermato contemporaneamente che:
+An isolated probe confirmed simultaneously that:
 
-- il disposer del Provider è stato eseguito;
-- `ExecutionContext.dispose()` si è risolto con successo;
-- Node ha emesso `unhandledRejection: stream cleanup failed`.
+- the Provider disposer ran;
+- `ExecutionContext.dispose()` resolved successfully;
+- Node emitted `unhandledRejection: stream cleanup failed`.
 
-Questo viola il modello di ownership: un close iniziato dall'owner deve essere atteso dall'owner e
-il suo eventuale failure deve entrare nella error matrix del dispose.
+This violates the ownership model: a close started by the owner must be awaited by the owner, and
+any failure must enter the dispose error matrix.
 
-#### Semantica richiesta
+#### Required semantics
 
-- nessuna close promise creata dall'abort deve rimanere floating;
-- il registry deve conservare abbastanza informazione sul settlement da permettere all'owner di
-  attendere ogni close che ha iniziato, inclusi gli stream in `starting` o `closing`;
-- un host abort senza dispose immediato non deve produrre unhandled rejection;
-- stream dispose, pending `next()` e context dispose possono osservare la stessa close promise e
-  la stessa eventuale rejection;
-- un failure non deve impedire il rilascio release-once del lease e il bookkeeping del registry.
+- no abort-created close promise may remain floating;
+- the registry must retain enough settlement information for the owner to await every close it
+  started, including streams in `starting` or `closing`;
+- host abort without immediate dispose must not produce unhandled rejection;
+- stream dispose, pending `next()`, and context dispose may observe the same close promise and the
+  same possible rejection;
+- a failure must not prevent release-once of the lease and registry bookkeeping.
 
-Il meccanismo può essere una settlement record posseduta dal registry, una promise `closed`
-interna o un canale esplicito per i failure dei close guidati dall'owner. L'invariante è più
-importante della rappresentazione: ogni close guidato dall'owner deve avere un esito terminale
-osservato dall'owner.
+The mechanism may be a registry-owned settlement record, an internal `closed` promise, or an
+explicit channel for owner-driven close failures. The invariant matters more than the
+representation: every owner-driven close must have a terminal outcome observed by the owner.
 
-Gli observer della stessa close promise sono:
+Observers of the same close promise are:
 
-- close iniziato da `iterator.return()` o async dispose dello stream → lo osserva il consumer;
-- close iniziato da context/root dispose → lo osserva il dispose dell'owner;
-- close iniziato dal solo host abort → una successiva operazione dello stream e il context dispose
-  possono osservare lo stesso esito; il listener interno deve comunque impedire una
-  `unhandledRejection`.
+- close started by `iterator.return()` or stream async dispose → observed by the consumer;
+- close started by context/root dispose → observed by owner dispose;
+- close started by host abort alone → a later stream operation and context dispose may observe the
+  same outcome; the internal listener must still prevent `unhandledRejection`.
 
-#### Test di accettazione
+#### Acceptance tests
 
-- `inner.return()` fallisce durante `ctx.dispose()` → `ctx.dispose()` rigetta con quel failure;
-- lo stesso scenario non emette `unhandledRejection`;
-- l'host abort chiude lo stream senza disporre il context e senza unhandled rejection;
-- il successivo context dispose può osservare la stessa rejection senza duplicare il cleanup;
-- `iterator.return()`, async dispose, host abort e context dispose concorrenti non duplicano
-  cleanup o rilascio del lease.
+- `inner.return()` fails during `ctx.dispose()` → `ctx.dispose()` rejects with that failure;
+- the same scenario does not emit `unhandledRejection`;
+- host abort closes the stream without disposing the context and without unhandled rejection;
+- subsequent context dispose can observe the same rejection without duplicating cleanup;
+- concurrent `iterator.return()`, async dispose, host abort, and context dispose do not duplicate
+  cleanup or lease release.
 
-### F3 — Propagare il failure dello stream non deve saltare i Provider disposer
+### F3 — Propagating stream failure must not skip Provider disposers
 
-**Priorità: alta come parte della correzione di F2.**
+**Priority: high as part of the F2 fix.**
 
-Il context esegue attualmente:
+The context currently runs:
 
 ```ts
 await streams.closeAll();
 await contextScope.dispose(...);
 ```
 
-Oggi F2 nasconde spesso i failure degli stream e la seconda operazione viene comunque eseguita.
-Quando `closeAll()` inizierà a propagarli correttamente, questa sequenza salterà tutti i disposer
-dei Provider posseduti dal context e la rimozione da `openContexts`.
+Today F2 often hides stream failures and the second operation still runs. When `closeAll()` starts
+propagating them correctly, this sequence would skip every context-owned Provider disposer and
+removal from `openContexts`.
 
-Inoltre `closeAll()` usa `Promise.all`: tutte le promise vengono avviate, ma il risultato espone
-soltanto la prima rejection invece di comporre tutti i failure secondo le regole di disposal già
-adottate da Forma.
+Also `closeAll()` uses `Promise.all`: all promises start, but the result exposes only the first
+rejection instead of composing all failures under Forma’s existing disposal rules.
 
-#### Semantica richiesta
+#### Required semantics
 
-Il context dispose deve tentare sempre, anche in presenza di failure precedenti:
+Context dispose must always attempt, even after earlier failures:
 
-1. il close di ogni stream invocation posseduta;
-2. tutti i Provider disposer context-owned in ordine LIFO;
-3. la rimozione del context dal registry `openContexts`;
-4. l'aggregazione di più failure tramite la policy `AggregateError` esistente.
+1. close of every owned stream invocation;
+2. every context-owned Provider disposer in LIFO order;
+3. removal of the context from the `openContexts` registry;
+4. aggregation of multiple failures via the existing `AggregateError` policy.
 
-L'interfaccia già disponibile `ProviderScope.dispose({ beforeDisposers, after })` esprime bene
-questa composizione:
+The already available `ProviderScope.dispose({ beforeDisposers, after })` interface expresses this
+composition well:
 
-- la chiusura degli stream può avvenire in `beforeDisposers`;
-- i disposer dei Provider vengono comunque tentati;
-- `after` rimuove sempre il context;
-- gli errori vengono raccolti secondo la error matrix comune.
+- stream closing can happen in `beforeDisposers`;
+- Provider disposers are still attempted;
+- `after` always removes the context;
+- errors are collected under the common error matrix.
 
-Prima di usare questa struttura, il registry deve essere corretto affinché `closeAll()` osservi
-davvero tutti i close guidati dall'owner.
+Before using that structure, the registry must be fixed so `closeAll()` truly observes every
+owner-driven close.
 
-#### Test di accettazione
+#### Acceptance tests
 
-- il cleanup dello stream fallisce, ma tutti i Provider disposer vengono eseguiti;
-- cleanup dello stream e un Provider disposer falliscono → entrambi compaiono in
-  `AggregateError`;
-- più stream falliscono durante il cleanup → tutti i failure sono riportati dopo il settlement di
-  tutti gli stream;
-- il context viene rimosso da `openContexts` dopo cleanup riuscito o fallito;
-- il root dispose non prova a disporre nuovamente un context fallito ma apparentemente ancora
-  aperto.
+- stream cleanup fails, but every Provider disposer still runs;
+- stream cleanup and one Provider disposer fail → both appear in `AggregateError`;
+- multiple streams fail during cleanup → all failures are reported after every stream settles;
+- the context is removed from `openContexts` after successful or failed cleanup;
+- root dispose does not try to dispose again a failed context that still appears open.
 
-### F4 — Igiene minore dell'implementazione
+### F4 — Minor implementation hygiene
 
-`wireParentAbort(streamController)` non usa `streamController` e produce l'unico warning ESLint
-corrente. Non è un problema di correttezza, ma segnala anche l'ambiguità descritta in F1: la
-funzione riceve un controller, ma avvia direttamente il managed close.
+`wireParentAbort(streamController)` does not use `streamController` and produces the only current
+ESLint warning. It is not a correctness bug, but it also signals the F1 ambiguity: the function
+receives a controller yet starts managed close directly.
 
-L'implementazione finale dovrebbe usare quell'argomento nel protocollo scelto oppure rimuoverlo.
+The final implementation should use that argument in the chosen protocol or remove it.
 
-## Finding di direzionalità: Adapter come root della Surface
+## Directionality finding: Adapter as Surface root
 
-### Grafo corrente
+### Current graph
 
-Il demo consente oggi questa forma:
+The demo currently allows this shape:
 
 ```text
 surface.watchOrders
@@ -437,44 +423,44 @@ origin: Adapter "orders-postgres"
 intent: Orders.WatchOrders
 ```
 
-L'identità dell'Intent appartiene a `Orders` e l'Adapter è correttamente associato a quel target
-Boundary. Tuttavia, le entry della Surface sono Provider, non Intent isolati. L'esecuzione parte
-quindi da un Provider originato dall'Adapter, non da un Provider posseduto da `Orders`.
+Intent identity belongs to `Orders` and the Adapter is correctly associated with that target
+Boundary. However, Surface entries are Providers, not isolated Intents. Execution therefore starts
+from an Adapter-originated Provider, not from a Provider owned by `Orders`.
 
-La distinzione è rilevante perché Forma attribuisce già poteri differenti alle due origini:
+The distinction matters because Forma already attributes different powers to the two origins:
 
-- `Intent.provide.using(...)` può dipendere soltanto da Intent dello stesso Boundary;
-- `adapter(...).adapt(...).using(...)` può dipendere da Intent di qualsiasi Boundary.
+- `Intent.provide.using(...)` may depend only on Intents of the same Boundary;
+- `adapter(...).adapt(...).using(...)` may depend on Intents from any Boundary.
 
-Permettere al secondo di essere una root significa iniziare il grafo proprio dal nodo con la
-maggiore libertà cross-Boundary. La restrizione same-boundary rimane localmente vera, ma non
-governa più il punto di partenza.
+Allowing the second to be a root means starting the graph at the node with the greatest
+cross-Boundary freedom. The same-boundary restriction remains locally true, but no longer governs
+the starting point.
 
-### I ruoli sovrapposti
+### Overlapping roles
 
-Nella forma diretta, `Orders.WatchOrders` svolge contemporaneamente tre ruoli:
+In the direct form, `Orders.WatchOrders` simultaneously plays three roles:
 
-1. contratto pubblico esposto dalla Composition;
-2. Intent non realizzato usato come dynamic seam;
-3. Intent realizzato direttamente da un Adapter esterno.
+1. public contract exposed by the Composition;
+2. unrealized Intent used as a dynamic seam;
+3. Intent realized directly by an external Adapter.
 
-La replaceability runtime rimane possibile, ma scompare la transizione di ownership attraverso
-`Orders`. Nessun Provider di Orders sceglie, limita, trasforma o delega esplicitamente verso quel
-seam. L'Adapter possiede di fatto il percorso pubblico pur non possedendo il Contract dell'Intent.
+Runtime replaceability remains possible, but the ownership transition through `Orders`
+disappears. No Orders Provider chooses, limits, transforms, or explicitly delegates toward that
+seam. The Adapter effectively owns the public path while not owning the Intent Contract.
 
-Questo è lo short-circuit architetturale:
+This is the architectural short-circuit:
 
 ```text
-Corrente
-Surface → Adapter realization di un Orders Intent
+Current
+Surface → Adapter realization of an Orders Intent
 
-Desiderato
+Desired
 Surface → Orders realization → unresolved Orders Intent → Adapter realization
 ```
 
-### Grafo desiderato
+### Desired graph
 
-L'esempio streaming dovrebbe distinguere l'entry Intent dal dynamic seam:
+The streaming example should distinguish the entry Intent from the dynamic seam:
 
 ```text
 surface.watchOrders
@@ -488,10 +474,10 @@ Orders.WatchOrderEvents
 unrealized internal Intent
         │
         ▼
-Postgres o Memory Adapter
+Postgres or Memory Adapter
 ```
 
-Per esempio:
+For example:
 
 ```ts
 export const WatchOrders = Orders.stream("watchOrders").contract<OrderId, OrderEvent, WatchError>();
@@ -509,100 +495,96 @@ export const WatchOrdersProvider = WatchOrders.provide
   });
 ```
 
-La prima realizzazione può essere un passthrough. Il suo valore non consiste nella complessità
-implementativa nascosta, ma nella separazione di due ruoli architetturali e nella preservazione
-della direzione del grafo. Autorizzazione, projection, filtering, error mapping, deduplication o
-composizione di stream trovano poi una collocazione posseduta da Orders senza modificare il
-contratto pubblico o il seam degli Adapter.
+The first realization can be a passthrough. Its value is not hidden implementation complexity, but
+separating two architectural roles and preserving graph direction. Authorization, projection,
+filtering, error mapping, deduplication, or stream composition then have an Orders-owned place
+without changing the public contract or Adapter seams.
 
-## Modello condiviso: Entry Boundary
+## Shared model: Entry Boundary
 
-### Definizione
+### Definition
 
-Un **Entry Boundary** è un Boundary esplicitamente autorizzato a possedere root della Surface per
-una determinata Composition.
+An **Entry Boundary** is a Boundary explicitly authorized to own Surface roots for a given
+Composition.
 
-Questo non implica una Composition per Boundary. La Composition continua a rappresentare un
-grafo chiuso con ownership runtime e lifecycle propri e può attraversare molti Boundary. Gli Entry
-Boundary identificano soltanto i punti dai quali può iniziare l'attraversamento pubblico.
+This does not imply one Composition per Boundary. The Composition still represents a closed graph
+with its own runtime ownership and lifecycle and may cross many Boundaries. Entry Boundaries only
+identify where public traversal may begin.
 
-### Invariante fondamentale
+### Fundamental invariant
 
-Per ogni alias `s` della Surface:
+For every Surface alias `s`:
 
 ```text
 provider(s).origin.kind = "boundary"
 provider(s).origin.id ∈ composition.entryBoundaryIds
 ```
 
-Deve inoltre valere l'inverso: ogni ID dichiarato in `entryBoundaryIds` compare come origine di
-almeno una root della Surface. Il set dichiarato descrive le entry effettive, non una allowlist
-potenziale.
+The inverse must also hold: every ID declared in `entryBoundaryIds` appears as the origin of at
+least one Surface root. The declared set describes actual entries, not a potential allowlist.
 
-Ne consegue che una Composition non può avere una Surface vuota: `entryBoundaries` è non vuoto e
-ogni Entry Boundary dichiarato deve possedere almeno una root. Una Composition priva di API
-pubblica non rappresenta il modello di Composition supportato da Forma.
+Consequently a Composition cannot have an empty Surface: `entryBoundaries` is non-empty and every
+declared Entry Boundary must own at least one root. A Composition with no public API is not the
+Composition model Forma supports.
 
-Conseguenze:
+Consequences:
 
-- un Provider originato da un Entry Boundary autorizzato è una root valida;
-- un Provider originato da un altro Boundary viene rifiutato;
-- un Provider originato da Adapter viene rifiutato anche quando il suo target Intent appartiene a
-  un Entry Boundary;
-- un Entry Boundary senza alcun alias della Surface viene rifiutato;
-- i Provider originati da Adapter rimangono validi nel `wiring` privato;
-- ogni percorso cross-Boundary raggiungibile dalla Surface inizia sotto ownership esplicita di un
-  Boundary.
+- a Provider originated by an authorized Entry Boundary is a valid root;
+- a Provider originated by another Boundary is rejected;
+- an Adapter-originated Provider is rejected even when its target Intent belongs to an Entry
+  Boundary;
+- an Entry Boundary with no Surface alias is rejected;
+- Adapter-originated Providers remain valid in private `wiring`;
+- every cross-Boundary path reachable from the Surface starts under explicit Boundary ownership.
 
-### Perché il target Boundary non basta
+### Why the target Boundary alone is not enough
 
-Controllare soltanto `provider.intent.boundaryId` accetterebbe l'esempio corrente:
-`WatchOrdersViaPostgresProvider.intent.boundaryId` è già `orders`.
+Checking only `provider.intent.boundaryId` would accept the current example:
+`WatchOrdersViaPostgresProvider.intent.boundaryId` is already `orders`.
 
-La validazione deve controllare anche l'origine del Provider. Consentire un insieme di Boundary
-degli Intent risponde soltanto a “chi ha dichiarato il Contract?”, non a “da dove parte
-l'esecuzione?”.
+Validation must also check Provider origin. Allowing a set of Intent Boundaries answers only “who
+declared the Contract?”, not “where does execution start?”.
 
-La validazione degli Entry Boundary risponde a entrambe le domande:
+Entry Boundary validation answers both:
 
-- il Contract appartiene a un Boundary autorizzato;
-- la root realization è posseduta da quel Boundary, non da un Adapter.
+- the Contract belongs to an authorized Boundary;
+- the root realization is owned by that Boundary, not by an Adapter.
 
-### Non serve una Composition per ogni Boundary
+### One Composition per Boundary is unnecessary
 
-Creare una Composition distinta per ogni Boundary legherebbe la partizione architetturale
-all'ownership runtime e introdurrebbe problemi non necessari:
+Creating a distinct Composition per Boundary would couple architectural partition to runtime
+ownership and introduce unnecessary problems:
 
-- execution context annidati;
-- Provider composition-scoped duplicati;
-- propagazione di signal e Params fra root;
-- ordinamento del dispose fra Composition;
-- Surface intermedie pubbliche usate soltanto per collegare grafi interni.
+- nested execution contexts;
+- duplicated composition-scoped Providers;
+- signal and Params propagation across roots;
+- dispose ordering among Compositions;
+- intermediate public Surfaces used only to connect internal graphs.
 
-La regola raccomandata è:
+The recommended rule is:
 
-> Una Composition per unità di ownership runtime/lifecycle; un insieme esplicito e non vuoto di
-> Entry Boundary per Composition.
+> One Composition per runtime/lifecycle ownership unit; an explicit non-empty set of Entry
+> Boundaries per Composition.
 
-Una Composition di sottosistema può avere un solo Entry Boundary:
+A subsystem Composition may have a single Entry Boundary:
 
 ```ts
 entryBoundaries: [Orders];
 ```
 
-Una Composition applicativa può aggregarne intenzionalmente diversi:
+An application Composition may intentionally aggregate several:
 
 ```ts
 entryBoundaries: [Orders, Billing, Identity];
 ```
 
-Entrambe possono attraversare privatamente altri Boundary tramite Provider e Adapter registrati.
+Both may privately cross other Boundaries via registered Providers and Adapters.
 
-## Design dell'interfaccia e inferenza TypeScript
+## Interface design and TypeScript inference
 
-### Domanda verificata
+### Question verified
 
-La forma curried proposta era:
+The proposed curried form was:
 
 ```ts
 compose([Orders, OtherBoundary])({
@@ -615,20 +597,20 @@ compose([Orders, OtherBoundary])({
 });
 ```
 
-Il dubbio era che TypeScript potesse inferire la lista degli Entry Boundary in modo troppo ampio
-prima di validare la Surface, perdendo gli ID literal richiesti dall'invariante.
+The concern was that TypeScript might infer the Entry Boundary list too widely before validating
+the Surface, losing the literal IDs required by the invariant.
 
-### Metodo di verifica
+### Verification method
 
-È stato compilato in modalità strict un prototipo TypeScript che modellava:
+A strict-mode TypeScript prototype was compiled that modeled:
 
-- valori `Boundary<Id>` con ID literal;
-- Provider originati da Boundary e da Adapter;
-- l'unione degli ID autorizzati derivata dalla tuple degli Entry Boundary;
-- una diagnostica phantom-property `AssertSurfaceRoots<Entries, Surface>`;
-- il tipo esatto della Surface risultante.
+- `Boundary<Id>` values with literal IDs;
+- Boundary- and Adapter-originated Providers;
+- the authorized ID union derived from the Entry Boundary tuple;
+- a phantom-property diagnostic `AssertSurfaceRoots<Entries, Surface>`;
+- the exact resulting Surface type.
 
-Sono state verificate queste tre forme:
+These three forms were verified:
 
 ```ts
 composeSingle({
@@ -645,45 +627,45 @@ composeCurried([Orders, Billing])({
 });
 ```
 
-Tutte e tre preservano i tipi esatti dei Provider in Surface. Tutte e tre rifiutano:
+All three preserve exact Surface Provider types. All three reject:
 
-- un Provider originato da Adapter usato come root;
-- un Provider di Billing quando soltanto `Orders` è dichiarato come Entry Boundary.
+- an Adapter-originated Provider used as a root;
+- a Billing Provider when only `Orders` is declared as Entry Boundary.
 
-La forma con singolo bag funziona perché gli Entry Boundary sono valori ordinari. Con un `const`
-generic, TypeScript inferisce nello stesso call gli ID literal e la Surface esatta, quindi valuta
-l'assert intersecato. Non avviene alcuna applicazione parziale dei generic.
+The single-bag form works because Entry Boundaries are ordinary values. With a `const` generic,
+TypeScript infers literal IDs and the exact Surface in the same call, then evaluates the
+intersected assert. There is no partial generic application.
 
-### Perché il currying dei Params è diverso
+### Why Params currying is different
 
-La forma corrente rimane giustificata:
+The current form remains justified:
 
 ```ts
 compose<ExplicitParams>()({
-  /* Surface e wiring inferiti */
+  /* Surface and wiring inferred */
 });
 ```
 
-TypeScript non permette di fornire soltanto il primo generic e inferire liberamente quelli
-successivi nella stessa chiamata. Il primo call cattura il Params type esplicito; la funzione
-generic restituita inferisce Surface e wiring dal valore.
+TypeScript does not allow supplying only the first generic and freely inferring the rest in the
+same call. The first call captures the explicit Params type; the returned generic function infers
+Surface and wiring from the value.
 
-Gli Entry Boundary non hanno questo limite perché vengono inferiti da valori runtime, non
-specificati come type argument espliciti.
+Entry Boundaries do not have this limit because they are inferred from runtime values, not
+specified as explicit type arguments.
 
-### Confronto delle alternative
+### Alternative comparison
 
-| Forma                                           | Precisione type | Costo dell'interfaccia                         | Valutazione                 |
-| ----------------------------------------------- | --------------- | ---------------------------------------------- | --------------------------- |
-| `compose({ entryBoundaries, surface, wiring })` | Preservata      | Un solo options bag già esistente              | Raccomandata                |
-| `compose([boundaries], { surface, wiring })`    | Preservata      | Nuova convenzione posizionale e nuovi overload | Corretta, ma meno esplicita |
-| `compose([boundaries])({ surface, wiring })`    | Preservata      | Un call aggiuntivo e un altro tipo di currying | Non necessario              |
-| `compose.boundaries(...).as({ ... })`           | Preservata      | Nuovo builder e nuovo oggetto intermedio       | Non necessario              |
+| Form                                            | Type precision | Interface cost                          | Assessment                 |
+| ----------------------------------------------- | -------------- | --------------------------------------- | -------------------------- |
+| `compose({ entryBoundaries, surface, wiring })` | Preserved      | Single existing options bag             | Recommended                |
+| `compose([boundaries], { surface, wiring })`    | Preserved      | New positional convention and overloads | Correct, but less explicit |
+| `compose([boundaries])({ surface, wiring })`    | Preserved      | Extra call and another currying style   | Unnecessary                |
+| `compose.boundaries(...).as({ ... })`           | Preserved      | New builder and intermediate object     | Unnecessary                |
 
-La forma fluent avrebbe valore soltanto se il primo stage dovesse essere riutilizzato fra più
-Composition o se TypeScript richiedesse una inference barrier. Nessuno dei due bisogni è emerso.
+A fluent form would be valuable only if the first stage needed reuse across Compositions or if
+TypeScript required an inference barrier. Neither need appeared.
 
-### Forma pubblica raccomandata
+### Recommended public form
 
 ```ts
 const root = compose({
@@ -696,17 +678,17 @@ const root = compose({
 });
 ```
 
-Va mantenuto il nome `wiring`, non `providers`. L'array corrente può contenere sia Provider sia
-entry prodotte da `aliasIntent()`; chiamarlo `providers` sarebbe inesatto e legherebbe questa
-decisione a un breaking change indipendente.
+Keep the name `wiring`, not `providers`. The current array may contain both Providers and
+`aliasIntent()` entries; calling it `providers` would be inaccurate and would couple this decision
+to an independent breaking change.
 
-La lista degli Entry Boundary deve essere obbligatoria e non vuota. Renderla opzionale e inferirla
-dalla Surface permetterebbe di rifiutare le root Adapter, ma non rileverebbe l'esposizione
-accidentale di un Boundary aggiuntivo: proprio uno dei problemi che la proposta vuole risolvere.
+The Entry Boundary list must be required and non-empty. Making it optional and inferring it from
+the Surface would reject Adapter roots, but would not catch accidental exposure of an extra
+Boundary — exactly one of the problems this proposal aims to solve.
 
-### Sketch della type signature
+### Type-signature sketch
 
-La forma può rimanere un singolo generic call:
+The form can remain a single generic call:
 
 ```ts
 type EntryBoundaries = readonly [Boundary<string>, ...Boundary<string>[]];
@@ -722,7 +704,7 @@ export function compose<
 ): CompositionRoot<Surface, InferredParamsFor<Surface, Wiring>>;
 ```
 
-La diagnostica dovrebbe riportare gli alias invalidi distinguendo le due cause:
+Diagnostics should report invalid aliases distinguishing the two causes:
 
 ```text
 Surface alias "watchOrders" uses Adapter-originated Provider "orders-postgres".
@@ -734,29 +716,29 @@ Surface alias "getInvoice" starts from Boundary "billing".
 Declared Entry Boundaries: orders.
 ```
 
-La stessa validazione deve esistere a runtime per caller JavaScript, config widened e cast.
+The same validation must exist at runtime for JavaScript callers, widened config, and casts.
 
-## Modifiche richieste al type model
+## Required type-model changes
 
-### Conservare l'origine nel tipo concreto del Provider
+### Keep origin in the concrete Provider type
 
-Il tipo `Provider` corrente contiene:
+The current `Provider` type contains:
 
 ```ts
 readonly origin: ProviderOrigin;
 ```
 
-Ogni Provider concreto espone quindi l'intera union:
+Every concrete Provider therefore exposes the whole union:
 
 ```ts
 { kind: "boundary"; id: string } | { kind: "adapter"; id: string }
 ```
 
-Il builder conosce l'origine precisa, ma il return type pubblico la cancella. La validazione degli
-Entry Boundary non può distinguere staticamente una root Boundary da una root Adapter finché
-questa informazione non viene preservata.
+The builder knows the precise origin, but the public return type erases it. Entry Boundary
+validation cannot statically distinguish a Boundary root from an Adapter root until that
+information is preserved.
 
-La modifica meno invasiva è aggiungere `Origin` in coda ai generic di `Provider`:
+The least invasive change is to append `Origin` to `Provider` generics:
 
 ```ts
 export type Provider<
@@ -776,36 +758,35 @@ export type Provider<
 };
 ```
 
-I builder di Boundary devono restituire:
+Boundary builders must return:
 
 ```ts
 Provider<
-  /* generic esistenti */,
+  /* existing generics */,
   { readonly kind: "boundary"; readonly id: BoundaryId }
 >
 ```
 
-I builder di Adapter devono conservare un'origine Adapter altrettanto precisa. Rendere l'Adapter
-ID un `const` generic migliorerebbe diagnostica e `describePlan()`, anche se per rifiutare una root
-è sufficiente preservare `kind: "adapter"`.
+Adapter builders must keep an equally precise Adapter origin. Making the Adapter ID a `const`
+generic would improve diagnostics and `describePlan()`, even though preserving `kind: "adapter"`
+is enough to reject a root.
 
-Tutti i conditional type che destrutturano `Provider` devono essere aggiornati per il nuovo
-generic finale. `AnyProvider` può cancellarlo internamente, ma `Surface` deve catturare i Provider
-concreti prima che l'assert ne estragga l'origine.
+Every conditional type that destructures `Provider` must be updated for the new final generic.
+`AnyProvider` may erase it internally, but `Surface` must capture concrete Providers before the
+assert extracts origin.
 
-### Aggiungere gli Entry Boundary ai dati di composizione
+### Add Entry Boundaries to composition data
 
-`ComposeOptions` deve contenere la lista precisa degli Entry Boundary. Il compiler deve derivare
-una sola volta il set degli ID e usarlo per la validazione runtime della Surface.
+`ComposeOptions` must contain the precise Entry Boundary list. The compiler must derive the ID set
+once and use it for Surface runtime validation.
 
-Gli ID duplicati dovrebbero produrre una diagnostica chiara invece di essere normalizzati
-silenziosamente. L'identità degli Intent tratta già Boundary con lo stesso ID come la stessa
-identità architetturale; ripeterli non aggiunge informazione e segnala normalmente un errore nella
-dichiarazione.
+Duplicate IDs should produce a clear diagnostic instead of being silently normalized. Intent
+identity already treats Boundaries with the same ID as the same architectural identity; repeating
+them adds no information and normally signals a declaration error.
 
-### Rendere la direzione visibile in `describePlan()`
+### Make direction visible in `describePlan()`
 
-Il plan dovrebbe esporre almeno:
+The plan should expose at least:
 
 ```ts
 {
@@ -817,42 +798,40 @@ Il plan dovrebbe esporre almeno:
       origin: { kind: "boundary", id: "orders" },
     },
   ],
-  providers: [/* descrizioni dei lifetime esistenti */],
+  providers: [/* existing lifetime descriptions */],
 }
 ```
 
-Questo rende l'invariante ispezionabile nei test e permette al tooling di spiegare da dove parte
-il grafo, non soltanto quali Provider contiene.
+That makes the invariant inspectable in tests and lets tooling explain where the graph starts, not
+only which Providers it contains.
 
-## Aggiornamenti richiesti a decisioni e documentazione
+## Required decision and documentation updates
 
-La proposta modifica il domain model corrente e supersede parzialmente ADR 0001, che dichiara
-esplicitamente un Provider di Adapter registrabile in `compose({ surface, wiring })`.
+The proposal changes the current domain model and partially supersedes ADR 0001, which explicitly
+allows an Adapter Provider to be registered in `compose({ surface, wiring })`.
 
-L'implementazione richiede quindi un nuovo ADR che registri queste decisioni:
+Implementation therefore needs a new ADR recording these decisions:
 
-- Adapter rimane un'origine architetturale first-class peer di Boundary;
-- i Provider originati da Adapter sono realizzazioni private valide, ma non root della Surface;
-- ogni Composition dichiara i propri Entry Boundary;
-- le root della Surface devono essere possedute dagli Entry Boundary dichiarati;
-- lo scope di ownership della Composition non coincide necessariamente uno-a-uno con un Boundary.
+- Adapter remains a first-class architectural origin peer of Boundary;
+- Adapter-originated Providers are valid private realizations, but not Surface roots;
+- every Composition declares its Entry Boundaries;
+- Surface roots must be owned by the declared Entry Boundaries;
+- Composition ownership scope need not coincide one-to-one with a Boundary.
 
-Il Glossary deve introdurre **Entry Boundary** e precisare le definizioni esistenti:
+The Glossary must introduce **Entry Boundary** and refine existing definitions:
 
-- **Boundary** possiede i Contract degli Intent e può essere autorizzato come entry della
-  Composition;
-- **Entry Boundary** è esplicitamente autorizzato a possedere root della Surface;
-- **Surface** contiene soltanto alias di Provider posseduti dagli Entry Boundary dichiarati;
-- **Adapter** realizza dynamic seam dietro un percorso posseduto da un Boundary e non può essere
-  una root della Surface;
-- **Composition** possiede un grafo chiuso, il relativo lifecycle e un insieme esplicito non vuoto
-  di Entry Boundary.
+- **Boundary** owns Intent Contracts and may be authorized as a Composition entry;
+- **Entry Boundary** is explicitly authorized to own Surface roots;
+- **Surface** contains only aliases of Providers owned by declared Entry Boundaries;
+- **Adapter** realizes dynamic seams behind a Boundary-owned path and cannot be a Surface root;
+- **Composition** owns a closed graph, its lifecycle, and an explicit non-empty set of Entry
+  Boundaries.
 
-README e demo devono usare coerentemente la nuova forma di `ComposeOptions`.
+README and demo must consistently use the new `ComposeOptions` shape.
 
-## Migrazione di `forma-demo`
+## `forma-demo` migration
 
-Il percorso unary mostra già la direzione desiderata:
+The unary path already shows the desired direction:
 
 ```text
 Surface
@@ -861,7 +840,7 @@ Surface
   → Memory/Postgres Adapter
 ```
 
-Il percorso streaming deve essere portato allo stesso modello:
+The streaming path must be brought to the same model:
 
 ```text
 Surface
@@ -870,75 +849,68 @@ Surface
   → Memory/Postgres Adapter
 ```
 
-Entrambe le composizioni dichiarano:
+Both compositions declare:
 
 ```ts
 entryBoundaries: [Orders];
 ```
 
-`WatchOrderEventsViaMemoryProvider` e `WatchOrderEventsViaPostgresProvider` realizzano
-`WatchOrderEvents` nel `wiring`. La Surface espone lo stesso
-`WatchOrdersProvider` originato da Orders in entrambe le varianti.
+`WatchOrderEventsViaMemoryProvider` and `WatchOrderEventsViaPostgresProvider` realize
+`WatchOrderEvents` in `wiring`. The Surface exposes the same Orders-originated
+`WatchOrdersProvider` in both variants.
 
-## Piano di implementazione
+## Implementation plan
 
-Le correzioni di lifecycle e gli Entry Boundary sono indipendenti e dovrebbero arrivare in change
-separati.
+Lifecycle fixes and Entry Boundaries are independent and should land in separate changes.
 
-### Fase 1 — Correttezza del lifecycle streaming
+### Phase 1 — Streaming lifecycle correctness
 
-1. Rifiutare l'apertura di un execution context quando il signal dell'host è già abortito.
-2. Impedire nuove invocation unary dopo l'abort, propagando `signal.reason`.
-3. Applicare allo stream con parent già abortito la semantica di nessuno start e nessuna
-   materializzazione.
-4. Riordinare start e registrazione dell'abort affinché ogni start accettato sia atteso dal close.
-5. Dare al registry un esito terminale osservabile per i close guidati dall'owner.
-6. Fare in modo che `closeAll()` attenda tutti gli stream e aggreghi tutti i failure.
-7. Comporre il close degli stream con il Provider-scope dispose del context, garantendo Provider
-   disposer e rimozione finale del context.
-8. Aggiungere i test di race ed error matrix elencati in F1–F3.
-9. Eliminare il warning ESLint nel protocollo definitivo di abort.
+1. Reject opening an execution context when the host signal is already aborted.
+2. Block new unary invocations after abort, propagating `signal.reason`.
+3. Apply no-start / no-materialization semantics to streams with an already-aborted parent.
+4. Reorder start and abort registration so every accepted start is awaited by close.
+5. Give the registry an observable terminal outcome for owner-driven closes.
+6. Make `closeAll()` await every stream and aggregate every failure.
+7. Compose stream close with the context Provider-scope dispose, guaranteeing Provider disposers
+   and final context removal.
+8. Add the race and error-matrix tests listed in F1–F3.
+9. Remove the ESLint warning in the final abort protocol.
 
-### Fase 2 — Provenance precisa dei Provider
+### Phase 2 — Precise Provider provenance
 
-1. Aggiungere il generic finale `Origin` a `Provider`.
-2. Propagare origini Boundary e Adapter precise attraverso entrambe le famiglie di builder.
-3. Conservare l'origine attraverso `AnyProvider`, inferenza della Surface, helper del wiring e
-   conditional type.
-4. Aggiungere type test isolati per builder chain, lifetime modifier e `.using(...)`.
+1. Add the final `Origin` generic to `Provider`.
+2. Propagate precise Boundary and Adapter origins through both builder families.
+3. Preserve origin through `AnyProvider`, Surface inference, wiring helpers, and conditional types.
+4. Add isolated type tests for builder chains, lifetime modifiers, and `.using(...)`.
 
-### Fase 3 — Validazione degli Entry Boundary
+### Phase 3 — Entry Boundary validation
 
-1. Aggiungere `entryBoundaries` obbligatorio e non vuoto a `ComposeOptions`.
-2. Aggiungere `AssertSurfaceRoots<Entries, Surface>` con diagnostica per alias.
-3. Aggiungere la validazione runtime equivalente prima della compilazione del grafo.
-4. Rifiutare Entry Boundary ID duplicati e Boundary dichiarati ma non rappresentati nella
-   Surface.
-5. Estendere `defineComposition` senza introdurre nuovo currying o fluent builder.
-6. Mantenere funzionante `compose<ExplicitParams>()({...})` con il nuovo bag.
-7. Estendere `describePlan()` con Entry Boundary e provenance delle root.
+1. Add required non-empty `entryBoundaries` to `ComposeOptions`.
+2. Add `AssertSurfaceRoots<Entries, Surface>` with alias diagnostics.
+3. Add equivalent runtime validation before graph compilation.
+4. Reject duplicate Entry Boundary IDs and Boundaries declared but not represented on the Surface.
+5. Extend `defineComposition` without introducing new currying or fluent builders.
+6. Keep `compose<ExplicitParams>()({...})` working with the new bag.
+7. Extend `describePlan()` with Entry Boundaries and root provenance.
 
-### Fase 4 — Migrazione e documentazione
+### Phase 4 — Migration and documentation
 
-1. Migrare test ed esempi README agli Entry Boundary espliciti.
-2. Separare nel demo lo stream entry Intent dallo stream dynamic-seam Intent.
-3. Aggiungere il nuovo ADR e marcare come superseded la clausola sulla Surface di ADR 0001.
-4. Aggiornare il Glossary.
-5. Aggiungere una migration note: cambia ogni chiamata a `compose` e le Surface root Adapter
-   diventano invalide.
+1. Migrate tests and README examples to explicit Entry Boundaries.
+2. Separate the demo’s stream entry Intent from the stream dynamic-seam Intent.
+3. Add the new ADR and mark ADR 0001’s Surface clause as superseded.
+4. Update the Glossary.
+5. Add a migration note: every `compose` call changes, and Adapter Surface roots become invalid.
 
-## Decisioni raccomandate
+## Recommended decisions
 
-1. Correggere le due race confermate prima di considerare completo il supporto streaming.
-2. Comporre i failure di cleanup senza saltare mai gli owner successivi.
-3. Considerare una root Adapter nella Surface uno short-circuit architetturale e rifiutarla.
-4. Richiedere a ogni Composition uno o più Entry Boundary espliciti.
-5. Richiedere corrispondenza esatta fra Entry Boundary dichiarati e Boundary effettivamente
-   esposti, consentendo comunque alla Composition di attraversare privatamente altri Boundary.
-6. Mantenere l'interfaccia a singolo options bag aggiungendo `entryBoundaries`.
-7. Non introdurre currying o fluent builder per l'inferenza degli Entry Boundary.
-8. Mantenere il nome `wiring`, perché la lista non contiene soltanto Provider.
-9. Conservare la provenance nel type model affinché compile time e runtime applichino la stessa
-   regola.
-10. Registrare la decisione architetturale in un ADR e aggiornare il Glossary durante
-    l'implementazione.
+1. Fix the two confirmed races before considering streaming support complete.
+2. Compose cleanup failures without ever skipping later owners.
+3. Treat an Adapter Surface root as an architectural short-circuit and reject it.
+4. Require every Composition to declare one or more explicit Entry Boundaries.
+5. Require exact correspondence between declared Entry Boundaries and Boundaries actually exposed,
+   while still allowing the Composition to privately cross other Boundaries.
+6. Keep the single options-bag interface by adding `entryBoundaries`.
+7. Do not introduce currying or fluent builders for Entry Boundary inference.
+8. Keep the name `wiring`, because the list is not only Providers.
+9. Preserve provenance in the type model so compile time and runtime apply the same rule.
+10. Record the architectural decision in an ADR and update the Glossary during implementation.

@@ -1,19 +1,21 @@
-# Streaming Intent e operation multi-yield
+# Streaming Intent and multi-yield operations
 
-> Stato: modello target concordato (grill); core integrato (Fasi 0–4);
+> Status: agreed target model (grill); core integrated (Phases 0–4);
 > spike + registry + surface + cancel/errors + Adapter/alias/`describePlan`;
-> demo `WatchOrders` in `apps/forma-demo`; decisioni rese vincolanti da
+> `WatchOrders` demo in `apps/forma-demo`; decisions made binding by
 > [ADR 0012](./adr/0012-streaming-intents.md).
-> Le decisioni sotto “Decisioni chiuse” non si riaprono senza un nuovo trade-off.
-> Fase 5 (remote Adapter) resta fuori dal primo ship del core.
+> Decisions under “Closed decisions” are not reopened without a new trade-off.
+> Phase 5 (remote Adapter) remains outside the first core ship.
+> Event protocol amended by [ADR 0015](./adr/0015-boundary-error-totalization.md)
+> (`InvocationOutcome` replaces `Result` / `ok` / `err`).
 >
-> Scope: supporto a stream pull-based tramite `AsyncIterable` / async generator. Questo documento
-> non propone dependency resolution dinamica tramite `yield`.
+> Scope: pull-based stream support via `AsyncIterable` / async generator. This document does not
+> propose dynamic dependency resolution via `yield`.
 
 ## Executive summary
 
-Gli async generator si integrano bene con Forma quando i `yield` appartengono all'operation e
-rappresentano gli elementi di uno stream:
+Async generators fit Forma well when `yield`s belong to the operation and represent stream
+elements:
 
 ```ts
 const WatchOrdersProvider = WatchOrders.provide.with(
@@ -23,7 +25,7 @@ const WatchOrdersProvider = WatchOrders.provide.with(
 
       try {
         for await (const event of subscription) {
-          yield ok(event);
+          yield success(event);
         }
       } finally {
         await subscription.close();
@@ -32,82 +34,83 @@ const WatchOrdersProvider = WatchOrders.provide.with(
 );
 ```
 
-Non è sufficiente aggiungere `AsyncIterable<Result<...>>` al return type delle operation attuali.
-Una unary operation ha un completamento terminale osservato durante una singola chiamata; uno
-stream restituisce subito un iterator che può restare attivo molto più a lungo della chiamata che
-lo ha creato. Forma deve quindi possedere esplicitamente il lifetime dell'invocation streaming.
+Adding `AsyncIterable<InvocationOutcome<...>>` to today’s operation return type is not enough. A
+unary operation has a terminal completion observed during a single call; a stream immediately
+returns an iterator that may stay active far longer than the call that created it. Forma must
+therefore explicitly own the streaming invocation lifetime.
 
-La direzione concordata è:
+The agreed direction is:
 
-- introdurre modality `unary | stream` sul **Contract** (identity resta `(boundaryId, intentName)`);
-- mantenere invariati grafo, Provider lifetime e lifetime inference (indipendenti dalla modality);
-- aggiungere uno stream invocation lifetime posseduto dall’execution context;
-- restituire dalla surface un `AsyncIterable` lazy, cold, single-consumer (con `AsyncDisposable`);
-- chiudere gli stream attivi quando il consumer interrompe, l'execution context viene disposto o
-  il relativo signal viene abortito (abort host ≠ dispose automatico);
-- usare `Result<Item, Err>` come protocollo degli eventi, con `Err` terminale enforced dal wrapper;
-- lasciare transport, reconnect, multicast e runtime schema a moduli costruiti sopra il core.
+- introduce modality `unary | stream` on the **Contract** (identity stays `(boundaryId, intentName)`);
+- keep the graph, Provider lifetime, and lifetime inference unchanged (independent of modality);
+- add a stream invocation lifetime owned by the execution context;
+- return from the surface a lazy, cold, single-consumer `AsyncIterable` (with `AsyncDisposable`);
+- close active streams when the consumer stops, the execution context is disposed, or the related
+  signal is aborted (host abort ≠ automatic dispose);
+- use `InvocationOutcome<Item, Err>` as the event protocol, with `error` / `unexpected` /
+  `cancelled` terminal and enforced by the wrapper ([ADR 0015](./adr/0015-boundary-error-totalization.md));
+- leave transport, reconnect, multicast, and runtime schema to modules built on top of the core.
 
-Questa estensione è particolarmente interessante per database cursor, subscription, filesystem
-watch, Server-Sent Events, WebSocket e remote Adapter fullstack.
+This extension is especially useful for database cursors, subscriptions, filesystem watches,
+Server-Sent Events, WebSockets, and fullstack remote Adapters.
 
-## Contesto attuale
+## Current context
 
-Forma modella oggi un'operation unary:
+Forma models a unary operation as:
 
 ```ts
 type IntentOperation<Input, Success, Err> = (
   input: Input
-) => Result<Success, Err> | Promise<Result<Success, Err>>;
+) => InvocationOutcome<Success, Err> | Promise<InvocationOutcome<Success, Err>>;
 ```
 
-La surface può mantenere un lease sull'execution context per l'intera invocation:
+The surface can hold an execution-context lease for the whole invocation:
 
 ```text
 enter → materialize Provider → invoke operation → await result → leave
 ```
 
-Questo garantisce che il dispose attenda il lavoro già accettato. Provider e operation hanno
-responsabilità diverse:
+That ensures dispose waits for already-accepted work. Provider and operation have different
+responsibilities:
 
-- il Provider viene materializzato una volta per il proprio effective lifetime;
-- l'operation può essere invocata più volte;
-- `Lifetime.onDispose` appartiene all'istanza del Provider;
-- il lease della surface appartiene alla singola invocation.
+- the Provider is materialized once for its effective lifetime;
+- the operation may be invoked many times;
+- `Lifetime.onDispose` belongs to the Provider instance;
+- the surface lease belongs to the single invocation.
 
-Un async generator modifica l'ultimo punto. Chiamare una generator function restituisce
-immediatamente un iterator; il corpo viene eseguito soltanto al primo `next()`:
+An async generator changes the last point. Calling a generator function returns an iterator
+immediately; the body runs only on the first `next()`:
 
 ```ts
-const stream = operation(input); // non consuma lo stream
+const stream = operation(input); // does not consume the stream
 ```
 
-Se Forma rilasciasse il lease subito dopo questa riga, l'execution context potrebbe disporre i
-Provider mentre lo stream li sta ancora usando.
+If Forma released the lease right after this line, the execution context could dispose Providers
+while the stream was still using them.
 
-## Distinzione fondamentale
+## Fundamental distinction
 
-Esistono almeno tre possibili significati di `yield`; soltanto uno è in scope.
+There are at least three possible meanings of `yield`; only one is in scope.
 
-### Yield dell'operation: in scope
+### Operation yield: in scope
 
-Ogni `yield` è un elemento dello stream:
+Each `yield` is a stream element:
 
 ```ts
 async function* watch(input, invocation) {
-  yield ok(firstEvent);
-  yield ok(secondEvent);
+  yield success(firstEvent);
+  yield success(secondEvent);
 }
 ```
 
-### Yield della Provider factory: fuori scope
+### Provider factory yield: out of scope
 
-Non viene proposto che una Provider factory produca più operation o più istanze attraverso yield
-successivi. Il Provider continua a materializzare una sola operation, sincrona o asincrona.
+It is not proposed that a Provider factory produce multiple operations or instances through
+successive yields. The Provider still materializes a single operation, sync or async.
 
-### Yield di Intent come effect: fuori scope
+### Intent-as-effect yield: out of scope
 
-Non viene proposta una forma del tipo:
+A form like this is not proposed:
 
 ```ts
 function* provider() {
@@ -115,41 +118,39 @@ function* provider() {
 }
 ```
 
-Dependency resolution dinamica indebolirebbe grafo chiuso, cycle detection, lifetime inference,
-`describePlan()` e controlli type-level. Sarebbe un effect system differente dalla tesi attuale di
-Forma.
+Dynamic dependency resolution would weaken the closed graph, cycle detection, lifetime inference,
+`describePlan()`, and type-level checks. It would be a different effect system from Forma’s current
+thesis.
 
-## Obiettivi
+## Goals
 
-1. Rappresentare stream pull-based con gli standard JavaScript `AsyncIterable` e
-   `AsyncIterator`.
-2. Conservare la distinzione statica fra operation unary e streaming.
-3. Mantenere il grafo chiuso e tutte le attuali garanzie di Composition.
-4. Rendere lo stream una risorsa posseduta dall'execution context.
-5. Propagare cancellation al lavoro per-invocation, anche quando il Provider è
-   composition-effective.
-6. Garantire cleanup su completion, errore, `break`, dispose e abort.
-7. Mantenere lazy sia la materializzazione del Provider sia l'avvio dello stream.
-8. Nascondere la complessità del lifecycle dietro la normale interface `AsyncIterable`.
-9. Lasciare aperta l'integrazione con transport remoti senza introdurla nel core.
+1. Represent pull-based streams with standard JavaScript `AsyncIterable` and `AsyncIterator`.
+2. Preserve the static distinction between unary and streaming operations.
+3. Keep the closed graph and all current Composition guarantees.
+4. Make the stream a resource owned by the execution context.
+5. Propagate cancellation to per-invocation work, even when the Provider is composition-effective.
+6. Guarantee cleanup on completion, error, `break`, dispose, and abort.
+7. Keep both Provider materialization and stream start lazy.
+8. Hide lifecycle complexity behind the normal `AsyncIterable` interface.
+9. Leave remote transport integration open without introducing it in the core.
 
-## Non-obiettivi iniziali
+## Initial non-goals
 
-- stream push-based o un sistema Observable/Rx nel core;
-- duplex stream;
-- multicast, replay o condivisione automatica fra consumer;
-- reconnect e retry policy;
-- batching e buffering configurabile;
-- dependency resolution dinamica tramite generator;
-- serializzazione o runtime schema;
-- introduzione immediata di scope nominati o annidati;
-- supporto distinto per generator sincroni: la baseline usa sempre `AsyncIterable`.
+- push-based streams or an Observable/Rx system in the core;
+- duplex streams;
+- multicast, replay, or automatic sharing across consumers;
+- reconnect and retry policy;
+- configurable batching and buffering;
+- dynamic dependency resolution via generators;
+- serialization or runtime schema;
+- immediate introduction of named or nested scopes;
+- distinct support for sync generators: the baseline always uses `AsyncIterable`.
 
-## Modello pubblico proposto
+## Proposed public model
 
-### Intent modality esplicita
+### Explicit Intent modality
 
-Unary e streaming devono essere distinguibili nel tipo dell'Intent:
+Unary and streaming must be distinguishable in the Intent type:
 
 ```ts
 const GetOrder = Orders.intent("getOrder").contract<OrderId, Order, GetOrderError>();
@@ -161,17 +162,21 @@ const WatchOrders = Orders.stream("watchOrders").contract<
 >();
 ```
 
-Sintassi concordata: `boundary.stream(name).contract<...>()` (e `boundary.intent` resta unary).
-La modality è fissa sul **Contract**, non sull’identity e non dedotta dal return type a runtime.
+Agreed syntax: `boundary.stream(name).contract<...>()` (and `boundary.intent` remains unary).
+Modality is fixed on the **Contract**, not on identity and not inferred from the return type at
+runtime.
 
-Una union implicita è da evitare:
+An implicit union should be avoided:
 
 ```ts
-// Non proposto
-type OperationResult<S, E> = Result<S, E> | Promise<Result<S, E>> | AsyncIterable<Result<S, E>>;
+// Not proposed
+type OperationResult<S, E> =
+  | InvocationOutcome<S, E>
+  | Promise<InvocationOutcome<S, E>>
+  | AsyncIterable<InvocationOutcome<S, E>>;
 ```
 
-Con questa union il caller non saprebbe staticamente se usare `await` o `for await`.
+With that union the caller would not know statically whether to use `await` or `for await`.
 
 ### Stream operation
 
@@ -185,25 +190,25 @@ type StreamInvocation = {
 type StreamOperation<Input, Item, Err> = (
   input: Input,
   invocation: StreamInvocation
-) => AsyncIterable<Result<Item, Err>>;
+) => AsyncIterable<InvocationOutcome<Item, Err>>;
 ```
 
-`StreamInvocation` in v1 espone solo `signal` (niente metadata). Le unary restano
-`(input) => Result | Promise<Result>` — nessun secondo argomento in v1.
+`StreamInvocation` in v1 exposes only `signal` (no metadata). Unary stays
+`(input) => InvocationOutcome | Promise<InvocationOutcome>` — no second argument in v1.
 
-`StreamInvocation.signal` è distinto da `Lifetime.signal`:
+`StreamInvocation.signal` is distinct from `Lifetime.signal`:
 
-- `Lifetime.signal` appartiene all'istanza del Provider;
-- `StreamInvocation.signal` appartiene alla singola stream invocation;
-- ogni invocation signal è subordinato al signal dell'execution context;
-- interrompere un singolo stream abortisce la sua invocation senza abortire l'intero context.
+- `Lifetime.signal` belongs to the Provider instance;
+- `StreamInvocation.signal` belongs to the single stream invocation;
+- every invocation signal is subordinate to the execution-context signal;
+- stopping a single stream aborts its invocation without aborting the whole context.
 
-La distinzione è necessaria per Provider composition-effective: l'istanza può vivere quanto la
-root, ma ogni stream da essa prodotto deve comunque terminare con il context che lo ha invocato.
+The distinction is required for composition-effective Providers: the instance may live as long as
+the root, but every stream it produces must still end with the context that invoked it.
 
 ### Surface
 
-La surface distingue unary e streaming:
+The surface distinguishes unary and streaming:
 
 ```ts
 const result = await execution.surface.getOrder(input);
@@ -214,173 +219,173 @@ for await (const event of stream) {
 }
 ```
 
-La stream surface operation restituisce sincronicamente un `AsyncIterable` (non un
-`AsyncIterableIterator` pubblico). Il wrapper interno gestisce `return()`; il consumer tipico
-usa `for await` / `break`. L’iterable implementa anche `[Symbol.asyncDispose]` sullo stesso
-path di cleanup. Provider materialization e apertura dello stream avvengono al primo `next()`.
-Restituire `Promise<AsyncIterable<...>>` costringerebbe a una forma meno naturale:
+The stream surface operation returns an `AsyncIterable` synchronously (not a public
+`AsyncIterableIterator`). The internal wrapper handles `return()`; the typical consumer uses
+`for await` / `break`. The iterable also implements `[Symbol.asyncDispose]` on the same cleanup
+path. Provider materialization and stream opening happen on the first `next()`. Returning
+`Promise<AsyncIterable<...>>` would force a less natural form:
 
 ```ts
-// Da evitare
+// Avoid
 for await (const event of await execution.surface.watchOrders(input)) {
 }
 ```
 
-Garanzie pubbliche: cold + single-consumer:
+Public guarantees: cold + single-consumer:
 
-- la prima iterazione ne prende ownership;
-- una seconda iterazione dello stesso valore fallisce chiaramente;
-- due chiamate alla surface producono due stream indipendenti;
-- multicast/replay non sono nel core; eventuale condivisione I/O sotto il cofano resta dettaglio
-  del Realization, non API Forma.
+- the first iteration takes ownership;
+- a second iteration of the same value fails clearly;
+- two surface calls produce two independent streams;
+- multicast/replay are not in the core; any under-the-hood I/O sharing remains a Realization
+  detail, not Forma API.
 
-## Semantica degli eventi e degli errori
+## Event and error semantics
 
-Protocollo concordato:
+Agreed protocol ([ADR 0015](./adr/0015-boundary-error-totalization.md)):
 
 ```ts
-AsyncIterable<Result<Item, Err>>;
+AsyncIterable<InvocationOutcome<Item, Err>>;
 ```
 
-Regole:
+Rules:
 
-- `ok(item)` emette un elemento;
-- `err(error)` rappresenta un errore atteso ed è terminale;
-- completion dell'iterator rappresenta fine normale;
-- un `throw` rappresenta un errore inatteso;
-- nessun elemento è ammesso dopo `err`;
-- gli errori di cleanup riutilizzano la matrice disposal già usata da Forma
-  (`SuppressedError` / `AggregateError` dove già applicabile) — niente policy ad hoc solo per
-  gli stream;
-- ogni close avviato dall'owner mantiene un esito osservabile: il context dispose attende tutti i
-  close, tenta comunque i disposer dei Provider e aggrega failure multipli;
-- in v1 non c’è timeout se un generator ignora cancellation e non completa `return()`: ci si
-  affida ad abort + cooperazione; eventuali hang-timeout restano policy host.
+- `success(item)` emits an element;
+- `error` represents an expected failure and is terminal;
+- `unexpected` represents an unexpected failure and is terminal (source throw/rejection at start
+  or `next()` becomes a terminal `unexpected` event — `next()` does not reject for that failure);
+- `cancelled` is terminal;
+- iterator completion represents normal end;
+- no element is allowed after a terminal kind;
+- cleanup errors reuse Forma’s existing disposal matrix (`SuppressedError` / `AggregateError`
+  where already applicable) — no stream-only ad hoc policy;
+- every owner-started close keeps an observable outcome: context dispose waits for all closes,
+  still attempts Provider disposers, and aggregates multiple failures;
+- in v1 there is no timeout if a generator ignores cancellation and never completes `return()`:
+  rely on abort + cooperation; any hang-timeout remains host policy.
 
-Il wrapper **enforce** “Err terminale”: dopo il primo `err` chiama `return()` sull’iterator
-interno, così yield successivi non sono osservabili.
+The wrapper **enforces** terminal kinds: after the first `error` / `unexpected` / `cancelled` it
+calls `return()` on the inner iterator so later yields are not observable.
 
-Non viene usato il return value finale del generator per rappresentare un risultato: `for await`
-non lo espone in modo ergonomico al consumer.
+The generator’s final return value is not used to represent a result: `for await` does not expose
+it ergonomically to the consumer.
 
-## Ownership e lifecycle
+## Ownership and lifecycle
 
-### Due lifetime distinti
+### Two distinct lifetimes
 
 ```text
 Provider effective lifetime
-└── zero o più stream invocation lifetime
+└── zero or more stream invocation lifetimes
 ```
 
-Il Provider lifetime governa:
+Provider lifetime governs:
 
-- factory e operation instance;
-- cache e inflight materialization;
-- risorse registrate con `Lifetime.onDispose`.
+- factory and operation instance;
+- cache and in-flight materialization;
+- resources registered with `Lifetime.onDispose`.
 
-Lo stream invocation lifetime governa:
+Stream invocation lifetime governs:
 
 - iterator;
-- signal della singola subscription;
-- risorse aperte dentro la generator function;
-- lease sull'execution context;
-- cleanup su completion o cancellation.
+- single-subscription signal;
+- resources opened inside the generator function;
+- execution-context lease;
+- cleanup on completion or cancellation.
 
-Una risorsa condivisa fra invocation appartiene al Provider. Una subscription, cursor o reader
-creato per un singolo input appartiene allo stream.
+A resource shared across invocations belongs to the Provider. A subscription, cursor, or reader
+created for a single input belongs to the stream.
 
 ### Lazy start
 
-Creare uno stream senza iterarlo non deve:
+Creating a stream without iterating it must not:
 
-- materializzare il Provider;
-- acquisire un lease;
-- registrare uno stream attivo;
-- aprire risorse.
+- materialize the Provider;
+- acquire a lease;
+- register an active stream;
+- open resources.
 
-Il primo `next()` esegue atomicamente:
+The first `next()` atomically:
 
-1. verifica che l'execution context sia ancora open;
-2. prende il lease;
-3. registra lo stream attivo;
-4. crea il per-stream `AbortController` collegato al context signal;
-5. materializza il Provider;
-6. invoca la StreamOperation;
-7. inoltra `next()` all'iterator interno.
+1. checks that the execution context is still open;
+2. takes the lease;
+3. registers the active stream;
+4. creates the per-stream `AbortController` linked to the context signal;
+5. materializes the Provider;
+6. invokes the StreamOperation;
+7. forwards `next()` to the inner iterator.
 
-Una race fra primo `next()` e dispose deve produrre un solo esito: stream accettato e poi chiuso,
-oppure rifiuto perché il context non è più open.
+A race between first `next()` and dispose must produce a single outcome: stream accepted then
+closed, or rejection because the context is no longer open.
 
-### Completion naturale
+### Natural completion
 
-Quando l'iterator interno completa:
+When the inner iterator completes:
 
-1. viene rimosso dal registro degli stream attivi;
-2. il per-stream controller viene abortito/chiuso;
-3. il lease viene rilasciato una sola volta.
+1. it is removed from the active-stream registry;
+2. the per-stream controller is aborted/closed;
+3. the lease is released exactly once.
 
-### Interruzione del consumer
+### Consumer interruption
 
-Quando il consumer esegue `break`, `return()` o abbandona tramite un errore nel loop, il wrapper:
+When the consumer runs `break`, `return()`, or abandons via an error in the loop, the wrapper:
 
-1. abortisce il per-stream signal;
-2. chiama `return()` sull'iterator interno;
-3. attende il `finally` del generator;
-4. rilascia registration e lease.
+1. aborts the per-stream signal;
+2. calls `return()` on the inner iterator;
+3. awaits the generator `finally`;
+4. releases registration and lease.
 
-`return()` deve essere idempotente dal punto di vista del wrapper.
+`return()` must be idempotent from the wrapper’s point of view.
 
-### Dispose dell'execution context
+### Execution-context dispose
 
-Il dispose deve evitare deadlock con stream infiniti. Non può attendere passivamente che gli
-stream terminino.
+Dispose must avoid deadlock with infinite streams. It cannot passively wait for streams to end.
 
-Ordine proposto:
+Proposed order:
 
 ```text
 mark context disposing
 → abort context signal
 → prevent new invocations
-→ abort + return() di tutti gli stream attivi
+→ abort + return() all active streams
 → wait stream cleanup
-→ wait unary invocations già accettate
+→ wait already-accepted unary invocations
 → dispose context-owned Providers
 → context disposed
 ```
 
-Questo requisito probabilmente richiede di distinguere il lifecycle delle invocation dal
-`ProviderScope`. Oggi il Provider scope possiede anche i lease delle surface call; per lo streaming
-è più chiaro introdurre un execution lifecycle che possieda unary invocation e stream registry,
-lasciando al Provider scope materializzazione e risorse dei Provider.
+This requirement likely needs separating invocation lifecycle from `ProviderScope`. Today the
+Provider scope also owns surface-call leases; for streaming it is clearer to introduce an
+execution lifecycle that owns unary invocations and the stream registry, leaving Provider scope
+with materialization and Provider resources.
 
-### Dispose della root
+### Root dispose
 
-Resta valido l'ordine attuale:
+The current order remains valid:
 
 ```text
 root disposing
-→ close all execution contexts (inclusi stream attivi)
+→ close all execution contexts (including active streams)
 → dispose composition-effective Providers
 → root disposed
 ```
 
 ### Host abort
 
-Il signal fornito a `openExecutionContext` continua a confluire nel context signal. L'abort:
+The signal passed to `openExecutionContext` still flows into the context signal. Abort:
 
-- fa fallire immediatamente l'apertura se il signal è già abortito;
-- abortisce tutti gli invocation signal derivati;
-- impedisce nuovo lavoro: una unary rigetta con `signal.reason`, mentre uno stream cold non ancora
-  avviato completa senza materializzazione;
-- lascia il lavoro già accettato in cancellazione cooperativa;
-- deve sbloccare I/O cooperativo dentro gli stream;
-- **non** avvia automaticamente `dispose()` del context (abort ≠ dispose; coerente con ADR 0008).
+- fails opening immediately if the signal is already aborted;
+- aborts all derived invocation signals;
+- blocks new work: a unary rejects with `signal.reason`, while a cold stream not yet started
+  completes without materialization;
+- leaves already-accepted work in cooperative cancellation;
+- must unblock cooperative I/O inside streams;
+- does **not** automatically start context `dispose()` (abort ≠ dispose; consistent with ADR 0008).
 
-Con `withExecutionContext`, il dispose nel `finally` chiude comunque gli iterator attivi.
+With `withExecutionContext`, the `finally` dispose still closes active iterators.
 
 ## Active stream registry
 
-Serve un modulo interno profondo con una piccola interface, ad esempio:
+An internal deep module with a small interface is needed, for example:
 
 ```ts
 type StreamRegistry = {
@@ -389,69 +394,68 @@ type StreamRegistry = {
 };
 ```
 
-La forma definitiva può differire, ma il modulo deve nascondere:
+The final shape may differ, but the module must hide:
 
-- stato `idle | starting | active | closing | closed` di ogni wrapper;
+- `idle | starting | active | closing | closed` state of each wrapper;
 - single-consumer enforcement;
-- context e per-stream AbortController;
-- forwarding di `next` e close gestito per `return` / `throw`; `throw` consumer-side è terminale,
-  non viene inoltrato alla sorgente e ripropaga l'errore dopo la cleanup;
+- context and per-stream AbortController;
+- `next` forwarding and managed close for `return` / `throw`; consumer-side `throw` is terminal,
+  is not forwarded to the source, and rethrows the error after cleanup;
 - active registration;
-- release-once del lease;
-- close concorrenti;
-- composizione degli errori;
-- race fra start, completion e context dispose.
+- release-once of the lease;
+- concurrent closes;
+- error composition;
+- races among start, completion, and context dispose.
 
-L'execution context non dovrebbe manipolare direttamente set di iterator, controller e promise.
+The execution context should not directly manipulate sets of iterators, controllers, and promises.
 
-## Provider, Adapter e alias
+## Provider, Adapter, and alias
 
 ### Provider
 
-Uno Stream Provider produce una `StreamOperation`, non direttamente un iterator. Stesso percorso
-ergonomico `.provide.with` / Adapter `.adapt`: l’operation type è guidato dalla modality del
-Contract, senza un secondo DSL. La stessa operation instance può creare più iterator
-indipendenti:
+A Stream Provider produces a `StreamOperation`, not an iterator directly. Same ergonomic path
+`.provide.with` / Adapter `.adapt`: the operation type is driven by Contract modality, without a
+second DSL. The same operation instance may create multiple independent iterators:
 
 ```ts
 const WatchOrdersProvider = WatchOrders.provide.with(
   ({ deps }) =>
     async function* (input, invocation) {
-      // una nuova invocation per ogni chiamata alla surface
+      // a new invocation for every surface call
     }
 );
 ```
 
-Provider lifetime inference non cambia: dipende dal grafo delle dependency, non dalla modality
-dell'Intent.
+Provider lifetime inference does not change: it depends on the dependency graph, not Intent
+modality.
 
-`using` ammette Intent stream: il dependency materializzato è la `StreamOperation` (factory di
-iterable), non un iterator già aperto. Aprire uno stream resta una nuova invocation (surface
-wrapper, o footgun del Realization se fatto fuori dal registry).
+`using` admits stream Intents: the materialized dependency is the `StreamOperation` (iterable
+factory), not an already-open iterator. Opening a stream remains a new invocation (surface
+wrapper, or a Realization footgun if done outside the registry).
 
 ### Adapter
 
-`Adapter.adapt()` deve preservare la modality dell'Intent target:
+`Adapter.adapt()` must preserve the target Intent’s modality:
 
 - unary Intent → unary Provider builder;
 - Stream Intent → stream Provider builder.
 
-Un remote Adapter può produrre un async iterator che decodifica eventi da un transport.
+A remote Adapter may produce an async iterator that decodes events from a transport.
 
 ### Intent alias
 
-Gli alias sono ammessi soltanto fra Intent con modality e contratto compatibili:
+Aliases are allowed only between Intents with compatible modality and contract:
 
 - unary → unary;
 - stream → stream;
-- stessi Input, Item/Success ed Err secondo le regole strutturali esistenti.
+- same Input, Item/Success, and Err under existing structural rules.
 
-Unary → stream e stream → unary devono fallire a compile time.
+Unary → stream and stream → unary must fail at compile time.
 
-## Piano e introspezione
+## Plan and introspection
 
-`describePlan()` espone la modality (`mode: "unary" | "stream"`) su **tutti** gli Intent
-registrati (surface e wiring), non solo sulla surface:
+`describePlan()` exposes modality (`mode: "unary" | "stream"`) on **all** registered Intents
+(surface and wiring), not only the surface:
 
 ```ts
 {
@@ -462,42 +466,41 @@ registrati (surface e wiring), non solo sulla surface:
 }
 ```
 
-La modality è proprietà del Contract, non del Provider. Renderla visibile aiuta:
+Modality is a Contract property, not a Provider property. Making it visible helps:
 
 - graph visualization;
 - transport manifest;
-- architecture test;
-- individuazione di stream anche privati;
-- future verifiche su stream composition-effective.
+- architecture tests;
+- finding private streams as well;
+- future checks on composition-effective streams.
 
-Il piano descrive capability statiche; gli iterator attivi sono runtime state e non appartengono
-al risultato immutabile di `describePlan()`. Eventuale runtime inspection dovrebbe avere una
-interface separata.
+The plan describes static capabilities; active iterators are runtime state and do not belong in
+the immutable `describePlan()` result. Any runtime inspection should have a separate interface.
 
-## Implicazioni fullstack
+## Fullstack implications
 
-La forma si presta a un remote Adapter:
+The shape fits a remote Adapter:
 
 ```text
 Server Stream Intent
-→ AsyncIterable<Result<Event, Err>>
+→ AsyncIterable<InvocationOutcome<Event, Err>>
 → SSE / WebSocket / streamed HTTP
 → Client remote Adapter
-→ AsyncIterable<Result<Event, Err>>
+→ AsyncIterable<InvocationOutcome<Event, Err>>
 ```
 
-Il core Forma dovrebbe definire soltanto ownership e protocollo dell'iterator. Un modulo transport
-separato governa:
+Forma core should define only iterator ownership and protocol. A separate transport module
+governs:
 
-- runtime schema e serializzazione;
-- framing degli eventi;
-- reconnect e resume token;
+- runtime schema and serialization;
+- event framing;
+- reconnect and resume tokens;
 - heartbeat;
-- mapping errori di rete;
-- autenticazione e authorization transport;
-- backpressure disponibile sul transport scelto.
+- network-error mapping;
+- transport authentication and authorization;
+- backpressure available on the chosen transport.
 
-La cancellazione deve propagarsi in entrambe le direzioni:
+Cancellation must propagate in both directions:
 
 ```text
 consumer break / context dispose
@@ -507,227 +510,228 @@ consumer break / context dispose
 → generator finally
 ```
 
-Un prototipo fullstack è utile come validazione, ma non fa parte del primo incremento del core.
+A fullstack prototype is useful for validation but is not part of the first core increment.
 
-## Alternative considerate
+## Alternatives considered
 
-### `Success = AsyncIterable<Item>` su un Intent unary
+### `Success = AsyncIterable<Item>` on a unary Intent
 
 ```ts
 Intent<Input, AsyncIterable<Item>, Err>;
 ```
 
-Vantaggio: nessun nuovo tipo di Intent.
+Advantage: no new Intent kind.
 
-Problemi:
+Problems:
 
-- Forma non riconosce che il successo porta un lifecycle lungo;
-- l'execution context rilascia il lease troppo presto;
-- cancellation e active stream ownership restano responsabilità del caller;
-- `Err` può descrivere soltanto l'avvio, non gli errori attesi durante lo stream;
-- `describePlan()` non può distinguere la modality.
+- Forma does not recognize that success carries a long lifecycle;
+- the execution context releases the lease too early;
+- cancellation and active-stream ownership remain the caller’s responsibility;
+- `Err` can describe only startup, not expected errors during the stream;
+- `describePlan()` cannot distinguish modality.
 
-È possibile come escape hatch manuale, ma non offre garanzie streaming.
+Possible as a manual escape hatch, but it offers no streaming guarantees.
 
-### Union fra unary result e stream
+### Union of unary result and stream
 
-Riduce i tipi dichiarati, ma sposta il branching su tutti i caller e rende meno profonda
-l'interface della surface. Rifiutata come direzione iniziale.
+Reduces declared types, but moves branching onto every caller and makes the surface interface less
+deep. Rejected as the initial direction.
 
-### Promise di AsyncIterable
+### Promise of AsyncIterable
 
-Semplifica la materializzazione asincrona, ma peggiora l'uso e separa artificialmente “open” e
-“iterate”. Un iterable lazy può nascondere entrambe dietro il primo `next()`.
+Simplifies async materialization, but worsens usage and artificially separates “open” from
+“iterate”. A lazy iterable can hide both behind the first `next()`.
 
-### Return value terminale del generator
+### Generator terminal return value
 
-`for await` non espone ergonomicamente il return value. Usare un `Result` yielded e terminale è più
-compatibile con il normale protocollo di consumo.
+`for await` does not expose the return value ergonomically. Using a yielded terminal
+`InvocationOutcome` is more compatible with the normal consumption protocol.
 
-### Observable nel core
+### Observable in the core
 
-Gli Observable risolvono casi importanti, soprattutto push e multicast, ma introdurrebbero un
-protocollo non standard e policy aggiuntive. Un Adapter può convertire fra Observable e
-AsyncIterable senza imporre la dipendenza a Forma.
+Observables solve important cases, especially push and multicast, but would introduce a
+non-standard protocol and extra policy. An Adapter can convert between Observable and
+AsyncIterable without imposing the dependency on Forma.
 
-## Piano di sviluppo
+## Development plan
 
-### Fase 0 — Spike isolato + ADR
+### Phase 0 — Isolated spike + ADR
 
-Obiettivo: validare la state machine e le ergonomics TypeScript contro le **Decisioni chiuse**,
-senza modificare il runtime principale.
+Goal: validate the state machine and TypeScript ergonomics against the **Closed decisions**,
+without changing the main runtime.
 
-- costruire un wrapper `ManagedAsyncIterator` sperimentale (incluso `[Symbol.asyncDispose]`);
-- verificare `next`, `return`, `throw` terminale, abort e cleanup concorrente;
-- verificare il comportamento reale di async generator bloccati su I/O;
-- verificare enforcement di `Err` terminale e riuso della matrice errori disposal;
-- registrare l’ADR di integrazione solo a valle dello spike (nessun ADR “a vuoto” prima).
+- build an experimental `ManagedAsyncIterator` wrapper (including `[Symbol.asyncDispose]`);
+- verify `next`, `return`, terminal `throw`, abort, and concurrent cleanup;
+- verify real behavior of async generators blocked on I/O;
+- verify terminal-kind enforcement and reuse of the disposal error matrix;
+- record the integration ADR only after the spike (no empty ADR beforehand).
 
-Criterio di uscita: state machine e matrice degli errori documentate e testate; ADR allineato
-alle Decisioni chiuse.
+Exit criterion: state machine and error matrix documented and tested; ADR aligned with Closed
+decisions.
 
-### Fase 1 — Modello type-level
+### Phase 1 — Type-level model
 
-- aggiungere la modality all'Intent;
-- introdurre `StreamOperation`, `StreamInvocation` e Stream Provider;
-- derivare correttamente unary e stream surface operation;
-- preservare modality in Adapter e alias;
-- rifiutare alias cross-modality;
-- mantenere invariati Params e lifetime inference;
-- aggiungere compile-time tests attraverso l'interface pubblica.
+- add modality to Intent;
+- introduce `StreamOperation`, `StreamInvocation`, and Stream Provider;
+- correctly derive unary and stream surface operations;
+- preserve modality in Adapter and alias;
+- reject cross-modality aliases;
+- keep Params and lifetime inference unchanged;
+- add compile-time tests through the public interface.
 
-Criterio di uscita: nessun cambiamento al comportamento unary e inferenza stabile.
+Exit criterion: no change to unary behavior and stable inference.
 
-### Fase 2 — Execution lifecycle separato (prerequisito vincolante)
+### Phase 2 — Separate execution lifecycle (binding prerequisite)
 
-Prerequisito prima del registry stream: senza questo seam, lease e materialize restano aggrovigliati.
+Prerequisite before the stream registry: without this seam, lease and materialize stay tangled.
 
-- separare i lease delle invocation dal `ProviderScope`;
-- introdurre uno stato dell'execution context che rifiuta nuovo lavoro dopo `disposing`;
-- mantenere il comportamento unary esistente sul nuovo execution lifecycle;
-- testare disposal concorrente e root backstop prima di aggiungere stream.
+- separate invocation leases from `ProviderScope`;
+- introduce execution-context state that rejects new work after `disposing`;
+- keep existing unary behavior on the new execution lifecycle;
+- test concurrent disposal and root backstop before adding streams.
 
-Criterio di uscita: tutti i test unary esistenti verdi senza compatibilità speciale.
+Exit criterion: all existing unary tests green without special compatibility.
 
-### Fase 3 — Stream registry e surface wrapper
+### Phase 3 — Stream registry and surface wrapper
 
-- implementare il modulo `StreamRegistry` / managed iterator;
-- creare stream surface lazy (`AsyncIterable` + `AsyncDisposable`);
-- materializzare il Provider al primo `next()`;
-- creare e propagare il per-stream signal;
-- registrare e chiudere gli stream attivi;
-- enforce `Err` terminale nel wrapper;
-- comporre errori di iteration e cleanup con la matrice disposal esistente;
-- integrare context e root dispose.
+- implement the `StreamRegistry` / managed iterator module;
+- create lazy stream surfaces (`AsyncIterable` + `AsyncDisposable`);
+- materialize the Provider on first `next()`;
+- create and propagate the per-stream signal;
+- register and close active streams;
+- enforce terminal outcomes in the wrapper;
+- compose iteration and cleanup errors with the existing disposal matrix;
+- integrate context and root dispose.
 
-Criterio di uscita: nessuna risorsa o lease rimane attivo dopo ogni terminal path.
+Exit criterion: no resource or lease remains active after every terminal path.
 
-### Fase 4 — Plan, diagnostics e documentazione
+### Phase 4 — Plan, diagnostics, and documentation
 
-- aggiungere `mode` a `describePlan()`;
-- documentare unary vs stream lifecycle;
-- aggiungere un esempio `WatchOrders` a `forma-demo`;
-- aggiungere diagnostici per modality incompatibili;
-- aggiornare README, glossario e ADR correlati.
+- add `mode` to `describePlan()`;
+- document unary vs stream lifecycle;
+- add a `WatchOrders` example to `forma-demo`;
+- add diagnostics for incompatible modalities;
+- update README, glossary, and related ADRs.
 
-Criterio di uscita: un utente può capire ownership e cancellation senza conoscere il runtime
-interno.
+Exit criterion: a user can understand ownership and cancellation without knowing the internal
+runtime.
 
-**Stato:** completata — `describePlan().mode`, README / Glossary / ADR 0012, e
-`apps/forma-demo` (`WatchOrders` su entrambi gli Adapter, consumo + early `break`).
+**Status:** completed — `describePlan().mode`, README / Glossary / ADR 0012, and
+`apps/forma-demo` (`WatchOrders` on both Adapters, full consume + early `break`).
 
-### Fase 5 — Remote Adapter spike
+### Phase 5 — Remote Adapter spike
 
-Fuori dal core iniziale, ma utile per validare il modello:
+Outside the initial core, but useful to validate the model:
 
-- trasportare uno Stream Intent con SSE o WebSocket;
-- propagare `return()` e abort client → server;
-- usare uno schema runtime esplicito;
-- verificare expected error, disconnect e cleanup server;
-- confrontare comportamento locale e remoto attraverso la stessa interface.
+- transport a Stream Intent with SSE or WebSocket;
+- propagate `return()` and abort client → server;
+- use an explicit runtime schema;
+- verify expected error, disconnect, and server cleanup;
+- compare local and remote behavior through the same interface.
 
-Criterio di uscita: il remote Adapter non richiede eccezioni al modello del core.
+Exit criterion: the remote Adapter needs no exceptions to the core model.
 
-## Matrice minima dei test
+## Minimum test matrix
 
-### Avvio e consumo
+### Start and consumption
 
-- creare senza iterare non materializza il Provider;
-- il primo `next()` materializza una sola volta;
-- più `next()` producono più elementi;
-- completion naturale rilascia lease e registration;
-- due surface call producono stream indipendenti;
-- una seconda iterazione dello stesso stream fallisce chiaramente.
+- creating without iterating does not materialize the Provider;
+- the first `next()` materializes once;
+- multiple `next()` produce multiple elements;
+- natural completion releases lease and registration;
+- two surface calls produce independent streams;
+- a second iteration of the same stream fails clearly.
 
 ### Cancellation
 
-- `break` e `[Symbol.asyncDispose]` chiamano `return()` e il generator `finally`;
-- `return()` esplicito è idempotente;
-- context dispose chiude tutti gli stream attivi;
-- root dispose chiude context, stream e poi Provider root-owned;
-- host abort raggiunge `StreamInvocation.signal` senza auto-dispose del context;
-- parent già abortito al primo `next()` non materializza Provider né sorgente;
-- cancellare uno stream non abortisce gli altri né il context;
-- stream da Provider composition-effective usa comunque il per-context invocation signal.
+- `break` and `[Symbol.asyncDispose]` call `return()` and the generator `finally`;
+- explicit `return()` is idempotent;
+- context dispose closes all active streams;
+- root dispose closes context, streams, then root-owned Providers;
+- host abort reaches `StreamInvocation.signal` without auto-disposing the context;
+- parent already aborted at first `next()` does not materialize Provider or source;
+- cancelling one stream does not abort the others or the context;
+- streams from composition-effective Providers still use the per-context invocation signal.
 
-### Errori
+### Errors
 
-- `err` viene emesso una volta e termina (wrapper enforce);
-- yield dopo `err` non è osservabile;
-- throw prima del primo yield rifiuta `next()` e pulisce;
-- throw dopo più yield rifiuta il `next()` corrente e pulisce;
-- cleanup failure viene propagato;
-- cleanup failure da host/context abort non diventa `unhandledRejection` e rimane osservabile dal
-  successivo context dispose;
-- tutti i cleanup vengono tentati e failure multipli sono aggregati;
-- iteration failure + cleanup failure riusa la composizione errori del dispose;
-- Provider materialization failure non registra uno stream attivo residuo.
+- `error` / `unexpected` / `cancelled` are emitted once and terminate (wrapper enforce);
+- yield after a terminal kind is not observable;
+- throw before the first yield becomes a terminal `unexpected` and cleans up;
+- throw after several yields becomes a single terminal `unexpected` and cleans up;
+- cleanup failure is propagated;
+- cleanup failure from host/context abort does not become `unhandledRejection` and remains
+  observable from the subsequent context dispose;
+- every cleanup is attempted and multiple failures are aggregated;
+- iteration failure + cleanup failure reuses dispose error composition;
+- Provider materialization failure does not leave a residual active stream.
 
-### Concorrenza e race
+### Concurrency and races
 
-- dispose durante il primo `next()`;
-- dispose durante un `next()` bloccato;
-- `return()` concorrenti condividono la chiusura;
-- completion e context dispose concorrenti rilasciano una sola volta;
-- più stream sullo stesso Provider non interferiscono;
-- unary invocation e stream concorrenti vengono entrambi drenati.
+- dispose during the first `next()`;
+- dispose during a blocked `next()`;
+- concurrent `return()` share the close;
+- concurrent completion and context dispose release once;
+- multiple streams on the same Provider do not interfere;
+- concurrent unary invocations and streams are both drained.
 
-### Tipi e composizione
+### Types and composition
 
-- unary surface richiede `await` e stream surface supporta `for await` / `await using`;
-- Stream Provider soddisfa solo Stream Intent; stesso `.provide` / `.adapt`;
-- `using` di Stream Intent risolve a `StreamOperation`;
-- Adapter preserva modality;
-- alias cross-modality viene rifiutato;
-- grafo chiuso e lifetime inference restano invariati;
-- `describePlan()` riporta `mode` su tutti gli Intent registrati.
+- unary surface requires `await` and stream surface supports `for await` / `await using`;
+- Stream Provider satisfies only Stream Intent; same `.provide` / `.adapt`;
+- `using` a Stream Intent resolves to `StreamOperation`;
+- Adapter preserves modality;
+- cross-modality alias is rejected;
+- closed graph and lifetime inference stay unchanged;
+- `describePlan()` reports `mode` on all registered Intents.
 
-## Decisioni chiuse
+## Closed decisions
 
-Target concordato (grill). Validate dallo spike Fase 0; vincolanti per il core via
-[ADR 0012](./adr/0012-streaming-intents.md). Riaprire solo con un nuovo trade-off esplicito.
+Agreed target (grill). Validated by the Phase 0 spike; binding for the core via
+[ADR 0012](./adr/0012-streaming-intents.md). Reopen only with an explicit new trade-off.
+Event algebra amended by [ADR 0015](./adr/0015-boundary-error-totalization.md).
 
-1. **Sintassi:** `boundary.stream(name).contract<...>()`; `boundary.intent` resta unary.
-2. **Surface type:** `AsyncIterable<Result<Item, Err>>` (+ `[Symbol.asyncDispose]`); non
-   `AsyncIterableIterator` pubblico.
-3. **`Err` terminale:** enforced nel wrapper (`return()` dopo il primo `err`).
-4. **`StreamInvocation` v1:** solo `{ signal: AbortSignal }`.
-5. **Unary v1:** invariata — nessun invocation bag sulle unary nel primo ship.
-6. **Host abort:** propaga i signal; non avvia `dispose()` del context (abort ≠ dispose).
-7. **Matrice errori:** riusa la composizione disposal esistente (`SuppressedError` /
-   `AggregateError` dove già usato); documentata e testata nello spike.
-8. **Hang / non-cooperazione:** nessun timeout nel core v1.
-9. **Cold + single-consumer:** garanzia pubblica del core; multicast/replay fuori scope;
-   condivisione I/O interna = dettaglio del Realization.
-10. **`describePlan()`:** `mode` su tutti gli Intent registrati (surface + wiring).
-11. **Modality:** sul Contract; identity resta `(boundaryId, intentName)`.
-12. **Ownership:** ogni stream invocation è posseduta dall’execution context.
-13. **Execution lifecycle ≠ `ProviderScope`:** prerequisito (Fase 2) prima del registry.
-14. **`using`:** Stream Intent ammesso; dep = `StreamOperation`, non iterator aperto.
-15. **Builder:** stesso `.provide` / `.adapt`; operation shape dalla modality.
+1. **Syntax:** `boundary.stream(name).contract<...>()`; `boundary.intent` remains unary.
+2. **Surface type:** `AsyncIterable<InvocationOutcome<Item, Err>>` (+ `[Symbol.asyncDispose]`);
+   not a public `AsyncIterableIterator`.
+3. **Terminal kinds:** enforced in the wrapper (`return()` after the first
+   `error` / `unexpected` / `cancelled`).
+4. **`StreamInvocation` v1:** only `{ signal: AbortSignal }`.
+5. **Unary v1:** unchanged — no invocation bag on unary in the first ship.
+6. **Host abort:** propagates signals; does not start context `dispose()` (abort ≠ dispose).
+7. **Error matrix:** reuses existing disposal composition (`SuppressedError` / `AggregateError`
+   where already used); documented and tested in the spike.
+8. **Hang / non-cooperation:** no timeout in core v1.
+9. **Cold + single-consumer:** public core guarantee; multicast/replay out of scope; internal I/O
+   sharing = Realization detail.
+10. **`describePlan()`:** `mode` on all registered Intents (surface + wiring).
+11. **Modality:** on the Contract; identity stays `(boundaryId, intentName)`.
+12. **Ownership:** every stream invocation is owned by the execution context.
+13. **Execution lifecycle ≠ `ProviderScope`:** prerequisite (Phase 2) before the registry.
+14. **`using`:** Stream Intent allowed; dep = `StreamOperation`, not an open iterator.
+15. **Builder:** same `.provide` / `.adapt`; operation shape from modality.
 
-## Criteri di accettazione complessivi
+## Overall acceptance criteria
 
-La feature è pronta quando:
+The feature is ready when:
 
-- unary behavior e compatibilità rimangono invariati;
-- la modality è nota staticamente a Intent, Provider, Adapter, alias e surface;
-- nessuno stream sopravvive al proprio execution context;
-- context e root dispose non possono bloccarsi passivamente su stream infiniti cooperativi;
-- ogni terminal path esegue cleanup e release esattamente una volta;
-- un Provider composition-effective può produrre stream correttamente context-owned;
-- il consumer usa il protocollo standard `for await` / `await using`;
-- `describePlan()` rende la modality ispezionabile su tutti gli Intent registrati;
-- un remote Adapter può preservare la stessa interface senza modifiche al core.
+- unary behavior and compatibility remain unchanged;
+- modality is known statically on Intent, Provider, Adapter, alias, and surface;
+- no stream outlives its execution context;
+- context and root dispose cannot passively block on cooperative infinite streams;
+- every terminal path runs cleanup and release exactly once;
+- a composition-effective Provider can produce correctly context-owned streams;
+- the consumer uses the standard `for await` / `await using` protocol;
+- `describePlan()` makes modality inspectable on all registered Intents;
+- a remote Adapter can preserve the same interface without core changes.
 
-## Valutazione
+## Assessment
 
-Gli Stream Intent rafforzano la tesi di Forma: la Composition non descrive soltanto come costruire
-operation, ma governa ownership e lifecycle delle capability esposte. Il valore non è aggiungere
-una sintassi generator; è nascondere cancellation, cleanup e race dietro una piccola interface
-standard.
+Stream Intents strengthen Forma’s thesis: Composition does not only describe how to build
+operations — it governs ownership and lifecycle of exposed capabilities. The value is not adding
+generator syntax; it is hiding cancellation, cleanup, and races behind a small standard interface.
 
-La feature merita uno sviluppo incrementale perché rende esplicito un nuovo livello di lifetime.
-Se implementata come semplice union di return type, indebolirebbe le garanzie attuali. Se invece
-viene trattata come modality del Contract con stream invocation ownership sull’execution context,
-apre in modo coerente streaming locale, subscription e remote Adapter fullstack.
+The feature deserves incremental development because it makes a new lifetime level explicit. If
+implemented as a simple return-type union, it would weaken current guarantees. Treated instead as
+Contract modality with stream-invocation ownership on the execution context, it coherently opens
+local streaming, subscriptions, and fullstack remote Adapters.

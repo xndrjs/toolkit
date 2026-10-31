@@ -1,42 +1,40 @@
-# Totalizzazione degli errori in uscita dai Boundary
+# Boundary exit error totalization
 
-> Stato: **implementato** (normativa in [ADR 0015](./adr/0015-boundary-error-totalization.md);
-> emendamenti [ADR 0008](./adr/0008-execution-seed-and-abort-signal.md) e
-> [ADR 0012](./adr/0012-streaming-intents.md)). Questo documento resta l'analisi estesa e il piano
-> di validazione.
+> Status: **implemented** (normative decision in [ADR 0015](./adr/0015-boundary-error-totalization.md);
+> amendments to [ADR 0008](./adr/0008-execution-seed-and-abort-signal.md) and
+> [ADR 0012](./adr/0012-streaming-intents.md)). This document remains the extended analysis and
+> validation plan.
 >
-> Data: 2026-10-31.
+> Date: 2026-10-31.
 >
-> Scope: errori prodotti durante l'invocazione di Intent unary e stream, propagazione fra
-> Boundary, ruolo degli Adapter, identita delle failure e fallback diagnostico della Composition.
-> Gli errori di lifecycle (`dispose`, cleanup e shutdown) rimangono fuori scope.
+> Scope: errors produced during unary and stream Intent invocation, propagation across
+> Boundaries, the role of Adapters, failure identity, and the Composition diagnostic fallback.
+> Lifecycle errors (`dispose`, cleanup, and shutdown) remain out of scope.
 
 ## Executive summary
 
-Il Contract di un Intent dichiara oggi `Success` ed `Err`, ma un'operation puo anche terminare
-tramite throw o Promise rejection. `Err` rappresenta gli errori attesi e censiti; il canale
-eccezionale rappresenta invece errori inattesi che TypeScript non descrive nel tipo di una
-`Promise`.
+An Intent Contract declares `Success` and `Err`, but an operation can also terminate via throw or
+Promise rejection. `Err` represents expected, catalogued errors; the exceptional channel represents
+unexpected failures that TypeScript does not describe in a `Promise` type.
 
-Questa separazione costringe ogni Boundary chiamante a conoscere due protocolli:
+That split forces every calling Boundary to know two protocols:
 
 ```text
 Invocation
-├─ Result<Success, Err>  ← tipizzato
-└─ throw / rejection    ← unknown e non tipizzato
+├─ Result<Success, Err>  ← typed
+└─ throw / rejection    ← unknown and untyped
 ```
 
-Di conseguenza, il solo Contract non basta per usare correttamente un Intent. Un consumer che
-vuole essere difensivo deve aggiungere `try/catch` a ogni attraversamento, ma nel `catch` riceve un
-`unknown` del quale non conosce cause, provenienza o possibilita di recovery.
+As a result, the Contract alone is not enough to use an Intent correctly. A defensive consumer
+must add `try/catch` on every crossing, but in the `catch` it receives an `unknown` whose cause,
+provenance, and recovery options are unknown.
 
-La decisione proposta e rendere **totale l'uscita di ogni Boundary**:
+The proposed decision is to make **every Boundary exit total**:
 
-> Un throw o una rejection prodotti dall'implementazione di un Boundary non attraversano il
-> Boundary. Forma li converte in un ramo `unexpected` con un `failureId` opaco generato nel punto
-> di origine.
+> A throw or rejection produced by a Boundary implementation does not cross the Boundary. Forma
+> converts it into an `unexpected` branch with an opaque `failureId` generated at the origin.
 
-Il protocollo target e `InvocationOutcome`:
+The target protocol is `InvocationOutcome`:
 
 ```ts
 type InvocationOutcome<Success, ExpectedError> =
@@ -58,21 +56,21 @@ type InvocationOutcome<Success, ExpectedError> =
     };
 ```
 
-Questa analisi decide la semantica di `success`, `error` e `unexpected`. La normalizzazione
-completa della cancellazione nello stesso protocollo e collegata, ma richiede di emendare
-separatamente le attuali decisioni su abort e lifecycle.
+This analysis decides the semantics of `success`, `error`, and `unexpected`. Full normalization of
+cancellation into the same protocol is related, but requires separately amending the current abort
+and lifecycle decisions.
 
-Il principio guida e:
+The guiding principle is:
 
-> Errore gestibile semanticamente = errore censito nel Contract.
+> Semantically handleable error = error catalogued in the Contract.
 
-Un `UnexpectedFailure` consente soltanto propagazione e policy generiche. Non trasporta il
-`cause`, quindi un Boundary chiamante non puo tentare recovery basata su dettagli
-dell'implementazione del Boundary chiamato.
+An `UnexpectedFailure` only allows propagation and generic policies. It does not carry the
+`cause`, so a calling Boundary cannot attempt recovery based on implementation details of the
+called Boundary.
 
-## Baseline precedente (pre-implementazione)
+## Previous baseline (pre-implementation)
 
-Prima della totalizzazione il modello pubblicato usava:
+Before totalization, the published model used:
 
 ```ts
 type Result<T, E> =
@@ -80,69 +78,68 @@ type Result<T, E> =
   | { readonly ok: false; readonly error: E };
 ```
 
-Le unary operation potevano restituire il `Result` sincronicamente o tramite Promise; le stream
-operation esponevano `AsyncIterable<Result<Item, Err>>`. Il Glossary trattava gli unexpected
-technical failure come fuori Contract; ADR 0012 lasciava il throw della sorgente stream nel
-canale eccezionale dell'iterator.
+Unary operations could return the `Result` synchronously or via Promise; stream operations exposed
+`AsyncIterable<Result<Item, Err>>`. The Glossary treated unexpected technical failures as outside
+the Contract; ADR 0012 left stream-source throws on the iterator’s exceptional channel.
 
-Quel modello e stato sostituito da `InvocationOutcome` (ADR 0015). Glossary, README, ADR 0008,
-ADR 0012 e architectural review sono stati emendati insieme all'implementazione.
+That model was replaced by `InvocationOutcome` (ADR 0015). Glossary, README, ADR 0008, ADR 0012,
+and the architectural review were amended together with the implementation.
 
-## Problema semantico
+## Semantic problem
 
-### Il Contract non descrive l'intera invocation
+### The Contract does not describe the whole invocation
 
-Dato:
+Given:
 
 ```ts
 const GetOrder = Orders.intent("getOrder").contract<OrderId, Order, FindOrderError>();
 ```
 
-il chiamante vede `FindOrderError` e puo gestirlo esaustivamente. Il tipo non dice invece che la
-Promise puo rigettare con:
+the caller sees `FindOrderError` and can handle it exhaustively. The type does not say that the
+Promise may reject with:
 
-- un errore del database;
-- un errore di rete;
-- un `TypeError` dell'implementazione;
-- un valore non-`Error` lanciato da una dipendenza;
-- una failure avvenuta durante la materializzazione del Provider;
-- qualunque altro `unknown`.
+- a database error;
+- a network error;
+- an implementation `TypeError`;
+- a non-`Error` value thrown by a dependency;
+- a failure during Provider materialization;
+- any other `unknown`.
 
-Il consumer e quindi incentivato a scrivere:
+The consumer is therefore pushed to write:
 
 ```ts
 try {
   const result = await getOrder(orderId);
-  // Gestione tipizzata di FindOrderError.
+  // Typed handling of FindOrderError.
 } catch (cause) {
-  // Nessuna informazione type-level affidabile.
+  // No reliable type-level information.
 }
 ```
 
-Questo indebolisce il valore del Contract proprio sul seam fra Boundary.
+That weakens the Contract’s value exactly on the seam between Boundaries.
 
-### Il problema appartiene al Boundary, non alla Surface
+### The problem belongs to the Boundary, not the Surface
 
-La garanzia non deve essere una proprieta speciale della Surface. I Boundary attraversano altri
-Boundary anche nel wiring privato della Composition. Se soltanto la Surface catturasse i throw,
-un Provider continuerebbe a dover aggiungere `try/catch` attorno a ogni dependency operation.
+The guarantee must not be a special Surface property. Boundaries cross other Boundaries in private
+Composition wiring too. If only the Surface caught throws, a Provider would still need
+`try/catch` around every dependency operation.
 
-La proprieta deve quindi valere su ogni operation ottenuta da un Intent:
+The property must therefore hold for every operation obtained from an Intent:
 
 ```text
 Boundary A
-  → dependency operation di Boundary B
-    → InvocationOutcome, mai throw/rejection dell'implementazione B
+  → dependency operation of Boundary B
+    → InvocationOutcome, never throw/rejection from B’s implementation
 ```
 
-La Surface eredita la proprieta perche espone root appartenenti agli Entry Boundary; non e il
-punto nel quale la proprieta nasce.
+The Surface inherits the property because it exposes roots owned by Entry Boundaries; it is not
+where the property originates.
 
-## Protocollo target
+## Target protocol
 
 ### Expected error
 
-Il ramo `error` contiene esclusivamente errori attesi e censiti nel Contract:
+The `error` branch holds only expected errors catalogued in the Contract:
 
 ```ts
 type FindOrderError =
@@ -150,7 +147,7 @@ type FindOrderError =
   | { readonly kind: "access_denied" };
 ```
 
-Il caller puo interpretarli e applicare recovery di dominio:
+The caller can interpret them and apply domain recovery:
 
 ```ts
 switch (outcome.kind) {
@@ -159,12 +156,13 @@ switch (outcome.kind) {
 }
 ```
 
-Se una condizione richiede una reazione semantica distinta, quella condizione deve entrare in
-`Err`. Non deve essere riconosciuta tramite `instanceof` dentro un `catch` del Boundary chiamante.
+If a condition needs a distinct semantic reaction, that condition must enter `Err`. It must not be
+recognized via `instanceof` inside a calling Boundary’s `catch`.
 
 ### Unexpected failure
 
-Il ramo `unexpected` comunica che l'invocation non e riuscita per una causa non censita:
+The `unexpected` branch communicates that the invocation failed for a cause not catalogued in the
+Contract:
 
 ```ts
 type UnexpectedFailure = Readonly<{
@@ -172,49 +170,49 @@ type UnexpectedFailure = Readonly<{
 }>;
 ```
 
-Il valore non espone:
+The value does not expose:
 
 - `cause`;
 - `message`;
 - `stack`;
-- error class o prototype;
-- dettagli del Boundary produttore;
-- dati di input o Params.
+- error class or prototype;
+- producer Boundary details;
+- input or Params data.
 
-Il consumer puo:
+The consumer may:
 
-- propagare la stessa failure;
-- interrompere il proprio flusso;
-- applicare una policy generica;
-- mostrare il `failureId` come riferimento di assistenza;
-- trasformarla in una risposta generica del proprio host.
+- propagate the same failure;
+- stop its own flow;
+- apply a generic policy;
+- show the `failureId` as a support reference;
+- turn it into a generic host response.
 
-Non puo classificare la causa concreta. Se quella classificazione e necessaria, deve avvenire nel
-Boundary che possiede l'integrazione e deve produrre un errore atteso.
+It cannot classify the concrete cause. If that classification is required, it must happen in the
+Boundary that owns the integration and must produce an expected error.
 
-### Il `cause` non attraversa il Boundary
+### The `cause` does not cross the Boundary
 
-Il core usa il `cause: unknown` soltanto mentre converte il canale eccezionale nel protocollo
-totalizzato. Oltre il Boundary passa soltanto `UnexpectedFailure`.
+The core uses `cause: unknown` only while converting the exceptional channel into the totalized
+protocol. Beyond the Boundary, only `UnexpectedFailure` passes.
 
-Questa regola evita che dettagli come `PostgresError`, `RedisError`, `DOMException` o errori di
-SDK diventino dipendenze accidentali dei Boundary chiamanti.
+This rule prevents details such as `PostgresError`, `RedisError`, `DOMException`, or SDK errors
+from becoming accidental dependencies of calling Boundaries.
 
-Un Boundary puo osservare deliberatamente la causa prima che esca dalla propria implementazione,
-per esempio per produrre un record diagnostico censito. Se usa un Intent di logging appartenente a
-un altro Boundary, il raw `unknown` non deve attraversarlo implicitamente: l'implementazione deve
-prima mapparlo nel Contract diagnostico che ha deciso di esporre. In alternativa puo chiamare
-direttamente un SDK locale all'implementazione.
+A Boundary may deliberately observe the cause before it leaves its own implementation — for
+example to produce a catalogued diagnostic record. If it uses a logging Intent owned by another
+Boundary, the raw `unknown` must not cross that Boundary implicitly: the implementation must first
+map it into the diagnostic Contract it chose to expose. Alternatively it may call an SDK local to
+the implementation directly.
 
-L'hook privilegiato della Composition descritto piu avanti riceve il raw cause fuori dal normale
-dataflow degli Intent. Non lo rende disponibile ai Provider o agli altri Boundary.
+The privileged Composition hook described below receives the raw cause outside the normal Intent
+dataflow. It does not make it available to Providers or other Boundaries.
 
-## Identita della failure
+## Failure identity
 
-### Failure ID come correlation token della singola failure
+### Failure ID as the correlation token of a single failure
 
-Il `failureId` identifica una failure, non una request e non un execution context. Una request puo
-avere un `traceId` e produrre zero o piu failure distinte:
+The `failureId` identifies a failure, not a request and not an execution context. A request may
+have a `traceId` and produce zero or more distinct failures:
 
 ```text
 trace req-91
@@ -224,78 +222,78 @@ trace req-91
          └─ failure fail-42
 ```
 
-Quando la failure risale il grafo, conserva la propria identita:
+When the failure climbs the graph, it keeps its identity:
 
 ```text
-Redis crea fail-42
-  → Adapter propaga fail-42
-    → Inventory propaga fail-42
-      → Orders propaga fail-42
-        → Surface restituisce fail-42
+Redis creates fail-42
+  → Adapter propagates fail-42
+    → Inventory propagates fail-42
+      → Orders propagates fail-42
+        → Surface returns fail-42
 ```
 
-La regola e:
+The rule is:
 
-> Propagare una failure conserva il suo ID. Una nuova causa genera un nuovo ID.
+> Propagating a failure keeps its ID. A new cause generates a new ID.
 
-Non vengono introdotti inizialmente parent ID, `causedBy` o un failure graph. Queste relazioni
-appartengono a un eventuale sistema di observability, non al protocollo minimo di Forma.
+Parent IDs, `causedBy`, or a failure graph are not introduced initially. Those relations belong to
+an observability system, not to Forma’s minimal protocol.
 
-### Nessun registry nel core
+### No registry in the core
 
-Forma non mantiene una struttura del tipo:
+Forma does not keep a structure such as:
 
 ```ts
 Map<FailureId, unknown>;
 ```
 
-Non esiste quindi un sink da svuotare o un buffer da drenare. Il lifecycle del token e quello di
-un normale valore immutabile:
+There is therefore no sink to empty or buffer to drain. The token’s lifecycle is that of a normal
+immutable value:
 
-1. nasce nel punto di origine;
-2. viene eventualmente associato a un log;
-3. viene propagato dentro gli outcome;
-4. diventa raccoglibile quando non esistono piu riferimenti.
+1. it is born at the origin;
+2. it may be associated with a log;
+3. it is propagated inside outcomes;
+4. it becomes collectible when no references remain.
 
-La retention di log, eventi Sentry o trace appartiene ai rispettivi sistemi esterni.
+Retention of logs, Sentry events, or traces belongs to the respective external systems.
 
-### Factory, non classe Error
+### Factory, not Error class
 
-La forma raccomandata e:
+The recommended form is:
 
 ```ts
 const failure = createUnexpectedFailure();
 ```
 
-Non:
+Not:
 
 ```ts
 const failure = new UnexpectedFailure();
 ```
 
-`UnexpectedFailure` e un token dati, non un'eccezione. Una classe incoraggerebbe usi sbagliati
-come `throw new UnexpectedFailure()` e introdurrebbe semantiche di prototype e `instanceof` che
-non devono attraversare Boundary o transport remoti.
+`UnexpectedFailure` is a data token, not an exception. A class would encourage misuse such as
+`throw new UnexpectedFailure()` and introduce prototype / `instanceof` semantics that must not
+cross Boundaries or remote transports.
 
-La factory permette al core di:
+The factory lets the core:
 
-- generare uniformemente un ID opaco ad alta entropia;
-- applicare un brand nominale;
-- congelare il descrittore;
-- cambiare in futuro il formato interno;
-- mantenere una rappresentazione serializzabile.
+- generate an opaque high-entropy ID uniformly;
+- apply a nominal brand;
+- freeze the descriptor;
+- change the internal format later;
+- keep a serializable representation.
 
-Il Boundary ha controllo sul `failureId` nel senso che puo creare il token prima di loggare e
-riutilizzarne l'ID. Non viene proposta una factory pubblica che accetti ID arbitrari. Una futura
-integrazione remota potra avere una primitive dedicata e validata per reidratare un ID ricevuto
-dal transport.
+The Boundary controls the `failureId` in the sense that it can create the token before logging and
+reuse its ID. No public factory that accepts arbitrary IDs is proposed. A future remote
+integration may have a dedicated, validated primitive to rehydrate an ID received from the
+transport.
 
-## Due percorsi di origine
+## Two origin paths
 
-### Failure esplicita, posseduta dal Boundary
+### Explicit failure, owned by the Boundary
 
-Un Boundary infrastrutturale conosce il protocollo della libreria che racchiude. Deve convertire
-le condizioni riconosciute in errori attesi e puo assumere ownership diagnostica delle altre:
+An infrastructure Boundary knows the protocol of the library it wraps. It must convert recognized
+conditions into expected errors and may take diagnostic ownership of the others:
 
 ```ts
 try {
@@ -320,15 +318,15 @@ try {
 }
 ```
 
-Il Boundary ha creato esplicitamente la failure e ne possiede il reporting. La Composition non
-deve notificare nuovamente la stessa origine, altrimenti ogni failure verrebbe loggata due volte.
+The Boundary created the failure explicitly and owns its reporting. The Composition must not notify
+the same origin again, or every failure would be logged twice.
 
-Un eventuale fallimento del logging non deve sostituire la failure originaria. La policy del
-logging rimane responsabilita applicativa.
+A logging failure must not replace the original failure. Logging policy remains an application
+responsibility.
 
-### Fallback automatico del core
+### Automatic core fallback
 
-Un Provider puo comunque contenere un bug o lasciare sfuggire un'eccezione non prevista:
+A Provider may still contain a bug or let an unforeseen exception escape:
 
 ```ts
 const Provider = SomeIntent.provide.with(
@@ -339,7 +337,7 @@ const Provider = SomeIntent.provide.with(
 );
 ```
 
-Forma deve chiudere anche questo canale:
+Forma must close that channel as well:
 
 ```ts
 try {
@@ -359,30 +357,31 @@ try {
 }
 ```
 
-Questo fallback garantisce la correttezza del protocollo anche quando il Boundary non ha gestito
-deliberatamente la causa. Se la Composition non configura alcun hook, Forma elimina il raw cause
-dopo la conversione; non lo conserva in attesa di un futuro consumer.
+This fallback keeps the protocol correct even when the Boundary did not deliberately handle the
+cause. If the Composition configures no hook, Forma discards the raw cause after conversion; it
+does not retain it waiting for a future consumer.
 
-## Hook di supervisione della Composition
+## Composition supervision hook
 
-### Motivazione
+### Motivation
 
-Se Forma deve contemporaneamente:
+If Forma must simultaneously:
 
-- contenere sempre un throw sfuggito;
-- non propagare il raw cause nel grafo;
-- non introdurre un sistema di logging nel core;
+- always contain an escaped throw;
+- not propagate the raw cause through the graph;
+- not introduce a logging system in the core;
 
-serve un punto opzionale nel quale l'host possa osservare la causa prima che venga eliminata. La
-Composition e il posto coerente: possiede il runtime del grafo ma non e un Boundary applicativo.
+there needs to be an optional point where the host can observe the cause before it is discarded.
+The Composition is the coherent place: it owns the graph runtime but is not an application
+Boundary.
 
-L'hook non e un layer di observability. E una notifica di supervisione per il solo fallback del
-core.
+The hook is not an observability layer. It is a supervision notification for the core fallback
+only.
 
-### Nome e forma
+### Name and shape
 
-`onFailure(error, failureId)` e troppo generico e poco estendibile. Potrebbe sembrare relativo
-anche a errori attesi, cancellation o dispose. La forma raccomandata e:
+`onFailure(error, failureId)` is too generic and hard to extend. It could appear to cover expected
+errors, cancellation, or dispose as well. The recommended form is:
 
 ```ts
 compose({
@@ -403,7 +402,7 @@ compose({
 });
 ```
 
-Un event object consente di evolvere i metadata senza modificare l'arita della callback:
+An event object lets metadata evolve without changing the callback arity:
 
 ```ts
 type UnexpectedFailureEvent = Readonly<{
@@ -415,49 +414,48 @@ type UnexpectedFailureEvent = Readonly<{
 }>;
 ```
 
-Input, Params e risultati parziali non vengono inclusi automaticamente per evitare leakage di
-dati sensibili. Un'integrazione puo ottenere trace context applicativo tramite closure o
-`AsyncLocalStorage`, senza trasformarlo in una responsabilita del core.
+Input, Params, and partial results are not included automatically, to avoid leaking sensitive
+data. An integration may obtain application trace context via closure or `AsyncLocalStorage`
+without making that a core responsibility.
 
-### Semantica esatta
+### Exact semantics
 
 `onUnexpectedFailure`:
 
-- viene chiamato soltanto quando Forma crea automaticamente una failure da un throw/rejection;
-- viene chiamato una volta, nel punto di origine;
-- non viene chiamato per expected error;
-- non viene chiamato per una failure creata esplicitamente dal Boundary;
-- non viene chiamato quando una failure esistente viene propagata;
-- non osserva errori di `dispose` o altri lifecycle failure;
-- non accumula eventi e non richiede flush;
-- non puo modificare l'`InvocationOutcome` restituito.
+- is called only when Forma automatically creates a failure from a throw/rejection;
+- is called once, at the origin;
+- is not called for expected errors;
+- is not called for a failure created explicitly by the Boundary;
+- is not called when an existing failure is propagated;
+- does not observe `dispose` or other lifecycle failures;
+- does not accumulate events and does not require flush;
+- cannot modify the returned `InvocationOutcome`.
 
-La callback deve essere sincrona e best-effort:
+The callback must be synchronous and best-effort:
 
 ```ts
 type OnUnexpectedFailure = (event: UnexpectedFailureEvent) => void;
 ```
 
-Forma non attende Promise di reporting. Attenderle introdurrebbe latenza, backpressure, failure
-competition e un nuovo lifecycle di drain nel core. L'integrazione esterna puo accodare
-sincronicamente l'evento nel proprio SDK.
+Forma does not await reporting Promises. Awaiting them would introduce latency, backpressure,
+failure competition, and a new drain lifecycle in the core. External integrations may
+synchronously enqueue the event into their own SDK.
 
-Se l'hook lancia, il runtime deve isolarne l'errore: non puo sostituire la failure originale,
-riaprire il canale eccezionale o invocare ricorsivamente lo stesso hook. La delivery diagnostica
-rimane best-effort.
+If the hook throws, the runtime must isolate that error: it must not replace the original failure,
+reopen the exceptional channel, or recursively invoke the same hook. Diagnostic delivery remains
+best-effort.
 
-Una Composition annidata possiede il proprio hook. Non esiste un observer globale di processo.
+A nested Composition owns its own hook. There is no process-global observer.
 
-## Boundary infrastrutturali e Adapter
+## Infrastructure Boundaries and Adapters
 
-### Il catch appartiene al Boundary infrastrutturale
+### Catch belongs on the infrastructure Boundary
 
-Gli Adapter di Forma collegano Boundary; non racchiudono direttamente le eccezioni dei driver.
-Per esempio:
+Forma Adapters connect Boundaries; they do not directly wrap driver exceptions. For example:
 
 ```text
 Postgres driver
-  ↓ puo lanciare
+  ↓ may throw
 Postgres Boundary
   ↓ InvocationOutcome<Row, PostgresExpectedError>
 Postgres → Orders Adapter
@@ -465,17 +463,17 @@ Postgres → Orders Adapter
 Orders Boundary
 ```
 
-E il Postgres Boundary a:
+It is the Postgres Boundary that:
 
-- chiamare il driver;
-- intercettare le sue eccezioni;
-- classificare quelle riconosciute nel proprio `Err`;
-- creare un unexpected per quelle non riconosciute.
+- calls the driver;
+- intercepts its exceptions;
+- classifies recognized ones into its own `Err`;
+- creates an unexpected for unrecognized ones.
 
-### L'Adapter preserva il protocollo totalizzato
+### The Adapter preserves the totalized protocol
 
-L'Adapter non aggiunge `try/catch` attorno all'Intent sorgente, perche quell'Intent non rigetta per
-failure della propria implementazione. Mappa soltanto i rami semanticamente trasformabili:
+The Adapter does not add `try/catch` around the source Intent, because that Intent does not reject
+for failures of its own implementation. It maps only the semantically transformable branches:
 
 ```ts
 switch (sourceOutcome.kind) {
@@ -493,32 +491,30 @@ switch (sourceOutcome.kind) {
 }
 ```
 
-`unexpected` e `cancelled` conservano identita e non vengono reinterpretati come errori attesi.
+`unexpected` and `cancelled` keep their identity and are not reinterpreted as expected errors.
 
-Anche il codice di mapping dell'Adapter puo avere un bug. Un throw prodotto dall'Adapter deve
-essere totalizzato prima di entrare nel target Boundary e genera una nuova failure, perche e una
-nuova causa. L'evento di supervisione mantiene la `ProviderOrigin` precisa, distinguendo origine
-Boundary e origine Adapter.
+Adapter mapping code can still have a bug. A throw produced by the Adapter must be totalized
+before entering the target Boundary and generates a new failure, because it is a new cause. The
+supervision event keeps the precise `ProviderOrigin`, distinguishing Boundary vs Adapter origin.
 
 ## Unary operation
 
-Per una unary invocation, Forma deve totalizzare almeno:
+For a unary invocation, Forma must totalize at least:
 
-- throw sincrono durante materializzazione del Provider;
-- rejection della factory asincrona;
-- throw sincrono dell'operation;
-- rejection della Promise restituita dall'operation;
-- throw di mapping dentro un Adapter;
-- outcome inatteso di una dependency gia espresso come `unexpected`.
+- synchronous throw during Provider materialization;
+- rejection of an async factory;
+- synchronous throw of the operation;
+- rejection of the Promise returned by the operation;
+- mapping throw inside an Adapter;
+- unexpected outcome of a dependency already expressed as `unexpected`.
 
-L'ultimo caso non genera una nuova failure: quando il Provider propaga l'outcome ricevuto deve
-riutilizzarne il token, e il wrapper non deve sostituirlo. Forma non puo obbligare una callback
-applicativa a propagare un risultato che decide deliberatamente di ignorare; helper e Adapter
-devono pero rendere la propagazione invariata il percorso naturale. Gli altri casi creano una
-nuova `UnexpectedFailure` nel punto in cui la causa entra per la prima volta nel protocollo
-totalizzato.
+The last case does not generate a new failure: when the Provider propagates the received outcome it
+must reuse the token, and the wrapper must not replace it. Forma cannot force an application
+callback to propagate a result it deliberately ignores; helpers and Adapters should make unchanged
+propagation the natural path. The other cases create a new `UnexpectedFailure` where the cause
+first enters the totalized protocol.
 
-Il caller puo quindi usare soltanto il Contract:
+The caller can therefore use only the Contract:
 
 ```ts
 const outcome = await getOrder(orderId);
@@ -538,13 +534,13 @@ switch (outcome.kind) {
 }
 ```
 
-Non serve `try/catch` per proteggersi dall'implementazione del Boundary chiamato. Rimangono
-possibili throw prodotti dal codice del caller dopo l'`await` o da precondizioni esterne al
-protocollo di invocation.
+No `try/catch` is needed to defend against the called Boundary’s implementation. Throws from the
+caller’s own code after `await`, or from preconditions outside the invocation protocol, remain
+possible.
 
 ## Stream operation
 
-La stessa proprieta deve valere per gli stream. Il protocollo target diventa:
+The same property must hold for streams. The target protocol becomes:
 
 ```ts
 type StreamOperation<Input, Item, Err> = (
@@ -553,17 +549,17 @@ type StreamOperation<Input, Item, Err> = (
 ) => AsyncIterable<InvocationOutcome<Item, Err>>;
 ```
 
-La semantica e:
+Semantics:
 
-- `success` puo comparire piu volte e rappresenta un item;
-- `error` e terminale;
-- `unexpected` e terminale;
-- `cancelled` e terminale;
-- il completamento naturale dell'iterator e il completamento corretto dello stream;
-- un throw/rejection della sorgente durante start o `next()` diventa un terminal
-  `unexpected`, non una rejection visibile al consumer.
+- `success` may appear multiple times and represents an item;
+- `error` is terminal;
+- `unexpected` is terminal;
+- `cancelled` is terminal;
+- natural iterator completion is correct stream completion;
+- a source throw/rejection during start or `next()` becomes a terminal `unexpected`, not a
+  rejection visible to the consumer.
 
-Esempio:
+Example:
 
 ```text
 success(order-1)
@@ -573,22 +569,22 @@ unexpected(fail-42)
 done
 ```
 
-L'hook della Composition viene notificato una sola volta quando il wrapper converte il throw
-della sorgente. La propagazione del terminal item non produce altri eventi.
+The Composition hook is notified once when the wrapper converts the source throw. Propagating the
+terminal item does not produce further events.
 
-Non rientrano in questa decisione:
+Out of scope for this decision:
 
-- l'errore passato deliberatamente dal consumer a `iterator.throw(error)`;
-- failure di cleanup dopo un consumer `break`;
-- rejection di `[Symbol.asyncDispose]()`;
-- errori durante context/root dispose.
+- an error deliberately passed by the consumer to `iterator.throw(error)`;
+- cleanup failure after a consumer `break`;
+- rejection of `[Symbol.asyncDispose]()`;
+- errors during context/root dispose.
 
-Questi casi appartengono al protocollo del consumer o al lifecycle e devono conservare la matrice
-di cleanup esistente finche una decisione separata non la modifica.
+Those cases belong to the consumer protocol or lifecycle and must keep the existing cleanup matrix
+until a separate decision changes it.
 
 ## Remote Adapter
 
-Un `UnexpectedFailure` e serializzabile senza trasportare il raw cause:
+An `UnexpectedFailure` is serializable without carrying the raw cause:
 
 ```json
 {
@@ -599,164 +595,164 @@ Un `UnexpectedFailure` e serializzabile senza trasportare il raw cause:
 }
 ```
 
-Il server conserva il log locale associato allo stesso ID. Il client puo mostrare o riportare
-l'ID, ma non puo dipendere da classi di errore server-side, stack o dettagli del driver.
+The server keeps the local log associated with the same ID. The client may display or report the
+ID, but must not depend on server-side error classes, stacks, or driver details.
 
-Se il transport fallisce prima di ricevere una risposta, il Boundary infrastrutturale client crea
-una nuova failure locale. Se riceve un `unexpected` valido dal server, ne conserva invece l'ID.
+If the transport fails before a response is received, the client infrastructure Boundary creates a
+new local failure. If it receives a valid `unexpected` from the server, it preserves that ID
+instead.
 
-I codec runtime di `Success`, `Err` e del wire envelope rimangono responsabilita del Remote
-Adapter o di un package costruito sopra Forma; non vengono aggiunti al core da questa modifica.
+Runtime codecs for `Success`, `Err`, and the wire envelope remain the responsibility of the Remote
+Adapter or a package built on top of Forma; they are not added to the core by this change.
 
-## Confine della garanzia
+## Guarantee boundary
 
-La totalizzazione riguarda failure recuperabili prodotte durante un'invocation accettata. Non
-trasforma Forma in un runtime capace di catturare qualunque arresto del processo.
+Totalization covers recoverable failures produced during an accepted invocation. It does not turn
+Forma into a runtime that can catch every process stop.
 
-| Scenario                                         | Canale target                       |
-| ------------------------------------------------ | ----------------------------------- |
-| Condizione attesa dichiarata dal Contract        | `kind: "error"`                     |
-| Provider factory lancia o rigetta                | `kind: "unexpected"`                |
-| Unary operation lancia o rigetta                 | `kind: "unexpected"`                |
-| Stream source lancia durante start/next          | terminal `kind: "unexpected"`       |
-| Dependency restituisce unexpected                | stessa failure propagata            |
-| Adapter mapping lancia                           | nuova failure unexpected            |
-| `compose()` riceve una configurazione invalida   | throw di configurazione             |
-| Uso di root/context gia disposed                 | lifecycle/precondition, fuori scope |
-| `dispose()` o cleanup fallisce                   | rejection di lifecycle, fuori scope |
-| Consumer lancia dopo aver ricevuto l'outcome     | errore del caller                   |
-| OOM, process termination o fatal runtime failure | fuori dalle garanzie                |
+| Scenario                                           | Target channel                       |
+| -------------------------------------------------- | ------------------------------------ |
+| Expected condition declared by the Contract        | `kind: "error"`                      |
+| Provider factory throws or rejects                 | `kind: "unexpected"`                 |
+| Unary operation throws or rejects                  | `kind: "unexpected"`                 |
+| Stream source throws during start/next             | terminal `kind: "unexpected"`        |
+| Dependency returns unexpected                      | same failure propagated              |
+| Adapter mapping throws                             | new unexpected failure               |
+| `compose()` receives an invalid configuration      | configuration throw                  |
+| Use of an already-disposed root/context            | lifecycle/precondition, out of scope |
+| `dispose()` or cleanup fails                       | lifecycle rejection, out of scope    |
+| Consumer throws after receiving the outcome        | caller error                         |
+| OOM, process termination, or fatal runtime failure | outside guarantees                   |
 
-`dispose()` puo quindi continuare a rigettare. Non e il Contract di un Boundary: e
-un'operazione di ownership osservata dall'host o dal supervisor.
+`dispose()` may therefore continue to reject. It is not a Boundary Contract: it is an ownership
+operation observed by the host or supervisor.
 
-## Conseguenze sul software design
+## Software-design consequences
 
-### Benefici
+### Benefits
 
-- Il Contract descrive tutti gli esiti recuperabili osservabili fra Boundary.
-- I Provider non aggiungono `try/catch` difensivi a ogni dependency invocation.
-- Gli errori attesi vengono modellati come dati invece di dipendere da classi eccezione.
-- Le failure inattese mantengono una correlazione end-to-end senza esporre dettagli interni.
-- Un Remote Adapter puo conservare la stessa semantica senza serializzare `unknown`.
-- La Composition offre un fallback diagnostico senza introdurre logging nel core.
-- La distinzione tra dominio, failure inattesa e lifecycle diventa esplicita.
+- The Contract describes all recoverable outcomes observable across Boundaries.
+- Providers do not add defensive `try/catch` on every dependency invocation.
+- Expected errors are modeled as data instead of depending on exception classes.
+- Unexpected failures keep end-to-end correlation without exposing internal details.
+- A Remote Adapter can preserve the same semantics without serializing `unknown`.
+- The Composition offers a diagnostic fallback without introducing logging in the core.
+- The distinction between domain, unexpected failure, and lifecycle becomes explicit.
 
-### Costi e rischi
+### Costs and risks
 
-- E una modifica breaking di ogni operation type e di ogni consumer.
-- `Result` e gli helper `ok` / `err` devono essere sostituiti o ridefiniti coerentemente.
-- Ignorare un `InvocationOutcome` rimane possibile: la totalizzazione elimina rejection nascoste,
-  non obbliga il caller a gestire ogni branch.
-- Boundary che oggi usano throw come controllo di flusso devono censire le condizioni attese.
-- Il fallback automatico perde il raw cause se non e configurato `onUnexpectedFailure`.
-- L'hook di supervisione e best-effort e non garantisce delivery o flush.
-- Stream e cancellazione richiedono una migrazione coordinata con le decisioni di lifecycle gia
-  pubblicate.
+- It is a breaking change to every operation type and every consumer.
+- `Result` and the `ok` / `err` helpers must be replaced or redefined consistently.
+- Ignoring an `InvocationOutcome` remains possible: totalization removes hidden rejections; it
+  does not force the caller to handle every branch.
+- Boundaries that today use throw as control flow must catalogue expected conditions.
+- The automatic fallback loses the raw cause if `onUnexpectedFailure` is not configured.
+- The supervision hook is best-effort and does not guarantee delivery or flush.
+- Streams and cancellation need coordinated migration with already published lifecycle decisions.
 
-## Non-obiettivi
+## Non-goals
 
-Questa modifica non introduce:
+This change does not introduce:
 
-- un logger Forma;
-- un event bus diagnostico;
-- buffering o retention delle failure;
-- retry automatico;
-- recovery automatica dagli unexpected;
-- serializzazione generica degli Error JavaScript;
-- una gerarchia pubblica di classi Error;
-- gestione tipizzata degli errori di `dispose()`;
-- causal graph fra failure;
-- schema runtime automatico dei Contract;
-- middleware o interceptor general-purpose.
+- a Forma logger;
+- a diagnostic event bus;
+- buffering or retention of failures;
+- automatic retry;
+- automatic recovery from unexpected failures;
+- generic serialization of JavaScript Errors;
+- a public Error class hierarchy;
+- typed handling of `dispose()` errors;
+- a causal graph among failures;
+- automatic runtime schemas for Contracts;
+- general-purpose middleware or interceptors.
 
-## Invarianti da preservare
+## Invariants to preserve
 
-1. Un expected error e sempre rappresentato da `Err` e puo essere interpretato dal caller.
-2. Un unexpected non espone il raw cause nel dataflow fra Boundary.
-3. Ogni nuova failure riceve esattamente un nuovo ID.
-4. Propagare una failure conserva oggetto e ID.
-5. La conversione automatica notifica la Composition al massimo una volta.
-6. Una failure creata esplicitamente non viene notificata nuovamente dal core.
-7. L'hook della Composition non puo modificare o far rigettare l'invocation.
-8. Un Adapter non trasforma un unexpected in un expected error.
-9. Unary e stream condividono la stessa algebra degli esiti.
-10. Lifecycle e configurazione restano canali separati dal Contract del Boundary.
+1. An expected error is always represented by `Err` and can be interpreted by the caller.
+2. An unexpected does not expose the raw cause in the dataflow between Boundaries.
+3. Every new failure receives exactly one new ID.
+4. Propagating a failure keeps object and ID.
+5. Automatic conversion notifies the Composition at most once.
+6. An explicitly created failure is not notified again by the core.
+7. The Composition hook cannot modify or cause the invocation to reject.
+8. An Adapter does not turn an unexpected into an expected error.
+9. Unary and stream share the same outcome algebra.
+10. Lifecycle and configuration remain channels separate from the Boundary Contract.
 
-## Criteri di accettazione
+## Acceptance criteria
 
 ### Unary
 
-- throw sincrono e rejection producono `unexpected` senza rejection al caller;
-- factory failure produce `unexpected` sulla invocation che ne richiede la materializzazione;
-- il failure ID e branded, immutabile e non vuoto;
-- una dependency unexpected attraversa piu Boundary conservando lo stesso ID;
-- expected error omonimi continuano a essere verificati dal Contract;
-- il caller puo gestire esaustivamente `InvocationOutcome` senza `try/catch`.
+- synchronous throw and rejection produce `unexpected` without rejecting the caller;
+- factory failure produces `unexpected` on the invocation that requires materialization;
+- the failure ID is branded, immutable, and non-empty;
+- a dependency unexpected crosses multiple Boundaries keeping the same ID;
+- expected errors of the same name continue to be checked by the Contract;
+- the caller can exhaustively handle `InvocationOutcome` without `try/catch`.
 
 ### Composition hook
 
-- riceve il raw cause e lo stesso failure object restituito al caller;
-- viene chiamato una sola volta per una failure core-generated;
-- non viene chiamato durante la propagazione;
-- non viene chiamato per una failure esplicita;
-- un hook che lancia non modifica l'outcome e non produce ricorsione;
-- l'assenza dell'hook non cambia il risultato dell'invocation;
-- Params e Input non vengono inclusi nell'evento.
+- receives the raw cause and the same failure object returned to the caller;
+- is called once for a core-generated failure;
+- is not called during propagation;
+- is not called for an explicit failure;
+- a throwing hook does not change the outcome and does not recurse;
+- absence of the hook does not change the invocation result;
+- Params and Input are not included in the event.
 
 ### Adapter
 
-- expected source error puo essere mappato nell'expected target error;
-- unexpected e cancellation vengono propagati invariati;
-- un mapping che lancia genera una nuova unexpected failure;
-- l'Adapter non deve aggiungere `catch` attorno a una dependency operation Forma.
+- expected source error can be mapped to the expected target error;
+- unexpected and cancellation are propagated unchanged;
+- a mapping throw generates a new unexpected failure;
+- the Adapter must not add `catch` around a Forma dependency operation.
 
 ### Stream
 
-- source throw prima del primo item produce un terminal unexpected;
-- source throw dopo piu item produce un solo terminal unexpected;
-- expected error e unexpected sono terminali;
-- `next()` non rigetta per failure dell'implementazione sorgente;
-- il Composition hook viene chiamato una sola volta al punto di origine;
-- early break e dispose mantengono la matrice lifecycle corrente.
+- source throw before the first item produces a terminal unexpected;
+- source throw after several items produces a single terminal unexpected;
+- expected error and unexpected are terminal;
+- `next()` does not reject for source-implementation failure;
+- the Composition hook is called once at the origin;
+- early break and dispose keep the current lifecycle matrix.
 
 ### Remote
 
-- un unexpected remoto conserva il failure ID senza reidratare il cause;
-- un transport failure locale crea un nuovo ID;
-- payload malformati diventano failure locali del Boundary infrastrutturale client;
-- il wire payload non contiene stack, prototype o dettagli non censiti.
+- a remote unexpected keeps the failure ID without rehydrating the cause;
+- a local transport failure creates a new ID;
+- malformed payloads become local failures of the client infrastructure Boundary;
+- the wire payload contains no stack, prototype, or uncatalogued details.
 
-## Impatto documentale
+## Documentary impact
 
-Aggiornato atomicamente con l'implementazione:
+Updated atomically with the implementation:
 
-- `GLOSSARY.md`: Contract, InvocationOutcome, Expected Error, Unexpected Failure, Failure ID e
-  semantica degli stream;
-- README: esempi unary, Adapter, surface e stream;
-- ADR 0012: source throw come terminal unexpected invece di iterator rejection;
-- ADR 0008: rapporto fra abort/cancellation e `InvocationOutcome`;
-- architectural review: superseded “technical failure fuori da Result”;
-- esempi Adapter/demo (pass-through `unexpected` / `cancelled`);
-- ADR 0015: decisione normativa sulla totalizzazione.
+- `GLOSSARY.md`: Contract, InvocationOutcome, Expected Error, Unexpected Failure, Failure ID, and
+  stream semantics;
+- README: unary, Adapter, surface, and stream examples;
+- ADR 0012: source throw as terminal unexpected instead of iterator rejection;
+- ADR 0008: relationship between abort/cancellation and `InvocationOutcome`;
+- architectural review: superseded “technical failure outside Result”;
+- Adapter/demo examples (pass-through `unexpected` / `cancelled`);
+- ADR 0015: normative totalization decision.
 
-Questo documento rimane l'analisi estesa e il piano di validazione; ADR 0015 registra la
-decisione normativa in forma breve.
+This document remains the extended analysis and validation plan; ADR 0015 records the normative
+decision in short form.
 
-## Sintesi delle decisioni condivise
+## Shared decision summary
 
-1. La totalizzazione e una proprieta del Boundary; la Surface la eredita.
-2. Il core converte throw e rejection sfuggiti in `unexpected` con failure ID generato al volo.
-3. Un Boundary puo creare esplicitamente la failure, loggarne l'ID e restituirla.
-4. `createUnexpectedFailure()` e preferito a una classe `UnexpectedFailure` costruibile con
+1. Totalization is a Boundary property; the Surface inherits it.
+2. The core converts escaped throws and rejections into `unexpected` with a failure ID generated
+   on the fly.
+3. A Boundary may create the failure explicitly, log its ID, and return it.
+4. `createUnexpectedFailure()` is preferred over a constructible `UnexpectedFailure` class with
    `new`.
-5. Il raw cause non attraversa il normale dataflow fra Boundary.
-6. Una failure propagata conserva lo stesso ID; una nuova causa crea un nuovo ID.
-7. Forma non mantiene registry, buffer o sink diagnostici.
-8. `onUnexpectedFailure` e un hook opzionale della Composition per le sole conversioni
-   automatiche del core.
-9. L'hook e sincrono, best-effort, chiamato una volta e incapace di alterare l'outcome.
-10. Il catch dei driver appartiene al Boundary infrastrutturale; l'Adapter mappa i Contract e
-    propaga gli unexpected invariati.
-11. Unary e stream devono condividere lo stesso protocollo di failure.
-12. `dispose()` e gli altri lifecycle failure restano rejection fuori dal Contract dei Boundary.
+5. The raw cause does not cross the normal dataflow between Boundaries.
+6. A propagated failure keeps the same ID; a new cause creates a new ID.
+7. Forma keeps no registry, buffer, or diagnostic sink.
+8. `onUnexpectedFailure` is an optional Composition hook for automatic core conversions only.
+9. The hook is synchronous, best-effort, called once, and unable to alter the outcome.
+10. Driver catch belongs on the infrastructure Boundary; the Adapter maps Contracts and propagates
+    unexpected outcomes unchanged.
+11. Unary and stream must share the same failure protocol.
+12. `dispose()` and other lifecycle failures remain rejections outside Boundary Contracts.

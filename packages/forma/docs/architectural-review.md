@@ -1,373 +1,367 @@
-# Forma: review architetturale e direzioni di design
+# Forma: architectural review and design directions
 
-> Stato: analisi di design, non ADR e non specifica normativa.
+> Status: design analysis, not an ADR and not a normative specification.
 >
-> Data: 2026-10-29.
+> Date: 2026-10-29.
 >
-> Scope: `packages/forma` e `apps/forma-demo` sul branch `feature/adapters`.
+> Scope: `packages/forma` and `apps/forma-demo` on branch `feature/adapters`.
 >
-> Nota evolutiva: questa review fotografa la baseline iniziale. Le decisioni successivamente
-> accettate negli ADR prevalgono dove l'implementazione è avanzata; in particolare ADR 0011
-> sostituisce la raccomandazione originale sulla propagazione manuale dei lifetime, ADR 0006 usa
-> soltanto `openExecutionContext`, e ADR 0013 introduce Entry Boundary obbligatori vietando root
-> Adapter nella Surface. ADR 0014 risolve inoltre il finding sull'esposizione pubblica della
-> factory: i Provider sono ora nominali e mostrano soltanto metadata readonly.
+> Evolutionary note: this review snapshots the initial baseline. Decisions later accepted in ADRs
+> prevail where implementation has advanced; in particular ADR 0011 replaces the original
+> recommendation of manual lifetime propagation, ADR 0006 uses only `openExecutionContext`, and
+> ADR 0013 introduces mandatory Entry Boundaries forbidding Adapter roots on the Surface. ADR 0014
+> also closes the finding on public factory exposure: Providers are now nominal and expose only
+> readonly metadata. ADR 0015 totalizes Boundary exits as `InvocationOutcome`.
 
 ## Executive summary
 
-Forma ha un nucleo promettente: rende il grafo applicativo esplicito, mantiene private le
-realizzazioni, espone una Surface stretta e concentra risoluzione, lazy materialization e
-lifecycle nella Composition.
+Forma has a promising core: it makes the application graph explicit, keeps realizations private,
+exposes a narrow Surface, and concentrates resolution, lazy materialization, and lifecycle in the
+Composition.
 
-La descrizione più precisa non è “framework DDD” né “IoC container general purpose”, ma:
+The most accurate description is neither “DDD framework” nor “general-purpose IoC container”, but:
 
-> un linker applicativo tipato, con dependency injection scoped e façade esplicita.
+> a typed application linker, with scoped dependency injection and an explicit façade.
 
-Il modulo con più profondità è `compose`: dietro un'interfaccia piccola nasconde una quantità
-significativa di comportamento e produce leverage per i caller e locality per chi mantiene il
-runtime. Boundary, Intent e Adapter aggiungono soprattutto identità, policy architetturale e
-provenance.
+The deepest module is `compose`: behind a small interface it hides a significant amount of behavior
+and produces leverage for callers and locality for whoever maintains the runtime. Boundary, Intent,
+and Adapter mainly add identity, architectural policy, and provenance.
 
-Lo stato alpha è appropriato. Prima di una stabilizzazione sono prioritari quattro interventi:
+Alpha status is appropriate. Before stabilization, four interventions are priorities:
 
-1. unificare la semantica dell'identità tra TypeScript e runtime;
-2. trasformare root ed Execution context in vere state machine di lifecycle;
-3. validare l'intero grafo, inclusi i cicli, al momento di `compose()`;
-4. rendere la sicurezza statica utilizzabile anche quando il wiring viene modularizzato.
+1. unify identity semantics between TypeScript and runtime;
+2. turn root and Execution context into real lifecycle state machines;
+3. validate the entire graph, including cycles, at `compose()` time;
+4. make static safety usable even when wiring is modularized.
 
-Sul fronte dell'interfaccia, due direzioni hanno un ritorno particolarmente alto:
+On the interface side, two directions have especially high return:
 
-- factory asincrone, necessarie per acquisire risorse reali senza spostare il lifecycle nei
-  caller;
-- `withExecutionContext`, come safe default per scope brevi, mantenendo
-  `createExecutionContext()` per lifecycle posseduti dall'host.
+- async factories, required to acquire real resources without moving lifecycle into callers;
+- `withExecutionContext`, as the safe default for short scopes, keeping
+  `openExecutionContext()` for host-owned lifetimes.
 
-Per le sostituzioni cross-boundary con contratti uguali, un Adapter passthrough è generalmente
-più esplicito e semanticamente sicuro di `bind`. Binding può restare, ma solo come alias di
-identità eccezionale e chiaramente documentato, non come meccanismo ordinario di wiring.
+For cross-boundary substitutions with equal contracts, an Adapter passthrough is generally more
+explicit and semantically safer than `bind`. Binding may remain, but only as an exceptional,
+clearly documented identity alias — not as ordinary wiring.
 
-## Metodo e verifiche
+## Method and verification
 
-La review ha incluso:
+The review included:
 
-- tutti i sorgenti e i test di `packages/forma`;
-- README, glossario e ADR;
-- tutti i file di `apps/forma-demo`;
-- build, lint e typecheck;
-- esecuzione del demo;
-- probe TypeScript e runtime isolati per casi non coperti dalla suite.
+- all sources and tests of `packages/forma`;
+- README, glossary, and ADRs;
+- all files of `apps/forma-demo`;
+- build, lint, and typecheck;
+- running the demo;
+- isolated TypeScript and runtime probes for cases not covered by the suite.
 
-Risultati della baseline:
+Baseline results:
 
-- build di `@xndrjs/forma`: pass;
-- lint di `@xndrjs/forma`: pass;
-- typecheck di `@xndrjs/forma`: pass;
-- typecheck di `@xndrjs/forma-demo`: pass;
-- test: 9 file, 52 test, tutti passati;
-- demo: pass, incluso cleanup della connessione simulata.
+- `@xndrjs/forma` build: pass;
+- `@xndrjs/forma` lint: pass;
+- `@xndrjs/forma` typecheck: pass;
+- `@xndrjs/forma-demo` typecheck: pass;
+- tests: 9 files, 52 tests, all passed;
+- demo: pass, including cleanup of the simulated connection.
 
-I problemi riportati come confermati sono stati riprodotti separatamente. Le considerazioni
-sull'interfaccia e sugli scenari futuri sono invece valutazioni di design.
+Confirmed issues were reproduced separately. Interface considerations and future scenarios are
+design evaluations.
 
-## Modello concettuale osservato
+## Observed conceptual model
 
 ### Intent
 
-Un Intent è un token nominale associato a un contratto (unary o stream):
+An Intent is a nominal token associated with a contract (unary or stream):
 
 ```ts
 Input -> InvocationOutcome<Success, ExpectedError>
 ```
 
-L'operazione può essere sincrona o asincrona. Throw e Promise rejection prodotti
-dall'implementazione **non** attraversano il Boundary: Forma li converte in
-`{ kind: "unexpected", failure }` al punto di origine ([ADR 0015](./adr/0015-boundary-error-totalization.md)).
-Il Contract dichiara gli expected error su `Err`; l'algebra pubblica aggiunge anche `unexpected` e
-`cancelled`.
+The operation may be sync or async. Throws and Promise rejections from the implementation **do
+not** cross the Boundary: Forma converts them into `{ kind: "unexpected", failure }` at the origin
+([ADR 0015](./adr/0015-boundary-error-totalization.md)). The Contract declares expected errors on
+`Err`; the public algebra also adds `unexpected` and `cancelled`.
 
 ### Provider
 
-Un Provider associa un Intent a:
+A Provider associates an Intent with:
 
-- una factory;
-- un insieme nominato di dipendenze Intent;
-- un lifetime, composition-scoped oppure `.perContext()`;
-- un'origine Boundary o Adapter.
+- a factory;
+- a named set of Intent dependencies;
+- a lifetime, composition-scoped or `.perContext()`;
+- a Boundary or Adapter origin.
 
-Il Provider è l'entità operativa registrata nella Composition.
+The Provider is the operative entity registered in the Composition.
 
 ### Composition
 
-La Composition:
+The Composition:
 
-- registra Provider e Binding;
-- risolve le dipendenze per identità;
-- definisce la Surface pubblica;
-- materializza i Provider lazily;
-- condivide o isola le istanze in base al lifetime;
-- possiede i disposer.
+- registers Providers and Bindings;
+- resolves dependencies by identity;
+- defines the public Surface;
+- materializes Providers lazily;
+- shares or isolates instances by lifetime;
+- owns disposers.
 
-### Surface e wiring
+### Surface and wiring
 
-La Surface è il seam esterno del modulo composto. Il wiring è la sua implementazione privata.
-Questa separazione è una delle decisioni migliori della libreria: il consumer riceve solo le
-operazioni esplicitamente pubblicate e non può usare la Composition come service locator.
+The Surface is the outer seam of the composed module. Wiring is its private implementation. This
+separation is one of the library’s best decisions: the consumer receives only explicitly published
+operations and cannot use the Composition as a service locator.
 
 ### Adapter
 
-L'oggetto creato da `adapter(id, targetBoundary)` è soprattutto un namespace architetturale e
-un builder con provenance. La realizzazione concreta al seam è il Provider restituito da
+The object created by `adapter(id, targetBoundary)` is mainly an architectural namespace and a
+builder with provenance. The concrete realization at the seam is the Provider returned by
 `.adapt(intent).with(...)`.
 
-Questa distinzione è importante: l'Adapter di Forma acquista profondità reale solo se la sua
-identità e la sua provenance vengono poi sfruttate da diagnostica, introspezione, tooling o
-policy di composizione. Oggi `compose` non usa `origin` per la risoluzione.
+This distinction matters: Forma’s Adapter gains real depth only if its identity and provenance are
+later used by diagnostics, introspection, tooling, or composition policy. Today `compose` does not
+use `origin` for resolution.
 
-## Valutazione per asse
+## Evaluation by axis
 
-| Asse                    | Valutazione                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------------ |
-| Correttezza semantica   | Buona intenzione, ma l'identità statica e runtime divergono                          |
-| Ergonomia               | Molto buona per grafi piccoli e inline; fragile nella modularizzazione               |
-| Qualità della soluzione | Ottimo PoC; lifecycle e concorrenza non ancora production-grade                      |
-| Potenza espressiva      | Forte su façade e integrazioni; stretta su risorse async e context data              |
-| Testabilità             | Buona attraverso la Surface; mancano scenari concorrenti e di shutdown               |
-| Evolvibilità            | Metadata promettenti per tooling, ma l'interfaccia pubblica esporta dettagli interni |
+| Axis                 | Assessment                                                                        |
+| -------------------- | --------------------------------------------------------------------------------- |
+| Semantic correctness | Good intent, but static and runtime identity diverge                              |
+| Ergonomics           | Very good for small inline graphs; fragile under modularization                   |
+| Solution quality     | Excellent PoC; lifecycle and concurrency not yet production-grade                 |
+| Expressive power     | Strong on façades and integrations; tight on async resources and context data     |
+| Testability          | Good through the Surface; concurrent and shutdown scenarios missing               |
+| Evolvability         | Promising metadata for tooling, but the public interface exports internal details |
 
-## Decisioni particolarmente riuscite
+## Particularly successful decisions
 
-### Surface esplicita
+### Explicit Surface
 
-La Surface produce least authority: un consumer vede soltanto ciò che la Composition sceglie di
-pubblicare. I Provider presenti nel wiring non diventano accidentalmente un'interfaccia pubblica.
+The Surface produces least authority: a consumer sees only what the Composition chooses to publish.
+Providers in wiring do not accidentally become a public interface.
 
-### Dipendenze dichiarate, non cercate
+### Declared dependencies, not looked up
 
-Le dipendenze vengono nominate tramite `using` e ricevute dalla factory. Non esiste un resolver
-pubblico. Questo rende il grafo leggibile, analizzabile e testabile.
+Dependencies are named via `using` and received by the factory. There is no public resolver. That
+makes the graph readable, analyzable, and testable.
 
-### Contratto posseduto dal target
+### Contract owned by the target
 
-Un Adapter realizza l'Intent del target senza ridefinirne il contratto. Nel demo la traduzione
-tra shape Postgres e shape Orders resta localizzata nell'integrazione.
+An Adapter realizes the target Intent without redefining its contract. In the demo, translation
+between Postgres shapes and Orders shapes stays localized in the integration.
 
-### Distinzione fra alias e trasformazione
+### Distinguishing alias and transformation
 
-Il design separa correttamente:
+The design correctly separates:
 
-- Binding: riscrittura di identità a parità di contratto strutturale;
-- Adapter: realizzazione con eventuale mapping di input, output ed errori.
+- Binding: identity rewrite at equal structural contract;
+- Adapter: realization with optional mapping of inputs, outputs, and errors.
 
-La separazione è concettualmente solida, anche se più avanti viene proposta una restrizione
-ulteriore dell'uso di Binding.
+The separation is conceptually solid, even though a further restriction of Binding usage is proposed
+later.
 
-### Difesa dai captive dependency
+### Captive-dependency defense
 
-L'invariante resta: un Provider root-owned non può catturare una dipendenza context-owned. ADR
-0011 lo preserva derivando il lifetime effettivo dal grafo: i Provider `auto` vengono ristretti
-transitivamente, mentre un pin `.perComposition()` incompatibile fallisce a `compose()`.
+The invariant remains: a root-owned Provider cannot capture a context-owned dependency. ADR 0011
+preserves it by deriving effective lifetime from the graph: `auto` Providers are narrowed
+transitively, while an incompatible `.perComposition()` pin fails at `compose()`.
 
-### Disposal LIFO
+### LIFO disposal
 
-I cleanup vengono eseguiti in ordine inverso alla registrazione, tutti vengono tentati e gli
-errori multipli vengono aggregati. Poiché le dipendenze vengono materializzate prima dei
-consumer, il LIFO tende naturalmente a chiudere prima il consumer e poi le sue dipendenze.
+Cleanups run in reverse registration order, all are attempted, and multiple errors are aggregated.
+Because dependencies materialize before consumers, LIFO naturally tends to close the consumer first
+and then its dependencies.
 
-### Inferenza locale
+### Local inference
 
-Input, output, errori e dipendenze vengono inferiti dall'Intent. Nei casi piccoli il caller non
-deve duplicare annotazioni e la Surface risultante è precisa.
+Inputs, outputs, errors, and dependencies are inferred from the Intent. In small cases the caller
+does not duplicate annotations and the resulting Surface is precise.
 
-## Finding di correttezza
+## Correctness findings
 
-### F1 — Identità statica e runtime divergono
+### F1 — Static and runtime identity diverge
 
-**Priorità: bloccante prima della stabilizzazione.**
+**Priority: blocking before stabilization.**
 
-A runtime ogni dichiarazione di Intent riceve un `Symbol` nuovo in
-[`boundary.ts`](https://github.com/xndrjs/toolkit/blob/main/packages/forma/src/boundary.ts). La
-verifica statica della Composition usa invece una stringa costruita come
-`` `${boundaryId}.${name}` `` in
+At runtime every Intent declaration receives a fresh `Symbol` in
+[`boundary.ts`](https://github.com/xndrjs/toolkit/blob/main/packages/forma/src/boundary.ts). Static
+Composition checking instead uses a string built as `` `${boundaryId}.${name}` `` in
 [`compose.ts`](https://github.com/xndrjs/toolkit/blob/main/packages/forma/src/compose.ts).
 
-Questo crea due nozioni di identità:
+This creates two notions of identity:
 
-- per TypeScript due Intent con la stessa coppia di stringhe sono uguali ai fini del grafo;
-- per il resolver sono uguali solo se condividono lo stesso `Symbol`.
+- for TypeScript, two Intents with the same string pair are equal for the graph;
+- for the resolver they are equal only if they share the same `Symbol`.
 
-Scenari confermati:
+Confirmed scenarios:
 
-1. due oggetti distinti `boundary("orders")`, ciascuno con `intent("find")`;
-2. due dichiarazioni distinte `Orders.intent("find")` sulla stessa Boundary;
-3. `boundary("a.b").intent("c")` e `boundary("a").intent("b.c")`;
-4. Boundary o nomi allargati a `string` anziché mantenuti come literal.
+1. two distinct `boundary("orders")` objects, each with `intent("find")`;
+2. two distinct `Orders.intent("find")` declarations on the same Boundary;
+3. `boundary("a.b").intent("c")` and `boundary("a").intent("b.c")`;
+4. Boundary or names widened to `string` instead of kept as literals.
 
-Nel primo e nel secondo scenario TypeScript può dichiarare completo il grafo, mentre la prima
-invocazione fallisce con `No provider registered`.
+In the first and second scenarios TypeScript can declare the graph complete, while the first
+invocation fails with `No provider registered`.
 
-Lo stesso problema indebolisce due policy dichiarate:
+The same issue weakens two declared policies:
 
-- `Intent.provide.using` verifica la “stessa Boundary” tramite il solo `BoundaryId` stringa;
-- `Adapter.adapt` verifica il target tramite lo stesso parametro stringa.
+- `Intent.provide.using` checks “same Boundary” via the string `BoundaryId` alone;
+- `Adapter.adapt` checks the target via the same string parameter.
 
-Due istanze Boundary con lo stesso ID sono quindi intercambiabili nei tipi ma non a runtime.
+Two Boundary instances with the same ID are therefore interchangeable in types but not at runtime.
 
-#### Direzione raccomandata
+#### Recommended direction
 
-Va scelta una sola semantica.
+Choose a single semantics.
 
-Opzione A: la coppia `(boundaryId, intentName)` è l'identità canonica.
+Option A: the pair `(boundaryId, intentName)` is the canonical identity.
 
-- Il runtime risolve con una chiave strutturata, non con un `Symbol` fresco.
-- `compose` rifiuta dichiarazioni duplicate o contratti incompatibili per la stessa chiave.
-- Le stringhe non vengono concatenate con un separatore ambiguo.
+- The runtime resolves with a structured key, not a fresh `Symbol`.
+- `compose` rejects duplicate declarations or incompatible contracts for the same key.
+- Strings are not concatenated with an ambiguous separator.
 
-Opzione B: l'identità è davvero nominale.
+Option B: identity is truly nominal.
 
-- Boundary o Intent ricevono un token `unique symbol` fornito dal caller.
-- Il token viene propagato nei generics.
-- TypeScript e runtime confrontano lo stesso concetto.
+- Boundary or Intent receive a caller-supplied `unique symbol` token.
+- The token is propagated in generics.
+- TypeScript and runtime compare the same concept.
 
-La scelta dipende dalla semantica desiderata per reload, duplicazione dei moduli e dichiarazioni
-separate. La soluzione attuale, metà label e metà token generativo, offre il peggio di entrambe.
+The choice depends on desired semantics for reload, module duplication, and separate declarations.
+The current half-label / half-generative-token solution offers the worst of both.
 
-### F2 — Ciclo concorrente in deadlock
+### F2 — Concurrent cycle deadlock
 
-**Priorità: alta.**
+**Priority: high.**
 
-La detection basata su `seeing` funziona per una singola catena A -> B -> A. Non funziona se A
-e B vengono materializzati contemporaneamente da due entry point:
+`seeing`-based detection works for a single A -> B -> A chain. It fails if A and B are
+materialized concurrently from two entry points:
 
 ```ts
 await Promise.all([ctx.a(), ctx.b()]);
 ```
 
-Ogni risoluzione possiede il proprio `seeing`. A trova B in `inflight`, B trova A in `inflight`
-e le due Promise attendono reciprocamente senza risolvere né rigettare.
+Each resolution owns its own `seeing`. A finds B in `inflight`, B finds A in `inflight`, and the
+two Promises wait on each other without resolving or rejecting.
 
-#### Direzione raccomandata
+#### Recommended direction
 
-Il grafo è noto a `compose()`: la Composition dovrebbe compilare un execution plan e validare i
-cicli prima di esporre il root. La detection runtime può rimanere come difesa, ma non deve essere
-la prima linea.
+The graph is known at `compose()`: the Composition should compile an execution plan and validate
+cycles before exposing the root. Runtime detection may remain as defense, but must not be the first
+line.
 
-Il diagnostico dovrebbe riportare l'intero percorso:
+Diagnostics should report the full path:
 
 ```text
 Circular dependency: orders.a -> orders.b -> orders.a
 ```
 
-### F3 — Race fra materializzazione e `ctx.dispose()`
+### F3 — Race between materialization and `ctx.dispose()`
 
-**Priorità: alta.**
+**Priority: high.**
 
-Durante la materializzazione viene controllato `contextDisposed`, poi viene eseguito
-`await resolveDeps(...)`. Se il context viene chiuso durante quell'attesa, la factory può ancora:
+During materialization `contextDisposed` is checked, then `await resolveDeps(...)` runs. If the
+context closes during that wait, the factory may still:
 
-- completare;
-- registrare cleanup in un bucket già svuotato;
-- inserire l'operation nella cache dopo che questa è stata pulita;
-- completare con successo la chiamata iniziata prima del disposal.
+- complete;
+- register cleanup into an already-emptied bucket;
+- insert the operation into a cache that was already cleared;
+- successfully complete a call that started before disposal.
 
-Un secondo `dispose()` ritorna immediatamente, quindi i cleanup registrati tardi possono non
-essere mai eseguiti.
+A second `dispose()` returns immediately, so late-registered cleanups may never run.
 
-#### Direzione raccomandata
+#### Recommended direction
 
-Il context deve tracciare:
+The context must track:
 
-- stato `open | disposing | disposed`;
-- materializzazioni attive;
-- opzionalmente operazioni attive;
-- una singola Promise di disposal condivisa da tutti i caller.
+- state `open | disposing | disposed`;
+- active materializations;
+- optionally active operations;
+- a single disposal Promise shared by all callers.
 
-Quando inizia il disposal, nuove chiamate devono essere rifiutate. Le materializzazioni in corso
-devono essere attese oppure cancellate e rollbackate con una semantica esplicita.
+When disposal starts, new calls must be rejected. In-flight materializations must be awaited or
+cancelled and rolled back with explicit semantics.
 
-### F4 — `root.dispose()` non è terminale
+### F4 — `root.dispose()` is not terminal
 
-**Priorità: alta.**
+**Priority: high.**
 
-Il root non conserva alcuno stato di disposal. Dopo `await root.dispose()` è possibile:
+The root keeps no disposal state. After `await root.dispose()` it is still possible to:
 
-- creare un nuovo Execution context;
-- usare un context esistente;
-- rimaterializzare Provider composition-lifetime;
-- registrare nuovi disposer.
+- create a new Execution context;
+- use an existing context;
+- rematerialize composition-lifetime Providers;
+- register new disposers.
 
-Se un cleanup del root lancia, `compositionOps.clear()` non viene raggiunto e una chiamata
-successiva può riusare un'operation associata a una risorsa già chiusa.
+If a root cleanup throws, `compositionOps.clear()` is not reached and a later call may reuse an
+operation tied to an already-closed resource.
 
-Due chiamate concorrenti a `dispose()` non attendono necessariamente lo stesso lavoro: quella
-che trova il bucket già svuotato può completare prima della prima.
+Two concurrent `dispose()` calls do not necessarily await the same work: the one that finds the
+bucket already emptied may complete before the first.
 
-#### Direzione raccomandata
+#### Recommended direction
 
-Anche il root deve avere una state machine e una `disposePromise` condivisa. L'interfaccia deve
-definire il rapporto di ownership con i context attivi:
+The root must also have a state machine and a shared `disposePromise`. The interface must define
+ownership relative to active contexts:
 
-- il root chiude tutti i context;
-- il root attende che si chiudano;
-- oppure il root rifiuta il disposal finché ne esistono.
+- the root closes all contexts;
+- the root waits for them to close;
+- or the root refuses disposal while any exist.
 
-La scelta va documentata come parte dell'interfaccia, perché l'ordine corretto non può essere
-lasciato a un esempio nel README.
+The choice must be documented as part of the interface, because correct order cannot be left to a
+README example.
 
-### F5 — Una Surface alias può sovrascrivere `dispose`
+### F5 — A Surface alias can overwrite `dispose`
 
-**Priorità: medio-alta.**
+**Priority: medium-high.**
 
-Il context viene creato con un metodo `dispose`, poi le Surface alias vengono assegnate sullo
-stesso oggetto. Una Surface con alias `dispose` sostituisce quindi il controllo lifecycle:
+The context is created with a `dispose` method, then Surface aliases are assigned onto the same
+object. A Surface with alias `dispose` therefore replaces lifecycle control:
 
 ```ts
 compose({ surface: { dispose: SomeProvider } });
 ```
 
-`ctx.dispose()` invoca l'Intent e non rilascia le risorse. Anche il tipo è ambiguo perché diventa
-un'intersezione fra l'operation e `dispose(): Promise<void>`.
+`ctx.dispose()` invokes the Intent and does not release resources. The type is also ambiguous
+because it becomes an intersection of the operation and `dispose(): Promise<void>`.
 
-#### Direzione raccomandata
+#### Recommended direction
 
-Soluzione minima: riservare `dispose` e validarlo a `compose()`.
+Minimal fix: reserve `dispose` and validate it at `compose()`.
 
-Soluzione più pulita ma breaking:
+Cleaner but breaking:
 
 ```ts
 ctx.surface.someOperation(...)
 await ctx.dispose()
 ```
 
-In entrambi i casi i record interni dovrebbero essere creati senza prototipo, oppure i nomi
-speciali come `__proto__` devono essere respinti.
+In both cases internal records should be created without a prototype, or special names such as
+`__proto__` must be rejected.
 
-### F6 — La verifica statica del wiring è fragile
+### F6 — Static wiring verification is fragile
 
-**Priorità: media.**
+**Priority: medium.**
 
-L'estrazione dei Provider dal wiring ricorre sulle tuple. Una tupla inline mantiene quindi la
-precisione:
+Provider extraction from wiring recurses over tuples. An inline tuple therefore keeps precision:
 
 ```ts
 compose({ surface, wiring: [ProviderA, ProviderB] });
 ```
 
-Un normale array estratto viene invece trattato come privo di Provider:
+A normal extracted array is instead treated as having no Providers:
 
 ```ts
 const wiring = [ProviderA, ProviderB];
-compose({ surface, wiring }); // falso Missing provider
+compose({ surface, wiring }); // false Missing provider
 ```
 
-L'annotazione con il tipo pubblico `ComposeOptions` può produrre il problema opposto: allarga la
-Surface e il wiring fino a perdere controlli e autocomplete precisi.
+Annotating with the public `ComposeOptions` type can produce the opposite problem: it widens Surface
+and wiring until precise checks and autocomplete are lost.
 
-Un Provider union scelto dinamicamente può infine generare un falso positivo: il type system
-considera registrati gli Intent di tutti i rami, mentre a runtime ne esiste uno solo.
+A dynamically chosen Provider union can finally produce a false positive: the type system considers
+Intents from all branches registered, while only one exists at runtime.
 
-#### Direzione raccomandata
+#### Recommended direction
 
-Offrire helper con const generics:
+Offer helpers with const generics:
 
 ```ts
 const wiring = defineWiring(ProviderA, ProviderB);
@@ -378,229 +372,222 @@ const definition = defineComposition({
 });
 ```
 
-Il tipo `ComposeOptions` non dovrebbe essere presentato come annotazione da applicare a una
-configurazione concreta. Se resta pubblico, la documentazione deve spiegare che allarga i tipi.
+`ComposeOptions` should not be presented as an annotation to apply to a concrete configuration. If
+it remains public, docs must explain that it widens types.
 
-Per i valori union va scelta una policy: rifiutarli, oppure verificare che ogni variante possibile
-chiuda il grafo.
+For union values, choose a policy: reject them, or verify that every possible variant closes the
+graph.
 
-### F7 — Le chiavi `symbol` sono accettate dai tipi ma ignorate a runtime
+### F7 — `symbol` keys are accepted by types but ignored at runtime
 
-**Priorità: media.**
+**Priority: medium.**
 
-I mapped type su `keyof` includono i symbol. L'implementazione usa `Object.keys` e
-`Object.entries`, che invece li ignorano.
+Mapped types over `keyof` include symbols. The implementation uses `Object.keys` and
+`Object.entries`, which ignore them.
 
-Conseguenze confermate:
+Confirmed consequences:
 
-- `.using({ [someSymbol]: Dep })` compila ma la factory non riceve quella dipendenza;
-- una Surface con alias symbol è presente nel tipo del context ma non nell'oggetto runtime.
+- `.using({ [someSymbol]: Dep })` compiles but the factory never receives that dependency;
+- a Surface with a symbol alias appears in the context type but not on the runtime object.
 
-La soluzione più coerente con l'interfaccia corrente è restringere esplicitamente alias e chiavi
-dependency a stringhe. Se i symbol devono essere supportati, l'implementazione deve usare
-`Reflect.ownKeys` end-to-end.
+The most coherent fix with the current interface is to explicitly restrict aliases and dependency
+keys to strings, and validate `Reflect.ownKeys` end-to-end.
 
-### F8 — `using()` ripetuto sostituisce silenziosamente le dipendenze
+### F8 — Repeated `using()` silently replaces dependencies
 
-**Priorità: media-bassa.**
+**Priority: medium-low.**
 
-Il builder continua a esporre `.using` dopo la prima chiamata, ma l'implementazione sostituisce
-l'intera mappa:
+The builder keeps exposing `.using` after the first call, but the implementation replaces the whole
+map:
 
 ```ts
-SomeIntent.provide.using({ a: A }).using({ b: B }); // A scompare
+SomeIntent.provide.using({ a: A }).using({ b: B }); // A disappears
 ```
 
-Il builder dovrebbe rendere `using` one-shot oppure fare un merge tipizzato, rifiutando chiavi
-duplicate.
+The builder should make `using` one-shot or perform a typed merge that rejects duplicate keys.
 
-## Correttezza semantica oltre i tipi
+## Semantic correctness beyond types
 
-### Il contratto strutturale non descrive tutto il comportamento
+### Structural contract does not describe all behavior
 
-`Input`, `Success` ed `Err` descrivono la calling convention, ma non esprimono:
+`Input`, `Success`, and `Err` describe the calling convention, but do not express:
 
-- side effect;
-- idempotenza;
-- autorizzazione;
-- livello di consistenza;
-- ordinamento;
+- side effects;
+- idempotency;
+- authorization;
+- consistency level;
+- ordering;
 - retry safety;
-- performance e limiti di carico;
-- osservabilità;
-- failure tecniche possibili.
+- performance and load limits;
+- observability;
+- possible technical failures.
 
-Questo non è un difetto specifico di Forma: è un limite intrinseco della tipizzazione strutturale.
-Diventa però rilevante quando il sistema usa l'equivalenza strutturale per riscrivere identità
-semanticamente nominate, come avviene con Binding.
+This is not Forma-specific: it is an intrinsic limit of structural typing. It becomes relevant when
+the system uses structural equivalence to rewrite semantically named identities, as Binding does.
 
-### Technical failure e `InvocationOutcome` (superseded finding)
+### Technical failure and `InvocationOutcome` (superseded finding)
 
-La baseline separava expected failure nel `Result` e technical failure tramite throw. Quella
-separazione **non** è più il modello normativo: [ADR 0015](./adr/0015-boundary-error-totalization.md)
-totalizza l'uscita di ogni Intent in `InvocationOutcome` (`success` / `error` / `unexpected` /
-`cancelled`). Throw/rejection dell'implementazione diventano `unexpected` con Failure ID opaco;
-l'hook opzionale `onUnexpectedFailure` riceve il raw cause solo per conversioni automatiche del
-core.
+The baseline separated expected failure in `Result` from technical failure via throw. That
+separation is **no longer** the normative model: [ADR 0015](./adr/0015-boundary-error-totalization.md)
+totalizes every Intent exit as `InvocationOutcome` (`success` / `error` / `unexpected` /
+`cancelled`). Implementation throw/rejection becomes `unexpected` with an opaque Failure ID; the
+optional `onUnexpectedFailure` hook receives the raw cause only for automatic core conversions.
 
-Restano **fuori** dal Contract Intent (canali distinti — [ADR 0008](./adr/0008-execution-seed-and-abort-signal.md)):
+Remaining **outside** the Intent Contract (distinct channels —
+[ADR 0008](./adr/0008-execution-seed-and-abort-signal.md)):
 
-- composition invalida (throw di configurazione a `compose`);
-- context o root già disposed;
-- cleanup / `dispose()` fallito;
-- host abort che chiude l'**acceptance** di nuovo lavoro (rejection con `signal.reason` finché
-  non emendata ulteriormente ADR 0008).
+- invalid composition (configuration throw at `compose`);
+- already-disposed context or root;
+- failed cleanup / `dispose()`;
+- host abort closing **acceptance** of new work (rejection with `signal.reason` until ADR 0008 is
+  further amended).
 
-Questi casi di runtime/lifecycle usano ancora `Error` generici e messaggi testuali. Errori
-strutturati con `code`, Intent, origin e dependency path migliorerebbero diagnostica e integrazione
-**su quel canale**, senza riaprire il dataflow Intent.
+Those runtime/lifecycle cases still use generic `Error`s and textual messages. Structured errors
+with `code`, Intent, origin, and dependency path would improve diagnostics and integration **on
+that channel**, without reopening Intent dataflow.
 
-## Ergonomia
+## Ergonomics
 
-### Punti forti
+### Strengths
 
-- La forma `intent(name).contract<Input, Success, Err>()` è un compromesso ragionevole con i
-  limiti di inferenza parziale di TypeScript.
-- Le dependency operation vengono inferite dai rispettivi Intent.
-- La Surface viene inferita dai Provider e normalizzata a Promise.
-- `surface` e `wiring` rendono immediatamente visibile cosa è pubblico e cosa è privato.
-- `.provide` e `.adapt` rendono esplicito chi possiede la realizzazione.
-- La Composition del demo rimane molto piccola.
+- `intent(name).contract<Input, Success, Err>()` is a reasonable compromise with TypeScript’s
+  partial-inference limits.
+- Dependency operations are inferred from their Intents.
+- The Surface is inferred from Providers and normalized to Promise.
+- `surface` and `wiring` make public vs private immediately visible.
+- `.provide` and `.adapt` make ownership of the realization explicit.
+- The demo Composition stays very small.
 
-### Factory sincrone
+### Synchronous factories
 
-La factory deve restituire sincronicamente l'operation. L'operation può essere async, ma il setup
-che la crea no. Questo punto viene approfondito nella sezione dedicata perché limita direttamente
-l'uso con risorse reali.
+The factory must return the operation synchronously. The operation may be async, but the setup that
+creates it may not. This is deepened in the dedicated section because it directly limits use with
+real resources.
 
-### Lifetime narrowing transitivo
+### Transitive lifetime narrowing
 
-Nella baseline, una dipendenza `.perContext()` obbligava ogni consumer che la catturava a ripetere
-`.perContext()`. Nel demo l'annotazione si propagava attraverso:
+In the baseline, a `.perContext()` dependency forced every capturing consumer to repeat
+`.perContext()`. In the demo the annotation propagated through:
 
 1. ConnectionProvider;
 2. SelectOrderProvider;
 3. FindOrder Adapter Provider;
 4. GetOrderProvider.
 
-L'invariante era corretto, ma la propagazione manuale costringeva il caller a ricostruire una
-proprietà già nota alla Composition.
+The invariant was correct, but manual propagation forced the caller to reconstruct a property the
+Composition already knew.
 
-La decisione successiva, formalizzata in ADR 0011, separa policy dichiarata e lifetime effettivo:
+The later decision, formalized in ADR 0011, separates declared policy from effective lifetime:
 
-- nessun modificatore significa `auto`;
-- `.perContext<Params>()` introduce affinità contestuale e, opzionalmente, accesso ai params;
-- `.perComposition()` fissa la condivisione root e fallisce se una dependency transitiva richiede
-  context;
-- owner, cache, signal e cleanup seguono il lifetime effettivo;
-- i params non si propagano ai consumer ristretti automaticamente;
-- `describePlan()` mostra policy, lifetime effettivo e path causale.
+- no modifier means `auto`;
+- `.perContext<Params>()` introduces contextual affinity and optional params access;
+- `.perComposition()` pins root sharing and fails if a transitive dependency requires context;
+- owner, cache, signal, and cleanup follow effective lifetime;
+- params do not propagate to automatically narrowed consumers;
+- `describePlan()` shows policy, effective lifetime, and causal path.
 
-Nel demo aggiornato restano espliciti soltanto `ConnectionProvider` e `GetOrderProvider`; i
-Provider intermedi Postgres vengono ristretti dal graph plan, mentre l'Adapter memory resta
+In the updated demo only `ConnectionProvider` and `GetOrderProvider` stay explicit; intermediate
+Postgres Providers are narrowed by the graph plan, while the memory Adapter remains
 composition-effective.
 
-### Context senza seed
+### Context without seed
 
-`createExecutionContext()` non accetta dati. Diventa quindi difficile inizializzare Provider
-per-context usando:
+`createExecutionContext()` accepted no data. That made it hard to initialize per-context Providers
+using:
 
 - tenant;
-- identità autenticata;
-- request id e trace;
+- authenticated identity;
+- request id and trace;
 - locale;
 - transaction metadata;
-- `AbortSignal` dell'host.
+- host `AbortSignal`.
 
-Le alternative attuali sono propagare questi valori in ogni input oppure leggerli da stato
-globale/AsyncLocalStorage. Entrambe possono produrre coupling invisibile.
+Current alternatives are propagating these values in every input or reading them from global /
+AsyncLocalStorage state. Both can produce invisible coupling.
 
-Un seed tipizzato è una naturale evoluzione:
+A typed seed is a natural evolution (later shipped as `params` — ADR 0008):
 
 ```ts
 const root = compose<RequestScope>({ ... });
 
-const ctx = root.createExecutionContext({
-  tenantId,
-  principal,
+const ctx = root.openExecutionContext({
+  params: { tenantId, principal },
   signal,
 });
 ```
 
-Il seed deve essere immutabile e disponibile alle factory per-context, non necessariamente a
-ogni operation pubblica.
+Params must be immutable and available to per-context factories, not necessarily to every public
+operation.
 
-### Disposal manuale
+### Manual disposal
 
-Il quick start e il demo insegnano una sequenza lineare:
+The quick start and demo taught a linear sequence:
 
 ```ts
-const ctx = root.createExecutionContext();
-await ctx.someOperation();
+const ctx = root.openExecutionContext();
+await ctx.surface.someOperation();
 await ctx.dispose();
 ```
 
-Se l'operation o una verifica intermedia lancia, il disposal viene saltato. La forma corretta
-richiede `try/finally`, ma ripeterla in ogni caller è esattamente il tipo di protocollo che un
-modulo profondo dovrebbe nascondere.
+If the operation or an intermediate check throws, disposal is skipped. The correct form needs
+`try/finally`, but repeating that in every caller is exactly the protocol a deep module should hide.
 
-Questo motiva `withExecutionContext` e `AsyncDisposable`, approfonditi più avanti.
+That motivates `withExecutionContext` and `AsyncDisposable`, discussed later.
 
-### `InvocationOutcome<T, never>` conserva rami non-success
+### `InvocationOutcome<T, never>` keeps non-success branches
 
-Con `Err = never`, il ramo `error` è impossibile, ma restano `unexpected` e `cancelled`. Il
-consumer di un Intent “infallibile” nel dominio deve comunque distinguere quei kind — non con
-`try/catch` sul Boundary chiamato, ma con uno switch sul protocollo.
+With `Err = never`, the `error` branch is impossible, but `unexpected` and `cancelled` remain. A
+consumer of a domain-“infallible” Intent must still distinguish those kinds — not with `try/catch`
+on the called Boundary, but with a switch on the protocol.
 
-Nel demo `ConnectionIntent` ha `Err = never`; `SelectOrderProvider` propaga i non-`success`
-invariati invece di mapparli a un expected error inventato.
+In the demo `ConnectionIntent` has `Err = never`; `SelectOrderProvider` propagates non-`success`
+unchanged instead of mapping them to an invented expected error.
 
-Possibili direzioni ancora aperte sull'ergonomia (non sul protocollo):
+Directions still open on ergonomics (not protocol):
 
-- collassare condizionalmente il solo ramo `error` quando `Err = never`;
-- distinguere Provider di valori/risorse dalle operation;
-- mantenere la forma uniforme a quattro kind e accettare lo switch.
+- conditionally collapse only the `error` branch when `Err = never`;
+- distinguish value/resource Providers from operations;
+- keep the uniform four-kind shape and accept the switch.
 
-La terza opzione è quella adottata con ADR 0015: massima regolarità unary/stream e Adapter
+The third option is the one adopted with ADR 0015: maximum unary/stream regularity and Adapter
 pass-through.
 
-### Interfaccia pubblica ampia
+### Broad public interface
 
-Nella baseline l'entrypoint esportava molti tipi di implementazione: builder, dependency mapping,
-resolved deps, context della factory e origin. `Provider.factory` era pubblico pur essendo
-documentato come hook interno. Questo finding è stato chiuso da ADR 0014: il Provider corrente è
-nominale, immutabile e non espone factory o phantom Params.
+In the baseline the entrypoint exported many implementation types: builders, dependency mapping,
+resolved deps, factory context, and origin. `Provider.factory` was public while documented as an
+internal hook. This finding was closed by ADR 0014: the current Provider is nominal, immutable, and
+does not expose factory or phantom Params.
 
-Questo aumenta:
+That had increased:
 
-- rumore in autocomplete;
-- superficie semver;
-- possibilità di costruire Provider manualmente aggirando invarianti.
+- autocomplete noise;
+- semver surface;
+- the ability to build Providers manually, bypassing invariants.
 
-Conviene separare i tipi necessari ai caller dai dettagli usati dall'implementazione o dal
-tooling. Se l'ispezionabilità è un obiettivo, è preferibile un descrittore pubblico readonly
-rispetto all'esposizione della factory eseguibile.
+Prefer separating caller-needed types from implementation/tooling details. If inspectability is a
+goal, a readonly public descriptor is better than exposing the executable factory.
 
-### Diagnostica
+### Diagnostics
 
-I messaggi runtime riportano spesso soltanto `boundary.name`. Il runtime possiede già origin,
-alias e dipendenze e potrebbe mostrare:
+Runtime messages often report only `boundary.name`. The runtime already has origin, aliases, and
+dependencies and could show:
 
-- percorso completo;
-- alias Surface coinvolto;
-- origin dei Provider in conflitto;
-- lifetime effettivi;
-- suggerimento di wiring mancante.
+- full path;
+- involved Surface alias;
+- origins of conflicting Providers;
+- effective lifetimes;
+- missing-wiring suggestion.
 
-I test `@ts-expect-error` provano che esista un errore TypeScript, ma non stabilizzano la qualità
-del diagnostico. Fixture compiler dedicate o `tsd` permetterebbero di testare scenari reali senza
-affidarsi soltanto ai commenti accanto alle directive.
+`@ts-expect-error` tests prove a TypeScript error exists, but do not stabilize diagnostic quality.
+Dedicated compiler fixtures or `tsd` would allow testing real scenarios without relying only on
+comments next to directives.
 
-## Approfondimento: factory asincrone
+## Deep dive: async factories
 
-### Stato attuale
+### Current state
 
-La factory ha essenzialmente questa forma:
+The factory essentially has this shape:
 
 ```ts
 type Factory<Deps, Input, Success, Err> = (
@@ -608,19 +595,19 @@ type Factory<Deps, Input, Success, Err> = (
 ) => IntentOperation<Input, Success, Err>;
 ```
 
-Durante la materializzazione `compose` invoca la factory senza `await` e mette immediatamente il
-risultato in cache.
+During materialization `compose` invokes the factory without `await` and immediately caches the
+result.
 
-È importante distinguere due momenti:
+Two moments must be distinguished:
 
-1. **materializzazione**: acquisizione delle dipendenze e creazione dell'operation;
-2. **invocazione**: esecuzione dell'operation su un input.
+1. **materialization**: acquire dependencies and create the operation;
+2. **invocation**: run the operation on an input.
 
-Forma consente che il secondo momento sia asincrono, non il primo.
+Forma allows the second moment to be async, not the first.
 
-### Perché un'operation async non basta
+### Why an async operation is not enough
 
-Molte risorse reali vengono acquisite asincronicamente:
+Many real resources are acquired asynchronously:
 
 ```ts
 const client = await pool.connect();
@@ -629,9 +616,9 @@ const session = await authenticate();
 const transaction = await database.begin();
 ```
 
-Se la factory deve essere sincrona, il caller ha tre workaround.
+If the factory must be sync, the caller has three workarounds.
 
-#### Inizializzazione lazy dentro l'operation
+#### Lazy initialization inside the operation
 
 ```ts
 .with(({ lifetime }) => {
@@ -645,27 +632,27 @@ Se la factory deve essere sincrona, il caller ha tre workaround.
 })
 ```
 
-Questo sposta nel Provider policy che Forma dovrebbe possedere:
+This moves into the Provider policy Forma should own:
 
-- coalescing concorrente;
-- retry dopo setup fallito;
-- registrazione del disposer;
-- race con il disposal;
-- cleanup di setup parziali.
+- concurrent coalescing;
+- retry after failed setup;
+- disposer registration;
+- race with disposal;
+- cleanup of partial setups.
 
-#### Risorsa aperta fuori dalla Composition
+#### Resource opened outside the Composition
 
-Il caller può creare la risorsa prima di `compose()` e catturarla nella factory. In questo modo il
-root non la possiede più e il lifecycle torna nel composition root applicativo.
+The caller can create the resource before `compose()` and capture it in the factory. Then the root
+no longer owns it and lifecycle returns to the application composition root.
 
-#### Acquisizione a ogni invocazione
+#### Acquire on every invocation
 
-L'operation può aprire e chiudere una risorsa per ogni chiamata. Questo cambia però il lifetime:
-non è più una risorsa per Execution context e può essere molto più costoso.
+The operation can open and close a resource per call. That changes lifetime: it is no longer a
+per-Execution-context resource and can be much more expensive.
 
-### Estensione minima dell'interfaccia
+### Minimal interface extension
 
-La forma naturale è rendere awaitable il risultato della factory:
+The natural form is to make the factory result awaitable:
 
 ```ts
 type Awaitable<T> = T | PromiseLike<T>;
@@ -675,61 +662,57 @@ type Factory<Deps, Input, Success, Err> = (
 ) => Awaitable<IntentOperation<Input, Success, Err>>;
 ```
 
-e in materializzazione:
+and in materialization:
 
 ```ts
 const op = await provider.factory(deps, lifetime);
 ```
 
-Questa estensione non complica la forma d'uso sincrona e aumenta molto la profondità del modulo:
-il runtime può gestire una volta sola concorrenza, fallimento e cleanup per tutte le risorse.
+This extension does not complicate sync usage and greatly deepens the module: the runtime can handle
+concurrency, failure, and cleanup once for all resources.
 
-### Semantica necessaria
+### Required semantics
 
-Il semplice `await` non è sufficiente. Prima di introdurre factory async vanno fissate queste
-regole.
+A bare `await` is not enough. Before introducing async factories these rules must be fixed.
 
 #### Coalescing
 
-Più caller che materializzano lo stesso Provider nello stesso lifetime devono condividere una
-sola Promise di setup.
+Multiple callers materializing the same Provider in the same lifetime must share one setup Promise.
 
-#### Fallimento e retry
+#### Failure and retry
 
-Una materializzazione fallita non dovrebbe essere messa in cache. La chiamata successiva può
-ritentare, a meno che il Provider dichiari esplicitamente una policy diversa.
+A failed materialization should not be cached. The next call may retry unless the Provider declares
+a different policy.
 
-#### Rollback locale
+#### Local rollback
 
-I disposer registrati durante un tentativo fallito non devono restare vivi fino alla chiusura
-dell'intero context. Ogni materializzazione dovrebbe avere un bucket locale:
+Disposers registered during a failed attempt must not live until the whole context closes. Each
+materialization should have a local bucket:
 
 ```text
 create local lifetime
 resolve deps
 await factory
-if success: commit cleanup al lifetime owner
+if success: commit cleanup to lifetime owner
 if failure: run local cleanup immediately
 ```
 
-Questo concentra la conoscenza del setup parziale nel runtime.
+That concentrates knowledge of partial setup in the runtime.
 
-Se la factory fallisce e il rollback riesce, il caller osserva l'errore originale della factory.
-Se falliscono entrambi, il risultato deve essere
-`SuppressedError(rollbackError, factoryError)`; se falliscono più cleanup locali,
-`rollbackError` è un `AggregateError`. Anche il setup parziale segue così la stessa regola: la
-failure primaria resta riconoscibile, ma nessun errore di rilascio viene perso.
+If the factory fails and rollback succeeds, the caller observes the original factory error. If both
+fail, the result must be `SuppressedError(rollbackError, factoryError)`; if multiple local cleanups
+fail, `rollbackError` is an `AggregateError`. Partial setup thus follows the same rule: the primary
+failure stays recognizable, and no release error is lost.
 
-#### Chiusura della registrazione
+#### Closing registration
 
-`Lifetime.onDispose` dovrebbe essere utilizzabile soltanto durante la materializzazione. Dopo che
-la factory ha restituito l'operation, il lifetime locale viene chiuso; una registrazione tardiva
-deve fallire. Altrimenti l'operation può catturare `lifetime` e registrare cleanup dopo il
-disposal.
+`Lifetime.onDispose` should be usable only during materialization. After the factory returns the
+operation, the local lifetime is sealed; a late registration must fail. Otherwise the operation can
+capture `lifetime` and register cleanup after disposal.
 
-#### Cancellazione
+#### Cancellation
 
-La factory dovrebbe ricevere un `AbortSignal` legato allo scope:
+The factory should receive an `AbortSignal` tied to the scope:
 
 ```ts
 .with(async ({ lifetime }) => {
@@ -739,63 +722,57 @@ La factory dovrebbe ricevere un `AbortSignal` legato allo scope:
 })
 ```
 
-Il segnale consente una cancellazione cooperativa, non garantita. Se il driver non la supporta,
-il runtime deve comunque attendere o rollbackare la materializzazione prima di dichiarare
-completato il disposal.
+The signal enables cooperative, not guaranteed, cancellation. If the driver does not support it, the
+runtime must still await or roll back materialization before declaring disposal complete.
 
-#### Ownership della materializzazione
+#### Materialization ownership
 
-Lo scope proprietario dipende dal lifetime del Provider, non dal context che per primo ne causa
-la materializzazione:
+The owning scope depends on Provider lifetime, not on which context first causes materialization:
 
-- cache, Promise inflight, signal e cleanup di un Provider composition-lifetime appartengono al
+- cache, in-flight Promise, signal, and cleanup of a composition-lifetime Provider belong to the
   root;
-- cache, Promise inflight, signal e cleanup di un Provider per-context appartengono a quel
-  context;
-- il context che invoca un Provider composition-lifetime possiede soltanto il lease della propria
-  call verso una materializzazione condivisa.
+- cache, in-flight Promise, signal, and cleanup of a per-context Provider belong to that context;
+- the context that invokes a composition-lifetime Provider owns only the lease of its own call into
+  a shared materialization.
 
-Di conseguenza, chiudere `ctxA` non deve abortire né invalidare una factory root-scoped che può
-servire anche `ctxB`. Soltanto `root.dispose()` la cancella. Simmetricamente, una factory
-per-context non può sopravvivere al proprio context. Un Provider composition-lifetime non deve
-avere accesso al seed di esecuzione: catturarlo reintrodurrebbe una captive dependency per via
-ambientale.
+Consequently, closing `ctxA` must not abort or invalidate a root-scoped factory that may also serve
+`ctxB`. Only `root.dispose()` cancels it. Symmetrically, a per-context factory cannot outlive its
+context. A composition-lifetime Provider must not access execution params: capturing them would
+reintroduce a captive dependency environmentally.
 
-Questa distinzione richiede che cache e inflight root-scoped vivano realmente nella state machine
-del root; non possono dipendere dalla closure o dal flag `disposed` del context che ha iniziato la
-prima risoluzione.
+This distinction requires that root-scoped cache and in-flight state truly live in the root state
+machine; they cannot depend on the closure or `disposed` flag of the context that started the first
+resolution.
 
-#### Disposal concorrente
+#### Concurrent disposal
 
-Quando uno scope entra in `disposing`:
+When a scope enters `disposing`:
 
-1. chiude l'ingresso pubblico a nuove materializzazioni e invocazioni;
-2. abortisce il suo signal;
-3. drena le operation e le materializzazioni già accettate, rollbackando eventuali risultati
-   prodotti troppo tardi;
-4. esegue i cleanup in LIFO;
-5. entra in `disposed` anche se uno o più cleanup falliscono;
-6. propaga l'errore aggregato dopo aver completato lo stato interno.
+1. close the public entrance to new materializations and invocations;
+2. abort its signal;
+3. drain already-accepted operations and materializations, rolling back late results;
+4. run cleanups in LIFO;
+5. enter `disposed` even if one or more cleanups fail;
+6. propagate the aggregated error after completing internal state.
 
-### Effetto sulla potenza espressiva
+### Effect on expressive power
 
-Le factory async aprono scenari che oggi il demo simula soltanto:
+Async factories open scenarios the demo only simulates today:
 
-- connessione dedicata per request o transaction;
-- channel per messaggistica;
-- lock o lease distribuiti;
-- sessioni autenticate;
-- risorse temporanee;
-- setup remoto con cleanup deterministico.
+- dedicated connection per request or transaction;
+- messaging channel;
+- distributed locks or leases;
+- authenticated sessions;
+- temporary resources;
+- remote setup with deterministic cleanup.
 
-È un'estensione ad alto leverage perché evita che ogni Adapter reinventi un runtime di
-inizializzazione.
+It is high-leverage because it stops every Adapter from reinventing an initialization runtime.
 
-## Approfondimento: ownership dell'Execution context
+## Deep dive: Execution-context ownership
 
-### Il problema
+### The problem
 
-L'interfaccia corrente espone soltanto la primitive manuale:
+The then-current interface exposed only the manual primitive:
 
 ```ts
 const ctx = root.createExecutionContext();
@@ -806,39 +783,38 @@ try {
 }
 ```
 
-La primitive è necessaria, ma non è un safe default. Il caller deve ricordare un protocollo di
-ordering e deve combinare correttamente eventuali errori del body con errori di cleanup.
+The primitive is necessary, but not a safe default. The caller must remember an ordering protocol
+and correctly combine body errors with cleanup errors.
 
-La durata di un Execution context può però essere posseduta in due modi realmente diversi.
+An Execution context’s duration can be owned in two genuinely different ways.
 
-#### Ownership lessicale
+#### Lexical ownership
 
-La fine della Promise coincide con la fine dello scope:
+Promise end coincides with scope end:
 
 - CLI command;
 - job;
-- handler HTTP non streaming;
+- non-streaming HTTP handler;
 - message consumer;
 - transaction callback;
 - test.
 
-#### Ownership dell'host
+#### Host ownership
 
-Apertura e chiusura avvengono in callback o fasi differenti:
+Open and close happen in different callbacks or phases:
 
-- mount/unmount di un modulo o controller;
-- WebSocket o subscription;
-- sessione o actor;
-- stream long-lived;
-- plugin di un framework;
-- oggetto che usa il context attraverso più metodi.
+- mount/unmount of a module or controller;
+- WebSocket or subscription;
+- session or actor;
+- long-lived stream;
+- framework plugin;
+- object that uses the context across multiple methods.
 
-Una sola forma non esprime bene entrambi i casi.
+A single form does not express both cases well.
 
-### Design A — Solo protocollo standard `AsyncDisposable`
+### Design A — Standard `AsyncDisposable` protocol only
 
-La soluzione con l'interfaccia più piccola mantiene la primitive esplicita e aggiunge il
-protocollo standard:
+The smallest-interface solution keeps the explicit primitive and adds the standard protocol:
 
 ```ts
 type AsyncLifetime = {
@@ -851,7 +827,7 @@ type CompositionRoot<Surface> = AsyncLifetime & {
 };
 ```
 
-Uso lessicale:
+Lexical use:
 
 ```ts
 await using root = compose({ surface, wiring });
@@ -862,34 +838,33 @@ await using root = compose({ surface, wiring });
 }
 ```
 
-Uso host-managed:
+Host-managed use:
 
 ```ts
 const ctx = root.createExecutionContext();
 host.onStop(() => ctx.dispose());
 ```
 
-#### Vantaggi
+#### Advantages
 
-- interfaccia Forma minima;
-- semantica di error composition già definita dal linguaggio;
-- lifetime lessicale visibile tramite il blocco;
-- nessuna callback inversion.
+- minimal Forma interface;
+- error-composition semantics already defined by the language;
+- lexical lifetime visible via the block;
+- no callback inversion.
 
-#### Svantaggi
+#### Disadvantages
 
-- richiede TypeScript con supporto a Explicit Resource Management e `ESNext.Disposable` nelle
-  lib;
-- è meno scopribile di un metodo nominato;
-- molti codebase non usano ancora `await using`;
-- il callback non può ricevere una Surface borrowed che nasconda il controllo di lifecycle.
+- requires TypeScript with Explicit Resource Management and `ESNext.Disposable` in lib;
+- less discoverable than a named method;
+- many codebases do not yet use `await using`;
+- the callback cannot receive a borrowed Surface that hides lifecycle control.
 
-Dato il requisito Node 24, il supporto runtime esiste. Il package dovrebbe comunque dichiarare
-correttamente i tipi disposable per i consumer.
+Given the Node 24 requirement, runtime support exists. The package should still correctly declare
+disposable types for consumers.
 
-### Design B — Handle ricco con scope e resource acquisition
+### Design B — Rich handle with scope and resource acquisition
 
-La soluzione più flessibile separa nettamente operations e ownership:
+The most flexible solution cleanly separates operations and ownership:
 
 ```ts
 type ExecutionContext<Surface, Seed> = {
@@ -911,7 +886,7 @@ type CompositionRoot<Surface, Seed = void> = {
 };
 ```
 
-Il `Lifetime` può inoltre offrire acquisizione atomica di risorse:
+`Lifetime` may also offer atomic resource acquisition:
 
 ```ts
 type Lifetime = {
@@ -925,27 +900,26 @@ type Lifetime = {
 };
 ```
 
-`acquire` elimina la finestra fra acquisizione completata e registrazione manuale del cleanup.
+`acquire` removes the window between completed acquisition and manual cleanup registration.
 
-#### Vantaggi
+#### Advantages
 
-- supporta seed, cancellazione e resource acquisition in modo coerente;
-- separa definitivamente Surface e lifecycle controls;
-- è adatto a host e framework diversi;
-- permette tooling e diagnostica ricchi.
+- supports seed, cancellation, and resource acquisition coherently;
+- finally separates Surface and lifecycle controls;
+- suits diverse hosts and frameworks;
+- enables rich tooling and diagnostics.
 
-#### Svantaggi
+#### Disadvantages
 
-- è un salto di complessità notevole per un alpha;
-- introduce molte decisioni prima che esistano use case reali;
-- `Lifetime.acquire` e definizioni di context possono diventare un secondo framework dentro
-  Forma;
-- aumenta la superficie semver.
+- a large complexity jump for an alpha;
+- introduces many decisions before real use cases exist;
+- `Lifetime.acquire` and context definitions can become a second framework inside Forma;
+- increases the semver surface.
 
-### Design C — Safe default additivo più primitive esplicita
+### Design C — Additive safe default plus explicit primitive
 
-Il compromesso orientato al caller comune mantiene una sola implementazione di lifecycle, ma
-offre due ingressi che rappresentano ownership differenti:
+The caller-oriented compromise keeps one lifecycle implementation but offers two entrances for
+different ownerships:
 
 ```ts
 type Awaitable<T> = T | PromiseLike<T>;
@@ -970,22 +944,22 @@ type CompositionRoot<Surface, Seed = void> = {
 };
 ```
 
-`openExecutionContext` comunica meglio di `createExecutionContext` il trasferimento di ownership.
-Durante una migrazione l'attuale nome può rimanere come alias deprecato.
+`openExecutionContext` communicates ownership transfer better than `createExecutionContext`. During
+migration the old name may remain as a deprecated alias (later removed).
 
-Uso semplice:
+Simple use:
 
 ```ts
-const result = await root.withExecutionContext(async (ctx) => {
-  return ctx.someOp(input);
+const result = await root.withExecutionContext(async (surface) => {
+  return surface.someOp(input);
 });
 ```
 
-Uso integrato in un lifecycle esterno:
+Integrated into an external lifecycle:
 
 ```ts
 class SomeModule {
-  readonly #execution = root.openExecutionContext({ seed });
+  readonly #execution = root.openExecutionContext({ params: seed });
   readonly operations = this.#execution.surface;
 
   onDestroy(): Promise<void> {
@@ -994,39 +968,37 @@ class SomeModule {
 }
 ```
 
-Uso lessicale senza callback:
+Lexical use without callback:
 
 ```ts
-await using execution = root.openExecutionContext({ seed });
+await using execution = root.openExecutionContext({ params: seed });
 await execution.surface.someOp(input);
 ```
 
-### Confronto
+### Comparison
 
-| Design                   | Depth      | Locality | Ergonomia semplice                | Lifecycle host-managed | Costo interfaccia |
-| ------------------------ | ---------- | -------- | --------------------------------- | ---------------------- | ----------------- |
-| A — solo AsyncDisposable | Alta       | Alta     | Buona se `await using` è adottato | Ottima                 | Minimo            |
-| B — handle ricco         | Molto alta | Alta     | Buona                             | Ottima                 | Alto              |
-| C — ibrido               | Alta       | Alta     | Ottima                            | Ottima                 | Moderato          |
+| Design                   | Depth     | Locality | Simple ergonomics                | Host-managed lifecycle | Interface cost |
+| ------------------------ | --------- | -------- | -------------------------------- | ---------------------- | -------------- |
+| A — AsyncDisposable only | High      | High     | Good if `await using` is adopted | Excellent              | Minimal        |
+| B — rich handle          | Very high | High     | Good                             | Excellent              | High           |
+| C — hybrid               | High      | High     | Excellent                        | Excellent              | Moderate       |
 
-### Raccomandazione
+### Recommendation
 
-Raccomandazione: **Design C**, introdotto incrementalmente.
+Recommendation: **Design C**, introduced incrementally.
 
-1. La primitive universale resta un handle esplicitamente owned.
-2. `withExecutionContext` diventa il safe default documentato per scope brevi.
-3. `[Symbol.asyncDispose]` supporta scope lessicali senza callback.
-4. Tutti i percorsi delegano alla stessa state machine; non devono esistere semantiche di
-   disposal differenti.
-5. Seed tipizzato e `AbortSignal` possono essere aggiunti insieme alle factory async.
-6. `Lifetime.acquire` va rimandato finché due o più integrazioni reali non ne dimostrano il
-   bisogno.
+1. The universal primitive remains an explicitly owned handle.
+2. `withExecutionContext` becomes the documented safe default for short scopes.
+3. `[Symbol.asyncDispose]` supports lexical scopes without a callback.
+4. All paths delegate to the same state machine; different disposal semantics must not exist.
+5. Typed params and `AbortSignal` can be added together with async factories.
+6. Defer `Lifetime.acquire` until two or more real integrations demonstrate the need.
 
-`withExecutionContext` supera il deletion test: eliminandolo, `try/finally`, combinazione degli
-errori e disciplina di cleanup ricompaiono in ogni handler che non usa `await using`. Rimane
-comunque una convenience sopra la primitive, non un secondo lifecycle.
+`withExecutionContext` passes the deletion test: removing it, `try/finally`, error composition, and
+cleanup discipline reappear in every handler that does not use `await using`. It remains a
+convenience over the primitive, not a second lifecycle.
 
-### Semantica precisa di `withExecutionContext`
+### Precise semantics of `withExecutionContext`
 
 ```ts
 await root.withExecutionContext(async (surface) => {
@@ -1034,65 +1006,63 @@ await root.withExecutionContext(async (surface) => {
 });
 ```
 
-Deve:
+It must:
 
-1. aprire un context;
-2. invocare il callback una volta;
-3. attendere completamente il valore restituito;
-4. iniziare il disposal anche su throw, rejection o early return;
-5. attendere il disposal prima di completare;
-6. non esporre il lifecycle handle al callback, soltanto una Surface borrowed.
+1. open a context;
+2. invoke the callback once;
+3. fully await the returned value;
+4. start disposal on throw, rejection, or early return;
+5. await disposal before completing;
+6. not expose the lifecycle handle to the callback — only a borrowed Surface.
 
-Matrice degli errori:
+Error matrix:
 
-| Callback   | Cleanup    | Risultato                                      |
-| ---------- | ---------- | ---------------------------------------------- |
-| successo   | successo   | valore del callback                            |
-| fallimento | successo   | stesso errore del callback                     |
-| successo   | fallimento | errore di cleanup                              |
-| fallimento | fallimento | `SuppressedError(cleanupError, callbackError)` |
+| Callback | Cleanup | Result                                         |
+| -------- | ------- | ---------------------------------------------- |
+| success  | success | callback value                                 |
+| failure  | success | same callback error                            |
+| success  | failure | cleanup error                                  |
+| failure  | failure | `SuppressedError(cleanupError, callbackError)` |
 
-Se più cleanup falliscono, `cleanupError` è un `AggregateError`. Questa semantica coincide con
-`await using` applicato a un singolo execution handle, il cui `[Symbol.asyncDispose]` aggrega
-internamente i cleanup, e non perde nessuno dei due errori. Più risorse `await using` dichiarate
-separatamente producono invece normalmente `SuppressedError` annidati.
+If multiple cleanups fail, `cleanupError` is an `AggregateError`. This matches `await using` on a
+single execution handle whose `[Symbol.asyncDispose]` aggregates cleanups internally, and loses
+neither error. Separately declared `await using` resources normally produce nested
+`SuppressedError`s instead.
 
-Una semplice implementazione `finally { await ctx.dispose() }` senza error composition esplicita
-non basta, perché il cleanup error può nascondere il body error in modo non documentato.
+A bare `finally { await ctx.dispose() }` without explicit error composition is not enough, because
+cleanup error can hide the body error in an undocumented way.
 
-### Perché la callback può essere peggiore per un lifecycle di componente
+### Why the callback can be worse for a component lifecycle
 
-La callback è corretta soltanto quando la Promise restituita rappresenta tutta la durata dello
-scope.
+The callback is correct only when the returned Promise represents the whole scope duration.
 
-Per un modulo, controller, WebSocket o UI lifecycle, mount e unmount avvengono in momenti diversi.
-Forzare `withExecutionContext` porta a due anti-pattern:
+For a module, controller, WebSocket, or UI lifecycle, mount and unmount happen at different times.
+Forcing `withExecutionContext` leads to two anti-patterns:
 
-- il callback ritorna dopo il setup e il context viene chiuso troppo presto;
-- il callback tiene artificialmente pendente una Promise fino all'evento di teardown.
+- the callback returns after setup and the context closes too early;
+- the callback artificially keeps a Promise pending until teardown.
 
-In questi casi l'host deve possedere l'handle:
+In those cases the host must own the handle:
 
 ```ts
-const execution = root.openExecutionContext({ seed });
+const execution = root.openExecutionContext({ params: seed });
 
 host.provide("some-operations", execution.surface);
 host.onStop(() => execution.dispose());
 ```
 
-L'integrazione host-specifica è un modulo sottile sopra il seam di lifecycle. Non va incorporata
-nel core finché non esistono almeno due host che giustifichino un'interfaccia comune.
+Host-specific integration is a thin module over the lifecycle seam. Do not fold it into the core
+until at least two hosts justify a common interface.
 
-Se l'hook di teardown dell'host non può attendere una Promise, Forma non può garantire che il
-caller osservi gli errori di cleanup. L'integrazione deve inoltrarli al meccanismo di error
-reporting dell'host.
+If the host teardown hook cannot await a Promise, Forma cannot guarantee the caller observes cleanup
+errors. The integration must forward them to the host’s error-reporting mechanism.
 
-### Escape e fire-and-forget
+### Escape and fire-and-forget
 
-Il type system non può impedire completamente che una operation o un valore context-bound esca
-dal callback. Dopo il return, nuove invocazioni devono fallire perché il context è disposed.
+The type system cannot fully prevent an operation or context-bound value from escaping the
+callback. After return, new invocations must fail because the context is disposed.
 
-Allo stesso modo:
+Likewise:
 
 ```ts
 await root.withExecutionContext(async (ctx) => {
@@ -1100,110 +1070,107 @@ await root.withExecutionContext(async (ctx) => {
 });
 ```
 
-è intrinsecamente ambiguo. Il callback ha dichiarato concluso il lavoro mentre un'operation usa
-ancora le risorse.
+is intrinsically ambiguous. The callback declared the work finished while an operation still uses
+resources.
 
-Il runtime dovrebbe tracciare le surface call attive e attendere quelle iniziate prima del
-disposal. Una call ancora attiva quando il callback termina è, dal punto di vista del lifecycle,
-lavoro detached: se rigetta durante il draining, la sua failure diventa un `drainError`.
+The runtime should track active surface calls and await those started before disposal. A call still
+active when the callback ends is, from a lifecycle view, detached work: if it rejects during
+draining, its failure becomes a `drainError`.
 
-Più failure di draining formano un `AggregateError`. Draining e cleanup costituiscono insieme la
-failure di lifecycle; se fallisce anche il callback, questa viene composta come
-`SuppressedError(lifecycleError, callbackError)`. Una call non attesa che si è già assestata prima
-del termine del callback non è invece distinguibile in modo affidabile da una failure che il
-callback ha osservato e gestito: il contratto deve quindi vietare il fire-and-forget e il runtime
-può al massimo segnalarlo tramite diagnostica.
+Multiple draining failures form an `AggregateError`. Draining and cleanup together constitute the
+lifecycle failure; if the callback also fails, compose as
+`SuppressedError(lifecycleError, callbackError)`. An unawaited call that already settled before the
+callback ended is not reliably distinguishable from a failure the callback observed and handled: the
+contract must therefore forbid fire-and-forget, and the runtime can at most flag it via diagnostics.
 
-Questa attesa è una protezione contro use-after-dispose, non una promessa che il fire-and-forget
-sia supportato. Un'operation detached che non termina può bloccare la chiusura.
+This wait protects against use-after-dispose; it is not a promise that fire-and-forget is supported.
+A detached operation that never ends can block close.
 
-### Draining e chiamate alle dependency
+### Draining and dependency calls
 
-Quando il context entra in `disposing` deve rifiutare nuove Surface call. Non può però rifiutare
-indiscriminatamente ogni dependency invocation:
+When the context enters `disposing` it must reject new Surface calls. It cannot indiscriminately
+reject every dependency invocation:
 
-- una Surface call già iniziata può fare `await` e usare una dipendenza in seguito;
-- un disposer di un Provider può dover usare una sua dipendenza prima che questa venga chiusa.
+- an already-started Surface call may `await` and use a dependency later;
+- a Provider disposer may need to use a dependency before that dependency is closed.
 
-Il runtime deve distinguere quattro fasi:
+The runtime must distinguish four phases:
 
-1. all'ingresso in `disposing`, la Surface esterna viene chiusa a nuovo lavoro;
-2. le call già accettate mantengono un lease causale e possono completare il loro grafo, incluse
-   materializzazioni lazy necessarie a quella call;
-3. terminato il draining, non sono ammesse nuove materializzazioni; durante il cleanup, ciascun
-   disposer mantiene però un lease interno sulle sole dependency già materializzate, dichiarate
-   dal grafo e non ancora chiuse;
-4. terminati i cleanup, ogni invocation viene rifiutata e lo scope è terminalmente `disposed`.
+1. on entering `disposing`, the external Surface is closed to new work;
+2. already-accepted calls keep a causal lease and may complete their graph, including lazy
+   materializations needed by that call;
+3. after draining, no new materializations are allowed; during cleanup, each disposer keeps an
+   internal lease on already-materialized, graph-declared, not-yet-closed dependencies only;
+4. after cleanups finish, every invocation is rejected and the scope is terminally `disposed`.
 
-In questo modo un disposer può ancora usare una dipendenza viva senza riaprire il grafo o
-accettare nuovo lavoro esterno.
+Thus a disposer can still use a live dependency without reopening the graph or accepting new
+external work.
 
-Il LIFO derivato dal dependency graph consente al consumer di chiudersi prima della dipendenza.
-Il lavoro detached fuori dal lease non è supportato.
+LIFO derived from the dependency graph lets the consumer close before the dependency. Detached work
+outside the lease is unsupported.
 
-### `root.dispose()` come backstop
+### `root.dispose()` as backstop
 
-Il root deve tracciare i context aperti. Il suo disposal raccomandato è:
+The root must track open contexts. Recommended disposal is:
 
-1. transizione sincrona a `disposing`;
-2. blocco di nuovi context;
-3. abort dei signal dei context;
-4. disposal di tutti i context ancora aperti;
-5. attesa del loro draining e dei cleanup;
-6. disposal delle risorse composition-lifetime;
-7. aggregazione finale degli errori;
-8. stato terminale `disposed` anche in caso di failure.
+1. synchronous transition to `disposing`;
+2. block new contexts;
+3. abort context signals;
+4. dispose every still-open context;
+5. await their draining and cleanup;
+6. dispose composition-lifetime resources;
+7. final error aggregation;
+8. terminal `disposed` even on failure.
 
-In questo modo il root è anche un backstop per un context dimenticato. L'host dovrebbe comunque
-fermare l'ingresso di nuovo lavoro prima dello shutdown del root.
+Thus the root is also a backstop for a forgotten context. The host should still stop accepting new
+work before root shutdown.
 
-## Approfondimento: Binding o Adapter passthrough
+## Deep dive: Binding or Adapter passthrough
 
-### Cosa fa Binding
+### What Binding does
 
-`bind(required, satisfier)` non crea una Realization. Registra una riscrittura:
+`bind(required, satisfier)` does not create a Realization. It registers a rewrite:
 
 ```text
 required Intent identity -> satisfier Intent identity
 ```
 
-Il resolver materializza direttamente il Provider del satisfier. Non esiste quindi:
+The resolver materializes the satisfier Provider directly. There is therefore no:
 
-- una factory del required Intent;
-- un'operation wrapper;
-- un origin dedicato;
-- un punto in cui aggiungere mapping o policy;
-- un nuovo lifetime da dichiarare.
+- required-Intent factory;
+- wrapper operation;
+- dedicated origin;
+- place to add mapping or policy;
+- new lifetime to declare.
 
-Il type system accetta Binding soltanto quando Input, Success ed Err sono mutuamente assegnabili.
-Questo prova compatibilità strutturale, non equivalenza semantica.
+The type system accepts Binding only when Input, Success, and Err are mutually assignable. That
+proves structural compatibility, not semantic equivalence.
 
-### Perché è pericoloso
+### Why it is dangerous
 
-Intent introduce identità proprio per distinguere operazioni che possono avere la stessa shape.
-Binding può cancellare quella distinzione.
+Intent introduces identity precisely to distinguish operations that may share a shape. Binding can
+erase that distinction.
 
-Due Intent strutturalmente uguali possono differire per:
+Two structurally equal Intents may differ in:
 
-- significato del risultato;
-- autorizzazione applicata;
-- consistenza dei dati;
-- idempotenza;
-- side effect;
+- meaning of the result;
+- applied authorization;
+- data consistency;
+- idempotency;
+- side effects;
 - retry safety;
-- latenza o rate limit;
-- errori tecnici;
-- osservabilità richiesta.
+- latency or rate limit;
+- technical errors;
+- required observability.
 
-Esempio: `users.find` e `cache.get` possono condividere i medesimi tipi senza essere sostituibili.
+Example: `users.find` and `cache.get` may share the same types without being substitutable.
 
-Binding ha inoltre un effetto globale nella Composition: ogni consumer del required Intent viene
-riscritto verso il satisfier. Il punto di sostituzione è visibile nel wiring, ma non esiste un
-modulo che incarni e documenti quella decisione.
+The substitution point is visible in wiring, but there is no module that embodies and documents that
+decision.
 
 ### Adapter passthrough
 
-Un Adapter passthrough realizza esplicitamente il required Intent tramite il satisfier:
+An Adapter passthrough explicitly realizes the required Intent via the satisfier:
 
 ```ts
 const OrdersPostgres = adapter("orders-postgres", Orders);
@@ -1219,45 +1186,44 @@ const FindOrderViaPostgres = OrdersPostgres.adapt(FindOrder)
   );
 ```
 
-Anche senza mapping, questa forma conserva informazioni importanti:
+Even without mapping, this form preserves important information:
 
-- `FindOrder` mantiene la propria identità runtime;
-- il graph plan mostra un arco `FindOrder -> SelectOrder`;
-- l'origine dell'integrazione è esplicita;
-- lifetime e captive dependency vengono verificati sul Provider passthrough;
-- tracing e diagnostica possono mostrare entrambi gli Intent;
-- in futuro si possono aggiungere policy senza cambiare i consumer.
+- `FindOrder` keeps its runtime identity;
+- the graph plan shows a `FindOrder -> SelectOrder` edge;
+- integration origin is explicit;
+- lifetime and captive dependency are checked on the passthrough Provider;
+- tracing and diagnostics can show both Intents;
+- policy can be added later without changing consumers.
 
-Il costo è:
+The cost is:
 
-- più boilerplate;
-- una operation wrapper;
-- propagazione esplicita del lifetime;
-- un passaggio runtime in più.
+- more boilerplate;
+- a wrapper operation;
+- explicit lifetime propagation;
+- one extra runtime hop.
 
-Per operazioni I/O-bound il costo runtime è trascurabile rispetto al guadagno semantico.
+For I/O-bound operations the runtime cost is negligible versus the semantic gain.
 
-### Quando Binding è giustificato
+### When Binding is justified
 
-Binding è ragionevole soltanto quando i due Intent sono deliberatamente sinonimi, non soltanto
-compatibili.
+Binding is reasonable only when the two Intents are deliberately synonyms, not merely compatible.
 
-Esempi possibili:
+Possible examples:
 
-- rinomina durante una migrazione;
-- alias temporaneo fra vecchia e nuova identità;
-- due entry point che il dominio dichiara formalmente equivalenti;
-- compatibilità fra versioni senza mapping né policy.
+- rename during a migration;
+- temporary alias between old and new identity;
+- two entry points the domain formally declares equivalent;
+- version compatibility without mapping or policy.
 
-Anche in questi casi servono restrizioni:
+Even then, restrictions are needed:
 
-- nessuna catena di Binding implicita;
-- nessun ciclo;
-- reason/provenance ispezionabile;
-- diagnostica che mostri required e satisfier;
-- documentazione dell'obbligo semantico, non solo strutturale.
+- no implicit Binding chains;
+- no cycles;
+- inspectable reason/provenance;
+- diagnostics showing required and satisfier;
+- documentation of the semantic obligation, not only the structural one.
 
-Una forma più onesta potrebbe essere:
+A more honest form could be:
 
 ```ts
 aliasIntent(OldFindOrder, FindOrder, {
@@ -1265,327 +1231,265 @@ aliasIntent(OldFindOrder, FindOrder, {
 });
 ```
 
-Il nome `bind` è generico e può essere interpretato come normale dependency binding. `aliasIntent`
-o `unsafeAliasIntent` comunica meglio che non sta creando una Realization.
+The name `bind` is generic and can be read as ordinary dependency binding. `aliasIntent` or
+`unsafeAliasIntent` communicates better that it is not creating a Realization.
 
-### Raccomandazione
+### Recommendation
 
-Raccomandazione netta:
+Clear recommendation:
 
-- **cross-boundary**: usare un Adapter passthrough anche quando le shape coincidono;
-- **same-boundary**: usare un Provider passthrough, salvo vero alias di migrazione;
-- **Binding**: tenerlo soltanto come escape hatch raro e rinominarlo come alias;
-- se prima della v1 non emerge un caso concreto non sostituibile da un passthrough, rimuoverlo
-  dall'interfaccia stabile.
+- **cross-boundary**: use an Adapter passthrough even when shapes match;
+- **same-boundary**: use a Provider passthrough, except for a true migration alias;
+- **Binding**: keep only as a rare escape hatch and rename it as alias;
+- if before v1 no concrete case appears that a passthrough cannot replace, remove it from the stable
+  interface.
 
-Non introdurrei subito un helper `forward`. Se il boilerplate passthrough compare ripetutamente in
-casi reali, un futuro:
+Do not immediately introduce a `forward` helper. If passthrough boilerplate repeats in real cases, a
+future:
 
 ```ts
 OrdersPostgres.forward(FindOrder).to(SelectOrder);
 ```
 
-dovrebbe generare un vero Provider con un dependency edge, non una identity rewrite mascherata.
+should generate a real Provider with a dependency edge, not a disguised identity rewrite.
 
-## Review di `forma-demo`
+## Review of `forma-demo`
 
-### Cosa dimostra bene
+### What it demonstrates well
 
-- separazione tra Orders e Postgres;
-- contratti con shape differenti;
-- Adapter che traduce input, output ed errori;
-- Surface minima;
-- wiring privato;
-- catena interamente per-context;
-- cleanup della connessione simulata.
+- separation between Orders and Postgres;
+- contracts with different shapes;
+- Adapter translating inputs, outputs, and errors;
+- minimal Surface;
+- private wiring;
+- fully per-context chain;
+- cleanup of the simulated connection.
 
-### Modulo shallow
+### Shallow module
 
-`GetOrderProvider` delega soltanto a `FindOrder`. La Surface può già rinominare un Provider come
-`getOrder`, quindi eliminare quel pass-through non fa ricomparire complessità altrove.
+`GetOrderProvider` only delegates to `FindOrder`. The Surface can already rename a Provider as
+`getOrder`, so removing that pass-through does not reintroduce complexity elsewhere.
 
-Il demo rischia così di presentare Forma come cerimonia anziché come leverage.
+The demo thus risks presenting Forma as ceremony rather than leverage.
 
-Possibili miglioramenti:
+Possible improvements:
 
-- autorizzazione prima della lettura;
-- cache con fallback;
-- arricchimento da più Boundary;
-- mapping di più categorie di errore;
-- policy applicativa reale;
-- metriche o tracing.
+- authorization before read;
+- cache with fallback;
+- enrichment from multiple Boundaries;
+- mapping of more error categories;
+- real application policy;
+- metrics or tracing.
 
-### Postgres simulato
+### Simulated Postgres
 
-La “connessione” viene costruita sincronicamente sopra una `Map`. È utile per spiegare il grafo,
-ma non esercita:
+The “connection” is built synchronously over a `Map`. Useful for explaining the graph, but it does
+not exercise:
 
-- acquisizione async;
-- fallimento durante il setup;
+- async acquisition;
+- failure during setup;
 - transaction scope;
-- cancellazione;
-- race fra setup e disposal.
+- cancellation;
+- race between setup and disposal.
 
-Dopo il supporto alle factory async, il demo dovrebbe usare almeno una risorsa fake acquisita con
-Promise e un test controllato di cleanup.
+After async-factory support, the demo should use at least one fake resource acquired with a Promise
+and a controlled cleanup test.
 
-### Un solo Adapter
+### A single Adapter
 
-Il seam diventa concretamente giustificato quando esistono almeno due Adapter. Una seconda
-Composition in-memory o test mostrerebbe il payoff:
+The seam becomes concretely justified when at least two Adapters exist. A second in-memory or test
+Composition would show the payoff:
 
 ```text
 Orders Intent <- Postgres Adapter
               <- In-memory Adapter
 ```
 
-### Disposal non exception-safe
+### Non-exception-safe disposal
 
-Il demo chiude context e root soltanto sul percorso felice. Dovrebbe insegnare il safe path:
+The demo closed context and root only on the happy path. It should teach the safe path:
 
 ```ts
 await using root = compose(...);
 
-await root.withExecutionContext(async (ctx) => {
-  await ctx.getOrder(...);
+await root.withExecutionContext(async (surface) => {
+  await surface.getOrder(...);
 });
 ```
 
-oppure mostrare esplicitamente il `try/finally` per il percorso host-managed.
+or explicitly show `try/finally` for the host-managed path.
 
-### Nomenclatura
+### Naming
 
-Nel demo `OrdersAdapter` è un Adapter Forma, mentre `FindOrderAdapter` è un Provider. Un nome più
-preciso sarebbe `OrdersPostgres` per il primo e `FindOrderViaPostgresProvider` per il secondo.
+In the demo `OrdersAdapter` is a Forma Adapter, while `FindOrderAdapter` is a Provider. More precise
+names would be `OrdersPostgres` for the first and `FindOrderViaPostgresProvider` for the second.
 
-## Potenza espressiva
+## Expressive power
 
-### Scenari aperti bene
+### Scenarios opened well
 
 #### Modular monolith
 
-Ogni Composition può esporre una façade stretta e mantenere privato il proprio grafo. Questo
-riduce il coupling fra caller e implementazione.
+Each Composition can expose a narrow façade and keep its graph private. That reduces coupling between
+caller and implementation.
 
-#### Varianti production/test
+#### Production/test variants
 
-Provider e Adapter diversi possono realizzare gli stessi Intent senza cambiare i consumer. Una
-Composition in-memory diventa un test double dell'intero modulo, non una collezione di mock
-interni.
+Different Providers and Adapters can realize the same Intents without changing consumers. An
+in-memory Composition becomes a test double for the whole module, not a collection of internal
+mocks.
 
 #### Anti-corruption layer
 
-Adapter può concentrare mapping fra contratti di dominio e vendor/infrastruttura, inclusi errori
-e orchestrazione di più dipendenze.
+Adapter can concentrate mapping between domain contracts and vendor/infrastructure, including errors
+and orchestration of multiple dependencies.
 
-#### Request e unit-of-work scope
+#### Request and unit-of-work scope
 
-Con lifecycle corretto, seed e factory async, un Execution context può rappresentare request,
-transaction, message handling o unit of work.
+With correct lifecycle, params, and async factories, an Execution context can represent request,
+transaction, message handling, or unit of work.
 
-#### Migrazioni progressive
+#### Progressive migrations
 
-Nuovi Adapter possono convivere con Provider esistenti in Composition differenti. Gli alias di
-migrazione possono aiutare, se semanticamente espliciti.
+New Adapters can coexist with existing Providers in different Compositions. Migration aliases can
+help when semantically explicit.
 
-#### Tooling architetturale
+#### Architectural tooling
 
-Provider ispezionabili aprono a:
+Inspectable Providers open:
 
 - graph visualization;
 - architecture tests;
-- diagnostica dei lifetime;
-- inventory degli Adapter;
-- documentazione generata;
-- readiness plan;
-- analisi di dipendenze non usate.
+- lifetime diagnostics;
+- Adapter inventory;
+- generated documentation;
+- readiness plans;
+- composition diffing.
 
-`describePlan()` espone ora la porzione lifetime del piano; una rappresentazione completa degli
-edge per visualization e architecture test resta un'evoluzione futura.
+### Scenarios closed or unnatural today
 
-### Scenari oggi chiusi o innaturali
+- resources that require async setup without factory support (addressed by ADR 0007);
+- host-owned long-lived contexts without a clear open/dispose story (addressed by Design C /
+  ADR 0006);
+- streaming Invocations without modality (addressed by ADR 0012);
+- Adapter Surface roots as public entry (rejected by ADR 0013);
+- unexpected failures escaping as throw across Boundaries (addressed by ADR 0015).
 
-- plugin runtime e multibinding;
-- Provider condizionali per singola request;
-- routing per tenant;
-- streaming e subscription long-lived;
-- scope gerarchici;
-- composition fragments modulari senza perdita di tipi;
-- workflow cross-boundary senza un target naturale;
-- hot swap di Provider;
-- eager initialization e health checking.
-
-Non tutti devono entrare in Forma. L'obiettivo non dovrebbe essere diventare un container
-universale. Le estensioni vanno aggiunte soltanto quando mantengono una Surface piccola e
-concentrano complessità realmente ripetuta.
-
-## Rischi di design e anti-pattern
+## Design risks and anti-patterns
 
 ### Intent explosion
 
-Non ogni helper, valore o loader deve diventare un Intent. L'identità è utile quando sostituzione,
-binding o graph inspection hanno valore reale.
+Turning every helper into an Intent inflates the graph without leverage. Prefer Intent where
+identity, replaceability, or composition matter.
 
 ### God Adapter
 
-Un Adapter può `using` Intent di qualunque Boundary. Senza disciplina può diventare il luogo in
-cui finisce ogni orchestration cross-boundary.
-
-Adapter dovrebbe realizzare Intent del proprio target e contenere integrazione o policy
-coerente, non diventare un application layer universale.
+An Adapter that orchestrates many unrelated Boundaries becomes a second Composition. Prefer thin
+Adapters and Boundary-owned policy.
 
 ### Architecture theatre
 
-Il grafo dichiarato può apparire pulito mentre la factory cattura dipendenze tramite import o
-global. Lint dell'import graph e review architetturale restano necessari.
+Ceremony without ownership or replaceability (empty passthrough layers) teaches the wrong lesson.
+Each layer should preserve a decision or a seam.
 
-### Wrapper shallow
+### Shallow wrapper
 
-Creare nuovi Intent e Provider soltanto per rinominare un'operation aumenta la superficie da
-imparare senza aggiungere leverage.
+A Provider that only renames without policy, mapping, or ownership adds noise. Use Surface aliases
+or genuine seams instead.
 
-### Semantic laundering tramite Binding
+### Semantic laundering via Binding
 
-Una identity rewrite può far sembrare formalmente valido ciò che è soltanto strutturalmente
-compatibile.
+Using Binding to treat structurally equal Intents as synonyms without domain justification erases
+Intent’s purpose. Prefer Adapter/Provider passthrough or an explicit alias with reason.
 
-## Strategia di test raccomandata
+## Recommended test strategy
 
-La Surface deve restare la principale test surface. I test interni servono per il runtime di
-Forma, non per obbligare i consumer a conoscere la sua implementazione.
+### High-priority missing tests
 
-### Test mancanti ad alta priorità
+#### Identity
 
-#### Identità
+- duplicate Boundary instances with the same ID;
+- duplicate Intent declarations;
+- ambiguous concatenated identity strings;
+- widened `string` Boundary IDs.
 
-- due Boundary distinte con lo stesso ID;
-- due dichiarazioni dello stesso nome sulla stessa Boundary;
-- collisioni causate da punti nei nomi;
-- ID o nomi allargati a `string`;
-- Adapter target con Boundary omonime.
+#### Graph
 
-#### Grafo
-
-- ciclo singolo rilevato a `compose`;
-- ciclo concorrente da due Surface alias;
-- Binding cycle e Binding chain;
-- Provider union;
-- wiring estratto come array;
-- configurazione annotata come `ComposeOptions`.
+- concurrent cycle A/B materialization;
+- missing provider diagnostics with full path;
+- competing realizations;
+- closed-graph checks after modularized wiring.
 
 #### Lifecycle
 
-- uso dopo `root.dispose()`;
-- apertura di un context dopo root disposal;
-- due disposal concorrenti che attendono la stessa Promise;
-- disposer root che fallisce;
-- context attivi durante root shutdown;
-- disposal durante factory o dependency materialization;
-- operation inflight durante disposal;
-- cleanup registrato tardi;
-- Surface alias `dispose` e nomi speciali.
+- dispose during materialization;
+- concurrent root/context dispose;
+- Surface alias colliding with `dispose`;
+- abort vs dispose ownership;
+- stream cleanup error matrix.
 
-#### Factory async
+#### Async factory
 
-- coalescing della prima materializzazione;
-- factory rejection non cached;
-- retry successivo;
-- rollback dei cleanup parziali;
-- factory e rollback entrambi falliti;
-- disposal durante acquisition;
-- registrazione su Lifetime sigillato.
+- coalescing;
+- failed attempt not cached;
+- local rollback;
+- sealed `onDispose` after return;
+- signal cancellation during acquire.
 
 #### `withExecutionContext`
 
-- matrice callback/cleanup success/failure;
-- early return;
-- callback sincrono;
-- callback async;
-- context sempre deregistrato dal root;
-- disposal root con callback attivo;
-- operation escaped dopo la callback;
-- fire-and-forget e draining.
+- body vs cleanup error composition;
+- fire-and-forget draining;
+- borrowed Surface cannot dispose;
+- host-owned open handle across methods.
 
-### Test di diagnostica
+### Diagnostic tests
 
-Affiancare ai test runtime fixture compiler che asseriscano diagnostici significativi. I commenti
-accanto a `@ts-expect-error` non verificano che il messaggio sia davvero leggibile.
+Stabilize TypeScript diagnostics with dedicated fixtures (`tsd` or compiler harness), not only
+`@ts-expect-error` comments.
 
-## Packaging e documentazione
+## Packaging and documentation
 
-Il README pubblicato linka `GLOSSARY.md` e `docs/adr`, ma `package.json` includeva soltanto:
+- Keep README examples aligned with ADR decisions (`entryBoundaries`, `InvocationOutcome`,
+  `open`/`with`, Adapter passthrough).
+- Glossary terms must stay free of outdated “technical failure outside Result” wording.
+- Prefer ADRs for irreversible decisions; keep this review as design history.
+- Demo naming should distinguish Adapter identity from Provider realization.
+- Package validation (`validate:forma-package`) should remain the consumer smoke test for published
+  shapes.
 
-- `dist`;
-- `README.md`;
-- `LICENSE`.
+## Recommended roadmap
 
-Il pacchetto deve includere anche:
+### P0 — Coherence and lifecycle
 
-- `GLOSSARY.md`;
-- `docs`.
+1. Canonical Intent identity shared by types and runtime.
+2. Root and context state machines with shared dispose promises.
+3. Compose-time cycle / closed-graph validation.
+4. Reserve Surface lifecycle keys.
 
-In questo modo ADR e questa review restano disponibili sia nell'installazione npm sia
-nell'eventuale rendering del package.
+### P1 — Safe path and real resources
 
-Altri drift documentali osservati:
+1. `withExecutionContext` + `AsyncDisposable`.
+2. Async factories with coalescing and local rollback.
+3. Typed execution params and host signal (ADR 0008).
 
-- il README indica ancora `0.0.0`, mentre il package è `0.1.0-alpha.0`;
-- il quick start usa `Conn`, `SelectOrder` e `openConnection` senza definirli;
-- il README root del monorepo descrive Forma come “Form modeling utilities”, mentre è una
-  libreria di composition.
+### P2 — Semantic clarity
 
-## Roadmap raccomandata
+1. Prefer Adapter/Provider passthrough; Binding → rare `aliasIntent`.
+2. Entry Boundaries; no Adapter Surface roots (ADR 0013).
+3. Stream modality and ownership (ADR 0012).
+4. Boundary error totalization (ADR 0015).
 
-### P0 — Coerenza e lifecycle
+### P3 — Tooling, only after consolidation
 
-1. Unificare l'identità statica e runtime.
-2. Compilare e validare il graph plan a `compose()`.
-3. Introdurre state machine terminali per root e context.
-4. Correggere deadlock concorrenti e race con il disposal.
-5. Riservare i nomi lifecycle e restringere correttamente le chiavi a stringa.
+1. Richer `describePlan()` / graph visualization.
+2. Architecture tests over composition plans.
+3. Remote Adapter spike for streams.
 
-### P1 — Safe path e risorse reali
+## Conclusion
 
-1. Supportare factory asincrone con rollback locale.
-2. Aggiungere `AsyncDisposable` a root e context.
-3. Aggiungere `withExecutionContext` come safe default additivo.
-4. Tracciare context e surface call attive.
-5. Introdurre seed tipizzato e `AbortSignal`.
-6. Offrire `defineWiring` o `defineComposition` per preservare i tipi.
-
-### P2 — Chiarezza semantica
-
-1. Rendere Adapter passthrough il default cross-boundary.
-2. Rinominare e restringere Binding come alias eccezionale.
-3. Migliorare errori e diagnostica con metadata strutturati.
-4. Ridurre i tipi di implementazione esportati.
-5. Rendere il demo non shallow e aggiungere un secondo Adapter.
-
-### P3 — Tooling, solo dopo il consolidamento
-
-1. graph visualization;
-2. architecture tests;
-3. health/readiness plan;
-4. composition fragments, soltanto se richiesti da casi reali;
-5. valutazione di multibinding e conditional Provider.
-
-## Conclusione
-
-Forma è più interessante di un container generico perché prova a rendere esplicite tre cose che
-spesso rimangono disperse:
-
-- identità dell'intenzione;
-- grafo delle realizzazioni;
-- ownership del lifecycle.
-
-La Surface esplicita e l'assenza di un resolver pubblico sono decisioni da preservare. Il
-potenziale di leverage è reale: una Composition corretta può diventare un seam applicativo
-piccolo, testabile e ispezionabile.
-
-La priorità non è però aggiungere altre primitive architetturali. Prima vanno rese vere le
-promesse già presenti: identità coerente, closed graph, disposal terminale e concorrenza sicura.
-
-Con questi fondamentali, factory async e un safe execution-context lifecycle aprono scenari
-realistici senza allargare eccessivamente l'interfaccia. Binding va invece ridimensionato: quando
-una sostituzione rappresenta una realizzazione, anche passthrough, un Provider esplicito conserva
-più semantica e locality di una riscrittura d'identità.
+Forma’s core thesis holds: a typed linker with an explicit Surface and Composition-owned lifecycle
+can hide substantial complexity behind a small API. The baseline PoC already demonstrates that
+value. Stabilization work is mainly about making identity, lifecycle, and failure channels coherent
+end-to-end — work that subsequent ADRs (0006–0015) progressively encode. This review remains the
+design rationale and finding inventory behind those decisions.
