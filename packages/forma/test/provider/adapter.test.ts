@@ -19,6 +19,13 @@ describe("adapter", () => {
     expect(() => adapter("orders-fake", fake as never)).toThrow(
       /target must be a Boundary value created by boundary\(\)/
     );
+
+    const Orders = boundary("orders");
+    const spread = { ...Orders };
+    expect(Object.getOwnPropertySymbols(spread)).toEqual([]);
+    expect(() => adapter("orders-spread", spread)).toThrow(
+      /target must be a Boundary value created by boundary\(\)/
+    );
   });
 
   it("same-boundary Intent.provide builds a boundary-origin provider", () => {

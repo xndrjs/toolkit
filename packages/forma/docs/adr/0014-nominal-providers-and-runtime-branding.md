@@ -29,6 +29,9 @@ Runtime values also need to remain recognizable when compatible copies of the pa
 - Runtime recognition uses versioned global symbols (`Symbol.for`). Compatible package copies can
   recognize values created by one another without putting modality or Contract in canonical
   identity.
+- Runtime brands are installed as non-enumerable, non-writable, non-configurable own properties.
+  Recognition also requires the branded value to be frozen and the brand descriptor to retain
+  that shape. Ordinary object/array spread therefore cannot copy protocol authenticity.
 - Provider, origin, dependency records, Intent values, declarators/builders, Boundary values, and
   Adapter values are shallow-frozen when created.
 - Boundary and Intent runtime values use the same versioned-brand approach where runtime protocol
@@ -43,7 +46,7 @@ Runtime values also need to remain recognizable when compatible copies of the pa
   factory. Materialization counts, gates, failures, and cleanup are declared inside `.with`.
 - Public metadata remains readable and precisely typed while the executable seam can evolve
   without becoming part of the package API.
-- Object spread no longer creates a valid Provider, at either the type level or ordinary runtime
-  validation.
+- Object spread no longer creates a valid Provider, Boundary, Intent, or Intent alias under
+  ordinary runtime validation.
 - This is an intentional alpha breaking change. There is no deprecated property, compatibility
   overload, or structural fallback.

@@ -64,6 +64,9 @@ integration.
   without materializing the Provider or starting the source.
 - Consumer `break` / `return()` / `[Symbol.asyncDispose]`, context dispose, and root dispose close
   active streams (abort per-stream signal → `return()` → await `finally` → release-once).
+- A direct consumer `iterator.throw(error)` is terminal: Forma performs the same managed close,
+  does not forward `throw()` to the source, and rethrows the consumer error after cleanup. A source
+  cannot catch that error to resume a stream whose consumer has terminated it.
 - Host abort on the context signal propagates to invocation signals and must unblock cooperative
   I/O; it does **not** auto-`dispose()` the context (abort ≠ dispose; same as ADR 0008).
 - No hang-timeout in core v1 for non-cooperative generators.

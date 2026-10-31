@@ -20,6 +20,14 @@ describe("aliasIntent — contract compatibility", () => {
 
     expect(pair[0]).toBe(FindOrder);
     expect(pair[1]).toBe(SelectOrder);
+    expect(Object.isFrozen(pair)).toBe(true);
+    const aliasSymbols = Object.getOwnPropertySymbols(pair);
+    expect(aliasSymbols).toHaveLength(1);
+    expect(Object.getOwnPropertyDescriptor(pair, aliasSymbols[0]!)).toMatchObject({
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
     expectTypeOf(pair).toExtend<IntentAlias>();
   });
 
@@ -71,12 +79,37 @@ describe("aliasIntent — contract compatibility", () => {
     });
 
     // Raw tuples are not IntentAlias — must go through aliasIntent().
-    compose({
-      entryBoundaries: [Orders],
-      surface: { getOrder: GetOrderProvider },
-      // @ts-expect-error — raw [Intent, Intent] is not an IntentAlias / WiringEntry
-      wiring: [SelectOrderProvider, [FindOrder, SelectOrder]],
-    });
+    expect(() =>
+      compose({
+        entryBoundaries: [Orders],
+        surface: { getOrder: GetOrderProvider },
+        // @ts-expect-error — raw [Intent, Intent] is not an IntentAlias / WiringEntry
+        wiring: [SelectOrderProvider, [FindOrder, SelectOrder]],
+      })
+    ).toThrow(/Invalid wiring entry: expected a Provider or Intent alias created by Forma/);
+
+    const spreadPair = [...aliasIntent(FindOrder, SelectOrder)];
+    expect(Object.getOwnPropertySymbols(spreadPair)).toEqual([]);
+    expect(() =>
+      compose({
+        entryBoundaries: [Orders],
+        surface: { getOrder: GetOrderProvider },
+        wiring: [SelectOrderProvider, spreadPair],
+      } as never)
+    ).toThrow(/Invalid wiring entry: expected a Provider or Intent alias created by Forma/);
+  });
+
+  it("rejects spread-cloned Intents", () => {
+    const Orders = boundary("orders");
+    const Postgres = boundary("postgres");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, FindError>();
+
+    const spread = { ...FindOrder };
+    expect(Object.getOwnPropertySymbols(spread)).toEqual([]);
+    expect(() => aliasIntent(spread, SelectOrder)).toThrow(
+      /Intent aliases require Intent values created by boundary\(\)\.intent\/stream/
+    );
   });
 
   it("accepts same-boundary aliasIntent when contracts match", () => {

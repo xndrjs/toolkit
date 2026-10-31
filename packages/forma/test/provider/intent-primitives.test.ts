@@ -16,6 +16,23 @@ describe("boundary / intent", () => {
     expect(FindOrder.name).toBe("find");
     expect(FindOrder.modality).toBe("unary");
     expect(intentIdentity(FindOrder)).toEqual(["orders", "find"]);
+    expect(Object.isFrozen(Orders)).toBe(true);
+    expect(Object.isFrozen(FindOrder)).toBe(true);
+
+    const boundarySymbols = Object.getOwnPropertySymbols(Orders);
+    const intentSymbols = Object.getOwnPropertySymbols(FindOrder);
+    expect(boundarySymbols).toHaveLength(1);
+    expect(intentSymbols).toHaveLength(1);
+    expect(Object.getOwnPropertyDescriptor(Orders, boundarySymbols[0]!)).toMatchObject({
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+    expect(Object.getOwnPropertyDescriptor(FindOrder, intentSymbols[0]!)).toMatchObject({
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
   });
 
   it("supports stream(name).contract<In, Item, Err>()", () => {

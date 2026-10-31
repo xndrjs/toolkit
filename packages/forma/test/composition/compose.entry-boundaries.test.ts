@@ -57,6 +57,15 @@ describe("compose — Entry Boundaries", () => {
         surface: { getOrder: GetOrderProvider },
       } as never)
     ).toThrow(/must be Boundary values created by boundary\(\)/);
+
+    const spread = { ...Orders };
+    expect(Object.getOwnPropertySymbols(spread)).toEqual([]);
+    expect(() =>
+      compose({
+        entryBoundaries: [spread],
+        surface: { getOrder: GetOrderProvider },
+      })
+    ).toThrow(/must be Boundary values created by boundary\(\)/);
   });
 
   it("rejects an Adapter-originated Surface root at type level and runtime", () => {

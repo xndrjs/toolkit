@@ -26,6 +26,9 @@ place; no deprecated aliases.
 - **Vocabulary:** the branded wiring entry is an **Intent alias**, constructed only by
   **`aliasIntent`**. Types: `IntentAlias` / `IntentAliasPair`; guard `isIntentAlias`. The former
   names Binding / `bind` / `isBinding` are removed.
+- The type brand is backed by a non-enumerable, versioned runtime brand. Composition rejects raw
+  tuples and aliases cloned through ordinary array spread; compatible package copies still
+  recognize one another through `Symbol.for`.
 - An Intent alias is not a Realization and is not assignable as a surface Provider.
 - Required and satisfier Contracts must be exactly equivalent by reciprocal assignability of
   Input, Success/Item, Err, and modality. `aliasIntent()` rejects a reified modality mismatch
@@ -41,3 +44,5 @@ place; no deprecated aliases.
   Provider) passthrough for same-shape cross-boundary too; Intent alias only for true synonyms.
 - Registration shape from [0002](./0002-unified-wiring-registration.md) is unchanged (`wiring`
   entries are still Providers or branded alias pairs).
+- JavaScript and casted inputs receive the same alias-construction guarantee as typed callers:
+  being a two-element array is not sufficient to enter the alias protocol.

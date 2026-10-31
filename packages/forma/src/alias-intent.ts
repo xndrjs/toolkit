@@ -5,6 +5,7 @@ import {
   type LifetimePolicy,
   type Provider,
 } from "./provider/provider.js";
+import { defineRuntimeBrand, readRuntimeBrand } from "./protocol/runtime-brand.js";
 
 /**
  * Registrable Provider with erased contract params so `compose` can accept a
@@ -30,6 +31,7 @@ export type AnyProvider = Provider<
 export type AnyIntent = Intent<string, string, any, any, any, any>;
 
 declare const formaIntentAliasBrand: unique symbol;
+const FORMA_INTENT_ALIAS_RUNTIME = Symbol.for("@xndrjs/forma/intent-alias/v1");
 
 /**
  * Explicit composition association produced only by {@link aliasIntent}.
@@ -79,12 +81,20 @@ export function aliasIntent<Req extends AnyIntent, Sat extends AnyIntent>(
         `${satisfier.boundaryId}.${satisfier.name} is ${satisfier.modality}`
     );
   }
-  return Object.freeze([required, satisfier]) as unknown as IntentAliasPair<Req, Sat>;
+  const pair = [required, satisfier];
+  defineRuntimeBrand(pair, FORMA_INTENT_ALIAS_RUNTIME, true);
+  return Object.freeze(pair) as unknown as IntentAliasPair<Req, Sat>;
 }
 
-/** Runtime partition: {@link aliasIntent} pairs are arrays; Providers are objects. */
-export function isIntentAlias(entry: WiringEntry): entry is IntentAlias {
-  return Array.isArray(entry);
+/** Runtime authenticity check for alias pairs created by {@link aliasIntent}. */
+export function isIntentAlias(entry: unknown): entry is IntentAlias {
+  return (
+    Array.isArray(entry) &&
+    entry.length === 2 &&
+    readRuntimeBrand(entry, FORMA_INTENT_ALIAS_RUNTIME) === true &&
+    isIntent(entry[0]) &&
+    isIntent(entry[1])
+  );
 }
 
 type ProviderFromWiringEntry<Entry> = Entry extends AnyProvider ? Entry : never;

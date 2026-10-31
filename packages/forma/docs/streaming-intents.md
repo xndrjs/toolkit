@@ -394,7 +394,8 @@ La forma definitiva può differire, ma il modulo deve nascondere:
 - stato `idle | starting | active | closing | closed` di ogni wrapper;
 - single-consumer enforcement;
 - context e per-stream AbortController;
-- forwarding di `next`, `return` e `throw`;
+- forwarding di `next` e close gestito per `return` / `throw`; `throw` consumer-side è terminale,
+  non viene inoltrato alla sorgente e ripropaga l'errore dopo la cleanup;
 - active registration;
 - release-once del lease;
 - close concorrenti;
@@ -557,7 +558,7 @@ Obiettivo: validare la state machine e le ergonomics TypeScript contro le **Deci
 senza modificare il runtime principale.
 
 - costruire un wrapper `ManagedAsyncIterator` sperimentale (incluso `[Symbol.asyncDispose]`);
-- verificare `next`, `return`, `throw`, abort e cleanup concorrente;
+- verificare `next`, `return`, `throw` terminale, abort e cleanup concorrente;
 - verificare il comportamento reale di async generator bloccati su I/O;
 - verificare enforcement di `Err` terminale e riuso della matrice errori disposal;
 - registrare l’ADR di integrazione solo a valle dello spike (nessun ADR “a vuoto” prima).

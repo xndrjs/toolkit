@@ -187,6 +187,27 @@ describe("ManagedAsyncIterator", () => {
       expect(stream.phase).toBe("closed");
     });
 
+    it("treats consumer throw() as terminal close without forwarding it to the source", async () => {
+      const failure = new Error("consumer stopped");
+      const innerThrow = vi.fn(async () => ({ done: true as const, value: undefined }));
+      const innerReturn = vi.fn(async () => ({ done: true as const, value: undefined }));
+      const stream = createManagedAsyncIterable(() => ({
+        async next() {
+          return { done: false as const, value: 1 };
+        },
+        throw: innerThrow,
+        return: innerReturn,
+      }));
+
+      const iterator = stream[Symbol.asyncIterator]();
+      await expect(iterator.next()).resolves.toEqual({ done: false, value: 1 });
+      await expect(iterator.throw?.(failure)).rejects.toBe(failure);
+
+      expect(innerThrow).not.toHaveBeenCalled();
+      expect(innerReturn).toHaveBeenCalledOnce();
+      expect(stream.phase).toBe("closed");
+    });
+
     it("parent signal abort closes the stream without requiring dispose", async () => {
       const parent = new AbortController();
       let finalized = false;

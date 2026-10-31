@@ -35,6 +35,13 @@ describe("provider builder", () => {
     expect(PingProvider).not.toHaveProperty("factory");
     expect(PingProvider).not.toHaveProperty("$params");
     expect(Object.keys(PingProvider)).toEqual(["intent", "deps", "lifetimePolicy", "origin"]);
+    const providerSymbols = Object.getOwnPropertySymbols(PingProvider);
+    expect(providerSymbols).toHaveLength(1);
+    expect(Object.getOwnPropertyDescriptor(PingProvider, providerSymbols[0]!)).toMatchObject({
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
 
     // @ts-expect-error — realization is internal Provider machinery
     void PingProvider.factory;
@@ -83,6 +90,24 @@ describe("provider builder", () => {
         surface: { ping: PingProvider },
         wiring: [fake],
       } as never)
+    ).toThrow(/Invalid wiring entry: expected a Provider/);
+
+    const spread = { ...PingProvider };
+    expect(Object.getOwnPropertySymbols(spread)).toEqual([]);
+
+    expect(() =>
+      compose({
+        entryBoundaries: [Health],
+        surface: { ping: spread },
+      })
+    ).toThrow(/must use a Provider value created by Forma/);
+
+    expect(() =>
+      compose({
+        entryBoundaries: [Health],
+        surface: { ping: PingProvider },
+        wiring: [spread],
+      })
     ).toThrow(/Invalid wiring entry: expected a Provider/);
   });
 

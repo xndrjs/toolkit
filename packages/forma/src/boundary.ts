@@ -1,5 +1,6 @@
 import { createProvideApi } from "./provider/provider-builder.js";
 import type { ProvideApi } from "./provider/provider-builder.types.js";
+import { defineRuntimeBrand, readRuntimeBrand } from "./protocol/runtime-brand.js";
 
 declare const formaIntentBrand: unique symbol;
 declare const formaBoundaryTypeBrand: unique symbol;
@@ -108,22 +109,14 @@ export type Boundary<BoundaryId extends string> = {
 
 /** Internal runtime authenticity check. Not exported by the package entrypoint. */
 export function isBoundary(value: unknown): value is Boundary<string> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as Record<PropertyKey, unknown>)[FORMA_BOUNDARY_RUNTIME] === true
-  );
+  return readRuntimeBrand(value, FORMA_BOUNDARY_RUNTIME) === true;
 }
 
 /** Internal runtime authenticity check for alias and graph validation. */
 export function isIntent(
   value: unknown
 ): value is Intent<string, string, unknown, unknown, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as Record<PropertyKey, unknown>)[FORMA_INTENT_RUNTIME] === true
-  );
+  return readRuntimeBrand(value, FORMA_INTENT_RUNTIME) === true;
 }
 
 function createIntent<
@@ -142,8 +135,9 @@ function createIntent<
     boundaryId,
     name,
     modality,
-    [FORMA_INTENT_RUNTIME]: true,
   } as unknown as Intent<BoundaryId, Name, Input, Success, Err, Mode>;
+
+  defineRuntimeBrand(intent, FORMA_INTENT_RUNTIME, true);
 
   // Assign after the object exists so the builder closes over the Intent value.
   (intent as { provide: ProvideApi<BoundaryId, Name, Input, Success, Err, Mode> }).provide =
@@ -174,10 +168,11 @@ export function boundary<const BoundaryId extends string>(id: BoundaryId): Bound
 
   Object.freeze(intent);
   Object.freeze(stream);
-  return Object.freeze({
+  const descriptor = {
     id,
     intent,
     stream,
-    [FORMA_BOUNDARY_RUNTIME]: true,
-  }) as unknown as Boundary<BoundaryId>;
+  };
+  defineRuntimeBrand(descriptor, FORMA_BOUNDARY_RUNTIME, true);
+  return Object.freeze(descriptor) as unknown as Boundary<BoundaryId>;
 }

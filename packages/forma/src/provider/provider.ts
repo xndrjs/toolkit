@@ -1,4 +1,5 @@
 import type { Intent, IntentModality } from "../boundary.js";
+import { defineRuntimeBrand, readRuntimeBrand } from "../protocol/runtime-brand.js";
 import type { Result } from "../result.js";
 
 declare const formaProviderTypeBrand: unique symbol;
@@ -330,13 +331,14 @@ export function createProviderDescriptor<
   readonly factory: ProviderFactory<Input, Success, Err, Deps, Params, Mode>;
 }): Provider<BoundaryId, Name, Input, Success, Err, Deps, Policy, Params, Mode, Origin> {
   const runtime = Object.freeze({ factory: options.factory });
-  return Object.freeze({
+  const descriptor = {
     intent: options.intent,
     deps: Object.freeze(options.deps as object) as Deps,
     lifetimePolicy: options.lifetimePolicy,
     origin: Object.freeze({ ...options.origin }),
-    [FORMA_PROVIDER_RUNTIME]: runtime,
-  }) as unknown as Provider<
+  };
+  defineRuntimeBrand(descriptor, FORMA_PROVIDER_RUNTIME, runtime);
+  return Object.freeze(descriptor) as unknown as Provider<
     BoundaryId,
     Name,
     Input,
@@ -352,10 +354,7 @@ export function createProviderDescriptor<
 
 /** Runtime authenticity check for JavaScript, casts, and widened inputs. */
 export function isProvider(value: unknown): value is ErasedProvider {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const runtime = (value as Record<PropertyKey, unknown>)[FORMA_PROVIDER_RUNTIME];
+  const runtime = readRuntimeBrand(value, FORMA_PROVIDER_RUNTIME);
   return (
     typeof runtime === "object" &&
     runtime !== null &&

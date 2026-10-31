@@ -32,8 +32,10 @@ compose({
 - `entryBoundaries` is required and non-empty. No legacy overload, inferred fallback, currying,
   fluent builder, or `defineEntryBoundaries` helper is provided.
 - Every entry must be an authentic, frozen `Boundary` value produced by `boundary()`. Runtime
-  validation uses Forma's versioned nominal brand rather than accepting an object that merely has
-  `id`, `intent`, and `stream`. The same authenticity rule applies to `adapter()` targets.
+  validation uses Forma's non-enumerable, versioned nominal brand with an immutable own-property
+  descriptor rather than accepting an object that merely has `id`, `intent`, and `stream`.
+  Ordinary object spread therefore does not preserve authenticity. The same rule applies to
+  `adapter()` targets.
 - The declared Entry Boundary ids must equal the set of Boundary origins represented by Surface
   roots. Every declared Boundary owns at least one alias; every alias comes from a declared
   Boundary. Consequently, an empty Surface is invalid.
