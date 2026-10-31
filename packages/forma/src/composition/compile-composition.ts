@@ -11,7 +11,12 @@ import { intentIdentityFromMapKey } from "../intent-keys.js";
 import { assertRegistrationSafety, buildRegistry } from "../registration.js";
 import { assertStringRecordKeys } from "../string-keys.js";
 import { isProvider } from "../provider/provider.js";
-import type { CompositionPlanDescription, EntryBoundaries } from "./composition-contract.js";
+import type {
+  CompositionPlanDescription,
+  EntryBoundaries,
+  OnUnexpectedFailure,
+} from "./composition-contract.js";
+import { resolveOnUnexpectedFailure } from "./notify-unexpected-failure.js";
 
 export type {
   CompositionPlanDescription,
@@ -30,6 +35,8 @@ export type CompiledComposition<
   readonly lifetimePlan: ProviderLifetimePlan;
   readonly planDescription: CompositionPlanDescription;
   readonly surfaceEntries: readonly [keyof Surface & string, AnyProvider][];
+  /** Resolved supervision hook (user option or default `console.error`). */
+  readonly onUnexpectedFailure: OnUnexpectedFailure;
 };
 
 type CompileCompositionInput<
@@ -40,6 +47,7 @@ type CompileCompositionInput<
   readonly entryBoundaries: Entries;
   readonly surface: Surface;
   readonly wiring?: Wiring;
+  readonly onUnexpectedFailure?: OnUnexpectedFailure;
 };
 
 function assertEntryBoundaries(
@@ -151,5 +159,6 @@ export function compileComposition<
     lifetimePlan,
     planDescription,
     surfaceEntries,
+    onUnexpectedFailure: resolveOnUnexpectedFailure(options.onUnexpectedFailure),
   };
 }

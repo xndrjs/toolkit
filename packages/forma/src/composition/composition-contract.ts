@@ -1,8 +1,33 @@
 import type { AnyProvider, WiringEntry } from "../alias-intent.js";
 import type { Boundary, IntentIdentity, IntentModality } from "../boundary.js";
 import type { EffectiveLifetime } from "../graph-plan.js";
-import type { InvocationOutcome } from "../invocation-outcome.js";
+import type { InvocationOutcome, UnexpectedFailure } from "../invocation-outcome.js";
 import type { LifetimePolicy, Provider, ProviderOrigin } from "../provider/provider.js";
+
+/**
+ * Phase of Boundary invocation where Forma automatically converted a throw/rejection
+ * into an {@link UnexpectedFailure}.
+ */
+export type UnexpectedFailurePhase = "materialize" | "invoke" | "stream-start" | "stream-next";
+
+/**
+ * Supervision event for Composition {@link OnUnexpectedFailure}.
+ * Carries the raw cause only for host diagnostics — never Input/Params.
+ */
+export type UnexpectedFailureEvent = Readonly<{
+  readonly failure: UnexpectedFailure;
+  readonly cause: unknown;
+  readonly intent: IntentIdentity;
+  readonly origin: ProviderOrigin;
+  readonly phase: UnexpectedFailurePhase;
+}>;
+
+/**
+ * Optional Composition hook for automatic core totalization only.
+ * Synchronous and best-effort: Forma does not await returned Promises.
+ * Must not alter the {@link InvocationOutcome} delivered to the caller.
+ */
+export type OnUnexpectedFailure = (event: UnexpectedFailureEvent) => void;
 
 /** Declared policy, graph-derived effective lifetime, and optional narrowing path. */
 export type ProviderLifetimeExplanation = {
@@ -163,4 +188,10 @@ export type ComposeOptions<
    * Prefer Adapter / Provider passthrough over {@link aliasIntent} for cross-boundary wiring.
    */
   readonly wiring?: Wiring;
+  /**
+   * Called once at the origin when Forma automatically converts a throw/rejection into
+   * `unexpected`. Not called for expected errors, explicit Boundary failures, propagated
+   * failures, or lifecycle (`dispose`). Defaults to `console.error`.
+   */
+  readonly onUnexpectedFailure?: OnUnexpectedFailure;
 };

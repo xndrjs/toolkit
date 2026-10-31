@@ -22,7 +22,8 @@ type Awaitable<T> = T | PromiseLike<T>;
 export function createCompositionRoot<Surface extends Record<string, AnyProvider>, Params = void>(
   compiled: CompiledComposition<Surface>
 ): CompositionRoot<Surface, Params> {
-  const { registry, aliasMap, lifetimePlan, planDescription, surfaceEntries } = compiled;
+  const { registry, aliasMap, lifetimePlan, planDescription, surfaceEntries, onUnexpectedFailure } =
+    compiled;
 
   /** Composition-effective providers — owned by this scope. */
   const compositionScope = createProviderScope({
@@ -38,6 +39,7 @@ export function createCompositionRoot<Surface extends Record<string, AnyProvider
     surfaceEntries,
     compositionScope,
     openContexts,
+    onUnexpectedFailure,
   };
 
   function open(...args: ExecutionContextArgs<Params>) {

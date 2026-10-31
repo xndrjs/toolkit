@@ -3,6 +3,7 @@ import type {
   ExecutionContext,
   ExecutionContextArgs,
   ExecutionSurface,
+  OnUnexpectedFailure,
 } from "../composition/composition-contract.js";
 import type { ProviderLifetimePlan } from "../graph-plan.js";
 import { intentLabel, intentMapKey } from "../intent-keys.js";
@@ -54,6 +55,12 @@ export type CompositionOwnedState = {
   /** Scope for composition-effective providers. */
   readonly compositionScope: ProviderScope;
   readonly openContexts: Set<{ dispose(): Promise<void> }>;
+  /**
+   * Composition supervision hook for automatic unexpected-failure totalization.
+   * Always resolved (user option or default `console.error`); nested compositions
+   * own their own hook — there is no process-global observer.
+   */
+  readonly onUnexpectedFailure: OnUnexpectedFailure;
 };
 
 /**

@@ -29,10 +29,13 @@ import type {
   ExecutionContextArgs,
   ExecutionContextOptions,
   ExecutionSurface,
+  OnUnexpectedFailure,
   ProviderLifetimeDescription,
   ProviderLifetimeExplanation,
   SurfaceRootDescription,
   StreamSurfaceIterable,
+  UnexpectedFailureEvent,
+  UnexpectedFailurePhase,
 } from "./composition/composition-contract.js";
 import { createCompositionRoot } from "./execution/composition-root.js";
 
@@ -47,10 +50,13 @@ export type {
   ExecutionContextArgs,
   ExecutionContextOptions,
   ExecutionSurface,
+  OnUnexpectedFailure,
   ProviderLifetimeDescription,
   ProviderLifetimeExplanation,
   SurfaceRootDescription,
   StreamSurfaceIterable,
+  UnexpectedFailureEvent,
+  UnexpectedFailurePhase,
 };
 
 type ComposeAsserts<

@@ -20,10 +20,13 @@ export type {
   ExecutionContextArgs,
   ExecutionContextOptions,
   ExecutionSurface,
+  OnUnexpectedFailure,
   ProviderLifetimeDescription,
   ProviderLifetimeExplanation,
   SurfaceRootDescription,
   StreamSurfaceIterable,
+  UnexpectedFailureEvent,
+  UnexpectedFailurePhase,
 } from "./composition/composition-contract.js";
 
 export type {
