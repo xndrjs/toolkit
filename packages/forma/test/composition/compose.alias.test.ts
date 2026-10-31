@@ -90,10 +90,15 @@ describe("compose — explicit cross-boundary intent alias", () => {
         ({ deps: { select } }) =>
           async function (id) {
             const row = await select({ orderId: id.id });
-            if (row.kind !== "success") {
-              return expectedError({ kind: "not_found" as const });
+            switch (row.kind) {
+              case "success":
+                return success({ id: row.value.order_id, total: row.value.amount_cents / 100 });
+              case "error":
+                return expectedError({ kind: "not_found" as const });
+              case "unexpected":
+              case "cancelled":
+                return row;
             }
-            return success({ id: row.value.order_id, total: row.value.amount_cents / 100 });
           }
       );
 

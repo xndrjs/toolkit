@@ -73,14 +73,17 @@ sull'interfaccia e sugli scenari futuri sono invece valutazioni di design.
 
 ### Intent
 
-Un Intent è un token nominale associato a un contratto unario:
+Un Intent è un token nominale associato a un contratto (unary o stream):
 
 ```ts
-Input -> Result<Success, ExpectedError>
+Input -> InvocationOutcome<Success, ExpectedError>
 ```
 
-L'operazione può essere sincrona o asincrona. Gli errori tecnici inattesi rimangono fuori dal
-`Result` e vengono espressi tramite throw o Promise rejection.
+L'operazione può essere sincrona o asincrona. Throw e Promise rejection prodotti
+dall'implementazione **non** attraversano il Boundary: Forma li converte in
+`{ kind: "unexpected", failure }` al punto di origine ([ADR 0015](./adr/0015-boundary-error-totalization.md)).
+Il Contract dichiara gli expected error su `Err`; l'algebra pubblica aggiunge anche `unexpected` e
+`cancelled`.
 
 ### Provider
 
@@ -431,20 +434,26 @@ Questo non è un difetto specifico di Forma: è un limite intrinseco della tipiz
 Diventa però rilevante quando il sistema usa l'equivalenza strutturale per riscrivere identità
 semanticamente nominate, come avviene con Binding.
 
-### Technical failure fuori da `Result`
+### Technical failure e `InvocationOutcome` (superseded finding)
 
-La separazione fra expected failure nel `Result` e technical failure tramite throw è coerente e
-utile. Va però completata con una tassonomia degli errori prodotti dal runtime Forma:
+La baseline separava expected failure nel `Result` e technical failure tramite throw. Quella
+separazione **non** è più il modello normativo: [ADR 0015](./adr/0015-boundary-error-totalization.md)
+totalizza l'uscita di ogni Intent in `InvocationOutcome` (`success` / `error` / `unexpected` /
+`cancelled`). Throw/rejection dell'implementazione diventano `unexpected` con Failure ID opaco;
+l'hook opzionale `onUnexpectedFailure` riceve il raw cause solo per conversioni automatiche del
+core.
 
-- composition invalida;
-- context o root disposed;
-- ciclo;
-- materializzazione fallita;
-- cleanup fallito;
-- cancellazione.
+Restano **fuori** dal Contract Intent (canali distinti — [ADR 0008](./adr/0008-execution-seed-and-abort-signal.md)):
 
-Oggi questi casi usano `Error` generici e messaggi testuali. Errori strutturati con `code`, Intent,
-origin e dependency path migliorerebbero diagnostica e integrazione.
+- composition invalida (throw di configurazione a `compose`);
+- context o root già disposed;
+- cleanup / `dispose()` fallito;
+- host abort che chiude l'**acceptance** di nuovo lavoro (rejection con `signal.reason` finché
+  non emendata ulteriormente ADR 0008).
+
+Questi casi di runtime/lifecycle usano ancora `Error` generici e messaggi testuali. Errori
+strutturati con `code`, Intent, origin e dependency path migliorerebbero diagnostica e integrazione
+**su quel canale**, senza riaprire il dataflow Intent.
 
 ## Ergonomia
 
@@ -537,22 +546,23 @@ modulo profondo dovrebbe nascondere.
 
 Questo motiva `withExecutionContext` e `AsyncDisposable`, approfonditi più avanti.
 
-### `Result<T, never>` conserva un ramo impossibile
+### `InvocationOutcome<T, never>` conserva rami non-success
 
-`Result<T, never>` resta una union con un ramo `{ ok: false; error: never }`. Il consumer deve
-quindi fare narrowing anche per operazioni dichiarate infallibili.
+Con `Err = never`, il ramo `error` è impossibile, ma restano `unexpected` e `cancelled`. Il
+consumer di un Intent “infallibile” nel dominio deve comunque distinguere quei kind — non con
+`try/catch` sul Boundary chiamato, ma con uno switch sul protocollo.
 
-Nel demo `ConnectionIntent` ha `Err = never`, ma `SelectOrderProvider` contiene comunque un ramo
-`if (!opened.ok)`.
+Nel demo `ConnectionIntent` ha `Err = never`; `SelectOrderProvider` propaga i non-`success`
+invariati invece di mapparli a un expected error inventato.
 
-Possibili direzioni:
+Possibili direzioni ancora aperte sull'ergonomia (non sul protocollo):
 
-- rendere `Result<T, never>` condizionale e collassarlo a `Ok<T>`;
+- collassare condizionalmente il solo ramo `error` quando `Err = never`;
 - distinguere Provider di valori/risorse dalle operation;
-- mantenere la forma uniforme e accettare il costo, ma documentarlo.
+- mantenere la forma uniforme a quattro kind e accettare lo switch.
 
-La prima soluzione migliora l'ergonomia ma introduce conditional type visibili nella Surface. La
-terza mantiene la massima regolarità. È una decisione di filosofia dell'interfaccia, non un bug.
+La terza opzione è quella adottata con ADR 0015: massima regolarità unary/stream e Adapter
+pass-through.
 
 ### Interfaccia pubblica ampia
 

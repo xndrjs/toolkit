@@ -109,7 +109,7 @@ describe("adapter", () => {
         return async function (id) {
           const cached = await cache(id);
           if (cached.kind !== "success") {
-            return expectedError({ kind: "not_found" as const });
+            return cached;
           }
           if (cached.value !== null) {
             return success(cached.value);
@@ -203,10 +203,15 @@ describe("adapter", () => {
         ({ deps: { select } }) =>
           async function (id) {
             const row = await select({ orderId: id.id });
-            if (row.kind !== "success") {
-              return expectedError({ kind: "not_found" as const });
+            switch (row.kind) {
+              case "success":
+                return success({ id: row.value.order_id, total: row.value.amount_cents / 100 });
+              case "error":
+                return expectedError({ kind: "not_found" as const });
+              case "unexpected":
+              case "cancelled":
+                return row;
             }
-            return success({ id: row.value.order_id, total: row.value.amount_cents / 100 });
           }
       );
 

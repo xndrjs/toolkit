@@ -1,6 +1,9 @@
 # Totalizzazione degli errori in uscita dai Boundary
 
-> Stato: modello target condiviso; non ancora implementato.
+> Stato: **implementato** (normativa in [ADR 0015](./adr/0015-boundary-error-totalization.md);
+> emendamenti [ADR 0008](./adr/0008-execution-seed-and-abort-signal.md) e
+> [ADR 0012](./adr/0012-streaming-intents.md)). Questo documento resta l'analisi estesa e il piano
+> di validazione.
 >
 > Data: 2026-10-31.
 >
@@ -67,9 +70,9 @@ Un `UnexpectedFailure` consente soltanto propagazione e policy generiche. Non tr
 `cause`, quindi un Boundary chiamante non puo tentare recovery basata su dettagli
 dell'implementazione del Boundary chiamato.
 
-## Baseline corrente
+## Baseline precedente (pre-implementazione)
 
-Il modello attualmente pubblicato usa:
+Prima della totalizzazione il modello pubblicato usava:
 
 ```ts
 type Result<T, E> =
@@ -77,31 +80,13 @@ type Result<T, E> =
   | { readonly ok: false; readonly error: E };
 ```
 
-Le unary operation possono restituire il `Result` sincronicamente o tramite Promise:
+Le unary operation potevano restituire il `Result` sincronicamente o tramite Promise; le stream
+operation esponevano `AsyncIterable<Result<Item, Err>>`. Il Glossary trattava gli unexpected
+technical failure come fuori Contract; ADR 0012 lasciava il throw della sorgente stream nel
+canale eccezionale dell'iterator.
 
-```ts
-type IntentOperation<Input, Success, Err> = (
-  input: Input
-) => Result<Success, Err> | Promise<Result<Success, Err>>;
-```
-
-Le stream operation restituiscono invece:
-
-```ts
-type StreamOperation<Input, Item, Err> = (
-  input: Input,
-  invocation: StreamInvocation
-) => AsyncIterable<Result<Item, Err>>;
-```
-
-Il Glossary dichiara attualmente che gli unexpected technical failure sono fuori dal Contract.
-L'architectural review considera coerente la separazione fra expected failure nel `Result` e
-technical failure tramite throw. ADR 0012 considera un throw della sorgente stream unexpected ma
-lo lascia nel canale eccezionale dell'iterator.
-
-Il nuovo modello cambia intenzionalmente questa semantica. Prima dell'implementazione non vanno
-aggiornati Glossary e ADR come se il comportamento target fosse gia disponibile; al momento della
-migrazione dovranno invece essere emendati insieme a README e tipi pubblici.
+Quel modello e stato sostituito da `InvocationOutcome` (ADR 0015). Glossary, README, ADR 0008,
+ADR 0012 e architectural review sono stati emendati insieme all'implementazione.
 
 ## Problema semantico
 
@@ -698,7 +683,7 @@ Questa modifica non introduce:
 9. Unary e stream condividono la stessa algebra degli esiti.
 10. Lifecycle e configurazione restano canali separati dal Contract del Boundary.
 
-## Criteri di accettazione futuri
+## Criteri di accettazione
 
 ### Unary
 
@@ -744,20 +729,19 @@ Questa modifica non introduce:
 
 ## Impatto documentale
 
-Quando il modello verra implementato, dovranno essere aggiornati in modo atomico:
+Aggiornato atomicamente con l'implementazione:
 
-- `GLOSSARY.md`: Contract, Expected Error, Unexpected Failure, Failure ID e semantica degli
-  stream;
+- `GLOSSARY.md`: Contract, InvocationOutcome, Expected Error, Unexpected Failure, Failure ID e
+  semantica degli stream;
 - README: esempi unary, Adapter, surface e stream;
 - ADR 0012: source throw come terminal unexpected invece di iterator rejection;
 - ADR 0008: rapporto fra abort/cancellation e `InvocationOutcome`;
-- architectural review: superare la decisione “technical failure fuori da Result”;
-- type declarations ed esempi del demo;
-- un nuovo ADR normativo dedicato alla totalizzazione degli errori dei Boundary.
+- architectural review: superseded “technical failure fuori da Result”;
+- esempi Adapter/demo (pass-through `unexpected` / `cancelled`);
+- ADR 0015: decisione normativa sulla totalizzazione.
 
-La decisione merita un ADR perche e breaking, difficile da invertire e modifica una delle
-assunzioni fondamentali del Contract. Questo documento rimane l'analisi estesa e il piano di
-validazione; l'ADR dovra registrare la decisione normativa in forma piu breve.
+Questo documento rimane l'analisi estesa e il piano di validazione; ADR 0015 registra la
+decisione normativa in forma breve.
 
 ## Sintesi delle decisioni condivise
 

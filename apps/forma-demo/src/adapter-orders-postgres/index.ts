@@ -17,13 +17,18 @@ export const FindOrderViaPostgresProvider = OrdersPostgres.adapt(FindOrder)
     ({ deps: { select } }) =>
       async function (id) {
         const row = await select({ order_id: id.id });
-        if (row.kind !== "success") {
-          return expectedError({ kind: "not_found" as const });
+        switch (row.kind) {
+          case "success":
+            return success({
+              id: row.value.order_id,
+              total: row.value.amount_cents / 100,
+            });
+          case "error":
+            return expectedError({ kind: "not_found" as const });
+          case "unexpected":
+          case "cancelled":
+            return row;
         }
-        return success({
-          id: row.value.order_id,
-          total: row.value.amount_cents / 100,
-        });
       }
   );
 
@@ -37,9 +42,16 @@ export const WatchOrderEventsViaPostgresProvider = OrdersPostgres.adapt(WatchOrd
     ({ deps: { select } }) =>
       async function* (id, invocation) {
         const row = await select({ order_id: id.id });
-        if (row.kind !== "success") {
-          yield expectedError({ kind: "not_found" as const });
-          return;
+        switch (row.kind) {
+          case "success":
+            break;
+          case "error":
+            yield expectedError({ kind: "not_found" as const });
+            return;
+          case "unexpected":
+          case "cancelled":
+            yield row;
+            return;
         }
 
         try {

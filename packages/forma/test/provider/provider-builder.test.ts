@@ -173,10 +173,15 @@ describe("provider builder", () => {
         >();
         return async function (id) {
           const found = await find(id);
-          if (found.kind !== "success") {
-            return expectedError({ kind: "already_cancelled" });
+          switch (found.kind) {
+            case "success":
+              return success(undefined);
+            case "error":
+              return expectedError({ kind: "already_cancelled" });
+            case "unexpected":
+            case "cancelled":
+              return found;
           }
-          return success(undefined);
         };
       });
 

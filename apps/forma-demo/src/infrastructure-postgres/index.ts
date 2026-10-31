@@ -56,7 +56,7 @@ export const SelectOrderProvider = SelectOrder.provide.using({ connection: Conne
     async function (id) {
       const opened = await connection();
       if (opened.kind !== "success") {
-        return expectedError({ code: "NO_ROW" as const });
+        return opened;
       }
       const row = opened.value.lookup(id.order_id);
       return row ? success(row) : expectedError({ code: "NO_ROW" as const });

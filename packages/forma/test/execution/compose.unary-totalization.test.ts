@@ -3,6 +3,8 @@ import { adapter } from "@xndrjs/forma";
 import { boundary } from "@xndrjs/forma";
 import { compose } from "@xndrjs/forma";
 import {
+  cancelled,
+  createCancellation,
   createUnexpectedFailure,
   expectedError,
   isUnexpectedFailure,
@@ -355,7 +357,7 @@ describe("compose — unary totalization", () => {
     await root.dispose();
   });
 
-  it("maps Adapter expected errors and passes unexpected through unchanged", async () => {
+  it("maps Adapter expected errors and passes unexpected/cancelled through unchanged", async () => {
     const Orders = boundary("orders");
     const Postgres = boundary("postgres");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
@@ -364,12 +366,16 @@ describe("compose — unary totalization", () => {
     const SelectOrder = Postgres.intent("selectOrder").contract<OrderId, Order, PgError>();
     const onUnexpectedFailure = vi.fn<OnUnexpectedFailure>();
     const failure = createUnexpectedFailure();
+    const cancellation = createCancellation();
 
     const SelectOrderProvider = SelectOrder.provide.with(
       () =>
         function (id) {
           if (id.id === "boom") {
             return unexpected(failure);
+          }
+          if (id.id === "cancel") {
+            return cancelled(cancellation);
           }
           return expectedError({ code: "NO_ROW" as const });
         }
@@ -412,8 +418,11 @@ describe("compose — unary totalization", () => {
     const mapped = await ctx.surface.getOrder({ id: "missing" });
     expect(mapped).toEqual({ kind: "error", error: { kind: "not_found" } });
 
-    const passthrough = await ctx.surface.getOrder({ id: "boom" });
-    expect(passthrough).toEqual({ kind: "unexpected", failure });
+    const unexpectedPassthrough = await ctx.surface.getOrder({ id: "boom" });
+    expect(unexpectedPassthrough).toEqual({ kind: "unexpected", failure });
+
+    const cancelledPassthrough = await ctx.surface.getOrder({ id: "cancel" });
+    expect(cancelledPassthrough).toEqual({ kind: "cancelled", cancellation });
     expect(onUnexpectedFailure).not.toHaveBeenCalled();
 
     await ctx.dispose();

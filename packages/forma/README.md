@@ -2,7 +2,7 @@
 
 Intent-oriented composition for TypeScript: declare **boundaries** and **intents**, attach **providers**, and wire a closed graph with `compose`. The composition owns the public **surface**, lazy materialization, and execution-context lifetimes.
 
-This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; effective lifetime inference; Stream Intent modality / ownership — [ADR 0012](./docs/adr/0012-streaming-intents.md); Entry Boundary and Surface direction — [ADR 0013](./docs/adr/0013-entry-boundaries-and-surface-direction.md); nominal Providers and runtime branding — [ADR 0014](./docs/adr/0014-nominal-providers-and-runtime-branding.md); optional `defineWiring` when extracting wiring).
+This package is a proof of concept. Vocabulary lives in [GLOSSARY.md](./GLOSSARY.md); design records live under [docs/adr/](./docs/adr/) (Adapter peer of Boundary; unified `wiring` registration; Intent alias / Adapter passthrough default; surface/`using` key hygiene; Design C execution API; execution params / `AbortSignal`; effective lifetime inference; Stream Intent modality / ownership — [ADR 0012](./docs/adr/0012-streaming-intents.md); Entry Boundary and Surface direction — [ADR 0013](./docs/adr/0013-entry-boundaries-and-surface-direction.md); nominal Providers and runtime branding — [ADR 0014](./docs/adr/0014-nominal-providers-and-runtime-branding.md); Boundary error totalization — [ADR 0015](./docs/adr/0015-boundary-error-totalization.md); optional `defineWiring` when extracting wiring).
 
 ## Installation
 
@@ -15,7 +15,7 @@ npm install @xndrjs/forma
 ### Boundary, Intent, contract
 
 ```ts
-import { boundary, ok, type Result } from "@xndrjs/forma";
+import { boundary } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
@@ -27,7 +27,7 @@ export const FindOrder = Orders.intent("find").contract<OrderId, Order, FindErro
 export const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
 ```
 
-Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the literal Intent name that way. `boundary.intent` is always **unary** (one terminal `Result`). For pull-based sequences use `boundary.stream` (below).
+Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the literal Intent name that way. `boundary.intent` is always **unary** (one terminal `InvocationOutcome`). For pull-based sequences use `boundary.stream` (below). Every Boundary Intent exit is totalized: implementation throw/rejection becomes `unexpected` at the origin ([ADR 0015](./docs/adr/0015-boundary-error-totalization.md)).
 
 ### Providers
 
@@ -39,12 +39,14 @@ Use `compose` to exercise Provider behavior—Provider factories are not a publi
 monkey-patching seam.
 
 ```ts
-import { err, ok } from "@xndrjs/forma";
+import { expectedError, success } from "@xndrjs/forma";
 
 const FindProvider = FindOrder.provide.with(
   (_ctx) =>
     function (id) {
-      return id.id === "42" ? ok({ id: "42", total: 100 }) : err({ kind: "not_found" as const });
+      return id.id === "42"
+        ? success({ id: "42", total: 100 })
+        : expectedError({ kind: "not_found" as const });
     }
 );
 
@@ -59,7 +61,7 @@ const ConnProvider = Conn.provide.perContext().with(async ({ lifetime }) => {
   const conn = await openConnection({ signal: lifetime.signal });
   lifetime.onDispose(() => conn.close());
   return function () {
-    return ok(conn);
+    return success(conn);
   };
 });
 
@@ -72,9 +74,9 @@ const GetOrderProvider = GetOrder.provide
     ({ deps: { find }, params }) =>
       function (id) {
         if (params.role === "guest") {
-          return err({ kind: "not_found" as const });
+          return expectedError({ kind: "not_found" as const });
         }
-        return find(id);
+        return find(id); // forwards success / error / unexpected / cancelled
       }
   );
 ```
@@ -90,7 +92,7 @@ Typed execution **params**: declare a plain outer object bag on `.perContext<Par
 An **Adapter** is a peer of Boundary, scoped to one target Boundary. It owns external realizations of that target’s Intents and may `using` Intents from any boundary. **Default for cross-boundary wiring** — including when contracts match — is an Adapter (or same-boundary Provider) **passthrough**, not an identity alias. That keeps origin, graph edges, lifetime, and room for policy explicit.
 
 ```ts
-import { adapter, err, ok } from "@xndrjs/forma";
+import { adapter, expectedError, success } from "@xndrjs/forma";
 
 type PgOrderId = { readonly order_id: string };
 type PgOrder = { readonly order_id: string; readonly amount_cents: number };
@@ -107,18 +109,23 @@ export const FindOrderViaPostgresProvider = OrdersAdapter.adapt(FindOrder)
     ({ deps: { select } }) =>
       async function (id) {
         const row = await select({ order_id: id.id });
-        if (!row.ok) {
-          return err({ kind: "not_found" as const });
+        switch (row.kind) {
+          case "success":
+            return success({
+              id: row.value.order_id,
+              total: row.value.amount_cents / 100,
+            });
+          case "error":
+            return expectedError({ kind: "not_found" as const });
+          case "unexpected":
+          case "cancelled":
+            return row; // pass through unchanged — never reinterpret as expected Err
         }
-        return ok({
-          id: row.value.order_id,
-          total: row.value.amount_cents / 100,
-        });
       }
   );
 ```
 
-`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in private `wiring`, with `origin: { kind: "adapter", id: "orders-postgres" }`. Adapter Providers cannot be Surface roots.
+`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in private `wiring`, with `origin: { kind: "adapter", id: "orders-postgres" }`. Adapter Providers cannot be Surface roots. Map only `success` / `error`; pass `unexpected` / `cancelled` through. Do not wrap Forma dependency calls in `try/catch` for implementation failure — the dependency Intent is already totalized.
 
 When shapes already match, the factory can forward without mapping (`return select(input)`). Reserve `aliasIntent(required, satisfier)` for deliberate synonyms (rename / migration). There is no `forward` helper yet.
 
@@ -127,14 +134,14 @@ When shapes already match, the factory can forward without mapping (`return sele
 Prefer an **inline** `compose({ entryBoundaries, surface, wiring })` literal. Entry Boundaries are the exact, non-empty set of authentic `boundary()` values whose origins are exposed by the Surface. Every declared Entry Boundary must own at least one Surface alias, every Surface root must come from one of them, and Adapter roots are rejected. Runtime branding validates protocol provenance, not security. This keeps public graph direction and Provider precision explicit — you do **not** need `defineWiring` in the normal case.
 
 ```ts
-import { compose } from "@xndrjs/forma";
+import { compose, type InvocationOutcome } from "@xndrjs/forma";
 
 const SelectOrderProvider = SelectOrder.provide.with(
   (_ctx) =>
     function (id) {
       return id.order_id === "42"
-        ? ok({ order_id: "42", amount_cents: 10000 })
-        : err({ code: "NO_ROW" as const });
+        ? success({ order_id: "42", amount_cents: 10000 })
+        : expectedError({ code: "NO_ROW" as const });
     }
 );
 
@@ -142,11 +149,17 @@ const root = compose({
   entryBoundaries: [Orders],
   surface: { getOrder: GetOrderProvider },
   wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
+  // Optional: only automatic throw→unexpected conversions (once at origin).
+  onUnexpectedFailure(event) {
+    console.error(event.failure.id, event.cause, event.intent, event.phase);
+  },
 });
 
-const result: Result<Order, FindError> = await root.withExecutionContext(async (surface) => {
-  return surface.getOrder({ id: "42" });
-});
+const result: InvocationOutcome<Order, FindError> = await root.withExecutionContext(
+  async (surface) => {
+    return surface.getOrder({ id: "42" });
+  }
+);
 
 await root.dispose();
 ```
@@ -183,8 +196,8 @@ const WatchOrdersProvider = WatchOrders.provide.with(
     async function* (id, invocation) {
       try {
         invocation.signal.throwIfAborted();
-        yield ok({ orderId: id.id, status: "open" });
-        yield ok({ orderId: id.id, status: "paid" });
+        yield success({ orderId: id.id, status: "open" });
+        yield success({ orderId: id.id, status: "paid" });
       } finally {
         // runs on natural end, break, return(), AsyncDisposable, or context/root dispose
       }
@@ -198,7 +211,7 @@ const streamingRoot = compose({
 
 await using execution = streamingRoot.openExecutionContext();
 for await (const event of execution.surface.watchOrders({ id: "42" })) {
-  if (!event.ok) break; // expected Err is terminal (wrapper enforces)
+  if (event.kind !== "success") break; // error / unexpected / cancelled are terminal
   // …
 }
 ```
@@ -219,4 +232,4 @@ From the repository root, run `pnpm validate:forma-package`. The command builds 
 
 ## Status
 
-PoC (`0.1.0-alpha.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, graph-derived effective lifetimes, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, Stream Intent modality, disposal. Not a general-purpose IoC container.
+PoC (`0.1.0-alpha.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, graph-derived effective lifetimes, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, Stream Intent modality, Boundary error totalization (`InvocationOutcome`), disposal. Not a general-purpose IoC container.

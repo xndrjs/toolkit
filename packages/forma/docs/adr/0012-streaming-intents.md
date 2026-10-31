@@ -2,22 +2,24 @@
 
 ## Status
 
-Accepted (amended: pre-abort, transactional start, and cleanup-error ownership semantics)
+Accepted (amended: pre-abort, transactional start, and cleanup-error ownership semantics;
+source throw → terminal `unexpected` per [0015](./0015-boundary-error-totalization.md))
 
 ## Context
 
 Unary Intent operations complete during a single surface call. An async generator returns an
 iterator immediately while the body may run far longer than that call. Treating
-`AsyncIterable<Result<…>>` as a unary success value would release the execution-context lease too
-early, leave cancellation and cleanup to the caller, and hide modality from
+`AsyncIterable<InvocationOutcome<…>>` as a unary success value would release the execution-context
+lease too early, leave cancellation and cleanup to the caller, and hide modality from
 `describePlan()` / Adapter / alias checks.
 
 [streaming-intents.md](../streaming-intents.md) recorded a grilled target model (“Decisioni
 chiuse”). Fase 0 validated an isolated `ManagedAsyncIterator` spike
 (`src/execution/managed-async-iterator.ts`, formerly the Fase 0 spike) — state machine, cold single-consumer iterable,
-`[Symbol.asyncDispose]`, terminal `Err` enforcement, and reuse of the existing disposal error
+`[Symbol.asyncDispose]`, terminal outcome enforcement, and reuse of the existing disposal error
 matrix — without changing the `compose` runtime. This ADR freezes those decisions for core
-integration.
+integration. Boundary error totalization ([0015](./0015-boundary-error-totalization.md)) later
+replaced `Result` / `ok` / `err` with `InvocationOutcome` for both unary and stream.
 
 ## Decision
 
@@ -33,20 +35,30 @@ integration.
 ### Surface and protocol
 
 - Stream surface returns synchronously
-  `AsyncIterable<Result<Item, Err>> & AsyncDisposable` (not a public `AsyncIterableIterator`).
+  `AsyncIterable<InvocationOutcome<Item, Err>> & AsyncDisposable` (not a public
+  `AsyncIterableIterator`).
 - Cold + single-consumer: first iteration takes ownership; a second iteration of the same value
   fails clearly; two surface calls are independent streams.
-- Protocol: `ok` emits an item; `err` is an expected failure and is **terminal** (wrapper calls
-  `return()` on the source after the first `err`); iterator completion is normal end; `throw` is
-  unexpected.
+- Protocol (shared with unary — [0015](./0015-boundary-error-totalization.md)):
+  - `success` emits an item (repeatable);
+  - `error` is an expected Contract failure and is **terminal**;
+  - `unexpected` is an opaque failure and is **terminal**;
+  - `cancelled` is terminal cancellation data;
+  - the wrapper calls `return()` on the source after the first terminal kind;
+  - natural iterator completion is a correct end without a terminal yield;
+  - source throw/rejection at start or `next()` becomes a **terminal `unexpected` event** —
+    `next()` does **not** reject for that failure (composition `onUnexpectedFailure` fires once
+    at the origin when the core creates the failure).
+- A deliberate consumer `iterator.throw` remains outside that conversion (managed close + rethrow
+  after cleanup; see Ownership below).
 - Generator return values are not part of the public protocol.
 
 ### Invocation model
 
-- `StreamOperation<Input, Item, Err> = (input, invocation) => AsyncIterable<Result<Item, Err>>`
+- `StreamOperation<Input, Item, Err> = (input, invocation) => AsyncIterable<InvocationOutcome<Item, Err>>`
   with `StreamInvocation = { readonly signal: AbortSignal }` in v1.
-- Unary operations stay `(input) => Result | Promise<Result>` — no invocation bag on unary in the
-  first ship.
+- Unary operations stay `(input) => InvocationOutcome | Promise<InvocationOutcome>` — no
+  invocation bag on unary in the first ship.
 - `StreamInvocation.signal` is per stream invocation, subordinate to the execution-context signal,
   and distinct from Provider `Lifetime.signal`.
 
@@ -106,9 +118,10 @@ integration.
   widening of unary.
 - Execution lifecycle is separate from `ProviderScope` (invocation leases / stream registry vs
   Provider materialize/cache/`Lifetime`).
-- Remote Adapter / SSE / WebSocket can share the same `AsyncIterable<Result<…>>` + `return`/abort
-  protocol without core exceptions; transport policy stays outside Forma (optional spike, not
-  required for the core ship).
+- Remote Adapter / SSE / WebSocket can share the same `AsyncIterable<InvocationOutcome<…>>` +
+  `return`/abort protocol without core exceptions; transport policy stays outside Forma (optional
+  spike, not required for the core ship). Failure ids propagate without rehydrating cause
+  ([0015](./0015-boundary-error-totalization.md)).
 - The managed iterator is not a public export; it lives under `execution/` and is used by the
   stream registry / surface wrapper.
 - Ownership and cancellation are documented for callers via README, Glossary (**Stream

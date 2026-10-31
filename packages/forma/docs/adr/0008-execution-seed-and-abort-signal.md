@@ -3,7 +3,8 @@
 ## Status
 
 Accepted (amended: `seed` renamed to `params`; declaration on `.perContext`; plain outer bag,
-shallow readonly; removed from Lifetime)
+shallow readonly; removed from Lifetime; relationship to `InvocationOutcome.cancelled` —
+[0015](./0015-boundary-error-totalization.md))
 
 ## Context
 
@@ -47,6 +48,26 @@ host invocation data and forced `as` casts in factories (`Lifetime.seed` was `un
   the signal cooperatively. The host must still dispose a context opened with
   `openExecutionContext()`.
 
+### Abort / cancellation vs `InvocationOutcome` ([0015](./0015-boundary-error-totalization.md))
+
+Intent operations use a four-kind `InvocationOutcome`, including `cancelled` with an opaque
+`Cancellation` token. That branch is for cancellation expressed **as Contract data** (explicit
+token or Adapter/Boundary pass-through of an existing one). It is not yet the universal encoding
+of every host-abort or dispose path.
+
+Channels stay distinct:
+
+| Channel                                          | Representation today                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------ |
+| Intent expected / unexpected / data cancellation | `InvocationOutcome` (`error` / `unexpected` / `cancelled`)         |
+| Host abort closing **acceptance** of new work    | rejection with `signal.reason` (unary); cold stream does not start |
+| Cooperative abort of accepted work               | `AbortSignal` on lifetime / stream invocation                      |
+| Context / root / Provider disposal               | `dispose()` promise rejection if cleanup fails — outside Contract  |
+
+Abort ≠ dispose remains in force. Full normalization that would turn host-abort acceptance failures
+into `cancelled` outcomes (instead of rejection) is a future amendment of this ADR; it must not
+collapse dispose failures into the Intent Contract.
+
 Out of scope: `Lifetime.acquire`; params namespaced by Boundary/Intent; runtime pick of declared keys.
 
 ## Consequences
@@ -57,4 +78,6 @@ Out of scope: `Lifetime.acquire`; params namespaced by Boundary/Intent; runtime 
 - Closing one context does not abort composition-lifetime factories; only `root.dispose()` does.
 - Host cancellation and resource ownership remain separate: abort can stop work, but only dispose
   releases context-owned Provider resources.
+- Callers and Adapters can already switch on `cancelled` and propagate tokens; they must not
+  assume every abort appears as that branch until this ADR is further amended.
 - Alpha: no deprecated `seed` alias.
