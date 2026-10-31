@@ -11,11 +11,3 @@ if (typeof name !== "string" || typeof version !== "string" || !version.includes
 
 const packageSpec = `${name}@${version}`;
 execFileSync("npm", ["dist-tag", "add", packageSpec, "alpha"], { stdio: "inherit" });
-
-const tags = JSON.parse(
-  execFileSync("npm", ["view", name, "dist-tags", "--json"], { encoding: "utf8" })
-);
-
-if (tags.latest === version) {
-  execFileSync("npm", ["dist-tag", "rm", name, "latest"], { stdio: "inherit" });
-}
