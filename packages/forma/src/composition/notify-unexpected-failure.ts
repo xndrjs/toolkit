@@ -3,8 +3,11 @@ import type { OnUnexpectedFailure, UnexpectedFailureEvent } from "./composition-
 /**
  * Default Composition supervision hook: print the event (including raw cause) so the
  * automatic totalization path does not silently drop diagnostics.
+ * Delegates to `console.error` at call time (not a bound reference) so hosts can redirect logging.
  */
-export const defaultOnUnexpectedFailure: OnUnexpectedFailure = console.error;
+export const defaultOnUnexpectedFailure: OnUnexpectedFailure = (event) => {
+  console.error(event);
+};
 
 /** Resolve the Composition hook; omitted option uses {@link defaultOnUnexpectedFailure}. */
 export function resolveOnUnexpectedFailure(

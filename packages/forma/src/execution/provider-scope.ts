@@ -33,6 +33,11 @@ export type GetOrMaterializeOptions = {
    * context is disposing, without tying surface leases to this scope's enter/leave.
    */
   readonly assertAcceptingWork?: () => void;
+  /**
+   * Unary totalization: convert this Provider's factory throw/rejection into a
+   * totalized materialization carrier (never returns). Stream / lifecycle paths omit this.
+   */
+  readonly totalizeFactoryFailure?: (cause: unknown) => never;
   resolveDeps(
     provider: AnyProvider,
     seeing: ReadonlySet<string>,
@@ -108,6 +113,7 @@ export function createProviderScope(options: CreateProviderScopeOptions): Provid
         declaredPerContext,
         contextParams,
         assertAcceptingWork,
+        totalizeFactoryFailure,
         resolveDeps,
       } = opts;
 
@@ -144,12 +150,24 @@ export function createProviderScope(options: CreateProviderScopeOptions): Provid
           assertOpen();
           const deps = await resolveDeps(provider, nextSeeing, nextPath);
           assertOpen();
-          const produced = providerFactory(provider)(
-            deps,
-            setup.lifetime,
-            declaredPerContext ? contextParams : undefined
-          );
-          const op = await produced;
+          let produced;
+          try {
+            produced = providerFactory(provider)(
+              deps,
+              setup.lifetime,
+              declaredPerContext ? contextParams : undefined
+            );
+          } catch (factoryError) {
+            totalizeFactoryFailure?.(factoryError);
+            throw factoryError;
+          }
+          let op: Op;
+          try {
+            op = (await produced) as Op;
+          } catch (factoryError) {
+            totalizeFactoryFailure?.(factoryError);
+            throw factoryError;
+          }
           assertOpen();
           setup.commit(disposers);
           ops.set(id, op);

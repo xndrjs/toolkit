@@ -33,7 +33,12 @@ function sampleEvent(overrides: Partial<UnexpectedFailureEvent> = {}): Unexpecte
 describe("compose — onUnexpectedFailure", () => {
   it("defaults to console.error when the option is omitted", () => {
     expect(resolveOnUnexpectedFailure(undefined)).toBe(defaultOnUnexpectedFailure);
-    expect(defaultOnUnexpectedFailure).toBe(console.error);
+
+    const event = sampleEvent();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    defaultOnUnexpectedFailure(event);
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(event);
+    consoleError.mockRestore();
 
     const Orders = boundary("orders");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
@@ -48,7 +53,7 @@ describe("compose — onUnexpectedFailure", () => {
       entryBoundaries: [Orders],
       surface: { findOrder: FindOrderProvider },
     });
-    expect(compiled.onUnexpectedFailure).toBe(console.error);
+    expect(compiled.onUnexpectedFailure).toBe(defaultOnUnexpectedFailure);
   });
 
   it("preserves a custom hook through compile into the composition root", () => {

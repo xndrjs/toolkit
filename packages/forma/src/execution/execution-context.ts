@@ -1,4 +1,5 @@
 import type { AnyIntent, AnyProvider } from "../alias-intent.js";
+import { intentIdentity } from "../boundary.js";
 import type {
   ExecutionContext,
   ExecutionContextArgs,
@@ -12,6 +13,12 @@ import { createScopeAbort, throwAfterCallbackAndCleanup } from "./disposal.js";
 import { createExecutionLifecycle } from "./execution-lifecycle.js";
 import { createProviderScope, type ProviderScope } from "./provider-scope.js";
 import { asyncIteratorOf, createStreamRegistry } from "./stream-registry.js";
+import {
+  outcomeFromTotalizedMaterialization,
+  throwTotalizedMaterializationFailure,
+  wrapUnaryOperation,
+  type TotalizationMeta,
+} from "./totalize-unary.js";
 
 type Awaitable<T> = T | PromiseLike<T>;
 type Op = IntentOperation<unknown, unknown, unknown> | StreamOperation<unknown, unknown, unknown>;
@@ -123,6 +130,14 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
    *   resolution chain (defense-in-depth; cycles are rejected at compose).
    * @param path - Display labels for the same chain (error diagnostics).
    */
+  function totalizationMeta(provider: AnyProvider): TotalizationMeta {
+    return {
+      intent: intentIdentity(provider.intent),
+      origin: provider.origin,
+      onUnexpectedFailure: owned.onUnexpectedFailure,
+    };
+  }
+
   async function materialize(
     provider: AnyProvider,
     seeing: ReadonlySet<string> = new Set(),
@@ -137,8 +152,10 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
 
     // lifetimePlan → pick scope (no parallel map selection).
     const scope = lifetime.effective === "context" ? contextScope : owned.compositionScope;
+    const meta = totalizationMeta(provider);
+    const unary = provider.intent.modality === "unary";
 
-    return scope.getOrMaterialize(provider, {
+    const op = await scope.getOrMaterialize(provider, {
       id,
       label,
       seeing,
@@ -149,8 +166,17 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       // must still roll back once explicit context disposal has started.
       assertAcceptingWork:
         lifetime.effective === "context" ? () => execution.assertOpen() : undefined,
+      totalizeFactoryFailure: unary
+        ? (cause) => throwTotalizedMaterializationFailure(cause, meta)
+        : undefined,
       resolveDeps,
     });
+
+    // Every unary Intent op (Surface and `using` deps) is totalized at the Boundary.
+    if (unary) {
+      return wrapUnaryOperation(op as IntentOperation<unknown, unknown, unknown>, meta);
+    }
+    return op;
   }
 
   async function resolveByIdentity(
@@ -219,6 +245,13 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
         try {
           const op = (await materialize(provider)) as IntentOperation<unknown, unknown, unknown>;
           return await op(input);
+        } catch (cause) {
+          // Unary factory failure already totalized at origin; deliver as outcome.
+          const totalized = outcomeFromTotalizedMaterialization(cause);
+          if (totalized !== undefined) {
+            return totalized;
+          }
+          throw cause;
         } finally {
           execution.leave();
         }

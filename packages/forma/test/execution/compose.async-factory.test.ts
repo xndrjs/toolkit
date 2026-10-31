@@ -55,10 +55,12 @@ describe("compose — async factories and rollback", () => {
     const root = compose({
       entryBoundaries: [Health],
       surface: { ping: PingProvider },
+      onUnexpectedFailure: () => undefined,
     });
     const ctx = root.openExecutionContext();
 
-    await expect(ctx.surface.ping()).rejects.toThrow(/setup boom/);
+    const failed = await ctx.surface.ping();
+    expect(failed.kind).toBe("unexpected");
     expect(attempts).toBe(1);
 
     await expect(ctx.surface.ping()).resolves.toEqual({ kind: "success", value: "pong" });
@@ -86,10 +88,12 @@ describe("compose — async factories and rollback", () => {
     const root = compose({
       entryBoundaries: [Health],
       surface: { ping: PingProvider },
+      onUnexpectedFailure: () => undefined,
     });
     const ctx = root.openExecutionContext();
 
-    await expect(ctx.surface.ping()).rejects.toThrow(/factory failed/);
+    const outcome = await ctx.surface.ping();
+    expect(outcome.kind).toBe("unexpected");
     // LIFO rollback immediately — not deferred to ctx.dispose().
     expect(cleaned).toEqual(["b", "a"]);
 
@@ -116,6 +120,7 @@ describe("compose — async factories and rollback", () => {
     const root = compose({
       entryBoundaries: [Health],
       surface: { ping: PingProvider },
+      onUnexpectedFailure: () => undefined,
     });
     const ctx = root.openExecutionContext();
 
@@ -126,10 +131,14 @@ describe("compose — async factories and rollback", () => {
       caught = error;
     }
 
+    // Cleanup failure remains outside the Contract (lifecycle channel).
     expect(caught).toBeInstanceOf(SuppressedError);
     const suppressed = caught as SuppressedError;
     expect(suppressed.error).toBeInstanceOf(AggregateError);
-    expect(suppressed.suppressed).toBe(factoryError);
+    // Factory cause is totalized before rollback; suppressed payload is the carrier.
+    expect(suppressed.suppressed).toMatchObject({
+      outcome: { kind: "unexpected" },
+    });
     const rollback = suppressed.error as AggregateError;
     expect(rollback.errors.map((e) => (e as Error).message)).toEqual(["rollback b", "rollback a"]);
 
