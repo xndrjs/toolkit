@@ -113,6 +113,15 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # Changesets publishes a package's first prereleases to `latest` until the package has a
+      # stable release. Forma intentionally exposes prereleases only through the `alpha` tag.
+      # Run even when there was no version bump so a failed or stale tag can be repaired safely.
+      - name: Normalize Forma alpha dist-tag
+        run: node packages/forma/scripts/normalize-alpha-dist-tag.mjs
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Commit version bump
         if: steps.bump.outputs.skip_publish != 'true'
         env:
