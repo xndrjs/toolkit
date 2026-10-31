@@ -1,11 +1,12 @@
 # @xndrjs/forma-bench
 
-Private benchmark and stress application for the production-readiness limits of `@xndrjs/forma`. It uses Forma only through its public package entrypoint.
+Private benchmark, stress, and soak/load application for the production-readiness limits of `@xndrjs/forma`. It uses Forma only through its public package entrypoint.
 
-The app answers two separate questions:
+The app answers three separate questions:
 
 1. how the TypeScript contract scales when the graph remains fully precise;
-2. how composition, materialization, invocation, streaming, and disposal scale at runtime.
+2. how composition, materialization, invocation, streaming, and disposal scale at runtime;
+3. whether sustained mixed traffic preserves correctness, cleanup, latency, throughput, and memory stability.
 
 It is a regression instrument, not a claim about universal absolute performance. Compare runs on the same machine, Node version, TypeScript version, and power profile.
 
@@ -86,11 +87,49 @@ pnpm --filter @xndrjs/forma-bench stress:dev -- --arity 2 --depth 5 --cycles 500
 
 Use `stress` instead of `stress:dev` to build Forma and run the compiled benchmark app.
 
+## Closed-loop load and soak tests
+
+Load and soak modes use the same assertion-driven runner, but answer different questions. A load test is relatively short and asks how the system behaves under a chosen level of pressure: throughput, latency, saturation, and correctness. A soak test keeps traffic running much longer and asks whether the system remains healthy over time: stable memory, no accumulated resources, no lifecycle drift, and no progressive degradation.
+
+Both keep a fixed number of workers active for a wall-clock duration. Each worker starts its next request only after the previous one finishes. This is a closed-loop test: `--concurrency` is the maximum number of in-flight requests, not a target arrival rate.
+
+Every request gets a fresh execution context and traverses the full Provider DAG. The default workload is 80% unary requests and 20% finite streams. A stream request consumes and validates every item before its context closes. The run fails on an incorrect result, a stream that does not close, a materialization/disposal imbalance, or a non-zero final active-Provider count.
+
+The package scripts are complete presets, including result persistence. The load preset uses 63 Providers for 30 seconds at concurrency 32:
+
+```bash
+pnpm --filter @xndrjs/forma-bench load
+```
+
+The soak preset uses 121 Providers for 5 minutes at concurrency 64:
+
+```bash
+pnpm --filter @xndrjs/forma-bench soak
+```
+
+Both use an 80/20 unary/stream mix and write under `results/<timestamp>/`. Any explicit CLI flag overrides the corresponding preset value; `--no-output` disables persistence. Use `load:dev` or `soak:dev` to run the same presets from TypeScript sources. Both source and built scripts expose the garbage collector so the retained-heap delta can compare forced-GC measurements at the start and end.
+
+Relevant flags:
+
+- `--duration-seconds <n>` overrides the 30-second load or 300-second soak default;
+- `--concurrency <n>` selects the number of closed-loop workers;
+- `--stream-percent <0..100>` controls the request mix;
+- `--stream-items <n>` controls the number of items in each finite stream;
+- `--sample-ms <n>` controls time-series sampling;
+- `--arity`, `--depth`, and `--output-dir` have the same meaning as in runtime mode.
+- `--no-output` keeps the run console-only.
+
+The console separates unary, stream, and overall latency. With `--output-dir`, `load.json` contains the complete samples and `load.md` a summary. Request latency includes context creation, lazy materialization, invocation or full stream consumption, and disposal. Percentiles use a bounded 50,000-item reservoir so a long soak does not grow the measurement harness without bound. Workers share a cooperative yield after roughly every 64 aggregate requests; without that, this deliberately I/O-free workload would remain on the microtask queue and starve both the sampler and event-loop-delay monitor. The retained-heap number still includes the bounded recorder and report samples, so treat it as a regression signal rather than a formal leak proof.
+
+No fixed performance threshold is encoded. Passing means semantic and lifecycle invariants held for the whole run; throughput, latency, event-loop delay, and memory are measurements to compare on equivalent hosts.
+
 ## Reading results
 
 - `median ns/op` and `median ops/s` are useful for comparisons between commits on the same host.
 - `p95 ms` exposes unstable repeats but is not an invocation latency percentile; each repeat contains many operations.
 - heap delta is a noisy trend signal, not a leak proof. Lifecycle counters and repeated stress checks are the deterministic leak guard.
+- load throughput is completed requests per second; stream items are counted separately and are not treated as requests.
+- mixed overall latency combines unary requests and full streams, so use the separate percentiles to understand either workload.
 - compile-scale results are compiler-version-specific; archive the Node and TypeScript versions with comparisons.
 
 Do not turn a single run into an optimization target. A regression is credible when it repeats under the same environment and has a corresponding change in graph size, instantiations, lifecycle work, or runtime behavior.

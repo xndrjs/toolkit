@@ -93,3 +93,59 @@ export type StressCheck = {
   readonly durationMs: number;
   readonly operations: number;
 };
+
+export type LoadConfig = {
+  readonly shape: GraphShape;
+  readonly durationSeconds: number;
+  readonly concurrency: number;
+  readonly streamPercent: number;
+  readonly streamItems: number;
+  readonly sampleIntervalMs: number;
+};
+
+export type LoadSample = {
+  readonly elapsedMs: number;
+  readonly intervalMs: number;
+  readonly completed: number;
+  readonly operationsPerSecond: number;
+  readonly heapUsedBytes: number;
+  readonly rssBytes: number;
+  readonly activeProviders: number;
+};
+
+export type LoadResult = {
+  readonly config: LoadConfig;
+  readonly durationMs: number;
+  readonly completed: number;
+  readonly unaryRequests: number;
+  readonly streamRequests: number;
+  readonly streamItems: number;
+  readonly failed: number;
+  readonly operationsPerSecond: number;
+  readonly latencyMs: Distribution;
+  readonly unaryLatencyMs: Distribution;
+  readonly streamLatencyMs: Distribution;
+  readonly sampledLatencies: number;
+  readonly throughputSamples: Distribution;
+  readonly eventLoopDelayMs: {
+    readonly mean: number;
+    readonly p95: number;
+    readonly p99: number;
+    readonly max: number;
+  };
+  readonly memory: {
+    readonly gcExposed: boolean;
+    readonly heapStartBytes: number;
+    readonly heapEndBytes: number;
+    readonly retainedHeapDeltaBytes: number;
+    readonly peakHeapBytes: number;
+    readonly peakRssBytes: number;
+  };
+  readonly lifecycle: {
+    readonly unaryContexts: number;
+    readonly streamContexts: number;
+    readonly peakActiveProviders: number;
+    readonly finalActiveProviders: number;
+  };
+  readonly samples: readonly LoadSample[];
+};

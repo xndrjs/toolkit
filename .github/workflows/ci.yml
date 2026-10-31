@@ -64,6 +64,9 @@ jobs:
       - name: Stress Forma lifecycle
         run: pnpm --filter @xndrjs/forma-bench stress -- --arity 2 --depth 5 --cycles 250 --concurrency 64 --open-contexts 32
 
+      - name: Smoke Forma load runner
+        run: pnpm --filter @xndrjs/forma-bench load -- --arity 2 --depth 4 --duration-seconds 2 --concurrency 8 --stream-percent 20 --sample-ms 500 --no-output
+
       - name: Smoke test packaged Ziel extension
         run: pnpm --filter ziel-vscode test:vsix
 

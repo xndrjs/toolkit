@@ -1,7 +1,7 @@
 {
   "name": "@xndrjs/forma-bench",
   "version": "0.0.1",
-  "description": "Compile-scale, runtime, and lifecycle stress benchmark for @xndrjs/forma.",
+  "description": "Compile-scale, runtime, lifecycle, and soak/load benchmark for @xndrjs/forma.",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -23,6 +23,10 @@
     "bench:types": "pnpm --filter @xndrjs/forma run build && pnpm run generate:check && node scripts/run-type-bench.mjs",
     "stress:dev": "tsx src/index.ts --stress",
     "stress": "pnpm run bench:prepare && node dist/index.js --stress",
+    "load:dev": "node --expose-gc --import tsx src/index.ts --load",
+    "load": "pnpm run bench:prepare && node --expose-gc dist/index.js --load",
+    "soak:dev": "node --expose-gc --import tsx src/index.ts --soak",
+    "soak": "pnpm run bench:prepare && node --expose-gc dist/index.js --soak",
     "build": "tsup src/index.ts --dts --format esm --sourcemap",
     "lint": "eslint .",
     "typecheck": "pnpm run generate:check && tsc --noEmit"
