@@ -24,6 +24,16 @@ export type ManagedAsyncIterableOptions = {
   readonly onClosed?: () => void | Promise<void>;
   /** Internal owner hook for a close initiated by the parent signal. */
   readonly onOwnerClose?: (close: Promise<void>) => void;
+  /**
+   * When set on an Outcome iterable, convert source `start` / `next` failures into a
+   * terminal yield instead of rejecting `next()`. Not used for consumer `throw()`,
+   * `onStartAccepted` failures, or cleanup/dispose (lifecycle matrix unchanged).
+   * Return `undefined` to keep the exceptional channel (rethrow).
+   */
+  readonly resolveSourceFailure?: (
+    cause: unknown,
+    phase: "stream-start" | "stream-next"
+  ) => unknown | undefined;
 };
 
 export type ManagedAsyncIterableStart<T> = (
@@ -115,7 +125,10 @@ function createManaged<T>(
 
     try {
       if (phase === "idle") {
-        await beginStart();
+        const early = await beginStart();
+        if (early !== undefined) {
+          return early;
+        }
       } else if (phase === "starting") {
         await startPromise;
       }
@@ -134,6 +147,10 @@ function createManaged<T>(
       try {
         result = await source.next();
       } catch (iterationError) {
+        const totalized = resolveTotalizedFailure(iterationError, "stream-next");
+        if (totalized !== undefined) {
+          return await deliverTerminalOutcome(totalized);
+        }
         beginClose("throw");
         return await settleCloseWithIterationError(iterationError);
       }
@@ -145,9 +162,7 @@ function createManaged<T>(
       }
 
       if (terminalErr && isTerminalOutcome(result.value)) {
-        beginClose("err-terminal");
-        await settleCloseOnly();
-        return result;
+        return await deliverTerminalOutcome(result.value);
       }
 
       return result;
@@ -172,9 +187,13 @@ function createManaged<T>(
     return { done: true, value: undefined as unknown as T };
   }
 
-  async function beginStart(): Promise<void> {
+  /**
+   * @returns a terminal IteratorResult when start failed but was totalized into an
+   * Outcome yield; `undefined` when start succeeded or the stream closed without a yield.
+   */
+  async function beginStart(): Promise<IteratorResult<T> | undefined> {
     if (phase !== "idle") {
-      return;
+      return undefined;
     }
 
     if (options.signal?.aborted) {
@@ -183,7 +202,7 @@ function createManaged<T>(
       // internally-created close promise handled.
       void close.catch(() => undefined);
       await close;
-      return;
+      return undefined;
     }
 
     phase = "starting";
@@ -218,10 +237,31 @@ function createManaged<T>(
 
     try {
       await startPromise;
+      return undefined;
     } catch (startError) {
+      const totalized = resolveTotalizedFailure(startError, "stream-start");
+      if (totalized !== undefined) {
+        return await deliverTerminalOutcome(totalized);
+      }
       beginClose("throw");
       return await settleCloseWithIterationError(startError);
     }
+  }
+
+  function resolveTotalizedFailure(
+    cause: unknown,
+    phaseName: "stream-start" | "stream-next"
+  ): T | undefined {
+    if (!terminalErr || options.resolveSourceFailure === undefined) {
+      return undefined;
+    }
+    return options.resolveSourceFailure(cause, phaseName) as T | undefined;
+  }
+
+  async function deliverTerminalOutcome(value: T): Promise<IteratorResult<T>> {
+    beginClose("err-terminal");
+    await settleCloseOnly();
+    return { done: false, value };
   }
 
   function wireParentAbort(): void {

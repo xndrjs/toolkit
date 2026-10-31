@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { boundary, compose, expectedError, success } from "@xndrjs/forma";
+import { boundary, compose, expectedError, isUnexpectedFailure, success } from "@xndrjs/forma";
 
 type OrderEvent = { readonly orderId: string; readonly status: string };
 type WatchError = { readonly kind: "unavailable" };
@@ -85,7 +85,7 @@ describe("compose — Stream Intent errors and races", () => {
   });
 
   describe("throw paths", () => {
-    it("throw before the first yield rejects next() and releases the lease", async () => {
+    it("throw before the first yield becomes terminal unexpected and releases the lease", async () => {
       let finalized = false;
       const Orders = boundary("orders");
       const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
@@ -106,19 +106,26 @@ describe("compose — Stream Intent errors and races", () => {
       const root = compose({
         entryBoundaries: [Orders],
         surface: { watchOrders: WatchProvider },
+        onUnexpectedFailure: () => undefined,
       });
       const ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
-      await expect(iterator.next()).rejects.toThrow(/boom before yield/);
+      const first = await iterator.next();
+      expect(first.done).toBe(false);
+      expect(first.value).toMatchObject({ kind: "unexpected" });
+      if (first.value?.kind === "unexpected") {
+        expect(isUnexpectedFailure(first.value.failure)).toBe(true);
+      }
       expect(finalized).toBe(true);
+      await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
 
       // Lease released on the error path — dispose must not hang.
       await expect(ctx.dispose()).resolves.toBeUndefined();
       await root.dispose();
     });
 
-    it("throw after yields rejects the current next() and cleans up", async () => {
+    it("throw after yields becomes a single terminal unexpected and cleans up", async () => {
       let finalized = false;
       const Orders = boundary("orders");
       const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
@@ -137,6 +144,7 @@ describe("compose — Stream Intent errors and races", () => {
       const root = compose({
         entryBoundaries: [Orders],
         surface: { watchOrders: WatchProvider },
+        onUnexpectedFailure: () => undefined,
       });
       const ctx = root.openExecutionContext();
 
@@ -145,8 +153,13 @@ describe("compose — Stream Intent errors and races", () => {
         done: false,
         value: { kind: "success", value: { orderId: "1", status: "open" } },
       });
-      await expect(iterator.next()).rejects.toThrow(/boom after yield/);
+      const terminal = await iterator.next();
+      expect(terminal).toMatchObject({
+        done: false,
+        value: { kind: "unexpected" },
+      });
       expect(finalized).toBe(true);
+      await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
 
       await expect(ctx.dispose()).resolves.toBeUndefined();
       await root.dispose();
@@ -192,7 +205,7 @@ describe("compose — Stream Intent errors and races", () => {
       await root.dispose();
     });
 
-    it("iteration failure + cleanup failure → SuppressedError(cleanup, iteration)", async () => {
+    it("source iteration failure is totalized; cleanup failure stays on the lifecycle channel", async () => {
       const Orders = boundary("orders");
       const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
       const WatchProvider = WatchOrders.provide.with(() => (_input, _invocation) => ({
@@ -218,20 +231,15 @@ describe("compose — Stream Intent errors and races", () => {
       const root = compose({
         entryBoundaries: [Orders],
         surface: { watchOrders: WatchProvider },
+        onUnexpectedFailure: () => undefined,
       });
       const ctx = root.openExecutionContext();
 
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
       await iterator.next();
-      try {
-        await iterator.next();
-        expect.unreachable("expected SuppressedError");
-      } catch (error) {
-        expect(error).toBeInstanceOf(SuppressedError);
-        const suppressed = error as SuppressedError;
-        expect(suppressed.error).toMatchObject({ message: "cleanup failed" });
-        expect(suppressed.suppressed).toMatchObject({ message: "iteration failed" });
-      }
+      // Source throw is totalized by the Boundary wrap; managed close then observes
+      // cleanup failure on the lifecycle channel (Contract does not carry cleanup).
+      await expect(iterator.next()).rejects.toThrow(/cleanup failed/);
 
       await expect(ctx.dispose()).resolves.toBeUndefined();
       await root.dispose();
@@ -256,11 +264,13 @@ describe("compose — Stream Intent errors and races", () => {
       const root = compose({
         entryBoundaries: [Orders],
         surface: { watchOrders: WatchProvider },
+        onUnexpectedFailure: () => undefined,
       });
       const ctx = root.openExecutionContext();
 
       const failed = ctx.surface.watchOrders()[Symbol.asyncIterator]();
-      await expect(failed.next()).rejects.toThrow(/materialize failed/);
+      const outcome = await failed.next();
+      expect(outcome).toMatchObject({ done: false, value: { kind: "unexpected" } });
 
       // No residual registration/lease: dispose settles and a new stream can start.
       await expect(ctx.dispose()).resolves.toBeUndefined();
@@ -296,12 +306,12 @@ describe("compose — Stream Intent errors and races", () => {
       const root = compose({
         entryBoundaries: [Orders],
         surface: { watchOrders: WatchProvider },
+        onUnexpectedFailure: () => undefined,
       });
       await using ctx = root.openExecutionContext();
 
-      await expect(ctx.surface.watchOrders()[Symbol.asyncIterator]().next()).rejects.toThrow(
-        /setup boom/
-      );
+      const failed = await ctx.surface.watchOrders()[Symbol.asyncIterator]().next();
+      expect(failed).toMatchObject({ done: false, value: { kind: "unexpected" } });
 
       const values = [];
       for await (const value of ctx.surface.watchOrders()) {
@@ -491,6 +501,7 @@ describe("compose — Stream Intent errors and races", () => {
       const root = compose({
         entryBoundaries: [Orders],
         surface: { watchOrders: WatchProvider },
+        onUnexpectedFailure: () => undefined,
       });
       await using ctx = root.openExecutionContext();
 
@@ -504,7 +515,9 @@ describe("compose — Stream Intent errors and races", () => {
         value: { kind: "success", value: { orderId: "good", status: "open" } },
       });
 
-      await expect(bad.next()).rejects.toThrow(/bad stream/);
+      await expect(bad.next()).resolves.toMatchObject({
+        value: { kind: "unexpected" },
+      });
 
       await expect(good.next()).resolves.toMatchObject({
         value: { kind: "success", value: { orderId: "good", status: "paid" } },

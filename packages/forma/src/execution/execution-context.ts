@@ -14,8 +14,10 @@ import { createExecutionLifecycle } from "./execution-lifecycle.js";
 import { createProviderScope, type ProviderScope } from "./provider-scope.js";
 import { asyncIteratorOf, createStreamRegistry } from "./stream-registry.js";
 import {
+  createAutomaticUnexpected,
   outcomeFromTotalizedMaterialization,
   throwTotalizedMaterializationFailure,
+  wrapStreamOperation,
   wrapUnaryOperation,
   type TotalizationMeta,
 } from "./totalize-unary.js";
@@ -166,17 +168,16 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       // must still roll back once explicit context disposal has started.
       assertAcceptingWork:
         lifetime.effective === "context" ? () => execution.assertOpen() : undefined,
-      totalizeFactoryFailure: unary
-        ? (cause) => throwTotalizedMaterializationFailure(cause, meta)
-        : undefined,
+      // Factory throw/rejection → unexpected at the materializing invocation (unary or stream).
+      totalizeFactoryFailure: (cause) => throwTotalizedMaterializationFailure(cause, meta),
       resolveDeps,
     });
 
-    // Every unary Intent op (Surface and `using` deps) is totalized at the Boundary.
+    // Every Intent op (Surface and `using` deps) is totalized at the Boundary.
     if (unary) {
       return wrapUnaryOperation(op as IntentOperation<unknown, unknown, unknown>, meta);
     }
-    return op;
+    return wrapStreamOperation(op as StreamOperation<unknown, unknown, unknown>, meta);
   }
 
   async function resolveByIdentity(
@@ -215,6 +216,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
   const surface = Object.create(null) as Record<string, unknown>;
   for (const [alias, provider] of owned.surfaceEntries) {
     if (provider.intent.modality === "stream") {
+      const meta = totalizationMeta(provider);
       surface[alias] = (input: unknown) => {
         // Sync cold iterable: materialize / lease / register only on first next().
         let leased = false;
@@ -234,6 +236,19 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
               if (leased) {
                 execution.leave();
               }
+            },
+            // Materialize failures (and any start throw not already totalized by wrap)
+            // become a terminal unexpected on the first next() — never a rejection.
+            // Lifecycle composites (e.g. factory + rollback SuppressedError) stay exceptional.
+            resolveSourceFailure: (cause, phase) => {
+              const existing = outcomeFromTotalizedMaterialization(cause);
+              if (existing !== undefined) {
+                return existing;
+              }
+              if (cause instanceof SuppressedError) {
+                return undefined;
+              }
+              return createAutomaticUnexpected(cause, { ...meta, phase });
             },
           }
         );

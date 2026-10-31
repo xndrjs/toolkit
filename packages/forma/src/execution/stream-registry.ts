@@ -72,6 +72,7 @@ export function createStreamRegistry(options: CreateStreamRegistryOptions): Stre
           await openOptions.onClosed?.();
         },
         onOwnerClose: trackOwnerClose,
+        resolveSourceFailure: openOptions.resolveSourceFailure,
       });
       return managed;
     },

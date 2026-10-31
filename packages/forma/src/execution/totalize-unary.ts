@@ -6,12 +6,18 @@ import type {
 import { notifyUnexpectedFailure } from "../composition/notify-unexpected-failure.js";
 import {
   createUnexpectedFailure,
+  isTerminalOutcome,
   unexpected,
   type InvocationOutcome,
   type UnexpectedFailure,
 } from "../invocation-outcome.js";
 import { defineRuntimeBrand, readRuntimeBrand } from "../protocol/runtime-brand.js";
-import type { IntentOperation, ProviderOrigin } from "../provider/provider.js";
+import type {
+  IntentOperation,
+  ProviderOrigin,
+  StreamInvocation,
+  StreamOperation,
+} from "../provider/provider.js";
 
 const FORMA_TOTALIZED_MATERIALIZATION = Symbol.for("@xndrjs/forma/totalized-materialization/v1");
 
@@ -104,6 +110,117 @@ export function wrapUnaryOperation(
       return createAutomaticUnexpected(cause, { ...meta, phase: "invoke" });
     }
   };
+}
+
+/**
+ * Totalize throws/rejections of a stream Intent operation into terminal `unexpected`
+ * yields. Consumer `iterator.throw`, cleanup, and dispose stay on the lifecycle channel.
+ * Outcomes already in protocol (including explicit `unexpected`) pass through; terminal
+ * kinds end the iterable so later source yields are not observed.
+ */
+export function wrapStreamOperation(
+  operation: StreamOperation<unknown, unknown, unknown>,
+  meta: TotalizationMeta
+): StreamOperation<unknown, unknown, unknown> {
+  return (input, invocation) => totalizeStreamIterable(operation, input, invocation, meta);
+}
+
+function totalizeStreamIterable(
+  operation: StreamOperation<unknown, unknown, unknown>,
+  input: unknown,
+  invocation: StreamInvocation,
+  meta: TotalizationMeta
+): AsyncIterable<InvocationOutcome<unknown, unknown>> {
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<InvocationOutcome<unknown, unknown>> {
+      let inner: AsyncIterator<InvocationOutcome<unknown, unknown>> | undefined;
+      let started = false;
+      let closed = false;
+
+      return {
+        async next() {
+          if (closed) {
+            return { done: true, value: undefined };
+          }
+
+          try {
+            if (!started) {
+              started = true;
+              let iterable: AsyncIterable<InvocationOutcome<unknown, unknown>>;
+              try {
+                iterable = operation(input, invocation);
+              } catch (cause) {
+                closed = true;
+                return {
+                  done: false,
+                  value: createAutomaticUnexpected(cause, { ...meta, phase: "stream-start" }),
+                };
+              }
+              try {
+                inner = iterable[Symbol.asyncIterator]();
+              } catch (cause) {
+                closed = true;
+                return {
+                  done: false,
+                  value: createAutomaticUnexpected(cause, { ...meta, phase: "stream-start" }),
+                };
+              }
+            }
+
+            const result = await inner!.next();
+            if (result.done) {
+              closed = true;
+              return result;
+            }
+            if (isTerminalOutcome(result.value)) {
+              closed = true;
+              await quietReturn(inner);
+              return result;
+            }
+            return result;
+          } catch (cause) {
+            closed = true;
+            const outcome = createAutomaticUnexpected(cause, {
+              ...meta,
+              phase: "stream-next",
+            });
+            await quietReturn(inner);
+            return { done: false, value: outcome };
+          }
+        },
+
+        async return(value) {
+          closed = true;
+          if (inner?.return !== undefined) {
+            return inner.return(value);
+          }
+          return { done: true, value: value as InvocationOutcome<unknown, unknown> };
+        },
+
+        async throw(error) {
+          closed = true;
+          if (inner?.throw !== undefined) {
+            return inner.throw(error);
+          }
+          throw error ?? new Error("AsyncIterator.throw()");
+        },
+      };
+    },
+  };
+}
+
+/** Best-effort source return after a terminal contract yield; lifecycle owns hard failures. */
+async function quietReturn(
+  inner: AsyncIterator<InvocationOutcome<unknown, unknown>> | undefined
+): Promise<void> {
+  if (inner?.return === undefined) {
+    return;
+  }
+  try {
+    await inner.return();
+  } catch {
+    // Surface managed close (or a later consumer return/dispose) observes cleanup failures.
+  }
 }
 
 function isThenable(value: unknown): value is PromiseLike<unknown> {
