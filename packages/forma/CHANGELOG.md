@@ -1,5 +1,29 @@
 # @xndrjs/forma
 
+## 0.1.0-alpha.1
+
+### Minor Changes
+
+- d6d6c59: Add Adapter as a peer of Boundary (`adapter(id, target).adapt(intent)`) with Provider `origin` metadata and compose-time rejection of competing realizations.
+- bcdaa2a: Rename the identity-rewrite primitive to Intent alias (`aliasIntent`, `IntentAlias`); Adapter passthrough is the default for cross-boundary same-shape wiring.
+- 629bac1: Allow provider factories to return an Awaitable operation, with local Lifetime commit/rollback, no cache on failure, and coalesced inflight materialization.
+- 00c7f51: Add `defineWiring` / `defineComposition` so extracted wiring keeps type precision, and reject Provider unions at compose types.
+- c8a0866: Validate the composition dependency plan at `compose` (cycles with full path; closed graph); Binding edges included.
+- 81ace3f: Give composition root and execution contexts terminal dispose state machines (`open | disposing | disposed`), shared dispose promises, and root-as-backstop shutdown of open contexts.
+- c838018: Add typed execution-context seed and AbortSignal (shared open/with args; dispose aborts scope signal; per-context Lifetime.seed).
+- ebe7757: Add cold streaming Intents with cancellation, ownership, transactional startup, deterministic
+  cleanup, and `AsyncDisposable` surface streams. Require explicit Entry Boundaries, expose graph
+  provenance through `describePlan()`, and harden runtime protocol branding so ordinary spread clones
+  and raw Intent-alias tuples are rejected during composition.
+- f244d23: Make Intent identity the structured pair `(boundaryId, intentName)` at runtime and in compose type-checks (remove fresh `Symbol` identity).
+- b2be09b: Reserve surface alias `dispose`, require string keys for surface/`using` (reject `__proto__` and symbols), and make provider `.using()` one-shot so deps are not silently replaced.
+- 81ab491: Replace execution `seed` with typed `params` on `.perContext<ParamsReq>()` / WithContext; compose infers and conflict-checks the host bag (no Lifetime.seed).
+- d2e2aa9: Unify compose registration: `providers` and `bindings` become a single `wiring` array of Providers and `bind()` aliases.
+
+### Patch Changes
+
+- bb985d2: Ship GLOSSARY/docs in the published package; align README version and quickstart; demo teaches dual Adapters, seed policy, and Design C disposal.
+
 ## 0.1.0-alpha.0
 
 ### Minor Changes

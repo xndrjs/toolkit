@@ -29,7 +29,24 @@
     "ziel-vscode": "0.0.5",
     "@xndrjs/forma-demo": "0.0.1",
     "@xndrjs/plop-os-demo": "0.0.1",
-    "@xndrjs/plop-os": "0.0.0"
+    "@xndrjs/plop-os": "0.0.0",
+    "@xndrjs/forma-bench": "0.0.1"
   },
-  "changesets": ["forma-struttura-alpha", "plop-os-initial-alpha"]
+  "changesets": [
+    "forma-adapter-peer",
+    "forma-alias-intent",
+    "forma-async-factories",
+    "forma-define-wiring",
+    "forma-demo-docs",
+    "forma-graph-plan-compose",
+    "forma-lifecycle-state-machines",
+    "forma-seed-signal",
+    "forma-streaming-and-runtime-hardening",
+    "forma-structured-intent-identity",
+    "forma-struttura-alpha",
+    "forma-surface-hygiene",
+    "forma-typed-params",
+    "forma-unified-wiring",
+    "plop-os-initial-alpha"
+  ]
 }
