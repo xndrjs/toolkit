@@ -1,5 +1,15 @@
 # @xndrjs/forma
 
+## 0.1.0-alpha.2
+
+### Minor Changes
+
+- 9618369: Replace `Result` with the four-branch `InvocationOutcome` protocol across unary and streaming
+  Boundary Intents. Expected failures remain contract data, while implementation throws and
+  rejections are totalized at their origin as opaque unexpected failures; cancellation propagates as
+  its own branch, and compositions may observe automatic conversions through
+  `onUnexpectedFailure`.
+
 ## 0.1.0-alpha.1
 
 ### Minor Changes
