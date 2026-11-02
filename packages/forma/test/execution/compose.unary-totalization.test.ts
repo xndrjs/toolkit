@@ -258,7 +258,7 @@ describe("compose — unary totalization", () => {
 
     const GetOrderProvider = GetOrder.provide.with(
       () =>
-        function (id) {
+        function (_id) {
           return expectedError({ kind: "not_found" as const });
         }
     );
