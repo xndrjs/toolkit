@@ -61,7 +61,7 @@ export function createManagedAsyncIterable<T>(
 
 /**
  * Same as {@link createManagedAsyncIterable}, but enforces terminal
- * {@link InvocationOutcome} kinds (`error` / `unexpected` / `cancelled`): after the first
+ * {@link InvocationOutcome} kinds (`expectedError` / `unexpectedFailure` / `cancelled`): after the first
  * terminal yield is delivered, the wrapper calls `return()` on the source so later yields
  * are not observable.
  */

@@ -23,7 +23,7 @@ export const FindOrderViaPostgresProvider = OrdersPostgres.adapt(FindOrder)
               id: outcome.value.order_id,
               total: outcome.value.amount_cents / 100,
             });
-          case "error":
+          case "expectedError":
             switch (outcome.error.code) {
               case "NO_ROW":
                 return out.expectedError({ code: "not_found" });
@@ -51,7 +51,7 @@ export const WatchOrderEventsViaPostgresProvider = OrdersPostgres.adapt(WatchOrd
         switch (outcome.kind) {
           case "success":
             break;
-          case "error":
+          case "expectedError":
             yield out.expectedError({ code: "not_found" as const });
             return;
           default:

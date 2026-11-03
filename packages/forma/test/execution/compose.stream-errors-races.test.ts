@@ -50,7 +50,7 @@ describe("compose — Stream Intent errors and races", () => {
 
       expect(values).toEqual([
         { kind: "success", value: { orderId: "1", status: "open" } },
-        { kind: "error", error: { code: "unavailable" } },
+        { kind: "expectedError", error: { code: "unavailable" } },
       ]);
       expect(yieldedAfterErr).toBe(false);
 
@@ -78,7 +78,7 @@ describe("compose — Stream Intent errors and races", () => {
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
       await expect(iterator.next()).resolves.toEqual({
         done: false,
-        value: { kind: "error", error: { code: "unavailable" } },
+        value: { kind: "expectedError", error: { code: "unavailable" } },
       });
       await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
     });
@@ -113,8 +113,8 @@ describe("compose — Stream Intent errors and races", () => {
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
       const first = await iterator.next();
       expect(first.done).toBe(false);
-      expect(first.value).toMatchObject({ kind: "unexpected" });
-      if (first.value?.kind === "unexpected") {
+      expect(first.value).toMatchObject({ kind: "unexpectedFailure" });
+      if (first.value?.kind === "unexpectedFailure") {
         expect(isUnexpectedFailure(first.value.failure)).toBe(true);
       }
       expect(finalized).toBe(true);
@@ -156,7 +156,7 @@ describe("compose — Stream Intent errors and races", () => {
       const terminal = await iterator.next();
       expect(terminal).toMatchObject({
         done: false,
-        value: { kind: "unexpected" },
+        value: { kind: "unexpectedFailure" },
       });
       expect(finalized).toBe(true);
       await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
@@ -270,7 +270,7 @@ describe("compose — Stream Intent errors and races", () => {
 
       const failed = ctx.surface.watchOrders()[Symbol.asyncIterator]();
       const outcome = await failed.next();
-      expect(outcome).toMatchObject({ done: false, value: { kind: "unexpected" } });
+      expect(outcome).toMatchObject({ done: false, value: { kind: "unexpectedFailure" } });
 
       // No residual registration/lease: dispose settles and a new stream can start.
       await expect(ctx.dispose()).resolves.toBeUndefined();
@@ -311,7 +311,7 @@ describe("compose — Stream Intent errors and races", () => {
       await using ctx = root.openExecutionContext();
 
       const failed = await ctx.surface.watchOrders()[Symbol.asyncIterator]().next();
-      expect(failed).toMatchObject({ done: false, value: { kind: "unexpected" } });
+      expect(failed).toMatchObject({ done: false, value: { kind: "unexpectedFailure" } });
 
       const values = [];
       for await (const value of ctx.surface.watchOrders()) {
@@ -516,7 +516,7 @@ describe("compose — Stream Intent errors and races", () => {
       });
 
       await expect(bad.next()).resolves.toMatchObject({
-        value: { kind: "unexpected" },
+        value: { kind: "unexpectedFailure" },
       });
 
       await expect(good.next()).resolves.toMatchObject({

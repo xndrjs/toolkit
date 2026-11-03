@@ -43,8 +43,8 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.getOrder({ id: "1" });
-    expect(outcome.kind).toBe("unexpected");
-    if (outcome.kind !== "unexpected") {
+    expect(outcome.kind).toBe("unexpectedFailure");
+    if (outcome.kind !== "unexpectedFailure") {
       return;
     }
     expect(isUnexpectedFailure(outcome.failure)).toBe(true);
@@ -85,7 +85,7 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.getOrder({ id: "1" });
-    expect(outcome).toMatchObject({ kind: "unexpected" });
+    expect(outcome).toMatchObject({ kind: "unexpectedFailure" });
     expect(onUnexpectedFailure).toHaveBeenCalledOnce();
     expect(onUnexpectedFailure.mock.calls[0]![0]!.cause).toBe(boom);
     expect(onUnexpectedFailure.mock.calls[0]![0]!.phase).toBe("invoke");
@@ -117,7 +117,7 @@ describe("compose — unary totalization", () => {
     });
     const syncCtx = syncRoot.openExecutionContext();
     const syncOutcome = await syncCtx.surface.ping();
-    expect(syncOutcome.kind).toBe("unexpected");
+    expect(syncOutcome.kind).toBe("unexpectedFailure");
     expect(events).toHaveLength(1);
     expect(events[0]!.cause).toBe(syncBoom);
     expect(events[0]!.phase).toBe("materialize");
@@ -135,7 +135,7 @@ describe("compose — unary totalization", () => {
     });
     const asyncCtx = asyncRoot.openExecutionContext();
     const asyncOutcome = await asyncCtx.surface.ping();
-    expect(asyncOutcome.kind).toBe("unexpected");
+    expect(asyncOutcome.kind).toBe("unexpectedFailure");
     expect(events).toHaveLength(1);
     expect(events[0]!.cause).toBe(asyncBoom);
     expect(events[0]!.phase).toBe("materialize");
@@ -172,8 +172,8 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.getOrder({ id: "1" });
-    expect(outcome.kind).toBe("unexpected");
-    if (outcome.kind !== "unexpected") {
+    expect(outcome.kind).toBe("unexpectedFailure");
+    if (outcome.kind !== "unexpectedFailure") {
       return;
     }
 
@@ -208,7 +208,7 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.getOrder({ id: "1" });
-    expect(outcome).toEqual({ kind: "unexpected", failure });
+    expect(outcome).toEqual({ kind: "unexpectedFailure", failure });
     expect(onUnexpectedFailure).not.toHaveBeenCalled();
 
     await ctx.dispose();
@@ -244,7 +244,7 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.getOrder({ id: "1" });
-    expect(outcome).toEqual({ kind: "unexpected", failure });
+    expect(outcome).toEqual({ kind: "unexpectedFailure", failure });
     expect(onUnexpectedFailure).not.toHaveBeenCalled();
 
     await ctx.dispose();
@@ -273,15 +273,15 @@ describe("compose — unary totalization", () => {
     const outcome: InvocationOutcome<Order, FindError> = await ctx.surface.getOrder({
       id: "missing",
     });
-    expect(outcome).toEqual({ kind: "error", error: { code: "not_found" } });
+    expect(outcome).toEqual({ kind: "expectedError", error: { code: "not_found" } });
     expect(onUnexpectedFailure).not.toHaveBeenCalled();
 
     // Exhaustive handling without try/catch is a type-level property of InvocationOutcome.
     expectTypeOf(outcome).toMatchTypeOf<InvocationOutcome<Order, FindError>>();
     switch (outcome.kind) {
       case "success":
-      case "error":
-      case "unexpected":
+      case "expectedError":
+      case "unexpectedFailure":
       case "cancelled":
         break;
       default: {
@@ -317,7 +317,7 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.getOrder({ id: "1" });
-    expect(outcome.kind).toBe("unexpected");
+    expect(outcome.kind).toBe("unexpectedFailure");
     expect(calls).toBe(1);
 
     await ctx.dispose();
@@ -344,11 +344,11 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.getOrder({ id: "1" });
-    expect(outcome.kind).toBe("unexpected");
+    expect(outcome.kind).toBe("unexpectedFailure");
     expect(consoleError).toHaveBeenCalledOnce();
     const event = consoleError.mock.calls[0]![0] as UnexpectedFailureEvent;
     expect(event.cause).toBe(boom);
-    if (outcome.kind === "unexpected") {
+    if (outcome.kind === "unexpectedFailure") {
       expect(event.failure).toBe(outcome.failure);
     }
 
@@ -391,9 +391,9 @@ describe("compose — unary totalization", () => {
             switch (row.kind) {
               case "success":
                 return success(row.value);
-              case "error":
+              case "expectedError":
                 return expectedError({ code: "not_found" as const });
-              case "unexpected":
+              case "unexpectedFailure":
               case "cancelled":
                 return row;
             }
@@ -416,10 +416,10 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const mapped = await ctx.surface.getOrder({ id: "missing" });
-    expect(mapped).toEqual({ kind: "error", error: { code: "not_found" } });
+    expect(mapped).toEqual({ kind: "expectedError", error: { code: "not_found" } });
 
     const unexpectedPassthrough = await ctx.surface.getOrder({ id: "boom" });
-    expect(unexpectedPassthrough).toEqual({ kind: "unexpected", failure });
+    expect(unexpectedPassthrough).toEqual({ kind: "unexpectedFailure", failure });
 
     const cancelledPassthrough = await ctx.surface.getOrder({ id: "cancel" });
     expect(cancelledPassthrough).toEqual({ kind: "cancelled", cancellation });
@@ -475,14 +475,14 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.getOrder({ id: "1" });
-    expect(outcome.kind).toBe("unexpected");
+    expect(outcome.kind).toBe("unexpectedFailure");
     expect(onUnexpectedFailure).toHaveBeenCalledOnce();
     const event = onUnexpectedFailure.mock.calls[0]![0]!;
     expect(event.cause).toBe(mapBoom);
     expect(event.origin).toEqual({ kind: "adapter", id: "orders-postgres" });
     expect(event.intent).toEqual(["orders", "find"]);
     expect(event.phase).toBe("invoke");
-    if (outcome.kind === "unexpected") {
+    if (outcome.kind === "unexpectedFailure") {
       expect(event.failure).toBe(outcome.failure);
     }
 
@@ -516,7 +516,7 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.getOrder({ id: "1" });
-    expect(outcome.kind).toBe("unexpected");
+    expect(outcome.kind).toBe("unexpectedFailure");
     expect(onUnexpectedFailure).toHaveBeenCalledOnce();
     const event = onUnexpectedFailure.mock.calls[0]![0]!;
     expect(event.cause).toBe(boom);

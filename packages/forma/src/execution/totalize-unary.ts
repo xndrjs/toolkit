@@ -22,7 +22,7 @@ import type {
 const FORMA_TOTALIZED_MATERIALIZATION = Symbol.for("@xndrjs/forma/totalized-materialization/v1");
 
 type UnexpectedOutcome = {
-  readonly kind: "unexpected";
+  readonly kind: "unexpectedFailure";
   readonly failure: UnexpectedFailure;
 };
 
@@ -53,7 +53,7 @@ export function outcomeFromTotalizedMaterialization(value: unknown): UnexpectedO
 }
 
 /**
- * Core automatic path: new failure id, notify Composition once, return `unexpected`.
+ * Core automatic path: new failure id, notify Composition once, return `unexpectedFailure`.
  * Must not be used for explicit Boundary {@link createUnexpectedFailure} or propagation.
  */
 export function createAutomaticUnexpected(
@@ -90,7 +90,7 @@ export function throwTotalizedMaterializationFailure(
 
 /**
  * Totalize sync throws and Promise rejections of a unary Intent operation.
- * Outcomes already in protocol (including `unexpected` / `cancelled`) pass through unchanged.
+ * Outcomes already in protocol (including `unexpectedFailure` / `cancelled`) pass through unchanged.
  */
 export function wrapUnaryOperation(
   operation: IntentOperation<unknown, unknown, unknown>,
@@ -113,9 +113,9 @@ export function wrapUnaryOperation(
 }
 
 /**
- * Totalize throws/rejections of a stream Intent operation into terminal `unexpected`
+ * Totalize throws/rejections of a stream Intent operation into terminal `unexpectedFailure`
  * yields. Consumer `iterator.throw`, cleanup, and dispose stay on the lifecycle channel.
- * Outcomes already in protocol (including explicit `unexpected`) pass through; terminal
+ * Outcomes already in protocol (including explicit `unexpectedFailure`) pass through; terminal
  * kinds end the iterable so later source yields are not observed.
  */
 export function wrapStreamOperation(

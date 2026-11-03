@@ -56,7 +56,7 @@ describe("compose — explicit cross-boundary intent alias", () => {
     expect(hit).toEqual({ kind: "success", value: { id: "42", total: 100 } });
 
     const miss = await ctx.surface.getOrder({ id: "missing" });
-    expect(miss).toEqual({ kind: "error", error: { code: "not_found" } });
+    expect(miss).toEqual({ kind: "expectedError", error: { code: "not_found" } });
 
     await expect(ctx.dispose()).resolves.toBeUndefined();
   });
@@ -93,9 +93,9 @@ describe("compose — explicit cross-boundary intent alias", () => {
             switch (row.kind) {
               case "success":
                 return success({ id: row.value.order_id, total: row.value.amount_cents / 100 });
-              case "error":
+              case "expectedError":
                 return expectedError({ code: "not_found" as const });
-              case "unexpected":
+              case "unexpectedFailure":
               case "cancelled":
                 return row;
             }
@@ -121,6 +121,6 @@ describe("compose — explicit cross-boundary intent alias", () => {
     expect(result).toEqual({ kind: "success", value: { id: "7", total: 25 } });
 
     const miss: InvocationOutcome<Order, FindError> = await ctx.surface.getOrder({ id: "none" });
-    expect(miss).toEqual({ kind: "error", error: { code: "not_found" } });
+    expect(miss).toEqual({ kind: "expectedError", error: { code: "not_found" } });
   });
 });

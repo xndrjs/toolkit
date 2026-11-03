@@ -128,7 +128,9 @@ describe("InvocationOutcome", () => {
     const errorOutcome: InvocationOutcome<Order, FindError> = expectedError({ code: "not_found" });
 
     expect(okOutcome).toEqual({ kind: "success", value: { id: "1", total: 10 } });
-    expect(errorOutcome).toEqual({ kind: "error", error: { code: "not_found" } });
+    expect(errorOutcome).toEqual({ kind: "expectedError", error: { code: "not_found" } });
+    expect(Object.isFrozen(okOutcome)).toBe(false);
+    expect(Object.isFrozen(errorOutcome)).toBe(false);
   });
 
   it("exposes the same constructors on the out namespace", () => {
@@ -141,6 +143,7 @@ describe("InvocationOutcome", () => {
     );
     expect(out.unexpectedFailure(failure)).toEqual(unexpectedFailure(failure));
     expect(out.cancelled(cancellation)).toEqual(cancelled(cancellation));
+    expect(Object.isFrozen(out)).toBe(true);
   });
 
   it("injects Contract-scoped out on Provider WithContext", () => {
@@ -151,6 +154,8 @@ describe("InvocationOutcome", () => {
     const provider = FindOrder.provide.with(({ out: contractOut }) => {
       expectTypeOf(contractOut.success).parameters.toEqualTypeOf<[Order]>();
       expectTypeOf(contractOut.expectedError).parameters.toEqualTypeOf<[ScopedError]>();
+      // @ts-expect-error — the shared constructor namespace is immutable
+      contractOut.success = (value) => success(value);
 
       return function (id) {
         if (id.id === "guest") {
@@ -174,7 +179,7 @@ describe("InvocationOutcome", () => {
     if (okOutcome.kind === "success") {
       expectTypeOf(okOutcome.value).toEqualTypeOf<number>();
     }
-    if (errorOutcome.kind === "error") {
+    if (errorOutcome.kind === "expectedError") {
       expectTypeOf(errorOutcome.error).toEqualTypeOf<string>();
     }
   });
@@ -188,9 +193,10 @@ describe("InvocationOutcome", () => {
     expect(isUnexpectedFailure({ id: failure.id })).toBe(false);
 
     const outcome = unexpectedFailure(failure);
-    expect(outcome).toEqual({ kind: "unexpected", failure });
-    expect(outcome.kind).toBe("unexpected");
-    if (outcome.kind === "unexpected") {
+    expect(outcome).toEqual({ kind: "unexpectedFailure", failure });
+    expect(Object.isFrozen(outcome)).toBe(false);
+    expect(outcome.kind).toBe("unexpectedFailure");
+    if (outcome.kind === "unexpectedFailure") {
       expect(outcome.failure).toBe(failure);
     }
   });
@@ -203,6 +209,7 @@ describe("InvocationOutcome", () => {
 
     const outcome = cancelled(cancellation);
     expect(outcome).toEqual({ kind: "cancelled", cancellation });
+    expect(Object.isFrozen(outcome)).toBe(false);
     expect(outcome.kind).toBe("cancelled");
     if (outcome.kind === "cancelled") {
       expect(outcome.cancellation).toBe(cancellation);

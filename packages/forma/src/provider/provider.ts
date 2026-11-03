@@ -21,7 +21,7 @@ export type StreamInvocation = {
 
 /**
  * Operation that fulfills a stream Intent contract: returns a cold AsyncIterable of
- * {@link InvocationOutcome} events (`error` / `unexpected` / `cancelled` are terminal;
+ * {@link InvocationOutcome} events (`expectedError` / `unexpectedFailure` / `cancelled` are terminal;
  * enforced by the surface wrapper).
  */
 export type StreamOperation<Input, Item, Err> = (

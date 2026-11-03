@@ -60,7 +60,7 @@ describe("compose — async factories and rollback", () => {
     const ctx = root.openExecutionContext();
 
     const failed = await ctx.surface.ping();
-    expect(failed.kind).toBe("unexpected");
+    expect(failed.kind).toBe("unexpectedFailure");
     expect(attempts).toBe(1);
 
     await expect(ctx.surface.ping()).resolves.toEqual({ kind: "success", value: "pong" });
@@ -93,7 +93,7 @@ describe("compose — async factories and rollback", () => {
     const ctx = root.openExecutionContext();
 
     const outcome = await ctx.surface.ping();
-    expect(outcome.kind).toBe("unexpected");
+    expect(outcome.kind).toBe("unexpectedFailure");
     // LIFO rollback immediately — not deferred to ctx.dispose().
     expect(cleaned).toEqual(["b", "a"]);
 
@@ -137,7 +137,7 @@ describe("compose — async factories and rollback", () => {
     expect(suppressed.error).toBeInstanceOf(AggregateError);
     // Factory cause is totalized before rollback; suppressed payload is the carrier.
     expect(suppressed.suppressed).toMatchObject({
-      outcome: { kind: "unexpected" },
+      outcome: { kind: "unexpectedFailure" },
     });
     const rollback = suppressed.error as AggregateError;
     expect(rollback.errors.map((e) => (e as Error).message)).toEqual(["rollback b", "rollback a"]);

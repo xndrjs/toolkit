@@ -20,7 +20,7 @@ src/composition.ts               # composePostgres / composeMemory (same surface
 src/main.ts                      # describe plan + walk unary / stream / break / dispose
 ```
 
-`PgOrder` uses `order_id` / `amount_cents`; Orders uses `id` / `total`. The Postgres Adapter maps rows; the memory Adapter stores Orders shapes directly. Cross-boundary wiring uses Adapter (not Intent alias). Guests are `forbidden` before FindOrder runs. Surface and Adapter exits use `InvocationOutcome` (`success` / `error` / `unexpected` / `cancelled`): Adapters map only expected `error` shapes and pass `unexpected` / `cancelled` through unchanged.
+`PgOrder` uses `order_id` / `amount_cents`; Orders uses `id` / `total`. The Postgres Adapter maps rows; the memory Adapter stores Orders shapes directly. Cross-boundary wiring uses Adapter (not Intent alias). Guests are `forbidden` before FindOrder runs. Surface and Adapter exits use `InvocationOutcome` (`success` / `expectedError` / `unexpectedFailure` / `cancelled`): Adapters map Expected Error payloads and pass `unexpectedFailure` / `cancelled` through unchanged.
 
 ## Stream Intent (`WatchOrders`)
 

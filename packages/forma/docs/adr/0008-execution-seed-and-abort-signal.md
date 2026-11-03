@@ -57,12 +57,12 @@ of every host-abort or dispose path.
 
 Channels stay distinct:
 
-| Channel                                          | Representation today                                               |
-| ------------------------------------------------ | ------------------------------------------------------------------ |
-| Intent expected / unexpected / data cancellation | `InvocationOutcome` (`error` / `unexpected` / `cancelled`)         |
-| Host abort closing **acceptance** of new work    | rejection with `signal.reason` (unary); cold stream does not start |
-| Cooperative abort of accepted work               | `AbortSignal` on lifetime / stream invocation                      |
-| Context / root / Provider disposal               | `dispose()` promise rejection if cleanup fails — outside Contract  |
+| Channel                                          | Representation today                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------------------- |
+| Intent expected / unexpected / data cancellation | `InvocationOutcome` (`expectedError` / `unexpectedFailure` / `cancelled`) |
+| Host abort closing **acceptance** of new work    | rejection with `signal.reason` (unary); cold stream does not start        |
+| Cooperative abort of accepted work               | `AbortSignal` on lifetime / stream invocation                             |
+| Context / root / Provider disposal               | `dispose()` promise rejection if cleanup fails — outside Contract         |
 
 Abort ≠ dispose remains in force. Full normalization that would turn host-abort acceptance failures
 into `cancelled` outcomes (instead of rejection) is a future amendment of this ADR; it must not

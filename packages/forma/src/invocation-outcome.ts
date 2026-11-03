@@ -31,22 +31,22 @@ export type Cancellation = Readonly<{
 
 /**
  * Totalized exit of a Boundary Intent invocation (unary value or stream event).
- * Expected errors stay in `error`; throw/rejection become `unexpected` at the origin.
+ * Expected errors stay in `expectedError`; throw/rejection become `unexpectedFailure` at the origin.
  */
 export type InvocationOutcome<Success, ExpectedError> =
   | { readonly kind: "success"; readonly value: Success }
-  | { readonly kind: "error"; readonly error: ExpectedError }
-  | { readonly kind: "unexpected"; readonly failure: UnexpectedFailure }
+  | { readonly kind: "expectedError"; readonly error: ExpectedError }
+  | { readonly kind: "unexpectedFailure"; readonly failure: UnexpectedFailure }
   | { readonly kind: "cancelled"; readonly cancellation: Cancellation };
 
 /** Successful contract outcome (unary value or stream item). */
 export function success<T>(value: T): InvocationOutcome<T, never> {
-  return Object.freeze({ kind: "success", value });
+  return { kind: "success", value };
 }
 
 /** Expected contract failure declared in `Err`. */
 export function expectedError<E>(error: E): InvocationOutcome<never, E> {
-  return Object.freeze({ kind: "error", error });
+  return { kind: "expectedError", error };
 }
 
 /**
@@ -54,12 +54,12 @@ export function expectedError<E>(error: E): InvocationOutcome<never, E> {
  * Prefer logging / correlating `failure.id` before returning this outcome.
  */
 export function unexpectedFailure(failure: UnexpectedFailure): InvocationOutcome<never, never> {
-  return Object.freeze({ kind: "unexpected", failure });
+  return { kind: "unexpectedFailure", failure };
 }
 
 /** Cancellation branch; pass a token from {@link createCancellation} (or a propagated one). */
 export function cancelled(cancellation: Cancellation): InvocationOutcome<never, never> {
-  return Object.freeze({ kind: "cancelled", cancellation });
+  return { kind: "cancelled", cancellation };
 }
 
 /**
@@ -75,12 +75,12 @@ export function cancelled(cancellation: Cancellation): InvocationOutcome<never, 
  * Method syntax (not function properties) keeps `ContractOut` assignable across
  * Provider widenings — including `Err = never` — under TypeScript's bivariant methods.
  */
-export type ContractOut<Success, Err> = {
+export type ContractOut<Success, Err> = Readonly<{
   success(value: Success): InvocationOutcome<Success, never>;
   expectedError(error: Err): InvocationOutcome<never, Err>;
   unexpectedFailure(failure: UnexpectedFailure): InvocationOutcome<never, never>;
   cancelled(cancellation: Cancellation): InvocationOutcome<never, never>;
-};
+}>;
 
 /**
  * Open-generic constructors (same runtime object injected as typed {@link ContractOut} on
@@ -121,18 +121,18 @@ export function isCancellation(value: unknown): value is Cancellation {
 }
 
 /**
- * Stream-terminal contract kinds (`error` / `unexpected` / `cancelled`).
+ * Stream-terminal contract kinds (`expectedError` / `unexpectedFailure` / `cancelled`).
  * `success` is repeatable; natural iterator completion is a correct end without a terminal yield.
  */
 export function isTerminalOutcome(
   value: unknown
 ): value is Extract<
   InvocationOutcome<unknown, unknown>,
-  { readonly kind: "error" | "unexpected" | "cancelled" }
+  { readonly kind: "expectedError" | "unexpectedFailure" | "cancelled" }
 > {
   if (typeof value !== "object" || value === null || !("kind" in value)) {
     return false;
   }
   const kind = (value as { readonly kind: unknown }).kind;
-  return kind === "error" || kind === "unexpected" || kind === "cancelled";
+  return kind === "expectedError" || kind === "unexpectedFailure" || kind === "cancelled";
 }

@@ -3,7 +3,7 @@
 ## Status
 
 Accepted (amended: pre-abort, transactional start, and cleanup-error ownership semantics;
-source throw → terminal `unexpected` per [0015](./0015-boundary-error-totalization.md))
+source throw → terminal `unexpectedFailure` per [0015](./0015-boundary-error-totalization.md))
 
 ## Context
 
@@ -41,12 +41,12 @@ replaced `Result` / `ok` / `err` with `InvocationOutcome` for both unary and str
   fails clearly; two surface calls are independent streams.
 - Protocol (shared with unary — [0015](./0015-boundary-error-totalization.md)):
   - `success` emits an item (repeatable);
-  - `error` is an expected Contract failure and is **terminal**;
-  - `unexpected` is an opaque failure and is **terminal**;
+  - `expectedError` is an expected Contract failure and is **terminal**;
+  - `unexpectedFailure` is an opaque failure and is **terminal**;
   - `cancelled` is terminal cancellation data;
   - the wrapper calls `return()` on the source after the first terminal kind;
   - natural iterator completion is a correct end without a terminal yield;
-  - source throw/rejection at start or `next()` becomes a **terminal `unexpected` event** —
+  - source throw/rejection at start or `next()` becomes a **terminal `unexpectedFailure` event** —
     `next()` does **not** reject for that failure (composition `onUnexpectedFailure` fires once
     at the origin when the core creates the failure).
 - A deliberate consumer `iterator.throw` remains outside that conversion (managed close + rethrow

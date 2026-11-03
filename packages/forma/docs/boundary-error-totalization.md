@@ -32,7 +32,7 @@ provenance, and recovery options are unknown.
 The proposed decision is to make **every Boundary exit total**:
 
 > A throw or rejection produced by a Boundary implementation does not cross the Boundary. Forma
-> converts it into an `unexpected` branch with an opaque `failureId` generated at the origin.
+> converts it into an `unexpectedFailure` branch with an opaque `failureId` generated at the origin.
 
 The target protocol is `InvocationOutcome`:
 
@@ -43,11 +43,11 @@ type InvocationOutcome<Success, ExpectedError> =
       readonly value: Success;
     }
   | {
-      readonly kind: "error";
+      readonly kind: "expectedError";
       readonly error: ExpectedError;
     }
   | {
-      readonly kind: "unexpected";
+      readonly kind: "unexpectedFailure";
       readonly failure: UnexpectedFailure;
     }
   | {
@@ -56,7 +56,7 @@ type InvocationOutcome<Success, ExpectedError> =
     };
 ```
 
-This analysis decides the semantics of `success`, `error`, and `unexpected`. Full normalization of
+This analysis decides the semantics of `success`, `expectedError`, and `unexpectedFailure`. Full normalization of
 cancellation into the same protocol is related, but requires separately amending the current abort
 and lifecycle decisions.
 
@@ -139,7 +139,7 @@ where the property originates.
 
 ### Expected error
 
-The `error` branch holds only expected errors catalogued in the Contract:
+The `expectedError` branch holds only expected errors catalogued in the Contract:
 
 ```ts
 type FindOrderError =
@@ -151,7 +151,7 @@ The caller can interpret them and apply domain recovery:
 
 ```ts
 switch (outcome.kind) {
-  case "error":
+  case "expectedError":
     return handleFindOrderError(outcome.error);
 }
 ```
@@ -161,7 +161,7 @@ recognized via `instanceof` inside a calling Boundary’s `catch`.
 
 ### Unexpected failure
 
-The `unexpected` branch communicates that the invocation failed for a cause not catalogued in the
+The `unexpectedFailure` branch communicates that the invocation failed for a cause not catalogued in the
 Contract:
 
 ```ts
@@ -468,7 +468,7 @@ It is the Postgres Boundary that:
 - calls the driver;
 - intercepts its exceptions;
 - classifies recognized ones into its own `Err`;
-- creates an unexpected for unrecognized ones.
+- creates an Unexpected Failure for unrecognized ones.
 
 ### The Adapter preserves the totalized protocol
 
@@ -480,10 +480,10 @@ switch (sourceOutcome.kind) {
   case "success":
     return out.success(mapRowToOrder(sourceOutcome.value));
 
-  case "error":
+  case "expectedError":
     return out.expectedError(mapPostgresError(sourceOutcome.error));
 
-  case "unexpected":
+  case "unexpectedFailure":
     return sourceOutcome;
 
   case "cancelled":
@@ -491,7 +491,7 @@ switch (sourceOutcome.kind) {
 }
 ```
 
-`unexpected` and `cancelled` keep their identity and are not reinterpreted as expected errors.
+`unexpectedFailure` and `cancelled` keep their identity and are not reinterpreted as expected errors.
 
 Adapter mapping code can still have a bug. A throw produced by the Adapter must be totalized
 before entering the target Boundary and generates a new failure, because it is a new cause. The
@@ -506,7 +506,7 @@ For a unary invocation, Forma must totalize at least:
 - synchronous throw of the operation;
 - rejection of the Promise returned by the operation;
 - mapping throw inside an Adapter;
-- unexpected outcome of a dependency already expressed as `unexpected`.
+- Unexpected Failure of a dependency already expressed as `unexpectedFailure`.
 
 The last case does not generate a new failure: when the Provider propagates the received outcome it
 must reuse the token, and the wrapper must not replace it. Forma cannot force an application
@@ -523,10 +523,10 @@ switch (outcome.kind) {
   case "success":
     return renderOrder(outcome.value);
 
-  case "error":
+  case "expectedError":
     return renderFindOrderError(outcome.error);
 
-  case "unexpected":
+  case "unexpectedFailure":
     return renderGenericFailure(outcome.failure.id);
 
   case "cancelled":
@@ -552,11 +552,11 @@ type StreamOperation<Input, Item, Err> = (
 Semantics:
 
 - `success` may appear multiple times and represents an item;
-- `error` is terminal;
-- `unexpected` is terminal;
+- `expectedError` is terminal;
+- `unexpectedFailure` is terminal;
 - `cancelled` is terminal;
 - natural iterator completion is correct stream completion;
-- a source throw/rejection during start or `next()` becomes a terminal `unexpected`, not a
+- a source throw/rejection during start or `next()` becomes a terminal `unexpectedFailure`, not a
   rejection visible to the consumer.
 
 Example:
@@ -588,7 +588,7 @@ An `UnexpectedFailure` is serializable without carrying the raw cause:
 
 ```json
 {
-  "kind": "unexpected",
+  "kind": "unexpectedFailure",
   "failure": {
     "id": "019a3f5f-02f1-7a31-b4b1-ef9c812cab44"
   }
@@ -599,7 +599,7 @@ The server keeps the local log associated with the same ID. The client may displ
 ID, but must not depend on server-side error classes, stacks, or driver details.
 
 If the transport fails before a response is received, the client infrastructure Boundary creates a
-new local failure. If it receives a valid `unexpected` from the server, it preserves that ID
+new local failure. If it receives a valid `unexpectedFailure` from the server, it preserves that ID
 instead.
 
 Runtime codecs for `Success`, `Err`, and the wire envelope remain the responsibility of the Remote
@@ -612,12 +612,12 @@ Forma into a runtime that can catch every process stop.
 
 | Scenario                                           | Target channel                       |
 | -------------------------------------------------- | ------------------------------------ |
-| Expected condition declared by the Contract        | `kind: "error"`                      |
-| Provider factory throws or rejects                 | `kind: "unexpected"`                 |
-| Unary operation throws or rejects                  | `kind: "unexpected"`                 |
-| Stream source throws during start/next             | terminal `kind: "unexpected"`        |
-| Dependency returns unexpected                      | same failure propagated              |
-| Adapter mapping throws                             | new unexpected failure               |
+| Expected condition declared by the Contract        | `kind: "expectedError"`              |
+| Provider factory throws or rejects                 | `kind: "unexpectedFailure"`          |
+| Unary operation throws or rejects                  | `kind: "unexpectedFailure"`          |
+| Stream source throws during start/next             | terminal `kind: "unexpectedFailure"` |
+| Dependency returns an Unexpected Failure           | same failure propagated              |
+| Adapter mapping throws                             | new Unexpected Failure               |
 | `compose()` receives an invalid configuration      | configuration throw                  |
 | Use of an already-disposed root/context            | lifecycle/precondition, out of scope |
 | `dispose()` or cleanup fails                       | lifecycle rejection, out of scope    |
@@ -683,8 +683,8 @@ This change does not introduce:
 
 ### Unary
 
-- synchronous throw and rejection produce `unexpected` without rejecting the caller;
-- factory failure produces `unexpected` on the invocation that requires materialization;
+- synchronous throw and rejection produce `unexpectedFailure` without rejecting the caller;
+- factory failure produces `unexpectedFailure` on the invocation that requires materialization;
 - the failure ID is branded, immutable, and non-empty;
 - a dependency unexpected crosses multiple Boundaries keeping the same ID;
 - expected errors of the same name continue to be checked by the Contract;
@@ -709,9 +709,9 @@ This change does not introduce:
 
 ### Stream
 
-- source throw before the first item produces a terminal unexpected;
-- source throw after several items produces a single terminal unexpected;
-- expected error and unexpected are terminal;
+- source throw before the first item produces a terminal Unexpected Failure;
+- source throw after several items produces a single terminal Unexpected Failure;
+- Expected Error and Unexpected Failure outcomes are terminal;
 - `next()` does not reject for source-implementation failure;
 - the Composition hook is called once at the origin;
 - early break and dispose keep the current lifecycle matrix.
@@ -730,10 +730,10 @@ Updated atomically with the implementation:
 - `GLOSSARY.md`: Contract, InvocationOutcome, Expected Error, Unexpected Failure, Failure ID, and
   stream semantics;
 - README: unary, Adapter, surface, and stream examples;
-- ADR 0012: source throw as terminal unexpected instead of iterator rejection;
+- ADR 0012: source throw as terminal `unexpectedFailure` instead of iterator rejection;
 - ADR 0008: relationship between abort/cancellation and `InvocationOutcome`;
 - architectural review: superseded “technical failure outside Result”;
-- Adapter/demo examples (pass-through `unexpected` / `cancelled`);
+- Adapter/demo examples (pass-through `unexpectedFailure` / `cancelled`);
 - ADR 0015: normative totalization decision.
 
 This document remains the extended analysis and validation plan; ADR 0015 records the normative
@@ -742,7 +742,7 @@ decision in short form.
 ## Shared decision summary
 
 1. Totalization is a Boundary property; the Surface inherits it.
-2. The core converts escaped throws and rejections into `unexpected` with a failure ID generated
+2. The core converts escaped throws and rejections into `unexpectedFailure` with a failure ID generated
    on the fly.
 3. A Boundary may create the failure explicitly, log its ID, and return it.
 4. `createUnexpectedFailure()` is preferred over a constructible `UnexpectedFailure` class with
@@ -753,6 +753,6 @@ decision in short form.
 8. `onUnexpectedFailure` is an optional Composition hook for automatic core conversions only.
 9. The hook is synchronous, best-effort, called once, and unable to alter the outcome.
 10. Driver catch belongs on the infrastructure Boundary; the Adapter maps Contracts and propagates
-    unexpected outcomes unchanged.
+    `unexpectedFailure` outcomes unchanged.
 11. Unary and stream must share the same failure protocol.
 12. `dispose()` and other lifecycle failures remain rejections outside Boundary Contracts.

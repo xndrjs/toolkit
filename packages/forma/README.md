@@ -28,7 +28,7 @@ export const FindOrder = Orders.intent("find").contract<OrderId, Order, FindErro
 export const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
 ```
 
-Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the literal Intent name that way. `boundary.intent` is always **unary** (one terminal `InvocationOutcome`). For pull-based sequences use `boundary.stream` (below). Every Boundary Intent exit is totalized: implementation throw/rejection becomes `unexpected` at the origin ([ADR 0015](./docs/adr/0015-boundary-error-totalization.md)).
+Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the literal Intent name that way. `boundary.intent` is always **unary** (one terminal `InvocationOutcome`). For pull-based sequences use `boundary.stream` (below). Every Boundary Intent exit is totalized: implementation throw/rejection becomes `unexpectedFailure` at the origin ([ADR 0015](./docs/adr/0015-boundary-error-totalization.md)).
 
 ### Providers
 
@@ -75,7 +75,7 @@ const GetOrderProvider = GetOrder.provide
         if (params.role === "guest") {
           return out.expectedError({ code: "not_found" as const });
         }
-        return find(id); // forwards success / error / unexpected / cancelled
+        return find(id); // forwards success / expectedError / unexpectedFailure / cancelled
       }
   );
 ```
@@ -116,9 +116,9 @@ export const FindOrderViaPostgresProvider = OrdersAdapter.adapt(FindOrder)
               id: row.value.order_id,
               total: row.value.amount_cents / 100,
             });
-          case "error":
+          case "expectedError":
             return out.expectedError({ code: "not_found" as const });
-          case "unexpected":
+          case "unexpectedFailure":
           case "cancelled":
             return row; // pass through unchanged — never reinterpret as expected Err
         }
@@ -126,7 +126,7 @@ export const FindOrderViaPostgresProvider = OrdersAdapter.adapt(FindOrder)
   );
 ```
 
-`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in private `wiring`, with `origin: { kind: "adapter", id: "orders-postgres" }`. Adapter Providers cannot be Surface roots. Map only `success` / `error`; pass `unexpected` / `cancelled` through. Do not wrap Forma dependency calls in `try/catch` for implementation failure — the dependency Intent is already totalized.
+`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in private `wiring`, with `origin: { kind: "adapter", id: "orders-postgres" }`. Adapter Providers cannot be Surface roots. Map only `success` / `expectedError`; pass `unexpectedFailure` / `cancelled` through. Do not wrap Forma dependency calls in `try/catch` for implementation failure — the dependency Intent is already totalized.
 
 When shapes already match, the factory can forward without mapping (`return select(input)`). Reserve `aliasIntent(required, satisfier)` for deliberate synonyms (rename / migration). There is no `forward` helper yet.
 
@@ -150,7 +150,7 @@ const root = compose({
   entryBoundaries: [Orders],
   surface: { getOrder: GetOrderProvider },
   wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
-  // Optional: only automatic throw→unexpected conversions (once at origin).
+  // Optional: only automatic throw→unexpectedFailure conversions (once at origin).
   onUnexpectedFailure(event) {
     console.error(event.failure.id, event.cause, event.intent, event.phase);
   },
@@ -212,7 +212,7 @@ const streamingRoot = compose({
 
 await using execution = streamingRoot.openExecutionContext();
 for await (const event of execution.surface.watchOrders({ id: "42" })) {
-  if (event.kind !== "success") break; // error / unexpected / cancelled are terminal
+  if (event.kind !== "success") break; // expectedError / unexpectedFailure / cancelled are terminal
   // …
 }
 ```
