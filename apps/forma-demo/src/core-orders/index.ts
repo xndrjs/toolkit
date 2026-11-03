@@ -1,4 +1,4 @@
-import { boundary, expectedError } from "@xndrjs/forma";
+import { boundary } from "@xndrjs/forma";
 import type { DemoParams, FindError, Order, OrderEvent, OrderId, WatchError } from "./types";
 
 export type { DemoParams, FindError, Order, OrderEvent, OrderId, WatchError } from "./types";
@@ -33,10 +33,10 @@ export const WatchOrdersProvider = WatchOrders.provide
 export const GetOrderProvider = GetOrder.provide
   .perContext<DemoParams>()
   .using({ find: FindOrder })
-  .with(({ deps: { find }, params }) => {
+  .with(({ deps: { find }, params, out }) => {
     return async function execute(id) {
       if (params.role === "guest") {
-        return expectedError({ kind: "forbidden" as const });
+        return out.expectedError({ code: "forbidden" as const });
       }
       return find(id);
     };

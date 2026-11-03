@@ -6,7 +6,7 @@ import { expectedError, success, type InvocationOutcome } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
+type FindError = { readonly code: "not_found" };
 
 describe("adapter", () => {
   it("rejects a structurally fabricated target Boundary", () => {
@@ -134,7 +134,7 @@ describe("adapter", () => {
         function (id) {
           return id.id === "42"
             ? success({ id: "42", total: 100 })
-            : expectedError({ kind: "not_found" as const });
+            : expectedError({ code: "not_found" as const });
         }
     );
 
@@ -169,7 +169,7 @@ describe("adapter", () => {
     expect(hit).toEqual({ kind: "success", value: { id: "42", total: 100 } });
 
     const miss = await ctx.surface.getOrder({ id: "missing" });
-    expect(miss).toEqual({ kind: "error", error: { kind: "not_found" } });
+    expect(miss).toEqual({ kind: "error", error: { code: "not_found" } });
 
     await expect(ctx.dispose()).resolves.toBeUndefined();
     await expect(root.dispose()).resolves.toBeUndefined();
@@ -207,7 +207,7 @@ describe("adapter", () => {
               case "success":
                 return success({ id: row.value.order_id, total: row.value.amount_cents / 100 });
               case "error":
-                return expectedError({ kind: "not_found" as const });
+                return expectedError({ code: "not_found" as const });
               case "unexpected":
               case "cancelled":
                 return row;
@@ -235,7 +235,7 @@ describe("adapter", () => {
     expect(result).toEqual({ kind: "success", value: { id: "7", total: 25 } });
 
     const miss: InvocationOutcome<Order, FindError> = await ctx.surface.getOrder({ id: "none" });
-    expect(miss).toEqual({ kind: "error", error: { kind: "not_found" } });
+    expect(miss).toEqual({ kind: "error", error: { code: "not_found" } });
 
     await ctx.dispose();
     await root.dispose();

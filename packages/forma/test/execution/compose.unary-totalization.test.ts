@@ -9,7 +9,7 @@ import {
   expectedError,
   isUnexpectedFailure,
   success,
-  unexpected,
+  unexpectedFailure,
   type InvocationOutcome,
   type OnUnexpectedFailure,
   type UnexpectedFailureEvent,
@@ -17,7 +17,7 @@ import {
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
+type FindError = { readonly code: "not_found" };
 
 describe("compose — unary totalization", () => {
   it("converts sync operation throw into unexpected without rejecting the caller", async () => {
@@ -196,7 +196,7 @@ describe("compose — unary totalization", () => {
     const GetOrderProvider = GetOrder.provide.with(
       () =>
         function () {
-          return unexpected(failure);
+          return unexpectedFailure(failure);
         }
     );
 
@@ -225,7 +225,7 @@ describe("compose — unary totalization", () => {
     const FindOrderProvider = FindOrder.provide.with(
       () =>
         function () {
-          return unexpected(failure);
+          return unexpectedFailure(failure);
         }
     );
     const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
@@ -259,7 +259,7 @@ describe("compose — unary totalization", () => {
     const GetOrderProvider = GetOrder.provide.with(
       () =>
         function (_id) {
-          return expectedError({ kind: "not_found" as const });
+          return expectedError({ code: "not_found" as const });
         }
     );
 
@@ -273,7 +273,7 @@ describe("compose — unary totalization", () => {
     const outcome: InvocationOutcome<Order, FindError> = await ctx.surface.getOrder({
       id: "missing",
     });
-    expect(outcome).toEqual({ kind: "error", error: { kind: "not_found" } });
+    expect(outcome).toEqual({ kind: "error", error: { code: "not_found" } });
     expect(onUnexpectedFailure).not.toHaveBeenCalled();
 
     // Exhaustive handling without try/catch is a type-level property of InvocationOutcome.
@@ -372,7 +372,7 @@ describe("compose — unary totalization", () => {
       () =>
         function (id) {
           if (id.id === "boom") {
-            return unexpected(failure);
+            return unexpectedFailure(failure);
           }
           if (id.id === "cancel") {
             return cancelled(cancellation);
@@ -392,7 +392,7 @@ describe("compose — unary totalization", () => {
               case "success":
                 return success(row.value);
               case "error":
-                return expectedError({ kind: "not_found" as const });
+                return expectedError({ code: "not_found" as const });
               case "unexpected":
               case "cancelled":
                 return row;
@@ -416,7 +416,7 @@ describe("compose — unary totalization", () => {
     const ctx = root.openExecutionContext();
 
     const mapped = await ctx.surface.getOrder({ id: "missing" });
-    expect(mapped).toEqual({ kind: "error", error: { kind: "not_found" } });
+    expect(mapped).toEqual({ kind: "error", error: { code: "not_found" } });
 
     const unexpectedPassthrough = await ctx.surface.getOrder({ id: "boom" });
     expect(unexpectedPassthrough).toEqual({ kind: "unexpected", failure });

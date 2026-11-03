@@ -37,6 +37,7 @@ module.exports = [
   {
     rules: {
       "@typescript-eslint/consistent-type-definitions": "off",
+      "no-case-declarations": "off",
     },
   },
   {

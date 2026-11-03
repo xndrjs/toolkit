@@ -6,13 +6,13 @@ import {
   expectedError,
   isUnexpectedFailure,
   success,
-  unexpected,
+  unexpectedFailure,
   type OnUnexpectedFailure,
   type UnexpectedFailureEvent,
 } from "@xndrjs/forma";
 
 type OrderEvent = { readonly orderId: string; readonly status: string };
-type WatchError = { readonly kind: "unavailable" };
+type WatchError = { readonly code: "unavailable" };
 
 describe("compose — stream totalization", () => {
   it("source throw before the first item yields a terminal unexpected (next does not reject)", async () => {
@@ -105,14 +105,14 @@ describe("compose — stream totalization", () => {
     const ExpectedProvider = WatchOrders.provide.with(
       () =>
         async function* () {
-          yield expectedError({ kind: "unavailable" });
+          yield expectedError({ code: "unavailable" });
           yield success({ orderId: "ghost", status: "should-not-appear" });
         }
     );
     const ExplicitProvider = WatchOrders.provide.with(
       () =>
         async function* () {
-          yield unexpected(createUnexpectedFailure());
+          yield unexpectedFailure(createUnexpectedFailure());
           yield success({ orderId: "ghost", status: "should-not-appear" });
         }
     );
@@ -126,7 +126,7 @@ describe("compose — stream totalization", () => {
     for await (const value of expectedCtx.surface.watchOrders()) {
       expectedValues.push(value);
     }
-    expect(expectedValues).toEqual([{ kind: "error", error: { kind: "unavailable" } }]);
+    expect(expectedValues).toEqual([{ kind: "error", error: { code: "unavailable" } }]);
     await expectedRoot.dispose();
 
     const onUnexpectedFailure = vi.fn<OnUnexpectedFailure>();

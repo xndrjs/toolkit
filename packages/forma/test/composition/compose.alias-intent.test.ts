@@ -10,7 +10,7 @@ import {
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
+type FindError = { readonly code: "not_found" };
 
 describe("aliasIntent — contract compatibility", () => {
   it("accepts Intents with structurally equivalent contracts (distinct identities)", () => {
@@ -20,7 +20,7 @@ describe("aliasIntent — contract compatibility", () => {
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
     type PgOrderId = { readonly id: string };
     type PgOrder = { readonly id: string; readonly total: number };
-    type PgFindError = { readonly kind: "not_found" };
+    type PgFindError = { readonly code: "not_found" };
     const SelectOrder = Postgres.intent("selectOrder").contract<PgOrderId, PgOrder, PgFindError>();
 
     const pair = aliasIntent(FindOrder, SelectOrder);
@@ -57,7 +57,7 @@ describe("aliasIntent — contract compatibility", () => {
     const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
     type PgOrderId = { readonly id: string };
     type PgOrder = { readonly id: string; readonly total: number };
-    type PgFindError = { readonly kind: "not_found" };
+    type PgFindError = { readonly code: "not_found" };
     const SelectOrder = Postgres.intent("selectOrder").contract<PgOrderId, PgOrder, PgFindError>();
 
     const SelectOrderProvider = SelectOrder.provide.with(

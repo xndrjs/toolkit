@@ -1,5 +1,5 @@
 import type { Intent, IntentModality } from "../boundary.js";
-import type { InvocationOutcome } from "../invocation-outcome.js";
+import type { ContractOut, InvocationOutcome } from "../invocation-outcome.js";
 import { defineRuntimeBrand, readRuntimeBrand } from "../protocol/runtime-brand.js";
 
 declare const formaProviderTypeBrand: unique symbol;
@@ -209,20 +209,30 @@ export type IsEmptyDeps<Deps> = [Deps] extends [EmptyDeps]
 
 /**
  * Argument to `.with`: named fields avoid positional ambiguity between deps and lifetime.
- * No `using` → only `lifetime` (+ `params` when `.perContext<ParamsReq>()`).
- * With `using` → `deps` + `lifetime` (+ `params` when declared).
+ * Always includes `out` typed to this Intent's `Success` / `Err`.
+ * No `using` → `lifetime` + `out` (+ `params` when `.perContext<ParamsReq>()`).
+ * With `using` → `deps` + `lifetime` + `out` (+ `params` when declared).
  */
-export type WithContext<Deps, Params = void> =
+export type WithContext<Deps, Params = void, Success = unknown, Err = unknown> =
   IsEmptyDeps<Deps> extends true
     ? [Params] extends [void]
-      ? { readonly lifetime: Lifetime }
-      : { readonly lifetime: Lifetime; readonly params: Readonly<Params> }
+      ? { readonly lifetime: Lifetime; readonly out: ContractOut<Success, Err> }
+      : {
+          readonly lifetime: Lifetime;
+          readonly params: Readonly<Params>;
+          readonly out: ContractOut<Success, Err>;
+        }
     : [Params] extends [void]
-      ? { readonly deps: ResolvedDeps<Deps>; readonly lifetime: Lifetime }
+      ? {
+          readonly deps: ResolvedDeps<Deps>;
+          readonly lifetime: Lifetime;
+          readonly out: ContractOut<Success, Err>;
+        }
       : {
           readonly deps: ResolvedDeps<Deps>;
           readonly lifetime: Lifetime;
           readonly params: Readonly<Params>;
+          readonly out: ContractOut<Success, Err>;
         };
 
 /**

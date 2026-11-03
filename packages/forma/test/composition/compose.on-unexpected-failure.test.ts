@@ -16,7 +16,7 @@ import {
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
+type FindError = { readonly code: "not_found" };
 
 function sampleEvent(overrides: Partial<UnexpectedFailureEvent> = {}): UnexpectedFailureEvent {
   const failure = overrides.failure ?? createUnexpectedFailure();

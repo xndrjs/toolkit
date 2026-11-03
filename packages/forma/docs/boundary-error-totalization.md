@@ -143,8 +143,8 @@ The `error` branch holds only expected errors catalogued in the Contract:
 
 ```ts
 type FindOrderError =
-  | { readonly kind: "not_found"; readonly orderId: OrderId }
-  | { readonly kind: "access_denied" };
+  | { readonly code: "not_found"; readonly orderId: OrderId }
+  | { readonly code: "access_denied" };
 ```
 
 The caller can interpret them and apply domain recovery:
@@ -298,11 +298,11 @@ conditions into expected errors and may take diagnostic ownership of the others:
 ```ts
 try {
   const row = await postgres.query(query);
-  return success(mapRow(row));
+  return out.success(mapRow(row));
 } catch (cause) {
   if (isUniqueViolation(cause)) {
-    return expectedError({
-      kind: "unique_violation",
+    return out.expectedError({
+      code: "unique_violation",
       constraint: cause.constraint,
     });
   }
@@ -314,7 +314,7 @@ try {
     diagnostic: toDiagnosticRecord(cause),
   });
 
-  return unexpected(failure);
+  return out.unexpectedFailure(failure);
 }
 ```
 
@@ -353,7 +353,7 @@ try {
     phase: "invoke",
   });
 
-  return unexpected(failure);
+  return unexpectedFailure(failure);
 }
 ```
 
@@ -478,10 +478,10 @@ for failures of its own implementation. It maps only the semantically transforma
 ```ts
 switch (sourceOutcome.kind) {
   case "success":
-    return success(mapRowToOrder(sourceOutcome.value));
+    return out.success(mapRowToOrder(sourceOutcome.value));
 
   case "error":
-    return expectedError(mapPostgresError(sourceOutcome.error));
+    return out.expectedError(mapPostgresError(sourceOutcome.error));
 
   case "unexpected":
     return sourceOutcome;
@@ -565,7 +565,7 @@ Example:
 success(order-1)
 success(order-2)
 success(order-3)
-unexpected(fail-42)
+unexpectedFailure(fail-42)
 done
 ```
 

@@ -7,7 +7,7 @@ import { expectedError, success, type InvocationOutcome } from "@xndrjs/forma";
 /** Orders-owned contract types (duplicated per boundary — not shared with Postgres). */
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
+type FindError = { readonly code: "not_found" };
 
 describe("compose — explicit cross-boundary intent alias", () => {
   it("rewrites FindOrder through a structurally matching SelectOrder provider", async () => {
@@ -21,7 +21,7 @@ describe("compose — explicit cross-boundary intent alias", () => {
     // Infra Intent: same structural Contract, different identity + boundary.
     type PgOrderId = { readonly id: string };
     type PgOrder = { readonly id: string; readonly total: number };
-    type PgFindError = { readonly kind: "not_found" };
+    type PgFindError = { readonly code: "not_found" };
     const SelectOrder = Postgres.intent("selectOrder").contract<PgOrderId, PgOrder, PgFindError>();
 
     const SelectOrderProvider = SelectOrder.provide.with(
@@ -29,7 +29,7 @@ describe("compose — explicit cross-boundary intent alias", () => {
         function (id) {
           return id.id === "42"
             ? success({ id: "42", total: 100 })
-            : expectedError({ kind: "not_found" as const });
+            : expectedError({ code: "not_found" as const });
         }
     );
 
@@ -56,7 +56,7 @@ describe("compose — explicit cross-boundary intent alias", () => {
     expect(hit).toEqual({ kind: "success", value: { id: "42", total: 100 } });
 
     const miss = await ctx.surface.getOrder({ id: "missing" });
-    expect(miss).toEqual({ kind: "error", error: { kind: "not_found" } });
+    expect(miss).toEqual({ kind: "error", error: { code: "not_found" } });
 
     await expect(ctx.dispose()).resolves.toBeUndefined();
   });
@@ -94,7 +94,7 @@ describe("compose — explicit cross-boundary intent alias", () => {
               case "success":
                 return success({ id: row.value.order_id, total: row.value.amount_cents / 100 });
               case "error":
-                return expectedError({ kind: "not_found" as const });
+                return expectedError({ code: "not_found" as const });
               case "unexpected":
               case "cancelled":
                 return row;
@@ -121,6 +121,6 @@ describe("compose — explicit cross-boundary intent alias", () => {
     expect(result).toEqual({ kind: "success", value: { id: "7", total: 25 } });
 
     const miss: InvocationOutcome<Order, FindError> = await ctx.surface.getOrder({ id: "none" });
-    expect(miss).toEqual({ kind: "error", error: { kind: "not_found" } });
+    expect(miss).toEqual({ kind: "error", error: { code: "not_found" } });
   });
 });

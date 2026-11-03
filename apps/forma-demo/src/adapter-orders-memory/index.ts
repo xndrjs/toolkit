@@ -1,4 +1,4 @@
-import { adapter, expectedError, success } from "@xndrjs/forma";
+import { adapter } from "@xndrjs/forma";
 import type { Order } from "../core-orders/index";
 import { FindOrder, Orders, WatchOrderEvents } from "../core-orders/index";
 
@@ -14,10 +14,10 @@ const OrdersMemory = adapter("orders-memory", Orders);
  * so the factory forwards without field mapping (Adapter passthrough style).
  */
 export const FindOrderViaMemoryProvider = OrdersMemory.adapt(FindOrder).with(
-  () =>
+  ({ out }) =>
     function (id) {
       const order = orders.get(id.id);
-      return order ? success(order) : expectedError({ kind: "not_found" as const });
+      return order ? out.success(order) : out.expectedError({ code: "not_found" as const });
     }
 );
 
@@ -26,18 +26,18 @@ export const FindOrderViaMemoryProvider = OrdersMemory.adapt(FindOrder).with(
  * Honors `invocation.signal` so break / context dispose / host abort unblock promptly.
  */
 export const WatchOrderEventsViaMemoryProvider = OrdersMemory.adapt(WatchOrderEvents).with(
-  () =>
+  ({ out }) =>
     async function* (id, invocation) {
       const order = orders.get(id.id);
       if (!order) {
-        yield expectedError({ kind: "not_found" as const });
+        yield out.expectedError({ code: "not_found" as const });
         return;
       }
 
       try {
         for (const status of STATUSES) {
           invocation.signal.throwIfAborted();
-          yield success({ orderId: order.id, status });
+          yield out.success({ orderId: order.id, status });
         }
       } finally {
         console.log(`watchOrders(${id.id}) closed (memory)`);

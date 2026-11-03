@@ -25,7 +25,7 @@ this ADR records the normative decision.
   `createUnexpectedFailure()`. No public factory accepts arbitrary ids; Forma keeps no
   `Map<FailureId, unknown>`. Propagating a failure keeps object and id; a new cause creates a new
   id. The raw cause never rides the normal Intent dataflow.
-- A Boundary may create a failure explicitly, log the same id, and return `unexpected(failure)`.
+- A Boundary may create a failure explicitly, log the same id, and return `unexpectedFailure(failure)`.
   Only automatic core conversions notify optional `compose({ onUnexpectedFailure })` — once, at
   the origin, synchronously, best-effort; the hook cannot alter the outcome.
 - Adapters map `success` / `error` and pass `unexpected` / `cancelled` through unchanged.
@@ -45,8 +45,9 @@ Extended validation criteria and non-goals live in the analysis document.
 
 ## Consequences
 
-- Public helpers `ok` / `err` / `Result` are replaced by `success` / `expectedError` /
-  `InvocationOutcome` (and peers). Alpha breaking change for every operation type and consumer.
+- Public helpers `ok` / `err` / `Result` are replaced by `success` / `expectedError` / `unexpectedFailure` /
+  `InvocationOutcome` (and peers). Provider `.with` injects Contract-scoped `ctx.out`; a module-level
+  `out` remains for open-generic construction. Alpha breaking change for every operation type and consumer.
 - Providers no longer need defensive `try/catch` around Forma dependency operations.
 - Composition gains an optional diagnostic hook without a core logger or event bus.
 - Remote Adapters (when present) can preserve failure ids without serializing `unknown`; codec

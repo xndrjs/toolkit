@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { boundary, compose, expectedError, isUnexpectedFailure, success } from "@xndrjs/forma";
 
 type OrderEvent = { readonly orderId: string; readonly status: string };
-type WatchError = { readonly kind: "unavailable" };
+type WatchError = { readonly code: "unavailable" };
 
 /** Cooperative hang: settles only when `signal` aborts. */
 function abortableHang(signal: AbortSignal): Promise<never> {
@@ -31,7 +31,7 @@ describe("compose — Stream Intent errors and races", () => {
         () =>
           async function* () {
             yield success({ orderId: "1", status: "open" });
-            yield expectedError({ kind: "unavailable" });
+            yield expectedError({ code: "unavailable" });
             yieldedAfterErr = true;
             yield success({ orderId: "2", status: "paid" });
           }
@@ -50,7 +50,7 @@ describe("compose — Stream Intent errors and races", () => {
 
       expect(values).toEqual([
         { kind: "success", value: { orderId: "1", status: "open" } },
-        { kind: "error", error: { kind: "unavailable" } },
+        { kind: "error", error: { code: "unavailable" } },
       ]);
       expect(yieldedAfterErr).toBe(false);
 
@@ -64,7 +64,7 @@ describe("compose — Stream Intent errors and races", () => {
       const WatchProvider = WatchOrders.provide.with(
         () =>
           async function* () {
-            yield expectedError({ kind: "unavailable" });
+            yield expectedError({ code: "unavailable" });
             yield success({ orderId: "ghost", status: "should-not-appear" });
           }
       );
@@ -78,7 +78,7 @@ describe("compose — Stream Intent errors and races", () => {
       const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
       await expect(iterator.next()).resolves.toEqual({
         done: false,
-        value: { kind: "error", error: { kind: "unavailable" } },
+        value: { kind: "error", error: { code: "unavailable" } },
       });
       await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
     });

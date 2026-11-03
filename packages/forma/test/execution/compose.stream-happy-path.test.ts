@@ -9,7 +9,7 @@ import {
 
 type WatchInput = { readonly customerId: string };
 type OrderEvent = { readonly orderId: string; readonly status: string };
-type WatchError = { readonly kind: "unavailable" };
+type WatchError = { readonly code: "unavailable" };
 
 describe("compose — Stream Intent happy path", () => {
   it("exposes boundary.stream().contract with modality stream", () => {

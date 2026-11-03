@@ -6,7 +6,7 @@ import { success } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
+type FindError = { readonly code: "not_found" };
 
 describe("compose — defineWiring / defineComposition (F6; extraction only)", () => {
   it("type-accepts a complete graph when wiring is extracted via defineWiring", () => {

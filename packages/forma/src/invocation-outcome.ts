@@ -49,8 +49,11 @@ export function expectedError<E>(error: E): InvocationOutcome<never, E> {
   return Object.freeze({ kind: "error", error });
 }
 
-/** Unexpected failure branch; pass a token from {@link createUnexpectedFailure}. */
-export function unexpected(failure: UnexpectedFailure): InvocationOutcome<never, never> {
+/**
+ * Unexpected failure branch; pass a token from {@link createUnexpectedFailure}.
+ * Prefer logging / correlating `failure.id` before returning this outcome.
+ */
+export function unexpectedFailure(failure: UnexpectedFailure): InvocationOutcome<never, never> {
   return Object.freeze({ kind: "unexpected", failure });
 }
 
@@ -58,6 +61,37 @@ export function unexpected(failure: UnexpectedFailure): InvocationOutcome<never,
 export function cancelled(cancellation: Cancellation): InvocationOutcome<never, never> {
   return Object.freeze({ kind: "cancelled", cancellation });
 }
+
+/**
+ * Contract-scoped constructors for {@link InvocationOutcome}.
+ * On Provider `.with`, Forma injects `ctx.out` typed to that Intent's `Success` / `Err`.
+ * The module-level {@link out} export is the same runtime object with open generics —
+ * prefer `ctx.out` inside Provider factories.
+ *
+ * Expected Error payloads conventionally use a `code` discriminant (not `kind`) so the
+ * protocol tag (`outcome.kind`) stays distinct from domain error tags.
+ */
+/**
+ * Method syntax (not function properties) keeps `ContractOut` assignable across
+ * Provider widenings — including `Err = never` — under TypeScript's bivariant methods.
+ */
+export type ContractOut<Success, Err> = {
+  success(value: Success): InvocationOutcome<Success, never>;
+  expectedError(error: Err): InvocationOutcome<never, Err>;
+  unexpectedFailure(failure: UnexpectedFailure): InvocationOutcome<never, never>;
+  cancelled(cancellation: Cancellation): InvocationOutcome<never, never>;
+};
+
+/**
+ * Open-generic constructors (same runtime object injected as typed {@link ContractOut} on
+ * `ctx.out`). Prefer `ctx.out` inside Provider factories.
+ */
+export const out = Object.freeze({
+  success,
+  expectedError,
+  unexpectedFailure,
+  cancelled,
+});
 
 /**
  * Create a new unexpected-failure token with a high-entropy opaque id.

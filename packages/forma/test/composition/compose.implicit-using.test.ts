@@ -5,7 +5,7 @@ import { success, type InvocationOutcome } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
+type FindError = { readonly code: "not_found" };
 
 describe("compose — implicit using graph", () => {
   it("resolves a same-boundary using dep from wiring by Intent identity", async () => {

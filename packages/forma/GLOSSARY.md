@@ -24,15 +24,15 @@ The TypeScript promise of an Intent: input, outcomes, and expected domain failur
 _Avoid_: Result (as the public Intent exit type)
 
 **InvocationOutcome**:
-The four-kind algebra of a Boundary Intent exit: `success`, `error` (Expected Error), `unexpected` (Unexpected Failure), and `cancelled` (opaque Cancellation token). Shared by unary terminals and stream events. Lifecycle failures (`dispose`, cleanup, shutdown) are not InvocationOutcome.
+The four-kind algebra of a Boundary Intent exit: `success`, `error` (Expected Error), `unexpected` (Unexpected Failure), and `cancelled` (opaque Cancellation token). Shared by unary terminals and stream events. Lifecycle failures (`dispose`, cleanup, shutdown) are not InvocationOutcome. Provider factories receive Contract-scoped constructors on `ctx.out` (`success` / `expectedError` / `unexpectedFailure` / `cancelled` typed to that Intent's `Success` / `Err`). A module-level `out` and top-level helpers remain for open-generic construction outside `.with`.
 _Avoid_: Result, Ok/Err pair as the full protocol
 
 **Expected Error**:
-A domain failure censored in the Intent’s `Err` and carried on the `error` branch. The only failure kind a caller may interpret and recover from semantically. If a condition needs a distinct reaction, it belongs in `Err`.
-_Avoid_: expected failure (when meaning the same), domain exception, typed throw
+A domain failure censored in the Intent’s `Err` and carried on the `error` branch. The only failure kind a caller may interpret and recover from semantically. If a condition needs a distinct reaction, it belongs in `Err`. Prefer a `code` discriminant on Err payloads so it does not collide with `InvocationOutcome.kind`.
+_Avoid_: expected failure (when meaning the same), domain exception, typed throw; `kind` on Err when `code` would do
 
 **Unexpected Failure**:
-An opaque data token (`{ id: FailureId }`) on the `unexpected` branch when an invocation failed for a cause not censored in the Contract. Does not carry cause, message, stack, producer details, Input, or Params. Callers may propagate it, stop, apply a generic policy, or surface the id; they must not classify the raw cause. Forma may create it automatically from throw/rejection, or a Boundary may create it explicitly via `createUnexpectedFailure()`.
+An opaque data token (`{ id: FailureId }`) on the `unexpected` branch when an invocation failed for a cause not censored in the Contract. Does not carry cause, message, stack, producer details, Input, or Params. Callers may propagate it, stop, apply a generic policy, or surface the id; they must not classify the raw cause. Forma may create it automatically from throw/rejection, or a Boundary may create it explicitly via `createUnexpectedFailure()` and return `out.unexpectedFailure(failure)`.
 _Avoid_: technical failure (as a public type), unexpected error object, thrown Error across Boundary
 
 **Failure ID**:

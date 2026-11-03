@@ -7,7 +7,7 @@ import { notifyUnexpectedFailure } from "../composition/notify-unexpected-failur
 import {
   createUnexpectedFailure,
   isTerminalOutcome,
-  unexpected,
+  unexpectedFailure,
   type InvocationOutcome,
   type UnexpectedFailure,
 } from "../invocation-outcome.js";
@@ -68,7 +68,7 @@ export function createAutomaticUnexpected(
     origin: meta.origin,
     phase: meta.phase,
   });
-  return unexpected(failure) as UnexpectedOutcome;
+  return unexpectedFailure(failure) as UnexpectedOutcome;
 }
 
 /**

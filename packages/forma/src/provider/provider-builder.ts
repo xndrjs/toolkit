@@ -1,4 +1,5 @@
 import type { Intent, IntentModality } from "../boundary.js";
+import { out } from "../invocation-outcome.js";
 import { assertStringRecordKeys, sealedStringRecord } from "../string-keys.js";
 import type {
   EmptyDeps,
@@ -60,10 +61,10 @@ function createProviderBuilder<
         lifetimePolicy,
         origin,
         factory: (resolved: ResolvedDeps<Deps>, lifetime: Lifetime, params?: unknown) => {
-          const base = hasDeps ? { deps: resolved, lifetime } : { lifetime };
+          const base = hasDeps ? { deps: resolved, lifetime, out } : { lifetime, out };
           const ctx =
             lifetimePolicy === "context" && params !== undefined ? { ...base, params } : base;
-          return factory(ctx as WithContext<Deps, Params>);
+          return factory(ctx as WithContext<Deps, Params, Success, Err>);
         },
       });
     },
