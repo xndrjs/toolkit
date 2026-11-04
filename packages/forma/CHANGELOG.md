@@ -1,5 +1,13 @@
 # @xndrjs/forma
 
+## 0.1.0-alpha.4
+
+### Minor Changes
+
+- 5810088: Let `out.unexpectedFailure()` create and wrap an opaque failure token directly. Add an awaitable
+  reporter overload that always returns a Promise, preserves the same failure id, accepts synchronous
+  or asynchronous observability, ignores reporter results, and isolates reporter throw/rejection.
+
 ## 0.1.0-alpha.3
 
 ### Minor Changes

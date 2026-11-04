@@ -36,6 +36,7 @@
     "forma-adapter-peer",
     "forma-alias-intent",
     "forma-async-factories",
+    "forma-awaitable-unexpected-reporting",
     "forma-boundary-error-totalization",
     "forma-define-wiring",
     "forma-demo-docs",
