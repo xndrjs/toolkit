@@ -203,7 +203,7 @@ The Surface returns synchronously a cold, single-consumer
 
 - pull provides natural backpressure;
 - expected errors are in-band and terminal;
-- unexpected failures become terminal `unexpected` events ([ADR 0015](./adr/0015-boundary-error-totalization.md));
+- unexpected failures become terminal `unexpectedFailure` events ([ADR 0015](./adr/0015-boundary-error-totalization.md));
 - the generator return value is not part of the public protocol;
 - creating the iterable does not materialize the Provider or acquire resources;
 - `break`, `return()`, async dispose, abort, natural completion, and terminal outcomes converge on

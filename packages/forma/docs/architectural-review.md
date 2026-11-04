@@ -78,9 +78,9 @@ Input -> InvocationOutcome<Success, ExpectedError>
 ```
 
 The operation may be sync or async. Throws and Promise rejections from the implementation **do
-not** cross the Boundary: Forma converts them into `{ kind: "unexpected", failure }` at the origin
+not** cross the Boundary: Forma converts them into `{ kind: "unexpectedFailure", failure }` at the origin
 ([ADR 0015](./adr/0015-boundary-error-totalization.md)). The Contract declares expected errors on
-`Err`; the public algebra also adds `unexpected` and `cancelled`.
+`Err`; the public algebra also adds `unexpectedFailure` and `cancelled`.
 
 ### Provider
 
@@ -429,8 +429,8 @@ the system uses structural equivalence to rewrite semantically named identities,
 
 The baseline separated expected failure in `Result` from technical failure via throw. That
 separation is **no longer** the normative model: [ADR 0015](./adr/0015-boundary-error-totalization.md)
-totalizes every Intent exit as `InvocationOutcome` (`success` / `error` / `unexpected` /
-`cancelled`). Implementation throw/rejection becomes `unexpected` with an opaque Failure ID; the
+totalizes every Intent exit as `InvocationOutcome` (`success` / `expectedError` / `unexpectedFailure` /
+`cancelled`). Implementation throw/rejection becomes `unexpectedFailure` with an opaque Failure ID; the
 optional `onUnexpectedFailure` hook receives the raw cause only for automatic core conversions.
 
 Remaining **outside** the Intent Contract (distinct channels —
@@ -536,7 +536,7 @@ That motivates `withExecutionContext` and `AsyncDisposable`, discussed later.
 
 ### `InvocationOutcome<T, never>` keeps non-success branches
 
-With `Err = never`, the `error` branch is impossible, but `unexpected` and `cancelled` remain. A
+With `Err = never`, the `expectedError` branch is impossible, but `unexpectedFailure` and `cancelled` remain. A
 consumer of a domain-“infallible” Intent must still distinguish those kinds — not with `try/catch`
 on the called Boundary, but with a switch on the protocol.
 
@@ -545,7 +545,7 @@ unchanged instead of mapping them to an invented expected error.
 
 Directions still open on ergonomics (not protocol):
 
-- conditionally collapse only the `error` branch when `Err = never`;
+- conditionally collapse only the `expectedError` branch when `Err = never`;
 - distinguish value/resource Providers from operations;
 - keep the uniform four-kind shape and accept the switch.
 

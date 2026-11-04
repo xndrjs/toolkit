@@ -1,4 +1,4 @@
-import { boundary, expectedError, success } from "@xndrjs/forma";
+import { boundary } from "@xndrjs/forma";
 import type { Connection, PgFindError, PgOrder, PgOrderId } from "./types";
 
 export type { Connection, PgFindError, PgOrder, PgOrderId } from "./types";
@@ -32,7 +32,7 @@ export const ConnectionIntent = Postgres.intent("connection").contract<void, Con
 /** Fake async acquire per execution context; cleaned up on context dispose. */
 export const ConnectionProvider = ConnectionIntent.provide
   .perContext()
-  .with(async ({ lifetime }) => {
+  .with(async ({ lifetime, out }) => {
     await delay(5, lifetime.signal);
     const connection: Connection = {
       label: "pg-connection",
@@ -42,7 +42,7 @@ export const ConnectionProvider = ConnectionIntent.provide
       console.log(`disposed ${connection.label}`);
     });
     return function () {
-      return success(connection);
+      return out.success(connection);
     };
   });
 
@@ -52,13 +52,13 @@ export const SelectOrder = Postgres.intent("selectOrder").contract<
   PgFindError
 >();
 export const SelectOrderProvider = SelectOrder.provide.using({ connection: ConnectionIntent }).with(
-  ({ deps: { connection } }) =>
+  ({ deps: { connection }, out }) =>
     async function (id) {
       const opened = await connection();
       if (opened.kind !== "success") {
         return opened;
       }
       const row = opened.value.lookup(id.order_id);
-      return row ? success(row) : expectedError({ code: "NO_ROW" as const });
+      return row ? out.success(row) : out.expectedError({ code: "NO_ROW" as const });
     }
 );

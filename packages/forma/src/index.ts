@@ -64,11 +64,13 @@ export {
   isCancellation,
   isTerminalOutcome,
   isUnexpectedFailure,
+  out,
   success,
-  unexpected,
+  unexpectedFailure,
 } from "./invocation-outcome.js";
 export type {
   Cancellation,
+  ContractOut,
   FailureId,
   InvocationOutcome,
   UnexpectedFailure,

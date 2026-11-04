@@ -5,7 +5,7 @@ import { success } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
+type FindError = { readonly code: "not_found" };
 
 /**
  * F2 — graph plan at compose: cycles and closed graph before the root is exposed.

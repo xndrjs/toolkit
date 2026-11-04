@@ -6,13 +6,13 @@ import {
   expectedError,
   isUnexpectedFailure,
   success,
-  unexpected,
+  unexpectedFailure,
   type OnUnexpectedFailure,
   type UnexpectedFailureEvent,
 } from "@xndrjs/forma";
 
 type OrderEvent = { readonly orderId: string; readonly status: string };
-type WatchError = { readonly kind: "unavailable" };
+type WatchError = { readonly code: "unavailable" };
 
 describe("compose — stream totalization", () => {
   it("source throw before the first item yields a terminal unexpected (next does not reject)", async () => {
@@ -43,15 +43,15 @@ describe("compose — stream totalization", () => {
     }
 
     expect(values).toHaveLength(1);
-    expect(values[0]).toMatchObject({ kind: "unexpected" });
-    if (values[0]?.kind === "unexpected") {
+    expect(values[0]).toMatchObject({ kind: "unexpectedFailure" });
+    if (values[0]?.kind === "unexpectedFailure") {
       expect(isUnexpectedFailure(values[0].failure)).toBe(true);
     }
     expect(events).toHaveLength(1);
     expect(events[0]!.cause).toBe(boom);
     expect(events[0]!.phase).toBe("stream-next");
     expect(events[0]!.failure).toBe(
-      values[0]?.kind === "unexpected" ? values[0].failure : undefined
+      values[0]?.kind === "unexpectedFailure" ? values[0].failure : undefined
     );
     expect(events[0]!).not.toHaveProperty("input");
     expect(events[0]!).not.toHaveProperty("params");
@@ -89,7 +89,7 @@ describe("compose — stream totalization", () => {
     expect(values).toEqual([
       { kind: "success", value: { orderId: "1", status: "open" } },
       { kind: "success", value: { orderId: "2", status: "paid" } },
-      expect.objectContaining({ kind: "unexpected" }),
+      expect.objectContaining({ kind: "unexpectedFailure" }),
     ]);
     expect(onUnexpectedFailure).toHaveBeenCalledOnce();
     expect(onUnexpectedFailure.mock.calls[0]![0]!.cause).toBe(boom);
@@ -105,14 +105,14 @@ describe("compose — stream totalization", () => {
     const ExpectedProvider = WatchOrders.provide.with(
       () =>
         async function* () {
-          yield expectedError({ kind: "unavailable" });
+          yield expectedError({ code: "unavailable" });
           yield success({ orderId: "ghost", status: "should-not-appear" });
         }
     );
     const ExplicitProvider = WatchOrders.provide.with(
       () =>
         async function* () {
-          yield unexpected(createUnexpectedFailure());
+          yield unexpectedFailure(createUnexpectedFailure());
           yield success({ orderId: "ghost", status: "should-not-appear" });
         }
     );
@@ -126,7 +126,7 @@ describe("compose — stream totalization", () => {
     for await (const value of expectedCtx.surface.watchOrders()) {
       expectedValues.push(value);
     }
-    expect(expectedValues).toEqual([{ kind: "error", error: { kind: "unavailable" } }]);
+    expect(expectedValues).toEqual([{ kind: "expectedError", error: { code: "unavailable" } }]);
     await expectedRoot.dispose();
 
     const onUnexpectedFailure = vi.fn<OnUnexpectedFailure>();
@@ -141,7 +141,7 @@ describe("compose — stream totalization", () => {
       unexpectedValues.push(value);
     }
     expect(unexpectedValues).toHaveLength(1);
-    expect(unexpectedValues[0]?.kind).toBe("unexpected");
+    expect(unexpectedValues[0]?.kind).toBe("unexpectedFailure");
     // Explicit Boundary failure must not notify the Composition hook.
     expect(onUnexpectedFailure).not.toHaveBeenCalled();
     await unexpectedRoot.dispose();
@@ -170,11 +170,11 @@ describe("compose — stream totalization", () => {
     const iterator = ctx.surface.watchOrders()[Symbol.asyncIterator]();
     await iterator.next();
     const terminal = await iterator.next();
-    expect(terminal.value).toMatchObject({ kind: "unexpected" });
+    expect(terminal.value).toMatchObject({ kind: "unexpectedFailure" });
     expect(onUnexpectedFailure).toHaveBeenCalledOnce();
     expect(onUnexpectedFailure.mock.calls[0]![0]!.cause).toBe(boom);
     expect(onUnexpectedFailure.mock.calls[0]![0]!.failure).toBe(
-      terminal.value?.kind === "unexpected" ? terminal.value.failure : undefined
+      terminal.value?.kind === "unexpectedFailure" ? terminal.value.failure : undefined
     );
 
     // Propagating/consuming the terminal item does not re-notify.
@@ -201,7 +201,7 @@ describe("compose — stream totalization", () => {
     await using ctx = root.openExecutionContext();
 
     const first = await ctx.surface.watchOrders()[Symbol.asyncIterator]().next();
-    expect(first).toMatchObject({ done: false, value: { kind: "unexpected" } });
+    expect(first).toMatchObject({ done: false, value: { kind: "unexpectedFailure" } });
     expect(onUnexpectedFailure).toHaveBeenCalledOnce();
     expect(onUnexpectedFailure.mock.calls[0]![0]!.cause).toBe(boom);
     expect(onUnexpectedFailure.mock.calls[0]![0]!.phase).toBe("materialize");
@@ -229,7 +229,7 @@ describe("compose — stream totalization", () => {
     await using ctx = root.openExecutionContext();
 
     const first = await ctx.surface.watchOrders()[Symbol.asyncIterator]().next();
-    expect(first).toMatchObject({ done: false, value: { kind: "unexpected" } });
+    expect(first).toMatchObject({ done: false, value: { kind: "unexpectedFailure" } });
     expect(onUnexpectedFailure).toHaveBeenCalledOnce();
     expect(onUnexpectedFailure.mock.calls[0]![0]!.cause).toBe(boom);
     expect(onUnexpectedFailure.mock.calls[0]![0]!.phase).toBe("stream-start");

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { boundary, compose, success } from "@xndrjs/forma";
 
 type OrderEvent = { readonly orderId: string; readonly status: string };
-type WatchError = { readonly kind: "unavailable" };
+type WatchError = { readonly code: "unavailable" };
 
 /** Cooperative hang: settles only when `signal` aborts. */
 function abortableHang(signal: AbortSignal): Promise<never> {

@@ -6,8 +6,8 @@ import { expectedError, success, type InvocationOutcome } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
-type CancelError = { readonly kind: "already_cancelled" };
+type FindError = { readonly code: "not_found" };
+type CancelError = { readonly code: "already_cancelled" };
 
 describe("provider builder", () => {
   it("builds a no-deps provider with lifetime in with", async () => {
@@ -176,9 +176,9 @@ describe("provider builder", () => {
           switch (found.kind) {
             case "success":
               return success(undefined);
-            case "error":
-              return expectedError({ kind: "already_cancelled" });
-            case "unexpected":
+            case "expectedError":
+              return expectedError({ code: "already_cancelled" });
+            case "unexpectedFailure":
             case "cancelled":
               return found;
           }

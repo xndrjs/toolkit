@@ -14,7 +14,7 @@ import {
 
 type WatchInput = { readonly customerId: string };
 type OrderEvent = { readonly orderId: string; readonly status: string };
-type WatchError = { readonly kind: "unavailable" };
+type WatchError = { readonly code: "unavailable" };
 
 describe("compose — Adapter / alias / using + describePlan mode", () => {
   it("Adapter.adapt preserves stream modality (StreamOperation factory)", async () => {

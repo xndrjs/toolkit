@@ -168,7 +168,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
       // must still roll back once explicit context disposal has started.
       assertAcceptingWork:
         lifetime.effective === "context" ? () => execution.assertOpen() : undefined,
-      // Factory throw/rejection → unexpected at the materializing invocation (unary or stream).
+      // Factory throw/rejection → unexpectedFailure at the materializing invocation (unary or stream).
       totalizeFactoryFailure: (cause) => throwTotalizedMaterializationFailure(cause, meta),
       resolveDeps,
     });
@@ -238,7 +238,7 @@ export function openExecutionContext<Surface extends Record<string, AnyProvider>
               }
             },
             // Materialize failures (and any start throw not already totalized by wrap)
-            // become a terminal unexpected on the first next() — never a rejection.
+            // become a terminal `unexpectedFailure` on the first next() — never a rejection.
             // Lifecycle composites (e.g. factory + rollback SuppressedError) stay exceptional.
             resolveSourceFailure: (cause, phase) => {
               const existing = outcomeFromTotalizedMaterialization(cause);

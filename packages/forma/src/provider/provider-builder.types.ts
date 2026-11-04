@@ -22,11 +22,12 @@ type Awaitable<T> = T | PromiseLike<T>;
 
 /**
  * Argument to `.with`: named fields avoid positional ambiguity between deps and lifetime.
+ * `ctx.out` is typed to this Intent's `Success` / `Err`.
  * Shared by Boundary and Adapter builders (constraint differences live on `using` only).
  * Return type follows Intent modality.
  */
 export type WithFactory<Input, Success, Err, Deps, Params, Mode extends IntentModality> = (
-  ctx: WithContext<Deps, Params>
+  ctx: WithContext<Deps, Params, Success, Err>
 ) => Awaitable<OperationFor<Mode, Input, Success, Err>>;
 
 /** Fluent steps after deps are fixed (`using` is one-shot). */

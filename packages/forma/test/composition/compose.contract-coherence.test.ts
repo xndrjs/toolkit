@@ -3,8 +3,8 @@ import { boundary, compose, success } from "@xndrjs/forma";
 
 type Input = { readonly id: string };
 type AlternateInput = { readonly id: number };
-type FirstError = { readonly kind: "first" };
-type SecondError = { readonly kind: "second" };
+type FirstError = { readonly code: "first" };
+type SecondError = { readonly code: "second" };
 
 describe("compose — Contract coherence", () => {
   it("accepts exactly equivalent repeated declarations and homonymous Boundaries", async () => {

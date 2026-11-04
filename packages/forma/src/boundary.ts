@@ -50,8 +50,14 @@ export type Intent<
   readonly name: Name;
   /** Contract modality (`unary` | `stream`). Identity does not include this. */
   readonly modality: Mode;
-  /** Attach a realization: optional `using` / lifetime pin, then `with(({ deps?, lifetime }) => …)`. */
-  readonly provide: ProvideApi<BoundaryId, Name, Input, Success, Err, Mode>;
+  /** Attach a realization: optional `using` / lifetime pin, then `with(({ deps?, lifetime, out }) => …)`. */ readonly provide: ProvideApi<
+    BoundaryId,
+    Name,
+    Input,
+    Success,
+    Err,
+    Mode
+  >;
   readonly [formaIntentBrand]: {
     readonly boundary: BoundaryId;
     readonly name: Name;

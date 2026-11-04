@@ -47,7 +47,7 @@ The agreed direction is:
 - return from the surface a lazy, cold, single-consumer `AsyncIterable` (with `AsyncDisposable`);
 - close active streams when the consumer stops, the execution context is disposed, or the related
   signal is aborted (host abort ≠ automatic dispose);
-- use `InvocationOutcome<Item, Err>` as the event protocol, with `error` / `unexpected` /
+- use `InvocationOutcome<Item, Err>` as the event protocol, with `expectedError` / `unexpectedFailure` /
   `cancelled` terminal and enforced by the wrapper ([ADR 0015](./adr/0015-boundary-error-totalization.md));
 - leave transport, reconnect, multicast, and runtime schema to modules built on top of the core.
 
@@ -250,9 +250,9 @@ AsyncIterable<InvocationOutcome<Item, Err>>;
 Rules:
 
 - `success(item)` emits an element;
-- `error` represents an expected failure and is terminal;
-- `unexpected` represents an unexpected failure and is terminal (source throw/rejection at start
-  or `next()` becomes a terminal `unexpected` event — `next()` does not reject for that failure);
+- `expectedError` represents an expected failure and is terminal;
+- `unexpectedFailure` represents an unexpected failure and is terminal (source throw/rejection at start
+  or `next()` becomes a terminal `unexpectedFailure` event — `next()` does not reject for that failure);
 - `cancelled` is terminal;
 - iterator completion represents normal end;
 - no element is allowed after a terminal kind;
@@ -263,7 +263,7 @@ Rules:
 - in v1 there is no timeout if a generator ignores cancellation and never completes `return()`:
   rely on abort + cooperation; any hang-timeout remains host policy.
 
-The wrapper **enforces** terminal kinds: after the first `error` / `unexpected` / `cancelled` it
+The wrapper **enforces** terminal kinds: after the first `expectedError` / `unexpectedFailure` / `cancelled` it
 calls `return()` on the inner iterator so later yields are not observable.
 
 The generator’s final return value is not used to represent a result: `for await` does not expose
@@ -655,10 +655,10 @@ Exit criterion: the remote Adapter needs no exceptions to the core model.
 
 ### Errors
 
-- `error` / `unexpected` / `cancelled` are emitted once and terminate (wrapper enforce);
+- `expectedError` / `unexpectedFailure` / `cancelled` are emitted once and terminate (wrapper enforce);
 - yield after a terminal kind is not observable;
-- throw before the first yield becomes a terminal `unexpected` and cleans up;
-- throw after several yields becomes a single terminal `unexpected` and cleans up;
+- throw before the first yield becomes a terminal `unexpectedFailure` and cleans up;
+- throw after several yields becomes a single terminal `unexpectedFailure` and cleans up;
 - cleanup failure is propagated;
 - cleanup failure from host/context abort does not become `unhandledRejection` and remains
   observable from the subsequent context dispose;
@@ -695,7 +695,7 @@ Event algebra amended by [ADR 0015](./adr/0015-boundary-error-totalization.md).
 2. **Surface type:** `AsyncIterable<InvocationOutcome<Item, Err>>` (+ `[Symbol.asyncDispose]`);
    not a public `AsyncIterableIterator`.
 3. **Terminal kinds:** enforced in the wrapper (`return()` after the first
-   `error` / `unexpected` / `cancelled`).
+   `expectedError` / `unexpectedFailure` / `cancelled`).
 4. **`StreamInvocation` v1:** only `{ signal: AbortSignal }`.
 5. **Unary v1:** unchanged — no invocation bag on unary in the first ship.
 6. **Host abort:** propagates signals; does not start context `dispose()` (abort ≠ dispose).

@@ -190,7 +190,7 @@ export type ComposeOptions<
   readonly wiring?: Wiring;
   /**
    * Called once at the origin when Forma automatically converts a throw/rejection into
-   * `unexpected`. Not called for expected errors, explicit Boundary failures, propagated
+   * `unexpectedFailure`. Not called for expected errors, explicit Boundary failures, propagated
    * failures, or lifecycle (`dispose`). Defaults to `console.error`.
    */
   readonly onUnexpectedFailure?: OnUnexpectedFailure;

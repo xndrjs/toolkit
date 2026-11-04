@@ -19,7 +19,8 @@ import { boundary } from "@xndrjs/forma";
 
 type OrderId = { readonly id: string };
 type Order = { readonly id: string; readonly total: number };
-type FindError = { readonly kind: "not_found" };
+/** Expected Error payloads conventionally use `code` (keep `kind` for InvocationOutcome). */
+type FindError = { readonly code: "not_found" };
 
 const Orders = boundary("orders");
 
@@ -27,7 +28,7 @@ export const FindOrder = Orders.intent("find").contract<OrderId, Order, FindErro
 export const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
 ```
 
-Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the literal Intent name that way. `boundary.intent` is always **unary** (one terminal `InvocationOutcome`). For pull-based sequences use `boundary.stream` (below). Every Boundary Intent exit is totalized: implementation throw/rejection becomes `unexpected` at the origin ([ADR 0015](./docs/adr/0015-boundary-error-totalization.md)).
+Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the literal Intent name that way. `boundary.intent` is always **unary** (one terminal `InvocationOutcome`). For pull-based sequences use `boundary.stream` (below). Every Boundary Intent exit is totalized: implementation throw/rejection becomes `unexpectedFailure` at the origin ([ADR 0015](./docs/adr/0015-boundary-error-totalization.md)).
 
 ### Providers
 
@@ -39,14 +40,12 @@ Use `compose` to exercise Provider behavior—Provider factories are not a publi
 monkey-patching seam.
 
 ```ts
-import { expectedError, success } from "@xndrjs/forma";
-
 const FindProvider = FindOrder.provide.with(
-  (_ctx) =>
+  ({ out }) =>
     function (id) {
       return id.id === "42"
-        ? success({ id: "42", total: 100 })
-        : expectedError({ kind: "not_found" as const });
+        ? out.success({ id: "42", total: 100 })
+        : out.expectedError({ code: "not_found" as const });
     }
 );
 
@@ -57,11 +56,11 @@ async function openConnection(opts: { signal: AbortSignal }): Promise<ConnHandle
 }
 
 const Conn = Orders.intent("conn").contract<void, ConnHandle, never>();
-const ConnProvider = Conn.provide.perContext().with(async ({ lifetime }) => {
+const ConnProvider = Conn.provide.perContext().with(async ({ lifetime, out }) => {
   const conn = await openConnection({ signal: lifetime.signal });
   lifetime.onDispose(() => conn.close());
   return function () {
-    return success(conn);
+    return out.success(conn);
   };
 });
 
@@ -71,15 +70,17 @@ const GetOrderProvider = GetOrder.provide
   .perContext<OrderParams>()
   .using({ find: FindOrder })
   .with(
-    ({ deps: { find }, params }) =>
+    ({ deps: { find }, params, out }) =>
       function (id) {
         if (params.role === "guest") {
-          return expectedError({ kind: "not_found" as const });
+          return out.expectedError({ code: "not_found" as const });
         }
-        return find(id); // forwards success / error / unexpected / cancelled
+        return find(id); // forwards success / expectedError / unexpectedFailure / cancelled
       }
   );
 ```
+
+`.with` always receives `out` typed to this Intent's `Success` / `Err` (autocomplete and early checking on `expectedError` / `success`). A module-level `out` export remains for open-generic construction outside factories.
 
 Lifetime policy is local, while effective lifetime is derived from the resolved graph. No modifier means `auto`: the Provider is shared by the composition root unless any transitive dependency is context-owned, in which case it is narrowed to one instance per `openExecutionContext()` / `withExecutionContext()`. `.perContext()` forces context ownership; `.perComposition()` pins root ownership and makes `compose()` fail with the dependency path if a transitive dependency requires a context. `root.describePlan()` reports declared and effective lifetimes. Root and context `dispose()` are terminal state machines (concurrent callers share one promise); entering `disposing` aborts that owner’s `AbortSignal` (`lifetime.signal` / `execution.signal`). `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short lexical scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount.
 
@@ -92,7 +93,7 @@ Typed execution **params**: declare a plain outer object bag on `.perContext<Par
 An **Adapter** is a peer of Boundary, scoped to one target Boundary. It owns external realizations of that target’s Intents and may `using` Intents from any boundary. **Default for cross-boundary wiring** — including when contracts match — is an Adapter (or same-boundary Provider) **passthrough**, not an identity alias. That keeps origin, graph edges, lifetime, and room for policy explicit.
 
 ```ts
-import { adapter, expectedError, success } from "@xndrjs/forma";
+import { adapter } from "@xndrjs/forma";
 
 type PgOrderId = { readonly order_id: string };
 type PgOrder = { readonly order_id: string; readonly amount_cents: number };
@@ -106,18 +107,18 @@ const OrdersAdapter = adapter("orders-postgres", Orders);
 export const FindOrderViaPostgresProvider = OrdersAdapter.adapt(FindOrder)
   .using({ select: SelectOrder })
   .with(
-    ({ deps: { select } }) =>
+    ({ deps: { select }, out }) =>
       async function (id) {
         const row = await select({ order_id: id.id });
         switch (row.kind) {
           case "success":
-            return success({
+            return out.success({
               id: row.value.order_id,
               total: row.value.amount_cents / 100,
             });
-          case "error":
-            return expectedError({ kind: "not_found" as const });
-          case "unexpected":
+          case "expectedError":
+            return out.expectedError({ code: "not_found" as const });
+          case "unexpectedFailure":
           case "cancelled":
             return row; // pass through unchanged — never reinterpret as expected Err
         }
@@ -125,7 +126,7 @@ export const FindOrderViaPostgresProvider = OrdersAdapter.adapt(FindOrder)
   );
 ```
 
-`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in private `wiring`, with `origin: { kind: "adapter", id: "orders-postgres" }`. Adapter Providers cannot be Surface roots. Map only `success` / `error`; pass `unexpected` / `cancelled` through. Do not wrap Forma dependency calls in `try/catch` for implementation failure — the dependency Intent is already totalized.
+`.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in private `wiring`, with `origin: { kind: "adapter", id: "orders-postgres" }`. Adapter Providers cannot be Surface roots. Map only `success` / `expectedError`; pass `unexpectedFailure` / `cancelled` through. Do not wrap Forma dependency calls in `try/catch` for implementation failure — the dependency Intent is already totalized.
 
 When shapes already match, the factory can forward without mapping (`return select(input)`). Reserve `aliasIntent(required, satisfier)` for deliberate synonyms (rename / migration). There is no `forward` helper yet.
 
@@ -137,11 +138,11 @@ Prefer an **inline** `compose({ entryBoundaries, surface, wiring })` literal. En
 import { compose, type InvocationOutcome } from "@xndrjs/forma";
 
 const SelectOrderProvider = SelectOrder.provide.with(
-  (_ctx) =>
+  ({ out }) =>
     function (id) {
       return id.order_id === "42"
-        ? success({ order_id: "42", amount_cents: 10000 })
-        : expectedError({ code: "NO_ROW" as const });
+        ? out.success({ order_id: "42", amount_cents: 10000 })
+        : out.expectedError({ code: "NO_ROW" as const });
     }
 );
 
@@ -149,7 +150,7 @@ const root = compose({
   entryBoundaries: [Orders],
   surface: { getOrder: GetOrderProvider },
   wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
-  // Optional: only automatic throw→unexpected conversions (once at origin).
+  // Optional: only automatic throw→unexpectedFailure conversions (once at origin).
   onUnexpectedFailure(event) {
     console.error(event.failure.id, event.cause, event.intent, event.phase);
   },
@@ -187,17 +188,17 @@ Declare a **stream** Contract with `boundary.stream(name).contract<Input, Item, 
 
 ```ts
 type OrderEvent = { readonly orderId: string; readonly status: string };
-type WatchError = { readonly kind: "unavailable" };
+type WatchError = { readonly code: "unavailable" };
 
 const WatchOrders = Orders.stream("watchOrders").contract<OrderId, OrderEvent, WatchError>();
 
 const WatchOrdersProvider = WatchOrders.provide.with(
-  () =>
+  ({ out }) =>
     async function* (id, invocation) {
       try {
         invocation.signal.throwIfAborted();
-        yield success({ orderId: id.id, status: "open" });
-        yield success({ orderId: id.id, status: "paid" });
+        yield out.success({ orderId: id.id, status: "open" });
+        yield out.success({ orderId: id.id, status: "paid" });
       } finally {
         // runs on natural end, break, return(), AsyncDisposable, or context/root dispose
       }
@@ -211,7 +212,7 @@ const streamingRoot = compose({
 
 await using execution = streamingRoot.openExecutionContext();
 for await (const event of execution.surface.watchOrders({ id: "42" })) {
-  if (event.kind !== "success") break; // error / unexpected / cancelled are terminal
+  if (event.kind !== "success") break; // expectedError / unexpectedFailure / cancelled are terminal
   // …
 }
 ```

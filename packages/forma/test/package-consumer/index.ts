@@ -1,15 +1,14 @@
 import {
   boundary,
   compose,
-  success,
   type InvocationOutcome,
   type StreamSurfaceIterable,
 } from "@xndrjs/forma";
 
 type Order = { readonly id: string; readonly requestId: string };
 type OrderEvent = { readonly orderId: string; readonly status: "created" };
-type NotFound = { readonly kind: "not-found" };
-type WatchError = { readonly kind: "unavailable" };
+type NotFound = { readonly code: "not-found" };
+type WatchError = { readonly code: "unavailable" };
 
 const Orders = boundary("orders");
 const FindOrder = Orders.intent("findOrder").contract<{ readonly id: string }, Order, NotFound>();
@@ -23,19 +22,19 @@ let contextProviderDisposed = false;
 
 const FindOrderProvider = FindOrder.provide
   .perContext<{ readonly requestId: string }>()
-  .with(({ lifetime, params }) => {
+  .with(({ lifetime, params, out }) => {
     lifetime.onDispose(() => {
       contextProviderDisposed = true;
     });
 
-    return async (input) => success({ id: input.id, requestId: params.requestId });
+    return async (input) => out.success({ id: input.id, requestId: params.requestId });
   });
 
 const WatchOrdersProvider = WatchOrders.provide.with(
-  () =>
+  ({ out }) =>
     async function* (input, invocation) {
       invocation.signal.throwIfAborted();
-      yield success({ orderId: input.id, status: "created" as const });
+      yield out.success({ orderId: input.id, status: "created" as const });
     }
 );
 
