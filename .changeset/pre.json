@@ -41,6 +41,7 @@
     "forma-demo-docs",
     "forma-graph-plan-compose",
     "forma-lifecycle-state-machines",
+    "forma-out-namespace-and-err-code",
     "forma-seed-signal",
     "forma-streaming-and-runtime-hardening",
     "forma-structured-intent-identity",
