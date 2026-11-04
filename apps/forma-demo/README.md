@@ -1,35 +1,90 @@
 # @xndrjs/forma-demo
 
-Runnable Node walkthrough for `@xndrjs/forma`: Orders surface with GetOrder policy (role params), dual Adapters (Postgres shape-map vs in-memory passthrough), `WatchOrders` Stream Intent, async fake connection, and Design C disposal (`await using` + `withExecutionContext`).
+Two small, runnable walkthroughs for `@xndrjs/forma`. Each one has a single job:
 
-It prints the composition plan and call outcomes so you can see the shape of the system. It is not a test — expectations live in `packages/forma/test`.
+- **Orders** shows runtime mechanics: interchangeable Adapters, a real SQLite resource, execution
+  params, unary and Stream Intents, lazy materialization, cleanup, and disposal.
+- **Editorial** shows architectural evolution: a capability extracted into `Routing`, a temporary
+  Intent alias for an unchanged consumer, an Adapter for a consumer with different semantics, and
+  two explicit Entry Boundaries.
+
+Neither walkthrough is a test suite. Behavioural guarantees live in `packages/forma/test`.
+
+## Run
 
 ```bash
-pnpm --filter @xndrjs/forma-demo start:postgres
-pnpm --filter @xndrjs/forma-demo start:memory
+pnpm --filter @xndrjs/forma-demo start:orders:sqlite
+pnpm --filter @xndrjs/forma-demo start:orders:memory
+pnpm --filter @xndrjs/forma-demo start:editorial
 ```
+
+All commands print `root.describePlan()` before invoking the Surface.
+
+## Orders: same Boundary, two real implementations
+
+```text
+Orders Surface
+├─ GetOrder ────────┐
+└─ WatchOrders ─────┤
+                    ├─ OrdersMemory Adapter
+                    └─ OrdersSqlite Adapter ──> SQLite Boundary
+```
+
+The SQLite composition uses Node's real `node:sqlite` engine with an in-memory database. It creates
+schema and fixture rows, runs SQL queries, streams rows from `order_events`, and closes the actual
+database with the composition lifetime. The memory composition uses a `Map` and identifies itself
+honestly as an in-memory implementation.
+
+Both compositions expose the same Orders Surface. Guests are rejected by Orders policy before the
+storage seam is invoked. `WatchOrders` is a cold, single-consumer stream; natural completion,
+`break`, and execution-context disposal close the generator.
+
+## Editorial: moving capability ownership
+
+```text
+Sitemap.GetEntry
+└─ Sitemap.ResolvePath ── alias ───────────────┐
+                                               v
+PageBuilder.CreatePreview                Routing.ResolvePath
+└─ PageBuilder.ResolvePage ── Adapter ─────────┤
+                                               v
+                                  RoutingCmsSnapshot Adapter
+                                               v
+                                  CmsSnapshot.FindEntryByPath
+```
+
+`ResolvePath` originally belonged to Sitemap. Once PageBuilder also needed route resolution, the
+shared capability moved to the internal `Routing` Boundary:
+
+- `Sitemap.ResolvePath` and `Routing.ResolvePath` are exact synonyms during migration, so an
+  `aliasIntent` keeps the existing Sitemap Provider unchanged.
+- PageBuilder owns a different input, result, and expected-error vocabulary, so an Adapter realizes
+  `PageBuilder.ResolvePage` through `Routing.ResolvePath`.
+- Routing is realized through a `CmsSnapshot` Boundary that reads a committed JSON artifact from
+  the filesystem. It does not pretend to be Contentful or another remote vendor.
+- Only `Sitemap` and `PageBuilder` are Entry Boundaries. Routing, CmsSnapshot, Adapters, and the
+  migration alias remain private wiring.
+
+See [Boundary evolution](./docs/boundary-evolution.md) for the migration sequence and the intended
+final cleanup.
 
 ## Layout
 
+```text
+src/
+├─ orders/
+│  ├─ boundaries/       # Orders and real SQLite contracts/Providers
+│  ├─ adapters/         # memory and SQLite realizations of Orders seams
+│  ├─ composition.ts
+│  └─ main.ts
+├─ editorial/
+│  ├─ boundaries/       # Sitemap, PageBuilder, Routing, CmsSnapshot
+│  ├─ adapters/         # semantic translations between those Boundaries
+│  ├─ fixtures/         # real local CMS export artifact
+│  ├─ composition.ts
+│  └─ main.ts
+└─ shared/              # composition-plan presentation only
 ```
-src/core-orders/                 # Orders boundary — GetOrder + WatchOrders entry and stream seam
-src/infrastructure-postgres/     # Postgres boundary — async Connection + SelectOrder
-src/adapter-orders-postgres/     # FindOrder + WatchOrderEvents via Postgres shapes
-src/adapter-orders-memory/       # FindOrder + WatchOrderEvents via in-memory map
-src/composition.ts               # composePostgres / composeMemory (same surface)
-src/main.ts                      # describe plan + walk unary / stream / break / dispose
-```
 
-`PgOrder` uses `order_id` / `amount_cents`; Orders uses `id` / `total`. The Postgres Adapter maps rows; the memory Adapter stores Orders shapes directly. Cross-boundary wiring uses Adapter (not Intent alias). Guests are `forbidden` before FindOrder runs. Surface and Adapter exits use `InvocationOutcome` (`success` / `expectedError` / `unexpectedFailure` / `cancelled`): Adapters map Expected Error payloads and pass `unexpectedFailure` / `cancelled` through unchanged.
-
-## Stream Intent (`WatchOrders`)
-
-`WatchOrders` is the public entry Intent and is realized by an Orders-owned Provider. It delegates to the unresolved `WatchOrderEvents` seam, which is realized privately by the selected Adapter. Both compositions declare `entryBoundaries: [Orders]`; an Adapter never becomes a Surface root. The surface returns a cold, single-consumer `AsyncIterable` owned by the execution context:
-
-- creating the iterable does nothing; the first `next()` materializes and leases;
-- natural completion and `break` both run generator `finally` (logged as `watchOrders(…) closed`);
-- disposing the context (end of `withExecutionContext`) closes any still-active streams;
-- a signal already aborted at first pull prevents materialization; later host abort unblocks cooperative I/O but does **not** auto-dispose the context;
-- `root.describePlan()` shows Entry Boundaries, Surface-root provenance, and per-Provider `origin` / `mode` / nested `lifetime` (Adapter ids such as `orders-memory` appear on private seam realizations).
-
-See [packages/forma/docs/streaming-intents.md](../../packages/forma/docs/streaming-intents.md) and [GLOSSARY.md](../../packages/forma/GLOSSARY.md) (**Modality**, **Stream invocation**).
+The examples deliberately do not collect every Forma feature into one graph. Orders explains
+runtime ownership; Editorial explains architectural ownership.

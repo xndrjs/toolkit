@@ -837,7 +837,7 @@ The unary path already shows the desired direction:
 Surface
   → Orders.GetOrder Provider
   → Orders.FindOrder unresolved Intent
-  → Memory/Postgres Adapter
+  → Memory/SQLite Adapter
 ```
 
 The streaming path must be brought to the same model:
@@ -846,7 +846,7 @@ The streaming path must be brought to the same model:
 Surface
   → Orders.WatchOrders Provider
   → Orders.WatchOrderEvents unresolved Intent
-  → Memory/Postgres Adapter
+  → Memory/SQLite Adapter
 ```
 
 Both compositions declare:
@@ -855,7 +855,7 @@ Both compositions declare:
 entryBoundaries: [Orders];
 ```
 
-`WatchOrderEventsViaMemoryProvider` and `WatchOrderEventsViaPostgresProvider` realize
+`WatchOrderEventsViaMemoryProvider` and `WatchOrderEventsViaSqliteProvider` realize
 `WatchOrderEvents` in `wiring`. The Surface exposes the same Orders-originated
 `WatchOrdersProvider` in both variants.
 

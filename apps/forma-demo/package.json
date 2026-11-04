@@ -3,14 +3,16 @@
   "private": true,
   "type": "module",
   "version": "0.0.1",
-  "description": "Runnable PoC demo for @xndrjs/forma: dual Adapters, params policy, WatchOrders stream, async connection, Design C disposal.",
+  "description": "Runnable @xndrjs/forma demos for runtime mechanics and evolutionary boundary design.",
   "scripts": {
-    "start:postgres": "tsx src/main.ts postgres",
-    "start:memory": "tsx src/main.ts memory",
+    "start:orders:sqlite": "tsx src/orders/main.ts sqlite",
+    "start:orders:memory": "tsx src/orders/main.ts memory",
+    "start:editorial": "tsx src/editorial/main.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@xndrjs/forma": "workspace:^"
+    "@xndrjs/forma": "workspace:^",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",

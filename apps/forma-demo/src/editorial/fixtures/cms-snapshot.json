@@ -1,0 +1,10 @@
+[
+  {
+    "entry_id": "page-home",
+    "canonical_path": "/"
+  },
+  {
+    "entry_id": "page-hello-forma",
+    "canonical_path": "/news/hello-forma"
+  }
+]
