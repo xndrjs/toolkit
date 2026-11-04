@@ -1,4 +1,4 @@
-import { adapter, createUnexpectedFailure } from "@xndrjs/forma";
+import { adapter } from "@xndrjs/forma";
 import { FindOrder, Orders, WatchOrderEvents } from "../core-orders/index";
 import { SelectOrder } from "../infrastructure-postgres/index";
 
@@ -28,9 +28,9 @@ export const FindOrderViaPostgresProvider = OrdersPostgres.adapt(FindOrder)
               case "NO_ROW":
                 return out.expectedError({ code: "not_found" });
               default:
-                const failure = createUnexpectedFailure();
-                console.error(`Unknown ${outcome.error.code} ${failure.id}`);
-                return out.unexpectedFailure(failure);
+                return out.unexpectedFailure((failure) => {
+                  console.error(`Unknown ${outcome.error.code} ${failure.id}`);
+                });
             }
           default:
             return outcome;

@@ -32,7 +32,7 @@ A domain failure censored in the Intent’s `Err` and carried on the `expectedEr
 _Avoid_: expected failure (when meaning the same), domain exception, typed throw; `kind` on Err when `code` would do
 
 **Unexpected Failure**:
-An opaque data token (`{ id: FailureId }`) on the `unexpectedFailure` branch when an invocation failed for a cause not censored in the Contract. Does not carry cause, message, stack, producer details, Input, or Params. Callers may propagate it, stop, apply a generic policy, or surface the id; they must not classify the raw cause. Forma may create it automatically from throw/rejection, or a Boundary may create it explicitly via `createUnexpectedFailure()` and return `out.unexpectedFailure(failure)`.
+An opaque data token (`{ id: FailureId }`) on the `unexpectedFailure` branch when an invocation failed for a cause not censored in the Contract. It carries no cause or producer details; Forma may create it automatically, while a Boundary may create it explicitly with `out.unexpectedFailure()`, its awaitable reporting overload, or `createUnexpectedFailure()` followed by `out.unexpectedFailure(failure)`.
 _Avoid_: technical failure (as a public type), unexpected error object, thrown Error across Boundary
 
 **Failure ID**:

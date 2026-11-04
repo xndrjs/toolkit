@@ -147,6 +147,44 @@ describe("compose — stream totalization", () => {
     await unexpectedRoot.dispose();
   });
 
+  it("awaits explicit reporting before yielding a terminal unexpected failure", async () => {
+    const Orders = boundary("orders");
+    const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
+    const reported: string[] = [];
+    const onUnexpectedFailure = vi.fn<OnUnexpectedFailure>();
+    const WatchProvider = WatchOrders.provide.with(
+      ({ out }) =>
+        async function* () {
+          yield await out.unexpectedFailure(async (failure) => {
+            await Promise.resolve();
+            reported.push(failure.id);
+          });
+          yield out.success({ orderId: "ghost", status: "should-not-appear" });
+        }
+    );
+
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+      onUnexpectedFailure,
+    });
+    await using ctx = root.openExecutionContext();
+
+    const values = [];
+    for await (const value of ctx.surface.watchOrders()) {
+      values.push(value);
+    }
+
+    expect(values).toHaveLength(1);
+    expect(values[0]?.kind).toBe("unexpectedFailure");
+    if (values[0]?.kind === "unexpectedFailure") {
+      expect(reported).toEqual([values[0].failure.id]);
+    }
+    expect(onUnexpectedFailure).not.toHaveBeenCalled();
+
+    await root.dispose();
+  });
+
   it("Composition hook is notified once at the origin for a core-generated stream failure", async () => {
     const boom = new Error("origin");
     const onUnexpectedFailure = vi.fn<OnUnexpectedFailure>();

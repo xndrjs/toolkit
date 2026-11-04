@@ -39,6 +39,16 @@ export type InvocationOutcome<Success, ExpectedError> =
   | { readonly kind: "unexpectedFailure"; readonly failure: UnexpectedFailure }
   | { readonly kind: "cancelled"; readonly cancellation: Cancellation };
 
+/**
+ * Create a new unexpected-failure token with a high-entropy opaque id.
+ * Prefer this factory over forging objects; there is no public API that accepts arbitrary ids.
+ */
+export function createUnexpectedFailure(): UnexpectedFailure {
+  const failure = { id: crypto.randomUUID() as FailureId };
+  defineRuntimeBrand(failure, FORMA_UNEXPECTED_FAILURE, true);
+  return Object.freeze(failure);
+}
+
 /** Successful contract outcome (unary value or stream item). */
 export function success<T>(value: T): InvocationOutcome<T, never> {
   return { kind: "success", value };
@@ -50,10 +60,41 @@ export function expectedError<E>(error: E): InvocationOutcome<never, E> {
 }
 
 /**
- * Unexpected failure branch; pass a token from {@link createUnexpectedFailure}.
- * Prefer logging / correlating `failure.id` before returning this outcome.
+ * Unexpected failure branch.
+ *
+ * - `unexpectedFailure(failure)` — wrap an existing {@link createUnexpectedFailure} token
+ *   (two-step when reporting ownership must remain fully explicit).
+ * - `unexpectedFailure()` — create a token and wrap it in one step.
+ * - `unexpectedFailure(report)` — create a token, await the report callback, then wrap it.
+ *
+ * The report overload always returns a Promise, even when the callback is synchronous. Report
+ * values are ignored and report throw/rejection is isolated so diagnostics cannot replace the
+ * original failure. Explicit paths do not notify `compose({ onUnexpectedFailure })`.
  */
-export function unexpectedFailure(failure: UnexpectedFailure): InvocationOutcome<never, never> {
+export function unexpectedFailure(): InvocationOutcome<never, never>;
+export function unexpectedFailure(failure: UnexpectedFailure): InvocationOutcome<never, never>;
+export function unexpectedFailure<ReportResult>(
+  report: (failure: UnexpectedFailure) => ReportResult | PromiseLike<ReportResult>
+): Promise<InvocationOutcome<never, never>>;
+export function unexpectedFailure(
+  failureOrReport?: UnexpectedFailure | ((failure: UnexpectedFailure) => unknown)
+): InvocationOutcome<never, never> | Promise<InvocationOutcome<never, never>> {
+  if (typeof failureOrReport === "function") {
+    return createReportedUnexpectedFailure(failureOrReport);
+  }
+  const failure = failureOrReport ?? createUnexpectedFailure();
+  return { kind: "unexpectedFailure", failure };
+}
+
+async function createReportedUnexpectedFailure(
+  report: (failure: UnexpectedFailure) => unknown
+): Promise<InvocationOutcome<never, never>> {
+  const failure = createUnexpectedFailure();
+  try {
+    await report(failure);
+  } catch {
+    // Diagnostic delivery is best-effort; keep the original failure as the outcome.
+  }
   return { kind: "unexpectedFailure", failure };
 }
 
@@ -70,15 +111,18 @@ export function cancelled(cancellation: Cancellation): InvocationOutcome<never, 
  *
  * Expected Error payloads conventionally use a `code` discriminant (not `kind`) so the
  * protocol tag (`outcome.kind`) stays distinct from domain error tags.
- */
-/**
+ *
  * Method syntax (not function properties) keeps `ContractOut` assignable across
  * Provider widenings — including `Err = never` — under TypeScript's bivariant methods.
  */
 export type ContractOut<Success, Err> = Readonly<{
   success(value: Success): InvocationOutcome<Success, never>;
   expectedError(error: Err): InvocationOutcome<never, Err>;
+  unexpectedFailure(): InvocationOutcome<never, never>;
   unexpectedFailure(failure: UnexpectedFailure): InvocationOutcome<never, never>;
+  unexpectedFailure<ReportResult>(
+    report: (failure: UnexpectedFailure) => ReportResult | PromiseLike<ReportResult>
+  ): Promise<InvocationOutcome<never, never>>;
   cancelled(cancellation: Cancellation): InvocationOutcome<never, never>;
 }>;
 
@@ -92,16 +136,6 @@ export const out = Object.freeze({
   unexpectedFailure,
   cancelled,
 });
-
-/**
- * Create a new unexpected-failure token with a high-entropy opaque id.
- * Prefer this factory over forging objects; there is no public API that accepts arbitrary ids.
- */
-export function createUnexpectedFailure(): UnexpectedFailure {
-  const failure = { id: crypto.randomUUID() as FailureId };
-  defineRuntimeBrand(failure, FORMA_UNEXPECTED_FAILURE, true);
-  return Object.freeze(failure);
-}
 
 /** Runtime authenticity check for values created by {@link createUnexpectedFailure}. */
 export function isUnexpectedFailure(value: unknown): value is UnexpectedFailure {

@@ -215,6 +215,76 @@ describe("compose — unary totalization", () => {
     await root.dispose();
   });
 
+  it("awaits an Observability Boundary reporter without replacing the explicit failure", async () => {
+    const Orders = boundary("orders");
+    const Observability = boundary("observability");
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+    const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+    type DiagnosticEvent = {
+      readonly failureId: string;
+      readonly source: string;
+    };
+    const ReportUnexpectedFailure = Observability.intent("reportUnexpectedFailure").contract<
+      DiagnosticEvent,
+      void,
+      never
+    >();
+    const reported: DiagnosticEvent[] = [];
+    const onUnexpectedFailure = vi.fn<OnUnexpectedFailure>();
+
+    const ReportUnexpectedFailureProvider = ReportUnexpectedFailure.provide.with(
+      ({ out }) =>
+        async function (event) {
+          await Promise.resolve();
+          reported.push(event);
+          return out.success(undefined);
+        }
+    );
+    const FindOrderAdapter = adapter("orders-observed", Orders)
+      .adapt(FindOrder)
+      .using({ reportUnexpectedFailure: ReportUnexpectedFailure })
+      .with(
+        ({ deps: { reportUnexpectedFailure }, out }) =>
+          function () {
+            return out.unexpectedFailure((failure) =>
+              reportUnexpectedFailure({
+                failureId: failure.id,
+                source: "postgres.selectOrder",
+              })
+            );
+          }
+      );
+    const GetOrderProvider = GetOrder.provide.using({ find: FindOrder }).with(
+      ({ deps: { find } }) =>
+        function (id) {
+          return find(id);
+        }
+    );
+
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { getOrder: GetOrderProvider },
+      wiring: [FindOrderAdapter, ReportUnexpectedFailureProvider],
+      onUnexpectedFailure,
+    });
+    const ctx = root.openExecutionContext();
+
+    const outcome = await ctx.surface.getOrder({ id: "1" });
+    expect(outcome.kind).toBe("unexpectedFailure");
+    if (outcome.kind === "unexpectedFailure") {
+      expect(reported).toEqual([
+        {
+          failureId: outcome.failure.id,
+          source: "postgres.selectOrder",
+        },
+      ]);
+    }
+    expect(onUnexpectedFailure).not.toHaveBeenCalled();
+
+    await ctx.dispose();
+    await root.dispose();
+  });
+
   it("does not notify again when an unexpected failure is only propagated", async () => {
     const Orders = boundary("orders");
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();

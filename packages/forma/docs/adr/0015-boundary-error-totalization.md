@@ -28,9 +28,13 @@ this ADR records the normative decision.
 - `InvocationOutcome` envelopes are readonly at the type level but are not frozen at runtime.
   Forma protects its opaque tokens and metadata; application value immutability belongs outside
   the core.
-- A Boundary may create a failure explicitly, log the same id, and return `unexpectedFailure(failure)`.
+- A Boundary may create a failure explicitly with `unexpectedFailure()`, wrap an existing token, or
+  pass an awaitable reporter. The reporter overload always returns a Promise, awaits synchronous or
+  asynchronous diagnostics, ignores their resolved value, and isolates throw/rejection so reporting
+  cannot replace the original failure. This supports an Observability Boundary without moving the
+  raw cause through the graph: the producing Boundary passes censored diagnostic data instead.
   Only automatic core conversions notify optional `compose({ onUnexpectedFailure })` — once, at
-  the origin, synchronously, best-effort; the hook cannot alter the outcome.
+  the origin, synchronously, best-effort; that distinct hook cannot alter the outcome.
 - Adapters map `success` / `expectedError` and pass `unexpectedFailure` / `cancelled` through unchanged.
   Mapping throws become a new Unexpected Failure (adapter origin). Driver catch belongs on the
   infrastructure Boundary, not the Adapter.

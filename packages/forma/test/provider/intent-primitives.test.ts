@@ -201,6 +201,55 @@ describe("InvocationOutcome", () => {
     }
   });
 
+  it("unexpectedFailure() creates and wraps a token in one step", () => {
+    const outcome = unexpectedFailure();
+    expect(outcome.kind).toBe("unexpectedFailure");
+    if (outcome.kind === "unexpectedFailure") {
+      expect(isUnexpectedFailure(outcome.failure)).toBe(true);
+    }
+  });
+
+  it("unexpectedFailure(report) always returns a Promise and awaits the reporter", async () => {
+    const seen: string[] = [];
+    const outcomePromise = unexpectedFailure(async (failure) => {
+      seen.push(failure.id);
+      await Promise.resolve();
+      seen.push(`reported:${failure.id}`);
+    });
+    expectTypeOf(outcomePromise).toEqualTypeOf<Promise<InvocationOutcome<never, never>>>();
+    expect(outcomePromise).toBeInstanceOf(Promise);
+
+    const outcome = await outcomePromise;
+    expect(outcome.kind).toBe("unexpectedFailure");
+    if (outcome.kind === "unexpectedFailure") {
+      expect(seen).toEqual([outcome.failure.id, `reported:${outcome.failure.id}`]);
+      expect(isUnexpectedFailure(outcome.failure)).toBe(true);
+    }
+  });
+
+  it("unexpectedFailure(report) preserves its failure when reporting throws or rejects", async () => {
+    const syncSeen: string[] = [];
+    const syncOutcome = await unexpectedFailure((failure) => {
+      syncSeen.push(failure.id);
+      throw new Error("sync report failed");
+    });
+    expect(syncOutcome.kind).toBe("unexpectedFailure");
+    if (syncOutcome.kind === "unexpectedFailure") {
+      expect(syncSeen).toEqual([syncOutcome.failure.id]);
+    }
+
+    const asyncSeen: string[] = [];
+    const asyncOutcome = await unexpectedFailure(async (failure) => {
+      asyncSeen.push(failure.id);
+      await Promise.resolve();
+      throw new Error("async report failed");
+    });
+    expect(asyncOutcome.kind).toBe("unexpectedFailure");
+    if (asyncOutcome.kind === "unexpectedFailure") {
+      expect(asyncSeen).toEqual([asyncOutcome.failure.id]);
+    }
+  });
+
   it("createCancellation yields a branded frozen token for the cancelled branch", () => {
     const cancellation = createCancellation();
     expect(Object.isFrozen(cancellation)).toBe(true);

@@ -307,22 +307,42 @@ try {
     });
   }
 
-  const failure = createUnexpectedFailure();
+  return out.unexpectedFailure((failure) =>
+    reportUnexpectedFailure({
+      failureId: failure.id,
+      source: "postgres.insertOrder",
+      diagnostic: toDiagnosticRecord(cause),
+    })
+  );
+}
+```
 
-  await logUnexpected({
+The callback overload always returns a Promise. It creates the token before invoking the reporter,
+awaits either a synchronous or asynchronous result, ignores the resolved value, and isolates report
+throw/rejection. This lets the reporter be an Intent of an Observability Boundary without allowing
+diagnostic failure to replace the original failure:
+
+```ts
+return out.unexpectedFailure(async (failure) => {
+  const reported = await reportUnexpectedFailure({
     failureId: failure.id,
+    source: "postgres.insertOrder",
     diagnostic: toDiagnosticRecord(cause),
   });
 
-  return out.unexpectedFailure(failure);
-}
+  if (reported.kind !== "success") {
+    console.error("Could not report unexpected failure", failure.id);
+  }
+});
 ```
 
 The Boundary created the failure explicitly and owns its reporting. The Composition must not notify
 the same origin again, or every failure would be logged twice.
 
-A logging failure must not replace the original failure. Logging policy remains an application
-responsibility.
+The callback receives only the opaque token. The producing Boundary must map `cause: unknown` to a
+censored diagnostic value before passing data to an Observability Boundary; the raw cause still
+does not cross the Boundary. A reporting failure never replaces the original failure. Delivery,
+fallback, buffering, and retry policy remain application responsibilities.
 
 ### Automatic core fallback
 
@@ -431,7 +451,8 @@ without making that a core responsibility.
 - does not accumulate events and does not require flush;
 - cannot modify the returned `InvocationOutcome`.
 
-The callback must be synchronous and best-effort:
+This Composition callback — unlike the explicit `out.unexpectedFailure(report)` overload — must be
+synchronous and best-effort:
 
 ```ts
 type OnUnexpectedFailure = (event: UnexpectedFailureEvent) => void;

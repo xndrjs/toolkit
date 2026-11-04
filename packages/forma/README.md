@@ -165,6 +165,25 @@ const result: InvocationOutcome<Order, FindError> = await root.withExecutionCont
 await root.dispose();
 ```
 
+For an explicit unexpected condition, `out.unexpectedFailure()` creates the opaque token directly.
+Pass a reporter when the originating Boundary must correlate censored diagnostics with that token:
+
+```ts
+return out.unexpectedFailure((failure) =>
+  reportUnexpectedFailure({
+    failureId: failure.id,
+    source: "postgres.selectOrder",
+    diagnostic: { code: externalCode },
+  })
+);
+```
+
+The reporter overload always returns a Promise, awaits synchronous or asynchronous reporting, and
+preserves the original failure if reporting throws or rejects. Its resolved value is ignored and it
+does not notify `onUnexpectedFailure`; that Composition hook remains reserved for automatic
+throw/rejection conversion. In a stream, yield the resolved terminal outcome with
+`yield await out.unexpectedFailure(report)`.
+
 `defineWiring` / `defineComposition` exist only if you **extract** wiring (or the whole options bag) into a variable or module: a plain `const wiring = [A, B]` widens to `Provider[]` and type-checks as if private providers were missing. Inline (or `as const` / `defineWiring`) keeps the tuple precise. Do not annotate a concrete config as `ComposeOptions` — that widens Entry Boundaries, Surface, and Wiring and prevents exact provenance/graph checks. Provider unions in one surface or wiring slot are rejected.
 
 Host-owned lifetime (no callback), with params (inferred from `GetOrderProvider`’s ParamsReq; use `compose<Superset>()` only to widen):
