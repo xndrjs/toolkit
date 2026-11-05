@@ -14,20 +14,20 @@ export type SitemapEntry = {
 export const Sitemap = boundary("sitemap");
 
 /** Historical seam kept temporarily while ownership moves to Routing. */
-export const SitemapResolvePath = Sitemap.intent("resolvePath").contract<
+export const ResolveSitemapPath = Sitemap.intent("resolveSitemapPath").contract<
   SitemapPath,
   SitemapRouteMatch,
   SitemapRouteError
 >();
 
-export const GetSitemapEntry = Sitemap.intent("getEntry").contract<
+export const GetSitemapEntryUseCase = Sitemap.intent("getSitemapEntryUseCase").contract<
   SitemapPath,
   SitemapEntry,
   SitemapRouteError
 >();
 
-export const GetSitemapEntryProvider = GetSitemapEntry.provide
-  .using({ resolvePath: SitemapResolvePath })
+export const GetSitemapEntryProvider = GetSitemapEntryUseCase.provide
+  .using({ resolvePath: ResolveSitemapPath })
   .with(({ deps: { resolvePath }, out }) => {
     return async function getSitemapEntry(path) {
       const outcome = await resolvePath(path);

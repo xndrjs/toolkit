@@ -193,8 +193,8 @@ This creates two notions of identity:
 
 Confirmed scenarios:
 
-1. two distinct `boundary("orders")` objects, each with `intent("find")`;
-2. two distinct `Orders.intent("find")` declarations on the same Boundary;
+1. two distinct `boundary("orders")` objects, each with `intent("findOrderById")`;
+2. two distinct `Orders.intent("findOrderById")` declarations on the same Boundary;
 3. `boundary("a.b").intent("c")` and `boundary("a").intent("b.c")`;
 4. Boundary or names widened to `string` instead of kept as literals.
 
@@ -471,8 +471,8 @@ In the baseline, a `.perContext()` dependency forced every capturing consumer to
 
 1. ConnectionProvider;
 2. SelectOrderProvider;
-3. FindOrder Adapter Provider;
-4. GetOrderProvider.
+3. FindOrderById Adapter Provider;
+4. GetOrderDetailsProvider.
 
 The invariant was correct, but manual propagation forced the caller to reconstruct a property the
 Composition already knew.
@@ -486,8 +486,8 @@ The later decision, formalized in ADR 0011, separates declared policy from effec
 - params do not propagate to automatically narrowed consumers;
 - `describePlan()` shows policy, effective lifetime, and causal path.
 
-In the updated demo only `ConnectionProvider` and `GetOrderProvider` stay explicit; intermediate
-Postgres Providers are narrowed by the graph plan, while the memory Adapter remains
+In the updated demo only `ConnectionProvider` and `GetOrderDetailsProvider` stay explicit;
+intermediate Postgres Providers are narrowed by the graph plan, while the memory Adapter remains
 composition-effective.
 
 ### Context without seed
@@ -1175,12 +1175,12 @@ An Adapter passthrough explicitly realizes the required Intent via the satisfier
 ```ts
 const OrdersPostgres = adapter("orders-postgres", Orders);
 
-const FindOrderViaPostgres = OrdersPostgres.adapt(FindOrder)
+const FindOrderByIdViaPostgres = OrdersPostgres.adapt(FindOrderById)
   .perContext()
   .using({ select: SelectOrder })
   .with(
     ({ deps: { select } }) =>
-      function findOrder(input) {
+      function findOrderById(input) {
         return select(input);
       }
   );
@@ -1188,8 +1188,8 @@ const FindOrderViaPostgres = OrdersPostgres.adapt(FindOrder)
 
 Even without mapping, this form preserves important information:
 
-- `FindOrder` keeps its runtime identity;
-- the graph plan shows a `FindOrder -> SelectOrder` edge;
+- `FindOrderById` keeps its runtime identity;
+- the graph plan shows a `FindOrderById -> SelectOrder` edge;
 - integration origin is explicit;
 - lifetime and captive dependency are checked on the passthrough Provider;
 - tracing and diagnostics can show both Intents;
@@ -1226,7 +1226,7 @@ Even then, restrictions are needed:
 A more honest form could be:
 
 ```ts
-aliasIntent(OldFindOrder, FindOrder, {
+aliasIntent(OldFindOrderById, FindOrderById, {
   reason: "temporary rename during orders-v2 migration",
 });
 ```
@@ -1248,7 +1248,7 @@ Do not immediately introduce a `forward` helper. If passthrough boilerplate repe
 future:
 
 ```ts
-OrdersPostgres.forward(FindOrder).to(SelectOrder);
+OrdersPostgres.forward(FindOrderById).to(SelectOrder);
 ```
 
 should generate a real Provider with a dependency edge, not a disguised identity rewrite.
@@ -1267,8 +1267,9 @@ should generate a real Provider with a dependency edge, not a disguised identity
 
 ### Shallow module
 
-`GetOrderProvider` only delegates to `FindOrder`. The Surface can already rename a Provider as
-`getOrder`, so removing that pass-through does not reintroduce complexity elsewhere.
+`GetOrderDetailsProvider` only delegates to `FindOrderById`. The Surface can already rename a
+Provider as `getOrderDetails`, so removing that pass-through does not reintroduce complexity
+elsewhere.
 
 The demo thus risks presenting Forma as ceremony rather than leverage.
 
@@ -1313,7 +1314,7 @@ The demo closed context and root only on the happy path. It should teach the saf
 await using root = compose(...);
 
 await root.withExecutionContext(async (surface) => {
-  await surface.getOrder(...);
+  await surface.getOrderDetails(...);
 });
 ```
 

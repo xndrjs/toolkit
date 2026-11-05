@@ -3,7 +3,8 @@ title: Introduction
 description: What xndrjs is, what it is not, and how its packages fit together.
 ---
 
-`xndrjs` is a TypeScript toolkit for building fullstack applications with explicit boundaries, composable semantics, and predictable data flow.
+`xndrjs` is a TypeScript toolkit for building fullstack applications with explicit boundaries,
+composable semantics, and predictable data flow.
 
 It is inspired by Clean Architecture and Domain-Driven Design, but it deliberately avoids turning those ideas into a heavy framework. The toolkit focuses on small, ergonomic libraries that make good architectural habits easier to apply under normal delivery pressure.
 
@@ -19,13 +20,14 @@ Faced with an intricate knot, Alexander did not patiently untangle every loop. H
 
 It does not:
 
-- define your application structure
-- control your runtime
-- impose lifecycle hooks or conventions
-- require you to “buy into” a specific way of building apps
+- define one mandatory application structure
+- replace your delivery runtime or framework
+- require every package or architectural primitive in the toolkit
+- force application code through one global container
 
 Instead, it is a **toolkit of architectural primitives** organized by the problem each package solves. Packages help you:
 
+- make application intents, Boundary ownership, composition, and lifecycles explicit
 - keep business meaning independent of UI frameworks and IO details
 - make trust boundaries explicit when data crosses processes, networks, forms, caches, or queues
 - share application-level contracts without leaking infrastructure
@@ -68,15 +70,22 @@ Modern TypeScript apps span frontend, backend, server actions, edge runtimes, wo
 
 Docs and packages are grouped by capability — the same map as the [homepage](/):
 
+- **Application Architecture** — explicit Boundaries, Intent contracts, composition, and lifecycle
 - **Modeling** — domain models, invariants, and schema-backed guarantees
 - **Resource Orchestration** — addressable resources, graph resolution, and declarative orchestration
 - **Localization** — type-safe i18n and framework integrations
 - **Integrations** — bridges between external systems and xndrjs
 - **Concurrency / Workflows** — task composition and controlled concurrent execution
 
-That split keeps modeling separate from orchestration, localization, integrations, and concurrency so you can adopt one responsibility at a time.
+That split keeps application architecture and modeling separate from orchestration, localization,
+integrations, and concurrency so you can adopt one responsibility at a time.
 
 ## Package groups
+
+**Application Architecture**
+
+- `@xndrjs/forma`: intent-oriented composition with explicit Boundaries, closed dependency graphs,
+  owned lifecycles, total Boundary exits, and managed streams.
 
 **Modeling**
 
@@ -104,15 +113,22 @@ That split keeps modeling separate from orchestration, localization, integration
 
 - `@xndrjs/tasks`: lazy async task helpers with retry support and inflight Promise deduplication.
 
-Modeling is often where teams start, because it is where meaning concentrates. The other groups extend the same boundary-first approach outward. Install each package from its own guide — there is no single toolkit install.
+Application Architecture makes ownership and wiring explicit; Modeling makes the values moving
+through those relationships trustworthy. Teams may adopt either responsibility first. The other
+groups extend the same boundary-first approach outward. Install each package from its own guide —
+there is no single toolkit install.
 
 ## The short version
 
 Use `xndrjs` when you want:
 
 - Clean Architecture habits without a heavy framework
+- explicit application Boundaries and composition without a service locator
 - fullstack TypeScript with explicit boundaries
 - small libraries you can adopt one responsibility at a time
 - adapters and delivery tools that stay replaceable at the edge
 
-Next: explore the [homepage map](/), then open a section that matches your need — [Modeling overview](/v0/modeling/overview/), [Addressable resources](/v0/resource-orchestration/addressable-resources/), [i18n](/v0/localization/i18n/), or [Tasks](/v0/concurrency/tasks/).
+Next: explore the [homepage map](/), then open a section that matches your need —
+[Forma](/v0/application-architecture/forma/), [Modeling overview](/v0/modeling/overview/),
+[Addressable resources](/v0/resource-orchestration/addressable-resources/),
+[i18n](/v0/localization/i18n/), or [Tasks](/v0/concurrency/tasks/).

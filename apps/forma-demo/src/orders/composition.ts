@@ -1,13 +1,13 @@
 import { compose } from "@xndrjs/forma";
 import {
-  FindOrderViaMemoryProvider,
-  WatchOrderEventsViaMemoryProvider,
+  FindOrderByIdViaMemoryProvider,
+  FindOrderEventsByOrderIdViaMemoryProvider,
 } from "./adapters/orders-memory";
 import {
-  FindOrderViaSqliteProvider,
-  WatchOrderEventsViaSqliteProvider,
+  FindOrderByIdViaSqliteProvider,
+  FindOrderEventsByOrderIdViaSqliteProvider,
 } from "./adapters/orders-sqlite";
-import { GetOrderProvider, Orders, WatchOrdersProvider } from "./boundaries/orders";
+import { GetOrderDetailsProvider, Orders, WatchOrderEventsProvider } from "./boundaries/orders";
 import {
   DatabaseProvider,
   SelectOrderEventsProvider,
@@ -20,12 +20,12 @@ export function composeOrdersWithSqlite() {
   return compose({
     entryBoundaries: [Orders],
     surface: {
-      getOrder: GetOrderProvider,
-      watchOrders: WatchOrdersProvider,
+      getOrderDetails: GetOrderDetailsProvider,
+      watchOrderEvents: WatchOrderEventsProvider,
     },
     wiring: [
-      FindOrderViaSqliteProvider,
-      WatchOrderEventsViaSqliteProvider,
+      FindOrderByIdViaSqliteProvider,
+      FindOrderEventsByOrderIdViaSqliteProvider,
       SelectOrderProvider,
       SelectOrderEventsProvider,
       DatabaseProvider,
@@ -37,10 +37,10 @@ export function composeOrdersWithMemory() {
   return compose({
     entryBoundaries: [Orders],
     surface: {
-      getOrder: GetOrderProvider,
-      watchOrders: WatchOrdersProvider,
+      getOrderDetails: GetOrderDetailsProvider,
+      watchOrderEvents: WatchOrderEventsProvider,
     },
-    wiring: [FindOrderViaMemoryProvider, WatchOrderEventsViaMemoryProvider],
+    wiring: [FindOrderByIdViaMemoryProvider, FindOrderEventsByOrderIdViaMemoryProvider],
   });
 }
 

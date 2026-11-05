@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { boundary } from "@xndrjs/forma";
 import { z } from "zod";
 
-export type SqliteOrderId = { readonly order_id: string };
+export type SqliteOrderLookup = { readonly order_id: string };
 export type SqliteFindError = { readonly code: "NO_ROW" };
 
 const SqliteOrderSchema = z
@@ -62,7 +62,7 @@ export const DatabaseProvider = Database.provide.perComposition().with(({ lifeti
 });
 
 export const SelectOrder = Sqlite.intent("selectOrder").contract<
-  SqliteOrderId,
+  SqliteOrderLookup,
   SqliteOrder,
   SqliteFindError
 >();
@@ -87,7 +87,7 @@ export const SelectOrderProvider = SelectOrder.provide
   });
 
 export const SelectOrderEvents = Sqlite.stream("selectOrderEvents").contract<
-  SqliteOrderId,
+  SqliteOrderLookup,
   SqliteOrderEvent,
   SqliteFindError
 >();

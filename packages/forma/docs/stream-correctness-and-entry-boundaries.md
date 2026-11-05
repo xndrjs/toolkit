@@ -17,8 +17,8 @@ The grill decisions were applied to the core, type-level asserts, the demo, and 
 - Adapter roots, duplicate/unrepresented Entry Boundaries, and empty Surfaces are rejected at
   compile time when types are precise, and always at runtime;
 - `describePlan()` includes Entry Boundaries and root provenance;
-- the demo exposes Orders’ `WatchOrdersProvider` and privately resolves `WatchOrderEvents` via
-  Adapter;
+- the demo exposes Orders’ `WatchOrderEventsProvider` and privately resolves
+  `FindOrderEventsByOrderId` via Adapter;
 - already-aborted signals, post-abort acceptance, and stream cleanup follow the agreed semantics;
 - owner-driven closes do not produce floating rejections; the context observes failures and still
   attempts every Provider disposer;
@@ -60,8 +60,8 @@ Normative decisions are recorded in ADRs 0008, 0012, and 0013.
    with the full dependency graph.
 4. `defineEntryBoundaries()` is not introduced; the inline declaration is the supported form for
    the new list.
-5. The demo separates the `WatchOrders` entry Intent from the `WatchOrderEvents` dynamic seam,
-   keeping the same Contract for now.
+5. The demo separates the `WatchOrderEventsUseCase` entry Intent from the
+   `FindOrderEventsByOrderId` dynamic seam, keeping the same Contract for now.
 6. The Entry Boundary decision gets a new ADR; ADR 0001 is superseded only for Adapter roots, and
    ADR 0012 clarifies pre-abort and error ownership.
 
@@ -123,7 +123,7 @@ The recommended interface needs no currying:
 const root = compose({
   entryBoundaries: [Orders, OtherBoundary],
   surface: {
-    getOrder: GetOrderProvider,
+    getOrderDetails: GetOrderDetailsProvider,
     // ...
   },
   wiring: [
@@ -143,8 +143,8 @@ supplied by the caller while later generics must be inferred:
 ```ts
 compose<HostParams>()({
   entryBoundaries: [Orders],
-  surface: { getOrder: GetOrderProvider },
-  wiring: [FindOrderViaPostgresProvider],
+  surface: { getOrderDetails: GetOrderDetailsProvider },
+  wiring: [FindOrderByIdViaPostgresProvider],
 });
 ```
 
@@ -415,12 +415,12 @@ The final implementation should use that argument in the chosen protocol or remo
 The demo currently allows this shape:
 
 ```text
-surface.watchOrders
+surface.watchOrderEvents
         │
         ▼
-WatchOrdersViaPostgresProvider
+WatchOrderEventsUseCaseViaPostgresProvider
 origin: Adapter "orders-postgres"
-intent: Orders.WatchOrders
+intent: Orders.WatchOrderEventsUseCase
 ```
 
 Intent identity belongs to `Orders` and the Adapter is correctly associated with that target
@@ -438,7 +438,7 @@ the starting point.
 
 ### Overlapping roles
 
-In the direct form, `Orders.WatchOrders` simultaneously plays three roles:
+In the direct form, `Orders.WatchOrderEventsUseCase` simultaneously plays three roles:
 
 1. public contract exposed by the Composition;
 2. unrealized Intent used as a dynamic seam;
@@ -463,14 +463,14 @@ Surface → Orders realization → unresolved Orders Intent → Adapter realizat
 The streaming example should distinguish the entry Intent from the dynamic seam:
 
 ```text
-surface.watchOrders
+surface.watchOrderEvents
         │
         ▼
-Orders.WatchOrders
+Orders.WatchOrderEventsUseCase
 Provider origin: Boundary "orders"
         │
         ▼
-Orders.WatchOrderEvents
+Orders.FindOrderEventsByOrderId
 unrealized internal Intent
         │
         ▼
@@ -480,16 +480,20 @@ Postgres or Memory Adapter
 For example:
 
 ```ts
-export const WatchOrders = Orders.stream("watchOrders").contract<OrderId, OrderEvent, WatchError>();
-
-export const WatchOrderEvents = Orders.stream("watchOrderEvents").contract<
+export const WatchOrderEventsUseCase = Orders.stream("watchOrderEventsUseCase").contract<
   OrderId,
   OrderEvent,
   WatchError
 >();
 
-export const WatchOrdersProvider = WatchOrders.provide
-  .using({ events: WatchOrderEvents })
+export const FindOrderEventsByOrderId = Orders.stream("findOrderEventsByOrderId").contract<
+  OrderId,
+  OrderEvent,
+  WatchError
+>();
+
+export const WatchOrderEventsProvider = WatchOrderEventsUseCase.provide
+  .using({ events: FindOrderEventsByOrderId })
   .with(({ deps: { events } }) => {
     return (orderId, invocation) => events(orderId, invocation);
   });
@@ -615,15 +619,15 @@ These three forms were verified:
 ```ts
 composeSingle({
   entryBoundaries: [Orders, Billing],
-  surface: { getOrder: GetOrderProvider, getInvoice: GetInvoiceProvider },
+  surface: { getOrderDetails: GetOrderDetailsProvider, getInvoice: GetInvoiceProvider },
 });
 
 composeTwoArgs([Orders, Billing], {
-  surface: { getOrder: GetOrderProvider, getInvoice: GetInvoiceProvider },
+  surface: { getOrderDetails: GetOrderDetailsProvider, getInvoice: GetInvoiceProvider },
 });
 
 composeCurried([Orders, Billing])({
-  surface: { getOrder: GetOrderProvider, getInvoice: GetInvoiceProvider },
+  surface: { getOrderDetails: GetOrderDetailsProvider, getInvoice: GetInvoiceProvider },
 });
 ```
 
@@ -671,10 +675,10 @@ TypeScript required an inference barrier. Neither need appeared.
 const root = compose({
   entryBoundaries: [Orders, Billing],
   surface: {
-    getOrder: GetOrderProvider,
+    getOrderDetails: GetOrderDetailsProvider,
     getInvoice: GetInvoiceProvider,
   },
-  wiring: [FindOrderViaPostgresProvider, LoadInvoiceViaPostgresProvider],
+  wiring: [FindOrderByIdViaPostgresProvider, LoadInvoiceViaPostgresProvider],
 });
 ```
 
@@ -707,7 +711,7 @@ export function compose<
 Diagnostics should report invalid aliases distinguishing the two causes:
 
 ```text
-Surface alias "watchOrders" uses Adapter-originated Provider "orders-postgres".
+Surface alias "watchOrderEvents" uses Adapter-originated Provider "orders-postgres".
 Adapter Providers cannot be Composition roots.
 ```
 
@@ -793,8 +797,8 @@ The plan should expose at least:
   entryBoundaries: ["orders"],
   surface: [
     {
-      alias: "watchOrders",
-      intent: ["orders", "watchOrders"],
+      alias: "watchOrderEvents",
+      intent: ["orders", "watchOrderEventsUseCase"],
       origin: { kind: "boundary", id: "orders" },
     },
   ],
@@ -835,8 +839,8 @@ The unary path already shows the desired direction:
 
 ```text
 Surface
-  → Orders.GetOrder Provider
-  → Orders.FindOrder unresolved Intent
+  → Orders.GetOrderDetailsUseCase Provider
+  → Orders.FindOrderById unresolved Intent
   → Memory/SQLite Adapter
 ```
 
@@ -844,8 +848,8 @@ The streaming path must be brought to the same model:
 
 ```text
 Surface
-  → Orders.WatchOrders Provider
-  → Orders.WatchOrderEvents unresolved Intent
+  → Orders.WatchOrderEventsUseCase Provider
+  → Orders.FindOrderEventsByOrderId unresolved Intent
   → Memory/SQLite Adapter
 ```
 
@@ -855,9 +859,9 @@ Both compositions declare:
 entryBoundaries: [Orders];
 ```
 
-`WatchOrderEventsViaMemoryProvider` and `WatchOrderEventsViaSqliteProvider` realize
-`WatchOrderEvents` in `wiring`. The Surface exposes the same Orders-originated
-`WatchOrdersProvider` in both variants.
+`FindOrderEventsByOrderIdViaMemoryProvider` and `FindOrderEventsByOrderIdViaSqliteProvider` realize
+`FindOrderEventsByOrderId` in `wiring`. The Surface exposes the same Orders-originated
+`WatchOrderEventsProvider` in both variants.
 
 ## Implementation plan
 

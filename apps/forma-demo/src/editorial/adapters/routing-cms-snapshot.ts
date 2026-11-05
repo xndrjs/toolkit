@@ -1,11 +1,11 @@
 import { adapter } from "@xndrjs/forma";
-import { FindSnapshotEntry } from "../boundaries/cms-snapshot";
+import { FindSnapshotEntryByPath } from "../boundaries/cms-snapshot";
 import { ResolvePath, Routing } from "../boundaries/routing";
 
 const RoutingCmsSnapshot = adapter("routing-cms-snapshot", Routing);
 
 export const ResolvePathViaCmsSnapshotProvider = RoutingCmsSnapshot.adapt(ResolvePath)
-  .using({ findEntry: FindSnapshotEntry })
+  .using({ findEntry: FindSnapshotEntryByPath })
   .with(
     ({ deps: { findEntry }, out }) =>
       async function resolvePath(path) {

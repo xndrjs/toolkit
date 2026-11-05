@@ -21,13 +21,13 @@ export const ResolvePage = PageBuilder.intent("resolvePage").contract<
   PageResolutionError
 >();
 
-export const CreatePagePreview = PageBuilder.intent("createPreview").contract<
+export const CreatePagePreviewUseCase = PageBuilder.intent("createPagePreviewUseCase").contract<
   PagePath,
   PagePreview,
   PageResolutionError
 >();
 
-export const CreatePagePreviewProvider = CreatePagePreview.provide
+export const CreatePagePreviewProvider = CreatePagePreviewUseCase.provide
   .using({ resolvePage: ResolvePage })
   .with(({ deps: { resolvePage }, out }) => {
     return async function createPagePreview(path) {

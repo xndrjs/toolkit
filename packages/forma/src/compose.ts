@@ -95,11 +95,11 @@ type InferredParamsFor<
  *
  * ```ts
  * // Prefer inline when possible:
- * compose({ entryBoundaries: [Orders], surface: { getOrder }, wiring: [SelectOrderProvider, FindOrderViaPostgres] });
+ * compose({ entryBoundaries: [Orders], surface: { getOrderDetails }, wiring: [SelectOrderProvider, FindOrderByIdViaPostgres] });
  *
  * // Only if the list must live in a variable/module:
- * const wiring = defineWiring(SelectOrderProvider, aliasIntent(FindOrder, SelectOrder));
- * compose({ entryBoundaries: [Orders], surface: { getOrder }, wiring });
+ * const wiring = defineWiring(SelectOrderProvider, aliasIntent(FindOrderById, SelectOrder));
+ * compose({ entryBoundaries: [Orders], surface: { getOrderDetails }, wiring });
  * ```
  */
 export function defineWiring<const Entries extends readonly WiringEntry[]>(

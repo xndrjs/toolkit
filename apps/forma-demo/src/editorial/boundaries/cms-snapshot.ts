@@ -27,14 +27,14 @@ function parseSnapshot(contents: string): readonly SnapshotEntry[] {
 
 export const CmsSnapshot = boundary("cms-snapshot");
 
-export const FindSnapshotEntry = CmsSnapshot.intent("findEntryByPath").contract<
+export const FindSnapshotEntryByPath = CmsSnapshot.intent("findSnapshotEntryByPath").contract<
   SnapshotPathQuery,
   SnapshotEntry,
   SnapshotError
 >();
 
 /** Reads a real local artifact once, when this Provider is first materialized. */
-export const FindSnapshotEntryProvider = FindSnapshotEntry.provide
+export const FindSnapshotEntryProvider = FindSnapshotEntryByPath.provide
   .perComposition()
   .with(async ({ out }) => {
     const snapshotUrl = new URL("../fixtures/cms-snapshot.json", import.meta.url);

@@ -2,7 +2,7 @@
 
 > Status: agreed target model (grill); core integrated (Phases 0–4);
 > spike + registry + surface + cancel/errors + Adapter/alias/`describePlan`;
-> `WatchOrders` demo in `apps/forma-demo`; decisions made binding by
+> `WatchOrderEventsUseCase` demo in `apps/forma-demo`; decisions made binding by
 > [ADR 0012](./adr/0012-streaming-intents.md).
 > Decisions under “Closed decisions” are not reopened without a new trade-off.
 > Phase 5 (remote Adapter) remains outside the first core ship.
@@ -18,7 +18,7 @@ Async generators fit Forma well when `yield`s belong to the operation and repres
 elements:
 
 ```ts
-const WatchOrdersProvider = WatchOrders.provide.with(
+const WatchOrderEventsProvider = WatchOrderEventsUseCase.provide.with(
   () =>
     async function* (input, invocation) {
       const subscription = await subscribe(input, { signal: invocation.signal });
@@ -153,12 +153,16 @@ thesis.
 Unary and streaming must be distinguishable in the Intent type:
 
 ```ts
-const GetOrder = Orders.intent("getOrder").contract<OrderId, Order, GetOrderError>();
+const GetOrderDetailsUseCase = Orders.intent("getOrderDetailsUseCase").contract<
+  OrderId,
+  Order,
+  GetOrderDetailsError
+>();
 
-const WatchOrders = Orders.stream("watchOrders").contract<
-  WatchOrdersInput,
+const WatchOrderEventsUseCase = Orders.stream("watchOrderEventsUseCase").contract<
+  WatchOrderEventsInput,
   OrderEvent,
-  WatchOrdersError
+  WatchOrderEventsError
 >();
 ```
 
@@ -211,9 +215,9 @@ the root, but every stream it produces must still end with the context that invo
 The surface distinguishes unary and streaming:
 
 ```ts
-const result = await execution.surface.getOrder(input);
+const result = await execution.surface.getOrderDetails(input);
 
-const stream = execution.surface.watchOrders(input);
+const stream = execution.surface.watchOrderEvents(input);
 for await (const event of stream) {
   // ...
 }
@@ -227,7 +231,7 @@ path. Provider materialization and stream opening happen on the first `next()`. 
 
 ```ts
 // Avoid
-for await (const event of await execution.surface.watchOrders(input)) {
+for await (const event of await execution.surface.watchOrderEvents(input)) {
 }
 ```
 
@@ -418,7 +422,7 @@ A Stream Provider produces a `StreamOperation`, not an iterator directly. Same e
 second DSL. The same operation instance may create multiple independent iterators:
 
 ```ts
-const WatchOrdersProvider = WatchOrders.provide.with(
+const WatchOrderEventsProvider = WatchOrderEventsUseCase.provide.with(
   ({ deps }) =>
     async function* (input, invocation) {
       // a new invocation for every surface call
@@ -459,7 +463,7 @@ Unary → stream and stream → unary must fail at compile time.
 
 ```ts
 {
-  intent: ["orders", "watchOrders"],
+  intent: ["orders", "watchOrderEventsUseCase"],
   mode: "stream",
   origin: { kind: "boundary", id: "orders" },
   lifetime: { declared: "auto", effective: "context" }
@@ -609,7 +613,7 @@ Exit criterion: no resource or lease remains active after every terminal path.
 
 - add `mode` to `describePlan()`;
 - document unary vs stream lifecycle;
-- add a `WatchOrders` example to `forma-demo`;
+- add a `WatchOrderEventsUseCase` example to `forma-demo`;
 - add diagnostics for incompatible modalities;
 - update README, glossary, and related ADRs.
 
@@ -617,7 +621,7 @@ Exit criterion: a user can understand ownership and cancellation without knowing
 runtime.
 
 **Status:** completed — `describePlan().mode`, README / Glossary / ADR 0012, and
-`apps/forma-demo` (`WatchOrders` on both Adapters, full consume + early `break`).
+`apps/forma-demo` (`WatchOrderEventsUseCase` on both Adapters, full consume + early `break`).
 
 ### Phase 5 — Remote Adapter spike
 

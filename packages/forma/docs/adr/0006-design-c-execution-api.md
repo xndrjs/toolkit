@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Execution contexts mixed public surface aliases with lifecycle controls on one flat object (`ctx.getOrder`, `ctx.dispose`). Short scopes forced hosts to write `try/finally` without a documented error matrix. Host-owned lifetimes (modules, WebSockets, framework hooks) need an explicit open/dispose handle, while request-like scopes need a safe default that always cleans up. Several disposal entry points must not invent separate semantics.
+Execution contexts mixed public surface aliases with lifecycle controls on one flat object (`ctx.getOrderDetails`, `ctx.dispose`). Short scopes forced hosts to write `try/finally` without a documented error matrix. Host-owned lifetimes (modules, WebSockets, framework hooks) need an explicit open/dispose handle, while request-like scopes need a safe default that always cleans up. Several disposal entry points must not invent separate semantics.
 
 ## Decision
 

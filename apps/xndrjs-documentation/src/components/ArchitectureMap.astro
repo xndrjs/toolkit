@@ -5,6 +5,13 @@
  */
 const sections = [
   {
+    id: "application-architecture",
+    label: "Application Architecture",
+    blurb: "Explicit boundaries, intent contracts, composition, and owned lifecycles",
+    href: "/latest/application-architecture/forma/",
+    packages: [{ name: "forma", href: "/latest/application-architecture/forma/" }],
+  },
+  {
     id: "modeling",
     label: "Modeling",
     blurb: "Domain models, invariants, and schema-backed guarantees",
@@ -109,6 +116,10 @@ const sections = [
 
   .arch-map__ring--modeling {
     --ring-accent: var(--sl-color-green, #3dd68c);
+  }
+
+  .arch-map__ring--application-architecture {
+    --ring-accent: var(--sl-color-blue, #4f9cf9);
   }
 
   .arch-map__ring--resource-orchestration {

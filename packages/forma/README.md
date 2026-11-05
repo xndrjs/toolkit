@@ -17,15 +17,24 @@ npm install @xndrjs/forma
 ```ts
 import { boundary } from "@xndrjs/forma";
 
-type OrderId = { readonly id: string };
+type OrderId = string;
 type Order = { readonly id: string; readonly total: number };
 /** Expected Error payloads conventionally use `code` (keep `kind` for InvocationOutcome). */
-type FindError = { readonly code: "not_found" };
+type FindOrderError = { readonly code: "not_found" };
+type GetOrderDetailsError = FindOrderError | { readonly code: "forbidden" };
 
 const Orders = boundary("orders");
 
-export const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
-export const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
+export const FindOrderById = Orders.intent("findOrderById").contract<
+  OrderId,
+  Order,
+  FindOrderError
+>();
+export const GetOrderDetailsUseCase = Orders.intent("getOrderDetailsUseCase").contract<
+  OrderId,
+  Order,
+  GetOrderDetailsError
+>();
 ```
 
 Name first, then `.contract<Input, Success, Err>()` — TypeScript keeps the literal Intent name that way. `boundary.intent` is always **unary** (one terminal `InvocationOutcome`). For pull-based sequences use `boundary.stream` (below). Every Boundary Intent exit is totalized: implementation throw/rejection becomes `unexpectedFailure` at the origin ([ADR 0015](./docs/adr/0015-boundary-error-totalization.md)).
@@ -40,10 +49,10 @@ Use `compose` to exercise Provider behavior—Provider factories are not a publi
 monkey-patching seam.
 
 ```ts
-const FindProvider = FindOrder.provide.with(
+const FindOrderByIdProvider = FindOrderById.provide.with(
   ({ out }) =>
     function (id) {
-      return id.id === "42"
+      return id === "42"
         ? out.success({ id: "42", total: 100 })
         : out.expectedError({ code: "not_found" as const });
     }
@@ -66,16 +75,16 @@ const ConnProvider = Conn.provide.perContext().with(async ({ lifetime, out }) =>
 
 type OrderParams = { readonly role: "admin" | "viewer" | "guest" };
 
-const GetOrderProvider = GetOrder.provide
+const GetOrderDetailsProvider = GetOrderDetailsUseCase.provide
   .perContext<OrderParams>()
-  .using({ find: FindOrder })
+  .using({ findOrderById: FindOrderById })
   .with(
-    ({ deps: { find }, params, out }) =>
+    ({ deps: { findOrderById }, params, out }) =>
       function (id) {
         if (params.role === "guest") {
-          return out.expectedError({ code: "not_found" as const });
+          return out.expectedError({ code: "forbidden" as const });
         }
-        return find(id); // forwards success / expectedError / unexpectedFailure / cancelled
+        return findOrderById(id); // forwards success / expectedError / unexpectedFailure / cancelled
       }
   );
 ```
@@ -95,21 +104,25 @@ An **Adapter** is a peer of Boundary, scoped to one target Boundary. It owns ext
 ```ts
 import { adapter } from "@xndrjs/forma";
 
-type PgOrderId = { readonly order_id: string };
+type SelectOrderInput = { readonly order_id: string };
 type PgOrder = { readonly order_id: string; readonly amount_cents: number };
 type PgFindError = { readonly code: "NO_ROW" };
 
 const Postgres = boundary("postgres");
-const SelectOrder = Postgres.intent("selectOrder").contract<PgOrderId, PgOrder, PgFindError>();
+const SelectOrder = Postgres.intent("selectOrder").contract<
+  SelectOrderInput,
+  PgOrder,
+  PgFindError
+>();
 
 const OrdersAdapter = adapter("orders-postgres", Orders);
 
-export const FindOrderViaPostgresProvider = OrdersAdapter.adapt(FindOrder)
+export const FindOrderByIdViaPostgresProvider = OrdersAdapter.adapt(FindOrderById)
   .using({ select: SelectOrder })
   .with(
     ({ deps: { select }, out }) =>
       async function (id) {
-        const row = await select({ order_id: id.id });
+        const row = await select({ order_id: id });
         switch (row.kind) {
           case "success":
             return out.success({
@@ -148,17 +161,17 @@ const SelectOrderProvider = SelectOrder.provide.with(
 
 const root = compose({
   entryBoundaries: [Orders],
-  surface: { getOrder: GetOrderProvider },
-  wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
+  surface: { getOrderDetails: GetOrderDetailsProvider },
+  wiring: [SelectOrderProvider, ConnProvider, FindOrderByIdViaPostgresProvider],
   // Optional: only automatic throw→unexpectedFailure conversions (once at origin).
   onUnexpectedFailure(event) {
     console.error(event.failure.id, event.cause, event.intent, event.phase);
   },
 });
 
-const result: InvocationOutcome<Order, FindError> = await root.withExecutionContext(
+const result: InvocationOutcome<Order, GetOrderDetailsError> = await root.withExecutionContext(
   async (surface) => {
-    return surface.getOrder({ id: "42" });
+    return surface.getOrderDetails("42");
   }
 );
 
@@ -186,17 +199,17 @@ throw/rejection conversion. In a stream, yield the resolved terminal outcome wit
 
 `defineWiring` / `defineComposition` exist only if you **extract** wiring (or the whole options bag) into a variable or module: a plain `const wiring = [A, B]` widens to `Provider[]` and type-checks as if private providers were missing. Inline (or `as const` / `defineWiring`) keeps the tuple precise. Do not annotate a concrete config as `ComposeOptions` — that widens Entry Boundaries, Surface, and Wiring and prevents exact provenance/graph checks. Provider unions in one surface or wiring slot are rejected.
 
-Host-owned lifetime (no callback), with params (inferred from `GetOrderProvider`’s ParamsReq; use `compose<Superset>()` only to widen):
+Host-owned lifetime (no callback), with params (inferred from `GetOrderDetailsProvider`’s ParamsReq; use `compose<Superset>()` only to widen):
 
 ```ts
 const rooted = compose({
   entryBoundaries: [Orders],
-  surface: { getOrder: GetOrderProvider },
-  wiring: [SelectOrderProvider, ConnProvider, FindOrderViaPostgresProvider],
+  surface: { getOrderDetails: GetOrderDetailsProvider },
+  wiring: [SelectOrderProvider, ConnProvider, FindOrderByIdViaPostgresProvider],
 });
 
 await using execution = rooted.openExecutionContext({ params: { role: "viewer" } });
-await execution.surface.getOrder({ id: "42" });
+await execution.surface.getOrderDetails("42");
 ```
 
 Only surface aliases declared in `compose({ entryBoundaries, surface })` are callable, nested on `execution.surface` (lifecycle stays on the handle). Intent identity is the structured pair `(boundaryId, intentName)` — competing realizations of the same pair throw at compose time. Repeated declarations of that identity must have exactly equivalent Input, Success/Item, Err, and modality on every resolved `using` edge; runtime additionally rejects reified modality mismatches during compose. `compose` also builds a dependency plan (`using` + Intent-alias edges), rejects cycles with a full path diagnostic, requires a closed graph, and derives effective lifetimes before returning the root. `describePlan()` includes Entry Boundary ids, Surface root provenance, Boundary/Adapter origin, and a nested `lifetime` explanation per Provider. Private providers and `aliasIntent()` entries share one `wiring` array; prefer Adapter passthrough for cross-boundary wiring. See `apps/forma-demo` for two focused examples: Orders compares real SQLite and memory Adapters while exercising params, streams, lifetimes, and disposal; Editorial demonstrates Entry Boundaries, capability extraction, a migration alias, and semantic translation through Adapters.
@@ -209,15 +222,19 @@ Declare a **stream** Contract with `boundary.stream(name).contract<Input, Item, 
 type OrderEvent = { readonly orderId: string; readonly status: string };
 type WatchError = { readonly code: "unavailable" };
 
-const WatchOrders = Orders.stream("watchOrders").contract<OrderId, OrderEvent, WatchError>();
+const WatchOrderEventsUseCase = Orders.stream("watchOrderEventsUseCase").contract<
+  OrderId,
+  OrderEvent,
+  WatchError
+>();
 
-const WatchOrdersProvider = WatchOrders.provide.with(
+const WatchOrderEventsProvider = WatchOrderEventsUseCase.provide.with(
   ({ out }) =>
     async function* (id, invocation) {
       try {
         invocation.signal.throwIfAborted();
-        yield out.success({ orderId: id.id, status: "open" });
-        yield out.success({ orderId: id.id, status: "paid" });
+        yield out.success({ orderId: id, status: "open" });
+        yield out.success({ orderId: id, status: "paid" });
       } finally {
         // runs on natural end, break, return(), AsyncDisposable, or context/root dispose
       }
@@ -226,11 +243,11 @@ const WatchOrdersProvider = WatchOrders.provide.with(
 
 const streamingRoot = compose({
   entryBoundaries: [Orders],
-  surface: { watchOrders: WatchOrdersProvider },
+  surface: { watchOrderEvents: WatchOrderEventsProvider },
 });
 
 await using execution = streamingRoot.openExecutionContext();
-for await (const event of execution.surface.watchOrders({ id: "42" })) {
+for await (const event of execution.surface.watchOrderEvents("42")) {
   if (event.kind !== "success") break; // expectedError / unexpectedFailure / cancelled are terminal
   // …
 }

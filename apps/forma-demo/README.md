@@ -24,10 +24,10 @@ All commands print `root.describePlan()` before invoking the Surface.
 
 ```text
 Orders Surface
-├─ GetOrder ────────┐
-└─ WatchOrders ─────┤
-                    ├─ OrdersMemory Adapter
-                    └─ OrdersSqlite Adapter ──> SQLite Boundary
+├─ GetOrderDetailsUseCase ── FindOrderById ──────────────┐
+└─ WatchOrderEventsUseCase ─ FindOrderEventsByOrderId ───┤
+                                                         ├─ OrdersMemory Adapter
+                                                         └─ OrdersSqlite Adapter ──> SQLite Boundary
 ```
 
 The SQLite composition uses Node's real `node:sqlite` engine with an in-memory database. It creates
@@ -36,27 +36,27 @@ database with the composition lifetime. The memory composition uses a `Map` and 
 honestly as an in-memory implementation.
 
 Both compositions expose the same Orders Surface. Guests are rejected by Orders policy before the
-storage seam is invoked. `WatchOrders` is a cold, single-consumer stream; natural completion,
-`break`, and execution-context disposal close the generator.
+storage seam is invoked. `WatchOrderEventsUseCase` is a cold, single-consumer stream; natural
+completion, `break`, and execution-context disposal close the generator.
 
 ## Editorial: moving capability ownership
 
 ```text
-Sitemap.GetEntry
-└─ Sitemap.ResolvePath ── alias ───────────────┐
+Sitemap.GetSitemapEntryUseCase
+└─ Sitemap.ResolveSitemapPath ── alias ────────┐
                                                v
-PageBuilder.CreatePreview                Routing.ResolvePath
+PageBuilder.CreatePagePreviewUseCase      Routing.ResolvePath
 └─ PageBuilder.ResolvePage ── Adapter ─────────┤
                                                v
                                   RoutingCmsSnapshot Adapter
                                                v
-                                  CmsSnapshot.FindEntryByPath
+                             CmsSnapshot.FindSnapshotEntryByPath
 ```
 
 `ResolvePath` originally belonged to Sitemap. Once PageBuilder also needed route resolution, the
 shared capability moved to the internal `Routing` Boundary:
 
-- `Sitemap.ResolvePath` and `Routing.ResolvePath` are exact synonyms during migration, so an
+- `Sitemap.ResolveSitemapPath` and `Routing.ResolvePath` are exact synonyms during migration, so an
   `aliasIntent` keeps the existing Sitemap Provider unchanged.
 - PageBuilder owns a different input, result, and expected-error vocabulary, so an Adapter realizes
   `PageBuilder.ResolvePage` through `Routing.ResolvePath`.

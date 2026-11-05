@@ -92,10 +92,14 @@ and the architectural review were amended together with the implementation.
 Given:
 
 ```ts
-const GetOrder = Orders.intent("getOrder").contract<OrderId, Order, FindOrderError>();
+const GetOrderDetailsUseCase = Orders.intent("getOrderDetailsUseCase").contract<
+  OrderId,
+  Order,
+  GetOrderDetailsError
+>();
 ```
 
-the caller sees `FindOrderError` and can handle it exhaustively. The type does not say that the
+the caller sees `GetOrderDetailsError` and can handle it exhaustively. The type does not say that the
 Promise may reject with:
 
 - a database error;
@@ -109,8 +113,8 @@ The consumer is therefore pushed to write:
 
 ```ts
 try {
-  const result = await getOrder(orderId);
-  // Typed handling of FindOrderError.
+  const result = await getOrderDetails(orderId);
+  // Typed handling of GetOrderDetailsError.
 } catch (cause) {
   // No reliable type-level information.
 }
@@ -142,7 +146,7 @@ where the property originates.
 The `expectedError` branch holds only expected errors catalogued in the Contract:
 
 ```ts
-type FindOrderError =
+type GetOrderDetailsError =
   | { readonly code: "not_found"; readonly orderId: OrderId }
   | { readonly code: "access_denied" };
 ```
@@ -152,7 +156,7 @@ The caller can interpret them and apply domain recovery:
 ```ts
 switch (outcome.kind) {
   case "expectedError":
-    return handleFindOrderError(outcome.error);
+    return handleGetOrderDetailsError(outcome.error);
 }
 ```
 
@@ -480,7 +484,7 @@ Postgres driver
 Postgres Boundary
   ↓ InvocationOutcome<Row, PostgresExpectedError>
 Postgres → Orders Adapter
-  ↓ InvocationOutcome<Order, FindOrderError>
+  ↓ InvocationOutcome<Order, GetOrderDetailsError>
 Orders Boundary
 ```
 
@@ -538,14 +542,14 @@ first enters the totalized protocol.
 The caller can therefore use only the Contract:
 
 ```ts
-const outcome = await getOrder(orderId);
+const outcome = await getOrderDetails(orderId);
 
 switch (outcome.kind) {
   case "success":
     return renderOrder(outcome.value);
 
   case "expectedError":
-    return renderFindOrderError(outcome.error);
+    return renderGetOrderDetailsError(outcome.error);
 
   case "unexpectedFailure":
     return renderGenericFailure(outcome.failure.id);

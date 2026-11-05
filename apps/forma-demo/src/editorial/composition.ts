@@ -4,7 +4,7 @@ import { ResolvePathViaCmsSnapshotProvider } from "./adapters/routing-cms-snapsh
 import { FindSnapshotEntryProvider } from "./boundaries/cms-snapshot";
 import { CreatePagePreviewProvider, PageBuilder } from "./boundaries/page-builder";
 import { ResolvePath } from "./boundaries/routing";
-import { GetSitemapEntryProvider, Sitemap, SitemapResolvePath } from "./boundaries/sitemap";
+import { GetSitemapEntryProvider, ResolveSitemapPath, Sitemap } from "./boundaries/sitemap";
 
 export function composeEditorial() {
   return compose({
@@ -14,7 +14,7 @@ export function composeEditorial() {
       createPagePreview: CreatePagePreviewProvider,
     },
     wiring: [
-      aliasIntent(SitemapResolvePath, ResolvePath),
+      aliasIntent(ResolveSitemapPath, ResolvePath),
       ResolvePageViaRoutingProvider,
       ResolvePathViaCmsSnapshotProvider,
       FindSnapshotEntryProvider,

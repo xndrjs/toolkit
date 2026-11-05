@@ -24,8 +24,8 @@ resources. What is missing is an explicit declaration of where public traversal 
 ```ts
 compose({
   entryBoundaries: [Orders, Billing],
-  surface: { getOrder: GetOrderProvider, getInvoice: GetInvoiceProvider },
-  wiring: [FindOrderViaPostgresProvider],
+  surface: { getOrderDetails: GetOrderDetailsProvider, getInvoice: GetInvoiceProvider },
+  wiring: [FindOrderByIdViaPostgresProvider],
 });
 ```
 

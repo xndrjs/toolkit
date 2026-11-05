@@ -13,7 +13,6 @@ async function listDocFiles(dir: string): Promise<string[]> {
       if (entry.isDirectory()) return listDocFiles(fullPath);
       if (!entry.isFile()) return [];
       if (!entry.name.endsWith(".md") && !entry.name.endsWith(".mdx")) return [];
-      if (entry.name === "index.md" || entry.name === "index.mdx") return [];
       return [fullPath];
     })
   );
@@ -22,10 +21,16 @@ async function listDocFiles(dir: string): Promise<string[]> {
 
 export async function getLatestDocTailSlugs(): Promise<string[]> {
   const files = await listDocFiles(latestDocsRoot);
-  return files
+  const slugs = files
     .map((absolutePath) => {
       const relative = path.relative(latestDocsRoot, absolutePath);
-      return relative.replace(/\.(md|mdx)$/u, "").replace(/\\/gu, "/");
+      const extensionless = relative.replace(/\.(md|mdx)$/u, "").replace(/\\/gu, "/");
+      if (extensionless === "index") return "";
+      return extensionless.endsWith("/index")
+        ? extensionless.slice(0, -"/index".length)
+        : extensionless;
     })
-    .sort();
+    .filter((slug) => slug.length > 0);
+
+  return [...new Set(slugs)].sort();
 }

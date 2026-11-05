@@ -14,37 +14,37 @@ async function main(): Promise<void> {
 
   printCompositionPlan(`orders composition (storage: ${storage})`, root.describePlan());
 
-  section("getOrder — viewer");
+  section("getOrderDetails — viewer");
   await root.withExecutionContext(
     async (surface) => {
-      console.log('getOrder({ id: "42" }) →', await surface.getOrder({ id: "42" }));
-      console.log('getOrder({ id: "missing" }) →', await surface.getOrder({ id: "missing" }));
+      console.log('getOrderDetails("42") →', await surface.getOrderDetails("42"));
+      console.log('getOrderDetails("missing") →', await surface.getOrderDetails("missing"));
     },
     { params: { role: "viewer" } }
   );
 
-  section("getOrder — guest (policy before storage)");
+  section("getOrderDetails — guest (policy before storage)");
   await root.withExecutionContext(
     async (surface) => {
-      console.log('getOrder({ id: "42" }) →', await surface.getOrder({ id: "42" }));
+      console.log('getOrderDetails("42") →', await surface.getOrderDetails("42"));
     },
     { params: { role: "guest" } }
   );
 
-  section("watchOrders — full consume");
+  section("watchOrderEvents — full consume");
   await root.withExecutionContext(
     async (surface) => {
       const events = [];
-      for await (const event of surface.watchOrders({ id: "42" })) events.push(event);
-      console.log('watchOrders({ id: "42" }) →', events);
+      for await (const event of surface.watchOrderEvents("42")) events.push(event);
+      console.log('watchOrderEvents("42") →', events);
     },
     { params: { role: "viewer" } }
   );
 
-  section("watchOrders — early break");
+  section("watchOrderEvents — early break");
   await root.withExecutionContext(
     async (surface) => {
-      for await (const event of surface.watchOrders({ id: "42" })) {
+      for await (const event of surface.watchOrderEvents("42")) {
         console.log("first event →", event);
         break;
       }

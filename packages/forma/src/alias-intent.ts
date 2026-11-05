@@ -65,7 +65,7 @@ type SameContract<Req, Sat> = EquivalentIntentContract<Req, Sat> extends true ? 
  * deliberate synonyms (rename / migration). Use the result in `compose({ wiring })`.
  *
  * ```ts
- * wiring: [SelectOrderProvider, aliasIntent(FindOrder, SelectOrder)]
+ * wiring: [SelectOrderProvider, aliasIntent(FindOrderById, SelectOrder)]
  * ```
  */
 export function aliasIntent<Req extends AnyIntent, Sat extends AnyIntent>(

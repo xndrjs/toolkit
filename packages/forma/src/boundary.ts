@@ -99,7 +99,7 @@ export type IntentDeclarator<BoundaryId extends string> = <Name extends string>(
  * Declare a stream Intent and its contract (`Input`, stream `Item`, expected `Error`).
  *
  * ```ts
- * Orders.stream("watchOrders").contract<WatchInput, OrderEvent, WatchError>();
+ * Orders.stream("watchOrderEventsUseCase").contract<WatchInput, OrderEvent, WatchError>();
  * ```
  */
 export type StreamDeclarator<BoundaryId extends string> = <Name extends string>(

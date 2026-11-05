@@ -1,5 +1,10 @@
 import { adapter } from "@xndrjs/forma";
-import { FindOrder, Orders, WatchOrderEvents, type OrderStatus } from "../boundaries/orders";
+import {
+  FindOrderById,
+  FindOrderEventsByOrderId,
+  Orders,
+  type OrderStatus,
+} from "../boundaries/orders";
 import { SelectOrder, SelectOrderEvents } from "../boundaries/sqlite";
 
 const OrdersSqlite = adapter("orders-sqlite", Orders);
@@ -9,12 +14,12 @@ function isOrderStatus(value: string): value is OrderStatus {
   return validStatuses.some((status) => status === value);
 }
 
-export const FindOrderViaSqliteProvider = OrdersSqlite.adapt(FindOrder)
+export const FindOrderByIdViaSqliteProvider = OrdersSqlite.adapt(FindOrderById)
   .using({ select: SelectOrder })
   .with(
     ({ deps: { select }, out }) =>
-      async function findOrder(id) {
-        const outcome = await select({ order_id: id.id });
+      async function findOrderById(id) {
+        const outcome = await select({ order_id: id });
         switch (outcome.kind) {
           case "success":
             return out.success({
@@ -29,13 +34,15 @@ export const FindOrderViaSqliteProvider = OrdersSqlite.adapt(FindOrder)
       }
   );
 
-export const WatchOrderEventsViaSqliteProvider = OrdersSqlite.adapt(WatchOrderEvents)
+export const FindOrderEventsByOrderIdViaSqliteProvider = OrdersSqlite.adapt(
+  FindOrderEventsByOrderId
+)
   .using({ select: SelectOrderEvents })
   .with(
     ({ deps: { select }, out }) =>
       async function* watchOrderEvents(id, invocation) {
         try {
-          for await (const outcome of select({ order_id: id.id }, invocation)) {
+          for await (const outcome of select({ order_id: id }, invocation)) {
             switch (outcome.kind) {
               case "success":
                 if (!isOrderStatus(outcome.value.status)) {
@@ -56,7 +63,7 @@ export const WatchOrderEventsViaSqliteProvider = OrdersSqlite.adapt(WatchOrderEv
             }
           }
         } finally {
-          console.log(`watchOrders(${id.id}) closed (sqlite)`);
+          console.log(`watchOrderEvents(${id}) closed (sqlite)`);
         }
       }
   );

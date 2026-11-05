@@ -8,8 +8,8 @@ Boundary, then acquires enough independent meaning to deserve its own owner.
 Sitemap originally owns both the public use case and the private route-resolution seam:
 
 ```text
-Sitemap.GetEntry
-└─ Sitemap.ResolvePath
+Sitemap.GetSitemapEntryUseCase
+└─ Sitemap.ResolveSitemapPath
 ```
 
 This is a good initial design. `ResolvePath` has one consumer and there is no evidence yet that it
@@ -29,7 +29,7 @@ behind that Intent.
 The runnable demo represents the migration state:
 
 ```text
-Sitemap.ResolvePath ── aliasIntent ──> Routing.ResolvePath
+Sitemap.ResolveSitemapPath ── aliasIntent ──> Routing.ResolvePath
 
 PageBuilder.ResolvePage ── Adapter ──> Routing.ResolvePath
 ```
@@ -42,7 +42,7 @@ The historical Sitemap Intent and the new Routing Intent have exactly equivalent
 expected-error, and modality contracts. During migration they are deliberate synonyms.
 
 ```ts
-aliasIntent(SitemapResolvePath, ResolvePath);
+aliasIntent(ResolveSitemapPath, ResolvePath);
 ```
 
 The existing `GetSitemapEntryProvider` remains unchanged while the realization moves. The alias is
@@ -82,7 +82,8 @@ Once the ownership move is established, replace the migration alias with a `Site
 Adapter. The Adapter may initially be a passthrough because the contracts are equivalent, but it
 makes the cross-Boundary edge and its direction explicit.
 
-`Sitemap.ResolvePath` remains the consumer-owned local seam used by `GetSitemapEntryProvider`.
+`Sitemap.ResolveSitemapPath` remains the consumer-owned local seam used by
+`GetSitemapEntryProvider`.
 Forma Boundary Providers depend only on Intents from their own Boundary; cross-Boundary traversal
 belongs in an Adapter. The local Intent can disappear only if Sitemap no longer needs route
 resolution or if its use case is redesigned, not merely because Routing owns the shared

@@ -23,7 +23,7 @@ export type Adapter<AdapterId extends string, BoundaryId extends string> = {
  *
  * ```ts
  * adapter("orders-postgres", Orders)
- *   .adapt(FindOrder)
+ *   .adapt(FindOrderById)
  *   .using({ select: SelectOrder })
  *   .with(({ deps: { select } }) => (id) => select(id));
  * ```

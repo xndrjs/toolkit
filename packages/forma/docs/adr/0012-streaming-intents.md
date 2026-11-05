@@ -125,5 +125,6 @@ replaced `Result` / `ok` / `err` with `InvocationOutcome` for both unary and str
 - The managed iterator is not a public export; it lives under `execution/` and is used by the
   stream registry / surface wrapper.
 - Ownership and cancellation are documented for callers via README, Glossary (**Stream
-  invocation**), [streaming-intents.md](../streaming-intents.md), and the `WatchOrders` example in
+  invocation**), [streaming-intents.md](../streaming-intents.md), and the
+  `WatchOrderEventsUseCase` example in
   `apps/forma-demo`.

@@ -1,8 +1,8 @@
 import { adapter } from "@xndrjs/forma";
 import {
-  FindOrder,
+  FindOrderById,
+  FindOrderEventsByOrderId,
   Orders,
-  WatchOrderEvents,
   type Order,
   type OrderStatus,
 } from "../boundaries/orders";
@@ -12,18 +12,20 @@ const statuses: readonly OrderStatus[] = ["open", "paid", "shipped"];
 
 const OrdersMemory = adapter("orders-memory", Orders);
 
-export const FindOrderViaMemoryProvider = OrdersMemory.adapt(FindOrder).with(
+export const FindOrderByIdViaMemoryProvider = OrdersMemory.adapt(FindOrderById).with(
   ({ out }) =>
-    function findOrder(id) {
-      const order = orders.get(id.id);
+    function findOrderById(id) {
+      const order = orders.get(id);
       return order ? out.success(order) : out.expectedError({ code: "not_found" });
     }
 );
 
-export const WatchOrderEventsViaMemoryProvider = OrdersMemory.adapt(WatchOrderEvents).with(
+export const FindOrderEventsByOrderIdViaMemoryProvider = OrdersMemory.adapt(
+  FindOrderEventsByOrderId
+).with(
   ({ out }) =>
     async function* watchOrderEvents(id, invocation) {
-      if (!orders.has(id.id)) {
+      if (!orders.has(id)) {
         yield out.expectedError({ code: "not_found" });
         return;
       }
@@ -31,10 +33,10 @@ export const WatchOrderEventsViaMemoryProvider = OrdersMemory.adapt(WatchOrderEv
       try {
         for (const status of statuses) {
           invocation.signal.throwIfAborted();
-          yield out.success({ orderId: id.id, status });
+          yield out.success({ orderId: id, status });
         }
       } finally {
-        console.log(`watchOrders(${id.id}) closed (memory)`);
+        console.log(`watchOrderEvents(${id}) closed (memory)`);
       }
     }
 );

@@ -145,6 +145,49 @@ export default defineConfig({
               items: [{ label: "Introduction", slug: "v0/getting-started/introduction" }],
             },
             {
+              label: "Application Architecture",
+              items: [
+                {
+                  label: "Forma",
+                  items: [
+                    { label: "Overview", slug: "v0/application-architecture/forma" },
+                    {
+                      label: "Mental model",
+                      slug: "v0/application-architecture/forma/mental-model",
+                    },
+                    {
+                      label: "First Composition",
+                      slug: "v0/application-architecture/forma/first-composition",
+                    },
+                    {
+                      label: "Providers and dependencies",
+                      slug: "v0/application-architecture/forma/providers-and-dependencies",
+                    },
+                    {
+                      label: "Adapters and evolution",
+                      slug: "v0/application-architecture/forma/adapters-and-evolution",
+                    },
+                    {
+                      label: "Composition and execution",
+                      slug: "v0/application-architecture/forma/composition-and-execution",
+                    },
+                    {
+                      label: "Errors and outcomes",
+                      slug: "v0/application-architecture/forma/errors-and-outcomes",
+                    },
+                    {
+                      label: "Streaming",
+                      slug: "v0/application-architecture/forma/streaming",
+                    },
+                    {
+                      label: "Inspection and testing",
+                      slug: "v0/application-architecture/forma/inspection-and-testing",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
               label: "Modeling",
               items: [
                 {
