@@ -82,7 +82,7 @@ preserving failure and cancellation identity.
 If Adapter mapping code itself throws or rejects, that is a new failure at the Adapter origin and
 Forma creates a new Unexpected Failure for it.
 
-## Adapter is an origin, not an entry point
+## Adapter is not an entry point
 
 An Adapter is peer to Boundary and scoped to exactly one target Boundary. Its `.adapt(intent)` may
 only target Intents owned by that Boundary, while its `using` map may contain Intents from any
@@ -136,6 +136,10 @@ future policy.
 
 ## Intent aliases are deliberate synonyms
 
+Aliasing is not Forma's primary cross-Boundary connection mechanism. In most cases, use an Adapter—even
+when two Contracts currently have the same shape. Structural equivalence does not prove that two
+Intents have the same meaning, policy, authorization, observability, or reason to evolve.
+
 `aliasIntent(required, satisfier)` rewrites one required Intent identity to another satisfier with
 an exactly equivalent Contract, including modality.
 
@@ -145,9 +149,21 @@ import { aliasIntent } from "@xndrjs/forma";
 aliasIntent(ResolveSitemapPath, ResolvePath);
 ```
 
-Use an alias when the two identities are intentionally the same concept during a rename or
-migration. It is not a realization, cannot appear on the Surface, and does not create a location
-for mapping or policy.
+Use an alias only when the two identities are deliberate synonyms and introducing a Provider would
+misrepresent that relationship. Typical cases are rare and usually temporary:
+
+- preserving an old Intent name while consumers migrate to its replacement;
+- moving an unchanged capability to a new Boundary without forcing a big-bang migration;
+- maintaining a short compatibility window between two versioned identities that are formally
+  defined as equivalent.
+
+An alias is migration or compatibility wiring, not a convenient way to reuse an implementation.
+It is not a realization, cannot appear on the Surface, and creates no location for translation,
+policy, authorization, diagnostics, or future divergence. Sharing the same Contract, wanting to
+avoid a wrapper, or depending on another Boundary are not sufficient reasons to alias.
+
+**When in doubt, create an Adapter.** An Adapter makes the relationship explicit today and leaves a
+natural place for the two sides to diverge tomorrow.
 
 Unary and stream Intents cannot alias one another. Input, success/item, Expected Error, and modality
 must be reciprocally assignable at the type level; Forma also rejects runtime modality mismatches.

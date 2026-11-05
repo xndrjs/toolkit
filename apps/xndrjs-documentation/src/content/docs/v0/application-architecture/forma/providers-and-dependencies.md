@@ -90,19 +90,23 @@ Provider factory is not duplicated by a first-access race.
 
 A Provider declares a policy. The Composition derives its effective owner from the resolved graph.
 
-| Declaration          | Meaning                                                                            |
-| -------------------- | ---------------------------------------------------------------------------------- |
-| no modifier (`auto`) | Use the longest lifetime compatible with all transitive dependencies               |
-| `.perContext()`      | Always owned by one Execution context                                              |
-| `.perComposition()`  | Always owned by the Composition root; fail if the graph requires context ownership |
+| Declaration          | Meaning                                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| no modifier (`auto`) | Use the longest lifetime compatible with all transitive dependencies                                       |
+| `.perContext()`      | Always owned by one Execution context                                                                      |
+| `.perComposition()`  | Always owned by the Composition root; fail if its transitive dependency closure requires context ownership |
+
+The transitive dependency closure contains only the Providers reachable from that Provider by
+following resolved `using` and Intent-alias edges. A context-owned Provider in an unrelated Surface
+branch has no effect on it.
 
 With the current two owners:
 
 ```text
-auto + no context dependency       → composition
-auto + transitive context dependency → context
-perContext                         → context
-perComposition                     → composition or compose-time conflict
+auto + no perContext dependency          → effective perComposition
+auto + transitive perContext dependency  → effective perContext
+perContext                               → effective perContext
+perComposition                           → effective perComposition or compose-time conflict
 ```
 
 If an `auto` Provider depends on a `.perContext()` Provider, context ownership propagates to the
@@ -111,8 +115,8 @@ Execution context.
 
 ```mermaid
 flowchart LR
-  Get[GetOrderDetailsUseCase<br/>declared: auto<br/>effective: context]
-  Policy[RequestPolicy<br/>declared: context<br/>effective: context]
+  Get[GetOrderDetailsUseCase<br/>declared: auto<br/>effective: perContext]
+  Policy[RequestPolicy<br/>declared: perContext<br/>effective: perContext]
   Get -->|using| Policy
 ```
 
@@ -122,6 +126,29 @@ of silently narrowing the pinned Provider.
 
 `root.describePlan()` exposes declared and effective lifetimes, including the path that narrowed an
 `auto` Provider.
+
+### Example: shared client, context-local DataLoader
+
+A shorter-lived Provider may safely depend on a longer-lived one. A typical server Composition
+keeps an infrastructure client for the lifetime of the process while isolating DataLoader batching
+and caching inside one request:
+
+```text
+GetOrderDetailsUseCase Provider       auto → effective perContext
+└─ FindOrderById Adapter Provider     auto → effective perContext
+   └─ OrdersByIdDataLoader Provider   perContext
+      └─ DatabaseClient Provider      perComposition
+```
+
+Every Execution context gets its own DataLoader, so cached values and pending batches cannot leak
+between requests, users, or tenants. All those DataLoaders may reuse the same database or HTTP
+client. Disposing a context releases its DataLoader and request-local cache; the shared client stays
+alive until the Composition root is disposed.
+
+This direction is valid because the dependency outlives its consumer. Lifetime constraints
+propagate toward consumers: the context-local DataLoader narrows upstream `auto` Providers, but it
+does not narrow the `perComposition` client it depends on. The DataLoader may additionally declare
+request data through `.perContext<Params>()`; the shared client remains independent of those Params.
 
 ## Context Params
 
@@ -191,8 +218,7 @@ const DatabaseProvider = Database.provide.perComposition().with(({ lifetime, out
 });
 ```
 
-`DatabaseSync` is a portability trade-off of the runnable demo: Node's built-in `node:sqlite`
-interface is synchronous. Forma can equally materialize an asynchronous database pool, a Worker
+`DatabaseSync` is just a trade-off of this simple example: Node's built-in `node:sqlite` interface is synchronous. Forma can equally materialize an asynchronous database pool, a Worker
 Thread-backed resource, or a remote client.
 
 Provider factories themselves may be asynchronous:

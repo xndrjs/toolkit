@@ -143,25 +143,9 @@ Runtime brands identify values created by a compatible Forma protocol implementa
 ordinary structural lookalikes and spread clones from entering the graph; they are not a security
 boundary.
 
-## Validate the published package
-
-The repository includes a package-shape validation command:
-
-```bash
-pnpm validate:forma-package
-```
-
-It builds Forma, creates the tarball shape that would be published to npm, validates exports and
-declarations with `publint` and Are The Types Wrong, installs the tarball into an isolated consumer,
-typechecks that consumer with `skipLibCheck: false`, and runs unary, stream, and disposal smoke
-tests.
-
-This matters because workspace source aliases can hide missing files, broken exports, or declaration
-problems that only appear after publication.
-
 ## Run the focused demos
 
-From the repository root:
+From `@xndrjs/toolkit` repository root you can run Forma demo with:
 
 ```bash
 pnpm --filter @xndrjs/forma-demo start:orders:sqlite
