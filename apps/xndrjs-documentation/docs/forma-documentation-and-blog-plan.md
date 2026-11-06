@@ -9,7 +9,9 @@
 
 - **Troncone A:** prima stesura completa sul branch `feature/forma-documentation`; build, typecheck,
   test Forma e controllo visuale eseguiti. In attesa di review.
-- **Troncone B:** non iniziato.
+- **Troncone B:** shared understanding raggiunta; prima bozza testuale scritta. Le prime due visuali
+  (`AI feedback loop` e anatomia del modello Forma) sono state generate e integrate, in attesa di
+  approvazione; le altre due e le review non sono ancora state eseguite.
 
 ## Obiettivo
 
