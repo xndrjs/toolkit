@@ -146,7 +146,7 @@ an exactly equivalent Contract, including modality.
 ```ts
 import { aliasIntent } from "@xndrjs/forma";
 
-aliasIntent(ResolveSitemapPath, ResolvePath);
+aliasIntent(LegacyResolvePath, ResolvePath);
 ```
 
 Use an alias only when the two identities are deliberate synonyms and introducing a Provider would
@@ -172,58 +172,62 @@ must be reciprocally assignable at the type level; Forma also rejects runtime mo
 
 The Editorial demo captures a common evolution.
 
-### 1. Start with local ownership
+### 1. Start with a consumer-owned port
 
-Sitemap initially owns both its public use case and its private path-resolution seam:
+Sitemap initially owns the public use case and the private port it needs:
 
 ```text
-Sitemap.GetSitemapEntryUseCase
-└─ Sitemap.ResolveSitemapPath
+Sitemap.GenerateSitemapUseCase
+└─ Sitemap.EnumerateSitemapEntries
 ```
 
-This is a good initial design. There is one consumer and no evidence that routing needs an
-independent architectural identity.
+This is a good initial design. Sitemap asks for entries in its own language, and there is no
+evidence yet that path resolution needs an independent architectural identity.
 
 ### 2. Let new pressure reveal the responsibility
 
-PageBuilder later needs to resolve editorial paths too. Copying the logic would allow routing rules
-and failure semantics to drift. Depending directly on a Sitemap use case would make PageBuilder
-speak the wrong architectural language.
+PageBuilder later needs to resolve editorial paths too. Copying route rules and CMS translation
+would allow them to drift. Depending directly on a Sitemap use case would make PageBuilder speak
+the wrong architectural language.
 
-At this point route resolution has acquired independent meaning, so the realization moves behind a
-new `Routing.ResolvePath` Intent.
+At this point path resolution has acquired independent meaning. A new `Routing` Boundary owns
+`ResolvePaths` and `ResolvePath`. It does not enumerate content: a separate `ContentCatalog`
+Boundary owns `EnumeratePublishedPages`.
 
-### 3. Keep both consumers stable during migration
+### 3. Keep both consumers in their own language
 
 ```mermaid
 flowchart TD
-  SitemapEntry[Sitemap.GetSitemapEntryUseCase] --> SitemapResolve[Sitemap.ResolveSitemapPath]
-  SitemapResolve -->|temporary alias| RoutingResolve[Routing.ResolvePath]
+  SitemapGenerate[Sitemap.GenerateSitemapUseCase] --> SitemapEntries[Sitemap.EnumerateSitemapEntries]
+  SitemapEntries -->|SitemapCatalogRouting Adapter| PublishedPages[ContentCatalog.EnumeratePublishedPages]
+  SitemapEntries -->|SitemapCatalogRouting Adapter| RoutingPaths[Routing.ResolvePaths]
   Preview[PageBuilder.CreatePagePreviewUseCase] --> PageResolve[PageBuilder.ResolvePage]
-  PageResolve -->|PageBuilderRouting Adapter| RoutingResolve
-  RoutingResolve -->|RoutingCmsSnapshot Adapter| Snapshot[CmsSnapshot.FindSnapshotEntryByPath]
+  PageResolve -->|PageBuilderRouting Adapter| RoutingResolve[Routing.ResolvePath]
+  PublishedPages -->|ContentCatalogCmsSnapshot Adapter| Snapshot[CmsSnapshot.ReadSnapshot]
+  RoutingPaths -->|RoutingCmsSnapshot Adapter| Snapshot
+  RoutingResolve -->|RoutingCmsSnapshot Adapter| Snapshot
 ```
 
-The two connections mean different things:
+The connections preserve four distinct vocabularies:
 
-- `Sitemap.ResolveSitemapPath` and `Routing.ResolvePath` currently have exactly equivalent
-  Contracts, so a temporary Intent alias keeps the existing Sitemap Provider unchanged;
-- `PageBuilder.ResolvePage` owns different input, result, and error vocabulary, so an Adapter maps
-  it to `Routing.ResolvePath`;
-- Routing is realized through another Adapter using the infrastructure-oriented `CmsSnapshot`
-  Boundary.
+- `Sitemap.EnumerateSitemapEntries` expresses what sitemap generation needs;
+- `ContentCatalog.EnumeratePublishedPages` owns publication-aware content enumeration;
+- `PageBuilder.ResolvePage` expresses what preview generation needs, including its own Expected
+  Error;
+- Routing resolves canonical paths without knowing why they are requested;
+- the infrastructure-oriented `CmsSnapshot` Boundary owns the local artifact format.
 
-Only Sitemap and PageBuilder are Entry Boundaries. Routing, CmsSnapshot, both Adapters, and the alias
-remain private implementation of this Composition.
+Only Sitemap and PageBuilder are Entry Boundaries. ContentCatalog, Routing, CmsSnapshot, and all
+Adapters remain private implementation of this Composition.
 
-### 4. Remove migration debt deliberately
+### 4. Move realizations without moving consumer meaning
 
-Once the ownership move is established, the Sitemap alias can be replaced with a Sitemap-to-Routing
-Adapter. It may begin as a passthrough, but it makes the cross-Boundary edge and its direction
-explicit.
+ContentCatalog and Routing currently derive their capabilities from a committed CMS snapshot. A
+production Composition could use a remote CMS, a database, or another service without changing
+either consumer-owned port.
 
-The local Sitemap Intent remains useful because it expresses what Sitemap requires in Sitemap's
-language. It does not disappear merely because Routing now owns the shared realization.
+The local Intents remain useful because they express what each consumer requires in its own
+language. They do not disappear merely because Routing owns the shared realization.
 
 ## Patterns that emerge
 

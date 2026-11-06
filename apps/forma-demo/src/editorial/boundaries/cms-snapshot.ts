@@ -2,13 +2,12 @@ import { readFile } from "node:fs/promises";
 import { boundary } from "@xndrjs/forma";
 import { z } from "zod";
 
-export type SnapshotPathQuery = { readonly route_path: string };
-export type SnapshotError = { readonly code: "ENTRY_NOT_FOUND" };
-
 const SnapshotEntrySchema = z
   .object({
     entry_id: z.string().min(1),
     canonical_path: z.string().startsWith("/"),
+    publication_state: z.enum(["published", "draft"]),
+    last_modified_at: z.string().datetime({ offset: true }),
   })
   .strict();
 
@@ -27,22 +26,18 @@ function parseSnapshot(contents: string): readonly SnapshotEntry[] {
 
 export const CmsSnapshot = boundary("cms-snapshot");
 
-export const FindSnapshotEntryByPath = CmsSnapshot.intent("findSnapshotEntryByPath").contract<
-  SnapshotPathQuery,
-  SnapshotEntry,
-  SnapshotError
+export const ReadSnapshot = CmsSnapshot.intent("readSnapshot").contract<
+  void,
+  readonly SnapshotEntry[],
+  never
 >();
 
 /** Reads a real local artifact once, when this Provider is first materialized. */
-export const FindSnapshotEntryProvider = FindSnapshotEntryByPath.provide
-  .perComposition()
-  .with(async ({ out }) => {
-    const snapshotUrl = new URL("../fixtures/cms-snapshot.json", import.meta.url);
-    const entries = parseSnapshot(await readFile(snapshotUrl, "utf8"));
-    const entriesByPath = new Map(entries.map((entry) => [entry.canonical_path, entry]));
+export const ReadSnapshotProvider = ReadSnapshot.provide.perComposition().with(async ({ out }) => {
+  const snapshotUrl = new URL("../fixtures/cms-snapshot.json", import.meta.url);
+  const entries = parseSnapshot(await readFile(snapshotUrl, "utf8"));
 
-    return function findEntry(query) {
-      const entry = entriesByPath.get(query.route_path);
-      return entry ? out.success(entry) : out.expectedError({ code: "ENTRY_NOT_FOUND" });
-    };
-  });
+  return function readSnapshot() {
+    return out.success(entries);
+  };
+});

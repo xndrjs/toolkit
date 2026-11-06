@@ -12,9 +12,9 @@ tags:
 
 Over the past year, I have reviewed much AI-generated code that often looked perfectly reasonable, in isolation. Then, after enough iterations, I would try to make a small change by hand and realize that I wasn't feeling confident about it.
 
-The codebase had not necessarily turned into spaghetti - but indeed, a network of references appeared, and had to remain aligned: a type here, a mapping there, a factory in another package, a convention encoded in two call sites, and so on.
+The codebase had not necessarily turned into spaghetti. But changing, introducing, or removing a feature meant editing several parts of it, some obvious and others much less so. I often expected TypeScript to keep those points aligned, but encoding every relevant relationship in the type system was not always possible. Some connections remained implicit, and I had to remember where they were.
 
-I could recover the path with search. But I realized I no longer carried a compact model of the system in my head.
+I could find all the impacted pieces of code by search. But I realized I no longer carried a compact model of the system in my head.
 
 That feeling started to grow uncomfortable on me. Humans do not understand a system as a list of grep results. We need concepts that compress it.
 
@@ -77,47 +77,59 @@ Ownership alone is not enough. A caller also needs a stable way to say what it w
 ```ts
 import { boundary } from "@xndrjs/forma";
 
-type SitemapPath = { readonly path: string };
-type SitemapRouteMatch = { readonly pageId: string; readonly canonicalPath: string };
-type SitemapEntry = { readonly location: string; readonly pageId: string };
-type SitemapError = { readonly code: "route_not_found" };
+type SitemapEntry = {
+  readonly location: string;
+  readonly lastModifiedAt: string;
+};
+type GeneratedSitemap = { readonly entries: readonly SitemapEntry[] };
 
 export const Sitemap = boundary("sitemap");
 
-export const ResolveSitemapPath = Sitemap.intent("resolveSitemapPath").contract<
-  SitemapPath,
-  SitemapRouteMatch,
-  SitemapError
+export const EnumerateSitemapEntries = Sitemap.intent("enumerateSitemapEntries").contract<
+  void,
+  readonly SitemapEntry[],
+  never
 >();
 
-export const GetSitemapEntryUseCase = Sitemap.intent("getSitemapEntryUseCase").contract<
-  SitemapPath,
-  SitemapEntry,
-  SitemapError
+export const GenerateSitemapUseCase = Sitemap.intent("generateSitemapUseCase").contract<
+  void,
+  GeneratedSitemap,
+  never
 >();
 ```
 
-`ResolveSitemapPath` is a lower-level capability used inside Sitemap. `GetSitemapEntryUseCase` is the use case we eventually want to expose. Both are Intents because both need a stable identity and a replaceable realization; neither says whether its data comes from memory, a CMS snapshot, PostgreSQL, or a remote service.
+`EnumerateSitemapEntries` is the lower-level port Sitemap needs. `GenerateSitemapUseCase` is the use case we eventually want to expose. Both are Intents because both need a stable identity and a replaceable realization; neither says whether the entries come from memory, a CMS snapshot, a database, or a remote service. Neither operation currently declares an expected domain error, hence `never`, but unexpected failures and cancellation still remain explicit outcomes.
 
-The contract would still be incomplete if a caller had to handle its typed error and also guess which exceptions the returned Promise might reject with. At an accepted Boundary invocation, Forma represents success, expected errors, unexpected failures, and cancellation as explicit outcomes. An unexpected failure is deliberately opaque outside the Boundary that produced it: callers can propagate its identity, but cannot interpret an uncatalogued cause as domain data.
+### The part TypeScript cannot put in a function signature
 
-The Intents above still cannot execute. The use case needs a realization, and that realization needs a way to declare its dependency on path resolution. A **Provider** supplies both: it says how one Intent is realized and lists the other Intents required to build that realization. `using` makes this dependency subgraph visible before any code runs:
+Input, success, and expected error may look like a complete contract, but TypeScript leaves one exit untyped. `Promise<T>` describes the value with which a Promise can be fulfilled; it does not declare the values with which that Promise may reject. A synchronous function has the same limitation: its signature cannot express the set of exceptions it may throw.
+
+This turns exception handling into a discovery problem. To handle a rejection deliberately, the caller has to know which exceptions can emerge from the entire stack below the call: the current Provider, its dependencies, a database driver, a remote SDK, a parser, or any other implementation detail involved along the way. A `catch` does not recover that missing contract. It receives `unknown`, and TypeScript cannot tell us which cases are meaningful.
+
+The architectural risk is larger than missing type information. An Orders use case may start catching a PostgreSQL error code because the current realization happens to use PostgreSQL, even though the database lives several layers below Orders. The code may work, but the caller has crossed the Boundary to interpret infrastructure vocabulary. Replacing the realization can then change the exceptions that escape without changing the Intent's signature.
+
+A Boundary can deliberately translate a technical failure into an expected error when callers are meant to act on it. That error becomes data and appears in the Intent's contract. What the Boundary cannot classify must not escape as another implicitly supported branch that every caller has to rediscover.
+
+Forma therefore **totalizes** accepted Boundary invocations. A Provider throw or Promise rejection is captured before it leaves the Boundary and represented as an `unexpectedFailure`; success, expected errors, and cancellation are represented alongside it in the same `InvocationOutcome`. The unexpected cause remains on the diagnostic side of the Boundary, while callers receive only an opaque failure identity that they can report or propagate without interpreting it as domain data.
+
+An error that crosses a Boundary as something callers may handle must be catalogued by that Boundary. Everything else remains unexpected without becoming invisible.
+
+This guarantee concerns accepted Boundary invocations. Composition and disposal failures remain lifecycle exceptions rather than application outcomes.
+
+### From contracts back to execution
+
+With the error semantics established, we can return to the sitemap example. The Intents above still cannot execute. The use case needs a realization, and that realization needs a way to declare its dependency on the private port. A **Provider** supplies both: it says how one Intent is realized and lists the other Intents required to build that realization. `using` makes this dependency subgraph visible before any code runs:
 
 ```ts
-export const GetSitemapEntryProvider = GetSitemapEntryUseCase.provide
-  .using({ resolvePath: ResolveSitemapPath })
-  .with(({ deps: { resolvePath }, out }) => {
-    return async function getSitemapEntry(path) {
-      const outcome = await resolvePath(path);
+export const GenerateSitemapProvider = GenerateSitemapUseCase.provide
+  .using({ enumerateEntries: EnumerateSitemapEntries })
+  .with(({ deps: { enumerateEntries }, out }) => {
+    return async function generateSitemap() {
+      const outcome = await enumerateEntries();
 
       switch (outcome.kind) {
         case "success":
-          return out.success({
-            location: outcome.value.canonicalPath,
-            pageId: outcome.value.pageId,
-          });
-        case "expectedError":
-          return out.expectedError(outcome.error);
+          return out.success({ entries: outcome.value });
         default:
           return outcome;
       }
@@ -125,7 +137,7 @@ export const GetSitemapEntryProvider = GetSitemapEntryUseCase.provide
   });
 ```
 
-The `out` value constructs outcomes valid for this Intent's contract. The two non-semantic branches—Unexpected Failure and Cancellation—are already represented by Forma, so the `default` branch propagates them without trying to reinterpret them inside Sitemap.
+The `out` value constructs outcomes valid for this Intent's contract. Unexpected Failure and Cancellation are already represented by Forma, so the `default` branch propagates them without trying to reinterpret them inside Sitemap.
 
 Declaring Providers still does not answer which realization a particular application should use. A test may use memory while production uses a CMS; two realizations of the same Intent cannot both be the answer inside one running graph. The application therefore needs one unit that selects a coherent set of Providers, verifies that every required Intent is satisfied, and owns the resulting runtime. Forma calls that unit a **Composition**.
 
@@ -139,10 +151,6 @@ This separation is deliberately small:
 - the Composition selects, validates, exposes, and owns one executable graph.
 
 Forma is therefore not a global registry where any caller can ask for any service. Before returning an executable root, a Composition rejects incomplete graphs, competing realizations, and cycles, then assumes runtime ownership of the selected Providers.
-
-![A Composition surrounds a Sitemap Boundary containing two Intents and their Providers. The public Surface exposes only the use-case Provider, which uses the private path-resolution Intent.](../../../assets/blog/forma/forma-model-anatomy.png)
-
-_The Boundary owns the language and its realizations. The Composition selects and owns the executable graph, while the Surface exposes only the deliberately chosen root._
 
 This is where Forma differs in emphasis from ordinary dependency injection. Dependency injection primarily answers how a dependency reaches a consumer. Forma first asks who owns the capability, which Intent represents it, and through which declared relationship it may cross into another architectural space. A DI container can still be a useful implementation mechanism; it simply does not necessarily preserve these distinctions by itself.
 
@@ -198,21 +206,23 @@ There is one narrower migration problem for which an Adapter can express more th
 
 The most useful boundaries are not always obvious at the beginning of a project.
 
-Consider a CMS-driven editorial system. Initially, Sitemap needs to resolve a URL path to a page. The route-resolution code lives inside Sitemap, behind a private `ResolveSitemapPath` Intent. That is a good design: there is one consumer, one owner, and no evidence that the capability deserves an independent architectural identity.
+Consider a CMS-driven editorial system. Initially, Sitemap needs to obtain the entries it will publish. That dependency lives behind a private `EnumerateSitemapEntries` Intent. This is a good design: Sitemap asks for what it needs in its own language, and there is no evidence yet that path resolution deserves an independent architectural identity.
 
-Later, Page Builder needs to resolve the same editorial paths to create page previews.
+Later, Page Builder needs to resolve editorial paths to create page previews.
 
-Several locally reasonable options now exist. Page Builder could call Sitemap's public use case, but then it would depend on vocabulary and behavior intended for sitemap generation. It could copy the resolver, but route rules, failure mapping, and CMS translation could drift. Or both could import the same helper, which shares code without answering who owns the capability.
+Several locally reasonable options now exist. Page Builder could call Sitemap's public use case, but then it would depend on vocabulary and behavior intended for sitemap generation. It could resolve paths independently, but route rules, failure mapping, and CMS translation could drift. Or both could import the same helper, which shares code without answering who owns the capability.
 
-The new pressure reveals something that was not true, or at least not useful, before: route resolution has acquired meaning independent from Sitemap.
+The new pressure reveals something that was not true, or at least not useful, before: resolving editorial paths has acquired meaning independent from Sitemap.
 
 That is the moment a `Routing` Boundary becomes valuable.
 
-The realization moves behind `Routing.ResolvePath`. Page Builder keeps its own `ResolvePage` Intent and reaches Routing through an Adapter. Sitemap can migrate in the same way. In the current Forma demo, it temporarily uses an Intent alias because the old and new contracts are exact synonyms; that alias is explicit migration debt and can later be replaced with a Sitemap-to-Routing Adapter.
+Routing now owns `ResolvePaths` and `ResolvePath`. It does not enumerate the site: knowing which pages are published belongs to a small `ContentCatalog` Boundary. Sitemap keeps `EnumerateSitemapEntries`; its Adapter obtains the published page IDs and modification timestamps from ContentCatalog, asks Routing to resolve their canonical paths, and combines both results into Sitemap entries. Page Builder keeps `ResolvePage` and reaches `ResolvePath` through another Adapter.
 
-![Route resolution begins as a local Sitemap capability, develops ownership pressure when Page Builder also needs it, and finally moves into a dedicated Routing Boundary connected through a temporary Sitemap alias and a Page Builder Adapter.](../../../assets/blog/forma/progressive-boundary-discovery.png)
+The distinction matters because “enumerate every page that belongs in a sitemap” is not a generic routing capability. Routing resolves paths without knowing why they were requested, while each consumer retains a contract shaped around its own need.
 
-_A new Boundary does not need to be predicted in advance. It can emerge when a capability acquires meaning beyond its original owner, while existing consumers retain local seams and migrate explicitly._
+![Path resolution begins inside Sitemap. When Page Builder also needs it, the capability moves into a dedicated Routing Boundary and both consumers connect through Adapters.](../../../assets/blog/forma/progressive-boundary-discovery.png)
+
+_Boundary discovery is a change of ownership, not a demand for early prediction. The precise Intent and Provider wiring remains in code; the architectural move is that path resolution gains an independent owner._
 
 This is not a story about correcting an obviously bad initial architecture. Extracting Routing on day one would have required predicting a reuse case that did not yet exist. Leaving the capability in Sitemap forever would ignore evidence that arrived later.
 
@@ -220,9 +230,9 @@ The architectural property I want is not perfect foresight. It is the ability to
 
 ## Composition makes the current answer inspectable
 
-After extracting Routing, the declarations still describe several possible pieces rather than one application. We need to choose the public use cases, authorize the Boundaries from which public traversal may begin, and keep Routing, infrastructure, and Adapters reachable only as dependencies.
+After extracting Routing and ContentCatalog, the declarations still describe several possible pieces rather than one application. We need to choose the public use cases, authorize the Boundaries from which public traversal may begin, and keep the internal Boundaries, infrastructure, and Adapters reachable only as dependencies.
 
-The Editorial demo chooses `getSitemapEntry` and `createPagePreview` as its Surface. Their Providers belong to Sitemap and Page Builder, so those are its Entry Boundaries. Routing, the CMS snapshot, and the Adapters remain private `wiring`. The demo uses a committed snapshot so it can run without credentials; a production root could realize the same Routing Intent through Contentful, another CMS, a database, or a remote service.
+The Editorial demo chooses `generateSitemap` and `createPagePreview` as its Surface. Their Providers belong to Sitemap and Page Builder, so those are its Entry Boundaries. ContentCatalog, Routing, the CMS snapshot, and the Adapters remain private `wiring`. The demo uses a committed snapshot so it can run without credentials; a production root could realize the same Intents through Contentful, another CMS, a database, or a remote service.
 
 The Composition is where that answer becomes explicit:
 
@@ -231,18 +241,24 @@ export function composeEditorial() {
   return compose({
     entryBoundaries: [Sitemap, PageBuilder],
     surface: {
-      getSitemapEntry: GetSitemapEntryProvider,
+      generateSitemap: GenerateSitemapProvider,
       createPagePreview: CreatePagePreviewProvider,
     },
     wiring: [
-      aliasIntent(ResolveSitemapPath, ResolvePath),
+      EnumerateSitemapEntriesViaCatalogAndRoutingProvider,
       ResolvePageViaRoutingProvider,
+      EnumeratePublishedPagesViaCmsSnapshotProvider,
+      ResolvePathsViaCmsSnapshotProvider,
       ResolvePathViaCmsSnapshotProvider,
-      FindSnapshotEntryProvider,
+      ReadSnapshotProvider,
     ],
   });
 }
 ```
+
+![The generateSitemap Surface operation reaches the Sitemap use-case Provider, whose local port is realized by an Adapter using ContentCatalog to enumerate published pages and Routing to resolve their paths.](../../../assets/blog/forma/forma-model-anatomy.png)
+
+_The Adapter realizes Sitemap's local port by combining two external Intents; it does not wrap their Providers. The Composition independently selects the Providers behind ContentCatalog and Routing._
 
 The private Providers are required to execute the Surface, but they do not become accidental entry points themselves.
 

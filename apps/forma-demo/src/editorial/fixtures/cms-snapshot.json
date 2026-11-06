@@ -1,10 +1,20 @@
 [
   {
     "entry_id": "page-home",
-    "canonical_path": "/"
+    "canonical_path": "/",
+    "publication_state": "published",
+    "last_modified_at": "2026-09-01T08:00:00Z"
   },
   {
     "entry_id": "page-hello-forma",
-    "canonical_path": "/news/hello-forma"
+    "canonical_path": "/news/hello-forma",
+    "publication_state": "published",
+    "last_modified_at": "2026-10-28T14:30:00Z"
+  },
+  {
+    "entry_id": "page-draft",
+    "canonical_path": "/draft/next-article",
+    "publication_state": "draft",
+    "last_modified_at": "2026-11-05T10:00:00Z"
   }
 ]

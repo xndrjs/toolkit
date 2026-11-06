@@ -4,9 +4,9 @@ Two small, runnable walkthroughs for `@xndrjs/forma`. Each one has a single job:
 
 - **Orders** shows runtime mechanics: interchangeable Adapters, a real SQLite resource, execution
   params, unary and Stream Intents, lazy materialization, cleanup, and disposal.
-- **Editorial** shows architectural evolution: a capability extracted into `Routing`, a temporary
-  Intent alias for an unchanged consumer, an Adapter for a consumer with different semantics, and
-  two explicit Entry Boundaries.
+- **Editorial** shows architectural evolution: Sitemap and PageBuilder keep local ports while a
+  discovered `Routing` Boundary owns path resolution, with two explicit Entry
+  Boundaries and infrastructure kept behind private Adapters.
 
 Neither walkthrough is a test suite. Behavioural guarantees live in `packages/forma/test`.
 
@@ -42,31 +42,32 @@ completion, `break`, and execution-context disposal close the generator.
 ## Editorial: moving capability ownership
 
 ```text
-Sitemap.GetSitemapEntryUseCase
-└─ Sitemap.ResolveSitemapPath ── alias ────────┐
-                                               v
-PageBuilder.CreatePagePreviewUseCase      Routing.ResolvePath
-└─ PageBuilder.ResolvePage ── Adapter ─────────┤
-                                               v
-                                  RoutingCmsSnapshot Adapter
-                                               v
-                             CmsSnapshot.FindSnapshotEntryByPath
+Sitemap.GenerateSitemapUseCase
+└─ Sitemap.EnumerateSitemapEntries ── Adapter ─┬─> ContentCatalog.EnumeratePublishedPages
+                                               └─> Routing.ResolvePaths
+
+PageBuilder.CreatePagePreviewUseCase
+└─ PageBuilder.ResolvePage ───────────── Adapter ──> Routing.ResolvePath
+
+ContentCatalog and Routing ───────────── Adapters ──> CmsSnapshot.ReadSnapshot
 ```
 
-`ResolvePath` originally belonged to Sitemap. Once PageBuilder also needed route resolution, the
-shared capability moved to the internal `Routing` Boundary:
+Sitemap begins with the local port it needs to generate a sitemap. Once PageBuilder also needs
+editorial path resolution, the shared capability acquires its own internal `Routing` Boundary:
 
-- `Sitemap.ResolveSitemapPath` and `Routing.ResolvePath` are exact synonyms during migration, so an
-  `aliasIntent` keeps the existing Sitemap Provider unchanged.
-- PageBuilder owns a different input, result, and expected-error vocabulary, so an Adapter realizes
-  `PageBuilder.ResolvePage` through `Routing.ResolvePath`.
-- Routing is realized through a `CmsSnapshot` Boundary that reads a committed JSON artifact from
-  the filesystem. It does not pretend to be Contentful or another remote vendor.
-- Only `Sitemap` and `PageBuilder` are Entry Boundaries. Routing, CmsSnapshot, Adapters, and the
-  migration alias remain private wiring.
+- `GenerateSitemapUseCase` depends only on the Sitemap-owned `EnumerateSitemapEntries` port.
+- `SitemapCatalogRouting` realizes that port by obtaining published page metadata from
+  `ContentCatalog` and asking `Routing` to resolve those page IDs into canonical paths.
+- `PageBuilderRouting` realizes `PageBuilder.ResolvePage` through `Routing.ResolvePath`, including
+  PageBuilder's distinct input, result, and expected-error vocabulary.
+- ContentCatalog and Routing are realized through a `CmsSnapshot` Boundary that reads a committed
+  JSON artifact from the filesystem. It does not pretend to be Contentful or another remote
+  vendor.
+- Only `Sitemap` and `PageBuilder` are Entry Boundaries. ContentCatalog, Routing, CmsSnapshot, and
+  all Adapters remain private wiring.
 
-See [Boundary evolution](./docs/boundary-evolution.md) for the migration sequence and the intended
-final cleanup.
+See [Boundary evolution](./docs/boundary-evolution.md) for the discovery sequence and resulting
+graph.
 
 ## Layout
 
@@ -78,7 +79,7 @@ src/
 │  ├─ composition.ts
 │  └─ main.ts
 ├─ editorial/
-│  ├─ boundaries/       # Sitemap, PageBuilder, Routing, CmsSnapshot
+│  ├─ boundaries/       # Sitemap, PageBuilder, ContentCatalog, Routing, CmsSnapshot
 │  ├─ adapters/         # semantic translations between those Boundaries
 │  ├─ fixtures/         # real local CMS export artifact
 │  ├─ composition.ts

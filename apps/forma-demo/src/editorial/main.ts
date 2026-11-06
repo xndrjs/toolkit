@@ -5,16 +5,15 @@ async function main(): Promise<void> {
   await using root = composeEditorial();
   printCompositionPlan("editorial composition", root.describePlan());
 
-  section("same route, two entry boundaries");
+  section("two entry boundaries, private catalog and routing boundaries");
   await root.withExecutionContext(async (surface) => {
     const path = "/news/hello-forma";
-    console.log("getSitemapEntry →", await surface.getSitemapEntry({ path }));
+    console.dir({ generateSitemap: await surface.generateSitemap() }, { depth: null });
     console.log("createPagePreview →", await surface.createPagePreview({ pathname: path }));
   });
 
-  section("each boundary keeps its own expected-error vocabulary");
+  section("page builder keeps its own expected-error vocabulary");
   await root.withExecutionContext(async (surface) => {
-    console.log("getSitemapEntry →", await surface.getSitemapEntry({ path: "/missing" }));
     console.log("createPagePreview →", await surface.createPagePreview({ pathname: "/missing" }));
   });
 

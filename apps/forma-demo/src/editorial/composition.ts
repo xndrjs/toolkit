@@ -1,23 +1,29 @@
-import { aliasIntent, compose } from "@xndrjs/forma";
+import { compose } from "@xndrjs/forma";
+import { EnumeratePublishedPagesViaCmsSnapshotProvider } from "./adapters/content-catalog-cms-snapshot";
 import { ResolvePageViaRoutingProvider } from "./adapters/page-builder-routing";
-import { ResolvePathViaCmsSnapshotProvider } from "./adapters/routing-cms-snapshot";
-import { FindSnapshotEntryProvider } from "./boundaries/cms-snapshot";
+import {
+  ResolvePathViaCmsSnapshotProvider,
+  ResolvePathsViaCmsSnapshotProvider,
+} from "./adapters/routing-cms-snapshot";
+import { EnumerateSitemapEntriesViaCatalogAndRoutingProvider } from "./adapters/sitemap-catalog-routing";
+import { ReadSnapshotProvider } from "./boundaries/cms-snapshot";
 import { CreatePagePreviewProvider, PageBuilder } from "./boundaries/page-builder";
-import { ResolvePath } from "./boundaries/routing";
-import { GetSitemapEntryProvider, ResolveSitemapPath, Sitemap } from "./boundaries/sitemap";
+import { GenerateSitemapProvider, Sitemap } from "./boundaries/sitemap";
 
 export function composeEditorial() {
   return compose({
     entryBoundaries: [Sitemap, PageBuilder],
     surface: {
-      getSitemapEntry: GetSitemapEntryProvider,
+      generateSitemap: GenerateSitemapProvider,
       createPagePreview: CreatePagePreviewProvider,
     },
     wiring: [
-      aliasIntent(ResolveSitemapPath, ResolvePath),
+      EnumerateSitemapEntriesViaCatalogAndRoutingProvider,
       ResolvePageViaRoutingProvider,
+      EnumeratePublishedPagesViaCmsSnapshotProvider,
+      ResolvePathsViaCmsSnapshotProvider,
       ResolvePathViaCmsSnapshotProvider,
-      FindSnapshotEntryProvider,
+      ReadSnapshotProvider,
     ],
   });
 }
