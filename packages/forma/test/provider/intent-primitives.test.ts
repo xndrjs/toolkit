@@ -66,6 +66,11 @@ describe("boundary / intent", () => {
       void,
       { readonly code: "not_found" } | { readonly code: "forbidden" }
     >();
+    Orders.intent("finiteTemplateCode").contract<
+      void,
+      void,
+      { readonly code: `REMOTE_${"OFFLINE" | "TIMEOUT"}` }
+    >();
 
     // @ts-expect-error — Expected Errors are catalogued objects, not primitives
     Orders.intent("primitiveError").contract<void, void, string>();
@@ -73,6 +78,26 @@ describe("boundary / intent", () => {
     Orders.intent("missingCode").contract<void, void, { readonly message: string }>();
     // @ts-expect-error — an open string cannot be matched exhaustively
     Orders.intent("openCode").contract<void, void, { readonly code: string }>();
+    // @ts-expect-error — an infinite template-literal code cannot be matched exhaustively
+    Orders.intent("templateCode").contract<void, void, { readonly code: `REMOTE_${string}` }>();
+    // @ts-expect-error — a numeric template-literal code is also infinite
+    Orders.intent("numericTemplateCode").contract<
+      void,
+      void,
+      { readonly code: `HTTP_${number}` }
+    >();
+    // @ts-expect-error — every member of a mixed code union must be finite
+    Orders.intent("mixedCode").contract<
+      void,
+      void,
+      { readonly code: "not_found" | `REMOTE_${string}` }
+    >();
+    // @ts-expect-error — an open branded string is not a finite set of codes
+    Orders.intent("brandedCode").contract<
+      void,
+      void,
+      { readonly code: string & { readonly __brand: "ErrorCode" } }
+    >();
     // @ts-expect-error — an empty discriminant should be expressed as Err = never
     Orders.intent("emptyCode").contract<void, void, { readonly code: never }>();
   });

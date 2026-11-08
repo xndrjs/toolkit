@@ -89,6 +89,15 @@ export type IntentContractDeclarator<
 
 type IsAny<T> = 0 extends 1 & T ? true : false;
 
+type IsFiniteStringLiteralMember<Code extends string> = Code extends unknown
+  ? Record<never, never> extends Record<Code, unknown>
+    ? false
+    : true
+  : never;
+
+type IsFiniteStringLiteralUnion<Code extends string> =
+  false extends IsFiniteStringLiteralMember<Code> ? false : true;
+
 type IsExpectedErrorContractValid<Err> =
   IsAny<Err> extends true
     ? false
@@ -97,9 +106,7 @@ type IsExpectedErrorContractValid<Err> =
       : [Err] extends [ExpectedError]
         ? [Err["code"]] extends [never]
           ? false
-          : string extends Err["code"]
-            ? false
-            : true
+          : IsFiniteStringLiteralUnion<Err["code"]>
         : false;
 
 type ExpectedErrorContractValidationArgs<Err> =
