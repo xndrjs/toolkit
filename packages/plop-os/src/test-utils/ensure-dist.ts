@@ -16,9 +16,25 @@ function sleepSync(ms: number): void {
   }
 }
 
+function hasBuiltDist(): boolean {
+  return existsSync(indexJs) && existsSync(cliJs);
+}
+
+function distResult(): {
+  pkgRoot: string;
+  runtimeHref: string;
+  cliJs: string;
+} {
+  return {
+    pkgRoot,
+    runtimeHref: pathToFileURL(indexJs).href,
+    cliJs,
+  };
+}
+
 function waitForDist(timeoutMs = 60_000): void {
   const start = Date.now();
-  while (!existsSync(indexJs) || !existsSync(cliJs)) {
+  while (existsSync(lockPath) || !hasBuiltDist()) {
     if (Date.now() - start > timeoutMs) {
       throw new Error("timed out waiting for plop-os dist build");
     }
@@ -32,22 +48,24 @@ export function ensureDist(): {
   runtimeHref: string;
   cliJs: string;
 } {
+  if (!existsSync(lockPath) && hasBuiltDist()) {
+    return distResult();
+  }
+
   let lockFd: number | undefined;
   try {
     lockFd = openSync(lockPath, "wx");
   } catch {
     waitForDist();
-    return {
-      pkgRoot,
-      runtimeHref: pathToFileURL(indexJs).href,
-      cliJs,
-    };
+    return distResult();
   }
 
   try {
-    execFileSync("pnpm", ["exec", "tsup"], { cwd: pkgRoot, stdio: "pipe" });
-    if (!existsSync(indexJs) || !existsSync(cliJs)) {
-      throw new Error("plop-os tsup finished without dist/index.js and dist/cli.js");
+    if (!hasBuiltDist()) {
+      execFileSync("pnpm", ["exec", "tsup"], { cwd: pkgRoot, stdio: "pipe" });
+      if (!hasBuiltDist()) {
+        throw new Error("plop-os tsup finished without dist/index.js and dist/cli.js");
+      }
     }
   } finally {
     try {
@@ -64,9 +82,5 @@ export function ensureDist(): {
     }
   }
 
-  return {
-    pkgRoot,
-    runtimeHref: pathToFileURL(indexJs).href,
-    cliJs,
-  };
+  return distResult();
 }
