@@ -19,7 +19,7 @@ import { boundary } from "@xndrjs/forma";
 
 type OrderId = string;
 type Order = { readonly id: string; readonly total: number };
-/** Expected Error payloads conventionally use `code` (keep `kind` for InvocationOutcome). */
+/** Expected Errors use a finite `code` discriminant; `kind` belongs to InvocationOutcome. */
 type FindOrderError = { readonly code: "not_found" };
 type GetOrderDetailsError = FindOrderError | { readonly code: "forbidden" };
 
@@ -89,7 +89,7 @@ const GetOrderDetailsProvider = GetOrderDetailsUseCase.provide
   );
 ```
 
-`.with` always receives `out` typed to this Intent's `Success` / `Err` (autocomplete and early checking on `expectedError` / `success`). A module-level `out` export remains for open-generic construction outside factories.
+`.with` always receives `out` typed to this Intent's `Success` / `Err` (autocomplete and early checking on `expectedError` / `success`). Its `match` combinator translates a dependency outcome into the current Contract, requires every declared source Expected Error code, and propagates `unexpectedFailure` / `cancelled` unchanged. A module-level `out` export remains for open-generic construction outside factories; matching is Contract-scoped and therefore available only on `ctx.out`.
 
 Lifetime policy is local, while effective lifetime is derived from the resolved graph. No modifier means `auto`: the Provider is shared by the composition root unless any transitive dependency is context-owned, in which case it is narrowed to one instance per `openExecutionContext()` / `withExecutionContext()`. `.perContext()` forces context ownership; `.perComposition()` pins root ownership and makes `compose()` fail with the dependency path if a transitive dependency requires a context. `root.describePlan()` reports declared and effective lifetimes. Root and context `dispose()` are terminal state machines (concurrent callers share one promise); entering `disposing` aborts that owner’s `AbortSignal` (`lifetime.signal` / `execution.signal`). `root.dispose()` also closes any open execution contexts. Prefer `withExecutionContext` (or `await using` on the open handle) for short lexical scopes; use `openExecutionContext` when a host owns the lifetime across mount/unmount.
 
@@ -123,23 +123,23 @@ export const FindOrderByIdViaPostgresProvider = OrdersAdapter.adapt(FindOrderByI
     ({ deps: { select }, out }) =>
       async function (id) {
         const row = await select({ order_id: id });
-        switch (row.kind) {
-          case "success":
-            return out.success({
-              id: row.value.order_id,
-              total: row.value.amount_cents / 100,
-            });
-          case "expectedError":
-            return out.expectedError({ code: "not_found" as const });
-          case "unexpectedFailure":
-          case "cancelled":
-            return row; // pass through unchanged — never reinterpret as expected Err
-        }
+        return out.match(row, {
+          success: (value) =>
+            out.success({
+              id: value.order_id,
+              total: value.amount_cents / 100,
+            }),
+          expectedError: {
+            NO_ROW: () => out.expectedError({ code: "not_found" }),
+          },
+        });
       }
   );
 ```
 
 `.adapt` rejects Intents whose BoundaryId does not match the Adapter’s target (compile-time). The result is a Provider registerable in private `wiring`, with `origin: { kind: "adapter", id: "orders-postgres" }`. Adapter Providers cannot be Surface roots. Map only `success` / `expectedError`; pass `unexpectedFailure` / `cancelled` through. Do not wrap Forma dependency calls in `try/catch` for implementation failure — the dependency Intent is already totalized.
+
+`out.match` makes that policy structural: each source Expected Error handler is keyed and narrowed by its `code`, while terminal protocol branches pass through automatically. If an external system produces an undeclared code at runtime, the missing match becomes a new `unexpectedFailure` at the translating Provider or Adapter instead of being silently misclassified.
 
 When shapes already match, the factory can forward without mapping (`return select(input)`). Reserve `aliasIntent(required, satisfier)` for deliberate synonyms (rename / migration). There is no `forward` helper yet.
 
@@ -258,6 +258,7 @@ Ownership and cancellation (see [streaming-intents.md](./docs/streaming-intents.
 - Each surface call returns a **cold, single-consumer** `AsyncIterable` (+ `[Symbol.asyncDispose]`). Creating it does not materialize the Provider; the first `next()` does.
 - Every active stream invocation is **owned by the execution context** (lease + registry), independent of Provider effective lifetime — including streams from composition-effective Providers.
 - First `next()` acquires registry/lease ownership transactionally before scheduling the source. If acceptance fails, the source is not started and partial ownership is rolled back through the normal close/error matrix.
+- `expectedError` / `unexpectedFailure` / `cancelled` are terminal: after exposing the first terminal event, the managed wrapper calls `return()` on the source. A producer does not need an explicit `return` after yielding one of them.
 - `break` / `return()` / `await using` on the iterable, context `dispose`, and root `dispose` close active streams (abort per-stream signal → `return()` → await `finally` → release-once). Cancelling one stream does not abort siblings or the context.
 - Opening with an already-aborted host signal fails immediately. A later host abort rejects new unary work with `signal.reason`, and a cold stream that has not started completes without materialization. Already-accepted work observes cancellation cooperatively. Host abort does **not** auto-`dispose()` the context (abort ≠ dispose).
 - Stream cleanup failures are observed by the caller that initiates close. Context/root disposal still attempts every stream and Provider cleanup and aggregates multiple failures.

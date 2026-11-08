@@ -32,17 +32,16 @@ export const CreatePagePreviewProvider = CreatePagePreviewUseCase.provide
   .with(({ deps: { resolvePage }, out }) => {
     return async function createPagePreview(path) {
       const outcome = await resolvePage(path);
-      switch (outcome.kind) {
-        case "success":
-          return out.success({
-            pageId: outcome.value.id,
-            canonicalPath: outcome.value.canonicalPath,
-            previewUrl: `/preview/${encodeURIComponent(outcome.value.id)}`,
-          });
-        case "expectedError":
-          return out.expectedError(outcome.error);
-        default:
-          return outcome;
-      }
+      return out.match(outcome, {
+        success: (page) =>
+          out.success({
+            pageId: page.id,
+            canonicalPath: page.canonicalPath,
+            previewUrl: `/preview/${encodeURIComponent(page.id)}`,
+          }),
+        expectedError: {
+          page_not_found: (error) => out.expectedError(error),
+        },
+      });
     };
   });

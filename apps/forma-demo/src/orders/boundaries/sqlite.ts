@@ -99,26 +99,24 @@ export const SelectOrderEventsProvider = SelectOrderEvents.provide
       const opened = await database();
       if (opened.kind !== "success") {
         yield opened;
-        return;
-      }
+      } else {
+        const rows: readonly unknown[] = opened.value
+          .prepare("SELECT order_id, status FROM order_events WHERE order_id = ? ORDER BY sequence")
+          .all(id.order_id);
 
-      const rows: readonly unknown[] = opened.value
-        .prepare("SELECT order_id, status FROM order_events WHERE order_id = ? ORDER BY sequence")
-        .all(id.order_id);
-
-      if (rows.length === 0) {
-        yield out.expectedError({ code: "NO_ROW" });
-        return;
-      }
-
-      for (const row of rows) {
-        invocation.signal.throwIfAborted();
-        const parsed = SqliteOrderEventSchema.safeParse(row);
-        if (!parsed.success) {
-          yield out.unexpectedFailure();
-          return;
+        if (rows.length === 0) {
+          yield out.expectedError({ code: "NO_ROW" });
+        } else {
+          for (const row of rows) {
+            invocation.signal.throwIfAborted();
+            const parsed = SqliteOrderEventSchema.safeParse(row);
+            if (!parsed.success) {
+              yield out.unexpectedFailure();
+            } else {
+              yield out.success(parsed.data);
+            }
+          }
         }
-        yield out.success(parsed.data);
       }
     };
   });

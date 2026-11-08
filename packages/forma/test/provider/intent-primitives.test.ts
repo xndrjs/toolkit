@@ -57,6 +57,26 @@ describe("boundary / intent", () => {
     expect(intentIdentity(WatchOrders)).toEqual(["orders", "watchOrders"]);
   });
 
+  it("requires Intent Expected Errors to expose a finite code discriminant", () => {
+    const Orders = boundary("orders");
+
+    Orders.intent("withoutErrors").contract<void, void, never>();
+    Orders.intent("catalogued").contract<
+      void,
+      void,
+      { readonly code: "not_found" } | { readonly code: "forbidden" }
+    >();
+
+    // @ts-expect-error — Expected Errors are catalogued objects, not primitives
+    Orders.intent("primitiveError").contract<void, void, string>();
+    // @ts-expect-error — Expected Errors require a code discriminant
+    Orders.intent("missingCode").contract<void, void, { readonly message: string }>();
+    // @ts-expect-error — an open string cannot be matched exhaustively
+    Orders.intent("openCode").contract<void, void, { readonly code: string }>();
+    // @ts-expect-error — an empty discriminant should be expressed as Err = never
+    Orders.intent("emptyCode").contract<void, void, { readonly code: never }>();
+  });
+
   it("keys Intent identity by structured (boundaryId, intentName)", () => {
     const Orders = boundary("orders");
     const Find = Orders.intent("find").contract<OrderId, Order, FindError>();
@@ -143,6 +163,7 @@ describe("InvocationOutcome", () => {
     );
     expect(out.unexpectedFailure(failure)).toEqual(unexpectedFailure(failure));
     expect(out.cancelled(cancellation)).toEqual(cancelled(cancellation));
+    expect(out).not.toHaveProperty("match");
     expect(Object.isFrozen(out)).toBe(true);
   });
 
@@ -167,6 +188,36 @@ describe("InvocationOutcome", () => {
     });
 
     expect(provider.intent).toBe(FindOrder);
+  });
+
+  it("requires out.match handlers for every Expected Error code", () => {
+    const Orders = boundary("orders");
+    type LookupError =
+      | { readonly code: "NO_ROW" }
+      | { readonly code: "TIMEOUT"; readonly retryAfterMs: number };
+    const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
+
+    FindOrder.provide.with(({ out: contractOut }) => {
+      const source = null as unknown as InvocationOutcome<Order, LookupError>;
+
+      contractOut.match(source, {
+        success: (order) => contractOut.success(order),
+        expectedError: {
+          NO_ROW: () => contractOut.expectedError({ code: "not_found" }),
+          TIMEOUT: () => contractOut.expectedError({ code: "not_found" }),
+        },
+      });
+
+      contractOut.match(source, {
+        success: (order) => contractOut.success(order),
+        // @ts-expect-error — every declared source code requires a handler
+        expectedError: {
+          NO_ROW: () => contractOut.expectedError({ code: "not_found" }),
+        },
+      });
+
+      return () => contractOut.success({ id: "1", total: 10 });
+    });
   });
 
   it("types success and expectedError discriminants", () => {

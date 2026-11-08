@@ -71,6 +71,7 @@ export {
 export type {
   Cancellation,
   ContractOut,
+  ExpectedError,
   FailureId,
   InvocationOutcome,
   UnexpectedFailure,

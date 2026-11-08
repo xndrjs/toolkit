@@ -50,20 +50,16 @@ const FindOrderByIdViaSqliteProvider = OrdersSqlite.adapt(FindOrderById)
     return async function findOrderById(id) {
       const outcome = await select({ order_id: id });
 
-      switch (outcome.kind) {
-        case "success":
-          return out.success({
-            id: outcome.value.order_id,
-            total: outcome.value.amount_cents / 100,
-          });
-
-        case "expectedError":
-          return out.expectedError({ code: "not_found" });
-
-        case "unexpectedFailure":
-        case "cancelled":
-          return outcome;
-      }
+      return out.match(outcome, {
+        success: (row) =>
+          out.success({
+            id: row.order_id,
+            total: row.amount_cents / 100,
+          }),
+        expectedError: {
+          NO_ROW: () => out.expectedError({ code: "not_found" }),
+        },
+      });
     };
   });
 ```
@@ -76,8 +72,13 @@ Sqlite successful value → Orders successful value
 Sqlite Expected Error   → Orders Expected Error
 ```
 
-It does not reinterpret `unexpectedFailure` or `cancelled`. Those branches pass through unchanged,
-preserving failure and cancellation identity.
+`out.match` requires one handler for every `SqliteFindError.code` and narrows the payload inside
+each handler. It does not reinterpret `unexpectedFailure` or `cancelled`: those branches pass
+through automatically, preserving failure and cancellation identity.
+
+If SQLite returned an Expected Error code absent from its declared Contract at runtime, the match
+would fail and Forma would totalize that mismatch as a new Unexpected Failure at this Adapter. It
+would not silently map the unknown condition to `not_found`.
 
 If Adapter mapping code itself throws or rejects, that is a new failure at the Adapter origin and
 Forma creates a new Unexpected Failure for it.

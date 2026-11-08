@@ -10,11 +10,9 @@ export const ResolvePathsViaCmsSnapshotProvider = RoutingCmsSnapshot.adapt(Resol
     ({ deps: { readSnapshot }, out }) =>
       async function resolvePaths({ pageIds }) {
         const outcome = await readSnapshot();
-        switch (outcome.kind) {
-          case "success": {
-            const entriesById = new Map(
-              outcome.value.map((entry) => [entry.entry_id, entry] as const)
-            );
+        return out.match(outcome, {
+          success: (entries) => {
+            const entriesById = new Map(entries.map((entry) => [entry.entry_id, entry] as const));
             const resolved: { readonly pageId: string; readonly canonicalPath: string }[] = [];
             const unresolvedPageIds: string[] = [];
             for (const pageId of pageIds) {
@@ -26,9 +24,7 @@ export const ResolvePathsViaCmsSnapshotProvider = RoutingCmsSnapshot.adapt(Resol
               }
             }
             return out.success({ resolved, unresolvedPageIds });
-          }
-          default:
-            return outcome;
-        }
+          },
+        });
       }
   );

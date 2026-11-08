@@ -28,8 +28,8 @@ export const GetOrderDetailsUseCase = Orders.intent("getOrderDetailsUseCase").co
 `GetOrderDetailsUseCase` owns the promise. It does not mention a database, HTTP client, cache,
 factory, or lifetime.
 
-Expected errors conventionally use a `code` discriminant. Forma reserves `kind` for the outer
-`InvocationOutcome` protocol.
+Expected errors use a finite `code` discriminant. Forma reserves `kind` for the outer
+`InvocationOutcome` protocol; use `never` when the Intent declares no Expected Error.
 
 ## 2. Attach a Provider
 
@@ -46,7 +46,8 @@ export const GetOrderDetailsProvider = GetOrderDetailsUseCase.provide.with(({ ou
 
 `.with` receives a factory context and returns the operation that fulfills the Intent. Inside a
 Provider factory, prefer the Contract-scoped `out` constructors: they know this Intent's successful
-and expected-error types.
+and expected-error types. When translating a dependency outcome, `out.match` also checks every
+declared source Expected Error code and builds an outcome for the current Contract.
 
 The operation may be synchronous or asynchronous. Surface calls are always asynchronous for unary
 Intents because the Provider itself may need lazy asynchronous materialization.

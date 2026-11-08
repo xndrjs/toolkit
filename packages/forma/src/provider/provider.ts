@@ -209,7 +209,8 @@ export type IsEmptyDeps<Deps> = [Deps] extends [EmptyDeps]
 
 /**
  * Argument to `.with`: named fields avoid positional ambiguity between deps and lifetime.
- * Always includes `out` typed to this Intent's `Success` / `Err`.
+ * Always includes `out` with constructors typed to this Intent's `Success` / `Err` and
+ * contract-scoped outcome matching.
  * No `using` → `lifetime` + `out` (+ `params` when `.perContext<ParamsReq>()`).
  * With `using` → `deps` + `lifetime` + `out` (+ `params` when declared).
  */

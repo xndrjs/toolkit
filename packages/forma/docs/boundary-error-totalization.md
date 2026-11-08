@@ -143,7 +143,8 @@ where the property originates.
 
 ### Expected error
 
-The `expectedError` branch holds only expected errors catalogued in the Contract:
+The `expectedError` branch holds only expected errors catalogued in the Contract. `Err` is `never`
+or an object union with a finite string-literal `code`, leaving `kind` to the outcome protocol:
 
 ```ts
 type GetOrderDetailsError =
@@ -498,25 +499,23 @@ It is the Postgres Boundary that:
 ### The Adapter preserves the totalized protocol
 
 The Adapter does not add `try/catch` around the source Intent, because that Intent does not reject
-for failures of its own implementation. It maps only the semantically transformable branches:
+for failures of its own implementation. Contract-scoped `out.match` maps only the semantically
+transformable branches:
 
 ```ts
-switch (sourceOutcome.kind) {
-  case "success":
-    return out.success(mapRowToOrder(sourceOutcome.value));
-
-  case "expectedError":
-    return out.expectedError(mapPostgresError(sourceOutcome.error));
-
-  case "unexpectedFailure":
-    return sourceOutcome;
-
-  case "cancelled":
-    return sourceOutcome;
-}
+return out.match(sourceOutcome, {
+  success: (row) => out.success(mapRowToOrder(row)),
+  expectedError: {
+    NO_ROW: (error) => out.expectedError(mapMissingRow(error)),
+    TIMEOUT: (error) => out.expectedError(mapTimeout(error)),
+  },
+});
 ```
 
-`unexpectedFailure` and `cancelled` keep their identity and are not reinterpreted as expected errors.
+The handler map is exhaustive over the source Contract and each payload is narrowed to its exact
+code. `unexpectedFailure` and `cancelled` keep their identity without handlers. If runtime drift
+produces an undeclared Expected Error code, matching throws internally and the current invocation
+totalizes that mismatch as a new Unexpected Failure.
 
 Adapter mapping code can still have a bug. A throw produced by the Adapter must be totalized
 before entering the target Boundary and generates a new failure, because it is a new cause. The

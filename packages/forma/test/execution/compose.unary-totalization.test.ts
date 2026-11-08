@@ -20,6 +20,156 @@ type Order = { readonly id: string; readonly total: number };
 type FindError = { readonly code: "not_found" };
 
 describe("compose — unary totalization", () => {
+  it("maps a dependency success through Contract-scoped out.match", async () => {
+    const Orders = boundary("orders");
+    const ReadTotal = Orders.intent("readTotal").contract<void, number, never>();
+    const FormatTotal = Orders.intent("formatTotal").contract<void, string, never>();
+
+    const ReadTotalProvider = ReadTotal.provide.with(
+      ({ out }) =>
+        () =>
+          out.success(42)
+    );
+    const FormatTotalProvider = FormatTotal.provide
+      .using({ readTotal: ReadTotal })
+      .with(({ deps: { readTotal }, out }) => async () => {
+        const outcome = await readTotal();
+        return out.match(outcome, {
+          success: async (value) => {
+            await Promise.resolve();
+            return out.success(`EUR ${value}`);
+          },
+        });
+      });
+
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { formatTotal: FormatTotalProvider },
+      wiring: [ReadTotalProvider],
+    });
+
+    await root.withExecutionContext(async (surface) => {
+      await expect(surface.formatTotal()).resolves.toEqual({
+        kind: "success",
+        value: "EUR 42",
+      });
+    });
+    await root.dispose();
+  });
+
+  it("maps every declared Expected Error code with a narrowed payload", async () => {
+    const Orders = boundary("orders");
+    type LookupError =
+      | { readonly code: "NO_ROW" }
+      | { readonly code: "TIMEOUT"; readonly retryAfterMs: number };
+    type ReadError =
+      | { readonly code: "not_found" }
+      | { readonly code: "temporarily_unavailable"; readonly retryAfterMs: number };
+
+    const Lookup = Orders.intent("lookup").contract<"missing" | "timeout", Order, LookupError>();
+    const Read = Orders.intent("read").contract<"missing" | "timeout", Order, ReadError>();
+
+    const LookupProvider = Lookup.provide.with(
+      ({ out }) =>
+        (input) =>
+          input === "missing"
+            ? out.expectedError({ code: "NO_ROW" })
+            : out.expectedError({ code: "TIMEOUT", retryAfterMs: 250 })
+    );
+    const ReadProvider = Read.provide
+      .using({ lookup: Lookup })
+      .with(({ deps: { lookup }, out }) => async (input) => {
+        const outcome = await lookup(input);
+        return out.match(outcome, {
+          success: (order) => out.success(order),
+          expectedError: {
+            NO_ROW: (error) => {
+              expectTypeOf(error).toEqualTypeOf<{ readonly code: "NO_ROW" }>();
+              return out.expectedError({ code: "not_found" });
+            },
+            TIMEOUT: (error) => {
+              expectTypeOf(error).toEqualTypeOf<{
+                readonly code: "TIMEOUT";
+                readonly retryAfterMs: number;
+              }>();
+              return out.expectedError({
+                code: "temporarily_unavailable",
+                retryAfterMs: error.retryAfterMs,
+              });
+            },
+          },
+        });
+      });
+
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { read: ReadProvider },
+      wiring: [LookupProvider],
+    });
+
+    await root.withExecutionContext(async (surface) => {
+      await expect(surface.read("missing")).resolves.toEqual({
+        kind: "expectedError",
+        error: { code: "not_found" },
+      });
+      await expect(surface.read("timeout")).resolves.toEqual({
+        kind: "expectedError",
+        error: { code: "temporarily_unavailable", retryAfterMs: 250 },
+      });
+    });
+    await root.dispose();
+  });
+
+  it("totalizes an undeclared runtime Expected Error code at the matching Intent", async () => {
+    const Orders = boundary("orders");
+    type LookupError = { readonly code: "NO_ROW" };
+    const Lookup = Orders.intent("lookup").contract<void, Order, LookupError>();
+    const Read = Orders.intent("read").contract<void, Order, FindError>();
+    const driftedError = { code: "NEW_CODE" } as unknown as LookupError;
+    const onUnexpectedFailure = vi.fn<OnUnexpectedFailure>();
+
+    const LookupProvider = Lookup.provide.with(
+      ({ out }) =>
+        () =>
+          out.expectedError(driftedError)
+    );
+    const ReadProvider = Read.provide
+      .using({ lookup: Lookup })
+      .with(({ deps: { lookup }, out }) => async () => {
+        const outcome = await lookup();
+        return out.match(outcome, {
+          success: (order) => out.success(order),
+          expectedError: {
+            NO_ROW: () => out.expectedError({ code: "not_found" }),
+          },
+        });
+      });
+
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { read: ReadProvider },
+      wiring: [LookupProvider],
+      onUnexpectedFailure,
+    });
+
+    await root.withExecutionContext(async (surface) => {
+      const outcome = await surface.read();
+      expect(outcome.kind).toBe("unexpectedFailure");
+      expect(onUnexpectedFailure).toHaveBeenCalledOnce();
+      const event = onUnexpectedFailure.mock.calls[0]![0];
+      expect(event.intent).toEqual(["orders", "read"]);
+      expect(event.origin).toEqual({ kind: "boundary", id: "orders" });
+      expect(event.phase).toBe("invoke");
+      expect(event.cause).toBeInstanceOf(Error);
+      expect((event.cause as Error).message).toContain("NEW_CODE");
+      expect((event.cause as Error).cause).toBe(driftedError);
+      if (outcome.kind === "unexpectedFailure") {
+        expect(event.failure).toBe(outcome.failure);
+      }
+    });
+    await root.dispose();
+  });
+
   it("converts sync operation throw into unexpected without rejecting the caller", async () => {
     const Orders = boundary("orders");
     const GetOrder = Orders.intent("get").contract<OrderId, Order, FindError>();
@@ -455,18 +605,15 @@ describe("compose — unary totalization", () => {
       .adapt(FindOrder)
       .using({ select: SelectOrder })
       .with(
-        ({ deps: { select } }) =>
+        ({ deps: { select }, out }) =>
           async function (id) {
             const row = await select(id);
-            switch (row.kind) {
-              case "success":
-                return success(row.value);
-              case "expectedError":
-                return expectedError({ code: "not_found" as const });
-              case "unexpectedFailure":
-              case "cancelled":
-                return row;
-            }
+            return out.match(row, {
+              success: (value) => out.success(value),
+              expectedError: {
+                NO_ROW: () => out.expectedError({ code: "not_found" }),
+              },
+            });
           }
       );
 

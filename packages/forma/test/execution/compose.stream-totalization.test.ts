@@ -147,6 +147,60 @@ describe("compose — stream totalization", () => {
     await unexpectedRoot.dispose();
   });
 
+  it("totalizes an undeclared runtime Expected Error code during stream matching", async () => {
+    const Orders = boundary("orders");
+    type SourceError = { readonly code: "SOURCE_UNAVAILABLE" };
+    const Source = Orders.stream("source").contract<void, OrderEvent, SourceError>();
+    const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();
+    const driftedError = { code: "NEW_CODE" } as unknown as SourceError;
+    const onUnexpectedFailure = vi.fn<OnUnexpectedFailure>();
+
+    const SourceProvider = Source.provide.with(
+      ({ out }) =>
+        async function* () {
+          yield out.expectedError(driftedError);
+        }
+    );
+    const WatchProvider = WatchOrders.provide.using({ source: Source }).with(
+      ({ deps: { source }, out }) =>
+        async function* (_input, invocation) {
+          for await (const outcome of source(undefined, invocation)) {
+            yield await out.match(outcome, {
+              success: (event) => out.success(event),
+              expectedError: {
+                SOURCE_UNAVAILABLE: () => out.expectedError({ code: "unavailable" }),
+              },
+            });
+          }
+        }
+    );
+
+    const root = compose({
+      entryBoundaries: [Orders],
+      surface: { watchOrders: WatchProvider },
+      wiring: [SourceProvider],
+      onUnexpectedFailure,
+    });
+    await using ctx = root.openExecutionContext();
+
+    const values = [];
+    for await (const value of ctx.surface.watchOrders()) {
+      values.push(value);
+    }
+
+    expect(values).toHaveLength(1);
+    expect(values[0]?.kind).toBe("unexpectedFailure");
+    expect(onUnexpectedFailure).toHaveBeenCalledOnce();
+    const event = onUnexpectedFailure.mock.calls[0]![0];
+    expect(event.intent).toEqual(["orders", "watchOrders"]);
+    expect(event.phase).toBe("stream-next");
+    expect(event.cause).toBeInstanceOf(Error);
+    expect((event.cause as Error).message).toContain("NEW_CODE");
+    expect((event.cause as Error).cause).toBe(driftedError);
+
+    await root.dispose();
+  });
+
   it("awaits explicit reporting before yielding a terminal unexpected failure", async () => {
     const Orders = boundary("orders");
     const WatchOrders = Orders.stream("watchOrders").contract<void, OrderEvent, WatchError>();

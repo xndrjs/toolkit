@@ -27,7 +27,6 @@ export const FindOrderEventsByOrderIdViaMemoryProvider = OrdersMemory.adapt(
     async function* watchOrderEvents(id, invocation) {
       if (!orders.has(id)) {
         yield out.expectedError({ code: "not_found" });
-        return;
       }
 
       try {

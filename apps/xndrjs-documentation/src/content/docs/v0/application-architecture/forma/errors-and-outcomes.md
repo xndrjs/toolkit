@@ -50,6 +50,10 @@ const GetOrderDetailsUseCase = Orders.intent("getOrderDetailsUseCase").contract<
 >();
 ```
 
+An Intent's Expected Error type must be `never` or an object union whose `code` is a finite set of
+string literals. `code` discriminates catalogued errors; `kind` remains reserved for the four
+`InvocationOutcome` branches.
+
 Providers construct it with their Contract-scoped `out`:
 
 ```ts
@@ -163,24 +167,40 @@ try {
 return out.unexpectedFailure(failure);
 ```
 
-## Adapters map only semantic branches
+## Translate dependency outcomes with `out.match`
 
 An Adapter maps success and Expected Error into the target Boundary's language. Unexpected Failure
-and Cancellation pass through unchanged:
+and Cancellation pass through unchanged. The Contract-scoped matcher makes that distinction
+explicit without repeating the terminal branches:
 
 ```ts
-switch (outcome.kind) {
-  case "success":
-    return out.success(mapRow(outcome.value));
-
-  case "expectedError":
-    return out.expectedError(mapExpectedError(outcome.error));
-
-  case "unexpectedFailure":
-  case "cancelled":
-    return outcome;
-}
+return out.match(outcome, {
+  success: (row) => out.success(mapRow(row)),
+  expectedError: {
+    NO_ROW: () => out.expectedError({ code: "not_found" }),
+    TIMEOUT: (error) =>
+      out.expectedError({
+        code: "temporarily_unavailable",
+        retryAfterMs: error.retryAfterMs,
+      }),
+  },
+});
 ```
+
+The `success` handler is required. If the source Contract declares Expected Errors, the
+`expectedError` map is also required and exhaustive over their codes; each handler receives the
+corresponding narrowed payload. Handlers may return their outcome synchronously or asynchronously.
+`unexpectedFailure` and `cancelled` need no handlers because their original tokens propagate
+unchanged.
+
+The static check covers the declared Contract. If runtime drift produces an undeclared Expected
+Error code, `out.match` fails internally and the enclosing invocation totalizes it as a new
+`unexpectedFailure`, attributed to the Provider or Adapter performing the translation. The raw
+payload remains local to diagnostics as the match error's `cause`; callers receive only the opaque
+failure token.
+
+Matching is available on the `ctx.out` injected into `.with`, where the target Contract and
+invocation origin are known. The open-generic module-level `out` exposes constructors only.
 
 Do not wrap Forma dependency operations in defensive `try/catch` to discover implementation
 failures: the dependency Boundary already totalized them.
@@ -201,8 +221,10 @@ For explicit reporting inside a stream, await the reporter before yielding:
 yield await out.unexpectedFailure(async (failure) => {
   await reportFailure({ failureId: failure.id, source: "orders.watch" });
 });
-return;
 ```
+
+No explicit `return` is required after a terminal yield. The managed stream wrapper closes the
+source before requesting another event.
 
 Natural iterator completion is a successful end and does not require a terminal event.
 

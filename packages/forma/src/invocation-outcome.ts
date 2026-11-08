@@ -39,6 +39,82 @@ export type InvocationOutcome<Success, ExpectedError> =
   | { readonly kind: "unexpectedFailure"; readonly failure: UnexpectedFailure }
   | { readonly kind: "cancelled"; readonly cancellation: Cancellation };
 
+/** Catalogued Boundary error shape. `code` is the finite discriminant used by `out.match`. */
+export type ExpectedError = Readonly<{ readonly code: string }>;
+
+type MaybePromise<T> = T | Promise<T>;
+
+type MatchResult<TargetSuccess, TargetErr> = MaybePromise<
+  InvocationOutcome<TargetSuccess, TargetErr>
+>;
+
+type ExpectedErrorAtCode<Err extends ExpectedError, Code extends Err["code"]> = Err extends unknown
+  ? Code extends Err["code"]
+    ? { readonly [Key in keyof Err]: Key extends "code" ? Code : Err[Key] }
+    : never
+  : never;
+
+type ExpectedErrorMatchHandlers<
+  SourceErr extends ExpectedError,
+  TargetSuccess,
+  TargetErr,
+> = Readonly<{
+  [Code in SourceErr["code"]]: (
+    error: ExpectedErrorAtCode<SourceErr, Code>
+  ) => MatchResult<TargetSuccess, TargetErr>;
+}>;
+
+type OutcomeMatchHandlers<
+  SourceSuccess,
+  SourceErr extends ExpectedError,
+  TargetSuccess,
+  TargetErr,
+> = Readonly<{
+  success(value: SourceSuccess): MatchResult<TargetSuccess, TargetErr>;
+}> &
+  ([SourceErr] extends [never]
+    ? { readonly expectedError?: never }
+    : {
+        readonly expectedError: ExpectedErrorMatchHandlers<SourceErr, TargetSuccess, TargetErr>;
+      });
+
+function unmatchedExpectedError(error: unknown): Error {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? (error as { readonly code: unknown }).code
+      : undefined;
+  return new Error(`out.match received an unhandled Expected Error code: ${String(code)}`, {
+    cause: error,
+  });
+}
+
+function matchOutcome<SourceSuccess, SourceErr extends ExpectedError, TargetSuccess, TargetErr>(
+  outcome: InvocationOutcome<SourceSuccess, SourceErr>,
+  handlers: OutcomeMatchHandlers<SourceSuccess, SourceErr, TargetSuccess, TargetErr>
+): MatchResult<TargetSuccess, TargetErr> {
+  switch (outcome.kind) {
+    case "success":
+      return handlers.success(outcome.value);
+    case "expectedError": {
+      const code = outcome.error.code;
+      const cases = handlers.expectedError as
+        | Readonly<Record<string, (error: SourceErr) => MatchResult<TargetSuccess, TargetErr>>>
+        | undefined;
+      const handler =
+        typeof code === "string" && cases !== undefined && Object.hasOwn(cases, code)
+          ? cases[code]
+          : undefined;
+      if (typeof handler !== "function") {
+        throw unmatchedExpectedError(outcome.error);
+      }
+      return handler(outcome.error);
+    }
+    case "unexpectedFailure":
+    case "cancelled":
+      return outcome;
+  }
+}
+
 /**
  * Create a new unexpected-failure token with a high-entropy opaque id.
  * Prefer this factory over forging objects; there is no public API that accepts arbitrary ids.
@@ -106,11 +182,11 @@ export function cancelled(cancellation: Cancellation): InvocationOutcome<never, 
 /**
  * Contract-scoped constructors for {@link InvocationOutcome}.
  * On Provider `.with`, Forma injects `ctx.out` typed to that Intent's `Success` / `Err`.
- * The module-level {@link out} export is the same runtime object with open generics —
- * prefer `ctx.out` inside Provider factories.
+ * Matching belongs to this contract-scoped API because an unhandled runtime Expected Error
+ * must be totalized at the Boundary invocation currently translating it.
  *
- * Expected Error payloads conventionally use a `code` discriminant (not `kind`) so the
- * protocol tag (`outcome.kind`) stays distinct from domain error tags.
+ * Expected Error payloads use a finite `code` discriminant (not `kind`) so the protocol tag
+ * (`outcome.kind`) stays distinct from catalogued error tags.
  *
  * Method syntax (not function properties) keeps `ContractOut` assignable across
  * Provider widenings — including `Err = never` — under TypeScript's bivariant methods.
@@ -118,6 +194,10 @@ export function cancelled(cancellation: Cancellation): InvocationOutcome<never, 
 export type ContractOut<Success, Err> = Readonly<{
   success(value: Success): InvocationOutcome<Success, never>;
   expectedError(error: Err): InvocationOutcome<never, Err>;
+  match<SourceSuccess, SourceErr extends ExpectedError>(
+    outcome: InvocationOutcome<SourceSuccess, SourceErr>,
+    handlers: OutcomeMatchHandlers<SourceSuccess, SourceErr, Success, Err>
+  ): MatchResult<Success, Err>;
   unexpectedFailure(): InvocationOutcome<never, never>;
   unexpectedFailure(failure: UnexpectedFailure): InvocationOutcome<never, never>;
   unexpectedFailure<ReportResult>(
@@ -127,14 +207,19 @@ export type ContractOut<Success, Err> = Readonly<{
 }>;
 
 /**
- * Open-generic constructors (same runtime object injected as typed {@link ContractOut} on
- * `ctx.out`). Prefer `ctx.out` inside Provider factories.
+ * Open-generic outcome constructors. Prefer contract-scoped `ctx.out` inside Provider factories.
  */
 export const out = Object.freeze({
   success,
   expectedError,
   unexpectedFailure,
   cancelled,
+});
+
+/** Internal runtime object injected as the contract-scoped `ctx.out`. */
+export const contractOut = Object.freeze({
+  ...out,
+  match: matchOutcome,
 });
 
 /** Runtime authenticity check for values created by {@link createUnexpectedFailure}. */

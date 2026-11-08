@@ -45,7 +45,6 @@ const WatchOrderEventsProvider = WatchOrderEventsUseCase.provide.with(({ out }) 
   return async function* watchOrderEvents(id, invocation) {
     if (!orders.has(id)) {
       yield out.expectedError({ code: "not_found" });
-      return;
     }
 
     try {
@@ -59,6 +58,10 @@ const WatchOrderEventsProvider = WatchOrderEventsUseCase.provide.with(({ out }) 
   };
 });
 ```
+
+There is no `return` after the terminal yield. Once the managed wrapper receives
+`expectedError`, `unexpectedFailure`, or `cancelled`, it stops exposing events and calls `return()`
+on the source before the generator can resume.
 
 The second operation argument contains a signal for this particular stream invocation. It is
 subordinate to the Execution-context signal and distinct from `lifetime.signal`, which belongs to a

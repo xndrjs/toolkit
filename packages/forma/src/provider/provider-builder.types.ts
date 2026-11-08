@@ -22,7 +22,8 @@ type Awaitable<T> = T | PromiseLike<T>;
 
 /**
  * Argument to `.with`: named fields avoid positional ambiguity between deps and lifetime.
- * `ctx.out` is typed to this Intent's `Success` / `Err`.
+ * `ctx.out` provides constructors typed to this Intent's `Success` / `Err` and matching for
+ * translating dependency outcomes.
  * Shared by Boundary and Adapter builders (constraint differences live on `using` only).
  * Return type follows Intent modality.
  */

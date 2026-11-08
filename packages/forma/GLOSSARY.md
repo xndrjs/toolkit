@@ -24,11 +24,11 @@ The TypeScript promise of an Intent: input, outcomes, and expected domain failur
 _Avoid_: Result (as the public Intent exit type)
 
 **InvocationOutcome**:
-The four-kind algebra of a Boundary Intent exit: `success`, `expectedError` (Expected Error), `unexpectedFailure` (Unexpected Failure), and `cancelled` (opaque Cancellation token). Shared by unary terminals and stream events. The readonly envelope is not frozen at runtime; application value immutability is outside Forma. Lifecycle failures (`dispose`, cleanup, shutdown) are not InvocationOutcome. Provider factories receive Contract-scoped constructors on `ctx.out` (`success` / `expectedError` / `unexpectedFailure` / `cancelled` typed to that Intent's `Success` / `Err`). A module-level `out` and top-level helpers remain for open-generic construction outside `.with`.
+The four-kind algebra of a Boundary Intent exit: `success`, `expectedError` (Expected Error), `unexpectedFailure` (Unexpected Failure), and `cancelled` (opaque Cancellation token). Shared by unary terminals and stream events. The readonly envelope is not frozen at runtime; application value immutability is outside Forma. Lifecycle failures (`dispose`, cleanup, shutdown) are not InvocationOutcome. Provider factories receive Contract-scoped constructors and exhaustive Expected Error matching on `ctx.out`; open-generic construction remains available outside `.with`.
 _Avoid_: Result, Ok/Err pair as the full protocol
 
 **Expected Error**:
-A domain failure censored in the Intent’s `Err` and carried on the `expectedError` branch. The only failure kind a caller may interpret and recover from semantically. If a condition needs a distinct reaction, it belongs in `Err`. Prefer a `code` discriminant on Err payloads so it does not collide with `InvocationOutcome.kind`.
+A catalogued failure in the Intent’s `Err` and carried on the `expectedError` branch. It is the only failure kind a caller may interpret semantically; an Intent’s `Err` is either `never` or an object union with a finite string-literal `code` discriminant.
 _Avoid_: expected failure (when meaning the same), domain exception, typed throw; `kind` on Err when `code` would do
 
 **Unexpected Failure**:

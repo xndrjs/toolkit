@@ -12,18 +12,16 @@ export const EnumeratePublishedPagesViaCmsSnapshotProvider = ContentCatalogCmsSn
     ({ deps: { readSnapshot }, out }) =>
       async function enumeratePublishedPages() {
         const outcome = await readSnapshot();
-        switch (outcome.kind) {
-          case "success":
-            return out.success(
-              outcome.value
+        return out.match(outcome, {
+          success: (entries) =>
+            out.success(
+              entries
                 .filter((entry) => entry.publication_state === "published")
                 .map((entry) => ({
                   pageId: entry.entry_id,
                   lastModifiedAt: entry.last_modified_at,
                 }))
-            );
-          default:
-            return outcome;
-        }
+            ),
+        });
       }
   );

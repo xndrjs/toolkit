@@ -1,5 +1,6 @@
 import { createProvideApi } from "./provider/provider-builder.js";
 import type { ProvideApi } from "./provider/provider-builder.types.js";
+import type { ExpectedError } from "./invocation-outcome.js";
 import { defineRuntimeBrand, readRuntimeBrand } from "./protocol/runtime-brand.js";
 
 declare const formaIntentBrand: unique symbol;
@@ -81,8 +82,30 @@ export type IntentContractDeclarator<
   Name extends string,
   Mode extends IntentModality = "unary",
 > = {
-  contract<Input, Success, Err>(): Intent<BoundaryId, Name, Input, Success, Err, Mode>;
+  contract<Input, Success, Err>(
+    ...validation: ExpectedErrorContractValidationArgs<Err>
+  ): Intent<BoundaryId, Name, Input, Success, Err, Mode>;
 };
+
+type IsAny<T> = 0 extends 1 & T ? true : false;
+
+type IsExpectedErrorContractValid<Err> =
+  IsAny<Err> extends true
+    ? false
+    : [Err] extends [never]
+      ? true
+      : [Err] extends [ExpectedError]
+        ? [Err["code"]] extends [never]
+          ? false
+          : string extends Err["code"]
+            ? false
+            : true
+        : false;
+
+type ExpectedErrorContractValidationArgs<Err> =
+  IsExpectedErrorContractValid<Err> extends true
+    ? []
+    : [error: "Expected Error must be never or an object union with a finite string-literal code"];
 
 /**
  * Declare a unary Intent and its contract (`Input`, `Success`, expected `Error`).

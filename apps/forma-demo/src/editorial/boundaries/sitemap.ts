@@ -28,11 +28,8 @@ export const GenerateSitemapProvider = GenerateSitemapUseCase.provide
   .with(({ deps: { enumerateEntries }, out }) => {
     return async function generateSitemap() {
       const outcome = await enumerateEntries();
-      switch (outcome.kind) {
-        case "success":
-          return out.success({ entries: outcome.value });
-        default:
-          return outcome;
-      }
+      return out.match(outcome, {
+        success: (entries) => out.success({ entries }),
+      });
     };
   });

@@ -43,7 +43,11 @@ describe("aliasIntent — contract compatibility", () => {
     const Postgres = boundary("postgres");
 
     const FindOrder = Orders.intent("find").contract<OrderId, Order, FindError>();
-    const CountRows = Postgres.intent("countRows").contract<number, string, { code: 1 }>();
+    const CountRows = Postgres.intent("countRows").contract<
+      number,
+      string,
+      { readonly code: "different" }
+    >();
 
     // @ts-expect-error — Input/Success/Err are not mutually assignable
     aliasIntent(FindOrder, CountRows);

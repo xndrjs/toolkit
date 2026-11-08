@@ -20,17 +20,16 @@ export const FindOrderByIdViaSqliteProvider = OrdersSqlite.adapt(FindOrderById)
     ({ deps: { select }, out }) =>
       async function findOrderById(id) {
         const outcome = await select({ order_id: id });
-        switch (outcome.kind) {
-          case "success":
-            return out.success({
-              id: outcome.value.order_id,
-              total: outcome.value.amount_cents / 100,
-            });
-          case "expectedError":
-            return out.expectedError({ code: "not_found" });
-          default:
-            return outcome;
-        }
+        return out.match(outcome, {
+          success: (order) =>
+            out.success({
+              id: order.order_id,
+              total: order.amount_cents / 100,
+            }),
+          expectedError: {
+            NO_ROW: () => out.expectedError({ code: "not_found" }),
+          },
+        });
       }
   );
 
@@ -43,24 +42,18 @@ export const FindOrderEventsByOrderIdViaSqliteProvider = OrdersSqlite.adapt(
       async function* watchOrderEvents(id, invocation) {
         try {
           for await (const outcome of select({ order_id: id }, invocation)) {
-            switch (outcome.kind) {
-              case "success":
-                if (!isOrderStatus(outcome.value.status)) {
-                  yield out.unexpectedFailure();
-                  return;
-                }
-                yield out.success({
-                  orderId: outcome.value.order_id,
-                  status: outcome.value.status,
+            yield out.match(outcome, {
+              success: (event) => {
+                if (!isOrderStatus(event.status)) return out.unexpectedFailure();
+                return out.success({
+                  orderId: event.order_id,
+                  status: event.status,
                 });
-                break;
-              case "expectedError":
-                yield out.expectedError({ code: "not_found" });
-                return;
-              default:
-                yield outcome;
-                return;
-            }
+              },
+              expectedError: {
+                NO_ROW: () => out.expectedError({ code: "not_found" }),
+              },
+            });
           }
         } finally {
           console.log(`watchOrderEvents(${id}) closed (sqlite)`);

@@ -14,32 +14,29 @@ export const EnumerateSitemapEntriesViaCatalogAndRoutingProvider = SitemapCatalo
     ({ deps: { enumeratePublishedPages, resolvePaths }, out }) =>
       async function enumerateSitemapEntries() {
         const pagesOutcome = await enumeratePublishedPages();
-        if (pagesOutcome.kind !== "success") return pagesOutcome;
+        return out.match(pagesOutcome, {
+          success: async (pages) => {
+            const pathsOutcome = await resolvePaths({
+              pageIds: pages.map((page) => page.pageId),
+            });
+            return out.match(pathsOutcome, {
+              success: ({ resolved, unresolvedPageIds }) => {
+                if (unresolvedPageIds.length > 0) return out.unexpectedFailure();
 
-        const pathsOutcome = await resolvePaths({
-          pageIds: pagesOutcome.value.map((page) => page.pageId),
+                const pathsByPageId = new Map(resolved.map((path) => [path.pageId, path] as const));
+                const entries = [];
+                for (const page of pages) {
+                  const path = pathsByPageId.get(page.pageId);
+                  if (!path) return out.unexpectedFailure();
+                  entries.push({
+                    location: path.canonicalPath,
+                    lastModifiedAt: page.lastModifiedAt,
+                  });
+                }
+                return out.success(entries);
+              },
+            });
+          },
         });
-        switch (pathsOutcome.kind) {
-          case "success": {
-            if (pathsOutcome.value.unresolvedPageIds.length > 0) {
-              return out.unexpectedFailure();
-            }
-            const pathsByPageId = new Map(
-              pathsOutcome.value.resolved.map((path) => [path.pageId, path] as const)
-            );
-            const entries = [];
-            for (const page of pagesOutcome.value) {
-              const path = pathsByPageId.get(page.pageId);
-              if (!path) return out.unexpectedFailure();
-              entries.push({
-                location: path.canonicalPath,
-                lastModifiedAt: page.lastModifiedAt,
-              });
-            }
-            return out.success(entries);
-          }
-          default:
-            return pathsOutcome;
-        }
       }
   );

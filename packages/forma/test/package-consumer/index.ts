@@ -1,6 +1,8 @@
 import {
   boundary,
   compose,
+  expectedError,
+  success,
   type InvocationOutcome,
   type StreamSurfaceIterable,
 } from "@xndrjs/forma";
@@ -8,6 +10,7 @@ import {
 type Order = { readonly id: string; readonly requestId: string };
 type OrderEvent = { readonly orderId: string; readonly status: "created" };
 type NotFound = { readonly code: "not-found" };
+type StorageError = { readonly code: "NO_ROW" };
 type WatchError = { readonly code: "unavailable" };
 
 const Orders = boundary("orders");
@@ -27,7 +30,17 @@ const FindOrderProvider = FindOrder.provide
       contextProviderDisposed = true;
     });
 
-    return async (input) => out.success({ id: input.id, requestId: params.requestId });
+    return async (input) => {
+      const stored: InvocationOutcome<{ readonly id: string }, StorageError> =
+        input.id === "missing" ? expectedError({ code: "NO_ROW" }) : success({ id: input.id });
+
+      return out.match(stored, {
+        success: (order) => out.success({ id: order.id, requestId: params.requestId }),
+        expectedError: {
+          NO_ROW: () => out.expectedError({ code: "not-found" }),
+        },
+      });
+    };
   });
 
 const WatchOrdersProvider = WatchOrders.provide.with(

@@ -38,6 +38,10 @@ this ADR records the normative decision.
 - Adapters map `success` / `expectedError` and pass `unexpectedFailure` / `cancelled` through unchanged.
   Mapping throws become a new Unexpected Failure (adapter origin). Driver catch belongs on the
   infrastructure Boundary, not the Adapter.
+- Expected Errors are `never` or object unions with a finite string-literal `code`. Contract-scoped
+  `ctx.out.match` requires a handler for every declared source code, narrows each handler payload,
+  and propagates `unexpectedFailure` / `cancelled` unchanged. An undeclared code observed at runtime
+  fails the match and is totalized as a new Unexpected Failure at the translating invocation.
 - Stream source throw/rejection yields a terminal `unexpectedFailure` event; `next()` does not reject for
   that failure. Early break / dispose / consumer `iterator.throw` keep the lifecycle matrix from
   [0012](./0012-streaming-intents.md).
@@ -53,8 +57,9 @@ Extended validation criteria and non-goals live in the analysis document.
 ## Consequences
 
 - Public helpers `ok` / `err` / `Result` are replaced by `success` / `expectedError` / `unexpectedFailure` /
-  `InvocationOutcome` (and peers). Provider `.with` injects Contract-scoped `ctx.out`; a module-level
-  `out` remains for open-generic construction. Alpha breaking change for every operation type and consumer.
+  `InvocationOutcome` (and peers). Provider `.with` injects Contract-scoped `ctx.out`, including
+  matching; a module-level `out` remains for open-generic construction only. Alpha breaking change
+  for every operation type and consumer.
 - Providers no longer need defensive `try/catch` around Forma dependency operations.
 - Composition gains an optional diagnostic hook without a core logger or event bus.
 - Remote Adapters (when present) can preserve failure ids without serializing `unknown`; codec

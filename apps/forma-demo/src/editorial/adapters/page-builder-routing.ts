@@ -11,9 +11,9 @@ export const ResolvePageViaRoutingProvider = PageBuilderRouting.adapt(ResolvePag
     ({ deps: { resolvePaths }, out }) =>
       async function resolvePage(page) {
         const outcome = await resolvePaths({ pageIds: [page.pageId] });
-        switch (outcome.kind) {
-          case "success": {
-            const resolved = outcome.value.resolved.find(({ pageId }) => pageId === page.pageId);
+        return out.match(outcome, {
+          success: ({ resolved: paths, unresolvedPageIds }) => {
+            const resolved = paths.find(({ pageId }) => pageId === page.pageId);
 
             if (resolved) {
               return out.success({
@@ -22,14 +22,12 @@ export const ResolvePageViaRoutingProvider = PageBuilderRouting.adapt(ResolvePag
               });
             }
 
-            if (outcome.value.unresolvedPageIds.includes(page.pageId)) {
+            if (unresolvedPageIds.includes(page.pageId)) {
               return out.expectedError({ code: "page_not_found" });
             }
 
             return out.unexpectedFailure();
-          }
-          default:
-            return outcome;
-        }
+          },
+        });
       }
   );

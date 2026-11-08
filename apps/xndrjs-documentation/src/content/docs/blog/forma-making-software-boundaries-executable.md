@@ -117,17 +117,14 @@ export const GenerateSitemapProvider = GenerateSitemapUseCase.provide
     return async function generateSitemap() {
       const outcome = await enumerateEntries();
 
-      switch (outcome.kind) {
-        case "success":
-          return out.success({ entries: outcome.value });
-        default:
-          return outcome;
-      }
+      return out.match(outcome, {
+        success: (entries) => out.success({ entries }),
+      });
     };
   });
 ```
 
-The `out` value constructs outcomes valid for this Intent's contract. The `default` branch forwards a non-successful dependency outcome without trying to reinterpret it inside Sitemap.
+The `out` value constructs outcomes valid for this Intent's contract. Here the matcher describes how the dependency's successful value becomes the use case's successful value.
 
 A Provider created directly from an Intent may use only Intents owned by the same Boundary. `GenerateSitemapProvider` can therefore depend on `EnumerateSitemapEntries`, which belongs to Sitemap, but it cannot depend directly on an Intent owned by SQLite or another Boundary. Cross-Boundary collaboration instead requires a distinct construct: an Adapter.
 
@@ -182,9 +179,9 @@ export const ResolvePageViaRoutingProvider = PageBuilderRouting.adapt(ResolvePag
       async function resolvePage(page) {
         const outcome = await resolvePaths({ pageIds: [page.pageId] });
 
-        switch (outcome.kind) {
-          case "success": {
-            const resolved = outcome.value.resolved.find(({ pageId }) => pageId === page.pageId);
+        return out.match(outcome, {
+          success: ({ resolved: paths, unresolvedPageIds }) => {
+            const resolved = paths.find(({ pageId }) => pageId === page.pageId);
 
             if (resolved) {
               return out.success({
@@ -193,15 +190,13 @@ export const ResolvePageViaRoutingProvider = PageBuilderRouting.adapt(ResolvePag
               });
             }
 
-            if (outcome.value.unresolvedPageIds.includes(page.pageId)) {
+            if (unresolvedPageIds.includes(page.pageId)) {
               return out.expectedError({ code: "page_not_found" });
             }
 
             return out.unexpectedFailure();
-          }
-          default:
-            return outcome;
-        }
+          },
+        });
       }
   );
 ```
