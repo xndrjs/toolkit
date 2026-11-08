@@ -270,4 +270,4 @@ From the repository root, run `pnpm validate:forma-package`. The command builds 
 
 ## Status
 
-PoC (`0.1.0-alpha.0`): closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, graph-derived effective lifetimes, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, Stream Intent modality, Boundary error totalization (`InvocationOutcome`), disposal. Not a general-purpose IoC container.
+Alpha: closed compositions, `.contract`, Adapter peer of Boundary, rare structural `aliasIntent`, graph-derived effective lifetimes, unified `.with({ deps?, lifetime })`, Design C execution API, async factories, Stream Intent modality, Boundary error totalization (`InvocationOutcome`), disposal. Not a general-purpose IoC container.
