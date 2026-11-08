@@ -1,6 +1,6 @@
 ---
 title: "Forma: making software boundaries executable"
-description: How explicit boundaries, contracts, and composition make a TypeScript codebase easier to navigate and evolve—for humans and coding agents alike.
+description: An experiment in making architectural seams explicit as a system evolves, without rewriting stable contracts or hiding cross-Boundary dependencies.
 date: 2026-11-06
 author: Fabio Fognani
 tags:
@@ -74,7 +74,7 @@ Forma starts here, as a deliberately limited experiment: make this concept of "B
 
 In Forma, a **Boundary** owns a language. An Orders Boundary can speak about order identifiers, orders, and expected failures such as `not_found`. A SQLite Boundary can speak about statements, rows, and database error codes. Similar TypeScript shapes do not make those concepts identical.
 
-A Boundary is “closed” in a limited sense: it owns an identifiable vocabulary, and within Forma's model, a dependency that crosses into another Boundary is represented explicitly in the graph. This does not make the Boundary an import barrier or require it to live in a dedicated package.
+A Boundary is "closed" in a limited sense: it owns an identifiable vocabulary, and within Forma's model, a dependency that crosses into another Boundary is represented explicitly in the graph. This does not make the Boundary an import barrier or require it to live in a dedicated package.
 
 Ownership alone is not enough. A caller also needs a stable way to say what it wants without importing the implementation that currently provides it. Forma calls that stable promise an **Intent**. Its contract fixes the input, successful value, and expected error in the Boundary's own language:
 
@@ -102,9 +102,9 @@ export const GenerateSitemapUseCase = Sitemap.intent("generateSitemapUseCase").c
 >();
 ```
 
-`GenerateSitemapUseCase` is the operation we intend to expose. `EnumerateSitemapEntries` expresses another capability Sitemap needs, in Sitemap's own language. The Intent does not determine whether that capability will be realized inside Sitemap or connected to another Boundary later. It doesn't know whether the entries come from memory, a CMS snapshot, a database, or a remote service. I will return later to why public operations and dependencies share the same representation.
+`GenerateSitemapUseCase` is the operation we intend to expose. `EnumerateSitemapEntries` expresses another capability Sitemap needs, in Sitemap's own language. The Intent does not determine whether that capability will be realized inside Sitemap or connected to another Boundary later. It does not know whether the entries come from memory, a CMS snapshot, a database, or a remote service.
 
-Neither contract currently declares an expected error, so its error type is never. We’ll return to error handling later.
+Neither contract currently declares an expected error, so its error type is `never`. We will return to error handling after establishing the graph itself.
 
 ### From a contract to a realization
 
@@ -127,13 +127,13 @@ export const GenerateSitemapProvider = GenerateSitemapUseCase.provide
   });
 ```
 
-The `out` value constructs outcomes valid for this Intent's contract. The `default` branch forwards a non-successful dependency outcome without trying to reinterpret it inside Sitemap; we will look at that protocol shortly.
+The `out` value constructs outcomes valid for this Intent's contract. The `default` branch forwards a non-successful dependency outcome without trying to reinterpret it inside Sitemap.
 
-A Provider created directly from an Intent may use only Intents owned by the same Boundary. `GenerateSitemapProvider` can therefore depend on `EnumerateSitemapEntries`, which belongs to Sitemap, but it cannot depend directly on an Intent owned by SQLite or another Boundary. Cross-Boundary collaboration requires an explicit Adapter, which we will introduce below.
+A Provider created directly from an Intent may use only Intents owned by the same Boundary. `GenerateSitemapProvider` can therefore depend on `EnumerateSitemapEntries`, which belongs to Sitemap, but it cannot depend directly on an Intent owned by SQLite or another Boundary. Cross-Boundary collaboration instead requires a distinct construct: an Adapter.
 
 Declaring Providers still does not answer which realization a particular application should use. A test may use memory while production uses a CMS; two realizations of the same Intent cannot both be the answer inside one running graph. The application therefore needs one unit that selects a coherent set of Providers, verifies that every required Intent is satisfied, and owns the resulting runtime. Forma calls that unit a **Composition**.
 
-A Composition distinguishes the operations it exposes — its **Surface** — from the Providers and Adapters registered only to satisfy inner dependencies. The concrete sitemap Composition later in the article will show that distinction in code.
+A Composition distinguishes the operations it exposes — its **Surface** — from the Providers and Adapters registered only to satisfy inner dependencies.
 
 The four concepts now have distinct jobs:
 
@@ -289,13 +289,13 @@ _The Adapter realizes Sitemap's local port by combining two external Intents; it
 
 The Providers registered in `wiring` are required to execute the Surface, but they do not become accidental entry points themselves.
 
-A compiled graph would still be a poor mental map if only Forma could see it. `describePlan()` exposes a read-only description of the Composition: its Entry Boundaries and Surface, every registered Provider identified by its Intent and origin, its unary or streaming mode, and its declared and graph-derived lifetime. Reading the plan does not create any Provider instances.
+A compiled graph would still be a poor mental map if only Forma could see it. `describePlan()` exposes a read-only description of the Composition: its Entry Boundaries and Surface, every registered Provider identified by its Intent and origin, whether it is unary or streaming, and the effective lifetime of its resources after dependency lifetimes are taken into account. Reading the plan does not create any Provider instances.
 
-That description can be given directly to an agent as task context. For a task such as “add a field to the page preview”, it shows that `createPagePreview` is a public Page Builder operation and provides an inventory of the Boundaries and Adapters selected for this Composition. It is not yet a dependency trace for that Surface root, so the agent still has to follow the relevant `using` declarations. But the search begins from named architectural elements rather than from arbitrary imports across the repository.
+That description can be given directly to an agent as task context. For a task such as "add a field to the page preview", it shows that `createPagePreview` is a public Page Builder operation and provides an inventory of the Boundaries and Adapters selected for this Composition. It is not a dependency trace for that Surface root, so the agent still has to follow the relevant `using` declarations. But the search begins from named architectural elements rather than from arbitrary imports across the repository.
 
 ## The patterns that emerge
 
-The Sitemap example shows two changes that Forma tries to keep local: replacing a realization and introducing a new Boundary only after the need appears.
+The examples above show three ways Forma tries to keep architectural changes local.
 
 ### A realization can change without changing the Intent
 
@@ -303,19 +303,13 @@ An implementation can change from memory to SQLite, from a CMS SDK to an interna
 
 ### A capability can acquire its own Boundary
 
-The Routing extraction is one example. The same move is possible with ordinary code, but when identity, contract, and realization are embodied by the same function, it can also require introducing a port, changing how dependencies are passed, and updating consumers that called the function directly. With Forma, each consumer can keep an Intent in its own language while an Adapter connects that local need to the new owner.
-
-I think of this as a **dynamic seam**. It is not runtime service lookup, nor an argument for turning every helper into an Intent. It is a Boundary crossing introduced when the system provides evidence that the crossing is useful.
+When a capability gains an independent owner, existing consumers can keep their local Intents and reach it through Adapters. I think of that crossing, introduced only when the system provides evidence for it, as a **dynamic seam**. It is not runtime service lookup or an argument for turning every helper into an Intent.
 
 ### A runtime change can remain an application detail
 
 A Boundary can describe a capability such as cookies, local storage, persistence, or remote data access without forcing its consumer to know whether the current realization runs in a browser, server process, test, or worker. Changing runtime is not automatically free — the contracts must still be honest — but the point of change becomes explicit and replaceable.
 
 For example, a Cookies Boundary can keep the same Intent while a browser Composition selects a realization backed by browser cookies and a server Composition selects one backed by the request and response. Consumers depend on the capability rather than either runtime API.
-
-### Public traversal remains deliberate
-
-The Surface is not a catalogue of everything registered in the graph. It exposes selected Providers owned by declared Entry Boundaries. Infrastructure and Adapters remain reachable through dependencies without becoming public shortcuts.
 
 ## What Forma does and does not do
 
@@ -336,5 +330,11 @@ AI did not create the problem that led me here. It made it easier to reach a sta
 Forma is an experiment in making part of that mental map inspectable. A change can start from a named Boundary and Intent, then follow selected Providers and Adapter crossings instead of inferring the whole path from unrelated imports. That does not remove design work or the need to read code; it gives that work a declared structure.
 
 Choosing those Boundaries remains design work. Forma's narrower job begins after we draw them: keeping their contracts, crossings, and selected realizations explicit in the running application.
+
+Against the three failure modes from the beginning, this is a mitigation, not a guarantee. For **AI shotgun**, Boundaries can keep smaller changes within a recognizable orbit, while Adapters can contain the translation required by an external contract change instead of spreading it across every consumer. When a change crosses Boundaries, its Intents, Adapters, and `wiring` declarations leave structural evidence that the change is not local.
+
+For **AI amnesia**, the map to retain becomes smaller — which Boundaries exist and how they communicate — even though details can still be forgotten inside each Boundary. If those two problems become easier to control, the **AI lock-in** that follows from them may weaken as well. The effect still depends on whether the chosen Boundaries are coherent.
+
+Architecture should not survive only in the memory of the person — or agent — who last changed the code.
 
 The library is currently alpha. Its [technical documentation](/v0/application-architecture/forma/) describes the implemented API, guarantees, lifecycle, error protocol, streaming model, and current limitations.
