@@ -13,16 +13,21 @@ export const ResolvePageViaRoutingProvider = PageBuilderRouting.adapt(ResolvePag
         const outcome = await resolvePaths({ pageIds: [page.pageId] });
         switch (outcome.kind) {
           case "success": {
-            const resolved = outcome.value[0];
-            return resolved
-              ? out.success({
-                  id: resolved.pageId,
-                  canonicalPath: resolved.canonicalPath,
-                })
-              : out.unexpectedFailure();
+            const resolved = outcome.value.resolved.find(({ pageId }) => pageId === page.pageId);
+
+            if (resolved) {
+              return out.success({
+                id: resolved.pageId,
+                canonicalPath: resolved.canonicalPath,
+              });
+            }
+
+            if (outcome.value.unresolvedPageIds.includes(page.pageId)) {
+              return out.expectedError({ code: "page_not_found" });
+            }
+
+            return out.unexpectedFailure();
           }
-          case "expectedError":
-            return out.expectedError({ code: "page_not_found" });
           default:
             return outcome;
         }

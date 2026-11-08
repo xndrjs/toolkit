@@ -15,13 +15,17 @@ export const ResolvePathsViaCmsSnapshotProvider = RoutingCmsSnapshot.adapt(Resol
             const entriesById = new Map(
               outcome.value.map((entry) => [entry.entry_id, entry] as const)
             );
-            const routes: { readonly pageId: string; readonly canonicalPath: string }[] = [];
+            const resolved: { readonly pageId: string; readonly canonicalPath: string }[] = [];
+            const unresolvedPageIds: string[] = [];
             for (const pageId of pageIds) {
               const entry = entriesById.get(pageId);
-              if (!entry) return out.expectedError({ code: "route_not_found", pageId });
-              routes.push({ pageId, canonicalPath: entry.canonical_path });
+              if (entry) {
+                resolved.push({ pageId, canonicalPath: entry.canonical_path });
+              } else {
+                unresolvedPageIds.push(pageId);
+              }
             }
-            return out.success(routes);
+            return out.success({ resolved, unresolvedPageIds });
           }
           default:
             return outcome;

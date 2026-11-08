@@ -5,7 +5,7 @@ consumer-owned ports, then acquire enough independent meaning to deserve their o
 
 ## 1. Initial ownership
 
-Sitemap initially owns a public use case and the private port required to implement it:
+Sitemap initially owns a use case and the consumer-owned Intent required to implement it:
 
 ```text
 Sitemap.GenerateSitemapUseCase
@@ -53,12 +53,17 @@ PageBuilder owns its local seam and vocabulary:
 Routing speaks a different contract:
 
 ```text
-{ pageIds } -> [{ pageId, canonicalPath }] | route_not_found
+{ pageIds } -> {
+  resolved: [{ pageId, canonicalPath }],
+  unresolvedPageIds: [pageId]
+}
 ```
 
-`PageBuilderRouting` therefore maps input, success, and Expected Error. Unexpected Failure and
-Cancellation pass through unchanged. If either side evolves, the translation remains local to the
-Adapter instead of leaking into the use case.
+Routing permits partial success: every requested ID is classified as resolved or unresolved.
+`PageBuilderRouting` asks for one ID, then maps a resolved value to `PageLocation` or an unresolved
+ID to PageBuilder's `page_not_found` Expected Error. Unexpected Failure and Cancellation pass
+through unchanged. If either side evolves, the interpretation remains local to the Adapter instead
+of leaking into the use case.
 
 ## 4. Technology stays behind its own Boundary
 

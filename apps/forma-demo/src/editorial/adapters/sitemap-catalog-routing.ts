@@ -21,8 +21,11 @@ export const EnumerateSitemapEntriesViaCatalogAndRoutingProvider = SitemapCatalo
         });
         switch (pathsOutcome.kind) {
           case "success": {
+            if (pathsOutcome.value.unresolvedPageIds.length > 0) {
+              return out.unexpectedFailure();
+            }
             const pathsByPageId = new Map(
-              pathsOutcome.value.map((path) => [path.pageId, path] as const)
+              pathsOutcome.value.resolved.map((path) => [path.pageId, path] as const)
             );
             const entries = [];
             for (const page of pagesOutcome.value) {
@@ -35,8 +38,6 @@ export const EnumerateSitemapEntriesViaCatalogAndRoutingProvider = SitemapCatalo
             }
             return out.success(entries);
           }
-          case "expectedError":
-            return out.unexpectedFailure();
           default:
             return pathsOutcome;
         }

@@ -6,7 +6,7 @@ Two small, runnable walkthroughs for `@xndrjs/forma`. Each one has a single job:
   params, unary and Stream Intents, lazy materialization, cleanup, and disposal.
 - **Editorial** shows architectural evolution: Sitemap and PageBuilder keep local ports while a
   discovered `Routing` Boundary owns path resolution, with two explicit Entry
-  Boundaries and infrastructure kept behind private Adapters.
+  Boundaries and infrastructure reachable only through Composition wiring.
 
 Neither walkthrough is a test suite. Behavioural guarantees live in `packages/forma/test`.
 
@@ -59,13 +59,13 @@ editorial path resolution, the shared capability acquires its own internal `Rout
 - `SitemapCatalogRouting` realizes that port by obtaining published page metadata from
   `ContentCatalog` and asking `Routing` to resolve those page IDs into canonical paths.
 - `PageBuilderRouting` realizes `PageBuilder.ResolvePage` through a one-element call to
-  `Routing.ResolvePaths`, including PageBuilder's distinct input, result, and expected-error
-  vocabulary.
+  `Routing.ResolvePaths`, interpreting Routing's partial batch result in PageBuilder's distinct
+  input, result, and expected-error vocabulary.
 - ContentCatalog and Routing are realized through a `CmsSnapshot` Boundary that reads a committed
   JSON artifact from the filesystem. It does not pretend to be Contentful or another remote
   vendor.
 - Only `Sitemap` and `PageBuilder` are Entry Boundaries. ContentCatalog, Routing, CmsSnapshot, and
-  all Adapters remain private wiring.
+  all Adapters remain in wiring rather than becoming Surface roots.
 
 See [Boundary evolution](./docs/boundary-evolution.md) for the discovery sequence and resulting
 graph.
