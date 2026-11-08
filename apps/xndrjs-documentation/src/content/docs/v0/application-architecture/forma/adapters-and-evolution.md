@@ -146,7 +146,7 @@ an exactly equivalent Contract, including modality.
 ```ts
 import { aliasIntent } from "@xndrjs/forma";
 
-aliasIntent(LegacyResolvePath, ResolvePath);
+aliasIntent(LegacyResolvePaths, ResolvePaths);
 ```
 
 Use an alias only when the two identities are deliberate synonyms and introducing a Provider would
@@ -186,13 +186,13 @@ evidence yet that path resolution needs an independent architectural identity.
 
 ### 2. Let new pressure reveal the responsibility
 
-PageBuilder later needs to resolve editorial paths too. Copying route rules and CMS translation
+PageBuilder later needs to resolve editorial pages too. Copying route rules and CMS translation
 would allow them to drift. Depending directly on a Sitemap use case would make PageBuilder speak
 the wrong architectural language.
 
 At this point path resolution has acquired independent meaning. A new `Routing` Boundary owns
-`ResolvePaths` and `ResolvePath`. It does not enumerate content: a separate `ContentCatalog`
-Boundary owns `EnumeratePublishedPages`.
+`ResolvePaths`. It does not enumerate content: a separate `ContentCatalog` Boundary owns
+`EnumeratePublishedPages`.
 
 ### 3. Keep both consumers in their own language
 
@@ -202,10 +202,9 @@ flowchart TD
   SitemapEntries -->|SitemapCatalogRouting Adapter| PublishedPages[ContentCatalog.EnumeratePublishedPages]
   SitemapEntries -->|SitemapCatalogRouting Adapter| RoutingPaths[Routing.ResolvePaths]
   Preview[PageBuilder.CreatePagePreviewUseCase] --> PageResolve[PageBuilder.ResolvePage]
-  PageResolve -->|PageBuilderRouting Adapter| RoutingResolve[Routing.ResolvePath]
+  PageResolve -->|PageBuilderRouting Adapter| RoutingPaths
   PublishedPages -->|ContentCatalogCmsSnapshot Adapter| Snapshot[CmsSnapshot.ReadSnapshot]
   RoutingPaths -->|RoutingCmsSnapshot Adapter| Snapshot
-  RoutingResolve -->|RoutingCmsSnapshot Adapter| Snapshot
 ```
 
 The connections preserve four distinct vocabularies:

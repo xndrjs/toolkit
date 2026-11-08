@@ -1,10 +1,7 @@
 import { compose } from "@xndrjs/forma";
 import { EnumeratePublishedPagesViaCmsSnapshotProvider } from "./adapters/content-catalog-cms-snapshot";
 import { ResolvePageViaRoutingProvider } from "./adapters/page-builder-routing";
-import {
-  ResolvePathViaCmsSnapshotProvider,
-  ResolvePathsViaCmsSnapshotProvider,
-} from "./adapters/routing-cms-snapshot";
+import { ResolvePathsViaCmsSnapshotProvider } from "./adapters/routing-cms-snapshot";
 import { EnumerateSitemapEntriesViaCatalogAndRoutingProvider } from "./adapters/sitemap-catalog-routing";
 import { ReadSnapshotProvider } from "./boundaries/cms-snapshot";
 import { CreatePagePreviewProvider, PageBuilder } from "./boundaries/page-builder";
@@ -22,7 +19,6 @@ export function composeEditorial() {
       ResolvePageViaRoutingProvider,
       EnumeratePublishedPagesViaCmsSnapshotProvider,
       ResolvePathsViaCmsSnapshotProvider,
-      ResolvePathViaCmsSnapshotProvider,
       ReadSnapshotProvider,
     ],
   });

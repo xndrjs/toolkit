@@ -47,7 +47,7 @@ Sitemap.GenerateSitemapUseCase
                                                └─> Routing.ResolvePaths
 
 PageBuilder.CreatePagePreviewUseCase
-└─ PageBuilder.ResolvePage ───────────── Adapter ──> Routing.ResolvePath
+└─ PageBuilder.ResolvePage ───────────── Adapter ──> Routing.ResolvePaths
 
 ContentCatalog and Routing ───────────── Adapters ──> CmsSnapshot.ReadSnapshot
 ```
@@ -58,8 +58,9 @@ editorial path resolution, the shared capability acquires its own internal `Rout
 - `GenerateSitemapUseCase` depends only on the Sitemap-owned `EnumerateSitemapEntries` port.
 - `SitemapCatalogRouting` realizes that port by obtaining published page metadata from
   `ContentCatalog` and asking `Routing` to resolve those page IDs into canonical paths.
-- `PageBuilderRouting` realizes `PageBuilder.ResolvePage` through `Routing.ResolvePath`, including
-  PageBuilder's distinct input, result, and expected-error vocabulary.
+- `PageBuilderRouting` realizes `PageBuilder.ResolvePage` through a one-element call to
+  `Routing.ResolvePaths`, including PageBuilder's distinct input, result, and expected-error
+  vocabulary.
 - ContentCatalog and Routing are realized through a `CmsSnapshot` Boundary that reads a committed
   JSON artifact from the filesystem. It does not pretend to be Contentful or another remote
   vendor.

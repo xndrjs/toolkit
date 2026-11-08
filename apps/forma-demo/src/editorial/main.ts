@@ -7,14 +7,16 @@ async function main(): Promise<void> {
 
   section("two entry boundaries, private catalog and routing boundaries");
   await root.withExecutionContext(async (surface) => {
-    const path = "/news/hello-forma";
     console.dir({ generateSitemap: await surface.generateSitemap() }, { depth: null });
-    console.log("createPagePreview →", await surface.createPagePreview({ pathname: path }));
+    console.log(
+      "createPagePreview →",
+      await surface.createPagePreview({ pageId: "page-hello-forma" })
+    );
   });
 
   section("page builder keeps its own expected-error vocabulary");
   await root.withExecutionContext(async (surface) => {
-    console.log("createPagePreview →", await surface.createPagePreview({ pathname: "/missing" }));
+    console.log("createPagePreview →", await surface.createPagePreview({ pageId: "missing" }));
   });
 
   section("dispose");

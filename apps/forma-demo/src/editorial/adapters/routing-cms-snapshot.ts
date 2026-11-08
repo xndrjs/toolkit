@@ -1,6 +1,6 @@
 import { adapter } from "@xndrjs/forma";
 import { ReadSnapshot } from "../boundaries/cms-snapshot";
-import { ResolvePath, ResolvePaths, Routing } from "../boundaries/routing";
+import { ResolvePaths, Routing } from "../boundaries/routing";
 
 const RoutingCmsSnapshot = adapter("routing-cms-snapshot", Routing);
 
@@ -22,28 +22,6 @@ export const ResolvePathsViaCmsSnapshotProvider = RoutingCmsSnapshot.adapt(Resol
               routes.push({ pageId, canonicalPath: entry.canonical_path });
             }
             return out.success(routes);
-          }
-          default:
-            return outcome;
-        }
-      }
-  );
-
-export const ResolvePathViaCmsSnapshotProvider = RoutingCmsSnapshot.adapt(ResolvePath)
-  .using({ readSnapshot: ReadSnapshot })
-  .with(
-    ({ deps: { readSnapshot }, out }) =>
-      async function resolvePath(path) {
-        const outcome = await readSnapshot();
-        switch (outcome.kind) {
-          case "success": {
-            const entry = outcome.value.find((candidate) => candidate.canonical_path === path.path);
-            return entry
-              ? out.success({
-                  pageId: entry.entry_id,
-                  canonicalPath: entry.canonical_path,
-                })
-              : out.expectedError({ code: "route_not_found" });
           }
           default:
             return outcome;

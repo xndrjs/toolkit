@@ -1,22 +1,26 @@
 import { adapter } from "@xndrjs/forma";
 import { PageBuilder, ResolvePage } from "../boundaries/page-builder";
-import { ResolvePath } from "../boundaries/routing";
+import { ResolvePaths } from "../boundaries/routing";
 
 const PageBuilderRouting = adapter("page-builder-routing", PageBuilder);
 
 /** Translation stays explicit because PageBuilder owns a different contract. */
 export const ResolvePageViaRoutingProvider = PageBuilderRouting.adapt(ResolvePage)
-  .using({ resolvePath: ResolvePath })
+  .using({ resolvePaths: ResolvePaths })
   .with(
-    ({ deps: { resolvePath }, out }) =>
-      async function resolvePage(path) {
-        const outcome = await resolvePath({ path: path.pathname });
+    ({ deps: { resolvePaths }, out }) =>
+      async function resolvePage(page) {
+        const outcome = await resolvePaths({ pageIds: [page.pageId] });
         switch (outcome.kind) {
-          case "success":
-            return out.success({
-              id: outcome.value.pageId,
-              canonicalPath: outcome.value.canonicalPath,
-            });
+          case "success": {
+            const resolved = outcome.value[0];
+            return resolved
+              ? out.success({
+                  id: resolved.pageId,
+                  canonicalPath: resolved.canonicalPath,
+                })
+              : out.unexpectedFailure();
+          }
           case "expectedError":
             return out.expectedError({ code: "page_not_found" });
           default:

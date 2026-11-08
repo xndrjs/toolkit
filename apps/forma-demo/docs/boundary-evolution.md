@@ -17,13 +17,13 @@ evidence yet that path resolution deserves an independent architectural identity
 
 ## 2. New pressure
 
-PageBuilder later needs to resolve an editorial path. Copying route rules and CMS translation would
+PageBuilder later needs to resolve an editorial page. Copying route rules and CMS translation would
 let them drift independently. Depending directly on a Sitemap use case would also give PageBuilder
 the wrong architectural vocabulary.
 
 The new pressure reveals a shared path-resolution capability. Routing becomes its owner and
-exposes `ResolvePaths` for resolving page IDs in batches and `ResolvePath` for matching one
-incoming path.
+exposes `ResolvePaths` for resolving page IDs in batches. A caller that needs one page uses the same
+operation with a one-element batch.
 
 Routing does not decide which pages exist or should be published. `ContentCatalog` owns that
 language and exposes `EnumeratePublishedPages`. This keeps enumeration out of Routing and gives
@@ -36,7 +36,7 @@ The runnable demo keeps each consumer's seam in its own Boundary:
 ```text
 Sitemap.EnumerateSitemapEntries ── Adapter ─┬─> ContentCatalog.EnumeratePublishedPages
                                             └─> Routing.ResolvePaths
-PageBuilder.ResolvePage ── Adapter ──> Routing.ResolvePath
+PageBuilder.ResolvePage ── Adapter ──> Routing.ResolvePaths
 ```
 
 `GenerateSitemapProvider` still depends only on `EnumerateSitemapEntries`.
@@ -47,13 +47,12 @@ Sitemap's vocabulary; neither external Boundary needs to know what a sitemap ent
 PageBuilder owns its local seam and vocabulary:
 
 ```text
-{ pathname } -> { id, canonicalPath } | page_not_found
+{ pageId } -> { id, canonicalPath } | page_not_found
 ```
 
 Routing speaks a different contract:
 
 ```text
-{ path } -> { pageId, canonicalPath } | route_not_found
 { pageIds } -> [{ pageId, canonicalPath }] | route_not_found
 ```
 

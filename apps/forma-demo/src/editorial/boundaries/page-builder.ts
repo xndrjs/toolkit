@@ -1,6 +1,6 @@
 import { boundary } from "@xndrjs/forma";
 
-export type PagePath = { readonly pathname: string };
+export type PageReference = { readonly pageId: string };
 export type PageLocation = {
   readonly id: string;
   readonly canonicalPath: string;
@@ -14,15 +14,15 @@ export type PagePreview = {
 
 export const PageBuilder = boundary("page-builder");
 
-/** PageBuilder-owned seam: similar to Routing.ResolvePath, but not a synonym. */
+/** PageBuilder-owned seam: narrower than Routing.ResolvePaths, but not a synonym. */
 export const ResolvePage = PageBuilder.intent("resolvePage").contract<
-  PagePath,
+  PageReference,
   PageLocation,
   PageResolutionError
 >();
 
 export const CreatePagePreviewUseCase = PageBuilder.intent("createPagePreviewUseCase").contract<
-  PagePath,
+  PageReference,
   PagePreview,
   PageResolutionError
 >();
