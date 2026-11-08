@@ -38,6 +38,7 @@
     "forma-async-factories",
     "forma-awaitable-unexpected-reporting",
     "forma-boundary-error-totalization",
+    "forma-contract-out-match",
     "forma-define-wiring",
     "forma-demo-docs",
     "forma-graph-plan-compose",
