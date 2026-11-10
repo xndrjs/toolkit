@@ -108,6 +108,7 @@ export default defineConfig({
     mermaid(),
     starlight({
       title: "xndrjs",
+      favicon: "/favicon-32x32.png",
       expressiveCode: {
         shiki: {
           langs: [zielGrammar],
