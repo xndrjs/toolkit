@@ -74,7 +74,7 @@ Docs and packages are grouped by capability — the same map as the [homepage](/
 - **Modeling** — domain models, invariants, and schema-backed guarantees
 - **Resource Orchestration** — addressable resources, graph resolution, and declarative orchestration
 - **Localization** — type-safe i18n and framework integrations
-- **Integrations** — bridges between external systems and xndrjs
+- **Integrations** — bridges between external systems and your application
 - **Concurrency / Workflows** — task composition and controlled concurrent execution
 
 That split keeps application architecture and modeling separate from orchestration, localization,
